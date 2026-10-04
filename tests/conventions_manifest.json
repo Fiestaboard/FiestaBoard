@@ -12,6 +12,7 @@
     "mqtt",
     "network",
     "oauth",
+    "outputs",
     "pages",
     "panels",
     "plugin-support",

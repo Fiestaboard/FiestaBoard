@@ -46,7 +46,7 @@ import logging
 import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from .hooks import OutputDiagnostics, OutputHooks, ReadBack, UnknownOutputAction
 from .transitions import NATIVE_STRATEGIES, Animation
@@ -121,6 +121,11 @@ class OutputDefinition:
     plugin: bool = False
     #: JSON Schema of each board's ``output_config`` (output plugins only).
     settings_schema: Mapping = field(default_factory=dict)
+    #: The parsed manifest ``output`` block (an ``OutputManifest``: device
+    #: models, character set), for output plugins; None for the built-ins.
+    output_manifest: Any = None
+    #: True for an output plugin usable only behind the output-plugins beta.
+    beta_gated: bool = False
 
 
 class OutputRegistry:

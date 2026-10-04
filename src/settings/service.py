@@ -248,13 +248,17 @@ class BoardSettings:
         The view also carries the board's ``output`` — derived at load by
         the output registry's one precedence rule, never stored: a client
         echoing it back is harmless, because ``set_boards`` keeps only the
-        fields ``BoardInstance`` knows.
+        fields ``BoardInstance`` knows. Likewise the resolved FiestaUI
+        ``device_model`` and ``charset`` ids (src/outputs/board_profile.py),
+        which ``BoardInstance`` stores only for an output plugin's board.
         """
         from src.devices import TILE_SENSITIVE_FIELDS
+        from src.outputs.board_profile import board_profile
         from src.outputs.registry import resolve_output_id
 
         masked = dict(board)
         masked["output"] = resolve_output_id(board)
+        masked["device_model"], masked["charset"] = board_profile(board)
         if "output_config" in board:
             # An output plugin's board settings: its schema says what is secret
             # (src/outputs/output_config.py); an uninstalled output's are withheld.

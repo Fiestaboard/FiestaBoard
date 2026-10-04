@@ -224,6 +224,15 @@ export interface BoardInstance {
    * builds itself, and echoing it back on a PUT is ignored.
    */
   output?: string;
+  /**
+   * The FiestaUI device model the board resolves to (`"vestaboard_flagship"`,
+   * `"divoom_pixoo64"`, ...); `null` when unknown (a FiestaPanel, for now).
+   * Derived on every `GET /settings/board`; stored only for an output
+   * plugin's board (the model it was created as).
+   */
+  device_model?: string | null;
+  /** The character set the board draws with, a FiestaUI id; `null` when unknown. Derived, never stored. */
+  charset?: string | null;
 }
 
 /**
@@ -245,6 +254,10 @@ export interface BoardDetail {
   schedule_enabled: boolean;
   /** The output that drives this board: `"vestaboard"`, `"fiestapanel"`, or an installed output's id. */
   output: string;
+  /** The FiestaUI device model the board is drawn as; `null` when unknown (a FiestaPanel, for now). */
+  device_model?: string | null;
+  /** The character set the board draws with, a FiestaUI id; `null` when unknown. */
+  charset?: string | null;
   characters: number[][] | null;
   text: string | null;
   read_at: string | null;

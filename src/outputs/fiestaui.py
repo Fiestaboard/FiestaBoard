@@ -8,8 +8,9 @@ manifest ``output`` block; this module validates both against FiestaUI's
 JSON Schemas and makes a declared character set whole (plan D17).
 
 Everything here is **vendored** under ``schemas/fiestaui/`` — the two
-schemas, plus FiestaUI's flattened built-in character sets and device
-models — and the schemas resolve each other by ``$id`` through a local
+schemas, plus FiestaUI's flattened built-in character sets, device models
+and LED fonts (glyph boxes, which size a pixel model's grid:
+:mod:`src.outputs.geometry`) — and the schemas resolve each other by ``$id`` through a local
 ``referencing`` registry, never over the network. Where the files came from,
 and their sha256, is ``schemas/fiestaui/provenance.json``;
 ``tests/test_output_plugin_manifest.py`` holds the files to those hashes.
@@ -33,6 +34,7 @@ DEVICE_MODEL_SCHEMA_FILE = "device-model.schema.json"
 CHARACTER_SET_SCHEMA_FILE = "character-set.schema.json"
 BUILTIN_CHARACTER_SETS_FILE = "character-sets.json"
 BUILTIN_DEVICE_MODELS_FILE = "device-models.json"
+BUILTIN_LED_FONTS_FILE = "led-fonts.json"
 
 
 def _read(filename: str) -> Any:
@@ -60,6 +62,12 @@ def builtin_character_sets() -> Mapping[str, Mapping[str, Any]]:
 def builtin_device_models() -> Mapping[str, Mapping[str, Any]]:
     """FiestaUI's built-in device models, by id."""
     return _read(BUILTIN_DEVICE_MODELS_FILE)
+
+
+@cache
+def builtin_led_fonts() -> Mapping[str, Mapping[str, Any]]:
+    """FiestaUI's LED fonts (glyph box, spacing, glyphs), by id."""
+    return _read(BUILTIN_LED_FONTS_FILE)
 
 
 class CharacterSetError(ValueError):

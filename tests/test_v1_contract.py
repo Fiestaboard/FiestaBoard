@@ -220,6 +220,8 @@ def test_list_boards_projects_the_fields_a_consumer_needs(client, boards):
         "paused": False,
         "schedule_enabled": False,
         "output": "vestaboard",
+        "device_model": "vestaboard_flagship",
+        "charset": "vestaboard_v1",
     }
     assert body["boards"][1]["id"] == secondary_id
     assert body["boards"][1]["is_primary"] is False
@@ -241,6 +243,8 @@ def test_list_boards_never_serves_board_credentials(client, boards):
             "paused",
             "schedule_enabled",
             "output",
+            "device_model",
+            "charset",
         }
 
 
@@ -303,6 +307,8 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
         "paused",
         "schedule_enabled",
         "output",
+        "device_model",
+        "charset",
         "characters",
         "text",
         "expected_characters",

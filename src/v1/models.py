@@ -50,6 +50,20 @@ class BoardSummary(BaseModel):
             "(a FiestaPanel TV). More outputs may appear as they are installed."
         )
     )
+    device_model: str | None = Field(
+        default=None,
+        description=(
+            'The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). '
+            "Null when it is not known (a FiestaPanel, for now)."
+        ),
+    )
+    charset: str | None = Field(
+        default=None,
+        description=(
+            'The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). '
+            "Null when it is not known."
+        ),
+    )
 
 
 class BoardListResponse(BaseModel):

@@ -42,7 +42,7 @@ in `tests/layering_manifest.json`, and only those**:
 | A router may not hold domain logic | `router_no_domain_logic` | A **size proxy**: every module-level function in a transport module stays within 15 body statements and cyclomatic complexity 8 |
 
 Enforced today: **`auth`, `backup`, `config_api`, `mqtt`, `network`, `oauth`,
-`schedules`, `system`, `transitions`, `triggers`**. Everything else —
+`outputs`, `schedules`, `system`, `transitions`, `triggers`**. Everything else —
 including `pages`, `collections`, `panels`, `settings`, `board_api` — is
 **unenforced**, and most of it does not currently comply: the 2026-09 audit
 counted ~1,600 lines of domain logic living in thirteen routers. A domain
@@ -285,6 +285,24 @@ Names you will meet:
   and refuses writes for 300 s without calling the plugin, then lets one
   probe through. `OutputPluginDriver.last_write_error` says why, and the
   engine's and the manual-write executors' failure messages carry it.
+- **Boards for output plugins** (plan D5, Phase 2.5) —
+  `POST /outputs/{output_id}/boards` (`src/outputs/routes.py` →
+  `src/outputs/service.py`) creates a board for an installed output plugin as
+  one of the device models its manifest declares; Vestaboards keep
+  `POST /settings/board/add` and FiestaPanels `POST /panels`. The content
+  grid comes from the model (`src/outputs/geometry.py`): `cells` as
+  declared, `pixels` from the glyph box of FiestaUI's vendored
+  `led-fonts.json` (`(W+spacing)//(glyph+spacing)` per axis; Pixoo 64 at 3x5
+  = 10x16), `panel`/`note_array` from the request. A grid below the 3x15
+  Note floor (or above the panel ceiling) is **refused** there, before the
+  board's geometry is resolved — `clamp_grid` would otherwise inflate a
+  32x8 matrix's 1x8 to 3x15. The board is stored with an explicit `output`,
+  `output_config` and `device_model`, as a custom `panel` grid;
+  `BoardInstance` no longer coerces a plugin board's `panel` to `flagship`
+  (a legacy Vestaboard claiming `panel` still falls back, unchanged). Board
+  responses (`GET /settings/board`, `/v1/boards`) carry the resolved FiestaUI
+  `device_model` and `charset` ids (`src/outputs/board_profile.py`; `null`
+  for a FiestaPanel until its per-render-style models are vendored).
 - **Pull delivery** (plan D4) — a pulled board's frame is its runtime's
   last-frame store. `GET /panel/{id}/frame` serves
   `OutputRuntime.displayed_frame(rows, cols)` with core's **stale-shape

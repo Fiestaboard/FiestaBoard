@@ -28,6 +28,7 @@ from src.board_chars import characters_to_message
 from src.board_state import read_board_state
 from src.devices import geometry_of
 from src.ops import executors
+from src.outputs.board_profile import board_profile
 from src.outputs.registry import resolve_output_id
 from src.text_to_board import text_to_board_array, wrap_message_text
 
@@ -68,6 +69,7 @@ def _summary(board: dict[str, Any], primary_id: str | None) -> BoardSummary:
     settings_service = _settings_service()
     board_id = board.get("id") or ""
     dims = board_dimensions(board)
+    profile = board_profile(board)
     return BoardSummary(
         id=board_id,
         name=board.get("name") or board_id,
@@ -78,6 +80,8 @@ def _summary(board: dict[str, Any], primary_id: str | None) -> BoardSummary:
         paused=settings_service.is_paused(board_id=board_id) is True,
         schedule_enabled=bool(settings_service.is_schedule_enabled(board_id=board_id)),
         output=resolve_output_id(board),
+        device_model=profile.device_model,
+        charset=profile.charset,
     )
 
 

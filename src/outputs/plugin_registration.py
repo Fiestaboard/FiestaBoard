@@ -131,6 +131,8 @@ def register_output_plugin(plugin_class: type[OutputPluginBase], manifest: Plugi
             hooks=OutputHooks(discover=plugin_class.discover),
             plugin=True,
             settings_schema=manifest.output.settings_schema,
+            output_manifest=manifest.output,
+            beta_gated=gated,
         )
     )
     logger.info("Registered output plugin %s (%s)", manifest.id, "beta-gated" if gated else "bundled")
