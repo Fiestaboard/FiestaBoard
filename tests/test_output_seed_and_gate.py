@@ -212,6 +212,12 @@ class TestLockfile:
         # it must never be loaded or auto-installed as a plugin.
         assert pixoo.loadable is False
 
+    @pytest.mark.parametrize("output_id", ["vestaboard", "fiestapanel"])
+    def test_the_repos_lock_pins_the_first_party_outputs_as_loadable(self, output_id):
+        entry = load_lock(ROOT / LOCKFILE)[output_id]
+        assert entry.repository == f"https://github.com/Fiestaboard/fiestaboard-output--{output_id}"
+        assert (entry.output_api, entry.loadable) == (1, True)
+
     def test_the_image_builds_the_seed_with_the_script_into_the_default_dir(self):
         dockerfile = (ROOT / "Dockerfile").read_text("utf-8")
         assert "COPY outputs.lock.json" in dockerfile
@@ -318,7 +324,7 @@ class TestSeedBuild:
         from scripts.seed_outputs import main
 
         assert main(["check", "--lock", str(ROOT / LOCKFILE)]) == 0
-        assert "1 pinned output(s) OK" in capsys.readouterr().out
+        assert "3 pinned output(s) OK" in capsys.readouterr().out
 
 
 # --- auto-install from the seed ---------------------------------------------------------------------

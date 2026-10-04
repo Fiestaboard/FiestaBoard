@@ -23,7 +23,8 @@ import threading
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
-from first_party_outputs.vestaboard import VestaboardOutput
+from plugins.vestaboard import VestaboardOutput
+
 from src.main import DisplayService
 from tests.engine_harness import (
     GoldenRecordingClient,

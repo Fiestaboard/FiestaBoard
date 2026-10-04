@@ -1,19 +1,40 @@
-"""The first-party outputs — Vestaboard and FiestaPanel — loaded as output plugins.
+"""The first-party outputs — Vestaboard and FiestaPanel — loaded from the output seed.
 
-Phase 4 of the output-plugins program turns the two devices FiestaBoard was
-built for into output plugins like any other. Their packages are staged
-in-repo under ``first_party_outputs/<id>/`` (laid out as their own
-repositories will be) and import FiestaBoard only through the author API.
-This module loads each one through the output-plugin path — its manifest
-validated by :func:`src.plugins.manifest.load_manifest` (``$ref`` device
-models included), its ``OutputPluginBase`` subclass imported — and puts it
-in the output registry under its id, ``vestaboard`` / ``fiestapanel``.
+Phase 4 of the output-plugins program turned the two devices FiestaBoard was
+built for into output plugins like any other, each in its own repository
+(``Fiestaboard/fiestaboard-output--vestaboard`` / ``--fiestapanel``). The
+image carries them in the **output seed** (:mod:`src.outputs.seed`) at the
+commits ``outputs.lock.json`` pins, and this module loads each one from
+there through the output-plugin path — its manifest validated by
+:func:`src.plugins.manifest.load_manifest` (``$ref`` device models
+included), its ``OutputPluginBase`` subclass imported as ``plugins.<id>``
+(the name the plugin loader gives any output plugin, and the one the
+package's own tests import it by) — and puts it in the output registry under
+its id, ``vestaboard`` / ``fiestapanel``. Offline by construction: the seed
+was fetched at image build.
+
+**Trust.** Only an id in :data:`FIRST_PARTY_OUTPUTS` **and** pinned as
+loadable in the seed's lock loads here, and only a seed copy whose tree
+digest matches the lock's ``tree_sha256`` (checked at every load, so a
+corrupted or hand-edited copy is refused, never run). An id the lock does not
+list is not first-party: nothing is loaded for it and its boards stay down
+with the reason logged. Updates arrive as a bumped pin in core's lockfile:
+the image build verifies the commit, digest and ``output_api`` (the seed
+build), and this load verifies digest and ``output_api`` again; rolling back
+is rolling back the image. There is no in-app update path for them, and an
+installed plugin can never stand in for one (:func:`is_first_party_output`;
+the plugin loader refuses such a copy before importing it, and the seed
+never installs them as plugins).
+
+**Contributors** point an output at a local checkout of its repository with
+``FIESTABOARD_DEV_OUTPUT_<ID>`` (``FIESTABOARD_DEV_OUTPUT_VESTABOARD=/path``):
+that copy loads instead of the seed's, without the digest check, with a
+warning in the log (``docs/internal/development/FIRST_PARTY_OUTPUTS.md``).
 
 They differ from a third-party output plugin in four ways, each on purpose:
 
 - **Never beta-gated**, and **never replaced**: the registry entry is
-  ``plugin=False``, so an installed plugin cannot take the id (until the
-  seed takes over their delivery, P4b).
+  ``plugin=False``, so an installed plugin cannot take the id.
 - **Their boards predate** ``output_config``: each instance is built from
   the board by the plugin's own ``config_from_board`` (today's flat fields;
   ``None`` → no usable connection, no driver). Settings v4 (P4c) moves the
@@ -32,16 +53,20 @@ They differ from a third-party output plugin in four ways, each on purpose:
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import logging
+import os
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from types import ModuleType
+from typing import TYPE_CHECKING, Literal
 
 from .hooks import ActionCall, ActionOutcome, OutputDiagnostics, OutputHooks
 from .plugin_base import OutputPluginBase
-from .registry import FIESTAPANEL, VESTABOARD, OutputDefinition, OutputRegistry
+from .registry import FIESTAPANEL, FIRST_PARTY_OUTPUTS, VESTABOARD, OutputDefinition, OutputRegistry
+from .seed import LOCKFILE, LockError, seed_root, seeded_entries, tree_digest
 
 if TYPE_CHECKING:
     from src.plugins.manifest import PluginManifest
@@ -50,12 +75,25 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-#: The importable package the staged first-party outputs live in.
-FIRST_PARTY_PACKAGE = "first_party_outputs"
-#: Its directory, at the repo root.
-FIRST_PARTY_DIR = Path(__file__).resolve().parents[2] / FIRST_PARTY_PACKAGE
-#: The first-party outputs, in the order they are registered.
-FIRST_PARTY_OUTPUTS: tuple[str, ...] = (VESTABOARD, FIESTAPANEL)
+__all__ = [
+    "DEV_OUTPUT_ENV_PREFIX",
+    "FIRST_PARTY_OUTPUTS",
+    "FirstPartyOutput",
+    "FirstPartyOutputError",
+    "FirstPartySource",
+    "first_party_definition",
+    "first_party_module",
+    "first_party_source",
+    "import_first_party_package",
+    "is_first_party_output",
+    "load_first_party",
+    "register_first_party_outputs",
+]
+
+#: The package namespace a first-party output is imported under.
+MODULE_PREFIX = "plugins"
+#: ``FIESTABOARD_DEV_OUTPUT_<ID>``: load that output from a local checkout.
+DEV_OUTPUT_ENV_PREFIX = "FIESTABOARD_DEV_OUTPUT_"
 
 #: Device models the "add a board" cards offer for an output, where that
 #: still differs from its manifest (until settings v4 / P4d).
@@ -63,47 +101,166 @@ _LEGACY_OFFERED_MODELS: dict[str, tuple[str, ...]] = {FIESTAPANEL: ("vestaboard_
 
 
 class FirstPartyOutputError(RuntimeError):
-    """A staged first-party output package could not be loaded."""
+    """A first-party output could not be loaded (not seeded, refused, invalid)."""
+
+
+def is_first_party_output(output_id: object) -> bool:
+    """Whether *output_id* is one of the outputs core itself loads from the seed."""
+    return output_id in FIRST_PARTY_OUTPUTS
+
+
+@dataclass(frozen=True)
+class FirstPartySource:
+    """Where a first-party output's package is loaded from."""
+
+    output_id: str
+    path: Path
+    #: ``seed`` (digest-verified against the lock) or ``dev`` (an override).
+    origin: Literal["seed", "dev"]
+    #: The pinned commit (``None`` for a dev override).
+    commit: str | None
+    #: The ``output_api`` the lock pins (``None`` for a dev override).
+    output_api: int | None = None
 
 
 @dataclass(frozen=True)
 class FirstPartyOutput:
-    """A loaded first-party output: its plugin class and parsed manifest."""
+    """A loaded first-party output: its plugin class, parsed manifest and source."""
 
     plugin_class: type[OutputPluginBase]
     manifest: PluginManifest
+    source: FirstPartySource
 
 
-def _import_package(output_id: str) -> Any:
-    name = f"{FIRST_PARTY_PACKAGE}.{output_id}"
-    try:
-        return importlib.import_module(name)
-    except ModuleNotFoundError as exc:
-        if exc.name not in (FIRST_PARTY_PACKAGE, name):
-            raise
-    # Run from somewhere the repo root is not on the path (a script): add it.
-    root = str(FIRST_PARTY_DIR.parent)
-    if root not in sys.path:
-        sys.path.append(root)
-    return importlib.import_module(name)
+def dev_override_env(output_id: str) -> str:
+    """The environment variable that points *output_id* at a local checkout."""
+    return f"{DEV_OUTPUT_ENV_PREFIX}{output_id.upper()}"
 
 
-def load_first_party(output_id: str) -> FirstPartyOutput:
-    """Load the staged package of first-party output *output_id*.
+def first_party_source(output_id: str, seed_dir: Path | None = None) -> FirstPartySource:
+    """Find first-party output *output_id*: a dev override, else the seed.
 
     Raises:
-        FirstPartyOutputError: its manifest does not validate, is not an
-            output plugin of that id, or the package exports no single
+        FirstPartyOutputError: *output_id* is not first-party; the override
+            names no package; the seed's lock does not pin it as loadable;
+            or the seed's copy does not match the lock's ``tree_sha256``.
+    """
+    if not is_first_party_output(output_id):
+        raise FirstPartyOutputError(f"'{output_id}' is not a first-party output")
+    override = os.environ.get(dev_override_env(output_id), "").strip()
+    if override:
+        path = Path(override).expanduser().resolve()
+        if not (path / "manifest.json").is_file():
+            raise FirstPartyOutputError(f"{output_id}: {dev_override_env(output_id)}={override} holds no manifest.json")
+        logger.warning(
+            "First-party output %s is loaded from a local checkout (%s=%s), not the seed",
+            output_id,
+            dev_override_env(output_id),
+            path,
+        )
+        return FirstPartySource(output_id, path, "dev", None)
+
+    root = Path(seed_dir) if seed_dir is not None else seed_root()
+    entry = seeded_entries(root).get(output_id)
+    if entry is None:
+        raise FirstPartyOutputError(f"{output_id}: not pinned in the output seed's lock ({root / LOCKFILE})")
+    if not entry.loadable:
+        raise FirstPartyOutputError(f"{output_id}: the seed pins it as data only (loadable: false)")
+    path = root / output_id
+    try:
+        digest = tree_digest(path)
+    except LockError as exc:
+        raise FirstPartyOutputError(f"{output_id}: the seed's copy is unusable: {exc}") from exc
+    if digest != entry.tree_sha256:
+        raise FirstPartyOutputError(
+            f"{output_id}: the seed's copy has tree digest {digest}, the lock pins {entry.tree_sha256}; "
+            "refusing to load it"
+        )
+    return FirstPartySource(output_id, path, "seed", entry.commit, entry.output_api)
+
+
+def _evict(name: str) -> None:
+    for module_name in [m for m in sys.modules if m == name or m.startswith(f"{name}.")]:
+        del sys.modules[module_name]
+    parent = sys.modules.get(MODULE_PREFIX)
+    child = name.rpartition(".")[2]
+    if parent is not None and child in vars(parent):
+        delattr(parent, child)
+
+
+def _bind_to_parent(name: str, module: ModuleType) -> None:
+    """Make ``plugins.<id>`` an attribute of ``plugins`` too, as an ordinary
+    import would, so dotted lookups (``mock.patch("plugins.vestaboard...")``)
+    resolve. The parent is core's own ``plugins`` package."""
+    try:
+        parent = sys.modules.get(MODULE_PREFIX) or importlib.import_module(MODULE_PREFIX)
+    except ImportError:
+        return
+    setattr(parent, name.rpartition(".")[2], module)
+
+
+def import_first_party_package(source: FirstPartySource) -> ModuleType:
+    """Import *source*'s package as ``plugins.<id>`` (once; reused while it
+    is the same copy). A copy from elsewhere replaces it, submodules too."""
+    name = f"{MODULE_PREFIX}.{source.output_id}"
+    init = source.path / "__init__.py"
+    existing = sys.modules.get(name)
+    if (
+        existing is not None
+        and getattr(existing, "__file__", None) == str(init)
+        and getattr(existing, "__fiestaboard_loaded__", False)
+    ):
+        return existing
+    _evict(name)
+    spec = importlib.util.spec_from_file_location(name, init, submodule_search_locations=[str(source.path)])
+    if spec is None or spec.loader is None:
+        raise FirstPartyOutputError(f"{source.output_id}: {init} is not an importable package")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        _evict(name)
+        raise
+    module.__fiestaboard_loaded__ = True
+    _bind_to_parent(name, module)
+    return module
+
+
+def first_party_module(output_id: str) -> ModuleType:
+    """The imported ``plugins.<id>`` package of first-party output
+    *output_id*, importing it from the seed (or its dev override) when it is
+    not yet. For code that needs its modules by name: tests, scripts.
+
+    Raises:
+        FirstPartyOutputError: see :func:`first_party_source`.
+    """
+    return import_first_party_package(first_party_source(output_id))
+
+
+def load_first_party(output_id: str, seed_dir: Path | None = None) -> FirstPartyOutput:
+    """Load first-party output *output_id* from the seed (or its dev override).
+
+    Raises:
+        FirstPartyOutputError: it cannot be found or is refused
+            (:func:`first_party_source`), its manifest does not validate, is
+            not an output plugin of that id, declares another ``output_api``
+            than the lock pins, or the package exports no single
             ``OutputPluginBase`` subclass.
     """
     from src.plugins.manifest import load_manifest
 
-    manifest, errors = load_manifest(FIRST_PARTY_DIR / output_id / "manifest.json")
+    source = first_party_source(output_id, seed_dir)
+    manifest, errors = load_manifest(source.path / "manifest.json")
     if errors or manifest is None:
         raise FirstPartyOutputError(f"{output_id}: manifest.json is invalid: {'; '.join(errors)}")
     if manifest.id != output_id or manifest.plugin_type != "output" or manifest.output is None:
         raise FirstPartyOutputError(f"{output_id}: manifest.json is not the '{output_id}' output plugin")
-    module = _import_package(output_id)
+    if source.output_api is not None and manifest.output.output_api != source.output_api:
+        raise FirstPartyOutputError(
+            f"{output_id}: manifest output_api is {manifest.output.output_api}, the lock pins {source.output_api}"
+        )
+    module = import_first_party_package(source)
     classes = [
         value
         for value in vars(module).values()
@@ -114,7 +271,9 @@ def load_first_party(output_id: str) -> FirstPartyOutput:
     plugin_class = classes[0]
     if not plugin_class.plugin_id:
         plugin_class.plugin_id = manifest.id
-    return FirstPartyOutput(plugin_class, manifest)
+    if source.origin == "seed":
+        logger.info("Loaded first-party output %s from the seed (commit %s)", output_id, source.commit)
+    return FirstPartyOutput(plugin_class, manifest, source)
 
 
 def _board_grid(board: dict) -> tuple[int, int] | None:
@@ -206,5 +365,7 @@ def register_first_party_outputs(registry: OutputRegistry) -> None:
     for output_id in FIRST_PARTY_OUTPUTS:
         try:
             registry.register(first_party_definition(output_id))
+        except FirstPartyOutputError as exc:
+            logger.error("First-party output %s could not be loaded; its boards cannot be driven: %s", output_id, exc)
         except Exception:
             logger.exception("First-party output %s could not be loaded; its boards cannot be driven", output_id)

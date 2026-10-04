@@ -35,6 +35,10 @@ what the seed holds is exactly what that copy says.
 
 **Runtime** reads the seed only:
 
+- :mod:`src.outputs.first_party` loads the first-party outputs core drives
+  itself (Vestaboard, FiestaPanel) straight from their seed copies, digest
+  checked; they are never installed as plugins, so :func:`seeded_output`
+  does not offer them;
 - :func:`install_seeded_outputs_for_boards` — at boot, a board whose
   ``output`` names a seeded plugin that is not installed gets it copied from
   the seed into the external plugins directory (offline);
@@ -59,6 +63,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from .registry import FIRST_PARTY_OUTPUTS
 
 logger = logging.getLogger(__name__)
 
@@ -324,7 +330,14 @@ def seeded_entries(root: Path | None = None) -> dict[str, LockEntry]:
 
 
 def seeded_output(plugin_id: str, root: Path | None = None) -> SeedCopy | None:
-    """The seed's loadable copy of *plugin_id*, or ``None``."""
+    """The seed's loadable copy of output plugin *plugin_id*, or ``None``.
+
+    ``None`` for the first-party outputs core loads from the seed itself
+    (:data:`~src.outputs.registry.FIRST_PARTY_OUTPUTS`): they are never
+    installed, falling back to or offered as a plugin.
+    """
+    if plugin_id in FIRST_PARTY_OUTPUTS:
+        return None
     root = root if root is not None else seed_root()
     entry = seeded_entries(root).get(plugin_id)
     if entry is None or not entry.loadable:
@@ -377,8 +390,8 @@ def install_seeded_outputs_for_boards(
     explicitly that is in the seed and not installed anywhere in
     *plugin_dirs*. Offline by construction. Returns the ids installed.
 
-    Boards that name no ``output`` (legacy Vestaboard and FiestaPanel
-    boards) keep their first-party outputs, staged in-repo.
+    The first-party outputs (``vestaboard``, ``fiestapanel``) are never
+    installed: core loads them from the seed (:mod:`src.outputs.first_party`).
     """
     root = root if root is not None else seed_root()
     wanted = sorted(

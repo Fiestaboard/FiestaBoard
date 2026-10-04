@@ -432,7 +432,7 @@ class TestBuildRecommendations:
 class TestRunFullDiagnostics:
     """Tests for run_full_diagnostics."""
 
-    @patch("first_party_outputs.vestaboard.diagnostics.check_vestaboard_connection")
+    @patch("plugins.vestaboard.diagnostics.check_vestaboard_connection")
     @patch("src.network_diagnostics.check_internet_connectivity")
     @patch("src.network_diagnostics.check_dns_resolution")
     def test_all_ok_local(self, mock_dns, mock_internet, mock_vb):
@@ -449,7 +449,7 @@ class TestRunFullDiagnostics:
         assert "recommendations" in result
         assert any("healthy" in r["summary"].lower() for r in result["recommendations"])
 
-    @patch("first_party_outputs.vestaboard.diagnostics.check_vestaboard_connection")
+    @patch("plugins.vestaboard.diagnostics.check_vestaboard_connection")
     @patch("src.network_diagnostics.check_internet_connectivity")
     @patch("src.network_diagnostics.check_dns_resolution")
     def test_dns_failure(self, mock_dns, mock_internet, mock_vb):
@@ -474,7 +474,7 @@ class TestRunFullDiagnostics:
         assert "No board host" in result["vestaboard"].get("error", "")
         # No specific recommendation for "no board configured" (not useful at this point)
 
-    @patch("first_party_outputs.vestaboard.diagnostics.check_vestaboard_connection")
+    @patch("plugins.vestaboard.diagnostics.check_vestaboard_connection")
     @patch("src.network_diagnostics.check_internet_connectivity")
     @patch("src.network_diagnostics.check_dns_resolution")
     def test_cloud_mode(self, mock_dns, mock_internet, mock_vb):
@@ -487,7 +487,7 @@ class TestRunFullDiagnostics:
         assert result["overall_ok"] is True
         mock_vb.assert_called_once_with(host="", use_cloud=True, cloud_key="rw-key")
 
-    @patch("first_party_outputs.vestaboard.diagnostics.check_vestaboard_connection")
+    @patch("plugins.vestaboard.diagnostics.check_vestaboard_connection")
     @patch("src.network_diagnostics.check_internet_connectivity")
     @patch("src.network_diagnostics.check_dns_resolution")
     def test_vestaboard_failure_marks_overall_false(self, mock_dns, mock_internet, mock_vb):

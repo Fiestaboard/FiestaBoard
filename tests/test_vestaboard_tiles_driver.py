@@ -1,6 +1,6 @@
 """The local-API fan-out driver for note arrays.
 
-The Vestaboard output plugin's tile mode (``first_party_outputs/vestaboard/
+The Vestaboard output plugin's tile mode (``fiestaboard-output--vestaboard/
 tiles.py``) in core's plugin driver: one Local API POST per Note, each tile
 deduping its own slice. (Was ``NoteArrayLocalClient``'s tests.)
 """

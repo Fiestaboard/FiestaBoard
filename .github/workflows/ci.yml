@@ -48,7 +48,6 @@ jobs:
           filters: |
             api:
               - 'src/**'
-              - 'first_party_outputs/**'
               - 'requirements.txt'
               - 'requirements-dev.txt'
               - 'Dockerfile'
@@ -56,8 +55,9 @@ jobs:
               - 'tests/**'
               - 'scripts/**'
               - 'pyproject.toml'
-              # The output seed's pins: the image build fetches and verifies
-              # them, so a bumped pin must rebuild the image (plan D8/D9).
+              # The output seed's pins: the image build and the platform
+              # tests fetch and verify them, so a bumped pin (a new Vestaboard
+              # or FiestaPanel release) must rebuild and retest (plan D8/D9).
               - 'outputs.lock.json'
             ui:
               - 'web/**'
@@ -213,13 +213,37 @@ jobs:
       run: |
         ruff --version
         # Config is in pyproject.toml [tool.ruff].
-        ruff check src/ plugins/ first_party_outputs/ tests/ scripts/
+        ruff check src/ plugins/ tests/ scripts/
 
     - name: Check formatting with ruff
       run: |
         # ruff format replaces black; same output, one tool.
-        ruff format --check src/ plugins/ first_party_outputs/ tests/ scripts/
+        ruff format --check src/ plugins/ tests/ scripts/
     
+    - name: Build the output seed
+      run: |
+        # Vestaboard and FiestaPanel live in their own repositories and load
+        # from the output seed: their commits pinned in outputs.lock.json,
+        # fetched and digest-verified exactly as the image build does (plan
+        # D8/D9). Built once here, with the network; the tests themselves
+        # stay fenced and only read it (tests/conftest.py).
+        python scripts/seed_outputs.py build --lock outputs.lock.json --dest "$RUNNER_TEMP/output-seed"
+        echo "FIESTABOARD_OUTPUT_SEED_DIR=$RUNNER_TEMP/output-seed" >> "$GITHUB_ENV"
+
+    - name: Test the seeded first-party outputs against this core
+      run: |
+        # Each seeded package's own tests (its conformance suite included),
+        # run the way its repository's CI runs them, against this checkout:
+        # a core change that breaks the pinned Vestaboard or FiestaPanel
+        # fails here, before release (plan D9). On a copy: the seed itself
+        # stays exactly the verified tree.
+        for id in vestaboard fiestapanel; do
+          rm -rf "$RUNNER_TEMP/first-party/$id"
+          mkdir -p "$RUNNER_TEMP/first-party"
+          cp -R "$FIESTABOARD_OUTPUT_SEED_DIR/$id" "$RUNNER_TEMP/first-party/$id"
+          (cd "$RUNNER_TEMP/first-party/$id" && ./run_tests.sh "$GITHUB_WORKSPACE")
+        done
+
     - name: Snapshot data/ before tests
       run: |
         # Isolation guard (#1762): the suite must never write the checkout's
@@ -235,7 +259,7 @@ jobs:
         # `--cov` config (source + omit) comes from pyproject.toml
         # [tool.coverage.run] — pytest-cov handles the per-worker data
         # collection and combine automatically.
-        pytest tests/ first_party_outputs/ -v -m "not integration" -n auto \
+        pytest tests/ -v -m "not integration" -n auto \
           --cov=src \
           --cov-branch \
           --cov-report=xml:coverage.xml \

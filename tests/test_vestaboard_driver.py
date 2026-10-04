@@ -1,6 +1,6 @@
 """The Vestaboard driver: Local API, RW Cloud and note-array Cloud.
 
-The Vestaboard output plugin (``first_party_outputs/vestaboard``) in core's
+The Vestaboard output plugin (``fiestaboard-output--vestaboard``) in core's
 plugin driver, built from a board dict by the runtime factory exactly as the
 engine builds it. (Was ``BoardClient``'s tests. Its text API — ``send_text``,
 the text dedupe cache and ``would_send`` — is gone: nothing outside the old
@@ -12,16 +12,16 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
-
-from first_party_outputs.vestaboard import VestaboardOutput, transport
-from first_party_outputs.vestaboard.transport import (
+from plugins.vestaboard import VestaboardOutput, transport
+from plugins.vestaboard.transport import (
     LOCAL_API_PORT,
     VALID_STRATEGIES,
     is_successful_board_read_response,
     parse_read_message_payload,
     strip_color_markers,
 )
-from first_party_outputs.vestaboard.transport import is_valid_character_grid as _is_valid_character_grid
+from plugins.vestaboard.transport import is_valid_character_grid as _is_valid_character_grid
+
 from src.outputs.factory import build_driver
 from tests.first_party_drivers import cloud_driver, frames_of, local_driver, note_array_cloud_driver
 

@@ -246,7 +246,7 @@ def wire(monkeypatch) -> WireRecorder:
 
 def install_wire_recorder(monkeypatch) -> WireRecorder:
     """The ``wire`` fixture's body, reusable by other modules' fixtures."""
-    import first_party_outputs.vestaboard.tiles as vestaboard_tiles
+    import plugins.vestaboard.tiles as vestaboard_tiles
 
     recorder = WireRecorder()
     monkeypatch.setattr(requests, "post", recorder.post)

@@ -612,9 +612,9 @@ While the contract is in beta, every third-party output plugin, listed in the re
 
 ### Outputs that ship with FiestaBoard
 
-The Vestaboard and FiestaPanel are output plugins too, written against the same API as yours. Until they move to their own repositories they ship inside FiestaBoard, in its `first_party_outputs/` directory, which is a good place to read a complete output.
+The Vestaboard and FiestaPanel are output plugins too, written against the same API as yours, each in its own repository: [fiestaboard-output--vestaboard](https://github.com/Fiestaboard/fiestaboard-output--vestaboard) and [fiestaboard-output--fiestapanel](https://github.com/Fiestaboard/fiestaboard-output--fiestapanel). Either is a good place to read a complete output, with its tests.
 
-First-party outputs are pinned in FiestaBoard's `outputs.lock.json` (repository, commit, `output_api` and a digest of the files) and baked into the image at build time. They install with no network, which matters on a Raspberry Pi or in the Home Assistant add-on. If an installed copy cannot run, FiestaBoard falls back to the copy it shipped with, so a board never goes dark because of its plugin. First-party outputs never need the beta.
+First-party outputs are pinned in FiestaBoard's `outputs.lock.json` (repository, commit, `output_api` and a digest of the files) and baked into the image at build time, so they need no network, which matters on a Raspberry Pi or in the Home Assistant add-on. The Vestaboard and FiestaPanel run straight from that copy, which FiestaBoard checks against the digest each time it loads them, and they update when FiestaBoard does. Any other first-party output installs from the copy, and if its installed copy cannot run, FiestaBoard falls back to the copy it shipped with, so a board never goes dark because of its plugin. First-party outputs never need the beta.
 
 ## Worked Example: Divoom Pixoo 64
 

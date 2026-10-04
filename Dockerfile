@@ -104,9 +104,6 @@ COPY --from=python-builder /usr/local/bin /usr/local/bin
 # Copy application code (API)
 COPY src/ ./src/
 COPY plugins/ ./plugins/
-# The first-party output plugins (Vestaboard, FiestaPanel), staged in-repo
-# until they move to their own repositories and the seed (Phase 4).
-COPY first_party_outputs/ ./first_party_outputs/
 COPY tests/ ./tests/
 COPY staff-picks/ ./staff-picks/
 COPY plugin-registry.json ./plugin-registry.json
@@ -116,13 +113,18 @@ COPY plugin-previews.json ./plugin-previews.json
 
 # The output seed (plan D8): first-party output plugins at the commits pinned
 # in outputs.lock.json, fetched HERE at build time — FiestaBoard never fetches
-# them at runtime — so a board's output plugin installs offline. The script
-# verifies each commit and tree digest and fails the build on a mismatch.
+# them at runtime. Vestaboard and FiestaPanel load straight from it (their
+# code lives only here: src/outputs/first_party.py), and a board's other
+# seeded output plugin installs from it offline. The script verifies each
+# commit and tree digest and fails the build on a mismatch; the app checks the
+# digest again whenever it loads one. Bytecode is compiled into each tree's
+# __pycache__ (outside the digest) so the read-only seed imports fast.
 # The seed lives outside /app (whose ownership moves to appuser below) and is
-# made read-only: the app copies from it, never writes to it.
+# made read-only: the app reads and copies from it, never writes to it.
 COPY outputs.lock.json ./outputs.lock.json
 COPY scripts/seed_outputs.py ./scripts/seed_outputs.py
 RUN python scripts/seed_outputs.py build --lock outputs.lock.json --dest /opt/fiestaboard/seed/outputs \
+    && (python -m compileall -q /opt/fiestaboard/seed/outputs || true) \
     && chmod -R a-w /opt/fiestaboard/seed
 
 # Precompile the Python sources into the image (issue #1955).

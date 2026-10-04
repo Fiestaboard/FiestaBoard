@@ -12,7 +12,7 @@ driver — instead of knowing Vestaboard:
 
 Plus the literal ratchet: Vestaboard transport literals left in ``src/``
 may only go down (Phase 4: zero). The Vestaboard itself is an output plugin
-outside ``src/`` now (``first_party_outputs/vestaboard``).
+outside ``src/`` now (``fiestaboard-output--vestaboard``).
 """
 
 from __future__ import annotations
@@ -24,9 +24,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
+from plugins.vestaboard import transport
+from plugins.vestaboard.transport import CLOUD_REQUEST_TIMEOUT, LOCAL_REQUEST_TIMEOUT
 
-from first_party_outputs.vestaboard import transport
-from first_party_outputs.vestaboard.transport import CLOUD_REQUEST_TIMEOUT, LOCAL_REQUEST_TIMEOUT
 from src.outputs.hooks import ConnectionCheck, UnknownOutputAction
 from src.outputs.plugin_driver import OutputPluginDriver
 from src.outputs.registry import (
@@ -80,7 +80,7 @@ class TestRegistryHooks:
 
     def test_discover_devices_runs_the_outputs_discover_hook_with_the_timeout(self):
         found = [{"ip": "192.0.2.50", "port": 7000, "hostname": "", "source": "port_scan"}]
-        with patch("first_party_outputs.vestaboard.discovery.discover", return_value=found) as discover:
+        with patch("plugins.vestaboard.discovery.discover", return_value=found) as discover:
             assert discover_devices(VESTABOARD, 2.5) == found
         discover.assert_called_once_with(2.5)
 
@@ -277,7 +277,7 @@ def core_checks_ok():
 def test_a_board_whose_output_has_no_diagnostics_reports_the_unconfigured_section(core_checks_ok):
     from src.network_diagnostics import run_full_diagnostics
 
-    with patch("first_party_outputs.vestaboard.diagnostics.check_vestaboard_connection") as vestaboard:
+    with patch("plugins.vestaboard.diagnostics.check_vestaboard_connection") as vestaboard:
         result = run_full_diagnostics({"id": "p", "api_mode": "virtual", "host": LOCAL_HOST})
     vestaboard.assert_not_called()
     assert result["vestaboard"] == {
@@ -293,9 +293,7 @@ def test_a_vestaboard_board_is_diagnosed_by_the_vestaboard_hook(core_checks_ok):
     from src.network_diagnostics import run_full_diagnostics
 
     section = {"ok": True, "mode": "local", "steps": {}}
-    with patch(
-        "first_party_outputs.vestaboard.diagnostics.check_vestaboard_connection", return_value=section
-    ) as vestaboard:
+    with patch("plugins.vestaboard.diagnostics.check_vestaboard_connection", return_value=section) as vestaboard:
         result = run_full_diagnostics({"host": LOCAL_HOST, "local_api_key": "k"})
     vestaboard.assert_called_once_with(host=LOCAL_HOST, port=7000, api_key="k")
     assert result["vestaboard"] == section
@@ -310,7 +308,7 @@ _VESTABOARD_LITERAL = re.compile(r"vestaboard\.com|X-Vestaboard-|/local-api/|\b7
 
 #: Vestaboard transport literals anywhere in src/ — no module is exempt: the
 #: Vestaboard's transport and hooks are its plugin's now
-#: (first_party_outputs/vestaboard, refactor/first-party-outputs-as-plugins).
+#: (fiestaboard-output--vestaboard, refactor/first-party-outputs-as-plugins).
 #: Was 36 outside the exempt modules before refactor/vestaboard-behind-hooks,
 #: then 9 outside them (53 in all of src/) before the move. It may only go
 #: down; Phase 4 (P4e) drives it to 0.

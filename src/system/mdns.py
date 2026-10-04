@@ -6,7 +6,7 @@ support mDNS/Bonjour.
 
 Finding *devices* on the network is not this module's job: each output
 answers that through its own ``discover`` hook (the Vestaboard scan lives in
-``first_party_outputs/vestaboard/discovery.py``), using :func:`local_ipv4` from here.
+``fiestaboard-output--vestaboard/discovery.py``), using :func:`local_ipv4` from here.
 """
 
 import logging

@@ -194,8 +194,10 @@ def board_client_module(monkeypatch: pytest.MonkeyPatch, mock_server: str):
         sys.path.insert(0, str(_PROJECT_ROOT))
     from types import SimpleNamespace
 
-    from first_party_outputs.vestaboard import transport
     from src.outputs.factory import build_driver
+    from src.outputs.first_party import first_party_module
+
+    transport = first_party_module("vestaboard").transport
 
     monkeypatch.setattr(transport, "CLOUD_NOTE_ARRAY_API_URL", mock_server)
 
@@ -253,7 +255,9 @@ class TestBoardClientIntegrationWithMock:
     def test_board_client_missing_token_raises(self, board_client_module) -> None:
         # An empty token is no connection: no driver is built from it, and the
         # plugin refuses to be constructed with one — token enforcement.
-        from first_party_outputs.vestaboard import VestaboardOutput
+        from src.outputs.first_party import first_party_module
+
+        VestaboardOutput = first_party_module("vestaboard").VestaboardOutput
 
         assert board_client_module.note_array_cloud_driver("", 2, 2) is None
         with pytest.raises(ValueError, match="not configured"):
@@ -314,6 +318,9 @@ def test_board_client_cloud_url_env_override() -> None:
     import sys
 
     env = {**os.environ, "VESTABOARD_CLOUD_API_URL": "http://mock-host:9200/", "PYTHONPATH": str(_PROJECT_ROOT)}
-    code = "from first_party_outputs.vestaboard import transport; print(transport.CLOUD_NOTE_ARRAY_API_URL)"
+    code = (
+        "from src.outputs.first_party import first_party_module; "
+        "print(first_party_module('vestaboard').transport.CLOUD_NOTE_ARRAY_API_URL)"
+    )
     out = subprocess.check_output([sys.executable, "-c", code], env=env, text=True).strip()
     assert out == "http://mock-host:9200/"

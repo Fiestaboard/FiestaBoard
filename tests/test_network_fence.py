@@ -15,10 +15,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from plugins.vestaboard import transport as vestaboard_transport
+from plugins.vestaboard.diagnostics import check_vestaboard_connection
 from pytest_socket import SocketConnectBlockedError
-
-from first_party_outputs.vestaboard import transport as vestaboard_transport
-from first_party_outputs.vestaboard.diagnostics import check_vestaboard_connection
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -50,7 +49,7 @@ def _cloud_url_in_fresh_interpreter(**env_overrides: str) -> str:
     """
     env = {k: v for k, v in os.environ.items() if k != "VESTABOARD_RW_API_URL"}
     env.update(PYTHONPATH=str(_PROJECT_ROOT), **env_overrides)
-    code = "from first_party_outputs.vestaboard import transport; print(transport.CLOUD_API_URL)"
+    code = "from src.outputs.first_party import first_party_module; print(first_party_module('vestaboard').transport.CLOUD_API_URL)"
     return subprocess.check_output([sys.executable, "-c", code], env=env, text=True).strip()
 
 
