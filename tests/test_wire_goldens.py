@@ -80,6 +80,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
+from urllib.parse import urlsplit
 
 import pytest
 import requests
@@ -837,7 +838,7 @@ def test_detect_size(api, wire):
     wire.read_grids["http://192.168.0.10:7000/local-api/message"] = [[0] * 22 for _ in range(6)]
 
     def respond(method, url, kwargs):
-        if method == "GET" and url.startswith("https://cloud.vestaboard.com"):
+        if method == "GET" and urlsplit(url).hostname == "cloud.vestaboard.com":
             return make_response(200, {"currentMessage": {"layout": json.dumps([[0] * 30 for _ in range(3)])}}, url)
         return None
 
@@ -855,7 +856,7 @@ def test_detect_size(api, wire):
 
 def test_config_board_test(api, wire):
     def respond(method, url, kwargs):
-        if url.startswith("https://rw.vestaboard.com"):
+        if urlsplit(url).hostname == "rw.vestaboard.com":
             return make_response(200, {"currentMessage": {"layout": json.dumps([[0] * 22 for _ in range(6)])}}, url)
         return make_response(200, {"message": [[0] * 22 for _ in range(6)]}, url)
 
