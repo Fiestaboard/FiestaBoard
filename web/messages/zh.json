@@ -717,37 +717,6 @@
       "setUpOutput": "连接、测试并保存为显示板"
     },
     "boardSetup": {
-      "connectionType": "连接类型",
-      "cloudApi": "云端 API",
-      "cloudApiEasiest": "最简单的设置",
-      "localApi": "本地 API",
-      "localApiFaster": "更快，需同一网络",
-      "readWriteApiKey": "读写 API 密钥",
-      "cloudKeyPlaceholder": "从 web.vestaboard.com 获取",
-      "cloudKeyHelp": "前往 web.vestaboard.com → 设置 → API 获取",
-      "boardIpAddress": "看板 IP 地址",
-      "boardIpPlaceholder": "例如 192.168.1.100",
-      "boardIpHelp": "手动输入 IP 或点击扫描网络",
-      "scanNetworkTooltip": "扫描网络以查找 Vestaboard",
-      "scanningNetwork": "正在扫描网络中的 Vestaboard…",
-      "noBoardsFound": "未找到看板。请手动输入 IP 地址。",
-      "foundBoards": "找到 {count} {count, plural, one {个看板} other {个看板}} — 请选择：",
-      "scanFailed": "扫描失败。请手动输入 IP 地址。",
-      "authenticationMethod": "认证方式",
-      "apiKey": "API 密钥",
-      "enablementToken": "启用令牌",
-      "localApiKey": "本地 API 密钥",
-      "localApiKeyPlaceholder": "您的本地 API 密钥",
-      "localApiKeyHelp": "发送邮件至 support@vestaboard.com 以申请本地 API 密钥",
-      "enablementTokenPlaceholder": "Vestaboard 支持团队提供的令牌",
-      "enablementTokenHelp": "发送邮件至 support@vestaboard.com 获取启用令牌",
-      "getApiKeyFromBoard": "从看板获取 API 密钥",
-      "enablingLocalApi": "正在启用本地 API...",
-      "apiKeyRetrieved": "API 密钥已获取！",
-      "testConnection": "测试连接",
-      "testingConnection": "正在测试连接...",
-      "connectedTestAgain": "已连接！再次测试",
-      "thingsToTry": "可以尝试：",
       "boardType": "看板类型",
       "flagshipDimensions": "6 × 22 个字符",
       "noteDimensions": "3 × 15 个字符",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "度数符号翻页片",
       "code62HeartAriaLabel": "爱心翻页片",
       "connectionTestFailed": "连接测试失败",
-      "failedToEnableLocalApi": "启用本地API失败"
+      "connectedSaved": "已连接！你的显示板已保存。"
     },
     "easyPlugins": {
       "description": "这些功能无需任何外部 API 密钥即可使用。启用您想要的功能吧！",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "连接",
-    "apiModeLabel": "API 模式",
-    "localApiLabel": "本地 API",
-    "localApiDescription": "直接连接",
-    "cloudApiLabel": "云端 API",
-    "cloudApiDescription": "通过云服务器",
-    "boardHostLabel": "看板主机",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "API 密钥",
-    "enablementTokenLabel": "启用令牌",
-    "localApiKeyLabel": "本地 API 密钥",
-    "localApiKeyPlaceholder": "输入本地 API 密钥",
-    "localApiKeySetPlaceholder": "••••••••••• （已设置）",
-    "localApiKeyHelp": "发送邮件至 support@vestaboard.com 以申请本地 API 密钥",
-    "enablementTokenPlaceholder": "Vestaboard 支持团队提供的令牌",
-    "getApiKeyFromBoard": "从看板获取 API 密钥",
-    "enabling": "正在启用...",
-    "localApiEnabled": "本地 API 已启用！API 密钥已获取并保存。",
-    "cloudKeyLabel": "读写 API 密钥",
-    "cloudKeyPlaceholder": "输入读写 API 密钥",
-    "cloudKeySetPlaceholder": "••••••••••• （已设置）",
-    "cloudKeyHelp": "在看板应用的设置 → 集成 → 读写 API 中找到",
-    "localApiRequired": "需要本地 API 密钥和主机地址",
-    "cloudApiRequired": "需要云端 API 密钥",
-    "noteArrayTokenRequired": "需要云端 API 令牌",
-    "boardHostAndTokenRequired": "需要看板主机地址和启用令牌",
     "enabledLabel": "已启用",
     "typeLabel": "类型",
     "colorLabel": "颜色",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Note 阵列",
-    "failedToEnable": "启用本地 API 失败",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Note 宽度",
     "notesTallLabel": "Note 高度",
-    "customRangeError": "每个尺寸必须介于 1 和 {max} 之间。",
-    "noteArrayTokenLabel": "云 API 令牌",
-    "noteArrayTokenPlaceholder": "输入 X-Vestaboard-Token",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (已设置)",
-    "noteArrayTokenHelp": "此 Note 阵列的 X-Vestaboard-Token，来自您的 Vestaboard 云 API 订阅。",
-    "autoDetect": "从板子自动检测",
-    "detecting": "检测中…",
-    "detectFailed": "无法检测板子的配置。",
-    "showSecretAriaLabel": "显示值",
-    "hideSecretAriaLabel": "隐藏值",
-    "tileGrid": {
-      "title": "看板拼接位",
-      "help": "点击某个位置，为墙上该位置的实体看板分配 IP 和本地 API 密钥。使用“识别”可在看板上显示位置编号，确认它挂在正确的位置。",
-      "assign": "分配",
-      "assignRequired": "请至少为一个拼接位分配其看板的 IP 地址和本地 API 密钥",
-      "completeBadge": "全部 {total} 个拼接位均已分配",
-      "partialBadge": "已分配 {assigned}/{total} 个拼接位",
-      "slotAriaLabelAssigned": "拼接位 {position}：第 {row} 行，第 {col} 列——已分配给 {host}",
-      "slotAriaLabelEmpty": "拼接位 {position}：第 {row} 行，第 {col} 列——空置，点击以分配",
-      "dialogTitle": "拼接位 {position} — 第 {row} 行，第 {col} 列",
-      "dialogDescription": "连接位于此位置的实体看板。扫描您的网络，或输入其 IP 和本地 API 密钥，然后使用“识别”确认您选择了正确的看板。",
-      "portLabel": "端口",
-      "hostAndKeyRequired": "看板 IP 和本地 API 密钥均为必填",
-      "saveTile": "保存拼接位",
-      "clearTile": "清除拼接位",
-      "tileSaved": "拼接位已保存",
-      "tileCleared": "拼接位已清除",
-      "moveTile": "移动到其他位置",
-      "movePlaceholder": "选择新位置…",
-      "moveTargetEmpty": "位置 {position}——空置",
-      "moveTargetOccupied": "位置 {position}——与 {host} 交换",
-      "tileMoved": "拼接位已移动到位置 {position}",
-      "testTile": "测试",
-      "testSuccess": "连接测试通过",
-      "testFailed": "连接测试失败",
-      "identify": "识别",
-      "identifyAll": "全部识别",
-      "identifySent": "位置 {position} 现已显示在该看板上",
-      "identifyAllSent": "已向 {count} 个拼接位发送识别图案——每块看板现在都显示自己的位置编号",
-      "identifyAllPartial": "{total} 个拼接位中有 {failed} 个无法连接",
-      "identifyFailed": "无法发送识别图案",
-      "scanNetwork": "扫描网络查找看板",
-      "scanning": "正在扫描…",
-      "scanFound": "在您的网络中找到 {count} 块看板",
-      "scanEmpty": "未在您的网络中找到看板",
-      "scanFailed": "网络扫描失败",
-      "alreadyAssigned": "已分配给拼接位 {position}",
-      "duplicateHostWarning": "多个拼接位指向同一块看板：{hosts}"
-    }
+    "customRangeError": "每个尺寸必须介于 1 和 {max} 之间。"
   },
   "systemUpdate": {
     "updateAvailable": "有可用更新",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "正在加载页面…",
     "pagePickerPlaceholder": "选择页面…",
     "showSecret": "显示值",
-    "hideSecret": "隐藏值"
+    "hideSecret": "隐藏值",
+    "secretSaved": "••••••••••• （已设置）"
   },
   "filterPicker": {
     "noFiltersAvailable": "没有可用的筛选器",
@@ -2494,13 +2389,10 @@
     "scanning": "正在搜索…",
     "noDevicesFound": "未找到设备。请手动输入地址。",
     "devicesFoundLabel": "为 {field} 找到的设备",
-    "tileSlot": "第 {row} 行，第 {col} 列",
     "tileAssigned": "已分配",
-    "tileEmpty": "空",
-    "tileDialogTitle": "第 {row} 行第 {col} 列的磁贴",
+    "tileDialogTitle": "拼接位 {position} — 第 {row} 行，第 {col} 列",
     "tileDialogDescription": "此位置设备的设置。",
     "removeTile": "移除磁贴",
-    "identifyTile": "识别",
     "actionsLabel": "操作",
     "actionFailed": "无法执行该操作。",
     "resultOk": "完成",
@@ -2521,6 +2413,116 @@
     "creating": "正在添加…",
     "createBoard": "添加看板",
     "outputNotInstalled": "此看板的显示屏（{output}）未安装。",
-    "saveSettings": "保存设置"
+    "saveSettings": "保存设置",
+    "tilesComplete": "全部 {total} 个拼接位均已分配",
+    "tilesPartial": "已分配 {assigned}/{total} 个拼接位",
+    "identifyAllTiles": "全部识别",
+    "tileAssign": "分配",
+    "tileSlotEmpty": "拼接位 {position}：第 {row} 行，第 {col} 列——空置，点击以分配",
+    "moveTile": "移动到其他位置",
+    "movePlaceholder": "选择新位置…",
+    "moveTo": "位置 {position}——空置",
+    "saveTile": "保存拼接位",
+    "tileSlotAssigned": "拼接位 {position}：第 {row} 行，第 {col} 列——已分配给 {summary}",
+    "moveSwap": "位置 {position}——与 {summary} 交换",
+    "tilesDuplicate": "多个拼接位指向同一块看板：{values}",
+    "tileActionsLabel": "模块操作",
+    "requiredMissing": "仍需填写：{fields}",
+    "geometryApplied": "已设为 {rows} × {cols}"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "连接",
+          "cards": {
+            "local": {
+              "title": "本地 API",
+              "description": "直接连接"
+            },
+            "cloud": {
+              "title": "云端 API",
+              "description": "通过云服务器"
+            }
+          }
+        },
+        "host": {
+          "title": "看板 IP 地址",
+          "description": "手动输入 IP 或点击扫描网络",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "本地 API 密钥",
+          "description": "发送邮件至 support@vestaboard.com 以申请本地 API 密钥",
+          "placeholder": "您的本地 API 密钥"
+        },
+        "cloud_key": {
+          "title": "读写 API 密钥",
+          "description": "在看板应用的设置 → 集成 → 读写 API 中找到",
+          "placeholder": "输入读写 API 密钥"
+        },
+        "note_array_token": {
+          "title": "云 API 令牌",
+          "description": "此 Note 阵列的 X-Vestaboard-Token，来自您的 Vestaboard 云 API 订阅。",
+          "placeholder": "输入 X-Vestaboard-Token"
+        },
+        "tiles": {
+          "title": "看板拼接位",
+          "description": "点击某个位置，为墙上该位置的实体看板分配 IP 和本地 API 密钥。使用“识别”可在看板上显示位置编号，确认它挂在正确的位置。",
+          "items": {
+            "host": {
+              "title": "看板 IP 地址",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "端口"
+            },
+            "local_api_key": {
+              "title": "本地 API 密钥",
+              "placeholder": "您的本地 API 密钥"
+            },
+            "enabled": {
+              "title": "已启用"
+            }
+          }
+        },
+        "port": {
+          "title": "端口"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "高级"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "测试连接"
+        },
+        "discover": {
+          "label": "扫描网络查找看板"
+        },
+        "identify": {
+          "label": "识别"
+        },
+        "detect_geometry": {
+          "label": "从板子自动检测"
+        },
+        "enable_local_api": {
+          "label": "从看板获取 API 密钥",
+          "description": "发送邮件至 support@vestaboard.com 获取启用令牌",
+          "input": {
+            "enablement_token": {
+              "title": "启用令牌",
+              "placeholder": "Vestaboard 支持团队提供的令牌"
+            },
+            "host": {
+              "title": "看板 IP 地址",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

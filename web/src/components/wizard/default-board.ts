@@ -10,15 +10,17 @@ import { api } from "@/lib/api";
  */
 export function isUntouchedPlaceholder(board: BoardInstance): boolean {
   const isVestaboard = !board.output || board.output === "vestaboard";
+  // A Vestaboard's connection is its `output_config` (settings v4).
+  const config = (board.output_config ?? {}) as Record<string, unknown>;
+  const tiles = Array.isArray(config.tiles) ? config.tiles : [];
   return (
     isVestaboard &&
-    board.api_mode !== "virtual" &&
     board.device_type !== "panel" &&
-    !board.host &&
-    !board.local_api_key &&
-    !board.cloud_key &&
-    !board.note_array_token &&
-    (board.tiles ?? []).length === 0
+    !config.host &&
+    !config.local_api_key &&
+    !config.cloud_key &&
+    !config.note_array_token &&
+    tiles.length === 0
   );
 }
 

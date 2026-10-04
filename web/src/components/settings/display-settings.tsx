@@ -11,8 +11,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   Flex,
-  Grid,
-  Label,
   PageSection,
   Select,
   SelectContent,
@@ -25,11 +23,7 @@ import {
   Stack,
   Switch,
   Text,
-  TextLink,
-  ToggleCard,
-  ToggleCardGroup,
 } from "@fiestaboard/ui";
-import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -37,10 +31,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Key,
-  KeyRound,
   LayoutGrid,
-  Loader2,
   Monitor,
   Pause,
   Plus,
@@ -56,12 +47,11 @@ import { queryKeys, useBoardSettings, useStatus } from "@/hooks/use-board";
 import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { BoardInstance, Code62Glyph, DeviceType } from "@/lib/api";
+import type { ActionGeometry, BoardInstance, Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 import { isNoteArray, MAX_BOARD_NAME_LENGTH, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
 
-import { isPluginOutputBoard, OtherOutputCards, OutputBoardSettings } from "./output-boards";
-import { TileGridAssignment } from "./tile-grid-assignment";
+import { isPluginOutputBoard, isVirtualBoard, OtherOutputCards, OutputBoardSettings, toV4Write } from "./output-boards";
 
 /**
  * The two flaps a Flagship's character-code-62 slot can physically carry
@@ -73,45 +63,39 @@ const CODE62_CHOICES: ReadonlyArray<{ value: Code62Glyph; glyph: string; labelKe
   { value: "heart", glyph: "♥", labelKey: "code62HeartAriaLabel" },
 ];
 
-/** How a board is driven: the Vestaboard Local API, or the Cloud (RW) API. */
-type ApiMode = "local" | "cloud";
-
-function isApiMode(value: string): value is ApiMode {
-  return value === "local" || value === "cloud";
+/** A secret the API echoes as `"***"` once set, or a value typed in. */
+function isSet(value: unknown): boolean {
+  return value === "***" || (typeof value === "string" && value.length > 0);
 }
 
 /**
- * Tiles usable for the board's CURRENT W×H — mirrors the backend's
- * BoardInstance.configured_tiles(): in-range, enabled, host + key present.
- * (Out-of-range entries are kept server-side but don't count.)
+ * Whether a Vestaboard board has the connection details it needs, read from
+ * its `output_config` — the rule of the backend's
+ * `VestaboardConnection.is_configured`: a note array with saved local tiles
+ * needs one usable in-range tile, any other array its Cloud token; a single
+ * board the selected mode's credentials. (The board card's badge until the
+ * contract's live `status` replaces it.)
  */
-function countAssignedTiles(board: BoardInstance): number {
-  const notesWide = board.notes_wide ?? 1;
-  const notesTall = board.notes_tall ?? 1;
-  return (board.tiles ?? []).filter(
-    (tile) =>
-      tile.row < notesTall &&
-      tile.col < notesWide &&
-      (tile.enabled ?? true) &&
-      Boolean(tile.host) &&
-      Boolean(tile.local_api_key),
-  ).length;
-}
-
-/**
- * Whether a note array is actually driven tile-by-tile — mirrors the
- * backend's BoardInstance.uses_local_tiles: local mode AND at least one saved
- * tile. A token-only array whose api_mode says "local" (e.g. just switched in
- * the UI, or a legacy dict) still drives via its Cloud token.
- */
-function usesLocalTiles(board: BoardInstance): boolean {
-  return (board.api_mode ?? "cloud") === "local" && (board.tiles?.length ?? 0) > 0;
-}
-
-/** Connection-configured rule for note arrays — mirrors BoardInstance.is_connection_configured. */
-function isArrayConfigured(board: BoardInstance): boolean {
-  if (usesLocalTiles(board)) return countAssignedTiles(board) > 0;
-  return board.note_array_token === "***" || Boolean(board.note_array_token);
+function isVestaboardConfigured(board: BoardInstance): boolean {
+  const config = (board.output_config ?? {}) as Record<string, unknown>;
+  const mode = config.api_mode ?? "local";
+  if (isNoteArray(board.device_type)) {
+    const tiles = Array.isArray(config.tiles) ? (config.tiles as Record<string, unknown>[]) : [];
+    if (mode === "local" && tiles.length > 0) {
+      const wide = board.notes_wide ?? 1;
+      const tall = board.notes_tall ?? 1;
+      return tiles.some(
+        (tile) =>
+          Number(tile.row) < tall &&
+          Number(tile.col) < wide &&
+          tile.enabled !== false &&
+          isSet(tile.host) &&
+          isSet(tile.local_api_key),
+      );
+    }
+    return isSet(config.note_array_token);
+  }
+  return mode === "cloud" ? isSet(config.cloud_key) : isSet(config.local_api_key) && isSet(config.host);
 }
 
 /**
@@ -171,301 +155,6 @@ function BoardNameField({ board, onRename }: { board: BoardInstance; onRename: (
   );
 }
 
-function BoardConnectionForm({
-  board,
-  onUpdate,
-}: {
-  board: BoardInstance;
-  onUpdate: (boardId: string, updates: Partial<BoardInstance>) => void;
-}) {
-  const t = useTranslations("displaySettings");
-  const [localKeyMode, setLocalKeyMode] = useState<"api_key" | "enablement_token">("api_key");
-  const [enablementToken, setEnablementToken] = useState("");
-  const [isEnabling, setIsEnabling] = useState(false);
-
-  // Note arrays default to cloud mode (the token path); switching to local
-  // swaps the token field for the per-tile assignment grid.
-  const isArray = isNoteArray(board.device_type);
-  const apiMode = board.api_mode ?? (isArray ? "cloud" : "local");
-  const hasLocalKey = board.local_api_key === "***" || (board.local_api_key && board.local_api_key.length > 0);
-  const hasCloudKey = board.cloud_key === "***" || (board.cloud_key && board.cloud_key.length > 0);
-  const hasNoteArrayToken = board.note_array_token === "***" || Boolean(board.note_array_token);
-  const hasHost = board.host && board.host.length > 0;
-
-  // Mirrors the backend's BoardInstance.is_connection_configured: an array
-  // with saved local tiles needs at least one usable tile; otherwise (cloud,
-  // or local mode without tiles yet) it falls back to the Cloud token.
-  // Virtual boards (FiestaPanel) render to memory and are always reachable.
-  const isConfigured =
-    apiMode === "virtual"
-      ? true
-      : isArray
-        ? isArrayConfigured(board)
-        : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
-
-  const handleEnableLocalApi = async () => {
-    if (!board.host || !enablementToken) {
-      toast.error(t("boardHostAndTokenRequired"));
-      return;
-    }
-    setIsEnabling(true);
-    try {
-      const result = await api.enableLocalApi({
-        host: board.host,
-        enablement_token: enablementToken,
-      });
-      if (result.success && result.api_key) {
-        onUpdate(board.id, { local_api_key: result.api_key });
-        setEnablementToken("");
-        setLocalKeyMode("api_key");
-        toast.success(t("localApiEnabled"));
-      } else {
-        toast.error(result.message || t("failedToEnable"));
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("failedToEnable"));
-    } finally {
-      setIsEnabling(false);
-    }
-  };
-
-  return (
-    <Stack gap="3">
-      <Flex align="center" justify="between">
-        <Label className="text-xs font-medium">{t("connectionLabel")}</Label>
-        {isConfigured ? (
-          <BadgeUI variant="default" className="text-[10px] h-5 bg-board-green">
-            <Check className="h-2.5 w-2.5 mr-0.5" />
-            {t("connected")}
-          </BadgeUI>
-        ) : (
-          <BadgeUI variant="destructive" className="text-[10px] h-5">
-            <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-            {t("notConfigured")}
-          </BadgeUI>
-        )}
-      </Flex>
-
-      {/* API Mode */}
-      {/* One-of-two, so a radiogroup: one tab stop for the pair, arrows move
-          the choice, and each tile announces its position in the set. */}
-      <ToggleCardGroup
-        columns="2"
-        size="sm"
-        value={apiMode}
-        onValueChange={(value) => {
-          if (isApiMode(value)) onUpdate(board.id, { api_mode: value });
-        }}
-        aria-label={t("apiModeLabel")}
-      >
-        <ToggleCard value="local" title={t("localApiLabel")} description={t("localApiDescription")} />
-        <ToggleCard value="cloud" title={t("cloudApiLabel")} description={t("cloudApiDescription")} />
-      </ToggleCardGroup>
-
-      {/* Local array mode: per-tile assignment grid instead of host/key fields */}
-      {isArray && apiMode === "local" && <TileGridAssignment board={board} onUpdate={onUpdate} />}
-
-      {/* Local API Fields (single boards) */}
-      {apiMode === "local" && !isArray && (
-        <>
-          <Stack gap="1">
-            <label className="text-xs font-medium">
-              {t("boardHostLabel")}{" "}
-              <Text as="span" size="xs" tone="destructive">
-                *
-              </Text>
-            </label>
-            <input
-              type="text"
-              defaultValue={board.host ?? ""}
-              onBlur={(e) => {
-                if (e.target.value !== board.host) {
-                  onUpdate(board.id, { host: e.target.value });
-                }
-              }}
-              placeholder={t("boardHostPlaceholder")}
-              className="w-full h-8 px-2 text-xs rounded-md border bg-background font-mono"
-            />
-          </Stack>
-
-          {/* Auth method toggle */}
-          <Grid cols="2" gap="2">
-            <button
-              type="button"
-              onClick={() => setLocalKeyMode("api_key")}
-              className={`flex items-center justify-center gap-1 p-1.5 rounded-md border text-[10px] transition-colors ${
-                localKeyMode === "api_key"
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-muted hover:border-primary/50 text-muted-foreground"
-              }`}
-            >
-              <Key className="h-3 w-3" />
-              {t("apiKeyLabel")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setLocalKeyMode("enablement_token")}
-              className={`flex items-center justify-center gap-1 p-1.5 rounded-md border text-[10px] transition-colors ${
-                localKeyMode === "enablement_token"
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-muted hover:border-primary/50 text-muted-foreground"
-              }`}
-            >
-              <KeyRound className="h-3 w-3" />
-              {t("enablementTokenLabel")}
-            </button>
-          </Grid>
-
-          {localKeyMode === "api_key" ? (
-            <Stack gap="1">
-              <label className="text-xs font-medium" htmlFor={`local-api-key-${board.id}`}>
-                {t("localApiKeyLabel")}{" "}
-                <Text as="span" size="xs" tone="destructive">
-                  *
-                </Text>
-              </label>
-              <SecretInput
-                id={`local-api-key-${board.id}`}
-                defaultValue={board.local_api_key === "***" ? "" : (board.local_api_key ?? "")}
-                onBlur={(e) => {
-                  const val = e.target.value;
-                  if (val && val !== "***" && val !== board.local_api_key) {
-                    onUpdate(board.id, { local_api_key: val });
-                  }
-                }}
-                placeholder={hasLocalKey ? t("localApiKeySetPlaceholder") : t("localApiKeyPlaceholder")}
-                revealDisabled={board.local_api_key === "***"}
-                showLabel={t("showSecretAriaLabel")}
-                hideLabel={t("hideSecretAriaLabel")}
-                className="h-8 pl-2 text-xs"
-              />
-              <Text tone="muted" className="text-[10px]">
-                {t.rich("localApiKeyHelp", {
-                  link: (chunks) => (
-                    <TextLink
-                      href="https://fiestaboard.app/docs/setup/api-keys"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline"
-                    >
-                      {chunks}
-                    </TextLink>
-                  ),
-                })}
-              </Text>
-            </Stack>
-          ) : (
-            <Stack gap="1.5">
-              <label className="text-xs font-medium" htmlFor={`enablement-token-${board.id}`}>
-                {t("enablementTokenLabel")}
-              </label>
-              <SecretInput
-                id={`enablement-token-${board.id}`}
-                value={enablementToken}
-                onChange={(e) => setEnablementToken(e.target.value)}
-                placeholder={t("enablementTokenPlaceholder")}
-                showLabel={t("showSecretAriaLabel")}
-                hideLabel={t("hideSecretAriaLabel")}
-                className="h-8 pl-2 text-xs"
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={handleEnableLocalApi}
-                disabled={!board.host || !enablementToken || isEnabling}
-                className="w-full text-xs"
-              >
-                {isEnabling ? (
-                  <>
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    {t("enabling")}
-                  </>
-                ) : (
-                  t("getApiKeyFromBoard")
-                )}
-              </Button>
-            </Stack>
-          )}
-        </>
-      )}
-
-      {/* Cloud API Fields (single boards — arrays use the token below) */}
-      {apiMode === "cloud" && !isArray && (
-        <Stack gap="1">
-          <label className="text-xs font-medium" htmlFor={`cloud-key-${board.id}`}>
-            {t("cloudKeyLabel")}{" "}
-            <Text as="span" size="xs" tone="destructive">
-              *
-            </Text>
-          </label>
-          <SecretInput
-            id={`cloud-key-${board.id}`}
-            defaultValue={board.cloud_key === "***" ? "" : (board.cloud_key ?? "")}
-            onBlur={(e) => {
-              const val = e.target.value;
-              if (val && val !== "***" && val !== board.cloud_key) {
-                onUpdate(board.id, { cloud_key: val });
-              }
-            }}
-            placeholder={hasCloudKey ? t("cloudKeySetPlaceholder") : t("cloudKeyPlaceholder")}
-            revealDisabled={board.cloud_key === "***"}
-            showLabel={t("showSecretAriaLabel")}
-            hideLabel={t("hideSecretAriaLabel")}
-            className="h-8 pl-2 text-xs"
-          />
-          <Text tone="muted" className="text-[10px]">
-            {t("cloudKeyHelp")}
-          </Text>
-        </Stack>
-      )}
-
-      {/* Note-array Cloud API token (X-Vestaboard-Token) */}
-      {isArray && apiMode === "cloud" && (
-        <Stack gap="1">
-          <label className="text-xs font-medium" htmlFor={`note-array-token-${board.id}`}>
-            {t("noteArrayTokenLabel")}
-          </label>
-          <SecretInput
-            id={`note-array-token-${board.id}`}
-            defaultValue={board.note_array_token === "***" ? "" : (board.note_array_token ?? "")}
-            onBlur={(e) => {
-              const val = e.target.value;
-              if (val && val !== "***" && val !== board.note_array_token) {
-                onUpdate(board.id, { note_array_token: val });
-              }
-            }}
-            placeholder={hasNoteArrayToken ? t("noteArrayTokenSetPlaceholder") : t("noteArrayTokenPlaceholder")}
-            revealDisabled={board.note_array_token === "***"}
-            showLabel={t("showSecretAriaLabel")}
-            hideLabel={t("hideSecretAriaLabel")}
-            className="h-8 pl-2 text-xs"
-          />
-          <Text tone="muted" className="text-[10px]">
-            {t("noteArrayTokenHelp")}
-          </Text>
-        </Stack>
-      )}
-
-      {/* Validation message */}
-      {!isConfigured && (
-        <Flex align="center" gap="1.5" className="p-1.5 rounded-md bg-destructive/10 text-foreground text-[10px]">
-          <AlertCircle className="h-3 w-3 flex-shrink-0" />
-          <Text as="span" className="text-[10px]">
-            {isArray
-              ? apiMode === "local"
-                ? t("tileGrid.assignRequired")
-                : t("noteArrayTokenRequired")
-              : apiMode === "local"
-                ? t("localApiRequired")
-                : t("cloudApiRequired")}
-          </Text>
-        </Flex>
-      )}
-    </Stack>
-  );
-}
-
 export function DisplaySettings() {
   const t = useTranslations("displaySettings");
   const tCommon = useTranslations("common");
@@ -479,8 +168,6 @@ export function DisplaySettings() {
   // Per-board UI state for the note-array selector / custom inputs / auto-detect.
   const [customOpen, setCustomOpen] = useState<Record<string, boolean>>({});
   const [dimError, setDimError] = useState<Record<string, string | undefined>>({});
-  const [detectingBoardId, setDetectingBoardId] = useState<string | null>(null);
-  const [detectError, setDetectError] = useState<Record<string, string | undefined>>({});
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
     queryClient.invalidateQueries({ queryKey: ["all-settings"] });
@@ -542,7 +229,13 @@ export function DisplaySettings() {
     if (deviceType === "note_array") {
       // Arrays start as the smallest real layout (the "2 side-by-side"
       // preset) in cloud mode — they're driven via the Cloud API today.
-      addMutation.mutate({ device_type: "note_array", notes_wide: 2, notes_tall: 1, api_mode: "cloud" });
+      addMutation.mutate({
+        device_type: "note_array",
+        notes_wide: 2,
+        notes_tall: 1,
+        output: "vestaboard",
+        output_config: { api_mode: "cloud" },
+      });
     } else {
       addMutation.mutate({ device_type: deviceType });
     }
@@ -557,10 +250,17 @@ export function DisplaySettings() {
     removeMutation.mutate(boardId);
   };
 
+  // Writes in the settings-v4 shape: each board's connection travels in its
+  // `output_config` only (the flat fields the API still answers with are a
+  // compatibility view for other clients).
   const handleUpdateBoard = (boardId: string, updates: Partial<BoardInstance>) => {
-    const updated = boards.map((b) => (b.id === boardId ? { ...b, ...updates } : b));
+    const updated = boards.map((b) => toV4Write(b.id === boardId ? { ...b, ...updates } : b));
     updateMutation.mutate({ boards: updated });
   };
+
+  /** A board turning into a note array lands in cloud mode — the array default. */
+  const cloudOnConvert = (board: BoardInstance): Partial<BoardInstance> =>
+    board.device_type !== "note_array" ? { output_config: { ...(board.output_config ?? {}), api_mode: "cloud" } } : {};
 
   // Map a board to the synthetic Select value. Note arrays whose dims match a
   // preset resolve to that preset; otherwise to "custom". (Match by dimensions,
@@ -582,7 +282,7 @@ export function DisplaySettings() {
     // Converting a single board (whose api_mode defaults to "local") into an
     // array must land in cloud mode — the array default. An existing array
     // keeps whatever mode the user picked; only its size changes.
-    const modeOnConvert = board.device_type !== "note_array" ? { api_mode: "cloud" as const } : {};
+    const modeOnConvert = cloudOnConvert(board);
     if (value === "custom") {
       setCustomOpen((prev) => ({ ...prev, [board.id]: true }));
       const w = board.device_type === "note_array" ? (board.notes_wide ?? 1) : 1;
@@ -612,34 +312,22 @@ export function DisplaySettings() {
     handleUpdateBoard(board.id, { device_type: "note_array", [key]: n });
   };
 
-  const handleAutoDetect = async (board: BoardInstance) => {
-    setDetectingBoardId(board.id);
-    setDetectError((prev) => ({ ...prev, [board.id]: undefined }));
-    try {
-      const res = await api.detectBoardSize(board.id);
-      if (res.device_type === "note_array") {
-        const w = res.notes_wide ?? 1;
-        const h = res.notes_tall ?? 1;
-        const isPreset = NOTE_ARRAY_PRESETS.some((p) => p.notes_wide === w && p.notes_tall === h);
-        setCustomOpen((prev) => ({ ...prev, [board.id]: !isPreset }));
-        handleUpdateBoard(board.id, {
-          device_type: "note_array",
-          notes_wide: w,
-          notes_tall: h,
-          // Converting a non-array board lands in cloud mode (array default).
-          ...(board.device_type !== "note_array" ? { api_mode: "cloud" as const } : {}),
-        });
-      } else {
-        setCustomOpen((prev) => ({ ...prev, [board.id]: false }));
-        handleUpdateBoard(board.id, { device_type: res.device_type });
-      }
-    } catch (err) {
-      setDetectError((prev) => ({
-        ...prev,
-        [board.id]: err instanceof Error ? err.message : t("detectFailed"),
-      }));
-    } finally {
-      setDetectingBoardId(null);
+  /** A size the board's "Auto-detect from board" action read: the type and W×H it implies. */
+  const handleGeometry = (board: BoardInstance, geometry: ActionGeometry) => {
+    if (geometry.device_type === "note_array") {
+      const w = geometry.notes_wide ?? 1;
+      const h = geometry.notes_tall ?? 1;
+      const isPreset = NOTE_ARRAY_PRESETS.some((p) => p.notes_wide === w && p.notes_tall === h);
+      setCustomOpen((prev) => ({ ...prev, [board.id]: !isPreset }));
+      handleUpdateBoard(board.id, {
+        device_type: "note_array",
+        notes_wide: w,
+        notes_tall: h,
+        ...cloudOnConvert(board),
+      });
+    } else if (geometry.device_type === "flagship" || geometry.device_type === "note") {
+      setCustomOpen((prev) => ({ ...prev, [board.id]: false }));
+      handleUpdateBoard(board.id, { device_type: geometry.device_type });
     }
   };
 
@@ -678,28 +366,16 @@ export function DisplaySettings() {
       <Stack gap="3">
         {boards.map((board) => {
           const isPaused = board.paused === true;
-          const apiMode = board.api_mode ?? "local";
           // Virtual boards (FiestaPanel) render to memory: there is no
           // connection to configure, so they are never "Not configured"
           // and none of the credential/type controls apply (issue: a
           // freshly created panel showed as needing API credentials).
-          const isVirtual = apiMode === "virtual";
-          // A board an output plugin drives renders the plugin's own settings
-          // screen (plan D13); Vestaboard and FiestaPanel keep their forms.
+          const isVirtual = isVirtualBoard(board);
+          // A board an output plugin drives is sized by its device model;
+          // a Vestaboard's type and size stay core's (below).
           const isPluginOutput = isPluginOutputBoard(board);
           const panelName = isVirtual ? panelNameByBoardId.get(board.id) : undefined;
-          const hasLocalKey = board.local_api_key === "***" || Boolean(board.local_api_key);
-          const hasCloudKey = board.cloud_key === "***" || Boolean(board.cloud_key);
-          const hasHost = Boolean(board.host);
-          // Same rule as BoardConnectionForm: arrays with saved local tiles
-          // connect via assigned tiles, token-only arrays via the Cloud
-          // token (even in local mode — the backend's cloud fallback),
-          // flagship/note via the selected API mode's credentials.
-          const isConnected = isVirtual
-            ? true
-            : isNoteArray(board.device_type)
-              ? isArrayConfigured(board)
-              : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
+          const isConnected = isVirtual || isVestaboardConfigured(board);
           // Why this board has no client, when the backend skipped it at
           // startup (issues #1749/#1829). Verbatim backend reason string.
           const initError = statusData?.boards?.[board.id]?.error ?? null;
@@ -1001,49 +677,14 @@ export function DisplaySettings() {
                           )}
                         </Stack>
                       )}
-
-                      {/* Auto-detect from board — not offered for local-mode
-                        arrays: their shape is defined by assigning tiles, so
-                        a local read could only echo the configured W×H back.
-                        Detection is meaningful via the Cloud API (which
-                        knows the array's real shape) and for single boards.
-                        Virtual boards have nothing to detect. */}
-                      {!isVirtual && !(isNoteArray(board.device_type) && (board.api_mode ?? "cloud") === "local") && (
-                        <Stack gap="1">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            className="h-7 text-[11px]"
-                            disabled={detectingBoardId === board.id}
-                            onClick={() => handleAutoDetect(board)}
-                          >
-                            {detectingBoardId === board.id ? (
-                              <>
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                {t("detecting")}
-                              </>
-                            ) : (
-                              t("autoDetect")
-                            )}
-                          </Button>
-                          {detectError[board.id] && (
-                            <Flex role="alert" align="center" gap="1.5" className="text-destructive text-[10px]">
-                              <AlertCircle className="h-3 w-3 flex-shrink-0" />
-                              <Text as="span" tone="destructive" className="text-[10px]">
-                                {detectError[board.id]}
-                              </Text>
-                            </Flex>
-                          )}
-                        </Stack>
-                      )}
                     </Stack>
                   )}
 
-                  {/* Connection section. Virtual boards render to memory:
-                      offering the Local/Cloud credentials form here is what
-                      made panels read as "needing API credentials", and
-                      switching the mode would silently break the panel. */}
+                  {/* Connection section: the output's own settings screen,
+                      drawn from its manifest (plan D13) — a Vestaboard's
+                      included. Virtual boards render to memory: offering
+                      credentials here is what made panels read as "needing
+                      API credentials". */}
                   <Box className="border-t pt-3">
                     {isVirtual ? (
                       <Flex align="start" gap="2" data-testid="virtual-board-hint">
@@ -1054,15 +695,14 @@ export function DisplaySettings() {
                             : t("virtualConnectionHint")}
                         </Text>
                       </Flex>
-                    ) : isPluginOutput ? (
+                    ) : (
                       <OutputBoardSettings
                         key={JSON.stringify(board.output_config ?? {})}
                         board={board}
                         saving={updateMutation.isPending}
                         onSave={(outputConfig) => handleUpdateBoard(board.id, { output_config: outputConfig })}
+                        onGeometry={isPluginOutput ? undefined : (geometry) => handleGeometry(board, geometry)}
                       />
-                    ) : (
-                      <BoardConnectionForm board={board} onUpdate={handleUpdateBoard} />
                     )}
                   </Box>
 

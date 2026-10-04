@@ -22,7 +22,16 @@ const PLACEHOLDER = {
   host: "",
   local_api_key: "",
   cloud_key: "",
+  output: "vestaboard",
+  // Settings v4: a Vestaboard's connection is its output_config (the flat
+  // fields above are the read-back view other clients use).
+  output_config: { api_mode: "local", host: "", port: 7000, local_api_key: "", cloud_key: "", tiles: [] },
 } as BoardInstance;
+
+/** The placeholder with one connection detail set, where settings v4 keeps it. */
+function connected(detail: Record<string, unknown>): Partial<BoardInstance> {
+  return { output_config: { ...PLACEHOLDER.output_config, ...detail } };
+}
 
 function boards(list: Partial<BoardInstance>[]) {
   const removed: string[] = [];
@@ -42,11 +51,11 @@ describe("isUntouchedPlaceholder", () => {
   });
 
   it.each([
-    ["a host", { host: "192.0.2.1" }],
-    ["a Local API key", { local_api_key: "***" }],
-    ["a cloud key", { cloud_key: "***" }],
-    ["a note-array token", { note_array_token: "***" }],
-    ["tiles", { tiles: [{ host: "192.0.2.2" }] as BoardInstance["tiles"] }],
+    ["a host", connected({ host: "192.0.2.1" })],
+    ["a Local API key", connected({ local_api_key: "***" })],
+    ["a cloud key", connected({ cloud_key: "***" })],
+    ["a note-array token", connected({ note_array_token: "***" })],
+    ["tiles", connected({ tiles: [{ host: "192.0.2.2" }] })],
     ["another output", { output: "recording_sign" }],
     ["a panel", { api_mode: "virtual" as const, device_type: "panel" as const }],
   ])("is not a board with %s", (_what, change) => {
@@ -68,7 +77,7 @@ describe("removeUntouchedPlaceholder", () => {
   });
 
   it("leaves a configured board alone", async () => {
-    const removed = boards([{ ...PLACEHOLDER, host: "192.0.2.1" }, { id: "new" }]);
+    const removed = boards([{ ...PLACEHOLDER, ...connected({ host: "192.0.2.1" }) }, { id: "new" }]);
     await removeUntouchedPlaceholder("new");
     expect(removed).toEqual([]);
   });

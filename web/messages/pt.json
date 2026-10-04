@@ -717,37 +717,6 @@
       "setUpOutput": "Ligue-o, teste-o e guarde-o como painel"
     },
     "boardSetup": {
-      "connectionType": "Tipo de Conexão",
-      "cloudApi": "API na Nuvem",
-      "cloudApiEasiest": "Configuração mais fácil",
-      "localApi": "API Local",
-      "localApiFaster": "Mais rápida, mesma rede",
-      "readWriteApiKey": "Chave de API de Leitura/Escrita",
-      "cloudKeyPlaceholder": "Obtenha em web.vestaboard.com",
-      "cloudKeyHelp": "Encontrada em web.vestaboard.com → Configurações → API",
-      "boardIpAddress": "Endereço IP do Painel",
-      "boardIpPlaceholder": "ex.: 192.168.1.100",
-      "boardIpHelp": "Insira o IP manualmente ou clique para escanear sua rede",
-      "scanNetworkTooltip": "Escanear rede em busca de Vestaboards",
-      "scanningNetwork": "Escaneando a rede em busca de Vestaboards…",
-      "noBoardsFound": "Nenhum painel encontrado. Insira o endereço IP manualmente.",
-      "foundBoards": "{count} {count, plural, one {painel encontrado} other {painéis encontrados}} — selecione um:",
-      "scanFailed": "Falha no escaneamento. Insira o endereço IP manualmente.",
-      "authenticationMethod": "Método de Autenticação",
-      "apiKey": "Chave de API",
-      "enablementToken": "Token de Habilitação",
-      "localApiKey": "Chave de API Local",
-      "localApiKeyPlaceholder": "Sua chave de API local",
-      "localApiKeyHelp": "Envie um e-mail para support@vestaboard.com para solicitar sua Chave de API Local",
-      "enablementTokenPlaceholder": "Token fornecido pelo suporte da Vestaboard",
-      "enablementTokenHelp": "Envie um e-mail para support@vestaboard.com para obter um token de habilitação",
-      "getApiKeyFromBoard": "Obter Chave de API do Painel",
-      "enablingLocalApi": "Ativando API Local...",
-      "apiKeyRetrieved": "Chave de API Obtida!",
-      "testConnection": "Testar Conexão",
-      "testingConnection": "Testando Conexão...",
-      "connectedTestAgain": "Conectado! Testar Novamente",
-      "thingsToTry": "Coisas para experimentar:",
       "boardType": "Tipo de Painel",
       "flagshipDimensions": "6 × 22 caracteres",
       "noteDimensions": "3 × 15 caracteres",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "Aba de grau",
       "code62HeartAriaLabel": "Aba de coração",
       "connectionTestFailed": "Teste de conexão falhou",
-      "failedToEnableLocalApi": "Falha ao habilitar a API local"
+      "connectedSaved": "Conectado! Seu painel foi salvo."
     },
     "easyPlugins": {
       "description": "Esses recursos funcionam imediatamente sem nenhuma chave de API externa. Ative o que desejar!",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "Conexão",
-    "apiModeLabel": "Modo de API",
-    "localApiLabel": "API Local",
-    "localApiDescription": "Conexão direta",
-    "cloudApiLabel": "API na Nuvem",
-    "cloudApiDescription": "Via servidores na nuvem",
-    "boardHostLabel": "Host do Painel",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "Chave de API",
-    "enablementTokenLabel": "Token de Habilitação",
-    "localApiKeyLabel": "Chave de API Local",
-    "localApiKeyPlaceholder": "Insira a chave de API local",
-    "localApiKeySetPlaceholder": "••••••••••• (definida)",
-    "localApiKeyHelp": "Envie um e-mail para support@vestaboard.com para solicitar sua Chave de API Local",
-    "enablementTokenPlaceholder": "Token do suporte da Vestaboard",
-    "getApiKeyFromBoard": "Obter Chave de API do Painel",
-    "enabling": "Ativando...",
-    "localApiEnabled": "API Local ativada! Chave de API obtida e salva.",
-    "cloudKeyLabel": "Chave de API de Leitura/Escrita",
-    "cloudKeyPlaceholder": "Insira a chave de API R/W",
-    "cloudKeySetPlaceholder": "••••••••••• (definida)",
-    "cloudKeyHelp": "Encontrada no aplicativo do painel em Configurações → Integrações → API de Leitura/Escrita",
-    "localApiRequired": "A chave de API local e o host são obrigatórios",
-    "cloudApiRequired": "A chave de API na nuvem é obrigatória",
-    "noteArrayTokenRequired": "O token da API na nuvem é obrigatório",
-    "boardHostAndTokenRequired": "O host do painel e o token de habilitação são obrigatórios",
     "enabledLabel": "Ativado",
     "typeLabel": "Tipo",
     "colorLabel": "Cor",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Matriz de Note",
-    "failedToEnable": "Falha ao ativar API local",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Notes de largura",
     "notesTallLabel": "Notes de altura",
-    "customRangeError": "Cada dimensão deve estar entre 1 e {max}.",
-    "noteArrayTokenLabel": "Token da API na nuvem",
-    "noteArrayTokenPlaceholder": "Insira o X-Vestaboard-Token",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (definido)",
-    "noteArrayTokenHelp": "O X-Vestaboard-Token para esta matriz de Note, da sua assinatura da API na nuvem da Vestaboard.",
-    "autoDetect": "Detectar automaticamente do quadro",
-    "detecting": "Detectando…",
-    "detectFailed": "Não foi possível detectar a configuração do quadro.",
-    "showSecretAriaLabel": "Mostrar valor",
-    "hideSecretAriaLabel": "Ocultar valor",
-    "tileGrid": {
-      "title": "Blocos do painel",
-      "help": "Clique em uma posição para atribuir o painel físico (IP + Chave de API Local) que fica nesse lugar da sua parede. Use Identificar para exibir o número da posição em um painel e confirmar que ele está no lugar certo.",
-      "assign": "Atribuir",
-      "assignRequired": "Atribua pelo menos um bloco com o endereço IP e a chave de API local do seu painel",
-      "completeBadge": "Todos os {total} blocos atribuídos",
-      "partialBadge": "{assigned}/{total} blocos atribuídos",
-      "slotAriaLabelAssigned": "Bloco {position}: linha {row}, coluna {col} — atribuído a {host}",
-      "slotAriaLabelEmpty": "Bloco {position}: linha {row}, coluna {col} — vazio, clique para atribuir",
-      "dialogTitle": "Bloco {position} — linha {row}, coluna {col}",
-      "dialogDescription": "Conecte o painel físico nesta posição. Escaneie sua rede ou insira o IP e a chave de API local, depois use Identificar para confirmar que escolheu o painel certo.",
-      "portLabel": "Porta",
-      "hostAndKeyRequired": "O IP do painel e a chave de API local são obrigatórios",
-      "saveTile": "Salvar bloco",
-      "clearTile": "Limpar bloco",
-      "tileSaved": "Bloco salvo",
-      "tileCleared": "Bloco limpo",
-      "moveTile": "Mover para outra posição",
-      "movePlaceholder": "Escolha uma nova posição…",
-      "moveTargetEmpty": "Posição {position} — vazia",
-      "moveTargetOccupied": "Posição {position} — trocar com {host}",
-      "tileMoved": "Bloco movido para a posição {position}",
-      "testTile": "Testar",
-      "testSuccess": "O teste de conexão foi bem-sucedido",
-      "testFailed": "O teste de conexão falhou",
-      "identify": "Identificar",
-      "identifyAll": "Identificar todos",
-      "identifySent": "A posição {position} agora está sendo exibida nesse painel",
-      "identifyAllSent": "Padrões de identificação enviados para {count} blocos — cada painel agora mostra seu número de posição",
-      "identifyAllPartial": "{failed} de {total} blocos não puderam ser alcançados",
-      "identifyFailed": "Não foi possível enviar o padrão de identificação",
-      "scanNetwork": "Escanear a rede em busca de painéis",
-      "scanning": "Escaneando…",
-      "scanFound": "{count} painéis encontrados na sua rede",
-      "scanEmpty": "Nenhum painel encontrado na sua rede",
-      "scanFailed": "Falha ao escanear a rede",
-      "alreadyAssigned": "Atribuído ao bloco {position}",
-      "duplicateHostWarning": "Vários blocos apontam para o mesmo painel: {hosts}"
-    }
+    "customRangeError": "Cada dimensão deve estar entre 1 e {max}."
   },
   "systemUpdate": {
     "updateAvailable": "Atualização Disponível",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "A carregar páginas…",
     "pagePickerPlaceholder": "Escolha uma página…",
     "showSecret": "Mostrar valor",
-    "hideSecret": "Ocultar valor"
+    "hideSecret": "Ocultar valor",
+    "secretSaved": "••••••••••• (definida)"
   },
   "filterPicker": {
     "noFiltersAvailable": "Nenhum filtro disponível",
@@ -2494,13 +2389,10 @@
     "scanning": "Procurando…",
     "noDevicesFound": "Nenhum dispositivo encontrado. Digite o endereço manualmente.",
     "devicesFoundLabel": "Dispositivos encontrados para {field}",
-    "tileSlot": "Linha {row}, coluna {col}",
     "tileAssigned": "Atribuído",
-    "tileEmpty": "Vazio",
-    "tileDialogTitle": "Bloco na linha {row}, coluna {col}",
+    "tileDialogTitle": "Bloco {position} — linha {row}, coluna {col}",
     "tileDialogDescription": "Configurações do dispositivo nesta posição.",
     "removeTile": "Remover bloco",
-    "identifyTile": "Identificar",
     "actionsLabel": "Ações",
     "actionFailed": "Não foi possível executar a ação.",
     "resultOk": "Pronto",
@@ -2521,6 +2413,116 @@
     "creating": "Adicionando…",
     "createBoard": "Adicionar painel",
     "outputNotInstalled": "A tela deste painel ({output}) não está instalada.",
-    "saveSettings": "Salvar configurações"
+    "saveSettings": "Salvar configurações",
+    "tilesComplete": "Todos os {total} blocos atribuídos",
+    "tilesPartial": "{assigned}/{total} blocos atribuídos",
+    "identifyAllTiles": "Identificar todos",
+    "tileAssign": "Atribuir",
+    "tileSlotEmpty": "Bloco {position}: linha {row}, coluna {col} — vazio, clique para atribuir",
+    "moveTile": "Mover para outra posição",
+    "movePlaceholder": "Escolha uma nova posição…",
+    "moveTo": "Posição {position} — vazia",
+    "saveTile": "Salvar bloco",
+    "tileSlotAssigned": "Bloco {position}: linha {row}, coluna {col} — atribuído a {summary}",
+    "moveSwap": "Posição {position} — trocar com {summary}",
+    "tilesDuplicate": "Vários blocos apontam para o mesmo painel: {values}",
+    "tileActionsLabel": "Ações do bloco",
+    "requiredMissing": "Ainda necessário: {fields}",
+    "geometryApplied": "Definido como {rows} × {cols}"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "Conexão",
+          "cards": {
+            "local": {
+              "title": "API Local",
+              "description": "Conexão direta"
+            },
+            "cloud": {
+              "title": "API na Nuvem",
+              "description": "Via servidores na nuvem"
+            }
+          }
+        },
+        "host": {
+          "title": "Endereço IP do Painel",
+          "description": "Insira o IP manualmente ou clique para escanear sua rede",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "Chave de API Local",
+          "description": "Envie um e-mail para support@vestaboard.com para solicitar sua Chave de API Local",
+          "placeholder": "Sua chave de API local"
+        },
+        "cloud_key": {
+          "title": "Chave de API de Leitura/Escrita",
+          "description": "Encontrada no aplicativo do painel em Configurações → Integrações → API de Leitura/Escrita",
+          "placeholder": "Insira a chave de API R/W"
+        },
+        "note_array_token": {
+          "title": "Token da API na nuvem",
+          "description": "O X-Vestaboard-Token para esta matriz de Note, da sua assinatura da API na nuvem da Vestaboard.",
+          "placeholder": "Insira o X-Vestaboard-Token"
+        },
+        "tiles": {
+          "title": "Blocos do painel",
+          "description": "Clique em uma posição para atribuir o painel físico (IP + Chave de API Local) que fica nesse lugar da sua parede. Use Identificar para exibir o número da posição em um painel e confirmar que ele está no lugar certo.",
+          "items": {
+            "host": {
+              "title": "Endereço IP do Painel",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "Porta"
+            },
+            "local_api_key": {
+              "title": "Chave de API Local",
+              "placeholder": "Sua chave de API local"
+            },
+            "enabled": {
+              "title": "Ativado"
+            }
+          }
+        },
+        "port": {
+          "title": "Porta"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "Avançado"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "Testar Conexão"
+        },
+        "discover": {
+          "label": "Escanear a rede em busca de painéis"
+        },
+        "identify": {
+          "label": "Identificar"
+        },
+        "detect_geometry": {
+          "label": "Detectar automaticamente do quadro"
+        },
+        "enable_local_api": {
+          "label": "Obter Chave de API do Painel",
+          "description": "Envie um e-mail para support@vestaboard.com para obter um token de habilitação",
+          "input": {
+            "enablement_token": {
+              "title": "Token de Habilitação",
+              "placeholder": "Token do suporte da Vestaboard"
+            },
+            "host": {
+              "title": "Endereço IP do Painel",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

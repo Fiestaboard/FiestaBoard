@@ -717,37 +717,6 @@
       "setUpOutput": "Anslut, testa och spara den som en tavla"
     },
     "boardSetup": {
-      "connectionType": "Anslutningstyp",
-      "cloudApi": "Moln-API",
-      "cloudApiEasiest": "Enklaste installationen",
-      "localApi": "Lokalt API",
-      "localApiFaster": "Snabbare, samma nätverk",
-      "readWriteApiKey": "Läs/skriv-API-nyckel",
-      "cloudKeyPlaceholder": "Hämta denna från web.vestaboard.com",
-      "cloudKeyHelp": "Finns på web.vestaboard.com → Inställningar → API",
-      "boardIpAddress": "Tavlans IP-adress",
-      "boardIpPlaceholder": "t.ex. 192.168.1.100",
-      "boardIpHelp": "Ange IP manuellt eller klicka för att skanna ditt nätverk",
-      "scanNetworkTooltip": "Skanna nätverket efter Vestaboard-enheter",
-      "scanningNetwork": "Skannar nätverket efter Vestaboard-enheter…",
-      "noBoardsFound": "Inga tavlor hittades. Ange IP-adressen manuellt.",
-      "foundBoards": "Hittade {count} {count, plural, one {tavla} other {tavlor}} — välj en:",
-      "scanFailed": "Skanningen misslyckades. Ange IP-adressen manuellt.",
-      "authenticationMethod": "Autentiseringsmetod",
-      "apiKey": "API-nyckel",
-      "enablementToken": "Aktiveringstoken",
-      "localApiKey": "Lokal API-nyckel",
-      "localApiKeyPlaceholder": "Din lokala API-nyckel",
-      "localApiKeyHelp": "Mejla support@vestaboard.com för att begära din lokala API-nyckel",
-      "enablementTokenPlaceholder": "Token tillhandahållen av Vestaboard-support",
-      "enablementTokenHelp": "Mejla support@vestaboard.com för en aktiveringstoken",
-      "getApiKeyFromBoard": "Hämta API-nyckel från tavlan",
-      "enablingLocalApi": "Aktiverar lokalt API...",
-      "apiKeyRetrieved": "API-nyckel hämtad!",
-      "testConnection": "Testa anslutning",
-      "testingConnection": "Testar anslutning...",
-      "connectedTestAgain": "Ansluten! Testa igen",
-      "thingsToTry": "Saker att prova:",
       "boardType": "Tavlans typ",
       "flagshipDimensions": "6 × 22 tecken",
       "noteDimensions": "3 × 15 tecken",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "Gradtecken-flik",
       "code62HeartAriaLabel": "Hjärt-flik",
       "connectionTestFailed": "Anslutningstest misslyckades",
-      "failedToEnableLocalApi": "Kunde inte aktivera lokalt API"
+      "connectedSaved": "Ansluten! Din tavla är sparad."
     },
     "easyPlugins": {
       "description": "Dessa funktioner fungerar direkt utan externa API-nycklar. Aktivera det du vill!",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "Anslutning",
-    "apiModeLabel": "API-läge",
-    "localApiLabel": "Lokalt API",
-    "localApiDescription": "Direktanslutning",
-    "cloudApiLabel": "Moln-API",
-    "cloudApiDescription": "Via molnservrar",
-    "boardHostLabel": "Tavlans värd",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "API-nyckel",
-    "enablementTokenLabel": "Aktiveringstoken",
-    "localApiKeyLabel": "Lokal API-nyckel",
-    "localApiKeyPlaceholder": "Ange lokal API-nyckel",
-    "localApiKeySetPlaceholder": "••••••••••• (inställd)",
-    "localApiKeyHelp": "Mejla support@vestaboard.com för att begära din lokala API-nyckel",
-    "enablementTokenPlaceholder": "Token från Vestaboard-support",
-    "getApiKeyFromBoard": "Hämta API-nyckel från tavlan",
-    "enabling": "Aktiverar...",
-    "localApiEnabled": "Lokalt API aktiverat! API-nyckel hämtad och sparad.",
-    "cloudKeyLabel": "Läs/skriv-API-nyckel",
-    "cloudKeyPlaceholder": "Ange L/S API-nyckel",
-    "cloudKeySetPlaceholder": "••••••••••• (inställd)",
-    "cloudKeyHelp": "Finns i din tavlas app under Inställningar → Integrationer → Läs/skriv-API",
-    "localApiRequired": "Lokal API-nyckel och värd krävs",
-    "cloudApiRequired": "Moln-API-nyckel krävs",
-    "noteArrayTokenRequired": "Moln-API-token krävs",
-    "boardHostAndTokenRequired": "Tavlans värd och aktiveringstoken krävs",
     "enabledLabel": "Aktiverad",
     "typeLabel": "Typ",
     "colorLabel": "Färg",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Note-matris",
-    "failedToEnable": "Kunde inte aktivera lokalt API",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Notes breda",
     "notesTallLabel": "Notes höga",
-    "customRangeError": "Varje dimension måste vara mellan 1 och {max}.",
-    "noteArrayTokenLabel": "Moln-API-token",
-    "noteArrayTokenPlaceholder": "Ange X-Vestaboard-Token",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (angiven)",
-    "noteArrayTokenHelp": "X-Vestaboard-Token för denna Note-matris, från din Vestaboard Cloud API-prenumeration.",
-    "autoDetect": "Identifiera automatiskt från tavlan",
-    "detecting": "Identifierar…",
-    "detectFailed": "Det gick inte att identifiera tavlans konfiguration.",
-    "showSecretAriaLabel": "Visa värde",
-    "hideSecretAriaLabel": "Dölj värde",
-    "tileGrid": {
-      "title": "Tavelrutor",
-      "help": "Klicka på en plats för att tilldela den fysiska tavla (IP + lokal API-nyckel) som sitter i den positionen på din vägg. Använd Identifiera för att visa ett platsnummer på en tavla och bekräfta att den sitter på rätt plats.",
-      "assign": "Tilldela",
-      "assignRequired": "Tilldela minst en ruta med tavlans IP-adress och lokala API-nyckel",
-      "completeBadge": "Alla {total} rutor tilldelade",
-      "partialBadge": "{assigned}/{total} rutor tilldelade",
-      "slotAriaLabelAssigned": "Ruta {position}: rad {row}, kolumn {col} — tilldelad {host}",
-      "slotAriaLabelEmpty": "Ruta {position}: rad {row}, kolumn {col} — tom, klicka för att tilldela",
-      "dialogTitle": "Ruta {position} — rad {row}, kolumn {col}",
-      "dialogDescription": "Anslut den fysiska tavlan på den här positionen. Skanna ditt nätverk eller ange dess IP och lokala API-nyckel, och använd sedan Identifiera för att bekräfta att du valt rätt tavla.",
-      "portLabel": "Port",
-      "hostAndKeyRequired": "Både tavlans IP och lokal API-nyckel krävs",
-      "saveTile": "Spara ruta",
-      "clearTile": "Rensa ruta",
-      "tileSaved": "Ruta sparad",
-      "tileCleared": "Ruta rensad",
-      "moveTile": "Flytta till en annan plats",
-      "movePlaceholder": "Välj en ny plats…",
-      "moveTargetEmpty": "Plats {position} — tom",
-      "moveTargetOccupied": "Plats {position} — byt med {host}",
-      "tileMoved": "Ruta flyttad till plats {position}",
-      "testTile": "Testa",
-      "testSuccess": "Anslutningstestet lyckades",
-      "testFailed": "Anslutningstestet misslyckades",
-      "identify": "Identifiera",
-      "identifyAll": "Identifiera alla",
-      "identifySent": "Position {position} visas nu på den tavlan",
-      "identifyAllSent": "Identifieringsmönster skickade till {count} rutor — varje tavla visar nu sitt positionsnummer",
-      "identifyAllPartial": "{failed} av {total} rutor kunde inte nås",
-      "identifyFailed": "Kunde inte skicka identifieringsmönstret",
-      "scanNetwork": "Skanna nätverket efter tavlor",
-      "scanning": "Skannar…",
-      "scanFound": "{count} tavlor hittades i ditt nätverk",
-      "scanEmpty": "Inga tavlor hittades i ditt nätverk",
-      "scanFailed": "Nätverksskanningen misslyckades",
-      "alreadyAssigned": "Tilldelad ruta {position}",
-      "duplicateHostWarning": "Flera rutor pekar på samma tavla: {hosts}"
-    }
+    "customRangeError": "Varje dimension måste vara mellan 1 och {max}."
   },
   "systemUpdate": {
     "updateAvailable": "Uppdatering tillgänglig",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "Laddar sidor…",
     "pagePickerPlaceholder": "Välj en sida…",
     "showSecret": "Visa värde",
-    "hideSecret": "Dölj värde"
+    "hideSecret": "Dölj värde",
+    "secretSaved": "••••••••••• (inställd)"
   },
   "filterPicker": {
     "noFiltersAvailable": "Inga filter tillgängliga",
@@ -2494,13 +2389,10 @@
     "scanning": "Söker…",
     "noDevicesFound": "Inga enheter hittades. Ange adressen själv.",
     "devicesFoundLabel": "Hittade enheter för {field}",
-    "tileSlot": "Rad {row}, kolumn {col}",
     "tileAssigned": "Tilldelad",
-    "tileEmpty": "Tom",
-    "tileDialogTitle": "Ruta på rad {row}, kolumn {col}",
+    "tileDialogTitle": "Ruta {position} — rad {row}, kolumn {col}",
     "tileDialogDescription": "Inställningar för enheten på den här positionen.",
     "removeTile": "Ta bort ruta",
-    "identifyTile": "Identifiera",
     "actionsLabel": "Åtgärder",
     "actionFailed": "Åtgärden kunde inte köras.",
     "resultOk": "Klart",
@@ -2521,6 +2413,116 @@
     "creating": "Lägger till…",
     "createBoard": "Lägg till tavla",
     "outputNotInstalled": "Den här tavlans skärm ({output}) är inte installerad.",
-    "saveSettings": "Spara inställningar"
+    "saveSettings": "Spara inställningar",
+    "tilesComplete": "Alla {total} rutor tilldelade",
+    "tilesPartial": "{assigned}/{total} rutor tilldelade",
+    "identifyAllTiles": "Identifiera alla",
+    "tileAssign": "Tilldela",
+    "tileSlotEmpty": "Ruta {position}: rad {row}, kolumn {col} — tom, klicka för att tilldela",
+    "moveTile": "Flytta till en annan plats",
+    "movePlaceholder": "Välj en ny plats…",
+    "moveTo": "Plats {position} — tom",
+    "saveTile": "Spara ruta",
+    "tileSlotAssigned": "Ruta {position}: rad {row}, kolumn {col} — tilldelad {summary}",
+    "moveSwap": "Plats {position} — byt med {summary}",
+    "tilesDuplicate": "Flera rutor pekar på samma tavla: {values}",
+    "tileActionsLabel": "Panelåtgärder",
+    "requiredMissing": "Behövs fortfarande: {fields}",
+    "geometryApplied": "Satt till {rows} × {cols}"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "Anslutning",
+          "cards": {
+            "local": {
+              "title": "Lokalt API",
+              "description": "Direktanslutning"
+            },
+            "cloud": {
+              "title": "Moln-API",
+              "description": "Via molnservrar"
+            }
+          }
+        },
+        "host": {
+          "title": "Tavlans IP-adress",
+          "description": "Ange IP manuellt eller klicka för att skanna ditt nätverk",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "Lokal API-nyckel",
+          "description": "Mejla support@vestaboard.com för att begära din lokala API-nyckel",
+          "placeholder": "Din lokala API-nyckel"
+        },
+        "cloud_key": {
+          "title": "Läs/skriv-API-nyckel",
+          "description": "Finns i din tavlas app under Inställningar → Integrationer → Läs/skriv-API",
+          "placeholder": "Ange L/S API-nyckel"
+        },
+        "note_array_token": {
+          "title": "Moln-API-token",
+          "description": "X-Vestaboard-Token för denna Note-matris, från din Vestaboard Cloud API-prenumeration.",
+          "placeholder": "Ange X-Vestaboard-Token"
+        },
+        "tiles": {
+          "title": "Tavelrutor",
+          "description": "Klicka på en plats för att tilldela den fysiska tavla (IP + lokal API-nyckel) som sitter i den positionen på din vägg. Använd Identifiera för att visa ett platsnummer på en tavla och bekräfta att den sitter på rätt plats.",
+          "items": {
+            "host": {
+              "title": "Tavlans IP-adress",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "Port"
+            },
+            "local_api_key": {
+              "title": "Lokal API-nyckel",
+              "placeholder": "Din lokala API-nyckel"
+            },
+            "enabled": {
+              "title": "Aktiverad"
+            }
+          }
+        },
+        "port": {
+          "title": "Port"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "Avancerat"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "Testa anslutning"
+        },
+        "discover": {
+          "label": "Skanna nätverket efter tavlor"
+        },
+        "identify": {
+          "label": "Identifiera"
+        },
+        "detect_geometry": {
+          "label": "Identifiera automatiskt från tavlan"
+        },
+        "enable_local_api": {
+          "label": "Hämta API-nyckel från tavlan",
+          "description": "Mejla support@vestaboard.com för en aktiveringstoken",
+          "input": {
+            "enablement_token": {
+              "title": "Aktiveringstoken",
+              "placeholder": "Token från Vestaboard-support"
+            },
+            "host": {
+              "title": "Tavlans IP-adress",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

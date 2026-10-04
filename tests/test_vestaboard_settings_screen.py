@@ -17,6 +17,9 @@ is valid under core's contract and says what the hand-coded form did:
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -185,3 +188,12 @@ def test_get_outputs_carries_the_vestaboard_screen(definition):
     detect = next(a for a in vestaboard["actions"] if a["id"] == "detect_geometry")
     assert detect["auto_apply"] is True
     assert detect["visible_when"] == {"not": {"api_mode": "local", "@device_type": "note_array"}}
+
+
+def test_the_web_tests_render_the_screens_the_seed_serves():
+    """The web suite renders the first-party screens from a copy of what
+    ``GET /outputs`` serves; a pin bump that changes them must refresh it."""
+    root = Path(__file__).parent.parent
+    served = json.loads((root / "tests" / "golden" / "outputs" / "first_party_presentation.json").read_text())
+    copied = json.loads((root / "web" / "src" / "__tests__" / "mocks" / "first-party-outputs.json").read_text())
+    assert copied == served

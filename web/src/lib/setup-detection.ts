@@ -28,7 +28,10 @@ export interface WizardProgress {
     viewerPath?: string;
   };
   boardConfig?: {
-    api_mode: "local" | "cloud";
+    /** The Vestaboard's connection as its settings screen edits it (the board's `output_config`). */
+    output_config?: Record<string, unknown>;
+    /** Progress saved before the step moved onto the settings screen kept the connection flat. */
+    api_mode?: "local" | "cloud";
     local_api_key?: string;
     cloud_key?: string;
     host?: string;

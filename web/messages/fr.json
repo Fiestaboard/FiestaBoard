@@ -717,37 +717,6 @@
       "setUpOutput": "Connectez-le, testez-le et enregistrez-le comme tableau"
     },
     "boardSetup": {
-      "connectionType": "Type de connexion",
-      "cloudApi": "API Cloud",
-      "cloudApiEasiest": "Configuration la plus simple",
-      "localApi": "API locale",
-      "localApiFaster": "Plus rapide, même réseau",
-      "readWriteApiKey": "Clé API lecture/écriture",
-      "cloudKeyPlaceholder": "Obtenez-la sur web.vestaboard.com",
-      "cloudKeyHelp": "Disponible sur web.vestaboard.com → Paramètres → API",
-      "boardIpAddress": "Adresse IP du tableau",
-      "boardIpPlaceholder": "ex. : 192.168.1.100",
-      "boardIpHelp": "Saisissez l'adresse IP manuellement ou cliquez pour scanner votre réseau",
-      "scanNetworkTooltip": "Scanner le réseau pour trouver des Vestaboard",
-      "scanningNetwork": "Scan du réseau à la recherche de Vestaboard…",
-      "noBoardsFound": "Aucun tableau trouvé. Saisissez l'adresse IP manuellement.",
-      "foundBoards": "{count} {count, plural, one {tableau trouvé} other {tableaux trouvés}} — sélectionnez-en un :",
-      "scanFailed": "Échec du scan. Veuillez saisir l'adresse IP manuellement.",
-      "authenticationMethod": "Méthode d'authentification",
-      "apiKey": "Clé API",
-      "enablementToken": "Jeton d'activation",
-      "localApiKey": "Clé API locale",
-      "localApiKeyPlaceholder": "Votre clé API locale",
-      "localApiKeyHelp": "Envoyez un e-mail à support@vestaboard.com pour demander votre clé API locale",
-      "enablementTokenPlaceholder": "Jeton fourni par le support Vestaboard",
-      "enablementTokenHelp": "Envoyez un e-mail à support@vestaboard.com pour obtenir un jeton d'activation",
-      "getApiKeyFromBoard": "Obtenir la clé API du tableau",
-      "enablingLocalApi": "Activation de l'API locale...",
-      "apiKeyRetrieved": "Clé API récupérée !",
-      "testConnection": "Tester la connexion",
-      "testingConnection": "Test de la connexion...",
-      "connectedTestAgain": "Connecté ! Retester",
-      "thingsToTry": "Choses à essayer :",
       "boardType": "Type de tableau",
       "flagshipDimensions": "6 × 22 caractères",
       "noteDimensions": "3 × 15 caractères",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "Volet degré",
       "code62HeartAriaLabel": "Volet cœur",
       "connectionTestFailed": "Échec du test de connexion",
-      "failedToEnableLocalApi": "Échec de l'activation de l'API locale"
+      "connectedSaved": "Connecté ! Votre tableau est enregistré."
     },
     "easyPlugins": {
       "description": "Ces fonctionnalités sont opérationnelles immédiatement sans clé API externe. Activez celles qui vous intéressent !",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "Connexion",
-    "apiModeLabel": "Mode API",
-    "localApiLabel": "API locale",
-    "localApiDescription": "Connexion directe",
-    "cloudApiLabel": "API Cloud",
-    "cloudApiDescription": "Via les serveurs cloud",
-    "boardHostLabel": "Hôte du tableau",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "Clé API",
-    "enablementTokenLabel": "Jeton d'activation",
-    "localApiKeyLabel": "Clé API locale",
-    "localApiKeyPlaceholder": "Saisir la clé API locale",
-    "localApiKeySetPlaceholder": "••••••••••• (définie)",
-    "localApiKeyHelp": "Envoyez un e-mail à support@vestaboard.com pour demander votre clé API locale",
-    "enablementTokenPlaceholder": "Jeton du support Vestaboard",
-    "getApiKeyFromBoard": "Obtenir la clé API du tableau",
-    "enabling": "Activation...",
-    "localApiEnabled": "API locale activée ! Clé API récupérée et enregistrée.",
-    "cloudKeyLabel": "Clé API lecture/écriture",
-    "cloudKeyPlaceholder": "Saisir la clé API L/É",
-    "cloudKeySetPlaceholder": "••••••••••• (définie)",
-    "cloudKeyHelp": "Disponible dans l'application de votre tableau sous Paramètres → Intégrations → API lecture/écriture",
-    "localApiRequired": "La clé API locale et l'hôte sont requis",
-    "cloudApiRequired": "La clé API Cloud est requise",
-    "noteArrayTokenRequired": "Le jeton API Cloud est requis",
-    "boardHostAndTokenRequired": "L'hôte du tableau et le jeton d'activation sont requis",
     "enabledLabel": "Activé",
     "typeLabel": "Type",
     "colorLabel": "Couleur",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Matrice de Note",
-    "failedToEnable": "Échec de l'activation de l'API locale",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Notes en largeur",
     "notesTallLabel": "Notes en hauteur",
-    "customRangeError": "Chaque dimension doit être comprise entre 1 et {max}.",
-    "noteArrayTokenLabel": "Jeton API cloud",
-    "noteArrayTokenPlaceholder": "Saisir le X-Vestaboard-Token",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (défini)",
-    "noteArrayTokenHelp": "Le X-Vestaboard-Token de cette matrice de Note, issu de votre abonnement à l’API cloud Vestaboard.",
-    "autoDetect": "Détecter automatiquement depuis le tableau",
-    "detecting": "Détection…",
-    "detectFailed": "Impossible de détecter la configuration du tableau.",
-    "showSecretAriaLabel": "Afficher la valeur",
-    "hideSecretAriaLabel": "Masquer la valeur",
-    "tileGrid": {
-      "title": "Tuiles de tableau",
-      "help": "Cliquez sur un emplacement pour attribuer le tableau physique (IP + clé API locale) situé à cette position sur votre mur. Utilisez Identifier pour afficher un numéro d'emplacement sur un tableau et confirmer qu'il est au bon endroit.",
-      "assign": "Attribuer",
-      "assignRequired": "Attribuez au moins une tuile avec l'adresse IP et la clé API locale de son tableau",
-      "completeBadge": "Les {total} tuiles sont toutes attribuées",
-      "partialBadge": "{assigned}/{total} tuiles attribuées",
-      "slotAriaLabelAssigned": "Tuile {position} : ligne {row}, colonne {col} — attribuée à {host}",
-      "slotAriaLabelEmpty": "Tuile {position} : ligne {row}, colonne {col} — vide, cliquez pour attribuer",
-      "dialogTitle": "Tuile {position} — ligne {row}, colonne {col}",
-      "dialogDescription": "Connectez le tableau physique à cette position. Analysez votre réseau ou saisissez son IP et sa clé API locale, puis utilisez Identifier pour confirmer que vous avez choisi le bon tableau.",
-      "portLabel": "Port",
-      "hostAndKeyRequired": "L'IP du tableau et la clé API locale sont toutes deux requises",
-      "saveTile": "Enregistrer la tuile",
-      "clearTile": "Effacer la tuile",
-      "tileSaved": "Tuile enregistrée",
-      "tileCleared": "Tuile effacée",
-      "moveTile": "Déplacer vers un autre emplacement",
-      "movePlaceholder": "Choisissez un nouvel emplacement…",
-      "moveTargetEmpty": "Emplacement {position} — vide",
-      "moveTargetOccupied": "Emplacement {position} — échanger avec {host}",
-      "tileMoved": "Tuile déplacée vers l'emplacement {position}",
-      "testTile": "Tester",
-      "testSuccess": "Test de connexion réussi",
-      "testFailed": "Échec du test de connexion",
-      "identify": "Identifier",
-      "identifyAll": "Tout identifier",
-      "identifySent": "La position {position} s'affiche maintenant sur ce tableau",
-      "identifyAllSent": "Motifs d'identification envoyés à {count} tuiles — chaque tableau affiche maintenant son numéro de position",
-      "identifyAllPartial": "{failed} tuiles sur {total} n'ont pas pu être jointes",
-      "identifyFailed": "Impossible d'envoyer le motif d'identification",
-      "scanNetwork": "Rechercher des tableaux sur le réseau",
-      "scanning": "Recherche…",
-      "scanFound": "{count} tableaux trouvés sur votre réseau",
-      "scanEmpty": "Aucun tableau trouvé sur votre réseau",
-      "scanFailed": "Échec de l'analyse du réseau",
-      "alreadyAssigned": "Attribué à la tuile {position}",
-      "duplicateHostWarning": "Plusieurs tuiles pointent vers le même tableau : {hosts}"
-    }
+    "customRangeError": "Chaque dimension doit être comprise entre 1 et {max}."
   },
   "systemUpdate": {
     "updateAvailable": "Mise à jour disponible",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "Chargement des pages…",
     "pagePickerPlaceholder": "Choisissez une page…",
     "showSecret": "Afficher la valeur",
-    "hideSecret": "Masquer la valeur"
+    "hideSecret": "Masquer la valeur",
+    "secretSaved": "••••••••••• (définie)"
   },
   "filterPicker": {
     "noFiltersAvailable": "Aucun filtre disponible",
@@ -2494,13 +2389,10 @@
     "scanning": "Recherche…",
     "noDevicesFound": "Aucun appareil trouvé. Saisissez l'adresse vous-même.",
     "devicesFoundLabel": "Appareils trouvés pour {field}",
-    "tileSlot": "Ligne {row}, colonne {col}",
     "tileAssigned": "Attribuée",
-    "tileEmpty": "Vide",
-    "tileDialogTitle": "Tuile en ligne {row}, colonne {col}",
+    "tileDialogTitle": "Tuile {position} — ligne {row}, colonne {col}",
     "tileDialogDescription": "Réglages de l'appareil à cette position.",
     "removeTile": "Retirer la tuile",
-    "identifyTile": "Identifier",
     "actionsLabel": "Actions",
     "actionFailed": "L'action n'a pas pu s'exécuter.",
     "resultOk": "Terminé",
@@ -2521,6 +2413,116 @@
     "creating": "Ajout…",
     "createBoard": "Ajouter le tableau",
     "outputNotInstalled": "L'écran de ce tableau ({output}) n'est pas installé.",
-    "saveSettings": "Enregistrer les réglages"
+    "saveSettings": "Enregistrer les réglages",
+    "tilesComplete": "Les {total} tuiles sont toutes attribuées",
+    "tilesPartial": "{assigned}/{total} tuiles attribuées",
+    "identifyAllTiles": "Tout identifier",
+    "tileAssign": "Attribuer",
+    "tileSlotEmpty": "Tuile {position} : ligne {row}, colonne {col} — vide, cliquez pour attribuer",
+    "moveTile": "Déplacer vers un autre emplacement",
+    "movePlaceholder": "Choisissez un nouvel emplacement…",
+    "moveTo": "Emplacement {position} — vide",
+    "saveTile": "Enregistrer la tuile",
+    "tileSlotAssigned": "Tuile {position} : ligne {row}, colonne {col} — attribuée à {summary}",
+    "moveSwap": "Emplacement {position} — échanger avec {summary}",
+    "tilesDuplicate": "Plusieurs tuiles pointent vers le même tableau : {values}",
+    "tileActionsLabel": "Actions de la tuile",
+    "requiredMissing": "Encore requis : {fields}",
+    "geometryApplied": "Réglé sur {rows} × {cols}"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "Connexion",
+          "cards": {
+            "local": {
+              "title": "API locale",
+              "description": "Connexion directe"
+            },
+            "cloud": {
+              "title": "API Cloud",
+              "description": "Via les serveurs cloud"
+            }
+          }
+        },
+        "host": {
+          "title": "Adresse IP du tableau",
+          "description": "Saisissez l'adresse IP manuellement ou cliquez pour scanner votre réseau",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "Clé API locale",
+          "description": "Envoyez un e-mail à support@vestaboard.com pour demander votre clé API locale",
+          "placeholder": "Votre clé API locale"
+        },
+        "cloud_key": {
+          "title": "Clé API lecture/écriture",
+          "description": "Disponible dans l'application de votre tableau sous Paramètres → Intégrations → API lecture/écriture",
+          "placeholder": "Saisir la clé API L/É"
+        },
+        "note_array_token": {
+          "title": "Jeton API cloud",
+          "description": "Le X-Vestaboard-Token de cette matrice de Note, issu de votre abonnement à l’API cloud Vestaboard.",
+          "placeholder": "Saisir le X-Vestaboard-Token"
+        },
+        "tiles": {
+          "title": "Tuiles de tableau",
+          "description": "Cliquez sur un emplacement pour attribuer le tableau physique (IP + clé API locale) situé à cette position sur votre mur. Utilisez Identifier pour afficher un numéro d'emplacement sur un tableau et confirmer qu'il est au bon endroit.",
+          "items": {
+            "host": {
+              "title": "Adresse IP du tableau",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "Port"
+            },
+            "local_api_key": {
+              "title": "Clé API locale",
+              "placeholder": "Votre clé API locale"
+            },
+            "enabled": {
+              "title": "Activé"
+            }
+          }
+        },
+        "port": {
+          "title": "Port"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "Avancé"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "Tester la connexion"
+        },
+        "discover": {
+          "label": "Rechercher des tableaux sur le réseau"
+        },
+        "identify": {
+          "label": "Identifier"
+        },
+        "detect_geometry": {
+          "label": "Détecter automatiquement depuis le tableau"
+        },
+        "enable_local_api": {
+          "label": "Obtenir la clé API du tableau",
+          "description": "Envoyez un e-mail à support@vestaboard.com pour obtenir un jeton d'activation",
+          "input": {
+            "enablement_token": {
+              "title": "Jeton d'activation",
+              "placeholder": "Jeton du support Vestaboard"
+            },
+            "host": {
+              "title": "Adresse IP du tableau",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

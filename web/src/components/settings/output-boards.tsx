@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Boards for outputs other than the Vestaboard (plan D13), in Settings →
- * Hardware:
+ * Boards and their outputs (plan D13), in Settings → Hardware:
  *
  * - {@link OtherOutputCards}: the "Add board" choices `GET /outputs` lists
  *   beyond the Vestaboard (whose Flagship / Note / Note array row stays as it
@@ -10,7 +9,8 @@
  *   {@link AddOutputBoardDialog}.
  * - {@link AddOutputBoardDialog}: name, device model and the plugin's own
  *   settings screen on draft settings, then `POST /outputs/{id}/boards`.
- * - {@link OutputBoardSettings}: a saved output-plugin board's screen, saved
+ * - {@link OutputBoardSettings}: a saved board's connection screen — any
+ *   output's, the Vestaboard's included — drawn from its manifest and saved
  *   with the board settings (`output_config`, secrets echoed as `"***"`).
  */
 import {
@@ -44,9 +44,10 @@ import { toast } from "sonner";
 import { queryKeys } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import { ANCHOR_ATTR } from "@/lib/ai-choreography/anchors";
-import type { BoardInstance, OutputSummary } from "@/lib/api";
+import type { ActionGeometry, BoardInstance, OutputSummary } from "@/lib/api";
 import { api } from "@/lib/api";
-import { MAX_BOARD_NAME_LENGTH } from "@/lib/board-dimensions";
+import { isNoteArray, MAX_BOARD_NAME_LENGTH } from "@/lib/board-dimensions";
+import type { BoardFacts } from "@/lib/visible-when";
 
 import { PluginBoardSettings } from "./plugin-board-settings";
 
@@ -60,6 +61,45 @@ export function useOutputs() {
 /** A board an output plugin drives: neither a Vestaboard nor a FiestaPanel. */
 export function isPluginOutputBoard(board: Pick<BoardInstance, "output">): boolean {
   return !!board.output && board.output !== "vestaboard" && board.output !== "fiestapanel";
+}
+
+/** A FiestaPanel's board: drawn in memory, nothing to connect to. */
+export function isVirtualBoard(board: Pick<BoardInstance, "output" | "api_mode">): boolean {
+  return board.output ? board.output === "fiestapanel" : board.api_mode === "virtual";
+}
+
+/**
+ * The settings-v3 flat connection fields every board still *reads* back with
+ * (a compatibility view for other clients). Settings v4 stores them in the
+ * board's `output_config`, which is what this app writes.
+ */
+const FLAT_CONNECTION_FIELDS = [
+  "api_mode",
+  "host",
+  "port",
+  "local_api_key",
+  "cloud_key",
+  "note_array_token",
+  "tiles",
+] as const;
+
+/** *board* as this app writes it: the settings-v4 shape, its connection in `output_config` only. */
+export function toV4Write(board: BoardInstance): BoardInstance {
+  const out = { ...board } as Record<string, unknown>;
+  for (const field of FLAT_CONNECTION_FIELDS) delete out[field];
+  return out as unknown as BoardInstance;
+}
+
+/** What a board's settings screen reads as `@device_type` / `@device_model`. */
+export function boardFacts(board: Pick<BoardInstance, "device_type" | "device_model">): BoardFacts {
+  return { device_type: board.device_type ?? null, device_model: board.device_model ?? null };
+}
+
+/** A note array's tile layout (Notes down × across); `null` for any other board. */
+export function boardLayout(
+  board: Pick<BoardInstance, "device_type" | "notes_wide" | "notes_tall">,
+): { rows: number; cols: number } | null {
+  return isNoteArray(board.device_type) ? { rows: board.notes_tall ?? 1, cols: board.notes_wide ?? 1 } : null;
 }
 
 const ICONS: Record<string, LucideIcon> = {
@@ -216,17 +256,20 @@ export function OutputBoardSettings({
   board,
   onSave,
   saving,
+  onGeometry,
 }: {
   board: BoardInstance;
   onSave: (outputConfig: Record<string, unknown>) => void;
   saving: boolean;
+  /** Apply a size the output's detect action read (a Vestaboard's type and size are the board's). */
+  onGeometry?: (geometry: ActionGeometry) => void;
 }) {
   const t = useTranslations("boardSettingsScreen");
   const tc = useTranslations("common");
   const { data: outputs, isLoading } = useOutputs();
   const stored = board.output_config ?? {};
   const [values, setValues] = useState<Record<string, unknown>>(stored);
-  const output = outputs?.find((o) => o.id === board.output);
+  const output = outputs?.find((o) => o.id === (board.output ?? "vestaboard"));
 
   if (isLoading) return null;
   if (!output) {
@@ -245,7 +288,15 @@ export function OutputBoardSettings({
           <AlertDescription>{t("betaRequired")}</AlertDescription>
         </Alert>
       )}
-      <PluginBoardSettings output={output} values={values} onChange={setValues} boardId={board.id} />
+      <PluginBoardSettings
+        output={output}
+        values={values}
+        onChange={setValues}
+        boardId={board.id}
+        facts={boardFacts(board)}
+        layout={boardLayout(board)}
+        onGeometry={onGeometry}
+      />
       <Box>
         <Button type="button" size="sm" disabled={!dirty || saving} onClick={() => onSave(values)}>
           {saving ? tc("saving") : t("saveSettings")}

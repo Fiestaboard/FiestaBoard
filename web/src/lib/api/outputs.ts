@@ -15,6 +15,10 @@ export interface OutputActionDescriptor {
   input_schema: Record<string, unknown> | null;
   /** Declared result fields: whether each is secret and which setting it fills. */
   result_fields: Record<string, { secret: boolean; fills: string | null }>;
+  /** `ui:visible_when` over the settings and the board's `@` facts: shown only while it holds. */
+  visible_when?: Record<string, unknown> | null;
+  /** Apply the result's geometry without asking. */
+  auto_apply?: boolean;
 }
 
 export interface OutputDeviceModel {
