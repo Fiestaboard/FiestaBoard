@@ -96,7 +96,10 @@ class MessageFormatter:
                 if not head:  # defensive: never loop forever on a 0-wide board
                     break
                 wrapped.append(head)
-                word_tiles = count_tiles(word)
+                # The cut never lands inside a marker, so the tail costs what
+                # the word did less the head; re-counting the tail each row
+                # made a long word quadratic.
+                word_tiles -= count_tiles(head)
             if word:
                 current, current_tiles = word, word_tiles
 

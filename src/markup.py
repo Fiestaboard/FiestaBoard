@@ -23,7 +23,9 @@ FiestaUI, the reference implementation):
   blank) tagged with ``icon`` and the enclosing span's colours.
   ``{icon:heart}`` is the typed ``♥`` (code 62), not an icon.
 - Spans nest (``{red:HOT {63}}``) and close at the brace that balances
-  their own. ``filled`` / ``71`` is a tile only, never a span colour.
+  their own, at most :data:`MAX_SPAN_DEPTH` (8) deep: an opener that would
+  open a ninth level is literal text, while tiles and icons inside it still
+  parse. ``filled`` / ``71`` is a tile only, never a span colour.
 
 Tile tokens keep the spelling they were parsed from (``"63"`` or ``"red"``);
 normalising to a numeric code is the caller's job (:attr:`BoardToken.flap_code`).
@@ -31,7 +33,7 @@ normalising to a numeric code is the caller's job (:attr:`BoardToken.flap_code`)
 The flag is off by default and nothing in the app turns it on yet. With it
 off, :func:`parse_line` projects to exactly the codes
 :func:`src.text_to_board.text_to_board_array` draws today. In both modes it
-matches FiestaUI (530231c, PR #324) token for token; see
+matches FiestaUI (d4e3074, PR #335) token for token; see
 ``tests/test_markup_parity.py``.
 
 The icon registry is FiestaUI's data, vendored as ``markup_icons.json`` by
@@ -52,6 +54,7 @@ from .text_to_board import COLOR_CODES, COLOR_MARKER_PATTERN
 __all__ = [
     "BOARD_ICONS",
     "BOARD_ICON_ALIASES",
+    "MAX_SPAN_DEPTH",
     "SPAN_COLOR_CODES",
     "BoardIcon",
     "BoardToken",
@@ -253,16 +256,48 @@ def _span_head(head: str) -> _Span | None:
     return _Span(color, background) if color and background else None
 
 
-def _matching_brace(text: str, open_at: int) -> int:
-    depth = 0
-    for i in range(open_at, len(text)):
-        if text[i] == "{":
-            depth += 1
-        elif text[i] == "}":
-            depth -= 1
-            if depth == 0:
-                return i
-    return -1
+#: How deep spans may nest (FiestaUI ``MAX_SPAN_DEPTH``, spec §4.1). A span
+#: opened at the top level is depth 1; an opener that would open depth 9 is
+#: literal text in the depth-8 span (its ``{``, head and ``:`` are characters,
+#: and so is its ``}`` when the walk reaches it). Tiles, icons and end tags
+#: parse at every depth. The cap bounds the parser's recursion, so a hostile
+#: run of openers cannot exhaust the stack. Change it in FiestaUI too.
+MAX_SPAN_DEPTH = 8
+
+# The longest span head (``#rrggbb/#rrggbb``) and icon name a marker can
+# have; anything longer is never one, so it is not copied out to find that
+# out (FiestaUI ``SPAN_HEAD_MAX`` / ``ICON_NAME_MAX``). Tiles and end tags
+# keep their exact legacy regex, which is already bounded.
+_SPAN_HEAD_MAX = 16
+_ICON_NAME_MAX = 16
+
+_BRACE = re.compile(r"[{}]")
+
+
+def _brace_map(line: str) -> tuple[dict[int, int], dict[int, int]]:
+    """Where every ``{`` in *line* leads, found in one pass (FiestaUI ``braceMap``).
+
+    ``close[i]`` is the first ``}`` after the ``{`` at ``i`` (absent when
+    there is none) and ``match[i]`` the ``}`` that balances it, counting every
+    brace in between (absent when unbalanced). Computed once per parse so no
+    opener ever scans forward on its own: a run of openers stays linear.
+    """
+    close: dict[int, int] = {}
+    match: dict[int, int] = {}
+    waiting: list[int] = []
+    stack: list[int] = []
+    for found in _BRACE.finditer(line):
+        at = found.start()
+        if line[at] == "{":
+            waiting.append(at)
+            stack.append(at)
+            continue
+        for opener in waiting:
+            close[opener] = at
+        waiting.clear()
+        if stack:
+            match[stack.pop()] = at
+    return close, match
 
 
 def _char_token(value: str, span: _Span | None, icon: str | None = None) -> BoardToken:
@@ -302,65 +337,82 @@ def _pieces(
         if token is not None:
             drawn += 1
 
-    def walk(text: str, offset: int, span: _Span | None, heads: tuple[str, ...], root: int | None) -> None:
-        i = 0
-        while i < len(text) and not full():
-            if text[i] == "{":
+    # A line with no brace has no markers; skip the brace map for it.
+    close_of, match_of = _brace_map(line) if "{" in line else ({}, {})
+
+    def walk(start: int, end: int, span: _Span | None, heads: tuple[str, ...], root: int | None, depth: int) -> None:
+        """Parse ``line[start:end)`` inside *span*, at span nesting *depth*.
+
+        Spans recurse into their own body, at most :data:`MAX_SPAN_DEPTH`
+        levels; everything else is one forward pass over the line itself,
+        never a copy of it.
+        """
+        i = start
+        while i < end and not full():
+            if line[i] == "{":
                 # The legacy markers come first and keep their exact regex, so
                 # every message the board draws today parses the same way.
-                match = COLOR_MARKER_PATTERN.match(text, i)
+                match = COLOR_MARKER_PATTERN.match(line, i, end)
                 if match:
                     token = None
                     if match.group(1):
                         token = BoardToken("color", code=match.group(1))
                     elif match.group(2) and COLOR_CODES.get(match.group(2).lower()):
                         token = BoardToken("color", code=match.group(2).lower())
-                    add(token, match.group(0), heads, offset + i, root)
+                    add(token, match.group(0), heads, i, root)
                     i = match.end()
                     continue
-                after = extended_marker(text, i, offset, span, heads, root) if extended_markup else -1
+                after = extended_marker(i, end, span, heads, root, depth) if extended_markup else -1
                 if after != -1:
                     i = after
                     continue
-            char = text[i]
+            char = line[i]
             value = _TYPED_HEARTS.get(char) or (char if preserve_case else char.upper())
-            add(_char_token(value, span), char, heads, offset + i, root)
+            add(_char_token(value, span), char, heads, i, root)
             i += 1
 
     def extended_marker(
-        text: str, i: int, offset: int, span: _Span | None, heads: tuple[str, ...], root: int | None
+        i: int, end: int, span: _Span | None, heads: tuple[str, ...], root: int | None, depth: int
     ) -> int:
-        """Parse an icon or span at ``text[i]``; the index after it, or -1 if it is not one."""
-        close = text.find("}", i)
-        if close == -1:
+        """Parse an icon or span at ``line[i]``; the index after it, or -1 if it is not one."""
+        close = close_of.get(i, -1)
+        if close == -1 or close >= end:
             return -1
-        content = text[i + 1 : close]
-        colon = content.find(":")
-        if colon <= 0:
+        # A valid head is at most _SPAN_HEAD_MAX long, so the colon is only
+        # looked for that far: a later one makes the marker literal anyway.
+        colon = line.find(":", i + 1, min(close, i + 2 + _SPAN_HEAD_MAX))
+        if colon <= i + 1:
             return -1
-        head = content[:colon]
+        head = line[i + 1 : colon]
         if head.lower() == "icon":
-            raw = content[colon + 1 :].lower()
+            if close - colon - 1 > _ICON_NAME_MAX:
+                return -1
+            raw = line[colon + 1 : close].lower()
             # `{icon:heart}` is not an icon but the typed ♥ (code 62).
             if raw == "heart":
-                add(_char_token("♥", span), text[i : close + 1], heads, offset + i, root)
+                add(_char_token("♥", span), line[i : close + 1], heads, i, root)
                 return close + 1
             name = resolve_icon_name(raw)
             if name is None:
                 return -1
-            add(_icon_token(name, span), text[i : close + 1], heads, offset + i, root)
+            add(_icon_token(name, span), line[i : close + 1], heads, i, root)
             return close + 1
+        # Past the depth cap an opener is literal text: it falls through with
+        # its head, its colon and, when the walk reaches it, its closing
+        # brace. Tiles and icons inside it still parse.
+        if depth >= MAX_SPAN_DEPTH:
+            return -1
         opened = _span_head(head)
         # The first "}" may close a tile inside the span; the span itself ends
-        # at the brace that balances its own "{".
-        end = _matching_brace(text, i) if opened else -1
-        if end == -1:
+        # at the brace that balances its own "{" (always inside *end*: every
+        # brace between a span's own pair is balanced).
+        span_end = match_of.get(i, -1) if opened else -1
+        if span_end == -1:
             return -1
-        inner_start = i + 1 + len(head) + 1
-        walk(text[inner_start:end], offset + inner_start, opened, (*heads, head), offset + i if root is None else root)
-        return end + 1
+        walk(colon + 1, span_end, opened, (*heads, head), i if root is None else root, depth + 1)
+        return span_end + 1
 
-    walk(line, 0, None, (), None)
+    walk(0, len(line), None, (), None, 0)
     return pieces
 
 
@@ -490,11 +542,11 @@ def _round_trips(pieces: list[_Piece]) -> bool:
     return parse_line(_serialize(pieces), extended_markup=True) == [p.token for p in pieces if p.token is not None]
 
 
-def _split_index(pieces: list[_Piece], limit: int) -> int | None:
-    """Index of the first piece that would take the run past *limit* tiles."""
+def _split_index(pieces: list[_Piece], limit: int, start: int = 0) -> int | None:
+    """Index of the first piece from *start* that would take the run past *limit* tiles."""
     tiles = 0
-    for index, piece in enumerate(pieces):
-        cost = 0 if piece.token is None else 1
+    for index in range(start, len(pieces)):
+        cost = 0 if pieces[index].token is None else 1
         if tiles + cost > limit:
             return index
         tiles += cost
@@ -614,13 +666,18 @@ def wrap_line(line: str, cols: int, *, first_cols: int | None = None) -> list[st
         if current:
             rows.append(current)
             current, current_tiles = [], 0
+        # Hard-break a word wider than the board, walking it once: each row
+        # starts where the last one ended, never at a re-sliced copy.
+        cut = 0
         while word_tiles > width():
-            index = _split_index(word, width())
-            if not index:  # defensive: never loop forever on a 0-wide board
+            index = _split_index(word, width(), cut)
+            if not index or index == cut:  # defensive: never loop forever on a 0-wide board
                 break
-            rows.append(word[:index])
-            word = word[index:]
-            word_tiles = _tiles(word)
+            row = word[cut:index]
+            rows.append(row)
+            word_tiles -= _tiles(row)
+            cut = index
+        word = word[cut:]
         if word:
             current, current_tiles = word, word_tiles
     if current:
