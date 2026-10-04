@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CardContent,
+  type BoardCellGrid,
   type DeviceModel,
   EmptyState,
   Flex,
@@ -34,7 +35,7 @@ import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { Collection, DeviceType, Page, PagePreviewBatchEntry, PagePreviewResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
-import { resolveBoardModel } from "@/lib/device-preview";
+import { isLedModel, resolveBoardModel } from "@/lib/device-preview";
 
 // Cache key for batch previews in localStorage
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";
@@ -92,6 +93,11 @@ function _setCachedPreview(pageId: string, pageUpdatedAt: string, preview: PageP
     cachedAt: new Date().toISOString(),
   };
   setCachedPreviews(allPreviews);
+}
+
+/** A page's slot in the preview cache: its id, or `<board>::<id>` for a render asked for an LED board. */
+function previewCacheKey(pageId: string, boardId: string | null): string {
+  return boardId ? `${boardId}::${pageId}` : pageId;
 }
 
 // Check if a cached preview is still valid for a page
@@ -177,7 +183,12 @@ const PageButtonPreview = memo(
           // are fixed-pixel and `shrink-0`, so nothing else can make it fit.
           // `isStatic` keeps the cheap zero-hooks-per-tile render path that
           // made this a StaticBoardDisplay in the first place.
-          <DevicePreview model={model} message={preview?.message || null} size="sm">
+          <DevicePreview
+            model={model}
+            message={preview?.message || null}
+            cells={model ? (preview?.cells as BoardCellGrid | undefined) : undefined}
+            size="sm"
+          >
             <ScaledBoardDisplay
               isStatic
               message={preview?.message || null}
@@ -626,6 +637,9 @@ export function PageGridSelector({
   const { currentBoard } = useCurrentBoard();
   // The current board's device model: a page that fits it previews as it.
   const currentBoardModel = useMemo(() => resolveBoardModel(currentBoard), [currentBoard]);
+  // An LED board's previews are asked for that board (its spans and icons
+  // render, with cells) and cached apart from the split-flap renders.
+  const richBoardId = currentBoard && isLedModel(currentBoardModel) ? currentBoard.id : null;
 
   // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
   const allPages = useMemo(() => pagesData?.pages || [], [pagesData]);
@@ -659,7 +673,7 @@ export function PageGridSelector({
     const initial: Record<string, PagePreviewResponse> = {};
     const toFetch: string[] = [];
     for (const page of pages) {
-      const entry = cached[page.id];
+      const entry = cached[previewCacheKey(page.id, richBoardId)];
       if (isCacheValid(entry, page.updated_at || "")) {
         initial[page.id] = entry.preview;
       } else {
@@ -667,7 +681,7 @@ export function PageGridSelector({
       }
     }
     return { cachedPreviews: cached, initialPreviews: initial, pagesToFetch: toFetch };
-  }, [pages, viewMode]);
+  }, [pages, viewMode, richBoardId]);
 
   // Cache hits render instantly; anything fetched since layers on top. Entries
   // that failed to render carry only `{ error, available: false }` — they stay
@@ -696,7 +710,9 @@ export function PageGridSelector({
 
     const fetchBatchPreviews = async () => {
       try {
-        const result = await api.previewPagesBatch(pagesToFetch);
+        const result = richBoardId
+          ? await api.previewPagesBatch(pagesToFetch, richBoardId)
+          : await api.previewPagesBatch(pagesToFetch);
 
         if (mounted && result.previews) {
           const newCachedPreviews = { ...cachedPreviews };
@@ -705,7 +721,7 @@ export function PageGridSelector({
             if (preview.available) {
               const page = pages.find((p) => p.id === pageId);
               if (page) {
-                newCachedPreviews[pageId] = {
+                newCachedPreviews[previewCacheKey(pageId, richBoardId)] = {
                   preview,
                   pageUpdatedAt: page.updated_at || "",
                   cachedAt: new Date().toISOString(),
@@ -734,7 +750,7 @@ export function PageGridSelector({
     return () => {
       mounted = false;
     };
-  }, [pagesToFetch, cachedPreviews, pages]);
+  }, [pagesToFetch, cachedPreviews, pages, richBoardId]);
 
   if (isLoadingPages) {
     return (

@@ -8,7 +8,7 @@ Pages can be:
 
 import uuid
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -359,6 +359,10 @@ class PagePreviewBatchSuccess(BaseModel):
     lines: list[str]
     display_type: str
     raw: dict
+    #: The render as rich cells (FiestaUI ``BoardToken[][]`` JSON) for the
+    #: request's ``board_id`` when that board draws a rich character set (an
+    #: LED output). Present ONLY then.
+    cells: list[list[dict[str, Any]]] | None = None
 
 
 class PagePreviewBatchError(BaseModel):
@@ -378,6 +382,12 @@ class PagePreviewBatchRequest(BaseModel):
 
     page_ids: list[str] = Field(default_factory=list)
     force_refresh: bool = False
+    board_id: str | None = Field(
+        default=None,
+        description="The board the previews are for. A board whose output draws a rich character set (an LED "
+        "output) gets its colour spans and icons rendered, and each preview's `cells`; omitted or any other "
+        "board: the split-flap previews, unchanged.",
+    )
 
 
 class PagePreviewBatchResponse(BaseModel):

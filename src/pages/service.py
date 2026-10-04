@@ -727,7 +727,12 @@ class PageService:
         return result
 
     def preview_pages_batch(
-        self, page_ids: list[str], force_refresh: bool = False, active_page_id: str | None = None
+        self,
+        page_ids: list[str],
+        force_refresh: bool = False,
+        active_page_id: str | None = None,
+        *,
+        extended_markup: bool = False,
     ) -> dict[str, DisplayResult | None]:
         """Preview multiple pages, building template context once for efficiency.
 
@@ -739,6 +744,10 @@ class PageService:
             page_ids: List of page IDs to preview
             force_refresh: If True, bypass cache for all pages
             active_page_id: If set, always force refresh for this page
+            extended_markup: Render for a board that speaks extended markup
+                (see :meth:`preview_page`): every page renders fresh, and the
+                preview cache (the split-flap render) is neither read nor
+                written.
 
         Returns:
             Dict mapping page_id to DisplayResult (or None if page not found)
@@ -753,7 +762,7 @@ class PageService:
                 results[page_id] = None
                 continue
 
-            should_force = force_refresh or (page_id == active_page_id)
+            should_force = force_refresh or (page_id == active_page_id) or extended_markup
 
             if not should_force:
                 cached = self._preview_cache.get(page_id)
@@ -797,12 +806,14 @@ class PageService:
         # Second pass: render pages that missed cache
         for page_id, page in pages_to_render:
             try:
-                result = self.render_page(page, context=contexts_by_board.get(self._board_key(page)))
-
-                # Cache the result
-                self._preview_cache[page_id] = CachedPreview(
-                    result=result, page_updated_at=page.updated_at, cached_at=time.time()
-                )
+                context = contexts_by_board.get(self._board_key(page))
+                if extended_markup:
+                    result = self.render_page(page, context=context, extended_markup=True)
+                else:
+                    result = self.render_page(page, context=context)
+                    self._preview_cache[page_id] = CachedPreview(
+                        result=result, page_updated_at=page.updated_at, cached_at=time.time()
+                    )
 
                 results[page_id] = result
             except Exception as e:
