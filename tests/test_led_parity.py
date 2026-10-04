@@ -84,10 +84,9 @@ def test_every_led_fixture_is_pinned():
     assert pinned == on_disk
 
 
-def test_golden_has_no_transition_cases_yet():
-    # FiestaUI Task 4 fills these; the flip port (a later layer) must then
-    # add a test for them rather than let them pass unread.
-    assert LED_GOLDEN["transitions"] == []
+def test_transition_cases_are_read_by_the_transition_tests():
+    # tests/test_led_transitions.py checks every one of these frame by frame.
+    assert len(LED_GOLDEN["transitions"]) == 9
 
 
 # --- layout + raster goldens ------------------------------------------------

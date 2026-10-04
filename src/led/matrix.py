@@ -60,11 +60,13 @@ __all__ = [
     "draw_glyph",
     "frame_to_ascii",
     "frame_to_bits",
+    "glyph_index",
     "glyph_key",
     "grid_layout",
     "layout_cells",
     "layout_message",
     "led_spec_for_model",
+    "paint_ops",
     "parse_hex_color",
     "rasterize",
     "resolve_hex_option",
@@ -136,6 +138,9 @@ LED_GLYPHS: tuple[str, ...] = (
     *(f"icon:{name}" for name in BOARD_ICONS),
 )
 _GLYPHS = frozenset(LED_GLYPHS)
+_GLYPH_INDEX = {key: i for i, key in enumerate(LED_GLYPHS)}
+#: Characters a set's own bitmaps added, in the order they were first seen.
+_EXTRA_INDEX: dict[str, int] = {}
 _BLANK = " "
 _BLANK_TOKEN = BoardToken("char", value=" ")
 
@@ -179,6 +184,9 @@ class LedRenderOptions:
 
     monochrome: str | None = None
     glyphs: Mapping[str, Sequence[str]] | None = None
+    #: The set the layout was drawn with, when one was given: the pool a
+    #: flip's scramble draws from (:mod:`src.led.transitions`).
+    charset: CharacterSet | None = None
 
 
 @dataclass(frozen=True)
@@ -315,9 +323,25 @@ def glyph_key(token: BoardToken, custom: Mapping[str, Sequence[str]] | None = No
         code = _TILE_CODE_BY_HEX.get(_resolve_color_code(token.code))
         return f"tile:{code}" if code else _BLANK
     value = token.value
-    if value in _GLYPHS or (custom is not None and value in custom):
+    if value in _GLYPHS or value in _EXTRA_INDEX:
+        return value
+    if custom is not None and value in custom:
+        _EXTRA_INDEX[value] = len(LED_GLYPHS) + len(_EXTRA_INDEX)
         return value
     return _BLANK
+
+
+def glyph_index(key: str) -> int:
+    """FiestaUI's integer glyph index for a key (``LED_GLYPHS`` position).
+
+    A character a set's own bitmaps add is appended on first sight, process
+    wide, exactly as FiestaUI's ``EXTRA_GLYPHS``. The index never crosses to a
+    device; it feeds the flip's seed (:func:`src.led.transitions.plan_transition`).
+    """
+    index = _GLYPH_INDEX.get(key)
+    if index is None:
+        index = _EXTRA_INDEX.get(key, 0)
+    return index
 
 
 def _glyph_rows(key: str, face: LedFont, custom: Mapping[str, Sequence[str]] | None) -> Sequence[str] | None:
@@ -449,7 +473,7 @@ def layout_message(
         monochrome if monochrome is not None else resolve_hex_option(options.text_color, DEFAULT_LED_TEXT_COLOR)
     )
     custom = options.charset.get("glyphs") if options.charset else None
-    resolved = LedRenderOptions(monochrome=monochrome, glyphs=custom)
+    resolved = LedRenderOptions(monochrome=monochrome, glyphs=custom, charset=options.charset or None)
     if grid.rows == 0 or grid.cols == 0:
         return layout_cells(grid, [], resolved)
 
@@ -473,9 +497,14 @@ def layout_message(
 
 def rasterize(layout: LedLayout) -> LedFrame:
     """Paint a layout's ops, in order, into an RGB888 frame. Off-matrix pixels are dropped."""
-    width, height = layout.width, layout.height
-    pixels = bytearray(width * height * 3)
-    for op in layout.ops:
+    pixels = bytearray(layout.width * layout.height * 3)
+    paint_ops(pixels, layout.width, layout.height, layout.ops)
+    return LedFrame(layout.width, layout.height, bytes(pixels))
+
+
+def paint_ops(pixels: bytearray, width: int, height: int, ops: Sequence[LedDrawOp]) -> None:
+    """Paint ops, in order, into a ``width x height`` RGB888 buffer (FiestaUI ``rasterizeLedOps``)."""
+    for op in ops:
         rgb = bytes(parse_hex_color(op.color) or (0, 0, 0))
         if op.kind == "rect":
             points = ((op.x + dx, op.y + dy) for dy in range(op.h) for dx in range(op.w))
@@ -487,7 +516,6 @@ def rasterize(layout: LedLayout) -> LedFrame:
             if 0 <= x < width and 0 <= y < height:
                 i = (y * width + x) * 3
                 pixels[i : i + 3] = rgb
-    return LedFrame(width, height, bytes(pixels))
 
 
 def frame_to_bits(frame: LedFrame) -> bytes:
