@@ -77,6 +77,9 @@ import { api, type OAuthConnection } from "@/lib/api";
 
 export const OAUTH_CONNECTIONS_QUERY_KEY = ["oauth-connections"] as const;
 
+/** FiestaBot AI providers' connection ids: `ai.<provider id>` (src/oauth/service.py). */
+const AI_CONNECTION_PREFIX = "ai.";
+
 /** How often to re-read the connection while a device code awaits approval. */
 const DEVICE_POLL_INTERVAL_MS = 3000;
 
@@ -245,6 +248,14 @@ export function OAuthConnectionPanel({
   const refreshAfterChange = () => {
     queryClient.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
     queryClient.invalidateQueries({ queryKey: ["plugin-data", connectionId] });
+    if (connectionId.startsWith(AI_CONNECTION_PREFIX)) {
+      // A FiestaBot provider's sign-in changes what it can list and whether
+      // the chat panel can use it: refresh both now, not when the cache ages.
+      queryClient.invalidateQueries({ queryKey: ["ai-settings"] });
+      queryClient.invalidateQueries({
+        queryKey: ["ai-provider-models", connectionId.slice(AI_CONNECTION_PREFIX.length)],
+      });
+    }
   };
 
   const connectMutation = useMutation({

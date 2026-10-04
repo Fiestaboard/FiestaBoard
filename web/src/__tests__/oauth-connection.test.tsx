@@ -845,6 +845,39 @@ describe("a sign-in that can only finish by paste (ChatGPT's loopback redirect)"
     expect(screen.queryByRole("group", { name: "Finish signing in" })).not.toBeInTheDocument();
   });
 
+  it("refreshes FiestaBot's providers and their models once the sign-in finishes", async () => {
+    serveConnections(CHATGPT);
+    vi.stubGlobal(
+      "open",
+      vi.fn(() => fakeTab()),
+    );
+    serveStart();
+    server.use(
+      http.post(`${API_BASE}/oauth/connections/ai.gpt/complete`, () =>
+        HttpResponse.json({ ...CHATGPT, status: "connected" }),
+      ),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    render(
+      <QueryClientProvider client={queryClient}>
+        <OAuthConnectionPanel connectionId="ai.gpt" title="ChatGPT sign-in" />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Sign in with ChatGPT" }));
+    await user.type(await screen.findByLabelText("Address from the ChatGPT tab"), LANDED);
+    await user.click(screen.getByRole("button", { name: "Finish sign-in" }));
+
+    await waitFor(() => {
+      const keys = invalidate.mock.calls.map(([filters]) => JSON.stringify(filters?.queryKey));
+      expect(keys).toContain(JSON.stringify(["ai-settings"]));
+      expect(keys).toContain(JSON.stringify(["ai-provider-models", "gpt"]));
+    });
+  });
+
   it("finishes the sign-in from the pasted address and says so", async () => {
     serveConnections(CHATGPT);
     vi.stubGlobal(
