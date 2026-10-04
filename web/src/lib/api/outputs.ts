@@ -101,6 +101,12 @@ export interface DiscoveredDevice {
   hostname: string | null;
   source: string | null;
   label: string | null;
+  /**
+   * Every other scalar the output reported (a Pixoo's `host`, `mac`): a
+   * device picker reads its `value_key` here first, and picking the device
+   * fills the same-named settings beside it. Absent from an older server.
+   */
+  fields?: Record<string, string | number | boolean>;
 }
 
 /**

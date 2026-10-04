@@ -287,7 +287,7 @@ A name starting with `@` reads the **board**, not a sibling: `@device_type` (`fl
 | Widget | On | What it renders |
 |--------|----|-----------------|
 | `mode-cards` | a string `enum` | Selectable cards, one per value. `ui:options.cards` gives each value a `title` and `description`. |
-| `device-picker` | a string | A field filled from discovery results. `ui:options.action` names the action (default `discover`), `value_key` the device key written (default `ip`), and `label_key` the one shown (default `hostname`). |
+| `device-picker` | a string | A field filled from discovery results. `ui:options.action` names the action (default `discover`) and its `label` names the button; `value_key` is the device key written (default `ip`), and `label_key` the one shown (default `hostname`). Any other key your found device carries (`host`, `mac`, …) is kept: `value_key` can name it, and picking the device also fills the settings of the same name. |
 | `tile-grid` | an array of objects with `row` and `col` | A grid for assigning one device per position, one dialog per slot with the item's other fields. `ui:options.rows_field` and `cols_field` name the integer properties that size it, or `"layout": "board"` sizes it by the board's own layout (a Note array's Notes down × across). `item_actions` names actions each slot's dialog runs on that one tile. `unique_fields` names item fields that should not repeat across tiles (a warning). An item's `required` fields decide when a tile counts as assigned. |
 
 The widget set is closed and versioned with `output_api`: a widget outside your `output_api`'s set is a manifest error, because a settings screen that cannot render is a board that cannot be set up.

@@ -292,10 +292,76 @@ describe("PluginBoardSettings — actions", () => {
       ),
     );
     renderScreen();
-    expect(screen.queryByRole("button", { name: "Find signs" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Find devices" }));
+    // One button, in the picker, named by the action it runs.
+    expect(screen.getAllByRole("button", { name: "Find signs" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Find devices" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Find signs" }));
     await userEvent.click(await screen.findByRole("radio", { name: /acme\.local/ }));
     await waitFor(() => expect(values().host).toBe("192.0.2.77"));
+  });
+
+  it("fills the picker's value_key and the device's other settings from the found device's fields", async () => {
+    const pixooLike: OutputSummary = {
+      ...OUTPUT,
+      settings_schema: {
+        type: "object",
+        properties: {
+          host: {
+            type: "string",
+            title: "Device address",
+            "ui:widget": "device-picker",
+            "ui:options": { action: "find_pixoo", value_key: "host", label_key: "label" },
+          },
+          mac: { type: "string", title: "Device MAC address" },
+        },
+      },
+      actions: [
+        {
+          id: "find_pixoo",
+          label: "Find my Pixoo",
+          description: "",
+          builtin: false,
+          input_schema: null,
+          result_fields: {},
+        },
+      ],
+    };
+    server.use(
+      http.post(`${API}/outputs/acme_sign/actions/find_pixoo`, () =>
+        HttpResponse.json(
+          result({
+            devices: [
+              {
+                ip: "192.0.2.80",
+                port: 8080,
+                hostname: "Pixoo 64",
+                source: null,
+                label: "Pixoo 64 at 192.0.2.80",
+                fields: { host: "192.0.2.80:8080", mac: "a1b2c3d4e5f6", unrelated: "x" },
+              },
+            ],
+          }),
+        ),
+      ),
+    );
+    function PixooHarness() {
+      const [v, setV] = useState<Record<string, unknown>>({});
+      return (
+        <>
+          <PluginBoardSettings output={pixooLike} values={v} onChange={setV} />
+          <output data-testid="values">{JSON.stringify(v)}</output>
+        </>
+      );
+    }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <PixooHarness />
+      </QueryClientProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Find my Pixoo" }));
+    await userEvent.click(await screen.findByRole("radio", { name: /Pixoo 64 at 192\.0\.2\.80/ }));
+    await waitFor(() => expect(values()).toEqual({ host: "192.0.2.80:8080", mac: "a1b2c3d4e5f6" }));
   });
 });
 

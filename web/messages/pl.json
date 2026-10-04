@@ -2385,7 +2385,6 @@
     "dismissFailed": "Nie udało się zamknąć. Spróbuj ponownie."
   },
   "boardSettingsScreen": {
-    "scanDevices": "Znajdź urządzenia",
     "scanning": "Wyszukiwanie…",
     "noDevicesFound": "Nie znaleziono urządzeń. Wpisz adres ręcznie.",
     "devicesFoundLabel": "Znalezione urządzenia dla {field}",

@@ -1260,7 +1260,10 @@ core widgets on top of the usual ones:
   tile layout; `item_actions` run on one tile from its dialog;
   `unique_fields` warn on repeats) and `"device-picker"` (a string filled
   from a discovery; `ui:options.action` defaults to `discover`,
-  `value_key` to `ip`).
+  `value_key` to `ip`; its button is named by that action's `label`. Every
+  other scalar a found device carries (a Pixoo's `host`, `mac`) reaches the
+  web UI under the device's `fields`: `value_key` is read there first, and
+  picking the device also fills the same-named settings).
 
 An output may use only the widgets of its `output_api` major (an unknown one
 is an error, not a warning). `output.actions` declares the screen's buttons:

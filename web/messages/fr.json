@@ -2385,7 +2385,6 @@
     "dismissFailed": "Impossible d'ignorer. Réessayez."
   },
   "boardSettingsScreen": {
-    "scanDevices": "Rechercher des appareils",
     "scanning": "Recherche…",
     "noDevicesFound": "Aucun appareil trouvé. Saisissez l'adresse vous-même.",
     "devicesFoundLabel": "Appareils trouvés pour {field}",

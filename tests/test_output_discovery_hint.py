@@ -215,3 +215,45 @@ def test_the_vestaboard_scan_is_handed_the_browsers_network():
         )
     assert resp.status_code == 200, resp.text
     scan.assert_called_once_with(2.0, hint="192.168.1.20")
+
+
+# --- what a found device fills ----------------------------------------------------------------
+
+_PIXOO_SHAPED = {
+    "ip": "192.168.1.30",
+    "port": 80,
+    "host": "192.168.1.30",
+    "label": "Pixoo 64 at 192.168.1.30",
+    "hostname": "Pixoo 64",
+    "mac": "a1b2c3d4e5f6",
+}
+
+
+def _discover_through_the_route(found):
+    import sys
+
+    from src.api_server import app
+
+    plugin_class = sys.modules[f"plugins.{PLUGIN_ID}"].RecordingOutput
+    with mock.patch.object(plugin_class, "discover", classmethod(lambda cls, timeout, hint=None: found)):
+        resp = TestClient(app).post(f"/outputs/{PLUGIN_ID}/actions/discover", json={"input": {}})
+    assert resp.status_code == 200, resp.text
+    return resp.json()["devices"]
+
+
+def test_a_found_devices_own_settings_fields_reach_the_picker(bundled):
+    """A device-picker bound with ``value_key: "host"`` reads the address the
+    plugin put under ``host``, and picking it also fills ``mac``."""
+    (device,) = _discover_through_the_route([_PIXOO_SHAPED])
+    assert device["fields"] == {"host": "192.168.1.30", "mac": "a1b2c3d4e5f6"}
+    assert (device["ip"], device["port"], device["label"]) == ("192.168.1.30", 80, "Pixoo 64 at 192.168.1.30")
+
+
+def test_only_scalar_device_fields_are_carried(bundled):
+    (device,) = _discover_through_the_route([{**_PIXOO_SHAPED, "mac": None, "extra": {"nested": 1}, "tags": ["a"]}])
+    assert device["fields"] == {"host": "192.168.1.30"}
+
+
+def test_a_device_with_only_the_core_keys_fills_nothing_else(bundled):
+    (device,) = _discover_through_the_route([{"ip": "192.168.1.31", "port": 7000, "hostname": "vb.local"}])
+    assert device["fields"] == {}

@@ -505,7 +505,7 @@ class TestVestaboardActions:
         with mock.patch("plugins.vestaboard.discovery.discover", return_value=found) as discover:
             body = client.post("/outputs/vestaboard/actions/discover", json={"input": {"timeout": 2}}).json()
         assert discover.call_args.args == (2.0,)
-        assert body["devices"] == [{**found[0], "label": None}]
+        assert body["devices"] == [{**found[0], "label": None, "fields": {}}]
 
     def test_test_connection_without_details_is_400(self, client):
         assert client.post("/outputs/vestaboard/actions/test_connection", json={}).status_code == 400

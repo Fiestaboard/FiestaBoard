@@ -2385,7 +2385,6 @@
     "dismissFailed": "Не удалось закрыть. Попробуйте ещё раз."
   },
   "boardSettingsScreen": {
-    "scanDevices": "Найти устройства",
     "scanning": "Поиск…",
     "noDevicesFound": "Устройства не найдены. Введите адрес вручную.",
     "devicesFoundLabel": "Найденные устройства для {field}",
