@@ -245,6 +245,9 @@ describe("PageBuilder size picker — FiestaPanels", () => {
         expect.anything(),
         expect.anything(),
         { rows: 12, cols: 29 },
+        // The board the page is checked against (A26): none here — no
+        // configured board is a 12 × 29 panel, so no charset is borrowed.
+        null,
       ),
     );
   });

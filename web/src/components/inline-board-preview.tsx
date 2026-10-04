@@ -3,10 +3,14 @@
 import { Box, Text } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 
+import { useCurrentBoard } from "@/components/current-board-context";
+import { DevicePreview } from "@/components/device-preview";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot } from "@/lib/ai-chat-types";
 import { api, type DeviceType, type GridSize } from "@/lib/api";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { resolveBoardModel } from "@/lib/device-preview";
 
 export interface InlineBoardPreviewProps {
   snapshot: CurrentPageSnapshot;
@@ -46,6 +50,16 @@ export interface InlineBoardPreviewProps {
 export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", className }: InlineBoardPreviewProps) {
   const t = useTranslations("aiChatPanel");
   const panelGrid = deviceType === "panel" ? (grid ?? null) : null;
+  // The board in context draws the preview when the page fits it (an LED
+  // board as its LED matrix); a page of another size never borrows a model.
+  const { currentBoard } = useCurrentBoard();
+  const fitsCurrentBoard =
+    !!currentBoard &&
+    pagesCompatibleWithBoard(
+      { device_type: deviceType, grid_rows: panelGrid?.rows ?? null, grid_cols: panelGrid?.cols ?? null },
+      currentBoard,
+    );
+  const model = fitsCurrentBoard ? resolveBoardModel(currentBoard) : null;
   const { data, isLoading, isError } = useQuery({
     queryKey: [
       "inline-preview-render",
@@ -80,15 +94,17 @@ export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", cl
   // mount, so no flip animation runs.
   return (
     <Box className={className}>
-      <ScaledBoardDisplay
-        message={isLoading ? null : (data?.rendered ?? "")}
-        deviceType={deviceType}
-        gridRows={panelGrid?.rows}
-        gridCols={panelGrid?.cols}
-        size={size}
-        boardType="black"
-        isStatic
-      />
+      <DevicePreview model={model} message={isLoading ? null : (data?.rendered ?? "")} size={size}>
+        <ScaledBoardDisplay
+          message={isLoading ? null : (data?.rendered ?? "")}
+          deviceType={deviceType}
+          gridRows={panelGrid?.rows}
+          gridCols={panelGrid?.cols}
+          size={size}
+          boardType="black"
+          isStatic
+        />
+      </DevicePreview>
     </Box>
   );
 }

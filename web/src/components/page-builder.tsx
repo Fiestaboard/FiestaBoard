@@ -67,6 +67,7 @@ import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
+import { DevicePreview } from "@/components/device-preview";
 import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
 import { PanelFitNote } from "@/components/panel-fit-note";
@@ -97,6 +98,7 @@ import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
   BoardInstance,
+  CharsetIssue,
   DeviceType,
   GridSize,
   LineAlignment,
@@ -106,9 +108,12 @@ import type {
   PageType,
   PageUpdate,
   PageUpdateResponse,
+  TemplateRenderResponse,
 } from "@/lib/api";
 import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
+import { charsetTokenText } from "@/lib/charset-issues";
+import { boardForShape, resolveBoardModel } from "@/lib/device-preview";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
@@ -184,6 +189,9 @@ interface StrokeMetaSnapshot {
 }
 
 const UNDO_STACK_LIMIT = 5;
+
+/** Charset issues listed one by one; the rest are counted. */
+const MAX_CHARSET_ISSUES_SHOWN = 5;
 
 // 1..MAX_NOTES_PER_AXIS choices for the note-array W×H selectors.
 const NOTE_AXIS_OPTIONS = Array.from({ length: MAX_NOTES_PER_AXIS }, (_, i) => i + 1);
@@ -720,6 +728,26 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Live output mode state
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
   const [selectedBoardId, setSelectedBoardId] = useState<string>("");
+  // The board this page is previewed as: the live-output target, else the
+  // board in context, when the page fits it; else any board it fits. Its
+  // model draws the preview (an LED board as an LED matrix) and its
+  // character set is what the render is checked against.
+  const previewBoard = useMemo(
+    () =>
+      boardForShape(boardSettings?.boards, [selectedBoardId, currentBoardId], {
+        device_type: deviceType,
+        notes_wide: notesWide,
+        notes_tall: notesTall,
+        grid_rows: panelGrid?.rows ?? null,
+        grid_cols: panelGrid?.cols ?? null,
+      }),
+    [boardSettings?.boards, selectedBoardId, currentBoardId, deviceType, notesWide, notesTall, panelGrid],
+  );
+  const previewBoardId = previewBoard?.id ?? null;
+  const previewModel = useMemo(() => resolveBoardModel(previewBoard), [previewBoard]);
+  // Cells of the last render that board's character set draws differently
+  // (POST /templates/render with board_id); [] when none or no board.
+  const [charsetIssues, setCharsetIssues] = useState<CharsetIssue[]>([]);
   const lastLiveSentPreview = useRef<string | null>(null);
   // Ref-tracked copy of lastPreview so the liveOutputEnabled effect can read it
   // synchronously without a stale closure (avoids adding lastPreview as a dep).
@@ -1411,13 +1439,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         };
       }
 
-      return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall, panelGrid);
+      return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall, panelGrid, previewBoardId);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: TemplateRenderResponse) => {
       if (shouldIgnoreNextResponse.current) {
         shouldIgnoreNextResponse.current = false;
         return;
       }
+      setCharsetIssues(data.charset_issues ?? []);
 
       const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
       if (!hasContent) {
@@ -1458,6 +1487,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     },
     onError: () => {
       setPreview(null);
+      setCharsetIssues([]);
       needsRePreview.current = false;
     },
   });
@@ -1542,6 +1572,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     notesTall,
     gridRows,
     gridCols,
+    // Another target board is another character set to check against.
+    previewBoardId,
   ]);
 
   // Live output mutation - sends rendered preview to the board
@@ -1854,6 +1886,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       </Card>
     );
   }
+
+  // What the live preview shows. Keeps the previous message visible during
+  // loading/transition, so tiles cycle through characters (like a real board)
+  // instead of flashing empty.
+  const editorPreviewMessage = drawMode
+    ? drawPreviewMessage
+    : (() => {
+        const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+        const isPending = previewMutation.isPending;
+        const shouldIgnore = shouldIgnoreNextResponse.current;
+
+        if (isTransitioning && lastPreview) return lastPreview;
+        if (preview !== null) return preview;
+        if (!hasContent && !isPending && !shouldIgnore) return "";
+        if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
+        if (isPending && hasContent && !shouldIgnore) return "";
+        return null;
+      })();
 
   return (
     <>
@@ -2271,6 +2321,38 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   </Flex>
                 ))}
 
+                {/* Cells the target board's character set draws differently
+                    (the server's charset_issues for the rendered page). */}
+                {charsetIssues.length > 0 && (
+                  <Flex
+                    align="start"
+                    gap="2"
+                    data-testid="charset-issues"
+                    className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                  >
+                    <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
+                      {t("warningLabel")}
+                    </Text>
+                    <Stack gap="1">
+                      {charsetIssues.slice(0, MAX_CHARSET_ISSUES_SHOWN).map((issue) => (
+                        <Text as="span" size="xs" tone="warning" key={`${issue.row}-${issue.col}`}>
+                          {t("charsetIssue", {
+                            line: issue.row + 1,
+                            column: issue.col + 1,
+                            written: charsetTokenText(issue.token),
+                            shown: charsetTokenText(issue.fallback),
+                          })}
+                        </Text>
+                      ))}
+                      {charsetIssues.length > MAX_CHARSET_ISSUES_SHOWN && (
+                        <Text as="span" size="xs" tone="warning">
+                          {t("charsetIssuesMore", { count: charsetIssues.length - MAX_CHARSET_ISSUES_SHOWN })}
+                        </Text>
+                      )}
+                    </Stack>
+                  </Flex>
+                )}
+
                 {/* Live preview */}
                 <Box className="mt-4">
                   <Flex align="center" justify="between" className="flex-wrap gap-y-1 mb-2">
@@ -2408,56 +2490,41 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       onStrokePreview={setStrokePreviewCells}
                       onStrokeCommit={handleStrokeCommit}
                     >
-                      <ScaledBoardDisplay
-                        message={
-                          drawMode
-                            ? drawPreviewMessage
-                            : (() => {
-                                // Use new loading pattern: keep previous message visible during loading/transition
-                                // This allows tiles to cycle through characters (like real FiestaBoard)
-                                // instead of showing legacy FlipTiles
+                      {/* An LED target board previews as its LED matrix; draw
+                          mode hit-tests flap tiles, so it stays on the flaps. */}
+                      <DevicePreview model={drawMode ? null : previewModel} message={editorPreviewMessage} size="md">
+                        <ScaledBoardDisplay
+                          message={editorPreviewMessage}
+                          isLoading={
+                            drawMode
+                              ? false
+                              : (() => {
+                                  const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+                                  const isPending = previewMutation.isPending;
+                                  const shouldIgnore = shouldIgnoreNextResponse.current;
 
-                                const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                                const isPending = previewMutation.isPending;
-                                const shouldIgnore = shouldIgnoreNextResponse.current;
-
-                                if (isTransitioning && lastPreview) return lastPreview;
-                                if (preview !== null) return preview;
-                                if (!hasContent && !isPending && !shouldIgnore) return "";
-                                if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
-                                if (isPending && hasContent && !shouldIgnore) return "";
-                                return null;
-                              })()
-                        }
-                        isLoading={
-                          drawMode
-                            ? false
-                            : (() => {
-                                const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                                const isPending = previewMutation.isPending;
-                                const shouldIgnore = shouldIgnoreNextResponse.current;
-
-                                if (isTransitioning) return true;
-                                if (preview !== null) return false;
-                                if (!hasContent) return false;
-                                if (shouldIgnore) return false;
-                                return isPending && hasContent;
-                              })()
-                        }
-                        isStatic={drawMode}
-                        size="md"
-                        boardType={effectiveBoardColor}
-                        deviceType={deviceType}
-                        code62Glyph={effectiveCode62Glyph}
-                        notesWide={notesWide}
-                        notesTall={notesTall}
-                        gridRows={panelGrid?.rows}
-                        gridCols={panelGrid?.cols}
-                        // DrawableBoardPreview hit-tests strokes through the
-                        // tiles' data-row/data-col attributes; only this
-                        // editor preview opts into emitting them.
-                        emitCellMetadata
-                      />
+                                  if (isTransitioning) return true;
+                                  if (preview !== null) return false;
+                                  if (!hasContent) return false;
+                                  if (shouldIgnore) return false;
+                                  return isPending && hasContent;
+                                })()
+                          }
+                          isStatic={drawMode}
+                          size="md"
+                          boardType={effectiveBoardColor}
+                          deviceType={deviceType}
+                          code62Glyph={effectiveCode62Glyph}
+                          notesWide={notesWide}
+                          notesTall={notesTall}
+                          gridRows={panelGrid?.rows}
+                          gridCols={panelGrid?.cols}
+                          // DrawableBoardPreview hit-tests strokes through the
+                          // tiles' data-row/data-col attributes; only this
+                          // editor preview opts into emitting them.
+                          emitCellMetadata
+                        />
+                      </DevicePreview>
                     </DrawableBoardPreview>
                   </Flex>
                   {drawMode && (

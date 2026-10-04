@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CardContent,
+  type DeviceModel,
   EmptyState,
   Flex,
   Grid,
@@ -22,6 +23,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
+import { DevicePreview } from "@/components/device-preview";
 import { PanelFitNote } from "@/components/panel-fit-note";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
@@ -32,6 +34,7 @@ import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { Collection, DeviceType, Page, PagePreviewBatchEntry, PagePreviewResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { resolveBoardModel } from "@/lib/device-preview";
 
 // Cache key for batch previews in localStorage
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";
@@ -109,6 +112,7 @@ const PageButtonPreview = memo(
     notesTall,
     gridRows,
     gridCols,
+    model = null,
   }: {
     preview: PagePreviewResponse | null;
     isLoading: boolean;
@@ -119,6 +123,8 @@ const PageButtonPreview = memo(
     notesTall?: number;
     gridRows?: number;
     gridCols?: number;
+    /** The current board's device model, when the page fits that board: an LED board's pages preview as LED. */
+    model?: DeviceModel | null;
   }) {
     const t = useTranslations("pageGridSelector");
     const ref = useRef<HTMLDivElement>(null);
@@ -171,17 +177,19 @@ const PageButtonPreview = memo(
           // are fixed-pixel and `shrink-0`, so nothing else can make it fit.
           // `isStatic` keeps the cheap zero-hooks-per-tile render path that
           // made this a StaticBoardDisplay in the first place.
-          <ScaledBoardDisplay
-            isStatic
-            message={preview?.message || null}
-            size="sm"
-            boardType={boardType ?? "black"}
-            deviceType={deviceType}
-            notesWide={notesWide}
-            notesTall={notesTall}
-            gridRows={gridRows}
-            gridCols={gridCols}
-          />
+          <DevicePreview model={model} message={preview?.message || null} size="sm">
+            <ScaledBoardDisplay
+              isStatic
+              message={preview?.message || null}
+              size="sm"
+              boardType={boardType ?? "black"}
+              deviceType={deviceType}
+              notesWide={notesWide}
+              notesTall={notesTall}
+              gridRows={gridRows}
+              gridCols={gridCols}
+            />
+          </DevicePreview>
         ) : (
           <Box className="w-full" style={{ height: deviceType === "note" ? 90 : 168 }} />
         )}
@@ -197,7 +205,8 @@ const PageButtonPreview = memo(
       prevProps.notesWide === nextProps.notesWide &&
       prevProps.notesTall === nextProps.notesTall &&
       prevProps.gridRows === nextProps.gridRows &&
-      prevProps.gridCols === nextProps.gridCols
+      prevProps.gridCols === nextProps.gridCols &&
+      prevProps.model === nextProps.model
     );
   },
 );
@@ -213,6 +222,7 @@ const PageButton = memo(
     onSelect,
     showActiveIndicator = true,
     boardType = "black",
+    model = null,
   }: {
     page: Page;
     preview: PagePreviewResponse | null;
@@ -222,6 +232,7 @@ const PageButton = memo(
     onSelect: (pageId: string) => void;
     showActiveIndicator?: boolean;
     boardType?: "black" | "white" | null;
+    model?: DeviceModel | null;
   }) {
     const TypeIcon = LayoutTemplate;
 
@@ -293,6 +304,7 @@ const PageButton = memo(
             notesTall={page.notes_tall}
             gridRows={page.grid_rows ?? undefined}
             gridCols={page.grid_cols ?? undefined}
+            model={model}
           />
         </Box>
 
@@ -311,7 +323,8 @@ const PageButton = memo(
       prevProps.isPending === nextProps.isPending &&
       prevProps.page.updated_at === nextProps.page.updated_at &&
       prevProps.showActiveIndicator === nextProps.showActiveIndicator &&
-      prevProps.boardType === nextProps.boardType
+      prevProps.boardType === nextProps.boardType &&
+      prevProps.model === nextProps.model
     );
   },
 );
@@ -611,6 +624,8 @@ export function PageGridSelector({
   // Current board for size-compatibility filtering (issue #1249). Single-board
   // installs see no change: their pages match the only board by construction.
   const { currentBoard } = useCurrentBoard();
+  // The current board's device model: a page that fits it previews as it.
+  const currentBoardModel = useMemo(() => resolveBoardModel(currentBoard), [currentBoard]);
 
   // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
   const allPages = useMemo(() => pagesData?.pages || [], [pagesData]);
@@ -839,6 +854,7 @@ export function PageGridSelector({
             onSelect={onSelectPage}
             showActiveIndicator={showActiveIndicator}
             boardType={getEffectiveBoardColor(boardSettings)}
+            model={currentBoard && pagesCompatibleWithBoard(page, currentBoard) ? currentBoardModel : null}
           />
         ))}
       </Grid>

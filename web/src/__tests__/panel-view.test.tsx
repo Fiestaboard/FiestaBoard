@@ -7,6 +7,7 @@ import { isInDimWindow } from "@/components/panel/panel-view";
 import { PanelView } from "@/components/panel/panel-view";
 import type { PanelFrame, PanelPublicConfig } from "@/lib/api";
 
+import { FIESTAPANEL_LED_MATRIX } from "./mocks/fiestapanel-models";
 import { server } from "./mocks/server";
 
 const CONFIG: PanelPublicConfig = {
@@ -129,6 +130,41 @@ describe("PanelView", () => {
     await screen.findByRole("img");
     expect(screen.getByTestId("char-tile-5-29")).toBeInTheDocument();
     expect(screen.queryByTestId("char-tile-6-0")).not.toBeInTheDocument();
+  });
+
+  it("draws only the flaps: the board has no housing of its own on the TV", async () => {
+    mockPanel();
+    render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    const board = await screen.findByRole("img");
+    expect(board).toHaveAttribute("data-bezel", "false");
+  });
+
+  it("draws an LED-matrix panel through its model, not as flaps", async () => {
+    mockPanel(
+      {
+        ...CONFIG,
+        device_type: "panel",
+        rows: 12,
+        cols: 29,
+        render_style: "led_matrix",
+        device_model: "fiestapanel_led_matrix",
+        device_model_spec: FIESTAPANEL_LED_MATRIX,
+      },
+      { ...FRAME, rows: 12, cols: 29 },
+    );
+    const { container } = render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    await screen.findByRole("img");
+    expect(container.querySelector('[data-slot="display-preview"]')).toHaveAttribute("data-technology", "led_matrix");
+    expect(screen.queryByTestId("char-tile-0-0")).not.toBeInTheDocument();
+  });
+
+  it("draws the frame's rich cells when the frame has them", async () => {
+    const cells = [[..."CELLS"].map((value) => ({ type: "char" as const, value }))];
+    mockPanel(CONFIG, { ...FRAME, message: "IGNORED", cells });
+    render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    const board = await screen.findByRole("img");
+    await waitFor(() => expect(board.getAttribute("aria-label")).toContain("CELLS"));
+    expect(board.getAttribute("aria-label")).not.toContain("IGNORED");
   });
 
   it("reports the orphaned-board state", async () => {

@@ -2,6 +2,7 @@
 
 import {
   Button,
+  type DeviceModel,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -19,6 +20,7 @@ import { MonitorSmartphone, PencilLine, Save, Send } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { DevicePreview } from "@/components/device-preview";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { queryKeys } from "@/hooks/use-board";
@@ -52,6 +54,8 @@ interface ComposePageDialogProps {
    * never surprised by which board lights up.
    */
   targetBoardName?: string;
+  /** The destination board's device model: an LED board previews as its LED matrix. */
+  model?: DeviceModel | null;
 }
 
 /**
@@ -78,6 +82,7 @@ export function ComposePageDialog({
   boardColor = "black",
   code62Glyph,
   targetBoardName,
+  model = null,
 }: ComposePageDialogProps) {
   const t = useTranslations("composeDialog");
   const queryClient = useQueryClient();
@@ -225,17 +230,19 @@ export function ComposePageDialog({
             <Text size="xs" tone="muted">
               {t("previewLabel")}
             </Text>
-            <ScaledBoardDisplay
-              message={preview?.rendered ?? ""}
-              size="sm"
-              boardType={boardColor}
-              deviceType={deviceType}
-              notesWide={notesWide}
-              notesTall={notesTall}
-              gridRows={panelGrid?.rows}
-              gridCols={panelGrid?.cols}
-              code62Glyph={code62Glyph}
-            />
+            <DevicePreview model={model} message={preview?.rendered ?? ""} size="sm">
+              <ScaledBoardDisplay
+                message={preview?.rendered ?? ""}
+                size="sm"
+                boardType={boardColor}
+                deviceType={deviceType}
+                notesWide={notesWide}
+                notesTall={notesTall}
+                gridRows={panelGrid?.rows}
+                gridCols={panelGrid?.cols}
+                code62Glyph={code62Glyph}
+              />
+            </DevicePreview>
           </Stack>
 
           {showSaveForm && (

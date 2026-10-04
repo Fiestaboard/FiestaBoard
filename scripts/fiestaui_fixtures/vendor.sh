@@ -20,7 +20,9 @@ trap 'rm -rf "$TMP"' EXIT
 
 git -C "$FIESTAUI" archive "$COMMIT" "$FIX" | tar -x -C "$TMP"
 
-DATA="device-model.schema.json character-set.schema.json character-sets.json device-models.json led-fonts.json"
+# plugin-models.json is both: runtime data (FiestaPanel's own models, one per
+# render style) and the golden fixture the manifest tests read.
+DATA="device-model.schema.json character-set.schema.json character-sets.json device-models.json led-fonts.json plugin-models.json"
 GOLDENS="charset-golden.json led-golden.json plugin-models.json"
 
 mkdir -p "$ROOT/src/fiestaui" "$ROOT/tests/fixtures/fiestaui"

@@ -186,6 +186,12 @@ class PanelStorage:
             panels_out: list[dict] = []
             for panel in self._panels.values():
                 panel_data = panel.model_dump()
+                # The default render style is the absence of the key, so a
+                # panels.json written before the setting existed round-trips
+                # byte for byte (no migration: the stored format only grows
+                # for a panel that leaves the default).
+                if panel_data.get("render_style") == "split_flap":
+                    del panel_data["render_style"]
                 for key in ("created_at", "updated_at"):
                     if isinstance(panel_data.get(key), datetime):
                         panel_data[key] = panel_data[key].isoformat()

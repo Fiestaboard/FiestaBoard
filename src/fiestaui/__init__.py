@@ -10,7 +10,9 @@ holds its published data, copied byte for byte from one FiestaUI commit by
   :mod:`src.led.charsets`);
 - the built-in **device models**;
 - the **LED fonts** (glyph boxes and bitmaps: :mod:`src.led.fonts`,
-  :mod:`src.outputs.geometry`).
+  :mod:`src.outputs.geometry`);
+- the **plugin-style example models**, of which FiestaPanel's two (one per
+  render style) are FiestaBoard's own display (:func:`fiestapanel_device_models`).
 
 ``provenance.json`` names the commit and pins each file's sha256, the golden
 fixtures under ``tests/fixtures/fiestaui/`` included;
@@ -35,6 +37,7 @@ __all__ = [
     "builtin_character_sets",
     "builtin_device_models",
     "builtin_led_fonts",
+    "fiestapanel_device_models",
     "provenance",
     "read",
 ]
@@ -71,3 +74,21 @@ def builtin_device_models() -> Mapping[str, Mapping[str, Any]]:
 def builtin_led_fonts() -> Mapping[str, Mapping[str, Any]]:
     """FiestaUI's LED fonts (glyph box, spacing, glyphs, icons), by id."""
     return read("led-fonts.json")
+
+
+@cache
+def fiestapanel_device_models() -> Mapping[str, Mapping[str, Any]]:
+    """FiestaPanel's device models, by render style (``split_flap`` / ``led_matrix``).
+
+    FiestaUI does not build these in -- ``resolveDeviceModel("fiestapanel_...")``
+    throws there, as for any plugin's model -- because FiestaPanel is
+    FiestaBoard's display, declared the way an output plugin declares its own:
+    as documents, one per render style, carried in FiestaUI's
+    ``plugin-models.json`` fixture. A client resolves them by the document.
+    """
+    models = read("plugin-models.json")["models"]
+    return {
+        model["id"].removeprefix("fiestapanel_"): model
+        for model in models
+        if model.get("family") == "fiestapanel" and model["id"].startswith("fiestapanel_")
+    }

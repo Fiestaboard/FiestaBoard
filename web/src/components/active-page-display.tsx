@@ -53,6 +53,7 @@ import { toast } from "sonner";
 
 import { ComposePageDialog } from "@/components/compose-page-dialog";
 import { useCurrentBoard } from "@/components/current-board-context";
+import { DevicePreview } from "@/components/device-preview";
 import { ForceSetDialog } from "@/components/force-set-dialog";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
@@ -77,6 +78,7 @@ import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { BoardCurrentMessageResponse, Collection, DeviceType, SilenceStatus } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { classifyDimensions, pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { resolveBoardModel } from "@/lib/device-preview";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
 
 export function ActivePageDisplay() {
@@ -833,24 +835,32 @@ export function ActivePageDisplay() {
               ScaledBoardDisplay shrinks the board to fit narrow (mobile) cards —
               BoardDisplay's breakpoint tile sizes alone overflow phone widths. */}
           <Flex justify="center" className="overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
-            <ScaledBoardDisplay
+            {/* The board's device model draws it: an LED board as its LED
+                matrix; a split-flap board exactly as before. */}
+            <DevicePreview
+              model={resolveBoardModel(currentBoard ?? boardSettings?.boards?.[0])}
               message={displayMessage}
-              isLoading={!boardState && !liveMessageForBoard}
               size="md"
-              boardType={currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
-              deviceType={activeGeometry.deviceType}
-              notesWide={activeGeometry.notesWide}
-              notesTall={activeGeometry.notesTall}
-              gridRows={activeGeometry.gridRows}
-              gridCols={activeGeometry.gridCols}
-              // Which code-62 flap this board carries (issue #1657) — the
-              // preview has to draw what is on the wall, and only the owner
-              // can tell a heart-era Flagship from a degree-era one.
-              code62Glyph={resolveCode62Glyph(
-                activeGeometry.deviceType,
-                currentBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
-              )}
-            />
+            >
+              <ScaledBoardDisplay
+                message={displayMessage}
+                isLoading={!boardState && !liveMessageForBoard}
+                size="md"
+                boardType={currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
+                deviceType={activeGeometry.deviceType}
+                notesWide={activeGeometry.notesWide}
+                notesTall={activeGeometry.notesTall}
+                gridRows={activeGeometry.gridRows}
+                gridCols={activeGeometry.gridCols}
+                // Which code-62 flap this board carries (issue #1657) — the
+                // preview has to draw what is on the wall, and only the owner
+                // can tell a heart-era Flagship from a degree-era one.
+                code62Glyph={resolveCode62Glyph(
+                  activeGeometry.deviceType,
+                  currentBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
+                )}
+              />
+            </DevicePreview>
           </Flex>
         </Box>
       </Box>
@@ -945,6 +955,7 @@ export function ActivePageDisplay() {
         notesTall={composeTargetBoard?.notes_tall ?? 1}
         gridRows={composeTargetBoard?.grid_rows}
         gridCols={composeTargetBoard?.grid_cols}
+        model={resolveBoardModel(composeTargetBoard)}
         boardColor={composeTargetBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
         code62Glyph={resolveCode62Glyph(
           composeTargetBoard?.device_type ?? getEffectiveDeviceType(boardSettings),

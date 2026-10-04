@@ -1,11 +1,13 @@
 "use client";
 
-import { Box, type Code62Glyph, Flex, Text } from "@fiestaboard/ui";
+import { type BoardCellGrid, Box, type Code62Glyph, Flex, Text } from "@fiestaboard/ui";
 import { useEffect, useRef, useState } from "react";
 
 import { PanelBoard } from "@/components/panel/panel-board";
 import { usePanelConfig, usePanelFrame } from "@/hooks/use-panel";
 import { useTranslations } from "@/i18n/translations";
+import { resolveBoardModel } from "@/lib/device-preview";
+import { isInDimWindow, PANEL_DIM_LEVEL } from "@/lib/panel-dim";
 
 interface PanelViewProps {
   panelId: string;
@@ -23,22 +25,7 @@ const CURSOR_HIDE_MS = 3_000;
 /** How often the auto-dim window is re-evaluated. */
 const DIM_TICK_MS = 30_000;
 
-/**
- * Whether `minutesSinceMidnight` falls inside the [start, end) dim window.
- * `start > end` means the window spans midnight (e.g. 22:00 → 07:00).
- * `start === end` never dims.
- */
-export function isInDimWindow(minutesSinceMidnight: number, start: string, end: string): boolean {
-  const toMinutes = (hhmm: string) => {
-    const [h, m] = hhmm.split(":").map(Number);
-    return h * 60 + m;
-  };
-  const startMin = toMinutes(start);
-  const endMin = toMinutes(end);
-  if (startMin === endMin) return false;
-  if (startMin < endMin) return minutesSinceMidnight >= startMin && minutesSinceMidnight < endMin;
-  return minutesSinceMidnight >= startMin || minutesSinceMidnight < endMin;
-}
+export { isInDimWindow };
 
 /**
  * Full-viewport FiestaPanel scene: a borderless auto-fit grid at true flap
@@ -183,6 +170,12 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
     content = (
       <PanelBoard
         message={frame.data?.message ?? null}
+        // Rich cells when the frame has them (an output that took colour);
+        // FiestaUI's renderers prefer them over the message.
+        cells={frame.data?.cells as BoardCellGrid | undefined}
+        // The render style's model: an LED panel draws as an LED matrix. A
+        // server that predates render_style sends none — split-flap, as ever.
+        model={resolveBoardModel(config.data)}
         animationsEnabled={config.data.animations_enabled ?? false}
         deviceType={deviceType}
         // A legacy panel board is a note array (fit in whole Notes); a re-fit
@@ -221,7 +214,7 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
         data-testid="panel-dim"
         data-active={dimActive ? "true" : "false"}
         className="pointer-events-none absolute inset-0 bg-black"
-        style={{ opacity: dimActive ? 0.65 : 0, transition: "opacity 5s ease" }}
+        style={{ opacity: dimActive ? PANEL_DIM_LEVEL : 0, transition: "opacity 5s ease" }}
       />
       {offline && (
         <Box

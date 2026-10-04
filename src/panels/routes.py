@@ -235,6 +235,10 @@ async def get_panel_public(panel_id: str):
     if panel is None:
         raise HTTPException(status_code=404, detail=_panel_not_found_detail(panel_id))
     out = panel.model_dump(mode="json")
+    from src.fiestaui import fiestapanel_device_models
+
+    model = fiestapanel_device_models()[panel.render_style]
+    out.update({"device_model": model["id"], "device_model_spec": dict(model)})
     board = _find_board(panel.board_id)
     # One source for the board-derived block, so the viewer and the app can
     # never be told different geometry for the same panel.

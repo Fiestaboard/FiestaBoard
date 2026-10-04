@@ -322,6 +322,26 @@ describe("an output plugin", () => {
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
   });
 
+  it("previews a built-in LED device as its matrix, showing the board's name", async () => {
+    available([SIGN_AVAILABLE]);
+    const pixoo = { ...SIGN, device_models: [{ id: "divoom_pixoo64", label: "Pixoo 64" }] };
+    record("post", `/api/outputs/${SIGN.id}/install`, () => HttpResponse.json(pixoo, { status: 201 }));
+    renderWizard();
+    await choose(/Recording Sign/);
+    const preview = await screen.findByTestId("wizard-output-device-preview");
+    expect(preview.querySelector('[data-slot="display-preview"]')).toHaveAttribute("data-model", "divoom_pixoo64");
+    expect(within(preview).getByRole("img").getAttribute("aria-label")).toContain("Recording Sign");
+  });
+
+  it("shows no device preview for a plugin's own model it cannot resolve", async () => {
+    available([SIGN_AVAILABLE]);
+    signInstalls();
+    renderWizard();
+    await choose(/Recording Sign/);
+    await screen.findByTestId("plugin-board-settings");
+    expect(screen.queryByTestId("wizard-output-device-preview")).not.toBeInTheDocument();
+  });
+
   it("runs the plugin's actions on the draft route", async () => {
     available([SIGN_AVAILABLE]);
     signInstalls();

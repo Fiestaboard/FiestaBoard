@@ -27,9 +27,9 @@ describe("PanelBoard measurement fallback", () => {
       />,
     );
 
-    // Pre-measurement the crop window hides the board to avoid a flash of
-    // unscaled content…
-    const crop = screen.getByTestId("panel-board-crop");
+    // Pre-measurement the board is hidden to avoid a flash of unscaled
+    // content…
+    const crop = screen.getByTestId("panel-board-fit");
     expect(crop.style.opacity).toBe("0");
 
     // …but a failed measurement must not leave the TV black forever.

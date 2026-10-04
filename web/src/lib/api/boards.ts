@@ -1,6 +1,8 @@
 // Boards domain: board instances + settings, FiestaPanel, board
 // connection config, and the setup wizard's board endpoints.
 
+import type { DeviceModel } from "@fiestaboard/ui";
+
 import { fetchApi } from "./core";
 import type { GeneralConfig } from "./settings";
 import type { Code62Glyph, DeviceType } from "./shared";
@@ -41,6 +43,13 @@ export interface PanelAutoDim {
 
 export type PanelBackdrop = "wall" | "dark" | "none";
 
+/**
+ * How the TV draws the board: split-flap tiles (every panel's look before the
+ * setting existed, and the default) or an LED matrix. Each style is one device
+ * model FiestaBoard declares, `fiestapanel_split_flap` / `fiestapanel_led_matrix`.
+ */
+export type PanelRenderStyle = "split_flap" | "led_matrix";
+
 export interface Panel {
   id: string;
   /** Small sequential number behind the TV-typable /p/{n} viewer URL. */
@@ -59,6 +68,8 @@ export interface Panel {
   is_display: boolean;
   backdrop: PanelBackdrop;
   auto_dim: PanelAutoDim;
+  /** Absent on a payload from a server that predates it: read as `split_flap`. */
+  render_style?: PanelRenderStyle;
   created_at: string;
   updated_at: string;
   // Attached by the API from the panel's virtual board (null/true when the
@@ -95,6 +106,7 @@ export interface PanelUpdateRequest {
   is_display?: boolean;
   backdrop?: PanelBackdrop;
   auto_dim?: PanelAutoDim;
+  render_style?: PanelRenderStyle;
 }
 
 /**
@@ -121,6 +133,10 @@ export interface PanelUpdateResult extends Panel {
 export interface PanelPublicConfig extends Panel {
   board_color: "black" | "white" | null;
   code62_glyph: "degree" | "heart" | null;
+  /** The device model the render style draws as (`fiestapanel_split_flap` / `fiestapanel_led_matrix`). */
+  device_model?: string | null;
+  /** That model's document. FiestaUI does not build FiestaPanel's models in, so the viewer renders from this. */
+  device_model_spec?: DeviceModel | null;
 }
 
 /** FiestaPi HDMI kiosk state (Settings → FiestaPanel; pi profile only). */
@@ -237,6 +253,12 @@ export interface BoardInstance {
    * plugin's board (the model it was created as).
    */
   device_model?: string | null;
+  /**
+   * The model's document, sent only when FiestaUI does not build the model in
+   * (a FiestaPanel's, or an output plugin's own): a built-in resolves by id,
+   * anything else only from this. Derived, never stored.
+   */
+  device_model_spec?: DeviceModel | null;
   /** The character set the board draws with, a FiestaUI id; `null` when unknown. Derived, never stored. */
   charset?: string | null;
   /**

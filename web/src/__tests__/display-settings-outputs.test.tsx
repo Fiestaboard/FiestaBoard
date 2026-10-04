@@ -204,6 +204,7 @@ describe("Add Board", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Add Board" }));
     const card = await screen.findByRole("button", { name: "Acme Sign" });
     expect(card).toBeDisabled();
-    expect(card).toHaveAccessibleDescription(/Settings → Beta/);
+    // The real path to the switch (the copy said "Settings → Beta", a section that does not exist).
+    expect(card).toHaveAccessibleDescription(/Settings → Advanced → Beta Features/);
   });
 });
