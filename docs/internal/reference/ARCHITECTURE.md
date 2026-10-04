@@ -214,7 +214,8 @@ Names you will meet:
   hold byte for byte. `GET /outputs` presents them
   (`tests/golden/outputs/first_party_presentation.json`) with their
   manifests' settings screens, which the web renders like any output's
-  (P4d); board-settings action dispatch is still core's. Each
+  (P4d), and their actions, status and `output_config` rules are their
+  plugin classes', asked like any output's (P4e). Each
   entry carries a builder
   (only the factory calls it) and the output's **capabilities** —
   `technology` (`split_flap` | `led_matrix` | `screen`), `delivery`
@@ -235,25 +236,38 @@ Names you will meet:
   fail closed).
 - **Output hooks** (`src/outputs/hooks.py`) — what core asks an output
   instead of knowing its device. Per output, on the registry entry:
-  `discover(timeout)`, `diagnostics` (the board section of the network
-  diagnostics plus its advice) and named custom `actions`. Per board, on the
+  `discover(timeout)` and `diagnostics` (the board section of the network
+  diagnostics plus its advice). Per output, on its plugin class
+  (`OutputDefinition.plugin_class`): `handle_action(ActionContext)` — every
+  board-settings action, core building the instances it uses (a throwaway
+  one, or the board's live one under its send lock via
+  `OutputPluginDriver.run_with_plugin`) and running it on the bounded
+  board-send pool — `board_status(config, board)` → `OutputStatus` (the board
+  card's badge, served as `output_status` on `GET /status`; first-run
+  detection reads it too) and the `output_config` rules
+  (`src/outputs/config_hooks.py`: `normalize_config`, `mask_config`,
+  `restore_config`, `masked_config_paths`, and `legacy_flat_fields`, the
+  defaults of the settings-v3 flat view). Per board, on the
   driver: `check_connection()` → a `ConnectionCheck` (success, a failure
   class — `auth`, `unreachable`, `timeout`, `server_error`,
   `unexpected_status`, `bad_response`, `blocked` — message,
   troubleshooting), `read_back` (`supported`, `cost`: `cheap` | `network`,
   `suggested_interval_s`; the board-state poll picks the cloud interval for
   a `network` read) and `connection_label` (MQTT `board_api_mode`). The
-  Vestaboard answers are its plugin's (`fiestaboard-output--vestaboard`:
-  discovery, diagnostics, connection verdicts, the `enable_local_api` action
-  with its CodeQL-recognised SSRF block); core's `src/outputs/vestaboard/`
-  keeps only the board-settings action dispatcher. `fiestapanel` declares no
-  hooks. The legacy
-  routes — `/config/board/scan`, `/config/board/test`,
-  `/config/board/enable-local-api`, `/debug/network-diagnostics` — stay and
-  delegate, response shapes unchanged. The MQTT device `model` is the
-  primary board's output name. `tests/test_vestaboard_output_hooks.py`
-  ratchets the Vestaboard transport literals left anywhere in `src/` (count
-  only goes down; Phase 4 takes it to zero).
+  Vestaboard answers are all its plugin's (`fiestaboard-output--vestaboard`:
+  discovery, diagnostics, connection verdicts, every action — the
+  `enable_local_api` one with its CodeQL-recognised SSRF block — its status
+  and settings rules); core holds no Vestaboard rules. `fiestapanel`
+  declares no hooks. The legacy routes — `/config/board/scan`,
+  `/config/board/test`, `/config/board/enable-local-api`,
+  `/settings/board/{id}/identify`, `/settings/board/{id}/detect-size`,
+  `/debug/network-diagnostics` — stay and delegate to the vestaboard
+  output's hooks and actions (`src/outputs/actions.py` `execute_action`;
+  each answers the outcome's `detail` in its recorded shape), response
+  shapes and refusals unchanged. The MQTT device `model` is the primary
+  board's output name. `tests/test_vestaboard_output_hooks.py` holds the
+  Vestaboard transport literals anywhere in `src/` at zero (no exemptions;
+  every file type).
 - **Output plugins** (`plugin_type: "output"`, contract v1-beta) — a third
   plugin kind: a display device. The loader never constructs one; it keeps
   the class (an `OutputPluginBase` subclass, `src/outputs/plugin_base.py`)
