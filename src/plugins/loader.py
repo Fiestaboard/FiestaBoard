@@ -20,6 +20,7 @@ from src.outputs.plugin_registration import (
     register_output_plugin,
     unregister_output_plugin,
 )
+from src.outputs.seed import seed_root, seeded_output
 
 from .base import PluginBase, TransitionPluginBase
 from .install_check import validate_install
@@ -164,6 +165,7 @@ class PluginLoader:
         plugins_dir: Path | None = None,
         external_dirs: list[Path] | None = None,
         lock: "threading.RLock | None" = None,
+        seed_dir: Path | None = None,
     ):
         """Initialize the plugin loader.
 
@@ -178,6 +180,9 @@ class PluginLoader:
                 The registry passes its own lock so registry->loader call
                 chains re-enter one lock instead of ordering two (#1828).
                 When *None* a private lock is created.
+            seed_dir: The output seed (:mod:`src.outputs.seed`), the last
+                resort for a seeded output plugin whose installed copy cannot
+                run. When *None* the image's seed directory is used.
         """
         if plugins_dir is None:
             project_root = Path(__file__).parent.parent.parent
@@ -197,6 +202,10 @@ class PluginLoader:
         self._plugin_classes: dict[str, type[AnyPlugin]] = {}
         self._load_errors: dict[str, list[str]] = {}
         self._plugin_sources: dict[str, PluginSource] = {}
+        self.seed_dir = Path(seed_dir) if seed_dir is not None else seed_root()
+        # Output plugins running from the seed because their installed copy
+        # cannot: id -> the error shown for it.
+        self._seed_fallbacks: dict[str, str] = {}
 
         logger.info(
             "PluginLoader initialized – built-in: %s, external dirs: %s",
@@ -247,6 +256,12 @@ class PluginLoader:
         """Return load errors by plugin directory name."""
         with self._lock:
             return self._load_errors.copy()
+
+    @property
+    def seed_fallbacks(self) -> dict[str, str]:
+        """Output plugins running from the seed, with the reason (plan D8)."""
+        with self._lock:
+            return self._seed_fallbacks.copy()
 
     @property
     def plugin_sources(self) -> dict[str, PluginSource]:
@@ -360,11 +375,58 @@ class PluginLoader:
         # it shells out (importlib and file reads only), so holding the lock
         # for the duration is safe.
         with self._lock:
-            return self._load_plugin_locked(plugin_name)
+            self._seed_fallbacks.pop(plugin_name, None)
+            plugin = self._load_plugin_locked(plugin_name)
+            if plugin is None:
+                # Output plugins only (the seed holds nothing else): an
+                # installed copy that cannot run falls back to the seed.
+                return self._load_seed_fallback_locked(plugin_name)
+            return plugin
 
-    def _load_plugin_locked(self, plugin_name: str) -> AnyPlugin | None:
-        """Body of :meth:`load_plugin`; the caller holds ``self._lock``."""
-        plugin_dir = self._resolve_plugin_dir(plugin_name)
+    def _load_seed_fallback_locked(self, plugin_name: str) -> AnyPlugin | None:
+        """Load the seed's copy of *plugin_name* when its installed copy failed.
+
+        The load-point gate of plan D8: an output plugin's precedence is
+        **valid installed copy → seed**, where valid means its ``output_api``
+        is supported, it imports, and its install self-check passes. Only an
+        *installed* (external) copy falls back: a built-in never does, and a
+        plugin nobody installed is not loaded from the seed (boot installs
+        what boards need, :func:`src.outputs.seed.install_seeded_outputs_for_boards`).
+        The fallback is a last resort, so it is reported as an error in
+        ``GET /plugins/errors`` naming why the installed copy was refused.
+        """
+        copy = seeded_output(plugin_name, self.seed_dir)
+        installed = self._resolve_plugin_dir(plugin_name)
+        if copy is None or installed is None or self._source_for_dir(installed).source_type != "external":
+            return None
+        reasons = list(self._load_errors.get(plugin_name, []))
+        plugin = self._load_plugin_locked(plugin_name, plugin_dir=copy.path, from_seed=True)
+        if plugin is None:
+            seed_errors = self._load_errors.get(plugin_name, [])
+            self._load_errors[plugin_name] = [*reasons, f"The bundled seed copy failed too: {'; '.join(seed_errors)}"]
+            return None
+        # Update, reinstall and uninstall still act on the installed copy.
+        self._plugin_sources[plugin_name] = PluginSource(source_type="external", local_path=str(installed))
+        message = (
+            f"The installed copy of output plugin '{plugin_name}' cannot run ({'; '.join(reasons)}). "
+            f"Running the copy bundled with FiestaBoard (commit {copy.entry.commit[:12]}) instead; "
+            "update or reinstall the plugin."
+        )
+        self._load_errors[plugin_name] = [message]
+        self._seed_fallbacks[plugin_name] = message
+        logger.error(message)
+        return plugin
+
+    def _load_plugin_locked(
+        self, plugin_name: str, *, plugin_dir: Path | None = None, from_seed: bool = False
+    ) -> AnyPlugin | None:
+        """Body of :meth:`load_plugin`; the caller holds ``self._lock``.
+
+        *plugin_dir* loads from that directory instead of resolving the name
+        (the seed copy, *from_seed*).
+        """
+        if plugin_dir is None:
+            plugin_dir = self._resolve_plugin_dir(plugin_name)
         errors: list[str] = []
 
         # Clear previous errors
@@ -423,6 +485,16 @@ class PluginLoader:
         # catch on its own.
         for message in install_result.warnings:
             self._load_errors.setdefault(plugin_name, []).append(message)
+        # An installed output plugin that fails its self-check is not a valid
+        # copy when the seed holds one: refuse it here so the load falls back
+        # (plan D8). Without a seed copy it loads as before, errors surfaced.
+        if (
+            install_result.errors
+            and manifest.plugin_type == "output"
+            and not from_seed
+            and seeded_output(plugin_name, self.seed_dir) is not None
+        ):
+            return None
 
         # Check FiestaBoard version compatibility (soft failure -- warn but still load)
         if manifest.fiestaboard_version:
@@ -514,7 +586,7 @@ class PluginLoader:
         # factory -- never here (plan D2). The loader keeps its class and
         # manifest and registers it with the output registry.
         if expected_type == "output":
-            return self._register_output_locked(plugin_name, plugin_dir, plugin_class, manifest)
+            return self._register_output_locked(plugin_name, plugin_dir, plugin_class, manifest, from_seed=from_seed)
 
         # Instantiate plugin
         try:
@@ -567,12 +639,22 @@ class PluginLoader:
             return None
 
     def _register_output_locked(
-        self, plugin_name: str, plugin_dir: Path, plugin_class: type, manifest: PluginManifest
+        self,
+        plugin_name: str,
+        plugin_dir: Path,
+        plugin_class: type,
+        manifest: PluginManifest,
+        *,
+        from_seed: bool = False,
     ) -> OutputPluginEntry | None:
-        """Keep an output plugin's class and manifest; register it as an output."""
+        """Keep an output plugin's class and manifest; register it as an output.
+
+        A seed copy stands in for an installed plugin, so it is gated by the
+        output-plugins beta exactly as the installed copy would be.
+        """
         source = self._source_for_dir(plugin_dir)
         try:
-            register_output_plugin(plugin_class, manifest, gated=source.source_type != "builtin")
+            register_output_plugin(plugin_class, manifest, gated=from_seed or source.source_type != "builtin")
         except ValueError as exc:
             self._load_errors.setdefault(plugin_name, []).append(str(exc))
             logger.error("Output plugin %s refused: %s", plugin_name, exc)
@@ -715,17 +797,22 @@ class PluginLoader:
         """
         sys.modules.pop(f"plugins.{plugin_id}", None)
 
-        plugin_dir = self._resolve_plugin_dir(plugin_id)
-        if plugin_dir is None:
+        # The installed copy and, for a seeded output plugin, the seed copy
+        # it may have been running from.
+        roots = [self._resolve_plugin_dir(plugin_id)]
+        seeded = seeded_output(plugin_id, self.seed_dir) if is_safe_plugin_dir_name(plugin_id) else None
+        if seeded is not None:
+            roots.append(Path(os.path.realpath(seeded.path)))
+        live_roots = [root for root in roots if root is not None]
+        if not live_roots:
             return
 
         for name, module in list(sys.modules.items()):
             file_path = getattr(module, "__file__", None)
             if not file_path:
                 continue
-            try:
-                Path(os.path.realpath(file_path)).relative_to(plugin_dir)
-            except ValueError:
+            real = Path(os.path.realpath(file_path))
+            if not any(real.is_relative_to(root) for root in live_roots):
                 continue
             del sys.modules[name]
             logger.debug("Evicted stale module %s for plugin %s", name, plugin_id)
