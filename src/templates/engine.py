@@ -42,6 +42,7 @@ from src.markup import count_tiles as markup_count_tiles
 from src.markup import neutralize_data, resolve_icon_name, split_rows, take_tiles, wrap_line
 from src.plugins import get_plugin_registry
 from src.plugins.manifest import resolve_color_rules
+from src.text_to_board import SPLIT_FLAP_EXTENDED_MARKUP, needs_extended_markup
 from src.text_utils import extract_alignment_from_line
 
 from .colors import COLOR_CODES
@@ -81,6 +82,8 @@ COLOR_PATTERN = re.compile(
     r"\{\{(red|orange|yellow|green|blue|violet|purple|white|black|filled|6[3-9]|7[01])\}\}", re.IGNORECASE
 )
 SYMBOL_PATTERN = re.compile(r"\{(sun|star|cloud|rain|snow|storm|fog|partly|heart|check|x)\}", re.IGNORECASE)
+# A shortcut that is not the inside of a ``{{variable}}``.
+_SHORTCUT_OUTSIDE_VARIABLE = re.compile(r"(?<!\{)" + SYMBOL_PATTERN.pattern, re.IGNORECASE)
 FILL_SPACE_PATTERN = re.compile(r"\{\{fill_space\}\}", re.IGNORECASE)
 FILL_SPACE_REPEAT_PATTERN = re.compile(r"\{\{fill_space_repeat:(.+?)\}\}", re.IGNORECASE)
 FILLED_PATTERN = re.compile(r"\{\{filled:(.+?)\}\}", re.IGNORECASE)
@@ -248,7 +251,13 @@ class TemplateEngine:
             self._config_manager = get_config_manager()
         return self._config_manager
 
-    def render(self, template: str, context: dict[str, Any] | None = None, *, extended_markup: bool = False) -> str:
+    def render(
+        self,
+        template: str,
+        context: dict[str, Any] | None = None,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+    ) -> str:
         """Render template with data context.
 
         Args:
@@ -307,7 +316,7 @@ class TemplateEngine:
         # Process symbols (single brackets like {sun})
         return self._render_symbols(result, extended_markup=extended_markup)
 
-    def _count_tiles(self, text: str, *, extended_markup: bool = False) -> int:
+    def _count_tiles(self, text: str, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP) -> int:
         """Count the number of tiles in a text string.
 
         Color markers like {66} count as 1 tile each, not their character length.
@@ -321,7 +330,7 @@ class TemplateEngine:
         Returns:
             Number of tiles (characters + color markers, where each marker = 1 tile)
         """
-        if extended_markup:
+        if needs_extended_markup(text, extended_markup):
             return markup_count_tiles(text)
         tile_count = 0
         i = 0
@@ -356,7 +365,9 @@ class TemplateEngine:
 
         return tile_count
 
-    def _truncate_to_tiles(self, text: str, max_tiles: int = 22, *, extended_markup: bool = False) -> str:
+    def _truncate_to_tiles(
+        self, text: str, max_tiles: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> str:
         """Truncate text to max_tiles, where color markers count as 1 tile each.
 
         Args:
@@ -369,7 +380,7 @@ class TemplateEngine:
         Returns:
             Truncated string that fits within max_tiles
         """
-        if extended_markup:
+        if needs_extended_markup(text, extended_markup):
             return take_tiles(text, max_tiles)[0]
         # Count tiles (characters + color markers) and truncate appropriately
         result = []
@@ -420,7 +431,7 @@ class TemplateEngine:
         grid_rows: int | None = None,
         grid_cols: int | None = None,
         *,
-        extended_markup: bool = False,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
     ) -> str:
         """Render a list of template lines (for template pages).
 
@@ -588,7 +599,11 @@ class TemplateEngine:
                     # anywhere — it was simply gone.
                     # On an extended-markup board a span the formula sits in
                     # is closed and reopened across the break, as |wrap does.
-                    all_rows = split_rows(rendered_line) if extended_markup else rendered_line.split("\n")
+                    all_rows = (
+                        split_rows(rendered_line)
+                        if needs_extended_markup(rendered_line, extended_markup)
+                        else rendered_line.split("\n")
+                    )
                     split_lines = all_rows[: _overflow_budget(i)]
                     for line_idx, split_line in enumerate(split_lines):
                         if i + line_idx >= num_rows:
@@ -661,7 +676,7 @@ class TemplateEngine:
         max_lines: int = 1,
         board_width: int = 22,
         *,
-        extended_markup: bool = False,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
     ) -> list[str]:
         """Render a template line that should wrap across multiple lines.
 
@@ -743,7 +758,13 @@ class TemplateEngine:
         )
 
     def _word_wrap(
-        self, text: str, first_width: int, subsequent_width: int, max_lines: int, *, extended_markup: bool = False
+        self,
+        text: str,
+        first_width: int,
+        subsequent_width: int,
+        max_lines: int,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
     ) -> list[str]:
         """Word-wrap text across multiple lines.
 
@@ -760,7 +781,7 @@ class TemplateEngine:
         """
         if not text:
             return [""]
-        if extended_markup:
+        if needs_extended_markup(text, extended_markup):
             return self._word_wrap_tiles(text, first_width, subsequent_width, max_lines, extended_markup=True)
 
         words = text.split()
@@ -841,7 +862,13 @@ class TemplateEngine:
         return tokens
 
     def _word_wrap_tiles(
-        self, text: str, first_width: int, subsequent_width: int, max_lines: int, *, extended_markup: bool = False
+        self,
+        text: str,
+        first_width: int,
+        subsequent_width: int,
+        max_lines: int,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
     ) -> list[str]:
         """Word-wrap text across multiple lines using tile counts instead of character counts.
 
@@ -862,7 +889,7 @@ class TemplateEngine:
         """
         if not text:
             return [""]
-        if extended_markup:
+        if needs_extended_markup(text, extended_markup):
             return wrap_line(text, subsequent_width, first_cols=first_width)[:max_lines]
 
         # Split into words, preserving color markers
@@ -905,8 +932,8 @@ class TemplateEngine:
         current_width = first_width
 
         for word in words:
-            word_tiles = self._count_tiles(word)
-            current_line_tiles = self._count_tiles(current_line) if current_line else 0
+            word_tiles = self._count_tiles(word, extended_markup=False)
+            current_line_tiles = self._count_tiles(current_line, extended_markup=False) if current_line else 0
 
             if not current_line:
                 # First word on line
@@ -923,7 +950,7 @@ class TemplateEngine:
 
                         for token in tokens:
                             test_with_token = test_line + token
-                            if self._count_tiles(test_with_token) > current_width:
+                            if self._count_tiles(test_with_token, extended_markup=False) > current_width:
                                 break
                             test_line = test_with_token
                             tokens_to_take += 1
@@ -974,7 +1001,7 @@ class TemplateEngine:
 
                         for token in tokens:
                             test_with_token = test_line + token
-                            if self._count_tiles(test_with_token) > current_width:
+                            if self._count_tiles(test_with_token, extended_markup=False) > current_width:
                                 break
                             test_line = test_with_token
                             tokens_to_take += 1
@@ -1551,7 +1578,7 @@ class TemplateEngine:
 
         return value
 
-    def _render_symbols(self, template: str, *, extended_markup: bool = False) -> str:
+    def _render_symbols(self, template: str, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP) -> str:
         """Replace {symbol} shortcuts.
 
         With ``extended_markup`` off: the legacy ASCII stand-in from
@@ -1596,7 +1623,9 @@ class TemplateEngine:
         """
         return extract_alignment_from_line(line)
 
-    def _apply_alignment(self, text: str, alignment: str, width: int = 22, *, extended_markup: bool = False) -> str:
+    def _apply_alignment(
+        self, text: str, alignment: str, width: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> str:
         """Apply alignment to rendered text.
 
         Args:
@@ -1611,12 +1640,13 @@ class TemplateEngine:
         Returns:
             Text padded/aligned to the specified width
         """
+        extended_markup = needs_extended_markup(text, extended_markup)
         if extended_markup:
             text = self._truncate_to_tiles(text, width, extended_markup=True)
             tile_count = self._count_tiles(text, extended_markup=True)
         else:
             # Calculate actual tile count (color markers count as 1 tile)
-            tile_count = self._count_tiles(text)
+            tile_count = self._count_tiles(text, extended_markup=False)
 
         if tile_count >= width:
             # Already at or over width, truncate
@@ -1633,7 +1663,9 @@ class TemplateEngine:
         # left (default)
         return text + " " * padding_needed
 
-    def _process_fill_space(self, text: str, width: int = 22, *, extended_markup: bool = False) -> str:
+    def _process_fill_space(
+        self, text: str, width: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> str:
         """Process fill_space markers, expanding them to fill available space.
 
         If multiple fill_space markers exist, space is distributed evenly.
@@ -1655,6 +1687,7 @@ class TemplateEngine:
         """
         from src.board_chars import BoardChars
 
+        extended_markup = needs_extended_markup(text, extended_markup)
         # Find all fill markers (both regular and repeat)
         fill_pattern = re.compile(r"\x00FILL_SPACE(?:_REPEAT:(.+?))?\x00")
         fill_matches = list(fill_pattern.finditer(text))
@@ -1728,7 +1761,9 @@ class TemplateEngine:
             return []
         return list(self._plugin_registry.enabled_plugins.keys())
 
-    def validate_template(self, template: str, cols: int = 22, *, extended_markup: bool = False) -> list[TemplateError]:
+    def validate_template(
+        self, template: str, cols: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> list[TemplateError]:
         """Validate template syntax.
 
         Args:
@@ -1895,7 +1930,9 @@ class TemplateEngine:
             return set()
         return set(self._plugin_registry.plugins.keys())
 
-    def _calculate_max_line_length(self, line: str, cols: int = 22, *, extended_markup: bool = False) -> int:
+    def _calculate_max_line_length(
+        self, line: str, cols: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> int:
         """Calculate maximum possible rendered length of a template line.
 
         Considers:
@@ -1927,6 +1964,13 @@ class TemplateEngine:
 
         # Start with the line
         result = line
+        # Plain text (no span, block or icon head, no authoring form and no
+        # shortcut) is measured exactly as before the split-flap flip.
+        extended_markup = extended_markup and (
+            needs_extended_markup(line, True)
+            or EXTENDED_HEAD_PATTERN.search(line) is not None
+            or _SHORTCUT_OUTSIDE_VARIABLE.search(line) is not None
+        )
 
         if extended_markup:
             # Authoring forms to the single-brace markup render() produces,

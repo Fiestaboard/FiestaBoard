@@ -271,10 +271,12 @@ def _render_geometry(request, board: dict | None) -> tuple:
 class _CharsetCheck:
     """A render targeted at a board: how to render, and what to report.
 
-    No board named: nothing changes (no keywords, no fields). A board named:
-    its resolved character set (plan D17) decides extended markup (plan
-    D19) and the issues reported; an unknown board, or one whose set is
-    unknown (a FiestaPanel), reports ``charset: null`` and checks nothing.
+    Every render speaks extended markup (plan D19; split-flap boards too
+    since the Task 12 flip, :func:`src.outputs.cells.charset_extended_markup`).
+    No board named: no extra fields. A board named: its resolved character
+    set (plan D17) decides the issues reported; an unknown board, or one
+    whose set is unknown (a FiestaPanel), reports ``charset: null`` and
+    checks nothing.
     """
 
     def __init__(self, board_id: str | None) -> None:

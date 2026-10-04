@@ -134,11 +134,31 @@ Every board draws what its **character set** allows, and FiestaBoard fits each m
 |-------|-------------------------|-------|
 | LED matrix with the 5×7 font | Yes | All of the above |
 | LED matrix with the 3×5 font, such as a Divoom Pixoo 64 | Yes | All except `snow`, `partly`, `bus`, `train`, `music` and `bell` |
-| Vestaboard, FiestaPanel | Not yet | Not yet |
+| Vestaboard, FiestaPanel | The letters, uncolored | The icon's fallback |
 
-On an LED board, an icon its set has no picture for is drawn as its fallback instead: a color tile (`sun` is a yellow tile, `rain` a blue one), a character (`up` is `+`), or a blank. A character the set cannot draw falls back to its uppercase form, then to a blank.
+An icon a board has no picture for is drawn as its fallback instead: a color tile (`sun` is a yellow tile, `rain` a blue one), a character (`up` is `+`), or a blank. A character the set cannot draw falls back to its uppercase form, then to a blank.
 
-On a Vestaboard or a FiestaPanel, extended markup is not drawn yet: these forms render as `???`, like an unknown variable. Keep pages meant for split-flap boards to color tiles, which every board shows.
+On a Vestaboard or a FiestaPanel, `{{red:HOT}}` shows `HOT` and `{{icon:sun}}` shows a yellow tile, so one page reads well on every board.
+
+### Symbol Shortcuts
+
+The shortcuts `{sun}`, `{star}`, `{cloud}`, `{rain}`, `{snow}`, `{storm}`, `{fog}`, `{partly}`, `{check}` and `{x}` are other names for the icons above: `{sun}` is `{{icon:sun}}`, `{storm}` is `{{icon:bolt}}` and `{x}` is `{{icon:cross}}`. `{heart}` is the ♥ character, one cell.
+
+On a split-flap board they draw the icon's fallback:
+
+| Shortcut | Before 10.0.0 | Now |
+|----------|---------------|-----|
+| `{sun}`, `{star}` | `*` | Yellow tile |
+| `{cloud}`, `{partly}` | `O`, `%` | White tile |
+| `{rain}` | `/` | Blue tile |
+| `{snow}` | `*` | Violet tile |
+| `{storm}` | `!` | Orange tile |
+| `{check}` | `+` | Green tile |
+| `{x}` | `X` | Red tile |
+| `{heart}` | `<3` (two cells) | ♥ (one cell) |
+| `{fog}` | `-` | `-` (unchanged) |
+
+To see which of your pages use a shortcut or extended markup, check the startup log, which lists them after an upgrade, or open `/api/system/markup-compat`.
 
 ### Variable Values Stay Text
 

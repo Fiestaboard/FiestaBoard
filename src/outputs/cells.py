@@ -5,9 +5,11 @@ MQTT message APIs, the engine's content dedupe and its render memo all key
 on it. What a board is *sent* is projected from it per output, by the
 board's resolved character set:
 
-- **Split-flap** (a Vestaboard set, a FiestaPanel, no set at all): today's
-  0–71 grid, from :func:`src.text_to_board.text_to_board_array` exactly as
-  it always was. Nothing about these boards changes.
+- **Split-flap** (a Vestaboard set, a FiestaPanel, no set at all): the 0–71
+  grid from :func:`src.text_to_board.text_to_board_array`, which since the
+  split-flap flip (plan Task 12, :data:`~src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP`)
+  parses extended markup and draws its degradation: a span's letters, an
+  icon's fallback tile. No rich cells: the board cannot draw more.
 - **A rich set** (one with colour spans, block spans or icons — the LED
   sets): the message is parsed ONCE with extended markup and case kept.
   From that one parse come both the 0–71 flap projection (what transitions,
@@ -35,7 +37,7 @@ from typing import Any, NamedTuple
 from src.board_chars import characters_to_message
 from src.led.charsets import CharacterSet, CharsetLookup, charset_fallback, has_extended_markup
 from src.markup import BoardToken, parse_line, rich_tokens_equal
-from src.text_to_board import COLOR_CODES, text_to_board_array
+from src.text_to_board import COLOR_CODES, SPLIT_FLAP_EXTENDED_MARKUP, text_to_board_array
 
 __all__ = [
     "ProjectedFrame",
@@ -43,6 +45,7 @@ __all__ = [
     "cells_equal",
     "cells_from_codes",
     "cells_to_json",
+    "charset_extended_markup",
     "extended_markup_kw",
     "output_character_set",
     "output_extended_markup",
@@ -75,17 +78,30 @@ def output_character_set(client: Any) -> CharacterSet | None:
     return charset if isinstance(charset, Mapping) else None
 
 
+def charset_extended_markup(charset: str | CharacterSet | None) -> bool:
+    """Whether a board drawing with *charset* speaks extended markup (plan
+    D19, Task 12): a rich set always does; a split-flap set (or none) does
+    while :data:`~src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP` is on.
+
+    Not the same question as :func:`~src.led.charsets.has_extended_markup`,
+    which asks whether the set is *rich* (so the board gets rich cells)."""
+    return SPLIT_FLAP_EXTENDED_MARKUP or has_extended_markup(charset)
+
+
 def output_extended_markup(client: Any) -> bool:
-    """Whether the board behind *client* speaks extended markup (plan D19):
-    true iff its resolved set has colour spans, block spans or icons."""
-    return has_extended_markup(output_character_set(client))
+    """Whether the board behind *client* speaks extended markup
+    (:func:`charset_extended_markup` of its resolved set)."""
+    return charset_extended_markup(output_character_set(client))
 
 
 def extended_markup_kw(client: Any) -> dict[str, Any]:
-    """``{"extended_markup": True}`` for a board whose output speaks extended
-    markup, else nothing — a page/template render keyword that leaves a
-    split-flap board's call exactly as it was."""
-    return {"extended_markup": True} if output_extended_markup(client) else {}
+    """The page/template render keywords for the board behind *client*.
+
+    A rich set gets ``{"extended_markup": True}``. Any other board gets no
+    keyword: the renderers' default *is* the split-flap mode
+    (:data:`~src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP`), so a split-flap
+    board's render call keeps the shape it always had."""
+    return {"extended_markup": True} if has_extended_markup(output_character_set(client)) else {}
 
 
 def project_for_output(
@@ -102,7 +118,9 @@ def project_for_output(
 
     A split-flap board's grid comes from *flap* — the caller's own
     ``text_to_board_array`` (a module-level name tests patch), by default
-    :func:`~src.text_to_board.text_to_board_array` — exactly as before.
+    :func:`~src.text_to_board.text_to_board_array`, whose default is the
+    split-flap mode (:data:`~src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP`),
+    so the call shape a patched seam sees is the one it always was.
     """
     charset = output_character_set(client)
     if not has_extended_markup(charset):
@@ -120,12 +138,13 @@ def _numeric_tile(token: BoardToken) -> BoardToken:
 def project_message(message: str, rows: int, cols: int, charset: CharacterSet | None) -> ProjectedFrame:
     """*message* as a ``rows`` x ``cols`` board drawn with *charset*.
 
-    A set that is not rich (or none) gets exactly today's grid and no cells.
-    A rich set gets one extended-markup parse, projected twice (see module
-    docstring).
+    A set that is not rich (or none) gets the split-flap grid (parsed with
+    :func:`charset_extended_markup`) and no cells. A rich set gets one
+    extended-markup parse, projected twice (see module docstring).
     """
     if not has_extended_markup(charset):
-        return ProjectedFrame(text_to_board_array(message, rows=rows, cols=cols), None)
+        grid = text_to_board_array(message, rows=rows, cols=cols, extended_markup=charset_extended_markup(charset))
+        return ProjectedFrame(grid, None)
     look = CharsetLookup(charset)
     lines = message.split("\n")
     characters: list[list[int]] = []

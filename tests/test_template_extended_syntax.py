@@ -69,7 +69,7 @@ def test_authoring_form_normalises_to_markup_with_extended_markup(engine, templa
 def test_authoring_form_is_untouched_with_extended_markup_off(engine, template):
     # What the engine produced before this change: an unknown variable.
     expected = {"{{red:{{demo.temp}}}}": "{{red:72}}"}.get(template, "???")
-    assert engine.render(template, CTX) == expected
+    assert engine.render(template, CTX, extended_markup=False) == expected
 
 
 @pytest.mark.parametrize("template", ["{{filled:HOT}}", "{{71:HOT}}", "{{red/filled:HOT}}", "{{foo:HOT}}"])
@@ -182,7 +182,25 @@ def _golden_ctx(value: str) -> dict:
 
 @pytest.mark.parametrize("case", [pytest.param(c, id=f"{i}") for i, c in enumerate(GOLDEN["cases"])])
 def test_output_equals_the_old_engine_fed_neutralised_data(engine, case):
-    assert engine.render(case["template"], _golden_ctx(case["value"])) == case["old_neutralised"]
+    # The golden was recorded with extended markup off, so it pins that mode.
+    rendered = engine.render(case["template"], _golden_ctx(case["value"]), extended_markup=False)
+    assert rendered == case["old_neutralised"]
+
+
+# The golden's templates use two legacy shortcuts; the split-flap flip
+# (plan Task 12) makes each its icon. Nothing else in them changes meaning.
+_SHORTCUTS_AS_ICONS = {"{sun}": "{icon:sun}", "{cloud}": "{icon:cloud}"}
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=f"{i}") for i, c in enumerate(GOLDEN["cases"])])
+def test_the_flip_changes_only_the_shortcuts_in_the_golden(engine, case):
+    """Default (flipped) output == the pre-flip engine's output for the same
+    template with each shortcut already spelled as its icon."""
+    spelled = case["template"]
+    for shortcut, icon in _SHORTCUTS_AS_ICONS.items():
+        spelled = spelled.replace(shortcut, icon)
+    ctx = _golden_ctx(case["value"])
+    assert engine.render(case["template"], ctx) == engine.render(spelled, ctx, extended_markup=False)
 
 
 @pytest.mark.parametrize(
@@ -190,7 +208,7 @@ def test_output_equals_the_old_engine_fed_neutralised_data(engine, case):
     [pytest.param(c, id=f"{i}") for i, c in enumerate(GOLDEN["cases"]) if neutralize_data(c["value"]) == c["value"]],
 )
 def test_output_is_byte_identical_when_data_has_only_base_grammar(engine, case):
-    assert engine.render(case["template"], _golden_ctx(case["value"])) == case["old"]
+    assert engine.render(case["template"], _golden_ctx(case["value"]), extended_markup=False) == case["old"]
 
 
 def test_golden_covers_data_that_changes():

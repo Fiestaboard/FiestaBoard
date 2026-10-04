@@ -211,7 +211,7 @@ A `$ref` names a JSON file inside your plugin directory, and the same path must 
 
 ### Character sets
 
-A character set says what a board can draw: which characters, which color tiles, which icons, and whether it can color text (`colorSpans`) or fill a cell's background (`blockSpans`). FiestaBoard uses the board's set to fit every message to the device, to warn about content a board cannot show, and to decide whether the board speaks [extended markup](/docs/reference/color-guide#colored-text-blocks-and-icons).
+A character set says what a board can draw: which characters, which color tiles, which icons, and whether it can color text (`colorSpans`) or fill a cell's background (`blockSpans`). FiestaBoard uses the board's set to fit every message to the device, to warn about content a board cannot show, and to decide how [extended markup](/docs/reference/color-guide#colored-text-blocks-and-icons) is drawn: in color on a rich set, as uncolored letters and fallback tiles on a split-flap one.
 
 Most plugins reference a built-in set through their model's `charset`. A device with its own glyphs declares a set:
 
@@ -513,7 +513,7 @@ Import everything from `src.plugins`. That one module is the output plugin API, 
 | `forced` | — | `True` while core runs a forced write, so an output with its own per-device dedupe re-sends everything. Read it; never set it. |
 | `config_from_board(board)` | No | A class method: the instance's config from a saved board. The default is the board's `output_config`. Return `None` for a board with no usable connection. |
 | `declared_capabilities(manifest)` | No | A class method: the output's capabilities before any board exists. Defaults to the manifest's; override it when the output is more than its first device model says. |
-| `markup_follows_charset` | — | A class attribute, `True` by default. `False` keeps a board's content in split-flap markup even when its character set is rich. |
+| `markup_follows_charset` | — | A class attribute, `True` by default. `False` treats the board as split-flap even when its character set is rich: it gets the 0–71 grid, with extended markup drawn as uncolored letters and fallback tiles, and no rich cells. |
 | `diagnostics()` | No | A list of `DiagnosticCheck(name, ok, detail)`. Reserved: not shown in the app yet. |
 | `run_action(action, inputs)` | No | The action dispatcher. Override it only to route actions yourself. |
 | `handle_action(ctx)` | No | A class method: runs one action with an `ActionContext`. See [Actions](#actions). |

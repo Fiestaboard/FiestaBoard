@@ -1,13 +1,15 @@
 """Split-flap width corpus: the engine's width paths, byte for byte.
 
 Every alignment, padding, truncation, ``fill_space``, wrap and validation
-width path the template engine has, run with extended markup OFF (every
-split-flap board) over a corpus that includes extended-markup *spelling*
-(``{red:hot}``, ``{{black/white:OPEN}}``, ``{icon:sun}``), which a split-flap
-board draws as literal text. The golden in
-``tests/golden/templates/split_flap_width_corpus.json`` was recorded from the
-engine BEFORE rendered-width measuring for extended markup existed, so any
-change to what a split-flap board receives fails here.
+width path the template engine has, run in the engine's default mode (every
+split-flap board) over a corpus that includes extended-markup spelling
+(``{red:hot}``, ``{{black/white:OPEN}}``, ``{icon:sun}``) and the legacy
+shortcuts. The golden in ``tests/golden/templates/split_flap_width_corpus.json``
+was first recorded BEFORE rendered-width measuring existed, and re-recorded
+once for the split-flap extended-markup flip (plan Task 12): only the cases
+whose line holds a shortcut or extended markup changed (6 of 32 lines); the
+520 cases on the other 26 lines are byte-identical to the first recording.
+Any other change to what a split-flap board receives fails here.
 
 Re-recording: ``RECORD_WIDTH_GOLDEN=1 pytest tests/test_template_split_flap_width_corpus.py``.
 Only re-record when a split-flap behaviour change is intended and reviewed.

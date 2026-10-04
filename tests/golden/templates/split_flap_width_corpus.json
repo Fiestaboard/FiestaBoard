@@ -34,7 +34,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot} {black/white\n                      \n                      \n                      \n                      \n                      "
+   "out": "{red:hot} {black/white:OPEN} {icon:sun}            \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -43,7 +43,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "??? ??? ???           \n                      \n                      \n                      \n                      \n                      "
+   "out": "{red:HOT} {black/white:OPEN} {icon:sun}            \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -79,7 +79,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross} \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -88,7 +88,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBBBBBBBBB\n                      \n                      \n                      \n                      \n                      "
+   "out": "A{icon:sun}♥BBBBBBBBBBBBBBBBBBB\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -169,7 +169,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}       {blue:R}\n                      \n                      \n                      \n                      \n                      "
+   "out": "{red:L}                    {blue:R}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -214,7 +214,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK BROWN \n                      \n                      \n                      \n                      \n                      "
+   "out": "{red:THE QUICK BROWN FOX JU}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -322,7 +322,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot}             \n{black/white:OPEN}    \n{icon:sun}            \n                      \n                      \n                      "
+   "out": "{red:hot} {black/white:OPEN} {icon:sun}            \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -331,7 +331,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "??? ??? ???           \n                      \n                      \n                      \n                      \n                      "
+   "out": "{red:HOT} {black/white:OPEN} {icon:sun}            \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -367,7 +367,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross} \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -376,7 +376,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBBBBBBBBB\nBB                    \n                      \n                      \n                      \n                      "
+   "out": "A{icon:sun}♥BBBBBBBBBBBBBBBBBBB\nB                     \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -457,7 +457,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}            {bl\nue:R}                 \n                      \n                      \n                      \n                      "
+   "out": "{red:L}                    {blue:R}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -502,7 +502,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK BROWN \nFOX JUMPS OVER THE    \nLAZY DOG AGAIN AND    \nAGAIN}}               \n                      \n                      "
+   "out": "{red:THE QUICK BROWN FOX}   \n{red:JUMPS OVER THE LAZY}   \n{red:DOG AGAIN AND AGAIN}   \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -610,7 +610,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot} {black/white\n                      \n                      \n                      \n                      \n                      "
+   "out": "      {red:hot} {black/white:OPEN} {icon:sun}      \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -619,7 +619,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "     ??? ??? ???      \n                      \n                      \n                      \n                      \n                      "
+   "out": "      {red:HOT} {black/white:OPEN} {icon:sun}      \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -655,7 +655,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross} \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -664,7 +664,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBBBBBBBBB\n                      \n                      \n                      \n                      \n                      "
+   "out": "A{icon:sun}♥BBBBBBBBBBBBBBBBBBB\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -745,7 +745,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}       {blue:R}\n                      \n                      \n                      \n                      \n                      "
+   "out": "{red:L}                    {blue:R}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -790,7 +790,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK BROWN \n                      \n                      \n                      \n                      \n                      "
+   "out": "{red:THE QUICK BROWN FOX JU}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -898,7 +898,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "      {red:hot}       \n  {black/white:OPEN}  \n      {icon:sun}      \n                      \n                      \n                      "
+   "out": "      {red:hot} {black/white:OPEN} {icon:sun}      \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -907,7 +907,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "     ??? ??? ???      \n                      \n                      \n                      \n                      \n                      "
+   "out": "      {red:HOT} {black/white:OPEN} {icon:sun}      \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -943,7 +943,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross} \n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -952,7 +952,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBBBBBBBBB\n          BB          \n                      \n                      \n                      \n                      "
+   "out": "A{icon:sun}♥BBBBBBBBBBBBBBBBBBB\n          B           \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1033,7 +1033,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}            {bl\n        ue:R}         \n                      \n                      \n                      \n                      "
+   "out": "{red:L}                    {blue:R}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1078,7 +1078,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK BROWN \n  FOX JUMPS OVER THE  \n  LAZY DOG AGAIN AND  \n       AGAIN}}        \n                      \n                      "
+   "out": " {red:THE QUICK BROWN FOX}  \n {red:JUMPS OVER THE LAZY}  \n {red:DOG AGAIN AND AGAIN}  \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1186,7 +1186,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot} {black/white\n                      \n                      \n                      \n                      \n                      "
+   "out": "            {red:hot} {black/white:OPEN} {icon:sun}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1195,7 +1195,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "           ??? ??? ???\n                      \n                      \n                      \n                      \n                      "
+   "out": "            {red:HOT} {black/white:OPEN} {icon:sun}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1231,7 +1231,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+   "out": " {icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1240,7 +1240,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBBBBBBBBB\n                      \n                      \n                      \n                      \n                      "
+   "out": "A{icon:sun}♥BBBBBBBBBBBBBBBBBBB\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1321,7 +1321,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}       {blue:R}\n                      \n                      \n                      \n                      \n                      "
+   "out": "{red:L}                    {blue:R}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1366,7 +1366,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK BROWN \n                      \n                      \n                      \n                      \n                      "
+   "out": "{red:THE QUICK BROWN FOX JU}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1474,7 +1474,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "             {red:hot}\n    {black/white:OPEN}\n            {icon:sun}\n                      \n                      \n                      "
+   "out": "            {red:hot} {black/white:OPEN} {icon:sun}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1483,7 +1483,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "           ??? ??? ???\n                      \n                      \n                      \n                      \n                      "
+   "out": "            {red:HOT} {black/white:OPEN} {icon:sun}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1519,7 +1519,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+   "out": " {icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1528,7 +1528,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBBBBBBBBB\n                    BB\n                      \n                      \n                      \n                      "
+   "out": "A{icon:sun}♥BBBBBBBBBBBBBBBBBBB\n                     B\n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1609,7 +1609,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}            {bl\n                 ue:R}\n                      \n                      \n                      \n                      "
+   "out": "{red:L}                    {blue:R}\n                      \n                      \n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1654,7 +1654,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{{red:{{demo.long}}}}",
-   "out": " {{red:THE QUICK BROWN\n    FOX JUMPS OVER THE\n    LAZY DOG AGAIN AND\n               AGAIN}}\n                      \n                      "
+   "out": "   {red:THE QUICK BROWN FOX}\n   {red:JUMPS OVER THE LAZY}\n   {red:DOG AGAIN AND AGAIN}\n                      \n                      \n                      "
   },
   {
    "device": {
@@ -1733,7 +1733,7 @@
     "device_type": "flagship"
    },
    "legacy_prefix": true,
-   "out": "                      \nHELLO                 \nTHIS IS A VERY LONG LI\n{red:hot} {black/white\n??? ??? ???           \n{63} ALERT {63} {67}{66}          "
+   "out": "                      \nHELLO                 \nTHIS IS A VERY LONG LI\n{red:hot} {black/white:OPEN} {icon:sun}            \n{red:HOT} {black/white:OPEN} {icon:sun}            \n{63} ALERT {63} {67}{66}          "
   },
   {
    "device": {
@@ -1769,7 +1769,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot} {blac\n               \n               "
+   "out": "{red:hot} {black/white:OPEN} {icon:sun}     \n               \n               "
   },
   {
    "device": {
@@ -1778,7 +1778,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "??? ??? ???    \n               \n               "
+   "out": "{red:HOT} {black/white:OPEN} {icon:sun}     \n               \n               "
   },
   {
    "device": {
@@ -1814,7 +1814,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - %\n               \n               "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly}\n               \n               "
   },
   {
    "device": {
@@ -1823,7 +1823,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBB\n               \n               "
+   "out": "A{icon:sun}♥BBBBBBBBBBBB\n               \n               "
   },
   {
    "device": {
@@ -1904,7 +1904,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}{blue:R}\n               \n               "
+   "out": "{red:L}             {blue:R}\n               \n               "
   },
   {
    "device": {
@@ -1949,7 +1949,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK\n               \n               "
+   "out": "{red:THE QUICK BROWN}\n               \n               "
   },
   {
    "device": {
@@ -2057,7 +2057,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot}      \n{black/white:OP\nEN}            "
+   "out": "{red:hot} {black/white:OPEN} {icon:sun}     \n               \n               "
   },
   {
    "device": {
@@ -2066,7 +2066,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "??? ??? ???    \n               \n               "
+   "out": "{red:HOT} {black/white:OPEN} {icon:sun}     \n               \n               "
   },
   {
    "device": {
@@ -2102,7 +2102,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - %\n<3 + X         \n               "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly}\n♥ {icon:check} {icon:cross}          \n               "
   },
   {
    "device": {
@@ -2111,7 +2111,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBB\nBBBBBBBBB      \n               "
+   "out": "A{icon:sun}♥BBBBBBBBBBBB\nBBBBBBBB       \n               "
   },
   {
    "device": {
@@ -2192,7 +2192,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}\u0000FILL_SP\nACE\u0000{blue:R}   \n               "
+   "out": "{red:L}             {blue:R}\n               \n               "
   },
   {
    "device": {
@@ -2237,7 +2237,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK\nBROWN FOX JUMPS\nOVER THE LAZY  "
+   "out": "{red:THE QUICK BROWN}\n{red:FOX JUMPS OVER} \n{red:THE LAZY DOG}   "
   },
   {
    "device": {
@@ -2345,7 +2345,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot} {blac\n               \n               "
+   "out": "  {red:hot} {black/white:OPEN} {icon:sun}   \n               \n               "
   },
   {
    "device": {
@@ -2354,7 +2354,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "  ??? ??? ???  \n               \n               "
+   "out": "  {red:HOT} {black/white:OPEN} {icon:sun}   \n               \n               "
   },
   {
    "device": {
@@ -2390,7 +2390,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - %\n               \n               "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly}\n               \n               "
   },
   {
    "device": {
@@ -2399,7 +2399,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBB\n               \n               "
+   "out": "A{icon:sun}♥BBBBBBBBBBBB\n               \n               "
   },
   {
    "device": {
@@ -2480,7 +2480,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}{blue:R}\n               \n               "
+   "out": "{red:L}             {blue:R}\n               \n               "
   },
   {
    "device": {
@@ -2525,7 +2525,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK\n               \n               "
+   "out": "{red:THE QUICK BROWN}\n               \n               "
   },
   {
    "device": {
@@ -2633,7 +2633,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "   {red:hot}   \n{black/white:OP\n      EN}      "
+   "out": "  {red:hot} {black/white:OPEN} {icon:sun}   \n               \n               "
   },
   {
    "device": {
@@ -2642,7 +2642,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "  ??? ??? ???  \n               \n               "
+   "out": "  {red:HOT} {black/white:OPEN} {icon:sun}   \n               \n               "
   },
   {
    "device": {
@@ -2678,7 +2678,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - %\n    <3 + X     \n               "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly}\n     ♥ {icon:check} {icon:cross}     \n               "
   },
   {
    "device": {
@@ -2687,7 +2687,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBB\n   BBBBBBBBB   \n               "
+   "out": "A{icon:sun}♥BBBBBBBBBBBB\n   BBBBBBBB    \n               "
   },
   {
    "device": {
@@ -2768,7 +2768,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}\u0000FILL_SP\n ACE\u0000{blue:R}  \n               "
+   "out": "{red:L}             {blue:R}\n               \n               "
   },
   {
    "device": {
@@ -2813,7 +2813,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK\nBROWN FOX JUMPS\n OVER THE LAZY "
+   "out": "{red:THE QUICK BROWN}\n{red:FOX JUMPS OVER} \n {red:THE LAZY DOG}  "
   },
   {
    "device": {
@@ -2921,7 +2921,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot} {blac\n               \n               "
+   "out": "     {red:hot} {black/white:OPEN} {icon:sun}\n               \n               "
   },
   {
    "device": {
@@ -2930,7 +2930,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "    ??? ??? ???\n               \n               "
+   "out": "     {red:HOT} {black/white:OPEN} {icon:sun}\n               \n               "
   },
   {
    "device": {
@@ -2966,7 +2966,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - %\n               \n               "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly}\n               \n               "
   },
   {
    "device": {
@@ -2975,7 +2975,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBB\n               \n               "
+   "out": "A{icon:sun}♥BBBBBBBBBBBB\n               \n               "
   },
   {
    "device": {
@@ -3056,7 +3056,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}{blue:R}\n               \n               "
+   "out": "{red:L}             {blue:R}\n               \n               "
   },
   {
    "device": {
@@ -3101,7 +3101,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK\n               \n               "
+   "out": "{red:THE QUICK BROWN}\n               \n               "
   },
   {
    "device": {
@@ -3209,7 +3209,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "      {red:hot}\n{black/white:OP\n            EN}"
+   "out": "     {red:hot} {black/white:OPEN} {icon:sun}\n               \n               "
   },
   {
    "device": {
@@ -3218,7 +3218,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "    ??? ??? ???\n               \n               "
+   "out": "     {red:HOT} {black/white:OPEN} {icon:sun}\n               \n               "
   },
   {
    "device": {
@@ -3254,7 +3254,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - %\n         <3 + X\n               "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly}\n          ♥ {icon:check} {icon:cross}\n               "
   },
   {
    "device": {
@@ -3263,7 +3263,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBB\n      BBBBBBBBB\n               "
+   "out": "A{icon:sun}♥BBBBBBBBBBBB\n       BBBBBBBB\n               "
   },
   {
    "device": {
@@ -3344,7 +3344,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}\u0000FILL_SP\n   ACE\u0000{blue:R}\n               "
+   "out": "{red:L}             {blue:R}\n               \n               "
   },
   {
    "device": {
@@ -3389,7 +3389,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK\nBROWN FOX JUMPS\n  OVER THE LAZY"
+   "out": "{red:THE QUICK BROWN}\n {red:FOX JUMPS OVER}\n   {red:THE LAZY DOG}"
   },
   {
    "device": {
@@ -3512,7 +3512,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot} {black/white:OPEN} {\n                              \n                              "
+   "out": "{red:hot} {black/white:OPEN} {icon:sun}                    \n                              \n                              "
   },
   {
    "device": {
@@ -3523,7 +3523,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "??? ??? ???                   \n                              \n                              "
+   "out": "{red:HOT} {black/white:OPEN} {icon:sun}                    \n                              \n                              "
   },
   {
    "device": {
@@ -3567,7 +3567,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - % <3 + X        \n                              \n                              "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross}         \n                              \n                              "
   },
   {
    "device": {
@@ -3578,7 +3578,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBBBBBBBBBBB      \n                              \n                              "
+   "out": "A{icon:sun}♥BBBBBBBBBBBBBBBBBBBB       \n                              \n                              "
   },
   {
    "device": {
@@ -3677,7 +3677,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}               {blue:R}\n                              \n                              "
+   "out": "{red:L}                            {blue:R}\n                              \n                              "
   },
   {
    "device": {
@@ -3732,7 +3732,7 @@
    "alignment": "left",
    "wrap": false,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK BROWN FOX JUMP\n                              \n                              "
+   "out": "{red:THE QUICK BROWN FOX JUMPS OVER}\n                              \n                              "
   },
   {
    "device": {
@@ -3864,7 +3864,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot} {black/white:OPEN}  \n{icon:sun}                    \n                              "
+   "out": "{red:hot} {black/white:OPEN} {icon:sun}                    \n                              \n                              "
   },
   {
    "device": {
@@ -3875,7 +3875,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "??? ??? ???                   \n                              \n                              "
+   "out": "{red:HOT} {black/white:OPEN} {icon:sun}                    \n                              \n                              "
   },
   {
    "device": {
@@ -3919,7 +3919,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "* * O / * ! - % <3 + X        \n                              \n                              "
+   "out": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross}         \n                              \n                              "
   },
   {
    "device": {
@@ -3930,7 +3930,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "A*<3BBBBBBBBBBBBBBBBBBBB      \n                              \n                              "
+   "out": "A{icon:sun}♥BBBBBBBBBBBBBBBBBBBB       \n                              \n                              "
   },
   {
    "device": {
@@ -4029,7 +4029,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}               {blue:R}\n                              \n                              "
+   "out": "{red:L}                            {blue:R}\n                              \n                              "
   },
   {
    "device": {
@@ -4084,7 +4084,7 @@
    "alignment": "left",
    "wrap": true,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK BROWN FOX     \nJUMPS OVER THE LAZY DOG AGAIN \nAND AGAIN}}                   "
+   "out": "{red:THE QUICK BROWN FOX JUMPS OVER}\n{red:THE LAZY DOG AGAIN AND AGAIN}  \n                              "
   },
   {
    "device": {
@@ -4216,7 +4216,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot} {black/white:OPEN} {\n                              \n                              "
+   "out": "          {red:hot} {black/white:OPEN} {icon:sun}          \n                              \n                              "
   },
   {
    "device": {
@@ -4227,7 +4227,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "         ??? ??? ???          \n                              \n                              "
+   "out": "          {red:HOT} {black/white:OPEN} {icon:sun}          \n                              \n                              "
   },
   {
    "device": {
@@ -4271,7 +4271,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "    * * O / * ! - % <3 + X    \n                              \n                              "
+   "out": "    {icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross}     \n                              \n                              "
   },
   {
    "device": {
@@ -4282,7 +4282,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "   A*<3BBBBBBBBBBBBBBBBBBBB   \n                              \n                              "
+   "out": "   A{icon:sun}♥BBBBBBBBBBBBBBBBBBBB    \n                              \n                              "
   },
   {
    "device": {
@@ -4381,7 +4381,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}               {blue:R}\n                              \n                              "
+   "out": "{red:L}                            {blue:R}\n                              \n                              "
   },
   {
    "device": {
@@ -4436,7 +4436,7 @@
    "alignment": "center",
    "wrap": false,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK BROWN FOX JUMP\n                              \n                              "
+   "out": "{red:THE QUICK BROWN FOX JUMPS OVER}\n                              \n                              "
   },
   {
    "device": {
@@ -4568,7 +4568,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": " {red:hot} {black/white:OPEN} \n          {icon:sun}          \n                              "
+   "out": "          {red:hot} {black/white:OPEN} {icon:sun}          \n                              \n                              "
   },
   {
    "device": {
@@ -4579,7 +4579,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "         ??? ??? ???          \n                              \n                              "
+   "out": "          {red:HOT} {black/white:OPEN} {icon:sun}          \n                              \n                              "
   },
   {
    "device": {
@@ -4623,7 +4623,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "    * * O / * ! - % <3 + X    \n                              \n                              "
+   "out": "    {icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross}     \n                              \n                              "
   },
   {
    "device": {
@@ -4634,7 +4634,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "   A*<3BBBBBBBBBBBBBBBBBBBB   \n                              \n                              "
+   "out": "   A{icon:sun}♥BBBBBBBBBBBBBBBBBBBB    \n                              \n                              "
   },
   {
    "device": {
@@ -4733,7 +4733,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}               {blue:R}\n                              \n                              "
+   "out": "{red:L}                            {blue:R}\n                              \n                              "
   },
   {
    "device": {
@@ -4788,7 +4788,7 @@
    "alignment": "center",
    "wrap": true,
    "line": "{{red:{{demo.long}}}}",
-   "out": "  {{red:THE QUICK BROWN FOX   \nJUMPS OVER THE LAZY DOG AGAIN \n         AND AGAIN}}          "
+   "out": "{red:THE QUICK BROWN FOX JUMPS OVER}\n {red:THE LAZY DOG AGAIN AND AGAIN} \n                              "
   },
   {
    "device": {
@@ -4920,7 +4920,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "{red:hot} {black/white:OPEN} {\n                              \n                              "
+   "out": "                    {red:hot} {black/white:OPEN} {icon:sun}\n                              \n                              "
   },
   {
    "device": {
@@ -4931,7 +4931,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "                   ??? ??? ???\n                              \n                              "
+   "out": "                    {red:HOT} {black/white:OPEN} {icon:sun}\n                              \n                              "
   },
   {
    "device": {
@@ -4975,7 +4975,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "        * * O / * ! - % <3 + X\n                              \n                              "
+   "out": "         {icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross}\n                              \n                              "
   },
   {
    "device": {
@@ -4986,7 +4986,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "      A*<3BBBBBBBBBBBBBBBBBBBB\n                              \n                              "
+   "out": "       A{icon:sun}♥BBBBBBBBBBBBBBBBBBBB\n                              \n                              "
   },
   {
    "device": {
@@ -5085,7 +5085,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}               {blue:R}\n                              \n                              "
+   "out": "{red:L}                            {blue:R}\n                              \n                              "
   },
   {
    "device": {
@@ -5140,7 +5140,7 @@
    "alignment": "right",
    "wrap": false,
    "line": "{{red:{{demo.long}}}}",
-   "out": "{{red:THE QUICK BROWN FOX JUMP\n                              \n                              "
+   "out": "{red:THE QUICK BROWN FOX JUMPS OVER}\n                              \n                              "
   },
   {
    "device": {
@@ -5272,7 +5272,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "out": "  {red:hot} {black/white:OPEN}\n                    {icon:sun}\n                              "
+   "out": "                    {red:hot} {black/white:OPEN} {icon:sun}\n                              \n                              "
   },
   {
    "device": {
@@ -5283,7 +5283,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "out": "                   ??? ??? ???\n                              \n                              "
+   "out": "                    {red:HOT} {black/white:OPEN} {icon:sun}\n                              \n                              "
   },
   {
    "device": {
@@ -5327,7 +5327,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "out": "        * * O / * ! - % <3 + X\n                              \n                              "
+   "out": "         {icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross}\n                              \n                              "
   },
   {
    "device": {
@@ -5338,7 +5338,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "out": "      A*<3BBBBBBBBBBBBBBBBBBBB\n                              \n                              "
+   "out": "       A{icon:sun}♥BBBBBBBBBBBBBBBBBBBB\n                              \n                              "
   },
   {
    "device": {
@@ -5437,7 +5437,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "out": "{red:L}               {blue:R}\n                              \n                              "
+   "out": "{red:L}                            {blue:R}\n                              \n                              "
   },
   {
    "device": {
@@ -5492,7 +5492,7 @@
    "alignment": "right",
    "wrap": true,
    "line": "{{red:{{demo.long}}}}",
-   "out": "     {{red:THE QUICK BROWN FOX\n JUMPS OVER THE LAZY DOG AGAIN\n                   AND AGAIN}}"
+   "out": "{red:THE QUICK BROWN FOX JUMPS OVER}\n  {red:THE LAZY DOG AGAIN AND AGAIN}\n                              "
   },
   {
    "device": {
@@ -5652,43 +5652,40 @@
   },
   {
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
-   "count": 39,
-   "trunc10": "{red:hot} ",
+   "count": 10,
+   "trunc10": "{red:hot} {black/white:OPEN} {icon:sun}",
    "align": [
-    "{red:hot} {blac",
-    "{red:hot} {blac",
-    "{red:hot} {blac"
+    "{red:hot} {black/white:OPEN} {icon:sun}     ",
+    "  {red:hot} {black/white:OPEN} {icon:sun}   ",
+    "     {red:hot} {black/white:OPEN} {icon:sun}"
    ],
    "fill": "{red:hot} {black/white:OPEN} {icon:sun}",
    "wrap": [
-    "{red:ho",
-    "t}",
-    "{black/whit",
-    "e:OPEN}"
+    "{red:hot}",
+    "{black/white:OPEN} {icon:sun}"
    ],
    "word_wrap": [
-    "{red:ho",
-    "{black/whit",
-    "{icon:sun}"
+    "{red:hot}",
+    "{black/white:OPEN} {icon:sun}"
    ]
   },
   {
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
-   "count": 11,
-   "trunc10": "??? ??? ??",
+   "count": 10,
+   "trunc10": "{red:HOT} {black/white:OPEN} {icon:sun}",
    "align": [
-    "??? ??? ???    ",
-    "  ??? ??? ???  ",
-    "    ??? ??? ???"
+    "{red:HOT} {black/white:OPEN} {icon:sun}     ",
+    "  {red:HOT} {black/white:OPEN} {icon:sun}   ",
+    "     {red:HOT} {black/white:OPEN} {icon:sun}"
    ],
-   "fill": "??? ??? ???",
+   "fill": "{red:HOT} {black/white:OPEN} {icon:sun}",
    "wrap": [
-    "??? ???",
-    "???"
+    "{red:HOT}",
+    "{black/white:OPEN} {icon:sun}"
    ],
    "word_wrap": [
-    "??? ???",
-    "???"
+    "{red:HOT}",
+    "{black/white:OPEN} {icon:sun}"
    ]
   },
   {
@@ -5752,42 +5749,44 @@
   },
   {
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
-   "count": 22,
-   "trunc10": "* * O / * ",
+   "count": 21,
+   "trunc10": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} ",
    "align": [
-    "* * O / * ! - %",
-    "* * O / * ! - %",
-    "* * O / * ! - %"
+    "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly}",
+    "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly}",
+    "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly}"
    ],
-   "fill": "* * O / * ! - % <3 + X",
+   "fill": "{icon:sun} {icon:star} {icon:cloud} {icon:rain} {icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check} {icon:cross}",
    "wrap": [
-    "* * O /",
-    "* ! - % <3",
-    "+ X"
+    "{icon:sun} {icon:star} {icon:cloud} {icon:rain}",
+    "{icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check}",
+    "{icon:cross}"
    ],
    "word_wrap": [
-    "* * O /",
-    "* ! - % <3",
-    "+ X"
+    "{icon:sun} {icon:star} {icon:cloud} {icon:rain}",
+    "{icon:snow} {icon:bolt} {icon:fog} {icon:partly} ♥ {icon:check}",
+    "{icon:cross}"
    ]
   },
   {
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
-   "count": 24,
-   "trunc10": "A*<3BBBBBB",
+   "count": 23,
+   "trunc10": "A{icon:sun}♥BBBBBBB",
    "align": [
-    "A*<3BBBBBBBBBBB",
-    "A*<3BBBBBBBBBBB",
-    "A*<3BBBBBBBBBBB"
+    "A{icon:sun}♥BBBBBBBBBBBB",
+    "A{icon:sun}♥BBBBBBBBBBBB",
+    "A{icon:sun}♥BBBBBBBBBBBB"
    ],
-   "fill": "A*<3BBBBBBBBBBBBBBBBBBBB",
+   "fill": "A{icon:sun}♥BBBBBBBBBBBBBBBBBBBB",
    "wrap": [
-    "A*<3BBB",
+    "A{icon:sun}♥BBBB",
     "BBBBBBBBBBB",
-    "BBBBBB"
+    "BBBBB"
    ],
    "word_wrap": [
-    "A*<3BBB"
+    "A{icon:sun}♥BBBB",
+    "BBBBBBBBBBB",
+    "BBBBB"
    ]
   },
   {
@@ -5958,21 +5957,21 @@
   },
   {
    "line": "{red:L}{{fill_space}}{blue:R}",
-   "count": 27,
-   "trunc10": "{red:L}\u0000FI",
+   "count": 14,
+   "trunc10": "{red:L}\u0000FILL_SPA",
    "align": [
-    "{red:L}\u0000FILL_SP",
-    "{red:L}\u0000FILL_SP",
-    "{red:L}\u0000FILL_SP"
+    "{red:L}\u0000FILL_SPACE\u0000{blue:R} ",
+    "{red:L}\u0000FILL_SPACE\u0000{blue:R} ",
+    " {red:L}\u0000FILL_SPACE\u0000{blue:R}"
    ],
-   "fill": "{red:L}{blue:R}",
+   "fill": "{red:L}             {blue:R}",
    "wrap": [
-    "{red:L}",
-    "\u0000FILL_SPACE",
-    "\u0000{blue:R}"
+    "{red:L}\u0000FILL_",
+    "SPACE\u0000{blue:R}"
    ],
    "word_wrap": [
-    "{red:L}"
+    "{red:L}\u0000FILL_",
+    "SPACE\u0000{blue:R}"
    ]
   },
   {
@@ -6059,25 +6058,25 @@
   },
   {
    "line": "{{red:{{demo.long}}}}",
-   "count": 67,
-   "trunc10": "{{red:THE ",
+   "count": 59,
+   "trunc10": "{red:THE QUICK }",
    "align": [
-    "{{red:THE QUICK",
-    "{{red:THE QUICK",
-    "{{red:THE QUICK"
+    "{red:THE QUICK BROWN}",
+    "{red:THE QUICK BROWN}",
+    "{red:THE QUICK BROWN}"
    ],
-   "fill": "{{red:THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG AGAIN AND AGAIN}}",
+   "fill": "{red:THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG AGAIN AND AGAIN}",
    "wrap": [
-    "{{red:T",
-    "HE",
-    "QUICK BROWN",
-    "FOX JUMPS"
+    "{red:THE}",
+    "{red:QUICK BROWN}",
+    "{red:FOX JUMPS}",
+    "{red:OVER THE}"
    ],
    "word_wrap": [
-    "{{red:T",
-    "QUICK BROWN",
-    "FOX JUMPS",
-    "OVER THE"
+    "{red:THE}",
+    "{red:QUICK BROWN}",
+    "{red:FOX JUMPS}",
+    "{red:OVER THE}"
    ]
   },
   {
@@ -6262,15 +6261,15 @@
   {
    "line": "{red:hot} {black/white:OPEN} {icon:sun}",
    "cols": [
-    39,
-    39
+    10,
+    10
    ]
   },
   {
    "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
    "cols": [
-    47,
-    68
+    10,
+    10
    ]
   },
   {
@@ -6297,15 +6296,15 @@
   {
    "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
    "cols": [
-    22,
-    22
+    21,
+    21
    ]
   },
   {
    "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
    "cols": [
-    24,
-    24
+    23,
+    23
    ]
   },
   {
@@ -6367,8 +6366,8 @@
   {
    "line": "{red:L}{{fill_space}}{blue:R}",
    "cols": [
-    30,
-    37
+    17,
+    24
    ]
   },
   {
@@ -6402,8 +6401,8 @@
   {
    "line": "{{red:{{demo.long}}}}",
    "cols": [
-    23,
-    30
+    15,
+    22
    ]
   },
   {
