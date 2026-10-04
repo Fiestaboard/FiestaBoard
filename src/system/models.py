@@ -189,3 +189,39 @@ class ReleaseChannelSwitchResponse(BaseModel):
     settings_restored: bool | None = None
     #: Human-readable caveat to surface, e.g. that no join snapshot existed.
     warning: str | None = None
+
+
+class MarkupCompatFinding(BaseModel):
+    """One stored string whose split-flap rendering changed with the
+    extended-markup flip (``src.markup_compat``)."""
+
+    #: The data-dir file it lives in, e.g. ``pages.json``.
+    store: str
+    #: Its JSON path inside that file, e.g. ``pages[2].template[0]``.
+    location: str
+    #: ``legacy_shortcut``, ``colour_span``, ``block_span``, ``icon``,
+    #: ``template_colour_span``, ``template_block_span`` or ``template_icon``.
+    kind: str
+    #: The matched text, e.g. ``{sun}`` or ``{red:``.
+    marker: str
+    #: The whole stored string.
+    text: str
+    #: The page (or other record) it belongs to, when it has an id.
+    item_id: str | None = None
+    item_name: str | None = None
+    #: For a legacy shortcut: what a split-flap board drew before and draws
+    #: now (``*`` / ``yellow tile``). None for the extended-markup kinds.
+    before: str | None = None
+    after: str | None = None
+
+
+class MarkupCompatResponse(BaseModel):
+    """``GET /system/markup-compat``: stored board text that draws
+    differently now that every board speaks extended markup."""
+
+    total: int
+    #: Distinct places affected: a page, or a single setting.
+    places: int
+    #: Findings per kind (kinds with none are left out).
+    counts: dict[str, int]
+    findings: list[MarkupCompatFinding]

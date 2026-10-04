@@ -1669,6 +1669,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/system/markup-compat",
+      "methods": [
+        "GET"
+      ],
+      "name": "system_markup_compat",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/system/restart",
       "methods": [
         "POST"
