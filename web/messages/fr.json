@@ -2389,6 +2389,7 @@
     "scanning": "Recherche…",
     "noDevicesFound": "Aucun appareil trouvé. Saisissez l'adresse vous-même.",
     "devicesFoundLabel": "Appareils trouvés pour {field}",
+    "subnetLabel": "Réseau à analyser (facultatif)",
     "tileAssigned": "Attribuée",
     "tileDialogTitle": "Tuile {position} — ligne {row}, colonne {col}",
     "tileDialogDescription": "Réglages de l'appareil à cette position.",

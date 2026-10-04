@@ -18,6 +18,11 @@
  * widget runs itself (a device picker's discover, a tile grid's per-tile
  * actions) is not repeated as a button.
  *
+ * A scan (`discover`, an action declaring `hint_host`, a device picker's)
+ * carries `hint_host`, the private IPv4 address the page was opened at
+ * (`@/lib/network-hint`): in Docker bridge mode it is how the output learns
+ * which network to search. It is filled in, never asked for.
+ *
  * A result shows its status, message and guidance; its `fields` fill the
  * settings they name (a secret one lands in a secret input, so it is never
  * shown in clear unless the user asks), and its `geometry` is handed to
@@ -55,6 +60,7 @@ import { BoardScreenContext } from "@/components/plugin-settings/field-context";
 import { useTranslations } from "@/i18n/translations";
 import type { ActionGeometry, ActionResult, OutputActionDescriptor, OutputSummary } from "@/lib/api";
 import { api } from "@/lib/api";
+import { browserHostname, HINT_HOST, lanHintHost, withNetworkHint } from "@/lib/network-hint";
 import { type BoardFacts, isVisible } from "@/lib/visible-when";
 
 import { localizeOutput } from "./localize-output";
@@ -113,9 +119,15 @@ export function applyResultFields(
   return { values: next, filled };
 }
 
+/** The inputs an action asks the user for: all it declares but `hint_host`, which is filled in. */
+function askedInputs(action: OutputActionDescriptor): Record<string, unknown> {
+  const declared = (action.input_schema?.properties ?? {}) as Record<string, unknown>;
+  return Object.fromEntries(Object.entries(declared).filter(([name]) => name !== HINT_HOST));
+}
+
 /** An action's input to start from: the settings of the same name, never a masked secret. */
 function initialInput(action: OutputActionDescriptor, values: Record<string, unknown>): Record<string, unknown> {
-  const declared = (action.input_schema?.properties ?? {}) as Record<string, unknown>;
+  const declared = askedInputs(action);
   return Object.fromEntries(
     Object.keys(declared)
       .filter((name) => !isEmpty(values[name]) && values[name] !== MASKED)
@@ -196,14 +208,15 @@ export function PluginBoardSettings({
     async (actionId: string, input?: Record<string, unknown>, options?: RunOptions): Promise<ActionResult | null> => {
       const action = output.actions.find((a) => a.id === actionId);
       if (!action) return null;
+      const sent = withNetworkHint(action, input, lanHintHost(browserHostname()), options?.networkHint);
       setRunning(actionId);
       setFailure(null);
       try {
         const response = boardId
-          ? await api.runBoardAction(boardId, actionId, { input, output_config: values })
+          ? await api.runBoardAction(boardId, actionId, { input: sent, output_config: values })
           : await api.runDraftOutputAction(output.id, actionId, {
               output_config: values,
-              input,
+              input: sent,
               ...(deviceModel ? { device_model: deviceModel } : {}),
             });
         const applied =
@@ -246,7 +259,7 @@ export function PluginBoardSettings({
     .map(([name, prop]) => prop.title || name);
 
   const onButton = async (action: OutputActionDescriptor) => {
-    if (!action.input_schema) {
+    if (Object.keys(askedInputs(action)).length === 0) {
       void run(action.id);
       return;
     }
@@ -347,7 +360,7 @@ function ActionInputDialog({
   const t = useTranslations("boardSettingsScreen");
   const tc = useTranslations("common");
   const [input, setInput] = useState<Record<string, unknown>>(initial);
-  const schema = useMemo(() => asJSONSchema(action.input_schema), [action.input_schema]);
+  const schema = useMemo(() => asJSONSchema({ ...action.input_schema, properties: askedInputs(action) }), [action]);
   const missing = missingInputs(action, input).length > 0;
 
   return (

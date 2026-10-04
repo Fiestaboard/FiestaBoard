@@ -2389,6 +2389,7 @@
     "scanning": "Searching…",
     "noDevicesFound": "No devices found. Enter the address yourself.",
     "devicesFoundLabel": "Devices found for {field}",
+    "subnetLabel": "Network to search (optional)",
     "tileAssigned": "Assigned",
     "tileDialogTitle": "Tile {position} — row {row}, column {col}",
     "tileDialogDescription": "Settings for the device in this position.",

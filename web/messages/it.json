@@ -2389,6 +2389,7 @@
     "scanning": "Ricerca…",
     "noDevicesFound": "Nessun dispositivo trovato. Inserisci l'indirizzo manualmente.",
     "devicesFoundLabel": "Dispositivi trovati per {field}",
+    "subnetLabel": "Rete da cercare (facoltativo)",
     "tileAssigned": "Assegnato",
     "tileDialogTitle": "Tessera {position} — riga {row}, colonna {col}",
     "tileDialogDescription": "Impostazioni del dispositivo in questa posizione.",
