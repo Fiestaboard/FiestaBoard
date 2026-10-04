@@ -10,7 +10,6 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  Combobox,
   Field,
   Flex,
   Grid,
@@ -45,12 +44,14 @@ import {
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { ModelCombobox } from "@/components/model-combobox";
 import {
   OAUTH_CONNECTIONS_QUERY_KEY,
   OAuthConnectionPanel,
   oauthReturnErrorKey,
   readOAuthReturn,
 } from "@/components/plugin-settings";
+import { useAiSignInConnected, useProviderModels } from "@/hooks/use-provider-models";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
@@ -389,12 +390,14 @@ function ProviderRow({
   onMakeDefault,
 }: ProviderRowProps) {
   const t = useTranslations("settings.ai");
-  const [modelInput, setModelInput] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [offeredModels, setOfferedModels] = useState<AIModel[] | null>(null);
-  const [loadingModels, setLoadingModels] = useState(false);
-  const [modelsError, setModelsError] = useState<string | null>(null);
+  // A connected sign-in lists its models on its own; any other saved
+  // provider is asked when the user presses Load models.
+  const [modelsRequested, setModelsRequested] = useState(false);
+  const signedIn = useAiSignInConnected(provider.id, saved && !!provider.sign_in);
+  const modelsQuery = useProviderModels(provider.id, saved && (modelsRequested || (!!provider.sign_in && signedIn)));
+  const offeredModels = modelsQuery.data;
   // Fixed for the row's life, so editing a field under Advanced never swaps
   // the view (and the field being typed in) out from under the user.
   const [kind] = useState<ProviderSetupKind>(() => initialKind ?? providerSetupKind(provider));
@@ -412,32 +415,20 @@ function ProviderRow({
     });
   };
 
-  const addModel = () => {
-    addModelValue(modelInput);
-    setModelInput("");
+  const loadModels = () => {
+    if (modelsQuery.data || modelsQuery.isError) void modelsQuery.refetch();
+    else setModelsRequested(true);
   };
+  const modelsError = modelsQuery.error
+    ? modelsQuery.error instanceof Error && modelsQuery.error.message
+      ? modelsQuery.error.message
+      : t("loadModelsFailed")
+    : null;
 
-  const loadModels = async () => {
-    setLoadingModels(true);
-    setModelsError(null);
-    try {
-      const { models } = await api.listAiProviderModels(provider.id);
-      setOfferedModels(models);
-    } catch (err) {
-      setOfferedModels(null);
-      setModelsError(err instanceof Error ? err.message : t("loadModelsFailed"));
-    } finally {
-      setLoadingModels(false);
-    }
-  };
-
-  const pickable = (offeredModels ?? [])
-    .filter((m) => !provider.models.includes(m.id))
-    .map((m) => ({
-      value: m.id,
-      label: m.name === m.id ? m.id : `${m.name} (${m.id})`,
-      keywords: [m.name],
-    }));
+  // The saved models first (named when the provider listed them), then the rest it offers.
+  const savedModelOptions: AIModel[] = provider.models.map(
+    (id) => offeredModels?.find((m) => m.id === id) ?? { id, name: id },
+  );
 
   const removeModel = (model: string) => {
     const nextModels = provider.models.filter((m) => m !== model);
@@ -613,10 +604,10 @@ function ProviderRow({
               variant="ghost"
               className="h-6 gap-1 px-2 text-xs"
               onClick={loadModels}
-              disabled={loadingModels}
+              disabled={modelsQuery.isFetching}
             >
-              {loadingModels && <Loader2 className="h-3 w-3 animate-spin" />}
-              {t("loadModels")}
+              {modelsQuery.isFetching && <Loader2 className="h-3 w-3 animate-spin" />}
+              {offeredModels ? t("refreshModels") : t("loadModels")}
             </Button>
           )}
         </Flex>
@@ -625,39 +616,19 @@ function ProviderRow({
             {t("simple.modelsAfterSave")}
           </Text>
         )}
-        {offeredModels && (
-          <Combobox
-            options={pickable}
-            value=""
-            onValueChange={(value) => addModelValue(value)}
-            aria-label={t("pickModel")}
-            labels={{ placeholder: t("pickModel"), list: t("pickModel"), empty: t("noModelMatches") }}
-            className="h-8 font-mono text-xs"
-          />
-        )}
+        <ModelCombobox
+          aria-label={t("addModel")}
+          models={offeredModels ?? []}
+          exclude={provider.models}
+          value=""
+          onValueChange={addModelValue}
+          className="h-8 font-mono text-xs"
+        />
         {modelsError && (
           <Text size="xs" tone="destructive" role="alert">
             {modelsError}
           </Text>
         )}
-        <Flex gap="1.5">
-          <Input
-            value={modelInput}
-            onChange={(e) => setModelInput(e.target.value)}
-            placeholder="openai/gpt-4o-mini"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addModel();
-              }
-            }}
-            onBlur={addModel}
-            className="h-8 font-mono text-xs"
-          />
-          <Button type="button" size="sm" variant="outline" className="h-8" onClick={addModel}>
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
-        </Flex>
         {provider.models.length > 0 && (
           <Flex wrap gap="1" className="pt-1">
             {provider.models.map((m) => (
@@ -682,21 +653,19 @@ function ProviderRow({
           <Label htmlFor={`default-${provider.id}`} className="text-xs">
             {t("defaultModelLabel")}
           </Label>
-          <Select
+          <ModelCombobox
+            id={`default-${provider.id}`}
+            models={[...savedModelOptions, ...(offeredModels ?? [])]}
             value={provider.default_model || provider.models[0]}
-            onValueChange={(value) => onChange({ ...provider, default_model: value })}
-          >
-            <SelectTrigger id={`default-${provider.id}`} className="h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {provider.models.map((m) => (
-                <SelectItem key={m} value={m} className="font-mono text-xs">
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onValueChange={(value) =>
+              onChange({
+                ...provider,
+                models: provider.models.includes(value) ? provider.models : [...provider.models, value],
+                default_model: value,
+              })
+            }
+            className="h-8 font-mono text-xs"
+          />
         </Stack>
       )}
 
@@ -923,6 +892,8 @@ export function AiSettings() {
       queryClient.setQueryData(["ai-settings"], saved);
       // A provider that gained or lost a sign-in gains or loses its connection.
       queryClient.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
+      // A changed endpoint or key changes what a provider lists.
+      queryClient.invalidateQueries({ queryKey: ["ai-provider-models"] });
       setDraft(null);
       toast.success("AI provider settings saved");
     },

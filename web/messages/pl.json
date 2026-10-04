@@ -718,7 +718,9 @@
         "addressLabel": "Adres serwera",
         "addressDescription": "Gdzie nasłuchuje serwer modeli. localhost oznacza tę tablicę; jeśli serwer działa na innym komputerze, użyj jego adresu, np. http://192.168.1.20:11434/v1.",
         "modelsAfterSave": "Zapisz zmiany, aby wybrać spośród modeli dostawcy."
-      }
+      },
+      "addModel": "Dodaj model",
+      "refreshModels": "Odśwież modele"
     },
     "backup": {
       "cardTitle": "Kopia zapasowa i przywracanie",
@@ -2485,5 +2487,13 @@
     "settingFailed": "Nie udało się zapisać ustawienia",
     "on": "Wł.",
     "off": "Wył."
+  },
+  "modelCombobox": {
+    "placeholder": "Szukaj lub wpisz id modelu",
+    "trigger": "Pokaż modele",
+    "list": "Modele",
+    "empty": "Brak pasujących modeli",
+    "typedId": "Użyj tego id",
+    "showingFirst": "Pierwsze {shown} z {total}. Pisz, aby zawęzić."
   }
 }

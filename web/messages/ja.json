@@ -718,7 +718,9 @@
         "addressLabel": "サーバーのアドレス",
         "addressDescription": "モデルサーバーが待ち受けている場所です。localhost はこのボード自身を指します。別のコンピューターで動かしている場合は、http://192.168.1.20:11434/v1 のようにそのコンピューターのアドレスを使ってください。",
         "modelsAfterSave": "変更を保存すると、プロバイダーのモデルから選べます。"
-      }
+      },
+      "addModel": "モデルを追加",
+      "refreshModels": "モデルを更新"
     },
     "backup": {
       "cardTitle": "バックアップと復元",
@@ -2485,5 +2487,13 @@
     "settingFailed": "設定を保存できませんでした",
     "on": "オン",
     "off": "オフ"
+  },
+  "modelCombobox": {
+    "placeholder": "検索、またはモデル ID を入力",
+    "trigger": "モデルを表示",
+    "list": "モデル",
+    "empty": "一致するモデルはありません",
+    "typedId": "この ID を使う",
+    "showingFirst": "{total} 件中、最初の {shown} 件を表示中。入力して絞り込めます。"
   }
 }

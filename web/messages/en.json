@@ -674,7 +674,9 @@
         "addressLabel": "Server address",
         "addressDescription": "Where the model server listens. localhost means this board itself; if the server runs on another computer, use that computer's address, such as http://192.168.1.20:11434/v1.",
         "modelsAfterSave": "Save changes to pick from the provider's models."
-      }
+      },
+      "addModel": "Add a model",
+      "refreshModels": "Refresh models"
     },
     "backup": {
       "cardTitle": "Backup & Restore",
@@ -2485,5 +2487,13 @@
     "settingFailed": "The setting could not be saved",
     "on": "On",
     "off": "Off"
+  },
+  "modelCombobox": {
+    "placeholder": "Search or type a model id",
+    "trigger": "Show models",
+    "list": "Models",
+    "empty": "No matching models",
+    "typedId": "Use this id",
+    "showingFirst": "Showing first {shown} of {total}. Type to narrow it down."
   }
 }

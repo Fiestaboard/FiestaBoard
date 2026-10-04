@@ -718,7 +718,9 @@
         "addressLabel": "Serveradres",
         "addressDescription": "Waar de modelserver luistert. localhost betekent dit bord zelf; draait de server op een andere computer, gebruik dan het adres van die computer, zoals http://192.168.1.20:11434/v1.",
         "modelsAfterSave": "Sla de wijzigingen op om uit de modellen van de provider te kiezen."
-      }
+      },
+      "addModel": "Een model toevoegen",
+      "refreshModels": "Modellen vernieuwen"
     },
     "backup": {
       "cardTitle": "Back-up & herstel",
@@ -2485,5 +2487,13 @@
     "settingFailed": "De instelling kon niet worden opgeslagen",
     "on": "Aan",
     "off": "Uit"
+  },
+  "modelCombobox": {
+    "placeholder": "Zoek of typ een model-id",
+    "trigger": "Modellen tonen",
+    "list": "Modellen",
+    "empty": "Geen overeenkomende modellen",
+    "typedId": "Deze id gebruiken",
+    "showingFirst": "De eerste {shown} van {total}. Typ om te verfijnen."
   }
 }

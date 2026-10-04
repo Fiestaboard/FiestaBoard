@@ -77,8 +77,8 @@ In **Settings → AI Providers**, click **Add provider** and choose what
 kind of provider it is:
 
 - **Sign in**: ChatGPT, OpenRouter, or Hugging Face. The provider is
-  saved straight away and shows its sign-in panel. Sign in, then press
-  **Load models** and pick a model. See
+  saved straight away and shows its sign-in panel. Once you are signed
+  in, its models are listed on their own: search the list and pick one. See
   [Signing in instead of using an API key](#signing-in-instead-of-using-an-api-key).
 - **Use an API key**: pick the service (OpenAI, Anthropic, Groq,
   DeepSeek, Mistral, Together AI, Fireworks AI, or OpenRouter), then
@@ -115,12 +115,14 @@ opens in the full form.
      `https://openrouter.ai/api/v1` or `https://api.anthropic.com/v1`.
    - **API Key**: paste the key. It is stored on this device's
      `data/config.json` and is masked (`***`) on read.
-   - **Models**: type each model id and press Enter or click `+`
-     (e.g. `openai/gpt-5-mini`, `claude-sonnet-5`). Once the provider
-     is saved, **Load models** lists the provider's own models to pick
-     from.
+   - **Models**: search the provider's list and pick, or type an id
+     the list does not have (e.g. `openai/gpt-5-mini`,
+     `claude-sonnet-5`) and choose **Use this id**. A signed-in provider
+     lists its models as soon as you are signed in; any other saved
+     provider lists them when you press **Load models**. **Refresh
+     models** asks again.
    - **Default model**: picked automatically once you add at least
-     one model.
+     one model; change it from the same searchable list.
 4. (Optional) Click **Test connection** to send a one-token smoke
    test and confirm credentials and connectivity.
 5. Click **Save changes**.
@@ -151,7 +153,9 @@ To sign in:
 2. Press the sign-in button in that panel and approve FiestaBoard on the
    provider's page. OpenRouter and Hugging Face bring you back to
    Settings signed in; ChatGPT is finished by a paste (below).
-3. Press **Load models** and pick the model to use.
+3. Pick the model to use from the list that appears (search it by
+   name or id). FiestaBot can use the provider at once, and its own
+   model picker offers the same list.
 
 An existing API-key provider can switch to a sign-in too: open it, then
 under **Advanced** (or in the full form) choose a service under **Or

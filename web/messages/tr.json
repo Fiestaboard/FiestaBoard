@@ -718,7 +718,9 @@
         "addressLabel": "Sunucu adresi",
         "addressDescription": "Model sunucusunun dinlediği yer. localhost bu panonun kendisidir; sunucu başka bir bilgisayarda çalışıyorsa o bilgisayarın adresini kullanın, örneğin http://192.168.1.20:11434/v1.",
         "modelsAfterSave": "Sağlayıcının modelleri arasından seçmek için değişiklikleri kaydedin."
-      }
+      },
+      "addModel": "Model ekle",
+      "refreshModels": "Modelleri yenile"
     },
     "backup": {
       "cardTitle": "Yedekleme ve Geri Yükleme",
@@ -2485,5 +2487,13 @@
     "settingFailed": "Ayar kaydedilemedi",
     "on": "Açık",
     "off": "Kapalı"
+  },
+  "modelCombobox": {
+    "placeholder": "Arayın ya da bir model kimliği yazın",
+    "trigger": "Modelleri göster",
+    "list": "Modeller",
+    "empty": "Eşleşen model yok",
+    "typedId": "Bu kimliği kullan",
+    "showingFirst": "{total} modelin ilk {shown} tanesi gösteriliyor. Daraltmak için yazın."
   }
 }

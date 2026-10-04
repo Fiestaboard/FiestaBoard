@@ -718,7 +718,9 @@
         "addressLabel": "Indirizzo del server",
         "addressDescription": "Dove è in ascolto il server di modelli. localhost indica questa bacheca; se il server gira su un altro computer, usa l'indirizzo di quel computer, ad esempio http://192.168.1.20:11434/v1.",
         "modelsAfterSave": "Salva le modifiche per scegliere tra i modelli del provider."
-      }
+      },
+      "addModel": "Aggiungi un modello",
+      "refreshModels": "Aggiorna modelli"
     },
     "backup": {
       "cardTitle": "Backup e ripristino",
@@ -2485,5 +2487,13 @@
     "settingFailed": "Impossibile salvare l'impostazione",
     "on": "Attivo",
     "off": "Disattivo"
+  },
+  "modelCombobox": {
+    "placeholder": "Cerca o digita l'id di un modello",
+    "trigger": "Mostra modelli",
+    "list": "Modelli",
+    "empty": "Nessun modello corrispondente",
+    "typedId": "Usa questo id",
+    "showingFirst": "Primi {shown} di {total}. Digita per restringere."
   }
 }

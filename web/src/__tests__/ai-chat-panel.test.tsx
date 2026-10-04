@@ -1116,6 +1116,38 @@ describe("AiChatPanel", () => {
     await waitFor(() => expect(screen.getByTestId("ai-composer-settings")).toHaveTextContent("other-model"));
   });
 
+  it("offers a signed-in provider's own models, so one with none saved can still chat", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          ...CONFIGURED,
+          providers: [
+            { ...CONFIGURED_PROVIDER, models: [], default_model: undefined, sign_in: { preset: "openrouter" } },
+          ],
+        }),
+      ),
+      http.get(`${API_BASE}/settings/ai/providers/:id/models`, () =>
+        HttpResponse.json({
+          models: [
+            { id: "vendor/live-model", name: "Live Model" },
+            { id: "vendor/other-live", name: "Other Live" },
+          ],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    const trigger = await screen.findByTestId("ai-composer-settings");
+    await waitFor(() => expect(trigger).toHaveTextContent("live-model"));
+
+    await openComposerSettings(user);
+    const picker = await screen.findByRole("combobox", { name: enMessages.aiChatPanel.modelSelectAriaLabel });
+    await user.clear(picker);
+    await user.type(picker, "other");
+    await user.click(await screen.findByRole("option", { name: /Other Live/ }));
+    await waitFor(() => expect(screen.getByTestId("ai-composer-settings")).toHaveTextContent("other-live"));
+  });
+
   it("offers the provider picker only when there is more than one provider", async () => {
     configuredWith("ask");
     const user = userEvent.setup();

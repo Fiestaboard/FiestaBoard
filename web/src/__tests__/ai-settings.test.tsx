@@ -17,6 +17,12 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
+/** Type a model id into the "Add a model" picker and commit it, as a user without a model list would. */
+async function addModel(user: ReturnType<typeof userEvent.setup>, id: string) {
+  await user.type(screen.getByRole("combobox", { name: "Add a model" }), id);
+  await user.click(await screen.findByRole("option", { name: new RegExp(id.replace(/[/.]/g, "\\$&")) }));
+}
+
 /** Add provider, then the "Advanced (custom endpoint)" kind: today's full form. */
 async function addAdvancedProvider(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: /add provider/i }));
@@ -49,7 +55,7 @@ describe("AiSettings", () => {
     expect(screen.getByLabelText(/^Name$/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Base URL/)).toBeInTheDocument();
     expect(screen.getByLabelText(/API Key/)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("openai/gpt-4o-mini")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Add a model" })).toBeInTheDocument();
   });
 
   it("preserves the api_key mask when re-saving without changes", async () => {
@@ -120,9 +126,7 @@ describe("AiSettings", () => {
     await screen.findByText(/no providers configured yet/i);
     await addAdvancedProvider(user);
 
-    const modelInput = screen.getByPlaceholderText("openai/gpt-4o-mini");
-    await user.type(modelInput, "gpt-4o-mini");
-    await user.keyboard("{Enter}");
+    await addModel(user, "gpt-4o-mini");
 
     // The model badge appears; check via the remove-button label to avoid
     // ambiguous multi-element matches on the badge text node.
@@ -740,7 +744,7 @@ describe("AiSettings", () => {
       expect(screen.queryByLabelText(/^Name$/)).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/Base URL/)).not.toBeInTheDocument();
       await user.type(screen.getByLabelText("API Key"), "test_key_123");
-      await user.type(screen.getByPlaceholderText("openai/gpt-4o-mini"), "claude-test{Enter}");
+      await addModel(user, "claude-test");
       await user.click(screen.getByRole("button", { name: /save changes/i }));
 
       await waitFor(() => expect(bodies).toHaveLength(1));
@@ -770,7 +774,7 @@ describe("AiSettings", () => {
       expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
       await user.clear(address);
       await user.type(address, "http://192.168.1.20:11434/v1");
-      await user.type(screen.getByPlaceholderText("openai/gpt-4o-mini"), "llama-test{Enter}");
+      await addModel(user, "llama-test");
       await user.click(screen.getByRole("button", { name: /save changes/i }));
 
       await waitFor(() => expect(bodies).toHaveLength(1));
@@ -943,16 +947,14 @@ describe("AiSettings", () => {
       await user.click(await screen.findByText("Test"));
       await user.click(screen.getByRole("button", { name: "Load models" }));
 
-      const picker = await screen.findByRole("combobox", { name: "Add a model from the provider" });
-      expect(asked).toBe("p1");
+      const picker = screen.getByRole("combobox", { name: "Add a model" });
+      await waitFor(() => expect(asked).toBe("p1"));
       await user.click(picker);
       // A model already in the list is not offered again.
       expect(screen.queryByRole("option", { name: /Test Model/ })).not.toBeInTheDocument();
       await user.click(await screen.findByRole("option", { name: /Test Other/ }));
 
       expect(await screen.findByRole("button", { name: "Remove model test-other" })).toBeInTheDocument();
-      // Typing a model by hand still works beside the picker.
-      expect(screen.getByPlaceholderText("openai/gpt-4o-mini")).toBeInTheDocument();
     });
 
     it("says why when the provider cannot list its models", async () => {
@@ -968,7 +970,126 @@ describe("AiSettings", () => {
       await user.click(screen.getByRole("button", { name: "Load models" }));
 
       expect(await screen.findByText(/returned 401 when asked for its models/)).toBeInTheDocument();
-      expect(screen.queryByRole("combobox", { name: "Add a model from the provider" })).not.toBeInTheDocument();
+      // Typing an id by hand still works.
+      await addModel(user, "typed-model");
+      expect(await screen.findByRole("button", { name: "Remove model typed-model" })).toBeInTheDocument();
+    });
+
+    it("a signed-in provider lists its models as soon as it is connected, with no button to press", async () => {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({
+            enabled: true,
+            providers: [{ ...SAVED, models: [], default_model: undefined, sign_in: { preset: "openrouter" } }],
+            default_provider_id: "p1",
+          }),
+        ),
+        http.get(`${API_BASE}/oauth/connections`, () =>
+          HttpResponse.json({
+            redirect_uri: "https://fiestaboard.app/auth/oauth/redirect",
+            connections: [
+              {
+                id: "ai.p1",
+                kind: "ai",
+                plugin_id: "ai",
+                instance_label: null,
+                plugin_name: "Test (FiestaBot)",
+                provider_name: "OpenRouter",
+                flows: ["key_exchange"],
+                configured: true,
+                user_app: false,
+                shared_app: false,
+                client_id_setting: null,
+                client_secret_setting: null,
+                app_setup_url: "",
+                status: "connected",
+                scopes: [],
+                expires_at: null,
+                connected_at: 1_900_000_000,
+                device: null,
+              },
+            ],
+          }),
+        ),
+      );
+      let asked = 0;
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, () => {
+          asked += 1;
+          return HttpResponse.json({ models: [{ id: "vendor/live-model", name: "Live Model" }] });
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+
+      await waitFor(() => expect(asked).toBe(1));
+      await user.click(screen.getByRole("combobox", { name: "Add a model" }));
+      await user.click(await screen.findByRole("option", { name: /Live Model/ }));
+      expect(await screen.findByRole("button", { name: "Remove model vendor/live-model" })).toBeInTheDocument();
+      // A refresh stays on offer.
+      await user.click(screen.getByRole("button", { name: "Refresh models" }));
+      await waitFor(() => expect(asked).toBe(2));
+    });
+
+    it("asks a signed-in provider for nothing before it is connected", async () => {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({
+            enabled: true,
+            providers: [{ ...SAVED, sign_in: { preset: "openrouter" } }],
+            default_provider_id: "p1",
+          }),
+        ),
+      );
+      let asked = 0;
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, () => {
+          asked += 1;
+          return HttpResponse.json({ models: [] });
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await screen.findByRole("combobox", { name: "Add a model" });
+      expect(asked).toBe(0);
+    });
+
+    it("the default model is picked from the same searchable list", async () => {
+      serveSettings();
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, () =>
+          HttpResponse.json({
+            models: [
+              { id: "test-model", name: "Test Model" },
+              { id: "test-other", name: "Test Other" },
+            ],
+          }),
+        ),
+      );
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          bodies.push(body);
+          return HttpResponse.json(body);
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Load models" }));
+      const picker = screen.getByRole("combobox", { name: "Default model" });
+      await user.clear(picker);
+      await user.type(picker, "other");
+      await user.click(await screen.findByRole("option", { name: /Test Other/ }));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider.default_model).toBe("test-other");
+      expect(provider.models).toEqual(["test-model", "test-other"]);
     });
 
     it("offers no model list for a provider that is not saved yet", async () => {

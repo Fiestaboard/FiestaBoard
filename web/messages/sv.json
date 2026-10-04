@@ -718,7 +718,9 @@
         "addressLabel": "Serveradress",
         "addressDescription": "Där modellservern lyssnar. localhost betyder den här tavlan själv; om servern körs på en annan dator, använd den datorns adress, till exempel http://192.168.1.20:11434/v1.",
         "modelsAfterSave": "Spara ändringarna för att välja bland leverantörens modeller."
-      }
+      },
+      "addModel": "Lägg till en modell",
+      "refreshModels": "Uppdatera modeller"
     },
     "backup": {
       "cardTitle": "Säkerhetskopiering & återställning",
@@ -2485,5 +2487,13 @@
     "settingFailed": "Inställningen kunde inte sparas",
     "on": "På",
     "off": "Av"
+  },
+  "modelCombobox": {
+    "placeholder": "Sök eller skriv ett modell-id",
+    "trigger": "Visa modeller",
+    "list": "Modeller",
+    "empty": "Inga matchande modeller",
+    "typedId": "Använd detta id",
+    "showingFirst": "De första {shown} av {total}. Skriv för att begränsa."
   }
 }

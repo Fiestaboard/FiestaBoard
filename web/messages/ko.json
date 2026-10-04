@@ -718,7 +718,9 @@
         "addressLabel": "서버 주소",
         "addressDescription": "모델 서버가 수신하는 위치입니다. localhost는 이 보드 자체를 뜻합니다. 서버가 다른 컴퓨터에서 실행된다면 http://192.168.1.20:11434/v1처럼 그 컴퓨터의 주소를 사용하세요.",
         "modelsAfterSave": "변경 사항을 저장하면 제공자의 모델에서 고를 수 있습니다."
-      }
+      },
+      "addModel": "모델 추가",
+      "refreshModels": "모델 새로 고침"
     },
     "backup": {
       "cardTitle": "백업 및 복원",
@@ -2485,5 +2487,13 @@
     "settingFailed": "설정을 저장하지 못했습니다",
     "on": "켬",
     "off": "끔"
+  },
+  "modelCombobox": {
+    "placeholder": "검색하거나 모델 ID 입력",
+    "trigger": "모델 보기",
+    "list": "모델",
+    "empty": "일치하는 모델 없음",
+    "typedId": "이 ID 사용",
+    "showingFirst": "{total}개 중 처음 {shown}개를 표시합니다. 입력해 좁혀 보세요."
   }
 }

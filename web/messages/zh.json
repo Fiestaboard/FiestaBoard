@@ -718,7 +718,9 @@
         "addressLabel": "服务器地址",
         "addressDescription": "模型服务器监听的位置。localhost 指这块面板本身；如果服务器运行在另一台电脑上，请使用那台电脑的地址，例如 http://192.168.1.20:11434/v1。",
         "modelsAfterSave": "保存更改后即可从提供方的模型中选择。"
-      }
+      },
+      "addModel": "添加模型",
+      "refreshModels": "刷新模型"
     },
     "backup": {
       "cardTitle": "备份与恢复",
@@ -2485,5 +2487,13 @@
     "settingFailed": "无法保存设置",
     "on": "开",
     "off": "关"
+  },
+  "modelCombobox": {
+    "placeholder": "搜索或输入模型 ID",
+    "trigger": "显示模型",
+    "list": "模型",
+    "empty": "没有匹配的模型",
+    "typedId": "使用此 ID",
+    "showingFirst": "显示 {total} 个中的前 {shown} 个。输入以缩小范围。"
   }
 }
