@@ -71,6 +71,7 @@ from src.board_send_executor import run_board_send
 from src.board_state import BoardReadError, read_board_state, read_board_state_live
 from src.config_manager import get_config_manager
 from src.devices import DEFAULT_DEVICE_TYPE, Geometry, geometry_of, resolve_dimensions
+from src.outputs.cells import cells_to_json
 from src.send_outcome import SendOutcome
 from src.text_to_board import text_to_board_array
 
@@ -113,7 +114,12 @@ def _primary_geometry(settings_service) -> Geometry:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/board/current-message", response_model=BoardCurrentMessageResponse, responses=errors(404, 503))
+@router.get(
+    "/board/current-message",
+    response_model=BoardCurrentMessageResponse,
+    response_model_exclude_unset=True,
+    responses=errors(404, 503),
+)
 async def get_board_current_message(force: bool = False, board_id: str | None = None):
     """Return the current state of the physical board.
 
@@ -165,6 +171,8 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
 
     return BoardCurrentMessageResponse(
         characters=state.characters,
+        # Only a frame that carried rich cells has the key (exclude_unset).
+        **({"cells": cells_to_json(state.cells)} if state.cells is not None else {}),
         message=characters_to_message(state.characters),
         rows=state.rows,
         cols=state.cols,

@@ -379,3 +379,58 @@ def test_a_panel_frame_without_rich_cells_has_no_cells_key():
     body = _panel_frame(lambda frames: frames.record_sent(grid))
     assert body["characters"] == grid
     assert "cells" not in body
+
+
+# --- /board/current-message (the home live preview) ----------------------------------------------
+
+
+def _current_message(record, polled=None) -> dict:
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from fastapi.testclient import TestClient
+
+    from src.api_server import app
+    from src.outputs.runtime import OutputRuntime
+
+    output = OutputRuntime()
+    record(output.frames)
+    rt = SimpleNamespace(
+        client=object(), output=output, polled_characters=polled, polled_at=1.0 if polled is not None else None
+    )
+    service = SimpleNamespace(vb_client=object(), runtime_for=lambda _board_id: rt)
+    settings = MagicMock()
+    settings.get_primary_board_id.return_value = "vb1"
+    with (
+        patch("src.board_api.routes.runtime.get_service", return_value=service),
+        patch("src.board_api.routes.runtime.get_settings_service", return_value=settings),
+        patch("src.board_api.routes._require_board", return_value={"id": "px1", "device_type": "panel"}),
+    ):
+        return TestClient(app).get("/board/current-message?board_id=px1").json()
+
+
+def test_the_current_message_serves_a_rich_boards_cells_beside_the_unchanged_fields():
+    from src.outputs.cells import cells_to_json
+
+    frame = project_message("{red:HOT} {icon:heart}", 6, 22, LED)
+    body = _current_message(lambda frames: frames.record_sent(frame.characters, cells=frame.cells))
+    assert body["characters"] == frame.characters
+    assert body["cells"] == cells_to_json(frame.cells)
+    assert body["cells"][0][0] == {"type": "char", "value": "H", "color": "red"}
+
+
+def test_a_polled_frame_that_is_not_the_last_write_has_no_cells():
+    """Something else wrote to the board: the last write's cells would
+    describe a frame that is not showing."""
+    frame = project_message("{red:HOT}", 6, 22, LED)
+    other = text_to_board_array("ELSEWHERE", rows=6, cols=22)
+    body = _current_message(lambda frames: frames.record_sent(frame.characters, cells=frame.cells), polled=other)
+    assert body["characters"] == other
+    assert "cells" not in body
+
+
+def test_a_current_message_without_rich_cells_has_no_cells_key():
+    grid = text_to_board_array("HOT", rows=6, cols=22)
+    body = _current_message(lambda frames: frames.record_sent(grid))
+    assert body["characters"] == grid
+    assert "cells" not in body

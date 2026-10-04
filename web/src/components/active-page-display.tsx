@@ -4,6 +4,7 @@ import {
   Alert,
   AlertDescription,
   Badge,
+  type BoardCellGrid,
   Box,
   Button,
   CardTitle,
@@ -568,6 +569,10 @@ export function ActivePageDisplay() {
   // actual board state, then the active-page render fallback for a secondary
   // board with no cached content. Falls back to null (skeleton).
   const displayMessage = liveMessageForBoard ?? boardState?.message ?? fallbackPreview?.message ?? null;
+  // A rich board's frame as its cells (colour, case, icons), when the board
+  // state is what is drawn and FiestaBoard sent it with them.
+  const displayCells =
+    !liveMessageForBoard && boardState?.message != null ? (boardState.cells as BoardCellGrid | undefined) : undefined;
 
   // Out-of-sync: the board was updated externally if its current state differs
   // from what FiestaBoard last sent.
@@ -840,6 +845,7 @@ export function ActivePageDisplay() {
             <DevicePreview
               model={resolveBoardModel(currentBoard ?? boardSettings?.boards?.[0])}
               message={displayMessage}
+              cells={displayCells}
               size="md"
             >
               <ScaledBoardDisplay
