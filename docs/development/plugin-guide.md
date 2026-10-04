@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 description: "End-to-end guide to creating, testing, and submitting a FiestaBoard plugin - from initial idea to merged pull request."
 keywords: [FiestaBoard plugin development, create plugin, plugin API, custom plugin, developer guide, Python plugin, PluginBase, manifest.json]
 ---
@@ -11,6 +11,16 @@ This guide walks you through creating a FiestaBoard plugin from scratch - from i
 ## What Is a Plugin?
 
 A FiestaBoard plugin is a self-contained Python package that fetches data from an external source (an API, a local service, or computed values) and exposes that data as **template variables**. Users reference those variables in the page editor to build dynamic displays for their split-flap board.
+
+That is a **data** plugin, the kind this guide builds. A plugin's `plugin_type` in `manifest.json` makes it one of three kinds:
+
+| Kind | `plugin_type` | What it does | Guide |
+|------|---------------|--------------|-------|
+| **Data** | `"data"` (the default) | Fetches data and exposes it as template variables | This guide |
+| **Transition** | `"transition"` | Animates the change from one page to the next, frame by frame | [Transitions](/docs/features/transitions) |
+| **Output** | `"output"` | Drives a display device: an LED matrix, a sign. One instance per board. Beta, FiestaBoard 10.0.0 and later. | [Writing an Output Plugin](/docs/development/output-plugins) |
+
+To see every way to build on FiestaBoard, including reading frames and the API, start at [Building on FiestaBoard](/docs/development/integrations-overview).
 
 Every plugin has four required components:
 

@@ -254,7 +254,11 @@ Names you will meet:
   loader decides once (`PluginLoader._register_output_locked` →
   `OutputDefinition.beta_gated`), and `GET /outputs`,
   `GET /outputs/available`, `POST /outputs/{id}/install` and
-  `POST /outputs/{id}/boards` all read that one flag.
+  `POST /outputs/{id}/boards` all read that one flag. `GET /outputs/available`
+  and `POST /outputs/{id}/install` (`src/outputs/install.py`) back the setup
+  wizard's first step: installed, then seeded, then registry outputs. The
+  published author contract is `docs/development/output-plugins.md` (pull
+  viewers: `output-stream-api.md`; landing page: `integrations-overview.md`).
 - **The output seed and the `output_api` gate** (plan D8) — a board never
   goes dark because of its plugin. The image carries a read-only seed
   (`/opt/fiestaboard/seed/outputs`, `FIESTABOARD_OUTPUT_SEED_DIR`) of the

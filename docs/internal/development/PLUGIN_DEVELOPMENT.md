@@ -1177,11 +1177,18 @@ transitions. The manifest carries an `output` block — `output_api` (currently
 `character_set`, `delivery`, `min_interval_ms`, `read_back`,
 `native_transitions`, and the `settings_schema` of each board's settings
 (mark credentials `"secret": true`). Output plugins declare no `variables`,
-`teaser` or `previews`; registry repos use the `fiestaboard-output--` prefix;
-third-party outputs need **Settings → Beta → Output Plugins**. The in-repo
-test kit is `tests/fixtures/plugins/recording_output`; the contract is
-described in `src/outputs/plugin_base.py` and
-`src/outputs/output_manifest.py`.
+`teaser` or `previews`; registry repos use the `fiestaboard-output--` prefix.
+Only **third-party** outputs (registry or git URL, not carried by the seed)
+need **Settings → Advanced → Beta Features → Output Plugins**
+(`beta.output_plugins_enabled`); built-ins, `plugins/` and the seed's
+loadable outputs are always on. The loader decides once and records it as
+`OutputDefinition.beta_gated` (`PluginLoader._register_output_locked`). The
+in-repo test kit is `tests/fixtures/plugins/recording_output`; the contract
+is described in `src/outputs/plugin_base.py` and
+`src/outputs/output_manifest.py`. The published author guide is
+`docs/development/output-plugins.md` (with `output-stream-api.md` for pull
+viewers and `integrations-overview.md` as the landing page): keep it in step
+when the contract changes.
 
 Talk to the device **only** through `self.http` (`get`/`post`/`put`/
 `delete`, the `requests` keywords you know): it refuses hosts outside
@@ -1265,7 +1272,11 @@ Actions run on a throwaway instance (closed afterwards) through
 `POST /outputs/{output_id}/actions/{action}` (draft settings, before the board
 exists) or `POST /boards/{board_id}/actions/{action}` (a saved board; `"***"`
 in edited settings is restored from storage). `GET /outputs` lists every
-installed output with its schema and actions.
+installed output with its schema and actions; `GET /outputs/available` adds
+the seed's loadable outputs and the registry's `plugin_type: "output"`
+entries, and `POST /outputs/{output_id}/install` installs one (offline from
+the seed, else through the registry install path) — the setup wizard's first
+step uses both (`src/outputs/install.py`).
 
 Every output plugin repo runs the shared conformance suite in its CI:
 `OutputConformanceSuite(plugin_dir, factory, config).assert_conformant()`
