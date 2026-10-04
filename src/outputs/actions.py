@@ -230,7 +230,7 @@ async def run_draft_action(
 
 def _flat_masked(config: Mapping[str, Any]) -> list[str]:
     """Masked credentials in a built-in board's flat settings."""
-    from src.devices import TILE_SENSITIVE_FIELDS
+    from src.outputs.vestaboard.connection import TILE_SENSITIVE_FIELDS
     from src.settings.service import BOARD_SENSITIVE_FIELDS
 
     found = [key for key in sorted(BOARD_SENSITIVE_FIELDS) if config.get(key) == "***"]
@@ -246,17 +246,25 @@ def _saved_board(board_id: str, output_config: dict[str, Any] | None) -> dict[st
     stored = next((b for b in _settings_service().get_board_settings().boards if b.get("id") == board_id), None)
     if stored is None:
         raise BoardNotFoundError(board_id)
+    from src.settings.board_shape import board_view
+
+    output_id = resolve_output_id(stored)
     if output_config is None:
-        return dict(stored)
-    if "output_config" in stored or resolve_output_id(stored) not in (VESTABOARD, FIESTAPANEL):
-        incoming = {**stored, "output_config": dict(output_config)}
+        board = dict(stored)
     else:
-        # A built-in board's settings are its flat connection fields.
-        incoming = {**stored, **output_config}
-    try:
-        return restore_masked_board_secrets(incoming, stored)
-    except ValueError as exc:
-        raise InvalidOutputConfigError(str(exc)) from exc
+        config = dict(output_config)
+        if output_id == VESTABOARD:
+            # Settings v4: a Vestaboard's output_config IS its connection;
+            # an edit names only the fields it changes.
+            stored_config = stored.get("output_config")
+            config = {**(stored_config if isinstance(stored_config, dict) else {}), **config}
+        incoming = {**stored, "output_config": config}
+        try:
+            board = restore_masked_board_secrets(incoming, stored)
+        except ValueError as exc:
+            raise InvalidOutputConfigError(str(exc)) from exc
+    # The first-party actions read a board's connection in the flat shape.
+    return board_view(board) if output_id in (VESTABOARD, FIESTAPANEL) else board
 
 
 async def run_saved_action(

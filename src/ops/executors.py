@@ -1966,7 +1966,10 @@ BOARD_PUBLIC_FIELDS: tuple[str, ...] = (
 
 
 def board_public_view(board: dict[str, Any]) -> dict[str, Any]:
-    """Credential-free projection of a stored board dict."""
+    """Credential-free projection of a board dict (stored v4, or a flat view)."""
+    from src.settings.board_shape import board_view
+
+    board = board_view(board)
     view = {key: board.get(key) for key in BOARD_PUBLIC_FIELDS}
     view["has_host"] = bool(board.get("host"))
     view["has_credentials"] = bool(

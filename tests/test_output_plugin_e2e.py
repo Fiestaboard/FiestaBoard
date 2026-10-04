@@ -333,10 +333,14 @@ class TestOutputConfigSecrets:
         stored = self.saved().get_board_settings().to_dict(mask_secrets=False)["boards"][0]
         assert stored["output_config"]["token"] == "test_token"
 
-    def test_a_legacy_board_saves_without_output_fields(self):
+    def test_a_flat_vestaboard_write_saves_in_the_v4_shape(self):
+        """Settings v4 (plan D8) stores every board's output; a Vestaboard's
+        connection, written flat, lands in its output_config."""
         self.saved().set_boards([{"id": "v", "api_mode": "local", "host": "192.0.2.10", "output": "vestaboard"}])
         (stored,) = self.saved().get_board_settings().to_dict(mask_secrets=False)["boards"]
-        assert "output" not in stored and "output_config" not in stored
+        assert stored["output"] == "vestaboard"
+        assert (stored["output_config"]["api_mode"], stored["output_config"]["host"]) == ("local", "192.0.2.10")
+        assert "host" not in stored and "api_mode" not in stored
 
 
 # --- helpers ----------------------------------------------------------------------------------

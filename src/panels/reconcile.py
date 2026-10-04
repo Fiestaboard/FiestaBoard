@@ -27,6 +27,7 @@ from __future__ import annotations
 import logging
 
 from src.devices import DeviceDimensions, dimensions_of, geometry_of, size_key
+from src.outputs.registry import FIESTAPANEL, resolve_output_id
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ def _reconcile() -> int:
     refit_ids: list[str] = []
     for panel in panels:
         board = by_id.get(panel.board_id)
-        if board is None or board.get("api_mode") != "virtual":
+        if board is None or resolve_output_id(board) != FIESTAPANEL:
             continue
         grid = compute_autofit_grid(panel.screen_diagonal_inches, panel.screen_aspect_w, panel.screen_aspect_h)
         if board_matches_grid(board, grid):

@@ -33,6 +33,7 @@ pytest.importorskip("mcp", reason="mcp package not installed")
 
 from src.panels.service import PanelService
 from src.panels.storage import PanelStorage
+from src.settings.board_shape import board_view
 from tests import test_mcp_state_effects as sibling
 from tests.test_mcp_state_effects import (
     _FakeClient,
@@ -121,7 +122,8 @@ def debug_engine(engine):
 
 
 def _board(svc, board_id: str) -> dict[str, Any]:
-    return next(b for b in svc.get_board_settings().boards if b.get("id") == board_id)
+    """The board as the flat view (settings v4 stores the connection in output_config)."""
+    return board_view(next(b for b in svc.get_board_settings().boards if b.get("id") == board_id))
 
 
 # ---------------------------------------------------------------------------

@@ -90,7 +90,9 @@ class TestGeometryOf:
         assert geometry_of(board) == Geometry("panel", 1, 1, 12, 29)
 
     def test_reads_an_object(self):
-        board = BoardInstance(device_type="panel", api_mode="virtual", grid_rows=12, grid_cols=29)
+        board = BoardInstance.from_dict(
+            {"device_type": "panel", "api_mode": "virtual", "grid_rows": 12, "grid_cols": 29}
+        )
         assert geometry_of(board) == Geometry("panel", 1, 1, 12, 29)
 
     def test_defaults_for_an_empty_dict(self):
@@ -123,7 +125,9 @@ class TestBoardContext:
 
 class TestBoardInstance:
     def test_round_trips_the_grid(self):
-        data = BoardInstance(device_type="panel", api_mode="virtual", grid_rows=12, grid_cols=29).to_dict()
+        data = BoardInstance.from_dict(
+            {"device_type": "panel", "api_mode": "virtual", "grid_rows": 12, "grid_cols": 29}
+        ).to_dict()
         restored = BoardInstance.from_dict(data)
         assert (restored.grid_rows, restored.grid_cols) == (12, 29)
 
@@ -149,7 +153,7 @@ class TestBoardInstance:
         assert (board.grid_rows, board.grid_cols) == (None, None)
 
     def test_panel_draws_the_heart(self):
-        board = BoardInstance(
-            device_type="panel", api_mode="virtual", grid_rows=12, grid_cols=29, code62_glyph="degree"
+        board = BoardInstance.from_dict(
+            {"device_type": "panel", "api_mode": "virtual", "grid_rows": 12, "grid_cols": 29, "code62_glyph": "degree"}
         )
         assert board.effective_code62_glyph == "heart"

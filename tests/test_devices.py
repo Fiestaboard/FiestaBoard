@@ -164,7 +164,7 @@ class TestBoardInstancePostInitValidation:
 
     def test_invalid_api_mode_defaults_to_local(self):
         """Invalid api_mode defaults to local."""
-        board = BoardInstance(api_mode="invalid")
+        board = BoardInstance.from_dict({"api_mode": "invalid"})
         assert board.api_mode == "local"
 
     def test_non_bool_enabled_coerced_to_bool(self):
@@ -189,82 +189,106 @@ class TestBoardInstanceConnectionConfigured:
 
     def test_cloud_mode_with_cloud_key(self):
         """Cloud mode with cloud_key is configured."""
-        board = BoardInstance(api_mode="cloud", cloud_key="abc123")
+        board = BoardInstance.from_dict({"api_mode": "cloud", "cloud_key": "abc123"})
         assert board.is_connection_configured is True
 
     def test_cloud_mode_without_cloud_key(self):
         """Cloud mode without cloud_key is not configured."""
-        board = BoardInstance(api_mode="cloud", cloud_key="")
+        board = BoardInstance.from_dict({"api_mode": "cloud", "cloud_key": ""})
         assert board.is_connection_configured is False
 
     def test_local_mode_with_key_and_host(self):
         """Local mode with local_api_key and host is configured."""
-        board = BoardInstance(
-            api_mode="local",
-            local_api_key="key",
-            host="192.168.1.1",
+        board = BoardInstance.from_dict(
+            {
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.1",
+            }
         )
         assert board.is_connection_configured is True
 
     def test_local_mode_without_key(self):
         """Local mode without local_api_key is not configured."""
-        board = BoardInstance(
-            api_mode="local",
-            local_api_key="",
-            host="192.168.1.1",
+        board = BoardInstance.from_dict(
+            {
+                "api_mode": "local",
+                "local_api_key": "",
+                "host": "192.168.1.1",
+            }
         )
         assert board.is_connection_configured is False
 
     def test_local_mode_without_host(self):
         """Local mode without host is not configured."""
-        board = BoardInstance(
-            api_mode="local",
-            local_api_key="key",
-            host="",
+        board = BoardInstance.from_dict(
+            {
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "",
+            }
         )
         assert board.is_connection_configured is False
 
     def test_local_mode_needs_both_key_and_host(self):
         """Local mode needs both local_api_key and host."""
-        board = BoardInstance(
-            api_mode="local",
-            local_api_key="",
-            host="",
+        board = BoardInstance.from_dict(
+            {
+                "api_mode": "local",
+                "local_api_key": "",
+                "host": "",
+            }
         )
         assert board.is_connection_configured is False
 
     def test_note_array_configured_with_token_and_valid_wh(self):
         """Note-array board with token and valid W×H is configured."""
-        board = BoardInstance(device_type="note_array", note_array_token="tok-abc", notes_wide=2, notes_tall=1)
+        board = BoardInstance.from_dict(
+            {"device_type": "note_array", "note_array_token": "tok-abc", "notes_wide": 2, "notes_tall": 1}
+        )
         assert board.is_connection_configured is True
 
     def test_note_array_not_configured_missing_token(self):
         """Note-array board without token is not configured."""
-        board = BoardInstance(device_type="note_array", note_array_token="", notes_wide=2, notes_tall=1)
+        board = BoardInstance.from_dict(
+            {"device_type": "note_array", "note_array_token": "", "notes_wide": 2, "notes_tall": 1}
+        )
         assert board.is_connection_configured is False
 
     def test_note_array_not_configured_empty_token_even_with_cloud_key(self):
         """cloud_key is irrelevant for note_array boards — token is required."""
-        board = BoardInstance(
-            device_type="note_array", note_array_token="", cloud_key="cloud-k", notes_wide=2, notes_tall=1
+        board = BoardInstance.from_dict(
+            {
+                "device_type": "note_array",
+                "note_array_token": "",
+                "cloud_key": "cloud-k",
+                "notes_wide": 2,
+                "notes_tall": 1,
+            }
         )
         assert board.is_connection_configured is False
 
     def test_note_array_token_does_not_affect_flagship_configured_check(self):
         """Flagship board with note_array_token set but no local creds is still not configured."""
-        board = BoardInstance(
-            device_type="flagship", note_array_token="tok-abc", api_mode="local", local_api_key="", host=""
+        board = BoardInstance.from_dict(
+            {
+                "device_type": "flagship",
+                "note_array_token": "tok-abc",
+                "api_mode": "local",
+                "local_api_key": "",
+                "host": "",
+            }
         )
         assert board.is_connection_configured is False
 
     def test_cloud_mode_flagship_still_works_unchanged(self):
         """Cloud mode flagship with cloud_key is configured (unchanged behaviour)."""
-        board = BoardInstance(device_type="flagship", api_mode="cloud", cloud_key="ck-xyz")
+        board = BoardInstance.from_dict({"device_type": "flagship", "api_mode": "cloud", "cloud_key": "ck-xyz"})
         assert board.is_connection_configured is True
 
     def test_local_mode_flagship_still_works_unchanged(self):
         """Local mode flagship with key+host is configured (unchanged behaviour)."""
-        board = BoardInstance(api_mode="local", local_api_key="lk", host="192.168.1.1")
+        board = BoardInstance.from_dict({"api_mode": "local", "local_api_key": "lk", "host": "192.168.1.1"})
         assert board.is_connection_configured is True
 
 
@@ -273,18 +297,20 @@ class TestBoardInstanceToDict:
 
     def test_to_dict_round_trip(self):
         """to_dict and from_dict round-trip preserves data."""
-        original = BoardInstance(
-            id="test-id-123",
-            name="Test Board",
-            device_type="note",
-            board_color="white",
-            enabled=False,
-            schedule_enabled=True,
-            api_mode="cloud",
-            host="192.168.1.1",
-            port=8000,
-            local_api_key="local-key",
-            cloud_key="cloud-key",
+        original = BoardInstance.from_dict(
+            {
+                "id": "test-id-123",
+                "name": "Test Board",
+                "device_type": "note",
+                "board_color": "white",
+                "enabled": False,
+                "schedule_enabled": True,
+                "api_mode": "cloud",
+                "host": "192.168.1.1",
+                "port": 8000,
+                "local_api_key": "local-key",
+                "cloud_key": "cloud-key",
+            }
         )
         data = original.to_dict()
         restored = BoardInstance.from_dict(data)
@@ -367,14 +393,16 @@ class TestNoteArrayToken:
 
     def test_note_array_token_explicit_value_preserved(self):
         """An explicit note_array_token is stored unchanged."""
-        board = BoardInstance(note_array_token="tok-abc123")
+        board = BoardInstance.from_dict({"note_array_token": "tok-abc123"})
         assert board.note_array_token == "tok-abc123"
 
     def test_note_array_token_round_trip_to_dict_from_dict(self):
         """note_array_token survives a to_dict/from_dict round-trip."""
-        original = BoardInstance(device_type="note_array", note_array_token="tok-xyz", notes_wide=2, notes_tall=1)
+        original = BoardInstance.from_dict(
+            {"device_type": "note_array", "note_array_token": "tok-xyz", "notes_wide": 2, "notes_tall": 1}
+        )
         data = original.to_dict()
-        assert data["note_array_token"] == "tok-xyz"
+        assert data["output_config"]["note_array_token"] == "tok-xyz"
         restored = BoardInstance.from_dict(data)
         assert restored.note_array_token == "tok-xyz"
 
@@ -791,14 +819,14 @@ class TestNormalizeNoteArrayTiles:
     """Tile-list normalization for local note arrays."""
 
     def test_non_list_returns_empty(self):
-        from src.devices import normalize_note_array_tiles
+        from src.outputs.vestaboard.connection import normalize_note_array_tiles
 
         assert normalize_note_array_tiles(None) == []
         assert normalize_note_array_tiles("nope") == []
         assert normalize_note_array_tiles({"row": 0}) == []
 
     def test_drops_malformed_entries(self):
-        from src.devices import normalize_note_array_tiles
+        from src.outputs.vestaboard.connection import normalize_note_array_tiles
 
         tiles = [
             "not-a-dict",
@@ -810,7 +838,7 @@ class TestNormalizeNoteArrayTiles:
         assert normalize_note_array_tiles(tiles) == []
 
     def test_coerces_types_and_defaults(self):
-        from src.devices import normalize_note_array_tiles
+        from src.outputs.vestaboard.connection import normalize_note_array_tiles
 
         [tile] = normalize_note_array_tiles(
             [{"row": "1", "col": "0", "host": " 10.0.0.5 ", "port": "7001", "local_api_key": " k "}]
@@ -825,13 +853,13 @@ class TestNormalizeNoteArrayTiles:
         }
 
     def test_bad_port_defaults_to_7000(self):
-        from src.devices import normalize_note_array_tiles
+        from src.outputs.vestaboard.connection import normalize_note_array_tiles
 
         [tile] = normalize_note_array_tiles([{"row": 0, "col": 0, "port": "abc"}])
         assert tile["port"] == 7000
 
     def test_dedupes_by_position_last_wins(self):
-        from src.devices import normalize_note_array_tiles
+        from src.outputs.vestaboard.connection import normalize_note_array_tiles
 
         tiles = normalize_note_array_tiles(
             [
@@ -844,7 +872,7 @@ class TestNormalizeNoteArrayTiles:
 
     def test_out_of_range_positions_preserved(self):
         """Tiles beyond the current W×H are kept — resize must not destroy keys."""
-        from src.devices import normalize_note_array_tiles
+        from src.outputs.vestaboard.connection import normalize_note_array_tiles
 
         tiles = normalize_note_array_tiles([{"row": 5, "col": 7, "host": "10.0.0.9", "local_api_key": "k"}])
         assert len(tiles) == 1
@@ -857,61 +885,73 @@ class TestBoardInstanceTiles:
         return {"row": row, "col": col, "host": "10.0.0.1", "port": 7000, "local_api_key": "key", "enabled": True, **kw}
 
     def test_tiles_cleared_on_non_array_boards(self):
-        b = BoardInstance(device_type="flagship", tiles=[self._tile()])
+        b = BoardInstance.from_dict({"device_type": "flagship", "tiles": [self._tile()]})
         assert b.tiles == []
 
     def test_tiles_normalized_on_array_boards(self):
-        b = BoardInstance(device_type="note_array", tiles=[self._tile(), "junk"])
+        b = BoardInstance.from_dict({"device_type": "note_array", "tiles": [self._tile(), "junk"]})
         assert len(b.tiles) == 1
 
     def test_tiles_round_trip_from_dict_to_dict(self):
-        b = BoardInstance(device_type="note_array", api_mode="local", notes_wide=2, tiles=[self._tile(col=1)])
+        b = BoardInstance.from_dict(
+            {"device_type": "note_array", "api_mode": "local", "notes_wide": 2, "tiles": [self._tile(col=1)]}
+        )
         b2 = BoardInstance.from_dict(b.to_dict())
         assert b2.tiles == b.tiles
 
     def test_configured_tiles_filters_out_of_range(self):
-        b = BoardInstance(
-            device_type="note_array",
-            api_mode="local",
-            notes_wide=2,
-            notes_tall=1,
-            tiles=[self._tile(col=0), self._tile(col=1), self._tile(col=5), self._tile(row=3)],
+        b = BoardInstance.from_dict(
+            {
+                "device_type": "note_array",
+                "api_mode": "local",
+                "notes_wide": 2,
+                "notes_tall": 1,
+                "tiles": [self._tile(col=0), self._tile(col=1), self._tile(col=5), self._tile(row=3)],
+            }
         )
         assert {(t["row"], t["col"]) for t in b.configured_tiles()} == {(0, 0), (0, 1)}
 
     def test_configured_tiles_requires_host_key_enabled(self):
-        b = BoardInstance(
-            device_type="note_array",
-            api_mode="local",
-            notes_wide=4,
-            tiles=[
-                self._tile(col=0),
-                self._tile(col=1, host=""),
-                self._tile(col=2, local_api_key=""),
-                self._tile(col=3, enabled=False),
-            ],
+        b = BoardInstance.from_dict(
+            {
+                "device_type": "note_array",
+                "api_mode": "local",
+                "notes_wide": 4,
+                "tiles": [
+                    self._tile(col=0),
+                    self._tile(col=1, host=""),
+                    self._tile(col=2, local_api_key=""),
+                    self._tile(col=3, enabled=False),
+                ],
+            }
         )
         assert [(t["row"], t["col"]) for t in b.configured_tiles()] == [(0, 0)]
 
     def test_local_array_configured_with_one_tile(self):
-        b = BoardInstance(device_type="note_array", api_mode="local", notes_wide=2, tiles=[self._tile()])
+        b = BoardInstance.from_dict(
+            {"device_type": "note_array", "api_mode": "local", "notes_wide": 2, "tiles": [self._tile()]}
+        )
         assert b.uses_local_tiles
         assert b.is_connection_configured
 
     def test_local_array_not_configured_when_no_usable_tile(self):
-        b = BoardInstance(device_type="note_array", api_mode="local", notes_wide=2, tiles=[self._tile(host="")])
+        b = BoardInstance.from_dict(
+            {"device_type": "note_array", "api_mode": "local", "notes_wide": 2, "tiles": [self._tile(host="")]}
+        )
         assert b.uses_local_tiles
         assert not b.is_connection_configured
 
     def test_legacy_array_without_tiles_keeps_token_semantics(self):
         """api_mode defaults to 'local' on old dicts — token must still work."""
-        b = BoardInstance(device_type="note_array", note_array_token="tok")
+        b = BoardInstance.from_dict({"device_type": "note_array", "note_array_token": "tok"})
         assert b.api_mode == "local"
         assert not b.uses_local_tiles
         assert b.is_connection_configured
 
     def test_cloud_array_ignores_tiles(self):
-        b = BoardInstance(device_type="note_array", api_mode="cloud", note_array_token="tok", tiles=[self._tile()])
+        b = BoardInstance.from_dict(
+            {"device_type": "note_array", "api_mode": "cloud", "note_array_token": "tok", "tiles": [self._tile()]}
+        )
         assert not b.uses_local_tiles
         assert b.is_connection_configured
 
@@ -1146,17 +1186,17 @@ class TestVirtualApiMode:
 
     def test_virtual_api_mode_is_preserved(self):
         """api_mode="virtual" survives __post_init__ instead of coercing to local."""
-        board = BoardInstance(api_mode="virtual")
+        board = BoardInstance.from_dict({"api_mode": "virtual"})
         assert board.api_mode == "virtual"
 
     def test_virtual_board_is_connection_configured_without_credentials(self):
         """Virtual boards need no host or keys to count as configured."""
-        board = BoardInstance(api_mode="virtual", host="", local_api_key="", cloud_key="")
+        board = BoardInstance.from_dict({"api_mode": "virtual", "host": "", "local_api_key": "", "cloud_key": ""})
         assert board.is_connection_configured is True
 
     def test_unknown_api_mode_still_coerces_to_local(self):
         """Arbitrary junk api_mode values keep falling back to local."""
-        board = BoardInstance(api_mode="bogus")
+        board = BoardInstance.from_dict({"api_mode": "bogus"})
         assert board.api_mode == "local"
 
 

@@ -218,8 +218,10 @@ class TestBoardApisExposeTheOutput:
     def test_v1_board_detail_carries_its_derived_output(self, api, saved_boards):
         assert api.get("/v1/boards/b-panel").json()["output"] == FIESTAPANEL
 
-    def test_echoing_the_boards_back_does_not_persist_output(self, api, saved_boards):
+    def test_echoing_the_boards_back_stores_the_output_they_were_shown(self, api, saved_boards):
+        """Settings v4 (plan D8) stores each board's output: an echoed GET
+        persists exactly the output the API derived for it."""
         boards = api.get("/settings/board").json()["boards"]
         assert api.put("/settings/board", json={"boards": boards}).status_code == 200
         stored = saved_boards.get_board_settings().to_dict(mask_secrets=False)["boards"]
-        assert all("output" not in b for b in stored)
+        assert {b["id"]: b["output"] for b in stored} == {"b-vesta": VESTABOARD, "b-panel": FIESTAPANEL}

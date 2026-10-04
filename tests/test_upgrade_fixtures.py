@@ -406,8 +406,9 @@ def test_legacy_config_block_never_overrides_a_board_that_has_credentials(data_d
     """v2.0's config.json holds a stale key for another host; the board's own wins."""
     booted = boot("v2_0_schema0_boards_note", data_dir)
 
-    board = booted.boards[0]
-    assert (board["host"], board["local_api_key"]) == ("192.168.0.11", "test_note_key")
+    # Settings v4 keeps a Vestaboard's connection in its output_config (plan D8).
+    config = booted.boards[0]["output_config"]
+    assert (config["host"], config["local_api_key"]) == ("192.168.0.11", "test_note_key")
 
 
 # ---------------------------------------------------------------------------

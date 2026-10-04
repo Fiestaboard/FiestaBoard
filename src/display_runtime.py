@@ -313,6 +313,9 @@ def _primary_connection_info() -> tuple[str, str]:
     """
     board = _primary_board_entry()
     if board is not None:
+        from src.settings.board_shape import flat_connection
+
+        board = flat_connection(board)
         mode = board.get("api_mode") or "local"
         host = board.get("host") or ""
         return (mode.lower() if isinstance(mode, str) else "local", host if isinstance(host, str) else "")
