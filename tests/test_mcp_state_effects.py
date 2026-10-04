@@ -2314,6 +2314,86 @@ def test_validate_template_rejects_an_unknown_device_type(mcp, services):
     assert "jumbotron" in message
 
 
+# -- board-aware templates: validate_template / render_page_preview ---------
+#
+# Same contract as POST /templates/validate and /templates/render with a
+# board_id (plan D17/D19): the board's character set decides extended markup
+# and widths; a render reports charset_issues. An unknown board is an error
+# here, as for every other board-targeting tool.
+
+#: 22 drawn tiles on an LED board; longer than 22 characters as split-flap.
+FITS_ON_LED = "{{red:hot}} {{black/white:OPEN}} {{icon:sun}} {sun} XXXXXXXXX"
+
+
+@pytest.fixture
+def boards_with_led(services, monkeypatch):
+    """An LED-charset board 'led1' and a Vestaboard flagship 'vb1'."""
+    from src.led.charsets import BUILTIN_CHARACTER_SETS
+    from src.settings.service import get_settings_service
+    from src.templates import routes
+
+    get_settings_service().set_boards(
+        [
+            {"id": "led1", "name": "Sign", "device_type": "flagship"},
+            {"id": "vb1", "name": "Lobby", "device_type": "flagship", "code62_glyph": "degree"},
+        ]
+    )
+    led = dict(BUILTIN_CHARACTER_SETS["led_5x7"])
+    real = routes.board_character_set
+    monkeypatch.setattr(routes, "board_character_set", lambda board: led if board.get("id") == "led1" else real(board))
+
+
+def _too_long(result: dict) -> list[str]:
+    return [e["message"] for e in result["errors"] if "too long" in e["message"]]
+
+
+def test_validate_template_for_an_led_board_measures_rendered_tiles(mcp, boards_with_led):
+    result = assert_ok(call(mcp, "validate_template", template=FITS_ON_LED, board_id="led1"), "validate_template")
+    assert _too_long(result) == []
+    assert result["charset"] == "led_5x7"
+
+
+def test_validate_template_without_a_board_measures_as_split_flap(mcp, boards_with_led):
+    result = call(mcp, "validate_template", template=FITS_ON_LED)
+    assert _too_long(result) != []
+    assert "charset" not in result
+
+
+def test_validate_template_rejects_an_unknown_board(mcp, boards_with_led):
+    message = call_expect_error(mcp, "validate_template", template="HI", board_id="nope")
+    assert "Board not found: nope" in message
+
+
+def test_render_page_preview_for_an_led_board_renders_extended_markup(mcp, boards_with_led):
+    result = assert_ok(
+        call(mcp, "render_page_preview", template_lines=["{{red:HOT}}"], board_id="led1"),
+        "render_page_preview",
+    )
+    assert result["rendered"].split("\n")[0] == "{red:HOT}" + " " * 19
+    assert result["charset"] == "led_5x7"
+    assert result["charset_issues"] == []
+
+
+def test_render_page_preview_reports_the_boards_charset_issues(mcp, boards_with_led):
+    result = assert_ok(
+        call(mcp, "render_page_preview", template_lines=["Hi {{red:x}}"], board_id="vb1"),
+        "render_page_preview",
+    )
+    assert result["charset"] == "vestaboard_v1"
+    assert {(i["row"], i["col"], i["reason"]) for i in result["charset_issues"]} >= {(0, 1, "case")}
+
+
+def test_render_page_preview_without_a_board_is_unchanged(mcp, boards_with_led):
+    result = assert_ok(call(mcp, "render_page_preview", template_lines=["{{red:HOT}}"]), "render_page_preview")
+    assert not result["rendered"].startswith("{red:HOT}")
+    assert set(result) == {"rendered", "device_type", "rows", "cols", "context_plugins"}
+
+
+def test_render_page_preview_rejects_an_unknown_board(mcp, boards_with_led):
+    message = call_expect_error(mcp, "render_page_preview", template_lines=["HI"], board_id="nope")
+    assert "Board not found: nope" in message
+
+
 # ---------------------------------------------------------------------------
 # render_page_preview fidelity — issue #1765
 #

@@ -75,7 +75,7 @@ from __future__ import annotations
 import functools
 import inspect
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
@@ -221,6 +221,24 @@ def _raise_error_envelope(result: Any) -> Any:
         logger.info("MCP tool error: %s", message)
         raise ToolError(message)
     return result
+
+
+def _charset_check(board_id: str | None) -> Any:
+    """The board-targeted template check ``POST /templates/render`` uses.
+
+    The same object (plan D17/D19): the board's character set decides
+    extended markup and what ``charset_issues`` reports, so a tool and the
+    editor never disagree about one board. Unlike REST, where an unknown
+    board quietly renders as split-flap, an unknown ``board_id`` is a
+    ToolError here, as for every other board-targeting tool: an answer about
+    a board that does not exist is an answer about nothing (#1874 review).
+    """
+    from .board_guards import _find_board
+    from .templates.routes import _CharsetCheck
+
+    if board_id is not None and _find_board(board_id) is None:
+        raise ToolError(f"Board not found: {board_id}")
+    return _CharsetCheck(board_id)
 
 
 def _format_array_entry(
@@ -1206,6 +1224,7 @@ def _build_mcp_server() -> Any:
         notes_tall: int = 1,
         grid_rows: int | None = None,
         grid_cols: int | None = None,
+        board_id: str | None = None,
     ) -> dict[str, Any]:
         """Render a template to see how it will look BEFORE saving it as a page.
 
@@ -1228,13 +1247,21 @@ def _build_mcp_server() -> Any:
             notes_tall: For note_array — Notes down (1–8). Ignored otherwise.
             grid_rows: For panel — rows (from list_panels()). Ignored otherwise.
             grid_cols: For panel — columns (from list_panels()). Ignored otherwise.
+            board_id: Optional board to render for (from the boards list in
+                      get_settings_summary()). Its character set decides
+                      extended markup ({{red:HOT}} spans, blocks, icons) and
+                      widths count the tiles it draws; adds charset and
+                      charset_issues (cells that board draws differently,
+                      e.g. lowercase on a split-flap). Geometry still comes
+                      from device_type and the size fields.
 
         Returns:
             {
               "rendered": "<grid string with \\n between rows>",
               "device_type": "flagship",
               "rows": 6, "cols": 22,
-              "context_plugins": ["weather", "date_time", ...]
+              "context_plugins": ["weather", "date_time", ...],
+              "charset": "led_5x7", "charset_issues": [...]   (board_id only)
             }
         Unresolved variables render as "???" — that's a sign of a typo or a
         plugin that's disabled/unconfigured. Lines longer than the board width
@@ -1243,6 +1270,7 @@ def _build_mcp_server() -> Any:
         from .devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
         from .templates.engine import get_template_engine
 
+        check = _charset_check(board_id)
         engine = get_template_engine()
         # Build the plugin context around the real BoardContext — the same
         # construction render_lines performs internally and the saved-page
@@ -1268,6 +1296,7 @@ def _build_mcp_server() -> Any:
             notes_tall=notes_tall,
             grid_rows=grid_rows,
             grid_cols=grid_cols,
+            **check.render_kw,
         )
         return {
             "rendered": rendered,
@@ -1275,6 +1304,7 @@ def _build_mcp_server() -> Any:
             "rows": dims.rows,
             "cols": dims.cols,
             "context_plugins": sorted(context.keys()),
+            **check.result(rendered),
         }
 
     @_tool(read_only=True)
@@ -1340,6 +1370,7 @@ def _build_mcp_server() -> Any:
         device_type: str = "flagship",
         notes_wide: int = 1,
         grid_cols: int | None = None,
+        board_id: str | None = None,
     ) -> dict[str, Any]:
         """Check template syntax without rendering, saving, or touching the board.
 
@@ -1354,8 +1385,14 @@ def _build_mcp_server() -> Any:
                          (15·notes_wide cols), or 'panel' (grid_cols cols).
             notes_wide: For note_array — Notes across (1–8).
             grid_cols: For panel (required) — the panel's cols from list_panels().
+            board_id: Optional board to validate for (from the boards list in
+                      get_settings_summary()). When its character set is rich
+                      (an LED), line length counts the tiles it draws, so
+                      {{red:HOT}} is 3 wide. Adds charset; charset_issues
+                      need a render — use render_page_preview(board_id=...).
 
-        Returns: {valid: bool, errors: [{line, column, message}], device_type}.
+        Returns: {valid: bool, errors: [{line, column, message}], device_type,
+        and — when board_id is given — charset}.
         """
         from .devices import MIN_GRID_ROWS, resolve_dimensions
         from .templates.engine import get_template_engine
@@ -1369,13 +1406,17 @@ def _build_mcp_server() -> Any:
                 raise ToolError("A panel needs grid_cols (its cols from list_panels())") from exc
             raise ToolError(f"Unknown device_type: {device_type}") from exc
 
+        check = _charset_check(board_id)
         text = "\n".join(template) if isinstance(template, list) else template
-        errors = get_template_engine().validate_template(text, cols=cols)
-        return {
+        errors = get_template_engine().validate_template(text, cols=cols, **check.render_kw)
+        out: dict[str, Any] = {
             "valid": len(errors) == 0,
             "errors": [{"line": e.line, "column": e.column, "message": e.message} for e in errors],
             "device_type": device_type,
         }
+        if check.targeted:
+            out["charset"] = check.charset["id"] if check.charset is not None else None
+        return out
 
     @_tool(read_only=True)
     def list_formula_functions() -> dict[str, Any]:
@@ -2743,7 +2784,8 @@ def _build_mcp_server() -> Any:
         board_id (the virtual board — appears in the boards list too and can
         be targeted like any board), screen_diagonal_inches, screen_aspect_w /
         _h, calibration_scale, animations_enabled, is_display (the panel the
-        FiestaPi HDMI kiosk shows at /p/display), backdrop, auto_dim, and the
+        FiestaPi HDMI kiosk shows at /p/display), backdrop, auto_dim,
+        render_style ('split_flap' or 'led_matrix'), and the
         board's device_type / rows / cols / notes_wide / notes_tall. A panel's
         board is device_type 'panel': size a page for it with device_type
         'panel', grid_rows = rows and grid_cols = cols (notes_wide/notes_tall
@@ -2792,6 +2834,7 @@ def _build_mcp_server() -> Any:
         is_display: bool | None = None,
         backdrop: str | None = None,
         auto_dim: dict[str, Any] | None = None,
+        render_style: Literal["split_flap", "led_matrix"] | None = None,
     ) -> dict[str, Any]:
         """Change a FiestaPanel's display settings. Only the fields you pass change.
 
@@ -2812,6 +2855,10 @@ def _build_mcp_server() -> Any:
             backdrop: 'wall', 'dark' or 'none'.
             auto_dim: Night dimming window as {"enabled": bool,
                 "start": "HH:MM", "end": "HH:MM"} on the TV's local clock.
+            render_style: 'split_flap' (flaps, the default) or 'led_matrix'
+                (a dot-matrix sign whose character set adds colour spans,
+                blocks and icons — check pages with validate_template /
+                render_page_preview using the panel's board_id).
         """
         return await ops_executors.update_panel(
             panel_id,
@@ -2824,6 +2871,7 @@ def _build_mcp_server() -> Any:
             is_display=is_display,
             backdrop=backdrop,
             auto_dim=auto_dim,
+            render_style=render_style,
         )
 
     @_tool(destructive=True)
