@@ -7,6 +7,20 @@
       "output_api": 1,
       "tree_sha256": "83268137410fdde774c5c2fe46e5b061b2a8b3f6b18ca04878176b3689bed20d",
       "loadable": false
+    },
+    "fiestapanel": {
+      "repository": "https://github.com/Fiestaboard/fiestaboard-output--fiestapanel",
+      "commit": "c3b00c09734b43e5dab78b37d4ab5cc575c2a1d7",
+      "output_api": 1,
+      "tree_sha256": "ff2622919cec2b8cd90bf66b0cc71d8ffabbc31e9453c87373f7075fc2ba934b",
+      "loadable": true
+    },
+    "vestaboard": {
+      "repository": "https://github.com/Fiestaboard/fiestaboard-output--vestaboard",
+      "commit": "dbf7c79f9106f6b18056260105e563a11380d934",
+      "output_api": 1,
+      "tree_sha256": "097f30e599b160aa58ae0ac3cb41ee68d55430a1564b7633cefe238f55a3cba3",
+      "loadable": true
     }
   }
 }

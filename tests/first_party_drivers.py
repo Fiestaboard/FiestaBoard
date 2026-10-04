@@ -1,7 +1,7 @@
 """First-party board drivers for tests, built through the output-plugin path.
 
 The Vestaboard and FiestaPanel transports are output plugins now
-(``first_party_outputs/``); a board's driver is an
+(loaded from the output seed); a board's driver is an
 :class:`~src.outputs.plugin_driver.OutputPluginDriver` wrapping the plugin
 instance, built by the runtime factory from a board dict — exactly as the
 engine builds it. These helpers spell the board dict for the shapes tests
@@ -124,7 +124,7 @@ def vestaboards_built() -> Iterator[list[dict]]:
     build a Vestaboard connection from?" — asked of the plugin itself (it
     used to be asked of the in-core client's constructor).
     """
-    from first_party_outputs.vestaboard import VestaboardOutput
+    from plugins.vestaboard import VestaboardOutput
 
     built: list[dict] = []
     original = VestaboardOutput.__init__

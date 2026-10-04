@@ -1,6 +1,6 @@
 """Vestaboard send policy: connection retries, backoff, and per-type send floor (#1754).
 
-The Vestaboard output plugin's transport (``first_party_outputs/vestaboard``)
+The Vestaboard output plugin's transport (``fiestaboard-output--vestaboard``)
 in core's plugin driver, which keeps the floor. (Was ``BoardClient``'s policy
 tests; the text API they also covered is gone — the output-plugin contract
 writes character grids only.)
@@ -34,14 +34,14 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
-
-from first_party_outputs.vestaboard.transport import (
+from plugins.vestaboard.transport import (
     CLOUD_MIN_SEND_INTERVAL,
     CLOUD_REQUEST_TIMEOUT,
     LOCAL_REQUEST_TIMEOUT,
     SEND_MAX_ATTEMPTS,
     SEND_RETRY_BACKOFF_SECONDS,
 )
+
 from src.outputs.plugin_driver import OutputPluginDriver
 from tests.first_party_drivers import cloud_driver, local_driver, note_array_cloud_driver
 

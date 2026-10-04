@@ -58,7 +58,7 @@ include = ["src*", "plugins*"]
 namespaces = false
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "plugins", "first_party_outputs"]
+testpaths = ["tests", "plugins"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

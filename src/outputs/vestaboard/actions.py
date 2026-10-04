@@ -1,7 +1,7 @@
 """Core's runner for the ``vestaboard`` output's board-settings actions (plan D13).
 
 The actions themselves are declared by the plugin's manifest
-(``first_party_outputs/vestaboard/manifest.json``, ``output.actions``); every
+(``fiestaboard-output--vestaboard/manifest.json``, ``output.actions``); every
 device conversation is the plugin's (its driver, its ``discover`` and
 ``enable_local_api`` hooks). What the hand-coded Vestaboard form does through its own routes —
 ``/config/board/test``, ``/config/board/scan``, ``/config/board/enable-local-api``,

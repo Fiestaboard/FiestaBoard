@@ -192,14 +192,21 @@ Names you will meet:
 - **The output registry** (`src/outputs/registry.py`) — every kind of
   device FiestaBoard drives, by output id. Two are first-party: `vestaboard`
   (Local API, RW Cloud, note-array Cloud, local note-array tiles) and
-  `fiestapanel` (a TV's in-memory board). Both are **output plugins**
-  staged in-repo under `first_party_outputs/<id>/` (each laid out as its
-  future repository: root `__init__.py`, `manifest.json`,
+  `fiestapanel` (a TV's in-memory board). Both are **output plugins** in
+  their own repositories (`Fiestaboard/fiestaboard-output--vestaboard`,
+  `--fiestapanel`: root `__init__.py`, `manifest.json`,
   `output/device-models.json`, `tests/`, README and SETUP), importing core
   only through `src.plugins` (`tests/test_first_party_output_imports.py`).
-  `src/outputs/first_party.py` loads them through the output-plugin path the
-  first time the registry is asked for: never beta-gated, never replaceable
-  (`plugin=False`), each instance built from the board's legacy flat fields
+  The image carries them in the **output seed** at the commits
+  `outputs.lock.json` pins, and `src/outputs/first_party.py` loads them from
+  there (as `plugins.<id>`, the seed copy's tree digest checked against the
+  lock on every load; `FIESTABOARD_DEV_OUTPUT_<ID>` points one at a local
+  checkout instead, `docs/internal/development/FIRST_PARTY_OUTPUTS.md`)
+  through the output-plugin path the first time the registry is asked for.
+  Only an id core drives itself and the lock pins as loadable is
+  first-party; an installed plugin with either id is refused before it is
+  imported, and the seed never installs them as plugins. They are never
+  beta-gated, never replaceable (`plugin=False`), each instance built from the board's legacy flat fields
   by the plugin's `config_from_board` (settings v4 moves them), driven by
   `OutputPluginDriver` in **first-party mode** (inline writes, no budget or
   breaker, unanticipated errors propagate) with `OutputHttp.for_first_party`
@@ -233,7 +240,7 @@ Names you will meet:
   troubleshooting), `read_back` (`supported`, `cost`: `cheap` | `network`,
   `suggested_interval_s`; the board-state poll picks the cloud interval for
   a `network` read) and `connection_label` (MQTT `board_api_mode`). The
-  Vestaboard answers are its plugin's (`first_party_outputs/vestaboard`:
+  Vestaboard answers are its plugin's (`fiestaboard-output--vestaboard`:
   discovery, diagnostics, connection verdicts, the `enable_local_api` action
   with its CodeQL-recognised SSRF block); core's `src/outputs/vestaboard/`
   keeps only the board-settings action dispatcher. `fiestapanel` declares no
