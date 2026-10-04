@@ -3,10 +3,12 @@
 /**
  * Boards and their outputs (plan D13), in Settings → Hardware:
  *
- * - {@link OtherOutputCards}: the "Add board" choices `GET /outputs` lists
- *   beyond the Vestaboard (whose Flagship / Note / Note array row stays as it
- *   was). FiestaPanel goes to its own section; an output plugin opens
- *   {@link AddOutputBoardDialog}.
+ * - {@link OtherOutputCards}: the "Add board" choices beyond the Vestaboard
+ *   (whose Flagship / Note / Note array row stays as it was): the outputs
+ *   `GET /outputs` lists, and those `GET /outputs/available` can install (a
+ *   seeded one always, a registry one once the beta is on) — installed when
+ *   chosen, as the setup wizard does. FiestaPanel goes to its own section; an
+ *   output plugin opens {@link AddOutputBoardDialog}.
  * - {@link AddOutputBoardDialog}: name, device model and the plugin's own
  *   settings screen on draft settings, then `POST /outputs/{id}/boards`.
  * - {@link OutputBoardSettings}: a saved board's connection screen — any
@@ -47,7 +49,7 @@ import { toast } from "sonner";
 import { queryKeys } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import { ANCHOR_ATTR } from "@/lib/ai-choreography/anchors";
-import type { ActionGeometry, BoardInstance, OutputSummary } from "@/lib/api";
+import type { ActionGeometry, AvailableOutput, BoardInstance, OutputSummary } from "@/lib/api";
 import { api } from "@/lib/api";
 import { isNoteArray, MAX_BOARD_NAME_LENGTH } from "@/lib/board-dimensions";
 import type { BoardFacts } from "@/lib/visible-when";
@@ -55,6 +57,8 @@ import type { BoardFacts } from "@/lib/visible-when";
 import { PluginBoardSettings } from "./plugin-board-settings";
 
 export const OUTPUTS_QUERY_KEY = ["outputs"] as const;
+/** `GET /outputs/available`: installed or not (the setup wizard's choices). */
+export const AVAILABLE_OUTPUTS_QUERY_KEY = ["outputs", "available"] as const;
 
 /** The outputs this install has (`GET /outputs`). */
 export function useOutputs() {
@@ -126,11 +130,53 @@ function scrollToPanels() {
   section?.focus?.({ preventScroll: true });
 }
 
+/** One "Add board" card: an installed output, or one `GET /outputs/available` offers to install. */
+interface OutputChoice {
+  id: string;
+  name: string;
+  description: string;
+  icon: string | null;
+  available: boolean;
+  /** Installed already: its summary. Not yet: installed when chosen (the setup wizard's way). */
+  installed: OutputSummary | null;
+}
+
+/**
+ * The installed outputs, then the ones this image or the registry can
+ * install: a seeded (bundled) output always — disabled while its beta is
+ * off — and a registry one only once it can be used (the beta is on).
+ */
+function outputChoices(installed: OutputSummary[], offered: AvailableOutput[]): OutputChoice[] {
+  const choices: OutputChoice[] = installed.map((o) => ({ ...o, installed: o }));
+  const known = new Set(installed.map((o) => o.id));
+  for (const o of offered) {
+    if (known.has(o.id) || o.installed || o.builtin) continue;
+    if (o.source === "registry" && !o.available) continue;
+    choices.push({ ...o, installed: null });
+  }
+  return choices.filter((o) => o.id !== "vestaboard");
+}
+
 export function OtherOutputCards({ onChosen }: { onChosen: () => void }) {
   const t = useTranslations("boardSettingsScreen");
+  const queryClient = useQueryClient();
   const { data: outputs } = useOutputs();
+  const { data: offered } = useQuery({
+    queryKey: AVAILABLE_OUTPUTS_QUERY_KEY,
+    queryFn: () => api.listAvailableOutputs(),
+    staleTime: 60_000,
+  });
   const [adding, setAdding] = useState<OutputSummary | null>(null);
-  const others = (outputs ?? []).filter((o) => o.id !== "vestaboard");
+  const install = useMutation({
+    mutationFn: (outputId: string) => api.installOutput(outputId),
+    onSuccess: (summary) => {
+      void queryClient.invalidateQueries({ queryKey: OUTPUTS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: AVAILABLE_OUTPUTS_QUERY_KEY });
+      setAdding(summary);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const others = outputChoices(outputs ?? [], offered ?? []);
   if (others.length === 0) return null;
 
   return (
@@ -145,14 +191,16 @@ export function OtherOutputCards({ onChosen }: { onChosen: () => void }) {
               icon={<OutputIcon name={output.icon} />}
               title={output.name}
               description={output.available ? output.description : t("betaRequired")}
-              disabled={!output.available}
+              disabled={!output.available || install.isPending}
               data-testid={`add-output-${output.id}`}
               onClick={() => {
                 if (output.id === "fiestapanel") {
                   scrollToPanels();
                   onChosen();
+                } else if (output.installed) {
+                  setAdding(output.installed);
                 } else {
-                  setAdding(output);
+                  install.mutate(output.id);
                 }
               }}
             />
