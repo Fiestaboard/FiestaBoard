@@ -3,6 +3,9 @@
 import {
   Box,
   Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Flex,
   Grid,
   Input,
@@ -18,14 +21,16 @@ import {
   Textarea,
 } from "@fiestaboard/ui";
 import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
-import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
+import { isVisible } from "@/lib/visible-when";
 
+import { DevicePickerField, ModeCardsField, TileGridField } from "./board-widgets";
 import { FieldScopeContext, SchemaFormPluginContext, useFieldScope } from "./field-context";
 import { isJsonPathMapper, JsonPathMapperField, type JsonPathMapperUiOptions } from "./json-path-mapper-field";
 import { PagePickerField } from "./page-picker-field";
@@ -52,15 +57,51 @@ interface SchemaProperty {
   items?: SchemaProperty;
   properties?: Record<string, SchemaProperty>;
   required?: string[];
+  /** A credential (output settings): rendered as a secret input, masked as "***" once saved. */
+  secret?: boolean;
   "ui:widget"?: string;
   "ui:placeholder"?: string;
-  "ui:options"?: RemoteOptionsUiOptions & JsonPathMapperUiOptions;
+  "ui:options"?: RemoteOptionsUiOptions & JsonPathMapperUiOptions & BoardWidgetUiOptions;
+  /** Show the field only when its siblings match (src/plugins/settings_ui.py; `@/lib/visible-when`). */
+  "ui:visible_when"?: unknown;
+}
+
+/** `ui:options` of the core board-setup widgets (mode-cards, tile-grid, device-picker). */
+interface BoardWidgetUiOptions {
+  cards?: { value: string; title?: string; description?: string }[];
+  rows_field?: string;
+  cols_field?: string;
+  action?: string;
+  value_key?: string;
+  label_key?: string;
+}
+
+/** A root `ui:sections` entry: a titled group of properties, optionally collapsible. */
+interface SchemaSection {
+  id: string;
+  title: string;
+  description?: string;
+  fields: string[];
+  collapsible?: boolean;
+  collapsed?: boolean;
 }
 
 interface JSONSchema {
   type: "object";
   properties: Record<string, SchemaProperty>;
   required?: string[];
+  "ui:sections"?: SchemaSection[];
+}
+
+/** The properties of an object that are visible for its current *values*. */
+function visibleEntries(
+  properties: Record<string, SchemaProperty> | undefined,
+  values: Record<string, unknown> | null | undefined,
+): [string, SchemaProperty][] {
+  const props = properties ?? {};
+  return Object.entries(props).filter(([, prop]) =>
+    isVisible(prop["ui:visible_when"], values ?? {}, props as Record<string, unknown>),
+  );
 }
 
 /**
@@ -72,6 +113,7 @@ interface JSONSchema {
 export function asJSONSchema(value: Record<string, unknown> | undefined | null): JSONSchema {
   const properties = value?.properties;
   const required = value?.required;
+  const sections = value?.["ui:sections"];
   return {
     type: "object",
     properties:
@@ -79,6 +121,11 @@ export function asJSONSchema(value: Record<string, unknown> | undefined | null):
         ? (properties as Record<string, SchemaProperty>)
         : {},
     required: Array.isArray(required) ? required.filter((name): name is string => typeof name === "string") : undefined,
+    "ui:sections": Array.isArray(sections)
+      ? (sections as SchemaSection[]).filter(
+          (s) => s && typeof s === "object" && typeof s.id === "string" && Array.isArray(s.fields),
+        )
+      : undefined,
   };
 }
 
@@ -103,6 +150,12 @@ interface SchemaFormProps {
    * plugin to ask for a catalog and degrade to a disabled control without it.
    */
   pluginId?: string;
+  /**
+   * Prefix for every field's element id. A page that renders several forms
+   * at once (one per board in Settings → Hardware) passes a distinct one so
+   * each label still points at its own input.
+   */
+  idPrefix?: string;
 }
 
 // Individual field components
@@ -192,7 +245,7 @@ function EnumSelectField({
 function StringField({ name, property, value, onChange, required, disabled }: FieldProps) {
   const tSecret = useTranslations("schemaForm");
   const [_timezoneValid, setTimezoneValid] = useState(true);
-  const isPassword = property["ui:widget"] === "password";
+  const isPassword = property["ui:widget"] === "password" || property.secret === true;
   const isTextarea = property["ui:widget"] === "textarea";
   const isTimezone = property["ui:widget"] === "timezone";
   const isPagePicker = property["ui:widget"] === "page-picker";
@@ -678,7 +731,7 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
                 }}
               >
                 <Grid gap="3" className="p-3 border rounded-lg bg-muted/30">
-                  {Object.entries(itemSchema.properties).map(([key, propSchema]) => (
+                  {visibleEntries(itemSchema.properties, item as Record<string, unknown>).map(([key, propSchema]) => (
                     <Grid key={key} gap="1.5">
                       <Label htmlFor={`${name}-${index}-${key}`} className="text-xs">
                         {propSchema.title || key}
@@ -766,6 +819,77 @@ function FormField({
     return <RemoteOptionsField name={name} property={property} value={value} onChange={onChange} disabled={disabled} />;
   }
 
+  // The core board-setup widgets (plan D13), a closed set.
+  const options = property["ui:options"];
+  if (property["ui:widget"] === "mode-cards" && Array.isArray(property.enum) && property.enum.length > 0) {
+    return (
+      <ModeCardsField
+        name={name}
+        label={property.title || name}
+        options={property.enum}
+        cards={options?.cards}
+        enumNames={property.enumNames}
+        value={value}
+        defaultValue={property.default}
+        onChange={onChange}
+        disabled={disabled}
+      />
+    );
+  }
+  if (property["ui:widget"] === "device-picker") {
+    return (
+      <DevicePickerField
+        name={name}
+        label={property.title || name}
+        value={value}
+        onChange={onChange}
+        placeholder={property["ui:placeholder"] || property.description}
+        action={options?.action}
+        valueKey={options?.value_key}
+        labelKey={options?.label_key}
+        disabled={disabled}
+        required={required}
+      />
+    );
+  }
+  if (property["ui:widget"] === "tile-grid" && property.items?.properties) {
+    const tileProperties = Object.fromEntries(
+      Object.entries(property.items.properties).filter(([key]) => key !== "row" && key !== "col"),
+    );
+    return (
+      <TileGridField
+        name={name}
+        label={property.title || name}
+        value={value}
+        onChange={onChange}
+        rows={Number(root[options?.rows_field ?? ""] ?? 1) || 1}
+        cols={Number(root[options?.cols_field ?? ""] ?? 1) || 1}
+        disabled={disabled}
+        renderTileFields={(tile, onTileChange) => (
+          <FieldScopeContext.Provider value={{ scope: tile, root, titles: titlesOf(tileProperties) }}>
+            {visibleEntries(tileProperties, tile).map(([key, propSchema]) => (
+              <Grid key={key} gap="1.5">
+                <Label htmlFor={`${name}-tile-${key}`}>{propSchema.title || key}</Label>
+                <FormField
+                  name={`${name}-tile-${key}`}
+                  property={propSchema}
+                  value={tile[key]}
+                  onChange={(val, siblings) => onTileChange({ ...tile, ...siblings, [key]: val })}
+                  disabled={disabled}
+                />
+                {propSchema.description && (
+                  <Text size="xs" tone="muted">
+                    {propSchema.description}
+                  </Text>
+                )}
+              </Grid>
+            ))}
+          </FieldScopeContext.Provider>
+        )}
+      />
+    );
+  }
+
   switch (property.type) {
     case "string":
       return (
@@ -843,7 +967,7 @@ function FormField({
             }}
           >
             <Grid gap="4" className="p-4 border rounded-lg">
-              {Object.entries(property.properties).map(([key, propSchema]) => (
+              {visibleEntries(property.properties, value as Record<string, unknown>).map(([key, propSchema]) => (
                 <Grid key={key} gap="1.5">
                   <Label htmlFor={`${name}-${key}`}>
                     {propSchema.title || key}
@@ -895,7 +1019,15 @@ function FormField({
  * - Array fields (add/remove items)
  * - Nested object fields
  */
-export function SchemaForm({ schema, values, onChange, disabled, className, pluginId }: SchemaFormProps) {
+export function SchemaForm({
+  schema,
+  values,
+  onChange,
+  disabled,
+  className,
+  pluginId,
+  idPrefix = "",
+}: SchemaFormProps) {
   const t = useTranslations("schemaForm");
   // Top-level fields resolve `depends_on` against the whole config: at this
   // depth the sibling scope and the root are the same object.
@@ -930,62 +1062,80 @@ export function SchemaForm({ schema, values, onChange, disabled, className, plug
     return <Text tone="muted">{t("noSchemaProperties")}</Text>;
   }
 
+  // `ui:visible_when` hides a field until its siblings match; `ui:sections`
+  // groups the rest. Fields in no section render first, in schema order.
+  const visible = visibleEntries(schema.properties, values).filter(([name]) => name !== "enabled");
+  const visibleByName = new Map(visible);
+  const sections = schema["ui:sections"] ?? [];
+  const sectioned = new Set(sections.flatMap((section) => section.fields));
+  const ungrouped = visible.filter(([name]) => !sectioned.has(name));
+
+  const renderField = ([name, property]: [string, SchemaProperty]) => {
+    const isRequired = schema.required?.includes(name);
+    const isLocationField = hasLocationFields && (name === "latitude" || name === "longitude");
+    const showLocationButton = isLocationField && !!navigator.geolocation;
+
+    // Disable digit_color when color_pattern is not "solid" (visual_clock plugin)
+    const isDigitColorField = name === "digit_color";
+    const colorPattern = values["color_pattern"] || schema.properties["color_pattern"]?.default || "solid";
+    const shouldDisableDigitColor = isDigitColorField && colorPattern !== "solid";
+    const fieldDisabled = disabled || shouldDisableDigitColor;
+
+    return (
+      <Grid key={name} gap="1.5">
+        <Label htmlFor={`${idPrefix}${name}`} className="flex items-center gap-1">
+          {property.title || name}
+          {isRequired && (
+            <Text as="span" tone="destructive">
+              *
+            </Text>
+          )}
+        </Label>
+        <FormField
+          name={`${idPrefix}${name}`}
+          property={property}
+          value={values[name]}
+          onChange={(val, siblings) => handleFieldChange(name, val, siblings)}
+          required={isRequired}
+          disabled={fieldDisabled}
+          onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
+          showLocationButton={showLocationButton}
+          isLocationLoading={false}
+          allValues={values}
+        />
+        {property.description && (
+          <Text size="xs" tone="muted">
+            {property.description}
+          </Text>
+        )}
+        {showLocationButton && (
+          <Text size="xs" tone="muted">
+            {t("clickLocationIcon")}
+          </Text>
+        )}
+        {shouldDisableDigitColor && (
+          <Text size="xs" tone="muted">
+            {t("digitColorNotUsed")}
+          </Text>
+        )}
+      </Grid>
+    );
+  };
+
   return (
     <SchemaFormPluginContext.Provider value={pluginId ?? null}>
       <FieldScopeContext.Provider value={rootScope}>
         <Grid gap="4" className={className}>
-          {Object.entries(schema.properties).map(([name, property]) => {
-            // Skip the 'enabled' field as it's handled separately
-            if (name === "enabled") return null;
-
-            const isRequired = schema.required?.includes(name);
-            const isLocationField = hasLocationFields && (name === "latitude" || name === "longitude");
-            const showLocationButton = isLocationField && !!navigator.geolocation;
-
-            // Disable digit_color when color_pattern is not "solid" (visual_clock plugin)
-            const isDigitColorField = name === "digit_color";
-            const colorPattern = values["color_pattern"] || schema.properties["color_pattern"]?.default || "solid";
-            const shouldDisableDigitColor = isDigitColorField && colorPattern !== "solid";
-            const fieldDisabled = disabled || shouldDisableDigitColor;
-
+          {ungrouped.map(renderField)}
+          {sections.map((section) => {
+            const fields = section.fields
+              .filter((name) => visibleByName.has(name))
+              .map((name) => [name, visibleByName.get(name)!] as [string, SchemaProperty]);
+            if (fields.length === 0) return null;
             return (
-              <Grid key={name} gap="1.5">
-                <Label htmlFor={name} className="flex items-center gap-1">
-                  {property.title || name}
-                  {isRequired && (
-                    <Text as="span" tone="destructive">
-                      *
-                    </Text>
-                  )}
-                </Label>
-                <FormField
-                  name={name}
-                  property={property}
-                  value={values[name]}
-                  onChange={(val, siblings) => handleFieldChange(name, val, siblings)}
-                  required={isRequired}
-                  disabled={fieldDisabled}
-                  onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
-                  showLocationButton={showLocationButton}
-                  isLocationLoading={false}
-                  allValues={values}
-                />
-                {property.description && (
-                  <Text size="xs" tone="muted">
-                    {property.description}
-                  </Text>
-                )}
-                {showLocationButton && (
-                  <Text size="xs" tone="muted">
-                    {t("clickLocationIcon")}
-                  </Text>
-                )}
-                {shouldDisableDigitColor && (
-                  <Text size="xs" tone="muted">
-                    {t("digitColorNotUsed")}
-                  </Text>
-                )}
-              </Grid>
+              <SchemaFormSection key={section.id} section={section}>
+                {fields.map(renderField)}
+              </SchemaFormSection>
             );
           })}
         </Grid>
@@ -994,4 +1144,51 @@ export function SchemaForm({ schema, values, onChange, disabled, className, plug
   );
 }
 
-export type { JSONSchema, SchemaProperty };
+/** One `ui:sections` group: a fieldset, or a disclosure when collapsible. */
+function SchemaFormSection({ section, children }: { section: SchemaSection; children: React.ReactNode }) {
+  const headingId = `schema-section-${section.id}`;
+  if (section.collapsible) {
+    return (
+      <Collapsible
+        defaultOpen={!section.collapsed}
+        className="rounded-lg border"
+        data-testid={`schema-section-${section.id}`}
+      >
+        <CollapsibleTrigger className="flex w-full items-center gap-2 p-3 text-left text-sm font-medium hover:bg-muted/40 [&[data-panel-open]>svg:first-child]:hidden [&:not([data-panel-open])>svg:last-child]:hidden">
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          {section.title}
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <Grid gap="4" className="border-t p-3">
+            {section.description && (
+              <Text size="xs" tone="muted">
+                {section.description}
+              </Text>
+            )}
+            {children}
+          </Grid>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
+  return (
+    <fieldset
+      className="grid gap-4 rounded-lg border p-3"
+      aria-labelledby={headingId}
+      data-testid={`schema-section-${section.id}`}
+    >
+      <legend id={headingId} className="px-1 text-sm font-medium">
+        {section.title}
+      </legend>
+      {section.description && (
+        <Text size="xs" tone="muted">
+          {section.description}
+        </Text>
+      )}
+      {children}
+    </fieldset>
+  );
+}
+
+export type { JSONSchema, SchemaProperty, SchemaSection };

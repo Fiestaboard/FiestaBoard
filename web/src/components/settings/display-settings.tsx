@@ -60,6 +60,7 @@ import type { BoardInstance, Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 import { isNoteArray, MAX_BOARD_NAME_LENGTH, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
 
+import { isPluginOutputBoard, OtherOutputCards, OutputBoardSettings } from "./output-boards";
 import { TileGridAssignment } from "./tile-grid-assignment";
 
 /**
@@ -683,6 +684,9 @@ export function DisplaySettings() {
           // and none of the credential/type controls apply (issue: a
           // freshly created panel showed as needing API credentials).
           const isVirtual = apiMode === "virtual";
+          // A board an output plugin drives renders the plugin's own settings
+          // screen (plan D13); Vestaboard and FiestaPanel keep their forms.
+          const isPluginOutput = isPluginOutputBoard(board);
           const panelName = isVirtual ? panelNameByBoardId.get(board.id) : undefined;
           const hasLocalKey = board.local_api_key === "***" || Boolean(board.local_api_key);
           const hasCloudKey = board.cloud_key === "***" || Boolean(board.cloud_key);
@@ -768,7 +772,7 @@ export function DisplaySettings() {
                       {t("pause.badge")}
                     </BadgeUI>
                   )}
-                  {isVirtual ? (
+                  {isPluginOutput ? null : isVirtual ? (
                     <BadgeUI variant="secondary" className="text-[10px] h-5" data-testid="board-virtual-badge">
                       <Tv className="h-2.5 w-2.5 mr-0.5" />
                       {t("virtualBadge")}
@@ -844,191 +848,197 @@ export function DisplaySettings() {
                     />
                   </Flex>
 
-                  {/* Type + Color row */}
-                  <Stack gap="2">
-                    <Flex align="center" gap="4" wrap>
-                      {isVirtual ? (
-                        // A panel's grid is auto-fit from its TV size — the
-                        // type/preset picker would desync it from the panel.
+                  {/* Type + Color row (a Vestaboard's or a panel's; an output
+                      plugin's board is sized by its device model) */}
+                  {!isPluginOutput && (
+                    <Stack gap="2">
+                      <Flex align="center" gap="4" wrap>
+                        {isVirtual ? (
+                          // A panel's grid is auto-fit from its TV size — the
+                          // type/preset picker would desync it from the panel.
+                          <Flex align="center" gap="2">
+                            <Text as="span" tone="muted" className="text-[11px]">
+                              {t("typeLabel")}
+                            </Text>
+                            <Text as="span" size="xs" tone="muted">
+                              {t("virtualSizeHint")}
+                            </Text>
+                          </Flex>
+                        ) : (
+                          <Flex align="center" gap="2">
+                            <Text as="span" tone="muted" className="text-[11px]">
+                              {t("typeLabel")}
+                            </Text>
+                            <Select
+                              value={currentConfigValue(board)}
+                              onValueChange={(v) => handleConfigChange(board, v)}
+                            >
+                              <SelectTrigger className="h-7 w-[200px] text-xs" aria-label={t("deviceTypeAriaLabel")}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  <SelectLabel>{t("deviceGroupLabel")}</SelectLabel>
+                                  <SelectItem value="flagship">{t("flagshipLabel")}</SelectItem>
+                                  <SelectItem value="note">{t("noteLabel")}</SelectItem>
+                                </SelectGroup>
+                                <SelectGroup>
+                                  <SelectLabel>{t("noteArrayGroupLabel")}</SelectLabel>
+                                  {NOTE_ARRAY_PRESETS.map((p) => (
+                                    <SelectItem key={p.id} value={`preset:${p.id}`}>
+                                      {t(`presets.${p.id}`)}
+                                    </SelectItem>
+                                  ))}
+                                  <SelectItem value="custom">{t("customLabel")}</SelectItem>
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          </Flex>
+                        )}
                         <Flex align="center" gap="2">
                           <Text as="span" tone="muted" className="text-[11px]">
-                            {t("typeLabel")}
-                          </Text>
-                          <Text as="span" size="xs" tone="muted">
-                            {t("virtualSizeHint")}
-                          </Text>
-                        </Flex>
-                      ) : (
-                        <Flex align="center" gap="2">
-                          <Text as="span" tone="muted" className="text-[11px]">
-                            {t("typeLabel")}
-                          </Text>
-                          <Select value={currentConfigValue(board)} onValueChange={(v) => handleConfigChange(board, v)}>
-                            <SelectTrigger className="h-7 w-[200px] text-xs" aria-label={t("deviceTypeAriaLabel")}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                <SelectLabel>{t("deviceGroupLabel")}</SelectLabel>
-                                <SelectItem value="flagship">{t("flagshipLabel")}</SelectItem>
-                                <SelectItem value="note">{t("noteLabel")}</SelectItem>
-                              </SelectGroup>
-                              <SelectGroup>
-                                <SelectLabel>{t("noteArrayGroupLabel")}</SelectLabel>
-                                {NOTE_ARRAY_PRESETS.map((p) => (
-                                  <SelectItem key={p.id} value={`preset:${p.id}`}>
-                                    {t(`presets.${p.id}`)}
-                                  </SelectItem>
-                                ))}
-                                <SelectItem value="custom">{t("customLabel")}</SelectItem>
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
-                        </Flex>
-                      )}
-                      <Flex align="center" gap="2">
-                        <Text as="span" tone="muted" className="text-[11px]">
-                          {t("colorLabel")}
-                        </Text>
-                        <Flex gap="2">
-                          <button
-                            onClick={() => handleUpdateBoard(board.id, { board_color: "black" })}
-                            aria-label={t("blackAriaLabel")}
-                            aria-pressed={board.board_color === "black"}
-                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                              board.board_color === "black"
-                                ? "border-primary ring-2 ring-primary/30"
-                                : "border-border hover:border-muted-foreground"
-                            }`}
-                          />
-                          <button
-                            onClick={() => handleUpdateBoard(board.id, { board_color: "white" })}
-                            aria-label={t("whiteAriaLabel")}
-                            aria-pressed={board.board_color === "white"}
-                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                              board.board_color === "white"
-                                ? "border-primary ring-2 ring-primary/30"
-                                : "border-border hover:border-muted-foreground"
-                            }`}
-                          />
-                        </Flex>
-                      </Flex>
-                      {/* Code-62 flap (issue #1657). Flagship only: Note
-                          hardware has only ever carried the heart, so there
-                          is nothing for its owner to tell us. */}
-                      {board.device_type === "flagship" && (
-                        <Flex align="center" gap="2">
-                          <Text as="span" tone="muted" className="text-[11px]">
-                            {t("code62Label")}
+                            {t("colorLabel")}
                           </Text>
                           <Flex gap="2">
-                            {CODE62_CHOICES.map(({ value, glyph, labelKey }) => {
-                              const selected = (board.code62_glyph ?? "degree") === value;
-                              return (
-                                <button
-                                  key={value}
-                                  onClick={() => handleUpdateBoard(board.id, { code62_glyph: value })}
-                                  aria-label={t(labelKey)}
-                                  aria-pressed={selected}
-                                  data-testid={`board-code62-${value}`}
-                                  className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                                    selected
-                                      ? "border-primary ring-2 ring-primary/30"
-                                      : "border-border hover:border-muted-foreground"
-                                  }`}
-                                >
-                                  <Text as="span" aria-hidden="true">
-                                    {glyph}
-                                  </Text>
-                                </button>
-                              );
-                            })}
+                            <button
+                              onClick={() => handleUpdateBoard(board.id, { board_color: "black" })}
+                              aria-label={t("blackAriaLabel")}
+                              aria-pressed={board.board_color === "black"}
+                              className={`h-6 w-6 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                                board.board_color === "black"
+                                  ? "border-primary ring-2 ring-primary/30"
+                                  : "border-border hover:border-muted-foreground"
+                              }`}
+                            />
+                            <button
+                              onClick={() => handleUpdateBoard(board.id, { board_color: "white" })}
+                              aria-label={t("whiteAriaLabel")}
+                              aria-pressed={board.board_color === "white"}
+                              className={`h-6 w-6 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                                board.board_color === "white"
+                                  ? "border-primary ring-2 ring-primary/30"
+                                  : "border-border hover:border-muted-foreground"
+                              }`}
+                            />
                           </Flex>
                         </Flex>
-                      )}
-                    </Flex>
-
-                    {board.device_type === "flagship" && (
-                      <Text as="p" tone="muted" className="text-[11px]">
-                        {t("code62Help")}
-                      </Text>
-                    )}
-
-                    {/* Custom W×H inputs (note arrays only; never for a
-                        panel's auto-fit board) */}
-                    {!isVirtual && (customOpen[board.id] || currentConfigValue(board) === "custom") && (
-                      <Stack gap="1">
-                        <Flex align="end" gap="2">
-                          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                            {t("notesWideLabel")}
-                            <input
-                              type="number"
-                              min={1}
-                              max={MAX_NOTES_PER_AXIS}
-                              value={board.notes_wide ?? 1}
-                              onChange={(e) => handleCustomDim(board, "notes_wide", e.target.value)}
-                              className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
-                            />
-                          </label>
-                          <Text as="span" size="xs" tone="muted" className="pb-1.5">
-                            ×
-                          </Text>
-                          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                            {t("notesTallLabel")}
-                            <input
-                              type="number"
-                              min={1}
-                              max={MAX_NOTES_PER_AXIS}
-                              value={board.notes_tall ?? 1}
-                              onChange={(e) => handleCustomDim(board, "notes_tall", e.target.value)}
-                              className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
-                            />
-                          </label>
-                        </Flex>
-                        {dimError[board.id] && (
-                          <Text role="alert" tone="destructive" className="text-[10px]">
-                            {dimError[board.id]}
-                          </Text>
+                        {/* Code-62 flap (issue #1657). Flagship only: Note
+                          hardware has only ever carried the heart, so there
+                          is nothing for its owner to tell us. */}
+                        {board.device_type === "flagship" && (
+                          <Flex align="center" gap="2">
+                            <Text as="span" tone="muted" className="text-[11px]">
+                              {t("code62Label")}
+                            </Text>
+                            <Flex gap="2">
+                              {CODE62_CHOICES.map(({ value, glyph, labelKey }) => {
+                                const selected = (board.code62_glyph ?? "degree") === value;
+                                return (
+                                  <button
+                                    key={value}
+                                    onClick={() => handleUpdateBoard(board.id, { code62_glyph: value })}
+                                    aria-label={t(labelKey)}
+                                    aria-pressed={selected}
+                                    data-testid={`board-code62-${value}`}
+                                    className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                                      selected
+                                        ? "border-primary ring-2 ring-primary/30"
+                                        : "border-border hover:border-muted-foreground"
+                                    }`}
+                                  >
+                                    <Text as="span" aria-hidden="true">
+                                      {glyph}
+                                    </Text>
+                                  </button>
+                                );
+                              })}
+                            </Flex>
+                          </Flex>
                         )}
-                      </Stack>
-                    )}
+                      </Flex>
 
-                    {/* Auto-detect from board — not offered for local-mode
+                      {board.device_type === "flagship" && (
+                        <Text as="p" tone="muted" className="text-[11px]">
+                          {t("code62Help")}
+                        </Text>
+                      )}
+
+                      {/* Custom W×H inputs (note arrays only; never for a
+                        panel's auto-fit board) */}
+                      {!isVirtual && (customOpen[board.id] || currentConfigValue(board) === "custom") && (
+                        <Stack gap="1">
+                          <Flex align="end" gap="2">
+                            <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                              {t("notesWideLabel")}
+                              <input
+                                type="number"
+                                min={1}
+                                max={MAX_NOTES_PER_AXIS}
+                                value={board.notes_wide ?? 1}
+                                onChange={(e) => handleCustomDim(board, "notes_wide", e.target.value)}
+                                className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
+                              />
+                            </label>
+                            <Text as="span" size="xs" tone="muted" className="pb-1.5">
+                              ×
+                            </Text>
+                            <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                              {t("notesTallLabel")}
+                              <input
+                                type="number"
+                                min={1}
+                                max={MAX_NOTES_PER_AXIS}
+                                value={board.notes_tall ?? 1}
+                                onChange={(e) => handleCustomDim(board, "notes_tall", e.target.value)}
+                                className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
+                              />
+                            </label>
+                          </Flex>
+                          {dimError[board.id] && (
+                            <Text role="alert" tone="destructive" className="text-[10px]">
+                              {dimError[board.id]}
+                            </Text>
+                          )}
+                        </Stack>
+                      )}
+
+                      {/* Auto-detect from board — not offered for local-mode
                         arrays: their shape is defined by assigning tiles, so
                         a local read could only echo the configured W×H back.
                         Detection is meaningful via the Cloud API (which
                         knows the array's real shape) and for single boards.
                         Virtual boards have nothing to detect. */}
-                    {!isVirtual && !(isNoteArray(board.device_type) && (board.api_mode ?? "cloud") === "local") && (
-                      <Stack gap="1">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          className="h-7 text-[11px]"
-                          disabled={detectingBoardId === board.id}
-                          onClick={() => handleAutoDetect(board)}
-                        >
-                          {detectingBoardId === board.id ? (
-                            <>
-                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                              {t("detecting")}
-                            </>
-                          ) : (
-                            t("autoDetect")
+                      {!isVirtual && !(isNoteArray(board.device_type) && (board.api_mode ?? "cloud") === "local") && (
+                        <Stack gap="1">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="h-7 text-[11px]"
+                            disabled={detectingBoardId === board.id}
+                            onClick={() => handleAutoDetect(board)}
+                          >
+                            {detectingBoardId === board.id ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                {t("detecting")}
+                              </>
+                            ) : (
+                              t("autoDetect")
+                            )}
+                          </Button>
+                          {detectError[board.id] && (
+                            <Flex role="alert" align="center" gap="1.5" className="text-destructive text-[10px]">
+                              <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                              <Text as="span" tone="destructive" className="text-[10px]">
+                                {detectError[board.id]}
+                              </Text>
+                            </Flex>
                           )}
-                        </Button>
-                        {detectError[board.id] && (
-                          <Flex role="alert" align="center" gap="1.5" className="text-destructive text-[10px]">
-                            <AlertCircle className="h-3 w-3 flex-shrink-0" />
-                            <Text as="span" tone="destructive" className="text-[10px]">
-                              {detectError[board.id]}
-                            </Text>
-                          </Flex>
-                        )}
-                      </Stack>
-                    )}
-                  </Stack>
+                        </Stack>
+                      )}
+                    </Stack>
+                  )}
 
                   {/* Connection section. Virtual boards render to memory:
                       offering the Local/Cloud credentials form here is what
@@ -1044,6 +1054,13 @@ export function DisplaySettings() {
                             : t("virtualConnectionHint")}
                         </Text>
                       </Flex>
+                    ) : isPluginOutput ? (
+                      <OutputBoardSettings
+                        key={JSON.stringify(board.output_config ?? {})}
+                        board={board}
+                        saving={updateMutation.isPending}
+                        onSave={(outputConfig) => handleUpdateBoard(board.id, { output_config: outputConfig })}
+                      />
                     ) : (
                       <BoardConnectionForm board={board} onUpdate={handleUpdateBoard} />
                     )}
@@ -1085,31 +1102,36 @@ export function DisplaySettings() {
             {t("addBoard")}
           </Button>
         ) : (
-          <Flex align="center" gap="2">
-            <Text as="span" size="xs" tone="muted">
-              {t("selectType")}
-            </Text>
-            <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("flagship")}>
-              <Monitor className="h-3 w-3 mr-1" />
-              {t("flagshipLabel")}
-            </Button>
-            <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("note")}>
-              <Smartphone className="h-3 w-3 mr-1" />
-              {t("noteLabel")}
-            </Button>
-            <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("note_array")}>
-              <LayoutGrid className="h-3 w-3 mr-1" />
-              {t("noteArrayLabel")}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-muted-foreground"
-              onClick={() => setShowTypePicker(false)}
-            >
-              {tCommon("cancel")}
-            </Button>
-          </Flex>
+          <Stack gap="3">
+            <Flex align="center" gap="2">
+              <Text as="span" size="xs" tone="muted">
+                {t("selectType")}
+              </Text>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("flagship")}>
+                <Monitor className="h-3 w-3 mr-1" />
+                {t("flagshipLabel")}
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("note")}>
+                <Smartphone className="h-3 w-3 mr-1" />
+                {t("noteLabel")}
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("note_array")}>
+                <LayoutGrid className="h-3 w-3 mr-1" />
+                {t("noteArrayLabel")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground"
+                onClick={() => setShowTypePicker(false)}
+              >
+                {tCommon("cancel")}
+              </Button>
+            </Flex>
+            {/* Every other installed output (GET /outputs): FiestaPanel and
+              output plugins. The row above stays the Vestaboard flow. */}
+            <OtherOutputCards onChosen={() => setShowTypePicker(false)} />
+          </Stack>
         )}
       </Box>
     </PageSection>

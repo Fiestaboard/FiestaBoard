@@ -7,6 +7,7 @@ import type {
   DisplaySettings,
   GeneralConfig,
   OutputSettings,
+  OutputSummary,
   Page,
   PageCreate,
   PagesResponse,
@@ -21,6 +22,63 @@ import type {
 } from "@/lib/api";
 
 const API_BASE = "/api";
+
+/** `GET /outputs` with only the built-ins installed (src/outputs/actions.py). */
+export const mockOutputs: OutputSummary[] = [
+  {
+    id: "vestaboard",
+    name: "Vestaboard",
+    description: "A Vestaboard Flagship, Note or Note array, over the Local API or the cloud.",
+    icon: "layout-grid",
+    builtin: true,
+    beta_gated: false,
+    available: true,
+    output_api: null,
+    capabilities: {
+      technology: "split_flap",
+      delivery: "push",
+      animation: "stream",
+      native_transitions: [],
+      charset: null,
+    },
+    device_models: [
+      { id: "vestaboard_flagship", label: "Vestaboard Flagship" },
+      { id: "vestaboard_note", label: "Vestaboard Note" },
+      { id: "vestaboard_note_array", label: "Vestaboard Note array" },
+    ],
+    settings_schema: {},
+    actions: [],
+  },
+  {
+    id: "fiestapanel",
+    name: "FiestaPanel",
+    description: "Any TV or browser: a full-screen board FiestaBoard draws itself.",
+    icon: "monitor",
+    builtin: true,
+    beta_gated: false,
+    available: true,
+    output_api: null,
+    capabilities: {
+      technology: "screen",
+      delivery: "pull",
+      animation: "stream",
+      native_transitions: [],
+      charset: null,
+    },
+    device_models: [{ id: "vestaboard_panel", label: "Virtual panel" }],
+    settings_schema: {},
+    actions: [
+      {
+        id: "test_connection",
+        label: "Test connection",
+        description: "",
+        builtin: true,
+        input_schema: null,
+        result_fields: {},
+      },
+    ],
+  },
+];
 
 // Type-safe mock data
 export const mockStatus: StatusResponse = {
@@ -1047,6 +1105,13 @@ export const handlers = [
       usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
     });
   }),
+
+  // Installed outputs (GET /outputs): the two built-ins, no plugins.
+  http.get(`${API_BASE}/outputs`, () => HttpResponse.json(mockOutputs)),
+
+  // Setup wizard outcome
+  http.get(`${API_BASE}/settings/wizard`, () => HttpResponse.json({ state: null })),
+  http.put(`${API_BASE}/settings/wizard`, async ({ request }) => HttpResponse.json(await request.json())),
 
   // Config validation endpoint
   http.get(`${API_BASE}/config/validate`, () => {

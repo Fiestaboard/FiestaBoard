@@ -8,6 +8,7 @@ import { LanguageSelector } from "@/components/language-selector";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { Code62Glyph } from "@/lib/api";
+import { api } from "@/lib/api";
 import { appUrl } from "@/lib/base-path";
 import type { WizardProgress } from "@/lib/setup-detection";
 import { clearWizardProgress, getWizardProgress, markWizardComplete, saveWizardProgress } from "@/lib/setup-detection";
@@ -115,12 +116,21 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     }
   }, [currentStep]);
 
-  const handleComplete = useCallback(() => {
-    markWizardComplete();
-    clearWizardProgress();
-    onComplete?.();
-    router.push("/");
-  }, [onComplete, router]);
+  const finish = useCallback(
+    (outcome: "completed" | "skipped") => {
+      // Kept server-side too (plan D18), so the wizard stays away in every
+      // browser, not just this one. Best effort: failing to record it only
+      // means the next browser may offer the wizard again.
+      void api.setWizardState(outcome).catch(() => undefined);
+      markWizardComplete();
+      clearWizardProgress();
+      onComplete?.();
+      router.push("/");
+    },
+    [onComplete, router],
+  );
+  const handleComplete = useCallback(() => finish("completed"), [finish]);
+  const handleSkip = useCallback(() => finish("skipped"), [finish]);
 
   // Render step content
   const renderStep = () => {
@@ -198,7 +208,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             </Text>
 
             {currentStep === 1 && (
-              <Button variant="ghost" onClick={handleComplete} disabled={isLoading} size="lg">
+              <Button variant="ghost" onClick={handleSkip} disabled={isLoading} size="lg">
                 {t("skipForNow")}
               </Button>
             )}
