@@ -38,12 +38,6 @@ import requests
 from fastapi import APIRouter, HTTPException
 
 from src.api_errors import errors
-from src.board_guards import (
-    validate_board_host as _validate_board_host,
-)
-from src.board_guards import (
-    validate_board_host_is_local_network as _validate_board_host_is_local_network,
-)
 from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
 from src.devices import classify_dimensions, geometry_of
@@ -189,6 +183,14 @@ def _live_board_driver(board_id: str):
     service = get_service()
     rt = service.runtime_for(board_id) if service is not None else None
     return rt.client if rt is not None else None
+
+
+def _invalidate_board_content(board_id: str) -> None:
+    """Have the display loop re-send *board_id*'s content (after an
+    out-of-band write such as an identify flash)."""
+    service = get_service()
+    if service is not None:
+        service.invalidate_board_content(board_id)
 
 
 @router.get("/settings/mqtt", response_model=MqttSettingsResponse)
@@ -1112,6 +1114,38 @@ async def set_board_paused(board_id: str, request: BoardPauseRequest):
     }
 
 
+async def _legacy_board_action(board_id: str, action: str, inputs: dict):
+    """Run the ``vestaboard`` output's board-settings *action* on saved board
+    *board_id*, for the two legacy routes below (plan D8: they stay, pinned in
+    ``tests/golden/api_routes.json``, and delegate). 404 for an unknown
+    board; the action's refusals as their status and detail.
+    """
+    from src.devices import BoardInstance
+    from src.outputs.actions import execute_action
+    from src.outputs.hooks import OutputActionError
+    from src.outputs.registry import VESTABOARD, output_registry
+
+    boards = get_settings_service().get_board_settings().boards or []
+    stored = next((b for b in boards if b.get("id") == board_id), None)
+    if stored is None:
+        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
+    definition = output_registry().get(VESTABOARD)
+    if definition is None:
+        raise HTTPException(status_code=503, detail="The Vestaboard output is not installed.")
+    try:
+        return await execute_action(
+            definition,
+            action,
+            board=BoardInstance.from_dict(stored).to_dict(),
+            board_id=board_id,
+            inputs=inputs,
+            live_driver=_live_board_driver,
+            invalidate=_invalidate_board_content,
+        )
+    except OutputActionError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
 @router.post(
     "/settings/board/{board_id}/detect-size",
     response_model=DetectBoardSizeResponse,
@@ -1120,63 +1154,36 @@ async def set_board_paused(board_id: str, request: BoardPauseRequest):
 async def detect_board_size(board_id: str):
     """Auto-detect a board's device type and dimensions from its live layout.
 
-    Reads the board's current message over its own transport (local / cloud /
-    note-array) through the board's live driver, and classifies the grid
-    shape with :func:`classify_dimensions`.
+    The ``vestaboard`` output's ``detect_geometry`` action: it reads the
+    board's current message over its own transport (local / cloud /
+    note-array) through the board's live driver, and says what size of board
+    that grid is.
 
     Returns ``device_type``, ``rows``, ``cols`` and — for note arrays —
     ``notes_wide``, ``notes_tall`` and ``matched_preset``.
 
-    Errors: 404 (unknown board), 400 (board not configured), 422 (board
-    returned no layout, or an unclassifiable grid).
+    Errors: 404 (unknown board), 400 (board not configured, or a local-mode
+    note array, whose size its tile assignments define), 422 (board returned
+    no layout, or an unclassifiable grid).
     """
-    settings_service = get_settings_service()
-    boards = settings_service.get_board_settings().boards or []
-
-    board_dict = next((b for b in boards if b.get("id") == board_id), None)
-    if board_dict is None:
-        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
-
-    from src.devices import BoardInstance
-
-    # A local-mode array's shape is DEFINED by its tile assignments — a local
-    # read can only re-stitch the configured W×H (or fail on a partial array),
-    # so "detection" would be a tautology. Only the Cloud API knows an array's
-    # real shape; reject clearly instead of echoing the configuration back.
-    if BoardInstance.from_dict(board_dict).uses_local_tiles:
-        raise HTTPException(
-            status_code=400,
-            detail="Auto-detect is not available for local-mode note arrays — "
-            "the array's size is defined by its tile assignments",
-        )
-
-    # The read goes over the board's LIVE driver — its own transport, built
-    # once by the runtime factory — not a client built for this request.
-    client = _live_board_driver(board_id)
-    if client is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Board {board_id} is not configured (missing credentials)",
-        )
-
-    # A board READ is board network I/O like any other; it belongs on the
-    # bounded send pool, not inline on the event loop (#1878).
-    grid = await run_board_send(client.read_current_message)
-    if grid is None:
+    outcome = await _legacy_board_action(board_id, "detect_geometry", {})
+    if outcome.geometry is not None:
+        return dict(outcome.geometry)
+    rows, cols = outcome.detail.get("rows"), outcome.detail.get("cols")
+    if rows is None or cols is None:
         raise HTTPException(
             status_code=422,
             detail=f"Board {board_id} returned no layout — board may be blank or unreachable",
         )
-
-    rows = len(grid)
-    cols = len(grid[0]) if rows > 0 else 0
     try:
-        return classify_dimensions(rows, cols)
+        classify_dimensions(rows, cols)
+        reason = "not a Vestaboard size"
     except ValueError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Board {board_id} returned an unclassifiable grid ({rows}×{cols}): {exc}",
-        ) from exc
+        reason = str(exc)
+    raise HTTPException(
+        status_code=422,
+        detail=f"Board {board_id} returned an unclassifiable grid ({rows}×{cols}): {reason}",
+    )
 
 
 @router.post(
@@ -1187,125 +1194,24 @@ async def detect_board_size(board_id: str):
 async def identify_board_tiles(board_id: str, request: BoardIdentifyRequest):
     """Flash slot positions onto local note-array tiles (monitor-arrangement style).
 
-    Sends each targeted tile a 3×15 pattern labeling its slot so the user
-    can see which physical board answers for which grid position. The real
-    frame is restored automatically on the next display-loop cycle (the
-    board's content dedupe and client caches are invalidated here); on a
-    paused board the pattern persists until the board is resumed.
+    The ``vestaboard`` output's ``identify`` action: each targeted tile shows
+    a 3×15 pattern labeling its slot so the user can see which physical board
+    answers for which grid position. The real frame is restored
+    automatically on the next display-loop cycle (the board's content dedupe
+    and client caches are invalidated); on a paused board the pattern
+    persists until the board is resumed.
 
     Saved tiles are flashed through the board's live driver, as a write of
-    its runtime; an unsaved tile (the credential override) through a draft
-    driver from the runtime factory.
+    its runtime; an unsaved tile (the credential override) through a
+    throwaway instance on a private runtime.
 
     Errors: 404 (unknown board), 400 (not a note array in local mode, bad
     target, or missing/unknown tile), 503 (the board has no live
     connection to flash its saved tiles through).
     """
-    from src.devices import BoardInstance, identify_pattern, is_note_array
-
-    settings_service = get_settings_service()
-    boards = settings_service.get_board_settings().boards or []
-    board_dict = next((b for b in boards if b.get("id") == board_id), None)
-    if board_dict is None:
-        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
-
-    instance = BoardInstance.from_dict(board_dict)
-    if not is_note_array(instance.device_type) or instance.api_mode != "local":
-        raise HTTPException(
-            status_code=400,
-            detail="Identify is only available for note arrays in local API mode",
-        )
-
-    if request.target not in ("tile", "all"):
-        raise HTTPException(status_code=400, detail='target must be "tile" or "all"')
-
-    # Resolve the set of (row, col, host, port, key) endpoints to flash
-    targets: list[dict] = []
-    override = request.host is not None or request.local_api_key is not None
-    if override:
-        # Unsaved-tile override from the assign dialog
-        if request.target != "tile" or request.row is None or request.col is None:
-            raise HTTPException(
-                status_code=400,
-                detail="Credential override requires target='tile' with row and col",
-            )
-        if not request.host or not request.local_api_key:
-            raise HTTPException(status_code=400, detail="host and local_api_key are both required")
-        _validate_board_host(request.host)
-        _validate_board_host_is_local_network(request.host)
-        targets.append(
-            {
-                "row": request.row,
-                "col": request.col,
-                "host": request.host,
-                "port": request.port or 7000,
-                "local_api_key": request.local_api_key,
-            }
-        )
-    else:
-        configured = instance.configured_tiles()
-        if request.target == "all":
-            targets = configured
-        else:
-            if request.row is None or request.col is None:
-                raise HTTPException(status_code=400, detail="row and col are required for target='tile'")
-            tile = next(
-                (t for t in configured if t["row"] == request.row and t["col"] == request.col),
-                None,
-            )
-            if tile is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"No configured tile at row={request.row}, col={request.col}",
-                )
-            targets = [tile]
-        if not targets:
-            raise HTTPException(status_code=400, detail="Board has no configured tiles to identify")
-
-    if override:
-        # DRAFT path: a tile that is not saved yet has no live runtime. One
-        # throwaway driver from the runtime factory's draft door, on a
-        # private runtime of its own, never bound to the board's.
-        from src.outputs.factory import draft_driver
-
-        def flash_draft(tile: dict) -> dict:
-            pattern = identify_pattern(tile["row"], tile["col"], instance.notes_wide)
-            draft = {
-                "api_mode": "local",
-                "device_type": "note",
-                "host": tile["host"],
-                "port": tile.get("port"),
-                "local_api_key": tile["local_api_key"],
-            }
-            try:
-                driver = draft_driver(draft)
-                success, _ = driver.send_characters(pattern, force=True) if driver else (False, False)
-            except Exception as exc:  # noqa: BLE001 — a failed flash is reported, not raised
-                logger.error(f"Identify failed for tile ({tile['row']},{tile['col']}): {exc}")
-                success = False
-            return {"row": tile["row"], "col": tile["col"], "success": success}
-
-        results = [await asyncio.to_thread(flash_draft, t) for t in targets]
-    else:
-        # LIVE path: the saved tiles belong to the board's live driver; the
-        # flash is a write of the board's runtime (it preempts a running
-        # transition and holds the send lock), so it never interleaves with
-        # the engine's sends to the same tiles.
-        driver = _live_board_driver(board_id)
-        identify_tiles = getattr(driver, "identify_tiles", None)
-        if identify_tiles is None:
-            raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
-        positions = [(t["row"], t["col"]) for t in targets]
-        flashed = await asyncio.to_thread(identify_tiles, positions)
-        results = [{"row": r, "col": c, "success": bool(flashed.get((r, c)))} for r, c in positions]
-
-    # Restore: invalidate the display loop's dedupe + client caches so the
-    # next cycle re-sends the real frame over the identify pattern.
-    service = get_service()
-    if service is not None:
-        service.invalidate_board_content(board_id)
-
-    return {"board_id": board_id, "results": list(results)}
+    inputs = request.model_dump(exclude_none=True)
+    outcome = await _legacy_board_action(board_id, "identify", inputs)
+    return {"board_id": board_id, "results": list(outcome.detail.get("results", []))}
 
 
 @router.get("/settings/wizard", response_model=WizardStateBody, responses={**ERROR_400})

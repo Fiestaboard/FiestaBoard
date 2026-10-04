@@ -98,7 +98,9 @@ def test_a_local_note_array_is_set_up_tile_by_tile_on_the_boards_layout(definiti
     assert tiles["ui:widget"] == "tile-grid"
     options = tiles["ui:options"]
     assert options["layout"] == "board"
-    assert options["item_actions"] == ["identify", "enable_local_api"]
+    # Each tile's dialog tests, identifies and gets a key for that one Note
+    # (the hand-coded grid's Test / Identify / Get API Key buttons).
+    assert options["item_actions"] == ["test_tile", "identify", "enable_local_api"]
     assert options["unique_fields"] == ["host", "port"]
     item = tiles["items"]
     assert set(item["properties"]) == {"row", "col", "host", "port", "local_api_key", "enabled"}
@@ -128,7 +130,7 @@ def test_every_credential_is_a_secret(schema):
         ("cloud", "note_array", ["test_connection", "detect_geometry"]),
         # The grid identifies tiles and gets keys per tile; a local array's
         # size is its tiles, so there is nothing to detect.
-        ("local", "note_array", ["test_connection", "discover", "identify", "enable_local_api"]),
+        ("local", "note_array", ["test_connection", "discover", "test_tile", "identify", "enable_local_api"]),
     ],
 )
 def test_each_connection_and_shape_offers_only_its_own_actions(definition, schema, api_mode, device_type, actions):

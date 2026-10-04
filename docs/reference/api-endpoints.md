@@ -1166,6 +1166,7 @@ Per-board runtime state (issue #1244).
 | `paused` | `boolean` | yes | — |
 | `active_page_id` | `string` \| `null` | no | — |
 | `error` | `string` \| `null` | no | — |
+| `output_status` | [`OutputStatusSummary`](#schema-outputstatussummary) \| `null` | no | — |
 
 ### `BoardSummary` {#schema-boardsummary}
 
@@ -1395,6 +1396,16 @@ loop rather than written on the spot. `reason` names which.
 | `text` | `string` | yes | `characters` decoded back to text, for logs and confirmations. |
 | `expires_at` | `string` \| `null` | no | When a timed message reverts (ISO 8601). Null for a message with no duration. |
 | `reason` | `string` \| `null` | no | Why nothing was written, when sent is false. Null when sent is true. |
+
+### `OutputStatusSummary` {#schema-outputstatussummary}
+
+A board's connection summary, as its output reads the board's
+settings: what the board card's Connected / Not configured badge shows.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `state` | `"connected"` \| `"not_configured"` | yes | connected: the board has the details its output needs; not_configured: it does not. |
+| `message` | `string` | no | The output's own words about it, if any. (default `""`) |
 
 ### `Page` {#schema-page}
 

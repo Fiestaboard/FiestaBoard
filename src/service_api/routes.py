@@ -52,6 +52,7 @@ from .models import (
     BoardStatus,
     DiscoverResponse,
     HealthResponse,
+    OutputStatusSummary,
     RefreshRequest,
     RefreshResponse,
     ServiceStateResponse,
@@ -62,6 +63,18 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["service"])
+
+
+def _output_status(board: dict) -> OutputStatusSummary | None:
+    """*board*'s connection summary from its output (plan D13 ``status``)."""
+    from src.devices import BoardInstance
+
+    try:
+        status = BoardInstance.from_dict(board).status
+    except Exception:  # a summary must never break the status poll
+        logger.debug("Board %s: output status unavailable", board.get("id"), exc_info=True)
+        return None
+    return OutputStatusSummary(state=status.state, message=status.message) if status is not None else None
 
 
 def _loop_is_running() -> bool:
@@ -184,6 +197,7 @@ async def get_status():
                 paused=runtime._board_is_paused(bid),
                 active_page_id=active_page_id,
                 error=init_error,
+                output_status=_output_status(board),
             )
     except Exception as e:
         logger.debug(f"Per-board status unavailable: {e}")

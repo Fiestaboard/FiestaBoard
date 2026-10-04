@@ -100,11 +100,14 @@ Code62Glyph = Literal["degree", "heart"]
 
 CODE62_GLYPHS = ("degree", "heart")
 
-#: The settings-v3 flat connection fields of a Vestaboard board. Settings v4
-#: (plan D8) stores them in the board's ``output_config``; a dict that still
-#: carries them at the top level is a legacy write (or a v3 file), folded in
-#: by :meth:`BoardInstance.from_dict`. The interpretation of the fields is the
-#: Vestaboard's (:mod:`src.outputs.vestaboard.connection`).
+#: The settings-v3 flat connection fields: settings v3 stored a board's
+#: connection at the top level of its dict. Settings v4 (plan D8) stores them
+#: in the board's ``output_config``; a dict that still carries them at the
+#: top level is a legacy write (or a v3 file), folded in by
+#: :meth:`BoardInstance.from_dict`. Core keeps only their names — the shape
+#: of its own old storage and of the flat API views; what they mean, and
+#: their defaults, are the Vestaboard output's
+#: (:mod:`src.outputs.config_hooks`).
 LEGACY_CONNECTION_FIELDS: tuple[str, ...] = (
     "api_mode",
     "host",
@@ -143,17 +146,16 @@ class BoardInstance:
     Settings v4 (plan D8): core keeps what is device-independent — identity,
     display (colour, code-62 glyph), flags, content geometry — plus the
     board's ``output`` (the output plugin that drives it) and
-    ``output_config`` (that plugin's settings for it). How a Vestaboard is
-    reached lives in its ``output_config``
-    (:class:`~src.outputs.vestaboard.connection.VestaboardConnection`); a
-    FiestaPanel's is empty; an output plugin's follows its manifest's
-    ``settings_schema``.
+    ``output_config`` (that plugin's settings for it), stored as the output
+    normalises it (:func:`src.outputs.config_hooks.normalize_config`); a
+    FiestaPanel's is empty. What the settings mean is the output's: whether
+    the board is configured is its :class:`~src.outputs.hooks.OutputStatus`.
 
     The read-only ``api_mode`` / ``host`` / ``port`` / ``local_api_key`` /
     ``cloud_key`` / ``note_array_token`` / ``tiles`` properties are the
-    settings-v3 flat view, projected from ``output_config`` for the readers
-    and public API shapes that still speak it (D8 "Public API shapes
-    unchanged"). Construct from flat fields with :meth:`from_dict`.
+    settings-v3 flat view (:func:`src.settings.board_shape.flat_connection`)
+    for the readers and public API shapes that still speak it (D8 "Public
+    API shapes unchanged"). Construct from flat fields with :meth:`from_dict`.
     """
 
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -248,42 +250,39 @@ class BoardInstance:
         else:
             self.grid_rows = None
             self.grid_cols = None
-        if self.output == _VESTABOARD:
-            from src.outputs.vestaboard.connection import VestaboardConnection
-
-            self.output_config = VestaboardConnection.from_config(self.output_config, self.device_type).to_config()
-            self.device_model = None
-        elif self.output == _FIESTAPANEL:
+        if self.output == _FIESTAPANEL:
             # A panel renders to memory: it has no connection to configure.
             self.output_config = {}
             self.device_model = None
         else:
-            self.output_config = dict(self.output_config) if isinstance(self.output_config, dict) else {}
-            model = self.device_model.strip() if isinstance(self.device_model, str) else ""
-            self.device_model = model or None
+            from src.outputs.config_hooks import normalize_config
 
-    # --- the Vestaboard connection, and its settings-v3 flat view ---------------------
+            if self.output in BUILTIN_OUTPUT_IDS:
+                self.device_model = None
+            else:
+                model = self.device_model.strip() if isinstance(self.device_model, str) else ""
+                self.device_model = model or None
+            self.output_config = normalize_config(self.output, self.output_config, self._geometry_facts())
 
-    @property
-    def connection(self):
-        """This board's :class:`~src.outputs.vestaboard.connection.VestaboardConnection`,
-        or ``None`` when it is not a Vestaboard."""
-        if self.output != _VESTABOARD:
-            return None
-        from src.outputs.vestaboard.connection import VestaboardConnection
+    # --- the settings-v3 flat view, and the output's status ------------------------------
 
-        return VestaboardConnection.from_config(self.output_config, self.device_type)
+    def _geometry_facts(self) -> dict:
+        """What an output reads about the board besides its settings."""
+        return {
+            "id": self.id,
+            "device_type": self.device_type,
+            "notes_wide": self.notes_wide,
+            "notes_tall": self.notes_tall,
+            "grid_rows": self.grid_rows,
+            "grid_cols": self.grid_cols,
+            "output": self.output,
+            "device_model": self.device_model,
+        }
 
     def _flat(self, name: str):
-        connection = self.connection
-        if connection is not None:
-            return getattr(connection, name)
-        if name == "api_mode" and self.output == _FIESTAPANEL:
-            return "virtual"
-        from src.outputs.vestaboard.connection import CONNECTION_DEFAULTS
+        from src.settings.board_shape import flat_connection
 
-        default = CONNECTION_DEFAULTS[name]
-        return list(default) if isinstance(default, list) else default
+        return flat_connection({"output": self.output, "output_config": self.output_config})[name]
 
     @property
     def api_mode(self) -> str:
@@ -314,6 +313,14 @@ class BoardInstance:
         return self._flat("tiles")
 
     @property
+    def status(self):
+        """The board's :class:`~src.outputs.hooks.OutputStatus` as its output
+        reads its settings, or ``None`` when the output has nothing to say."""
+        from src.outputs.config_hooks import board_status
+
+        return board_status({**self._geometry_facts(), "output_config": self.output_config})
+
+    @property
     def effective_code62_glyph(self) -> str:
         """The glyph this board actually draws for character code 62.
 
@@ -330,20 +337,12 @@ class BoardInstance:
         return self.code62_glyph
 
     @property
-    def uses_local_tiles(self) -> bool:
-        """True when this Vestaboard note array is driven tile-by-tile over the
-        local API (:meth:`VestaboardConnection.uses_local_tiles`)."""
-        connection = self.connection
-        return connection is not None and connection.uses_local_tiles(self.device_type)
-
-    @property
     def is_connection_configured(self) -> bool:
-        if self.output == _FIESTAPANEL:
-            # Virtual boards (FiestaPanel) render to memory; there is no
-            # connection to configure.
-            return True
-        connection = self.connection
-        return connection is not None and connection.is_configured(self.device_type, self.notes_wide, self.notes_tall)
+        """Whether a driver can be built for this board (its output's
+        :attr:`status`). A FiestaPanel always is; a board whose output has
+        nothing to say is not."""
+        status = self.status
+        return status is not None and status.configured
 
     @property
     def has_connection_attempt(self) -> bool:
@@ -354,18 +353,13 @@ class BoardInstance:
         *misconfigured*, not *unconfigured*. First-run detection must use
         this, not the strict check — a misconfigured board should surface
         as a per-board error (#1813), never flip a working install back
-        into the setup wizard (#1760).
+        into the setup wizard (#1760). With no status from its output (one
+        that is not installed), any stored setting counts.
         """
-        if self.output == _FIESTAPANEL:
-            return True
-        connection = self.connection
-        return connection is not None and connection.has_attempt()
-
-    def configured_tiles(self) -> list[dict]:
-        """Tiles that are in-range for the current W×H, enabled, and credentialed
-        (:meth:`VestaboardConnection.configured_tiles`)."""
-        connection = self.connection
-        return connection.configured_tiles(self.notes_wide, self.notes_tall) if connection is not None else []
+        status = self.status
+        if status is None:
+            return any(value not in (None, "", [], {}) for value in self.output_config.values())
+        return status.attempted
 
     def to_dict(self) -> dict:
         """The board as settings v4 stores it."""
@@ -518,64 +512,6 @@ def panel_dimensions(grid_rows: int | None, grid_cols: int | None) -> DeviceDime
         if isinstance(value, bool) or not isinstance(value, int):
             raise ValueError(f"A panel grid needs an integer {name} (got {value!r})")
     return clamp_grid(grid_rows, grid_cols)
-
-
-def slice_note_array_grid(
-    grid: list[list[int]], notes_wide: int, notes_tall: int
-) -> dict[tuple[int, int], list[list[int]]]:
-    """Slice a full note-array grid into per-tile 3×15 subgrids.
-
-    The grid must be exactly (notes_tall * NOTE_ROWS) × (notes_wide * NOTE_COLS).
-    Returns subgrids keyed by (row, col) in note coordinates, 0-indexed.
-
-    Raises ValueError if the grid does not match the expected dimensions.
-    """
-    dims = note_array_dimensions(notes_wide, notes_tall)
-    if len(grid) != dims.rows or any(len(row) != dims.cols for row in grid):
-        raise ValueError(f"Grid must be exactly {dims.rows}×{dims.cols} for a {notes_wide}×{notes_tall} note array")
-    return {
-        (tr, tc): [grid[tr * NOTE_ROWS + i][tc * NOTE_COLS : (tc + 1) * NOTE_COLS] for i in range(NOTE_ROWS)]
-        for tr in range(notes_tall)
-        for tc in range(notes_wide)
-    }
-
-
-def stitch_note_array_grid(
-    subgrids: dict[tuple[int, int], list[list[int]]],
-    notes_wide: int,
-    notes_tall: int,
-    fill: int = 0,
-) -> list[list[int]]:
-    """Stitch per-tile 3×15 subgrids back into a full note-array grid.
-
-    Inverse of slice_note_array_grid. Missing or malformed subgrids leave
-    their slot filled with ``fill``.
-    """
-    dims = note_array_dimensions(notes_wide, notes_tall)
-    grid = [[fill] * dims.cols for _ in range(dims.rows)]
-    for (tr, tc), sub in subgrids.items():
-        if tr < 0 or tr >= notes_tall or tc < 0 or tc >= notes_wide:
-            continue
-        if not isinstance(sub, list) or len(sub) != NOTE_ROWS:
-            continue
-        if any(not isinstance(r, list) or len(r) != NOTE_COLS for r in sub):
-            continue
-        for i in range(NOTE_ROWS):
-            grid[tr * NOTE_ROWS + i][tc * NOTE_COLS : (tc + 1) * NOTE_COLS] = sub[i]
-    return grid
-
-
-def identify_pattern(row: int, col: int, notes_wide: int) -> list[list[int]]:
-    """Render the identify flash for one tile: a 3×15 grid labeling its slot.
-
-    Shows the reading-order position number plus the (row, col) coordinate,
-    1-indexed for humans — mirroring OS monitor-arrangement identify.
-    """
-    from .text_to_board import text_to_board_array
-
-    position = row * notes_wide + col + 1
-    text = f"\nPOSITION {position}\nR{row + 1} C{col + 1}"
-    return text_to_board_array(text, rows=NOTE_ROWS, cols=NOTE_COLS)
 
 
 def is_valid_note_array_grid(rows: int, cols: int) -> bool:

@@ -183,6 +183,7 @@ def test_status_reports_the_flag_the_instance_and_the_active_page(client):
         "paused": False,
         "active_page_id": "page-1",
         "error": None,
+        "output_status": {"state": "not_configured", "message": ""},
     }
 
 

@@ -2497,7 +2497,14 @@ class TestStatusPerBoard:
 
         assert response.status_code == 200
         boards = response.json()["boards"]
-        assert boards["b1"] == {"configured": True, "paused": False, "active_page_id": "page1", "error": None}
+        assert boards["b1"] == {
+            "configured": True,
+            "paused": False,
+            "active_page_id": "page1",
+            "error": None,
+            # b1 carries no credentials: its output (the Vestaboard) says so.
+            "output_status": {"state": "not_configured", "message": ""},
+        }
         assert boards["b2"]["configured"] is False
         assert boards["b2"]["paused"] is True
 
@@ -2516,6 +2523,37 @@ class TestStatusPerBoard:
         boards = response.json()["boards"]
         assert boards["b1"]["error"] == "api_key is required"
         assert boards["b2"]["error"] is None
+
+    def test_status_carries_each_boards_output_status(self, client, mock_service, mock_settings_service):
+        """Plan D13 ``status``: the board card's Connected / Not configured
+        badge is the board's output's summary of its settings — the
+        Vestaboard's rules, a FiestaPanel always connected, nothing from an
+        output with nothing to say."""
+        board_settings = Mock()
+        board_settings.boards = [
+            {"id": "local", "device_type": "flagship", "api_mode": "local", "host": "192.0.2.10", "local_api_key": "k"},
+            {"id": "keyless", "device_type": "flagship", "api_mode": "local", "host": "192.0.2.10"},
+            {"id": "cloud", "device_type": "flagship", "api_mode": "cloud", "cloud_key": "test_rw"},
+            {"id": "array", "device_type": "note_array", "api_mode": "cloud", "note_array_token": "test_tok"},
+            {"id": "panel", "device_type": "panel", "output": "fiestapanel", "grid_rows": 3, "grid_cols": 15},
+            {"id": "elsewhere", "device_type": "panel", "output": "not-installed", "grid_rows": 3, "grid_cols": 15},
+        ]
+        mock_settings_service.get_board_settings.return_value = board_settings
+        mock_settings_service.get_primary_board_id.return_value = "local"
+        mock_service.get_board_client = Mock(return_value=None)
+
+        with patch("src.api_server._service_running", True):
+            boards = client.get("/status").json()["boards"]
+
+        states = {bid: (b["output_status"] or {}).get("state") for bid, b in boards.items()}
+        assert states == {
+            "local": "connected",
+            "keyless": "not_configured",
+            "cloud": "connected",
+            "array": "connected",
+            "panel": "connected",
+            "elsewhere": None,
+        }
 
     def test_status_keeps_top_level_fields(self, client, mock_service, mock_settings_service):
         _configure_boards(mock_settings_service)

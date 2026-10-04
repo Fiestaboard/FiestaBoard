@@ -46,10 +46,11 @@ They differ from a third-party output plugin in four ways, each on purpose:
 - **Their settings screens are their manifests'**: ``GET /outputs`` carries
   each one's ``settings_schema`` and actions, and the web renders a
   Vestaboard's board settings from them like any output's (plan D13,
-  Phase 4 P4d). It still shows no ``output_api`` and FiestaPanel's
-  ``vestaboard_panel`` model; board-settings actions still run through
-  core's dispatchers, which call into the plugin for every device
-  conversation.
+  Phase 4 P4d). Its actions, status and ``output_config`` rules are the
+  plugin class's, asked like any output's (``handle_action``,
+  ``board_status``, :mod:`src.outputs.config_hooks`), so core holds no
+  Vestaboard rules (Phase 4 P4e). It still shows no ``output_api`` and
+  FiestaPanel's ``vestaboard_panel`` model.
 """
 
 from __future__ import annotations
@@ -65,9 +66,9 @@ from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Literal
 
-from .hooks import ActionCall, ActionOutcome, OutputDiagnostics, OutputHooks
+from .hooks import OutputDiagnostics, OutputHooks
 from .plugin_base import OutputPluginBase
-from .registry import FIESTAPANEL, FIRST_PARTY_OUTPUTS, VESTABOARD, OutputDefinition, OutputRegistry
+from .registry import FIESTAPANEL, FIRST_PARTY_OUTPUTS, OutputDefinition, OutputRegistry
 from .seed import LOCKFILE, LockError, seed_root, seeded_entries, tree_digest
 
 if TYPE_CHECKING:
@@ -310,22 +311,7 @@ def _builder(loaded: FirstPartyOutput) -> Callable[[dict], OutputDriver | None]:
     return build
 
 
-async def _vestaboard_dispatch(call: ActionCall) -> ActionOutcome:
-    from .vestaboard.actions import dispatch
-
-    return await dispatch(call)
-
-
-async def _fiestapanel_dispatch(call: ActionCall) -> ActionOutcome:
-    """A FiestaPanel draws in memory: there is no connection to fail."""
-    return ActionOutcome(message="FiestaPanel boards render in FiestaBoard itself; there is nothing to connect to.")
-
-
-#: Core's board-settings action runners for the first-party outputs.
-_DISPATCH = {VESTABOARD: _vestaboard_dispatch, FIESTAPANEL: _fiestapanel_dispatch}
-
-
-def _hooks(output_id: str, plugin_class: type[OutputPluginBase]) -> OutputHooks:
+def _hooks(plugin_class: type[OutputPluginBase]) -> OutputHooks:
     discover = None
     if getattr(plugin_class.discover, "__func__", None) is not OutputPluginBase.discover.__func__:
         discover = plugin_class.discover
@@ -336,8 +322,7 @@ def _hooks(output_id: str, plugin_class: type[OutputPluginBase]) -> OutputHooks:
             advise=plugin_class.diagnostics_advice,
             all_clear=plugin_class.DIAGNOSTICS_ALL_CLEAR,
         )
-    actions = plugin_class.hook_actions() if hasattr(plugin_class, "hook_actions") else {}
-    return OutputHooks(discover=discover, diagnostics=diagnostics, actions=actions, dispatch=_DISPATCH.get(output_id))
+    return OutputHooks(discover=discover, diagnostics=diagnostics)
 
 
 def first_party_definition(output_id: str) -> OutputDefinition:
@@ -351,12 +336,13 @@ def first_party_definition(output_id: str) -> OutputDefinition:
         name=manifest.name,
         capabilities=loaded.plugin_class.declared_capabilities(output_manifest),
         build=_builder(loaded),
-        hooks=_hooks(output_id, loaded.plugin_class),
+        hooks=_hooks(loaded.plugin_class),
         description=manifest.description,
         icon=manifest.icon,
         actions=output_manifest.actions,
         settings_schema=output_manifest.settings_schema,
         offered_device_models=_LEGACY_OFFERED_MODELS.get(output_id, output_manifest.device_model_ids),
+        plugin_class=loaded.plugin_class,
     )
 
 

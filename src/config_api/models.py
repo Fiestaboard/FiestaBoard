@@ -159,7 +159,8 @@ class BoardTestRequest(BaseModel):
     local_api_key: str | None = None
     cloud_key: str | None = None
     host: str | None = None
-    # Local API port (default 7000). Local-array tiles can sit on other ports.
+    # Local API port (unset: the Local API's default). Local-array tiles can
+    # sit on other ports.
     port: int | None = None
 
 

@@ -93,6 +93,26 @@ a saved board into the instance's config. The default reads the board's
 saved before settings v4 (plan D8) and answer ``None`` for a board with no
 usable connection, which builds no driver.
 
+**Board settings** (plan D13). Core asks the plugin *class* about a board's
+settings, so it never interprets an output's ``output_config`` itself. Every
+hook has a default that suits an output whose settings follow its
+manifest's ``settings_schema``:
+
+- :meth:`handle_action` runs a declared settings action (test, discover,
+  identify, detect size, or the output's own) with an
+  :class:`~src.outputs.hooks.ActionContext`: core builds the instances (a
+  throwaway one from the settings, or the board's live one under its send
+  lock) and the plugin decides what the action does. The default runs
+  ``discover`` on the class and anything else through :meth:`run_action`
+  on a throwaway instance.
+- :meth:`board_status` is the board's connection summary
+  (:class:`~src.outputs.hooks.OutputStatus`): the board card's badge.
+  Default: ``None`` — the output has nothing to say, no badge.
+- :meth:`normalize_config`, :meth:`mask_config`, :meth:`restore_config`
+  and :meth:`masked_config_paths` are how a board's ``output_config`` is
+  stored, shown (secrets ``"***"``) and restored from an echo. The defaults
+  follow the schema's ``secret`` fields (:mod:`src.outputs.output_config`).
+
 **Fan-out outputs** (one frame split across several devices that each keep
 their own dedupe, as a Vestaboard Note array on the Local API does) hear
 about core's dedupe through three hooks: :attr:`forced` during a forced
@@ -112,7 +132,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 from src.markup import BoardToken
 from src.send_outcome import FrameRegion, WriteResult
 
-from .hooks import ActionField, ActionOutcome, ConnectionCheck
+from .hooks import ActionField, ActionOutcome, ConnectionCheck, OutputActionError, OutputStatus
 from .http import OutputHttp
 from .transitions import NativeTransition
 
@@ -133,6 +153,7 @@ __all__ = [
     "NativeTransition",
     "OutputHttp",
     "OutputPluginBase",
+    "OutputStatus",
     "RichCellFrame",
     "TimedFrame",
     "WriteResult",
@@ -490,3 +511,71 @@ class OutputPluginBase(ABC):
         if method is None:
             raise NotImplementedError(f"{type(self).__name__} implements no action '{action}'")
         return method(dict(inputs))
+
+    # --- board settings: what core asks the class (plan D13) ---------------------------
+
+    #: The settings-v3 flat fields this output's ``output_config`` is
+    #: projected to in every API view of a board, with their defaults. Only
+    #: the Vestaboard's settings predate settings v4; ``None`` for every
+    #: other output.
+    legacy_flat_fields: ClassVar[Mapping[str, Any] | None] = None
+
+    @classmethod
+    def handle_action(cls, ctx: Any) -> ActionOutcome | Mapping[str, Any] | None:
+        """Run the board-settings action ``ctx.action`` (one the manifest declares).
+
+        *ctx* is an :class:`~src.outputs.hooks.ActionContext`. The default
+        answers ``discover`` with :meth:`discover` (the ``timeout`` input,
+        clamped to 1–15 s) and every other action with :meth:`run_action` on
+        a throwaway instance built from the board's settings. Override it
+        when an action needs more: the board's live instance
+        (``ctx.with_live``), another device's settings (``ctx.instance(config)``),
+        a refusal before anything is contacted (raise
+        :class:`~src.outputs.hooks.OutputActionError`).
+        """
+        if ctx.action == "discover":
+            raw = ctx.inputs.get("timeout", 4.0)
+            timeout = min(max(float(raw), 1.0), 15.0) if isinstance(raw, (int, float)) else 4.0
+            devices = cls.discover(timeout)
+            return ActionOutcome(message=f"Found {len(devices)} device(s).", devices=tuple(devices))
+        instance = ctx.instance()
+        if instance is None:
+            raise OutputActionError(400, "Enter the board's connection details first.")
+        return instance.run_action(ctx.action, ctx.inputs)
+
+    @classmethod
+    def board_status(cls, config: Mapping[str, Any] | None, board: Mapping[str, Any]) -> OutputStatus | None:
+        """The board's connection summary from its settings — whatever the
+        output knows without contacting the device (plan D13 ``status``).
+        Default: ``None``, nothing to say."""
+        return None
+
+    @classmethod
+    def normalize_config(cls, config: Mapping[str, Any] | None, board: Mapping[str, Any]) -> dict[str, Any]:
+        """The ``output_config`` a board stores. Default: a copy, as given."""
+        return dict(config) if isinstance(config, Mapping) else {}
+
+    @classmethod
+    def mask_config(cls, config: Any, schema: Mapping[str, Any] | None) -> Any:
+        """*config* for an API view, every set secret ``"***"`` (a copy).
+        Default: the schema's ``secret`` / password fields."""
+        from .output_config import mask_output_config
+
+        return mask_output_config(config, schema)
+
+    @classmethod
+    def restore_config(cls, incoming: Any, stored: Any, schema: Mapping[str, Any] | None) -> Any:
+        """*incoming* with each echoed ``"***"`` restored from *stored*.
+        Default: by the schema's secrets, array elements matched by
+        ``id``/``name``/``key``."""
+        from .output_config import unmask_output_config
+
+        return unmask_output_config(incoming, stored, schema)
+
+    @classmethod
+    def masked_config_paths(cls, config: Any, schema: Mapping[str, Any] | None) -> list[str]:
+        """The secrets still ``"***"`` in *config* (refused rather than
+        stored as a credential). Default: by the schema's secrets."""
+        from .output_config import masked_secret_paths
+
+        return masked_secret_paths(config, schema)

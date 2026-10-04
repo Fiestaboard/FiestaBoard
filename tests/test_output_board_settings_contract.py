@@ -270,11 +270,12 @@ class TestListing:
         assert [a["id"] for a in vestaboard["actions"]] == [
             "test_connection",
             "discover",
+            "test_tile",
             "identify",
             "detect_geometry",
             "enable_local_api",
         ]
-        enable = vestaboard["actions"][4]
+        enable = next(a for a in vestaboard["actions"] if a["id"] == "enable_local_api")
         assert enable["input_schema"]["required"] == ["enablement_token"]
         assert enable["result_fields"] == {"api_key": {"secret": True, "fills": "local_api_key"}}
 
@@ -437,12 +438,14 @@ class TestSavedRoute:
         board = {"name": "Hall", "device_type": "flagship", "api_mode": "local"}
         _settings().set_boards([{**board, "host": "192.168.0.40", "local_api_key": "test_stored_key"}])
         board_id = _settings().get_board_settings().boards[0]["id"]
+        from src.outputs.hooks import ConnectionCheck
+
         seen = []
 
         def fake_draft(draft):
-            seen.append(dict(draft))
+            seen.append(dict(draft["output_config"]))
             driver = mock.Mock()
-            driver.check_connection.return_value = mock.Mock(success=True, message="ok", troubleshooting=None)
+            driver.plugin.check_connection.return_value = ConnectionCheck(success=True, message="ok")
             return driver
 
         with mock.patch("src.outputs.factory.draft_driver", side_effect=fake_draft):
@@ -451,6 +454,7 @@ class TestSavedRoute:
                 json={"output_config": {"host": "192.168.0.41", "local_api_key": "***"}},
             )
         assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "ok"
         assert (seen[0]["host"], seen[0]["local_api_key"]) == ("192.168.0.41", "test_stored_key")
 
 
@@ -498,9 +502,9 @@ class TestVestaboardActions:
 
     def test_discover_answers_devices(self, client):
         found = [{"ip": "192.168.0.40", "port": 7000, "hostname": "vb.local", "source": "mdns"}]
-        with mock.patch("src.outputs.registry.discover_devices", return_value=found) as discover:
+        with mock.patch("plugins.vestaboard.discovery.discover", return_value=found) as discover:
             body = client.post("/outputs/vestaboard/actions/discover", json={"input": {"timeout": 2}}).json()
-        assert discover.call_args.args == ("vestaboard", 2.0)
+        assert discover.call_args.args == (2.0,)
         assert body["devices"] == [{**found[0], "label": None}]
 
     def test_test_connection_without_details_is_400(self, client):

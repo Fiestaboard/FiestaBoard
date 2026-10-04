@@ -56,7 +56,7 @@ from src.outputs.author_kit import (
     validate_board_host_is_local_network,
 )
 from src.outputs.cells import cells_from_codes
-from src.outputs.hooks import OutputActionError, ReadBack
+from src.outputs.hooks import ActionContext, OutputActionError, OutputStatus, ReadBack
 from src.outputs.http import OutputHttp, RequestCancelled
 from src.outputs.plugin_base import (
     ActionField,
@@ -92,6 +92,7 @@ from .sources import (
 
 __all__ = [
     "INSTANCE_SEPARATOR",
+    "ActionContext",
     "ActionField",
     "ActionOutcome",
     "BoardToken",
@@ -109,6 +110,7 @@ __all__ = [
     "OutputHostBlocked",
     "OutputHttp",
     "OutputPluginBase",
+    "OutputStatus",
     "PluginBase",
     "PluginLoader",
     "PluginManifest",
