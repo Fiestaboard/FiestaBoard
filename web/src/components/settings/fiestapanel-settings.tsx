@@ -371,7 +371,9 @@ export function FiestaPanelSettings() {
       )}
 
       <Dialog open={editor !== null} onOpenChange={(open) => !open && setEditor(null)}>
-        <DialogContent>
+        {/* The editor outgrew a short viewport with the render-style choice:
+            scroll inside the dialog, so Save is always reachable. */}
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           {editor && (
             <>
               <DialogHeader>
