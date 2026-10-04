@@ -6,7 +6,7 @@ keywords: [FiestaBoard development, Home Assistant, local testing, Docker, dev c
 
 # Local Home Assistant for Development
 
-Use this setup to test the [Home Assistant plugin](/docs/plugins/home-assistant) locally without a real Home Assistant server. The FiestaBoard dev container connects to a Home Assistant container on the same Docker network.
+Use this setup to test the [Home Assistant plugin](/plugins/detail?id=home_assistant) locally without a real Home Assistant server. The FiestaBoard dev container connects to a Home Assistant container on the same Docker network.
 
 **This is for local development only.** Only the FiestaBoard dev container is intended to talk to this Home Assistant instance.
 

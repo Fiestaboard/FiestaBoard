@@ -435,7 +435,7 @@ Full documentation is at **[fiestaboard.app](https://fiestaboard.app)**, includi
 
 - **[Beginner's Guide](https://fiestaboard.app/docs/setup/beginners-guide)** - Step-by-step for non-technical users
 - **[Your First 10 Minutes](https://fiestaboard.app/docs/setup/first-10-minutes)** - What to do right after setup
-- **[Plugin Configuration](https://fiestaboard.app/docs/plugins/configuration)** - Enable and configure data sources
+- **[Plugin Directory](https://fiestaboard.app/plugins)** - Browse every plugin and its setup guide
 - **[Schedule Mode](https://fiestaboard.app/docs/features/schedule)** - Automate your display
 - **[Raspberry Pi Deployment](https://fiestaboard.app/docs/deployment/raspberry-pi)** - Always-on setup
 - **[Plugin Development Guide](https://fiestaboard.app/docs/development/plugin-guide)** - Build your own plugins

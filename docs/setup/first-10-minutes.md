@@ -152,10 +152,10 @@ Now that you have the basics down, here are some things to explore:
 
 Head to the **Integrations** page and set up plugins that need API keys. These are the most popular:
 
-- **[Weather](/docs/plugins/weather)** - Free API key from weatherapi.com (1 million calls/month free)
-- **[Stocks](/docs/plugins/configuration)** - Works without an API key; optional Finnhub key for better search
-- **[Sports Scores](/docs/plugins/sports-scores)** - Works without an API key
-- **[Traffic](/docs/plugins/traffic)** - Requires a Google Routes API key (free tier available)
+- **[Weather](/plugins/detail?id=weather)** - Free API key from weatherapi.com (1 million calls/month free)
+- **[Stocks](/plugins/detail?id=stocks)** - Works without an API key; optional Finnhub key for better search
+- **[Sports Scores](/plugins/detail?id=sports_scores)** - Works without an API key
+- **[Traffic](/plugins/detail?id=traffic)** - Requires a Google Routes API key (free tier available)
 
 ### Design more pages
 
@@ -166,4 +166,4 @@ Create pages for different moods and times of day. Mix and match plugin variable
 - **[Color Guide](/docs/reference/color-guide)** - Add colored tiles to your pages
 - **[Character Codes](/docs/reference/character-codes)** - Special characters available on the board
 - **[Schedule Mode](/docs/features/schedule)** - Advanced scheduling with day patterns
-- **[All Plugins](/docs/plugins/overview)** - Full list of all 50+ plugins
+- **[All Plugins](/plugins)** - Full list of all 50+ plugins

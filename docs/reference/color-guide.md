@@ -88,4 +88,4 @@ In the WYSIWYG editor, color tiles can be inserted using their character codes. 
 
 - [Character Codes](/docs/reference/character-codes) - Full character reference
 - [Page Editor](/docs/features/page-editor) - Creating colored content
-- [Weather Plugin](/docs/plugins/weather) - Temperature-based color rules
+- [Weather Plugin](/plugins/detail?id=weather) - Temperature-based color rules
