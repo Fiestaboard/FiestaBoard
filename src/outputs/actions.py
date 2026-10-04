@@ -17,7 +17,12 @@ discover, identify, detect size, or the output's own, such as Vestaboard's
   saved). Nothing is stored, so a ``"***"`` is refused.
 
 An action must be **declared** by the output; its ``input`` is checked
-against the declared ``input_schema`` (hidden fields not validated). Every
+against the declared ``input_schema`` (hidden fields not validated). One
+input is generic: ``hint_host`` (:data:`~src.outputs.hooks.HINT_HOST`), the
+private IPv4 address the user opened FiestaBoard at, which the web UI sends
+with every scan. Any action accepts it; ``discover`` receives it (a
+non-private value is refused), an action that declares it receives it as its
+schema checks it, and any other action never sees it. Every
 output answers through its plugin class's
 :meth:`~src.outputs.plugin_base.OutputPluginBase.handle_action`, the
 first-party ones included (core holds no device's actions, Phase 4 P4e),
@@ -49,12 +54,14 @@ from typing import Any
 
 from .errors import BoardNotFoundError, InvalidActionInputError, InvalidOutputConfigError, OutputNotInstalledError
 from .hooks import (
+    HINT_HOST,
     ActionContext,
     ActionField,
     ActionOutcome,
     OutputActionError,
     OutputActionSpec,
     UnknownOutputAction,
+    lan_hint,
 )
 from .output_config import validate_output_config
 from .plugin_registration import OutputPluginsDisabledError, output_plugins_enabled
@@ -85,14 +92,37 @@ def _spec(definition: OutputDefinition, action: str) -> OutputActionSpec:
     return spec
 
 
+def _declares(spec: OutputActionSpec, name: str) -> bool:
+    properties = spec.input_schema.get("properties") if spec.input_schema is not None else None
+    return isinstance(properties, Mapping) and name in properties
+
+
 def _checked_input(spec: OutputActionSpec, inputs: dict[str, Any]) -> dict[str, Any]:
+    # The network hint (HINT_HOST) is a generic input every action accepts:
+    # the web UI sends it with every scan, for every output. An action that
+    # declares it gets it as its schema checks it; ``discover`` gets it as a
+    # private IPv4 address; any other action never sees it.
+    hint = inputs.pop(HINT_HOST, None)
+    if _declares(spec, HINT_HOST):
+        if hint is not None:
+            inputs[HINT_HOST] = hint
+        hint = None
+    elif hint not in (None, ""):
+        hint = lan_hint(hint)
+        if hint is None:
+            raise InvalidActionInputError(f"{HINT_HOST} must be a private IPv4 address")
+    else:
+        hint = None
     if spec.input_schema is None:
         if inputs:
             raise InvalidActionInputError(f"Action '{spec.id}' takes no input")
-        return {}
-    errors = [e.replace("output_config", "input", 1) for e in validate_output_config(inputs, spec.input_schema)]
-    if errors:
-        raise InvalidActionInputError("; ".join(errors))
+        inputs = {}
+    else:
+        errors = [e.replace("output_config", "input", 1) for e in validate_output_config(inputs, spec.input_schema)]
+        if errors:
+            raise InvalidActionInputError("; ".join(errors))
+    if hint is not None and spec.id == "discover":
+        inputs[HINT_HOST] = hint
     return inputs
 
 
