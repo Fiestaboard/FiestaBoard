@@ -365,9 +365,7 @@ export function OAuthConnectionPanel({
               {connection.app_setup_url && (
                 <SetupLink href={connection.app_setup_url}>{t("setupOpenDeveloperPage", { provider })}</SetupLink>
               )}
-              {appFields?.setupGuideUrl && (
-                <SetupLink href={appFields.setupGuideUrl}>{t("setupOpenGuide")}</SetupLink>
-              )}
+              {appFields?.setupGuideUrl && <SetupLink href={appFields.setupGuideUrl}>{t("setupOpenGuide")}</SetupLink>}
             </Flex>
           )}
         </Stack>
@@ -380,10 +378,7 @@ export function OAuthConnectionPanel({
             </Text>
             <Flex align="center" gap="1" className="rounded-md border bg-background py-1 pl-2.5 pr-1">
               <Code className="min-w-0 flex-1 break-all bg-transparent px-0 py-0">{data.redirect_uri}</Code>
-              <CopyButton
-                value={data.redirect_uri}
-                labels={{ copy: t("copyRedirectUri"), copied: t("copied") }}
-              />
+              <CopyButton value={data.redirect_uri} labels={{ copy: t("copyRedirectUri"), copied: t("copied") }} />
             </Flex>
           </Stack>
         </ListItem>
