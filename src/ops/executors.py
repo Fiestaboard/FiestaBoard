@@ -812,6 +812,8 @@ def _settle_send(
     """
     outcome = SendOutcome.of(outcome)
     if not outcome.success:
+        if outcome.partial:
+            return _partial_refusal(outcome)
         return err(failure)
     if not outcome.was_sent:
         throttled = _throttle_refusal(outcome, target.board_id)
@@ -822,6 +824,27 @@ def _settle_send(
         return ok(unchanged, skipped=True, board_id=target.board_id)
     _after_send(target)
     return ok(success, board_id=target.board_id, **fields)
+
+
+def _partial_refusal(outcome: SendOutcome) -> dict[str, Any]:
+    """A write that reached only part of the board (a WriteResult with ``partial``).
+
+    Not a plain failure — the healthy parts now show the new content and the
+    failed ones the old — and not a success. The message says so on its own
+    (the MCP boundary relays only ``error``); ``partial`` and
+    ``failed_regions`` ride alongside for a front door that maps them (``/v1``
+    answers 502 with both). Retrying is safe: only the failed parts are
+    re-sent.
+    """
+    regions = [region.as_dict() for region in outcome.failed_regions]
+    count = len(regions)
+    noun = "section" if count == 1 else "sections"
+    return err(
+        f"The board only partly updated: {count} {noun} of the board did not take the new content "
+        "(the rest did). Sending again retries only what failed.",
+        partial=True,
+        failed_regions=regions,
+    )
 
 
 def _after_send(target: _SendTarget) -> None:

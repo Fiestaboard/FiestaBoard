@@ -47,7 +47,7 @@ from collections.abc import Callable
 from .board_guards import _board_is_paused  # noqa: F401  (re-export: pre-move patch target)
 from .board_guards import primary_board_entry as _primary_board_entry  # noqa: F401  (same)
 from .devices import dimensions_of, resolve_dimensions
-from .main import DisplayService
+from .main import UNCONFIGURED_BOARD_ERROR, DisplayService
 from .settings.service import get_settings_service
 
 logger = logging.getLogger(__name__)
@@ -271,6 +271,35 @@ def _get_board_client():
     if service and service.vb_client:
         return service.vb_client
     return None
+
+
+def live_driver(board_id: str | None):
+    """The board's LIVE driver — bound to its ``OutputRuntime`` — or ``None``.
+
+    ``board_id`` ``None`` means the primary board. ``None`` comes back when
+    there is no service, or the board has no live runtime (not configured,
+    or its connection failed to build: see ``DisplayService.board_init_errors``).
+    Every write through it is a write of the board's runtime: it preempts a
+    running transition, takes the send lock, and lands in the board's frame
+    cache and send floor, exactly as an engine send does.
+    """
+    service = get_service()
+    if service is None:
+        return None
+    rt = service.runtime_for(board_id)
+    return rt.client if rt is not None else None
+
+
+def board_build_error(board_id: str | None) -> str | None:
+    """Why the runtime factory refused to build *board_id*'s driver, or ``None``.
+
+    ``None`` too when the board simply has no usable connection (missing
+    host, key or token) — that is "not configured", not a refusal.
+    """
+    service = peek_service()
+    errors = getattr(service, "board_init_errors", None)
+    reason = errors.get(board_id) if isinstance(errors, dict) else None
+    return None if reason == UNCONFIGURED_BOARD_ERROR else reason
 
 
 def _primary_connection_info() -> tuple[str, str]:

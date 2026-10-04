@@ -135,6 +135,29 @@ manifest entry; the cost of a false negative is a shipped 200-on-failure.
   there is a 503 and an unexpected error is a 500.
 - Missing resource → **404**; conflict (duplicate id, env-pinned resource) →
   **409**; feature unavailable / dependency down → **503**.
+- **A write that reached only part of a board → 502 with a structured
+  detail.** A board can be several devices (a local note array is one Note
+  per tile), and one can fail while the rest take their slice. That is
+  neither a success (some of the board still shows the old content) nor a
+  plain failure (some of it changed), so it gets neither a 200 nor the bare
+  500 it used to (wire-goldens finding A4.3). The failure is upstream — the
+  device the server wrote to on the caller's behalf — hence 502, and the
+  detail is an object, per the error contract below:
+
+  ```json
+  {"detail": {"message": "The board only partly updated: …",
+              "partial": true,
+              "failed_regions": [{"row": 0, "col": 15, "rows": 3, "cols": 15}]}}
+  ```
+
+  `failed_regions` are rectangles of board cells (0-based), the cells that
+  did not update. Sending the same content again is safe and retries only
+  those. Declared with `errors(..., 502, models={502: PartialWriteError})`
+  (`src/v1/models.py`), so the schema publishes the object shape, not the
+  string one. Served by `POST /v1/boards/{board}/message`; the deprecated
+  `POST /send-message` keeps its historical 500 (see "Deprecation, never
+  deletion"). Driver-side, the verdict is a `WriteResult` with `partial`
+  and `failed_regions` (`src/send_outcome.py`).
 
 ## Error contract
 
@@ -144,7 +167,11 @@ an object with a `message` string plus named fields — never a bare string in
 one endpoint and a dict in its sibling. No stringified tracebacks in any
 response (CodeQL also enforces this).
 
-**Declare it with `errors()`, never a hand-written dict.** `src/api_errors.py`
+**Declare it with `errors()`, never a hand-written dict.** A code whose
+detail is structured passes its model as an override —
+`errors(500, 502, models={502: PartialWriteError})` — so the published schema
+matches the object the route sends; an override for a code the call does not
+declare is refused. `src/api_errors.py`
 is what attaches `model=ErrorResponse` to each declared code (except 422, see
 below); a domain that hand-rolls its `responses=` publishes the codes with
 *no* body in the OpenAPI schema, and its inline descriptions drift from the

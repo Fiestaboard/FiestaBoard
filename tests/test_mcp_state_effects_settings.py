@@ -491,7 +491,7 @@ def test_detect_board_size_classifies_the_live_grid(mcp, services, two_boards, r
         def read_current_message(self):
             return [[0] * 15 for _ in range(3)]
 
-    with patch("src.api_server.board_client_from_board_dict", return_value=_Probe()):
+    with patch("src.settings.routes._live_board_driver", return_value=_Probe()):
         result = assert_ok(call(mcp, "detect_board_size", board_id="board-main"), "detect_board_size")
 
     assert (result["device_type"], result["rows"], result["cols"]) == ("note", 3, 15)
@@ -545,7 +545,13 @@ def test_identify_tile_flashes_the_configured_tile(mcp, services, two_boards, ru
             flashed.append((self.host, pattern))
             return (True, True)
 
-    with patch("src.board_client.BoardClient", _TileClient):
+    # Saved tiles are flashed through the board's LIVE driver: build it the
+    # way the service does (the runtime factory), over fake tile clients.
+    from src.outputs.factory import build_driver
+
+    with patch("src.note_array_local_client.BoardClient", _TileClient):
+        live = build_driver(_board(two_boards, "board-array"))
+    with patch("src.settings.routes._live_board_driver", return_value=live):
         result = assert_ok(call(mcp, "identify_tile", board_id="board-array", row=0, col=1), "identify_tile")
 
     assert [host for host, _ in flashed] == ["192.0.2.22"]
@@ -978,7 +984,7 @@ def test_boundary_backed_read_tools_leave_every_store_untouched(mcp, services, t
 
     before = _persisted_files(tmp_path)
     with (
-        patch("src.api_server.board_client_from_board_dict", return_value=_Probe()),
+        patch("src.settings.routes._live_board_driver", return_value=_Probe()),
         patch("src.system.update_service._perform_update_check", side_effect=_check),
         patch("src.ai.generator.test_provider", side_effect=_probe),
         patch("src.network_diagnostics.run_full_diagnostics", side_effect=_diag),

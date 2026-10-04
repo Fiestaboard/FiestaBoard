@@ -40,6 +40,7 @@ from .models import (
     BoardUpdate,
     MessageRequest,
     MessageResponse,
+    PartialWriteError,
 )
 from .router import router
 
@@ -291,12 +292,24 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
     ``retry_after_seconds`` (#1931) and is the 429 + ``Retry-After`` the
     other manual senders answer — this route used to derive that itself from
     the client after a ``skipped`` result, before the executor gated it.
-    Anything else the executor calls an error is a 500 — the 503 cases (no
-    service, no client) are checked before it is ever called, so they cannot
-    arrive here.
+    A write that reached only part of the board (``partial``, a local note
+    array with a failed tile) is a 502 whose structured detail names the
+    cells that did not update — it used to be a bare 500 indistinguishable
+    from a write that changed nothing. Anything else the executor calls an
+    error is a 500 — the 503 cases (no service, no client) are checked
+    before it is ever called, so they cannot arrive here.
     """
     if result.get("status") == "blocked":
         raise HTTPException(status_code=409, detail=str(result.get("message")))
+    if result.get("status") == "error" and result.get("partial"):
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(result.get("error")),
+                "partial": True,
+                "failed_regions": list(result.get("failed_regions") or []),
+            },
+        )
     if result.get("status") == "error":
         detail = str(result.get("error") or "Failed to send to the board.")
         retry_after = result.get("retry_after_seconds")
@@ -308,7 +321,7 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
 @router.post(
     "/boards/{board}/message",
     response_model=MessageResponse,
-    responses=errors(400, 404, 409, 429, 500, 503),
+    responses=errors(400, 404, 409, 429, 500, 502, 503, models={502: PartialWriteError}),
     summary="Put something on a board",
     description=(
         "The one way to write to a board. Send exactly one of `text` (word-wrapped for you), `lines` (one string "
@@ -318,7 +331,9 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
         "when the time is up. `board` may be a board id or the literal `primary`.\n\n"
         "`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the "
         "install's output target is UI-only and when the board already showed this exact content. A board that is "
-        "paused or inside its silence window refuses the write with 409 rather than lying about it."
+        "paused or inside its silence window refuses the write with 409 rather than lying about it. A board made "
+        "of several devices (a local note array) that takes the write on only some of them answers 502, and "
+        "`detail.failed_regions` names the cells that did not update; sending again retries only those."
     ),
 )
 async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:

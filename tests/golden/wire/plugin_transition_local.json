@@ -70,7 +70,9 @@
         "was_sent": true,
         "throttled": false,
         "retry_after_seconds": null,
-        "floor_seconds": null
+        "floor_seconds": null,
+        "partial": false,
+        "failed_regions": []
       }
     }
   ]

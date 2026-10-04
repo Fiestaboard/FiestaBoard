@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from src.api_errors import ErrorResponse, HTTPValidationError, errors
 from src.api_server import app
 from src.v1.visibility import build_internal_openapi
@@ -95,3 +97,28 @@ def test_openapi_keeps_string_shaped_body_on_hand_raised_codes():
     schema = _openapi()
     response_400 = schema["paths"]["/pages/import"]["post"]["responses"]["400"]
     assert _detail_type(schema, response_400) == "string"
+
+
+def test_a_model_override_publishes_a_structured_detail():
+    """A code whose detail is an object declares that model instead of ErrorResponse."""
+    from src.v1.models import PartialWriteError
+
+    block = errors(500, 502, models={502: PartialWriteError})
+    assert block[500]["model"] is ErrorResponse
+    assert block[502]["model"] is PartialWriteError
+
+
+def test_an_override_for_an_undeclared_code_is_refused():
+    from src.v1.models import PartialWriteError
+
+    with pytest.raises(ValueError, match="undeclared"):
+        errors(500, models={502: PartialWriteError})
+
+
+def test_openapi_publishes_the_partial_write_502_as_an_object():
+    """POST /v1/boards/{board}/message: the 502's detail is the structured object."""
+    schema = _openapi()
+    response_502 = schema["paths"]["/v1/boards/{board}/message"]["post"]["responses"]["502"]
+    body = _resolve(schema, response_502["content"]["application/json"]["schema"])
+    detail = _resolve(schema, body["properties"]["detail"])
+    assert {"message", "partial", "failed_regions"} <= set(detail["properties"])

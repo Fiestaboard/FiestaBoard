@@ -197,7 +197,7 @@ The one way to write to a board. Send exactly one of `text` (word-wrapped for yo
 
 Add `duration_minutes` to make it temporary — it reverts to your schedule, a chosen page, or a blank board when the time is up. `board` may be a board id or the literal `primary`.
 
-`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused or inside its silence window refuses the write with 409 rather than lying about it.
+`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused or inside its silence window refuses the write with 409 rather than lying about it. A board made of several devices (a local note array) that takes the write on only some of them answers 502, and `detail.failed_regions` names the cells that did not update; sending again retries only those.
 
 **Parameters**
 
@@ -236,6 +236,7 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 | `429` | [`ErrorResponse`](#schema-errorresponse) | Rate-limited — the request arrived inside a minimum interval; see Retry-After. |
 | `500` | [`ErrorResponse`](#schema-errorresponse) | The server could not complete the operation. Deliberately raised, not an unhandled error. |
+| `502` | [`PartialWriteError`](#schema-partialwriteerror) | An upstream the server called on your behalf failed. |
 | `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
 
 ### `DELETE /v1/boards/{board}/message` {#delete-v1-boards-board-message}
@@ -1264,6 +1265,17 @@ The single error body the API serves.
 |-------|------|----------|-------------|
 | `detail` | `string` | yes | — |
 
+### `FailedRegion` {#schema-failedregion}
+
+A rectangle of flaps that did not take a write, in board cells (0-based).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `row` | `integer` | yes | First row of the rectangle. |
+| `col` | `integer` | yes | First column of the rectangle. |
+| `rows` | `integer` | yes | Height in rows. |
+| `cols` | `integer` | yes | Width in columns. |
+
 ### `FormulaFunctionEntry` {#schema-formulafunctionentry}
 
 One built-in formula function, as the function picker lists it.
@@ -1495,6 +1507,29 @@ did not change the page's size.
 |-------|------|----------|-------------|
 | `page` | [`Page`](#schema-page) | yes | — |
 | `incompatible_references` | array of [`IncompatibleReference`](#schema-incompatiblereference) | no | — |
+
+### `PartialWriteDetail` {#schema-partialwritedetail}
+
+Why a write left the board half-updated.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `message` | `string` | yes | What happened, in a sentence a person can act on. |
+| `partial` | `boolean` | yes | Always true: part of the board shows the new content and part still shows the old. |
+| `failed_regions` | array of [`FailedRegion`](#schema-failedregion) | yes | The cells that did not update — for a local note array, each failed Note's 3×15 tile. |
+
+### `PartialWriteError` {#schema-partialwriteerror}
+
+The 502 a board write answers when only part of the board updated.
+
+A local note array is several devices; one tile can fail while the rest
+take their slice. That is neither a success nor a write that changed
+nothing, so the body says exactly which cells did not update. Sending
+the same content again retries only those.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `detail` | [`PartialWriteDetail`](#schema-partialwritedetail) | yes | — |
 
 ### `PluginData` {#schema-plugindata}
 

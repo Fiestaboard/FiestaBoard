@@ -367,13 +367,28 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
     ``tests/test_config_contract.py`` and
     ``tests/test_status_code_correctness.py`` pin it by value instead.
     """
-    from src.board_client import BoardClient
+    from src.outputs.factory import draft_driver
 
     api_mode, api_key, use_cloud, host = _probe_credentials(request)
 
     try:
-        # Create temporary client with provided credentials
-        client = BoardClient(api_key=api_key, host=host, use_cloud=use_cloud, skip_unchanged=False, port=request.port)
+        # A DRAFT driver for credentials that are not saved yet: built by the
+        # runtime factory's draft door, on a private runtime, never a board's
+        # live one. (Its transport details are read directly below; moving
+        # the probe behind the driver's test_connection is a later layer.)
+        draft = (
+            {"api_mode": "cloud", "cloud_key": api_key}
+            if use_cloud
+            else {
+                "api_mode": "local",
+                "local_api_key": api_key,
+                "host": host,
+                "port": request.port,
+            }
+        )
+        client = draft_driver(draft)
+        if client is None:
+            raise ValueError("no usable connection in the supplied credentials")
 
         # Test the connection directly so we can inspect HTTP status codes
         # (read_current_message() swallows errors and returns None, losing details)

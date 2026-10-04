@@ -34,7 +34,7 @@ from .outputs.runtime import OutputRuntime
 
 # TRANSITION_PLUGIN_PREFIX is re-exported: callers import it from here.
 from .outputs.transitions import TRANSITION_PLUGIN_PREFIX, Animation, transition_plugins_enabled  # noqa: F401
-from .send_outcome import SendOutcome
+from .send_outcome import FrameRegion, WriteResult
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +279,8 @@ class TransitionRenderMixin:
         with_outcome: bool,
         throttled: bool = False,
         retry_after: int | None = None,
+        partial: bool = False,
+        failed_regions: tuple[FrameRegion, ...] = (),
     ) -> Any:
         """The send's return value: the legacy pair, or the full per-call verdict.
 
@@ -287,12 +289,14 @@ class TransitionRenderMixin:
         """
         if not with_outcome:
             return (success, was_sent)
-        return SendOutcome(
+        return WriteResult(
             success,
             was_sent,
             throttled=throttled,
             retry_after_seconds=retry_after if throttled else None,
             floor_seconds=self._floor_seconds(),
+            partial=partial,
+            failed_regions=failed_regions,
         )
 
     def set_output_runtime(self, runtime: OutputRuntime) -> None:
@@ -793,15 +797,15 @@ class BoardClient(TransitionRenderMixin):
             step_interval_ms = None
             step_size = None
 
-        # The whole check-send-write section runs under the per-board send
-        # lock. render() holds the same (re-entrant) lock around its sends,
-        # but the /debug/blank, /debug/fill and /debug/info handlers call
-        # send_characters directly — and since #1826 moved handlers onto
-        # worker threads, those calls run concurrently with renders. Without
-        # the lock they interleave: crossed _last_characters writes and a
-        # double-posted send-floor window. The core floor registry's lock is
-        # always acquired under this one, never the other way round.
-        with self._output_runtime.send_lock:
+        # The whole check-send-write section is one runtime write: under the
+        # per-board send lock, and — when called directly rather than from
+        # inside render()'s run (the /debug/* writes, MQTT, identify) — a run
+        # of its own that first preempts the in-flight transition. Without
+        # the lock, direct writes interleave with renders: crossed dedupe
+        # writes and a double-posted send-floor window. The core floor
+        # registry's lock is always acquired under this one, never the other
+        # way round.
+        with self._output_runtime.write():
             self._last_send_throttled = False
             self._last_send_retry_after = None
 

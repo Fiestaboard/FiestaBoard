@@ -64,7 +64,6 @@ from src import display_runtime as runtime
 from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice
 from src.api_errors import errors
 from src.board_chars import characters_to_message
-from src.board_client import board_client_from_board_dict
 from src.board_guards import _board_dims, _require_board, _silence_active, primary_board_entry
 from src.board_guards import raise_if_paused as _raise_if_paused
 from src.board_guards import raise_if_throttled as _raise_if_throttled
@@ -293,26 +292,26 @@ async def send_welcome_message():
 
     Used by the setup wizard to confirm the board is working.
 
-    Note: This creates a fresh board client from the settings boards store
-    so any recent credential changes (setup wizard or Settings) are used.
+    Writes through the primary board's LIVE runtime — the same driver,
+    send lock, cancel token, frame cache and floor the engine uses. Saving a
+    board (setup wizard or Settings) rebuilds that runtime before the save
+    returns, so recent credential changes are always the ones used.
     """
     # Check silence mode for the board this actually writes to (the primary
     # board — the wizard has no board picker).
     _raise_if_silenced()
     _raise_if_paused()
 
-    # Create a fresh board client from the primary settings board so recent
-    # credential edits are always used. Board credentials are unified on
-    # settings.json (issue #1760): the legacy config.json copy is never read.
+    # Board credentials are unified on settings.json (issue #1760): the
+    # legacy config.json copy is never read.
     board = runtime._primary_board_entry()
-    try:
-        board_client = board_client_from_board_dict(board) if board is not None else None
-    except ValueError as e:
-        logger.error(f"Failed to create board client: {e}")
-        raise HTTPException(status_code=503, detail=f"Board not configured: {e!s}") from e
+    board_client = runtime.live_driver(board.get("id")) if board is not None else None
     if board_client is None:
-        raise HTTPException(status_code=503, detail="Board not configured: no board with a usable connection")
-    board_client.skip_unchanged = False  # Always send the welcome message
+        # Name why the live runtime could not be built, else say there is no
+        # usable connection at all.
+        reason = runtime.board_build_error(board.get("id")) if board is not None else None
+        detail = f"Board not configured: {reason or 'no board with a usable connection'}"
+        raise HTTPException(status_code=503, detail=detail)
 
     # Use custom welcome message if set, otherwise use the default
     custom_msg = (get_config_manager().get_general().get("welcome_message") or "").strip()

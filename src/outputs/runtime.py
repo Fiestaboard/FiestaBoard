@@ -104,6 +104,11 @@ class OutputRuntime:
         # board, attached by the service layer. None: such a request snaps
         # to the target (logged).
         self.transition_runner: Any | None = None
+        # Thread id of the run holding the send lock, so write() can tell a
+        # run's own frames from a write arriving from elsewhere. Only ever
+        # equal to a reader's own id if that reader set it, so the unlocked
+        # read in write() is race-free.
+        self._run_owner: int | None = None
 
     # --- frames ------------------------------------------------------------------
 
@@ -231,7 +236,31 @@ class OutputRuntime:
         with self._send_lock:
             token = threading.Event()
             self._cancel = token
-            yield token
+            outer_owner = self._run_owner
+            self._run_owner = threading.get_ident()
+            try:
+                yield token
+            finally:
+                self._run_owner = outer_owner
+
+    @contextmanager
+    def write(self) -> Iterator[threading.Event]:
+        """Enter one device write: a run of its own, unless already inside one.
+
+        A driver's plain ``send_characters`` enters here, so a direct write —
+        a debug blank, an MQTT message, an identify flash — is a runtime
+        write like any engine send: it preempts the in-flight transition and
+        takes the send lock. A frame the run itself sends (a transition's
+        frames, the snap, ``render()``'s own write) is already inside the run
+        on this thread and only re-enters the lock; preempting there would
+        cancel the very transition sending it.
+        """
+        if self._run_owner == threading.get_ident():
+            with self._send_lock:
+                yield self._cancel
+        else:
+            with self.run() as token:
+                yield token
 
     # --- transitions ---------------------------------------------------------------
 

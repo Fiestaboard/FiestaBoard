@@ -21,10 +21,13 @@ from .board_client import (
     TransitionStrategy,
 )
 from .devices import (
+    NOTE_COLS,
+    NOTE_ROWS,
     note_array_dimensions,
     slice_note_array_grid,
     stitch_note_array_grid,
 )
+from .send_outcome import FrameRegion
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +93,11 @@ class NoteArrayLocalClient(TransitionRenderMixin):
     def _dims(self):
         return note_array_dimensions(self.notes_wide, self.notes_tall)
 
+    @staticmethod
+    def _tile_region(pos: tuple[int, int]) -> FrameRegion:
+        """The cells tile *pos* (row, col in Notes) shows on the full grid."""
+        return FrameRegion(row=pos[0] * NOTE_ROWS, col=pos[1] * NOTE_COLS, rows=NOTE_ROWS, cols=NOTE_COLS)
+
     def send_text(self, text: str, force: bool = False, *, with_outcome: bool = False) -> Any:
         """Note arrays are characters-only; mirror the cloud client's refusal."""
         logger.error("send_text is not supported for note-array boards; use send_characters()")
@@ -145,52 +153,92 @@ class NoteArrayLocalClient(TransitionRenderMixin):
             logger.error("Local note array has no configured tiles; cannot send")
             return self._outcome(False, False, with_outcome=with_outcome)
 
-        if self.skip_unchanged and not force and self._frames.matches(characters):
-            logger.debug("Character array unchanged, skipping send")
-            return self._outcome(True, False, with_outcome=with_outcome)
+        # One runtime write: preempts the in-flight transition when called
+        # directly, and holds the board's send lock across the whole fan-out.
+        with self._output_runtime.write():
+            if self.skip_unchanged and not force and self._frames.matches(characters):
+                logger.debug("Character array unchanged, skipping send")
+                return self._outcome(True, False, with_outcome=with_outcome)
 
-        subgrids = slice_note_array_grid(characters, self.notes_wide, self.notes_tall)
+            subgrids = slice_note_array_grid(characters, self.notes_wide, self.notes_tall)
 
-        def send_tile(
-            pos: tuple[int, int],
-        ) -> tuple[tuple[int, int], tuple[bool, bool]]:
-            client = self.tile_clients[pos]
-            result = client.send_characters(
-                subgrids[pos],
-                strategy=strategy,
-                step_interval_ms=step_interval_ms,
-                step_size=step_size,
-                force=force,
-            )
-            return pos, result
-
-        with ThreadPoolExecutor(max_workers=min(MAX_TILE_WORKERS, len(self.tile_clients))) as pool:
-            results = dict(pool.map(send_tile, sorted(self.tile_clients)))
-
-        self.last_tile_results = results
-        failed = [pos for pos, (ok, _) in results.items() if not ok]
-        any_was_sent = any(was_sent for _, was_sent in results.values())
-
-        if failed:
-            for pos in failed:
+            def send_tile(
+                pos: tuple[int, int],
+            ) -> tuple[tuple[int, int], tuple[bool, bool]]:
                 client = self.tile_clients[pos]
-                logger.error(
-                    "Tile (row=%d, col=%d) at %s failed to accept its slice",
-                    pos[0],
-                    pos[1],
-                    getattr(client, "host", "?"),
+                result = client.send_characters(
+                    subgrids[pos],
+                    strategy=strategy,
+                    step_interval_ms=step_interval_ms,
+                    step_size=step_size,
+                    force=force,
                 )
-            # Leave the composite cache unset so the caller retries; tiles
-            # that succeeded keep their own cache and will skip the re-send.
-            return self._outcome(False, any_was_sent, with_outcome=with_outcome)
+                return pos, result
 
-        self._frames.record_sent(characters)
-        logger.info(
-            "Local note-array send complete: %d tiles updated, %d skipped (unchanged)",
-            sum(1 for _, was_sent in results.values() if was_sent),
-            sum(1 for _, was_sent in results.values() if not was_sent),
-        )
-        return self._outcome(True, any_was_sent, with_outcome=with_outcome)
+            with ThreadPoolExecutor(max_workers=min(MAX_TILE_WORKERS, len(self.tile_clients))) as pool:
+                results = dict(pool.map(send_tile, sorted(self.tile_clients)))
+
+            self.last_tile_results = results
+            failed = [pos for pos, (ok, _) in results.items() if not ok]
+            any_was_sent = any(was_sent for _, was_sent in results.values())
+
+            if failed:
+                for pos in failed:
+                    client = self.tile_clients[pos]
+                    logger.error(
+                        "Tile (row=%d, col=%d) at %s failed to accept its slice",
+                        pos[0],
+                        pos[1],
+                        getattr(client, "host", "?"),
+                    )
+                # Leave the composite cache unset so the caller retries; tiles
+                # that succeeded keep their own cache and will skip the re-send.
+                # A tile that took its slice (sent, or already showing it) while
+                # another failed leaves the board half-updated: a partial write.
+                return self._outcome(
+                    False,
+                    any_was_sent,
+                    with_outcome=with_outcome,
+                    partial=len(failed) < len(results),
+                    failed_regions=tuple(self._tile_region(pos) for pos in sorted(failed)),
+                )
+
+            self._frames.record_sent(characters)
+            logger.info(
+                "Local note-array send complete: %d tiles updated, %d skipped (unchanged)",
+                sum(1 for _, was_sent in results.values() if was_sent),
+                sum(1 for _, was_sent in results.values() if not was_sent),
+            )
+            return self._outcome(True, any_was_sent, with_outcome=with_outcome)
+
+    def identify_tiles(self, positions: list[tuple[int, int]]) -> dict[tuple[int, int], bool]:
+        """Flash each tile's slot label onto that tile only, forced.
+
+        One write of this board, under its runtime (the in-flight run is
+        preempted and the send lock held), so it never interleaves with the
+        engine's sends. Returns ``{(row, col): success}``; a position with no
+        configured tile, or whose tile raised, is ``False``.
+        """
+        from .devices import identify_pattern
+
+        def flash(pos: tuple[int, int]) -> tuple[tuple[int, int], bool]:
+            client = self.tile_clients.get(pos)
+            if client is None:
+                return pos, False
+            try:
+                success, _ = client.send_characters(identify_pattern(pos[0], pos[1], self.notes_wide), force=True)
+            except Exception as exc:  # one tile's failure must not abort the rest
+                logger.error("Identify failed for tile (%d,%d): %s", pos[0], pos[1], exc)
+                success = False
+            return pos, bool(success)
+
+        if not positions:
+            return {}
+        with (
+            self._output_runtime.write(),
+            ThreadPoolExecutor(max_workers=min(MAX_TILE_WORKERS, len(positions))) as pool,
+        ):
+            return dict(pool.map(flash, positions))
 
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
         """Read every tile and stitch the full grid.

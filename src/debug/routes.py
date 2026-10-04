@@ -43,7 +43,6 @@ from fastapi import APIRouter, HTTPException, Query
 from src import __version__, log_store
 from src import display_runtime as runtime
 from src.api_errors import errors
-from src.board_client import board_client_from_board_dict
 from src.board_guards import raise_if_throttled
 from src.board_send_executor import run_board_send
 from src.send_outcome import SendOutcome
@@ -401,16 +400,17 @@ async def debug_get_system_info():
     client = runtime._get_board_client()
     cache_status = client.get_cache_status() if client else None
 
-    # Check if board is configured: the client factory is the authority on
-    # "has a usable connection". No boards[] entry means unconfigured — the
-    # legacy config.json copy is never consulted (issue #1760).
+    # Configured = the primary board has a live runtime: the runtime factory
+    # built its driver, so it has a usable connection. No boards[] entry
+    # means unconfigured — the legacy config.json copy is never consulted
+    # (issue #1760).
     board = runtime._primary_board_entry()
     board_configured = False
     if board is not None:
         try:
-            board_configured = board_client_from_board_dict(board) is not None
+            board_configured = runtime.live_driver(board.get("id")) is not None
         except Exception as exc:
-            logger.debug("Could not evaluate board connection config: %s", exc)
+            logger.debug("Could not resolve the primary board's live runtime: %s", exc)
 
     return SystemInfoResponse(
         board_ip=board_ip,

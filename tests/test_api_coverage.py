@@ -332,29 +332,28 @@ class TestSendWelcomeMessage:
         """A configured board whose client cannot be built → 503 naming it.
 
         Was ``test_welcome_board_not_configured`` and vacuous: with an empty
-        boards store the handler never reaches
-        ``board_client_from_board_dict``, so it answered 503 from the "no board
-        with a usable connection" branch and passed with **both** patches
-        deleted. A board is configured here so the ``ValueError`` branch is the
-        one under test, and the detail is asserted so the two 503s are told
-        apart.
+        boards store the handler never reaches the client factory, so it
+        answered 503 from the "no board with a usable connection" branch and
+        passed with **both** patches deleted. A board is configured here so
+        the refused-build branch is the one under test, and the detail is
+        asserted so the two 503s are told apart.
+
+        The welcome writes through the board's live runtime, so the refusal is
+        the one the service recorded when the runtime factory refused to build
+        the board's driver.
         """
-        ss = self._settings_with_boards(
-            [
-                {
-                    "id": "b1",
-                    "device_type": "flagship",
-                    "api_mode": "local",
-                    "host": "192.168.1.100",
-                    "local_api_key": "test_key_12345",
-                }
-            ]
-        )
-        with (
-            patch("src.board_guards.Config") as mock_config,
-            patch("src.board_guards.get_settings_service", return_value=ss),
-            patch("src.board_client.BoardClient", side_effect=ValueError("no key")),
-        ):
+        from tests.live_boards import install_live_boards
+
+        board = {
+            "id": "b1",
+            "device_type": "flagship",
+            "api_mode": "local",
+            "host": "192.168.1.100",
+            "local_api_key": "test_key_12345",
+        }
+        with patch("src.board_client.BoardClient", side_effect=ValueError("no key")):
+            install_live_boards([board])
+        with patch("src.board_guards.Config") as mock_config:
             mock_config.is_silence_mode_active.return_value = False
             response = client.post("/send-welcome-message")
         assert response.status_code == 503
@@ -380,7 +379,8 @@ class TestSendWelcomeMessage:
             # src.api_server.Config steered nothing: with it, flipping every
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
-            patch("src.board_client.BoardClient") as MockBoardClient,
+            # The welcome writes through the primary board's LIVE driver.
+            patch("src.display_runtime.live_driver") as mock_live_driver,
             patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
@@ -392,7 +392,7 @@ class TestSendWelcomeMessage:
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
             board_client.render.return_value = (True, True)
-            MockBoardClient.return_value = board_client
+            mock_live_driver.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
 
@@ -428,7 +428,8 @@ class TestSendWelcomeMessage:
             # src.api_server.Config steered nothing: with it, flipping every
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
-            patch("src.board_client.BoardClient") as MockBoardClient,
+            # The welcome writes through the primary board's LIVE driver.
+            patch("src.display_runtime.live_driver") as mock_live_driver,
             patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
@@ -440,7 +441,7 @@ class TestSendWelcomeMessage:
             board_client = Mock()
             board_client.send_characters.return_value = (False, False)
             board_client.render.return_value = (False, False)
-            MockBoardClient.return_value = board_client
+            mock_live_driver.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
 
@@ -475,7 +476,8 @@ class TestSendWelcomeMessage:
             # src.api_server.Config steered nothing: with it, flipping every
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
-            patch("src.board_client.BoardClient") as MockBoardClient,
+            # The welcome writes through the primary board's LIVE driver.
+            patch("src.display_runtime.live_driver") as mock_live_driver,
             patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
@@ -487,7 +489,7 @@ class TestSendWelcomeMessage:
             board_client = Mock()
             board_client.send_characters.return_value = (True, False)
             board_client.render.return_value = (True, False)
-            MockBoardClient.return_value = board_client
+            mock_live_driver.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
 
@@ -523,7 +525,8 @@ class TestSendWelcomeMessage:
             # src.api_server.Config steered nothing: with it, flipping every
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
-            patch("src.board_client.BoardClient") as MockBoardClient,
+            # The welcome writes through the primary board's LIVE driver.
+            patch("src.display_runtime.live_driver") as mock_live_driver,
             patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
@@ -535,7 +538,7 @@ class TestSendWelcomeMessage:
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
             board_client.render.return_value = (True, True)
-            MockBoardClient.return_value = board_client
+            mock_live_driver.return_value = board_client
 
             mock_ttba.return_value = [[0] * 15 for _ in range(3)]
 
@@ -585,7 +588,8 @@ class TestSendWelcomeMessage:
             # src.api_server.Config steered nothing: with it, flipping every
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
-            patch("src.board_client.BoardClient") as MockBoardClient,
+            # The welcome writes through the primary board's LIVE driver.
+            patch("src.display_runtime.live_driver") as mock_live_driver,
             patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
@@ -597,7 +601,7 @@ class TestSendWelcomeMessage:
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
             board_client.render.return_value = (True, True)
-            MockBoardClient.return_value = board_client
+            mock_live_driver.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
 
@@ -639,7 +643,8 @@ class TestSendWelcomeMessage:
             # src.api_server.Config steered nothing: with it, flipping every
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
-            patch("src.board_client.BoardClient") as MockBoardClient,
+            # The welcome writes through the primary board's LIVE driver.
+            patch("src.display_runtime.live_driver") as mock_live_driver,
             patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
@@ -650,7 +655,7 @@ class TestSendWelcomeMessage:
 
             board_client = Mock()
             board_client.render.return_value = (True, True)
-            MockBoardClient.return_value = board_client
+            mock_live_driver.return_value = board_client
 
             mock_ttba.return_value = [[0] * 30 for _ in range(3)]
 
@@ -691,7 +696,8 @@ class TestSendWelcomeMessage:
             # src.api_server.Config steered nothing: with it, flipping every
             # stub below to True left all eight tests green.
             patch("src.board_guards.Config") as mock_config,
-            patch("src.board_client.BoardClient") as MockBoardClient,
+            # The welcome writes through the primary board's LIVE driver.
+            patch("src.display_runtime.live_driver") as mock_live_driver,
             patch("src.board_api.routes.text_to_board_array") as mock_ttba,
             patch("src.api_server.get_settings_service") as mock_ss,
             # _primary_board_entry resolves the store through src/board_guards.py
@@ -702,7 +708,7 @@ class TestSendWelcomeMessage:
 
             board_client = Mock()
             board_client.render.return_value = (True, True)
-            MockBoardClient.return_value = board_client
+            mock_live_driver.return_value = board_client
 
             mock_ttba.return_value = [[0] * 15 for _ in range(6)]
 

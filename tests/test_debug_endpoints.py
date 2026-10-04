@@ -491,6 +491,19 @@ class TestConnectionInfoSource:
     """
 
     @staticmethod
+    def _live_from(boards):
+        """``live_driver`` as the service answers it: the factory-built driver of a saved board."""
+        from tests.live_boards import live_runtimes_from
+
+        service = live_runtimes_from(lambda: boards)
+
+        def live_driver(board_id):
+            rt = service.runtime_for(board_id)
+            return rt.client if rt is not None else None
+
+        return live_driver
+
+    @staticmethod
     def _ss_with_board(board, send_to_board=False):
         ss = Mock()
         ss.should_send_to_board.return_value = send_to_board
@@ -514,6 +527,9 @@ class TestConnectionInfoSource:
             patch("src.display_runtime.get_settings_service", return_value=ss),
             patch("src.api_server.get_settings_service", return_value=ss),
             patch("src.board_guards.get_settings_service", return_value=ss),
+            # Configured = the board has a live runtime; the service builds
+            # one from the saved board with the runtime factory.
+            patch("src.display_runtime.live_driver", side_effect=self._live_from([board])),
         ):
             response = client.get("/debug/system-info")
         assert response.status_code == 200
@@ -530,6 +546,7 @@ class TestConnectionInfoSource:
             patch("src.display_runtime.get_settings_service", return_value=ss),
             patch("src.api_server.get_settings_service", return_value=ss),
             patch("src.board_guards.get_settings_service", return_value=ss),
+            patch("src.display_runtime.live_driver", side_effect=self._live_from([board])),
         ):
             response = client.get("/debug/system-info")
         assert response.status_code == 200

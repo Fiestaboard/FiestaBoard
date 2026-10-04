@@ -23,6 +23,8 @@ Covers three behaviors added in issue #1754:
 
 import threading
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from unittest.mock import Mock, patch
 
 import pytest
@@ -59,12 +61,26 @@ def _ok_response() -> Mock:
 
 
 def _no_cancel(client: BoardClient) -> Mock:
-    """Replace the client's cancel event with one that never fires.
+    """Make every run on the client's runtime use a cancel event that never fires.
+
+    A direct ``send_characters`` is a runtime write: it starts a run of its
+    own, which mints a fresh token (``OutputRuntime.write``), so swapping the
+    current token beforehand would not reach its backoff. The run itself is
+    replaced instead — same lock, the fake as its token.
 
     Returns the mock so tests can observe backoff waits without sleeping.
     """
     fake_event = Mock(spec=threading.Event)
     fake_event.wait.return_value = False
+    runtime = client._output_runtime
+
+    @contextmanager
+    def run() -> Iterator[Mock]:
+        with runtime.send_lock:
+            runtime.cancel_event = fake_event
+            yield fake_event
+
+    runtime.run = run
     client._cancel_transition = fake_event
     return fake_event
 
@@ -195,9 +211,8 @@ class TestConnectionRetry:
 
     @patch("src.board_client.requests.post")
     def test_cancel_during_backoff_abandons_retry(self, mock_post, client):
-        cancel = Mock(spec=threading.Event)
+        cancel = _no_cancel(client)
         cancel.wait.return_value = True  # cancel fires during the backoff
-        client._cancel_transition = cancel
         mock_post.side_effect = requests.exceptions.ConnectionError("unreachable")
 
         result = client.send_characters(_flagship_grid(1))

@@ -170,7 +170,28 @@ Names you will meet:
   `TransitionRunner` sends each frame through the driver's plain send under
   the run's cancel token, paced by the driver's declared floor. Every driver
   today is `"stream"` (frame-at-a-time); `"sequence"` (one timed upload)
-  is reserved for the first device that needs it.
+  is reserved for the first device that needs it. A driver's plain
+  `send_characters` is a runtime write too (`OutputRuntime.write()`): called
+  from outside a run — a debug blank, an MQTT message, an identify flash —
+  it preempts the in-flight transition and takes the lock; called from
+  inside one (a transition's frames) it only re-enters the lock.
+- **The runtime factory** (`src/outputs/factory.py`) — the only place a
+  driver is built. `build_driver()` is for saved boards and is called only
+  by `DisplayService` when it builds a board's live runtime; every route,
+  executor and integration reaches a saved board through
+  `DisplayService.runtime_for(board_id)` (or `display_runtime.live_driver`),
+  so the welcome message, the live editor, detect-size, identify and the
+  debug probes share the engine's lock, cancel token, frame cache and floor.
+  `draft_driver()` is for connection details that are not saved yet (the
+  credential probe, identify of an unassigned tile): a throwaway on a
+  private runtime. `tests/test_runtime_for_board.py` holds construction
+  sites outside the factory at zero.
+- **`WriteResult`** (`src/send_outcome.py`; `SendOutcome` is an alias) —
+  a write's verdict: `(success, was_sent)`, the throttle verdict, and
+  `partial` + `failed_regions` for a write that reached only part of the
+  board (a local note array with a failed tile). `POST /v1/boards/{board}/message`
+  answers such a write 502 with the regions in a structured detail
+  (API_CONVENTIONS.md).
 - **The send floor** (`src/outputs/floor.py`) — the minimum spacing between
   writes to one *device* (15 s for Vestaboard's RW and note-array Cloud
   APIs; local boards are unfloored). A driver declares the length

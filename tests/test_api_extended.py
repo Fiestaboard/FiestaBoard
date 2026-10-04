@@ -1074,9 +1074,8 @@ class TestTemplateEndpoints:
         assert response.status_code == 400
 
     def test_render_template_live_success(self, client, mock_template_engine, mock_settings_service):
-        with patch("src.templates.routes.board_client_from_board_dict") as mock_bcfbd:
+        with patch("src.templates.routes.live_driver") as mock_bcfbd:
             mock_board_client = Mock()
-            mock_board_client.send_characters.return_value = (True, True)
             mock_board_client.render.return_value = (True, True)
             mock_bcfbd.return_value = mock_board_client
             response = client.post(
@@ -1114,9 +1113,9 @@ class TestTemplateEndpoints:
         board_settings.boards = [na_board]
         mock_settings_service.get_board_settings.return_value = board_settings
 
-        with patch("src.templates.routes.board_client_from_board_dict") as mock_bcfbd:
+        with patch("src.templates.routes.live_driver") as mock_bcfbd:
             mock_client = Mock()
-            mock_client.send_characters.return_value = (True, True)
+            mock_client.render.return_value = (True, True)
             mock_bcfbd.return_value = mock_client
             response = client.post(
                 "/templates/render/live",
@@ -1125,7 +1124,7 @@ class TestTemplateEndpoints:
 
         assert response.status_code == 200, response.text
         assert response.json()["sent_to_board"] is True
-        sent_grid = mock_client.send_characters.call_args.args[0]
+        sent_grid = mock_client.render.call_args.args[0]
         assert len(sent_grid) == 3, f"expected 3 rows for 4-wide note array, got {len(sent_grid)}"
         assert all(len(row) == 60 for row in sent_grid), "expected 60 cols (4 notes × 15) per row"
 
@@ -1148,7 +1147,7 @@ class TestTemplateEndpoints:
 
     def test_render_template_live_board_not_found(self, client, mock_template_engine, mock_settings_service):
         mock_settings_service.get_board_settings.return_value = Mock(boards=[{"id": "b1", "device_type": "flagship"}])
-        with patch("src.templates.routes.board_client_from_board_dict", return_value=None):
+        with patch("src.templates.routes.live_driver", return_value=None):
             response = client.post(
                 "/templates/render/live",
                 json={
