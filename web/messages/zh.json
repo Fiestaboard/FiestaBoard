@@ -696,6 +696,28 @@
         "useApiKey": "改用 API 密钥",
         "saveFirst": "保存更改后，在此登录 {provider}。",
         "panelTitle": "{provider} 登录"
+      },
+      "add": {
+        "title": "哪种提供方？",
+        "signInTitle": "登录",
+        "signInDescription": "使用你的 ChatGPT、OpenRouter 或 Hugging Face 账户。无需复制 API 密钥。",
+        "apiKeyTitle": "使用 API 密钥",
+        "apiKeyDescription": "粘贴来自 OpenAI、Anthropic、Groq、DeepSeek、Mistral 等的密钥。",
+        "localTitle": "在我的网络中运行",
+        "localDescription": "你自己电脑上的模型服务器：Ollama、LM Studio、llama.cpp 或 vLLM。",
+        "advancedTitle": "高级（自定义端点）",
+        "advancedDescription": "任何兼容 OpenAI 或 Anthropic 的端点。所有设置都由你填写。",
+        "signInPick": "登录方式",
+        "apiKeyPick": "哪项服务？",
+        "localPick": "哪台服务器？",
+        "back": "返回",
+        "cancel": "取消"
+      },
+      "simple": {
+        "advancedToggle": "高级",
+        "addressLabel": "服务器地址",
+        "addressDescription": "模型服务器监听的位置。localhost 指这块面板本身；如果服务器运行在另一台电脑上，请使用那台电脑的地址，例如 http://192.168.1.20:11434/v1。",
+        "modelsAfterSave": "保存更改后即可从提供方的模型中选择。"
       }
     },
     "backup": {

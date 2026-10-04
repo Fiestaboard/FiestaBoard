@@ -696,6 +696,28 @@
         "useApiKey": "Использовать API-ключ",
         "saveFirst": "Сохраните изменения, затем войдите в {provider} здесь.",
         "panelTitle": "Вход в {provider}"
+      },
+      "add": {
+        "title": "Какой тип провайдера?",
+        "signInTitle": "Войти",
+        "signInDescription": "Используйте аккаунт ChatGPT, OpenRouter или Hugging Face. Копировать API-ключ не нужно.",
+        "apiKeyTitle": "Использовать API-ключ",
+        "apiKeyDescription": "Вставьте ключ от OpenAI, Anthropic, Groq, DeepSeek, Mistral и других.",
+        "localTitle": "Запустить в моей сети",
+        "localDescription": "Сервер моделей на вашем компьютере: Ollama, LM Studio, llama.cpp или vLLM.",
+        "advancedTitle": "Расширенный (свой эндпоинт)",
+        "advancedDescription": "Любой эндпоинт, совместимый с OpenAI или Anthropic. Все настройки вы заполняете сами.",
+        "signInPick": "Войти через",
+        "apiKeyPick": "Какой сервис?",
+        "localPick": "Какой сервер?",
+        "back": "Назад",
+        "cancel": "Отмена"
+      },
+      "simple": {
+        "advancedToggle": "Дополнительно",
+        "addressLabel": "Адрес сервера",
+        "addressDescription": "Где слушает сервер моделей. localhost означает само это табло; если сервер работает на другом компьютере, укажите его адрес, например http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Сохраните изменения, чтобы выбрать из моделей провайдера."
       }
     },
     "backup": {

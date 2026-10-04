@@ -696,6 +696,28 @@
         "useApiKey": "대신 API 키 사용",
         "saveFirst": "변경 사항을 저장한 다음 여기에서 {provider}에 로그인하세요.",
         "panelTitle": "{provider} 로그인"
+      },
+      "add": {
+        "title": "어떤 종류의 제공자인가요?",
+        "signInTitle": "로그인",
+        "signInDescription": "ChatGPT, OpenRouter 또는 Hugging Face 계정을 사용합니다. 복사할 API 키가 없습니다.",
+        "apiKeyTitle": "API 키 사용",
+        "apiKeyDescription": "OpenAI, Anthropic, Groq, DeepSeek, Mistral 등의 키를 붙여 넣습니다.",
+        "localTitle": "내 네트워크에서 실행",
+        "localDescription": "내 컴퓨터의 모델 서버: Ollama, LM Studio, llama.cpp 또는 vLLM.",
+        "advancedTitle": "고급(사용자 지정 엔드포인트)",
+        "advancedDescription": "OpenAI 호환 또는 Anthropic 엔드포인트 모두 가능. 모든 설정을 직접 입력합니다.",
+        "signInPick": "로그인할 서비스",
+        "apiKeyPick": "어떤 서비스인가요?",
+        "localPick": "어떤 서버인가요?",
+        "back": "뒤로",
+        "cancel": "취소"
+      },
+      "simple": {
+        "advancedToggle": "고급",
+        "addressLabel": "서버 주소",
+        "addressDescription": "모델 서버가 수신하는 위치입니다. localhost는 이 보드 자체를 뜻합니다. 서버가 다른 컴퓨터에서 실행된다면 http://192.168.1.20:11434/v1처럼 그 컴퓨터의 주소를 사용하세요.",
+        "modelsAfterSave": "변경 사항을 저장하면 제공자의 모델에서 고를 수 있습니다."
       }
     },
     "backup": {

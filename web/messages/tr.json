@@ -696,6 +696,28 @@
         "useApiKey": "Bunun yerine API anahtarını kullan",
         "saveFirst": "Değişiklikleri kaydedin, ardından burada {provider} oturumunu açın.",
         "panelTitle": "{provider} oturumu"
+      },
+      "add": {
+        "title": "Ne tür bir sağlayıcı?",
+        "signInTitle": "Oturum aç",
+        "signInDescription": "ChatGPT, OpenRouter veya Hugging Face hesabınızı kullanın. Kopyalanacak API anahtarı yok.",
+        "apiKeyTitle": "API anahtarı kullan",
+        "apiKeyDescription": "OpenAI, Anthropic, Groq, DeepSeek, Mistral ve diğerlerinden bir anahtar yapıştırın.",
+        "localTitle": "Kendi ağımda çalıştır",
+        "localDescription": "Kendi bilgisayarınızda bir model sunucusu: Ollama, LM Studio, llama.cpp veya vLLM.",
+        "advancedTitle": "Gelişmiş (özel uç nokta)",
+        "advancedDescription": "OpenAI uyumlu ya da Anthropic herhangi bir uç nokta. Tüm ayarları siz doldurursunuz.",
+        "signInPick": "Şununla oturum aç",
+        "apiKeyPick": "Hangi hizmet?",
+        "localPick": "Hangi sunucu?",
+        "back": "Geri",
+        "cancel": "İptal"
+      },
+      "simple": {
+        "advancedToggle": "Gelişmiş",
+        "addressLabel": "Sunucu adresi",
+        "addressDescription": "Model sunucusunun dinlediği yer. localhost bu panonun kendisidir; sunucu başka bir bilgisayarda çalışıyorsa o bilgisayarın adresini kullanın, örneğin http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Sağlayıcının modelleri arasından seçmek için değişiklikleri kaydedin."
       }
     },
     "backup": {

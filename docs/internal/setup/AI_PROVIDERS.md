@@ -39,7 +39,7 @@ section).
 
 ## Quick setup with preset pills
 
-In **Settings → AI Providers**, the **Quick presets** row gives you one-click pills for every supported provider, grouped into **Cloud** and **Local**. Clicking a pill auto-fills the **Name**, **Base URL**, and **Protocol** for that provider — you only have to paste your API key and add the model ids you want.
+In **Settings → AI Providers**, **Add provider** first asks what kind of provider it is: **Sign in** (ChatGPT, OpenRouter, Hugging Face; saved at once, then the sign-in panel and **Load models**), **Use an API key** (a cloud preset: key and model only), **Run it on my network** (a local preset: editable server address and model), or **Advanced (custom endpoint)** (the full form, whose **Quick presets** pills auto-fill **Name**, **Base URL**, and **Protocol**). A saved provider opens in the view matching its fields (`providerSetupKind` in `ai-settings.tsx`), with the rest of the form under **Advanced**; nothing is stored to record the kind.
 
 The current preset list, sourced from `web/src/components/settings/ai-settings.tsx`:
 
@@ -50,7 +50,7 @@ The current preset list, sourced from `web/src/components/settings/ai-settings.t
 
 1. Open **Settings → AI Providers**.
 2. Toggle the top switch to **Enabled**.
-3. Click **Add provider** and fill in:
+3. Click **Add provider**, choose **Advanced (custom endpoint)** for the full form, and fill in:
    - **Name** — any label, e.g. `OpenRouter` or `Claude`.
    - **Protocol** — pick `OpenAI-compatible` or `Anthropic`. The
      quick-pick buttons below also set this for you.

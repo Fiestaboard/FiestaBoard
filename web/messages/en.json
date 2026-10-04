@@ -652,6 +652,28 @@
         "useApiKey": "Use the API key instead",
         "saveFirst": "Save changes, then sign in to {provider} here.",
         "panelTitle": "{provider} sign-in"
+      },
+      "add": {
+        "title": "What kind of provider?",
+        "signInTitle": "Sign in",
+        "signInDescription": "Use your ChatGPT, OpenRouter or Hugging Face account. No API key to copy.",
+        "apiKeyTitle": "Use an API key",
+        "apiKeyDescription": "Paste a key from OpenAI, Anthropic, Groq, DeepSeek, Mistral and others.",
+        "localTitle": "Run it on my network",
+        "localDescription": "A model server on a computer you own: Ollama, LM Studio, llama.cpp or vLLM.",
+        "advancedTitle": "Advanced (custom endpoint)",
+        "advancedDescription": "Any OpenAI-compatible or Anthropic endpoint. You fill in every setting.",
+        "signInPick": "Sign in with",
+        "apiKeyPick": "Which service?",
+        "localPick": "Which server?",
+        "back": "Back",
+        "cancel": "Cancel"
+      },
+      "simple": {
+        "advancedToggle": "Advanced",
+        "addressLabel": "Server address",
+        "addressDescription": "Where the model server listens. localhost means this board itself; if the server runs on another computer, use that computer's address, such as http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Save changes to pick from the provider's models."
       }
     },
     "backup": {

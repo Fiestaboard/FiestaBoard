@@ -696,6 +696,28 @@
         "useApiKey": "Usar a chave de API",
         "saveFirst": "Salve as alterações e depois entre no {provider} aqui.",
         "panelTitle": "Login do {provider}"
+      },
+      "add": {
+        "title": "Que tipo de provedor?",
+        "signInTitle": "Entrar",
+        "signInDescription": "Use a sua conta do ChatGPT, OpenRouter ou Hugging Face. Sem chave de API para copiar.",
+        "apiKeyTitle": "Usar uma chave de API",
+        "apiKeyDescription": "Cole uma chave da OpenAI, Anthropic, Groq, DeepSeek, Mistral e outros.",
+        "localTitle": "Executar na minha rede",
+        "localDescription": "Um servidor de modelos num computador seu: Ollama, LM Studio, llama.cpp ou vLLM.",
+        "advancedTitle": "Avançado (endpoint personalizado)",
+        "advancedDescription": "Qualquer endpoint compatível com OpenAI ou Anthropic. Você preenche cada configuração.",
+        "signInPick": "Entrar com",
+        "apiKeyPick": "Qual serviço?",
+        "localPick": "Qual servidor?",
+        "back": "Voltar",
+        "cancel": "Cancelar"
+      },
+      "simple": {
+        "advancedToggle": "Avançado",
+        "addressLabel": "Endereço do servidor",
+        "addressDescription": "Onde o servidor de modelos escuta. localhost é este próprio quadro; se o servidor roda noutro computador, use o endereço desse computador, como http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Salve as alterações para escolher entre os modelos do provedor."
       }
     },
     "backup": {

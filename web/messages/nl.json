@@ -696,6 +696,28 @@
         "useApiKey": "Toch de API-sleutel gebruiken",
         "saveFirst": "Sla de wijzigingen op en meld je hier aan bij {provider}.",
         "panelTitle": "Aanmelding bij {provider}"
+      },
+      "add": {
+        "title": "Wat voor soort provider?",
+        "signInTitle": "Aanmelden",
+        "signInDescription": "Gebruik je ChatGPT-, OpenRouter- of Hugging Face-account. Geen API-sleutel om te kopiëren.",
+        "apiKeyTitle": "Een API-sleutel gebruiken",
+        "apiKeyDescription": "Plak een sleutel van OpenAI, Anthropic, Groq, DeepSeek, Mistral en anderen.",
+        "localTitle": "Op mijn netwerk draaien",
+        "localDescription": "Een modelserver op een eigen computer: Ollama, LM Studio, llama.cpp of vLLM.",
+        "advancedTitle": "Geavanceerd (eigen endpoint)",
+        "advancedDescription": "Elk OpenAI-compatibel of Anthropic-endpoint. Je vult elke instelling zelf in.",
+        "signInPick": "Aanmelden met",
+        "apiKeyPick": "Welke dienst?",
+        "localPick": "Welke server?",
+        "back": "Terug",
+        "cancel": "Annuleren"
+      },
+      "simple": {
+        "advancedToggle": "Geavanceerd",
+        "addressLabel": "Serveradres",
+        "addressDescription": "Waar de modelserver luistert. localhost betekent dit bord zelf; draait de server op een andere computer, gebruik dan het adres van die computer, zoals http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Sla de wijzigingen op om uit de modellen van de provider te kiezen."
       }
     },
     "backup": {

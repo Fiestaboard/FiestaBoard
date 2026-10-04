@@ -696,6 +696,28 @@
         "useApiKey": "Använd API-nyckeln i stället",
         "saveFirst": "Spara ändringarna och logga sedan in på {provider} här.",
         "panelTitle": "Inloggning för {provider}"
+      },
+      "add": {
+        "title": "Vilken sorts leverantör?",
+        "signInTitle": "Logga in",
+        "signInDescription": "Använd ditt ChatGPT-, OpenRouter- eller Hugging Face-konto. Ingen API-nyckel att kopiera.",
+        "apiKeyTitle": "Använd en API-nyckel",
+        "apiKeyDescription": "Klistra in en nyckel från OpenAI, Anthropic, Groq, DeepSeek, Mistral med flera.",
+        "localTitle": "Kör det i mitt nätverk",
+        "localDescription": "En modellserver på en egen dator: Ollama, LM Studio, llama.cpp eller vLLM.",
+        "advancedTitle": "Avancerat (egen endpoint)",
+        "advancedDescription": "Valfri OpenAI-kompatibel eller Anthropic-endpoint. Du fyller i alla inställningar själv.",
+        "signInPick": "Logga in med",
+        "apiKeyPick": "Vilken tjänst?",
+        "localPick": "Vilken server?",
+        "back": "Tillbaka",
+        "cancel": "Avbryt"
+      },
+      "simple": {
+        "advancedToggle": "Avancerat",
+        "addressLabel": "Serveradress",
+        "addressDescription": "Där modellservern lyssnar. localhost betyder den här tavlan själv; om servern körs på en annan dator, använd den datorns adress, till exempel http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Spara ändringarna för att välja bland leverantörens modeller."
       }
     },
     "backup": {

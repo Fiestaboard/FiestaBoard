@@ -696,6 +696,28 @@
         "useApiKey": "代わりに API キーを使う",
         "saveFirst": "変更を保存してから、ここで {provider} にサインインしてください。",
         "panelTitle": "{provider} サインイン"
+      },
+      "add": {
+        "title": "どの種類のプロバイダーですか？",
+        "signInTitle": "サインイン",
+        "signInDescription": "ChatGPT、OpenRouter、Hugging Face のアカウントを使います。API キーのコピーは不要です。",
+        "apiKeyTitle": "API キーを使う",
+        "apiKeyDescription": "OpenAI、Anthropic、Groq、DeepSeek、Mistral などのキーを貼り付けます。",
+        "localTitle": "自分のネットワークで実行",
+        "localDescription": "自分のコンピューター上のモデルサーバー：Ollama、LM Studio、llama.cpp、vLLM。",
+        "advancedTitle": "詳細（カスタムエンドポイント）",
+        "advancedDescription": "OpenAI 互換または Anthropic の任意のエンドポイント。すべての設定を自分で入力します。",
+        "signInPick": "サインイン先",
+        "apiKeyPick": "どのサービスですか？",
+        "localPick": "どのサーバーですか？",
+        "back": "戻る",
+        "cancel": "キャンセル"
+      },
+      "simple": {
+        "advancedToggle": "詳細",
+        "addressLabel": "サーバーのアドレス",
+        "addressDescription": "モデルサーバーが待ち受けている場所です。localhost はこのボード自身を指します。別のコンピューターで動かしている場合は、http://192.168.1.20:11434/v1 のようにそのコンピューターのアドレスを使ってください。",
+        "modelsAfterSave": "変更を保存すると、プロバイダーのモデルから選べます。"
       }
     },
     "backup": {

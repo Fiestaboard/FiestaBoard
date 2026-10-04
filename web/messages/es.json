@@ -696,6 +696,28 @@
         "useApiKey": "Usar la clave API en su lugar",
         "saveFirst": "Guarda los cambios y luego inicia sesión en {provider} aquí.",
         "panelTitle": "Inicio de sesión de {provider}"
+      },
+      "add": {
+        "title": "¿Qué tipo de proveedor?",
+        "signInTitle": "Iniciar sesión",
+        "signInDescription": "Usa tu cuenta de ChatGPT, OpenRouter o Hugging Face. Sin claves de API que copiar.",
+        "apiKeyTitle": "Usar una clave de API",
+        "apiKeyDescription": "Pega una clave de OpenAI, Anthropic, Groq, DeepSeek, Mistral y otros.",
+        "localTitle": "Ejecutarlo en mi red",
+        "localDescription": "Un servidor de modelos en un ordenador tuyo: Ollama, LM Studio, llama.cpp o vLLM.",
+        "advancedTitle": "Avanzado (endpoint personalizado)",
+        "advancedDescription": "Cualquier endpoint compatible con OpenAI o con Anthropic. Tú rellenas cada ajuste.",
+        "signInPick": "Iniciar sesión con",
+        "apiKeyPick": "¿Qué servicio?",
+        "localPick": "¿Qué servidor?",
+        "back": "Atrás",
+        "cancel": "Cancelar"
+      },
+      "simple": {
+        "advancedToggle": "Avanzado",
+        "addressLabel": "Dirección del servidor",
+        "addressDescription": "Dónde escucha el servidor de modelos. localhost es este mismo tablero; si el servidor está en otro ordenador, usa la dirección de ese ordenador, como http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Guarda los cambios para elegir entre los modelos del proveedor."
       }
     },
     "backup": {
