@@ -673,37 +673,6 @@
       "setUpOutput": "Connect it, test it and save it as a board"
     },
     "boardSetup": {
-      "connectionType": "Connection Type",
-      "cloudApi": "Cloud API",
-      "cloudApiEasiest": "Easiest setup",
-      "localApi": "Local API",
-      "localApiFaster": "Faster, same network",
-      "readWriteApiKey": "Read/Write API Key",
-      "cloudKeyPlaceholder": "Get this from the Vestaboard app",
-      "cloudKeyHelp": "Found in the Vestaboard app under Settings → API",
-      "boardIpAddress": "Board IP Address",
-      "boardIpPlaceholder": "e.g., 192.168.1.100",
-      "boardIpHelp": "Enter IP manually or click to scan your network",
-      "scanNetworkTooltip": "Scan network for Vestaboards",
-      "scanningNetwork": "Scanning network for Vestaboards…",
-      "noBoardsFound": "No boards found. Enter the IP address manually.",
-      "foundBoards": "Found {count} {count, plural, one {board} other {boards}} — select one:",
-      "scanFailed": "Scan failed. Please enter the IP address manually.",
-      "authenticationMethod": "Authentication Method",
-      "apiKey": "API Key",
-      "enablementToken": "Enablement Token",
-      "localApiKey": "Local API Key",
-      "localApiKeyPlaceholder": "Your local API key",
-      "localApiKeyHelp": "See our setup guide at fiestaboard.app/docs/setup/api-keys",
-      "enablementTokenPlaceholder": "Token from vestaboard.com/local-api",
-      "enablementTokenHelp": "Request a token at vestaboard.com/local-api — see our setup guide for details",
-      "getApiKeyFromBoard": "Get API Key from Board",
-      "enablingLocalApi": "Enabling Local API...",
-      "apiKeyRetrieved": "API Key Retrieved!",
-      "testConnection": "Test Connection",
-      "testingConnection": "Testing Connection...",
-      "connectedTestAgain": "Connected! Test Again",
-      "thingsToTry": "Things to try:",
       "boardType": "Board Type",
       "flagshipDimensions": "6 × 22 characters",
       "noteDimensions": "3 × 15 characters",
@@ -713,7 +682,7 @@
       "code62DegreeAriaLabel": "Degree flap",
       "code62HeartAriaLabel": "Heart flap",
       "connectionTestFailed": "Connection test failed",
-      "failedToEnableLocalApi": "Failed to enable local API"
+      "connectedSaved": "Connected! Your board is saved."
     },
     "easyPlugins": {
       "description": "These features work right away without any external API keys. Enable what you'd like!",
@@ -971,32 +940,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "Connection",
-    "apiModeLabel": "API mode",
-    "localApiLabel": "Local API",
-    "localApiDescription": "Direct connection",
-    "cloudApiLabel": "Cloud API",
-    "cloudApiDescription": "Via cloud servers",
-    "boardHostLabel": "Board Host",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "API Key",
-    "enablementTokenLabel": "Enablement Token",
-    "localApiKeyLabel": "Local API Key",
-    "localApiKeyPlaceholder": "Enter local API key",
-    "localApiKeySetPlaceholder": "••••••••••• (set)",
-    "localApiKeyHelp": "See our setup guide at fiestaboard.app/docs/setup/api-keys",
-    "enablementTokenPlaceholder": "Token from vestaboard.com/local-api",
-    "getApiKeyFromBoard": "Get API Key from Board",
-    "enabling": "Enabling...",
-    "localApiEnabled": "Local API enabled! API key retrieved and saved.",
-    "cloudKeyLabel": "Read/Write API Key",
-    "cloudKeyPlaceholder": "Enter R/W API key",
-    "cloudKeySetPlaceholder": "••••••••••• (set)",
-    "cloudKeyHelp": "Found in the Vestaboard app under Settings → Read/Write API",
-    "localApiRequired": "Local API key and host are required",
-    "cloudApiRequired": "Cloud API key is required",
-    "noteArrayTokenRequired": "Cloud API token is required",
-    "boardHostAndTokenRequired": "Board host and enablement token are required",
     "enabledLabel": "Enabled",
     "typeLabel": "Type",
     "colorLabel": "Color",
@@ -1036,7 +979,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Note Array",
-    "failedToEnable": "Failed to enable local API",
     "deviceTypeAriaLabel": "Board type and size",
     "deviceGroupLabel": "Devices",
     "noteArrayGroupLabel": "Note arrays",
@@ -1050,55 +992,7 @@
     },
     "notesWideLabel": "Notes wide",
     "notesTallLabel": "Notes tall",
-    "customRangeError": "Each dimension must be between 1 and {max}.",
-    "noteArrayTokenLabel": "Cloud API Token",
-    "noteArrayTokenPlaceholder": "Enter X-Vestaboard-Token",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (set)",
-    "noteArrayTokenHelp": "The X-Vestaboard-Token for this Note array, from your Vestaboard Cloud API subscription.",
-    "autoDetect": "Auto-detect from board",
-    "detecting": "Detecting…",
-    "detectFailed": "Could not detect the board configuration.",
-    "showSecretAriaLabel": "Show value",
-    "hideSecretAriaLabel": "Hide value",
-    "tileGrid": {
-      "title": "Board tiles",
-      "help": "Click a slot to assign the physical board (IP + Local API key) that sits at that position on your wall. Use Identify to flash a slot number on a board and confirm it's in the right place.",
-      "assign": "Assign",
-      "assignRequired": "Assign at least one tile with its board's IP address and Local API key",
-      "completeBadge": "All {total} tiles assigned",
-      "partialBadge": "{assigned}/{total} tiles assigned",
-      "slotAriaLabelAssigned": "Tile {position}: row {row}, column {col} — assigned to {host}",
-      "slotAriaLabelEmpty": "Tile {position}: row {row}, column {col} — empty, click to assign",
-      "dialogTitle": "Tile {position} — row {row}, column {col}",
-      "dialogDescription": "Connect the physical board at this position. Scan your network or enter its IP and Local API key, then use Identify to confirm you picked the right board.",
-      "portLabel": "Port",
-      "hostAndKeyRequired": "Board IP and Local API key are both required",
-      "saveTile": "Save tile",
-      "clearTile": "Clear tile",
-      "tileSaved": "Tile saved",
-      "tileCleared": "Tile cleared",
-      "moveTile": "Move to position",
-      "movePlaceholder": "Choose a new slot…",
-      "moveTargetEmpty": "Slot {position} — empty",
-      "moveTargetOccupied": "Slot {position} — swap with {host}",
-      "tileMoved": "Tile moved to slot {position}",
-      "testTile": "Test",
-      "testSuccess": "Connection test passed",
-      "testFailed": "Connection test failed",
-      "identify": "Identify",
-      "identifyAll": "Identify all",
-      "identifySent": "Position {position} is now showing on that board",
-      "identifyAllSent": "Identify patterns sent to {count} tiles — each board now shows its position number",
-      "identifyAllPartial": "{failed} of {total} tiles could not be reached",
-      "identifyFailed": "Could not send the identify pattern",
-      "scanNetwork": "Scan network for boards",
-      "scanning": "Scanning…",
-      "scanFound": "{count} boards found on your network",
-      "scanEmpty": "No boards found on your network",
-      "scanFailed": "Network scan failed",
-      "alreadyAssigned": "Assigned to tile {position}",
-      "duplicateHostWarning": "Multiple tiles point at the same board: {hosts}"
-    }
+    "customRangeError": "Each dimension must be between 1 and {max}."
   },
   "systemUpdate": {
     "updateAvailable": "Update Available",
@@ -1930,7 +1824,8 @@
     "pagePickerLoading": "Loading pages…",
     "pagePickerPlaceholder": "Choose a page…",
     "showSecret": "Show value",
-    "hideSecret": "Hide value"
+    "hideSecret": "Hide value",
+    "secretSaved": "••••••••••• (set)"
   },
   "filterPicker": {
     "noFiltersAvailable": "No filters available",
@@ -2494,13 +2389,10 @@
     "scanning": "Searching…",
     "noDevicesFound": "No devices found. Enter the address yourself.",
     "devicesFoundLabel": "Devices found for {field}",
-    "tileSlot": "Row {row}, column {col}",
     "tileAssigned": "Assigned",
-    "tileEmpty": "Empty",
-    "tileDialogTitle": "Tile at row {row}, column {col}",
+    "tileDialogTitle": "Tile {position} — row {row}, column {col}",
     "tileDialogDescription": "Settings for the device in this position.",
     "removeTile": "Remove tile",
-    "identifyTile": "Identify",
     "actionsLabel": "Actions",
     "actionFailed": "The action could not run.",
     "resultOk": "Done",
@@ -2521,6 +2413,116 @@
     "creating": "Adding…",
     "createBoard": "Add board",
     "outputNotInstalled": "This board's display ({output}) is not installed.",
-    "saveSettings": "Save settings"
+    "saveSettings": "Save settings",
+    "tilesComplete": "All {total} tiles assigned",
+    "tilesPartial": "{assigned}/{total} tiles assigned",
+    "identifyAllTiles": "Identify all",
+    "tileAssign": "Assign",
+    "tileSlotEmpty": "Tile {position}: row {row}, column {col} — empty, click to assign",
+    "moveTile": "Move to position",
+    "movePlaceholder": "Choose a new slot…",
+    "moveTo": "Slot {position} — empty",
+    "saveTile": "Save tile",
+    "tileSlotAssigned": "Tile {position}: row {row}, column {col} — assigned to {summary}",
+    "moveSwap": "Slot {position} — swap with {summary}",
+    "tilesDuplicate": "Multiple tiles point at the same board: {values}",
+    "tileActionsLabel": "Tile actions",
+    "requiredMissing": "Still needed: {fields}",
+    "geometryApplied": "Set to {rows} × {cols}"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "Connection",
+          "cards": {
+            "local": {
+              "title": "Local API",
+              "description": "Direct connection"
+            },
+            "cloud": {
+              "title": "Cloud API",
+              "description": "Via cloud servers"
+            }
+          }
+        },
+        "host": {
+          "title": "Board IP Address",
+          "description": "Enter IP manually or click to scan your network",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "Local API Key",
+          "description": "See our setup guide at fiestaboard.app/docs/setup/api-keys",
+          "placeholder": "Your local API key"
+        },
+        "cloud_key": {
+          "title": "Read/Write API Key",
+          "description": "Found in the Vestaboard app under Settings → Read/Write API",
+          "placeholder": "Enter R/W API key"
+        },
+        "note_array_token": {
+          "title": "Cloud API Token",
+          "description": "The X-Vestaboard-Token for this Note array, from your Vestaboard Cloud API subscription.",
+          "placeholder": "Enter X-Vestaboard-Token"
+        },
+        "tiles": {
+          "title": "Board tiles",
+          "description": "Click a slot to assign the physical board (IP + Local API key) that sits at that position on your wall. Use Identify to flash a slot number on a board and confirm it's in the right place.",
+          "items": {
+            "host": {
+              "title": "Board IP Address",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "Port"
+            },
+            "local_api_key": {
+              "title": "Local API Key",
+              "placeholder": "Your local API key"
+            },
+            "enabled": {
+              "title": "Enabled"
+            }
+          }
+        },
+        "port": {
+          "title": "Port"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "Advanced"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "Test Connection"
+        },
+        "discover": {
+          "label": "Scan network for boards"
+        },
+        "identify": {
+          "label": "Identify"
+        },
+        "detect_geometry": {
+          "label": "Auto-detect from board"
+        },
+        "enable_local_api": {
+          "label": "Get API Key from Board",
+          "description": "Request a token at vestaboard.com/local-api — see our setup guide for details",
+          "input": {
+            "enablement_token": {
+              "title": "Enablement Token",
+              "placeholder": "Token from vestaboard.com/local-api"
+            },
+            "host": {
+              "title": "Board IP Address",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

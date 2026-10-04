@@ -28,10 +28,10 @@ import { toast } from "sonner";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
-import { isVisible } from "@/lib/visible-when";
+import { type BoardFacts, isVisible } from "@/lib/visible-when";
 
 import { DevicePickerField, ModeCardsField, TileGridField } from "./board-widgets";
-import { FieldScopeContext, SchemaFormPluginContext, useFieldScope } from "./field-context";
+import { FieldScopeContext, SchemaFormPluginContext, useBoardScreen, useFieldScope } from "./field-context";
 import { isJsonPathMapper, JsonPathMapperField, type JsonPathMapperUiOptions } from "./json-path-mapper-field";
 import { PagePickerField } from "./page-picker-field";
 import { RemoteOptionsField, type RemoteOptionsUiOptions } from "./remote-options-field";
@@ -71,6 +71,12 @@ interface BoardWidgetUiOptions {
   cards?: { value: string; title?: string; description?: string }[];
   rows_field?: string;
   cols_field?: string;
+  /** `"board"`: a tile-grid sized by the board's own tile layout. */
+  layout?: string;
+  /** Declared actions run on one tile from its dialog. */
+  item_actions?: string[];
+  /** Item properties that together should not repeat across tiles. */
+  unique_fields?: string[];
   action?: string;
   value_key?: string;
   label_key?: string;
@@ -93,14 +99,15 @@ interface JSONSchema {
   "ui:sections"?: SchemaSection[];
 }
 
-/** The properties of an object that are visible for its current *values*. */
+/** The properties of an object that are visible for its current *values* (and the board's *facts*). */
 function visibleEntries(
   properties: Record<string, SchemaProperty> | undefined,
   values: Record<string, unknown> | null | undefined,
+  facts?: BoardFacts,
 ): [string, SchemaProperty][] {
   const props = properties ?? {};
   return Object.entries(props).filter(([, prop]) =>
-    isVisible(prop["ui:visible_when"], values ?? {}, props as Record<string, unknown>),
+    isVisible(prop["ui:visible_when"], values ?? {}, props as Record<string, unknown>, facts),
   );
 }
 
@@ -243,7 +250,6 @@ function EnumSelectField({
 }
 
 function StringField({ name, property, value, onChange, required, disabled }: FieldProps) {
-  const tSecret = useTranslations("schemaForm");
   const [_timezoneValid, setTimezoneValid] = useState(true);
   const isPassword = property["ui:widget"] === "password" || property.secret === true;
   const isTextarea = property["ui:widget"] === "textarea";
@@ -344,15 +350,13 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
 
   if (isPassword) {
     return (
-      <SecretInput
-        id={name}
-        value={String(value || "")}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
-        placeholder={property["ui:placeholder"] || property.description}
-        disabled={disabled}
+      <SecretField
+        name={name}
+        property={property}
+        value={value}
+        onChange={onChange}
         required={required}
-        showLabel={tSecret("showSecret")}
-        hideLabel={tSecret("hideSecret")}
+        disabled={disabled}
       />
     );
   }
@@ -369,6 +373,37 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
     />
   );
 }
+
+/**
+ * A credential. A saved one reads back masked (`"***"`): the input shows
+ * empty with a "saved" placeholder and cannot be revealed (there is nothing
+ * to reveal), typing replaces it, and clearing what was typed puts the
+ * saved one back — so the form never sends an empty string for a key the
+ * user only looked at, and never sends three asterisks as a new key.
+ */
+function SecretField({ name, property, value, onChange, required, disabled }: FieldProps) {
+  const t = useTranslations("schemaForm");
+  const [wasSaved] = useState(value === MASKED_SECRET);
+  const masked = value === MASKED_SECRET;
+  return (
+    <SecretInput
+      id={name}
+      value={masked ? "" : String(value || "")}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+        onChange(e.target.value === "" && wasSaved ? MASKED_SECRET : e.target.value)
+      }
+      placeholder={masked ? t("secretSaved") : property["ui:placeholder"] || property.description}
+      revealDisabled={masked}
+      disabled={disabled}
+      required={required && !masked}
+      showLabel={t("showSecret")}
+      hideLabel={t("hideSecret")}
+    />
+  );
+}
+
+/** What the API answers for a secret that is set. */
+const MASKED_SECRET = "***";
 
 interface NumberFieldProps extends FieldProps {
   onLocationRequest?: (lat: number, lon: number) => void;
@@ -641,6 +676,7 @@ interface ArrayFieldProps extends FieldProps {
 function ArrayField({ name, property, value, onChange, disabled, itemSchema }: ArrayFieldProps) {
   const t = useTranslations("schemaForm");
   const { root } = useFieldScope();
+  const { facts } = useBoardScreen();
   const rawItems = Array.isArray(value) ? value : [];
 
   // Track items with stable IDs so React doesn't reuse component instances
@@ -731,26 +767,28 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
                 }}
               >
                 <Grid gap="3" className="p-3 border rounded-lg bg-muted/30">
-                  {visibleEntries(itemSchema.properties, item as Record<string, unknown>).map(([key, propSchema]) => (
-                    <Grid key={key} gap="1.5">
-                      <Label htmlFor={`${name}-${index}-${key}`} className="text-xs">
-                        {propSchema.title || key}
-                      </Label>
-                      <FormField
-                        name={`${name}-${index}-${key}`}
-                        property={propSchema}
-                        value={(item as Record<string, unknown>)?.[key]}
-                        onChange={(val, siblings) => {
-                          const newItem = { ...(item as Record<string, unknown>), ...siblings, [key]: val };
-                          handleItemChange(index, newItem);
-                        }}
-                        disabled={disabled}
-                        onLocationRequest={undefined}
-                        showLocationButton={false}
-                        isLocationLoading={false}
-                      />
-                    </Grid>
-                  ))}
+                  {visibleEntries(itemSchema.properties, item as Record<string, unknown>, facts).map(
+                    ([key, propSchema]) => (
+                      <Grid key={key} gap="1.5">
+                        <Label htmlFor={`${name}-${index}-${key}`} className="text-xs">
+                          {propSchema.title || key}
+                        </Label>
+                        <FormField
+                          name={`${name}-${index}-${key}`}
+                          property={propSchema}
+                          value={(item as Record<string, unknown>)?.[key]}
+                          onChange={(val, siblings) => {
+                            const newItem = { ...(item as Record<string, unknown>), ...siblings, [key]: val };
+                            handleItemChange(index, newItem);
+                          }}
+                          disabled={disabled}
+                          onLocationRequest={undefined}
+                          showLocationButton={false}
+                          isLocationLoading={false}
+                        />
+                      </Grid>
+                    ),
+                  )}
                 </Grid>
               </FieldScopeContext.Provider>
             ) : (
@@ -810,6 +848,7 @@ function FormField({
 }: FormFieldProps) {
   const t = useTranslations("schemaForm");
   const { root } = useFieldScope();
+  const { facts, layout } = useBoardScreen();
 
   // The generic remote-options widget serves every declared type — a scalar
   // field is single-select, an array field with `ui:options.multiple` is
@@ -856,25 +895,47 @@ function FormField({
     const tileProperties = Object.fromEntries(
       Object.entries(property.items.properties).filter(([key]) => key !== "row" && key !== "col"),
     );
+    const tileRequired = property.items.required ?? [];
+    const byBoard = options?.layout === "board";
     return (
       <TileGridField
         name={name}
         label={property.title || name}
         value={value}
         onChange={onChange}
-        rows={Number(root[options?.rows_field ?? ""] ?? 1) || 1}
-        cols={Number(root[options?.cols_field ?? ""] ?? 1) || 1}
+        rows={byBoard ? (layout?.rows ?? 1) : Number(root[options?.rows_field ?? ""] ?? 1) || 1}
+        cols={byBoard ? (layout?.cols ?? 1) : Number(root[options?.cols_field ?? ""] ?? 1) || 1}
+        itemProperties={tileProperties}
+        itemRequired={tileRequired}
+        itemActions={options?.item_actions ?? []}
+        uniqueFields={options?.unique_fields ?? []}
         disabled={disabled}
+        renderActionInput={(action, inputSchema, input, onInput) => (
+          <SchemaForm
+            schema={asJSONSchema(inputSchema)}
+            values={input}
+            onChange={onInput}
+            idPrefix={`${name}-tile-action-${action.id}-`}
+          />
+        )}
         renderTileFields={(tile, onTileChange) => (
           <FieldScopeContext.Provider value={{ scope: tile, root, titles: titlesOf(tileProperties) }}>
-            {visibleEntries(tileProperties, tile).map(([key, propSchema]) => (
+            {visibleEntries(tileProperties, tile, facts).map(([key, propSchema]) => (
               <Grid key={key} gap="1.5">
-                <Label htmlFor={`${name}-tile-${key}`}>{propSchema.title || key}</Label>
+                <Label htmlFor={`${name}-tile-${key}`}>
+                  {propSchema.title || key}
+                  {tileRequired.includes(key) && (
+                    <Text as="span" tone="destructive" className="ml-1">
+                      *
+                    </Text>
+                  )}
+                </Label>
                 <FormField
                   name={`${name}-tile-${key}`}
                   property={propSchema}
                   value={tile[key]}
                   onChange={(val, siblings) => onTileChange({ ...tile, ...siblings, [key]: val })}
+                  required={tileRequired.includes(key)}
                   disabled={disabled}
                 />
                 {propSchema.description && (
@@ -967,7 +1028,7 @@ function FormField({
             }}
           >
             <Grid gap="4" className="p-4 border rounded-lg">
-              {visibleEntries(property.properties, value as Record<string, unknown>).map(([key, propSchema]) => (
+              {visibleEntries(property.properties, value as Record<string, unknown>, facts).map(([key, propSchema]) => (
                 <Grid key={key} gap="1.5">
                   <Label htmlFor={`${name}-${key}`}>
                     {propSchema.title || key}
@@ -1029,6 +1090,7 @@ export function SchemaForm({
   idPrefix = "",
 }: SchemaFormProps) {
   const t = useTranslations("schemaForm");
+  const { facts } = useBoardScreen();
   // Top-level fields resolve `depends_on` against the whole config: at this
   // depth the sibling scope and the root are the same object.
   const rootScope = React.useMemo(
@@ -1064,7 +1126,7 @@ export function SchemaForm({
 
   // `ui:visible_when` hides a field until its siblings match; `ui:sections`
   // groups the rest. Fields in no section render first, in schema order.
-  const visible = visibleEntries(schema.properties, values).filter(([name]) => name !== "enabled");
+  const visible = visibleEntries(schema.properties, values, facts).filter(([name]) => name !== "enabled");
   const visibleByName = new Map(visible);
   const sections = schema["ui:sections"] ?? [];
   const sectioned = new Set(sections.flatMap((section) => section.fields));

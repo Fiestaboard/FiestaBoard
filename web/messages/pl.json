@@ -717,37 +717,6 @@
       "setUpOutput": "Połącz, przetestuj i zapisz jako tablicę"
     },
     "boardSetup": {
-      "connectionType": "Typ połączenia",
-      "cloudApi": "Cloud API",
-      "cloudApiEasiest": "Najłatwiejsza konfiguracja",
-      "localApi": "Lokalne API",
-      "localApiFaster": "Szybsze, w tej samej sieci",
-      "readWriteApiKey": "Klucz API odczyt/zapis",
-      "cloudKeyPlaceholder": "Pobierz z web.vestaboard.com",
-      "cloudKeyHelp": "Znajdziesz na web.vestaboard.com → Ustawienia → API",
-      "boardIpAddress": "Adres IP tablicy",
-      "boardIpPlaceholder": "np. 192.168.1.100",
-      "boardIpHelp": "Wpisz adres IP ręcznie lub kliknij, aby przeskanować sieć",
-      "scanNetworkTooltip": "Skanuj sieć w poszukiwaniu Vestaboard",
-      "scanningNetwork": "Skanowanie sieci w poszukiwaniu Vestaboard…",
-      "noBoardsFound": "Nie znaleziono tablic. Wpisz adres IP ręcznie.",
-      "foundBoards": "Znaleziono {count} {count, plural, one {tablicę} few {tablice} many {tablic} other {tablic}} — wybierz jedną:",
-      "scanFailed": "Skanowanie nie powiodło się. Wpisz adres IP ręcznie.",
-      "authenticationMethod": "Metoda uwierzytelniania",
-      "apiKey": "Klucz API",
-      "enablementToken": "Token aktywacyjny",
-      "localApiKey": "Lokalny klucz API",
-      "localApiKeyPlaceholder": "Twój lokalny klucz API",
-      "localApiKeyHelp": "Napisz na support@vestaboard.com, aby uzyskać lokalny klucz API",
-      "enablementTokenPlaceholder": "Token dostarczony przez wsparcie Vestaboard",
-      "enablementTokenHelp": "Napisz na support@vestaboard.com, aby uzyskać token aktywacyjny",
-      "getApiKeyFromBoard": "Pobierz klucz API z tablicy",
-      "enablingLocalApi": "Włączanie Local API...",
-      "apiKeyRetrieved": "Klucz API pobrany!",
-      "testConnection": "Testuj połączenie",
-      "testingConnection": "Testowanie połączenia...",
-      "connectedTestAgain": "Połączono! Testuj ponownie",
-      "thingsToTry": "Co możesz wypróbować:",
       "boardType": "Typ tablicy",
       "flagshipDimensions": "6 × 22 znaków",
       "noteDimensions": "3 × 15 znaki",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "Klapka ze stopniem",
       "code62HeartAriaLabel": "Klapka z sercem",
       "connectionTestFailed": "Test połączenia nie powiódł się",
-      "failedToEnableLocalApi": "Nie udało się włączyć lokalnego API"
+      "connectedSaved": "Połączono! Tablica została zapisana."
     },
     "easyPlugins": {
       "description": "Te funkcje działają od razu bez zewnętrznych kluczy API. Włącz to, co chcesz!",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "Połączenie",
-    "apiModeLabel": "Tryb API",
-    "localApiLabel": "Lokalne API",
-    "localApiDescription": "Bezpośrednie połączenie",
-    "cloudApiLabel": "Cloud API",
-    "cloudApiDescription": "Przez serwery chmurowe",
-    "boardHostLabel": "Host tablicy",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "Klucz API",
-    "enablementTokenLabel": "Token aktywacyjny",
-    "localApiKeyLabel": "Lokalny klucz API",
-    "localApiKeyPlaceholder": "Wprowadź lokalny klucz API",
-    "localApiKeySetPlaceholder": "••••••••••• (ustawiony)",
-    "localApiKeyHelp": "Napisz na support@vestaboard.com, aby uzyskać lokalny klucz API",
-    "enablementTokenPlaceholder": "Token od wsparcia Vestaboard",
-    "getApiKeyFromBoard": "Pobierz klucz API z tablicy",
-    "enabling": "Włączanie...",
-    "localApiEnabled": "Local API włączone! Klucz API pobrany i zapisany.",
-    "cloudKeyLabel": "Klucz API odczyt/zapis",
-    "cloudKeyPlaceholder": "Wprowadź klucz API odczyt/zapis",
-    "cloudKeySetPlaceholder": "••••••••••• (ustawiony)",
-    "cloudKeyHelp": "Znajdziesz w aplikacji tablicy w Ustawienia → Integracje → API odczyt/zapis",
-    "localApiRequired": "Wymagany jest lokalny klucz API i host",
-    "cloudApiRequired": "Wymagany jest klucz Cloud API",
-    "noteArrayTokenRequired": "Wymagany jest token Cloud API",
-    "boardHostAndTokenRequired": "Wymagany jest host tablicy i token aktywacyjny",
     "enabledLabel": "Włączone",
     "typeLabel": "Typ",
     "colorLabel": "Kolor",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Macierz Note",
-    "failedToEnable": "Nie udało się włączyć lokalnego API",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Notes w poziomie",
     "notesTallLabel": "Notes w pionie",
-    "customRangeError": "Każdy wymiar musi mieścić się w zakresie od 1 do {max}.",
-    "noteArrayTokenLabel": "Token API w chmurze",
-    "noteArrayTokenPlaceholder": "Wprowadź X-Vestaboard-Token",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (ustawiony)",
-    "noteArrayTokenHelp": "Token X-Vestaboard-Token dla tej macierzy Note, z subskrypcji API w chmurze Vestaboard.",
-    "autoDetect": "Wykryj automatycznie z tablicy",
-    "detecting": "Wykrywanie…",
-    "detectFailed": "Nie udało się wykryć konfiguracji tablicy.",
-    "showSecretAriaLabel": "Pokaż wartość",
-    "hideSecretAriaLabel": "Ukryj wartość",
-    "tileGrid": {
-      "title": "Kafelki tablic",
-      "help": "Kliknij miejsce, aby przypisać fizyczną tablicę (IP + lokalny klucz API), która wisi w tej pozycji na ścianie. Użyj funkcji Identyfikuj, aby wyświetlić numer miejsca na tablicy i potwierdzić, że znajduje się we właściwym miejscu.",
-      "assign": "Przypisz",
-      "assignRequired": "Przypisz co najmniej jeden kafelek, podając adres IP i lokalny klucz API jego tablicy",
-      "completeBadge": "Przypisano wszystkie kafelki: {total}",
-      "partialBadge": "Przypisano {assigned}/{total} kafelków",
-      "slotAriaLabelAssigned": "Kafelek {position}: wiersz {row}, kolumna {col} — przypisany do {host}",
-      "slotAriaLabelEmpty": "Kafelek {position}: wiersz {row}, kolumna {col} — pusty, kliknij, aby przypisać",
-      "dialogTitle": "Kafelek {position} — wiersz {row}, kolumna {col}",
-      "dialogDescription": "Połącz fizyczną tablicę w tej pozycji. Przeskanuj sieć lub wprowadź jej adres IP i lokalny klucz API, a następnie użyj funkcji Identyfikuj, aby potwierdzić, że wybrano właściwą tablicę.",
-      "portLabel": "Port",
-      "hostAndKeyRequired": "Wymagane są zarówno adres IP tablicy, jak i lokalny klucz API",
-      "saveTile": "Zapisz kafelek",
-      "clearTile": "Wyczyść kafelek",
-      "tileSaved": "Kafelek zapisany",
-      "tileCleared": "Kafelek wyczyszczony",
-      "moveTile": "Przenieś na inną pozycję",
-      "movePlaceholder": "Wybierz nowe miejsce…",
-      "moveTargetEmpty": "Miejsce {position} — puste",
-      "moveTargetOccupied": "Miejsce {position} — zamień z {host}",
-      "tileMoved": "Kafelek przeniesiony na miejsce {position}",
-      "testTile": "Testuj",
-      "testSuccess": "Test połączenia powiódł się",
-      "testFailed": "Test połączenia nie powiódł się",
-      "identify": "Identyfikuj",
-      "identifyAll": "Identyfikuj wszystkie",
-      "identifySent": "Pozycja {position} jest teraz wyświetlana na tej tablicy",
-      "identifyAllSent": "Wysłano wzorce identyfikacyjne do {count} kafelków — każda tablica pokazuje teraz swój numer pozycji",
-      "identifyAllPartial": "Nie udało się połączyć z {failed} z {total} kafelków",
-      "identifyFailed": "Nie udało się wysłać wzorca identyfikacyjnego",
-      "scanNetwork": "Skanuj sieć w poszukiwaniu tablic",
-      "scanning": "Skanowanie…",
-      "scanFound": "Znaleziono {count} tablic w Twojej sieci",
-      "scanEmpty": "Nie znaleziono tablic w Twojej sieci",
-      "scanFailed": "Skanowanie sieci nie powiodło się",
-      "alreadyAssigned": "Przypisano do kafelka {position}",
-      "duplicateHostWarning": "Kilka kafelków wskazuje na tę samą tablicę: {hosts}"
-    }
+    "customRangeError": "Każdy wymiar musi mieścić się w zakresie od 1 do {max}."
   },
   "systemUpdate": {
     "updateAvailable": "Dostępna aktualizacja",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "Ładowanie stron…",
     "pagePickerPlaceholder": "Wybierz stronę…",
     "showSecret": "Pokaż wartość",
-    "hideSecret": "Ukryj wartość"
+    "hideSecret": "Ukryj wartość",
+    "secretSaved": "••••••••••• (ustawiony)"
   },
   "filterPicker": {
     "noFiltersAvailable": "Brak dostępnych filtrów",
@@ -2494,13 +2389,10 @@
     "scanning": "Wyszukiwanie…",
     "noDevicesFound": "Nie znaleziono urządzeń. Wpisz adres ręcznie.",
     "devicesFoundLabel": "Znalezione urządzenia dla {field}",
-    "tileSlot": "Wiersz {row}, kolumna {col}",
     "tileAssigned": "Przypisany",
-    "tileEmpty": "Pusty",
-    "tileDialogTitle": "Kafelek w wierszu {row}, kolumnie {col}",
+    "tileDialogTitle": "Kafelek {position} — wiersz {row}, kolumna {col}",
     "tileDialogDescription": "Ustawienia urządzenia w tej pozycji.",
     "removeTile": "Usuń kafelek",
-    "identifyTile": "Identyfikuj",
     "actionsLabel": "Akcje",
     "actionFailed": "Nie udało się wykonać akcji.",
     "resultOk": "Gotowe",
@@ -2521,6 +2413,116 @@
     "creating": "Dodawanie…",
     "createBoard": "Dodaj tablicę",
     "outputNotInstalled": "Wyświetlacz tej tablicy ({output}) nie jest zainstalowany.",
-    "saveSettings": "Zapisz ustawienia"
+    "saveSettings": "Zapisz ustawienia",
+    "tilesComplete": "Przypisano wszystkie kafelki: {total}",
+    "tilesPartial": "Przypisano {assigned}/{total} kafelków",
+    "identifyAllTiles": "Identyfikuj wszystkie",
+    "tileAssign": "Przypisz",
+    "tileSlotEmpty": "Kafelek {position}: wiersz {row}, kolumna {col} — pusty, kliknij, aby przypisać",
+    "moveTile": "Przenieś na inną pozycję",
+    "movePlaceholder": "Wybierz nowe miejsce…",
+    "moveTo": "Miejsce {position} — puste",
+    "saveTile": "Zapisz kafelek",
+    "tileSlotAssigned": "Kafelek {position}: wiersz {row}, kolumna {col} — przypisany do {summary}",
+    "moveSwap": "Miejsce {position} — zamień z {summary}",
+    "tilesDuplicate": "Kilka kafelków wskazuje na tę samą tablicę: {values}",
+    "tileActionsLabel": "Akcje kafelka",
+    "requiredMissing": "Jeszcze wymagane: {fields}",
+    "geometryApplied": "Ustawiono {rows} × {cols}"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "Połączenie",
+          "cards": {
+            "local": {
+              "title": "Lokalne API",
+              "description": "Bezpośrednie połączenie"
+            },
+            "cloud": {
+              "title": "Cloud API",
+              "description": "Przez serwery chmurowe"
+            }
+          }
+        },
+        "host": {
+          "title": "Adres IP tablicy",
+          "description": "Wpisz adres IP ręcznie lub kliknij, aby przeskanować sieć",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "Lokalny klucz API",
+          "description": "Napisz na support@vestaboard.com, aby uzyskać lokalny klucz API",
+          "placeholder": "Twój lokalny klucz API"
+        },
+        "cloud_key": {
+          "title": "Klucz API odczyt/zapis",
+          "description": "Znajdziesz w aplikacji tablicy w Ustawienia → Integracje → API odczyt/zapis",
+          "placeholder": "Wprowadź klucz API odczyt/zapis"
+        },
+        "note_array_token": {
+          "title": "Token API w chmurze",
+          "description": "Token X-Vestaboard-Token dla tej macierzy Note, z subskrypcji API w chmurze Vestaboard.",
+          "placeholder": "Wprowadź X-Vestaboard-Token"
+        },
+        "tiles": {
+          "title": "Kafelki tablic",
+          "description": "Kliknij miejsce, aby przypisać fizyczną tablicę (IP + lokalny klucz API), która wisi w tej pozycji na ścianie. Użyj funkcji Identyfikuj, aby wyświetlić numer miejsca na tablicy i potwierdzić, że znajduje się we właściwym miejscu.",
+          "items": {
+            "host": {
+              "title": "Adres IP tablicy",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "Port"
+            },
+            "local_api_key": {
+              "title": "Lokalny klucz API",
+              "placeholder": "Twój lokalny klucz API"
+            },
+            "enabled": {
+              "title": "Włączone"
+            }
+          }
+        },
+        "port": {
+          "title": "Port"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "Zaawansowane"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "Testuj połączenie"
+        },
+        "discover": {
+          "label": "Skanuj sieć w poszukiwaniu tablic"
+        },
+        "identify": {
+          "label": "Identyfikuj"
+        },
+        "detect_geometry": {
+          "label": "Wykryj automatycznie z tablicy"
+        },
+        "enable_local_api": {
+          "label": "Pobierz klucz API z tablicy",
+          "description": "Napisz na support@vestaboard.com, aby uzyskać token aktywacyjny",
+          "input": {
+            "enablement_token": {
+              "title": "Token aktywacyjny",
+              "placeholder": "Token od wsparcia Vestaboard"
+            },
+            "host": {
+              "title": "Adres IP tablicy",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

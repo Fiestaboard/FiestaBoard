@@ -21,64 +21,18 @@ import type {
   TransitionSettings,
 } from "@/lib/api";
 
+import firstPartyOutputs from "./first-party-outputs.json";
+
 const API_BASE = "/api";
 
-/** `GET /outputs` with only the built-ins installed (src/outputs/actions.py). */
-export const mockOutputs: OutputSummary[] = [
-  {
-    id: "vestaboard",
-    name: "Vestaboard",
-    description: "A Vestaboard Flagship, Note or Note array, over the Local API or the cloud.",
-    icon: "layout-grid",
-    builtin: true,
-    beta_gated: false,
-    available: true,
-    output_api: null,
-    capabilities: {
-      technology: "split_flap",
-      delivery: "push",
-      animation: "stream",
-      native_transitions: [],
-      charset: null,
-    },
-    device_models: [
-      { id: "vestaboard_flagship", label: "Vestaboard Flagship" },
-      { id: "vestaboard_note", label: "Vestaboard Note" },
-      { id: "vestaboard_note_array", label: "Vestaboard Note array" },
-    ],
-    settings_schema: {},
-    actions: [],
-  },
-  {
-    id: "fiestapanel",
-    name: "FiestaPanel",
-    description: "Any TV or browser: a full-screen board FiestaBoard draws itself.",
-    icon: "monitor",
-    builtin: true,
-    beta_gated: false,
-    available: true,
-    output_api: null,
-    capabilities: {
-      technology: "screen",
-      delivery: "pull",
-      animation: "stream",
-      native_transitions: [],
-      charset: null,
-    },
-    device_models: [{ id: "vestaboard_panel", label: "Virtual panel" }],
-    settings_schema: {},
-    actions: [
-      {
-        id: "test_connection",
-        label: "Test connection",
-        description: "",
-        builtin: true,
-        input_schema: null,
-        result_fields: {},
-      },
-    ],
-  },
-];
+/**
+ * `GET /outputs` with only the first-party outputs installed: a copy of what
+ * the seeded Vestaboard and FiestaPanel serve (`tests/golden/outputs/
+ * first_party_presentation.json`, kept in step by
+ * `tests/test_vestaboard_settings_screen.py`) — so the web suite renders the
+ * Vestaboard's real settings screen.
+ */
+export const mockOutputs = firstPartyOutputs as unknown as OutputSummary[];
 
 // Type-safe mock data
 export const mockStatus: StatusResponse = {

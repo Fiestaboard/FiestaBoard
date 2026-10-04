@@ -717,37 +717,6 @@
       "setUpOutput": "Conéctala, pruébala y guárdala como tablero"
     },
     "boardSetup": {
-      "connectionType": "Tipo de conexión",
-      "cloudApi": "API en la nube",
-      "cloudApiEasiest": "Configuración más fácil",
-      "localApi": "API local",
-      "localApiFaster": "Más rápida, misma red",
-      "readWriteApiKey": "Clave API de lectura/escritura",
-      "cloudKeyPlaceholder": "Obtén esto de web.vestaboard.com",
-      "cloudKeyHelp": "Se encuentra en web.vestaboard.com → Configuración → API",
-      "boardIpAddress": "Dirección IP del tablero",
-      "boardIpPlaceholder": "ej., 192.168.1.100",
-      "boardIpHelp": "Ingresa la IP manualmente o haz clic para escanear tu red",
-      "scanNetworkTooltip": "Escanear red en busca de Vestaboards",
-      "scanningNetwork": "Escaneando la red en busca de Vestaboards…",
-      "noBoardsFound": "No se encontraron tableros. Ingresa la dirección IP manualmente.",
-      "foundBoards": "Se {count, plural, one {encontró} other {encontraron}} {count} {count, plural, one {tablero} other {tableros}} — selecciona uno:",
-      "scanFailed": "El escaneo falló. Por favor ingresa la dirección IP manualmente.",
-      "authenticationMethod": "Método de autenticación",
-      "apiKey": "Clave API",
-      "enablementToken": "Token de habilitación",
-      "localApiKey": "Clave API local",
-      "localApiKeyPlaceholder": "Tu clave API local",
-      "localApiKeyHelp": "Envía un correo a support@vestaboard.com para solicitar tu clave API local",
-      "enablementTokenPlaceholder": "Token proporcionado por el soporte de Vestaboard",
-      "enablementTokenHelp": "Envía un correo a support@vestaboard.com para obtener un token de habilitación",
-      "getApiKeyFromBoard": "Obtener clave API del tablero",
-      "enablingLocalApi": "Habilitando API local...",
-      "apiKeyRetrieved": "¡Clave API obtenida!",
-      "testConnection": "Probar conexión",
-      "testingConnection": "Probando conexión...",
-      "connectedTestAgain": "¡Conectado! Probar de nuevo",
-      "thingsToTry": "Cosas para probar:",
       "boardType": "Tipo de tablero",
       "flagshipDimensions": "6 × 22 caracteres",
       "noteDimensions": "3 × 15 caracteres",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "Aleta de grado",
       "code62HeartAriaLabel": "Aleta de corazón",
       "connectionTestFailed": "Prueba de conexión fallida",
-      "failedToEnableLocalApi": "Error al habilitar la API local"
+      "connectedSaved": "¡Conectado! Tu tablero está guardado."
     },
     "easyPlugins": {
       "description": "Estas funciones funcionan de inmediato sin necesidad de claves API externas. ¡Habilita las que quieras!",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "Conexión",
-    "apiModeLabel": "Modo de API",
-    "localApiLabel": "API local",
-    "localApiDescription": "Conexión directa",
-    "cloudApiLabel": "API en la nube",
-    "cloudApiDescription": "A través de servidores en la nube",
-    "boardHostLabel": "Host del tablero",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "Clave API",
-    "enablementTokenLabel": "Token de habilitación",
-    "localApiKeyLabel": "Clave API local",
-    "localApiKeyPlaceholder": "Ingresa la clave API local",
-    "localApiKeySetPlaceholder": "••••••••••• (establecida)",
-    "localApiKeyHelp": "Envía un correo a support@vestaboard.com para solicitar tu clave API local",
-    "enablementTokenPlaceholder": "Token del soporte de Vestaboard",
-    "getApiKeyFromBoard": "Obtener clave API del tablero",
-    "enabling": "Habilitando...",
-    "localApiEnabled": "¡API local habilitada! Clave API obtenida y guardada.",
-    "cloudKeyLabel": "Clave API de lectura/escritura",
-    "cloudKeyPlaceholder": "Ingresa la clave API de L/E",
-    "cloudKeySetPlaceholder": "••••••••••• (establecida)",
-    "cloudKeyHelp": "Se encuentra en la aplicación de tu tablero en Configuración → Integraciones → API de lectura/escritura",
-    "localApiRequired": "La clave API local y el host son requeridos",
-    "cloudApiRequired": "La clave API en la nube es requerida",
-    "noteArrayTokenRequired": "El token de la API en la nube es requerido",
-    "boardHostAndTokenRequired": "El host del tablero y el token de habilitación son requeridos",
     "enabledLabel": "Habilitado",
     "typeLabel": "Tipo",
     "colorLabel": "Color",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Matriz de Note",
-    "failedToEnable": "Error al activar la API local",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Notes de ancho",
     "notesTallLabel": "Notes de alto",
-    "customRangeError": "Cada dimensión debe estar entre 1 y {max}.",
-    "noteArrayTokenLabel": "Token de API en la nube",
-    "noteArrayTokenPlaceholder": "Introduce X-Vestaboard-Token",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (configurado)",
-    "noteArrayTokenHelp": "El X-Vestaboard-Token de esta matriz de Note, de tu suscripción a la API en la nube de Vestaboard.",
-    "autoDetect": "Detectar automáticamente del tablero",
-    "detecting": "Detectando…",
-    "detectFailed": "No se pudo detectar la configuración del tablero.",
-    "showSecretAriaLabel": "Mostrar valor",
-    "hideSecretAriaLabel": "Ocultar valor",
-    "tileGrid": {
-      "title": "Mosaicos del tablero",
-      "help": "Haz clic en una posición para asignar el tablero físico (IP + clave API local) que ocupa ese lugar en tu pared. Usa Identificar para mostrar el número de posición en un tablero y confirmar que está en el lugar correcto.",
-      "assign": "Asignar",
-      "assignRequired": "Asigna al menos un mosaico con la dirección IP y la clave API local de su tablero",
-      "completeBadge": "Todos los {total} mosaicos asignados",
-      "partialBadge": "{assigned}/{total} mosaicos asignados",
-      "slotAriaLabelAssigned": "Mosaico {position}: fila {row}, columna {col} — asignado a {host}",
-      "slotAriaLabelEmpty": "Mosaico {position}: fila {row}, columna {col} — vacío, haz clic para asignar",
-      "dialogTitle": "Mosaico {position} — fila {row}, columna {col}",
-      "dialogDescription": "Conecta el tablero físico en esta posición. Escanea tu red o ingresa su IP y clave API local, y luego usa Identificar para confirmar que elegiste el tablero correcto.",
-      "portLabel": "Puerto",
-      "hostAndKeyRequired": "Se requieren la IP del tablero y la clave API local",
-      "saveTile": "Guardar mosaico",
-      "clearTile": "Vaciar mosaico",
-      "tileSaved": "Mosaico guardado",
-      "tileCleared": "Mosaico vaciado",
-      "moveTile": "Mover a otra posición",
-      "movePlaceholder": "Elige una nueva posición…",
-      "moveTargetEmpty": "Posición {position} — vacía",
-      "moveTargetOccupied": "Posición {position} — intercambiar con {host}",
-      "tileMoved": "Mosaico movido a la posición {position}",
-      "testTile": "Probar",
-      "testSuccess": "La prueba de conexión fue exitosa",
-      "testFailed": "La prueba de conexión falló",
-      "identify": "Identificar",
-      "identifyAll": "Identificar todos",
-      "identifySent": "La posición {position} ahora se muestra en ese tablero",
-      "identifyAllSent": "Patrones de identificación enviados a {count} mosaicos: cada tablero ahora muestra su número de posición",
-      "identifyAllPartial": "No se pudo contactar con {failed} de {total} mosaicos",
-      "identifyFailed": "No se pudo enviar el patrón de identificación",
-      "scanNetwork": "Escanear la red en busca de tableros",
-      "scanning": "Escaneando…",
-      "scanFound": "Se encontraron {count} tableros en tu red",
-      "scanEmpty": "No se encontraron tableros en tu red",
-      "scanFailed": "El escaneo de red falló",
-      "alreadyAssigned": "Asignado al mosaico {position}",
-      "duplicateHostWarning": "Varios mosaicos apuntan al mismo tablero: {hosts}"
-    }
+    "customRangeError": "Cada dimensión debe estar entre 1 y {max}."
   },
   "systemUpdate": {
     "updateAvailable": "Actualización disponible",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "Cargando páginas…",
     "pagePickerPlaceholder": "Elige una página…",
     "showSecret": "Mostrar valor",
-    "hideSecret": "Ocultar valor"
+    "hideSecret": "Ocultar valor",
+    "secretSaved": "••••••••••• (establecida)"
   },
   "filterPicker": {
     "noFiltersAvailable": "No hay filtros disponibles",
@@ -2494,13 +2389,10 @@
     "scanning": "Buscando…",
     "noDevicesFound": "No se encontraron dispositivos. Introduce la dirección manualmente.",
     "devicesFoundLabel": "Dispositivos encontrados para {field}",
-    "tileSlot": "Fila {row}, columna {col}",
     "tileAssigned": "Asignado",
-    "tileEmpty": "Vacío",
-    "tileDialogTitle": "Mosaico en la fila {row}, columna {col}",
+    "tileDialogTitle": "Mosaico {position} — fila {row}, columna {col}",
     "tileDialogDescription": "Ajustes del dispositivo en esta posición.",
     "removeTile": "Quitar mosaico",
-    "identifyTile": "Identificar",
     "actionsLabel": "Acciones",
     "actionFailed": "No se pudo ejecutar la acción.",
     "resultOk": "Listo",
@@ -2521,6 +2413,116 @@
     "creating": "Añadiendo…",
     "createBoard": "Añadir tablero",
     "outputNotInstalled": "La pantalla de este tablero ({output}) no está instalada.",
-    "saveSettings": "Guardar ajustes"
+    "saveSettings": "Guardar ajustes",
+    "tilesComplete": "Todos los {total} mosaicos asignados",
+    "tilesPartial": "{assigned}/{total} mosaicos asignados",
+    "identifyAllTiles": "Identificar todos",
+    "tileAssign": "Asignar",
+    "tileSlotEmpty": "Mosaico {position}: fila {row}, columna {col} — vacío, haz clic para asignar",
+    "moveTile": "Mover a otra posición",
+    "movePlaceholder": "Elige una nueva posición…",
+    "moveTo": "Posición {position} — vacía",
+    "saveTile": "Guardar mosaico",
+    "tileSlotAssigned": "Mosaico {position}: fila {row}, columna {col} — asignado a {summary}",
+    "moveSwap": "Posición {position} — intercambiar con {summary}",
+    "tilesDuplicate": "Varios mosaicos apuntan al mismo tablero: {values}",
+    "tileActionsLabel": "Acciones del módulo",
+    "requiredMissing": "Aún falta: {fields}",
+    "geometryApplied": "Ajustado a {rows} × {cols}"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "Conexión",
+          "cards": {
+            "local": {
+              "title": "API local",
+              "description": "Conexión directa"
+            },
+            "cloud": {
+              "title": "API en la nube",
+              "description": "A través de servidores en la nube"
+            }
+          }
+        },
+        "host": {
+          "title": "Dirección IP del tablero",
+          "description": "Ingresa la IP manualmente o haz clic para escanear tu red",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "Clave API local",
+          "description": "Envía un correo a support@vestaboard.com para solicitar tu clave API local",
+          "placeholder": "Tu clave API local"
+        },
+        "cloud_key": {
+          "title": "Clave API de lectura/escritura",
+          "description": "Se encuentra en la aplicación de tu tablero en Configuración → Integraciones → API de lectura/escritura",
+          "placeholder": "Ingresa la clave API de L/E"
+        },
+        "note_array_token": {
+          "title": "Token de API en la nube",
+          "description": "El X-Vestaboard-Token de esta matriz de Note, de tu suscripción a la API en la nube de Vestaboard.",
+          "placeholder": "Introduce X-Vestaboard-Token"
+        },
+        "tiles": {
+          "title": "Mosaicos del tablero",
+          "description": "Haz clic en una posición para asignar el tablero físico (IP + clave API local) que ocupa ese lugar en tu pared. Usa Identificar para mostrar el número de posición en un tablero y confirmar que está en el lugar correcto.",
+          "items": {
+            "host": {
+              "title": "Dirección IP del tablero",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "Puerto"
+            },
+            "local_api_key": {
+              "title": "Clave API local",
+              "placeholder": "Tu clave API local"
+            },
+            "enabled": {
+              "title": "Habilitado"
+            }
+          }
+        },
+        "port": {
+          "title": "Puerto"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "Avanzado"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "Probar conexión"
+        },
+        "discover": {
+          "label": "Escanear la red en busca de tableros"
+        },
+        "identify": {
+          "label": "Identificar"
+        },
+        "detect_geometry": {
+          "label": "Detectar automáticamente del tablero"
+        },
+        "enable_local_api": {
+          "label": "Obtener clave API del tablero",
+          "description": "Envía un correo a support@vestaboard.com para obtener un token de habilitación",
+          "input": {
+            "enablement_token": {
+              "title": "Token de habilitación",
+              "placeholder": "Token del soporte de Vestaboard"
+            },
+            "host": {
+              "title": "Dirección IP del tablero",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

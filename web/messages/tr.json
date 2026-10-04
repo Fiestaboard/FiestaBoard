@@ -717,37 +717,6 @@
       "setUpOutput": "Bağlayın, test edin ve pano olarak kaydedin"
     },
     "boardSetup": {
-      "connectionType": "Bağlantı Türü",
-      "cloudApi": "Bulut API",
-      "cloudApiEasiest": "En kolay kurulum",
-      "localApi": "Yerel API",
-      "localApiFaster": "Daha hızlı, aynı ağ",
-      "readWriteApiKey": "Okuma/Yazma API Anahtarı",
-      "cloudKeyPlaceholder": "web.vestaboard.com adresinden alın",
-      "cloudKeyHelp": "web.vestaboard.com → Ayarlar → API bölümünde bulunur",
-      "boardIpAddress": "Pano IP Adresi",
-      "boardIpPlaceholder": "ör. 192.168.1.100",
-      "boardIpHelp": "IP adresini manuel girin veya ağınızı taramak için tıklayın",
-      "scanNetworkTooltip": "Ağda Vestaboard arayın",
-      "scanningNetwork": "Ağda Vestaboard aranıyor…",
-      "noBoardsFound": "Pano bulunamadı. IP adresini manuel olarak girin.",
-      "foundBoards": "{count} {count, plural, one {pano} other {pano}} bulundu — birini seçin:",
-      "scanFailed": "Tarama başarısız oldu. Lütfen IP adresini manuel olarak girin.",
-      "authenticationMethod": "Kimlik Doğrulama Yöntemi",
-      "apiKey": "API Anahtarı",
-      "enablementToken": "Etkinleştirme Jetonu",
-      "localApiKey": "Yerel API Anahtarı",
-      "localApiKeyPlaceholder": "Yerel API anahtarınız",
-      "localApiKeyHelp": "Yerel API Anahtarınızı istemek için support@vestaboard.com adresine e-posta gönderin",
-      "enablementTokenPlaceholder": "Vestaboard desteği tarafından sağlanan jeton",
-      "enablementTokenHelp": "Etkinleştirme jetonu için support@vestaboard.com adresine e-posta gönderin",
-      "getApiKeyFromBoard": "Panodan API Anahtarı Al",
-      "enablingLocalApi": "Yerel API etkinleştiriliyor...",
-      "apiKeyRetrieved": "API Anahtarı Alındı!",
-      "testConnection": "Bağlantıyı Test Et",
-      "testingConnection": "Bağlantı Test Ediliyor...",
-      "connectedTestAgain": "Bağlandı! Tekrar Test Et",
-      "thingsToTry": "Deneyebilecekleriniz:",
       "boardType": "Pano Türü",
       "flagshipDimensions": "6 × 22 karakter",
       "noteDimensions": "3 × 15 karakter",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "Derece kanadı",
       "code62HeartAriaLabel": "Kalp kanadı",
       "connectionTestFailed": "Bağlantı testi başarısız",
-      "failedToEnableLocalApi": "Yerel API etkinleştirilemedi"
+      "connectedSaved": "Bağlandı! Panonuz kaydedildi."
     },
     "easyPlugins": {
       "description": "Bu özellikler harici API anahtarı gerektirmeden hemen çalışır. İstediğinizi etkinleştirin!",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "Bağlantı",
-    "apiModeLabel": "API modu",
-    "localApiLabel": "Yerel API",
-    "localApiDescription": "Doğrudan bağlantı",
-    "cloudApiLabel": "Bulut API",
-    "cloudApiDescription": "Bulut sunucuları üzerinden",
-    "boardHostLabel": "Pano Sunucusu",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "API Anahtarı",
-    "enablementTokenLabel": "Etkinleştirme Jetonu",
-    "localApiKeyLabel": "Yerel API Anahtarı",
-    "localApiKeyPlaceholder": "Yerel API anahtarını girin",
-    "localApiKeySetPlaceholder": "••••••••••• (ayarlandı)",
-    "localApiKeyHelp": "Yerel API Anahtarınızı istemek için support@vestaboard.com adresine e-posta gönderin",
-    "enablementTokenPlaceholder": "Vestaboard desteğinden alınan jeton",
-    "getApiKeyFromBoard": "Panodan API Anahtarı Al",
-    "enabling": "Etkinleştiriliyor...",
-    "localApiEnabled": "Yerel API etkinleştirildi! API anahtarı alındı ve kaydedildi.",
-    "cloudKeyLabel": "Okuma/Yazma API Anahtarı",
-    "cloudKeyPlaceholder": "O/Y API anahtarını girin",
-    "cloudKeySetPlaceholder": "••••••••••• (ayarlandı)",
-    "cloudKeyHelp": "Pano uygulamanızda Ayarlar → Entegrasyonlar → Okuma/Yazma API bölümünde bulunur",
-    "localApiRequired": "Yerel API anahtarı ve sunucu adresi gereklidir",
-    "cloudApiRequired": "Bulut API anahtarı gereklidir",
-    "noteArrayTokenRequired": "Bulut API belirteci gereklidir",
-    "boardHostAndTokenRequired": "Pano sunucusu ve etkinleştirme jetonu gereklidir",
     "enabledLabel": "Etkin",
     "typeLabel": "Tür",
     "colorLabel": "Renk",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Note dizisi",
-    "failedToEnable": "Yerel API etkinleştirilemedi",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Note genişliği",
     "notesTallLabel": "Note yüksekliği",
-    "customRangeError": "Her boyut 1 ile {max} arasında olmalıdır.",
-    "noteArrayTokenLabel": "Bulut API Belirteci",
-    "noteArrayTokenPlaceholder": "X-Vestaboard-Token girin",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (ayarlandı)",
-    "noteArrayTokenHelp": "Bu Note dizisi için X-Vestaboard-Token; Vestaboard Bulut API aboneliğinizden alınır.",
-    "autoDetect": "Panodan otomatik algıla",
-    "detecting": "Algılanıyor…",
-    "detectFailed": "Pano yapılandırması algılanamadı.",
-    "showSecretAriaLabel": "Değeri göster",
-    "hideSecretAriaLabel": "Değeri gizle",
-    "tileGrid": {
-      "title": "Pano karoları",
-      "help": "Duvarınızda o konumda bulunan fiziksel panoyu (IP + Yerel API anahtarı) atamak için bir yuvaya tıklayın. Bir panoda yuva numarasını göstermek ve doğru yerde olduğunu doğrulamak için Tanımla'yı kullanın.",
-      "assign": "Ata",
-      "assignRequired": "En az bir karoya panosunun IP adresini ve yerel API anahtarını atayın",
-      "completeBadge": "{total} karonun tamamı atandı",
-      "partialBadge": "{assigned}/{total} karo atandı",
-      "slotAriaLabelAssigned": "Karo {position}: satır {row}, sütun {col} — {host} adresine atandı",
-      "slotAriaLabelEmpty": "Karo {position}: satır {row}, sütun {col} — boş, atamak için tıklayın",
-      "dialogTitle": "Karo {position} — satır {row}, sütun {col}",
-      "dialogDescription": "Bu konumdaki fiziksel panoyu bağlayın. Ağınızı tarayın veya IP'sini ve yerel API anahtarını girin, ardından doğru panoyu seçtiğinizi doğrulamak için Tanımla'yı kullanın.",
-      "portLabel": "Bağlantı noktası",
-      "hostAndKeyRequired": "Hem pano IP'si hem de yerel API anahtarı gereklidir",
-      "saveTile": "Karoyu kaydet",
-      "clearTile": "Karoyu temizle",
-      "tileSaved": "Karo kaydedildi",
-      "tileCleared": "Karo temizlendi",
-      "moveTile": "Başka bir konuma taşı",
-      "movePlaceholder": "Yeni bir yuva seçin…",
-      "moveTargetEmpty": "Yuva {position} — boş",
-      "moveTargetOccupied": "Yuva {position} — {host} ile yer değiştir",
-      "tileMoved": "Karo {position} numaralı yuvaya taşındı",
-      "testTile": "Test et",
-      "testSuccess": "Bağlantı testi başarılı oldu",
-      "testFailed": "Bağlantı testi başarısız oldu",
-      "identify": "Tanımla",
-      "identifyAll": "Tümünü tanımla",
-      "identifySent": "Konum {position} artık o panoda gösteriliyor",
-      "identifyAllSent": "{count} karoya tanımlama desenleri gönderildi — her pano artık kendi konum numarasını gösteriyor",
-      "identifyAllPartial": "{total} karodan {failed} tanesine ulaşılamadı",
-      "identifyFailed": "Tanımlama deseni gönderilemedi",
-      "scanNetwork": "Ağda pano tara",
-      "scanning": "Taranıyor…",
-      "scanFound": "Ağınızda {count} pano bulundu",
-      "scanEmpty": "Ağınızda pano bulunamadı",
-      "scanFailed": "Ağ taraması başarısız oldu",
-      "alreadyAssigned": "{position} numaralı karoya atandı",
-      "duplicateHostWarning": "Birden fazla karo aynı panoyu gösteriyor: {hosts}"
-    }
+    "customRangeError": "Her boyut 1 ile {max} arasında olmalıdır."
   },
   "systemUpdate": {
     "updateAvailable": "Güncelleme Mevcut",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "Sayfalar yükleniyor…",
     "pagePickerPlaceholder": "Bir sayfa seçin…",
     "showSecret": "Değeri göster",
-    "hideSecret": "Değeri gizle"
+    "hideSecret": "Değeri gizle",
+    "secretSaved": "••••••••••• (ayarlandı)"
   },
   "filterPicker": {
     "noFiltersAvailable": "Kullanılabilir filtre yok",
@@ -2494,13 +2389,10 @@
     "scanning": "Aranıyor…",
     "noDevicesFound": "Cihaz bulunamadı. Adresi kendiniz girin.",
     "devicesFoundLabel": "{field} için bulunan cihazlar",
-    "tileSlot": "Satır {row}, sütun {col}",
     "tileAssigned": "Atandı",
-    "tileEmpty": "Boş",
-    "tileDialogTitle": "Satır {row}, sütun {col} konumundaki karo",
+    "tileDialogTitle": "Karo {position} — satır {row}, sütun {col}",
     "tileDialogDescription": "Bu konumdaki cihazın ayarları.",
     "removeTile": "Karoyu kaldır",
-    "identifyTile": "Tanımla",
     "actionsLabel": "İşlemler",
     "actionFailed": "İşlem çalıştırılamadı.",
     "resultOk": "Tamam",
@@ -2521,6 +2413,116 @@
     "creating": "Ekleniyor…",
     "createBoard": "Pano ekle",
     "outputNotInstalled": "Bu panonun ekranı ({output}) yüklü değil.",
-    "saveSettings": "Ayarları kaydet"
+    "saveSettings": "Ayarları kaydet",
+    "tilesComplete": "{total} karonun tamamı atandı",
+    "tilesPartial": "{assigned}/{total} karo atandı",
+    "identifyAllTiles": "Tümünü tanımla",
+    "tileAssign": "Ata",
+    "tileSlotEmpty": "Karo {position}: satır {row}, sütun {col} — boş, atamak için tıklayın",
+    "moveTile": "Başka bir konuma taşı",
+    "movePlaceholder": "Yeni bir yuva seçin…",
+    "moveTo": "Yuva {position} — boş",
+    "saveTile": "Karoyu kaydet",
+    "tileSlotAssigned": "Karo {position}: satır {row}, sütun {col} — {summary} adresine atandı",
+    "moveSwap": "Yuva {position} — {summary} ile yer değiştir",
+    "tilesDuplicate": "Birden fazla karo aynı panoyu gösteriyor: {values}",
+    "tileActionsLabel": "Döşeme işlemleri",
+    "requiredMissing": "Hâlâ gerekli: {fields}",
+    "geometryApplied": "{rows} × {cols} olarak ayarlandı"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "Bağlantı",
+          "cards": {
+            "local": {
+              "title": "Yerel API",
+              "description": "Doğrudan bağlantı"
+            },
+            "cloud": {
+              "title": "Bulut API",
+              "description": "Bulut sunucuları üzerinden"
+            }
+          }
+        },
+        "host": {
+          "title": "Pano IP Adresi",
+          "description": "IP adresini manuel girin veya ağınızı taramak için tıklayın",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "Yerel API Anahtarı",
+          "description": "Yerel API Anahtarınızı istemek için support@vestaboard.com adresine e-posta gönderin",
+          "placeholder": "Yerel API anahtarınız"
+        },
+        "cloud_key": {
+          "title": "Okuma/Yazma API Anahtarı",
+          "description": "Pano uygulamanızda Ayarlar → Entegrasyonlar → Okuma/Yazma API bölümünde bulunur",
+          "placeholder": "O/Y API anahtarını girin"
+        },
+        "note_array_token": {
+          "title": "Bulut API Belirteci",
+          "description": "Bu Note dizisi için X-Vestaboard-Token; Vestaboard Bulut API aboneliğinizden alınır.",
+          "placeholder": "X-Vestaboard-Token girin"
+        },
+        "tiles": {
+          "title": "Pano karoları",
+          "description": "Duvarınızda o konumda bulunan fiziksel panoyu (IP + Yerel API anahtarı) atamak için bir yuvaya tıklayın. Bir panoda yuva numarasını göstermek ve doğru yerde olduğunu doğrulamak için Tanımla'yı kullanın.",
+          "items": {
+            "host": {
+              "title": "Pano IP Adresi",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "Bağlantı noktası"
+            },
+            "local_api_key": {
+              "title": "Yerel API Anahtarı",
+              "placeholder": "Yerel API anahtarınız"
+            },
+            "enabled": {
+              "title": "Etkin"
+            }
+          }
+        },
+        "port": {
+          "title": "Bağlantı noktası"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "Gelişmiş"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "Bağlantıyı Test Et"
+        },
+        "discover": {
+          "label": "Ağda pano tara"
+        },
+        "identify": {
+          "label": "Tanımla"
+        },
+        "detect_geometry": {
+          "label": "Panodan otomatik algıla"
+        },
+        "enable_local_api": {
+          "label": "Panodan API Anahtarı Al",
+          "description": "Etkinleştirme jetonu için support@vestaboard.com adresine e-posta gönderin",
+          "input": {
+            "enablement_token": {
+              "title": "Etkinleştirme Jetonu",
+              "placeholder": "Vestaboard desteğinden alınan jeton"
+            },
+            "host": {
+              "title": "Pano IP Adresi",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

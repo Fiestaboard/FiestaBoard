@@ -717,37 +717,6 @@
       "setUpOutput": "Collegalo, provalo e salvalo come tabellone"
     },
     "boardSetup": {
-      "connectionType": "Tipo di connessione",
-      "cloudApi": "API Cloud",
-      "cloudApiEasiest": "Configurazione più semplice",
-      "localApi": "API Locale",
-      "localApiFaster": "Più veloce, stessa rete",
-      "readWriteApiKey": "Chiave API lettura/scrittura",
-      "cloudKeyPlaceholder": "Ottienila da web.vestaboard.com",
-      "cloudKeyHelp": "Disponibile su web.vestaboard.com → Impostazioni → API",
-      "boardIpAddress": "Indirizzo IP della bacheca",
-      "boardIpPlaceholder": "es. 192.168.1.100",
-      "boardIpHelp": "Inserisci l'IP manualmente o clicca per scansionare la rete",
-      "scanNetworkTooltip": "Scansiona la rete per trovare Vestaboard",
-      "scanningNetwork": "Scansione della rete per trovare Vestaboard…",
-      "noBoardsFound": "Nessuna bacheca trovata. Inserisci l'indirizzo IP manualmente.",
-      "foundBoards": "{count, plural, one {Trovata # bacheca} other {Trovate # bacheche}} — selezionane una:",
-      "scanFailed": "Scansione fallita. Inserisci l'indirizzo IP manualmente.",
-      "authenticationMethod": "Metodo di autenticazione",
-      "apiKey": "Chiave API",
-      "enablementToken": "Token di abilitazione",
-      "localApiKey": "Chiave API locale",
-      "localApiKeyPlaceholder": "La tua chiave API locale",
-      "localApiKeyHelp": "Invia un'email a support@vestaboard.com per richiedere la tua chiave API locale",
-      "enablementTokenPlaceholder": "Token fornito dal supporto Vestaboard",
-      "enablementTokenHelp": "Invia un'email a support@vestaboard.com per un token di abilitazione",
-      "getApiKeyFromBoard": "Ottieni la chiave API dalla bacheca",
-      "enablingLocalApi": "Abilitazione API locale...",
-      "apiKeyRetrieved": "Chiave API ottenuta!",
-      "testConnection": "Testa connessione",
-      "testingConnection": "Test della connessione...",
-      "connectedTestAgain": "Connesso! Testa di nuovo",
-      "thingsToTry": "Cose da provare:",
       "boardType": "Tipo di bacheca",
       "flagshipDimensions": "6 × 22 caratteri",
       "noteDimensions": "3 × 15 caratteri",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "Aletta grado",
       "code62HeartAriaLabel": "Aletta cuore",
       "connectionTestFailed": "Test di connessione fallito",
-      "failedToEnableLocalApi": "Impossibile abilitare l'API locale"
+      "connectedSaved": "Connesso! La tua bacheca è salvata."
     },
     "easyPlugins": {
       "description": "Queste funzionalità sono pronte all'uso senza chiavi API esterne. Attiva quelle che desideri!",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "Connessione",
-    "apiModeLabel": "Modalità API",
-    "localApiLabel": "API Locale",
-    "localApiDescription": "Connessione diretta",
-    "cloudApiLabel": "API Cloud",
-    "cloudApiDescription": "Tramite server cloud",
-    "boardHostLabel": "Host della bacheca",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "Chiave API",
-    "enablementTokenLabel": "Token di abilitazione",
-    "localApiKeyLabel": "Chiave API locale",
-    "localApiKeyPlaceholder": "Inserisci la chiave API locale",
-    "localApiKeySetPlaceholder": "••••••••••• (impostata)",
-    "localApiKeyHelp": "Invia un'email a support@vestaboard.com per richiedere la tua chiave API locale",
-    "enablementTokenPlaceholder": "Token dal supporto Vestaboard",
-    "getApiKeyFromBoard": "Ottieni la chiave API dalla bacheca",
-    "enabling": "Abilitazione...",
-    "localApiEnabled": "API locale abilitata! Chiave API ottenuta e salvata.",
-    "cloudKeyLabel": "Chiave API lettura/scrittura",
-    "cloudKeyPlaceholder": "Inserisci la chiave API L/S",
-    "cloudKeySetPlaceholder": "••••••••••• (impostata)",
-    "cloudKeyHelp": "Disponibile nell'app della bacheca in Impostazioni → Integrazioni → API lettura/scrittura",
-    "localApiRequired": "La chiave API locale e l'host sono obbligatori",
-    "cloudApiRequired": "La chiave API cloud è obbligatoria",
-    "noteArrayTokenRequired": "Il token API cloud è obbligatorio",
-    "boardHostAndTokenRequired": "L'host della bacheca e il token di abilitazione sono obbligatori",
     "enabledLabel": "Attivato",
     "typeLabel": "Tipo",
     "colorLabel": "Colore",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Matrice di Note",
-    "failedToEnable": "Impossibile attivare l'API locale",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Notes in larghezza",
     "notesTallLabel": "Notes in altezza",
-    "customRangeError": "Ogni dimensione deve essere compresa tra 1 e {max}.",
-    "noteArrayTokenLabel": "Token API cloud",
-    "noteArrayTokenPlaceholder": "Inserisci X-Vestaboard-Token",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (impostato)",
-    "noteArrayTokenHelp": "Il X-Vestaboard-Token per questa matrice di Note, dal tuo abbonamento all’API cloud Vestaboard.",
-    "autoDetect": "Rileva automaticamente dal tabellone",
-    "detecting": "Rilevamento…",
-    "detectFailed": "Impossibile rilevare la configurazione del tabellone.",
-    "showSecretAriaLabel": "Mostra valore",
-    "hideSecretAriaLabel": "Nascondi valore",
-    "tileGrid": {
-      "title": "Tessere della bacheca",
-      "help": "Fai clic su una posizione per assegnare la bacheca fisica (IP + chiave API locale) che si trova in quel punto della tua parete. Usa Identifica per mostrare il numero della posizione su una bacheca e confermare che sia nel posto giusto.",
-      "assign": "Assegna",
-      "assignRequired": "Assegna almeno una tessera con l'indirizzo IP e la chiave API locale della sua bacheca",
-      "completeBadge": "Tutte le {total} tessere assegnate",
-      "partialBadge": "{assigned}/{total} tessere assegnate",
-      "slotAriaLabelAssigned": "Tessera {position}: riga {row}, colonna {col} — assegnata a {host}",
-      "slotAriaLabelEmpty": "Tessera {position}: riga {row}, colonna {col} — vuota, fai clic per assegnare",
-      "dialogTitle": "Tessera {position} — riga {row}, colonna {col}",
-      "dialogDescription": "Collega la bacheca fisica in questa posizione. Scansiona la rete o inserisci il suo IP e la chiave API locale, poi usa Identifica per confermare di aver scelto la bacheca giusta.",
-      "portLabel": "Porta",
-      "hostAndKeyRequired": "L'IP della bacheca e la chiave API locale sono entrambi obbligatori",
-      "saveTile": "Salva tessera",
-      "clearTile": "Svuota tessera",
-      "tileSaved": "Tessera salvata",
-      "tileCleared": "Tessera svuotata",
-      "moveTile": "Sposta in un'altra posizione",
-      "movePlaceholder": "Scegli una nuova posizione…",
-      "moveTargetEmpty": "Posizione {position} — vuota",
-      "moveTargetOccupied": "Posizione {position} — scambia con {host}",
-      "tileMoved": "Tessera spostata nella posizione {position}",
-      "testTile": "Prova",
-      "testSuccess": "Test di connessione riuscito",
-      "testFailed": "Test di connessione non riuscito",
-      "identify": "Identifica",
-      "identifyAll": "Identifica tutte",
-      "identifySent": "La posizione {position} è ora visualizzata su quella bacheca",
-      "identifyAllSent": "Pattern di identificazione inviati a {count} tessere — ogni bacheca mostra ora il proprio numero di posizione",
-      "identifyAllPartial": "Impossibile raggiungere {failed} tessere su {total}",
-      "identifyFailed": "Impossibile inviare il pattern di identificazione",
-      "scanNetwork": "Cerca bacheche nella rete",
-      "scanning": "Scansione…",
-      "scanFound": "{count} bacheche trovate nella tua rete",
-      "scanEmpty": "Nessuna bacheca trovata nella tua rete",
-      "scanFailed": "Scansione della rete non riuscita",
-      "alreadyAssigned": "Assegnata alla tessera {position}",
-      "duplicateHostWarning": "Più tessere puntano alla stessa bacheca: {hosts}"
-    }
+    "customRangeError": "Ogni dimensione deve essere compresa tra 1 e {max}."
   },
   "systemUpdate": {
     "updateAvailable": "Aggiornamento disponibile",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "Caricamento pagine…",
     "pagePickerPlaceholder": "Scegli una pagina…",
     "showSecret": "Mostra valore",
-    "hideSecret": "Nascondi valore"
+    "hideSecret": "Nascondi valore",
+    "secretSaved": "••••••••••• (impostata)"
   },
   "filterPicker": {
     "noFiltersAvailable": "Nessun filtro disponibile",
@@ -2494,13 +2389,10 @@
     "scanning": "Ricerca…",
     "noDevicesFound": "Nessun dispositivo trovato. Inserisci l'indirizzo manualmente.",
     "devicesFoundLabel": "Dispositivi trovati per {field}",
-    "tileSlot": "Riga {row}, colonna {col}",
     "tileAssigned": "Assegnato",
-    "tileEmpty": "Vuoto",
-    "tileDialogTitle": "Riquadro alla riga {row}, colonna {col}",
+    "tileDialogTitle": "Tessera {position} — riga {row}, colonna {col}",
     "tileDialogDescription": "Impostazioni del dispositivo in questa posizione.",
     "removeTile": "Rimuovi riquadro",
-    "identifyTile": "Identifica",
     "actionsLabel": "Azioni",
     "actionFailed": "Impossibile eseguire l'azione.",
     "resultOk": "Fatto",
@@ -2521,6 +2413,116 @@
     "creating": "Aggiunta…",
     "createBoard": "Aggiungi tabellone",
     "outputNotInstalled": "Il display di questo tabellone ({output}) non è installato.",
-    "saveSettings": "Salva impostazioni"
+    "saveSettings": "Salva impostazioni",
+    "tilesComplete": "Tutte le {total} tessere assegnate",
+    "tilesPartial": "{assigned}/{total} tessere assegnate",
+    "identifyAllTiles": "Identifica tutte",
+    "tileAssign": "Assegna",
+    "tileSlotEmpty": "Tessera {position}: riga {row}, colonna {col} — vuota, fai clic per assegnare",
+    "moveTile": "Sposta in un'altra posizione",
+    "movePlaceholder": "Scegli una nuova posizione…",
+    "moveTo": "Posizione {position} — vuota",
+    "saveTile": "Salva tessera",
+    "tileSlotAssigned": "Tessera {position}: riga {row}, colonna {col} — assegnata a {summary}",
+    "moveSwap": "Posizione {position} — scambia con {summary}",
+    "tilesDuplicate": "Più tessere puntano alla stessa bacheca: {values}",
+    "tileActionsLabel": "Azioni del riquadro",
+    "requiredMissing": "Ancora richiesto: {fields}",
+    "geometryApplied": "Impostato su {rows} × {cols}"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "Connessione",
+          "cards": {
+            "local": {
+              "title": "API Locale",
+              "description": "Connessione diretta"
+            },
+            "cloud": {
+              "title": "API Cloud",
+              "description": "Tramite server cloud"
+            }
+          }
+        },
+        "host": {
+          "title": "Indirizzo IP della bacheca",
+          "description": "Inserisci l'IP manualmente o clicca per scansionare la rete",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "Chiave API locale",
+          "description": "Invia un'email a support@vestaboard.com per richiedere la tua chiave API locale",
+          "placeholder": "La tua chiave API locale"
+        },
+        "cloud_key": {
+          "title": "Chiave API lettura/scrittura",
+          "description": "Disponibile nell'app della bacheca in Impostazioni → Integrazioni → API lettura/scrittura",
+          "placeholder": "Inserisci la chiave API L/S"
+        },
+        "note_array_token": {
+          "title": "Token API cloud",
+          "description": "Il X-Vestaboard-Token per questa matrice di Note, dal tuo abbonamento all’API cloud Vestaboard.",
+          "placeholder": "Inserisci X-Vestaboard-Token"
+        },
+        "tiles": {
+          "title": "Tessere della bacheca",
+          "description": "Fai clic su una posizione per assegnare la bacheca fisica (IP + chiave API locale) che si trova in quel punto della tua parete. Usa Identifica per mostrare il numero della posizione su una bacheca e confermare che sia nel posto giusto.",
+          "items": {
+            "host": {
+              "title": "Indirizzo IP della bacheca",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "Porta"
+            },
+            "local_api_key": {
+              "title": "Chiave API locale",
+              "placeholder": "La tua chiave API locale"
+            },
+            "enabled": {
+              "title": "Attivato"
+            }
+          }
+        },
+        "port": {
+          "title": "Porta"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "Avanzate"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "Testa connessione"
+        },
+        "discover": {
+          "label": "Cerca bacheche nella rete"
+        },
+        "identify": {
+          "label": "Identifica"
+        },
+        "detect_geometry": {
+          "label": "Rileva automaticamente dal tabellone"
+        },
+        "enable_local_api": {
+          "label": "Ottieni la chiave API dalla bacheca",
+          "description": "Invia un'email a support@vestaboard.com per un token di abilitazione",
+          "input": {
+            "enablement_token": {
+              "title": "Token di abilitazione",
+              "placeholder": "Token dal supporto Vestaboard"
+            },
+            "host": {
+              "title": "Indirizzo IP della bacheca",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

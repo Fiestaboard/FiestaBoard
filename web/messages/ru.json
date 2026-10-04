@@ -717,37 +717,6 @@
       "setUpOutput": "Подключите, проверьте и сохраните как табло"
     },
     "boardSetup": {
-      "connectionType": "Тип подключения",
-      "cloudApi": "Облачный API",
-      "cloudApiEasiest": "Самая простая настройка",
-      "localApi": "Локальный API",
-      "localApiFaster": "Быстрее, в той же сети",
-      "readWriteApiKey": "API-ключ чтения/записи",
-      "cloudKeyPlaceholder": "Получите на web.vestaboard.com",
-      "cloudKeyHelp": "Находится на web.vestaboard.com → Настройки → API",
-      "boardIpAddress": "IP-адрес доски",
-      "boardIpPlaceholder": "например, 192.168.1.100",
-      "boardIpHelp": "Введите IP вручную или нажмите для сканирования сети",
-      "scanNetworkTooltip": "Сканировать сеть на наличие Vestaboard",
-      "scanningNetwork": "Сканирование сети на наличие Vestaboard…",
-      "noBoardsFound": "Доски не найдены. Введите IP-адрес вручную.",
-      "foundBoards": "{count, plural, one {Найдена # доска} few {Найдены # доски} many {Найдено # досок} other {Найдено # досок}} — выберите одну:",
-      "scanFailed": "Сканирование не удалось. Пожалуйста, введите IP-адрес вручную.",
-      "authenticationMethod": "Метод аутентификации",
-      "apiKey": "API-ключ",
-      "enablementToken": "Токен активации",
-      "localApiKey": "Локальный API-ключ",
-      "localApiKeyPlaceholder": "Ваш локальный API-ключ",
-      "localApiKeyHelp": "Напишите на support@vestaboard.com для получения локального API-ключа",
-      "enablementTokenPlaceholder": "Токен, предоставленный поддержкой Vestaboard",
-      "enablementTokenHelp": "Напишите на support@vestaboard.com для получения токена активации",
-      "getApiKeyFromBoard": "Получить API-ключ с доски",
-      "enablingLocalApi": "Включение локального API...",
-      "apiKeyRetrieved": "API-ключ получен!",
-      "testConnection": "Проверить подключение",
-      "testingConnection": "Проверка подключения...",
-      "connectedTestAgain": "Подключено! Проверить снова",
-      "thingsToTry": "Что можно попробовать:",
       "boardType": "Тип доски",
       "flagshipDimensions": "6 × 22 символов",
       "noteDimensions": "3 × 15 символов",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "Створка с градусом",
       "code62HeartAriaLabel": "Створка с сердцем",
       "connectionTestFailed": "Ошибка проверки подключения",
-      "failedToEnableLocalApi": "Не удалось включить локальный API"
+      "connectedSaved": "Подключено! Табло сохранено."
     },
     "easyPlugins": {
       "description": "Эти функции работают сразу без внешних API-ключей. Включите то, что вам нравится!",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "Подключение",
-    "apiModeLabel": "Режим API",
-    "localApiLabel": "Локальный API",
-    "localApiDescription": "Прямое подключение",
-    "cloudApiLabel": "Облачный API",
-    "cloudApiDescription": "Через облачные серверы",
-    "boardHostLabel": "Хост доски",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "API-ключ",
-    "enablementTokenLabel": "Токен активации",
-    "localApiKeyLabel": "Локальный API-ключ",
-    "localApiKeyPlaceholder": "Введите локальный API-ключ",
-    "localApiKeySetPlaceholder": "••••••••••• (задан)",
-    "localApiKeyHelp": "Напишите на support@vestaboard.com для получения локального API-ключа",
-    "enablementTokenPlaceholder": "Токен от поддержки Vestaboard",
-    "getApiKeyFromBoard": "Получить API-ключ с доски",
-    "enabling": "Включение...",
-    "localApiEnabled": "Локальный API включён! API-ключ получен и сохранён.",
-    "cloudKeyLabel": "API-ключ чтения/записи",
-    "cloudKeyPlaceholder": "Введите API-ключ чтения/записи",
-    "cloudKeySetPlaceholder": "••••••••••• (задан)",
-    "cloudKeyHelp": "Находится в приложении доски: Настройки → Интеграции → API чтения/записи",
-    "localApiRequired": "Требуются локальный API-ключ и хост",
-    "cloudApiRequired": "Требуется облачный API-ключ",
-    "noteArrayTokenRequired": "Требуется облачный API-токен",
-    "boardHostAndTokenRequired": "Требуются хост доски и токен активации",
     "enabledLabel": "Включено",
     "typeLabel": "Тип",
     "colorLabel": "Цвет",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Массив Note",
-    "failedToEnable": "Не удалось включить локальный API",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Note в ширину",
     "notesTallLabel": "Note в высоту",
-    "customRangeError": "Каждый размер должен быть от 1 до {max}.",
-    "noteArrayTokenLabel": "Токен облачного API",
-    "noteArrayTokenPlaceholder": "Введите X-Vestaboard-Token",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (задан)",
-    "noteArrayTokenHelp": "Токен X-Vestaboard-Token для этого массива Note из вашей подписки на облачный API Vestaboard.",
-    "autoDetect": "Автоопределение с табло",
-    "detecting": "Определение…",
-    "detectFailed": "Не удалось определить конфигурацию табло.",
-    "showSecretAriaLabel": "Показать значение",
-    "hideSecretAriaLabel": "Скрыть значение",
-    "tileGrid": {
-      "title": "Плитки досок",
-      "help": "Нажмите на ячейку, чтобы назначить физическую доску (IP + локальный API-ключ), которая находится в этой позиции на вашей стене. Используйте «Определить», чтобы показать номер ячейки на доске и убедиться, что она на своём месте.",
-      "assign": "Назначить",
-      "assignRequired": "Назначьте хотя бы одну плитку, указав IP-адрес и локальный API-ключ её доски",
-      "completeBadge": "Все {total} плиток назначены",
-      "partialBadge": "Назначено плиток: {assigned}/{total}",
-      "slotAriaLabelAssigned": "Плитка {position}: строка {row}, столбец {col} — назначена доске {host}",
-      "slotAriaLabelEmpty": "Плитка {position}: строка {row}, столбец {col} — пустая, нажмите, чтобы назначить",
-      "dialogTitle": "Плитка {position} — строка {row}, столбец {col}",
-      "dialogDescription": "Подключите физическую доску в этой позиции. Просканируйте сеть или введите её IP и локальный API-ключ, затем используйте «Определить», чтобы убедиться, что выбрана правильная доска.",
-      "portLabel": "Порт",
-      "hostAndKeyRequired": "Требуются и IP доски, и локальный API-ключ",
-      "saveTile": "Сохранить плитку",
-      "clearTile": "Очистить плитку",
-      "tileSaved": "Плитка сохранена",
-      "tileCleared": "Плитка очищена",
-      "moveTile": "Переместить в другую ячейку",
-      "movePlaceholder": "Выберите новую ячейку…",
-      "moveTargetEmpty": "Ячейка {position} — пустая",
-      "moveTargetOccupied": "Ячейка {position} — поменять местами с {host}",
-      "tileMoved": "Плитка перемещена в ячейку {position}",
-      "testTile": "Проверить",
-      "testSuccess": "Проверка подключения прошла успешно",
-      "testFailed": "Проверка подключения не удалась",
-      "identify": "Определить",
-      "identifyAll": "Определить все",
-      "identifySent": "Позиция {position} теперь отображается на этой доске",
-      "identifyAllSent": "Шаблоны идентификации отправлены на {count} плиток — каждая доска теперь показывает номер своей позиции",
-      "identifyAllPartial": "Не удалось связаться с {failed} из {total} плиток",
-      "identifyFailed": "Не удалось отправить шаблон идентификации",
-      "scanNetwork": "Сканировать сеть в поисках досок",
-      "scanning": "Сканирование…",
-      "scanFound": "В вашей сети найдено досок: {count}",
-      "scanEmpty": "Доски в вашей сети не найдены",
-      "scanFailed": "Сканирование сети не удалось",
-      "alreadyAssigned": "Назначена плитке {position}",
-      "duplicateHostWarning": "Несколько плиток указывают на одну и ту же доску: {hosts}"
-    }
+    "customRangeError": "Каждый размер должен быть от 1 до {max}."
   },
   "systemUpdate": {
     "updateAvailable": "Доступно обновление",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "Загрузка страниц…",
     "pagePickerPlaceholder": "Выберите страницу…",
     "showSecret": "Показать значение",
-    "hideSecret": "Скрыть значение"
+    "hideSecret": "Скрыть значение",
+    "secretSaved": "••••••••••• (задан)"
   },
   "filterPicker": {
     "noFiltersAvailable": "Нет доступных фильтров",
@@ -2494,13 +2389,10 @@
     "scanning": "Поиск…",
     "noDevicesFound": "Устройства не найдены. Введите адрес вручную.",
     "devicesFoundLabel": "Найденные устройства для {field}",
-    "tileSlot": "Строка {row}, столбец {col}",
     "tileAssigned": "Назначено",
-    "tileEmpty": "Пусто",
-    "tileDialogTitle": "Плитка в строке {row}, столбце {col}",
+    "tileDialogTitle": "Плитка {position} — строка {row}, столбец {col}",
     "tileDialogDescription": "Настройки устройства в этой позиции.",
     "removeTile": "Удалить плитку",
-    "identifyTile": "Определить",
     "actionsLabel": "Действия",
     "actionFailed": "Не удалось выполнить действие.",
     "resultOk": "Готово",
@@ -2521,6 +2413,116 @@
     "creating": "Добавление…",
     "createBoard": "Добавить табло",
     "outputNotInstalled": "Дисплей этого табло ({output}) не установлен.",
-    "saveSettings": "Сохранить настройки"
+    "saveSettings": "Сохранить настройки",
+    "tilesComplete": "Все {total} плиток назначены",
+    "tilesPartial": "Назначено плиток: {assigned}/{total}",
+    "identifyAllTiles": "Определить все",
+    "tileAssign": "Назначить",
+    "tileSlotEmpty": "Плитка {position}: строка {row}, столбец {col} — пустая, нажмите, чтобы назначить",
+    "moveTile": "Переместить в другую ячейку",
+    "movePlaceholder": "Выберите новую ячейку…",
+    "moveTo": "Ячейка {position} — пустая",
+    "saveTile": "Сохранить плитку",
+    "tileSlotAssigned": "Плитка {position}: строка {row}, столбец {col} — назначена доске {summary}",
+    "moveSwap": "Ячейка {position} — поменять местами с {summary}",
+    "tilesDuplicate": "Несколько плиток указывают на одну и ту же доску: {values}",
+    "tileActionsLabel": "Действия с плиткой",
+    "requiredMissing": "Ещё нужно: {fields}",
+    "geometryApplied": "Установлено {rows} × {cols}"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "Подключение",
+          "cards": {
+            "local": {
+              "title": "Локальный API",
+              "description": "Прямое подключение"
+            },
+            "cloud": {
+              "title": "Облачный API",
+              "description": "Через облачные серверы"
+            }
+          }
+        },
+        "host": {
+          "title": "IP-адрес доски",
+          "description": "Введите IP вручную или нажмите для сканирования сети",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "Локальный API-ключ",
+          "description": "Напишите на support@vestaboard.com для получения локального API-ключа",
+          "placeholder": "Ваш локальный API-ключ"
+        },
+        "cloud_key": {
+          "title": "API-ключ чтения/записи",
+          "description": "Находится в приложении доски: Настройки → Интеграции → API чтения/записи",
+          "placeholder": "Введите API-ключ чтения/записи"
+        },
+        "note_array_token": {
+          "title": "Токен облачного API",
+          "description": "Токен X-Vestaboard-Token для этого массива Note из вашей подписки на облачный API Vestaboard.",
+          "placeholder": "Введите X-Vestaboard-Token"
+        },
+        "tiles": {
+          "title": "Плитки досок",
+          "description": "Нажмите на ячейку, чтобы назначить физическую доску (IP + локальный API-ключ), которая находится в этой позиции на вашей стене. Используйте «Определить», чтобы показать номер ячейки на доске и убедиться, что она на своём месте.",
+          "items": {
+            "host": {
+              "title": "IP-адрес доски",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "Порт"
+            },
+            "local_api_key": {
+              "title": "Локальный API-ключ",
+              "placeholder": "Ваш локальный API-ключ"
+            },
+            "enabled": {
+              "title": "Включено"
+            }
+          }
+        },
+        "port": {
+          "title": "Порт"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "Дополнительно"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "Проверить подключение"
+        },
+        "discover": {
+          "label": "Сканировать сеть в поисках досок"
+        },
+        "identify": {
+          "label": "Определить"
+        },
+        "detect_geometry": {
+          "label": "Автоопределение с табло"
+        },
+        "enable_local_api": {
+          "label": "Получить API-ключ с доски",
+          "description": "Напишите на support@vestaboard.com для получения токена активации",
+          "input": {
+            "enablement_token": {
+              "title": "Токен активации",
+              "placeholder": "Токен от поддержки Vestaboard"
+            },
+            "host": {
+              "title": "IP-адрес доски",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }
