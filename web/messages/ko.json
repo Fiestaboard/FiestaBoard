@@ -2389,6 +2389,7 @@
     "scanning": "검색 중…",
     "noDevicesFound": "기기를 찾지 못했습니다. 주소를 직접 입력하세요.",
     "devicesFoundLabel": "{field}에서 찾은 기기",
+    "subnetLabel": "검색할 네트워크(선택 사항)",
     "tileAssigned": "할당됨",
     "tileDialogTitle": "타일 {position} — {row}행, {col}열",
     "tileDialogDescription": "이 위치에 있는 기기의 설정입니다.",

@@ -9,6 +9,8 @@
  *   (`ui:options.cards: [{value, title, description}]`).
  * - `device-picker`: a text field plus "Find devices", which runs the
  *   output's discover action (`ui:options.action`) and offers what it found.
+ *   The scan carries the page's private IPv4 address as `hint_host`, and,
+ *   when the action declares a `subnet` input, a network the user may type.
  * - `tile-grid`: an array of `{row, col, ...}` items as a rows × cols grid
  *   of slots (`ui:options.rows_field` / `cols_field`, or `layout: "board"`
  *   for the board's own tile layout). Each slot opens a dialog with the
@@ -52,6 +54,7 @@ import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
 import type { ActionResult, DiscoveredDevice, OutputActionDescriptor } from "@/lib/api";
+import { declaresInput, SUBNET } from "@/lib/network-hint";
 
 /** How a widget runs an action. */
 export interface RunOptions {
@@ -60,6 +63,12 @@ export interface RunOptions {
    * action passes `false`: its fills belong to the tile, not the board.
    */
   applyFills?: boolean;
+  /**
+   * A device picker's scan: send `hint_host` (the page's private IPv4
+   * address) whatever the action's id. `discover` and an action declaring
+   * `hint_host` get it without asking.
+   */
+  networkHint?: boolean;
 }
 
 /** What the board settings screen lends its widgets: the declared actions and a runner. */
@@ -198,12 +207,21 @@ export function DevicePickerField({
   const actions = useBoardActions();
   const inUse = useContext(TileValueInUseContext);
   const [devices, setDevices] = useState<DiscoveredDevice[] | null>(null);
-  const canScan = actions?.actions.some((a) => a.id === action) ?? false;
+  const [subnet, setSubnet] = useState("");
+  const declared = actions?.actions.find((a) => a.id === action);
+  const canScan = declared !== undefined;
+  const asksSubnet = declared !== undefined && declaresInput(declared, SUBNET);
+  const subnetProp = asksSubnet
+    ? ((declared.input_schema?.properties as Record<string, { title?: string }>)[SUBNET] ?? {})
+    : null;
   const scanning = actions?.running === action;
 
   const scan = async () => {
     if (!actions) return;
-    const result = await actions.run(action);
+    const typed = subnet.trim();
+    const result = await actions.run(action, asksSubnet && typed ? { [SUBNET]: typed } : undefined, {
+      networkHint: true,
+    });
     if (result === null) toast.error(t("actionFailed"));
     setDevices(result?.devices ?? []);
   };
@@ -228,6 +246,19 @@ export function DevicePickerField({
           </Button>
         )}
       </Flex>
+      {canScan && subnetProp && (
+        <Stack gap="1">
+          <Label htmlFor={`${name}-subnet`}>{subnetProp.title || t("subnetLabel")}</Label>
+          <Input
+            id={`${name}-subnet`}
+            type="text"
+            value={subnet}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSubnet(e.target.value)}
+            placeholder="192.168.1.0/24"
+            disabled={disabled || scanning}
+          />
+        </Stack>
+      )}
       {devices !== null &&
         (devices.length === 0 ? (
           <Text size="xs" tone="muted" role="status">

@@ -2389,6 +2389,7 @@
     "scanning": "Suche läuft…",
     "noDevicesFound": "Keine Geräte gefunden. Gib die Adresse selbst ein.",
     "devicesFoundLabel": "Gefundene Geräte für {field}",
+    "subnetLabel": "Zu durchsuchendes Netzwerk (optional)",
     "tileAssigned": "Zugewiesen",
     "tileDialogTitle": "Kachel {position} — Zeile {row}, Spalte {col}",
     "tileDialogDescription": "Einstellungen für das Gerät an dieser Position.",

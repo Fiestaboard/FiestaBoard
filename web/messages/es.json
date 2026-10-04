@@ -2389,6 +2389,7 @@
     "scanning": "Buscando…",
     "noDevicesFound": "No se encontraron dispositivos. Introduce la dirección manualmente.",
     "devicesFoundLabel": "Dispositivos encontrados para {field}",
+    "subnetLabel": "Red en la que buscar (opcional)",
     "tileAssigned": "Asignado",
     "tileDialogTitle": "Mosaico {position} — fila {row}, columna {col}",
     "tileDialogDescription": "Ajustes del dispositivo en esta posición.",

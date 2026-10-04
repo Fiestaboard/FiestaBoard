@@ -2389,6 +2389,7 @@
     "scanning": "Aranıyor…",
     "noDevicesFound": "Cihaz bulunamadı. Adresi kendiniz girin.",
     "devicesFoundLabel": "{field} için bulunan cihazlar",
+    "subnetLabel": "Aranacak ağ (isteğe bağlı)",
     "tileAssigned": "Atandı",
     "tileDialogTitle": "Karo {position} — satır {row}, sütun {col}",
     "tileDialogDescription": "Bu konumdaki cihazın ayarları.",

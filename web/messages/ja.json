@@ -2389,6 +2389,7 @@
     "scanning": "検索中…",
     "noDevicesFound": "デバイスが見つかりません。アドレスを直接入力してください。",
     "devicesFoundLabel": "{field} で見つかったデバイス",
+    "subnetLabel": "検索するネットワーク（任意）",
     "tileAssigned": "割り当て済み",
     "tileDialogTitle": "タイル {position} — 行 {row}、列 {col}",
     "tileDialogDescription": "この位置にあるデバイスの設定です。",

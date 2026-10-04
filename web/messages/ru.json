@@ -2389,6 +2389,7 @@
     "scanning": "Поиск…",
     "noDevicesFound": "Устройства не найдены. Введите адрес вручную.",
     "devicesFoundLabel": "Найденные устройства для {field}",
+    "subnetLabel": "Сеть для поиска (необязательно)",
     "tileAssigned": "Назначено",
     "tileDialogTitle": "Плитка {position} — строка {row}, столбец {col}",
     "tileDialogDescription": "Настройки устройства в этой позиции.",
