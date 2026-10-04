@@ -1,25 +1,27 @@
 {
   "source": "Fiestaboard/FiestaUI",
   "path": "scripts/ci/tests/fixtures/",
-  "commit": "95423b31c1446bfc6c6d7f62b901cbb16c21d147",
-  "branch": "feat/display-preview",
+  "commit": "22db0b5245e89714252920824d7ad40c9c16987a",
+  "branch": "feat/split-flap-extended-markup-default",
   "pull_requests": [
     326,
     327,
     328,
-    331
+    331,
+    335,
+    336
   ],
-  "status": "unreleased: FiestaUI PR #331 (Task 7: DisplayPreview, cells-in, 95423b3) on the Task 2-4 stack (#326, #327, #328); re-vendor from the released FiestaUI tag with scripts/fiestaui_fixtures/vendor.sh and bump these hashes in the same PR",
-  "note": "Every file is byte-identical to its blob at the commit. Task 7 changed only device-model.schema.json (a panel geometry may declare rows/cols) and added plugin-models.json (example plugin-declared models, a test fixture); everything else is unchanged since 892fd603c569454e87dfebb8b9ac2ade81e6563d.",
+  "status": "unreleased: the review-fix batch of 2026-10-04 (tip #336 22db0b5, on #323-#335); re-vendor from the released FiestaUI tag with scripts/fiestaui_fixtures/vendor.sh and bump these hashes in the same PR",
+  "note": "Every file is byte-identical to its blob at the commit. The batch changed device-models.json (Vestaboard flagship/note/note_array stream at 1 fps, panel at 0.5 fps; the Pixoo 64 streams at 2 fps and snaps), led-golden.json (the flip budget keeps the scramble and shortens the stagger first; the 32-frame budget cases run on an inlined generic sequence device, sequence_panel_64) and charset-golden.json (kiosk_mono_v1 and five supported-icon cases). device-models.json and charset-golden.json are unchanged since cb500a8 (#326), led-golden.json since ff8186e (#328); everything else is unchanged since 95423b31c1446bfc6c6d7f62b901cbb16c21d147.",
   "files": {
     "src/fiestaui/character-set.schema.json": "69efe686fc58060361d279be453b12f44395fa1a879dcac7c82ce559628437b3",
     "src/fiestaui/character-sets.json": "3f5705bb7746f817e91fc685e65616bb4470aa1496068bf72db994c3de5b6e91",
     "src/fiestaui/device-model.schema.json": "27efc30e261b914b7daf5882af565f95c7d836c652e378a2432ab1f609f55f18",
-    "src/fiestaui/device-models.json": "31813828d483c6a15fd14de73ca9b9ab648b62f7edaeed1e9ac4b504e20f363c",
+    "src/fiestaui/device-models.json": "cce6d482d7fff143bcf8153ba1e2665529b0ae1b85d05f6a547659a4e80bfeed",
     "src/fiestaui/led-fonts.json": "975e1ee0eb0eea1e0138d1eeb3217eb3f4d9b610c55cfd66d6a7f65ecb02446d",
     "src/fiestaui/plugin-models.json": "9bdaaea77efca0388c19dd0927cd5000052ab6b32c68d3b06a937a1fb91030f7",
-    "tests/fixtures/fiestaui/charset-golden.json": "9e00ca0d500e6df8b02b3486c49ae4659734e9c8347ef057f23ed0ab7d6d72e3",
-    "tests/fixtures/fiestaui/led-golden.json": "5c8d1f3fe2b3e223826f3b505b1fb7e996c45e0f6f7208ef13eb5ceffd4a4b1f",
+    "tests/fixtures/fiestaui/charset-golden.json": "dc38aed4091f5a276ae28fd679fb9b7b229d0dbda012c872b7ed11c97ae348f9",
+    "tests/fixtures/fiestaui/led-golden.json": "1f0ec5ef0de35a30a1248ced219b9ddc4715c81b1712f7f5a616a1dd34122965",
     "tests/fixtures/fiestaui/plugin-models.json": "9bdaaea77efca0388c19dd0927cd5000052ab6b32c68d3b06a937a1fb91030f7"
   }
 }

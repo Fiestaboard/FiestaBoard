@@ -84,6 +84,15 @@ class TestVendoredSchemas:
         errors = fiestaui.validate_device_model(model)
         assert any("charset" in e for e in errors)
 
+    @pytest.mark.parametrize("model_id", ["vestaboard_flagship", "divoom_pixoo64"])
+    def test_a_font_is_checked_on_every_model_not_only_an_led_one(self, model_id):
+        # FiestaUI #326 review fix: a split-flap model has no use for a font,
+        # but one it names must still be a face that exists.
+        model = dict(fiestaui_data.builtin_device_models()[model_id])
+        assert fiestaui.validate_device_model({**model, "font": "3x5"}) == []
+        errors = fiestaui.validate_device_model({**model, "font": "9x9"})
+        assert errors and all(e.startswith("device_model.font") for e in errors)
+
     def test_every_vendored_built_in_model_is_valid(self):
         for model_id, model in fiestaui_data.builtin_device_models().items():
             assert fiestaui.validate_device_model(model, model_id) == []
@@ -158,10 +167,12 @@ class TestOutputBlock:
         output, errors = parse_output_block(inline_block(), base_dir=None, data_files=[])
         assert errors == []
         caps = output.capabilities
+        # The Pixoo 64 streams single frames since its hardware test
+        # (FiestaUI #335): no sequence, so no frame budget.
         assert (caps.technology, caps.animation, caps.max_frames, caps.charset) == (
             "led_matrix",
-            "sequence",
-            32,
+            "stream",
+            None,
             "led_3x5",
         )
 

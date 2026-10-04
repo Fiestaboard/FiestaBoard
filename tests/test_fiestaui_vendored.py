@@ -39,4 +39,4 @@ def test_every_vendored_file_is_pinned():
 
 def test_provenance_records_one_fiestaui_commit():
     assert provenance()["source"] == "Fiestaboard/FiestaUI"
-    assert provenance()["commit"] == "95423b31c1446bfc6c6d7f62b901cbb16c21d147"
+    assert provenance()["commit"] == "22db0b5245e89714252920824d7ad40c9c16987a"

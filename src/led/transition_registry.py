@@ -1,6 +1,6 @@
 """Which transition a device runs: the menu, its requirements and the selection rule.
 
-A port of FiestaUI's ``src/lib/led-transition-registry.ts`` (c2c3b72), reason
+A port of FiestaUI's ``src/lib/led-transition-registry.ts`` (d4e3074), reason
 strings included. The flip is one entry in a menu that always contains
 "none". Each entry declares what it needs (a frame rate for a streamed
 device, a frame count for one that plays an uploaded sequence), so a device
@@ -30,15 +30,18 @@ from .transitions import DEFAULT_LED_FLIP_STEP_MS, LedTransitionSpec
 
 __all__ = [
     "LED_TRANSITIONS",
+    "SPLIT_FLAP_REASON",
     "LedTransitionAvailability",
     "LedTransitionEntry",
     "LedTransitionId",
     "ResolvedLedTransition",
     "TransitionForDevice",
     "default_transition_id_for_model",
+    "is_led_transition_id",
     "resolve_led_transition",
     "transition_spec_for_device",
     "transitions_for_model",
+    "unknown_transition_reason",
 ]
 
 LedTransitionId = Literal["none", "flip", "cascade", "slide", "wipe", "fade", "dissolve"]
@@ -117,8 +120,10 @@ class ResolvedLedTransition:
     #: The spec to plan with, or ``"none"`` to snap.
     spec: LedTransitionSpec | Literal["none"]
     source: Literal["explicit", "default", "fallback"]
-    #: The explicit choice set aside, when ``source`` is ``fallback``.
-    requested: LedTransitionId | None = None
+    #: The explicit choice set aside, when ``source`` is ``fallback``: an id
+    #: the device cannot run, or a value that is no id at all (a stale
+    #: setting), reported as given.
+    requested: str | None = None
     reason: str | None = None
 
 
@@ -178,6 +183,22 @@ def transition_spec_for_device(transition_id: str, animation: Mapping) -> Transi
     return TransitionForDevice(LedTransitionSpec(transition_id), False)
 
 
+#: Why no LED transition applies to a split-flap board. Its frames are
+#: written one at a time and its own flap cascade animates every change: the
+#: menu is not a matter of push rate there.
+SPLIT_FLAP_REASON = "A split-flap board animates each change with its own flap cascade; LED transitions do not apply."
+
+
+def is_led_transition_id(value: object) -> bool:
+    """Whether *value* is a menu id (FiestaUI ``isLedTransitionId``): its own key, nothing inherited."""
+    return isinstance(value, str) and value in LED_TRANSITIONS
+
+
+def unknown_transition_reason(requested: str) -> str:
+    """Why a value that is no menu id fell back (FiestaUI's wording)."""
+    return f'Unknown transition "{requested}"; one of {", ".join(LED_TRANSITIONS)}.'
+
+
 def _unavailable_reason(transition_id: str, animation: Mapping) -> str:
     entry = LED_TRANSITIONS[transition_id]
     delivery = animation.get("delivery")
@@ -188,16 +209,24 @@ def _unavailable_reason(transition_id: str, animation: Mapping) -> str:
             f"Needs at least {entry.min_frames} frames; this device plays sequences of up to "
             f"{_js(animation.get('maxFrames'))}."
         )
-    max_fps = animation.get("maxFps")
-    measured = "unmeasured" if max_fps < 5 else "measured"
-    return f"Needs about {_js(entry.min_fps)} frames a second; this device's push rate is {_js(max_fps)} ({measured})."
+    return (
+        f"Needs about {_js(entry.min_fps)} frames a second; this device's push rate is {_js(animation.get('maxFps'))}."
+    )
 
 
 def transitions_for_model(model: Mapping) -> list[LedTransitionAvailability]:
-    """The whole menu judged against a device model. "none" is always available."""
+    """The whole menu judged against a device model. "none" is always available.
+
+    A split-flap board runs "none" only, whatever its frame rate says: the
+    flap cascade is the animation.
+    """
     animation = model["animation"]
+    flap = model.get("technology") == "split_flap"
     out = []
     for transition_id, entry in LED_TRANSITIONS.items():
+        if flap and transition_id != "none":
+            out.append(LedTransitionAvailability(transition_id, entry, False, SPLIT_FLAP_REASON, None, False))
+            continue
         result = transition_spec_for_device(transition_id, animation)
         if result is None:
             reason = _unavailable_reason(transition_id, animation)
@@ -210,7 +239,12 @@ def transitions_for_model(model: Mapping) -> list[LedTransitionAvailability]:
 
 
 def default_transition_id_for_model(model: Mapping) -> LedTransitionId:
-    """Flip when the device can show one; otherwise none. Nothing else is ever a default."""
+    """Flip when the device can show one; otherwise none. Nothing else is ever a default.
+
+    A split-flap board's default is always none: its flap cascade is the animation.
+    """
+    if model.get("technology") == "split_flap":
+        return "none"
     return "flip" if transition_spec_for_device("flip", model["animation"]) else "none"
 
 
@@ -221,10 +255,20 @@ def resolve_led_transition(
 
     A spec with its own timings keeps them, but never past what the device can
     show: a slow stream still drops the half-flap, a sequence player holds each
-    frame at least its minimum, and a frame budget always applies. Without a
-    model, an explicit choice runs as written and the default is none.
+    frame at least its minimum, and a frame budget always applies (the tighter
+    of the caller's and the device's). Without a model, an explicit choice runs
+    as written and the default is none. A choice that is no menu id at all (a
+    stale setting, a typo in a plugin's request) is never run or looked up: it
+    falls back to the default with ``source="fallback"``, ``requested`` as
+    given and a reason. A split-flap board runs only "none".
     """
     requested = None if choice is None else choice if isinstance(choice, str) else choice.kind
+    if requested is not None and not is_led_transition_id(requested):
+        fallback_id = "none" if model is None else default_transition_id_for_model(model)
+        fallback = "none" if model is None else transition_spec_for_device(fallback_id, model["animation"]).spec
+        return ResolvedLedTransition(
+            fallback_id, fallback, "fallback", requested=requested, reason=unknown_transition_reason(requested)
+        )
     if model is None:
         if choice is None or choice == "none":
             return ResolvedLedTransition("none", "none", "explicit" if choice else "default")
@@ -232,6 +276,8 @@ def resolve_led_transition(
         return ResolvedLedTransition(requested, spec, "explicit")
     animation = model["animation"]
     if requested is not None:
+        if model.get("technology") == "split_flap" and requested != "none":
+            return ResolvedLedTransition("none", "none", "fallback", requested=requested, reason=SPLIT_FLAP_REASON)
         result = transition_spec_for_device(requested, animation)
         if result is not None:
             spec = result.spec
@@ -244,7 +290,8 @@ def resolve_led_transition(
                 if device.half_flap is False:
                     spec = replace(spec, half_flap=False)
                 if device.max_frames is not None:
-                    spec = replace(spec, max_frames=device.max_frames)
+                    own_budget = device.max_frames if choice.max_frames is None else choice.max_frames
+                    spec = replace(spec, max_frames=min(own_budget, device.max_frames))
             return ResolvedLedTransition(requested, spec, "explicit", reason=result.reason)
         fallback_id = default_transition_id_for_model(model)
         fallback = transition_spec_for_device(fallback_id, animation)
