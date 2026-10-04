@@ -1270,7 +1270,10 @@ is an error, not a warning). `output.actions` declares the screen's buttons:
 `test_connection`, `discover`, `identify` and `detect_geometry` call your
 `check_connection()`, `discover(timeout)`, `identify()` and
 `detect_geometry()`; any other id calls `action_<id>(inputs)` (or override
-`run_action(action, inputs)`). Return an `ActionOutcome(status, message,
+`run_action(action, inputs)`; an output that needs more overrides the class
+method `handle_action(ctx)`, whose `ActionContext` lends a throwaway
+instance, the board's live one under its send lock, a reader and a
+re-send — see `docs/development/output-plugins.md`). Return an `ActionOutcome(status, message,
 guidance, fields, geometry, devices)`; mark a credential you hand back
 `ActionField(value, secret=True)` and declare it in `result_fields`
 (`{"token": {"secret": true, "fills": "token"}}`) — core never logs it.

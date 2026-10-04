@@ -5,8 +5,9 @@ the built-in presets, custom sizing, the Cloud API transport, and the
 auto-detect endpoint. For a user-facing walkthrough, see the
 [Note Array setup guide](../setup/NOTE_ARRAYS.md).
 
-The source of truth is `src/devices.py` (geometry) and `src/board_client.py`
-(transport). The constants below mirror those modules.
+The source of truth is `src/devices.py` (geometry) and the Vestaboard output
+plugin, [fiestaboard-output--vestaboard](https://github.com/Fiestaboard/fiestaboard-output--vestaboard)
+(transport, tiles, settings rules). The constants below mirror those modules.
 
 ## Dimensions model
 
@@ -101,8 +102,8 @@ one endpoint per Note.
 
 - **Tile model.** Each tile is
   `{"row", "col", "host", "port", "local_api_key", "enabled"}` with 0-indexed
-  note coordinates, stored on the board dict (`src/devices.py`,
-  `normalize_note_array_tiles` / `BoardInstance.configured_tiles`).
+  note coordinates, stored in the board's `output_config` (the plugin's
+  `connection.normalize_tiles` / `settings.VestaboardSettings.configured_tiles`).
   Out-of-range tiles are preserved across W×H resizes and filtered at point of
   use, so shrinking an array never destroys keys. Per-tile `local_api_key` is
   masked (`"***"`) in API responses; on write, a masked key is resolved against
@@ -112,12 +113,12 @@ one endpoint per Note.
 - **Rearranging.** The UI's "Move to position" is a plain tiles update over
   `PUT /settings/board` — it rewrites `row`/`col` on the moved (or swapped)
   tile dicts; there is no dedicated endpoint.
-- **Send path.** `NoteArrayLocalClient` (`src/note_array_local_client.py`)
-  slices the full frame with `slice_note_array_grid()` into 15 × 3 subgrids
-  and fans them out concurrently, one plain local `BoardClient` per tile.
+- **Send path.** The plugin's `TileArray` (`tiles.py`) slices the full frame
+  with `slice_grid()` into 15 × 3 subgrids and fans them out concurrently,
+  one Local API endpoint per tile.
   Success requires every tile to accept its slice; after a partial failure the
   retry re-POSTs only the failed tiles (per-tile skip-unchanged caches).
-  Reads stitch per-tile GETs (`stitch_note_array_grid()`) and return a grid
+  Reads stitch per-tile GETs (`stitch_grid()`) and return a grid
   only when the array is fully assigned and every read succeeds.
 - **No cloud constraints.** Transitions are forwarded to every tile (each Note
   animates its slice) and the 15-second cloud throttle does not apply.
@@ -241,8 +242,9 @@ are handy for scripted/manual testing.
 - [Note Array setup guide](../setup/NOTE_ARRAYS.md) — user-facing configuration.
 - `src/devices.py` — geometry constants, presets, `resolve_dimensions`,
   `classify_dimensions`.
-- `src/board_client.py` — Cloud API send/read and rate limiting.
-- `src/note_array_local_client.py` — local-mode per-tile fan-out client.
+- fiestaboard-output--vestaboard `transport.py` / `output.py` — Cloud API
+  send/read and rate limiting; `tiles.py` — local-mode per-tile fan-out;
+  `actions.py` — identify, detect size and the other settings actions.
 - `integration-tests/mock-cloud/server.py` — the mock Cloud board + its `/ui`.
 - `integration-tests/mock-board/server.py` — the multi-port Local API mock
   used by the local-array e2e (`web/tests/note-array-local.spec.ts`).
