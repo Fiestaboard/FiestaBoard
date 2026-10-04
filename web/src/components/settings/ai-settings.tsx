@@ -76,7 +76,6 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
   { label: "OpenRouter", base_url: "https://openrouter.ai/api/v1", protocol: "openai", group: "cloud" },
   { label: "OpenAI", base_url: "https://api.openai.com/v1", protocol: "openai", group: "cloud" },
   { label: "Anthropic", base_url: "https://api.anthropic.com/v1", protocol: "anthropic", group: "cloud" },
-  { label: "Groq", base_url: "https://api.groq.com/openai/v1", protocol: "openai", group: "cloud" },
   { label: "DeepSeek", base_url: "https://api.deepseek.com/v1", protocol: "openai", group: "cloud" },
   { label: "Mistral", base_url: "https://api.mistral.ai/v1", protocol: "openai", group: "cloud" },
   { label: "Together AI", base_url: "https://api.together.xyz/v1", protocol: "openai", group: "cloud" },

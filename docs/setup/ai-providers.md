@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
-description: "Bring your own AI: configure OpenAI, Anthropic, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, or llama.cpp. FiestaBoard never bundles an API key."
-keywords: [FiestaBoard AI, Vestaboard AI, AI page generation, LLM page drafts, OpenAI integration, Anthropic Claude, OpenRouter, Groq, DeepSeek, Mistral, Together AI, Fireworks AI, Ollama, LM Studio, vLLM, llama.cpp, bring your own model, BYOK, BYO LLM]
+description: "Bring your own AI: configure OpenAI, Anthropic, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, or llama.cpp. FiestaBoard never bundles an API key."
+keywords: [FiestaBoard AI, Vestaboard AI, AI page generation, LLM page drafts, OpenAI integration, Anthropic Claude, OpenRouter, DeepSeek, Mistral, Together AI, Fireworks AI, Ollama, LM Studio, vLLM, llama.cpp, bring your own model, BYOK, BYO LLM]
 ---
 
 # AI Providers (FiestaBot setup)
@@ -19,7 +19,7 @@ is no FiestaBoard-hosted AI proxy.
 Two protocols are supported out of the box:
 
 - **OpenAI-compatible** chat completions — one-click presets for
-  OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together AI, and
+  OpenAI, OpenRouter, DeepSeek, Mistral, Together AI, and
   Fireworks AI, plus local servers Ollama, LM Studio, llama.cpp, and
   vLLM. Any other OpenAI-compatible endpoint works too — just paste
   the base URL.
@@ -63,7 +63,7 @@ re-entering credentials.
 - **You already pay for OpenAI / Anthropic / Mistral / etc.** — use
   the matching preset and your existing key. No reason to add an
   OpenRouter middleman.
-- **You want the lowest possible latency** — Groq and DeepSeek are
+- **You want the lowest possible latency** — DeepSeek is
   typically faster than OpenRouter's pooled routing.
 - **You want everything to stay on your own hardware** — pick a
   local preset (Ollama, LM Studio, llama.cpp, vLLM). Note the
@@ -80,7 +80,7 @@ kind of provider it is:
   saved straight away and shows its sign-in panel. Once you are signed
   in, its models are listed on their own: search the list and pick one. See
   [Signing in instead of using an API key](#signing-in-instead-of-using-an-api-key).
-- **Use an API key**: pick the service (OpenAI, Anthropic, Groq,
+- **Use an API key**: pick the service (OpenAI, Anthropic,
   DeepSeek, Mistral, Together AI, Fireworks AI, or OpenRouter), then
   paste your key and add a model. The name, base URL, and protocol are
   filled in for you.
@@ -211,7 +211,6 @@ recommendation ages more gracefully.
 | OpenAI         | OpenAI    | `gpt-5-mini`                          | Same as via OpenRouter.            |
 | Anthropic      | Anthropic | `claude-sonnet-5`                     | Direct, no OpenRouter markup.      |
 | Anthropic      | Anthropic | `claude-haiku-4-5`                    | Cheaper, fast.                     |
-| Groq           | OpenAI    | `llama-3.3-70b-versatile`              | Very low latency.                  |
 | DeepSeek       | OpenAI    | `deepseek-chat`                        | Cheap, capable.                    |
 | Mistral        | OpenAI    | `mistral-large-latest`                 | EU-hosted option.                  |
 | Together AI    | OpenAI    | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | Hosted open weights.            |
@@ -279,7 +278,7 @@ and is not part of the settings backup.
 ## Limitations
 
 - Two protocols supported: OpenAI-compatible chat completions
-  (presets cover OpenAI, OpenRouter, Groq, DeepSeek, Mistral,
+  (presets cover OpenAI, OpenRouter, DeepSeek, Mistral,
   Together, Fireworks, Ollama, LM Studio, llama.cpp, and vLLM), and
   the Anthropic Messages API. Other providers (Google Gemini, xAI
   Grok, Perplexity, Cerebras, DeepInfra, Nvidia NIM, Cohere, …) can

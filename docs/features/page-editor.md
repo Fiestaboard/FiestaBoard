@@ -108,7 +108,7 @@ your own provider, your own API key, and your own model list. Two
 wire-format protocols are supported out of the box:
 
 - **OpenAI-compatible** chat completions — works with OpenRouter,
-  OpenAI, Groq, DeepSeek, Mistral, Together AI, Fireworks AI, Ollama,
+  OpenAI, DeepSeek, Mistral, Together AI, Fireworks AI, Ollama,
   LM Studio, vLLM, llama.cpp, and most other local servers.
 - **Anthropic Messages API** — direct Claude access via
   `api.anthropic.com`.

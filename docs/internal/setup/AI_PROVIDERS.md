@@ -11,7 +11,7 @@ your own provider, your own API key, and your own model list.
 Two protocols are supported out of the box:
 
 - **OpenAI-compatible** chat-completions — one-click presets for
-  OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together AI, and
+  OpenAI, OpenRouter, DeepSeek, Mistral, Together AI, and
   Fireworks AI, plus local servers Ollama, LM Studio, llama.cpp, and
   vLLM. Any other OpenAI-compatible endpoint works too.
 - **Anthropic Messages API** — direct access to `api.anthropic.com`
@@ -43,7 +43,7 @@ In **Settings → AI Providers**, **Add provider** first asks what kind of provi
 
 The current preset list, sourced from `web/src/components/settings/ai-settings.tsx`:
 
-- **Cloud:** OpenRouter, OpenAI, Anthropic, Groq, DeepSeek, Mistral, Together AI, Fireworks AI.
+- **Cloud:** OpenRouter, OpenAI, Anthropic, DeepSeek, Mistral, Together AI, Fireworks AI.
 - **Local:** Ollama (`http://localhost:11434/v1`), LM Studio (`http://localhost:1234/v1`), llama.cpp (`http://localhost:8080/v1`), vLLM (`http://localhost:8000/v1`).
 
 ## Configuration
