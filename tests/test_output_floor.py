@@ -228,8 +228,9 @@ def test_a_non_429_http_error_still_releases_the_slot(clock, wire):
 # --- device keys ------------------------------------------------------------------
 
 
-def _sha(value: str) -> str:
-    return hashlib.sha256(value.encode()).hexdigest()
+def _digest(value: str) -> str:
+    """The credential fingerprint, computed independently: PBKDF2-HMAC-SHA256, fixed salt."""
+    return hashlib.pbkdf2_hmac("sha256", value.encode(), b"fiestaboard-device-key", 100_000).hex()
 
 
 class TestDeviceKey:
@@ -244,7 +245,7 @@ class TestDeviceKey:
         key = BoardClient(api_key="test_secret_rw", use_cloud=True).device_key()
         assert key.startswith("vestaboard-rw-cloud:")
         assert "test_secret_rw" not in key
-        assert key.split(":", 1)[1] == _sha("test_secret_rw")[:16]
+        assert key.split(":", 1)[1] == _digest("test_secret_rw")[:16]
 
     def test_a_note_array_cloud_board_is_a_hash_of_its_token_never_the_token(self):
         client = BoardClient(api_key="test_secret_tok", use_cloud=True, note_array_token="test_secret_tok")

@@ -20,6 +20,7 @@ are decided atomically, exactly as when this lived in the client.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import logging
 import math
@@ -33,12 +34,21 @@ logger = logging.getLogger(__name__)
 Verdict = Literal["send", "throttled", "unchanged"]
 
 
+_DIGEST_SALT = b"fiestaboard-device-key"
+_DIGEST_ITERATIONS = 100_000
+
+
+@functools.lru_cache(maxsize=32)
 def credential_digest(secret: str) -> str:
     """A short, stable, non-reversible id for a credential, for device keys.
 
-    Device keys appear in logs; a raw API key or token never may.
+    Device keys appear in logs; a raw API key or token never may. A key
+    derivation function rather than a bare hash, so a logged id cannot be
+    cheaply brute-forced back to a guessable credential; cached, because
+    every send asks for its device key and the derivation is deliberately
+    slow.
     """
-    return hashlib.sha256(secret.encode("utf-8")).hexdigest()[:16]
+    return hashlib.pbkdf2_hmac("sha256", secret.encode("utf-8"), _DIGEST_SALT, _DIGEST_ITERATIONS).hex()[:16]
 
 
 @dataclass(frozen=True)
