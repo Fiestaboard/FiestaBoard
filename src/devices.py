@@ -79,7 +79,8 @@ ApiMode = Literal["local", "cloud", "virtual"]
 
 VALID_API_MODES: tuple[str, ...] = get_args(ApiMode)
 
-# The first-party outputs (src/outputs/registry.py VESTABOARD / FIESTAPANEL).
+# The first-party outputs (src/outputs/registry.py VESTABOARD / FIESTAPANEL),
+# whose board settings core still projects to the settings-v3 flat shape.
 # Spelled here because the outputs package imports this module;
 # tests/test_output_plugin_e2e.py holds the two lists equal.
 BUILTIN_OUTPUT_IDS = frozenset({"vestaboard", "fiestapanel"})

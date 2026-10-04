@@ -240,10 +240,9 @@ export interface BoardInstance {
    */
   tiles?: NoteArrayTile[];
   /**
-   * The output that drives this board — `"vestaboard"` or `"fiestapanel"`
-   * today; output plugins add more ids. Derived by the API on every
-   * `GET /settings/board` (never stored), so it is absent on a board the UI
-   * builds itself, and echoing it back on a PUT is ignored.
+   * The output that drives this board — `"vestaboard"`, `"fiestapanel"`, or
+   * an output plugin's id. Stored since settings v4; absent on a board the UI
+   * builds itself (the server derives it from `api_mode` then).
    */
   output?: string;
   /**
@@ -264,7 +263,10 @@ export interface BoardInstance {
   /**
    * An output plugin's board settings, shaped by the plugin's settings schema
    * (`GET /outputs`); every secret reads back as `"***"`, and echoing `"***"`
-   * on a PUT keeps the stored value. Absent on Vestaboard and FiestaPanel boards.
+   * on a PUT keeps the stored value. A Vestaboard's is its connection (the
+   * same fields as the flat `api_mode`/`host`/... above, which the API still
+   * returns); a PUT may send either half, and the half that changed wins. A
+   * FiestaPanel's is `{}`.
    */
   output_config?: Record<string, unknown>;
 }
