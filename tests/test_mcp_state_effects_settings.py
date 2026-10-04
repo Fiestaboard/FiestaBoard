@@ -638,6 +638,23 @@ def test_update_panel_screen_size_refits_the_virtual_board(mcp, services, two_bo
     assert (after["grid_rows"], after["grid_cols"]) == (18, 45)
 
 
+def test_update_panel_sets_the_render_style_and_list_panels_reads_it_back(mcp, services, two_boards, runtime):
+    created = assert_ok(call(mcp, "create_panel", name="Den TV"), "create_panel")
+    assert created["panel"]["render_style"] == "split_flap"
+
+    assert_ok(call(mcp, "update_panel", panel_id=created["panel_id"], render_style="led_matrix"), "update_panel")
+
+    assert runtime.panels.get_panel(created["panel_id"]).render_style == "led_matrix"
+    (listed,) = assert_ok(call(mcp, "list_panels"), "list_panels")["panels"]
+    assert listed["render_style"] == "led_matrix"
+
+
+def test_update_panel_rejects_an_unknown_render_style(mcp, services, two_boards, runtime):
+    created = assert_ok(call(mcp, "create_panel", name="Den TV"), "create_panel")
+    call_expect_error(mcp, "update_panel", panel_id=created["panel_id"], render_style="hologram")
+    assert runtime.panels.get_panel(created["panel_id"]).render_style == "split_flap"
+
+
 def test_update_panel_reports_an_unknown_panel(mcp, services, two_boards, runtime):
     message = call_expect_error(mcp, "update_panel", panel_id="nope", name="X")
     assert "not found" in message.lower()

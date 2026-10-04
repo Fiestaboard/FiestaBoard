@@ -2260,6 +2260,7 @@ async def update_panel(
     is_display: bool | None = None,
     backdrop: str | None = None,
     auto_dim: dict[str, Any] | None = None,
+    render_style: str | None = None,
 ) -> dict[str, Any]:
     """Update a panel's display configuration. Only supplied fields change."""
     from fastapi import HTTPException
@@ -2280,13 +2281,14 @@ async def update_panel(
                 "is_display": is_display,
                 "backdrop": backdrop,
                 "auto_dim": auto_dim,
+                "render_style": render_style,
             }.items()
             if value is not None
         }
         if not fields:
             return err(
                 "Nothing to update: pass at least one of name, screen_diagonal_inches, screen_aspect_w, "
-                "screen_aspect_h, calibration_scale, animations_enabled, is_display, backdrop, auto_dim."
+                "screen_aspect_h, calibration_scale, animations_enabled, is_display, backdrop, auto_dim, render_style."
             )
         panel = await _rest_update_panel(panel_id, PanelUpdate(**fields))
     except HTTPException as exc:
