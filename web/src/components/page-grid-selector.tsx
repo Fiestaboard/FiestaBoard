@@ -2,11 +2,11 @@
 
 import {
   Badge,
+  type BoardCellGrid,
   Box,
   Button,
   Card,
   CardContent,
-  type BoardCellGrid,
   type DeviceModel,
   EmptyState,
   Flex,
