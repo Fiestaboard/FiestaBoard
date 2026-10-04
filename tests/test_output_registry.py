@@ -176,7 +176,9 @@ class TestFactoryBuildsThroughTheRegistry:
     def test_a_drivers_capabilities_stay_within_its_outputs(self, board):
         caps = capabilities_of(resolve_output_id(board))
         driver = build_driver(board)
-        assert driver.animation == caps.animation
+        # A driver narrows its output's capabilities for its own connection:
+        # the same animation, or none at all (a cloud Vestaboard snaps).
+        assert driver.animation in (caps.animation, "none")
         assert driver.native_transitions <= caps.native_transitions
 
 
