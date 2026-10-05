@@ -239,6 +239,12 @@ export interface BoardInstance {
   device_model?: string | null;
   /** The character set the board draws with, a FiestaUI id; `null` when unknown. Derived, never stored. */
   charset?: string | null;
+  /**
+   * An output plugin's board settings, shaped by the plugin's settings schema
+   * (`GET /outputs`); every secret reads back as `"***"`, and echoing `"***"`
+   * on a PUT keeps the stored value. Absent on Vestaboard and FiestaPanel boards.
+   */
+  output_config?: Record<string, unknown>;
 }
 
 /**
