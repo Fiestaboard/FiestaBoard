@@ -1,0 +1,41 @@
+{
+  "scenario": "welcome_local",
+  "description": "Setup-wizard welcome: a fresh client from the primary board, forced, with the transition settings.",
+  "seam": "POST /send-welcome-message",
+  "steps": [
+    {
+      "action": "send the welcome message",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [0, 63, 0, 0, 63, 0, 0, 64, 0, 0, 65, 0, 0, 64, 0, 0, 63, 0, 0, 68, 0, 0],
+              [0, 64, 0, 0, 65, 0, 0, 63, 0, 0, 68, 0, 0, 65, 0, 0, 64, 0, 0, 63, 0, 0],
+              [8, 9, 25, 1, 0, 6, 18, 15, 13, 0, 6, 9, 5, 19, 20, 1, 2, 15, 1, 18, 4, 0],
+              [0, 68, 0, 0, 64, 0, 0, 65, 0, 0, 63, 0, 0, 64, 0, 0, 68, 0, 0, 65, 0, 0],
+              [0, 63, 0, 0, 65, 0, 0, 64, 0, 0, 68, 0, 0, 63, 0, 0, 64, 0, 0, 63, 0, 0],
+              [0, 64, 0, 0, 68, 0, 0, 63, 0, 0, 65, 0, 0, 68, 0, 0, 63, 0, 0, 64, 0, 0]
+            ],
+            "strategy": "edges-to-center",
+            "step_interval_ms": 100,
+            "step_size": 1
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "message": "Welcome message sent to your board!",
+          "sent": true
+        }
+      }
+    }
+  ]
+}

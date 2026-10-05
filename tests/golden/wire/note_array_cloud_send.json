@@ -1,0 +1,43 @@
+{
+  "scenario": "note_array_cloud_send",
+  "description": "Note-array Cloud API: {characters: grid} with X-Vestaboard-Token, 3x30 for a 2x1 array.",
+  "seam": "POST /v1/boards/{board}/message",
+  "steps": [
+    {
+      "action": "send text HELLO ARRAY",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://cloud.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Token": "test_array_token",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [8, 5, 12, 12, 15, 0, 1, 18, 18, 1, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [5.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "sent": true,
+          "board_id": "wire-array",
+          "characters": [
+            [8, 5, 12, 12, 15, 0, 1, 18, 18, 1, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          ],
+          "text": "HELLO ARRAY",
+          "expires_at": null,
+          "reason": null
+        }
+      }
+    }
+  ]
+}
