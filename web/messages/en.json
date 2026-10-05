@@ -1825,7 +1825,8 @@
     "pagePickerPlaceholder": "Choose a page…",
     "showSecret": "Show value",
     "hideSecret": "Hide value",
-    "secretSaved": "••••••••••• (set)"
+    "secretSaved": "••••••••••• (set)",
+    "fieldRequired": "Required"
   },
   "filterPicker": {
     "noFiltersAvailable": "No filters available",
@@ -2385,7 +2386,6 @@
     "dismissFailed": "Could not dismiss. Try again."
   },
   "boardSettingsScreen": {
-    "scanning": "Searching…",
     "noDevicesFound": "No devices found. Enter the address yourself.",
     "devicesFoundLabel": "Devices found for {field}",
     "subnetLabel": "Network to search (optional)",
@@ -2431,8 +2431,15 @@
     "moveSwap": "Slot {position} — swap with {summary}",
     "tilesDuplicate": "Multiple tiles point at the same board: {values}",
     "tileActionsLabel": "Tile actions",
-    "requiredMissing": "Still needed: {fields}",
-    "geometryApplied": "Set to {rows} × {cols}"
+    "geometryApplied": "Set to {rows} × {cols}",
+    "searchingNetwork": "Searching {network}…",
+    "searchingYourNetwork": "Searching your network…",
+    "foundOneSelected": "Found {device} and selected it.",
+    "foundDevices": "{count, plural, one {Found # device. Choose yours.} other {Found # devices. Choose yours.}}",
+    "noDeviceFoundOn": "No {device} found on {network}.",
+    "noDeviceFoundHere": "No {device} found on your network.",
+    "enterManually": "Enter address manually",
+    "searchAgain": "Search again"
   },
   "outputSettings": {
     "vestaboard": {

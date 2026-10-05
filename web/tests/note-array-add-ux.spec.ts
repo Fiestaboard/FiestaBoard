@@ -64,8 +64,8 @@ test.describe("Add Note Array board", () => {
     const localMode = card.getByRole("radio", { name: /Local API/ });
     await expect(localMode).toBeVisible();
     await expect(card.getByLabel(/Cloud API Token/)).toBeVisible();
-    // A tokenless array is not usable yet — the form says which credential it needs.
-    await expect(card.getByText("Still needed: Cloud API Token")).toBeVisible();
+    // A tokenless array is not usable yet — the token field itself says it is needed.
+    await expect(card.getByLabel(/Cloud API Token/)).toHaveAccessibleDescription(/Required/);
 
     // Bring the connection section on screen and dwell so the video
     // clearly shows the mode switch.

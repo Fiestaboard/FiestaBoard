@@ -548,9 +548,11 @@ describe("the contract's board facts, conditional actions and auto-apply", () =>
     expect(screen.getByText("0/6 tiles assigned")).toBeInTheDocument();
   });
 
-  it("names the visible required settings still empty, and only those", () => {
+  it("marks the visible required settings still empty, on the field, and only those", () => {
     render(<Shaped facts={{ device_type: "flagship" }} />);
-    expect(screen.getByTestId("settings-missing")).toHaveTextContent("Still needed: Sign address");
+    const hints = screen.getAllByTestId("field-required");
+    expect(hints.map((hint) => hint.getAttribute("data-field"))).toEqual(["host"]);
+    expect(screen.getByLabelText(/Sign address/)).toHaveAccessibleDescription("Required");
   });
 
   it("shows an action only while its condition holds, and never one a visible widget runs", async () => {

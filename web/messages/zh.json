@@ -1869,7 +1869,8 @@
     "pagePickerPlaceholder": "选择页面…",
     "showSecret": "显示值",
     "hideSecret": "隐藏值",
-    "secretSaved": "••••••••••• （已设置）"
+    "secretSaved": "••••••••••• （已设置）",
+    "fieldRequired": "必填"
   },
   "filterPicker": {
     "noFiltersAvailable": "没有可用的筛选器",
@@ -2385,7 +2386,6 @@
     "dismissFailed": "无法关闭，请重试。"
   },
   "boardSettingsScreen": {
-    "scanning": "正在搜索…",
     "noDevicesFound": "未找到设备。请手动输入地址。",
     "devicesFoundLabel": "为 {field} 找到的设备",
     "subnetLabel": "要搜索的网络（可选）",
@@ -2431,8 +2431,15 @@
     "moveSwap": "位置 {position}——与 {summary} 交换",
     "tilesDuplicate": "多个拼接位指向同一块看板：{values}",
     "tileActionsLabel": "模块操作",
-    "requiredMissing": "仍需填写：{fields}",
-    "geometryApplied": "已设为 {rows} × {cols}"
+    "geometryApplied": "已设为 {rows} × {cols}",
+    "searchingNetwork": "正在搜索 {network}…",
+    "searchingYourNetwork": "正在搜索你的网络…",
+    "foundOneSelected": "已找到并选中 {device}。",
+    "foundDevices": "{count, plural, other {找到 # 台设备，请选择你的设备。}}",
+    "noDeviceFoundOn": "在 {network} 上未找到 {device}。",
+    "noDeviceFoundHere": "在你的网络上未找到 {device}。",
+    "enterManually": "手动输入地址",
+    "searchAgain": "重新搜索"
   },
   "outputSettings": {
     "vestaboard": {

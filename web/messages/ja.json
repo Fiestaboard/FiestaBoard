@@ -1869,7 +1869,8 @@
     "pagePickerPlaceholder": "ページを選択…",
     "showSecret": "値を表示",
     "hideSecret": "値を非表示",
-    "secretSaved": "••••••••••• （設定済み）"
+    "secretSaved": "••••••••••• （設定済み）",
+    "fieldRequired": "必須"
   },
   "filterPicker": {
     "noFiltersAvailable": "利用可能なフィルターがありません",
@@ -2385,7 +2386,6 @@
     "dismissFailed": "閉じられませんでした。もう一度お試しください。"
   },
   "boardSettingsScreen": {
-    "scanning": "検索中…",
     "noDevicesFound": "デバイスが見つかりません。アドレスを直接入力してください。",
     "devicesFoundLabel": "{field} で見つかったデバイス",
     "subnetLabel": "検索するネットワーク（任意）",
@@ -2431,8 +2431,15 @@
     "moveSwap": "スロット {position} — {summary} と入れ替え",
     "tilesDuplicate": "複数のタイルが同じボードを指しています: {values}",
     "tileActionsLabel": "タイルの操作",
-    "requiredMissing": "未入力: {fields}",
-    "geometryApplied": "{rows} × {cols} に設定しました"
+    "geometryApplied": "{rows} × {cols} に設定しました",
+    "searchingNetwork": "{network} を検索中…",
+    "searchingYourNetwork": "ネットワークを検索中…",
+    "foundOneSelected": "{device} が見つかり、選択しました。",
+    "foundDevices": "{count, plural, other {# 台のデバイスが見つかりました。お使いのものを選んでください。}}",
+    "noDeviceFoundOn": "{network} に {device} は見つかりませんでした。",
+    "noDeviceFoundHere": "ネットワーク上に {device} は見つかりませんでした。",
+    "enterManually": "アドレスを手動で入力",
+    "searchAgain": "もう一度検索"
   },
   "outputSettings": {
     "vestaboard": {

@@ -1869,7 +1869,8 @@
     "pagePickerPlaceholder": "Välj en sida…",
     "showSecret": "Visa värde",
     "hideSecret": "Dölj värde",
-    "secretSaved": "••••••••••• (inställd)"
+    "secretSaved": "••••••••••• (inställd)",
+    "fieldRequired": "Obligatoriskt"
   },
   "filterPicker": {
     "noFiltersAvailable": "Inga filter tillgängliga",
@@ -2385,7 +2386,6 @@
     "dismissFailed": "Det gick inte att stänga. Försök igen."
   },
   "boardSettingsScreen": {
-    "scanning": "Söker…",
     "noDevicesFound": "Inga enheter hittades. Ange adressen själv.",
     "devicesFoundLabel": "Hittade enheter för {field}",
     "subnetLabel": "Nätverk att söka i (valfritt)",
@@ -2431,8 +2431,15 @@
     "moveSwap": "Plats {position} — byt med {summary}",
     "tilesDuplicate": "Flera rutor pekar på samma tavla: {values}",
     "tileActionsLabel": "Panelåtgärder",
-    "requiredMissing": "Behövs fortfarande: {fields}",
-    "geometryApplied": "Satt till {rows} × {cols}"
+    "geometryApplied": "Satt till {rows} × {cols}",
+    "searchingNetwork": "Söker i {network}…",
+    "searchingYourNetwork": "Söker i ditt nätverk…",
+    "foundOneSelected": "Hittade {device} och valde den.",
+    "foundDevices": "{count, plural, one {Hittade # enhet. Välj din.} other {Hittade # enheter. Välj din.}}",
+    "noDeviceFoundOn": "Ingen {device} hittades i {network}.",
+    "noDeviceFoundHere": "Ingen {device} hittades i ditt nätverk.",
+    "enterManually": "Ange adressen manuellt",
+    "searchAgain": "Sök igen"
   },
   "outputSettings": {
     "vestaboard": {
