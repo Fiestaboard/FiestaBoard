@@ -10,7 +10,14 @@
  * model is `null` here and the caller draws today's split-flap board.
  */
 
-import { characterSetForModel, type DeviceModel, type LedLetterCase, tryResolveDeviceModel } from "@fiestaboard/ui";
+import {
+  type CharacterSet,
+  characterSetForModel,
+  type DeviceModel,
+  type LedLetterCase,
+  tryResolveCharacterSet,
+  tryResolveDeviceModel,
+} from "@fiestaboard/ui";
 
 import { pagesCompatibleWithBoard, type SizedEntity } from "@/lib/board-dimensions";
 
@@ -68,5 +75,28 @@ export function ledLetterCase(model: DeviceModel): LedLetterCase {
     return characterSetForModel(model).mixedCase ? "mixed" : "upper";
   } catch {
     return "upper";
+  }
+}
+
+/**
+ * The character set an LED board's editor writes for: the board's own set
+ * when the API names a built-in one (`charset`, which may differ from the
+ * model's default — a Pixoo drawn in the 3×5 face), else the set its model
+ * declares (an output plugin's own set arrives in the model document).
+ * `null` for a split-flap or unknown board: its editor stays the flap editor.
+ */
+export function ledEditorCharacterSet(
+  board: { charset?: string | null } | null | undefined,
+  model: DeviceModel | null | undefined,
+): CharacterSet | null {
+  if (!isLedModel(model)) return null;
+  if (board?.charset) {
+    const byId = tryResolveCharacterSet(board.charset);
+    if (byId.set) return byId.set;
+  }
+  try {
+    return characterSetForModel(model);
+  } catch {
+    return null;
   }
 }

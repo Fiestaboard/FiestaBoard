@@ -26,6 +26,7 @@ import { Download, FileText, LayoutGrid, List, Plus } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useCurrentBoard } from "@/components/current-board-context";
 import type { ViewMode } from "@/components/page-grid-selector";
 import { useBoardSettings, usePages } from "@/hooks/use-board";
 import { queryKeys } from "@/hooks/use-board";
@@ -136,6 +137,7 @@ export default function PagesPage() {
   const t = useTranslations("pages");
   const { data: boardSettings } = useBoardSettings();
   const { data: pagesData } = usePages();
+  const { currentBoard } = useCurrentBoard();
   const configuredDevices = useMemo<DeviceType[]>(() => boardSettings?.devices ?? ["flagship"], [boardSettings]);
   // Surface pages whose device_type isn't in the user's configured boards
   // (e.g. flagship demo pages on a note-only setup) so they can still be
@@ -170,7 +172,12 @@ export default function PagesPage() {
     availableDevices.length > 0 &&
     !(activeTab && availableDevices.includes(activeTab))
   ) {
-    const preferred = configuredDevices.find((d) => availableDevices.includes(d));
+    // The display selected in the sidebar first (an LED display's custom-grid
+    // pages live on the "panel" tab), then the first configured device.
+    const current = currentBoard?.device_type;
+    const preferred =
+      (current && availableDevices.includes(current) ? current : undefined) ??
+      configuredDevices.find((d) => availableDevices.includes(d));
     setActiveTab(preferred ?? availableDevices[0]);
   }
 
@@ -190,8 +197,14 @@ export default function PagesPage() {
 
   const handleCreateNew = useCallback(() => {
     const device = activeTab ?? configuredDevices[0] ?? "flagship";
+    // On the selected display's own tab, ask for no device: the editor then
+    // targets that display exactly (its grid, model and character set).
+    if (currentBoard && currentBoard.device_type === device) {
+      push("/pages/new", { transitionType: "slide-up" });
+      return;
+    }
     push(`/pages/new?device=${device}`, { transitionType: "slide-up" });
-  }, [push, activeTab, configuredDevices]);
+  }, [push, activeTab, configuredDevices, currentBoard]);
 
   return (
     <PageLayout>
