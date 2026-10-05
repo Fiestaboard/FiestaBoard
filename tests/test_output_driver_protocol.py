@@ -37,7 +37,11 @@ EXPECTED_SURFACE = {
     "is_virtual",
     "skip_unchanged",
     "last_send_throttled",
+    "last_send_retry_after",
     "min_send_interval_ms",
+    # Read by the runtime to drive transitions (refactor/output-runtime-transitions).
+    "native_transitions",
+    "animation",
     "send_characters",
     "render",
     "set_transition_runner",

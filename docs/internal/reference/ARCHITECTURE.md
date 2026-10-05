@@ -159,7 +159,18 @@ Names you will meet:
   that cache: two consecutive read-backs that disagree with an unchanged
   cache mean someone else wrote the board. Sub-unit caches stay in the
   driver: a local note array keeps one per tile so a retry re-posts only
-  the tiles that failed.
+  the tiles that failed. And it **drives transitions**
+  (`OutputRuntime.render`; a client's `render()` is a thin delegate). A
+  native transition is a `NativeTransition` (`src/outputs/transitions.py`)
+  forwarded only to a driver that declares the strategy in
+  `native_transitions` — Vestaboard local and local note arrays declare all
+  six; RW Cloud, note-array Cloud and virtual boards declare none and get a
+  plain write. A `plugin:<id>` transition runs only with the beta flag on
+  and a driver whose `animation` capability is not `"none"`: the runtime's
+  `TransitionRunner` sends each frame through the driver's plain send under
+  the run's cancel token, paced by the driver's declared floor. Every driver
+  today is `"stream"` (frame-at-a-time); `"sequence"` (one timed upload)
+  is reserved for the first device that needs it.
 - **The send floor** (`src/outputs/floor.py`) — the minimum spacing between
   writes to one *device* (15 s for Vestaboard's RW and note-array Cloud
   APIs; local boards are unfloored). A driver declares the length

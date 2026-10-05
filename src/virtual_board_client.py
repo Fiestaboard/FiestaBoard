@@ -113,6 +113,11 @@ class VirtualBoardClient(TransitionRenderMixin):
             board_id,
         )
 
+    @property
+    def native_transitions(self) -> frozenset[str]:
+        """None: the FiestaPanel viewer animates every frame change itself."""
+        return frozenset()
+
     def device_key(self) -> str:
         """The board's shared glass: its board id (or the instance's own glass)."""
         if self.board_id is not None:
