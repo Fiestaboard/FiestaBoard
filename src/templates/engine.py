@@ -92,21 +92,56 @@ _SPAN_COLOUR = r"(?:red|orange|yellow|green|blue|violet|purple|white|black|6[3-9
 EXTENDED_HEAD_PATTERN = re.compile(r"\{\{(icon|" + _SPAN_COLOUR + r"(?:/" + _SPAN_COLOUR + r")?):", re.IGNORECASE)
 
 
-def _matching_double_brace(text: str, start: int) -> int:
+#: How deep the ``{{<head>:<body>}}`` authoring forms nest (FiestaUI
+#: ``MAX_TEMPLATE_SPAN_DEPTH``, the parser's :data:`src.markup.MAX_SPAN_DEPTH`
+#: for templates): a form at the top level is depth 1. A form that would be
+#: the ninth level is kept whole as literal text: not normalised, and its
+#: variables, formulas and tile names left as written (the board parser then
+#: still reads single-brace tiles inside it). The cap bounds the normaliser's
+#: recursion, so a hostile template cannot exhaust the stack.
+MAX_TEMPLATE_SPAN_DEPTH = 8
+
+# A kept ninth-level form rides through the remaining render passes with its
+# braces swapped for these, so no later pass (variables, formulas, tile names,
+# shortcuts) reads it; :func:`_unprotect` restores them at the end.
+_KEPT_OPEN, _KEPT_CLOSE = "\x01", "\x02"
+_PROTECT = str.maketrans("{}", _KEPT_OPEN + _KEPT_CLOSE)
+_UNPROTECT = str.maketrans(_KEPT_OPEN + _KEPT_CLOSE, "{}")
+_BRACE = re.compile(r"[{}]")
+
+
+def _unprotect(text: str) -> str:
+    return text.translate(_UNPROTECT) if _KEPT_OPEN in text else text
+
+
+def _brace_matches(text: str) -> dict[int, int]:
+    """For every ``{`` in *text*, the ``}`` that balances it (absent when unbalanced).
+
+    One pass, so finding every form's end costs one scan of the template, not
+    one per opener: a run of unbalanced openers stays linear.
+    """
+    matches: dict[int, int] = {}
+    stack: list[int] = []
+    for found in _BRACE.finditer(text):
+        at = found.start()
+        if text[at] == "{":
+            stack.append(at)
+        elif stack:
+            matches[stack.pop()] = at
+    return matches
+
+
+def _matching_double_brace(text: str, start: int, matches: dict[int, int]) -> int:
     """Index of the `}` closing the `{{` at *start*, counting nested braces; -1 if none.
 
     The closing pair must be `}}`, so the form ends where both opening braces
     are balanced (a body may hold `{{var}}`, `{{= f }}`, `{63}`, nested forms).
+    *matches* is :func:`_brace_matches` of *text*.
     """
-    depth = 0
-    for i in range(start, len(text)):
-        if text[i] == "{":
-            depth += 1
-        elif text[i] == "}":
-            depth -= 1
-            if depth == 0:
-                return i if text[i - 1] == "}" and i - 1 > start + 1 else -1
-    return -1
+    end = matches.get(start, -1)
+    if end == -1:
+        return -1
+    return end if text[end - 1] == "}" and end - 1 > start + 1 else -1
 
 
 def extract_template_plugin_ids(template_lines: "list[str] | str | None") -> set[str] | None:
@@ -239,12 +274,20 @@ class TemplateEngine:
         # when render_lines (or any outer caller) already pinned it.
         context = ensure_render_clock(context)
 
+        return _unprotect(self._render(template, context, extended_markup, 0))
+
+    def _render(self, template: str, context: dict[str, Any], extended_markup: bool, span_depth: int) -> str:
+        """:meth:`render`'s passes, for a template nested *span_depth* forms deep.
+
+        A kept ninth-level form is still protected in the result; only the
+        outermost :meth:`render` restores it.
+        """
         result = template
 
         # Extended-markup authoring forms ({{red:HOT}}, {{icon:sun}}) before
         # anything else: VAR_PATTERN would read "red:HOT" as a variable name.
         if extended_markup:
-            result = self._normalize_extended(result, context)
+            result = self._normalize_extended(result, context, span_depth)
 
         # Process colors FIRST (before variables) to prevent VAR_PATTERN from matching them
         # This converts {{red}} to {{63}}, etc.
@@ -1050,7 +1093,7 @@ class TemplateEngine:
         meta = metadata.get(".".join(fields)) or metadata.get(".".join("*" if f.isdigit() else f for f in fields))
         return meta.format if meta else "text"
 
-    def _normalize_extended(self, template: str, context: dict[str, Any]) -> str:
+    def _normalize_extended(self, template: str, context: dict[str, Any], span_depth: int = 0) -> str:
         """Turn the double-brace authoring forms into single-brace markup (plan D19).
 
         ``{{red:HOT}}`` -> ``{red:HOT}``, ``{{black/white:OPEN}}`` ->
@@ -1060,26 +1103,43 @@ class TemplateEngine:
         ``{{filled:-}}``, stays a variable. The body is rendered first
         (variables, formulas, tiles, nested spans), then wrapped. Runs before
         variable substitution, which would otherwise read ``red:HOT`` as a
-        variable name.
+        variable name. Forms nest :data:`MAX_TEMPLATE_SPAN_DEPTH` deep.
         """
-        return self._rewrite_extended(template, lambda body: self.render(body, context, extended_markup=True))
+        return self._rewrite_extended(
+            template, lambda body, depth: self._render(body, context, True, depth), span_depth
+        )
 
     @staticmethod
-    def _rewrite_extended(template: str, body_of: Any) -> str:
-        """``{{<head>:<body>}}`` -> ``{<head>:<body_of(body)>}`` for every authoring form."""
+    def _rewrite_extended(template: str, body_of: Any, depth: int = 0) -> str:
+        """``{{<head>:<body>}}`` -> ``{<head>:<body_of(body, depth + 1)>}`` for every authoring form.
+
+        *template* sits *depth* forms deep. A form that would be deeper than
+        :data:`MAX_TEMPLATE_SPAN_DEPTH` is kept whole, its braces protected
+        from the passes after this one (see :func:`_unprotect`).
+        """
+        if "{{" not in template:
+            return template
+        matches = _brace_matches(template)
         out: list[str] = []
         i = 0
-        while i < len(template):
-            head = EXTENDED_HEAD_PATTERN.match(template, i)
-            end = _matching_double_brace(template, i) if head else -1
+        while True:
+            at = template.find("{{", i)
+            if at == -1:
+                out.append(template[i:])
+                return "".join(out)
+            head = EXTENDED_HEAD_PATTERN.match(template, at)
+            end = _matching_double_brace(template, at, matches) if head else -1
             if end == -1:
-                out.append(template[i])
-                i += 1
+                out.append(template[i : at + 1])
+                i = at + 1
                 continue
-            body = template[head.end() : end - 1]
-            out.append("{" + head.group(1) + ":" + body_of(body) + "}")
+            out.append(template[i:at])
+            if depth >= MAX_TEMPLATE_SPAN_DEPTH:
+                out.append(template[at : end + 1].translate(_PROTECT))
+            else:
+                body = template[head.end() : end - 1]
+                out.append("{" + head.group(1) + ":" + body_of(body, depth + 1) + "}")
             i = end + 1
-        return "".join(out)
 
     def _get_configured_color_rules(self, plugin_id: str, base_plugin_id: str, field: str) -> list:
         """The rules that color ``plugin_id.field`` (see :func:`resolve_color_rules`)."""
@@ -1872,8 +1932,8 @@ class TemplateEngine:
             # Authoring forms to the single-brace markup render() produces,
             # keeping each body's variables for the max-length pass below;
             # named tiles to codes so VAR_PATTERN cannot read them.
-            def body_of(body: str) -> str:
-                return self._rewrite_extended(body, body_of)
+            def body_of(body: str, depth: int) -> str:
+                return self._rewrite_extended(body, body_of, depth)
 
             result = self._normalize_colors(self._rewrite_extended(result, body_of))
         else:
@@ -1920,7 +1980,8 @@ class TemplateEngine:
                 max_len = 1 if self._renders_as_color_tile(parts) else cols
             return "X" * (max_len + color_prefix_len)
 
-        result = VAR_PATTERN.sub(replace_with_max_length, result)
+        # A kept ninth-level form is literal text, measured as written.
+        result = _unprotect(VAR_PATTERN.sub(replace_with_max_length, result))
 
         if extended_markup:
             # Shortcuts become what the board draws ({sun} -> one icon tile,

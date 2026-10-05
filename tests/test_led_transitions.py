@@ -7,7 +7,7 @@ same frames, byte for byte, frame for frame. The flip's scramble is seeded,
 so the goldens pin FiestaBoard's own scramble (led_flip_seed + mulberry32).
 
 The other cases are ports of FiestaUI's ``led-transitions.test.ts`` and
-``led-transition-registry.test.ts`` (c2c3b72).
+``led-transition-registry.test.ts`` (d4e3074, FiestaUI #335).
 """
 
 from __future__ import annotations
@@ -28,9 +28,11 @@ from src.led import (
     materialize_character_set,
     rasterize,
 )
+from src.led.charsets import resolve_character_set
 from src.led.transition_registry import (
     LED_TRANSITIONS,
     default_transition_id_for_model,
+    is_led_transition_id,
     resolve_led_transition,
     transition_spec_for_device,
     transitions_for_model,
@@ -48,6 +50,11 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures" / "fiestaui"
 GOLDEN = json.loads((FIXTURES / "led-golden.json").read_text(encoding="utf-8"))
 MODELS = builtin_device_models()
 CASES = GOLDEN["transitions"]
+#: FiestaUI's generic 32-frame sequence player (``SEQUENCE_PANEL_MODEL``), as
+#: the goldens inline it: a plugin model with a partial set (``extends``).
+SEQUENCE_MODEL = next(c["pluginModel"] for c in CASES if c["name"] == "sequence device 32-frame budget")
+#: The ACME sign the charset goldens declare, with its own 12-frame budget.
+ACME_MODEL = next(c["pluginModel"] for c in CASES if c["name"] == "acme sign 12-frame budget, own charset")
 
 S3 = LedMatrixSpec(12, 5, "3x5")
 
@@ -69,9 +76,12 @@ def _diff(actual: bytes, expected: bytes, width: int, limit: int = 6) -> str:
 
 def _golden_plan(case: dict):
     """Resolve, lay out and plan a golden case exactly as FiestaUI's generator does."""
+    # A plugin model goes in as declared: core makes its embedded (possibly
+    # partial) set whole when it resolves it, as FiestaUI's
+    # resolveCharacterSet does.
     plugin = None
     if "pluginModel" in case:
-        plugin = {**case["pluginModel"], "charset": materialize_character_set(case["pluginModel"]["charset"])}
+        plugin = {**case["pluginModel"], "charset": resolve_character_set(case["pluginModel"]["charset"])}
     model = plugin or (MODELS[case["model"]] if "model" in case else None)
     choice = case["transition"]
     if isinstance(choice, dict):
@@ -105,7 +115,7 @@ def _golden_plan(case: dict):
 
 def test_golden_has_the_ten_transition_cases():
     assert len(CASES) == 10
-    assert {"pixoo 32-frame budget", "acme sign 12-frame budget, own charset"} <= {c["name"] for c in CASES}
+    assert {"sequence device 32-frame budget", "acme sign 12-frame budget, own charset"} <= {c["name"] for c in CASES}
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
@@ -164,8 +174,8 @@ def test_pool_is_sorted_by_code_point_whatever_the_declared_order():
     assert pool.index("-") < pool.index("A") < pool.index("icon:up") < pool.index("tile:63") < pool.index("€")
 
 
-def test_pixoo_budget_is_exactly_32_frames_ending_on_the_target():
-    case = next(c for c in CASES if c["name"] == "pixoo 32-frame budget")
+def test_sequence_budget_is_exactly_32_frames_ending_on_the_target():
+    case = next(c for c in CASES if c["name"] == "sequence device 32-frame budget")
     *_, after, tr = _golden_plan(case)
     frames = transition_frames(tr)
     assert len(frames) == 32
@@ -288,6 +298,60 @@ def test_flip_fits_a_budget_by_shortening_stagger_then_scramble():
     assert [f.pixels for f in transition_frames(two)] == [two.from_frame.pixels, two.to_frame.pixels]
 
 
+def test_a_budget_keeps_the_scramble_and_drops_the_stagger_first():
+    """8 frames = stagger + scramble + 2: the scramble keeps 6 steps and the
+    stagger drops to 0, so the cell is mid-scramble on every frame between."""
+    tr = plan_transition(
+        lay("A"), lay("?"), LedTransitionSpec("flip", step_ms=80, scramble_steps=20, stagger=10, max_frames=8)
+    )
+    from_glyph, to_glyph = lay("A").cells[0].glyph, lay("?").cells[0].glyph
+    for f in range(1, 7):
+        assert tr.layout_at(f * 80).cells[0].glyph not in (from_glyph, to_glyph), f"frame {f}"
+    assert tr.layout_at(7 * 80).cells[0].glyph == to_glyph
+
+
+def test_a_budget_with_room_for_the_scramble_gives_the_stagger_what_is_left():
+    """10 frames, scramble 6: the scramble is whole and the stagger is 10 - 2 - 6 = 2."""
+    partial = plan_transition(
+        lay("AB"), lay("CD"), LedTransitionSpec("flip", step_ms=80, scramble_steps=6, stagger=6, max_frames=10)
+    )
+    assert partial.frame_count == 10
+    for cell in (0, 1):
+        seq = [partial.layout_at(f * 80).cells[cell].glyph for f in range(10)]
+        first = next(f for f, g in enumerate(seq) if f > 0 and g != seq[0])
+        assert 1 <= first <= 3  # delay 0..2 steps
+        assert all(g not in (seq[0], seq[9]) for g in seq[first : first + 6])
+        assert seq[first + 6] == seq[9]
+
+
+def test_a_set_with_nothing_to_scramble_through_runs_no_scramble():
+    empty = materialize_character_set(
+        {
+            "id": "blank_set",
+            "label": "Blank",
+            "version": 1,
+            "chars": [],
+            "tiles": False,
+            "icons": [],
+            "mixedCase": False,
+            "colorSpans": False,
+            "blockSpans": False,
+            "font": "3x5",
+        }
+    )
+    assert scramble_pool(empty) == []
+    before, after = lay("A", charset=empty), lay("B", charset=empty)
+    tr = plan_transition(
+        before, after, LedTransitionSpec("flip", step_ms=80, scramble_steps=4, stagger=2, half_flap=False)
+    )
+    transition_frames(tr)
+    # stagger + 0 + 2 frames: the cells go straight to their targets.
+    assert tr.frame_count == 4
+    assert tr.frame_at(tr.duration_ms).pixels == tr.to_frame.pixels
+    for f in range(4):
+        assert tr.layout_at(f * 80).cells[0].glyph in (before.cells[0].glyph, after.cells[0].glyph)
+
+
 @pytest.mark.parametrize("kind", LED_TRANSITION_KINDS)
 def test_budgeted_frames_are_indexed_exactly(kind):
     for n in range(3, 33):
@@ -373,11 +437,11 @@ def test_streamed_device_is_judged_by_push_rate():
 
 
 def test_sequence_player_is_judged_by_its_budget():
-    pixoo = MODELS["divoom_pixoo64"]["animation"]
-    flip = transition_spec_for_device("flip", pixoo)
+    sequence = SEQUENCE_MODEL["animation"]
+    flip = transition_spec_for_device("flip", sequence)
     assert flip.spec == LedTransitionSpec("flip", step_ms=80, half_flap=False, max_frames=32) and flip.degraded
-    assert transition_spec_for_device("fade", pixoo).spec == LedTransitionSpec("fade", max_frames=32)
-    tiny = {**pixoo, "maxFrames": 4}
+    assert transition_spec_for_device("fade", sequence).spec == LedTransitionSpec("fade", max_frames=32)
+    tiny = {**sequence, "maxFrames": 4}
     assert transition_spec_for_device("flip", tiny) is None
     assert transition_spec_for_device("fade", tiny) is not None
 
@@ -385,18 +449,75 @@ def test_sequence_player_is_judged_by_its_budget():
 def test_menu_per_model_with_reasons():
     awtrix = transitions_for_model(MODELS["ulanzi_tc001_awtrix"])
     assert [a.id for a in awtrix if a.available] == ["none"]
-    assert "unmeasured" in next(a for a in awtrix if a.id == "flip").reason
-    assert [a.id for a in transitions_for_model(MODELS["vestaboard_note"]) if a.available] == ["none"]
+    assert next(a for a in awtrix if a.id == "flip").reason == (
+        "Needs about 5 frames a second; this device's push rate is 2."
+    )
     hub = transitions_for_model(MODELS["hub75_64x32"])
     assert all(a.available and not a.degraded for a in hub)
+    sequence = transitions_for_model(SEQUENCE_MODEL)
+    assert all(a.available for a in sequence)
+    assert all(a.degraded and "32 frames" in a.reason for a in sequence if a.id != "none")
+    # The Pixoo 64 snaps (hardware test, 2026-10-04): 2 pushes a second.
     pixoo = transitions_for_model(MODELS["divoom_pixoo64"])
-    assert all(a.available for a in pixoo)
-    assert all(a.degraded and "32 frames" in a.reason for a in pixoo if a.id != "none")
+    assert [a.id for a in pixoo if a.available] == ["none"]
+    assert "push rate is 2." in next(a for a in pixoo if a.id == "flip").reason
+
+
+SPLIT_FLAP_MODELS = [m for m in MODELS.values() if m["technology"] == "split_flap"]
+
+
+@pytest.mark.parametrize("model", SPLIT_FLAP_MODELS, ids=[m["id"] for m in SPLIT_FLAP_MODELS])
+def test_a_split_flap_board_runs_none_only_whatever_its_frame_rate(model):
+    """Vestaboards stream at ~1 fps now, but LED transitions do not apply:
+    the flap cascade is the animation, and the menu says so."""
+    assert model["animation"]["delivery"] == "stream"
+    menu = transitions_for_model(model)
+    assert [a.id for a in menu if a.available] == ["none"]
+    for entry in (a for a in menu if not a.available):
+        assert entry.reason == (
+            "A split-flap board animates each change with its own flap cascade; LED transitions do not apply."
+        )
+    assert default_transition_id_for_model(model) == "none"
+    fell = resolve_led_transition("flip", model)
+    assert (fell.id, fell.spec, fell.source, fell.requested) == ("none", "none", "fallback", "flip")
+    assert "flap cascade" in fell.reason
+    assert resolve_led_transition("none", model).source == "explicit"
+
+
+def test_only_own_ids_are_transitions():
+    assert is_led_transition_id("flip")
+    for name in ("constructor", "__proto__", "toString", "__class__", "keys", "", None, 3):
+        assert not is_led_transition_id(name), name
+
+
+def test_a_stale_choice_falls_back_to_the_default_with_a_reason():
+    hub = MODELS["hub75_64x32"]
+    stale = resolve_led_transition("constructor", hub)
+    assert (stale.id, stale.source, stale.requested) == ("flip", "fallback", "constructor")
+    assert stale.spec == resolve_led_transition(None, hub).spec
+    assert stale.reason == 'Unknown transition "constructor"; one of none, flip, cascade, slide, wipe, fade, dissolve.'
+    spec = resolve_led_transition(LedTransitionSpec("toString"), hub)
+    assert (spec.id, spec.source, spec.requested) == ("flip", "fallback", "toString")
+    # Without a model there is still nothing to run: none, as a fallback.
+    bare = resolve_led_transition("constructor")
+    assert (bare.id, bare.spec, bare.source, bare.requested) == ("none", "none", "fallback", "constructor")
+    assert bare.reason.startswith('Unknown transition "constructor"')
+
+
+def test_a_callers_tighter_budget_wins_and_the_device_caps_a_looser_one():
+    sign = {**ACME_MODEL, "charset": resolve_character_set(ACME_MODEL["charset"])}
+    assert resolve_led_transition(LedTransitionSpec("flip", max_frames=6), sign).spec.max_frames == 6
+    assert resolve_led_transition(LedTransitionSpec("flip", max_frames=40), sign).spec.max_frames == 12
+    assert resolve_led_transition(LedTransitionSpec("fade", max_frames=4), sign).spec.max_frames == 4
+    assert resolve_led_transition(LedTransitionSpec("flip"), sign).spec.max_frames == 12
+    # A streamed device has no budget of its own; the caller's stands.
+    assert resolve_led_transition(LedTransitionSpec("flip", max_frames=9), MODELS["hub75_64x32"]).spec.max_frames == 9
 
 
 def test_default_is_flip_when_the_device_can_show_it_else_none():
     assert default_transition_id_for_model(MODELS["hub75_128x64"]) == "flip"
-    assert default_transition_id_for_model(MODELS["divoom_pixoo64"]) == "flip"
+    assert default_transition_id_for_model(SEQUENCE_MODEL) == "flip"
+    assert default_transition_id_for_model(MODELS["divoom_pixoo64"]) == "none"
     assert default_transition_id_for_model(MODELS["ulanzi_tc001_awtrix"]) == "none"
     assert default_transition_id_for_model(MODELS["vestaboard_flagship"]) == "none"
 
@@ -412,11 +533,10 @@ def test_resolve_precedence_explicit_then_default_with_fallback_reasons():
     fell = resolve_led_transition("slide", MODELS["ulanzi_tc001_awtrix"])
     assert (fell.id, fell.spec, fell.source, fell.requested) == ("none", "none", "fallback", "slide")
     assert "frames a second" in fell.reason
-    pixoo = MODELS["divoom_pixoo64"]
-    r = resolve_led_transition(LedTransitionSpec("flip", step_ms=120, half_flap=True), pixoo)
+    r = resolve_led_transition(LedTransitionSpec("flip", step_ms=120, half_flap=True), SEQUENCE_MODEL)
     assert r.spec == LedTransitionSpec("flip", step_ms=120, half_flap=False, max_frames=32)
     assert r.source == "explicit" and "32 frames" in r.reason
-    assert resolve_led_transition(LedTransitionSpec("flip", step_ms=20), pixoo).spec.step_ms == 80
+    assert resolve_led_transition(LedTransitionSpec("flip", step_ms=20), SEQUENCE_MODEL).spec.step_ms == 80
     slow = {**hub, "animation": {**hub["animation"], "maxFps": 10}}
     r = resolve_led_transition(LedTransitionSpec("flip", step_ms=40, half_flap=True), slow)
     assert r.spec == LedTransitionSpec("flip", step_ms=100, half_flap=False)

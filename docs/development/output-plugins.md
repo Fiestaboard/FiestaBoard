@@ -553,7 +553,7 @@ FiestaBoard ships the same LED renderer FiestaUI previews with, so the board mat
 
 A board's transition reaches your plugin in one of three ways:
 
-- **LED transitions.** Override `write_transition(before, after, transition, *, cancel)`. Core calls it instead of `write_cells()` for every change once it knows what the board showed before. `transition` is the board's resolved LED transition with its `spec` already fitted to your device's frame budget. Plan it with `plan_transition()`, render it with `transition_frames()`, upload it, and land on `after`. It counts as one write for the floor.
+- **LED transitions.** Override `write_transition(before, after, transition, *, cancel)`. Core calls it instead of `write_cells()` for every change once it knows what the board showed before. `transition` is the board's resolved LED transition with its `spec` already fitted to your device's frame budget. Plan it with `plan_transition()`, render it with `transition_frames()`, upload it, and land on `after`. It counts as one write for the floor. A device too slow for any LED transition resolves to `none`, and core then sends a still through `write_cells()` instead. A board setting that names no LED transition at all, such as a stale or mistyped value, falls back to the model's default, with `source` set to `"fallback"` and a `reason`.
 - **Transition plugins.** A board can use a frame-by-frame transition plugin. For a `sequence` device, core collects its frames and calls `write_sequence(frames, *, cancel)` once; each `TimedFrame` has a `frame` and a `duration_ms`, and the last frame is always the target. Upload at most the model's `maxFrames`. For other devices core sends the frames one at a time through `write()`.
 - **Native transitions.** If the device animates changes itself, list the strategies in `native_transitions`. Core passes the chosen one to `write()` as `native`, and never passes one you did not declare.
 
@@ -665,11 +665,10 @@ First-party outputs are pinned in FiestaBoard's `outputs.lock.json` (repository,
 
 ## Worked Example: Divoom Pixoo 64
 
-The Divoom Pixoo 64 plugin, [fiestaboard-output--divoom-pixoo](https://github.com/Fiestaboard/fiestaboard-output--divoom-pixoo), is the reference output plugin. It is in development and not yet verified on hardware. Read it for:
+The Divoom Pixoo 64 plugin, [fiestaboard-output--divoom-pixoo](https://github.com/Fiestaboard/fiestaboard-output--divoom-pixoo), is the reference output plugin. It is in development; its device data was measured on a Pixoo 64 in October 2026. Read it for:
 
-- **Device data in its own file.** `output/device-models.json` holds the `divoom_pixoo64` model: 64 × 64 RGB pixels, the `led_3x5` set and 3×5 font (a 10 × 16 grid), square-pixel `appearance`, and `sequence` animation with a 32-frame budget. The manifest points at it with `$ref`, and the repository is also a data-only npm package.
+- **Device data in its own file.** `output/device-models.json` holds the `divoom_pixoo64` model: 64 × 64 RGB pixels, the `led_3x5` set and 3×5 font (a 10 × 16 grid), square-pixel `appearance`, and `stream` animation at 2 frames a second. That is the device's safe push rate, below every LED transition's minimum, so a Pixoo snaps from one message to the next. The manifest points at it with `$ref`, and the repository is also a data-only npm package.
 - **One rendering path.** `write()` and `write_cells()` both go through one `render()` built on `layout_message()` and `rasterize()`.
-- **`write_transition`.** It plans the board's resolved LED transition with `plan_transition()`, uploads the frames as one animation within the device's frame budget, then pushes the target as a still frame.
 - **Device quirks as named constants.** Request pacing inside an upload, a periodic reset of the device's animation counter, and connect and read timeouts each live at the top of `__init__.py`, with the community sources they came from.
 - **Tests.** A mock Pixoo on loopback that can fail, hang or freeze, a network fence, and the conformance suite with a `decode` that maps an upload back to its grid.
 

@@ -1,6 +1,6 @@
 """Transitions between two LED layouts: the frames a panel shows on a message change.
 
-A port of FiestaUI's ``src/lib/led-transitions.ts`` (c2c3b72), the reference
+A port of FiestaUI's ``src/lib/led-transitions.ts`` (d4e3074), the reference
 implementation (plan D15, rev-7 amendments). A transition is a pure function
 of time over two layouts: ``frame_at(0)`` is the old frame and
 ``frame_at(duration_ms)`` the new one, byte for byte. The golden sequences in
@@ -10,7 +10,7 @@ frame.
 - ``flip``: **the FiestaBoard flip**. Every changing cell shows
   ``scramble_steps`` glyphs drawn from the layout's own character set (a
   plugin device's set, else the face's built-in set), one per ``step_ms``,
-  then its target. Cells start up to ``stagger`` steps apart. The scramble is
+  then its target (a set with nothing to scramble through runs none). Cells start up to ``stagger`` steps apart. The scramble is
   seeded from the cell and the change by stable glyph key (``led_flip_seed``), so it is
   the same in the preview and on the device. The second half of a step shows
   the half-turned flap (top of the next glyph over the bottom of the current)
@@ -19,11 +19,12 @@ frame.
 - ``slide`` / ``wipe`` / ``fade`` / ``dissolve``: per pixel, on the two frames.
 
 A device **frame budget** (``max_frames``) bounds the whole transition, first
-frame to final frame inclusive: a flip shortens its stagger, then its
-scramble; a continuous kind is quantised to that many evenly spaced samples,
+frame to final frame inclusive: a flip's scramble keeps up to
+``max_frames - 2`` steps and its stagger takes what is left (the stagger
+shortens first, then the scramble); a continuous kind is quantised to that many evenly spaced samples,
 indexed with integer arithmetic. The last frame is always the target.
 
-A device that plays an uploaded sequence (a Divoom Pixoo) gets its upload from
+A device that plays an uploaded sequence gets its upload from
 :func:`transition_frames`; which transition a device runs, and with what
 budget, is :mod:`src.led.transition_registry`.
 """
@@ -318,14 +319,20 @@ def _plan_flip(
 
     scramble_steps, stagger = spec.scramble_steps, spec.stagger
     step_ms, half_flap, max_frames = spec.step_ms, spec.half_flap, spec.max_frames
+    pool = scramble_pool(_charset_for_layout(after))
+    # A set with nothing to scramble through (no character, tile or icon)
+    # runs no scramble: the cells go straight to their targets after their
+    # delay, rather than indexing into an empty pool.
+    if not pool:
+        scramble_steps = 0
     if max_frames is not None:
-        # frames = stagger + scramble + 2: shorten the stagger (the cascade)
-        # first, then the scramble (the flip itself).
-        stagger = min(stagger, max(0, max_frames - 2 - min(scramble_steps, 1)))
-        scramble_steps = max(0, min(scramble_steps, max_frames - 2 - stagger))
+        # frames = stagger + scramble + 2. The scramble is the flip and keeps
+        # as much of the budget as it needs; the stagger (the cascade) takes
+        # what is left, so it is what shortens first.
+        scramble_steps = max(0, min(scramble_steps, max_frames - 2))
+        stagger = max(0, min(stagger, max_frames - 2 - scramble_steps))
     frames = stagger + scramble_steps + 2
     duration_ms = (frames - 1) * step_ms
-    pool = scramble_pool(_charset_for_layout(after))
     cols, rows = after.grid.cols, after.grid.rows
 
     plans: list[_CellScramble] = []
@@ -336,8 +343,7 @@ def _plan_flip(
         sequence: list[str] = []
         previous = source
         for _ in range(scramble_steps):
-            # An empty pool draws blank, as FiestaUI's `undefined` glyph does.
-            glyph = pool[math.floor(rng() * len(pool))] if pool else " "
+            glyph = pool[math.floor(rng() * len(pool))]
             # Never the same glyph twice in a row, and never the target early.
             if glyph in (previous, target) and len(pool) > 2:
                 glyph = pool[(pool.index(glyph) + 1 + math.floor(rng() * (len(pool) - 1))) % len(pool)]

@@ -62,14 +62,14 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from src.led.charsets import CharacterSet, has_extended_markup
-from src.led.transition_registry import LED_TRANSITIONS, ResolvedLedTransition, resolve_led_transition
+from src.led.transition_registry import ResolvedLedTransition, resolve_led_transition
 from src.send_outcome import WriteResult
 
 from .breaker import DEFAULT_WRITE_TIMEOUT_MS, output_breakers
 from .hooks import ConnectionCheck, ReadBack
 from .plugin_base import CancelToken, OutputPluginBase, TimedFrame
 from .runtime import OutputRuntime
-from .transitions import NATIVE_STRATEGIES, NativeTransition, transition_plugins_enabled
+from .transitions import NATIVE_STRATEGIES, TRANSITION_PLUGIN_PREFIX, NativeTransition, transition_plugins_enabled
 
 if TYPE_CHECKING:
     from .cells import RichCellFrame
@@ -198,13 +198,19 @@ class OutputPluginDriver:
     def resolve_transition(self, strategy: Any | None) -> ResolvedLedTransition:
         """The board's LED transition for a write asking for *strategy*.
 
-        A strategy naming an LED transition (``"flip"``, ``"fade"``,
-        ``"none"``... FiestaUI's menu ids) is the explicit choice; anything
-        else — no strategy, a split-flap native one, a ``plugin:`` one —
-        leaves the device model's default. :func:`resolve_led_transition`
-        then fits it to the device (or falls back with a reason).
+        No strategy, a split-flap native one or a ``plugin:`` one leaves the
+        device model's default. Any other string is the explicit LED choice
+        (``"flip"``, ``"fade"``, ``"none"``... FiestaUI's menu ids), which
+        :func:`resolve_led_transition` fits to the device; one that is no
+        menu id at all (a stale or hand-edited setting such as
+        ``"constructor"``) is never looked up, and falls back to the default
+        with FiestaUI's ``Unknown transition`` reason.
         """
-        choice = strategy if isinstance(strategy, str) and strategy in LED_TRANSITIONS else None
+        choice = None
+        if isinstance(strategy, str) and not (
+            strategy in NATIVE_STRATEGIES or strategy.startswith(TRANSITION_PLUGIN_PREFIX)
+        ):
+            choice = strategy
         return resolve_led_transition(choice, self.plugin.device_model)
 
     @property

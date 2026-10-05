@@ -232,7 +232,34 @@ const CODE62 = [
   ["code62-heart-emoji", "❤"],
 ];
 
-const LINES = [...PLAIN, ...TILES, ...END_TAGS, ...MALFORMED, ...SPANS, ...BLOCKS, ...NESTING, ...ICONS, ...CODE62];
+// The span depth cap (FiestaUI MAX_SPAN_DEPTH = 8, spec §4.1): the opener
+// that would open a ninth level is literal text in the depth-8 span, while
+// tiles, icons and end tags parse at every depth. These are the cases FiestaUI
+// pins in scripts/ci/tests/board-characters.test.mjs, plus the marker-length
+// bounds the one-pass parser relies on (a too-long head, tile or icon name is
+// never a marker).
+const nest = (depth, inner) => "{red:".repeat(depth) + inner + "}".repeat(depth);
+const DEPTH = [
+  ["depth-7-plus-one", nest(7, "{blue:X}")],
+  ["depth-8-plus-one-literal", nest(8, "{blue:X}")],
+  ["depth-8-plus-two-literal", nest(8, "{blue:{green:X}}")],
+  ["depth-8-tile-and-icon", nest(8, "{66}{icon:up}")],
+  ["depth-8-tile-icon-in-literal-opener", nest(8, "{blue:{66}{icon:up}}")],
+  ["depth-8-end-tags", nest(8, "A{/}B{/red}C")],
+  ["depth-literal-wrapper-uses-no-level", "{foo:" + nest(7, "{blue:X}") + "}"],
+  ["depth-block-uses-a-level", "{black/white:" + nest(7, "{blue:X}") + "}"],
+  ["depth-8-then-text", nest(8, "{blue:X}") + "Z"],
+  ["depth-9-unbalanced", "{red:".repeat(9) + "X"],
+  ["depth-12-balanced", nest(12, "X")],
+  ["depth-siblings-at-8", nest(7, "{blue:A}{green:B}")],
+  ["head-16-long", "{#ff8800/#00ff88:x}"],
+  ["head-too-long", "{#ff8800/#00ff88a:x}"],
+  ["head-long-then-colon", "{" + "a".repeat(20) + ":x}"],
+  ["tile-content-too-long", "{redredred}"],
+  ["icon-name-too-long", "{icon:" + "s".repeat(17) + "}"],
+];
+
+const LINES = [...PLAIN, ...TILES, ...END_TAGS, ...MALFORMED, ...SPANS, ...BLOCKS, ...NESTING, ...DEPTH, ...ICONS, ...CODE62];
 
 const PRESERVE_CASE = [
   ["case-preserve-plain", "Hi there"],
