@@ -95,6 +95,7 @@ class PluginService:
         reset_template: Callable[[], None] | None = None,
         page_service: Any | None = None,
         settings_service: Any | None = None,
+        rebuild_boards: Callable[[], None] | None = None,
     ) -> None:
         self._registry = registry
         self._config_manager = config_manager
@@ -102,6 +103,7 @@ class PluginService:
         self._reset_template = reset_template
         self._page_service = page_service
         self._settings_service = settings_service
+        self._rebuild_boards = rebuild_boards
 
     # -- collaborator resolution --------------------------------------------
 
@@ -164,6 +166,24 @@ class PluginService:
             from src.templates.engine import reset_template_engine
 
             reset_template_engine()
+
+    def rebuild_boards_after_output_change(self, plugin_id: str) -> None:
+        """Rebuild the board runtimes after output plugin *plugin_id*'s code
+        changed (an update applied or rolled back), so its boards are driven
+        by the code that now runs, not the instance built before. A data
+        plugin's change needs nothing here. Never raises."""
+        manifest = self.registry.get_manifest(plugin_id)
+        if manifest is None or manifest.plugin_type != "output":
+            return
+        try:
+            if self._rebuild_boards is not None:
+                self._rebuild_boards()
+            else:
+                from src.display_runtime import reinitialize_board_clients
+
+                reinitialize_board_clients()
+        except Exception:
+            logger.exception("Could not rebuild the boards after output plugin '%s' changed", plugin_id)
 
     # -- private-member wrappers --------------------------------------------
 
@@ -737,6 +757,8 @@ class PluginService:
             get_external_plugins_dir(),
             reload=lambda: reload_installed_copy(self.registry, plugin_id),
         )
+        if outcome.ok or outcome.stage != "fetch":
+            self.rebuild_boards_after_output_change(plugin_id)
         if not outcome.ok:
             if outcome.stage == "fetch":
                 raise PluginOperationFailed(f"Update failed: {outcome.error}")
@@ -795,6 +817,8 @@ class PluginService:
                 _ext_dir,
                 reload=lambda pid=plugin_id: reload_installed_copy(registry, pid),
             )
+            if outcome.ok or outcome.stage != "fetch":
+                self.rebuild_boards_after_output_change(plugin_id)
             if not outcome.ok:
                 failed[plugin_id] = f"git fetch failed: {outcome.error}" if outcome.stage == "fetch" else outcome.error
                 continue

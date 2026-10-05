@@ -661,7 +661,13 @@ While the contract is in beta, every third-party output plugin, listed in the re
 
 The Vestaboard and FiestaPanel are output plugins too, written against the same API as yours, each in its own repository: [fiestaboard-output--vestaboard](https://github.com/Fiestaboard/fiestaboard-output--vestaboard) and [fiestaboard-output--fiestapanel](https://github.com/Fiestaboard/fiestaboard-output--fiestapanel). Either is a good place to read a complete output, with its tests.
 
-First-party outputs are pinned in FiestaBoard's `outputs.lock.json` (repository, commit, `output_api` and a digest of the files) and baked into the image at build time, so they need no network, which matters on a Raspberry Pi or in the Home Assistant add-on. The Vestaboard and FiestaPanel run straight from that copy, which FiestaBoard checks against the digest each time it loads them, and they update when FiestaBoard does. Any other first-party output installs from the copy, and if its installed copy cannot run, FiestaBoard falls back to the copy it shipped with, so a board never goes dark because of its plugin. First-party outputs never need the beta.
+First-party outputs are pinned in FiestaBoard's `outputs.lock.json` (repository, commit, `output_api` and a digest of the files) and baked into the image at build time, so they need no network, which matters on a Raspberry Pi or in the Home Assistant add-on. FiestaBoard installs each one from that copy, and from then on it updates from **Integrations** like any plugin, through the same three `output_api` gates. If an installed copy cannot run, FiestaBoard falls back to the copy it shipped with and shows the error, so a board never goes dark because of its plugin. First-party outputs never need the beta.
+
+The Vestaboard and FiestaPanel follow three extra rules:
+
+- An installed copy runs only when it is newer than the copy FiestaBoard shipped with, so upgrading FiestaBoard never leaves you on an older version.
+- Only a copy from the output's own repository ever runs. FiestaBoard refuses to install another plugin that uses the `vestaboard` or `fiestapanel` id.
+- They cannot be uninstalled.
 
 ## Worked Example: Divoom Pixoo 64
 
