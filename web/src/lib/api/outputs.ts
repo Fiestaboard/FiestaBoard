@@ -49,6 +49,30 @@ export interface OutputSummary {
   actions: OutputActionDescriptor[];
 }
 
+/**
+ * `GET /outputs/available` — an output the user can pick, installed or not
+ * (plan D18). Mirrors `AvailableOutput` in src/outputs/models.py.
+ */
+export interface AvailableOutput {
+  id: string;
+  name: string;
+  description: string;
+  /** A Lucide icon name. */
+  icon: string | null;
+  /** installed: usable now; seed: bundled with this image (installs offline); registry: installs from its repository. */
+  source: "installed" | "seed" | "registry";
+  installed: boolean;
+  /** Vestaboard and FiestaPanel: created through their own flows. */
+  builtin: boolean;
+  /** Usable only with the output plugins beta. */
+  beta_gated: boolean;
+  /** Whether it can be installed and used now (false: the beta is off). */
+  available: boolean;
+  /** Installing it fetches its repository. */
+  needs_network: boolean;
+  output_api: number | null;
+}
+
 export interface ActionResultField {
   value: unknown;
   /** A credential: never logged, stored through the secret path. */
@@ -112,6 +136,17 @@ export type WizardState = "completed" | "skipped" | null;
 
 export const outputsApi = {
   listOutputs: () => fetchApi<OutputSummary[]>("/outputs"),
+
+  /** Every output that can be picked, installed or not (the setup wizard's first step). */
+  listAvailableOutputs: () => fetchApi<AvailableOutput[]>("/outputs/available"),
+
+  /** Install an output (the seed offline, else the registry); answers it as `GET /outputs` lists it. Idempotent. */
+  installOutput: (outputId: string) =>
+    fetchApi<OutputSummary>(`/outputs/${encodeURIComponent(outputId)}/install`, {
+      method: "POST",
+      // A registry install clones a repository (up to two minutes on a slow link).
+      timeoutMs: 180_000,
+    }),
 
   /** Run an action on settings typed before a board exists. */
   runDraftOutputAction: (

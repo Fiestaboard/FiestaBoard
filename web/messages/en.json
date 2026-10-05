@@ -659,12 +659,18 @@
     "stepTitles": {
       "connectBoard": "Connect Your Board",
       "addDataSources": "Add Data Sources",
-      "allSet": "You're All Set!"
+      "allSet": "You're All Set!",
+      "chooseOutput": "What do you want to show FiestaBoard on?",
+      "setUpTv": "Set Up Your TV",
+      "setUpOutput": "Set Up {name}"
     },
     "stepDescriptions": {
       "enterCredentials": "Enter your board credentials to get started",
       "enableFeatures": "Enable optional features that work right away",
-      "sendTestMessage": "Send a test message to your board"
+      "sendTestMessage": "Send a test message to your board",
+      "chooseOutput": "Pick the display you have. You can add more later in Settings.",
+      "setUpTv": "Name your TV and tell us its screen size",
+      "setUpOutput": "Connect it, test it and save it as a board"
     },
     "boardSetup": {
       "connectionType": "Connection Type",
@@ -746,7 +752,42 @@
       "skipGoToDashboard": "Skip & Go to Dashboard",
       "dateTimeName": "Date & Time",
       "starTrekName": "Star Trek Quotes",
-      "guestWifiName": "Guest WiFi"
+      "guestWifiName": "Guest WiFi",
+      "displayReady": "{name} ({output}) is set up"
+    },
+    "progressDisplay": "Display",
+    "chooseOutput": {
+      "loading": "Looking for displays…",
+      "loadFailed": "Couldn't load the list of displays.",
+      "retry": "Try again",
+      "optionsLabel": "Displays",
+      "needsBeta": "Needs the output plugins beta. You can turn it on in the next step.",
+      "downloads": "Downloads when you continue, so it needs an internet connection.",
+      "skipTitle": "Skip — I'll add a display later",
+      "skipDescription": "Look around and preview pages now. Add a display any time in Settings."
+    },
+    "outputSetup": {
+      "installing": "Installing {name}…",
+      "installFailed": "{name} could not be installed",
+      "offline": "FiestaBoard couldn't download {name}. Check this device's internet connection, then try again.",
+      "betaTitle": "{name} needs the output plugins beta",
+      "betaBody": "Displays from the plugin registry run their own code on your FiestaBoard, so they stay off until you turn on the output plugins beta. You can turn it off again in Settings → Beta.",
+      "enableBeta": "Turn on the output plugins beta",
+      "enableBetaFailed": "Couldn't turn on the beta. Try again.",
+      "retry": "Try again",
+      "created": "{board} is saved and ready.",
+      "createFailed": "Couldn't save the board"
+    },
+    "panelSetup": {
+      "nameLabel": "TV name",
+      "defaultName": "Living Room TV",
+      "sizeLabel": "Screen size (inches, measured diagonally)",
+      "sizeHelp": "Between {min} and {max} inches. The board is sized so each flap looks real on this screen.",
+      "create": "Create TV board",
+      "creating": "Creating…",
+      "created": "{name} is ready",
+      "openOnTv": "Open this address in the TV's browser:",
+      "failed": "Couldn't create the TV board"
     }
   },
   "activeDisplay": {

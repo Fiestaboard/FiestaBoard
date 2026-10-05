@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "Panonuzu Bağlayın",
       "addDataSources": "Veri Kaynakları Ekleyin",
-      "allSet": "Her Şey Hazır!"
+      "allSet": "Her Şey Hazır!",
+      "chooseOutput": "FiestaBoard'u nerede göstermek istiyorsunuz?",
+      "setUpTv": "Televizyonunuzu kurun",
+      "setUpOutput": "{name} kurulumu"
     },
     "stepDescriptions": {
       "enterCredentials": "Başlamak için pano kimlik bilgilerinizi girin",
       "enableFeatures": "Hemen çalışan isteğe bağlı özellikleri etkinleştirin",
-      "sendTestMessage": "Panonuza bir test mesajı gönderin"
+      "sendTestMessage": "Panonuza bir test mesajı gönderin",
+      "chooseOutput": "Sahip olduğunuz ekranı seçin. Daha fazlasını sonra Ayarlar'dan ekleyebilirsiniz.",
+      "setUpTv": "Televizyonunuza bir ad verin ve ekran boyutunu belirtin",
+      "setUpOutput": "Bağlayın, test edin ve pano olarak kaydedin"
     },
     "boardSetup": {
       "connectionType": "Bağlantı Türü",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "Atla ve Gösterge Paneline Git",
       "dateTimeName": "Tarih ve Saat",
       "starTrekName": "Star Trek Alıntıları",
-      "guestWifiName": "Misafir WiFi"
+      "guestWifiName": "Misafir WiFi",
+      "displayReady": "{name} ({output}) kuruldu"
+    },
+    "progressDisplay": "Ekran",
+    "chooseOutput": {
+      "loading": "Ekranlar aranıyor…",
+      "loadFailed": "Ekran listesi yüklenemedi.",
+      "retry": "Tekrar dene",
+      "optionsLabel": "Ekranlar",
+      "needsBeta": "Çıkış eklentileri betası gerekir. Bir sonraki adımda açabilirsiniz.",
+      "downloads": "Devam ettiğinizde indirilir, bu yüzden internet bağlantısı gerekir.",
+      "skipTitle": "Atla — ekranı sonra ekleyeceğim",
+      "skipDescription": "Şimdi etrafa göz atın ve sayfaları önizleyin. Ekranı istediğiniz zaman Ayarlar'dan ekleyin."
+    },
+    "outputSetup": {
+      "installing": "{name} yükleniyor…",
+      "installFailed": "{name} yüklenemedi",
+      "offline": "FiestaBoard {name} öğesini indiremedi. Bu cihazın internet bağlantısını kontrol edip tekrar deneyin.",
+      "betaTitle": "{name} için çıkış eklentileri betası gerekir",
+      "betaBody": "Eklenti kayıt defterindeki ekranlar FiestaBoard'unuzda kendi kodlarını çalıştırır; bu nedenle çıkış eklentileri betasını açana kadar kapalı kalırlar. Betayı Ayarlar → Beta'dan yeniden kapatabilirsiniz.",
+      "enableBeta": "Çıkış eklentileri betasını aç",
+      "enableBetaFailed": "Beta açılamadı. Tekrar deneyin.",
+      "retry": "Tekrar dene",
+      "created": "{board} kaydedildi ve hazır.",
+      "createFailed": "Pano kaydedilemedi"
+    },
+    "panelSetup": {
+      "nameLabel": "Televizyon adı",
+      "defaultName": "Oturma Odası TV",
+      "sizeLabel": "Ekran boyutu (inç, çapraz)",
+      "sizeHelp": "{min} ile {max} inç arası. Pano, her kanadın bu ekranda gerçekçi görünmesi için boyutlandırılır.",
+      "create": "TV panosu oluştur",
+      "creating": "Oluşturuluyor…",
+      "created": "{name} hazır",
+      "openOnTv": "Bu adresi televizyonun tarayıcısında açın:",
+      "failed": "TV panosu oluşturulamadı"
     }
   },
   "activeDisplay": {

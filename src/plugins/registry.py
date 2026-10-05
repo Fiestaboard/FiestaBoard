@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from src.devices import BoardContext
+from src.outputs.seed import install_from_seed
 
 from .base import OptionsRequest, OptionsResult, PluginBase, PluginResult, normalise
 from .loader import PluginLoader, retire_plugin_object
@@ -1838,7 +1839,24 @@ class PluginRegistry:
         ok, err = install_registry_plugin(entry)
         if not ok:
             return [err]
+        return self._load_installed(plugin_id, "registry plugin")
 
+    def install_output_from_seed(self, plugin_id: str) -> list[str]:
+        """Install a first-party output plugin from the image's seed (plan D8, D18).
+
+        No network: the seed's verified copy is copied into the external
+        plugins directory, where it updates like any installed plugin.
+
+        Returns:
+            List of error messages (empty on success).
+        """
+        ok, err = install_from_seed(plugin_id, get_external_plugins_dir(), self._loader.seed_dir)
+        if not ok:
+            return [err]
+        return self._load_installed(plugin_id, "output plugin from the seed")
+
+    def _load_installed(self, plugin_id: str, what: str) -> list[str]:
+        """Load a plugin that was just put in the external plugins directory."""
         with self._lock:
             # Reload external dirs and load the new plugin
             self._loader._external_dirs = [get_external_plugins_dir()]
@@ -1852,7 +1870,7 @@ class PluginRegistry:
                 self._plugins[plugin_id] = plugin
                 self._manifests[plugin_id] = manifest
                 self._enabled[plugin_id] = False
-                logger.info("Installed registry plugin: %s", plugin_id)
+                logger.info("Installed %s: %s", what, plugin_id)
 
         self._clear_removed_tombstone(plugin_id)
         return []
@@ -1882,23 +1900,7 @@ class PluginRegistry:
             repo_name = repo_name_from_url(repo_url)
             plugin_id = plugin_id_from_repo_name(repo_name)
 
-        with self._lock:
-            # Reload external dirs and load the new plugin
-            self._loader._external_dirs = [get_external_plugins_dir()]
-            plugin = self._loader.load_plugin(plugin_id)
-            if plugin is None:
-                errors = self._loader.load_errors.get(plugin_id, [])
-                return errors or [f"Failed to load plugin after install: {plugin_id}"]
-
-            manifest = self._loader.get_manifest(plugin_id)
-            if manifest:
-                self._plugins[plugin_id] = plugin
-                self._manifests[plugin_id] = manifest
-                self._enabled[plugin_id] = False
-                logger.info("Installed git plugin: %s from %s", plugin_id, repo_url)
-
-        self._clear_removed_tombstone(plugin_id)
-        return []
+        return self._load_installed(plugin_id, f"git plugin from {repo_url}")
 
     def uninstall_external_plugin(self, plugin_id: str) -> list[str]:
         """Remove an external (non-built-in) plugin.

@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "连接您的看板",
       "addDataSources": "添加数据源",
-      "allSet": "一切就绪！"
+      "allSet": "一切就绪！",
+      "chooseOutput": "你想在哪里显示 FiestaBoard？",
+      "setUpTv": "设置你的电视",
+      "setUpOutput": "设置 {name}"
     },
     "stepDescriptions": {
       "enterCredentials": "输入您的看板凭据以开始使用",
       "enableFeatures": "启用即开即用的可选功能",
-      "sendTestMessage": "向您的看板发送测试消息"
+      "sendTestMessage": "向您的看板发送测试消息",
+      "chooseOutput": "选择你拥有的显示设备。之后可以在设置中添加更多。",
+      "setUpTv": "为电视命名并告诉我们屏幕尺寸",
+      "setUpOutput": "连接、测试并保存为显示板"
     },
     "boardSetup": {
       "connectionType": "连接类型",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "跳过并前往仪表盘",
       "dateTimeName": "日期和时间",
       "starTrekName": "星际迷航语录",
-      "guestWifiName": "访客WiFi"
+      "guestWifiName": "访客WiFi",
+      "displayReady": "{name}（{output}）已设置"
+    },
+    "progressDisplay": "显示设备",
+    "chooseOutput": {
+      "loading": "正在查找显示设备…",
+      "loadFailed": "无法加载显示设备列表。",
+      "retry": "重试",
+      "optionsLabel": "显示设备",
+      "needsBeta": "需要输出插件测试版。你可以在下一步中开启。",
+      "downloads": "继续后会下载，因此需要连接互联网。",
+      "skipTitle": "跳过 — 稍后再添加显示设备",
+      "skipDescription": "现在可以四处看看并预览页面。随时可以在设置中添加显示设备。"
+    },
+    "outputSetup": {
+      "installing": "正在安装 {name}…",
+      "installFailed": "无法安装 {name}",
+      "offline": "FiestaBoard 无法下载 {name}。请检查此设备的互联网连接，然后重试。",
+      "betaTitle": "{name} 需要输出插件测试版",
+      "betaBody": "插件注册表中的显示设备会在你的 FiestaBoard 上运行自己的代码，因此在你开启输出插件测试版之前它们保持关闭。你可以在 设置 → 测试版 中再次关闭。",
+      "enableBeta": "开启输出插件测试版",
+      "enableBetaFailed": "无法开启测试版。请重试。",
+      "retry": "重试",
+      "created": "{board} 已保存，可以使用了。",
+      "createFailed": "无法保存显示板"
+    },
+    "panelSetup": {
+      "nameLabel": "电视名称",
+      "defaultName": "客厅电视",
+      "sizeLabel": "屏幕尺寸（英寸，对角线）",
+      "sizeHelp": "{min} 到 {max} 英寸之间。显示板会按此屏幕调整大小，让每片翻页看起来都很逼真。",
+      "create": "创建电视显示板",
+      "creating": "正在创建…",
+      "created": "{name} 已就绪",
+      "openOnTv": "在电视的浏览器中打开此地址：",
+      "failed": "无法创建电视显示板"
     }
   },
   "activeDisplay": {

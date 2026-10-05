@@ -749,6 +749,16 @@ export function suppressWizard(page: Page) {
 }
 
 /**
+ * The setup wizard opens on "What do you want to show FiestaBoard on?"
+ * (plan D18). Choose the Vestaboard card and continue to its connect step.
+ */
+export async function chooseVestaboardInWizard(page: Page) {
+  await page.getByRole("heading", { name: "What do you want to show FiestaBoard on?" }).waitFor({ timeout: 30_000 });
+  await page.getByRole("radio", { name: /Vestaboard/ }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+}
+
+/**
  * Open a tab on the redesigned Settings page. The page splits its content
  * across tabs (General, Hardware, Behavior, Integrations, System, Advanced),
  * so tests that look for tab-scoped content must click the right tab first.

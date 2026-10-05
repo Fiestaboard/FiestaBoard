@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "Board verbinden",
       "addDataSources": "Datenquellen hinzufügen",
-      "allSet": "Alles bereit!"
+      "allSet": "Alles bereit!",
+      "chooseOutput": "Worauf soll FiestaBoard angezeigt werden?",
+      "setUpTv": "Fernseher einrichten",
+      "setUpOutput": "{name} einrichten"
     },
     "stepDescriptions": {
       "enterCredentials": "Geben Sie Ihre Board-Zugangsdaten ein, um zu beginnen",
       "enableFeatures": "Aktivieren Sie optionale Funktionen, die sofort einsatzbereit sind",
-      "sendTestMessage": "Senden Sie eine Testnachricht an Ihr Board"
+      "sendTestMessage": "Senden Sie eine Testnachricht an Ihr Board",
+      "chooseOutput": "Wähle die Anzeige, die du hast. Weitere kannst du später in den Einstellungen hinzufügen.",
+      "setUpTv": "Benenne deinen Fernseher und gib seine Bildschirmgröße an",
+      "setUpOutput": "Verbinden, testen und als Board speichern"
     },
     "boardSetup": {
       "connectionType": "Verbindungstyp",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "Überspringen & zum Dashboard",
       "dateTimeName": "Datum & Uhrzeit",
       "starTrekName": "Star Trek Zitate",
-      "guestWifiName": "Gast-WLAN"
+      "guestWifiName": "Gast-WLAN",
+      "displayReady": "{name} ({output}) ist eingerichtet"
+    },
+    "progressDisplay": "Anzeige",
+    "chooseOutput": {
+      "loading": "Suche nach Anzeigen…",
+      "loadFailed": "Die Liste der Anzeigen konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "optionsLabel": "Anzeigen",
+      "needsBeta": "Benötigt die Beta für Ausgabe-Plugins. Du kannst sie im nächsten Schritt einschalten.",
+      "downloads": "Wird beim Fortfahren heruntergeladen und braucht daher eine Internetverbindung.",
+      "skipTitle": "Überspringen – ich füge später eine Anzeige hinzu",
+      "skipDescription": "Sieh dich um und schau dir Seiten in der Vorschau an. Eine Anzeige kannst du jederzeit in den Einstellungen hinzufügen."
+    },
+    "outputSetup": {
+      "installing": "{name} wird installiert…",
+      "installFailed": "{name} konnte nicht installiert werden",
+      "offline": "FiestaBoard konnte {name} nicht herunterladen. Prüfe die Internetverbindung dieses Geräts und versuche es erneut.",
+      "betaTitle": "{name} benötigt die Beta für Ausgabe-Plugins",
+      "betaBody": "Anzeigen aus dem Plugin-Verzeichnis führen eigenen Code auf deinem FiestaBoard aus. Deshalb bleiben sie aus, bis du die Beta für Ausgabe-Plugins einschaltest. Unter Einstellungen → Beta kannst du sie wieder ausschalten.",
+      "enableBeta": "Beta für Ausgabe-Plugins einschalten",
+      "enableBetaFailed": "Die Beta konnte nicht eingeschaltet werden. Versuche es erneut.",
+      "retry": "Erneut versuchen",
+      "created": "{board} ist gespeichert und bereit.",
+      "createFailed": "Das Board konnte nicht gespeichert werden"
+    },
+    "panelSetup": {
+      "nameLabel": "Name des Fernsehers",
+      "defaultName": "Wohnzimmer-TV",
+      "sizeLabel": "Bildschirmgröße (Zoll, diagonal gemessen)",
+      "sizeHelp": "Zwischen {min} und {max} Zoll. Das Board wird so bemessen, dass jede Klappe auf diesem Bildschirm echt wirkt.",
+      "create": "TV-Board erstellen",
+      "creating": "Wird erstellt…",
+      "created": "{name} ist bereit",
+      "openOnTv": "Öffne diese Adresse im Browser des Fernsehers:",
+      "failed": "Das TV-Board konnte nicht erstellt werden"
     }
   },
   "activeDisplay": {

@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "Połącz swoją tablicę",
       "addDataSources": "Dodaj źródła danych",
-      "allSet": "Wszystko gotowe!"
+      "allSet": "Wszystko gotowe!",
+      "chooseOutput": "Na czym chcesz wyświetlać FiestaBoard?",
+      "setUpTv": "Skonfiguruj telewizor",
+      "setUpOutput": "Skonfiguruj {name}"
     },
     "stepDescriptions": {
       "enterCredentials": "Wprowadź dane uwierzytelniające tablicy, aby rozpocząć",
       "enableFeatures": "Włącz opcjonalne funkcje, które działają od razu",
-      "sendTestMessage": "Wyślij wiadomość testową na tablicę"
+      "sendTestMessage": "Wyślij wiadomość testową na tablicę",
+      "chooseOutput": "Wybierz wyświetlacz, który masz. Kolejne możesz dodać później w Ustawieniach.",
+      "setUpTv": "Nazwij telewizor i podaj rozmiar jego ekranu",
+      "setUpOutput": "Połącz, przetestuj i zapisz jako tablicę"
     },
     "boardSetup": {
       "connectionType": "Typ połączenia",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "Pomiń i przejdź do panelu",
       "dateTimeName": "Data i czas",
       "starTrekName": "Cytaty ze Star Treka",
-      "guestWifiName": "WiFi dla gości"
+      "guestWifiName": "WiFi dla gości",
+      "displayReady": "{name} ({output}) skonfigurowano"
+    },
+    "progressDisplay": "Wyświetlacz",
+    "chooseOutput": {
+      "loading": "Szukanie wyświetlaczy…",
+      "loadFailed": "Nie udało się wczytać listy wyświetlaczy.",
+      "retry": "Spróbuj ponownie",
+      "optionsLabel": "Wyświetlacze",
+      "needsBeta": "Wymaga bety wtyczek wyjściowych. Możesz ją włączyć w następnym kroku.",
+      "downloads": "Zostanie pobrany po przejściu dalej, więc potrzebne jest połączenie z internetem.",
+      "skipTitle": "Pomiń — dodam wyświetlacz później",
+      "skipDescription": "Rozejrzyj się i obejrzyj podgląd stron. Wyświetlacz dodasz w każdej chwili w Ustawieniach."
+    },
+    "outputSetup": {
+      "installing": "Instalowanie: {name}…",
+      "installFailed": "Nie udało się zainstalować: {name}",
+      "offline": "FiestaBoard nie mógł pobrać: {name}. Sprawdź połączenie tego urządzenia z internetem i spróbuj ponownie.",
+      "betaTitle": "{name} wymaga bety wtyczek wyjściowych",
+      "betaBody": "Wyświetlacze z rejestru wtyczek uruchamiają własny kod na Twoim FiestaBoard, dlatego pozostają wyłączone, dopóki nie włączysz bety wtyczek wyjściowych. Możesz ją wyłączyć w Ustawienia → Beta.",
+      "enableBeta": "Włącz betę wtyczek wyjściowych",
+      "enableBetaFailed": "Nie udało się włączyć bety. Spróbuj ponownie.",
+      "retry": "Spróbuj ponownie",
+      "created": "Tablica {board} jest zapisana i gotowa.",
+      "createFailed": "Nie udało się zapisać tablicy"
+    },
+    "panelSetup": {
+      "nameLabel": "Nazwa telewizora",
+      "defaultName": "Telewizor w salonie",
+      "sizeLabel": "Rozmiar ekranu (cale, po przekątnej)",
+      "sizeHelp": "Od {min} do {max} cali. Tablica jest dopasowana tak, by każda klapka wyglądała na tym ekranie realistycznie.",
+      "create": "Utwórz tablicę TV",
+      "creating": "Tworzenie…",
+      "created": "{name} jest gotowy",
+      "openOnTv": "Otwórz ten adres w przeglądarce telewizora:",
+      "failed": "Nie udało się utworzyć tablicy TV"
     }
   },
   "activeDisplay": {

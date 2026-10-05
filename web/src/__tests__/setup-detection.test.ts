@@ -174,7 +174,9 @@ describe("setup-detection", () => {
     });
 
     it("returns parsed progress", () => {
-      const progress: WizardProgress = { currentStep: 3 };
+      // Progress with no outputId predates the choose-a-display step and is
+      // upgraded on read (see wizard-default-board.test.ts).
+      const progress: WizardProgress = { currentStep: 3, outputId: "vestaboard" };
       localStorage.setItem(WIZARD_PROGRESS_KEY, JSON.stringify(progress));
       const result = getWizardProgress();
       expect(result).not.toBeNull();

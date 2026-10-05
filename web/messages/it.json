@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "Collega la tua bacheca",
       "addDataSources": "Aggiungi fonti dati",
-      "allSet": "Tutto pronto!"
+      "allSet": "Tutto pronto!",
+      "chooseOutput": "Su cosa vuoi mostrare FiestaBoard?",
+      "setUpTv": "Configura la tua TV",
+      "setUpOutput": "Configura {name}"
     },
     "stepDescriptions": {
       "enterCredentials": "Inserisci le credenziali della bacheca per iniziare",
       "enableFeatures": "Attiva le funzionalità opzionali che funzionano subito",
-      "sendTestMessage": "Invia un messaggio di prova alla tua bacheca"
+      "sendTestMessage": "Invia un messaggio di prova alla tua bacheca",
+      "chooseOutput": "Scegli lo schermo che hai. Potrai aggiungerne altri più tardi nelle Impostazioni.",
+      "setUpTv": "Dai un nome alla TV e indica le dimensioni dello schermo",
+      "setUpOutput": "Collegalo, provalo e salvalo come tabellone"
     },
     "boardSetup": {
       "connectionType": "Tipo di connessione",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "Salta e vai alla dashboard",
       "dateTimeName": "Data e ora",
       "starTrekName": "Citazioni di Star Trek",
-      "guestWifiName": "WiFi ospiti"
+      "guestWifiName": "WiFi ospiti",
+      "displayReady": "{name} ({output}) è configurato"
+    },
+    "progressDisplay": "Schermo",
+    "chooseOutput": {
+      "loading": "Ricerca degli schermi…",
+      "loadFailed": "Impossibile caricare l'elenco degli schermi.",
+      "retry": "Riprova",
+      "optionsLabel": "Schermi",
+      "needsBeta": "Richiede la beta dei plugin di output. Puoi attivarla nel passaggio successivo.",
+      "downloads": "Viene scaricato quando continui, quindi serve una connessione a Internet.",
+      "skipTitle": "Salta: aggiungerò uno schermo più tardi",
+      "skipDescription": "Esplora e visualizza in anteprima le pagine ora. Aggiungi uno schermo quando vuoi nelle Impostazioni."
+    },
+    "outputSetup": {
+      "installing": "Installazione di {name}…",
+      "installFailed": "Impossibile installare {name}",
+      "offline": "FiestaBoard non è riuscito a scaricare {name}. Controlla la connessione a Internet di questo dispositivo e riprova.",
+      "betaTitle": "{name} richiede la beta dei plugin di output",
+      "betaBody": "Gli schermi del registro dei plugin eseguono il proprio codice sul tuo FiestaBoard, quindi restano disattivati finché non attivi la beta dei plugin di output. Puoi disattivarla di nuovo in Impostazioni → Beta.",
+      "enableBeta": "Attiva la beta dei plugin di output",
+      "enableBetaFailed": "Impossibile attivare la beta. Riprova.",
+      "retry": "Riprova",
+      "created": "{board} è salvato e pronto.",
+      "createFailed": "Impossibile salvare il tabellone"
+    },
+    "panelSetup": {
+      "nameLabel": "Nome della TV",
+      "defaultName": "TV del soggiorno",
+      "sizeLabel": "Dimensione dello schermo (pollici, in diagonale)",
+      "sizeHelp": "Tra {min} e {max} pollici. Il tabellone è dimensionato perché ogni paletta sembri reale su questo schermo.",
+      "create": "Crea tabellone TV",
+      "creating": "Creazione…",
+      "created": "{name} è pronta",
+      "openOnTv": "Apri questo indirizzo nel browser della TV:",
+      "failed": "Impossibile creare il tabellone TV"
     }
   },
   "activeDisplay": {

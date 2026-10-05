@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "보드 연결",
       "addDataSources": "데이터 소스 추가",
-      "allSet": "모든 설정이 완료되었습니다!"
+      "allSet": "모든 설정이 완료되었습니다!",
+      "chooseOutput": "FiestaBoard를 어디에 표시할까요?",
+      "setUpTv": "TV 설정",
+      "setUpOutput": "{name} 설정"
     },
     "stepDescriptions": {
       "enterCredentials": "보드 자격 증명을 입력하여 시작하세요",
       "enableFeatures": "바로 사용할 수 있는 선택 기능을 활성화하세요",
-      "sendTestMessage": "보드에 테스트 메시지를 보내보세요"
+      "sendTestMessage": "보드에 테스트 메시지를 보내보세요",
+      "chooseOutput": "가지고 있는 디스플레이를 선택하세요. 나중에 설정에서 더 추가할 수 있습니다.",
+      "setUpTv": "TV 이름과 화면 크기를 알려 주세요",
+      "setUpOutput": "연결하고 테스트한 뒤 보드로 저장하세요"
     },
     "boardSetup": {
       "connectionType": "연결 유형",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "건너뛰고 대시보드로 이동",
       "dateTimeName": "날짜 및 시간",
       "starTrekName": "스타트렉 명언",
-      "guestWifiName": "게스트 WiFi"
+      "guestWifiName": "게스트 WiFi",
+      "displayReady": "{name}({output}) 설정 완료"
+    },
+    "progressDisplay": "디스플레이",
+    "chooseOutput": {
+      "loading": "디스플레이를 찾는 중…",
+      "loadFailed": "디스플레이 목록을 불러오지 못했습니다.",
+      "retry": "다시 시도",
+      "optionsLabel": "디스플레이",
+      "needsBeta": "출력 플러그인 베타가 필요합니다. 다음 단계에서 켤 수 있습니다.",
+      "downloads": "계속하면 다운로드되므로 인터넷 연결이 필요합니다.",
+      "skipTitle": "건너뛰기 — 디스플레이는 나중에 추가할게요",
+      "skipDescription": "지금은 둘러보고 페이지를 미리 볼 수 있습니다. 디스플레이는 언제든 설정에서 추가하세요."
+    },
+    "outputSetup": {
+      "installing": "{name} 설치 중…",
+      "installFailed": "{name}을(를) 설치하지 못했습니다",
+      "offline": "FiestaBoard가 {name}을(를) 다운로드하지 못했습니다. 이 기기의 인터넷 연결을 확인한 뒤 다시 시도하세요.",
+      "betaTitle": "{name}에는 출력 플러그인 베타가 필요합니다",
+      "betaBody": "플러그인 레지스트리의 디스플레이는 FiestaBoard에서 자체 코드를 실행하므로, 출력 플러그인 베타를 켤 때까지 꺼져 있습니다. 설정 → 베타에서 다시 끌 수 있습니다.",
+      "enableBeta": "출력 플러그인 베타 켜기",
+      "enableBetaFailed": "베타를 켜지 못했습니다. 다시 시도하세요.",
+      "retry": "다시 시도",
+      "created": "{board}이(가) 저장되어 준비되었습니다.",
+      "createFailed": "보드를 저장하지 못했습니다"
+    },
+    "panelSetup": {
+      "nameLabel": "TV 이름",
+      "defaultName": "거실 TV",
+      "sizeLabel": "화면 크기(인치, 대각선)",
+      "sizeHelp": "{min}~{max}인치. 이 화면에서 각 플랩이 실제처럼 보이도록 보드 크기를 맞춥니다.",
+      "create": "TV 보드 만들기",
+      "creating": "만드는 중…",
+      "created": "{name} 준비 완료",
+      "openOnTv": "TV 브라우저에서 이 주소를 여세요:",
+      "failed": "TV 보드를 만들지 못했습니다"
     }
   },
   "activeDisplay": {

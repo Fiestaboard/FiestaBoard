@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "ボードを接続",
       "addDataSources": "データソースを追加",
-      "allSet": "準備完了です！"
+      "allSet": "準備完了です！",
+      "chooseOutput": "FiestaBoard を何に表示しますか？",
+      "setUpTv": "テレビを設定",
+      "setUpOutput": "{name} を設定"
     },
     "stepDescriptions": {
       "enterCredentials": "ボードの認証情報を入力して開始します",
       "enableFeatures": "すぐに使えるオプション機能を有効化します",
-      "sendTestMessage": "ボードにテストメッセージを送信します"
+      "sendTestMessage": "ボードにテストメッセージを送信します",
+      "chooseOutput": "お持ちのディスプレイを選んでください。あとから設定で追加できます。",
+      "setUpTv": "テレビの名前と画面サイズを入力してください",
+      "setUpOutput": "接続してテストし、ボードとして保存します"
     },
     "boardSetup": {
       "connectionType": "接続タイプ",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "スキップしてダッシュボードへ",
       "dateTimeName": "日付と時刻",
       "starTrekName": "スタートレックの名言",
-      "guestWifiName": "ゲストWiFi"
+      "guestWifiName": "ゲストWiFi",
+      "displayReady": "{name}（{output}）を設定しました"
+    },
+    "progressDisplay": "ディスプレイ",
+    "chooseOutput": {
+      "loading": "ディスプレイを探しています…",
+      "loadFailed": "ディスプレイの一覧を読み込めませんでした。",
+      "retry": "再試行",
+      "optionsLabel": "ディスプレイ",
+      "needsBeta": "出力プラグインのベータが必要です。次のステップで有効にできます。",
+      "downloads": "続行するとダウンロードされるため、インターネット接続が必要です。",
+      "skipTitle": "スキップ — ディスプレイはあとで追加する",
+      "skipDescription": "今はアプリを見て回り、ページをプレビューできます。ディスプレイはいつでも設定から追加できます。"
+    },
+    "outputSetup": {
+      "installing": "{name} をインストールしています…",
+      "installFailed": "{name} をインストールできませんでした",
+      "offline": "FiestaBoard は {name} をダウンロードできませんでした。このデバイスのインターネット接続を確認して、もう一度お試しください。",
+      "betaTitle": "{name} には出力プラグインのベータが必要です",
+      "betaBody": "プラグインレジストリのディスプレイは FiestaBoard 上で独自のコードを実行するため、出力プラグインのベータを有効にするまでオフのままです。設定 → ベータでいつでも無効にできます。",
+      "enableBeta": "出力プラグインのベータを有効にする",
+      "enableBetaFailed": "ベータを有効にできませんでした。もう一度お試しください。",
+      "retry": "再試行",
+      "created": "{board} を保存しました。準備完了です。",
+      "createFailed": "ボードを保存できませんでした"
+    },
+    "panelSetup": {
+      "nameLabel": "テレビの名前",
+      "defaultName": "リビングのテレビ",
+      "sizeLabel": "画面サイズ（インチ、対角）",
+      "sizeHelp": "{min}〜{max} インチ。この画面で各フラップが本物らしく見えるサイズにボードを合わせます。",
+      "create": "テレビのボードを作成",
+      "creating": "作成しています…",
+      "created": "{name} の準備ができました",
+      "openOnTv": "テレビのブラウザでこのアドレスを開いてください：",
+      "failed": "テレビのボードを作成できませんでした"
     }
   },
   "activeDisplay": {

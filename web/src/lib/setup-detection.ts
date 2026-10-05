@@ -13,6 +13,20 @@ const WIZARD_PROGRESS_KEY = "fiestaboard_wizard_progress";
 
 export interface WizardProgress {
   currentStep: number;
+  /**
+   * The output chosen on the first step (plan D18). Absent in progress saved
+   * by the three-step, Vestaboard-only wizard; see {@link getWizardProgress}.
+   */
+  outputId?: string;
+  /** Its display name, for the step titles after a reload. */
+  outputName?: string;
+  /** The board the wizard created for a TV or an output plugin. */
+  createdBoard?: {
+    outputId: string;
+    boardId: string;
+    name: string;
+    viewerPath?: string;
+  };
   boardConfig?: {
     api_mode: "local" | "cloud";
     local_api_key?: string;
@@ -163,10 +177,21 @@ export function getWizardProgress(): WizardProgress | null {
   const saved = localStorage.getItem(WIZARD_PROGRESS_KEY);
   if (!saved) return null;
   try {
-    return JSON.parse(saved) as WizardProgress;
+    return upgradeWizardProgress(JSON.parse(saved) as WizardProgress);
   } catch {
     return null;
   }
+}
+
+/**
+ * Progress saved by the Vestaboard-only wizard (no `outputId`) counted its
+ * steps from "Connect"; the wizard now opens on "choose your display". Past
+ * its first step that wizard was a Vestaboard one, so resume it as such, one
+ * step later. On its first step there is nothing to carry over.
+ */
+export function upgradeWizardProgress(progress: WizardProgress): WizardProgress {
+  if (progress.outputId !== undefined || progress.currentStep <= 1) return progress;
+  return { ...progress, outputId: "vestaboard", currentStep: progress.currentStep + 1 };
 }
 
 /**

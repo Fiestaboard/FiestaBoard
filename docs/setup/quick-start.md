@@ -84,7 +84,7 @@ The wizard asks for your board API key, device type, and board color, then start
 
 Once FiestaBoard is running (either on your Pi at `http://fiestapi.local:4420` or on your computer at `http://localhost:4420`):
 
-1. The setup wizard will guide you through connecting your board (or go to **Settings** if you've already been through setup)
+1. The setup wizard first asks what you want to show FiestaBoard on. Pick **Vestaboard** and it guides you through connecting your board, or pick **FiestaPanel** to use a TV. Not ready yet? Choose **Skip — I'll add a display later** to look around first. (If you've already been through setup, go to **Settings** instead.)
 2. Once connected, the display service starts automatically
 3. Verify the dashboard shows **Running** — your board is now connected!
 

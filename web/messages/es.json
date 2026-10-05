@@ -703,12 +703,18 @@
     "stepTitles": {
       "connectBoard": "Conecta tu tablero",
       "addDataSources": "Agrega fuentes de datos",
-      "allSet": "¡Todo listo!"
+      "allSet": "¡Todo listo!",
+      "chooseOutput": "¿Dónde quieres mostrar FiestaBoard?",
+      "setUpTv": "Configura tu televisor",
+      "setUpOutput": "Configura {name}"
     },
     "stepDescriptions": {
       "enterCredentials": "Ingresa las credenciales de tu tablero para comenzar",
       "enableFeatures": "Habilita funciones opcionales que funcionan de inmediato",
-      "sendTestMessage": "Envía un mensaje de prueba a tu tablero"
+      "sendTestMessage": "Envía un mensaje de prueba a tu tablero",
+      "chooseOutput": "Elige la pantalla que tienes. Puedes añadir más después en Ajustes.",
+      "setUpTv": "Ponle nombre a tu televisor e indica el tamaño de su pantalla",
+      "setUpOutput": "Conéctala, pruébala y guárdala como tablero"
     },
     "boardSetup": {
       "connectionType": "Tipo de conexión",
@@ -790,7 +796,42 @@
       "skipGoToDashboard": "Omitir e ir al panel",
       "dateTimeName": "Fecha y hora",
       "starTrekName": "Citas de Star Trek",
-      "guestWifiName": "WiFi de invitados"
+      "guestWifiName": "WiFi de invitados",
+      "displayReady": "{name} ({output}) está configurado"
+    },
+    "progressDisplay": "Pantalla",
+    "chooseOutput": {
+      "loading": "Buscando pantallas…",
+      "loadFailed": "No se pudo cargar la lista de pantallas.",
+      "retry": "Reintentar",
+      "optionsLabel": "Pantallas",
+      "needsBeta": "Requiere la beta de plugins de salida. Puedes activarla en el siguiente paso.",
+      "downloads": "Se descarga al continuar, así que necesita conexión a Internet.",
+      "skipTitle": "Omitir: añadiré una pantalla más tarde",
+      "skipDescription": "Explora y previsualiza páginas ahora. Añade una pantalla cuando quieras en Ajustes."
+    },
+    "outputSetup": {
+      "installing": "Instalando {name}…",
+      "installFailed": "No se pudo instalar {name}",
+      "offline": "FiestaBoard no pudo descargar {name}. Comprueba la conexión a Internet de este dispositivo y vuelve a intentarlo.",
+      "betaTitle": "{name} requiere la beta de plugins de salida",
+      "betaBody": "Las pantallas del registro de plugins ejecutan su propio código en tu FiestaBoard, por eso están desactivadas hasta que actives la beta de plugins de salida. Puedes volver a desactivarla en Ajustes → Beta.",
+      "enableBeta": "Activar la beta de plugins de salida",
+      "enableBetaFailed": "No se pudo activar la beta. Vuelve a intentarlo.",
+      "retry": "Reintentar",
+      "created": "{board} está guardado y listo.",
+      "createFailed": "No se pudo guardar el tablero"
+    },
+    "panelSetup": {
+      "nameLabel": "Nombre del televisor",
+      "defaultName": "TV del salón",
+      "sizeLabel": "Tamaño de pantalla (pulgadas, en diagonal)",
+      "sizeHelp": "Entre {min} y {max} pulgadas. El tablero se dimensiona para que cada paleta parezca real en esta pantalla.",
+      "create": "Crear tablero de TV",
+      "creating": "Creando…",
+      "created": "{name} está listo",
+      "openOnTv": "Abre esta dirección en el navegador del televisor:",
+      "failed": "No se pudo crear el tablero de TV"
     }
   },
   "activeDisplay": {

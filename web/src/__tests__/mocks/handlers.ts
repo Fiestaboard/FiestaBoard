@@ -1108,6 +1108,24 @@ export const handlers = [
 
   // Installed outputs (GET /outputs): the two built-ins, no plugins.
   http.get(`${API_BASE}/outputs`, () => HttpResponse.json(mockOutputs)),
+  // Outputs the wizard can offer (GET /outputs/available): the installed built-ins only.
+  http.get(`${API_BASE}/outputs/available`, () =>
+    HttpResponse.json(
+      mockOutputs.map(({ id, name, description, icon, builtin, beta_gated, available, output_api }) => ({
+        id,
+        name,
+        description,
+        icon,
+        source: "installed",
+        installed: true,
+        builtin,
+        beta_gated,
+        available,
+        needs_network: false,
+        output_api,
+      })),
+    ),
+  ),
 
   // Setup wizard outcome
   http.get(`${API_BASE}/settings/wizard`, () => HttpResponse.json({ state: null })),

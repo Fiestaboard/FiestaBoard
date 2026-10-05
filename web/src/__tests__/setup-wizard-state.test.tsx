@@ -33,7 +33,9 @@ describe("SetupWizard", () => {
         <SetupWizard />
       </QueryClientProvider>,
     );
-    await userEvent.click(await screen.findByRole("button", { name: "Skip for now" }));
+    // The first step's "add a display later" (plan D18); the Vestaboard
+    // step's "Skip for now" is covered in setup-wizard-choose-output.test.tsx.
+    await userEvent.click(await screen.findByRole("button", { name: /I'll add a display later/ }));
     await waitFor(() => expect(recorded).toEqual([{ state: "skipped" }]));
   });
 });
