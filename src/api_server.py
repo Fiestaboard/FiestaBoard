@@ -507,7 +507,6 @@ OPENAPI_TAGS = [
     {"name": "schedules", "description": "Time-of-day rules choosing which page a board shows."},
     {"name": "collections", "description": "Ordered groups of pages that rotate as one."},
     {"name": "triggers", "description": "Event-driven page interrupts, and the ones currently firing."},
-    {"name": "transitions", "description": "Transition plugins (beta): preview, test and restore board animations."},
     {
         "name": "plugins",
         "description": "Install, configure, enable and inspect the data-source plugins that fill template variables.",
@@ -2027,15 +2026,6 @@ async def validate_traffic_route(request: dict):
 # =============================================================================
 # Settings Endpoints
 # =============================================================================
-
-
-# =============================================================================
-# Transition plugins (beta) — moved to src/transitions/routes.py (slice 8)
-# =============================================================================
-
-from .transitions.routes import router as transitions_router  # noqa: E402
-
-app.include_router(transitions_router)
 
 
 # ==================== Beta Settings (HTTPS, etc.) ====================

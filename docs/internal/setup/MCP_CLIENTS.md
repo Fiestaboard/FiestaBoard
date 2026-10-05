@@ -339,7 +339,7 @@ change. Read current values with `get_settings_summary()` first.
 `send_message`, and `validate_template` were added in the same release.
 Nothing was removed or renamed.
 
-### Page-editor parity: every editor control, share strings, staff picks, the Transition Lab
+### Page-editor parity: every editor control, share strings, staff picks
 
 The in-app AI chat drives FiestaBoard through this same server, so
 everything the web page editor can save has to be reachable as a tool.
@@ -378,20 +378,17 @@ additions are all optional.
   `board_id` the REST route lacks).
 - **`list_formula_functions()`** — the `{{= ...}}` function reference
   (`GET /v1/functions`).
-- **Transition Lab** (beta; errors until Settings → Beta enables transition
-  plugins, exactly like the REST routes): **`list_transition_plugins()`**
-  (`GET /transitions/plugins`), **`test_transition_live(plugin_id,
-  to_page_id, from_page_id?, config?, board_id?)`** (`POST
-  /transitions/test-live`) and **`restore_board(board_id?)`** (`POST
-  /transitions/restore`). A paused board or an active silence window comes
-  back as `status: "blocked"`, the same policy result `send_message`
-  returns.
+- **Transition Lab** tools — `list_transition_plugins()`,
+  `test_transition_live()` and `restore_board()` — shipped here and were
+  later **removed** with the Transition Lab and its `/transitions/*` API
+  (plan D22). Transition plugins are deprecated; `list_installed_plugins()`
+  reports each one with `plugin_type: "transition"`, and its `plugin:<id>`
+  is still a valid `transition_strategy`.
 
-Annotations: `export_page`, `list_staff_picks`, `get_current_display`,
-`list_transition_plugins` and `list_formula_functions` are read-only;
-`import_page`, `import_staff_pick` and `test_transition_live` are writes
-but not destructive (a client should not ask for confirmation);
-`restore_board` is additionally idempotent. Nothing here is destructive.
+Annotations: `export_page`, `list_staff_picks`, `get_current_display` and
+`list_formula_functions` are read-only; `import_page` and
+`import_staff_pick` are writes but not destructive (a client should not ask
+for confirmation). Nothing here is destructive.
 
 ### Also new: the rest of the Integrations page
 

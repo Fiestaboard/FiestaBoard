@@ -25,7 +25,6 @@ import { settingsApi } from "./api/settings";
 import { setupApi } from "./api/setup";
 import { systemApi } from "./api/system";
 import { templatesApi } from "./api/templates";
-import { transitionsApi } from "./api/transitions";
 
 export * from "./api/ai";
 export * from "./api/auth";
@@ -44,7 +43,6 @@ export * from "./api/setup";
 export * from "./api/shared";
 export * from "./api/system";
 export * from "./api/templates";
-export * from "./api/transitions";
 
 // The single typed `api` object, composed from the domain modules. Domains
 // never overlap keys, so spread order carries no meaning.
@@ -57,7 +55,6 @@ export const api = {
   ...schedulesApi,
   ...collectionsApi,
   ...settingsApi,
-  ...transitionsApi,
   ...pluginsApi,
   ...pluginRegistryApi,
   ...aiApi,

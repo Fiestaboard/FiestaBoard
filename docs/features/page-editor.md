@@ -187,7 +187,7 @@ The editor's header toolbar has a **Transition** dropdown that controls how the 
 
 Anything other than **Use global default** becomes a page-level override that applies whenever this page is sent. Switching back to **Use global default** clears it.
 
-See [Transitions](/docs/features/transitions) for how the two kinds differ, what they require, and how to preview them in the Transition Lab.
+See [Transitions](/docs/features/transitions) for how the two kinds differ and what they require. Transition plugins are deprecated; pages that use one keep working.
 
 ## Page Layout
 

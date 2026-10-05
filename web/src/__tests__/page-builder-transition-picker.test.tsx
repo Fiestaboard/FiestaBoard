@@ -169,9 +169,24 @@ describe("PageBuilder — per-page transition picker", () => {
           https: { cert_present: false, cert_path: "", key_path: "", updater_available: false },
         }),
       ),
-      http.get(`${API_BASE}/transitions/plugins`, () =>
+      // The plugin listing: the picker keeps the transition plugins and drops
+      // every other kind.
+      http.get(`${API_BASE}/plugins`, () =>
         HttpResponse.json({
-          plugins: [{ id: "typewriter", name: "Typewriter", description: "", icon: "", version: "1.0.0" }],
+          plugins: [
+            {
+              id: "typewriter",
+              name: "Typewriter",
+              description: "",
+              icon: "",
+              version: "1.0.0",
+              plugin_type: "transition",
+            },
+            { id: "weather", name: "Weather", description: "", icon: "", version: "1.0.0", plugin_type: "data" },
+          ],
+          plugin_system_enabled: true,
+          total: 2,
+          enabled_count: 0,
         }),
       ),
     );
@@ -182,6 +197,7 @@ describe("PageBuilder — per-page transition picker", () => {
 
     await openTransitionMenu(user);
     await user.click(await screen.findByRole("menuitemradio", { name: "Typewriter" }));
+    expect(screen.queryByRole("menuitemradio", { name: "Weather" })).not.toBeInTheDocument();
 
     await user.click(await screen.findByRole("button", { name: "Save Page" }));
 

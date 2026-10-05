@@ -51,14 +51,9 @@ export function homeFor(call: Pick<ToolCall, "name" | "args">): { href: string; 
   if (/debug|blank_board|fill_board|clear_board_cache|diagnostics/.test(name)) {
     return { href: "/settings?section=advanced", anchor: "settings.debug" };
   }
-  if (
-    /active_page|override|send_message|force_refresh|pause_board|resume_board|restore_board|silence|board_content/.test(
-      name,
-    )
-  ) {
+  if (/active_page|override|send_message|force_refresh|pause_board|resume_board|silence|board_content/.test(name)) {
     return { href: "/", anchor: "home.active-display" };
   }
-  if (/transition/.test(name)) return { href: "/transitions", anchor: "transitions.root" };
   if (/staff_pick/.test(name)) return { href: "/picks", anchor: "picks.root" };
   // A tool whose name says nothing still names what it touches in its
   // arguments; that is how a tool shipped after this file gets a home.

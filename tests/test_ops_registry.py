@@ -63,13 +63,11 @@ EXPECTED_CANONICAL = {
     # equivalent; the chat grammar has no spelling for it today.
     "send_message",
     # MCP-only server ops for the page editor's sibling features: share
-    # strings, staff picks and the Transition Lab. Like send_message, the
+    # strings and staff picks. Like send_message, the
     # chat grammar has no spelling for them — the chat reaches them as
     # MCP tools through the in-process server.
     "import_page",
     "import_staff_pick",
-    "test_transition_live",
-    "restore_board",
     # MCP-only server ops for the Schedules page's default page and the Home
     # page's board-state controls; the chat grammar has no spellings.
     "set_default_page",

@@ -4,10 +4,11 @@ import { Badge, Flex, Grid, Input, Label, PageSection, Skeleton, Stack, Text } f
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useTransitionPlugins } from "@/hooks/use-transition-plugins";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { TransitionSettings as TransitionSettingsType } from "@/lib/api";
@@ -45,21 +46,14 @@ export function TransitionSettings() {
 
   const transitions = allSettings?.transitions;
 
-  // Transition plugins are beta-gated: the backend rejects `plugin:` strategies
-  // (and 404s the plugin list) while the flag is off, so don't even fetch.
-  // Same queryKey as the Transition Lab page so the cache is shared.
+  // Transition plugins are beta-gated (and deprecated): the backend rejects
+  // `plugin:` strategies while the flag is off, so don't even fetch.
   const betaQuery = useQuery({
     queryKey: ["settings", "beta"],
     queryFn: () => api.getBetaSettings(),
   });
   const betaEnabled = betaQuery.data?.settings.transition_plugins_enabled ?? false;
-
-  const pluginsQuery = useQuery({
-    queryKey: ["transition-plugins"],
-    queryFn: () => api.listTransitionPlugins(),
-    enabled: betaEnabled,
-  });
-  const plugins = useMemo(() => pluginsQuery.data?.plugins ?? [], [pluginsQuery.data]);
+  const plugins = useTransitionPlugins(betaEnabled);
 
   const [strategy, setStrategy] = useState<string | null>(null);
   const [stepIntervalMs, setStepIntervalMs] = useState<number | "">("");

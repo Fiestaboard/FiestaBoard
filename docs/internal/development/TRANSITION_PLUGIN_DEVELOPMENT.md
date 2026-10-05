@@ -1,12 +1,16 @@
 # Transition Plugin Development Guide
 
-> ⚠️ **Beta / Experimental.** Transition plugins ship behind the
-> ``beta.transition_plugins_enabled`` settings flag
-> (Settings → Advanced → Beta Features → Transition Plugins).
-> The SDK contract is not yet stable -- method signatures, manifest
-> fields, and runtime semantics may change in future releases before
-> general availability. Use it, build with it, send feedback, but don't
-> treat your plugin's interface as locked in yet.
+> ⚠️ **Deprecated.** Transition plugins are deprecated (plan D22,
+> 2026-10-04). Existing ones keep running: a page or the system default
+> whose strategy is `plugin:<id>` still animates through `TransitionRunner`,
+> and installed transition plugins stay selectable behind the
+> ``beta.transition_plugins_enabled`` flag
+> (Settings → Advanced → Beta Features → Transition Plugins). The
+> Transition Lab page and its `/transitions/*` API are removed, the
+> Integrations page badges every transition plugin **Deprecated**, and
+> removal of the plugin kind is under consideration for v11 (see
+> [TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md)). Do not start a new transition
+> plugin; transition choice is moving to each display.
 
 Transition plugins drive **frame-by-frame board animations** that change one display state into another. Unlike Vestaboard's built-in strategies (column wave, edges-to-center, etc.), which are Local API features the board performs on its own, a transition plugin emits a sequence of intermediate board grids and the runtime sends each one as a separate ordinary board update -- enabling typewriter reveals, slot-machine spins, dissolves, and anything else that needs custom per-frame control. An output that cannot show intermediate frames (a cloud Vestaboard, one message per 15 s) declares `animation: "none"`, and the transition snaps to its target there.
 
@@ -28,7 +32,7 @@ This is a different plugin type from the data plugins documented in [PLUGIN_DEVE
 3. Implement `generate_frames()` in `plugins/my_transition/__init__.py`.
 4. Add tests under `plugins/my_transition/tests/` aiming for >80% coverage.
 5. Run `python scripts/run_plugin_tests.py --plugin=my_transition` to verify.
-6. Turn on Settings → Advanced → Beta Features → **Transition Plugins**, then open **Transition Lab** (`/transitions`) to preview your plugin frame by frame between two pages.
+6. Turn on Settings → Advanced → Beta Features → **Transition Plugins**, pick your plugin from a page's **Transition** dropdown, and send that page to a Local API board.
 
 ## The Plugin Class
 
@@ -140,11 +144,7 @@ Pages store the choice as `transition_strategy = "plugin:my_transition"`. The ru
 
 ## Visual testing
 
-The **Transition Lab** at `/transitions` (sidebar entry, visible once the beta is on) previews any installed transition plugin between two of your real pages without touching the board. It uses `POST /transitions/preview` under the hood, which calls your `generate_frames()` and returns the resulting grids as JSON. Use the timeline scrubber to step through frames and verify each intermediate state.
-
-The Lab's config box is seeded with the plugin's saved config and passed straight through to `generate_frames()`, so you can try values without saving them — the fastest way to sanity-check `validate_config()` and your defaults.
-
-When you're ready to see it on hardware, **Test live** runs the transition once on the real board and **Restore** puts the active page back (the display loop restores it on its own as well).
+The Transition Lab, which previewed a plugin's frames in the browser, was retired with its `/transitions/*` API (plan D22). Check intermediate states in unit tests instead: call `generate_frames()` directly with a `from_grid`, a `to_grid`, a `BoardContext` and a config, and assert on the grids and delays it yields. To see it on hardware, pick the plugin as a page's transition and send that page to a Local API board.
 
 ## Performance & rate limits
 
@@ -161,5 +161,5 @@ External plugins follow the same registry mechanism as data plugins (see [PLUGIN
 - **Base class**: `src/plugins/base.py` → `TransitionPluginBase`
 - **Runner**: `src/transitions/runner.py` → `TransitionRunner`
 - **Send chokepoint**: `src/board_client.py` → `BoardClient.render()`
-- **API endpoints**: `GET /transitions/plugins`, `POST /transitions/preview` in `src/api_server.py`
+- **Listing**: `GET /plugins`, entries whose `plugin_type` is `"transition"` (the pickers read this; `/transitions/plugins` is removed)
 - **First-party examples**: `plugins/typewriter`, `plugins/simple_dissolve`, `plugins/slot_machine`, `plugins/quiet_library`

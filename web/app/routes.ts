@@ -20,7 +20,6 @@ export default [
   route("pages/edit", "routes/pages.edit._index.tsx"),
   route("pages/edit/:id", "routes/pages.edit.$id.tsx"),
   route("schedule", "routes/schedule.tsx"),
-  route("transitions", "routes/transitions.tsx"),
   route("panel/:panelId", "routes/panel.tsx"),
   route("p/:panelId", "routes/panel-short.tsx"),
 ] satisfies RouteConfig;

@@ -15,20 +15,9 @@ import {
   Stack,
   Switch,
   Text,
-  TextLink,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AlertTriangle,
-  ExternalLink,
-  FlaskConical,
-  Loader2,
-  Lock,
-  RefreshCw,
-  ShieldCheck,
-  Tv,
-  Wand2,
-} from "lucide-react";
+import { AlertTriangle, FlaskConical, Loader2, Lock, RefreshCw, ShieldCheck, Tv, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -88,7 +77,6 @@ export function BetaSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "beta"] });
       queryClient.invalidateQueries({ queryKey: ["settings", "all"] });
-      queryClient.invalidateQueries({ queryKey: ["transition-plugins"] });
       toast.success(t("savedToast"));
     },
     onError: (err: Error) => {
@@ -199,15 +187,6 @@ export function BetaSettings() {
                 {t("transitionsWarning")}
               </Text>
             </Flex>
-            {transitionsEnabled && (
-              <TextLink
-                href="/transitions"
-                className="text-xs text-primary inline-flex items-center gap-1 pt-1 no-underline hover:underline"
-              >
-                <ExternalLink className="h-3 w-3" />
-                {t("transitionsLabLink")}
-              </TextLink>
-            )}
           </Stack>
           <Switch
             checked={transitionsEnabled}
