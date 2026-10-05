@@ -36,7 +36,26 @@ if TYPE_CHECKING:
 
 
 def _construct(board: dict) -> OutputDriver | None:
-    return definition_for(board).build(board)
+    try:
+        definition = definition_for(board)
+    except UnknownOutputError:
+        # Output plugins register when the plugin registry loads. A board
+        # built before that (the display service's first init at boot) must
+        # not be refused for it: load the registry once, then ask again.
+        if not _load_output_plugins():
+            raise
+        definition = definition_for(board)
+    return definition.build(board)
+
+
+def _load_output_plugins() -> bool:
+    """Load the plugin registry if nothing has yet; True when it just did."""
+    from src.plugins import registry
+
+    if registry.plugin_registry_initialized():
+        return False
+    registry.get_plugin_registry().initialize()
+    return True
 
 
 def build_driver(board: dict) -> OutputDriver | None:

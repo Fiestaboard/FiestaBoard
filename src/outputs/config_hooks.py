@@ -103,13 +103,34 @@ def board_status(board: Mapping[str, Any]) -> OutputStatus | None:
     if cls is None:
         return None
     config = board.get("output_config")
+    config = config if isinstance(config, Mapping) else {}
     try:
-        return cls.board_status(config if isinstance(config, Mapping) else {}, board)
+        status = cls.board_status(config, board)
     except Exception:  # a plugin's summary must never break a settings read
         import logging
 
         logging.getLogger(__name__).exception("Output %s: board_status failed", output_id)
         return None
+    if status is None:
+        status = _status_from_schema(config, _schema(output_id))
+    return status
+
+
+def _is_set(value: Any) -> bool:
+    return value not in (None, "", [], {})
+
+
+def _status_from_schema(config: Mapping[str, Any], schema: Mapping[str, Any] | None) -> OutputStatus:
+    """The status of an output with no ``board_status`` hook: configured when
+    every setting its ``settings_schema`` requires is set (with no schema,
+    when anything is), attempted when any setting is."""
+    attempted = any(_is_set(value) for value in config.values())
+    required = schema.get("required") if isinstance(schema, Mapping) else None
+    if isinstance(required, list) and required:
+        configured = all(_is_set(config.get(name)) for name in required)
+    else:
+        configured = attempted
+    return OutputStatus(configured=configured, attempted=attempted)
 
 
 def legacy_flat_fields() -> dict[str, Any]:

@@ -2382,6 +2382,12 @@ def get_plugin_registry() -> PluginRegistry:
     return _registry
 
 
+def plugin_registry_initialized() -> bool:
+    """Whether the global registry has loaded its plugins (output plugins
+    included) — without creating or loading it."""
+    return _registry is not None and _registry._initialized
+
+
 def reset_plugin_registry() -> None:
     """Reset the global plugin registry.
 
