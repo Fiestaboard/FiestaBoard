@@ -310,10 +310,13 @@ class BoardSettings:
         Also carries the resolved FiestaUI ``device_model`` and ``charset``
         ids (src/outputs/board_profile.py). ``device_model_spec`` -- the
         model document, for a model FiestaUI does not build in (a
-        FiestaPanel's, a plugin's own) -- is added only then.
+        FiestaPanel's, a plugin's own) -- is added only then. ``led_layout``
+        -- an LED board's resolved ``tile_gap`` / ``block_padding`` (plan
+        D23), what its preview must draw to match the device -- is added only
+        for an LED board.
         """
         from src.devices import LEGACY_CONNECTION_FIELDS
-        from src.outputs.board_profile import board_model_spec, board_profile
+        from src.outputs.board_profile import board_led_layout, board_model_spec, board_profile
         from src.outputs.config_hooks import mask_config, mask_flat_fields
         from src.settings.board_shape import FIESTAPANEL, board_view
 
@@ -324,6 +327,9 @@ class BoardSettings:
         spec = board_model_spec(board)
         if spec is not None:
             masked["device_model_spec"] = spec
+        led_layout = board_led_layout(board)
+        if led_layout is not None:
+            masked["led_layout"] = led_layout
         if output_id != FIESTAPANEL:
             masked["output_config"] = mask_config(output_id, masked["output_config"])
         return masked

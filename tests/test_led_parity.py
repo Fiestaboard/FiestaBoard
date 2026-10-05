@@ -32,6 +32,7 @@ from src.led import (
     materialize_character_set,
     rasterize,
 )
+from src.markup import BoardToken
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures" / "fiestaui"
@@ -54,7 +55,17 @@ def _options(case: dict) -> LedLayoutOptions:
         monochrome=raw.get("monochrome"),
         letter_case=raw.get("letterCase", "upper"),
         charset=charset,
+        tile_gap=raw.get("tileGap"),
+        block_padding=raw.get("blockPadding"),
     )
+
+
+def _layout(case: dict):
+    """The case laid out as FiestaUI's generator does: a cells-in case from its parsed grid."""
+    message = case["message"]
+    if "cells" in case:
+        message = [[BoardToken(**token) for token in row] for row in case["cells"]]
+    return layout_message(message, _spec(case["spec"]), _options(case))
 
 
 def _pixel_diff(actual: bytes, expected: bytes, width: int, limit: int = 8) -> str:
@@ -76,7 +87,7 @@ def _pixel_diff(actual: bytes, expected: bytes, width: int, limit: int = 8) -> s
 
 def test_transition_cases_are_read_by_the_transition_tests():
     # tests/test_led_transitions.py checks every one of these frame by frame.
-    assert len(LED_GOLDEN["transitions"]) == 10
+    assert len(LED_GOLDEN["transitions"]) == 11
 
 
 # --- layout + raster goldens ------------------------------------------------
@@ -84,13 +95,13 @@ def test_transition_cases_are_read_by_the_transition_tests():
 
 @pytest.mark.parametrize("case", LAYOUT_CASES, ids=[c["name"] for c in LAYOUT_CASES])
 def test_layout_text_matches_fiestaui(case):
-    layout = layout_message(case["message"], _spec(case["spec"]), _options(case))
+    layout = _layout(case)
     assert layout.text == case["text"]
 
 
 @pytest.mark.parametrize("case", LAYOUT_CASES, ids=[c["name"] for c in LAYOUT_CASES])
 def test_rgb888_frame_matches_fiestaui(case):
-    frame = rasterize(layout_message(case["message"], _spec(case["spec"]), _options(case)))
+    frame = rasterize(_layout(case))
     expected = base64.b64decode(case["frame"])
     assert (frame.width, frame.height) == (case["width"], case["height"])
     assert len(frame.pixels) == frame.width * frame.height * 3
@@ -109,6 +120,27 @@ def test_golden_covers_the_parity_fixes():
         "icon fallbacks in a block, monochrome",
     } <= names
     assert "lobby_flap" in {c["input"]["id"] for c in CHARSET_GOLDEN["sets"]}
+
+
+def test_golden_covers_both_layout_options_in_colour_mono_pixoo_and_cells_in():
+    # FiestaUI #338's coverage floor for tileGap / blockPadding; a re-vendor
+    # that dropped these cases would leave the port unpinned.
+    fill = [c for c in LAYOUT_CASES if c.get("options", {}).get("tileGap") == "fill"]
+    padding = [c for c in LAYOUT_CASES if c.get("options", {}).get("blockPadding") == 1]
+    assert len(fill) >= 5 and len(padding) >= 5
+    assert any(c["options"].get("monochrome") and c["options"].get("blockPadding") == 1 for c in fill)
+    assert any(c["spec"] == {"width": 64, "height": 64, "font": "3x5"} for c in fill)
+    assert any("cells" in c for c in fill)
+    assert any(
+        c.get("options", {}).get("tileGap") == "fill" and c["options"].get("blockPadding") == 1
+        for c in LED_GOLDEN["transitions"]
+    )
+
+
+def test_a_cells_in_case_draws_the_bytes_of_its_message():
+    for case in (c for c in LAYOUT_CASES if "cells" in c):
+        via_message = rasterize(layout_message(case["message"], _spec(case["spec"]), _options(case)))
+        assert via_message.pixels == base64.b64decode(case["frame"]), case["name"]
 
 
 def test_golden_frames_are_not_dark():
@@ -135,7 +167,7 @@ def test_builtin_sets_are_fiestauis_flattened_sets():
 
 def test_pixoo64_is_a_10_by_16_grid():
     spec = led_spec_for_model(DEVICE_MODELS["divoom_pixoo64"])
-    assert spec == LedMatrixSpec(width=64, height=64, font="3x5")
+    assert spec == LedMatrixSpec(width=64, height=64, font="3x5", tile_gap="gap", block_padding=0)
     grid = grid_layout(spec.width, spec.height, spec.font)
     assert (grid.rows, grid.cols) == (10, 16)
     # 16 cols * 4 px - 1 = 63 wide, 10 rows * 6 px - 1 = 59 tall: leftovers centred.

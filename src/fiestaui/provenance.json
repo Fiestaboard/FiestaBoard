@@ -1,27 +1,32 @@
 {
   "source": "Fiestaboard/FiestaUI",
   "path": "scripts/ci/tests/fixtures/",
-  "commit": "22db0b5245e89714252920824d7ad40c9c16987a",
-  "branch": "feat/split-flap-extended-markup-default",
+  "commit": "668e42811ef05af30426ac0d719ddbf21d8070d2",
+  "branch": "feat/led-tile-fill-block-padding",
   "pull_requests": [
     326,
     327,
     328,
     331,
     335,
-    336
+    336,
+    338
   ],
-  "status": "unreleased: the review-fix batch of 2026-10-04 (tip #336 22db0b5, on #323-#335); re-vendor from the released FiestaUI tag with scripts/fiestaui_fixtures/vendor.sh and bump these hashes in the same PR",
-  "note": "Every file is byte-identical to its blob at the commit. The batch changed device-models.json (Vestaboard flagship/note/note_array stream at 1 fps, panel at 0.5 fps; the Pixoo 64 streams at 2 fps and snaps), led-golden.json (the flip budget keeps the scramble and shortens the stagger first; the 32-frame budget cases run on an inlined generic sequence device, sequence_panel_64) and charset-golden.json (kiosk_mono_v1 and five supported-icon cases). device-models.json and charset-golden.json are unchanged since cb500a8 (#326), led-golden.json since ff8186e (#328); everything else is unchanged since 95423b31c1446bfc6c6d7f62b901cbb16c21d147.",
+  "status": "unreleased: FiestaUI #338 (668e428, LED tileGap/blockPadding, branched from main a64104e) over the review-fix batch of 2026-10-04 (#336 22db0b5); re-vendor from the released FiestaUI tag with scripts/fiestaui_fixtures/vendor.sh and bump these hashes in the same PR",
+  "note": "Every file is byte-identical to its blob at `commit`, except where `files_from` names another commit. #338 changed device-model.schema.json (optional layoutOptions, LED only), device-models.json (every built-in LED model allows both tileGap values and both blockPadding values, with today's defaults) and led-golden.json (14 layout cases and one flip case for the two options, design spec section 7.6). #338 branched from main before #336, so plugin-models.json stays at 22db0b5 (#336: FiestaPanel split-flap streams at 0.5 fps); every other file is identical at both commits. Before #338: Every file is byte-identical to its blob at the commit. The batch changed device-models.json (Vestaboard flagship/note/note_array stream at 1 fps, panel at 0.5 fps; the Pixoo 64 streams at 2 fps and snaps), led-golden.json (the flip budget keeps the scramble and shortens the stagger first; the 32-frame budget cases run on an inlined generic sequence device, sequence_panel_64) and charset-golden.json (kiosk_mono_v1 and five supported-icon cases). device-models.json and charset-golden.json are unchanged since cb500a8 (#326), led-golden.json since ff8186e (#328); everything else is unchanged since 95423b31c1446bfc6c6d7f62b901cbb16c21d147.",
+  "files_from": {
+    "src/fiestaui/plugin-models.json": "22db0b5245e89714252920824d7ad40c9c16987a",
+    "tests/fixtures/fiestaui/plugin-models.json": "22db0b5245e89714252920824d7ad40c9c16987a"
+  },
   "files": {
     "src/fiestaui/character-set.schema.json": "69efe686fc58060361d279be453b12f44395fa1a879dcac7c82ce559628437b3",
     "src/fiestaui/character-sets.json": "3f5705bb7746f817e91fc685e65616bb4470aa1496068bf72db994c3de5b6e91",
-    "src/fiestaui/device-model.schema.json": "27efc30e261b914b7daf5882af565f95c7d836c652e378a2432ab1f609f55f18",
-    "src/fiestaui/device-models.json": "cce6d482d7fff143bcf8153ba1e2665529b0ae1b85d05f6a547659a4e80bfeed",
+    "src/fiestaui/device-model.schema.json": "903597ae530303b276995a0c01051e25a11bc5facd272d6e52931102bb1e2a61",
+    "src/fiestaui/device-models.json": "d3525463723cb9534f2d0853068238b7021c4d61b49dbd2ab93479c63a9e5f7d",
     "src/fiestaui/led-fonts.json": "975e1ee0eb0eea1e0138d1eeb3217eb3f4d9b610c55cfd66d6a7f65ecb02446d",
     "src/fiestaui/plugin-models.json": "9bdaaea77efca0388c19dd0927cd5000052ab6b32c68d3b06a937a1fb91030f7",
     "tests/fixtures/fiestaui/charset-golden.json": "dc38aed4091f5a276ae28fd679fb9b7b229d0dbda012c872b7ed11c97ae348f9",
-    "tests/fixtures/fiestaui/led-golden.json": "1f0ec5ef0de35a30a1248ced219b9ddc4715c81b1712f7f5a616a1dd34122965",
+    "tests/fixtures/fiestaui/led-golden.json": "40116df4b6761138a40a8729c200be9b64c050f3c7c9042743ff31aaf1167e27",
     "tests/fixtures/fiestaui/plugin-models.json": "9bdaaea77efca0388c19dd0927cd5000052ab6b32c68d3b06a937a1fb91030f7"
   }
 }

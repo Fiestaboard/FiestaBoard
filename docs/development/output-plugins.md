@@ -204,6 +204,7 @@ A `$ref` names a JSON file inside your plugin directory, and the same path must 
 | `charset` | Yes | A built-in set id (`vestaboard_v1`, `vestaboard_v2`, `led_5x7`, `led_3x5`) or an embedded CharacterSet. |
 | `animation` | Yes | `{"delivery": "stream" \| "sequence" \| "none", "maxFps"}`, plus `maxFrames` and `minFrameMs` for a `sequence` device. |
 | `font` | No | `"3x5"` or `"5x7"`, the LED font that lays out characters. |
+| `layoutOptions` | No | LED only. Which LED layout options a board may choose, and the default. See [LED layout options](#led-layout-options). |
 | `appearance` | No | Preview cosmetics only. See [Appearance](#appearance). |
 
 **The 3 × 15 floor.** Every board must hold at least 3 rows of 15 characters, the size of a Vestaboard Note, so every page fits every board. A `pixels` model's grid is how many glyphs of its font fit: a 64 × 64 matrix with the 3×5 font and 1-pixel gaps is 10 rows × 16 columns. A model below 3 × 15 is refused when a board is created, never enlarged. A 64 × 64 matrix with the 5×7 font is only 8 × 10, so it does not fit. Declare only models that reach the floor.
@@ -232,6 +233,43 @@ The rules, applied when your plugin loads:
 - **`glyphs`** maps a character to rows of `#` and `.` matching the font box, and wins over the shared font. Every glyph's character must also be in `chars`.
 
 FiestaBoard flattens the set once, at load. Your plugin reads the result as `self.character_set`.
+
+### LED layout options
+
+Two choices change how an LED matrix draws tiles and block spans. Unlike `appearance`, both change the bytes a device is sent:
+
+- **`tileGap`**: `"gap"` (the default) keeps the 1-pixel gutter between cells unlit. `"fill"` lights the gutter between two neighbouring cells that are lit in the same color (two color tiles, two cells of one block span, or a tile beside a block of its color), so a run of tiles reads as one solid bar. A corner pixel lights only when all four cells around it match. Different colors never merge, and the grid does not move.
+- **`blockPadding`**: `0` (the default) draws a block span's background over its cells only. `1` grows it one pixel into the gutters and margin on every side, so text on a block always has a border of its background. It never reaches into another cell or past the matrix, and a pixel between two different colors stays unlit.
+
+A model limits the choices with `layoutOptions`, each field `{"allowed": [...], "default": ...}`:
+
+```json
+"layoutOptions": {
+  "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+  "blockPadding": { "allowed": [0, 1], "default": 0 }
+}
+```
+
+A field you leave out allows every value with the renderer's default. A split-flap model must not declare `layoutOptions`. Every built-in LED model allows both values of both options.
+
+To let users choose, declare `tile_gap` and `block_padding` in your `settings_schema` with those values. Core reads them from the board's `output_config`, keeps each value the model allows, and uses the model's default (with a warning in the log) for anything else. Call `self.led_layout_options()` when you lay out a frame and the board draws what its preview draws:
+
+```json
+"tile_gap": {
+  "type": "string",
+  "title": "Tile style",
+  "enum": ["gap", "fill"],
+  "enumNames": ["Gaps", "Seamless"],
+  "default": "gap"
+},
+"block_padding": {
+  "type": "integer",
+  "title": "Block padding",
+  "enum": [0, 1],
+  "enumNames": ["Off", "1 pixel"],
+  "default": 0
+}
+```
 
 ### Appearance
 
@@ -382,7 +420,6 @@ from src.plugins import (
     CancelToken,
     CellFrame,
     ConnectionCheck,
-    LedLayoutOptions,
     OutputHostBlocked,
     OutputPluginBase,
     RichCellFrame,
@@ -411,9 +448,7 @@ class AcmeSign(OutputPluginBase):
         return self.write_cells(cells_from_codes(frame), native=native, cancel=cancel)
 
     def write_cells(self, cells: RichCellFrame, *, native, cancel: CancelToken) -> WriteResult:
-        layout = layout_message(
-            cells, led_spec_for_model(self.device_model), LedLayoutOptions(charset=self.character_set)
-        )
+        layout = layout_message(cells, led_spec_for_model(self.device_model), self.led_layout_options())
         pixels = rasterize(layout).pixels  # RGB888, row-major
         try:
             response = self.http.post(f"{self.url}/frame", json={"rgb": base64.b64encode(pixels).decode()})
@@ -493,6 +528,7 @@ What core resolved for the board is on the instance:
 | `self.device_model` | The board's DeviceModel dict: the model the board was created as, else your first |
 | `self.character_set` | The board's character set, flattened |
 | `self.board_geometry` | The board's character grid, `(rows, cols)` |
+| `self.led_layout_options()` | `LedLayoutOptions` for `layout_message()`: the character set plus the board's `tile_gap` and `block_padding`, checked against the model |
 | `self.http` | The device HTTP client |
 
 ### `WriteResult`
@@ -542,7 +578,7 @@ FiestaBoard ships the same LED renderer FiestaUI previews with, so the board mat
 | Function | Does |
 |----------|------|
 | `led_spec_for_model(model)` | The matrix spec (size, font) for a DeviceModel: pass `self.device_model` |
-| `layout_message(frame, spec, options)` | Lays out rich cells (or a markup string) on the matrix. Pass `LedLayoutOptions(charset=self.character_set)` |
+| `layout_message(frame, spec, options)` | Lays out rich cells (or a markup string) on the matrix. Pass `self.led_layout_options()`: the board's character set and [LED layout options](#led-layout-options) |
 | `rasterize(layout)` | Renders a layout to an RGB888 frame; `.pixels` is the bytes, row-major |
 | `plan_transition(before, after, spec)` | Plans an LED transition between two layouts |
 | `transition_frames(planned, fps=30)` | The planned transition's frames, each with `.pixels`, ending on the target |

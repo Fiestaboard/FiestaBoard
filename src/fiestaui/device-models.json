@@ -91,6 +91,10 @@
       ]
     },
     "font": "3x5",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
     "appearance": { "pixelShape": "square", "dotRatio": 0.82, "offColor": "#171717", "substrateColor": "#0a0a0a" },
     "legacy": { "preset": "pixoo64" }
   },
@@ -112,6 +116,10 @@
       ]
     },
     "font": "3x5",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
     "appearance": { "pixelShape": "square", "dotRatio": 0.82, "offColor": "#171717", "substrateColor": "#0a0a0a" },
     "legacy": { "preset": "awtrix" }
   },
@@ -135,6 +143,10 @@
       ]
     },
     "font": "3x5",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
     "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
     "legacy": { "preset": "wled_32x32" }
   },
@@ -153,6 +165,10 @@
       "sources": ["https://github.com/hzeller/rpi-rgb-led-matrix"]
     },
     "font": "5x7",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
     "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
     "legacy": { "preset": "hub75_64x32" }
   },
@@ -171,6 +187,10 @@
       "sources": ["https://github.com/hzeller/rpi-rgb-led-matrix"]
     },
     "font": "5x7",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
     "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
     "legacy": { "preset": "hub75_64x64" }
   },
@@ -189,6 +209,10 @@
       "sources": ["https://github.com/hzeller/rpi-rgb-led-matrix"]
     },
     "font": "5x7",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
     "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
     "legacy": { "preset": "hub75_128x64" }
   },
@@ -207,6 +231,10 @@
       "sources": ["https://luma-led-matrix.readthedocs.io/en/latest/", "https://github.com/MajicDesigns/MD_Parola/wiki"]
     },
     "font": "3x5",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
     "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
     "legacy": { "preset": "max7219" }
   },
@@ -225,6 +253,10 @@
       "sources": ["https://github.com/board707/DMD_STM32"]
     },
     "font": "5x7",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
     "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
     "legacy": { "preset": "p10_32x16" }
   },
@@ -247,6 +279,10 @@
       ]
     },
     "font": "5x7",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
     "appearance": { "pixelShape": "square", "dotRatio": 0.82, "offColor": "#171717", "substrateColor": "#0a0a0a" },
     "legacy": { "preset": "tronbyt" }
   }
