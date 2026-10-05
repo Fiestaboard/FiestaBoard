@@ -129,6 +129,7 @@
           "ui:options": {
             "layout": "board",
             "item_actions": [
+              "test_tile",
               "identify",
               "enable_local_api"
             ],
@@ -257,6 +258,43 @@
         "result_fields": {},
         "visible_when": {
           "api_mode": "local"
+        },
+        "auto_apply": false
+      },
+      {
+        "id": "test_tile",
+        "label": "Test",
+        "description": "Check that this Note's address and key reach its Local API.",
+        "builtin": false,
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "row": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "col": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "local_api_key": {
+              "type": "string",
+              "secret": true
+            }
+          }
+        },
+        "result_fields": {},
+        "visible_when": {
+          "api_mode": "local",
+          "@device_type": "note_array"
         },
         "auto_apply": false
       },

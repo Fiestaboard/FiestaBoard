@@ -19,10 +19,12 @@ is secret, so the whole ``output_config`` is withheld (masked as ``"***"``)
 and an echoed ``"***"`` keeps the stored config untouched: unknown is
 treated as secret, never shown.
 
-Since settings v4 every board carries an ``output_config``. These rules are
-an output *plugin's*; a Vestaboard's (the first-party output core still
-interprets, its tiles matched by endpoint) are
-:mod:`src.outputs.vestaboard.connection`'s, and a FiestaPanel's is empty.
+Since settings v4 every board carries an ``output_config``. These are the
+default rules (:class:`~src.outputs.plugin_base.OutputPluginBase`'s
+``mask_config`` / ``restore_config`` / ``masked_config_paths``); an output
+whose settings need more says so itself — the Vestaboard's plugin matches a
+tile's key by its endpoint (:mod:`src.outputs.config_hooks`). A FiestaPanel's
+config is empty.
 """
 
 from __future__ import annotations

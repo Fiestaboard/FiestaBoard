@@ -13,10 +13,12 @@
  *   of slots (`ui:options.rows_field` / `cols_field`, or `layout: "board"`
  *   for the board's own tile layout). Each slot opens a dialog with the
  *   item's other fields and the `ui:options.item_actions` run on that one
- *   tile (their input taken from it, their result filled into it); a filled
- *   tile can move to (or swap with) another slot; `identify`, when the
- *   output declares it, also identifies every tile at once; repeated
- *   `ui:options.unique_fields` values are flagged.
+ *   tile (their input taken from it, their result filled into it, the
+ *   verdict a toast); a filled tile can move to (or swap with) another slot;
+ *   `identify`, when the output declares it, also identifies every tile at
+ *   once; repeated `ui:options.unique_fields` values are flagged, and a
+ *   device-picker in a tile's dialog marks a found device another tile
+ *   already uses.
  *
  * Actions come from {@link BoardActionsContext}, which the board settings
  * screen provides; without it the action buttons are not rendered.
@@ -46,6 +48,7 @@ import {
 } from "@fiestaboard/ui";
 import { AlertCircle, Loader2, Plus, ScanSearch, Search, Trash2 } from "lucide-react";
 import React, { createContext, useContext, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
 import type { ActionResult, DiscoveredDevice, OutputActionDescriptor } from "@/lib/api";
@@ -72,6 +75,25 @@ export const BoardActionsContext = createContext<BoardActionsContextValue | null
 
 export function useBoardActions(): BoardActionsContextValue | null {
   return useContext(BoardActionsContext);
+}
+
+/**
+ * Inside a tile's dialog: the slot number of ANOTHER tile that already uses
+ * a value (its `unique_fields` value — a Note's address), so a device picker
+ * can say a found device is taken.
+ */
+export const TileValueInUseContext = createContext<((value: string) => number | null) | null>(null);
+
+/** Toast an action's verdict: its label, and its message when it has one. */
+export function toastActionResult(action: OutputActionDescriptor, result: ActionResult | null, failed: string) {
+  if (result === null) {
+    toast.error(action.label, { description: failed });
+    return;
+  }
+  const options = result.message ? { description: result.message } : undefined;
+  if (result.status === "ok") toast.success(action.label, options);
+  else if (result.status === "warning") toast.warning(action.label, options);
+  else toast.error(action.label, options);
 }
 
 const MASKED = "***";
@@ -174,6 +196,7 @@ export function DevicePickerField({
 }: DevicePickerFieldProps) {
   const t = useTranslations("boardSettingsScreen");
   const actions = useBoardActions();
+  const inUse = useContext(TileValueInUseContext);
   const [devices, setDevices] = useState<DiscoveredDevice[] | null>(null);
   const canScan = actions?.actions.some((a) => a.id === action) ?? false;
   const scanning = actions?.running === action;
@@ -181,6 +204,7 @@ export function DevicePickerField({
   const scan = async () => {
     if (!actions) return;
     const result = await actions.run(action);
+    if (result === null) toast.error(t("actionFailed"));
     setDevices(result?.devices ?? []);
   };
 
@@ -219,12 +243,17 @@ export function DevicePickerField({
           >
             {devices.map((device) => {
               const deviceValue = deviceText(device, valueKey);
+              const usedBy = inUse?.(deviceValue) ?? null;
               return (
                 <ToggleCard
                   key={`${deviceValue}:${device.port}`}
                   value={deviceValue}
                   title={deviceText(device, labelKey) || device.label || deviceValue}
-                  description={`${device.ip}:${device.port}`}
+                  description={
+                    usedBy !== null
+                      ? `${device.ip}:${device.port} · ${t("deviceInUse", { position: usedBy })}`
+                      : `${device.ip}:${device.port}`
+                  }
                 />
               );
             })}
@@ -363,6 +392,17 @@ export function TileGridField({
     const others = tiles.filter((x) => !(x.row === at.row && x.col === at.col));
     onChange(next ? [...others, next] : others);
     setEditing(null);
+    toast.success(next ? t("tileSaved") : t("tileRemoved"));
+  };
+
+  /** The slot of another in-range tile whose first unique field is *value*. */
+  const inUseBy = (except: { row: number; col: number }) => (value: string) => {
+    const field = uniqueFields[0];
+    if (!field || !value) return null;
+    const other = inRange.find(
+      (tile) => !(tile.row === except.row && tile.col === except.col) && String(tile[field] ?? "") === value,
+    );
+    return other ? slotNumber(other.row, other.col, safeCols) : null;
   };
 
   /** Move the edited tile to another slot; if that slot is taken, swap. */
@@ -375,6 +415,7 @@ export function TileGridField({
       }),
     );
     setEditing(null);
+    toast.success(t("tileMoved", { position: slotNumber(to.row, to.col, safeCols) }));
   };
 
   /** Arrow keys move between slots (the slots stay in the normal tab order). */
@@ -408,7 +449,10 @@ export function TileGridField({
             variant="secondary"
             size="sm"
             disabled={disabled || assigned === 0 || actions.running !== null}
-            onClick={() => void actions.run("identify", { target: "all" }, { applyFills: false })}
+            onClick={async () => {
+              const result = await actions.run("identify", { target: "all" }, { applyFills: false });
+              if (identify) toastActionResult(identify, result, t("actionFailed"));
+            }}
           >
             {actions.running === "identify" ? (
               <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" />
@@ -486,23 +530,25 @@ export function TileGridField({
 
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
         {editing && (
-          <TileDialog
-            key={`${editing.row}-${editing.col}`}
-            tile={at(editing.row, editing.col) ?? { row: editing.row, col: editing.col }}
-            saved={!!at(editing.row, editing.col)}
-            position={slotNumber(editing.row, editing.col, safeCols)}
-            rows={safeRows}
-            cols={safeCols}
-            occupant={(row, col) => summary(at(row, col))}
-            itemProperties={itemProperties}
-            itemRequired={itemRequired}
-            itemActions={itemActions}
-            renderTileFields={renderTileFields}
-            renderActionInput={renderActionInput}
-            onSave={(tile) => replace(tile, editing)}
-            onRemove={() => replace(null, editing)}
-            onMove={(to) => move(editing, to)}
-          />
+          <TileValueInUseContext.Provider value={inUseBy(editing)}>
+            <TileDialog
+              key={`${editing.row}-${editing.col}`}
+              tile={at(editing.row, editing.col) ?? { row: editing.row, col: editing.col }}
+              saved={!!at(editing.row, editing.col)}
+              position={slotNumber(editing.row, editing.col, safeCols)}
+              rows={safeRows}
+              cols={safeCols}
+              occupant={(row, col) => summary(at(row, col))}
+              itemProperties={itemProperties}
+              itemRequired={itemRequired}
+              itemActions={itemActions}
+              renderTileFields={renderTileFields}
+              renderActionInput={renderActionInput}
+              onSave={(tile) => replace(tile, editing)}
+              onRemove={() => replace(null, editing)}
+              onMove={(to) => move(editing, to)}
+            />
+          </TileValueInUseContext.Provider>
         )}
       </Dialog>
     </Stack>
@@ -574,6 +620,7 @@ function TileDialog({
     if (!actions) return;
     setAsking(null);
     const result = await actions.run(action.id, input, { applyFills: false });
+    toastActionResult(action, result, t("actionFailed"));
     const fills: Record<string, unknown> = {};
     for (const [name, field] of Object.entries(result?.fields ?? {})) {
       const target = field.fills ?? name;

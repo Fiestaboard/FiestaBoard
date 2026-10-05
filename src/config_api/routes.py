@@ -366,8 +366,9 @@ async def scan_for_boards(request: BoardScanRequest = BoardScanRequest()):
     """
     Scan the local network for Vestaboard devices.
 
-    Uses mDNS service browsing and subnet port probing (port 7000) to
-    discover boards automatically so users don't have to enter an IP.
+    The ``vestaboard`` output's ``discover`` hook: mDNS service browsing
+    and a subnet probe of the Local API port, so users don't have to enter
+    an IP.
 
     Optional body:
     {

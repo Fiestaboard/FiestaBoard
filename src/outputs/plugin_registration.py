@@ -156,6 +156,7 @@ def register_output_plugin(plugin_class: type[OutputPluginBase], manifest: Plugi
             icon=manifest.icon,
             actions=manifest.output.actions,
             offered_device_models=manifest.output.device_model_ids,
+            plugin_class=plugin_class,
         )
     )
     logger.info("Registered output plugin %s (%s)", manifest.id, "beta-gated" if gated else "first-party")

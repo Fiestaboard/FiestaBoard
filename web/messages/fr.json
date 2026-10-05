@@ -2423,6 +2423,10 @@
     "movePlaceholder": "Choisissez un nouvel emplacement…",
     "moveTo": "Emplacement {position} — vide",
     "saveTile": "Enregistrer la tuile",
+    "tileSaved": "Tuile enregistrée",
+    "tileRemoved": "Tuile effacée",
+    "tileMoved": "Tuile déplacée vers l'emplacement {position}",
+    "deviceInUse": "Attribué à la tuile {position}",
     "tileSlotAssigned": "Tuile {position} : ligne {row}, colonne {col} — attribuée à {summary}",
     "moveSwap": "Emplacement {position} — échanger avec {summary}",
     "tilesDuplicate": "Plusieurs tuiles pointent vers le même tableau : {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "Rechercher des tableaux sur le réseau"
+        },
+        "test_tile": {
+          "label": "Tester"
         },
         "identify": {
           "label": "Identifier"

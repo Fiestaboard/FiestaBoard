@@ -315,6 +315,17 @@ A button is not repeated for an action a visible widget already runs: a `device-
 
 Actions run on a throwaway instance built from the settings on screen, and it is closed afterwards. They work before a board exists: the setup wizard tests a device and pairs with it, then saves the board.
 
+An action that needs more than that overrides the class method `handle_action(ctx)`. `ctx` is an `ActionContext`: `ctx.action`, `ctx.inputs`, `ctx.board` (the board's facts, with `board_id` `None` for a draft), `ctx.config` (its settings, secrets restored), and what FiestaBoard lends the action, since it builds every instance itself:
+
+| Member | Gives you |
+|--------|-----------|
+| `ctx.instance(config=None)` | A throwaway instance from the board's settings, or from other settings (one device of an array). `None` when they make no usable connection. Closed for you afterwards. |
+| `ctx.with_live(fn)` | Runs `fn(instance)` on the board's **live** instance while holding its send lock, for an action that writes to the device the board is driving. Raises a 503 refusal when the board has none. |
+| `ctx.reader()` | A callable that reads what the board shows (through the live board, else a throwaway one), or `None`. |
+| `ctx.invalidate()` | Asks FiestaBoard to send the board's content again on its next cycle, after an action wrote over it. |
+
+Raise `OutputActionError(status_code, detail)` to refuse before anything is contacted. The default `handle_action` answers `discover` with the class's `discover(timeout)` and everything else through `run_action` on `ctx.instance()`. The Vestaboard's `actions.py` is a complete example.
+
 An action returns an `ActionOutcome`, which FiestaBoard renders as one result panel:
 
 | Field | Meaning |
@@ -326,7 +337,22 @@ An action returns an `ActionOutcome`, which FiestaBoard renders as one result pa
 | `geometry` | A detected size: `{"device_type", "rows", "cols"}`, with an **Apply size** button (applied at once for an `auto_apply` action) |
 | `devices` | Discovered devices, each a dict with at least `ip` and `port` |
 
-Return `None` for a plain success. Mark every credential you hand back `ActionField(value, secret=True)`: FiestaBoard never logs it.
+Return `None` for a plain success. Mark every credential you hand back `ActionField(value, secret=True)`: FiestaBoard never logs it. `detail` is for raw data an older route of your own needs; FiestaBoard never shows or logs it.
+
+### Board status and stored settings
+
+A board card in **Settings → Boards** shows **Connected** or **Not configured** when the output says which. Override the class method `board_status(config, board)` to return an `OutputStatus(configured, attempted=True, message="")`: `configured` means the settings are enough to reach the device; `attempted` means the user has entered anything at all (FiestaBoard treats a board with some but not all settings as needing attention, not as a fresh install). The default, `None`, shows no badge. It is read from the settings, so it must not contact the device.
+
+How a board's settings are stored and shown also has defaults you can override, all class methods:
+
+| Method | Default |
+|--------|---------|
+| `normalize_config(config, board)` | Stores the settings as given |
+| `mask_config(config, schema)` | Shows each set `secret` field as `***` |
+| `restore_config(incoming, stored, schema)` | Puts each echoed `***` back from the stored settings; array items are matched by `id`, `name` or `key` |
+| `masked_config_paths(config, schema)` | Lists the `***` values that could not be restored, so the save is refused |
+
+Override them only when your settings need a rule the schema cannot state. The Vestaboard matches a Note's key to its tile by the Note's address, because tiles have no id.
 
 ## The Plugin Class
 
@@ -447,6 +473,8 @@ Import everything from `src.plugins`. That one module is the output plugin API, 
 | `markup_follows_charset` | — | A class attribute, `True` by default. `False` keeps a board's content in split-flap markup even when its character set is rich. |
 | `diagnostics()` | No | A list of `DiagnosticCheck(name, ok, detail)`. Reserved: not shown in the app yet. |
 | `run_action(action, inputs)` | No | The action dispatcher. Override it only to route actions yourself. |
+| `handle_action(ctx)` | No | A class method: runs one action with an `ActionContext`. See [Actions](#actions). |
+| `board_status(config, board)` | No | A class method: the board card's Connected / Not configured. See [Board status](#board-status-and-stored-settings). |
 
 What core resolved for the board is on the instance:
 

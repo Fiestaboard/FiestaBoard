@@ -603,22 +603,14 @@ class OutputPluginDriver:
         self._frames.forget()
         self.plugin.cache_cleared()
 
-    @property
-    def identify_tiles(self) -> Callable[[list[tuple[int, int]]], dict[tuple[int, int], bool]] | None:
-        """Flash per-tile identify patterns, for an output whose board is an
-        array of devices (the plugin's ``identify_tiles``); ``None`` for every
-        other output. One write of the board: it preempts the run in flight
-        and holds the send lock, so it never interleaves with the engine's
-        sends. (The legacy ``/settings/board/{id}/identify`` route's seam.)"""
-        flash = getattr(self.plugin, "identify_tiles", None)
-        if flash is None:
-            return None
-
-        def identify(positions: list[tuple[int, int]]) -> dict[tuple[int, int], bool]:
-            with self._output_runtime.write():
-                return flash(positions)
-
-        return identify
+    def run_with_plugin(self, fn: Callable[[OutputPluginBase], Any]) -> Any:
+        """Run ``fn(plugin)`` on this board's live instance as one write of
+        the board: it preempts the run in flight and holds the send lock, so
+        it never interleaves with the engine's sends. A board-settings action
+        that writes to the device it drives (an identify flash) goes through
+        here (``ActionContext.with_live``)."""
+        with self._output_runtime.write():
+            return fn(self.plugin)
 
     def get_cache_status(self) -> dict:
         return {

@@ -2423,6 +2423,10 @@
     "movePlaceholder": "Välj en ny plats…",
     "moveTo": "Plats {position} — tom",
     "saveTile": "Spara ruta",
+    "tileSaved": "Ruta sparad",
+    "tileRemoved": "Ruta rensad",
+    "tileMoved": "Ruta flyttad till plats {position}",
+    "deviceInUse": "Tilldelad ruta {position}",
     "tileSlotAssigned": "Ruta {position}: rad {row}, kolumn {col} — tilldelad {summary}",
     "moveSwap": "Plats {position} — byt med {summary}",
     "tilesDuplicate": "Flera rutor pekar på samma tavla: {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "Skanna nätverket efter tavlor"
+        },
+        "test_tile": {
+          "label": "Testa"
         },
         "identify": {
           "label": "Identifiera"

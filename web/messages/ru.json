@@ -2423,6 +2423,10 @@
     "movePlaceholder": "Выберите новую ячейку…",
     "moveTo": "Ячейка {position} — пустая",
     "saveTile": "Сохранить плитку",
+    "tileSaved": "Плитка сохранена",
+    "tileRemoved": "Плитка очищена",
+    "tileMoved": "Плитка перемещена в ячейку {position}",
+    "deviceInUse": "Назначена плитке {position}",
     "tileSlotAssigned": "Плитка {position}: строка {row}, столбец {col} — назначена доске {summary}",
     "moveSwap": "Ячейка {position} — поменять местами с {summary}",
     "tilesDuplicate": "Несколько плиток указывают на одну и ту же доску: {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "Сканировать сеть в поисках досок"
+        },
+        "test_tile": {
+          "label": "Проверить"
         },
         "identify": {
           "label": "Определить"

@@ -2423,6 +2423,10 @@
     "movePlaceholder": "Yeni bir yuva seçin…",
     "moveTo": "Yuva {position} — boş",
     "saveTile": "Karoyu kaydet",
+    "tileSaved": "Karo kaydedildi",
+    "tileRemoved": "Karo temizlendi",
+    "tileMoved": "Karo {position} numaralı yuvaya taşındı",
+    "deviceInUse": "{position} numaralı karoya atandı",
     "tileSlotAssigned": "Karo {position}: satır {row}, sütun {col} — {summary} adresine atandı",
     "moveSwap": "Yuva {position} — {summary} ile yer değiştir",
     "tilesDuplicate": "Birden fazla karo aynı panoyu gösteriyor: {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "Ağda pano tara"
+        },
+        "test_tile": {
+          "label": "Test et"
         },
         "identify": {
           "label": "Tanımla"

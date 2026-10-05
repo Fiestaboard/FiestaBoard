@@ -2423,6 +2423,10 @@
     "movePlaceholder": "选择新位置…",
     "moveTo": "位置 {position}——空置",
     "saveTile": "保存拼接位",
+    "tileSaved": "拼接位已保存",
+    "tileRemoved": "拼接位已清除",
+    "tileMoved": "拼接位已移动到位置 {position}",
+    "deviceInUse": "已分配给拼接位 {position}",
     "tileSlotAssigned": "拼接位 {position}：第 {row} 行，第 {col} 列——已分配给 {summary}",
     "moveSwap": "位置 {position}——与 {summary} 交换",
     "tilesDuplicate": "多个拼接位指向同一块看板：{values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "扫描网络查找看板"
+        },
+        "test_tile": {
+          "label": "测试"
         },
         "identify": {
           "label": "识别"

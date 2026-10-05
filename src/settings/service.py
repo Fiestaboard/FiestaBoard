@@ -165,9 +165,6 @@ class PollingSettings:
         )
 
 
-BOARD_SENSITIVE_FIELDS = {"local_api_key", "cloud_key", "note_array_token"}
-
-
 def _output_settings_schema(output_id: str | None) -> dict | None:
     """The ``output_config`` schema of an installed output plugin, else ``None``."""
     from src.outputs.registry import output_registry
@@ -183,18 +180,14 @@ def _restore_output_config(board: dict, existing: dict) -> object:
     that no longer matches a stored one) or the config does not fit the
     output's ``settings_schema`` — a credential is never saved as ``"***"``.
     """
-    from src.outputs.output_config import (
-        board_context,
-        masked_secret_paths,
-        unmask_output_config,
-        validate_output_config,
-    )
+    from src.outputs.config_hooks import masked_config_paths, restore_config
+    from src.outputs.output_config import board_context, validate_output_config
 
     output_id = board.get("output")
     schema = _output_settings_schema(output_id)
     stored = existing.get("output_config") if existing.get("output") == output_id else None
-    config = unmask_output_config(board["output_config"], stored, schema)
-    unresolved = masked_secret_paths(config, schema)
+    config = restore_config(output_id, board["output_config"], stored)
+    unresolved = masked_config_paths(output_id, config)
     if unresolved:
         raise ValueError(f"Re-enter the secret settings for board output '{output_id}': {', '.join(unresolved)}")
     if schema is not None:
@@ -210,11 +203,12 @@ def restore_masked_board_secrets(board: dict, existing: dict) -> dict:
     The one merge rule for a board coming back from the API masked. *board*
     may be in either shape (settings-v3 flat fields, the v4
     ``output_config``, or both — an echo of ``GET /settings/board``);
-    *existing* is the stored board. Restored: the flat credentials
-    (``BOARD_SENSITIVE_FIELDS``) and each tile's key; a Vestaboard's
-    ``output_config`` by the same rules (tiles matched by endpoint, then by
-    position — they carry no id); an output plugin's ``output_config`` by its
-    schema's secrets. ``set_boards`` runs it on every save, and the
+    *existing* is the stored board. Every ``output_config`` is restored by
+    its output's rules (:mod:`src.outputs.config_hooks`) — a Vestaboard's by
+    its plugin's (each tile's key matched by endpoint, then by position:
+    tiles carry no id), an output plugin's by its schema's secrets — and the
+    settings-v3 flat fields of a legacy write by the Vestaboard's, whose
+    settings they are. ``set_boards`` runs it on every save, and the
     saved-board action route (``POST /boards/{id}/actions/{action}``) on every
     action body, so a test run from the settings page never tests a literal
     ``***``.
@@ -222,17 +216,19 @@ def restore_masked_board_secrets(board: dict, existing: dict) -> dict:
     Raises ``ValueError`` when an output plugin's ``output_config`` secret
     cannot be restored or the config does not fit the output's schema.
     """
-    from src.devices import derive_output_id
-    from src.outputs.vestaboard.connection import restore_connection_secrets
+    from src.devices import LEGACY_CONNECTION_FIELDS, derive_output_id
+    from src.outputs.config_hooks import restore_config, restore_flat_fields
     from src.settings.board_shape import FIESTAPANEL, VESTABOARD, flat_connection
 
     stored = flat_connection(existing) if existing else {}
-    restore_connection_secrets(board, stored)
+    flat = {key: board[key] for key in LEGACY_CONNECTION_FIELDS if key in board}
+    if flat:
+        board.update(restore_flat_fields(flat, stored))
     if "output_config" in board:
         output_id = derive_output_id(board)
         if output_id == VESTABOARD:
             if isinstance(board["output_config"], dict):
-                restore_connection_secrets(board["output_config"], stored)
+                board["output_config"] = restore_config(VESTABOARD, board["output_config"], stored)
         elif output_id != FIESTAPANEL:
             board["output_config"] = _restore_output_config(board, existing)
     return board
@@ -284,33 +280,31 @@ class BoardSettings:
         the API still answers in the settings-v3 flat shape
         (:func:`src.settings.board_shape.board_view`, plan D8), with
         ``output`` and ``output_config`` beside it. Credentials are masked in
-        both halves: the flat fields and every tile's key, and the
-        ``output_config`` — a Vestaboard's by the same rules, an output
+        both halves, by the output's rules (:mod:`src.outputs.config_hooks`):
+        the ``output_config`` — a Vestaboard's by its plugin's, an output
         plugin's by its schema's secrets (an uninstalled output's is withheld
-        whole). Tiles are rebuilt, not mutated, so masking never corrupts the
-        stored dicts.
+        whole) — and the flat fields by the Vestaboard's, whose settings they
+        are. Masking copies, so it never corrupts the stored dicts.
 
         Also carries the resolved FiestaUI ``device_model`` and ``charset``
         ids (src/outputs/board_profile.py). ``device_model_spec`` -- the
         model document, for a model FiestaUI does not build in (a
         FiestaPanel's, a plugin's own) -- is added only then.
         """
+        from src.devices import LEGACY_CONNECTION_FIELDS
         from src.outputs.board_profile import board_model_spec, board_profile
-        from src.outputs.output_config import mask_output_config
-        from src.outputs.vestaboard.connection import mask_connection_secrets
-        from src.settings.board_shape import FIESTAPANEL, VESTABOARD, board_view
+        from src.outputs.config_hooks import mask_config, mask_flat_fields
+        from src.settings.board_shape import FIESTAPANEL, board_view
 
-        masked = mask_connection_secrets(board_view(board))
+        masked = board_view(board)
+        masked.update(mask_flat_fields({key: masked[key] for key in LEGACY_CONNECTION_FIELDS}))
         output_id = masked["output"]
         masked["device_model"], masked["charset"] = board_profile(board)
         spec = board_model_spec(board)
         if spec is not None:
             masked["device_model_spec"] = spec
-        config = masked["output_config"]
-        if output_id == VESTABOARD:
-            masked["output_config"] = mask_connection_secrets(config)
-        elif output_id != FIESTAPANEL:
-            masked["output_config"] = mask_output_config(config, _output_settings_schema(output_id))
+        if output_id != FIESTAPANEL:
+            masked["output_config"] = mask_config(output_id, masked["output_config"])
         return masked
 
     def to_dict(self, mask_secrets: bool = True) -> dict:

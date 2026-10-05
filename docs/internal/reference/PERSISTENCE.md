@@ -116,8 +116,12 @@ diagnostics hook, the first-party actions), with `output` and a masked
 echoed GET): `merge_board_write` resolves them against the stored board, and
 when the halves disagree the one that differs from what is stored — the one
 the client edited — wins. A Vestaboard's `"***"` echoes are restored in both
-halves by `src/outputs/vestaboard/connection.py` (tiles matched by host:port,
-then by position; they carry no id).
+halves by its plugin's rules (`restore_config`, through
+`src/outputs/config_hooks.py`: tiles matched by host:port, then by position;
+they carry no id), and its `output_config` is stored as the plugin normalizes
+it (`normalize_config`). Core keeps the flat view's field names — its own
+storage history and public shape — and takes their defaults from the plugin
+(`legacy_flat_fields`).
 
 **Rollback.** One step back, to the bridge release, boots from
 `settings.json.v3_backup` and shows the restore banner; changes made on v4 stay

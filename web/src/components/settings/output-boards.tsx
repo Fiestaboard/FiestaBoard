@@ -12,6 +12,9 @@
  * - {@link OutputBoardSettings}: a saved board's connection screen — any
  *   output's, the Vestaboard's included — drawn from its manifest and saved
  *   with the board settings (`output_config`, secrets echoed as `"***"`).
+ *   A first-party output's screen saves as its hand-coded form always did:
+ *   a typed field when it loses focus, anything else (a mode card, a tile,
+ *   a filled-in key) at once. A third-party output's has a Save button.
  */
 import {
   ActionCard,
@@ -38,7 +41,7 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Cpu, Grid3x3, LayoutGrid, Lightbulb, type LucideIcon, Monitor, MonitorSmartphone, Tv } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { queryKeys } from "@/hooks/use-board";
@@ -252,24 +255,78 @@ export function AddOutputBoardDialog({ output, onDone }: { output: OutputSummary
   );
 }
 
+/** Whether *element* takes typed text: such a field saves when it loses focus. */
+function isTypingField(element: Element | null): boolean {
+  if (element instanceof HTMLTextAreaElement) return true;
+  if (!(element instanceof HTMLInputElement)) return false;
+  return !["checkbox", "radio", "button", "submit", "reset", "range", "color", "file"].includes(element.type);
+}
+
+function same(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * The settings to show after the stored ones changed underneath an edit: a
+ * field the user has not touched since the last sync takes the stored value
+ * (the server normalised it, or masked a key it now holds); one they have
+ * keeps what they typed.
+ */
+export function mergeStored(
+  values: Record<string, unknown>,
+  synced: Record<string, unknown>,
+  stored: Record<string, unknown>,
+): Record<string, unknown> {
+  const next: Record<string, unknown> = {};
+  for (const key of new Set([...Object.keys(stored), ...Object.keys(values)])) {
+    const edited = key in values && !same(values[key], synced[key]);
+    if (edited) next[key] = values[key];
+    else if (key in stored) next[key] = stored[key];
+  }
+  return next;
+}
+
 export function OutputBoardSettings({
   board,
   onSave,
   saving,
   onGeometry,
+  autosave,
 }: {
   board: BoardInstance;
   onSave: (outputConfig: Record<string, unknown>) => void;
   saving: boolean;
   /** Apply a size the output's detect action read (a Vestaboard's type and size are the board's). */
   onGeometry?: (geometry: ActionGeometry) => void;
+  /**
+   * Save as the user goes — a typed field on blur, any other change at once —
+   * instead of with a Save button. Defaults to the first-party outputs' way
+   * (their hand-coded forms always saved like this); a third-party output's
+   * screen keeps its Save button.
+   */
+  autosave?: boolean;
 }) {
   const t = useTranslations("boardSettingsScreen");
   const tc = useTranslations("common");
   const { data: outputs, isLoading } = useOutputs();
-  const stored = board.output_config ?? {};
+  const stored = (board.output_config ?? {}) as Record<string, unknown>;
   const [values, setValues] = useState<Record<string, unknown>>(stored);
+  const [synced, setSynced] = useState<Record<string, unknown>>(stored);
+  // A typed edit not yet saved: it saves when its field loses focus.
+  const pending = useRef(false);
+  const latest = useRef(values);
+  useEffect(() => {
+    latest.current = values;
+  }, [values]);
   const output = outputs?.find((o) => o.id === (board.output ?? "vestaboard"));
+  const saves = autosave ?? output?.builtin ?? false;
+
+  // The stored settings changed (a save came back, or another client saved):
+  // adopt them, keeping whatever the user has edited since the last sync.
+  if (!same(stored, synced)) {
+    setSynced(stored);
+    setValues(mergeStored(values, synced, stored));
+  }
 
   if (isLoading) return null;
   if (!output) {
@@ -279,10 +336,32 @@ export function OutputBoardSettings({
       </Alert>
     );
   }
-  const dirty = JSON.stringify(values) !== JSON.stringify(stored);
+  const dirty = !same(values, stored);
+
+  const commit = (next: Record<string, unknown>) => {
+    pending.current = false;
+    if (!same(next, stored)) onSave(next);
+  };
+
+  const onChange = (next: Record<string, unknown>) => {
+    setValues(next);
+    latest.current = next;
+    if (!saves) return;
+    if (isTypingField(document.activeElement)) pending.current = true;
+    else commit(next);
+  };
 
   return (
-    <Stack gap="3">
+    <Stack
+      gap="3"
+      onBlur={
+        saves
+          ? (event: React.FocusEvent) => {
+              if (pending.current && isTypingField(event.target)) commit(latest.current);
+            }
+          : undefined
+      }
+    >
       {!output.available && (
         <Alert variant="warning">
           <AlertDescription>{t("betaRequired")}</AlertDescription>
@@ -291,17 +370,19 @@ export function OutputBoardSettings({
       <PluginBoardSettings
         output={output}
         values={values}
-        onChange={setValues}
+        onChange={onChange}
         boardId={board.id}
         facts={boardFacts(board)}
         layout={boardLayout(board)}
         onGeometry={onGeometry}
       />
-      <Box>
-        <Button type="button" size="sm" disabled={!dirty || saving} onClick={() => onSave(values)}>
-          {saving ? tc("saving") : t("saveSettings")}
-        </Button>
-      </Box>
+      {!saves && (
+        <Box>
+          <Button type="button" size="sm" disabled={!dirty || saving} onClick={() => onSave(values)}>
+            {saving ? tc("saving") : t("saveSettings")}
+          </Button>
+        </Box>
+      )}
     </Stack>
   );
 }

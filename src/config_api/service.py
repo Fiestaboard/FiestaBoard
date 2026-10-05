@@ -14,13 +14,16 @@ rather than from it: ``src.board_guards.validate_board_host`` and
 ``validate_board_host_is_local_network`` still raise ``HTTPException`` for the
 whole app, so their 400s pass through untouched.
 
-Vestaboard knowledge is not here: the connection probe is the draft
-driver's ``check_connection`` (what each status means lives in
-``fiestaboard-output--vestaboard/probe.py``), and the enablement-token exchange
-is the ``vestaboard`` output's ``enable_local_api`` action
-(``fiestaboard-output--vestaboard/local_api.py``). **That module now holds the
-CodeQL-recognised SSRF block**, moved whole and byte-for-byte; read its
-docstring before touching it.
+Vestaboard knowledge is not here. The probe and the enablement-token exchange
+are the ``vestaboard`` output's ``test_connection`` and ``enable_local_api``
+board-settings actions (``fiestaboard-output--vestaboard/actions.py``), run on
+draft settings by :func:`src.outputs.actions.execute_action`; these routes
+answer the outcome's ``detail`` — the probe's verdict, the exchange's — in
+their recorded shapes, and the action's refusals pass through as
+:class:`BoardProbeError`. What each probe status means lives in the plugin's
+``probe.py``; **the CodeQL-recognised SSRF block** lives in its
+``local_api.py``, moved whole and byte-for-byte; read its docstring before
+touching it.
 
 Collaborators resolve from their canonical homes at **module import time**, so
 this module never loads ``src.api_server``. Tests that need to stub one patch
@@ -29,10 +32,8 @@ it where this module binds it — ``src.config_api.service.<name>``.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
-from src.board_guards import validate_board_host
 from src.config_manager import get_config_manager
 from src.outputs.hooks import OutputActionError
 from src.settings.service import VALID_WIZARD_STATES, get_settings_service
@@ -67,24 +68,25 @@ def _multi_board_connection_state() -> tuple[bool, bool]:
     has_connection_attempt = False
     try:
         from src.devices import BoardInstance
-        from src.outputs.registry import VESTABOARD, resolve_output_id
 
         board_settings = get_settings_service().get_board_settings()
         for b in board_settings.boards or []:
-            if resolve_output_id(b) != VESTABOARD:
-                # A FiestaPanel or an output plugin's board: its output is
-                # the configuration (plan D13). A Pixoo-only install is not
-                # "first run" for want of a Vestaboard key; an output that
-                # is not installed is a per-board error, never the wizard.
-                has_connection_attempt = has_configured_board_instance = True
-                break
             try:
                 instance = BoardInstance.from_dict(b)
             except Exception:  # pragma: no cover - defensive
                 continue
-            if instance.has_connection_attempt:
+            status = instance.status
+            if status is None:
+                # An output with nothing to say about its settings (or one
+                # that is not installed): the output is the configuration
+                # (plan D13). A Pixoo-only install is not "first run" for
+                # want of a key; a missing output is a per-board error,
+                # never the wizard.
+                has_connection_attempt = has_configured_board_instance = True
+                break
+            if status.attempted:
                 has_connection_attempt = True
-            if instance.is_connection_configured:
+            if status.configured:
                 has_configured_board_instance = True
                 break
     except Exception:  # pragma: no cover - defensive
@@ -175,27 +177,17 @@ def determine_config_validity() -> ConfigValidationResponse:
 # ---------------------------------------------------------------------------
 
 
-def _probe_credentials(request: BoardTestRequest) -> tuple[str, str, bool, str | None]:
-    """``(api_mode, api_key, use_cloud, host)`` for a probe that can be run.
+async def _vestaboard_draft_action(action: str, settings: dict, inputs: dict | None = None):
+    """Run the ``vestaboard`` output's *action* on draft *settings*."""
+    from src.outputs.actions import draft_board, execute_action
+    from src.outputs.registry import VESTABOARD, output_registry
 
-    The order of these refusals is recorded: a local-mode body missing both
-    its key and its host is told about the key first, and the host guard runs
-    only once a host is present.
-    """
-    api_mode = request.api_mode.lower()
-    if api_mode == "cloud":
-        if not request.cloud_key:
-            raise BoardProbeError(400, "Cloud API key is required")
-        return api_mode, request.cloud_key, True, None
-    if not request.local_api_key:
-        raise BoardProbeError(400, "Local API key is required")
-    if not request.host:
-        raise BoardProbeError(400, "Board host/IP is required for Local API")
-    # The host guard is the reason this endpoint cannot be pointed at an
-    # arbitrary URL. Its 400 propagates unchanged: swallowing it into a
-    # 200 body made a refused request look like a failed probe (#1887).
-    validate_board_host(request.host)
-    return api_mode, request.local_api_key, False, request.host
+    definition = output_registry().get(VESTABOARD)
+    if definition is None:
+        raise BoardProbeError(503, "The Vestaboard output is not installed.")
+    return await execute_action(
+        definition, action, board=draft_board(definition, settings), board_id=None, inputs=inputs or {}
+    )
 
 
 async def probe_board_connection(request: BoardTestRequest) -> dict:
@@ -209,12 +201,12 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
     upstream verdicts 4xx would tell the wizard the request was malformed when
     it was not.
 
-    The probe itself is the driver's: a DRAFT driver for the unsaved
-    credentials (the runtime factory's draft door — a private runtime, never
-    a board's live one) runs its ``check_connection`` over its own request
-    path, and the structured :class:`~src.outputs.hooks.ConnectionCheck` is
-    served as the verdict. What a status means for a Vestaboard lives with
-    the output (``fiestaboard-output--vestaboard/probe.py``).
+    The probe is the ``vestaboard`` output's ``test_connection`` action on
+    the request's credentials as draft settings — a throwaway instance on a
+    private runtime, never a board's live one — and its verdict
+    (:meth:`~src.outputs.hooks.ConnectionCheck.to_verdict`, the outcome's
+    ``detail``) is the response. The refusals (which credential is missing,
+    in the recorded order; the host guard) are the action's.
 
     That contract used to be recorded as a ``no_200_on_failure`` exception in
     ``tests/conventions_manifest.json``; the rule reads the *handler's* AST, so
@@ -222,32 +214,18 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
     ``tests/test_config_contract.py`` and
     ``tests/test_status_code_correctness.py`` pin it by value instead.
     """
-    from src.outputs.factory import draft_driver
-
-    _api_mode, api_key, use_cloud, host = _probe_credentials(request)
-
+    if request.api_mode.lower() == "cloud":
+        settings = {"api_mode": "cloud", "cloud_key": request.cloud_key or ""}
+    else:
+        settings = {
+            "api_mode": "local",
+            "local_api_key": request.local_api_key or "",
+            "host": request.host or "",
+            "port": request.port,
+        }
     try:
-        draft = (
-            {"api_mode": "cloud", "cloud_key": api_key}
-            if use_cloud
-            else {
-                "api_mode": "local",
-                "local_api_key": api_key,
-                "host": host,
-                "port": request.port,
-            }
-        )
-        driver = draft_driver(draft)
-        if driver is None:
-            raise ValueError("no usable connection in the supplied credentials")
-
-        check = await asyncio.to_thread(driver.check_connection)
-        return check.to_verdict()
-    except ValueError as e:
-        # The driver refused the credentials/host combination outright, so
-        # no probe happened: a precondition failure, not a board verdict.
-        logger.warning("Board connection test failed - invalid config", exc_info=True)
-        raise BoardProbeError(400, "Board connection configuration is invalid.") from e
+        outcome = await _vestaboard_draft_action("test_connection", settings)
+        return dict(outcome.detail)
     except BoardProbeError:
         # The twin of the router's `except HTTPException: raise`: without it
         # the broad arm below would swallow this function's own refusal and
@@ -268,12 +246,16 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
 async def exchange_enablement_token(request: EnablementTokenRequest) -> dict:
     """Exchange a Local API Enablement Token for a Local API Key.
 
-    The ``vestaboard`` output's ``enable_local_api`` action
-    (``fiestaboard-output--vestaboard/local_api.py``, where the CodeQL-recognised
-    SSRF block now lives, moved whole). Its refusals are
+    The ``vestaboard`` output's ``enable_local_api`` action on the request
+    as draft settings (``fiestaboard-output--vestaboard/local_api.py`` is
+    where the CodeQL-recognised SSRF block lives, moved whole); the board's
+    answer is the outcome's ``detail``. Its refusals are
     :class:`BoardProbeError` — the same class — so the router's handling is
     unchanged.
     """
-    from src.outputs.registry import VESTABOARD, output_action
-
-    return await output_action(VESTABOARD, "enable_local_api")(request)
+    outcome = await _vestaboard_draft_action(
+        "enable_local_api",
+        {"host": request.host or ""},
+        {"host": request.host or "", "enablement_token": request.enablement_token or ""},
+    )
+    return dict(outcome.detail)

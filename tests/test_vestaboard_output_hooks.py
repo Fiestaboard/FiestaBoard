@@ -3,16 +3,17 @@
 Core asks the board's *output* — through its registry entry's hooks or its
 driver — instead of knowing Vestaboard:
 
-- ``discover`` (``POST /config/board/scan``), ``diagnostics``
-  (``GET /debug/network-diagnostics``) and the ``enable_local_api`` action
-  are hooks on the ``vestaboard`` registry entry; ``fiestapanel`` has none;
+- ``discover`` (``POST /config/board/scan``) and ``diagnostics``
+  (``GET /debug/network-diagnostics``) are hooks on the ``vestaboard``
+  registry entry; ``fiestapanel`` has none; every board-settings action
+  (``enable_local_api`` included) is the plugin class's ``handle_action``;
 - ``check_connection`` (a structured :class:`ConnectionCheck`), ``read_back``
   and ``connection_label`` are the driver's;
 - the MQTT device ``model`` is the primary board's output name.
 
-Plus the literal ratchet: Vestaboard transport literals left in ``src/``
-may only go down (Phase 4: zero). The Vestaboard itself is an output plugin
-outside ``src/`` now (``fiestaboard-output--vestaboard``).
+Plus the literal ratchet: no Vestaboard transport literal anywhere in
+``src/`` (Phase 4 P4e drove it to zero, no exemptions). The Vestaboard itself
+is an output plugin outside ``src/`` (``fiestaboard-output--vestaboard``).
 """
 
 from __future__ import annotations
@@ -27,14 +28,15 @@ import requests
 from plugins.vestaboard import transport
 from plugins.vestaboard.transport import CLOUD_REQUEST_TIMEOUT, LOCAL_REQUEST_TIMEOUT
 
+from src.outputs.actions import run_draft_action
 from src.outputs.hooks import ConnectionCheck, UnknownOutputAction
+from src.outputs.plugin_base import OutputPluginBase
 from src.outputs.plugin_driver import OutputPluginDriver
 from src.outputs.registry import (
     FIESTAPANEL,
     VESTABOARD,
     UnknownOutputError,
     discover_devices,
-    output_action,
     output_registry,
 )
 from tests.first_party_drivers import cloud_driver, local_driver, note_array_cloud_driver, panel_driver, tiles_driver
@@ -64,19 +66,23 @@ def _response(status: int, body=None) -> Mock:
 
 
 class TestRegistryHooks:
-    def test_vestaboard_declares_discover_diagnostics_and_enable_local_api(self):
-        hooks = output_registry().get(VESTABOARD).hooks
-        assert hooks.discover is not None
-        assert hooks.diagnostics is not None
-        assert set(hooks.actions) == {"enable_local_api"}
+    def test_vestaboard_declares_discover_and_diagnostics_and_answers_its_own_actions(self):
+        from plugins.vestaboard import VestaboardOutput
+
+        definition = output_registry().get(VESTABOARD)
+        assert definition.hooks.discover is not None
+        assert definition.hooks.diagnostics is not None
+        # Every board-settings action is the plugin's: core dispatches none.
+        assert definition.plugin_class is VestaboardOutput
+        assert VestaboardOutput.handle_action.__func__ is not OutputPluginBase.handle_action.__func__
 
     def test_fiestapanel_declares_no_device_hooks(self):
-        """No discovery, diagnostics or custom action: a FiestaPanel has no
-        device. Its one board-settings action (test_connection, plan D13) is
-        answered by ``dispatch`` and says so."""
-        hooks = output_registry().get(FIESTAPANEL).hooks
-        assert (hooks.discover, hooks.diagnostics, dict(hooks.actions)) == (None, None, {})
-        assert [a.id for a in output_registry().get(FIESTAPANEL).actions] == ["test_connection"]
+        """No discovery or diagnostics: a FiestaPanel has no device. Its one
+        board-settings action (test_connection, plan D13) is answered by its
+        plugin's default ``handle_action``."""
+        definition = output_registry().get(FIESTAPANEL)
+        assert (definition.hooks.discover, definition.hooks.diagnostics) == (None, None)
+        assert [a.id for a in definition.actions] == ["test_connection"]
 
     def test_discover_devices_runs_the_outputs_discover_hook_with_the_timeout(self):
         found = [{"ip": "192.0.2.50", "port": 7000, "hostname": "", "source": "port_scan"}]
@@ -92,8 +98,10 @@ class TestRegistryHooks:
             discover_devices("not-installed", 1.0)
 
     def test_an_action_the_output_does_not_have_is_refused(self):
+        import asyncio
+
         with pytest.raises(UnknownOutputAction):
-            output_action(FIESTAPANEL, "enable_local_api")
+            asyncio.run(run_draft_action(FIESTAPANEL, "enable_local_api", output_config={}, inputs={}))
 
 
 # --- check_connection: structured, over the client's own request path ------------
@@ -306,37 +314,34 @@ def test_a_vestaboard_board_is_diagnosed_by_the_vestaboard_hook(core_checks_ok):
 
 _VESTABOARD_LITERAL = re.compile(r"vestaboard\.com|X-Vestaboard-|/local-api/|\b7000\b")
 
-#: Vestaboard transport literals anywhere in src/ — no module is exempt: the
-#: Vestaboard's transport and hooks are its plugin's now
-#: (fiestaboard-output--vestaboard, refactor/first-party-outputs-as-plugins).
-#: Was 36 outside the exempt modules before refactor/vestaboard-behind-hooks,
-#: then 9 outside them (53 in all of src/) before the move. It may only go
-#: down; Phase 4 (P4e) drives it to 0.
-MAX_VESTABOARD_LITERALS = 7
-
 
 def _vestaboard_literals(root: Path) -> list[str]:
+    """Every Vestaboard transport literal in any text file under *root*."""
     found = []
-    for path in sorted(root.rglob("*.py")):
-        for lineno, line in enumerate(path.read_text().splitlines(), 1):
+    for path in sorted(p for p in root.rglob("*") if p.is_file() and "__pycache__" not in p.parts):
+        try:
+            text = path.read_text()
+        except UnicodeDecodeError:
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
             found.extend(f"{path.relative_to(root.parent)}:{lineno} {m}" for m in _VESTABOARD_LITERAL.findall(line))
     return found
 
 
-def test_vestaboard_literals_outside_the_output_never_increase():
+def test_src_holds_no_vestaboard_transport_literal():
+    """Plan D10: core contains no Vestaboard literals or transport — the
+    Vestaboard's are its plugin's (fiestaboard-output--vestaboard). The
+    ratchet went 36 → 9 → 7 and reached zero in Phase 4 (P4e), with no
+    module exempt; it stays there. Ask the output (src/outputs/hooks.py,
+    src/outputs/config_hooks.py) instead."""
     found = _vestaboard_literals(REPO / "src")
     listing = "\n  ".join(found)
-    assert len(found) <= MAX_VESTABOARD_LITERALS, (
-        f"{len(found)} Vestaboard literals in src/ (max "
-        f"{MAX_VESTABOARD_LITERALS}). Ask the output (src/outputs/hooks.py) instead:\n  {listing}"
-    )
-    assert len(found) == MAX_VESTABOARD_LITERALS, (
-        f"Only {len(found)} remain — lower MAX_VESTABOARD_LITERALS to {len(found)}:\n  {listing}"
-    )
+    assert found == [], f"{len(found)} Vestaboard literal(s) in src/:\n  {listing}"
 
 
 def test_literal_ratchet_scanner_sees_a_planted_literal(tmp_path):
     planted = tmp_path / "src" / "planted.py"
     planted.parent.mkdir()
     planted.write_text('URL = "https://rw.vestaboard.com/"\nHDR = "X-Vestaboard-Token"\nPORT = 7000\n')
-    assert len(_vestaboard_literals(planted.parent)) == 3
+    (planted.parent / "data.json").write_text('{"url": "http://h:1/local-api/message"}\n')
+    assert len(_vestaboard_literals(planted.parent)) == 4

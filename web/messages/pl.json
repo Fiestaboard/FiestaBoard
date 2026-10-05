@@ -2423,6 +2423,10 @@
     "movePlaceholder": "Wybierz nowe miejsce…",
     "moveTo": "Miejsce {position} — puste",
     "saveTile": "Zapisz kafelek",
+    "tileSaved": "Kafelek zapisany",
+    "tileRemoved": "Kafelek wyczyszczony",
+    "tileMoved": "Kafelek przeniesiony na miejsce {position}",
+    "deviceInUse": "Przypisano do kafelka {position}",
     "tileSlotAssigned": "Kafelek {position}: wiersz {row}, kolumna {col} — przypisany do {summary}",
     "moveSwap": "Miejsce {position} — zamień z {summary}",
     "tilesDuplicate": "Kilka kafelków wskazuje na tę samą tablicę: {values}",
@@ -2501,6 +2505,9 @@
         },
         "discover": {
           "label": "Skanuj sieć w poszukiwaniu tablic"
+        },
+        "test_tile": {
+          "label": "Testuj"
         },
         "identify": {
           "label": "Identyfikuj"
