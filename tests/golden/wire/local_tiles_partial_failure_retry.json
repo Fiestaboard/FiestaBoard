@@ -40,9 +40,20 @@
         }
       ],
       "result": {
-        "status": 500,
+        "status": 502,
         "body": {
-          "detail": "Failed to send message to the board."
+          "detail": {
+            "message": "The board only partly updated: 1 section of the board did not take the new content (the rest did). Sending again retries only what failed.",
+            "partial": true,
+            "failed_regions": [
+              {
+                "row": 0,
+                "col": 15,
+                "rows": 3,
+                "cols": 15
+              }
+            ]
+          }
         }
       }
     },

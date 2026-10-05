@@ -79,7 +79,8 @@ SILENCE_ACTIVE = "src.board_api.routes._silence_active"
 REQUIRE_BOARD = "src.service_api.routes._require_board"
 BOARD_REQUIRE_BOARD = "src.board_api.routes._require_board"
 PRIMARY_BOARD_ENTRY = "src.display_runtime._primary_board_entry"
-BOARD_CLIENT_FACTORY = "src.board_api.routes.board_client_from_board_dict"
+# The welcome writes through the primary board's LIVE driver (runtime_for).
+LIVE_DRIVER = "src.display_runtime.live_driver"
 RUN_BOARD_SEND = "src.service_api.routes.run_board_send"
 
 
@@ -604,7 +605,7 @@ def welcome_wired(cloud):
     with (
         patch(SETTINGS_SERVICE, return_value=_settings_service()),
         patch(PRIMARY_BOARD_ENTRY, return_value={"id": "b1", "device_type": "flagship"}),
-        patch(BOARD_CLIENT_FACTORY, return_value=cloud),
+        patch(LIVE_DRIVER, return_value=cloud),
         patch("src.api_server.Config.is_silence_mode_active", return_value=False),
         patch(PAUSED, return_value=False),
         patch(SILENCE_ACTIVE, return_value=False),

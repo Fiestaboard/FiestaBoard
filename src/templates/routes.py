@@ -20,10 +20,10 @@ from fastapi import APIRouter, HTTPException
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_client import board_client_from_board_dict
 from src.board_guards import _board_is_paused, _require_board
 from src.board_send_executor import run_board_preview
 from src.devices import geometry_of, resolve_dimensions
+from src.display_runtime import live_driver
 from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
 from src.text_to_board import text_to_board_array
@@ -322,7 +322,11 @@ async def render_template_live(request: TemplateRenderLiveRequest):
             logger.info("Board %s is paused - skipping live template send", target_board.get("id"))
             paused = True
         else:
-            client = board_client_from_board_dict(target_board)
+            # The board's LIVE driver: a live edit is a write of the board's
+            # runtime — it preempts a running transition, shares the engine's
+            # send lock and floor, and lands in the frame cache, so the engine
+            # knows the board now shows the edit.
+            client = live_driver(target_board.get("id"))
             if client:
                 geometry = geometry_of(target_board)
                 device_type = geometry.device_type
@@ -331,8 +335,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
 
                 transition_settings = settings_service.get_transition_settings()
                 # Live editor sends are rapid-fire; a "plugin:<id>" system
-                # default would run a multi-second frame animation per edit
-                # (and this ad-hoc client has no transition runner attached).
+                # default would run a multi-second frame animation per edit.
                 # Fall back to an instant send for plugin strategies.
                 from src.board_client import TRANSITION_PLUGIN_PREFIX
 
@@ -344,7 +347,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                     # rapid-fire keystroke sends must not occupy the workers
                     # /refresh, /force-refresh and POST /pages/{id}/send need.
                     success, was_sent = await run_board_preview(
-                        client.send_characters,
+                        client.render,
                         board_array,
                         strategy=live_strategy,
                         step_interval_ms=transition_settings.step_interval_ms,

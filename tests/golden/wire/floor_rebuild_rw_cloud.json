@@ -30,7 +30,9 @@
         "was_sent": true,
         "throttled": false,
         "retry_after_seconds": null,
-        "floor_seconds": 15
+        "floor_seconds": 15,
+        "partial": false,
+        "failed_regions": []
       }
     },
     {
@@ -42,7 +44,9 @@
         "was_sent": false,
         "throttled": true,
         "retry_after_seconds": 10,
-        "floor_seconds": 15
+        "floor_seconds": 15,
+        "partial": false,
+        "failed_regions": []
       }
     }
   ]

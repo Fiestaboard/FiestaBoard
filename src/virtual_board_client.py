@@ -167,15 +167,18 @@ class VirtualBoardClient(TransitionRenderMixin):
             logger.error(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES}")
             return self._outcome(False, False, with_outcome=with_outcome)
 
-        frames = self._frames
-        with frames.lock:
-            if self.skip_unchanged and not force and frames.matches(characters):
-                logger.debug("Character array unchanged, skipping virtual send")
-                return self._outcome(True, False, with_outcome=with_outcome)
+        # One runtime write, like every driver's: preempts the in-flight
+        # transition when called directly, under the board's send lock.
+        with self._output_runtime.write():
+            frames = self._frames
+            with frames.lock:
+                if self.skip_unchanged and not force and frames.matches(characters):
+                    logger.debug("Character array unchanged, skipping virtual send")
+                    return self._outcome(True, False, with_outcome=with_outcome)
 
-            frames.record_sent(characters)
-        logger.debug("Virtual board frame stored (%d×%d)", self.rows, self.cols)
-        return self._outcome(True, True, with_outcome=with_outcome)
+                frames.record_sent(characters)
+            logger.debug("Virtual board frame stored (%d×%d)", self.rows, self.cols)
+            return self._outcome(True, True, with_outcome=with_outcome)
 
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
         """Return a copy of the displayed frame; the memory IS the board.

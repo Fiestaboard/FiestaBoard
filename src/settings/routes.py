@@ -180,7 +180,13 @@ check_ref_board_compatibility = _seam("check_ref_board_compatibility")
 is_collection_id = _seam("is_collection_id")
 resolve_dimensions = _seam("resolve_dimensions")
 text_to_board_array = _seam("text_to_board_array")
-board_client_from_board_dict = _seam("board_client_from_board_dict")
+
+
+def _live_board_driver(board_id: str):
+    """The board's LIVE driver (``DisplayService.runtime_for``), or ``None``."""
+    service = get_service()
+    rt = service.runtime_for(board_id) if service is not None else None
+    return rt.client if rt is not None else None
 
 
 @router.get("/settings/mqtt", response_model=MqttSettingsResponse)
@@ -1108,7 +1114,7 @@ async def detect_board_size(board_id: str):
     """Auto-detect a board's device type and dimensions from its live layout.
 
     Reads the board's current message over its own transport (local / cloud /
-    note-array, via ``board_client_from_board_dict``) and classifies the grid
+    note-array) through the board's live driver, and classifies the grid
     shape with :func:`classify_dimensions`.
 
     Returns ``device_type``, ``rows``, ``cols`` and — for note arrays —
@@ -1137,7 +1143,9 @@ async def detect_board_size(board_id: str):
             "the array's size is defined by its tile assignments",
         )
 
-    client = board_client_from_board_dict(board_dict)
+    # The read goes over the board's LIVE driver — its own transport, built
+    # once by the runtime factory — not a client built for this request.
+    client = _live_board_driver(board_id)
     if client is None:
         raise HTTPException(
             status_code=400,
@@ -1167,7 +1175,7 @@ async def detect_board_size(board_id: str):
 @router.post(
     "/settings/board/{board_id}/identify",
     response_model=BoardIdentifyResponse,
-    responses={**ERROR_400, **ERROR_404},
+    responses={**ERROR_400, **ERROR_404, **errors(503)},
 )
 async def identify_board_tiles(board_id: str, request: BoardIdentifyRequest):
     """Flash slot positions onto local note-array tiles (monitor-arrangement style).
@@ -1178,8 +1186,13 @@ async def identify_board_tiles(board_id: str, request: BoardIdentifyRequest):
     board's content dedupe and client caches are invalidated here); on a
     paused board the pattern persists until the board is resumed.
 
+    Saved tiles are flashed through the board's live driver, as a write of
+    its runtime; an unsaved tile (the credential override) through a draft
+    driver from the runtime factory.
+
     Errors: 404 (unknown board), 400 (not a note array in local mode, bad
-    target, or missing/unknown tile).
+    target, or missing/unknown tile), 503 (the board has no live
+    connection to flash its saved tiles through).
     """
     from src.devices import BoardInstance, identify_pattern, is_note_array
 
@@ -1201,7 +1214,8 @@ async def identify_board_tiles(board_id: str, request: BoardIdentifyRequest):
 
     # Resolve the set of (row, col, host, port, key) endpoints to flash
     targets: list[dict] = []
-    if request.host is not None or request.local_api_key is not None:
+    override = request.host is not None or request.local_api_key is not None
+    if override:
         # Unsaved-tile override from the assign dialog
         if request.target != "tile" or request.row is None or request.col is None:
             raise HTTPException(
@@ -1241,25 +1255,42 @@ async def identify_board_tiles(board_id: str, request: BoardIdentifyRequest):
         if not targets:
             raise HTTPException(status_code=400, detail="Board has no configured tiles to identify")
 
-    def flash_tile(tile: dict) -> dict:
-        from src.board_client import BoardClient
+    if override:
+        # DRAFT path: a tile that is not saved yet has no live runtime. One
+        # throwaway driver from the runtime factory's draft door, on a
+        # private runtime of its own, never bound to the board's.
+        from src.outputs.factory import draft_driver
 
-        pattern = identify_pattern(tile["row"], tile["col"], instance.notes_wide)
-        try:
-            client = BoardClient(
-                api_key=tile["local_api_key"],
-                host=tile["host"],
-                use_cloud=False,
-                skip_unchanged=False,
-                port=tile.get("port") or None,
-            )
-            success, _ = client.send_characters(pattern, force=True)
-        except Exception as exc:  # noqa: BLE001 — per-tile failure must not abort the rest
-            logger.error(f"Identify failed for tile ({tile['row']},{tile['col']}): {exc}")
-            success = False
-        return {"row": tile["row"], "col": tile["col"], "success": success}
+        def flash_draft(tile: dict) -> dict:
+            pattern = identify_pattern(tile["row"], tile["col"], instance.notes_wide)
+            draft = {
+                "api_mode": "local",
+                "device_type": "note",
+                "host": tile["host"],
+                "port": tile.get("port"),
+                "local_api_key": tile["local_api_key"],
+            }
+            try:
+                driver = draft_driver(draft)
+                success, _ = driver.send_characters(pattern, force=True) if driver else (False, False)
+            except Exception as exc:  # noqa: BLE001 — a failed flash is reported, not raised
+                logger.error(f"Identify failed for tile ({tile['row']},{tile['col']}): {exc}")
+                success = False
+            return {"row": tile["row"], "col": tile["col"], "success": success}
 
-    results = await asyncio.gather(*(asyncio.to_thread(flash_tile, t) for t in targets))
+        results = [await asyncio.to_thread(flash_draft, t) for t in targets]
+    else:
+        # LIVE path: the saved tiles belong to the board's live driver; the
+        # flash is a write of the board's runtime (it preempts a running
+        # transition and holds the send lock), so it never interleaves with
+        # the engine's sends to the same tiles.
+        driver = _live_board_driver(board_id)
+        identify_tiles = getattr(driver, "identify_tiles", None)
+        if identify_tiles is None:
+            raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
+        positions = [(t["row"], t["col"]) for t in targets]
+        flashed = await asyncio.to_thread(identify_tiles, positions)
+        results = [{"row": r, "col": c, "success": bool(flashed.get((r, c)))} for r, c in positions]
 
     # Restore: invalidate the display loop's dedupe + client caches so the
     # next cycle re-sends the real frame over the identify pattern.

@@ -11,7 +11,7 @@ from contextlib import contextmanager
 import schedule
 
 from .board_chars import BoardChars
-from .board_client import BoardClient, board_client_from_board_dict  # noqa: F401 - tests patch src.main.BoardClient
+from .board_client import BoardClient  # noqa: F401 - tests patch src.main.BoardClient
 from .collections.models import is_collection_id
 from .collections.service import get_collection_service
 from .config import Config
@@ -26,6 +26,7 @@ from .devices import (
 )
 from .displays.send_worker import BoardSendWorker, SendJob
 from .outputs import OutputDriver, OutputRuntime
+from .outputs.factory import build_driver
 from .pages.models import LineMetadata, Page
 from .pages.service import (
     CONTEXT_FINGERPRINT_PREFIX,
@@ -100,6 +101,11 @@ def _board_size_key(board: dict) -> str:
 # the board falls back to the schedule's default page). Deliberately not a
 # valid schedule id, so it can never collide with a real entry.
 _SCHEDULE_GAP_KEY = "__schedule_gap__"
+
+# Why a saved board has no live runtime when the factory found no usable
+# connection on it (as opposed to the factory raising, which records its own
+# message). Recorded in DisplayService.board_init_errors.
+UNCONFIGURED_BOARD_ERROR = "Board is not fully configured (missing host, API key, or token)"
 
 
 class BoardRuntime:
@@ -368,7 +374,16 @@ class DisplayService:
         return self.runtimes.get(board_id)
 
     def runtime_for(self, board_id: str | None) -> BoardRuntime | None:
-        """Runtime for a board id, or None; ``None`` means the primary board.
+        """The board's LIVE runtime, or None; ``None`` means the primary board.
+
+        This is the door every route, executor and integration uses to write
+        to or read from a saved board: the runtime the engine sends through,
+        whose driver was built by the runtime factory
+        (``src/outputs/factory.py``) and is bound to the board's
+        ``OutputRuntime`` — one send lock, cancel token, frame cache and send
+        floor for all of the board's traffic. Nothing builds a driver for a
+        saved board anywhere else; only unsaved connection details get a
+        draft driver (``draft_driver``).
 
         The id's own runtime wins. The settings primary's id falls back to
         the primary runtime only when nothing is keyed under that id —
@@ -819,7 +834,7 @@ class DisplayService:
 
         No credential pre-filter: each device type has its own credential
         field (local_api_key / cloud_key / note_array_token / per-tile local
-        keys) and ``board_client_from_board_dict`` already returns None for a
+        keys) and the runtime factory (``build_driver``) already returns None for a
         board without a usable connection. A pre-filter on local/cloud keys
         silently dropped note-array boards (issue #1243 item 3).
 
@@ -859,7 +874,7 @@ class DisplayService:
                     new_runtimes[bid] = existing
                     continue
                 try:
-                    client = board_client_from_board_dict(board)
+                    client = build_driver(board)
                 except Exception as e:
                     # One board's bad config must never abort the loop for the
                     # rest of the fleet (issue #1749).
@@ -867,7 +882,7 @@ class DisplayService:
                     logger.error(f"Board {bid}: could not build client ({e}) - skipping this board")
                     continue
                 if client is None:
-                    init_errors[bid] = "Board is not fully configured (missing host, API key, or token)"
+                    init_errors[bid] = UNCONFIGURED_BOARD_ERROR
                     logger.error(f"Board {bid}: {init_errors[bid]} - skipping this board")
                     continue
                 self._attach_transition_runner(client)
@@ -1148,11 +1163,11 @@ class DisplayService:
         error: str | None = None
         client = None
         try:
-            client = board_client_from_board_dict(board)
+            client = build_driver(board)
         except Exception as e:
             error = str(e) or e.__class__.__name__
         if client is None and error is None:
-            error = "Board is not fully configured (missing host, API key, or token)"
+            error = UNCONFIGURED_BOARD_ERROR
 
         if error is not None:
             self.board_init_errors[board_id] = error

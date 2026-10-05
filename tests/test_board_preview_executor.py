@@ -78,7 +78,7 @@ async def test_live_preview_burst_does_not_starve_a_real_send():
         return True, True
 
     preview_client = Mock()
-    preview_client.send_characters = _blocking_preview
+    preview_client.render = _blocking_preview
 
     engine = Mock()
     engine.render_lines.return_value = "\n".join(["HELLO"] + [""] * 5)
@@ -103,7 +103,7 @@ async def test_live_preview_burst_does_not_starve_a_real_send():
                 # `src.board_guards` since the pages slice moved it there, so
                 # stubbing only `api_server` leaves the lookup 404ing.
                 patch("src.board_guards.get_settings_service", return_value=settings),
-                patch("src.templates.routes.board_client_from_board_dict", return_value=preview_client),
+                patch("src.templates.routes.live_driver", return_value=preview_client),
                 patch("src.templates.routes._board_is_paused", return_value=False),
                 # /refresh is still an api_server handler; the live preview
                 # resolves its collaborators through src.templates.routes since

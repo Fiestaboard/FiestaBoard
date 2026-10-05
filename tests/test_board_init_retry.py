@@ -48,7 +48,7 @@ class _NoLegacyBoardClient:
 
 
 def _make_service(monkeypatch, clock, boards, factory, *, poll_interval=30, active_page_ids=None):
-    """A DisplayService wired to stubs, with ``board_client_from_board_dict``
+    """A DisplayService wired to stubs, with ``build_driver`` (the runtime factory)
     replaced by ``factory`` and every clock seam on ``clock``."""
     service = DisplayService()
     settings = make_settings_service(
@@ -64,7 +64,7 @@ def _make_service(monkeypatch, clock, boards, factory, *, poll_interval=30, acti
     monkeypatch.setattr("src.config.get_config_manager", lambda: cm)
     monkeypatch.setattr("src.config_manager.get_config_manager", lambda: cm)
     monkeypatch.setattr("src.main.get_settings_service", lambda: settings)
-    monkeypatch.setattr("src.main.board_client_from_board_dict", factory)
+    monkeypatch.setattr("src.main.build_driver", factory)
     monkeypatch.setattr("src.main.BoardClient", _NoLegacyBoardClient)
     monkeypatch.setattr(DisplayService, "_attach_transition_runner", staticmethod(lambda client: None))
     monkeypatch.setattr(service, "request_board_refresh", lambda *a, **k: None)

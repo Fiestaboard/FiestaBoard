@@ -58,7 +58,7 @@ class TestBuildBoardClients:
         clients = {"b1": MagicMock(), "b2": MagicMock()}
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", side_effect=lambda b: clients[b["id"]]),
+            patch("src.main.build_driver", side_effect=lambda b: clients[b["id"]]),
         ):
             service._build_board_clients()
 
@@ -89,7 +89,7 @@ class TestBuildBoardClients:
         clients = {"b1": MagicMock(), "b2": MagicMock()}
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", side_effect=lambda b: clients.get(b["id"])),
+            patch("src.main.build_driver", side_effect=lambda b: clients.get(b["id"])),
         ):
             service._build_board_clients()
 
@@ -138,7 +138,7 @@ class TestBuildBoardClients:
 
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", return_value=original_client),
+            patch("src.main.build_driver", return_value=original_client),
         ):
             service._build_board_clients(sync_cache=False)
             service.runtimes["b1"].last_active_page_content = "REMEMBER ME"
@@ -155,7 +155,7 @@ class TestBuildBoardClients:
         boards = [_board("b2", "Two", port=7001)]
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", side_effect=lambda b: MagicMock()),
+            patch("src.main.build_driver", side_effect=lambda b: MagicMock()),
         ):
             assert service.reinitialize_board_client() is True
 
@@ -221,7 +221,7 @@ class TestPrimaryBoardFailureIsolation:
 
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", side_effect=factory),
+            patch("src.main.build_driver", side_effect=factory),
         ):
             service._build_board_clients(sync_cache=False)
 
@@ -236,7 +236,7 @@ class TestPrimaryBoardFailureIsolation:
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
             patch(
-                "src.main.board_client_from_board_dict",
+                "src.main.build_driver",
                 side_effect=lambda b: None if b["id"] == "b1" else good,
             ),
         ):
@@ -253,7 +253,7 @@ class TestPrimaryBoardFailureIsolation:
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
             patch(
-                "src.main.board_client_from_board_dict",
+                "src.main.build_driver",
                 side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
             ),
             patch("src.main.BoardClient") as legacy_client,
@@ -272,7 +272,7 @@ class TestPrimaryBoardFailureIsolation:
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
             patch(
-                "src.main.board_client_from_board_dict",
+                "src.main.build_driver",
                 side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
             ),
         ):
@@ -292,7 +292,7 @@ class TestPrimaryBoardFailureIsolation:
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
             patch(
-                "src.main.board_client_from_board_dict",
+                "src.main.build_driver",
                 side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
             ),
             patch("src.main.Config.validate", return_value=True),
@@ -309,7 +309,7 @@ class TestPrimaryBoardFailureIsolation:
 
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", return_value=None),
+            patch("src.main.build_driver", return_value=None),
             patch("src.main.Config.validate", return_value=True),
             patch("src.main.BoardClient", side_effect=ValueError("api_key is required")),
         ):
@@ -327,7 +327,7 @@ class TestPrimaryBoardFailureIsolation:
 
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", side_effect=factory),
+            patch("src.main.build_driver", side_effect=factory),
         ):
             service._build_board_clients(sync_cache=False)
 
@@ -355,7 +355,7 @@ class TestPrimaryBoardFailureIsolation:
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
             patch(
-                "src.main.board_client_from_board_dict",
+                "src.main.build_driver",
                 side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
             ),
             patch("src.main.Config.validate", return_value=True),
@@ -384,11 +384,11 @@ class TestPrimaryBoardFailureIsolation:
         boards = [_board("b1", "One")]
 
         with patch("src.main.get_settings_service", return_value=_settings_service(boards)):
-            with patch("src.main.board_client_from_board_dict", side_effect=ValueError("boom")):
+            with patch("src.main.build_driver", side_effect=ValueError("boom")):
                 service._build_board_clients(sync_cache=False)
             assert "b1" in service.board_init_errors
 
-            with patch("src.main.board_client_from_board_dict", return_value=MagicMock()):
+            with patch("src.main.build_driver", return_value=MagicMock()):
                 service._build_board_clients(sync_cache=False)
 
         assert service.board_init_errors == {}

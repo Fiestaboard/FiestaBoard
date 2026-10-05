@@ -13,6 +13,22 @@ def client():
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def live_service():
+    """Detect-size reads through the board's LIVE driver (``runtime_for``).
+
+    The settings service is a Mock in every test here, so the stand-in builds
+    each board's live driver with the runtime factory from the boards that
+    Mock returns — as the real service does from saved boards.
+    """
+    import src.api_server as api_server
+    from tests.live_boards import live_runtimes_from
+
+    service = live_runtimes_from(lambda: api_server.get_settings_service().get_board_settings().boards)
+    with patch("src.api_server.get_service", return_value=service):
+        yield service
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

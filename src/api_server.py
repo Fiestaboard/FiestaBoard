@@ -39,12 +39,6 @@ from .auth.routes import router as auth_router  # noqa: E402
 # tests/test_api_extended.py exercises the helper through it.
 from .board_chars import characters_to_message as _characters_to_message  # noqa: E402,F401
 
-# Patch seams (Phase 2, Task 8): api_server has no handler of its own left that
-# calls these, but src/settings/routes.py resolves them through
-# `src.api_server` at call time so the ~200 tests that patch them at that path
-# keep steering the moved /settings handlers.
-from .board_client import board_client_from_board_dict  # noqa: E402, F401  (patch seam)
-
 # Board lookup / send guards and the DisplayService accessor now live in
 # neutral modules so the extracted routers can import them directly instead of
 # reaching back into this one at call time (Phase 2 §2.3). They stay bound as

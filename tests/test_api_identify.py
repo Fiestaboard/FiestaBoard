@@ -50,11 +50,27 @@ def _patch_settings(mock_ss, boards):
     mock_ss.return_value.get_board_settings.return_value = _board_settings_mock(boards)
 
 
+def _live(mock_service, board):
+    """Give the stubbed service a live runtime for *board*, built by the runtime factory.
+
+    Saved tiles are flashed through the board's LIVE driver
+    (``DisplayService.runtime_for``), never a client the route builds.
+    """
+    from types import SimpleNamespace
+
+    from src.outputs.factory import build_driver
+
+    service = mock_service.return_value
+    service.runtime_for.return_value = SimpleNamespace(client=build_driver(board))
+    return service
+
+
 class TestIdentifySuccess:
     @patch("src.api_server.get_service")
     @patch("src.api_server.get_settings_service")
     @patch("src.board_client.BoardClient.send_characters", return_value=(True, True))
     def test_identify_single_tile(self, mock_send, mock_ss, mock_service, client):
+        _live(mock_service, _array_board())
         _patch_settings(mock_ss, [_array_board()])
 
         resp = client.post(
@@ -74,6 +90,7 @@ class TestIdentifySuccess:
     @patch("src.api_server.get_settings_service")
     @patch("src.board_client.BoardClient.send_characters", return_value=(True, True))
     def test_identify_all_flashes_every_configured_tile(self, mock_send, mock_ss, mock_service, client):
+        _live(mock_service, _array_board())
         _patch_settings(mock_ss, [_array_board()])
 
         resp = client.post("/settings/board/board-1/identify", json={"target": "all"})
@@ -113,6 +130,7 @@ class TestIdentifySuccess:
         _patch_settings(mock_ss, [_array_board()])
         service = MagicMock()
         mock_service.return_value = service
+        _live(mock_service, _array_board())
 
         client.post("/settings/board/board-1/identify", json={"target": "all"})
 
@@ -122,6 +140,7 @@ class TestIdentifySuccess:
     @patch("src.api_server.get_settings_service")
     @patch("src.board_client.BoardClient.send_characters", return_value=(False, False))
     def test_tile_failure_reported_per_tile(self, mock_send, mock_ss, mock_service, client):
+        _live(mock_service, _array_board(tiles=[_tile(0, 0)]))
         _patch_settings(mock_ss, [_array_board(tiles=[_tile(0, 0)])])
 
         resp = client.post("/settings/board/board-1/identify", json={"target": "all"})

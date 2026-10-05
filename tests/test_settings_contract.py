@@ -548,7 +548,7 @@ class TestBoardDetectSize:
         board_id = _primary_board_id(client)
         board_client = Mock()
         board_client.read_current_message.return_value = None
-        with patch("src.api_server.board_client_from_board_dict", return_value=board_client):
+        with patch("src.settings.routes._live_board_driver", return_value=board_client):
             response = client.post(f"/settings/board/{board_id}/detect-size")
         assert response.status_code == 422
         assert response.json() == {"detail": f"Board {board_id} returned no layout — board may be blank or unreachable"}
@@ -557,7 +557,7 @@ class TestBoardDetectSize:
         board_id = _primary_board_id(client)
         board_client = Mock()
         board_client.read_current_message.return_value = [[0] * 22 for _ in range(6)]
-        with patch("src.api_server.board_client_from_board_dict", return_value=board_client):
+        with patch("src.settings.routes._live_board_driver", return_value=board_client):
             response = client.post(f"/settings/board/{board_id}/detect-size")
         assert response.status_code == 200
         body = response.json()

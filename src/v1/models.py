@@ -238,6 +238,39 @@ class MessageResponse(BaseModel):
     )
 
 
+class FailedRegion(BaseModel):
+    """A rectangle of flaps that did not take a write, in board cells (0-based)."""
+
+    row: int = Field(description="First row of the rectangle.")
+    col: int = Field(description="First column of the rectangle.")
+    rows: int = Field(description="Height in rows.")
+    cols: int = Field(description="Width in columns.")
+
+
+class PartialWriteDetail(BaseModel):
+    """Why a write left the board half-updated."""
+
+    message: str = Field(description="What happened, in a sentence a person can act on.")
+    partial: Literal[True] = Field(
+        description="Always true: part of the board shows the new content and part still shows the old."
+    )
+    failed_regions: list[FailedRegion] = Field(
+        description="The cells that did not update — for a local note array, each failed Note's 3×15 tile."
+    )
+
+
+class PartialWriteError(BaseModel):
+    """The 502 a board write answers when only part of the board updated.
+
+    A local note array is several devices; one tile can fail while the rest
+    take their slice. That is neither a success nor a write that changed
+    nothing, so the body says exactly which cells did not update. Sending
+    the same content again retries only those.
+    """
+
+    detail: PartialWriteDetail
+
+
 class ActivePageRequest(BaseModel):
     """``PUT /v1/boards/{board}/active-page``."""
 
