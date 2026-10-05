@@ -221,7 +221,7 @@ describe("displayTargets — every board with a custom grid", () => {
 
   it("matches a page of the display's grid", () => {
     const targets = displayTargets([], [pixoo]);
-    expect(panelsFittingGrid(targets, "panel", 1, 1, 10, 16)).toEqual(targets);
+    expect(panelsFittingGrid(targets, "panel", 1, 1, 10, 16).map(targetValue)).toEqual(["display:b-pixoo"]);
   });
 
   it("lists the panels first, and a panel's own board only once", () => {
