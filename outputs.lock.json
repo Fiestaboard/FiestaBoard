@@ -3,10 +3,10 @@
   "outputs": {
     "divoom_pixoo": {
       "repository": "https://github.com/Fiestaboard/fiestaboard-output--divoom-pixoo",
-      "commit": "01e9ee21548012a007ef7aef78cdfe1a16cad678",
+      "commit": "b08afc25650416a4338b0a24e5ebc752edaa6e74",
       "output_api": 1,
-      "tree_sha256": "83268137410fdde774c5c2fe46e5b061b2a8b3f6b18ca04878176b3689bed20d",
-      "loadable": false
+      "tree_sha256": "f7dabfd02ba1ad4192aa3a59a93b9c2739749ee7ab55fddd491133969ea0b140",
+      "loadable": true
     },
     "fiestapanel": {
       "repository": "https://github.com/Fiestaboard/fiestaboard-output--fiestapanel",
