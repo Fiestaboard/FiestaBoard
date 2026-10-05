@@ -20,6 +20,7 @@ from src.outputs.plugin_registration import (
     register_output_plugin,
     unregister_output_plugin,
 )
+from src.outputs.registry import FIRST_PARTY_OUTPUTS
 from src.outputs.seed import seed_root, seeded_output
 
 from .base import PluginBase, TransitionPluginBase
@@ -454,6 +455,19 @@ class PluginLoader:
         if manifest.id != plugin_name:
             errors.append(f"Manifest id '{manifest.id}' does not match directory name '{plugin_name}'")
             self._load_errors[plugin_name] = errors
+            return None
+
+        # Vestaboard and FiestaPanel are core's own first-party outputs, loaded
+        # from the image's seed (src.outputs.first_party). A plugin of either id
+        # is never imported: its code must not run, let alone drive those boards
+        # or shadow the seed copy's ``plugins.<id>`` modules.
+        if plugin_name in FIRST_PARTY_OUTPUTS:
+            errors.append(
+                f"'{plugin_name}' is a first-party output FiestaBoard loads from its bundled seed; "
+                "an installed plugin with that id is never loaded"
+            )
+            self._load_errors[plugin_name] = errors
+            logger.error("Plugin %s refused: %s", plugin_name, errors[-1])
             return None
 
         # Vocabulary this core does not recognise -- a ui:widget or a

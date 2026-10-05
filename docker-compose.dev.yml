@@ -39,7 +39,12 @@ services:
       - ./data:/app/data
       - ./src:/app/src
       - ./plugins:/app/plugins
-      - ./first_party_outputs:/app/first_party_outputs
+      # Vestaboard and FiestaPanel load from the image's output seed. To work
+      # on one, mount a checkout of its repository and point
+      # FIESTABOARD_DEV_OUTPUT_<ID> at it in .env (docs/internal/development/
+      # FIRST_PARTY_OUTPUTS.md), e.g.
+      #   - ../fiestaboard-output--vestaboard:/opt/dev-outputs/vestaboard
+      # with FIESTABOARD_DEV_OUTPUT_VESTABOARD=/opt/dev-outputs/vestaboard
       - ./external_plugins:/app/external_plugins
       - ./plugin-registry.json:/app/plugin-registry.json:ro
       - ./plugin-previews.json:/app/plugin-previews.json:ro

@@ -22,7 +22,8 @@ and the ``requests``-patching approach the Vestaboard plugin's own tests use.
 import json as _json
 from unittest.mock import Mock, patch
 
-from first_party_outputs.vestaboard import transport
+from plugins.vestaboard import transport
+
 from src.outputs.plugin_driver import OutputPluginDriver
 from tests.first_party_drivers import note_array_cloud_driver
 

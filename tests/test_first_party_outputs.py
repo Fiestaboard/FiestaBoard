@@ -1,7 +1,8 @@
-"""The first-party outputs load through the output-plugin path (Phase 4, P4a).
+"""The first-party outputs load through the output-plugin path (Phase 4).
 
-Vestaboard and FiestaPanel are output plugin packages staged in-repo
-(``first_party_outputs/``). Core loads them as first-party outputs
+Vestaboard and FiestaPanel are output plugin packages in their own
+repositories, carried by the output seed (``tests/test_first_party_seed.py``
+pins how they are found and trusted). Core loads them as first-party outputs
 (:mod:`src.outputs.first_party`) and their boards keep behaving exactly as
 they did when they were in-core clients — the wire goldens
 (``tests/test_wire_goldens.py``) pin the bytes; this module pins the seams
@@ -27,7 +28,7 @@ import pytest
 import requests
 
 from src.outputs.actions import list_outputs
-from src.outputs.first_party import FIRST_PARTY_DIR, FIRST_PARTY_OUTPUTS, load_first_party
+from src.outputs.first_party import FIRST_PARTY_OUTPUTS, load_first_party
 from src.outputs.hooks import ReadBack
 from src.outputs.http import OutputHttp
 from src.outputs.plugin_driver import OutputPluginDriver
@@ -48,20 +49,21 @@ def _grid(fill: int = 0, rows: int = 6, cols: int = 22) -> list[list[int]]:
 
 class TestLoading:
     @pytest.mark.parametrize("output_id", FIRST_PARTY_OUTPUTS)
-    def test_each_package_loads_from_the_staging_dir_with_a_valid_manifest(self, output_id):
+    def test_each_package_loads_with_a_valid_manifest(self, output_id):
         loaded = load_first_party(output_id)
         assert loaded.manifest.id == output_id
         assert loaded.manifest.plugin_type == "output"
         assert loaded.manifest.output.output_api == 1
         assert issubclass(loaded.plugin_class, OutputPluginBase)
-        assert (FIRST_PARTY_DIR / output_id / "manifest.json").is_file()
 
-    def test_the_staging_dir_is_not_the_bundled_plugins_dir(self):
-        # Bundled plugins/ always win over an installed copy (plan D8): staged
-        # there, the released repositories could never update them.
-        assert FIRST_PARTY_DIR.name == "first_party_outputs"
-        assert not (FIRST_PARTY_DIR.parent / "plugins" / "vestaboard").exists()
-        assert not (FIRST_PARTY_DIR.parent / "plugins" / "fiestapanel").exists()
+    @pytest.mark.parametrize("output_id", FIRST_PARTY_OUTPUTS)
+    def test_core_carries_no_copy_of_them(self, output_id):
+        # They live in their own repositories and reach the image through the
+        # seed only. Not in plugins/ either: a bundled plugin always wins over
+        # an installed copy (plan D8), so a copy there could never be updated.
+        repo = Path(__file__).resolve().parents[1]
+        assert not (repo / "first_party_outputs").exists()
+        assert not (repo / "plugins" / output_id).exists()
 
     @pytest.mark.parametrize(
         ("output_id", "plugin"), [(VESTABOARD, "VestaboardOutput"), (FIESTAPANEL, "FiestaPanelOutput")]
@@ -122,7 +124,7 @@ class TestFirstPartyMode:
 
     @patch("requests.post", side_effect=requests.exceptions.ConnectionError("down"))
     def test_failures_open_no_breaker_and_leave_no_write_error(self, _post, monkeypatch):
-        monkeypatch.setattr("first_party_outputs.vestaboard.tiles.SEND_RETRY_BACKOFF_SECONDS", 0.0)
+        monkeypatch.setattr("plugins.vestaboard.tiles.SEND_RETRY_BACKOFF_SECONDS", 0.0)
         driver = local_driver("test_key", "192.0.2.77")
         for _ in range(8):
             assert driver.send_characters(_grid(), force=True) == (False, False)

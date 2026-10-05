@@ -168,7 +168,7 @@ class TestClientUsesItsRuntime:
     @patch("requests.post")
     def test_preempting_the_runtime_abandons_a_send_retry_backoff(self, mock_post, monkeypatch):
         # A backoff far longer than the test: only the preempt can end it.
-        monkeypatch.setattr("first_party_outputs.vestaboard.tiles.SEND_RETRY_BACKOFF_SECONDS", 60.0)
+        monkeypatch.setattr("plugins.vestaboard.tiles.SEND_RETRY_BACKOFF_SECONDS", 60.0)
         runtime = OutputRuntime("b1")
         client = local_driver("test_key", "192.0.2.10")
         client.set_output_runtime(runtime)

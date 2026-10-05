@@ -5,7 +5,7 @@ Provides checks for:
 - Internet connectivity (external DNS resolution, HTTPS reachability)
 - The board — asked of the board's **output** through its diagnostics hook
   (:class:`src.outputs.hooks.OutputDiagnostics`); the Vestaboard check lives
-  in the Vestaboard plugin (``first_party_outputs/vestaboard/diagnostics.py``).
+  in the Vestaboard plugin (``fiestaboard-output--vestaboard/diagnostics.py``).
 
 Each check returns actionable troubleshooting recommendations when it fails,
 so users can quickly identify and resolve connectivity issues.

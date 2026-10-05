@@ -46,9 +46,47 @@ def pytest_configure(config):
     worker = os.environ.get("PYTEST_XDIST_WORKER") or f"pid{os.getpid()}"
     _SESSION_DATA_ROOT = Path(tempfile.mkdtemp(prefix=f"fiestaboard-tests-{worker}-"))
     os.environ["FIESTABOARD_DATA_DIR"] = str(_SESSION_DATA_ROOT / "data")
-    # No output seed (src/outputs/seed.py) unless a test builds one: an image
-    # that bakes a seed into /opt must not change what the suite loads.
-    os.environ["FIESTABOARD_OUTPUT_SEED_DIR"] = str(_SESSION_DATA_ROOT / "no-output-seed")
+    _use_output_seed()
+
+
+#: Where the image builds the output seed (src/outputs/seed.py).
+_IMAGE_SEED_DIR = "/opt/fiestaboard/seed/outputs"
+
+
+def _use_output_seed() -> None:
+    """Run the suite against a built output seed, its first-party outputs imported.
+
+    Vestaboard and FiestaPanel live in their own repositories and load from
+    the output seed (``src/outputs/first_party.py``), so the suite needs one
+    built from ``outputs.lock.json``: ``$FIESTABOARD_OUTPUT_SEED_DIR`` when
+    the runner sets it (CI builds it before the tests), else the image's
+    (``docker compose exec fiestaboard pytest``). The tests never fetch it:
+    building it needs the network, which the suite is fenced from.
+
+    Both packages are imported here, before collection, because test modules
+    import them by name (``from plugins.vestaboard import transport``).
+    A test that needs another seed builds one and points at it itself.
+    """
+    seed = os.environ.get("FIESTABOARD_OUTPUT_SEED_DIR", "").strip()
+    if not seed and Path(_IMAGE_SEED_DIR, "outputs.lock.json").is_file():
+        seed = _IMAGE_SEED_DIR
+    if not seed or not Path(seed, "outputs.lock.json").is_file():
+        pytest.exit(
+            "No output seed to test against (FIESTABOARD_OUTPUT_SEED_DIR="
+            f"{seed or '<unset>'}). Build one, then point the variable at it:\n"
+            "  python scripts/seed_outputs.py build --lock outputs.lock.json --dest <dir>\n"
+            "  FIESTABOARD_OUTPUT_SEED_DIR=<dir> pytest ...",
+            returncode=4,
+        )
+    os.environ["FIESTABOARD_OUTPUT_SEED_DIR"] = seed
+
+    from src.outputs.first_party import FIRST_PARTY_OUTPUTS, FirstPartyOutputError, first_party_module
+
+    for output_id in FIRST_PARTY_OUTPUTS:
+        try:
+            first_party_module(output_id)
+        except FirstPartyOutputError as exc:
+            pytest.exit(f"The output seed at {seed} is unusable: {exc}", returncode=4)
 
 
 def pytest_collection_modifyitems(config, items):

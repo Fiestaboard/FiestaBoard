@@ -1,6 +1,6 @@
 """The FiestaPanel driver — the in-memory board behind FiestaPanel TVs.
 
-The FiestaPanel output plugin (``first_party_outputs/fiestapanel``) in core's
+The FiestaPanel output plugin (``fiestaboard-output--fiestapanel``) in core's
 plugin driver: frames land in the board's runtime, nothing goes on the wire.
 (Was ``VirtualBoardClient``'s tests.)
 """

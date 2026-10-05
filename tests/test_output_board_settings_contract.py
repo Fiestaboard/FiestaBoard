@@ -423,7 +423,7 @@ class TestVestaboardActions:
             return {"success": True, "api_key": "test_local_key_abc", "message": "Local API enabled"}
 
         with (
-            mock.patch("first_party_outputs.vestaboard.local_api.exchange_enablement_token", fake_exchange),
+            mock.patch("plugins.vestaboard.local_api.exchange_enablement_token", fake_exchange),
             caplog.at_level(logging.DEBUG),
         ):
             resp = client.post(
@@ -440,7 +440,7 @@ class TestVestaboardActions:
         async def fake_exchange(request):
             return {"success": False, "message": "Invalid enablement token", "error": "Invalid token"}
 
-        with mock.patch("first_party_outputs.vestaboard.local_api.exchange_enablement_token", fake_exchange):
+        with mock.patch("plugins.vestaboard.local_api.exchange_enablement_token", fake_exchange):
             body = client.post(
                 "/outputs/vestaboard/actions/enable_local_api",
                 json={"output_config": {"host": "192.168.0.40"}, "input": {"enablement_token": "test_token"}},

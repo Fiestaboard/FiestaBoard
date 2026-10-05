@@ -1,9 +1,9 @@
 """The output registry: every kind of device FiestaBoard can drive, by id.
 
 A saved board names the **output** that drives it. Two are first-party and
-always registered — output plugins staged in-repo under
-``first_party_outputs/`` and loaded by :mod:`src.outputs.first_party` the
-first time the registry is asked for:
+always registered — output plugins in their own repositories, carried by
+the image's output seed and loaded from it by :mod:`src.outputs.first_party`
+the first time the registry is asked for:
 
 - ``vestaboard`` — a Vestaboard on the Local API, the RW Cloud API, the
   note-array Cloud API, or a local note array's per-tile fan-out.
@@ -26,7 +26,8 @@ output plugins; nothing here invents them.
 Each entry also carries the output's **hooks** (:mod:`src.outputs.hooks`):
 what core asks the output instead of knowing its device — ``discover``,
 ``diagnostics`` and named custom ``actions``. The ``vestaboard`` hooks are its
-plugin's (``first_party_outputs/vestaboard``); ``fiestapanel`` declares none.
+plugin's (``Fiestaboard/fiestaboard-output--vestaboard``); ``fiestapanel``
+declares none.
 
 Which output a board uses is **derived at load** — no settings field is
 written for an existing board (the v4 settings migration persists it later,
@@ -74,6 +75,8 @@ Delivery = Literal["push", "pull"]
 
 VESTABOARD = "vestaboard"
 FIESTAPANEL = "fiestapanel"
+#: The outputs core itself loads, from the seed (:mod:`src.outputs.first_party`).
+FIRST_PARTY_OUTPUTS: tuple[str, ...] = (VESTABOARD, FIESTAPANEL)
 
 
 class UnknownOutputError(ValueError):
@@ -270,8 +273,8 @@ def output_action(output_id: str, action: str) -> Callable[..., object]:
 
 # --- the first-party outputs ----------------------------------------------------------
 #
-# Vestaboard and FiestaPanel are output plugins staged in-repo
-# (first_party_outputs/), registered on first use by src/outputs/first_party.py:
+# Vestaboard and FiestaPanel are output plugins loaded from the output seed,
+# registered on first use by src/outputs/first_party.py:
 # loading them imports the plugin author API, which imports this module, so
 # they cannot be registered while it is still being imported.
 
