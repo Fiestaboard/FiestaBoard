@@ -105,23 +105,31 @@ def test_the_legacy_board_block_does_not_block_startup_once_a_board_exists(tmp_p
 # --- startup ordering --------------------------------------------------------------------
 
 
-def test_building_a_board_loads_the_output_plugins_when_the_registry_has_not(loaded):
-    """The factory asks the plugin registry to load once, when a board names an
-    output nobody registered yet, instead of failing the board."""
+def _build_before_the_registry_loaded(loaded):
     from src.outputs import factory
 
     loaded.unload_plugin(PLUGIN_ID)
     registry = MagicMock()
-    registry.initialized = False
     registry.initialize.side_effect = lambda: loaded.load_plugin(PLUGIN_ID)
 
     with (
         patch("src.plugins.registry.get_plugin_registry", return_value=registry),
         patch("src.plugins.registry.plugin_registry_initialized", return_value=False),
     ):
-        driver = factory.build_driver(_board(host="192.0.2.50"))
+        return factory.build_driver(_board(host="192.0.2.50"))
 
-    assert driver is not None
+
+def test_building_a_board_loads_the_output_plugins_when_the_registry_has_not(loaded):
+    """The factory asks the plugin registry to load once, when a board names an
+    output nobody registered yet, instead of failing the board."""
+    assert _build_before_the_registry_loaded(loaded) is not None
+
+
+def test_an_output_not_registered_yet_is_not_logged_as_unknown(loaded, caplog):
+    with caplog.at_level(logging.ERROR):
+        _build_before_the_registry_loaded(loaded)
+
+    assert [r.getMessage() for r in caplog.records if "unknown output" in r.getMessage()] == []
 
 
 # --- a fresh install idles quietly -------------------------------------------------------
