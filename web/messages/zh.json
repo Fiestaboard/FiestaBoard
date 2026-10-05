@@ -2429,5 +2429,11 @@
     "settingFailed": "无法保存设置",
     "on": "开",
     "off": "关"
+  },
+  "settingsRestoreNotice": {
+    "title": "已恢复为升级前的设置",
+    "description": "此版本无法读取较新版本 FiestaBoard 保存的设置，因此恢复了该次升级前的副本。升级后所做的更改未被带回，已保存在：",
+    "dismiss": "关闭",
+    "dismissFailed": "无法关闭，请重试。"
   }
 }
