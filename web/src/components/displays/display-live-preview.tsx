@@ -26,7 +26,13 @@ export const DisplayLivePreview = memo(function DisplayLivePreview({
   // A rich board's frame as its cells (colour, case, icons), when it was sent with them.
   const cells = message !== null ? (state?.cells as BoardCellGrid | undefined) : undefined;
   return (
-    <DevicePreview model={resolveBoardModel(board)} message={message} cells={cells} size={size}>
+    <DevicePreview
+      model={resolveBoardModel(board)}
+      ledLayout={board.led_layout}
+      message={message}
+      cells={cells}
+      size={size}
+    >
       <ScaledBoardDisplay
         message={message}
         isLoading={isLoading}
