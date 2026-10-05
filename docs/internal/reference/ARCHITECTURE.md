@@ -211,9 +211,10 @@ Names you will meet:
   `OutputPluginDriver` in **first-party mode** (inline writes, no budget or
   breaker, unanticipated errors propagate) with `OutputHttp.for_first_party`
   (the `requests` module calls the old clients made), so the wire goldens
-  hold byte for byte. `GET /outputs` presents them exactly as before
-  (`tests/golden/outputs/first_party_presentation.json`); their settings
-  screens and board-settings action dispatch stay core's until P4d. Each
+  hold byte for byte. `GET /outputs` presents them
+  (`tests/golden/outputs/first_party_presentation.json`) with their
+  manifests' settings screens, which the web renders like any output's
+  (P4d); board-settings action dispatch is still core's. Each
   entry carries a builder
   (only the factory calls it) and the output's **capabilities** —
   `technology` (`split_flap` | `led_matrix` | `screen`), `delivery`

@@ -7,13 +7,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LanguageSelector } from "@/components/language-selector";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
-import type { Code62Glyph } from "@/lib/api";
 import { api } from "@/lib/api";
 import { appUrl } from "@/lib/base-path";
 import type { WizardProgress } from "@/lib/setup-detection";
 import { clearWizardProgress, getWizardProgress, markWizardComplete, saveWizardProgress } from "@/lib/setup-detection";
 
-import { StepBoardSetup } from "./step-board-setup";
+import { type BoardConfig, StepBoardSetup } from "./step-board-setup";
 import { StepChooseOutput } from "./step-choose-output";
 import type { WizardPluginConfig } from "./step-easy-plugins";
 import { StepEasyPlugins } from "./step-easy-plugins";
@@ -21,6 +20,23 @@ import type { WizardCreatedBoard, WizardOutputChoice } from "./step-output-plugi
 import { StepOutputPlugin } from "./step-output-plugin";
 import { StepPanelSetup } from "./step-panel-setup";
 import { StepWelcome } from "./step-welcome";
+
+/**
+ * The Vestaboard connection saved progress carries: its `output_config`, or —
+ * in progress saved before the step moved onto the board settings screen —
+ * the same fields kept flat. A wizard opened for the first time starts in
+ * cloud mode, the easiest setup.
+ */
+function savedOutputConfig(saved: WizardProgress["boardConfig"]): Record<string, unknown> {
+  if (saved?.output_config) return saved.output_config;
+  const flat = {
+    api_mode: saved?.api_mode ?? "cloud",
+    host: saved?.host,
+    local_api_key: saved?.local_api_key,
+    cloud_key: saved?.cloud_key,
+  };
+  return Object.fromEntries(Object.entries(flat).filter(([, value]) => value));
+}
 
 interface SetupWizardProps {
   onComplete?: () => void;
@@ -67,21 +83,11 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   );
   const [createdBoard, setCreatedBoard] = useState<WizardCreatedBoard | null>(() => saved?.createdBoard ?? null);
 
-  // Board config state
-  const [boardConfig, setBoardConfig] = useState<{
-    api_mode: "local" | "cloud";
-    local_api_key: string;
-    cloud_key: string;
-    host: string;
-    connectionVerified: boolean;
-    device_type: "flagship" | "note";
-    board_color: "black" | "white";
-    code62_glyph: Code62Glyph;
-  }>(() => ({
-    api_mode: saved?.boardConfig?.api_mode ?? "cloud",
-    local_api_key: saved?.boardConfig?.local_api_key || "",
-    cloud_key: saved?.boardConfig?.cloud_key || "",
-    host: saved?.boardConfig?.host || "",
+  // Board config state: the Vestaboard's connection is its settings
+  // screen's `output_config` (progress saved before that kept the same
+  // fields flat; they carry over).
+  const [boardConfig, setBoardConfig] = useState<BoardConfig>(() => ({
+    output_config: savedOutputConfig(saved?.boardConfig),
     connectionVerified: false,
     device_type: saved?.boardConfig?.device_type || "flagship",
     board_color: saved?.boardConfig?.board_color || "black",
@@ -105,10 +111,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       outputName: output?.name,
       createdBoard: createdBoard ?? undefined,
       boardConfig: {
-        api_mode: boardConfig.api_mode,
-        local_api_key: boardConfig.local_api_key,
-        cloud_key: boardConfig.cloud_key,
-        host: boardConfig.host,
+        output_config: boardConfig.output_config,
         device_type: boardConfig.device_type,
         board_color: boardConfig.board_color,
         code62_glyph: boardConfig.code62_glyph,

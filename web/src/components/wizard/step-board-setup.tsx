@@ -1,26 +1,26 @@
 "use client";
 
-import {
-  Button,
-  Flex,
-  Grid,
-  Input,
-  Label,
-  List,
-  ListItem,
-  Stack,
-  Text,
-  ToggleCard,
-  ToggleCardGroup,
-} from "@fiestaboard/ui";
+/**
+ * The setup wizard's Vestaboard step: the board's own settings screen — the
+ * one Settings → Hardware shows, drawn from the Vestaboard output's manifest
+ * (plan D13) — on draft settings (scan, Get API Key from Board and Test
+ * Connection run on the draft action route, before a board exists), then the
+ * board's type, colour and code-62 flap. A passing Test Connection saves the
+ * board (settings-v4 shape: its connection in `output_config`) and unlocks
+ * Next.
+ */
+import { Alert, AlertDescription, Flex, Stack, Text, ToggleCard, ToggleCardGroup } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
-import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
-import { CheckCircle, Cloud, HelpCircle, Key, KeyRound, Loader2, Search, Wifi, XCircle } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { CheckCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import { useOutputs } from "@/components/settings/output-boards";
+import { PluginBoardSettings } from "@/components/settings/plugin-board-settings";
+import { queryKeys } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
-import type { BoardInstance, Code62Glyph, DiscoveredBoard } from "@/lib/api";
+import type { ActionGeometry, ActionResult, BoardInstance, Code62Glyph } from "@/lib/api";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -40,11 +40,9 @@ const CODE62_CHOICES: ReadonlyArray<{ value: Code62Glyph; glyph: string; labelKe
   { value: "heart", glyph: "♥", labelKey: "code62HeartAriaLabel" },
 ];
 
-interface BoardConfig {
-  api_mode: "local" | "cloud";
-  local_api_key: string;
-  cloud_key: string;
-  host: string;
+export interface BoardConfig {
+  /** The Vestaboard's connection, as its settings screen edits it (the board's `output_config`). */
+  output_config: Record<string, unknown>;
   connectionVerified: boolean;
   device_type: DeviceType;
   board_color: "black" | "white";
@@ -60,178 +58,66 @@ interface StepBoardSetupProps {
   setIsLoading: (loading: boolean) => void;
 }
 
-type LocalKeyMode = "api_key" | "enablement_token";
-
-export function StepBoardSetup({
-  config,
-  onConfigChange,
-  onValidChange,
-  isLoading,
-  setIsLoading,
-}: StepBoardSetupProps) {
+export function StepBoardSetup({ config, onConfigChange, onValidChange, setIsLoading }: StepBoardSetupProps) {
   const t = useTranslations("wizard.boardSetup");
   const tc = useTranslations("common");
-  const tbs = useTranslations("boardSettings");
-  // Mirrors `config` for use inside async callbacks (connection tests, board
-  // scans) so they always read the latest value instead of a stale closure.
-  // Refs may only be read/written outside of render, so the mirror is
-  // synced in an effect rather than assigned inline during render.
-  const configRef = useRef(config);
+  const queryClient = useQueryClient();
+  const { data: outputs, isLoading: outputsLoading } = useOutputs();
+  const vestaboard = outputs?.find((o) => o.id === "vestaboard");
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   useEffect(() => {
-    configRef.current = config;
-  }, [config]);
+    onValidChange(config.connectionVerified);
+  }, [config.connectionVerified, onValidChange]);
 
-  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
-  const [testMessage, setTestMessage] = useState("");
-  const [troubleshootingSteps, setTroubleshootingSteps] = useState<string[]>([]);
-  const [localKeyMode, setLocalKeyMode] = useState<LocalKeyMode>("api_key");
-  const [enablementToken, setEnablementToken] = useState("");
-  const [enablementStatus, setEnablementStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [enablementMessage, setEnablementMessage] = useState("");
-  const [scanStatus, setScanStatus] = useState<"idle" | "scanning" | "done" | "error">("idle");
-  const [discoveredBoards, setDiscoveredBoards] = useState<DiscoveredBoard[]>([]);
+  const facts = useMemo(() => ({ device_type: config.device_type, device_model: null }), [config.device_type]);
 
-  // Update validity when config or test status changes
-  useEffect(() => {
-    const hasRequiredFields =
-      config.api_mode === "cloud" ? !!config.cloud_key : !!config.local_api_key && !!config.host;
+  // Editing the connection un-verifies it: the board saved by the last
+  // passing test is not what the form now says.
+  const onSettingsChange = (outputConfig: Record<string, unknown>) =>
+    onConfigChange({ ...config, output_config: outputConfig, connectionVerified: false });
 
-    onValidChange(hasRequiredFields && config.connectionVerified);
-  }, [config, onValidChange]);
-
-  const handleModeChange = (mode: "local" | "cloud") => {
-    onConfigChange({
-      ...config,
-      api_mode: mode,
-      connectionVerified: false,
-    });
-    setTestStatus("idle");
-    setTestMessage("");
-    setEnablementStatus("idle");
-    setEnablementMessage("");
-  };
-
-  const handleScanForBoards = async () => {
-    setScanStatus("scanning");
-    setDiscoveredBoards([]);
-    try {
-      const result = await api.scanForBoards();
-      setDiscoveredBoards(result.boards);
-      setScanStatus("done");
-    } catch {
-      setScanStatus("error");
-    }
-  };
-
-  const handleSelectBoard = (board: DiscoveredBoard) => {
-    onConfigChange({
-      ...config,
-      host: board.ip,
-      connectionVerified: false,
-    });
-    setTestStatus("idle");
-  };
-
-  const handleEnableLocalApi = async () => {
-    if (!config.host || !enablementToken) return;
-
-    setEnablementStatus("loading");
-    setEnablementMessage("");
-    setIsLoading(true);
-
-    try {
-      const result = await api.enableLocalApi({
-        host: config.host,
-        enablement_token: enablementToken,
-      });
-
-      if (result.success && result.api_key) {
-        setEnablementStatus("success");
-        setEnablementMessage(result.message);
-        // Update the config with the retrieved API key
-        onConfigChange({
-          ...config,
-          local_api_key: result.api_key,
-          connectionVerified: false,
-        });
-        // Switch to API key mode since we now have one
-        setLocalKeyMode("api_key");
-        // Clear the enablement token
-        setEnablementToken("");
-      } else {
-        setEnablementStatus("error");
-        setEnablementMessage(result.message || t("failedToEnableLocalApi"));
+  const onActionResult = useCallback(
+    async (actionId: string, result: ActionResult) => {
+      if (actionId !== "test_connection") return;
+      if (result.status !== "ok") {
+        onConfigChange({ ...config, connectionVerified: false });
+        return;
       }
-    } catch (error) {
-      setEnablementStatus("error");
-      setEnablementMessage(error instanceof Error ? error.message : t("failedToEnableLocalApi"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleTestConnection = async () => {
-    setTestStatus("testing");
-    setIsLoading(true);
-    setTestMessage("");
-    setTroubleshootingSteps([]);
-
-    // Read the latest config from the ref to avoid stale closures
-    const cfg = configRef.current;
-
-    try {
-      const result = await api.testBoardConnection({
-        api_mode: cfg.api_mode,
-        local_api_key: cfg.api_mode === "local" ? cfg.local_api_key : undefined,
-        cloud_key: cfg.api_mode === "cloud" ? cfg.cloud_key : undefined,
-        host: cfg.api_mode === "local" ? cfg.host : undefined,
-      });
-
-      if (result.success) {
-        setTestStatus("success");
-        setTestMessage(result.message);
-        setTroubleshootingSteps([]);
-
+      setIsLoading(true);
+      setSaveError(null);
+      try {
         // The board store is the one source of truth: first-run detection
-        // reads it (plan D13), so the wizard no longer also writes the
-        // deprecated legacy `PUT /config/board` block.
+        // reads it (plan D13).
         await api.updateBoardSettings({
           boards: [
             {
               // No name: the backend fills in its default ("My Board");
               // users rename boards in Settings → Boards (issue #1792).
-              device_type: cfg.device_type,
-              board_color: cfg.board_color,
-              code62_glyph: cfg.code62_glyph,
-              api_mode: cfg.api_mode,
-              host: cfg.host,
-              local_api_key: cfg.local_api_key,
-              cloud_key: cfg.cloud_key,
+              device_type: config.device_type,
+              board_color: config.board_color,
+              code62_glyph: config.code62_glyph,
               enabled: true,
+              output: "vestaboard",
+              output_config: config.output_config,
             } as BoardInstance,
           ],
         });
-
-        onConfigChange({ ...cfg, connectionVerified: true });
-      } else {
-        setTestStatus("error");
-        setTestMessage(result.message || t("connectionTestFailed"));
-        setTroubleshootingSteps(result.troubleshooting || []);
-        onConfigChange({ ...cfg, connectionVerified: false });
+        queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
+        onConfigChange({ ...config, connectionVerified: true });
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : t("connectionTestFailed"));
+        onConfigChange({ ...config, connectionVerified: false });
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      setTestStatus("error");
-      setTestMessage(error instanceof Error ? error.message : t("connectionTestFailed"));
-      setTroubleshootingSteps([]);
-      onConfigChange({ ...configRef.current, connectionVerified: false });
-    } finally {
-      setIsLoading(false);
-    }
+    },
+    [config, onConfigChange, queryClient, setIsLoading, t],
+  );
+
+  const onGeometry = (geometry: ActionGeometry) => {
+    if (isDeviceType(geometry.device_type)) onConfigChange({ ...config, device_type: geometry.device_type });
   };
-
-  const canTest = config.api_mode === "cloud" ? !!config.cloud_key : !!config.local_api_key && !!config.host;
-
-  const canEnableLocalApi = !!config.host && !!enablementToken;
 
   const previewMessage = useMemo(() => {
     if (config.device_type === "note") {
@@ -244,350 +130,38 @@ export function StepBoardSetup({
 
   return (
     <Stack gap="6">
-      {/* API Mode Selection */}
-      <Stack gap="3">
-        <Text size="base" weight="medium">
-          {t("connectionType")}
-        </Text>
-        <Grid cols="2" gap="3">
-          <button
-            type="button"
-            onClick={() => handleModeChange("cloud")}
-            className={cn(
-              "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
-              config.api_mode === "cloud" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
-            )}
-          >
-            <Cloud className={cn("h-8 w-8", config.api_mode === "cloud" ? "text-primary" : "text-muted-foreground")} />
-            <Text as="span" weight="medium">
-              {t("cloudApi")}
-            </Text>
-            <Text as="span" size="xs" tone="muted" className="text-center">
-              {t("cloudApiEasiest")}
-            </Text>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleModeChange("local")}
-            className={cn(
-              "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
-              config.api_mode === "local" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
-            )}
-          >
-            <Wifi className={cn("h-8 w-8", config.api_mode === "local" ? "text-primary" : "text-muted-foreground")} />
-            <Text as="span" weight="medium">
-              {t("localApi")}
-            </Text>
-            <Text as="span" size="xs" tone="muted" className="text-center">
-              {t("localApiFaster")}
-            </Text>
-          </button>
-        </Grid>
-      </Stack>
-
-      {/* Fields based on mode */}
-      {config.api_mode === "cloud" ? (
-        <Stack gap="4">
-          <Stack gap="2">
-            <Label htmlFor="cloud_key">{t("readWriteApiKey")}</Label>
-            <SecretInput
-              id="cloud_key"
-              placeholder={t("cloudKeyPlaceholder")}
-              value={config.cloud_key}
-              onChange={(e) => {
-                onConfigChange({
-                  ...config,
-                  cloud_key: e.target.value,
-                  connectionVerified: false,
-                });
-                setTestStatus("idle");
-              }}
-              showLabel={tbs("showApiKey")}
-              hideLabel={tbs("hideApiKey")}
-            />
-            <Text size="xs" tone="muted" className="flex items-center gap-1">
-              <HelpCircle className="h-3 w-3" />
-              {t("cloudKeyHelp")}
-            </Text>
-          </Stack>
-        </Stack>
+      {vestaboard ? (
+        <PluginBoardSettings
+          output={vestaboard}
+          values={config.output_config}
+          onChange={onSettingsChange}
+          facts={facts}
+          onGeometry={onGeometry}
+          onActionResult={(id, result) => void onActionResult(id, result)}
+        />
+      ) : outputsLoading ? (
+        <Flex justify="center">
+          <Spinner />
+        </Flex>
       ) : (
-        <Stack gap="4">
-          {/* Board IP Address - always needed for local */}
-          <Stack gap="2">
-            <Label htmlFor="host">{t("boardIpAddress")}</Label>
-            <Flex gap="2">
-              <Input
-                id="host"
-                placeholder={t("boardIpPlaceholder")}
-                value={config.host}
-                onChange={(e) => {
-                  onConfigChange({
-                    ...config,
-                    host: e.target.value,
-                    connectionVerified: false,
-                  });
-                  setTestStatus("idle");
-                  setEnablementStatus("idle");
-                }}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="default"
-                onClick={handleScanForBoards}
-                disabled={scanStatus === "scanning"}
-                title={t("scanNetworkTooltip")}
-              >
-                {scanStatus === "scanning" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4" />
-                )}
-              </Button>
-            </Flex>
-            <Text size="xs" tone="muted" className="flex items-center gap-1">
-              <HelpCircle className="h-3 w-3" />
-              {t("boardIpHelp")}
-            </Text>
-          </Stack>
-
-          {/* Scan results */}
-          {scanStatus === "scanning" && (
-            <Flex align="center" gap="2" className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-              <Spinner label={null} />
-              <Text as="span" tone="muted">
-                {t("scanningNetwork")}
-              </Text>
-            </Flex>
-          )}
-          {scanStatus === "done" && discoveredBoards.length === 0 && (
-            <Flex align="center" gap="2" className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-              <HelpCircle className="h-4 w-4" />
-              <Text as="span" tone="muted">
-                {t("noBoardsFound")}
-              </Text>
-            </Flex>
-          )}
-          {scanStatus === "done" && discoveredBoards.length >= 1 && (
-            <Stack gap="2">
-              <Text>{t("foundBoards", { count: discoveredBoards.length })}</Text>
-              <Stack gap="1.5">
-                {discoveredBoards.map((board) => (
-                  <button
-                    key={board.ip}
-                    type="button"
-                    onClick={() => handleSelectBoard(board)}
-                    className={cn(
-                      "w-full flex items-center justify-between p-2.5 rounded-md border text-sm transition-colors text-left",
-                      config.host === board.ip
-                        ? "border-primary bg-primary/5"
-                        : "border-muted hover:border-muted-foreground/30",
-                    )}
-                  >
-                    <Text as="span" className="font-mono">
-                      {board.ip}
-                    </Text>
-                    {board.hostname && (
-                      <Text as="span" size="xs" tone="muted">
-                        {board.hostname}
-                      </Text>
-                    )}
-                  </button>
-                ))}
-              </Stack>
-            </Stack>
-          )}
-          {scanStatus === "error" && (
-            <Flex align="center" gap="2" className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-              <XCircle className="h-4 w-4" />
-              <Text as="span" tone="destructive">
-                {t("scanFailed")}
-              </Text>
-            </Flex>
-          )}
-
-          {/* Local Key Mode Toggle */}
-          <Stack gap="3">
-            <Text weight="medium">{t("authenticationMethod")}</Text>
-            <Grid cols="2" gap="2">
-              <button
-                type="button"
-                onClick={() => setLocalKeyMode("api_key")}
-                className={cn(
-                  "flex items-center justify-center gap-2 p-2.5 rounded-md border text-sm transition-all",
-                  localKeyMode === "api_key"
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-muted hover:border-border text-muted-foreground",
-                )}
-              >
-                <Key className="h-4 w-4" />
-                {t("apiKey")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setLocalKeyMode("enablement_token")}
-                className={cn(
-                  "flex items-center justify-center gap-2 p-2.5 rounded-md border text-sm transition-all",
-                  localKeyMode === "enablement_token"
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-muted hover:border-border text-muted-foreground",
-                )}
-              >
-                <KeyRound className="h-4 w-4" />
-                {t("enablementToken")}
-              </button>
-            </Grid>
-          </Stack>
-
-          {localKeyMode === "api_key" ? (
-            <Stack gap="2">
-              <Label htmlFor="local_api_key">{t("localApiKey")}</Label>
-              <SecretInput
-                id="local_api_key"
-                placeholder={t("localApiKeyPlaceholder")}
-                value={config.local_api_key}
-                onChange={(e) => {
-                  onConfigChange({
-                    ...config,
-                    local_api_key: e.target.value,
-                    connectionVerified: false,
-                  });
-                  setTestStatus("idle");
-                }}
-                showLabel={tbs("showApiKey")}
-                hideLabel={tbs("hideApiKey")}
-              />
-              <Text size="xs" tone="muted" className="flex items-center gap-1">
-                <HelpCircle className="h-3 w-3" />
-                {t("localApiKeyHelp")}
-              </Text>
-            </Stack>
-          ) : (
-            <Stack gap="3">
-              <Stack gap="2">
-                <Label htmlFor="enablement_token">{t("enablementToken")}</Label>
-                <SecretInput
-                  id="enablement_token"
-                  placeholder={t("enablementTokenPlaceholder")}
-                  value={enablementToken}
-                  onChange={(e) => {
-                    setEnablementToken(e.target.value);
-                    setEnablementStatus("idle");
-                  }}
-                  showLabel={tbs("showToken")}
-                  hideLabel={tbs("hideToken")}
-                />
-                <Text size="xs" tone="muted" className="flex items-center gap-1">
-                  <HelpCircle className="h-3 w-3" />
-                  {t("enablementTokenHelp")}
-                </Text>
-              </Stack>
-
-              <Button
-                onClick={handleEnableLocalApi}
-                disabled={!canEnableLocalApi || isLoading}
-                variant="secondary"
-                className="w-full"
-              >
-                {enablementStatus === "loading" ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {t("enablingLocalApi")}
-                  </>
-                ) : enablementStatus === "success" ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2 text-success" />
-                    {t("apiKeyRetrieved")}
-                  </>
-                ) : (
-                  t("getApiKeyFromBoard")
-                )}
-              </Button>
-
-              {/* Enablement status message */}
-              {enablementMessage && (
-                <Flex
-                  align="start"
-                  gap="2"
-                  className={cn(
-                    "p-3 rounded-lg text-sm",
-                    enablementStatus === "success"
-                      ? "bg-success/10 text-success"
-                      : "bg-destructive/10 text-destructive",
-                  )}
-                >
-                  {enablementStatus === "success" ? (
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                  ) : (
-                    <XCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                  )}
-                  {enablementMessage}
-                </Flex>
-              )}
-            </Stack>
-          )}
-        </Stack>
+        <Alert variant="destructive">
+          <AlertDescription>{t("connectionTestFailed")}</AlertDescription>
+        </Alert>
       )}
 
-      {/* Test Connection */}
-      <Stack gap="3">
-        <Button
-          onClick={handleTestConnection}
-          disabled={!canTest || isLoading}
-          variant={testStatus === "success" ? "outline" : "default"}
-          className="w-full"
-        >
-          {testStatus === "testing" ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              {t("testingConnection")}
-            </>
-          ) : testStatus === "success" ? (
-            <>
-              <CheckCircle className="h-4 w-4 mr-2 text-success" />
-              {t("connectedTestAgain")}
-            </>
-          ) : (
-            t("testConnection")
-          )}
-        </Button>
-
-        {/* Status message */}
-        {testMessage && (
-          <Flex
-            align="start"
-            gap="2"
-            className={cn(
-              "p-3 rounded-lg text-sm",
-              testStatus === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
-            )}
-          >
-            {testStatus === "success" ? (
-              <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-            ) : (
-              <XCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-            )}
-            <Stack gap="2" className="flex-1">
-              {testMessage}
-              {testStatus === "error" && troubleshootingSteps.length > 0 && (
-                <Stack gap="1.5" className="mt-2">
-                  <Text size="xs" weight="medium" className="text-foreground/80 uppercase tracking-wide">
-                    {t("thingsToTry")}
-                  </Text>
-                  <List as="ol" marker="decimal" gap="1" className="text-foreground/70">
-                    {troubleshootingSteps.map((step, i) => (
-                      <ListItem key={i}>{step}</ListItem>
-                    ))}
-                  </List>
-                </Stack>
-              )}
-            </Stack>
-          </Flex>
-        )}
-      </Stack>
+      {config.connectionVerified && (
+        <Flex align="center" gap="2" role="status" data-testid="wizard-board-saved">
+          <CheckCircle className="h-4 w-4 text-success" aria-hidden="true" />
+          <Text as="span" size="sm">
+            {t("connectedSaved")}
+          </Text>
+        </Flex>
+      )}
+      {saveError && (
+        <Alert variant="destructive">
+          <AlertDescription>{saveError}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Device Type & Board Color */}
       <Stack gap="4" className="pt-4 border-t">

@@ -278,28 +278,41 @@ test.describe("regression: note-arrays — auto-detect", () => {
       }),
     });
 
-    // Mock detect-size to classify the board as a flagship (22×6).
-    await page.route("**/settings/board/*/detect-size", async (route) => {
+    // Mock the board's detect action to classify it as a flagship (22×6).
+    await page.route("**/boards/*/actions/detect_geometry", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ device_type: "flagship", rows: 6, cols: 22 }),
+        body: JSON.stringify({
+          status: "ok",
+          message: "Size detected.",
+          guidance: [],
+          fields: null,
+          devices: null,
+          geometry: {
+            device_type: "flagship",
+            rows: 6,
+            cols: 22,
+            notes_wide: null,
+            notes_tall: null,
+            matched_preset: null,
+          },
+        }),
       });
     });
 
     await openHardwareAndExpand(page);
 
-    // Token field (displaySettings.noteArrayTokenLabel) is present for note arrays.
-    // exact: true — "Cloud API token is required" also renders for tokenless arrays.
-    await expect(page.getByText("Cloud API Token", { exact: true })).toBeVisible({ timeout: 5_000 });
+    // Token field (the Vestaboard manifest's note_array_token) is present for note arrays.
+    await expect(page.getByLabel(/Cloud API Token/)).toBeVisible({ timeout: 5_000 });
 
-    // Click Auto-detect (displaySettings.autoDetect → display-settings.tsx:725).
+    // Click Auto-detect (the manifest's detect_geometry action, auto_apply).
     await page.getByRole("button", { name: "Auto-detect from board" }).first().click();
 
     // Header now shows flagship dimensions (6 × 22) and persists flagship.
     await expect(page.getByText("6 × 22").first()).toBeVisible({ timeout: 10_000 });
     // The Cloud API Token field is hidden once the board is no longer a note array.
-    await expect(page.getByText("Cloud API Token", { exact: true })).toHaveCount(0, { timeout: 5_000 });
+    await expect(page.getByLabel(/Cloud API Token/)).toHaveCount(0, { timeout: 5_000 });
 
     const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
     const data = await res.json();
@@ -307,8 +320,8 @@ test.describe("regression: note-arrays — auto-detect", () => {
   });
 
   test("detect failure surfaces the 422 detail message inline", async ({ page }) => {
-    // Mock detect-size to fail with a FastAPI-style 422 `detail`.
-    await page.route("**/settings/board/*/detect-size", async (route) => {
+    // Mock the detect action to fail with a FastAPI-style 422 `detail`.
+    await page.route("**/boards/*/actions/detect_geometry", async (route) => {
       await route.fulfill({
         status: 422,
         contentType: "application/json",
@@ -320,8 +333,8 @@ test.describe("regression: note-arrays — auto-detect", () => {
 
     await page.getByRole("button", { name: "Auto-detect from board" }).first().click();
 
-    // fetchApi throws Error(detail); handleAutoDetect stores it in detectError
-    // and renders it inline (display-settings.tsx:728-732).
+    // fetchApi throws Error(detail); the settings screen shows it inline
+    // (plugin-board-settings.tsx, data-testid="action-failure").
     await expect(page.getByText("Board did not return a recognizable size")).toBeVisible({ timeout: 10_000 });
 
     // The board type is unchanged (still flagship from resetToSingleBoard).

@@ -717,37 +717,6 @@
       "setUpOutput": "接続してテストし、ボードとして保存します"
     },
     "boardSetup": {
-      "connectionType": "接続タイプ",
-      "cloudApi": "クラウド API",
-      "cloudApiEasiest": "最も簡単なセットアップ",
-      "localApi": "ローカル API",
-      "localApiFaster": "高速、同一ネットワーク",
-      "readWriteApiKey": "読み取り/書き込み API キー",
-      "cloudKeyPlaceholder": "web.vestaboard.com から取得",
-      "cloudKeyHelp": "web.vestaboard.com → 設定 → API で確認できます",
-      "boardIpAddress": "ボードの IP アドレス",
-      "boardIpPlaceholder": "例: 192.168.1.100",
-      "boardIpHelp": "IP を手動入力するか、クリックしてネットワークをスキャンします",
-      "scanNetworkTooltip": "ネットワーク上の Vestaboard をスキャン",
-      "scanningNetwork": "ネットワーク上の Vestaboard をスキャン中…",
-      "noBoardsFound": "ボードが見つかりませんでした。IP アドレスを手動で入力してください。",
-      "foundBoards": "{count} 台の{count, plural, one {ボード} other {ボード}}が見つかりました — 選択してください:",
-      "scanFailed": "スキャンに失敗しました。IP アドレスを手動で入力してください。",
-      "authenticationMethod": "認証方式",
-      "apiKey": "API キー",
-      "enablementToken": "有効化トークン",
-      "localApiKey": "ローカル API キー",
-      "localApiKeyPlaceholder": "ローカル API キー",
-      "localApiKeyHelp": "ローカル API キーをリクエストするには support@vestaboard.com にメールしてください",
-      "enablementTokenPlaceholder": "Vestaboard サポートから提供されたトークン",
-      "enablementTokenHelp": "有効化トークンについては support@vestaboard.com にメールしてください",
-      "getApiKeyFromBoard": "ボードから API キーを取得",
-      "enablingLocalApi": "ローカル API を有効化中...",
-      "apiKeyRetrieved": "API キーを取得しました！",
-      "testConnection": "接続テスト",
-      "testingConnection": "接続をテスト中...",
-      "connectedTestAgain": "接続完了！再テスト",
-      "thingsToTry": "お試しください:",
       "boardType": "ボードタイプ",
       "flagshipDimensions": "6×22 文字",
       "noteDimensions": "3×15 文字",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "度記号のフラップ",
       "code62HeartAriaLabel": "ハートのフラップ",
       "connectionTestFailed": "接続テストに失敗しました",
-      "failedToEnableLocalApi": "ローカルAPIの有効化に失敗しました"
+      "connectedSaved": "接続しました！ボードを保存しました。"
     },
     "easyPlugins": {
       "description": "以下の機能は外部 API キーなしですぐに使えます。使いたい機能を有効にしましょう！",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "接続",
-    "apiModeLabel": "API モード",
-    "localApiLabel": "ローカル API",
-    "localApiDescription": "直接接続",
-    "cloudApiLabel": "クラウド API",
-    "cloudApiDescription": "クラウドサーバー経由",
-    "boardHostLabel": "ボードホスト",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "API キー",
-    "enablementTokenLabel": "有効化トークン",
-    "localApiKeyLabel": "ローカル API キー",
-    "localApiKeyPlaceholder": "ローカル API キーを入力",
-    "localApiKeySetPlaceholder": "••••••••••• （設定済み）",
-    "localApiKeyHelp": "ローカル API キーをリクエストするには support@vestaboard.com にメールしてください",
-    "enablementTokenPlaceholder": "Vestaboard サポートからのトークン",
-    "getApiKeyFromBoard": "ボードから API キーを取得",
-    "enabling": "有効化中...",
-    "localApiEnabled": "ローカル API が有効になりました！API キーを取得・保存しました。",
-    "cloudKeyLabel": "読み取り/書き込み API キー",
-    "cloudKeyPlaceholder": "R/W API キーを入力",
-    "cloudKeySetPlaceholder": "••••••••••• （設定済み）",
-    "cloudKeyHelp": "ボードアプリの設定 → 連携 → 読み取り/書き込み API で確認できます",
-    "localApiRequired": "ローカル API キーとホストが必要です",
-    "cloudApiRequired": "クラウド API キーが必要です",
-    "noteArrayTokenRequired": "クラウド API トークンが必要です",
-    "boardHostAndTokenRequired": "ボードホストと有効化トークンが必要です",
     "enabledLabel": "有効",
     "typeLabel": "タイプ",
     "colorLabel": "カラー",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Note アレイ",
-    "failedToEnable": "ローカル API の有効化に失敗",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Note 横数",
     "notesTallLabel": "Note 縦数",
-    "customRangeError": "各寸法は 1 ～ {max} の範囲でなければなりません。",
-    "noteArrayTokenLabel": "クラウド API トークン",
-    "noteArrayTokenPlaceholder": "X-Vestaboard-Token を入力",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (設定済み)",
-    "noteArrayTokenHelp": "この Note アレイの X-Vestaboard-Token。Vestaboard クラウド API サブスクリプションから取得します。",
-    "autoDetect": "ボードから自動検出",
-    "detecting": "検出中…",
-    "detectFailed": "ボードの構成を検出できませんでした。",
-    "showSecretAriaLabel": "値を表示",
-    "hideSecretAriaLabel": "値を非表示",
-    "tileGrid": {
-      "title": "ボードタイル",
-      "help": "スロットをクリックして、壁のその位置にある実際のボード（IP + ローカル API キー）を割り当てます。「識別」を使うとボードにスロット番号を表示でき、正しい場所にあるか確認できます。",
-      "assign": "割り当て",
-      "assignRequired": "少なくとも 1 つのタイルに、そのボードの IP アドレスとローカル API キーを割り当ててください",
-      "completeBadge": "{total} 枚のタイルすべてが割り当て済み",
-      "partialBadge": "{assigned}/{total} 枚のタイルが割り当て済み",
-      "slotAriaLabelAssigned": "タイル {position}: 行 {row}、列 {col} — {host} に割り当て済み",
-      "slotAriaLabelEmpty": "タイル {position}: 行 {row}、列 {col} — 空、クリックして割り当て",
-      "dialogTitle": "タイル {position} — 行 {row}、列 {col}",
-      "dialogDescription": "この位置にある実際のボードを接続します。ネットワークをスキャンするか、IP とローカル API キーを入力し、「識別」で正しいボードを選んだか確認してください。",
-      "portLabel": "ポート",
-      "hostAndKeyRequired": "ボードの IP とローカル API キーの両方が必要です",
-      "saveTile": "タイルを保存",
-      "clearTile": "タイルをクリア",
-      "tileSaved": "タイルを保存しました",
-      "tileCleared": "タイルをクリアしました",
-      "moveTile": "別の位置に移動",
-      "movePlaceholder": "新しいスロットを選択…",
-      "moveTargetEmpty": "スロット {position} — 空",
-      "moveTargetOccupied": "スロット {position} — {host} と入れ替え",
-      "tileMoved": "タイルをスロット {position} に移動しました",
-      "testTile": "テスト",
-      "testSuccess": "接続テストに成功しました",
-      "testFailed": "接続テストに失敗しました",
-      "identify": "識別",
-      "identifyAll": "すべて識別",
-      "identifySent": "そのボードに位置 {position} が表示されています",
-      "identifyAllSent": "{count} 枚のタイルに識別パターンを送信しました — 各ボードに位置番号が表示されています",
-      "identifyAllPartial": "{total} 枚中 {failed} 枚のタイルに接続できませんでした",
-      "identifyFailed": "識別パターンを送信できませんでした",
-      "scanNetwork": "ネットワークでボードをスキャン",
-      "scanning": "スキャン中…",
-      "scanFound": "ネットワーク上に {count} 台のボードが見つかりました",
-      "scanEmpty": "ネットワーク上にボードが見つかりませんでした",
-      "scanFailed": "ネットワークスキャンに失敗しました",
-      "alreadyAssigned": "タイル {position} に割り当て済み",
-      "duplicateHostWarning": "複数のタイルが同じボードを指しています: {hosts}"
-    }
+    "customRangeError": "各寸法は 1 ～ {max} の範囲でなければなりません。"
   },
   "systemUpdate": {
     "updateAvailable": "アップデートがあります",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "ページを読み込み中…",
     "pagePickerPlaceholder": "ページを選択…",
     "showSecret": "値を表示",
-    "hideSecret": "値を非表示"
+    "hideSecret": "値を非表示",
+    "secretSaved": "••••••••••• （設定済み）"
   },
   "filterPicker": {
     "noFiltersAvailable": "利用可能なフィルターがありません",
@@ -2494,13 +2389,10 @@
     "scanning": "検索中…",
     "noDevicesFound": "デバイスが見つかりません。アドレスを直接入力してください。",
     "devicesFoundLabel": "{field} で見つかったデバイス",
-    "tileSlot": "{row} 行 {col} 列",
     "tileAssigned": "割り当て済み",
-    "tileEmpty": "空き",
-    "tileDialogTitle": "{row} 行 {col} 列のタイル",
+    "tileDialogTitle": "タイル {position} — 行 {row}、列 {col}",
     "tileDialogDescription": "この位置にあるデバイスの設定です。",
     "removeTile": "タイルを削除",
-    "identifyTile": "識別",
     "actionsLabel": "操作",
     "actionFailed": "操作を実行できませんでした。",
     "resultOk": "完了",
@@ -2521,6 +2413,116 @@
     "creating": "追加中…",
     "createBoard": "ボードを追加",
     "outputNotInstalled": "このボードのディスプレイ ({output}) はインストールされていません。",
-    "saveSettings": "設定を保存"
+    "saveSettings": "設定を保存",
+    "tilesComplete": "{total} 枚のタイルすべてが割り当て済み",
+    "tilesPartial": "{assigned}/{total} 枚のタイルが割り当て済み",
+    "identifyAllTiles": "すべて識別",
+    "tileAssign": "割り当て",
+    "tileSlotEmpty": "タイル {position}: 行 {row}、列 {col} — 空、クリックして割り当て",
+    "moveTile": "別の位置に移動",
+    "movePlaceholder": "新しいスロットを選択…",
+    "moveTo": "スロット {position} — 空",
+    "saveTile": "タイルを保存",
+    "tileSlotAssigned": "タイル {position}: 行 {row}、列 {col} — {summary} に割り当て済み",
+    "moveSwap": "スロット {position} — {summary} と入れ替え",
+    "tilesDuplicate": "複数のタイルが同じボードを指しています: {values}",
+    "tileActionsLabel": "タイルの操作",
+    "requiredMissing": "未入力: {fields}",
+    "geometryApplied": "{rows} × {cols} に設定しました"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "接続",
+          "cards": {
+            "local": {
+              "title": "ローカル API",
+              "description": "直接接続"
+            },
+            "cloud": {
+              "title": "クラウド API",
+              "description": "クラウドサーバー経由"
+            }
+          }
+        },
+        "host": {
+          "title": "ボードの IP アドレス",
+          "description": "IP を手動入力するか、クリックしてネットワークをスキャンします",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "ローカル API キー",
+          "description": "ローカル API キーをリクエストするには support@vestaboard.com にメールしてください",
+          "placeholder": "ローカル API キー"
+        },
+        "cloud_key": {
+          "title": "読み取り/書き込み API キー",
+          "description": "ボードアプリの設定 → 連携 → 読み取り/書き込み API で確認できます",
+          "placeholder": "R/W API キーを入力"
+        },
+        "note_array_token": {
+          "title": "クラウド API トークン",
+          "description": "この Note アレイの X-Vestaboard-Token。Vestaboard クラウド API サブスクリプションから取得します。",
+          "placeholder": "X-Vestaboard-Token を入力"
+        },
+        "tiles": {
+          "title": "ボードタイル",
+          "description": "スロットをクリックして、壁のその位置にある実際のボード（IP + ローカル API キー）を割り当てます。「識別」を使うとボードにスロット番号を表示でき、正しい場所にあるか確認できます。",
+          "items": {
+            "host": {
+              "title": "ボードの IP アドレス",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "ポート"
+            },
+            "local_api_key": {
+              "title": "ローカル API キー",
+              "placeholder": "ローカル API キー"
+            },
+            "enabled": {
+              "title": "有効"
+            }
+          }
+        },
+        "port": {
+          "title": "ポート"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "詳細設定"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "接続テスト"
+        },
+        "discover": {
+          "label": "ネットワークでボードをスキャン"
+        },
+        "identify": {
+          "label": "識別"
+        },
+        "detect_geometry": {
+          "label": "ボードから自動検出"
+        },
+        "enable_local_api": {
+          "label": "ボードから API キーを取得",
+          "description": "有効化トークンについては support@vestaboard.com にメールしてください",
+          "input": {
+            "enablement_token": {
+              "title": "有効化トークン",
+              "placeholder": "Vestaboard サポートからのトークン"
+            },
+            "host": {
+              "title": "ボードの IP アドレス",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

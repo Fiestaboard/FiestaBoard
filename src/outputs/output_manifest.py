@@ -113,7 +113,7 @@ OUTPUT_UI_WIDGETS: dict[int, frozenset[str]] = {
     ),
 }
 
-_ACTION_KEYS = frozenset({"id", "label", "description", "input_schema", "result_fields"})
+_ACTION_KEYS = frozenset({"id", "label", "description", "input_schema", "result_fields", "visible_when", "auto_apply"})
 _RESULT_FIELD_KEYS = frozenset({"secret", "fills"})
 _ACTION_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
@@ -340,6 +340,8 @@ def _parse_input_schema(raw: Any, where: str, api: Any, errors: list[str]) -> di
 
 
 def _parse_actions(raw: Any, settings: Mapping[str, Any], api: Any, errors: list[str]) -> tuple[OutputActionSpec, ...]:
+    from src.plugins.settings_ui import condition_errors
+
     if raw is None:
         return ()
     if not isinstance(raw, list):
@@ -369,6 +371,16 @@ def _parse_actions(raw: Any, settings: Mapping[str, Any], api: Any, errors: list
         if not isinstance(description, str):
             errors.append(f"{where}.description must be a string")
             description = ""
+        visible_when = entry.get("visible_when")
+        if visible_when is not None:
+            problems = condition_errors(visible_when, settings.get("properties") or {})
+            errors.extend(f"{where}.visible_when {problem}" for problem in problems)
+            if problems:
+                visible_when = None
+        auto_apply = entry.get("auto_apply", False)
+        if not isinstance(auto_apply, bool):
+            errors.append(f"{where}.auto_apply must be a boolean")
+            auto_apply = False
         actions.append(
             OutputActionSpec(
                 id=action_id,
@@ -376,6 +388,8 @@ def _parse_actions(raw: Any, settings: Mapping[str, Any], api: Any, errors: list
                 description=description,
                 input_schema=_parse_input_schema(entry.get("input_schema"), where, api, errors),
                 result_fields=_parse_result_fields(entry.get("result_fields"), where, settings, errors),
+                visible_when=visible_when,
+                auto_apply=auto_apply,
             )
         )
     return tuple(actions)
@@ -391,7 +405,7 @@ def parse_output_block(
     ``(None, errors)`` otherwise.
     """
     from src.plugins.manifest import validate_settings_schema_ui
-    from src.plugins.settings_ui import device_picker_actions
+    from src.plugins.settings_ui import device_picker_actions, tile_grid_item_actions
 
     errors: list[str] = []
     if not isinstance(block, dict):
@@ -454,6 +468,9 @@ def parse_output_block(
     for path, action in device_picker_actions(settings_schema):
         if action not in declared:
             errors.append(f"output.settings_schema.{path}: device-picker action '{action}' is not declared in actions")
+    for path, action in tile_grid_item_actions(settings_schema):
+        if action not in declared:
+            errors.append(f"output.settings_schema.{path}: tile-grid item action '{action}' is not declared in actions")
 
     if errors:
         return None, errors

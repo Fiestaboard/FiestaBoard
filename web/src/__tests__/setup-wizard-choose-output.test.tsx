@@ -191,19 +191,97 @@ describe("the Vestaboard path", () => {
 
   it("saves the board through the board store and never the deprecated PUT /config/board", async () => {
     available();
-    server.use(http.post("/api/config/board/test", () => HttpResponse.json({ success: true, message: "Connected!" })));
+    const tests = record("post", "/api/outputs/vestaboard/actions/test_connection", () =>
+      HttpResponse.json({
+        status: "ok",
+        message: "Successfully connected to your board!",
+        guidance: [],
+        fields: null,
+        geometry: null,
+        devices: null,
+      }),
+    );
     const boards = record("put", "/api/settings/board", (body) =>
       HttpResponse.json({ board_type: "black", boards: (body as { boards: unknown[] }).boards, devices: ["flagship"] }),
     );
     const legacy = record("put", "/api/config/board", () => HttpResponse.json({}));
     renderWizard();
     await choose(/Vestaboard/);
-    await userEvent.type(await screen.findByLabelText("Read/Write API Key"), "test_cloud_key");
+    // The Vestaboard's own settings screen, on draft settings: cloud by default.
+    await userEvent.type(await screen.findByLabelText(/Read\/Write API Key/), "test_cloud_key");
     await userEvent.click(screen.getByRole("button", { name: "Test Connection" }));
     await waitFor(() => expect(boards).toHaveLength(1));
-    expect((boards[0] as { boards: Array<{ cloud_key: string }> }).boards[0].cloud_key).toBe("test_cloud_key");
+    expect(tests).toEqual([{ output_config: { api_mode: "cloud", cloud_key: "test_cloud_key" } }]);
+    const saved = (boards[0] as { boards: Array<Record<string, unknown>> }).boards[0];
+    expect(saved).toMatchObject({
+      output: "vestaboard",
+      output_config: { api_mode: "cloud", cloud_key: "test_cloud_key" },
+      device_type: "flagship",
+      enabled: true,
+    });
+    expect(saved).not.toHaveProperty("cloud_key");
+    expect(await screen.findByText("Connected! Your board is saved.")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Next" })).toBeEnabled());
     expect(legacy).toEqual([]);
+  });
+
+  it("connects a board over the Local API with the type, colour and flap chosen", async () => {
+    available();
+    const tests = record("post", "/api/outputs/vestaboard/actions/test_connection", () =>
+      HttpResponse.json({
+        status: "ok",
+        message: "Successfully connected to your board!",
+        guidance: [],
+        fields: null,
+        geometry: null,
+        devices: null,
+      }),
+    );
+    const boards = record("put", "/api/settings/board", (body) =>
+      HttpResponse.json({ board_type: "black", boards: (body as { boards: unknown[] }).boards, devices: ["flagship"] }),
+    );
+    renderWizard();
+    await choose(/Vestaboard/);
+    await userEvent.click(await screen.findByRole("radio", { name: /Local API/ }));
+    await userEvent.type(screen.getByLabelText(/Board IP Address/), "192.168.0.50");
+    await userEvent.type(screen.getByLabelText(/Local API Key/), "test-local-key");
+    await userEvent.click(screen.getByTestId("wizard-code62-heart"));
+    await userEvent.click(screen.getByRole("button", { name: "White" }));
+    await userEvent.click(screen.getByRole("button", { name: "Test Connection" }));
+    await waitFor(() => expect(boards).toHaveLength(1));
+
+    expect(tests).toEqual([
+      { output_config: { api_mode: "local", host: "192.168.0.50", local_api_key: "test-local-key" } },
+    ]);
+    expect((boards[0] as { boards: Array<Record<string, unknown>> }).boards[0]).toMatchObject({
+      output: "vestaboard",
+      output_config: { api_mode: "local", host: "192.168.0.50", local_api_key: "test-local-key" },
+      board_color: "white",
+      code62_glyph: "heart",
+    });
+  });
+
+  it("a failed test saves nothing and keeps Next disabled", async () => {
+    available();
+    record("post", "/api/outputs/vestaboard/actions/test_connection", () =>
+      HttpResponse.json({
+        status: "error",
+        message: "Your API key was rejected by the Vestaboard cloud service (HTTP 401).",
+        guidance: ["Check the key in the Vestaboard app."],
+        fields: null,
+        geometry: null,
+        devices: null,
+      }),
+    );
+    const boards = record("put", "/api/settings/board", () => HttpResponse.json({}));
+    renderWizard();
+    await choose(/Vestaboard/);
+    await userEvent.type(await screen.findByLabelText(/Read\/Write API Key/), "test_bad_key");
+    await userEvent.click(screen.getByRole("button", { name: "Test Connection" }));
+
+    expect(await screen.findByText("Check the key in the Vestaboard app.")).toBeInTheDocument();
+    expect(boards).toEqual([]);
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
 });
 

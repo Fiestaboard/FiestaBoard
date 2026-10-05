@@ -5,23 +5,12 @@ import { CheckCircle, Clock, Loader2, PartyPopper, Puzzle, Send, XCircle } from 
 import { useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
-import type { Code62Glyph } from "@/lib/api";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+import type { BoardConfig } from "./step-board-setup";
 import type { WizardPluginConfig } from "./step-easy-plugins";
 import type { WizardCreatedBoard, WizardOutputChoice } from "./step-output-plugin";
-
-interface BoardConfig {
-  api_mode: "local" | "cloud";
-  local_api_key: string;
-  cloud_key: string;
-  host: string;
-  connectionVerified: boolean;
-  device_type: "flagship" | "note";
-  board_color: "black" | "white";
-  code62_glyph: Code62Glyph;
-}
 
 interface StepWelcomeProps {
   boardConfig: BoardConfig;
@@ -45,6 +34,7 @@ export function StepWelcome({
   setIsLoading,
 }: StepWelcomeProps) {
   const otherDisplay = output && output.id !== "vestaboard" ? output : null;
+  const apiMode = boardConfig.output_config.api_mode === "local" ? "local" : "cloud";
   const t = useTranslations("wizard.welcome");
   const tc = useTranslations("common");
   const [sendStatus, setSendStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
@@ -139,14 +129,14 @@ export function StepWelcome({
             <Text as="span">
               {otherDisplay
                 ? t("displayReady", { name: createdBoard?.name ?? otherDisplay.name, output: otherDisplay.name })
-                : boardConfig.api_mode === "local"
+                : apiMode === "local"
                   ? t("boardConnectedLocal", {
                       deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
-                      host: boardConfig.host,
+                      host: String(boardConfig.output_config.host ?? ""),
                     })
                   : t("boardConnected", {
                       deviceType: boardConfig.device_type === "flagship" ? tc("flagship") : tc("note"),
-                      apiMode: boardConfig.api_mode === "cloud" ? "Cloud" : "Local",
+                      apiMode: apiMode === "cloud" ? "Cloud" : "Local",
                     })}
             </Text>
           </Flex>

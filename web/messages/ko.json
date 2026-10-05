@@ -717,37 +717,6 @@
       "setUpOutput": "연결하고 테스트한 뒤 보드로 저장하세요"
     },
     "boardSetup": {
-      "connectionType": "연결 유형",
-      "cloudApi": "클라우드 API",
-      "cloudApiEasiest": "가장 간단한 설정",
-      "localApi": "로컬 API",
-      "localApiFaster": "더 빠름, 동일 네트워크",
-      "readWriteApiKey": "읽기/쓰기 API 키",
-      "cloudKeyPlaceholder": "web.vestaboard.com에서 확인하세요",
-      "cloudKeyHelp": "web.vestaboard.com → 설정 → API에서 확인할 수 있습니다",
-      "boardIpAddress": "보드 IP 주소",
-      "boardIpPlaceholder": "예: 192.168.1.100",
-      "boardIpHelp": "IP를 직접 입력하거나 클릭하여 네트워크를 스캔하세요",
-      "scanNetworkTooltip": "네트워크에서 Vestaboard 검색",
-      "scanningNetwork": "네트워크에서 Vestaboard를 검색 중…",
-      "noBoardsFound": "보드를 찾을 수 없습니다. IP 주소를 직접 입력해 주세요.",
-      "foundBoards": "{count}개의 {count, plural, one {보드} other {보드}}를 찾았습니다 — 하나를 선택하세요:",
-      "scanFailed": "스캔에 실패했습니다. IP 주소를 직접 입력해 주세요.",
-      "authenticationMethod": "인증 방법",
-      "apiKey": "API 키",
-      "enablementToken": "활성화 토큰",
-      "localApiKey": "로컬 API 키",
-      "localApiKeyPlaceholder": "로컬 API 키를 입력하세요",
-      "localApiKeyHelp": "로컬 API 키를 요청하려면 support@vestaboard.com으로 이메일을 보내세요",
-      "enablementTokenPlaceholder": "Vestaboard 지원팀에서 제공한 토큰",
-      "enablementTokenHelp": "활성화 토큰을 받으려면 support@vestaboard.com으로 이메일을 보내세요",
-      "getApiKeyFromBoard": "보드에서 API 키 가져오기",
-      "enablingLocalApi": "로컬 API 활성화 중...",
-      "apiKeyRetrieved": "API 키를 가져왔습니다!",
-      "testConnection": "연결 테스트",
-      "testingConnection": "연결 테스트 중...",
-      "connectedTestAgain": "연결됨! 다시 테스트",
-      "thingsToTry": "시도해 볼 항목:",
       "boardType": "보드 유형",
       "flagshipDimensions": "6 × 22 문자",
       "noteDimensions": "3 × 15 문자",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "도 기호 플랩",
       "code62HeartAriaLabel": "하트 플랩",
       "connectionTestFailed": "연결 테스트 실패",
-      "failedToEnableLocalApi": "로컬 API 활성화 실패"
+      "connectedSaved": "연결되었습니다! 보드가 저장되었습니다."
     },
     "easyPlugins": {
       "description": "이 기능들은 외부 API 키 없이 바로 사용할 수 있습니다. 원하는 기능을 활성화하세요!",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "연결",
-    "apiModeLabel": "API 모드",
-    "localApiLabel": "로컬 API",
-    "localApiDescription": "직접 연결",
-    "cloudApiLabel": "클라우드 API",
-    "cloudApiDescription": "클라우드 서버 경유",
-    "boardHostLabel": "보드 호스트",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "API 키",
-    "enablementTokenLabel": "활성화 토큰",
-    "localApiKeyLabel": "로컬 API 키",
-    "localApiKeyPlaceholder": "로컬 API 키를 입력하세요",
-    "localApiKeySetPlaceholder": "••••••••••• (설정됨)",
-    "localApiKeyHelp": "로컬 API 키를 요청하려면 support@vestaboard.com으로 이메일을 보내세요",
-    "enablementTokenPlaceholder": "Vestaboard 지원팀에서 제공한 토큰",
-    "getApiKeyFromBoard": "보드에서 API 키 가져오기",
-    "enabling": "활성화 중...",
-    "localApiEnabled": "로컬 API가 활성화되었습니다! API 키가 가져와져 저장되었습니다.",
-    "cloudKeyLabel": "읽기/쓰기 API 키",
-    "cloudKeyPlaceholder": "R/W API 키를 입력하세요",
-    "cloudKeySetPlaceholder": "••••••••••• (설정됨)",
-    "cloudKeyHelp": "보드 앱의 설정 → 연동 → 읽기/쓰기 API에서 확인할 수 있습니다",
-    "localApiRequired": "로컬 API 키와 호스트가 필요합니다",
-    "cloudApiRequired": "클라우드 API 키가 필요합니다",
-    "noteArrayTokenRequired": "클라우드 API 토큰이 필요합니다",
-    "boardHostAndTokenRequired": "보드 호스트와 활성화 토큰이 필요합니다",
     "enabledLabel": "활성화됨",
     "typeLabel": "유형",
     "colorLabel": "색상",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Note 어레이",
-    "failedToEnable": "로컬 API 활성화 실패",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Note 가로 수",
     "notesTallLabel": "Note 세로 수",
-    "customRangeError": "각 치수는 1에서 {max} 사이여야 합니다.",
-    "noteArrayTokenLabel": "클라우드 API 토큰",
-    "noteArrayTokenPlaceholder": "X-Vestaboard-Token 입력",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (설정됨)",
-    "noteArrayTokenHelp": "이 Note 어레이의 X-Vestaboard-Token으로, Vestaboard 클라우드 API 구독에서 가져옵니다.",
-    "autoDetect": "보드에서 자동 감지",
-    "detecting": "감지 중…",
-    "detectFailed": "보드 구성을 감지할 수 없습니다.",
-    "showSecretAriaLabel": "값 표시",
-    "hideSecretAriaLabel": "값 숨기기",
-    "tileGrid": {
-      "title": "보드 타일",
-      "help": "슬롯을 클릭해 벽의 해당 위치에 있는 실제 보드(IP + 로컬 API 키)를 할당하세요. 식별 기능을 사용하면 보드에 슬롯 번호를 표시해 올바른 위치에 있는지 확인할 수 있습니다.",
-      "assign": "할당",
-      "assignRequired": "최소 하나의 타일에 해당 보드의 IP 주소와 로컬 API 키를 할당하세요",
-      "completeBadge": "타일 {total}개 모두 할당됨",
-      "partialBadge": "타일 {assigned}/{total}개 할당됨",
-      "slotAriaLabelAssigned": "타일 {position}: {row}행, {col}열 — {host}에 할당됨",
-      "slotAriaLabelEmpty": "타일 {position}: {row}행, {col}열 — 비어 있음, 클릭하여 할당",
-      "dialogTitle": "타일 {position} — {row}행, {col}열",
-      "dialogDescription": "이 위치의 실제 보드를 연결하세요. 네트워크를 검색하거나 IP와 로컬 API 키를 입력한 뒤, 식별 기능으로 올바른 보드를 선택했는지 확인하세요.",
-      "portLabel": "포트",
-      "hostAndKeyRequired": "보드 IP와 로컬 API 키가 모두 필요합니다",
-      "saveTile": "타일 저장",
-      "clearTile": "타일 지우기",
-      "tileSaved": "타일이 저장되었습니다",
-      "tileCleared": "타일이 지워졌습니다",
-      "moveTile": "다른 위치로 이동",
-      "movePlaceholder": "새 슬롯을 선택하세요…",
-      "moveTargetEmpty": "슬롯 {position} — 비어 있음",
-      "moveTargetOccupied": "슬롯 {position} — {host}와(과) 교체",
-      "tileMoved": "타일이 슬롯 {position}(으)로 이동되었습니다",
-      "testTile": "테스트",
-      "testSuccess": "연결 테스트에 성공했습니다",
-      "testFailed": "연결 테스트에 실패했습니다",
-      "identify": "식별",
-      "identifyAll": "모두 식별",
-      "identifySent": "해당 보드에 위치 {position}이(가) 표시되고 있습니다",
-      "identifyAllSent": "타일 {count}개에 식별 패턴을 보냈습니다 — 각 보드에 위치 번호가 표시됩니다",
-      "identifyAllPartial": "타일 {total}개 중 {failed}개에 연결할 수 없습니다",
-      "identifyFailed": "식별 패턴을 보낼 수 없습니다",
-      "scanNetwork": "네트워크에서 보드 검색",
-      "scanning": "검색 중…",
-      "scanFound": "네트워크에서 보드 {count}개를 찾았습니다",
-      "scanEmpty": "네트워크에서 보드를 찾을 수 없습니다",
-      "scanFailed": "네트워크 검색에 실패했습니다",
-      "alreadyAssigned": "타일 {position}에 할당됨",
-      "duplicateHostWarning": "여러 타일이 같은 보드를 가리키고 있습니다: {hosts}"
-    }
+    "customRangeError": "각 치수는 1에서 {max} 사이여야 합니다."
   },
   "systemUpdate": {
     "updateAvailable": "업데이트 가능",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "페이지를 불러오는 중…",
     "pagePickerPlaceholder": "페이지 선택…",
     "showSecret": "값 표시",
-    "hideSecret": "값 숨기기"
+    "hideSecret": "값 숨기기",
+    "secretSaved": "••••••••••• (설정됨)"
   },
   "filterPicker": {
     "noFiltersAvailable": "사용 가능한 필터가 없습니다",
@@ -2494,13 +2389,10 @@
     "scanning": "검색 중…",
     "noDevicesFound": "기기를 찾지 못했습니다. 주소를 직접 입력하세요.",
     "devicesFoundLabel": "{field}에서 찾은 기기",
-    "tileSlot": "{row}행 {col}열",
     "tileAssigned": "할당됨",
-    "tileEmpty": "비어 있음",
-    "tileDialogTitle": "{row}행 {col}열의 타일",
+    "tileDialogTitle": "타일 {position} — {row}행, {col}열",
     "tileDialogDescription": "이 위치에 있는 기기의 설정입니다.",
     "removeTile": "타일 제거",
-    "identifyTile": "식별",
     "actionsLabel": "작업",
     "actionFailed": "작업을 실행할 수 없습니다.",
     "resultOk": "완료",
@@ -2521,6 +2413,116 @@
     "creating": "추가 중…",
     "createBoard": "보드 추가",
     "outputNotInstalled": "이 보드의 디스플레이({output})가 설치되어 있지 않습니다.",
-    "saveSettings": "설정 저장"
+    "saveSettings": "설정 저장",
+    "tilesComplete": "타일 {total}개 모두 할당됨",
+    "tilesPartial": "타일 {assigned}/{total}개 할당됨",
+    "identifyAllTiles": "모두 식별",
+    "tileAssign": "할당",
+    "tileSlotEmpty": "타일 {position}: {row}행, {col}열 — 비어 있음, 클릭하여 할당",
+    "moveTile": "다른 위치로 이동",
+    "movePlaceholder": "새 슬롯을 선택하세요…",
+    "moveTo": "슬롯 {position} — 비어 있음",
+    "saveTile": "타일 저장",
+    "tileSlotAssigned": "타일 {position}: {row}행, {col}열 — {summary}에 할당됨",
+    "moveSwap": "슬롯 {position} — {summary}와(과) 교체",
+    "tilesDuplicate": "여러 타일이 같은 보드를 가리키고 있습니다: {values}",
+    "tileActionsLabel": "타일 작업",
+    "requiredMissing": "아직 필요: {fields}",
+    "geometryApplied": "{rows} × {cols}(으)로 설정됨"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "연결",
+          "cards": {
+            "local": {
+              "title": "로컬 API",
+              "description": "직접 연결"
+            },
+            "cloud": {
+              "title": "클라우드 API",
+              "description": "클라우드 서버 경유"
+            }
+          }
+        },
+        "host": {
+          "title": "보드 IP 주소",
+          "description": "IP를 직접 입력하거나 클릭하여 네트워크를 스캔하세요",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "로컬 API 키",
+          "description": "로컬 API 키를 요청하려면 support@vestaboard.com으로 이메일을 보내세요",
+          "placeholder": "로컬 API 키를 입력하세요"
+        },
+        "cloud_key": {
+          "title": "읽기/쓰기 API 키",
+          "description": "보드 앱의 설정 → 연동 → 읽기/쓰기 API에서 확인할 수 있습니다",
+          "placeholder": "R/W API 키를 입력하세요"
+        },
+        "note_array_token": {
+          "title": "클라우드 API 토큰",
+          "description": "이 Note 어레이의 X-Vestaboard-Token으로, Vestaboard 클라우드 API 구독에서 가져옵니다.",
+          "placeholder": "X-Vestaboard-Token 입력"
+        },
+        "tiles": {
+          "title": "보드 타일",
+          "description": "슬롯을 클릭해 벽의 해당 위치에 있는 실제 보드(IP + 로컬 API 키)를 할당하세요. 식별 기능을 사용하면 보드에 슬롯 번호를 표시해 올바른 위치에 있는지 확인할 수 있습니다.",
+          "items": {
+            "host": {
+              "title": "보드 IP 주소",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "포트"
+            },
+            "local_api_key": {
+              "title": "로컬 API 키",
+              "placeholder": "로컬 API 키를 입력하세요"
+            },
+            "enabled": {
+              "title": "활성화됨"
+            }
+          }
+        },
+        "port": {
+          "title": "포트"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "고급"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "연결 테스트"
+        },
+        "discover": {
+          "label": "네트워크에서 보드 검색"
+        },
+        "identify": {
+          "label": "식별"
+        },
+        "detect_geometry": {
+          "label": "보드에서 자동 감지"
+        },
+        "enable_local_api": {
+          "label": "보드에서 API 키 가져오기",
+          "description": "활성화 토큰을 받으려면 support@vestaboard.com으로 이메일을 보내세요",
+          "input": {
+            "enablement_token": {
+              "title": "활성화 토큰",
+              "placeholder": "Vestaboard 지원팀에서 제공한 토큰"
+            },
+            "host": {
+              "title": "보드 IP 주소",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

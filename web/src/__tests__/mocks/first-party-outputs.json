@@ -12,14 +12,7 @@
       "technology": "split_flap",
       "delivery": "push",
       "animation": "stream",
-      "native_transitions": [
-        "column",
-        "diagonal",
-        "edges-to-center",
-        "random",
-        "reverse-column",
-        "row"
-      ],
+      "native_transitions": ["column", "diagonal", "edges-to-center", "random", "reverse-column", "row"],
       "charset": null
     },
     "device_models": [
@@ -42,10 +35,7 @@
         "api_mode": {
           "type": "string",
           "title": "Connection",
-          "enum": [
-            "local",
-            "cloud"
-          ],
+          "enum": ["local", "cloud"],
           "default": "local",
           "ui:widget": "mode-cards",
           "ui:options": {
@@ -76,10 +66,7 @@
           },
           "ui:visible_when": {
             "api_mode": "local",
-            "@device_type": [
-              "flagship",
-              "note"
-            ]
+            "@device_type": ["flagship", "note"]
           }
         },
         "local_api_key": {
@@ -90,10 +77,7 @@
           "secret": true,
           "ui:visible_when": {
             "api_mode": "local",
-            "@device_type": [
-              "flagship",
-              "note"
-            ]
+            "@device_type": ["flagship", "note"]
           }
         },
         "cloud_key": {
@@ -104,10 +88,7 @@
           "secret": true,
           "ui:visible_when": {
             "api_mode": "cloud",
-            "@device_type": [
-              "flagship",
-              "note"
-            ]
+            "@device_type": ["flagship", "note"]
           }
         },
         "note_array_token": {
@@ -128,14 +109,8 @@
           "ui:widget": "tile-grid",
           "ui:options": {
             "layout": "board",
-            "item_actions": [
-              "identify",
-              "enable_local_api"
-            ],
-            "unique_fields": [
-              "host",
-              "port"
-            ]
+            "item_actions": ["identify", "enable_local_api"],
+            "unique_fields": ["host", "port"]
           },
           "ui:visible_when": {
             "api_mode": "local",
@@ -143,10 +118,7 @@
           },
           "items": {
             "type": "object",
-            "required": [
-              "host",
-              "local_api_key"
-            ],
+            "required": ["host", "local_api_key"],
             "properties": {
               "row": {
                 "type": "integer",
@@ -200,27 +172,16 @@
           "default": 7000,
           "ui:visible_when": {
             "api_mode": "local",
-            "@device_type": [
-              "flagship",
-              "note"
-            ]
+            "@device_type": ["flagship", "note"]
           }
         }
       },
-      "required": [
-        "host",
-        "local_api_key",
-        "cloud_key",
-        "note_array_token",
-        "tiles"
-      ],
+      "required": ["host", "local_api_key", "cloud_key", "note_array_token", "tiles"],
       "ui:sections": [
         {
           "id": "advanced",
           "title": "Advanced",
-          "fields": [
-            "port"
-          ],
+          "fields": ["port"],
           "collapsible": true,
           "collapsed": true
         }
@@ -270,10 +231,7 @@
           "properties": {
             "target": {
               "type": "string",
-              "enum": [
-                "tile",
-                "all"
-              ],
+              "enum": ["tile", "all"],
               "default": "tile"
             },
             "row": {
@@ -341,9 +299,7 @@
               "ui:placeholder": "192.168.1.100"
             }
           },
-          "required": [
-            "enablement_token"
-          ]
+          "required": ["enablement_token"]
         },
         "result_fields": {
           "api_key": {

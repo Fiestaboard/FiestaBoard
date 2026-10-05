@@ -2,9 +2,16 @@ import { PageCard } from "@fiestaboard/ui";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import firstPartyOutputs from "@/__tests__/mocks/first-party-outputs.json";
 import type { BoardInstance, BoardSettings } from "@/lib/api";
 
 import { DisplaySettings } from "./display-settings";
+import { OUTPUTS_QUERY_KEY } from "./output-boards";
+
+/** A Vestaboard's connection: its `output_config`, which the screen edits (the flat fields are the read-back view). */
+function vestaboard(config: Record<string, unknown>): Pick<BoardInstance, "output" | "output_config"> {
+  return { output: "vestaboard", output_config: config };
+}
 
 const flagshipBoard: BoardInstance = {
   id: "board-1",
@@ -18,6 +25,7 @@ const flagshipBoard: BoardInstance = {
   host: "192.168.1.100",
   local_api_key: "***",
   cloud_key: "",
+  ...vestaboard({ api_mode: "local", host: "192.168.1.100", port: 7000, local_api_key: "***" }),
 };
 
 const noteBoard: BoardInstance = {
@@ -30,6 +38,7 @@ const noteBoard: BoardInstance = {
   host: "",
   local_api_key: "",
   cloud_key: "***",
+  ...vestaboard({ api_mode: "cloud", cloud_key: "***" }),
 };
 
 const disabledBoard: BoardInstance = {
@@ -44,6 +53,7 @@ const disabledBoard: BoardInstance = {
   host: "",
   local_api_key: "",
   cloud_key: "",
+  ...vestaboard({ api_mode: "local" }),
 };
 
 const createQueryClient = (boards: BoardInstance[]) => {
@@ -61,6 +71,7 @@ const createQueryClient = (boards: BoardInstance[]) => {
   };
 
   client.setQueryData(["boardSettings"], settings);
+  client.setQueryData(OUTPUTS_QUERY_KEY, firstPartyOutputs);
 
   return client;
 };
@@ -118,7 +129,9 @@ export const UnconfiguredBoard: Story = {
   decorators: [
     (Story) => (
       <QueryClientProvider
-        client={createQueryClient([{ ...flagshipBoard, host: "", local_api_key: "", name: "New Board" }])}
+        client={createQueryClient([
+          { ...flagshipBoard, host: "", local_api_key: "", name: "New Board", ...vestaboard({ api_mode: "local" }) },
+        ])}
       >
         <div className="max-w-lg">
           {/* PageSection pads and divides itself but draws no surface — the

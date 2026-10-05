@@ -220,10 +220,11 @@ test.describe("Settings – Board Instance CRUD", () => {
     expect(data.boards[0].notes_wide).toBe(4);
     expect(data.boards[0].notes_tall).toBe(1);
 
-    // The Cloud API Token field appears for note arrays — enter a token.
-    const tokenInput = page.getByText("Cloud API Token").locator("..").locator("input");
+    // The Cloud API Token field appears for note arrays — enter a token and
+    // save the board's settings screen.
+    const tokenInput = page.getByLabel(/Cloud API Token/);
     await tokenInput.fill("test-vestaboard-token");
-    await tokenInput.blur();
+    await page.getByRole("button", { name: "Save settings" }).click();
     await page.waitForTimeout(1_500);
 
     // Reload and confirm the selection + token persisted (token masked as "***").
@@ -244,18 +245,26 @@ test.describe("Settings – Board Instance CRUD", () => {
 
     await openSettingsTab(page, "Hardware");
 
-    // Route-mock the detect-size endpoint to return a 2×2 grid (6×30 chars).
-    await page.route("**/settings/board/*/detect-size", async (route) => {
+    // Route-mock the board's detect action (the Vestaboard settings screen's
+    // "Auto-detect from board") to read a 2×2 grid (6×30 chars).
+    await page.route("**/boards/*/actions/detect_geometry", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          device_type: "note_array",
-          rows: 6,
-          cols: 30,
-          notes_wide: 2,
-          notes_tall: 2,
-          matched_preset: "2×2 grid",
+          status: "ok",
+          message: "Size detected.",
+          guidance: [],
+          fields: null,
+          devices: null,
+          geometry: {
+            device_type: "note_array",
+            rows: 6,
+            cols: 30,
+            notes_wide: 2,
+            notes_tall: 2,
+            matched_preset: "2×2 grid",
+          },
         }),
       });
     });
@@ -451,7 +460,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     // Fill Local API credentials first
-    await page.getByText("Local API").click();
+    await page.getByRole("radio", { name: /Local API/ }).click();
     await page.getByLabel("Board IP Address").fill(BOARD_HOST);
     await page.getByLabel("Local API Key").fill("test-key");
 
@@ -508,7 +517,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     // Don't change type or color — use defaults
-    await page.getByText("Local API").click();
+    await page.getByRole("radio", { name: /Local API/ }).click();
     await page.getByLabel("Board IP Address").fill(BOARD_HOST);
     await page.getByLabel("Local API Key").fill("test-key");
 
@@ -549,7 +558,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await expect(whiteBtn).toHaveClass(/ring-2/, { timeout: 2_000 });
 
     // Fill Local API credentials (scrolls up)
-    await page.getByText("Local API").click();
+    await page.getByRole("radio", { name: /Local API/ }).click();
     await page.getByLabel("Board IP Address").fill(BOARD_HOST);
     await page.getByLabel("Local API Key").fill("test-key");
 

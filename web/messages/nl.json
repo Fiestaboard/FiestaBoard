@@ -717,37 +717,6 @@
       "setUpOutput": "Verbind het, test het en sla het op als bord"
     },
     "boardSetup": {
-      "connectionType": "Verbindingstype",
-      "cloudApi": "Cloud API",
-      "cloudApiEasiest": "Eenvoudigste instelling",
-      "localApi": "Lokale API",
-      "localApiFaster": "Sneller, zelfde netwerk",
-      "readWriteApiKey": "Lees/schrijf API-sleutel",
-      "cloudKeyPlaceholder": "Verkrijg deze via web.vestaboard.com",
-      "cloudKeyHelp": "Te vinden op web.vestaboard.com → Instellingen → API",
-      "boardIpAddress": "IP-adres van het bord",
-      "boardIpPlaceholder": "bijv. 192.168.1.100",
-      "boardIpHelp": "Voer het IP-adres handmatig in of klik om je netwerk te scannen",
-      "scanNetworkTooltip": "Netwerk scannen naar Vestaboards",
-      "scanningNetwork": "Netwerk scannen naar Vestaboards…",
-      "noBoardsFound": "Geen borden gevonden. Voer het IP-adres handmatig in.",
-      "foundBoards": "{count} {count, plural, one {bord} other {borden}} gevonden — selecteer er een:",
-      "scanFailed": "Scannen mislukt. Voer het IP-adres handmatig in.",
-      "authenticationMethod": "Authenticatiemethode",
-      "apiKey": "API-sleutel",
-      "enablementToken": "Activeringstoken",
-      "localApiKey": "Lokale API-sleutel",
-      "localApiKeyPlaceholder": "Je lokale API-sleutel",
-      "localApiKeyHelp": "E-mail support@vestaboard.com om je lokale API-sleutel aan te vragen",
-      "enablementTokenPlaceholder": "Token verstrekt door Vestaboard-ondersteuning",
-      "enablementTokenHelp": "E-mail support@vestaboard.com voor een activeringstoken",
-      "getApiKeyFromBoard": "API-sleutel ophalen van bord",
-      "enablingLocalApi": "Lokale API inschakelen...",
-      "apiKeyRetrieved": "API-sleutel opgehaald!",
-      "testConnection": "Verbinding testen",
-      "testingConnection": "Verbinding testen...",
-      "connectedTestAgain": "Verbonden! Opnieuw testen",
-      "thingsToTry": "Dingen om te proberen:",
       "boardType": "Bordtype",
       "flagshipDimensions": "6 × 22 tekens",
       "noteDimensions": "3 × 15 tekens",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "Gradenteken-klepje",
       "code62HeartAriaLabel": "Hartje-klepje",
       "connectionTestFailed": "Verbindingstest mislukt",
-      "failedToEnableLocalApi": "Lokale API activeren mislukt"
+      "connectedSaved": "Verbonden! Je bord is opgeslagen."
     },
     "easyPlugins": {
       "description": "Deze functies werken direct zonder externe API-sleutels. Schakel in wat je wilt!",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "Verbinding",
-    "apiModeLabel": "API-modus",
-    "localApiLabel": "Lokale API",
-    "localApiDescription": "Directe verbinding",
-    "cloudApiLabel": "Cloud API",
-    "cloudApiDescription": "Via cloudservers",
-    "boardHostLabel": "Bordhost",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "API-sleutel",
-    "enablementTokenLabel": "Activeringstoken",
-    "localApiKeyLabel": "Lokale API-sleutel",
-    "localApiKeyPlaceholder": "Voer lokale API-sleutel in",
-    "localApiKeySetPlaceholder": "••••••••••• (ingesteld)",
-    "localApiKeyHelp": "E-mail support@vestaboard.com om je lokale API-sleutel aan te vragen",
-    "enablementTokenPlaceholder": "Token van Vestaboard-ondersteuning",
-    "getApiKeyFromBoard": "API-sleutel ophalen van bord",
-    "enabling": "Inschakelen...",
-    "localApiEnabled": "Lokale API ingeschakeld! API-sleutel opgehaald en opgeslagen.",
-    "cloudKeyLabel": "Lees/schrijf API-sleutel",
-    "cloudKeyPlaceholder": "Voer R/W API-sleutel in",
-    "cloudKeySetPlaceholder": "••••••••••• (ingesteld)",
-    "cloudKeyHelp": "Te vinden in je bord-app onder Instellingen → Integraties → Lees/schrijf API",
-    "localApiRequired": "Lokale API-sleutel en host zijn verplicht",
-    "cloudApiRequired": "Cloud API-sleutel is verplicht",
-    "noteArrayTokenRequired": "Cloud API-token is verplicht",
-    "boardHostAndTokenRequired": "Bordhost en activeringstoken zijn verplicht",
     "enabledLabel": "Ingeschakeld",
     "typeLabel": "Type",
     "colorLabel": "Kleur",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Note-array",
-    "failedToEnable": "Lokale API inschakelen mislukt",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Notes breed",
     "notesTallLabel": "Notes hoog",
-    "customRangeError": "Elke dimensie moet tussen 1 en {max} liggen.",
-    "noteArrayTokenLabel": "Cloud-API-token",
-    "noteArrayTokenPlaceholder": "Voer X-Vestaboard-Token in",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (ingesteld)",
-    "noteArrayTokenHelp": "De X-Vestaboard-Token voor deze Note-array, uit je Vestaboard Cloud API-abonnement.",
-    "autoDetect": "Automatisch detecteren vanaf bord",
-    "detecting": "Detecteren…",
-    "detectFailed": "Kan de bordconfiguratie niet detecteren.",
-    "showSecretAriaLabel": "Waarde tonen",
-    "hideSecretAriaLabel": "Waarde verbergen",
-    "tileGrid": {
-      "title": "Bordtegels",
-      "help": "Klik op een positie om het fysieke bord (IP + lokale API-sleutel) toe te wijzen dat op die plek aan je muur hangt. Gebruik Identificeren om een positienummer op een bord te tonen en te bevestigen dat het op de juiste plek hangt.",
-      "assign": "Toewijzen",
-      "assignRequired": "Wijs minstens één tegel toe met het IP-adres en de lokale API-sleutel van het bijbehorende bord",
-      "completeBadge": "Alle {total} tegels toegewezen",
-      "partialBadge": "{assigned}/{total} tegels toegewezen",
-      "slotAriaLabelAssigned": "Tegel {position}: rij {row}, kolom {col} — toegewezen aan {host}",
-      "slotAriaLabelEmpty": "Tegel {position}: rij {row}, kolom {col} — leeg, klik om toe te wijzen",
-      "dialogTitle": "Tegel {position} — rij {row}, kolom {col}",
-      "dialogDescription": "Verbind het fysieke bord op deze positie. Scan je netwerk of voer het IP en de lokale API-sleutel in, en gebruik daarna Identificeren om te bevestigen dat je het juiste bord hebt gekozen.",
-      "portLabel": "Poort",
-      "hostAndKeyRequired": "Zowel het bord-IP als de lokale API-sleutel zijn verplicht",
-      "saveTile": "Tegel opslaan",
-      "clearTile": "Tegel wissen",
-      "tileSaved": "Tegel opgeslagen",
-      "tileCleared": "Tegel gewist",
-      "moveTile": "Naar een andere positie verplaatsen",
-      "movePlaceholder": "Kies een nieuwe positie…",
-      "moveTargetEmpty": "Positie {position} — leeg",
-      "moveTargetOccupied": "Positie {position} — wisselen met {host}",
-      "tileMoved": "Tegel verplaatst naar positie {position}",
-      "testTile": "Testen",
-      "testSuccess": "Verbindingstest geslaagd",
-      "testFailed": "Verbindingstest mislukt",
-      "identify": "Identificeren",
-      "identifyAll": "Alles identificeren",
-      "identifySent": "Positie {position} wordt nu op dat bord weergegeven",
-      "identifyAllSent": "Identificatiepatronen verzonden naar {count} tegels — elk bord toont nu zijn positienummer",
-      "identifyAllPartial": "{failed} van de {total} tegels konden niet worden bereikt",
-      "identifyFailed": "Kan het identificatiepatroon niet verzenden",
-      "scanNetwork": "Netwerk scannen op borden",
-      "scanning": "Scannen…",
-      "scanFound": "{count} borden gevonden in je netwerk",
-      "scanEmpty": "Geen borden gevonden in je netwerk",
-      "scanFailed": "Netwerkscan mislukt",
-      "alreadyAssigned": "Toegewezen aan tegel {position}",
-      "duplicateHostWarning": "Meerdere tegels verwijzen naar hetzelfde bord: {hosts}"
-    }
+    "customRangeError": "Elke dimensie moet tussen 1 en {max} liggen."
   },
   "systemUpdate": {
     "updateAvailable": "Update beschikbaar",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "Pagina's laden…",
     "pagePickerPlaceholder": "Kies een pagina…",
     "showSecret": "Waarde tonen",
-    "hideSecret": "Waarde verbergen"
+    "hideSecret": "Waarde verbergen",
+    "secretSaved": "••••••••••• (ingesteld)"
   },
   "filterPicker": {
     "noFiltersAvailable": "Geen filters beschikbaar",
@@ -2494,13 +2389,10 @@
     "scanning": "Zoeken…",
     "noDevicesFound": "Geen apparaten gevonden. Voer het adres zelf in.",
     "devicesFoundLabel": "Gevonden apparaten voor {field}",
-    "tileSlot": "Rij {row}, kolom {col}",
     "tileAssigned": "Toegewezen",
-    "tileEmpty": "Leeg",
-    "tileDialogTitle": "Tegel op rij {row}, kolom {col}",
+    "tileDialogTitle": "Tegel {position} — rij {row}, kolom {col}",
     "tileDialogDescription": "Instellingen voor het apparaat op deze positie.",
     "removeTile": "Tegel verwijderen",
-    "identifyTile": "Identificeren",
     "actionsLabel": "Acties",
     "actionFailed": "De actie kon niet worden uitgevoerd.",
     "resultOk": "Klaar",
@@ -2521,6 +2413,116 @@
     "creating": "Toevoegen…",
     "createBoard": "Bord toevoegen",
     "outputNotInstalled": "Het display van dit bord ({output}) is niet geïnstalleerd.",
-    "saveSettings": "Instellingen opslaan"
+    "saveSettings": "Instellingen opslaan",
+    "tilesComplete": "Alle {total} tegels toegewezen",
+    "tilesPartial": "{assigned}/{total} tegels toegewezen",
+    "identifyAllTiles": "Alles identificeren",
+    "tileAssign": "Toewijzen",
+    "tileSlotEmpty": "Tegel {position}: rij {row}, kolom {col} — leeg, klik om toe te wijzen",
+    "moveTile": "Naar een andere positie verplaatsen",
+    "movePlaceholder": "Kies een nieuwe positie…",
+    "moveTo": "Positie {position} — leeg",
+    "saveTile": "Tegel opslaan",
+    "tileSlotAssigned": "Tegel {position}: rij {row}, kolom {col} — toegewezen aan {summary}",
+    "moveSwap": "Positie {position} — wisselen met {summary}",
+    "tilesDuplicate": "Meerdere tegels verwijzen naar hetzelfde bord: {values}",
+    "tileActionsLabel": "Tegelacties",
+    "requiredMissing": "Nog nodig: {fields}",
+    "geometryApplied": "Ingesteld op {rows} × {cols}"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "Verbinding",
+          "cards": {
+            "local": {
+              "title": "Lokale API",
+              "description": "Directe verbinding"
+            },
+            "cloud": {
+              "title": "Cloud API",
+              "description": "Via cloudservers"
+            }
+          }
+        },
+        "host": {
+          "title": "IP-adres van het bord",
+          "description": "Voer het IP-adres handmatig in of klik om je netwerk te scannen",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "Lokale API-sleutel",
+          "description": "E-mail support@vestaboard.com om je lokale API-sleutel aan te vragen",
+          "placeholder": "Je lokale API-sleutel"
+        },
+        "cloud_key": {
+          "title": "Lees/schrijf API-sleutel",
+          "description": "Te vinden in je bord-app onder Instellingen → Integraties → Lees/schrijf API",
+          "placeholder": "Voer R/W API-sleutel in"
+        },
+        "note_array_token": {
+          "title": "Cloud-API-token",
+          "description": "De X-Vestaboard-Token voor deze Note-array, uit je Vestaboard Cloud API-abonnement.",
+          "placeholder": "Voer X-Vestaboard-Token in"
+        },
+        "tiles": {
+          "title": "Bordtegels",
+          "description": "Klik op een positie om het fysieke bord (IP + lokale API-sleutel) toe te wijzen dat op die plek aan je muur hangt. Gebruik Identificeren om een positienummer op een bord te tonen en te bevestigen dat het op de juiste plek hangt.",
+          "items": {
+            "host": {
+              "title": "IP-adres van het bord",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "Poort"
+            },
+            "local_api_key": {
+              "title": "Lokale API-sleutel",
+              "placeholder": "Je lokale API-sleutel"
+            },
+            "enabled": {
+              "title": "Ingeschakeld"
+            }
+          }
+        },
+        "port": {
+          "title": "Poort"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "Geavanceerd"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "Verbinding testen"
+        },
+        "discover": {
+          "label": "Netwerk scannen op borden"
+        },
+        "identify": {
+          "label": "Identificeren"
+        },
+        "detect_geometry": {
+          "label": "Automatisch detecteren vanaf bord"
+        },
+        "enable_local_api": {
+          "label": "API-sleutel ophalen van bord",
+          "description": "E-mail support@vestaboard.com voor een activeringstoken",
+          "input": {
+            "enablement_token": {
+              "title": "Activeringstoken",
+              "placeholder": "Token van Vestaboard-ondersteuning"
+            },
+            "host": {
+              "title": "IP-adres van het bord",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }

@@ -12,7 +12,7 @@ import { http, HttpResponse } from "msw";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { identifyInput } from "@/components/plugin-settings/board-widgets";
+import { tileActionInput } from "@/components/plugin-settings/board-widgets";
 import { PluginBoardSettings } from "@/components/settings/plugin-board-settings";
 import type { ActionResult, OutputSummary } from "@/lib/api";
 
@@ -344,14 +344,14 @@ describe("tile-grid", () => {
     );
     const grid = screen.getByRole("group", { name: "Tiles" });
     expect(within(grid).getAllByRole("button")).toHaveLength(2);
-    await userEvent.click(within(grid).getByRole("button", { name: "Row 1, column 2" }));
+    await userEvent.click(within(grid).getByRole("button", { name: /Tile 2: row 1, column 2/ }));
     const dialog = await screen.findByRole("dialog");
     await userEvent.type(within(dialog).getByLabelText("Tile address"), "192.0.2.8");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save tile" }));
     await waitFor(() => expect(values().tiles).toEqual([{ row: 0, col: 1, host: "192.0.2.8" }]));
   });
 
-  it("identifies a saved tile by position alone, never with a masked key", () => {
+  it("acts on a saved tile by position alone, never with a masked key", () => {
     const identify = {
       id: "identify",
       label: "Identify",
@@ -360,19 +360,203 @@ describe("tile-grid", () => {
       input_schema: { type: "object", properties: { target: {}, row: {}, col: {}, host: {}, local_api_key: {} } },
       result_fields: {},
     };
-    expect(identifyInput([identify], { row: 0, col: 1, host: "192.0.2.8", local_api_key: "***" })).toEqual({
-      target: "tile",
+    expect(tileActionInput(identify, { row: 0, col: 1, host: "192.0.2.8", local_api_key: "***" })).toEqual({
       row: 0,
       col: 1,
     });
-    expect(identifyInput([identify], { row: 0, col: 1, host: "192.0.2.8", local_api_key: "k", enabled: true })).toEqual(
-      {
-        target: "tile",
-        row: 0,
-        col: 1,
-        host: "192.0.2.8",
-        local_api_key: "k",
-      },
+    expect(tileActionInput(identify, { row: 0, col: 1, host: "192.0.2.8", local_api_key: "k", enabled: true })).toEqual(
+      { row: 0, col: 1, host: "192.0.2.8", local_api_key: "k" },
     );
+  });
+});
+
+describe("the contract's board facts, conditional actions and auto-apply", () => {
+  const SHAPED: OutputSummary = {
+    ...OUTPUT,
+    id: "shaped_sign",
+    settings_schema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", title: "Mode", enum: ["lan", "cloud"], default: "lan", "ui:widget": "mode-cards" },
+        host: {
+          type: "string",
+          title: "Sign address",
+          "ui:visible_when": { mode: "lan", "@device_type": ["flagship", "note"] },
+        },
+        array_token: {
+          type: "string",
+          title: "Array token",
+          secret: true,
+          "ui:visible_when": { "@device_type": "note_array" },
+        },
+        tiles: {
+          type: "array",
+          title: "Tiles",
+          "ui:widget": "tile-grid",
+          "ui:options": { layout: "board", item_actions: ["pair"] },
+          "ui:visible_when": { mode: "lan", "@device_type": "note_array" },
+          items: {
+            type: "object",
+            required: ["host"],
+            properties: {
+              row: { type: "integer" },
+              col: { type: "integer" },
+              host: { type: "string", title: "Tile address" },
+            },
+          },
+        },
+      },
+      required: ["host", "array_token"],
+    },
+    actions: [
+      {
+        id: "test_connection",
+        label: "Test connection",
+        description: "",
+        builtin: true,
+        input_schema: null,
+        result_fields: {},
+      },
+      {
+        id: "detect_geometry",
+        label: "Detect size",
+        description: "",
+        builtin: true,
+        input_schema: null,
+        result_fields: {},
+        auto_apply: true,
+        visible_when: { not: { mode: "lan", "@device_type": "note_array" } },
+      },
+      {
+        id: "pair",
+        label: "Pair",
+        description: "",
+        builtin: false,
+        input_schema: {
+          type: "object",
+          properties: { code: { type: "string", title: "Pairing code" }, host: { type: "string", title: "Address" } },
+          required: ["code"],
+        },
+        result_fields: {},
+        visible_when: { mode: "lan" },
+      },
+    ],
+  };
+
+  function Shaped(props: {
+    facts: { device_type: string };
+    initial?: Record<string, unknown>;
+    onGeometry?: (geometry: unknown) => void;
+  }) {
+    const [v, setV] = useState<Record<string, unknown>>(props.initial ?? {});
+    return (
+      <QueryClientProvider client={new QueryClient()}>
+        <PluginBoardSettings
+          output={SHAPED}
+          values={v}
+          onChange={setV}
+          boardId="b1"
+          facts={props.facts}
+          layout={{ rows: 2, cols: 3 }}
+          onGeometry={props.onGeometry}
+        />
+        <output data-testid="values">{JSON.stringify(v)}</output>
+      </QueryClientProvider>
+    );
+  }
+
+  it("shows each board shape only its own fields (@device_type)", () => {
+    const { unmount } = render(<Shaped facts={{ device_type: "flagship" }} />);
+    expect(screen.getByLabelText(/Sign address/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Array token/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tile-grid-assignment")).not.toBeInTheDocument();
+    unmount();
+    render(<Shaped facts={{ device_type: "note_array" }} />);
+    expect(screen.queryByLabelText(/Sign address/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Array token/)).toBeInTheDocument();
+  });
+
+  it("sizes a layout-board tile grid by the board's own layout", () => {
+    render(<Shaped facts={{ device_type: "note_array" }} />);
+    expect(within(screen.getByTestId("tile-grid")).getAllByRole("button")).toHaveLength(6);
+    expect(screen.getByText("0/6 tiles assigned")).toBeInTheDocument();
+  });
+
+  it("names the visible required settings still empty, and only those", () => {
+    render(<Shaped facts={{ device_type: "flagship" }} />);
+    expect(screen.getByTestId("settings-missing")).toHaveTextContent("Still needed: Sign address");
+  });
+
+  it("shows an action only while its condition holds, and never one a visible widget runs", async () => {
+    const { unmount } = render(<Shaped facts={{ device_type: "flagship" }} />);
+    expect(screen.getByRole("button", { name: "Detect size" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pair" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: "cloud" }));
+    expect(screen.queryByRole("button", { name: "Pair" })).not.toBeInTheDocument();
+    unmount();
+    // A local array: no size to detect; Pair belongs to the tiles.
+    render(<Shaped facts={{ device_type: "note_array" }} />);
+    expect(screen.queryByRole("button", { name: "Detect size" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pair" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Test connection" })).toBeInTheDocument();
+  });
+
+  it("applies an auto_apply action's geometry at once", async () => {
+    const onGeometry = vi.fn();
+    const geometry = {
+      device_type: "flagship" as const,
+      rows: 6,
+      cols: 22,
+      notes_wide: null,
+      notes_tall: null,
+      matched_preset: null,
+    };
+    server.use(http.post(`${API}/boards/b1/actions/detect_geometry`, () => HttpResponse.json(result({ geometry }))));
+    render(<Shaped facts={{ device_type: "flagship" }} onGeometry={onGeometry} />);
+    await userEvent.click(screen.getByRole("button", { name: "Detect size" }));
+    expect(await screen.findByText("Set to 6 × 22")).toBeInTheDocument();
+    expect(onGeometry).toHaveBeenCalledWith(geometry);
+    expect(screen.queryByRole("button", { name: "Apply size" })).not.toBeInTheDocument();
+  });
+
+  it("starts an action's input from the settings of the same name, never a masked one", async () => {
+    let input: unknown = null;
+    server.use(
+      http.post(`${API}/boards/b1/actions/pair`, async ({ request }) => {
+        input = ((await request.json()) as { input: unknown }).input;
+        return HttpResponse.json(result({ message: "Paired." }));
+      }),
+    );
+    render(<Shaped facts={{ device_type: "flagship" }} initial={{ host: "192.0.2.9", array_token: "***" }} />);
+    await userEvent.click(screen.getByRole("button", { name: "Pair" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText("Address")).toHaveValue("192.0.2.9");
+    await userEvent.type(within(dialog).getByLabelText(/Pairing code/), "42");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Next" }));
+    expect(await screen.findByText("Paired.")).toBeInTheDocument();
+    expect(input).toEqual({ host: "192.0.2.9", code: "42" });
+  });
+
+  it("runs a tile action with the tile's own values and asks in the tile for the rest", async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`${API}/boards/b1/actions/pair`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(result({ message: "Paired." }));
+      }),
+    );
+    render(
+      <Shaped facts={{ device_type: "note_array" }} initial={{ tiles: [{ row: 1, col: 2, host: "192.0.2.4" }] }} />,
+    );
+    await userEvent.click(screen.getByTestId("tile-slot-1-2"));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Pair" }));
+    const asked = within(dialog).getByRole("group", { name: "Pair" });
+    // Only what the tile cannot give is asked for.
+    expect(within(asked).queryByLabelText("Address")).not.toBeInTheDocument();
+    await userEvent.type(within(asked).getByLabelText(/Pairing code/), "77");
+    await userEvent.click(within(asked).getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body!.input).toEqual({ host: "192.0.2.4", code: "77" });
   });
 });

@@ -254,7 +254,7 @@ test.describe("Character code 62 — setup wizard", () => {
     await chooseVestaboardInWizard(page);
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
-    await page.getByText("Local API").click();
+    await page.getByRole("radio", { name: /Local API/ }).click();
     await page.getByLabel("Board IP Address").fill(BOARD_HOST);
     await page.getByLabel("Local API Key").fill("test-key");
 

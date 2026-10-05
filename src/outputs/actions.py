@@ -308,6 +308,8 @@ def _describe_action(spec: OutputActionSpec) -> dict[str, Any]:
         "result_fields": {
             name: {"secret": declared.secret, "fills": declared.fills} for name, declared in spec.result_fields.items()
         },
+        "visible_when": dict(spec.visible_when) if spec.visible_when is not None else None,
+        "auto_apply": spec.auto_apply,
     }
 
 

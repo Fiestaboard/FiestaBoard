@@ -717,37 +717,6 @@
       "setUpOutput": "Verbinden, testen und als Board speichern"
     },
     "boardSetup": {
-      "connectionType": "Verbindungstyp",
-      "cloudApi": "Cloud-API",
-      "cloudApiEasiest": "Einfachste Einrichtung",
-      "localApi": "Lokale API",
-      "localApiFaster": "Schneller, gleiches Netzwerk",
-      "readWriteApiKey": "Lese-/Schreib-API-Schlüssel",
-      "cloudKeyPlaceholder": "Erhalten Sie diesen unter web.vestaboard.com",
-      "cloudKeyHelp": "Zu finden unter web.vestaboard.com → Einstellungen → API",
-      "boardIpAddress": "Board-IP-Adresse",
-      "boardIpPlaceholder": "z. B. 192.168.1.100",
-      "boardIpHelp": "IP-Adresse manuell eingeben oder klicken, um Ihr Netzwerk zu scannen",
-      "scanNetworkTooltip": "Netzwerk nach Vestaboards durchsuchen",
-      "scanningNetwork": "Netzwerk wird nach Vestaboards durchsucht…",
-      "noBoardsFound": "Keine Boards gefunden. Geben Sie die IP-Adresse manuell ein.",
-      "foundBoards": "{count} {count, plural, one {Board} other {Boards}} gefunden — wählen Sie eines aus:",
-      "scanFailed": "Scan fehlgeschlagen. Bitte geben Sie die IP-Adresse manuell ein.",
-      "authenticationMethod": "Authentifizierungsmethode",
-      "apiKey": "API-Schlüssel",
-      "enablementToken": "Aktivierungstoken",
-      "localApiKey": "Lokaler API-Schlüssel",
-      "localApiKeyPlaceholder": "Ihr lokaler API-Schlüssel",
-      "localApiKeyHelp": "Senden Sie eine E-Mail an support@vestaboard.com, um Ihren lokalen API-Schlüssel anzufordern",
-      "enablementTokenPlaceholder": "Token von Vestaboard-Support",
-      "enablementTokenHelp": "Senden Sie eine E-Mail an support@vestaboard.com für ein Aktivierungstoken",
-      "getApiKeyFromBoard": "API-Schlüssel vom Board abrufen",
-      "enablingLocalApi": "Lokale API wird aktiviert...",
-      "apiKeyRetrieved": "API-Schlüssel abgerufen!",
-      "testConnection": "Verbindung testen",
-      "testingConnection": "Verbindung wird getestet...",
-      "connectedTestAgain": "Verbunden! Erneut testen",
-      "thingsToTry": "Tipps:",
       "boardType": "Board-Typ",
       "flagshipDimensions": "6 × 22 Zeichen",
       "noteDimensions": "3 × 15 Zeichen",
@@ -757,7 +726,7 @@
       "code62DegreeAriaLabel": "Gradzeichen-Klappe",
       "code62HeartAriaLabel": "Herz-Klappe",
       "connectionTestFailed": "Verbindungstest fehlgeschlagen",
-      "failedToEnableLocalApi": "Lokale API konnte nicht aktiviert werden"
+      "connectedSaved": "Verbunden! Dein Board ist gespeichert."
     },
     "easyPlugins": {
       "description": "Diese Funktionen sind sofort einsatzbereit, ohne externe API-Schlüssel. Aktivieren Sie, was Ihnen gefällt!",
@@ -1015,32 +984,6 @@
       "flagship": "22×6",
       "note": "15×3"
     },
-    "connectionLabel": "Verbindung",
-    "apiModeLabel": "API-Modus",
-    "localApiLabel": "Lokale API",
-    "localApiDescription": "Direktverbindung",
-    "cloudApiLabel": "Cloud-API",
-    "cloudApiDescription": "Über Cloud-Server",
-    "boardHostLabel": "Board-Host",
-    "boardHostPlaceholder": "192.168.1.100",
-    "apiKeyLabel": "API-Schlüssel",
-    "enablementTokenLabel": "Aktivierungstoken",
-    "localApiKeyLabel": "Lokaler API-Schlüssel",
-    "localApiKeyPlaceholder": "Lokalen API-Schlüssel eingeben",
-    "localApiKeySetPlaceholder": "••••••••••• (gesetzt)",
-    "localApiKeyHelp": "Senden Sie eine E-Mail an support@vestaboard.com, um Ihren lokalen API-Schlüssel anzufordern",
-    "enablementTokenPlaceholder": "Token von Vestaboard-Support",
-    "getApiKeyFromBoard": "API-Schlüssel vom Board abrufen",
-    "enabling": "Wird aktiviert...",
-    "localApiEnabled": "Lokale API aktiviert! API-Schlüssel abgerufen und gespeichert.",
-    "cloudKeyLabel": "Lese-/Schreib-API-Schlüssel",
-    "cloudKeyPlaceholder": "R/W-API-Schlüssel eingeben",
-    "cloudKeySetPlaceholder": "••••••••••• (gesetzt)",
-    "cloudKeyHelp": "Zu finden in Ihrer Board-App unter Einstellungen → Integrationen → Lese-/Schreib-API",
-    "localApiRequired": "Lokaler API-Schlüssel und Host sind erforderlich",
-    "cloudApiRequired": "Cloud-API-Schlüssel ist erforderlich",
-    "noteArrayTokenRequired": "Cloud-API-Token ist erforderlich",
-    "boardHostAndTokenRequired": "Board-Host und Aktivierungstoken sind erforderlich",
     "enabledLabel": "Aktiviert",
     "typeLabel": "Typ",
     "colorLabel": "Farbe",
@@ -1069,7 +1012,6 @@
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
     "noteArrayLabel": "Note-Array",
-    "failedToEnable": "Lokale API konnte nicht aktiviert werden",
     "pause": {
       "toggle": "Pause sends",
       "resumeToggle": "Resume sends",
@@ -1094,55 +1036,7 @@
     },
     "notesWideLabel": "Notes breit",
     "notesTallLabel": "Notes hoch",
-    "customRangeError": "Jede Dimension muss zwischen 1 und {max} liegen.",
-    "noteArrayTokenLabel": "Cloud-API-Token",
-    "noteArrayTokenPlaceholder": "X-Vestaboard-Token eingeben",
-    "noteArrayTokenSetPlaceholder": "••••••••••• (gesetzt)",
-    "noteArrayTokenHelp": "Der X-Vestaboard-Token für dieses Note-Array aus Ihrem Vestaboard-Cloud-API-Abonnement.",
-    "autoDetect": "Automatisch vom Board erkennen",
-    "detecting": "Erkennen…",
-    "detectFailed": "Die Board-Konfiguration konnte nicht erkannt werden.",
-    "showSecretAriaLabel": "Wert anzeigen",
-    "hideSecretAriaLabel": "Wert verbergen",
-    "tileGrid": {
-      "title": "Board-Kacheln",
-      "help": "Klicken Sie auf einen Platz, um das physische Board (IP + lokaler API-Schlüssel) zuzuweisen, das an dieser Position an Ihrer Wand hängt. Verwenden Sie „Identifizieren“, um eine Platznummer auf einem Board anzuzeigen und zu bestätigen, dass es am richtigen Ort ist.",
-      "assign": "Zuweisen",
-      "assignRequired": "Weisen Sie mindestens eine Kachel mit der IP-Adresse und dem lokalen API-Schlüssel ihres Boards zu",
-      "completeBadge": "Alle {total} Kacheln zugewiesen",
-      "partialBadge": "{assigned}/{total} Kacheln zugewiesen",
-      "slotAriaLabelAssigned": "Kachel {position}: Zeile {row}, Spalte {col} — zugewiesen an {host}",
-      "slotAriaLabelEmpty": "Kachel {position}: Zeile {row}, Spalte {col} — leer, zum Zuweisen klicken",
-      "dialogTitle": "Kachel {position} — Zeile {row}, Spalte {col}",
-      "dialogDescription": "Verbinden Sie das physische Board an dieser Position. Durchsuchen Sie Ihr Netzwerk oder geben Sie IP und lokalen API-Schlüssel ein und bestätigen Sie dann mit „Identifizieren“, dass Sie das richtige Board ausgewählt haben.",
-      "portLabel": "Port",
-      "hostAndKeyRequired": "Board-IP und lokaler API-Schlüssel sind beide erforderlich",
-      "saveTile": "Kachel speichern",
-      "clearTile": "Kachel leeren",
-      "tileSaved": "Kachel gespeichert",
-      "tileCleared": "Kachel geleert",
-      "moveTile": "An eine andere Position verschieben",
-      "movePlaceholder": "Neuen Platz wählen…",
-      "moveTargetEmpty": "Platz {position} — leer",
-      "moveTargetOccupied": "Platz {position} — mit {host} tauschen",
-      "tileMoved": "Kachel auf Platz {position} verschoben",
-      "testTile": "Testen",
-      "testSuccess": "Verbindungstest bestanden",
-      "testFailed": "Verbindungstest fehlgeschlagen",
-      "identify": "Identifizieren",
-      "identifyAll": "Alle identifizieren",
-      "identifySent": "Position {position} wird jetzt auf diesem Board angezeigt",
-      "identifyAllSent": "Identifizierungsmuster an {count} Kacheln gesendet — jedes Board zeigt jetzt seine Positionsnummer",
-      "identifyAllPartial": "{failed} von {total} Kacheln konnten nicht erreicht werden",
-      "identifyFailed": "Das Identifizierungsmuster konnte nicht gesendet werden",
-      "scanNetwork": "Netzwerk nach Boards durchsuchen",
-      "scanning": "Suche läuft…",
-      "scanFound": "{count} Boards in Ihrem Netzwerk gefunden",
-      "scanEmpty": "Keine Boards in Ihrem Netzwerk gefunden",
-      "scanFailed": "Netzwerksuche fehlgeschlagen",
-      "alreadyAssigned": "Kachel {position} zugewiesen",
-      "duplicateHostWarning": "Mehrere Kacheln verweisen auf dasselbe Board: {hosts}"
-    }
+    "customRangeError": "Jede Dimension muss zwischen 1 und {max} liegen."
   },
   "systemUpdate": {
     "updateAvailable": "Update verfügbar",
@@ -1974,7 +1868,8 @@
     "pagePickerLoading": "Seiten werden geladen…",
     "pagePickerPlaceholder": "Seite auswählen…",
     "showSecret": "Wert anzeigen",
-    "hideSecret": "Wert verbergen"
+    "hideSecret": "Wert verbergen",
+    "secretSaved": "••••••••••• (gesetzt)"
   },
   "filterPicker": {
     "noFiltersAvailable": "Keine Filter verfügbar",
@@ -2494,13 +2389,10 @@
     "scanning": "Suche läuft…",
     "noDevicesFound": "Keine Geräte gefunden. Gib die Adresse selbst ein.",
     "devicesFoundLabel": "Gefundene Geräte für {field}",
-    "tileSlot": "Zeile {row}, Spalte {col}",
     "tileAssigned": "Zugewiesen",
-    "tileEmpty": "Leer",
-    "tileDialogTitle": "Kachel in Zeile {row}, Spalte {col}",
+    "tileDialogTitle": "Kachel {position} — Zeile {row}, Spalte {col}",
     "tileDialogDescription": "Einstellungen für das Gerät an dieser Position.",
     "removeTile": "Kachel entfernen",
-    "identifyTile": "Identifizieren",
     "actionsLabel": "Aktionen",
     "actionFailed": "Die Aktion konnte nicht ausgeführt werden.",
     "resultOk": "Erledigt",
@@ -2521,6 +2413,116 @@
     "creating": "Wird hinzugefügt…",
     "createBoard": "Board hinzufügen",
     "outputNotInstalled": "Das Display dieses Boards ({output}) ist nicht installiert.",
-    "saveSettings": "Einstellungen speichern"
+    "saveSettings": "Einstellungen speichern",
+    "tilesComplete": "Alle {total} Kacheln zugewiesen",
+    "tilesPartial": "{assigned}/{total} Kacheln zugewiesen",
+    "identifyAllTiles": "Alle identifizieren",
+    "tileAssign": "Zuweisen",
+    "tileSlotEmpty": "Kachel {position}: Zeile {row}, Spalte {col} — leer, zum Zuweisen klicken",
+    "moveTile": "An eine andere Position verschieben",
+    "movePlaceholder": "Neuen Platz wählen…",
+    "moveTo": "Platz {position} — leer",
+    "saveTile": "Kachel speichern",
+    "tileSlotAssigned": "Kachel {position}: Zeile {row}, Spalte {col} — zugewiesen an {summary}",
+    "moveSwap": "Platz {position} — mit {summary} tauschen",
+    "tilesDuplicate": "Mehrere Kacheln verweisen auf dasselbe Board: {values}",
+    "tileActionsLabel": "Kachelaktionen",
+    "requiredMissing": "Noch erforderlich: {fields}",
+    "geometryApplied": "Auf {rows} × {cols} gesetzt"
+  },
+  "outputSettings": {
+    "vestaboard": {
+      "fields": {
+        "api_mode": {
+          "title": "Verbindung",
+          "cards": {
+            "local": {
+              "title": "Lokale API",
+              "description": "Direktverbindung"
+            },
+            "cloud": {
+              "title": "Cloud-API",
+              "description": "Über Cloud-Server"
+            }
+          }
+        },
+        "host": {
+          "title": "Board-IP-Adresse",
+          "description": "IP-Adresse manuell eingeben oder klicken, um Ihr Netzwerk zu scannen",
+          "placeholder": "192.168.1.100"
+        },
+        "local_api_key": {
+          "title": "Lokaler API-Schlüssel",
+          "description": "Senden Sie eine E-Mail an support@vestaboard.com, um Ihren lokalen API-Schlüssel anzufordern",
+          "placeholder": "Ihr lokaler API-Schlüssel"
+        },
+        "cloud_key": {
+          "title": "Lese-/Schreib-API-Schlüssel",
+          "description": "Zu finden in Ihrer Board-App unter Einstellungen → Integrationen → Lese-/Schreib-API",
+          "placeholder": "R/W-API-Schlüssel eingeben"
+        },
+        "note_array_token": {
+          "title": "Cloud-API-Token",
+          "description": "Der X-Vestaboard-Token für dieses Note-Array aus Ihrem Vestaboard-Cloud-API-Abonnement.",
+          "placeholder": "X-Vestaboard-Token eingeben"
+        },
+        "tiles": {
+          "title": "Board-Kacheln",
+          "description": "Klicken Sie auf einen Platz, um das physische Board (IP + lokaler API-Schlüssel) zuzuweisen, das an dieser Position an Ihrer Wand hängt. Verwenden Sie „Identifizieren“, um eine Platznummer auf einem Board anzuzeigen und zu bestätigen, dass es am richtigen Ort ist.",
+          "items": {
+            "host": {
+              "title": "Board-IP-Adresse",
+              "placeholder": "192.168.1.100"
+            },
+            "port": {
+              "title": "Port"
+            },
+            "local_api_key": {
+              "title": "Lokaler API-Schlüssel",
+              "placeholder": "Ihr lokaler API-Schlüssel"
+            },
+            "enabled": {
+              "title": "Aktiviert"
+            }
+          }
+        },
+        "port": {
+          "title": "Port"
+        }
+      },
+      "sections": {
+        "advanced": {
+          "title": "Erweitert"
+        }
+      },
+      "actions": {
+        "test_connection": {
+          "label": "Verbindung testen"
+        },
+        "discover": {
+          "label": "Netzwerk nach Boards durchsuchen"
+        },
+        "identify": {
+          "label": "Identifizieren"
+        },
+        "detect_geometry": {
+          "label": "Automatisch vom Board erkennen"
+        },
+        "enable_local_api": {
+          "label": "API-Schlüssel vom Board abrufen",
+          "description": "Senden Sie eine E-Mail an support@vestaboard.com für ein Aktivierungstoken",
+          "input": {
+            "enablement_token": {
+              "title": "Aktivierungstoken",
+              "placeholder": "Token von Vestaboard-Support"
+            },
+            "host": {
+              "title": "Board-IP-Adresse",
+              "placeholder": "192.168.1.100"
+            }
+          }
+        }
+      }
+    }
   }
 }
