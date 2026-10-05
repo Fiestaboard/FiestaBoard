@@ -139,6 +139,11 @@ Names you will meet:
 
 - **`BoardRuntime`** — per-board state: its client, its worker, its last
   render memo.
+- **`OutputDriver`** (`src/outputs/driver.py`) — the Protocol every board
+  client satisfies: the surface the engine and API routes actually use.
+  Reach for a member of it, not a client's private attribute;
+  `tests/test_output_driver_protocol.py` counts the private peeks that
+  remain and fails if one is added.
 - **`BoardSendWorker`** — one thread per board with a **latest-wins** queue:
   a newer frame supersedes a queued older one, and callers waiting on the
   superseded frame are adopted onto the newer one. Never bypass it; a direct
