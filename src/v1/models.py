@@ -44,6 +44,12 @@ class BoardSummary(BaseModel):
     is_primary: bool = Field(description='True for the board that the alias "primary" resolves to.')
     paused: bool = Field(description="While true, FiestaBoard writes nothing to this board from any code path.")
     schedule_enabled: bool = Field(description="Whether this board follows its schedule rather than a fixed page.")
+    output: str = Field(
+        description=(
+            'The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" '
+            "(a FiestaPanel TV). More outputs may appear as they are installed."
+        )
+    )
 
 
 class BoardListResponse(BaseModel):

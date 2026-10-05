@@ -208,15 +208,22 @@ class BoardSettings:
 
     @staticmethod
     def _mask_board(board: dict) -> dict:
-        """Return a copy of a board dict with sensitive fields masked.
+        """Return the API view of a board dict: sensitive fields masked.
 
         Also masks nested per-tile credentials for local note arrays. Tiles
         are rebuilt (not mutated) so the stored dicts are never corrupted by
         masking a shallow copy.
+
+        The view also carries the board's ``output`` — derived at load by
+        the output registry's one precedence rule, never stored: a client
+        echoing it back is harmless, because ``set_boards`` keeps only the
+        fields ``BoardInstance`` knows.
         """
         from src.devices import TILE_SENSITIVE_FIELDS
+        from src.outputs.registry import resolve_output_id
 
         masked = dict(board)
+        masked["output"] = resolve_output_id(board)
         for key in BOARD_SENSITIVE_FIELDS:
             if masked.get(key):
                 masked[key] = "***"

@@ -217,6 +217,13 @@ export interface BoardInstance {
    * resizes; filter by the current dimensions when rendering.
    */
   tiles?: NoteArrayTile[];
+  /**
+   * The output that drives this board — `"vestaboard"` or `"fiestapanel"`
+   * today; output plugins add more ids. Derived by the API on every
+   * `GET /settings/board` (never stored), so it is absent on a board the UI
+   * builds itself, and echoing it back on a PUT is ignored.
+   */
+  output?: string;
 }
 
 /**
@@ -236,6 +243,8 @@ export interface BoardDetail {
   is_primary: boolean;
   paused: boolean;
   schedule_enabled: boolean;
+  /** The output that drives this board: `"vestaboard"`, `"fiestapanel"`, or an installed output's id. */
+  output: string;
   characters: number[][] | null;
   text: string | null;
   read_at: string | null;

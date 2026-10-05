@@ -10,11 +10,11 @@ from src.board_client import (
     VALID_STRATEGIES,
     BoardClient,
     _is_valid_character_grid,
-    board_client_from_board_dict,
     is_successful_board_read_response,
     parse_read_message_payload,
     strip_color_markers,
 )
+from src.outputs.factory import build_driver
 
 
 class TestStripColorMarkers:
@@ -597,14 +597,14 @@ class TestSendCharactersEdgeCases:
 
 
 class TestBoardClientFactory:
-    """Tests for board_client_from_board_dict factory function."""
+    """The vestaboard output's configurations, built through the runtime factory."""
 
     def test_cloud_mode_with_key(self):
         """Lines 414-416: cloud mode creates client."""
-        from src.board_client import board_client_from_board_dict
+        from src.outputs.factory import build_driver
 
         board = {"api_mode": "cloud", "cloud_key": "rw-key-123"}
-        client = board_client_from_board_dict(board)
+        client = build_driver(board)
 
         assert client is not None
         assert client.use_cloud is True
@@ -612,57 +612,57 @@ class TestBoardClientFactory:
 
     def test_cloud_mode_without_key_returns_none(self):
         """Lines 414-416: cloud mode with empty key returns None."""
-        from src.board_client import board_client_from_board_dict
+        from src.outputs.factory import build_driver
 
         board = {"api_mode": "cloud", "cloud_key": ""}
-        assert board_client_from_board_dict(board) is None
+        assert build_driver(board) is None
 
     def test_cloud_mode_missing_key_returns_none(self):
-        from src.board_client import board_client_from_board_dict
+        from src.outputs.factory import build_driver
 
         board = {"api_mode": "cloud"}
-        assert board_client_from_board_dict(board) is None
+        assert build_driver(board) is None
 
     def test_local_mode_with_key_and_host(self):
         """Lines 428-430: local mode creates client."""
-        from src.board_client import board_client_from_board_dict
+        from src.outputs.factory import build_driver
 
         board = {
             "api_mode": "local",
             "local_api_key": "local-key",
             "host": "192.168.0.11",
         }
-        client = board_client_from_board_dict(board)
+        client = build_driver(board)
 
         assert client is not None
         assert client.use_cloud is False
         assert client.host == "192.168.0.11"
 
     def test_local_mode_missing_key_returns_none(self):
-        from src.board_client import board_client_from_board_dict
+        from src.outputs.factory import build_driver
 
         board = {"api_mode": "local", "local_api_key": "", "host": "192.168.0.11"}
-        assert board_client_from_board_dict(board) is None
+        assert build_driver(board) is None
 
     def test_local_mode_missing_host_returns_none(self):
-        from src.board_client import board_client_from_board_dict
+        from src.outputs.factory import build_driver
 
         board = {"api_mode": "local", "local_api_key": "key", "host": ""}
-        assert board_client_from_board_dict(board) is None
+        assert build_driver(board) is None
 
     def test_default_api_mode_is_local(self):
         """Line 442: missing api_mode defaults to local."""
-        from src.board_client import board_client_from_board_dict
+        from src.outputs.factory import build_driver
 
         board = {"local_api_key": "key", "host": "10.0.0.1"}
-        client = board_client_from_board_dict(board)
+        client = build_driver(board)
 
         assert client is not None
         assert client.use_cloud is False
 
     def test_port_as_string_is_converted(self):
         """Lines 454-458: string port is cast to int."""
-        from src.board_client import board_client_from_board_dict
+        from src.outputs.factory import build_driver
 
         board = {
             "api_mode": "local",
@@ -670,14 +670,14 @@ class TestBoardClientFactory:
             "host": "10.0.0.1",
             "port": "7001",
         }
-        client = board_client_from_board_dict(board)
+        client = build_driver(board)
 
         assert client is not None
         assert client._port == 7001
 
     def test_port_invalid_string_uses_default(self):
         """Lines 457-458: non-numeric port string falls back to None -> default."""
-        from src.board_client import board_client_from_board_dict
+        from src.outputs.factory import build_driver
 
         board = {
             "api_mode": "local",
@@ -685,14 +685,14 @@ class TestBoardClientFactory:
             "host": "10.0.0.1",
             "port": "not_a_number",
         }
-        client = board_client_from_board_dict(board)
+        client = build_driver(board)
 
         assert client is not None
         assert client._port == BoardClient.LOCAL_API_PORT
 
     def test_port_as_int_used_directly(self):
         """Port as int is used as-is."""
-        from src.board_client import board_client_from_board_dict
+        from src.outputs.factory import build_driver
 
         board = {
             "api_mode": "local",
@@ -700,7 +700,7 @@ class TestBoardClientFactory:
             "host": "10.0.0.1",
             "port": 8080,
         }
-        client = board_client_from_board_dict(board)
+        client = build_driver(board)
 
         assert client is not None
         assert client._port == 8080
@@ -996,7 +996,7 @@ class TestNoteArrayReadCurrentMessage:
 
 
 class TestBoardClientFactoryNoteArray:
-    """board_client_from_board_dict wires note-array boards correctly."""
+    """The runtime factory wires note-array boards correctly."""
 
     def test_note_array_board_creates_client(self):
         board = {
@@ -1005,7 +1005,7 @@ class TestBoardClientFactoryNoteArray:
             "notes_wide": 4,
             "notes_tall": 1,
         }
-        client = board_client_from_board_dict(board)
+        client = build_driver(board)
         assert client is not None
         assert client._is_note_array is True
         assert client._note_array_token == "tok"
@@ -1017,11 +1017,11 @@ class TestBoardClientFactoryNoteArray:
             "notes_wide": 4,
             "notes_tall": 1,
         }
-        assert board_client_from_board_dict(board) is None
+        assert build_driver(board) is None
 
     def test_note_array_board_missing_token_returns_none(self):
         board = {"device_type": "note_array"}
-        assert board_client_from_board_dict(board) is None
+        assert build_driver(board) is None
 
     def test_note_array_notes_wide_tall_stored(self):
         board = {
@@ -1030,20 +1030,20 @@ class TestBoardClientFactoryNoteArray:
             "notes_wide": 2,
             "notes_tall": 3,
         }
-        client = board_client_from_board_dict(board)
+        client = build_driver(board)
         assert client is not None
         assert client._notes_wide == 2
         assert client._notes_tall == 3
 
     def test_flagship_board_cloud_unaffected(self):
         board = {"api_mode": "cloud", "cloud_key": "rw-key"}
-        client = board_client_from_board_dict(board)
+        client = build_driver(board)
         assert client is not None
         assert client._is_note_array is False
 
     def test_flagship_board_local_unaffected(self):
         board = {"api_mode": "local", "local_api_key": "k", "host": "10.0.0.1"}
-        client = board_client_from_board_dict(board)
+        client = build_driver(board)
         assert client is not None
         assert client._is_note_array is False
 

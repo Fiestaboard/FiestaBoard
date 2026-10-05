@@ -1132,6 +1132,7 @@ one document, because "what is this board doing" is one question.
 | `is_primary` | `boolean` | yes | True for the board that the alias "primary" resolves to. |
 | `paused` | `boolean` | yes | While true, FiestaBoard writes nothing to this board from any code path. |
 | `schedule_enabled` | `boolean` | yes | Whether this board follows its schedule rather than a fixed page. |
+| `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
 | `characters` | array of array of `integer` \| `null` | no | The flap codes currently on the board, or null if nothing has been sent to it yet. |
 | `text` | `string` \| `null` | no | `characters` decoded back to text, for reading. Null when `characters` is null. |
 | `expected_characters` | array of array of `integer` \| `null` | no | The flap grid FiestaBoard last sent to this board. When it differs from `characters` the board has drifted from what was sent — a flap that did not turn, or something else writing to the board. Null until this instance has sent anything. |
@@ -1182,6 +1183,7 @@ a consumer writing to a board has any use for.
 | `is_primary` | `boolean` | yes | True for the board that the alias "primary" resolves to. |
 | `paused` | `boolean` | yes | While true, FiestaBoard writes nothing to this board from any code path. |
 | `schedule_enabled` | `boolean` | yes | Whether this board follows its schedule rather than a fixed page. |
+| `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
 
 ### `BoardUpdate` {#schema-boardupdate}
 

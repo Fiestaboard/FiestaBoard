@@ -954,34 +954,24 @@ class BoardClient(TransitionRenderMixin):
             return False
 
 
-def board_client_from_board_dict(board: dict) -> Optional["BoardClient"]:
-    """Build a board client from a board instance dict (e.g. from settings.boards).
+def build_vestaboard_driver(board: dict) -> Optional["BoardClient"]:
+    """The ``vestaboard`` output's driver for a board dict (e.g. from settings.boards).
+
+    Registered in :mod:`src.outputs.registry`; only the runtime factory
+    (:mod:`src.outputs.factory`) calls it, after the board has resolved to
+    the ``vestaboard`` output.
 
     Args:
-        board: Dict with api_mode, host, port (optional), local_api_key, cloud_key.
+        board: Dict with api_mode, host, port (optional), local_api_key,
+            cloud_key, or note-array token / tiles.
 
     Returns:
-        BoardClient (or a duck-type compatible NoteArrayLocalClient for
-        local-mode note arrays) if the board has connection configured,
-        None otherwise.
+        BoardClient (Local API, RW Cloud, note-array Cloud) or a
+        NoteArrayLocalClient (local note-array tiles) if the board has a
+        connection configured, None otherwise.
     """
     api_mode = (board.get("api_mode") or "local").lower()
     use_cloud = api_mode == "cloud"
-
-    # Virtual boards (FiestaPanel): no hardware, frames render to memory.
-    if api_mode == "virtual":
-        from .devices import geometry_of
-        from .virtual_board_client import VirtualBoardClient
-
-        geometry = geometry_of(board)
-        return VirtualBoardClient(
-            device_type=geometry.device_type,
-            board_id=board.get("id"),
-            notes_wide=geometry.notes_wide,
-            notes_tall=geometry.notes_tall,
-            grid_rows=geometry.grid_rows,
-            grid_cols=geometry.grid_cols,
-        )
 
     # Note-array boards: detected by device_type (not api_mode).
     # Local mode (api_mode == "local" with saved tiles) fans out per-tile
@@ -1037,6 +1027,20 @@ def board_client_from_board_dict(board: dict) -> Optional["BoardClient"]:
         skip_unchanged=True,
         port=port,
     )
+
+
+def board_client_from_board_dict(board: dict) -> Any:
+    """Backward-compatible name for the runtime factory's ``build_driver``.
+
+    The board resolves to its output through the output registry
+    (:mod:`src.outputs.registry`), whichever output that is — not
+    necessarily a Vestaboard. Nothing in ``src/`` may call this
+    (``tests/test_runtime_for_board.py``); it stays for the tests and wire
+    goldens that name it.
+    """
+    from .outputs.factory import build_driver
+
+    return build_driver(board)
 
 
 # Backward compatibility aliases
