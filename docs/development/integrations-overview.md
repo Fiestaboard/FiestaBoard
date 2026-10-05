@@ -22,7 +22,7 @@ FiestaBoard turns live data into pages and shows them on real-world displays. Yo
 
 An output plugin is a Python package that drives one kind of device. FiestaBoard renders each page, decides when to send it, and hands your plugin a frame; your plugin sends it to the device. Core enforces the device's write rate, cancels stale writes, dedupes, and honors pausing and silence schedules, so the plugin only moves frames.
 
-Choose push when the device has an API that FiestaBoard can reach, and you want it to behave like any other board: added in **Settings → Hardware**, set up from its own settings screen, scheduled, previewed and transitioned.
+Choose push when the device has an API that FiestaBoard can reach, and you want it to behave like any other board: added in **Displays**, set up from its own settings screen, scheduled, previewed and transitioned.
 
 [Writing an Output Plugin](/docs/development/output-plugins) covers the manifest, the plugin class, LED rendering, testing and publishing.
 

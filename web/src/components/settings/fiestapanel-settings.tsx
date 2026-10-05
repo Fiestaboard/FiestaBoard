@@ -130,7 +130,15 @@ function editorFromPanel(panel: Panel): EditorState {
   };
 }
 
-export function FiestaPanelSettings() {
+/**
+ * FiestaPanels: each panel's TV size, viewer address (QR, copy) and live
+ * preview, the panel editor, and the FiestaPi HDMI kiosk.
+ *
+ * Given `boardId` (a FiestaPanel display's page, plan D21) it shows that
+ * display's panel only and creates none — new panels come from Displays →
+ * Add a display; `onDeleted` runs once that panel is gone.
+ */
+export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; onDeleted?: () => void } = {}) {
   const t = useTranslations("fiestaPanels");
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -242,6 +250,7 @@ export function FiestaPanelSettings() {
       invalidate();
       setDeleteTarget(null);
       toast.success(t("deleted"));
+      onDeleted?.();
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -263,7 +272,8 @@ export function FiestaPanelSettings() {
     );
   }
 
-  const panels = data?.panels ?? [];
+  const allPanels = data?.panels ?? [];
+  const panels = boardId ? allPanels.filter((panel) => panel.board_id === boardId) : allPanels;
   const saving = createMutation.isPending || updateMutation.isPending;
 
   return (
@@ -345,7 +355,7 @@ export function FiestaPanelSettings() {
         </Stack>
       )}
 
-      <Button onClick={() => setEditor(NEW_PANEL)}>{t("createPanel")}</Button>
+      {!boardId && <Button onClick={() => setEditor(NEW_PANEL)}>{t("createPanel")}</Button>}
 
       {hdmi.data?.supported && (
         <Stack gap="2" className="rounded-lg border border-border p-4" {...anchorProps("settings.hdmi_kiosk")}>

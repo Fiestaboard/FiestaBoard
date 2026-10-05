@@ -286,6 +286,13 @@ export interface BoardInstance {
    * (`toV4Write`), though the API accepts either. A FiestaPanel's is `{}`.
    */
   output_config?: Record<string, unknown>;
+  /**
+   * How this display changes its message (plan D21), from its device's menu:
+   * a split-flap strategy (`"column"`...), `"plugin:<id>"`, an LED menu id
+   * (`"flip"`, `"fade"`...) or `"none"`. Absent/null follows the install's
+   * transition setting; a page's own override still wins.
+   */
+  transition?: string | null;
 }
 
 /**

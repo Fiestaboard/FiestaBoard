@@ -12,7 +12,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DisplaySettings } from "@/components/settings/display-settings";
+import { DisplayEditor } from "@/components/displays/display-editor";
 
 import { server } from "./mocks/server";
 
@@ -70,7 +70,7 @@ describe("DisplaySettings — board init error surfacing", () => {
 
   it("shows an Unavailable badge on the board card when status reports an init error", async () => {
     setupHandlers({ error: INIT_ERROR });
-    render(<DisplaySettings />, { wrapper: TestWrapper });
+    render(<DisplayEditor boardId="default" />, { wrapper: TestWrapper });
 
     const badge = await screen.findByTestId("board-init-error-badge");
     expect(badge).toHaveTextContent("Unavailable");
@@ -79,9 +79,7 @@ describe("DisplaySettings — board init error surfacing", () => {
   it("shows the verbatim reason string inside the expanded card", async () => {
     const user = userEvent.setup();
     setupHandlers({ error: INIT_ERROR });
-    render(<DisplaySettings />, { wrapper: TestWrapper });
-
-    await user.click(await screen.findByText("My Board"));
+    render(<DisplayEditor boardId="default" />, { wrapper: TestWrapper });
 
     const detail = await screen.findByTestId("board-init-error-detail");
     expect(detail).toHaveTextContent("This board failed to initialize");
@@ -91,9 +89,8 @@ describe("DisplaySettings — board init error surfacing", () => {
   it("renders no badge and no detail when the board has no init error", async () => {
     const user = userEvent.setup();
     setupHandlers({ error: null });
-    render(<DisplaySettings />, { wrapper: TestWrapper });
+    render(<DisplayEditor boardId="default" />, { wrapper: TestWrapper });
 
-    await user.click(await screen.findByText("My Board"));
     await screen.findByTestId("board-card");
 
     expect(screen.queryByTestId("board-init-error-badge")).not.toBeInTheDocument();

@@ -128,7 +128,7 @@ Character code 62 is one code with two possible flaps, and which one you get dep
 
 Vestaboard replaced the degree flap with a heart on newly-manufactured Flagships: *"Every new Vestaboard purchased will ship with the heart in place of the degree symbol."* Nothing FiestaBoard can query tells the two apart — there is no serial number or API field that reports it — so **you tell FiestaBoard which flap your board has**.
 
-Set it per board in **Settings → Hardware** (or in the setup wizard when adding a board), under **Code 62 flap**. Boards default to **Degree**, so if you have an older Flagship there is nothing to change.
+Set it on each board's page in **Displays** (or in the setup wizard when adding a board), under **Code 62 flap**. Boards default to **Degree**, so if you have an older Flagship there is nothing to change.
 
 The setting only affects what FiestaBoard *draws* in its previews, so the preview matches your wall. It never changes what is sent to the board: both glyphs are character code 62 on the wire, and the board draws whichever flap it physically has. It is a per-board setting, so a household with one older and one newer Flagship previews each correctly.
 

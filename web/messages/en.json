@@ -63,6 +63,7 @@
     "collections": "Collections",
     "schedule": "Schedule",
     "integrations": "Integrations",
+    "displays": "Displays",
     "settings": "Settings",
     "helpDocs": "Help & Docs",
     "userProfile": "Profile",
@@ -576,7 +577,6 @@
     "setupWizardTitle": "Setup Wizard",
     "setupWizardDescription": "Re-run the setup wizard to reconfigure your board connection and basic settings.",
     "runSetupWizard": "Run Setup Wizard",
-    "sectionHardware": "Hardware",
     "sectionHardwareDescription": "Physical board configuration and connection",
     "sectionBehavior": "Behavior",
     "sectionBehaviorDescription": "How content moves, refreshes, and pauses",
@@ -733,7 +733,7 @@
       "needsBeta": "Needs the output plugins beta. You can turn it on in the next step.",
       "downloads": "Downloads when you continue, so it needs an internet connection.",
       "skipTitle": "Skip — I'll add a display later",
-      "skipDescription": "Look around and preview pages now. Add a display any time in Settings."
+      "skipDescription": "Look around and preview pages now. Add a display any time from Displays."
     },
     "outputSetup": {
       "installing": "Installing {name}…",
@@ -932,8 +932,6 @@
     "transitionPluginsGroup": "Plugins (beta)"
   },
   "displaySettings": {
-    "title": "Your Boards",
-    "description": "Add each Vestaboard you own and configure its connection.",
     "unnamedBoard": "Unnamed Board",
     "boardDimensions": {
       "flagship": "22×6",
@@ -947,7 +945,6 @@
     "code62DegreeAriaLabel": "Degree flap",
     "code62HeartAriaLabel": "Heart flap",
     "removeBoard": "Remove Board",
-    "addBoard": "Add Board",
     "selectType": "Select type:",
     "boardAdded": "Board added",
     "boardRemoved": "Board removed",
@@ -992,6 +989,52 @@
     "notesWideLabel": "Notes wide",
     "notesTallLabel": "Notes tall",
     "customRangeError": "Each dimension must be between 1 and {max}."
+  },
+  "displays": {
+    "title": "Displays",
+    "description": "Every board and screen FiestaBoard shows on. Open one to change its settings.",
+    "addDisplay": "Add a display",
+    "listLabel": "Your displays",
+    "empty": "No displays yet. Add one to start showing pages on it.",
+    "unnamed": "Unnamed display",
+    "openSettings": "Settings",
+    "openSettingsLabel": "Open settings for {name}",
+    "pause": "Pause",
+    "resume": "Resume",
+    "pauseLabel": "Pause {name}",
+    "resumeLabel": "Resume {name}",
+    "back": "All displays",
+    "notFound": "This display doesn't exist anymore.",
+    "previewTitle": "Now showing",
+    "settingsTitle": "Settings",
+    "transition": {
+      "title": "Transition",
+      "description": "How this display changes from one message to the next. A page's own transition still wins.",
+      "default": "Default",
+      "defaultDescription": "Use the transition chosen in Settings → Behavior.",
+      "cloudNote": "This board uses the Cloud API, which changes the whole board at once. Transitions need the Local API.",
+      "snapNote": "This display can only change all at once, so it snaps to each new message.",
+      "deviceDefault": "Device default",
+      "unavailable": "Not available on this display",
+      "runsAs": "Runs as",
+      "previewLabel": "{name} preview"
+    },
+    "add": {
+      "title": "Add a display",
+      "chooseDescription": "What do you want FiestaBoard to show on?",
+      "findMore": "Find more displays",
+      "findMoreTitle": "Find more displays",
+      "findMoreDescription": "Display plugins from the FiestaBoard plugin registry.",
+      "findMoreLoading": "Loading the registry…",
+      "findMoreFailed": "Couldn't load the plugin registry. Check your internet connection and try again.",
+      "findMoreEmpty": "There are no other displays in the registry yet.",
+      "byAuthor": "by {author}",
+      "vestaboardTitle": "Add a Vestaboard",
+      "vestaboardDescription": "Pick its shape. You'll connect it on its page next.",
+      "panelTitle": "Add a TV or browser",
+      "outputTitle": "Add a {name}",
+      "setupDescription": "Set it up, then add it."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Update Available",
@@ -2365,10 +2408,7 @@
     "geometryDetected": "Detected {rows} × {cols}",
     "applyGeometry": "Apply size",
     "actionInputDescription": "This action needs a few details first.",
-    "otherDisplays": "Other displays",
     "betaRequired": "Turn on Output Plugins in Settings → Advanced → Beta Features to use this display.",
-    "boardCreated": "Board added",
-    "addOutputTitle": "Add a {name} board",
     "boardNameLabel": "Board name",
     "boardNamePlaceholder": "My Board",
     "deviceModelLabel": "Device model",

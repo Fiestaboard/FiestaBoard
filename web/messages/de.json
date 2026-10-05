@@ -63,6 +63,7 @@
     "collections": "Karussells",
     "schedule": "Zeitplan",
     "integrations": "Integrationen",
+    "displays": "Anzeigen",
     "settings": "Einstellungen",
     "helpDocs": "Hilfe & Dokumentation",
     "userProfile": "Profil",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "Einrichtungsassistent",
     "setupWizardDescription": "Führen Sie den Einrichtungsassistenten erneut aus, um Ihre Boardverbindung und Grundeinstellungen neu zu konfigurieren.",
     "runSetupWizard": "Einrichtungsassistent starten",
-    "sectionHardware": "Hardware",
     "sectionHardwareDescription": "Physische Board-Konfiguration und Verbindung",
     "sectionBehavior": "Verhalten",
     "sectionBehaviorDescription": "Wie Inhalte sich bewegen, aktualisieren und pausieren",
@@ -777,7 +777,7 @@
       "needsBeta": "Benötigt die Beta für Ausgabe-Plugins. Du kannst sie im nächsten Schritt einschalten.",
       "downloads": "Wird beim Fortfahren heruntergeladen und braucht daher eine Internetverbindung.",
       "skipTitle": "Überspringen – ich füge später eine Anzeige hinzu",
-      "skipDescription": "Sieh dich um und schau dir Seiten in der Vorschau an. Eine Anzeige kannst du jederzeit in den Einstellungen hinzufügen."
+      "skipDescription": "Sieh dich um und schau dir Seiten in der Vorschau an. Eine Anzeige kannst du jederzeit unter Anzeigen hinzufügen."
     },
     "outputSetup": {
       "installing": "{name} wird installiert…",
@@ -976,8 +976,6 @@
     "transitionPluginsGroup": "Plugins (Beta)"
   },
   "displaySettings": {
-    "title": "Ihre Boards",
-    "description": "Fügen Sie jedes Vestaboard hinzu, das Sie besitzen, und konfigurieren Sie die Verbindung.",
     "unnamedBoard": "Unbenanntes Board",
     "boardDimensions": {
       "flagship": "22×6",
@@ -991,7 +989,6 @@
     "code62DegreeAriaLabel": "Gradzeichen-Klappe",
     "code62HeartAriaLabel": "Herz-Klappe",
     "removeBoard": "Board entfernen",
-    "addBoard": "Board hinzufügen",
     "selectType": "Typ auswählen:",
     "boardAdded": "Board hinzugefügt",
     "boardRemoved": "Board entfernt",
@@ -1036,6 +1033,52 @@
     "notesWideLabel": "Notes breit",
     "notesTallLabel": "Notes hoch",
     "customRangeError": "Jede Dimension muss zwischen 1 und {max} liegen."
+  },
+  "displays": {
+    "title": "Anzeigen",
+    "description": "Alle Boards und Bildschirme, auf denen FiestaBoard anzeigt. Öffne eine Anzeige, um ihre Einstellungen zu ändern.",
+    "addDisplay": "Anzeige hinzufügen",
+    "listLabel": "Deine Anzeigen",
+    "empty": "Noch keine Anzeigen. Füge eine hinzu, um Seiten darauf anzuzeigen.",
+    "unnamed": "Unbenannte Anzeige",
+    "openSettings": "Einstellungen",
+    "openSettingsLabel": "Einstellungen für {name} öffnen",
+    "pause": "Pausieren",
+    "resume": "Fortsetzen",
+    "pauseLabel": "{name} pausieren",
+    "resumeLabel": "{name} fortsetzen",
+    "back": "Alle Anzeigen",
+    "notFound": "Diese Anzeige gibt es nicht mehr.",
+    "previewTitle": "Wird gerade angezeigt",
+    "settingsTitle": "Einstellungen",
+    "transition": {
+      "title": "Übergang",
+      "description": "Wie diese Anzeige von einer Nachricht zur nächsten wechselt. Der eigene Übergang einer Seite hat weiterhin Vorrang.",
+      "default": "Standard",
+      "defaultDescription": "Den in Einstellungen → Verhalten gewählten Übergang verwenden.",
+      "cloudNote": "Dieses Board nutzt die Cloud-API, die das ganze Board auf einmal ändert. Übergänge brauchen die lokale API.",
+      "snapNote": "Diese Anzeige kann nur alles auf einmal ändern, deshalb springt sie direkt zu jeder neuen Nachricht.",
+      "deviceDefault": "Gerätestandard",
+      "unavailable": "Auf dieser Anzeige nicht verfügbar",
+      "runsAs": "Läuft als",
+      "previewLabel": "Vorschau: {name}"
+    },
+    "add": {
+      "title": "Anzeige hinzufügen",
+      "chooseDescription": "Worauf soll FiestaBoard anzeigen?",
+      "findMore": "Weitere Anzeigen finden",
+      "findMoreTitle": "Weitere Anzeigen finden",
+      "findMoreDescription": "Anzeige-Plugins aus dem FiestaBoard-Plugin-Verzeichnis.",
+      "findMoreLoading": "Verzeichnis wird geladen…",
+      "findMoreFailed": "Das Plugin-Verzeichnis konnte nicht geladen werden. Prüfe deine Internetverbindung und versuche es erneut.",
+      "findMoreEmpty": "Im Verzeichnis gibt es noch keine weiteren Anzeigen.",
+      "byAuthor": "von {author}",
+      "vestaboardTitle": "Vestaboard hinzufügen",
+      "vestaboardDescription": "Wähle seine Form. Verbinden kannst du es danach auf seiner Seite.",
+      "panelTitle": "Fernseher oder Browser hinzufügen",
+      "outputTitle": "{name} hinzufügen",
+      "setupDescription": "Richte sie ein und füge sie dann hinzu."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Update verfügbar",
@@ -2365,10 +2408,7 @@
     "geometryDetected": "Erkannt: {rows} × {cols}",
     "applyGeometry": "Größe übernehmen",
     "actionInputDescription": "Für diese Aktion werden zuerst ein paar Angaben benötigt.",
-    "otherDisplays": "Weitere Displays",
     "betaRequired": "Aktiviere Ausgabe-Plugins unter Einstellungen → Erweitert → Beta-Funktionen, um dieses Display zu nutzen.",
-    "boardCreated": "Board hinzugefügt",
-    "addOutputTitle": "{name}-Board hinzufügen",
     "boardNameLabel": "Board-Name",
     "boardNamePlaceholder": "Mein Board",
     "deviceModelLabel": "Gerätemodell",

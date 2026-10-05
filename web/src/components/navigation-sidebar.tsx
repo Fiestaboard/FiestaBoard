@@ -2,7 +2,7 @@
 
 import { BoardSelector, Sidebar, type SidebarLinkProps, type SidebarNavItem } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Award, Calendar, FileText, GalleryHorizontalEnd, HelpCircle, Home, Puzzle } from "lucide-react";
+import { Award, Calendar, FileText, GalleryHorizontalEnd, HelpCircle, Home, Monitor, Puzzle } from "lucide-react";
 
 import { useCurrentBoard } from "@/components/current-board-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
@@ -29,6 +29,8 @@ const primaryItems: NavItemDef[] = [
   { key: "collections", href: "/collections", icon: GalleryHorizontalEnd },
   { key: "schedule", href: "/schedule", icon: Calendar },
   { key: "integrations", href: "/integrations", icon: Puzzle },
+  // Every board and screen FiestaBoard shows on (plan D21).
+  { key: "displays", href: "/displays", icon: Monitor },
 ];
 
 // Settings is NOT here. It lives in the footer twice over — a gear beside the

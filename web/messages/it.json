@@ -63,6 +63,7 @@
     "collections": "Caroselli",
     "schedule": "Programmazione",
     "integrations": "Integrazioni",
+    "displays": "Schermi",
     "settings": "Impostazioni",
     "helpDocs": "Aiuto e documentazione",
     "userProfile": "Profilo",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "Procedura guidata",
     "setupWizardDescription": "Riesegui la procedura guidata per riconfigurare la connessione della bacheca e le impostazioni di base.",
     "runSetupWizard": "Avvia procedura guidata",
-    "sectionHardware": "Hardware",
     "sectionHardwareDescription": "Configurazione fisica e connessione della board",
     "sectionBehavior": "Comportamento",
     "sectionBehaviorDescription": "Come i contenuti si muovono, si aggiornano e si fermano",
@@ -777,7 +777,7 @@
       "needsBeta": "Richiede la beta dei plugin di output. Puoi attivarla nel passaggio successivo.",
       "downloads": "Viene scaricato quando continui, quindi serve una connessione a Internet.",
       "skipTitle": "Salta: aggiungerò uno schermo più tardi",
-      "skipDescription": "Esplora e visualizza in anteprima le pagine ora. Aggiungi uno schermo quando vuoi nelle Impostazioni."
+      "skipDescription": "Esplora e visualizza in anteprima le pagine ora. Aggiungi uno schermo quando vuoi da Schermi."
     },
     "outputSetup": {
       "installing": "Installazione di {name}…",
@@ -976,8 +976,6 @@
     "transitionPluginsGroup": "Plugin (beta)"
   },
   "displaySettings": {
-    "title": "Le tue bacheche",
-    "description": "Aggiungi ogni Vestaboard che possiedi e configurane la connessione.",
     "unnamedBoard": "Bacheca senza nome",
     "boardDimensions": {
       "flagship": "22×6",
@@ -991,7 +989,6 @@
     "code62DegreeAriaLabel": "Aletta grado",
     "code62HeartAriaLabel": "Aletta cuore",
     "removeBoard": "Rimuovi bacheca",
-    "addBoard": "Aggiungi bacheca",
     "selectType": "Seleziona tipo:",
     "boardAdded": "Bacheca aggiunta",
     "boardRemoved": "Bacheca rimossa",
@@ -1036,6 +1033,52 @@
     "notesWideLabel": "Notes in larghezza",
     "notesTallLabel": "Notes in altezza",
     "customRangeError": "Ogni dimensione deve essere compresa tra 1 e {max}."
+  },
+  "displays": {
+    "title": "Schermi",
+    "description": "Tutte le bacheche e gli schermi su cui FiestaBoard mostra contenuti. Aprine uno per modificarne le impostazioni.",
+    "addDisplay": "Aggiungi uno schermo",
+    "listLabel": "I tuoi schermi",
+    "empty": "Ancora nessuno schermo. Aggiungine uno per iniziare a mostrarci delle pagine.",
+    "unnamed": "Schermo senza nome",
+    "openSettings": "Impostazioni",
+    "openSettingsLabel": "Apri le impostazioni di {name}",
+    "pause": "Metti in pausa",
+    "resume": "Riprendi",
+    "pauseLabel": "Metti in pausa {name}",
+    "resumeLabel": "Riprendi {name}",
+    "back": "Tutti gli schermi",
+    "notFound": "Questo schermo non esiste più.",
+    "previewTitle": "In mostra ora",
+    "settingsTitle": "Impostazioni",
+    "transition": {
+      "title": "Transizione",
+      "description": "Come questo schermo passa da un messaggio al successivo. La transizione propria di una pagina ha comunque la precedenza.",
+      "default": "Predefinita",
+      "defaultDescription": "Usa la transizione scelta in Impostazioni → Comportamento.",
+      "cloudNote": "Questa bacheca usa l'API cloud, che cambia tutta la bacheca in una volta. Le transizioni richiedono l'API locale.",
+      "snapNote": "Questo schermo può cambiare solo tutto in una volta, quindi passa direttamente a ogni nuovo messaggio.",
+      "deviceDefault": "Predefinita del dispositivo",
+      "unavailable": "Non disponibile su questo schermo",
+      "runsAs": "Eseguita come",
+      "previewLabel": "Anteprima di {name}"
+    },
+    "add": {
+      "title": "Aggiungi uno schermo",
+      "chooseDescription": "Su cosa vuoi che FiestaBoard mostri i contenuti?",
+      "findMore": "Trova altri schermi",
+      "findMoreTitle": "Trova altri schermi",
+      "findMoreDescription": "Plugin di schermi dal registro dei plugin di FiestaBoard.",
+      "findMoreLoading": "Caricamento del registro…",
+      "findMoreFailed": "Impossibile caricare il registro dei plugin. Controlla la connessione a internet e riprova.",
+      "findMoreEmpty": "Nel registro non ci sono ancora altri schermi.",
+      "byAuthor": "di {author}",
+      "vestaboardTitle": "Aggiungi una Vestaboard",
+      "vestaboardDescription": "Scegline la forma. La collegherai poi nella sua pagina.",
+      "panelTitle": "Aggiungi una TV o un browser",
+      "outputTitle": "Aggiungi {name}",
+      "setupDescription": "Configuralo, poi aggiungilo."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Aggiornamento disponibile",
@@ -2365,10 +2408,7 @@
     "geometryDetected": "Rilevato {rows} × {cols}",
     "applyGeometry": "Applica dimensioni",
     "actionInputDescription": "Questa azione richiede prima alcuni dati.",
-    "otherDisplays": "Altri display",
     "betaRequired": "Attiva i plugin di output in Impostazioni → Avanzate → Funzioni beta per usare questo display.",
-    "boardCreated": "Tabellone aggiunto",
-    "addOutputTitle": "Aggiungi un tabellone {name}",
     "boardNameLabel": "Nome del tabellone",
     "boardNamePlaceholder": "Il mio tabellone",
     "deviceModelLabel": "Modello del dispositivo",
