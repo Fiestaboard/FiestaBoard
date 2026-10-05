@@ -113,6 +113,14 @@ async def _complete(block: dict[str, Any], provider: Provider, messages: Any = "
 
 
 @pytest.fixture
+def known_openrouter_models():
+    """OpenRouter's model list already read, so a test sees only the chat requests."""
+    import time
+
+    plugin_api._REASONING_CACHE["https://openrouter.ai/api/v1/models"] = (time.monotonic(), {"test-or-model": False})
+
+
+@pytest.fixture
 def oauth(monkeypatch):
     fake = FakeOAuth()
     monkeypatch.setattr(sign_in, "_oauth", lambda: fake)
@@ -282,7 +290,7 @@ async def test_openai_responses_protocol_reads_the_stream():
 
 
 @pytest.mark.asyncio
-async def test_signed_in_provider_sends_the_sign_in_token(oauth):
+async def test_signed_in_provider_sends_the_sign_in_token(oauth, known_openrouter_models):
     provider = Provider()
     await _complete(_block(SIGNED_IN), provider)
     assert str(provider.seen[0].url) == "https://openrouter.ai/api/v1/chat/completions"
@@ -299,7 +307,7 @@ async def test_signed_out_provider_needs_reconnect_and_sends_nothing(oauth):
 
 
 @pytest.mark.asyncio
-async def test_signed_in_401_is_retried_once_with_the_refreshed_token(oauth):
+async def test_signed_in_401_is_retried_once_with_the_refreshed_token(oauth, known_openrouter_models):
     oauth.refreshed = "test_fresh"
     provider = Provider(
         httpx.Response(401, json={"error": {"message": "expired"}}), httpx.Response(200, json=_openai_reply())
@@ -311,7 +319,7 @@ async def test_signed_in_401_is_retried_once_with_the_refreshed_token(oauth):
 
 
 @pytest.mark.asyncio
-async def test_signed_in_401_without_a_refresh_needs_reconnect(oauth):
+async def test_signed_in_401_without_a_refresh_needs_reconnect(oauth, known_openrouter_models):
     provider = Provider(httpx.Response(401, json={"error": {"message": "revoked"}}))
     with pytest.raises(AIRejectedError):
         await _complete(_block(SIGNED_IN), provider)
@@ -516,3 +524,118 @@ def test_public_helper_refuses_a_plugin_supplied_client_or_settings(hook):
         plugin_api.complete("hi", **{hook: None})
     with pytest.raises(TypeError):
         asyncio.run(plugin_api.complete_async("hi", **{hook: None}))
+
+
+# ── OpenRouter reasoning models keep the plugin's answer budget ────────────
+#
+# OpenRouter counts a reasoning model's thinking against the request's
+# max_tokens. generative_ai_art asked google/gemini-3.8-flash (reasoning
+# mandatory, default effort medium) for 828 tokens; the thinking took nearly
+# all of it and every answer stopped 30-70 characters in.
+
+OPENROUTER = {
+    "id": "or",
+    "name": "Test OpenRouter",
+    "protocol": "openai",
+    "base_url": "https://openrouter.ai/api/v1",
+    "api_key": "test_or_key",
+    "models": ["test/thinker"],
+}
+
+
+def _openrouter_models(**reasoning: dict[str, Any] | None) -> httpx.Response:
+    data = []
+    for model_id, block in reasoning.items():
+        entry: dict[str, Any] = {"id": model_id.replace("__", "/")}
+        if block is not None:
+            entry["reasoning"] = block
+        data.append(entry)
+    return httpx.Response(200, json={"data": data})
+
+
+@pytest.fixture(autouse=True)
+def _fresh_reasoning_metadata():
+    plugin_api._REASONING_CACHE.clear()
+    yield
+    plugin_api._REASONING_CACHE.clear()
+
+
+def _chat_body(provider: Provider) -> dict[str, Any]:
+    (post,) = [r for r in provider.seen if r.method == "POST"]
+    return json.loads(post.content)
+
+
+@pytest.mark.asyncio
+async def test_a_reasoning_model_gets_room_to_think_on_top_of_the_answer_budget():
+    provider = Provider(
+        _openrouter_models(test__thinker={"mandatory": True, "default_enabled": True}),
+        httpx.Response(200, json=_openai_reply()),
+    )
+    await _complete(_block(OPENROUTER), provider, max_tokens=828)
+    body = _chat_body(provider)
+    assert body["reasoning"] == {"max_tokens": 1024, "exclude": True}
+    assert body["max_tokens"] == 828 + 1024
+
+
+@pytest.mark.asyncio
+async def test_a_large_answer_budget_reserves_as_much_again_for_thinking():
+    provider = Provider(
+        _openrouter_models(test__thinker={"mandatory": False, "default_enabled": True}),
+        httpx.Response(200, json=_openai_reply()),
+    )
+    await _complete(_block(OPENROUTER), provider, max_tokens=4096)
+    body = _chat_body(provider)
+    assert body["reasoning"] == {"max_tokens": 4096, "exclude": True}
+    assert body["max_tokens"] == 8192
+
+
+@pytest.mark.asyncio
+async def test_a_model_that_does_not_reason_by_default_is_sent_as_asked():
+    provider = Provider(
+        _openrouter_models(test__thinker={"mandatory": False, "default_enabled": False}),
+        httpx.Response(200, json=_openai_reply()),
+    )
+    await _complete(_block(OPENROUTER), provider, max_tokens=828)
+    body = _chat_body(provider)
+    assert "reasoning" not in body  # never switch thinking on for a model that does not do it
+    assert body["max_tokens"] == 828
+
+
+@pytest.mark.asyncio
+async def test_unreadable_model_metadata_still_leaves_room_but_sends_no_reasoning_setting():
+    provider = Provider(httpx.Response(500, json={}), httpx.Response(200, json=_openai_reply()))
+    result = await _complete(_block(OPENROUTER), provider, max_tokens=828)
+    body = _chat_body(provider)
+    assert "reasoning" not in body
+    assert body["max_tokens"] == 828 + 1024
+    assert result.text == "test reply"
+
+
+@pytest.mark.asyncio
+async def test_openrouter_model_metadata_is_read_once():
+    provider = Provider(
+        _openrouter_models(test__thinker={"mandatory": True, "default_enabled": True}),
+        httpx.Response(200, json=_openai_reply()),
+        httpx.Response(200, json=_openai_reply()),
+    )
+    await _complete(_block(OPENROUTER), provider, max_tokens=828)
+    await _complete(_block(OPENROUTER), provider, max_tokens=828)
+    assert [r.method for r in provider.seen] == ["GET", "POST", "POST"]
+
+
+@pytest.mark.asyncio
+async def test_a_signed_in_openrouter_provider_gets_the_same_room(oauth):
+    provider = Provider(
+        _openrouter_models(**{"test-or-model": {"mandatory": True, "default_enabled": True}}),
+        httpx.Response(200, json=_openai_reply()),
+    )
+    await _complete(_block(SIGNED_IN), provider, max_tokens=828)
+    assert _chat_body(provider)["reasoning"] == {"max_tokens": 1024, "exclude": True}
+
+
+@pytest.mark.asyncio
+async def test_other_providers_never_fetch_openrouter_metadata():
+    provider = Provider()
+    await _complete(_block(OPENAI), provider, max_tokens=828)
+    assert [r.method for r in provider.seen] == ["POST"]
+    assert provider.body()["max_tokens"] == 828
