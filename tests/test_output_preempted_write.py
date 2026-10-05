@@ -111,3 +111,20 @@ def test_a_preempted_write_is_not_recorded_as_shown():
 
     assert not result["r"].was_sent
     assert driver._output_runtime.last_frame is None, "a frame that never landed is in the last-frame store"
+
+
+def test_the_driver_says_its_last_write_was_preempted_and_the_next_one_clears_it():
+    plugin = SlowPanel()
+    driver = OutputPluginDriver(plugin, clock=Clock())
+    engine = threading.Thread(target=lambda: driver.render(PAGE))
+    engine.start()
+    assert plugin.started.wait(5)
+    driver._output_runtime.preempt()
+    engine.join(5)
+    preempted = driver.last_send_preempted
+
+    send_floors().clear()
+    driver.render([[67] * 16 for _ in range(10)])
+
+    assert preempted is True
+    assert driver.last_send_preempted is False
