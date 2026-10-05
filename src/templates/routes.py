@@ -200,11 +200,7 @@ async def render_template(request: TemplateRenderRequest):
     """
     template = request.template
     check = _CharsetCheck(request.board_id)
-    device_type = request.device_type
-    notes_wide = request.notes_wide
-    notes_tall = request.notes_tall
-    grid_rows = request.grid_rows
-    grid_cols = request.grid_cols
+    device_type, notes_wide, notes_tall, grid_rows, grid_cols = _render_geometry(request, check.board)
 
     # Row count must come from the same geometry ``render_lines`` renders at.
     # A ``DEVICE_DIMENSIONS`` lookup cannot: it has no ``note_array`` key, so
@@ -260,6 +256,18 @@ async def render_template(request: TemplateRenderRequest):
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
 
 
+def _render_geometry(request, board: dict | None) -> tuple:
+    """``(device_type, notes_wide, notes_tall, grid_rows, grid_cols)`` to render at.
+
+    The request's own geometry when it names a device type; otherwise the
+    target board's grid — a render for a 10x16 panel is 10x16, not the
+    Flagship default (the engine already sends the board's grid).
+    """
+    if request.device_type is None and board is not None:
+        return tuple(geometry_of(board))
+    return (request.device_type, request.notes_wide, request.notes_tall, request.grid_rows, request.grid_cols)
+
+
 class _CharsetCheck:
     """A render targeted at a board: how to render, and what to report.
 
@@ -272,6 +280,8 @@ class _CharsetCheck:
     def __init__(self, board_id: str | None) -> None:
         self.targeted = board_id is not None
         board = _find_board(board_id) if board_id is not None else None
+        #: The board named, when it exists.
+        self.board = board
         self.charset = board_character_set(board) if board is not None else None
         self.render_kw: dict = {"extended_markup": True} if has_extended_markup(self.charset) else {}
 
@@ -301,11 +311,20 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     template_engine = get_template_engine()
     settings_service = get_settings_service()
     line_metadata = request.line_metadata
-    device_type = request.device_type
-    notes_wide = request.notes_wide
-    notes_tall = request.notes_tall
-    grid_rows = request.grid_rows
-    grid_cols = request.grid_cols
+
+    # The target board, resolved before rendering: a board whose output draws
+    # a rich character set renders with its extended markup (plan D19), and
+    # a request that names no geometry renders at the board's grid.
+    # (An unknown board_id is a 404 only once there is something to send: a
+    # blank template answers blank rows and touches no board.)
+    board_settings = settings_service.get_board_settings()
+    boards = board_settings.boards if board_settings else []
+    target_board = None
+    if board_id:
+        target_board = _find_board(board_id)
+    elif boards:
+        target_board = boards[0]
+    device_type, notes_wide, notes_tall, grid_rows, grid_cols = _render_geometry(request, target_board)
 
     # Same note-array-aware resolution as ``render_template`` above (#2032):
     # ``DEVICE_DIMENSIONS`` has no ``note_array`` key, so the blank path used
@@ -329,15 +348,8 @@ async def render_template_live(request: TemplateRenderLiveRequest):
             board_id=board_id,
         )
 
-    # The target board, resolved before rendering: a board whose output draws
-    # a rich character set renders with its extended markup (plan D19).
-    board_settings = settings_service.get_board_settings()
-    boards = board_settings.boards if board_settings else []
-    target_board = None
-    if board_id:
-        target_board = _require_board(board_id)
-    elif boards:
-        target_board = boards[0]
+    if board_id and target_board is None:
+        _require_board(board_id)
     client = live_driver(target_board.get("id")) if target_board else None
     render_kw = extended_markup_kw(client)
 

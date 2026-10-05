@@ -753,6 +753,10 @@ log_buffer_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(le
 logging.getLogger().addHandler(log_buffer_handler)
 
 
+#: How often a fresh install (no board yet) checks for its first board.
+_FIRST_BOARD_POLL_SECONDS = 5
+
+
 def run_service_background():
     """Run the service in a background thread with auto-restart on failure."""
     global _service_running
@@ -768,6 +772,13 @@ def run_service_background():
             continue
 
         if not service.vb_client:
+            if service.awaiting_first_board:
+                # A fresh install: initialize() announces the wait once; poll
+                # quietly, without backing off, so a board added in the wizard
+                # comes up within seconds.
+                service.initialize()
+                time.sleep(_FIRST_BOARD_POLL_SECONDS)
+                continue
             logger.info("Service not fully initialized, attempting initialization...")
             if not service.initialize():
                 logger.error("Service initialization failed - retrying in %ds...", restart_delay)

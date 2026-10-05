@@ -123,6 +123,7 @@ class OutputPluginDriver:
         self._output_runtime = OutputRuntime()
         self._last_send_throttled = False
         self._last_send_retry_after: int | None = None
+        self._last_send_preempted = False
         self._closed = False
         #: Why the last write failed (raised, timed out, refused by the
         #: breaker, or reported failed); ``None`` after a write that landed.
@@ -149,6 +150,11 @@ class OutputPluginDriver:
     @property
     def last_send_retry_after(self) -> int | None:
         return self._last_send_retry_after
+
+    @property
+    def last_send_preempted(self) -> bool:
+        """The last write was cancelled by a newer one before anything landed."""
+        return self._last_send_preempted
 
     @property
     def min_send_interval_ms(self) -> int:
@@ -251,6 +257,7 @@ class OutputPluginDriver:
     def _admit(self, is_unchanged: Callable[[], bool]) -> Admission:
         self._last_send_throttled = False
         self._last_send_retry_after = None
+        self._last_send_preempted = False
         admission = self._output_runtime.admit_send(
             self.device_key(), self.min_send_interval_ms / 1000.0, self._clock, is_unchanged
         )
@@ -330,6 +337,7 @@ class OutputPluginDriver:
     ) -> WriteResult:
         """Run the plugin's write under the run's token and its budget; settle
         floor, frame cache and breaker."""
+        token = self._output_runtime.cancel_event
         try:
             finished, raw = self._run_bounded(call)
             result = WriteResult.of(raw) if finished else None
@@ -350,6 +358,15 @@ class OutputPluginDriver:
             return WriteResult(False, False)
         if result.throttled:
             return self._device_throttled(admission, result.retry_after_seconds)
+        if result.success and not result.was_sent and token.is_set():
+            # Preempted: the plugin stopped mid-write and nothing landed. The
+            # newer write that cancelled it owns the board, so it gets the
+            # floor slot back and the last-frame store never claims this
+            # frame — otherwise that write is "throttled" by a write that
+            # never reached the device, and the board stays dark.
+            self._output_runtime.release_send(admission)
+            self._last_send_preempted = True
+            return WriteResult(True, False)
         if result.success:
             # Landed — or the device already showed it (a fan-out whose every
             # part was unchanged): either way it is what the board shows.
@@ -559,6 +576,7 @@ class OutputPluginDriver:
         def reset() -> None:
             self._last_send_throttled = False
             self._last_send_retry_after = None
+            self._last_send_preempted = False
 
         if self.takes_transitions:
             with self._output_runtime.run():

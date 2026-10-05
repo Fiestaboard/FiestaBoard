@@ -5,7 +5,7 @@ Defines the supported Vestaboard device types and their physical constraints.
 
 import uuid
 from dataclasses import asdict, dataclass, field
-from typing import Literal, NamedTuple, get_args
+from typing import Any, Literal, NamedTuple, get_args
 
 #: The device vocabulary, defined ONCE. ``DEVICE_TYPES`` is derived from the
 #: Literal rather than retyped beside it: the two used to be hand-copied
@@ -339,10 +339,15 @@ class BoardInstance:
     @property
     def is_connection_configured(self) -> bool:
         """Whether a driver can be built for this board (its output's
-        :attr:`status`). A FiestaPanel always is; a board whose output has
-        nothing to say is not."""
+        :attr:`status`). A FiestaPanel always is. An output that is not
+        installed (yet: at boot the plugin registry may still be loading it)
+        has no status, and any stored setting counts, as for
+        :attr:`has_connection_attempt`; whether a driver can really be built
+        is the runtime factory's answer."""
         status = self.status
-        return status is not None and status.configured
+        if status is None:
+            return self.has_connection_attempt
+        return status.configured
 
     @property
     def has_connection_attempt(self) -> bool:
@@ -668,6 +673,19 @@ def _optional_int(value) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def board_is_set_up(board: Any) -> bool:
+    """Whether a stored board dict carries a connection: configured, or with
+    any connection detail entered (a misconfigured board is that board's own
+    error, #1813). The placeholder board a fresh install seeds has neither."""
+    if not isinstance(board, dict):
+        return False
+    try:
+        instance = BoardInstance.from_dict(board)
+    except Exception:
+        return False
+    return instance.is_connection_configured or instance.has_connection_attempt
 
 
 def geometry_of(obj) -> Geometry:
