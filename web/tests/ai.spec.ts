@@ -446,8 +446,8 @@ test.describe("AI", () => {
       expect(boardRes.ok()).toBe(true);
 
       await page.goto("/settings");
-      // Settings page splits into tabs (General / Hardware / Behavior /
-      // Integrations / System / Advanced). AI Settings live in Integrations.
+      // Settings page splits into tabs (General / Behavior / Integrations /
+      // System / Advanced). AI Settings live in Integrations.
       await page.getByRole("tab", { name: "Integrations", exact: true }).click();
 
       // The settings component is loaded — assert on a stable string from

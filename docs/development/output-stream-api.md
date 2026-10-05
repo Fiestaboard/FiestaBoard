@@ -12,7 +12,7 @@ FiestaPanel, FiestaBoard's own TV viewer, is built on exactly these two endpoint
 
 ## Before You Start
 
-Frames are read through a **panel**. A panel is a named view of one board, with a short number for typing on a TV remote. Create one in **Settings → Hardware → FiestaPanel** with **Create panel** (see [FiestaPanel](/docs/features/fiestapanel)), and note its number or id.
+Frames are read through a **panel**. A panel is a named view of one board, with a short number for typing on a TV remote. Create one in **Displays → Add a display → FiestaPanel** (see [FiestaPanel](/docs/features/fiestapanel)), and note its number or id.
 
 The examples below use `http://fiestaboard.local:4420`. Use your FiestaBoard's address.
 

@@ -245,7 +245,7 @@ A model's `appearance` describes how the device looks in a preview: `pixelShape`
 
 ### Board settings
 
-`settings_schema` is the board's settings screen. FiestaBoard renders it in **Settings → Hardware** and in the setup wizard, from the same JSON Schema vocabulary as a data plugin's settings, plus three things device setup needs:
+`settings_schema` is the board's settings screen. FiestaBoard renders it on the board's page under **Displays** and in the setup wizard, from the same JSON Schema vocabulary as a data plugin's settings, plus three things device setup needs:
 
 **Sections.** `ui:sections` on the schema root groups properties. Properties in no section render first.
 
@@ -633,7 +633,7 @@ curl -X POST http://localhost:4420/api/plugins/install \
   -d '{"repository": "https://github.com/your-username/fiestaboard-output--acme-sign"}'
 ```
 
-Then add a board for it in **Settings → Hardware → Add Board → Other displays**. Your plugin's settings screen opens there, rendered from your manifest. Boards can also be created with `POST /outputs/acme_sign/boards`, naming one of your device models.
+Then add a board for it in **Displays → Add a display**, choosing your output. Your plugin's settings screen opens there, rendered from your manifest. Boards can also be created with `POST /outputs/acme_sign/boards`, naming one of your device models.
 
 Set `FIESTABOARD_OUTPUTS_ALLOW_HOSTS` to your device's address while you test, so nothing else on your network can be reached by mistake.
 

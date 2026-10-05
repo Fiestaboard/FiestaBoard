@@ -63,6 +63,7 @@
     "collections": "Carrousels",
     "schedule": "Planning",
     "integrations": "Integraties",
+    "displays": "Schermen",
     "settings": "Instellingen",
     "helpDocs": "Help & Documentatie",
     "userProfile": "Profiel",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "Installatiewizard",
     "setupWizardDescription": "Voer de installatiewizard opnieuw uit om je bordverbinding en basisinstellingen opnieuw te configureren.",
     "runSetupWizard": "Installatiewizard starten",
-    "sectionHardware": "Hardware",
     "sectionHardwareDescription": "Fysieke bordconfiguratie en verbinding",
     "sectionBehavior": "Gedrag",
     "sectionBehaviorDescription": "Hoe inhoud beweegt, ververst en pauzeert",
@@ -777,7 +777,7 @@
       "needsBeta": "Vereist de bèta voor uitvoerplug-ins. Je kunt die in de volgende stap aanzetten.",
       "downloads": "Wordt gedownload als je doorgaat, dus er is een internetverbinding nodig.",
       "skipTitle": "Overslaan — ik voeg later een scherm toe",
-      "skipDescription": "Kijk rond en bekijk nu alvast pagina's. Voeg op elk moment een scherm toe in Instellingen."
+      "skipDescription": "Kijk rond en bekijk nu alvast pagina's. Voeg op elk moment een scherm toe via Schermen."
     },
     "outputSetup": {
       "installing": "{name} installeren…",
@@ -976,8 +976,6 @@
     "transitionPluginsGroup": "Plugins (bèta)"
   },
   "displaySettings": {
-    "title": "Je borden",
-    "description": "Voeg elk Vestaboard dat je bezit toe en configureer de verbinding.",
     "unnamedBoard": "Naamloos bord",
     "boardDimensions": {
       "flagship": "22×6",
@@ -991,7 +989,6 @@
     "code62DegreeAriaLabel": "Gradenteken-klepje",
     "code62HeartAriaLabel": "Hartje-klepje",
     "removeBoard": "Bord verwijderen",
-    "addBoard": "Bord toevoegen",
     "selectType": "Selecteer type:",
     "boardAdded": "Bord toegevoegd",
     "boardRemoved": "Bord verwijderd",
@@ -1036,6 +1033,52 @@
     "notesWideLabel": "Notes breed",
     "notesTallLabel": "Notes hoog",
     "customRangeError": "Elke dimensie moet tussen 1 en {max} liggen."
+  },
+  "displays": {
+    "title": "Schermen",
+    "description": "Elk bord en scherm waarop FiestaBoard toont. Open er een om de instellingen te wijzigen.",
+    "addDisplay": "Scherm toevoegen",
+    "listLabel": "Je schermen",
+    "empty": "Nog geen schermen. Voeg er een toe om er pagina's op te tonen.",
+    "unnamed": "Naamloos scherm",
+    "openSettings": "Instellingen",
+    "openSettingsLabel": "Instellingen van {name} openen",
+    "pause": "Pauzeren",
+    "resume": "Hervatten",
+    "pauseLabel": "{name} pauzeren",
+    "resumeLabel": "{name} hervatten",
+    "back": "Alle schermen",
+    "notFound": "Dit scherm bestaat niet meer.",
+    "previewTitle": "Nu te zien",
+    "settingsTitle": "Instellingen",
+    "transition": {
+      "title": "Overgang",
+      "description": "Hoe dit scherm van het ene bericht naar het volgende gaat. De eigen overgang van een pagina gaat nog steeds voor.",
+      "default": "Standaard",
+      "defaultDescription": "De overgang gebruiken die is gekozen in Instellingen → Gedrag.",
+      "cloudNote": "Dit bord gebruikt de Cloud-API, die het hele bord in één keer verandert. Overgangen hebben de lokale API nodig.",
+      "snapNote": "Dit scherm kan alleen alles in één keer veranderen, dus het springt direct naar elk nieuw bericht.",
+      "deviceDefault": "Standaard van het apparaat",
+      "unavailable": "Niet beschikbaar op dit scherm",
+      "runsAs": "Draait als",
+      "previewLabel": "Voorbeeld van {name}"
+    },
+    "add": {
+      "title": "Scherm toevoegen",
+      "chooseDescription": "Waarop wil je dat FiestaBoard toont?",
+      "findMore": "Meer schermen vinden",
+      "findMoreTitle": "Meer schermen vinden",
+      "findMoreDescription": "Schermplug-ins uit het FiestaBoard-pluginregister.",
+      "findMoreLoading": "Register laden…",
+      "findMoreFailed": "Het pluginregister kon niet worden geladen. Controleer je internetverbinding en probeer het opnieuw.",
+      "findMoreEmpty": "Het register bevat nog geen andere schermen.",
+      "byAuthor": "door {author}",
+      "vestaboardTitle": "Vestaboard toevoegen",
+      "vestaboardDescription": "Kies de vorm. Daarna verbind je het op de eigen pagina.",
+      "panelTitle": "Tv of browser toevoegen",
+      "outputTitle": "{name} toevoegen",
+      "setupDescription": "Stel het in en voeg het dan toe."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Update beschikbaar",
@@ -2365,10 +2408,7 @@
     "geometryDetected": "{rows} × {cols} gedetecteerd",
     "applyGeometry": "Formaat toepassen",
     "actionInputDescription": "Deze actie heeft eerst een paar gegevens nodig.",
-    "otherDisplays": "Andere displays",
     "betaRequired": "Zet uitvoerplug-ins aan in Instellingen → Geavanceerd → Bètafuncties om dit display te gebruiken.",
-    "boardCreated": "Bord toegevoegd",
-    "addOutputTitle": "Een {name}-bord toevoegen",
     "boardNameLabel": "Bordnaam",
     "boardNamePlaceholder": "Mijn bord",
     "deviceModelLabel": "Apparaatmodel",

@@ -63,6 +63,7 @@
     "collections": "轮播",
     "schedule": "日程",
     "integrations": "集成",
+    "displays": "显示设备",
     "settings": "设置",
     "helpDocs": "帮助和文档",
     "userProfile": "个人资料",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "设置向导",
     "setupWizardDescription": "重新运行设置向导以重新配置看板连接和基本设置。",
     "runSetupWizard": "运行设置向导",
-    "sectionHardware": "硬件",
     "sectionHardwareDescription": "看板的物理配置和连接",
     "sectionBehavior": "行为",
     "sectionBehaviorDescription": "内容如何移动、刷新和暂停",
@@ -777,7 +777,7 @@
       "needsBeta": "需要输出插件测试版。你可以在下一步中开启。",
       "downloads": "继续后会下载，因此需要连接互联网。",
       "skipTitle": "跳过 — 稍后再添加显示设备",
-      "skipDescription": "现在可以四处看看并预览页面。随时可以在设置中添加显示设备。"
+      "skipDescription": "现在可以四处看看并预览页面。随时可以在“显示设备”中添加显示设备。"
     },
     "outputSetup": {
       "installing": "正在安装 {name}…",
@@ -976,8 +976,6 @@
     "transitionPluginsGroup": "插件（测试版）"
   },
   "displaySettings": {
-    "title": "您的看板",
-    "description": "添加您拥有的每个 Vestaboard 并配置其连接。",
     "unnamedBoard": "未命名看板",
     "boardDimensions": {
       "flagship": "22×6",
@@ -991,7 +989,6 @@
     "code62DegreeAriaLabel": "度数符号翻页片",
     "code62HeartAriaLabel": "爱心翻页片",
     "removeBoard": "移除看板",
-    "addBoard": "添加看板",
     "selectType": "选择类型：",
     "boardAdded": "看板已添加",
     "boardRemoved": "看板已移除",
@@ -1036,6 +1033,52 @@
     "notesWideLabel": "Note 宽度",
     "notesTallLabel": "Note 高度",
     "customRangeError": "每个尺寸必须介于 1 和 {max} 之间。"
+  },
+  "displays": {
+    "title": "显示设备",
+    "description": "FiestaBoard 进行显示的所有看板和屏幕。打开其中一个即可更改其设置。",
+    "addDisplay": "添加显示设备",
+    "listLabel": "你的显示设备",
+    "empty": "还没有显示设备。添加一个即可开始在上面显示页面。",
+    "unnamed": "未命名的显示设备",
+    "openSettings": "设置",
+    "openSettingsLabel": "打开 {name} 的设置",
+    "pause": "暂停",
+    "resume": "继续",
+    "pauseLabel": "暂停 {name}",
+    "resumeLabel": "继续 {name}",
+    "back": "所有显示设备",
+    "notFound": "此显示设备已不存在。",
+    "previewTitle": "当前显示",
+    "settingsTitle": "设置",
+    "transition": {
+      "title": "过渡效果",
+      "description": "此显示设备从一条消息切换到下一条的方式。页面自己的过渡效果仍然优先。",
+      "default": "默认",
+      "defaultDescription": "使用在 设置 → 行为 中选择的过渡效果。",
+      "cloudNote": "此看板使用云端 API，会一次性更新整个看板。过渡效果需要本地 API。",
+      "snapNote": "此显示设备只能一次性全部更新，因此会直接切换到每条新消息。",
+      "deviceDefault": "设备默认",
+      "unavailable": "此显示设备不可用",
+      "runsAs": "实际运行为",
+      "previewLabel": "{name} 预览"
+    },
+    "add": {
+      "title": "添加显示设备",
+      "chooseDescription": "你想让 FiestaBoard 显示在什么上？",
+      "findMore": "查找更多显示设备",
+      "findMoreTitle": "查找更多显示设备",
+      "findMoreDescription": "来自 FiestaBoard 插件注册表的显示设备插件。",
+      "findMoreLoading": "正在加载注册表…",
+      "findMoreFailed": "无法加载插件注册表。请检查网络连接后重试。",
+      "findMoreEmpty": "注册表中暂时没有其他显示设备。",
+      "byAuthor": "作者：{author}",
+      "vestaboardTitle": "添加 Vestaboard",
+      "vestaboardDescription": "选择它的形状。接下来在它的页面上进行连接。",
+      "panelTitle": "添加电视或浏览器",
+      "outputTitle": "添加 {name}",
+      "setupDescription": "先完成设置，再添加。"
+    }
   },
   "systemUpdate": {
     "updateAvailable": "有可用更新",
@@ -2365,10 +2408,7 @@
     "geometryDetected": "检测到 {rows} × {cols}",
     "applyGeometry": "应用尺寸",
     "actionInputDescription": "此操作需要先提供一些信息。",
-    "otherDisplays": "其他显示屏",
     "betaRequired": "要使用此显示屏，请在“设置 → 高级 → 测试版功能”中开启输出插件。",
-    "boardCreated": "已添加看板",
-    "addOutputTitle": "添加 {name} 看板",
     "boardNameLabel": "看板名称",
     "boardNamePlaceholder": "我的看板",
     "deviceModelLabel": "设备型号",

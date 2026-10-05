@@ -63,6 +63,7 @@
     "collections": "Carrosséis",
     "schedule": "Agenda",
     "integrations": "Integrações",
+    "displays": "Ecrãs",
     "settings": "Configurações",
     "helpDocs": "Ajuda e documentação",
     "userProfile": "Perfil",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "Assistente de Configuração",
     "setupWizardDescription": "Execute novamente o assistente de configuração para reconfigurar a conexão do painel e as configurações básicas.",
     "runSetupWizard": "Iniciar Assistente de Configuração",
-    "sectionHardware": "Hardware",
     "sectionHardwareDescription": "Configuração física do quadro e conexão",
     "sectionBehavior": "Comportamento",
     "sectionBehaviorDescription": "Como o conteúdo se move, atualiza e pausa",
@@ -777,7 +777,7 @@
       "needsBeta": "Requer a beta de plugins de saída. Pode ativá-la no passo seguinte.",
       "downloads": "É transferido quando continuar, por isso precisa de ligação à Internet.",
       "skipTitle": "Ignorar — adiciono um ecrã mais tarde",
-      "skipDescription": "Explore e pré-visualize páginas agora. Adicione um ecrã quando quiser nas Definições."
+      "skipDescription": "Explore e pré-visualize páginas agora. Adicione um ecrã quando quiser em Ecrãs."
     },
     "outputSetup": {
       "installing": "A instalar {name}…",
@@ -976,8 +976,6 @@
     "transitionPluginsGroup": "Plugins (beta)"
   },
   "displaySettings": {
-    "title": "Seus Painéis",
-    "description": "Adicione cada Vestaboard que você possui e configure sua conexão.",
     "unnamedBoard": "Painel Sem Nome",
     "boardDimensions": {
       "flagship": "22×6",
@@ -991,7 +989,6 @@
     "code62DegreeAriaLabel": "Aba de grau",
     "code62HeartAriaLabel": "Aba de coração",
     "removeBoard": "Remover Painel",
-    "addBoard": "Adicionar Painel",
     "selectType": "Selecione o tipo:",
     "boardAdded": "Painel adicionado",
     "boardRemoved": "Painel removido",
@@ -1036,6 +1033,52 @@
     "notesWideLabel": "Notes de largura",
     "notesTallLabel": "Notes de altura",
     "customRangeError": "Cada dimensão deve estar entre 1 e {max}."
+  },
+  "displays": {
+    "title": "Ecrãs",
+    "description": "Todos os painéis e ecrãs em que o FiestaBoard mostra conteúdo. Abra um para alterar as configurações.",
+    "addDisplay": "Adicionar um ecrã",
+    "listLabel": "Os seus ecrãs",
+    "empty": "Ainda não há ecrãs. Adicione um para começar a mostrar páginas nele.",
+    "unnamed": "Ecrã sem nome",
+    "openSettings": "Configurações",
+    "openSettingsLabel": "Abrir as configurações de {name}",
+    "pause": "Pausar",
+    "resume": "Retomar",
+    "pauseLabel": "Pausar {name}",
+    "resumeLabel": "Retomar {name}",
+    "back": "Todos os ecrãs",
+    "notFound": "Este ecrã já não existe.",
+    "previewTitle": "Em exibição agora",
+    "settingsTitle": "Configurações",
+    "transition": {
+      "title": "Transição",
+      "description": "Como este ecrã muda de uma mensagem para a seguinte. A transição própria de uma página continua a ter prioridade.",
+      "default": "Predefinida",
+      "defaultDescription": "Usar a transição escolhida em Configurações → Comportamento.",
+      "cloudNote": "Este painel usa a API na nuvem, que muda o painel inteiro de uma vez. As transições precisam da API local.",
+      "snapNote": "Este ecrã só consegue mudar tudo de uma vez, por isso passa diretamente para cada nova mensagem.",
+      "deviceDefault": "Predefinição do dispositivo",
+      "unavailable": "Indisponível neste ecrã",
+      "runsAs": "É executada como",
+      "previewLabel": "Pré-visualização de {name}"
+    },
+    "add": {
+      "title": "Adicionar um ecrã",
+      "chooseDescription": "Onde quer que o FiestaBoard mostre conteúdo?",
+      "findMore": "Encontrar mais ecrãs",
+      "findMoreTitle": "Encontrar mais ecrãs",
+      "findMoreDescription": "Plugins de ecrã do registo de plugins do FiestaBoard.",
+      "findMoreLoading": "A carregar o registo…",
+      "findMoreFailed": "Não foi possível carregar o registo de plugins. Verifique a ligação à internet e tente novamente.",
+      "findMoreEmpty": "Ainda não há outros ecrãs no registo.",
+      "byAuthor": "por {author}",
+      "vestaboardTitle": "Adicionar um Vestaboard",
+      "vestaboardDescription": "Escolha a forma. Vai ligá-lo depois na página dele.",
+      "panelTitle": "Adicionar uma TV ou um navegador",
+      "outputTitle": "Adicionar {name}",
+      "setupDescription": "Configure-o e depois adicione-o."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Atualização Disponível",
@@ -2365,10 +2408,7 @@
     "geometryDetected": "Detectado {rows} × {cols}",
     "applyGeometry": "Aplicar tamanho",
     "actionInputDescription": "Esta ação precisa de algumas informações primeiro.",
-    "otherDisplays": "Outras telas",
     "betaRequired": "Ative os plugins de saída em Configurações → Avançado → Recursos beta para usar esta tela.",
-    "boardCreated": "Painel adicionado",
-    "addOutputTitle": "Adicionar um painel {name}",
     "boardNameLabel": "Nome do painel",
     "boardNamePlaceholder": "Meu painel",
     "deviceModelLabel": "Modelo do dispositivo",

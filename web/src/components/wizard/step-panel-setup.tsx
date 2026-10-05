@@ -13,6 +13,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { queryKeys } from "@/hooks/use-board";
+import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { appUrl } from "@/lib/base-path";
@@ -29,9 +30,17 @@ interface StepPanelSetupProps {
   onCreated: (board: WizardCreatedBoard) => void;
   onValidChange: (valid: boolean) => void;
   setIsLoading: (loading: boolean) => void;
+  /** Remove the untouched placeholder board once the panel's exists (the wizard's way; default). */
+  replacePlaceholder?: boolean;
 }
 
-export function StepPanelSetup({ created, onCreated, onValidChange, setIsLoading }: StepPanelSetupProps) {
+export function StepPanelSetup({
+  created,
+  onCreated,
+  onValidChange,
+  setIsLoading,
+  replacePlaceholder = true,
+}: StepPanelSetupProps) {
   const t = useTranslations("wizard.panelSetup");
   const queryClient = useQueryClient();
   const done = created?.outputId === "fiestapanel" ? created : null;
@@ -49,7 +58,7 @@ export function StepPanelSetup({ created, onCreated, onValidChange, setIsLoading
       setIsLoading(true);
       try {
         const panel = await api.createPanel({ name: name.trim(), screen_diagonal_inches: size });
-        await removeUntouchedPlaceholder(panel.board_id);
+        if (replacePlaceholder) await removeUntouchedPlaceholder(panel.board_id);
         return panel;
       } finally {
         setIsLoading(false);
@@ -57,6 +66,8 @@ export function StepPanelSetup({ created, onCreated, onValidChange, setIsLoading
     },
     onSuccess: (panel) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
+      // The display page and page targets read panels through this key.
+      void queryClient.invalidateQueries({ queryKey: PANELS_QUERY_KEY });
       onCreated({
         outputId: "fiestapanel",
         boardId: panel.board_id,

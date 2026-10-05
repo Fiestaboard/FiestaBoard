@@ -1,16 +1,8 @@
 "use client";
 
 /**
- * Boards and their outputs (plan D13), in Settings → Hardware:
+ * Boards and their outputs (plan D13), on a display's page (plan D21):
  *
- * - {@link OtherOutputCards}: the "Add board" choices beyond the Vestaboard
- *   (whose Flagship / Note / Note array row stays as it was): the outputs
- *   `GET /outputs` lists, and those `GET /outputs/available` can install (a
- *   seeded one always, a registry one once the beta is on) — installed when
- *   chosen, as the setup wizard does. FiestaPanel goes to its own section; an
- *   output plugin opens {@link AddOutputBoardDialog}.
- * - {@link AddOutputBoardDialog}: name, device model and the plugin's own
- *   settings screen on draft settings, then `POST /outputs/{id}/boards`.
  * - {@link OutputBoardSettings}: a saved board's connection screen — any
  *   output's, the Vestaboard's included — drawn from its manifest and saved
  *   with the board settings (`output_config`, secrets echoed as `"***"`).
@@ -18,40 +10,15 @@
  *   a typed field when it loses focus, anything else (a mode card, a tile,
  *   a filled-in key) at once. A third-party output's has a Save button.
  */
-import {
-  ActionCard,
-  Alert,
-  AlertDescription,
-  Box,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Grid,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Stack,
-  Text,
-} from "@fiestaboard/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Alert, AlertDescription, Box, Button, Stack } from "@fiestaboard/ui";
+import { useQuery } from "@tanstack/react-query";
 import { Cpu, Grid3x3, LayoutGrid, Lightbulb, type LucideIcon, Monitor, MonitorSmartphone, Tv } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
-import { queryKeys } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
-import { ANCHOR_ATTR } from "@/lib/ai-choreography/anchors";
-import type { ActionGeometry, AvailableOutput, BoardInstance, OutputSummary } from "@/lib/api";
+import type { ActionGeometry, BoardInstance } from "@/lib/api";
 import { api } from "@/lib/api";
-import { isNoteArray, MAX_BOARD_NAME_LENGTH } from "@/lib/board-dimensions";
+import { isNoteArray } from "@/lib/board-dimensions";
 import type { BoardFacts } from "@/lib/visible-when";
 
 import { PluginBoardSettings } from "./plugin-board-settings";
@@ -122,185 +89,6 @@ const ICONS: Record<string, LucideIcon> = {
 export function OutputIcon({ name, className }: { name: string | null | undefined; className?: string }) {
   const Icon = (name && ICONS[name]) || MonitorSmartphone;
   return <Icon className={className ?? "h-4 w-4"} aria-hidden="true" />;
-}
-
-function scrollToPanels() {
-  const section = document.querySelector<HTMLElement>(`[${ANCHOR_ATTR}="settings.panels"]`);
-  section?.scrollIntoView({ behavior: "smooth", block: "start" });
-  section?.focus?.({ preventScroll: true });
-}
-
-/** One "Add board" card: an installed output, or one `GET /outputs/available` offers to install. */
-interface OutputChoice {
-  id: string;
-  name: string;
-  description: string;
-  icon: string | null;
-  available: boolean;
-  /** Installed already: its summary. Not yet: installed when chosen (the setup wizard's way). */
-  installed: OutputSummary | null;
-}
-
-/**
- * The installed outputs, then the ones this image or the registry can
- * install: a seeded (bundled) output always — disabled while its beta is
- * off — and a registry one only once it can be used (the beta is on).
- */
-function outputChoices(installed: OutputSummary[], offered: AvailableOutput[]): OutputChoice[] {
-  const choices: OutputChoice[] = installed.map((o) => ({ ...o, installed: o }));
-  const known = new Set(installed.map((o) => o.id));
-  for (const o of offered) {
-    if (known.has(o.id) || o.installed || o.builtin) continue;
-    if (o.source === "registry" && !o.available) continue;
-    choices.push({ ...o, installed: null });
-  }
-  return choices.filter((o) => o.id !== "vestaboard");
-}
-
-export function OtherOutputCards({ onChosen }: { onChosen: () => void }) {
-  const t = useTranslations("boardSettingsScreen");
-  const queryClient = useQueryClient();
-  const { data: outputs } = useOutputs();
-  const { data: offered } = useQuery({
-    queryKey: AVAILABLE_OUTPUTS_QUERY_KEY,
-    queryFn: () => api.listAvailableOutputs(),
-    staleTime: 60_000,
-  });
-  const [adding, setAdding] = useState<OutputSummary | null>(null);
-  const install = useMutation({
-    mutationFn: (outputId: string) => api.installOutput(outputId),
-    onSuccess: (summary) => {
-      void queryClient.invalidateQueries({ queryKey: OUTPUTS_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: AVAILABLE_OUTPUTS_QUERY_KEY });
-      setAdding(summary);
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-  const others = outputChoices(outputs ?? [], offered ?? []);
-  if (others.length === 0) return null;
-
-  return (
-    <Stack gap="2" data-testid="other-output-cards">
-      <Text as="span" size="xs" tone="muted" id="other-outputs-label">
-        {t("otherDisplays")}
-      </Text>
-      <Grid gap="2" className="sm:grid-cols-2" role="list" aria-labelledby="other-outputs-label">
-        {others.map((output) => (
-          <Box role="listitem" key={output.id}>
-            <ActionCard
-              icon={<OutputIcon name={output.icon} />}
-              title={output.name}
-              description={output.available ? output.description : t("betaRequired")}
-              disabled={!output.available || install.isPending}
-              data-testid={`add-output-${output.id}`}
-              onClick={() => {
-                if (output.id === "fiestapanel") {
-                  scrollToPanels();
-                  onChosen();
-                } else if (output.installed) {
-                  setAdding(output.installed);
-                } else {
-                  install.mutate(output.id);
-                }
-              }}
-            />
-          </Box>
-        ))}
-      </Grid>
-      <Dialog open={adding !== null} onOpenChange={(open) => !open && setAdding(null)}>
-        {adding && (
-          <AddOutputBoardDialog
-            key={adding.id}
-            output={adding}
-            onDone={() => {
-              setAdding(null);
-              onChosen();
-            }}
-          />
-        )}
-      </Dialog>
-    </Stack>
-  );
-}
-
-export function AddOutputBoardDialog({ output, onDone }: { output: OutputSummary; onDone: () => void }) {
-  const t = useTranslations("boardSettingsScreen");
-  const tc = useTranslations("common");
-  const queryClient = useQueryClient();
-  const [name, setName] = useState("");
-  const [deviceModel, setDeviceModel] = useState(output.device_models[0]?.id ?? "");
-  const [config, setConfig] = useState<Record<string, unknown>>({});
-
-  const create = useMutation({
-    mutationFn: () =>
-      api.createOutputBoard(output.id, {
-        device_model: deviceModel,
-        output_config: config,
-        ...(name.trim() ? { name: name.trim() } : {}),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
-      queryClient.invalidateQueries({ queryKey: ["all-settings"] });
-      toast.success(t("boardCreated"));
-      onDone();
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  return (
-    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-      <Box
-        as="form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          create.mutate();
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>{t("addOutputTitle", { name: output.name })}</DialogTitle>
-          <DialogDescription>{output.description}</DialogDescription>
-        </DialogHeader>
-        <Stack gap="4" className="py-4">
-          <Grid gap="1.5">
-            <Label htmlFor="output-board-name">{t("boardNameLabel")}</Label>
-            <Input
-              id="output-board-name"
-              value={name}
-              maxLength={MAX_BOARD_NAME_LENGTH}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("boardNamePlaceholder")}
-            />
-          </Grid>
-          {output.device_models.length > 1 && (
-            <Grid gap="1.5">
-              <Label htmlFor="output-device-model">{t("deviceModelLabel")}</Label>
-              <Select value={deviceModel} onValueChange={(v) => v && setDeviceModel(v)}>
-                <SelectTrigger id="output-device-model">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {output.device_models.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Grid>
-          )}
-          <PluginBoardSettings output={output} values={config} onChange={setConfig} deviceModel={deviceModel} />
-        </Stack>
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onDone}>
-            {tc("cancel")}
-          </Button>
-          <Button type="submit" disabled={create.isPending || !deviceModel}>
-            {create.isPending ? t("creating") : t("createBoard")}
-          </Button>
-        </DialogFooter>
-      </Box>
-    </DialogContent>
-  );
 }
 
 /** Whether *element* takes typed text: such a field saves when it loses focus. */

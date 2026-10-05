@@ -47,7 +47,11 @@ export function BoardInitErrorBanner() {
             <AlertDescription>{board.error}</AlertDescription>
           </Box>
           <Flex align="center" className="self-center shrink-0">
-            <Button variant="outline" size="sm" onClick={() => router.push("/settings?section=hardware")}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/displays/${encodeURIComponent(board.id)}`)}
+            >
               {t("boardInitErrorOpenSettings")}
             </Button>
           </Flex>

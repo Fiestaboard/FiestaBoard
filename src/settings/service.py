@@ -11,7 +11,7 @@ import os
 import shutil
 import threading
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, Optional, TypeVar, get_args
@@ -66,6 +66,27 @@ def is_valid_strategy(strategy: str | None) -> bool:
         plugin_id = strategy[len(TRANSITION_PLUGIN_PREFIX) :].strip()
         return bool(plugin_id)
     return False
+
+
+#: A display's own "no transition" (plan D21). Distinct from an unset choice,
+#: which follows the install's default.
+BOARD_TRANSITION_NONE = "none"
+
+
+def is_valid_board_transition(choice: str | None) -> bool:
+    """Whether *choice* is something a display's transition menu offers.
+
+    ``None`` (follow the install's default), ``"none"``, a split-flap
+    strategy or ``plugin:<id>`` (:func:`is_valid_strategy`), or an LED menu
+    id (FiestaUI's registry, :func:`src.led.transition_registry.is_led_transition_id`).
+    Whether the device can run it is the runtime's call: an LED choice a
+    device cannot honour falls back to its model's default with a reason.
+    """
+    if choice is None or choice == BOARD_TRANSITION_NONE or is_valid_strategy(choice):
+        return True
+    from src.led.transition_registry import is_led_transition_id
+
+    return is_led_transition_id(choice)
 
 
 @dataclass
@@ -1608,8 +1629,29 @@ class SettingsService:
             return None
 
     # Transition settings
-    def get_transition_settings(self) -> TransitionSettings:
-        """Get current transition settings."""
+    def get_transition_settings(self, board_id: str | None = None) -> TransitionSettings:
+        """The install's transition settings, or those display *board_id* runs.
+
+        A display's own choice (its ``transition``, plan D21) replaces the
+        install's strategy; the step interval and size stay the install's.
+        ``"none"`` is no transition: ``None`` for a Vestaboard or FiestaPanel,
+        and kept as the LED menu's ``"none"`` for an output plugin's board,
+        whose unset strategy would mean its model's default instead. A
+        display with no choice, or an unknown id, gets the install's.
+        """
+        if board_id:
+            from src.devices import BUILTIN_OUTPUT_IDS, derive_output_id
+
+            for board in self._board.boards:
+                if board.get("id") != board_id:
+                    continue
+                choice = board.get("transition")
+                if not isinstance(choice, str) or not choice:
+                    break
+                strategy: str | None = choice
+                if choice == BOARD_TRANSITION_NONE and derive_output_id(board) in BUILTIN_OUTPUT_IDS:
+                    strategy = None
+                return replace(self._transition, strategy=strategy)
         return self._transition
 
     @_locked
@@ -1936,6 +1978,7 @@ class SettingsService:
             # Either shape, or both (an echoed GET): plan D8's bidirectional
             # projection, resolved against the stored board.
             instance = BoardInstance.from_dict(merge_board_write(b, existing))
+            self._check_board_transition(instance.transition, (existing or {}).get("transition"))
             validated.append(instance.to_dict())
 
         self._board.boards = validated
@@ -1962,10 +2005,31 @@ class SettingsService:
         if not board.get("name"):
             board["name"] = self._next_board_name()
         instance = BoardInstance.from_dict(board)
+        self._check_board_transition(instance.transition, None)
         self._board.boards.append(instance.to_dict())
         self._save_to_file()
         logger.info(f"Added board: {instance.name} ({instance.device_type})")
         return self._board
+
+    def _check_board_transition(self, choice: str | None, stored: str | None) -> None:
+        """Refuse a display transition no menu offers, or a newly chosen
+        transition plugin while their beta is off (as the install's setting
+        does). A plugin choice already stored keeps saving with the board."""
+        if not is_valid_board_transition(choice):
+            raise ValueError(
+                f"Invalid transition: {choice}. Must be 'none', one of {VALID_STRATEGIES}, "
+                "'plugin:<id>' or an LED transition id"
+            )
+        if (
+            isinstance(choice, str)
+            and choice.startswith(TRANSITION_PLUGIN_PREFIX)
+            and choice != stored
+            and not self._beta.transition_plugins_enabled
+        ):
+            raise ValueError(
+                "Transition plugins are an experimental beta. "
+                "Enable them in Settings → Beta before selecting a plugin: transition."
+            )
 
     def _next_board_name(self) -> str:
         """Generate the next available 'My Board' name."""

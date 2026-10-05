@@ -1,6 +1,6 @@
 /**
  * Auto-generated regression stubs from .claude/ux-coverage.json.
- * Subarea: settings.tab-hardware + settings.tab-network
+ * Subarea: settings.tab-hardware (now Displays, plan D21) + settings.tab-network
  */
 import type { Page } from "@playwright/test";
 
@@ -12,6 +12,8 @@ import {
   ensureTwoBoards,
   expect,
   loginIfNeeded,
+  openDisplay,
+  openDisplays,
   openSettingsTab,
   resetToSingleBoard,
   test,
@@ -29,7 +31,7 @@ test.beforeEach(async ({ context, page }) => {
 test.describe("regression: settings.hardware", () => {
   /**
    * UX node: settings.tab-hardware
-   * Route: /settings (Hardware tab)
+   * Route: /displays/:boardId (was /settings, Hardware tab)
    * Expected (missing from current coverage):
    *   - enablement-token toggle mode exercised in UI
    *   - FiestaBoard cloud registry boards path tested
@@ -37,13 +39,8 @@ test.describe("regression: settings.hardware", () => {
    * Coverage status: partial
    */
   test("settings.tab-hardware — enablement token mode + cloud registry boards", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
-
-    // Expand the board card to reveal connection form
-    await page.getByText("My Board").first().click();
+    // The board's own page on Displays holds its connection form
+    await openDisplay(page, "My Board");
 
     // "Get API Key from Board" (the manifest's enable_local_api action) asks
     // for the enablement token in a dialog.
@@ -71,7 +68,7 @@ test.describe("regression: settings.hardware", () => {
 
   /**
    * UX node: settings.hardware.remove-board-confirm
-   * Route: /settings (Hardware tab)
+   * Route: /displays/:boardId (was /settings, Hardware tab)
    * Expected (missing from current coverage):
    *   - 'atLeastOneBoard' toast asserted by exact i18n key
    *   - 'boardRemoved' success toast verified by text
@@ -81,14 +78,12 @@ test.describe("regression: settings.hardware", () => {
   test("settings.hardware.remove-board-confirm — exact i18n toasts on remove guard + success", async ({ page }) => {
     await ensureTwoBoards();
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    await openDisplays(page);
 
-    await openSettingsTab(page, "Hardware");
-
-    // Expand the Note board (3 × 15) to access its Remove button
-    await expect(page.getByText("3 × 15").first()).toBeVisible({ timeout: 10_000 });
-    await page.getByText("3 × 15").first().click();
+    // Open the Note board's (3 × 15) page to access its Remove button
+    const noteCard = page.getByTestId("display-card").filter({ hasText: "3 × 15" });
+    await expect(noteCard).toBeVisible({ timeout: 10_000 });
+    await noteCard.getByRole("link", { name: /^Open settings for / }).click();
 
     const removeBtn = page.getByRole("button", { name: /Remove Board/i }).first();
     await expect(removeBtn).toBeEnabled({ timeout: 10_000 });
@@ -104,9 +99,10 @@ test.describe("regression: settings.hardware", () => {
     const data = await res.json();
     expect(data.boards.length).toBe(1);
 
-    // Now the remaining board's Remove button is disabled (atLeastOneBoard guard)
-    // Expand the last remaining board (My Board) by clicking its name
-    await page.getByText("My Board").first().click();
+    // Removing it went back to Displays. Now the remaining board's Remove
+    // button is disabled (atLeastOneBoard guard) on its own page.
+    await expect(page).toHaveURL(/\/displays$/, { timeout: 10_000 });
+    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
     const lastRemoveBtn = page.getByRole("button", { name: /Remove Board/i });
     await expect(lastRemoveBtn).toBeDisabled({ timeout: 10_000 });
 
@@ -115,7 +111,7 @@ test.describe("regression: settings.hardware", () => {
 
   /**
    * UX node: settings.hardware.enabling
-   * Route: /settings (Hardware tab)
+   * Route: /displays/:boardId (was /settings, Hardware tab)
    * Preconditions: enable-mutation:pending
    * Expected: 'Enabling...' label on enablement-token button; button disabled
    * Source refs: web/src/components/settings/hardware/*
@@ -139,12 +135,7 @@ test.describe("regression: settings.hardware", () => {
       });
     });
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await openSettingsTab(page, "Hardware");
-
-    // Expand the board card
-    await page.getByText("My Board").first().click();
+    await openDisplay(page, "My Board");
 
     // Ask for a key (board host is already set by configureBoard)
     const getKeyBtn = page.getByRole("button", { name: /Get API Key from Board/i });
@@ -193,8 +184,8 @@ test.describe("regression: settings.network", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Hardware tab is always present; Network tab must NOT be present.
-    await expect(page.getByRole("tab", { name: "Hardware", exact: true })).toBeVisible();
+    // General tab is always present; Network tab must NOT be present.
+    await expect(page.getByRole("tab", { name: "General", exact: true })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Network", exact: true })).toHaveCount(0);
   });
 
