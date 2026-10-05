@@ -1869,7 +1869,8 @@
     "pagePickerPlaceholder": "Elige una página…",
     "showSecret": "Mostrar valor",
     "hideSecret": "Ocultar valor",
-    "secretSaved": "••••••••••• (establecida)"
+    "secretSaved": "••••••••••• (establecida)",
+    "fieldRequired": "Obligatorio"
   },
   "filterPicker": {
     "noFiltersAvailable": "No hay filtros disponibles",
@@ -2385,7 +2386,6 @@
     "dismissFailed": "No se pudo descartar. Inténtalo de nuevo."
   },
   "boardSettingsScreen": {
-    "scanning": "Buscando…",
     "noDevicesFound": "No se encontraron dispositivos. Introduce la dirección manualmente.",
     "devicesFoundLabel": "Dispositivos encontrados para {field}",
     "subnetLabel": "Red en la que buscar (opcional)",
@@ -2431,8 +2431,15 @@
     "moveSwap": "Posición {position} — intercambiar con {summary}",
     "tilesDuplicate": "Varios mosaicos apuntan al mismo tablero: {values}",
     "tileActionsLabel": "Acciones del módulo",
-    "requiredMissing": "Aún falta: {fields}",
-    "geometryApplied": "Ajustado a {rows} × {cols}"
+    "geometryApplied": "Ajustado a {rows} × {cols}",
+    "searchingNetwork": "Buscando en {network}…",
+    "searchingYourNetwork": "Buscando en tu red…",
+    "foundOneSelected": "Se encontró {device} y se seleccionó.",
+    "foundDevices": "{count, plural, one {Se encontró # dispositivo. Elige el tuyo.} other {Se encontraron # dispositivos. Elige el tuyo.}}",
+    "noDeviceFoundOn": "No se encontró ningún {device} en {network}.",
+    "noDeviceFoundHere": "No se encontró ningún {device} en tu red.",
+    "enterManually": "Introducir la dirección manualmente",
+    "searchAgain": "Buscar de nuevo"
   },
   "outputSettings": {
     "vestaboard": {

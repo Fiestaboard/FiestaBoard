@@ -1869,7 +1869,8 @@
     "pagePickerPlaceholder": "Seite auswählen…",
     "showSecret": "Wert anzeigen",
     "hideSecret": "Wert verbergen",
-    "secretSaved": "••••••••••• (gesetzt)"
+    "secretSaved": "••••••••••• (gesetzt)",
+    "fieldRequired": "Erforderlich"
   },
   "filterPicker": {
     "noFiltersAvailable": "Keine Filter verfügbar",
@@ -2385,7 +2386,6 @@
     "dismissFailed": "Schließen fehlgeschlagen. Bitte erneut versuchen."
   },
   "boardSettingsScreen": {
-    "scanning": "Suche läuft…",
     "noDevicesFound": "Keine Geräte gefunden. Gib die Adresse selbst ein.",
     "devicesFoundLabel": "Gefundene Geräte für {field}",
     "subnetLabel": "Zu durchsuchendes Netzwerk (optional)",
@@ -2431,8 +2431,15 @@
     "moveSwap": "Platz {position} — mit {summary} tauschen",
     "tilesDuplicate": "Mehrere Kacheln verweisen auf dasselbe Board: {values}",
     "tileActionsLabel": "Kachelaktionen",
-    "requiredMissing": "Noch erforderlich: {fields}",
-    "geometryApplied": "Auf {rows} × {cols} gesetzt"
+    "geometryApplied": "Auf {rows} × {cols} gesetzt",
+    "searchingNetwork": "Durchsuche {network}…",
+    "searchingYourNetwork": "Durchsuche dein Netzwerk…",
+    "foundOneSelected": "{device} gefunden und ausgewählt.",
+    "foundDevices": "{count, plural, one {# Gerät gefunden. Wähle deins aus.} other {# Geräte gefunden. Wähle deins aus.}}",
+    "noDeviceFoundOn": "Kein {device} in {network} gefunden.",
+    "noDeviceFoundHere": "Kein {device} in deinem Netzwerk gefunden.",
+    "enterManually": "Adresse manuell eingeben",
+    "searchAgain": "Erneut suchen"
   },
   "outputSettings": {
     "vestaboard": {

@@ -1869,7 +1869,8 @@
     "pagePickerPlaceholder": "Kies een pagina…",
     "showSecret": "Waarde tonen",
     "hideSecret": "Waarde verbergen",
-    "secretSaved": "••••••••••• (ingesteld)"
+    "secretSaved": "••••••••••• (ingesteld)",
+    "fieldRequired": "Verplicht"
   },
   "filterPicker": {
     "noFiltersAvailable": "Geen filters beschikbaar",
@@ -2385,7 +2386,6 @@
     "dismissFailed": "Sluiten mislukt. Probeer het opnieuw."
   },
   "boardSettingsScreen": {
-    "scanning": "Zoeken…",
     "noDevicesFound": "Geen apparaten gevonden. Voer het adres zelf in.",
     "devicesFoundLabel": "Gevonden apparaten voor {field}",
     "subnetLabel": "Netwerk om te doorzoeken (optioneel)",
@@ -2431,8 +2431,15 @@
     "moveSwap": "Positie {position} — wisselen met {summary}",
     "tilesDuplicate": "Meerdere tegels verwijzen naar hetzelfde bord: {values}",
     "tileActionsLabel": "Tegelacties",
-    "requiredMissing": "Nog nodig: {fields}",
-    "geometryApplied": "Ingesteld op {rows} × {cols}"
+    "geometryApplied": "Ingesteld op {rows} × {cols}",
+    "searchingNetwork": "Zoeken op {network}…",
+    "searchingYourNetwork": "Zoeken op je netwerk…",
+    "foundOneSelected": "{device} gevonden en geselecteerd.",
+    "foundDevices": "{count, plural, one {# apparaat gevonden. Kies het jouwe.} other {# apparaten gevonden. Kies het jouwe.}}",
+    "noDeviceFoundOn": "Geen {device} gevonden op {network}.",
+    "noDeviceFoundHere": "Geen {device} gevonden op je netwerk.",
+    "enterManually": "Adres handmatig invoeren",
+    "searchAgain": "Opnieuw zoeken"
   },
   "outputSettings": {
     "vestaboard": {
