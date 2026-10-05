@@ -1,8 +1,8 @@
 {
   "source": "Fiestaboard/FiestaUI",
   "path": "scripts/ci/tests/fixtures/",
-  "commit": "668e42811ef05af30426ac0d719ddbf21d8070d2",
-  "branch": "feat/led-tile-fill-block-padding",
+  "commit": "6c16021e264d232b17a16691da6a32506d68813e",
+  "branch": "main",
   "pull_requests": [
     326,
     327,
@@ -12,7 +12,7 @@
     336,
     338
   ],
-  "status": "unreleased: FiestaUI #338 (668e428, LED tileGap/blockPadding, branched from main a64104e) over the review-fix batch of 2026-10-04 (#336 22db0b5); re-vendor from the released FiestaUI tag with scripts/fiestaui_fixtures/vendor.sh and bump these hashes in the same PR",
+  "status": "released: @fiestaboard/ui 7.4.0 (tag v7.4.0, 6c16021e; #338 squashed as 5a4a4655). Every file is byte-identical to its blob at the tag except plugin-models.json, which keeps #336 (22db0b5) until 8.0.0; re-vendor with scripts/fiestaui_fixtures/vendor.sh and bump these hashes in the same PR",
   "note": "Every file is byte-identical to its blob at `commit`, except where `files_from` names another commit. #338 changed device-model.schema.json (optional layoutOptions, LED only), device-models.json (every built-in LED model allows both tileGap values and both blockPadding values, with today's defaults) and led-golden.json (14 layout cases and one flip case for the two options, design spec section 7.6). #338 branched from main before #336, so plugin-models.json stays at 22db0b5 (#336: FiestaPanel split-flap streams at 0.5 fps); every other file is identical at both commits. Before #338: Every file is byte-identical to its blob at the commit. The batch changed device-models.json (Vestaboard flagship/note/note_array stream at 1 fps, panel at 0.5 fps; the Pixoo 64 streams at 2 fps and snaps), led-golden.json (the flip budget keeps the scramble and shortens the stagger first; the 32-frame budget cases run on an inlined generic sequence device, sequence_panel_64) and charset-golden.json (kiosk_mono_v1 and five supported-icon cases). device-models.json and charset-golden.json are unchanged since cb500a8 (#326), led-golden.json since ff8186e (#328); everything else is unchanged since 95423b31c1446bfc6c6d7f62b901cbb16c21d147.",
   "files_from": {
     "src/fiestaui/plugin-models.json": "22db0b5245e89714252920824d7ad40c9c16987a",
