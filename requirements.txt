@@ -44,6 +44,12 @@ regex>=2026.9.10
 # MCP (Model Context Protocol) server — exposes FiestaBoard as an MCP tool server
 mcp>=2.2.0
 
+# Output plugin manifests are validated against FiestaUI's vendored JSON
+# Schemas (src/outputs/fiestaui.py); `referencing` (a jsonschema dependency)
+# resolves their $refs by $id, offline. Already installed via mcp; pinned
+# here because core now imports it directly.
+jsonschema>=4.18.0
+
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0
 

@@ -479,12 +479,14 @@
       "entertainment": "Entertainment",
       "finance": "Finance",
       "home": "Smart Home",
+      "output": "Outputs",
       "transit": "Transportation",
       "transition": "Transitions",
       "utility": "Utilities",
       "weather": "Weather & Environment"
     },
     "transitionBadge": "Transition",
+    "outputBadge": "Output",
     "tabInstalled": "Installed",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Search installed plugins...",
@@ -1657,7 +1659,10 @@
     "transitionsLabel": "Transition Plugins",
     "transitionsDescription": "Pluggable frame-by-frame board animations — typewriter reveals, dissolves, word-by-word quiet updates, and community-built transitions.",
     "transitionsWarning": "The plugin SDK is experimental; APIs and plugin behavior may change before general availability.",
-    "transitionsLabLink": "Open the Transition Lab"
+    "transitionsLabLink": "Open the Transition Lab",
+    "outputsLabel": "Output Plugins",
+    "outputsDescription": "Let output plugins installed from the marketplace or a git URL drive your boards — LED matrices, signs and other displays beyond Vestaboard.",
+    "outputsWarning": "The output plugin contract is a beta; it may change before general availability. Outputs bundled with FiestaBoard always work."
   },
   "transitionLab": {
     "title": "Transition Lab",
@@ -1754,6 +1759,7 @@
       "entertainment": "Entertainment",
       "finance": "Finance",
       "home": "Smart Home",
+      "output": "Outputs",
       "transit": "Transportation",
       "transition": "Transitions",
       "utility": "Utilities",

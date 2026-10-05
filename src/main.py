@@ -27,6 +27,7 @@ from .devices import (
 from .displays.send_worker import BoardSendWorker, SendJob
 from .outputs import OutputDriver, OutputRuntime
 from .outputs.factory import build_driver
+from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
 from .pages.models import LineMetadata, Page
 from .pages.service import (
@@ -824,6 +825,11 @@ class DisplayService:
             board.get("grid_rows"),
             board.get("grid_cols"),
             tiles_sig,
+            # An output plugin's board: a changed output or output_config
+            # builds a new instance (plan D2). Both are absent on every other
+            # board, so their signatures are unchanged.
+            board.get("output"),
+            json.dumps(board.get("output_config"), sort_keys=True, default=str),
         )
 
     def _build_board_clients(self, sync_cache: bool = True):
@@ -903,6 +909,8 @@ class DisplayService:
                     continue
                 if old_rt.send_worker is not None:
                     old_rt.send_worker.stop(timeout=1.0)
+                # An output plugin's instance ends with its runtime (close()).
+                release_driver(old_rt.client)
 
             self.runtimes = new_runtimes
             self.board_init_errors = init_errors
@@ -1199,6 +1207,8 @@ class DisplayService:
         self.runtimes = runtimes
         if old_rt is not None and old_rt.send_worker is not None:
             old_rt.send_worker.stop(timeout=1.0)
+        if old_rt is not None:
+            release_driver(old_rt.client)
         self.board_init_errors.pop(board_id, None)
         self._board_retry_state.pop(board_id, None)
         logger.info("Board %s: recovered - client initialized on retry; the board rejoins the fleet", board_id)

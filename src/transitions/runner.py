@@ -245,6 +245,62 @@ class TransitionRunner:
         was_sent = bool(result.frames_sent) or snap_sent
         return (snap_success, was_sent)
 
+    def collect_frames(
+        self,
+        plugin_id: str,
+        to_grid: list[list[int]],
+        cancel_event: Event | None = None,
+        device_type: str | None = None,
+        from_grid: list[list[int]] | None = None,
+        config: dict | None = None,
+    ) -> list[tuple[list[list[int]], int]] | None:
+        """*plugin_id*'s frames toward *to_grid*, collected rather than sent.
+
+        For a device that takes a whole timed sequence in one upload
+        (``animation: sequence``): the board's runtime hands the result to
+        the driver's ``write_sequence``. Each entry is ``(grid, duration_ms)``,
+        the duration clamped to the plugin's ``min_interval_ms`` exactly as
+        :meth:`run` paces sends. The manifest caps (``max_frames``,
+        ``max_runtime_seconds``) and interruptibility hold; nothing sleeps.
+        The last entry is always *to_grid*, so the device lands on the exact
+        target whatever the generator did.
+
+        Returns ``None`` when the run was cancelled: a newer frame has its
+        own target, and uploading this one would flash the wrong content.
+        """
+        plugin = self._resolver(plugin_id)
+        if plugin is None:
+            logger.warning("TransitionRunner: plugin %r not found; sequence is the target alone", plugin_id)
+            return [(to_grid, 0)]
+        caps = plugin.transition_settings
+        min_interval_ms = int(caps.get("min_interval_ms", 50))
+        max_frames = int(caps.get("max_frames", 500))
+        max_runtime_s = int(caps.get("max_runtime_seconds", 120))
+        respect_cancel = bool(caps.get("interruptible", True))
+        device = self._resolve_device(to_grid, device_type)
+        config_resolved = dict(config) if config is not None else dict(plugin.config or {})
+        frames: list[tuple[list[list[int]], int]] = []
+        started = time.monotonic()
+        try:
+            generator = plugin.generate_frames(
+                self._resolve_from_grid(to_grid, from_grid), to_grid, device, config_resolved
+            )
+            for frame in generator:
+                if respect_cancel and cancel_event is not None and cancel_event.is_set():
+                    return None
+                if len(frames) >= max_frames or time.monotonic() - started >= max_runtime_s:
+                    break
+                grid, delay_ms = unpack_frame(frame)
+                if grid is None:
+                    break
+                frames.append((grid, max(int(delay_ms or 0), min_interval_ms)))
+        except Exception as exc:
+            logger.exception("TransitionRunner: plugin %s raised while collecting frames: %s", plugin_id, exc)
+        if respect_cancel and cancel_event is not None and cancel_event.is_set():
+            return None
+        frames.append((to_grid, 0))
+        return frames
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------

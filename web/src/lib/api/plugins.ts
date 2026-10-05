@@ -7,6 +7,9 @@ import type { VariableGroup, VariableMetadataEntry } from "./templates";
 
 // Logs types
 // Plugin system types
+/** The plugin kinds: template data, board transitions, and display outputs. */
+export type PluginType = "data" | "transition" | "output";
+
 export interface PluginInfo {
   id: string;
   name: string;
@@ -21,9 +24,11 @@ export interface PluginInfo {
    * `"transition"` plugins supply a board-transition animation instead of
    * template data. They have no polling loop, so the registry runs any
    * installed one regardless of `enabled` — the UI must not offer a toggle
-   * for them. Absent on responses that predate the field; treat as `"data"`.
+   * for them. `"output"` plugins drive a display device: a board uses one by
+   * naming it as its output, so they have no toggle either. Absent on
+   * responses that predate the field; treat as `"data"`.
    */
-  plugin_type: "data" | "transition";
+  plugin_type: PluginType;
   fiestaboard_version: string;
   /** The stored configuration, with every sensitive value masked as `"***"`. */
   config: Record<string, unknown>;
@@ -145,7 +150,7 @@ export interface PluginDetailResponse {
   author: string;
   icon: string | null;
   category: string | null;
-  plugin_type: "data" | "transition";
+  plugin_type: PluginType;
   enabled: boolean;
   /**
    * The **stored** configuration with sensitive values replaced by `"***"`,

@@ -510,6 +510,7 @@ class BetaSettings(BaseModel):
 
     https_enabled: bool
     transition_plugins_enabled: bool
+    output_plugins_enabled: bool = False
 
 
 class BetaHttpsStatus(BaseModel):
@@ -539,6 +540,7 @@ class BetaSettingsUpdate(BaseModel):
 
     https_enabled: StrictBool | None = None
     transition_plugins_enabled: StrictBool | None = None
+    output_plugins_enabled: StrictBool | None = None
 
 
 # ---------------------------------------------------------------------------

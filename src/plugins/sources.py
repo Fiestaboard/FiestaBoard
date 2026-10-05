@@ -38,11 +38,16 @@ EXTERNAL_PLUGINS_DIR = "external_plugins"
 
 # Naming convention for registry plugins.  Data plugins use the
 # ``fiestaboard-plugin--<name>`` prefix; transition plugins use the
-# distinct ``fiestaboard-transition--<name>`` prefix so the loader and
-# UI can distinguish them by repo name alone before any cloning happens.
+# distinct ``fiestaboard-transition--<name>`` prefix, and output plugins
+# ``fiestaboard-output--<name>``, so the loader and UI can distinguish them
+# by repo name alone before any cloning happens.
 REGISTRY_PREFIX = "fiestaboard-plugin--"
 REGISTRY_TRANSITION_PREFIX = "fiestaboard-transition--"
-REGISTRY_NAME_RE = re.compile(r"^(?:fiestaboard-plugin--|fiestaboard-transition--)[a-z][a-z0-9-]*$")
+REGISTRY_OUTPUT_PREFIX = "fiestaboard-output--"
+REGISTRY_PREFIXES = (REGISTRY_PREFIX, REGISTRY_TRANSITION_PREFIX, REGISTRY_OUTPUT_PREFIX)
+REGISTRY_NAME_RE = re.compile(
+    r"^(?:fiestaboard-plugin--|fiestaboard-transition--|fiestaboard-output--)[a-z][a-z0-9-]*$"
+)
 
 # Plugin id must be a safe single-segment identifier so it can be used as a
 # directory name without enabling path traversal.  Same character set as a
@@ -134,8 +139,9 @@ class RegistryEntry:
     #: Plugin category.
     category: str = "utility"
 
-    #: "data" or "transition".  Registry entries predating transition plugins
-    #: omit the key entirely, so the default has to be the data plugin.
+    #: "data", "transition" or "output".  Registry entries predating
+    #: transition plugins omit the key entirely, so the default has to be the
+    #: data plugin.
     plugin_type: str = "data"
 
     #: ISO date (``YYYY-MM-DD``) the plugin became installable from the
@@ -242,8 +248,9 @@ def validate_registry_repo_name(repo_url: str) -> tuple[bool, str]:
         return (
             False,
             f"Repository name '{repo_name}' does not follow the required "
-            f"'{REGISTRY_PREFIX}{{name}}' or "
-            f"'{REGISTRY_TRANSITION_PREFIX}{{name}}' naming convention",
+            f"'{REGISTRY_PREFIX}{{name}}', "
+            f"'{REGISTRY_TRANSITION_PREFIX}{{name}}' or "
+            f"'{REGISTRY_OUTPUT_PREFIX}{{name}}' naming convention",
         )
     return True, ""
 
@@ -251,17 +258,19 @@ def validate_registry_repo_name(repo_url: str) -> tuple[bool, str]:
 def plugin_id_from_repo_name(repo_name: str) -> str:
     """Derive the plugin id from a registry repo name.
 
-    Accepts both ``fiestaboard-plugin--{name}`` (data plugins) and
-    ``fiestaboard-transition--{name}`` (transition plugins).  Dashes in
-    the suffix are converted to underscores to match manifest id
-    conventions.
+    Accepts ``fiestaboard-plugin--{name}`` (data plugins),
+    ``fiestaboard-transition--{name}`` (transition plugins) and
+    ``fiestaboard-output--{name}`` (output plugins).  Dashes in the suffix
+    are converted to underscores to match manifest id conventions.
 
     >>> plugin_id_from_repo_name("fiestaboard-plugin--my-weather")
     'my_weather'
     >>> plugin_id_from_repo_name("fiestaboard-transition--my-fade")
     'my_fade'
+    >>> plugin_id_from_repo_name("fiestaboard-output--divoom-pixoo")
+    'divoom_pixoo'
     """
-    for prefix in (REGISTRY_PREFIX, REGISTRY_TRANSITION_PREFIX):
+    for prefix in REGISTRY_PREFIXES:
         if repo_name.startswith(prefix):
             return repo_name[len(prefix) :].replace("-", "_")
     return repo_name.replace("-", "_")

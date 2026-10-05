@@ -523,12 +523,14 @@
       "entertainment": "Entertainment",
       "finance": "Financiën",
       "home": "Slim huis",
+      "output": "Uitvoer",
       "transit": "Vervoer",
       "transition": "Transities",
       "utility": "Hulpprogramma's",
       "weather": "Weer & omgeving"
     },
     "transitionBadge": "Transitie",
+    "outputBadge": "Uitvoer",
     "tabInstalled": "Geïnstalleerd",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Geïnstalleerde plugins zoeken...",
@@ -1701,7 +1703,10 @@
     "transitionsLabel": "Transitieplugins",
     "transitionsDescription": "Inplugbare frame-voor-frame bordanimaties — typemachine-effecten, dissolves, stille woord-voor-woord updates en community-transities.",
     "transitionsWarning": "De plugin-SDK is experimenteel; API's en plugingedrag kunnen veranderen vóór algemene beschikbaarheid.",
-    "transitionsLabLink": "Transitielab openen"
+    "transitionsLabLink": "Transitielab openen",
+    "outputsLabel": "Uitvoerplugins",
+    "outputsDescription": "Laat uitvoerplugins uit de marktplaats of van een git-URL je borden aansturen: ledmatrices, borden en andere displays naast Vestaboard.",
+    "outputsWarning": "Het contract voor uitvoerplugins is een bèta en kan veranderen vóór algemene beschikbaarheid. Uitvoer die met FiestaBoard wordt meegeleverd werkt altijd."
   },
   "transitionLab": {
     "title": "Transitielab",
@@ -1798,6 +1803,7 @@
       "entertainment": "Entertainment",
       "finance": "Financiën",
       "home": "Smart home",
+      "output": "Uitvoer",
       "transit": "Vervoer",
       "transition": "Transities",
       "utility": "Hulpprogramma's",

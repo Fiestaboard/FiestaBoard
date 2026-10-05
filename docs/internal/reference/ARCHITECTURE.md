@@ -225,6 +225,30 @@ Names you will meet:
   primary board's output name. `tests/test_vestaboard_output_hooks.py`
   ratchets the Vestaboard transport literals left in `src/` outside the
   output's modules (count only goes down; Phase 4 takes it to zero).
+- **Output plugins** (`plugin_type: "output"`, contract v1-beta) — a third
+  plugin kind: a display device. The loader never constructs one; it keeps
+  the class (an `OutputPluginBase` subclass, `src/outputs/plugin_base.py`)
+  and the manifest, and registers an output beside the built-ins
+  (`src/outputs/plugin_registration.py`; a plugin may not take a built-in's
+  id). A board naming the plugin as its `output` gets its own instance,
+  `cls(board_id, output_config)`, opened at build and closed when the board's
+  runtime is dropped; the `OutputPluginDriver` adapter
+  (`src/outputs/plugin_driver.py`) makes it an `OutputDriver`, so the
+  runtime's lock, cancel token, floor (by the plugin's `device_key()`),
+  dedupe and last-frame store apply unchanged, and an `animation: sequence`
+  output receives a frame-driven transition as one `write_sequence` upload.
+  The manifest's `output` block (`src/outputs/output_manifest.py`) declares
+  `output_api` (outside this core's range → refused at load), FiestaUI
+  `device_models` and an optional `character_set` — validated against
+  FiestaUI's vendored JSON Schemas and built-in data
+  (`src/outputs/schemas/fiestaui/`, provenance and hashes in
+  `provenance.json`); a declared set is materialised at load
+  (`src/outputs/fiestaui.py`) — plus the transport facts (`delivery`,
+  `min_interval_ms`, `read_back`, `native_transitions`) and the
+  `settings_schema` of the board's `output_config`, whose `secret` fields are
+  masked in the API and restored on save (`src/outputs/output_config.py`).
+  Plugins from the registry or a git URL are usable only with
+  `beta.output_plugins_enabled`; with it off their boards stay down.
 - **Pull delivery** (plan D4) — a pulled board's frame is its runtime's
   last-frame store. `GET /panel/{id}/frame` serves
   `OutputRuntime.displayed_frame(rows, cols)` with core's **stale-shape

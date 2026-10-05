@@ -168,6 +168,37 @@ class PollingSettings:
 BOARD_SENSITIVE_FIELDS = {"local_api_key", "cloud_key", "note_array_token"}
 
 
+def _output_settings_schema(output_id: str | None) -> dict | None:
+    """The ``output_config`` schema of an installed output plugin, else ``None``."""
+    from src.outputs.registry import output_registry
+
+    definition = output_registry().get(output_id)
+    return dict(definition.settings_schema) if definition is not None and definition.plugin else None
+
+
+def _restore_output_config(board: dict, existing: dict) -> object:
+    """The incoming board's ``output_config`` with echoed secrets restored.
+
+    Raises ``ValueError`` when a secret cannot be restored (an array element
+    that no longer matches a stored one) or the config does not fit the
+    output's ``settings_schema`` — a credential is never saved as ``"***"``.
+    """
+    from src.outputs.output_config import masked_secret_paths, unmask_output_config, validate_output_config
+
+    output_id = board.get("output")
+    schema = _output_settings_schema(output_id)
+    stored = existing.get("output_config") if existing.get("output") == output_id else None
+    config = unmask_output_config(board["output_config"], stored, schema)
+    unresolved = masked_secret_paths(config, schema)
+    if unresolved:
+        raise ValueError(f"Re-enter the secret settings for board output '{output_id}': {', '.join(unresolved)}")
+    if schema is not None:
+        errors = validate_output_config(config if config is not None else {}, schema)
+        if errors:
+            raise ValueError("; ".join(errors))
+    return config
+
+
 @dataclass
 class BoardSettings:
     """Board display settings for UI rendering.
@@ -224,6 +255,14 @@ class BoardSettings:
 
         masked = dict(board)
         masked["output"] = resolve_output_id(board)
+        if "output_config" in board:
+            # An output plugin's board settings: its schema says what is secret
+            # (src/outputs/output_config.py); an uninstalled output's are withheld.
+            from src.outputs.output_config import mask_output_config
+
+            masked["output_config"] = mask_output_config(
+                board["output_config"], _output_settings_schema(masked["output"])
+            )
         for key in BOARD_SENSITIVE_FIELDS:
             if masked.get(key):
                 masked[key] = "***"
@@ -616,19 +655,29 @@ class BetaSettings:
       become selectable from page editors and Settings → Transitions, and
       the /transitions test harness page is reachable.  Off by default --
       the SDK is experimental and its contract may change.
+    - output_plugins_enabled: When true, output plugins installed from the
+      registry or a git URL can drive boards (a board whose ``output`` names
+      one). Off by default; plugins bundled with FiestaBoard are always on.
+      Written to settings.json only once turned on, so a file saved by a
+      build that predates the flag round-trips unchanged.
     """
 
     https_enabled: bool = False
     transition_plugins_enabled: bool = False
+    output_plugins_enabled: bool = False
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        data = asdict(self)
+        if not self.output_plugins_enabled:
+            del data["output_plugins_enabled"]
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> "BetaSettings":
         return cls(
             https_enabled=bool(data.get("https_enabled", False)),
             transition_plugins_enabled=bool(data.get("transition_plugins_enabled", False)),
+            output_plugins_enabled=bool(data.get("output_plugins_enabled", False)),
         )
 
 
@@ -1817,6 +1866,8 @@ class SettingsService:
                     for key in TILE_SENSITIVE_FIELDS:
                         if tile.get(key) == "***":
                             tile[key] = existing_tile.get(key, "")
+            if "output_config" in b:
+                b["output_config"] = _restore_output_config(b, existing)
             instance = BoardInstance.from_dict(b)
             validated.append(instance.to_dict())
 
@@ -2093,6 +2144,8 @@ class SettingsService:
             self._beta.https_enabled = bool(updates["https_enabled"])
         if "transition_plugins_enabled" in updates:
             self._beta.transition_plugins_enabled = bool(updates["transition_plugins_enabled"])
+        if "output_plugins_enabled" in updates:
+            self._beta.output_plugins_enabled = bool(updates["output_plugins_enabled"])
         self._save_to_file()
         logger.info(f"Beta settings updated: {self._beta}")
         return self._beta

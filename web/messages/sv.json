@@ -523,12 +523,14 @@
       "entertainment": "Underhållning",
       "finance": "Finans",
       "home": "Smart hem",
+      "output": "Utdata",
       "transit": "Transport",
       "transition": "Övergångar",
       "utility": "Verktyg",
       "weather": "Väder och miljö"
     },
     "transitionBadge": "Övergång",
+    "outputBadge": "Utdata",
     "tabInstalled": "Installerade",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Sök installerade plugins...",
@@ -1701,7 +1703,10 @@
     "transitionsLabel": "Övergångsplugins",
     "transitionsDescription": "Bildruta-för-bildruta-animationer — skrivmaskinseffekter, upplösningar, tysta ord-för-ord-uppdateringar och community-byggda övergångar.",
     "transitionsWarning": "Plugin-SDK:t är experimentellt; API:er och beteende kan ändras före allmän tillgänglighet.",
-    "transitionsLabLink": "Öppna övergångslabbet"
+    "transitionsLabLink": "Öppna övergångslabbet",
+    "outputsLabel": "Utdataplugins",
+    "outputsDescription": "Låt utdataplugins installerade från marknadsplatsen eller en git-URL styra dina tavlor – LED-matriser, skyltar och andra skärmar utöver Vestaboard.",
+    "outputsWarning": "Kontraktet för utdataplugins är en beta och kan ändras före allmän tillgänglighet. Utdata som följer med FiestaBoard fungerar alltid."
   },
   "transitionLab": {
     "title": "Övergångslabb",
@@ -1798,6 +1803,7 @@
       "entertainment": "Underhållning",
       "finance": "Finans",
       "home": "Smart Home",
+      "output": "Utdata",
       "transit": "Transport",
       "transition": "Övergångar",
       "utility": "Verktyg",

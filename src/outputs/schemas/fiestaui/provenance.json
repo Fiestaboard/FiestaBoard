@@ -1,0 +1,14 @@
+{
+  "source": "Fiestaboard/FiestaUI",
+  "path": "scripts/ci/tests/fixtures/",
+  "branch": "feat/led-data-layer",
+  "pull_request": 326,
+  "commit": "a70b7198f3ab6d7f96faf75f13260a4f2f5fceed",
+  "status": "unreleased: FiestaUI Task 2, pending review; re-vendor from the released FiestaUI tag and bump these hashes in the same PR",
+  "files": {
+    "device-model.schema.json": "ef3129dac12f01f9a515b9d1798376881475472fa79dfd168ff5ee5c6f349ffb",
+    "character-set.schema.json": "69efe686fc58060361d279be453b12f44395fa1a879dcac7c82ce559628437b3",
+    "character-sets.json": "3f5705bb7746f817e91fc685e65616bb4470aa1496068bf72db994c3de5b6e91",
+    "device-models.json": "31813828d483c6a15fd14de73ca9b9ab648b62f7edaeed1e9ac4b504e20f363c"
+  }
+}

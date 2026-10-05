@@ -897,6 +897,7 @@ const CATEGORY_KEYS = [
   "entertainment",
   "finance",
   "home",
+  "output",
   "transit",
   "transition",
   "utility",
@@ -1060,7 +1061,11 @@ function InstalledPluginRow({
   // here would promise control the backend does not honour, so the row shows a
   // type badge instead of a switch and instead of an enabled/disabled status.
   const isTransition = plugin.plugin_type === "transition";
-  const isActive = plugin.enabled || isTransition;
+  // An output plugin drives a board that names it; "enabled" means nothing
+  // for it either, so it gets the same treatment: a type badge, no toggle.
+  const isOutput = plugin.plugin_type === "output";
+  const hasNoToggle = isTransition || isOutput;
+  const isActive = plugin.enabled || hasNoToggle;
 
   // Fetch plugin details when opening config
   const { data: pluginDetails, isLoading: isLoadingDetails } = useQuery({
@@ -1679,6 +1684,11 @@ function InstalledPluginRow({
               <Wand2 className="h-2.5 w-2.5" />
               {t("transitionBadge")}
             </Badge>
+          ) : isOutput ? (
+            <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 h-5">
+              <Tv className="h-2.5 w-2.5" />
+              {t("outputBadge")}
+            </Badge>
           ) : plugin.enabled ? (
             plugin.configured ? (
               <Badge variant="default" className="text-[10px] gap-1 px-1.5 py-0 h-5">
@@ -1702,7 +1712,7 @@ function InstalledPluginRow({
         {/* Actions column: toggle + configure + overflow */}
         <TableCell className="px-4 py-2.5">
           <Flex align="center" justify="end" gap="0.5">
-            {!isTransition && (
+            {!hasNoToggle && (
               <Switch
                 checked={plugin.enabled}
                 onCheckedChange={(checked) => onToggle(plugin.id, checked)}
@@ -1728,7 +1738,7 @@ function InstalledPluginRow({
                     {t("addInstanceAction")}
                   </DropdownMenuItem>
                 )}
-                {!isTransition && (
+                {!hasNoToggle && (
                   <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
                     {plugin.enabled ? (
                       <XCircle className="h-3.5 w-3.5 mr-2" />
@@ -1994,6 +2004,12 @@ function RegistryPluginRow({
                 >
                   <Wand2 className="h-2.5 w-2.5" />
                   {t("transitionBadge")}
+                </Badge>
+              )}
+              {entry.plugin_type === "output" && (
+                <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 h-5">
+                  <Tv className="h-2.5 w-2.5" />
+                  {t("outputBadge")}
                 </Badge>
               )}
             </Flex>

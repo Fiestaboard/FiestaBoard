@@ -56,6 +56,8 @@ export interface DisplaySettings {
 export interface BetaSettings {
   https_enabled: boolean;
   transition_plugins_enabled: boolean;
+  /** Output plugins from the registry or a git URL may drive boards. */
+  output_plugins_enabled: boolean;
 }
 
 export interface PluginSettings {

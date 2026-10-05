@@ -1,0 +1,41 @@
+{
+  "id": "recording_output",
+  "name": "Recording Output",
+  "version": "0.1.0",
+  "description": "Test-only output plugin: records every frame core writes to it.",
+  "author": "FiestaBoard tests",
+  "icon": "monitor",
+  "category": "output",
+  "plugin_type": "output",
+  "data_files": ["output/device-models.json", "output/character-set.json"],
+  "output": {
+    "output_api": 1,
+    "device_models": {"$ref": "output/device-models.json"},
+    "character_set": {"$ref": "output/character-set.json"},
+    "delivery": "push",
+    "min_interval_ms": 0,
+    "read_back": {"supported": true, "cost": "cheap", "suggested_interval_s": 30},
+    "native_transitions": ["column"],
+    "settings_schema": {
+      "type": "object",
+      "properties": {
+        "host": {"type": "string", "title": "Host"},
+        "token": {"type": "string", "title": "Token", "secret": true},
+        "animation": {"type": "string", "enum": ["stream", "sequence", "none"]},
+        "min_interval_ms": {"type": "integer", "minimum": 0},
+        "wait_for_cancel": {"type": "boolean"},
+        "panels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "key": {"type": "string", "ui:widget": "password"}
+            }
+          }
+        }
+      },
+      "required": ["host"]
+    }
+  }
+}

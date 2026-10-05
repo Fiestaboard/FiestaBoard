@@ -63,6 +63,7 @@ export default function PluginDetailPage() {
     entertainment: t("categories.entertainment"),
     finance: t("categories.finance"),
     home: t("categories.home"),
+    output: t("categories.output"),
     transit: t("categories.transit"),
     transition: t("categories.transition"),
     utility: t("categories.utility"),

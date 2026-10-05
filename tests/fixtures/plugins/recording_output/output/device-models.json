@@ -1,0 +1,13 @@
+[
+  {
+    "id": "recording_sign",
+    "label": "Recording sign",
+    "technology": "split_flap",
+    "family": "recording",
+    "geometry": {"kind": "cells", "rows": 6, "cols": 22},
+    "color": {"kind": "tiles"},
+    "charset": "vestaboard_v2",
+    "animation": {"delivery": "stream", "maxFps": 10}
+  },
+  "divoom_pixoo64"
+]

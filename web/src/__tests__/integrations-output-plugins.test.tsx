@@ -1,0 +1,147 @@
+/**
+ * Output plugins on the Integrations page, and their beta switch.
+ *
+ * An output plugin drives a board that names it as its output; the plugin
+ * registry's enabled flag means nothing for it. Like a transition, it gets a
+ * type badge ("Output") in place of the enable switch and the
+ * enabled/disabled status — in the Installed table and in the Marketplace.
+ * Settings → Beta carries the switch that lets third-party outputs drive
+ * boards (`output_plugins_enabled`).
+ */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import type { ReactElement } from "react";
+import { describe, expect, it } from "vitest";
+
+import IntegrationsPage from "../../app/routes/integrations._index";
+import { BetaSettings } from "../components/settings/beta-settings";
+import { server } from "./mocks/server";
+
+const API_BASE = "/api";
+
+function mockInstalled(plugin_type: "data" | "output") {
+  const plugin = {
+    id: "acme_sign",
+    name: "Acme Sign",
+    version: "1.0.0",
+    description: "Acme Sign description",
+    author: "FiestaBoard",
+    enabled: false,
+    configured: false,
+    icon: "puzzle",
+    category: plugin_type === "output" ? "output" : "utility",
+    plugin_type,
+    config: {},
+    source: { source_type: "registry" as const },
+    update_available: false,
+    instance_label: null,
+    base_plugin_id: "acme_sign",
+    settings_schema: {},
+  };
+  server.use(
+    http.get(`${API_BASE}/plugins`, () =>
+      HttpResponse.json({ plugins: [plugin], plugin_system_enabled: true, total: 1, enabled_count: 0 }),
+    ),
+    http.get(`${API_BASE}/plugins/registry`, () => HttpResponse.json({ entries: [] })),
+  );
+}
+
+function renderWithQuery(ui: ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
+async function rowFor(name: string): Promise<HTMLElement> {
+  const row = (await screen.findByText(name)).closest("tr");
+  if (!row) throw new Error(`No table row for ${name}`);
+  return row as HTMLElement;
+}
+
+describe("Integrations page — output plugins", () => {
+  it("renders no enable switch and no enabled/disabled status for an output plugin", async () => {
+    mockInstalled("output");
+    renderWithQuery(<IntegrationsPage />);
+
+    const row = await rowFor("Acme Sign");
+    expect(within(row).getByText("Output")).toBeInTheDocument();
+    expect(within(row).queryByRole("switch")).not.toBeInTheDocument();
+    expect(within(row).queryByText("Disabled")).not.toBeInTheDocument();
+  });
+
+  it("labels the output category with its translated name", async () => {
+    mockInstalled("output");
+    renderWithQuery(<IntegrationsPage />);
+
+    const row = await rowFor("Acme Sign");
+    expect(within(row).getByText("Outputs")).toBeInTheDocument();
+  });
+
+  it("keeps the switch for the same plugin as a data plugin (control)", async () => {
+    mockInstalled("data");
+    renderWithQuery(<IntegrationsPage />);
+
+    const row = await rowFor("Acme Sign");
+    expect(within(row).getByRole("switch")).toBeInTheDocument();
+    expect(within(row).queryByText("Output")).not.toBeInTheDocument();
+  });
+
+  it("badges a Marketplace entry whose plugin_type is output", async () => {
+    server.use(
+      http.get(`${API_BASE}/plugins`, () =>
+        HttpResponse.json({ plugins: [], plugin_system_enabled: true, total: 0, enabled_count: 0 }),
+      ),
+      http.get(`${API_BASE}/plugins/registry`, () =>
+        HttpResponse.json({
+          entries: [
+            {
+              id: "acme_sign",
+              name: "Acme Sign",
+              description: "Acme Sign description",
+              repository: "https://example.com/fiestaboard-output--acme-sign",
+              branch: "main",
+              author: "FiestaBoard",
+              fiestaboard_version: ">=10.0.0",
+              icon: "puzzle",
+              category: "output",
+              plugin_type: "output",
+              installed: false,
+              teaser: "",
+              previews: [],
+            },
+          ],
+        }),
+      ),
+    );
+    renderWithQuery(<IntegrationsPage />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("tab", { name: /marketplace/i }));
+    await user.click(await screen.findByRole("button", { name: /list view/i }));
+
+    const row = await rowFor("Acme Sign");
+    expect(within(row).getByText("Output")).toBeInTheDocument();
+  });
+});
+
+describe("Settings → Beta — output plugins", () => {
+  it("turns the output plugins beta on", async () => {
+    let body: unknown = null;
+    server.use(
+      http.put(`${API_BASE}/settings/beta`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({
+          settings: { https_enabled: false, transition_plugins_enabled: false, output_plugins_enabled: true },
+          https: { cert_present: false, cert_path: "", key_path: "", updater_available: false },
+          restart_required: false,
+        });
+      }),
+    );
+    renderWithQuery(<BetaSettings />);
+
+    const toggle = await screen.findByRole("switch", { name: "Output Plugins" });
+    expect(toggle).not.toBeChecked();
+    await userEvent.setup().click(toggle);
+    await waitFor(() => expect(body).toEqual({ output_plugins_enabled: true }));
+  });
+});
