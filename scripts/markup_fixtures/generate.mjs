@@ -24,15 +24,15 @@
  */
 
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const [fiestaUiDir, outFile, iconsFile] = process.argv.slice(2);
-if (!fiestaUiDir || !outFile || !iconsFile) {
-  console.error("usage: node generate.mjs <fiestaui-dir> <fixture-out-file> <icons-out-file>");
+if (!fiestaUiDir || !outFile) {
+  console.error("usage: node generate.mjs <fiestaui-dir> <fixture-out-file> [<icons-out-file>]");
   process.exit(2);
 }
 
@@ -41,7 +41,10 @@ if (!fiestaUiDir || !outFile || !iconsFile) {
 const requireFromUi = createRequire(join(fiestaUiDir, "package.json"));
 const { build } = requireFromUi("esbuild");
 
-const SOURCES = ["src/lib/board-characters.ts", "src/lib/board-icons.ts", "src/lib/board-colors.ts"];
+// A FiestaUI commit that predates the icon registry still has the base
+// grammar worth checking; it just yields no extended-markup cases.
+const HAS_ICONS = existsSync(join(fiestaUiDir, "src/lib/board-icons.ts"));
+const SOURCES = ["src/lib/board-characters.ts", ...(HAS_ICONS ? ["src/lib/board-icons.ts"] : []), "src/lib/board-colors.ts"];
 
 const outDir = mkdtempSync(join(tmpdir(), "markup-fixtures-"));
 const entry = join(outDir, "entry.ts");
@@ -49,7 +52,9 @@ writeFileSync(
   entry,
   [
     `export * from ${JSON.stringify(join(fiestaUiDir, "src/lib/board-characters.ts"))};`,
-    `export { BOARD_ICONS, BOARD_ICON_NAMES } from ${JSON.stringify(join(fiestaUiDir, "src/lib/board-icons.ts"))};`,
+    ...(HAS_ICONS
+      ? [`export { BOARD_ICONS, BOARD_ICON_NAMES } from ${JSON.stringify(join(fiestaUiDir, "src/lib/board-icons.ts"))};`]
+      : []),
     `export { ALL_COLOR_CODES } from ${JSON.stringify(join(fiestaUiDir, "src/lib/board-colors.ts"))};`,
   ].join("\n"),
 );
@@ -58,10 +63,19 @@ await build({ entryPoints: [entry], bundle: true, format: "esm", platform: "neut
 const ui = await import(pathToFileURL(bundle).href);
 rmSync(outDir, { recursive: true, force: true });
 
+// Does this parseLine know `extendedMarkup`? One without it ignores the option
+// and would silently record legacy output under "ext/" ids.
+const HAS_EXTENDED = ui.parseLine("{red:A}", Infinity, { extendedMarkup: true }).length === 1;
+const MODES = HAS_EXTENDED ? [false, true] : [false];
+// Icon names are only inputs for the legacy cases (where they are literal text).
+const ICON_NAMES = HAS_ICONS
+  ? ui.BOARD_ICON_NAMES
+  : ["sun", "cloud", "rain", "snow", "bolt", "check", "cross", "up", "down", "star", "bus", "train", "music", "bell"];
+
 // --- flap projection -------------------------------------------------------
 // FiestaUI tokens carry a colour tile as its marker code ("63" or "red"); the
 // board wants 63-71. Characters project through FiestaUI's own getCharIndex.
-const NAMED_TILE = { red: 63, orange: 64, yellow: 65, green: 66, blue: 67, violet: 68, purple: 68, white: 69, black: 70 };
+const NAMED_TILE = { red: 63, orange: 64, yellow: 65, green: 66, blue: 67, violet: 68, purple: 68, white: 69, black: 70, filled: 71 };
 const tileCode = (code) => (/^\d+$/.test(code) ? Number(code) : NAMED_TILE[code]);
 const project = (token) => (token.type === "color" ? tileCode(token.code) : ui.getCharIndex(token.value));
 
@@ -179,7 +193,7 @@ const NESTING = [
 ];
 
 const ICONS = [
-  ...ui.BOARD_ICON_NAMES.map((n) => [`icon-${n}`, `{icon:${n}}`]),
+  ...ICON_NAMES.map((n) => [`icon-${n}`, `{icon:${n}}`]),
   ["icon-upper-name", "{icon:SUN}"],
   ["icon-upper-all", "{ICON:SUN}"],
   ["icon-title", "{Icon:Sun}"],
@@ -217,13 +231,16 @@ const CAPPED_LINES = [
 ];
 const CAPS = [0, 1, 3, 7, 22];
 
+// Same check for preserveCase, which arrived in the same options bag.
+const HAS_PRESERVE_CASE = ui.parseLine("a", Infinity, { preserveCase: true })[0].value === "a";
+
 const lineCases = [];
-for (const extendedMarkup of [false, true]) {
+for (const extendedMarkup of MODES) {
   const mode = extendedMarkup ? "ext" : "legacy";
   for (const [id, line] of LINES) {
     lineCases.push({ id: `${mode}/${id}`, line, options: { extendedMarkup } });
   }
-  for (const [id, line] of PRESERVE_CASE) {
+  for (const [id, line] of HAS_PRESERVE_CASE ? PRESERVE_CASE : []) {
     lineCases.push({ id: `${mode}/${id}`, line, options: { extendedMarkup, preserveCase: true } });
   }
   for (const [id, line] of CAPPED_LINES) {
@@ -245,6 +262,7 @@ const GRID_MESSAGES = [
   ["grid-overflow", "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nrow two\nrow three\nrow four"],
   ["grid-span-overflow", "{red:ABCDEFGHIJKLMNOPQRSTUVWXYZ}"],
   ["grid-degree", "72°\n{red:°}"],
+  ["grid-typed-heart", "I ♥ NY\n❤ 72°"],
   ["grid-icons", "{icon:sun} 72°\n{icon:rain}{icon:up}"],
   ["grid-literal", "{red:HOT}\n{icon:sun}"],
 ];
@@ -255,7 +273,7 @@ const GRID_SHAPES = [
   ["panel", 2, 5, undefined],
 ];
 const gridCases = [];
-for (const extendedMarkup of [false, true]) {
+for (const extendedMarkup of MODES) {
   const mode = extendedMarkup ? "ext" : "legacy";
   for (const [id, message] of GRID_MESSAGES) {
     for (const [deviceType, rows, cols, code62Glyph] of GRID_SHAPES) {
@@ -276,7 +294,7 @@ for (const extendedMarkup of [false, true]) {
   }
 }
 
-const icons = Object.fromEntries(ui.BOARD_ICON_NAMES.map((n) => [n, { ...ui.BOARD_ICONS[n] }]));
+const icons = HAS_ICONS ? Object.fromEntries(ui.BOARD_ICON_NAMES.map((n) => [n, { ...ui.BOARD_ICONS[n] }])) : null;
 
 const fileHashes = Object.fromEntries(
   SOURCES.map((p) => [p, createHash("sha256").update(readFileSync(join(fiestaUiDir, p))).digest("hex")]),
@@ -293,6 +311,9 @@ const header = {
     ...(process.env.FIESTAUI_NOTE ? { note: process.env.FIESTAUI_NOTE } : {}),
   },
   generator: "scripts/markup_fixtures/generate.mjs",
+  // What this FiestaUI commit can parse; absent modes have no cases here.
+  modes: MODES.map((ext) => (ext ? "ext" : "legacy")),
+  preserve_case: HAS_PRESERVE_CASE,
 };
 
 // One case per line keeps diffs reviewable when FiestaUI changes a behaviour.
@@ -311,14 +332,17 @@ const out = [
   "",
 ].join("\n");
 writeFileSync(outFile, out);
+console.log(`wrote ${lineCases.length} line cases and ${gridCases.length} grid cases to ${outFile}`);
 
-const iconsData = {
-  header: {
-    description:
-      "Icon table for {icon:NAME} markup, vendored from FiestaUI src/lib/board-icons.ts. Do not edit by hand: regenerate with scripts/markup_fixtures/generate.sh.",
-    fiestaui: header.fiestaui,
-  },
-  icons,
-};
-writeFileSync(iconsFile, JSON.stringify(iconsData, null, 2) + "\n");
-console.log(`wrote ${lineCases.length} line cases and ${gridCases.length} grid cases to ${outFile}; icons to ${iconsFile}`);
+if (iconsFile && icons) {
+  const iconsData = {
+    header: {
+      description:
+        "Icon table for {icon:NAME} markup, vendored from FiestaUI src/lib/board-icons.ts. Do not edit by hand: regenerate with scripts/markup_fixtures/generate.sh.",
+      fiestaui: header.fiestaui,
+    },
+    icons,
+  };
+  writeFileSync(iconsFile, JSON.stringify(iconsData, null, 2) + "\n");
+  console.log(`wrote icons to ${iconsFile}`);
+}

@@ -25,10 +25,11 @@ FiestaUI, the reference implementation):
 
 The flag is off by default and nothing in the app turns it on yet. With it
 off, :func:`parse_line` projects to exactly the codes
-:func:`src.text_to_board.text_to_board_array` draws today. With it on, it
-matches FiestaUI token for token, except where FiestaUI's *legacy* grammar
-disagrees with what the board draws today (``{filled}``, ``{/foo}``); there
-the board wins. ``tests/test_markup_parity.py`` lists each such case.
+:func:`src.text_to_board.text_to_board_array` draws today, and its tokens
+match FiestaUI's base grammar (c6b34f4, which aligned FiestaUI with the board
+on ``{filled}``, ``{/foo}``, emoji and typed hearts). With it on, it matches
+FiestaUI token for token; ``tests/test_markup_parity.py`` lists the cases
+where the extended fixtures still predate that alignment.
 
 The icon table is FiestaUI's data, vendored as ``markup_icons.json`` by
 ``scripts/markup_fixtures/generate.sh`` — never a hand-kept list here.
@@ -80,8 +81,10 @@ def _load_icons() -> dict[str, BoardIcon]:
 
 BOARD_ICONS: dict[str, BoardIcon] = _load_icons()
 
-#: Colours a span head may name, in FiestaUI's ``ALL_COLOR_CODES`` order.
-#: Note ``filled`` is a *tile* (``{filled}``) but not a span colour, as upstream.
+#: Colours a span or block head may name (besides ``#rrggbb``), in FiestaUI's
+#: ``ALL_COLOR_CODES`` order. ``filled`` / ``71`` is a *tile* (``{filled}``,
+#: ``{71}``), not a colour a letter can be drawn in, so a head naming it is
+#: literal text, as upstream (FiestaUI 5364439).
 SPAN_COLOR_CODES: tuple[str, ...] = (
     "63",
     "64",
@@ -91,7 +94,6 @@ SPAN_COLOR_CODES: tuple[str, ...] = (
     "68",
     "69",
     "70",
-    "71",
     "red",
     "orange",
     "yellow",
@@ -103,6 +105,7 @@ SPAN_COLOR_CODES: tuple[str, ...] = (
     "black",
 )
 _SPAN_COLORS = frozenset(SPAN_COLOR_CODES)
+_TILE_CODES = frozenset(str(code) for code in range(63, 72))
 _HEX_COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 
 
@@ -151,6 +154,13 @@ class BoardToken:
 
 
 _BLANK = BoardToken("char", value=" ")
+
+# A character keeps its identity in a token: a typed heart stays a heart, so a
+# renderer that can draw one (an LED) does. "❤" (U+2764) is normalised to "♥"
+# (U+2665) so a heart is one character downstream. Only the flap projection
+# collapses it: "♥" and "°" are both code 62, and :func:`message_to_grid` draws
+# whichever glyph the board's flap carries. FiestaUI ``typedCharToBoard`` (5364439).
+_TYPED_HEARTS = {"❤": "♥"}
 
 
 @dataclass(frozen=True)
@@ -214,7 +224,7 @@ def _char_token(value: str, span: _Span | None, icon: str | None = None) -> Boar
 
 def _icon_token(name: str, span: _Span | None) -> BoardToken:
     fallback = BOARD_ICONS[name].fallback
-    if fallback is not None and fallback in _SPAN_COLORS:
+    if fallback is not None and fallback in _TILE_CODES:
         return BoardToken("color", code=fallback, icon=name)
     return _char_token(fallback if fallback is not None else " ", span, icon=name)
 
@@ -259,7 +269,8 @@ def _pieces(
                     i = after
                     continue
             char = text[i]
-            add(_char_token(char if preserve_case else char.upper(), span), char, heads, offset + i, root)
+            value = _TYPED_HEARTS.get(char) or (char if preserve_case else char.upper())
+            add(_char_token(value, span), char, heads, offset + i, root)
             i += 1
 
     def extended_marker(
@@ -336,19 +347,30 @@ def message_to_grid(
     """A ``rows x cols`` grid of tokens (FiestaUI ``messageToGrid``).
 
     Lines past ``rows`` and cells past ``cols`` are dropped; short rows are
-    padded with blanks. Code 62 is drawn as the glyph this board carries
-    (display only: both glyphs project to code 62).
+    padded with blanks. Code 62 is drawn as the glyph this board's flap
+    carries, in both directions: a ``°`` draws as ``♥`` on a heart board and a
+    typed ``♥`` as ``°`` on a degree board (display only: both are code 62).
     """
     lines = message.split("\n")
-    heart = resolve_code62_glyph(device_type, code62_glyph) == "heart"
+    glyph = resolve_code62_glyph(device_type, code62_glyph)
     grid: list[list[BoardToken]] = []
     for row in range(rows):
         line = lines[row] if row < len(lines) else ""
         tokens = parse_line(line, cols, extended_markup=extended_markup, preserve_case=preserve_case)
-        if heart:
-            tokens = [replace(t, value="♥") if t.type == "char" and t.value == "°" else t for t in tokens]
+        tokens = [_apply_code62_glyph(t, glyph) for t in tokens]
         grid.append(tokens + [_BLANK] * (cols - len(tokens)))
     return grid
+
+
+def _apply_code62_glyph(token: BoardToken, glyph: str) -> BoardToken:
+    """Draw code 62 as the board's flap (FiestaUI ``applyCode62Glyph``)."""
+    if token.type != "char":
+        return token
+    if glyph == "heart" and token.value == "°":
+        return replace(token, value="♥")
+    if glyph == "degree" and token.value == "♥":
+        return replace(token, value="°")
+    return token
 
 
 def tokens_to_codes(tokens: list[BoardToken]) -> list[int]:
