@@ -361,7 +361,7 @@ with (
     patch("src.panels.routes.get_settings_service", return_value=settings_service),
     patch("src.panels.routes.get_service", return_value=None),
     patch("src.panels.routes.reinitialize_board_clients"),
-    patch("src.panels.routes.release_virtual_board_state"),
+    patch("src.panels.routes.release_board_frames"),
     patch("src.panels.routes._find_board", return_value=board),
 ):
     listed = asyncio.run(routes.list_panels())

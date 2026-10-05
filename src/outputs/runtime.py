@@ -42,6 +42,7 @@ from src.send_outcome import SendOutcome
 
 from .floor import Admission, send_floors
 from .frames import FrameCache, Grid
+from .registry import Delivery, capabilities_of
 from .transitions import TRANSITION_PLUGIN_PREFIX, NativeTransition, transition_plugins_enabled
 
 if TYPE_CHECKING:
@@ -88,12 +89,21 @@ class OutputRuntime:
         board_id: The board this runtime serves, for logs and identity.
             ``None`` for a client built outside the engine (a throwaway
             client in an API route), which gets a private runtime of its own.
-        frames: The frame cache to start from; a fresh one by default. A
-            virtual board passes its per-board shared "glass" here.
+        frames: The frame cache to start from; a fresh one by default.
+        output_id: The board's output id, which answers :attr:`delivery`.
     """
 
-    def __init__(self, board_id: str | None = None, *, frames: FrameCache | None = None) -> None:
+    def __init__(
+        self,
+        board_id: str | None = None,
+        *,
+        frames: FrameCache | None = None,
+        output_id: str | None = None,
+    ) -> None:
         self.board_id = board_id
+        # The registered output that drives this board (src/outputs/registry.py),
+        # or None for a runtime built outside the engine (a draft driver's).
+        self.output_id = output_id
         self._send_lock = threading.RLock()
         self._cancel = threading.Event()
         self._frames = frames if frames is not None else FrameCache()
@@ -121,13 +131,32 @@ class OutputRuntime:
         """Take over a driver's frame cache when the driver is bound here.
 
         The cache follows the driver exactly as it did when it was the
-        driver's own attribute: binding a fresh client starts clean, and a
-        virtual board keeps sharing its per-board "glass" with the throwaway
-        clients an API route builds for the same board. Once every driver is
-        built by its runtime (a later layer), the runtime creates the cache
-        and this hand-off goes away.
+        driver's own attribute: binding a fresh client starts clean, and
+        whatever the client recorded before the bind (a startup read-back)
+        carries over.
         """
         self._frames = frames
+
+    def displayed_frame(self, rows: int, cols: int) -> Grid | None:
+        """What a pull viewer is served: the last frame sent, if it still has
+        the board's shape (*rows* x *cols*); ``None`` otherwise. See
+        :meth:`FrameCache.last_frame_shaped`."""
+        return self._frames.last_frame_shaped(rows, cols)
+
+    def release_frames(self) -> None:
+        """Drop the board's stored frames (panel deleted, or re-fit to a new grid)."""
+        self._frames.clear()
+
+    @property
+    def delivery(self) -> Delivery | None:
+        """The board's output's delivery (``"push"`` | ``"pull"``), from the
+        output registry; ``None`` when the output is unknown.
+
+        Callers that gate on it must fail closed: only a literal ``"pull"``
+        means "no device is written".
+        """
+        capabilities = capabilities_of(self.output_id)
+        return capabilities.delivery if capabilities is not None else None
 
     @property
     def last_frame(self) -> Grid | None:

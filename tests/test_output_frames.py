@@ -24,7 +24,7 @@ from src.board_client import BoardClient
 from src.main import BoardRuntime
 from src.note_array_local_client import NoteArrayLocalClient
 from src.outputs import FrameCache, OutputRuntime
-from src.virtual_board_client import VirtualBoardClient, release_virtual_board_state
+from src.virtual_board_client import VirtualBoardClient
 
 FLAGSHIP = (6, 22)
 
@@ -168,16 +168,6 @@ class TestBinding:
         with patch("src.board_client.requests.post") as post:
             assert client.send_characters(_grid(4)) == (True, False)
         post.assert_not_called()
-
-    def test_a_virtual_boards_runtimes_share_one_glass(self):
-        engine = BoardRuntime(client=VirtualBoardClient(device_type="flagship", board_id="vb-share"), board_id="vb")
-        try:
-            throwaway = VirtualBoardClient(device_type="flagship", board_id="vb-share")
-            throwaway.send_characters(_grid(5))
-            assert engine.output.last_frame == _grid(5)
-            assert engine.output.frames.matches(_grid(5))
-        finally:
-            release_virtual_board_state("vb-share")
 
 
 # --- the last-frame store, per client kind --------------------------------------

@@ -86,8 +86,9 @@ def test_board_falls_back_to_what_was_last_sent_without_a_poll_cache():
 
 def test_board_wants_a_virtual_boards_memory_before_its_last_sent_cache():
     vclient = virtual("note", frame=NOTE_FRAME)
-    vclient._state.characters = grid(NOTE, 1)  # dedupe cache drifted from the glass
-    service = Service({"b1": Runtime(PhysicalClient()), "vb": Runtime(vclient)})
+    vb = Runtime(vclient)
+    vb.output.frames.characters = grid(NOTE, 1)  # dedupe cache drifted from the store
+    service = Service({"b1": Runtime(PhysicalClient()), "vb": vb})
 
     state = read_board_state("vb", want="board", service=service)
 
@@ -447,6 +448,7 @@ def test_the_panel_frame_never_uses_the_send_pool(app_client):
     with (
         patch("src.panels.routes.get_panel_service", return_value=panels),
         patch("src.panels.routes.get_service", return_value=service),
+        patch("src.panels.routes._find_board", return_value={"id": "vb", "device_type": "note", "api_mode": "virtual"}),
         # Any use of the send pool acquires its executor first; refusing that
         # catches every route into it, however the pool is reached.
         patch(

@@ -51,10 +51,15 @@ class PhysicalClient:
 
 
 class Runtime:
-    """The ``BoardRuntime`` fields the reader touches; binds its client like one."""
+    """The ``BoardRuntime`` fields the reader touches; binds its client like one.
+
+    Like a real runtime, it knows its board's output: ``fiestapanel`` for a
+    virtual client, ``vestaboard`` otherwise.
+    """
 
     def __init__(self, client=None, polled=None, polled_at=None):
-        self.output = OutputRuntime()
+        output_id = "fiestapanel" if isinstance(client, VirtualBoardClient) else "vestaboard"
+        self.output = OutputRuntime(output_id=output_id if client is not None else None)
         self.client = client
         if client is not None:
             client.set_output_runtime(self.output)
@@ -95,18 +100,22 @@ class Service:
 
 
 def virtual(device_type: str, *, frame=None, displayed=None, sent_at: float | None = None) -> VirtualBoardClient:
-    """An anonymous (instance-local state) virtual client, optionally holding a frame.
+    """An anonymous virtual client, optionally holding a frame.
 
     ``displayed`` overrides the displayed frame after the send to simulate a
     re-fit that left an old-shape frame behind; ``sent_at`` fixes the send
     time so ISO timestamps are exact.
     """
     client = VirtualBoardClient(device_type=device_type)
+    # Bound to a runtime of its own so the seed can be adjusted through the
+    # public store; a ``Runtime`` binding the client later adopts it.
+    seed = OutputRuntime()
+    client.set_output_runtime(seed)
     if frame is not None:
         ok, sent = client.send_characters(frame)
         assert (ok, sent) == (True, True), "seed frame never landed"
         if sent_at is not None:
-            client._state.last_sent_at = sent_at
+            seed.frames.last_sent_at = sent_at
     if displayed is not None:
-        client._state.last_frame = displayed
+        seed.frames.last_frame = displayed
     return client

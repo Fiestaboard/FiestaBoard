@@ -22,8 +22,9 @@ from src.virtual_board_client import VirtualBoardClient
 
 
 def _runtime(client):
-    """A board runtime as ``runtime_for`` returns it: the client bound to its OutputRuntime."""
-    output = OutputRuntime()
+    """A board runtime as ``runtime_for`` returns it: the client bound to its OutputRuntime,
+    which knows the board's output (``fiestapanel`` for a virtual client)."""
+    output = OutputRuntime(output_id="fiestapanel" if isinstance(client, VirtualBoardClient) else "vestaboard")
     bind = getattr(client, "set_output_runtime", None)
     if bind is not None:
         bind(output)
@@ -350,57 +351,7 @@ class TestPanelOrchestration:
         assert [b["id"] for b in fake_settings.boards] == ["physical-1"]
         assert real_service.get_panel(created["id"]) is None
 
-    def test_delete_panel_releases_the_boards_virtual_frame_state(self, client, tmp_path):
-        """The shared in-memory 'glass' must not outlive the panel's board."""
-        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
-        fake_settings = self._fake_settings_service(
-            initial_boards=[{"id": "physical-1", "device_type": "flagship", "api_mode": "local"}]
-        )
-        with (
-            patch("src.panels.routes.get_panel_service", return_value=real_service),
-            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
-            patch("src.panels.routes.reinitialize_board_clients"),
-        ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
-            vclient = VirtualBoardClient(device_type="panel", board_id=created["board_id"], grid_rows=9, grid_cols=22)
-            vclient.send_characters([[1] * 22 for _ in range(9)])
-            client.delete(f"/panels/{created['id']}")
-
-        fresh = VirtualBoardClient(device_type="panel", board_id=created["board_id"], grid_rows=9, grid_cols=22)
-        assert fresh.read_current_message() is None
-
-    def test_resize_drops_the_old_shape_frame(self, client, tmp_path):
-        """A TV-size change must not leave the previous grid readable.
-
-        ``read_current_message`` refuses to serve a frame whose shape no
-        longer matches the board, but ``_last_characters`` is read unguarded
-        by ``/board/current-message`` — both the secondary-board branch and
-        the primary's ``expected_characters``. Without releasing the shared
-        state on reshape, the app dashboard keeps rendering the old grid.
-        """
-        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
-        fake_settings = self._fake_settings_service()
-        with (
-            patch("src.panels.routes.get_panel_service", return_value=real_service),
-            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
-            patch("src.panels.routes.reinitialize_board_clients"),
-        ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
-            board_id = created["board_id"]
-            # 43" auto-fits 9 rows x 22 cols. Seed a frame at exactly that
-            # shape so the send lands (a mismatched seed would make this test
-            # pass vacuously).
-            old = VirtualBoardClient(device_type="panel", board_id=board_id, grid_rows=9, grid_cols=22)
-            old.send_characters([[1] * 22 for _ in range(9)])
-            assert old.read_current_message() is not None, "seed frame never landed"
-
-            assert client.patch(f"/panels/{created['id']}", json={"screen_diagonal_inches": 85}).status_code == 200
-
-        # 85" re-fits to 18 rows x 45 cols. Neither the displayed frame nor
-        # the dedupe cache may still carry the 9x22 grid.
-        fresh = VirtualBoardClient(device_type="panel", board_id=board_id, grid_rows=18, grid_cols=45)
-        assert fresh.read_current_message() is None
-        assert fresh._last_characters is None
+    # Release on delete / re-fit is core's now: tests/test_panel_frame_store.py.
 
     def test_delete_last_panel_swaps_in_a_default_board(self, client, tmp_path):
         """Deleting the only panel when its virtual board is the only board

@@ -201,7 +201,18 @@ Names you will meet:
   panels included), else `vestaboard`. An explicit id the registry does not
   know builds no driver (`UnknownOutputError`, recorded as the board's init
   error) — never a Vestaboard in its place. `GET /settings/board` and the
-  v1 board summaries expose the derived `output`.
+  v1 board summaries expose the derived `output`. Each live runtime knows its
+  output (`OutputRuntime.output_id`), and core decides by the registry's
+  capabilities: the UI-only output target skips every board whose
+  `delivery` is not a literal `"pull"` (an unknown output is hardware —
+  fail closed).
+- **Pull delivery** (plan D4) — a pulled board's frame is its runtime's
+  last-frame store. `GET /panel/{id}/frame` serves
+  `OutputRuntime.displayed_frame(rows, cols)` with core's **stale-shape
+  refusal** (a frame whose shape no longer matches the board's configured
+  grid is served as no frame), and deleting or re-fitting a panel
+  **releases** the board's frames (`display_runtime.release_board_frames`)
+  before the rebuild. The virtual client keeps no frame state of its own.
 - **`WriteResult`** (`src/send_outcome.py`; `SendOutcome` is an alias) —
   a write's verdict: `(success, was_sent)`, the throttle verdict, and
   `partial` + `failed_regions` for a write that reached only part of the
@@ -373,7 +384,8 @@ ruff ignore set for the same reason.
 
 `src/board_state.py` is the same idea one level up. Four surfaces answer
 "what is on the board" — `GET /board/current-message`, the unauthenticated
-`GET /panel/{panel_id}/frame` a TV polls every 2s, the MCP
+`GET /panel/{panel_id}/frame` a TV polls every 2s (which has since moved to
+the runtime's last-frame store, above), the MCP
 `get_board_content` tool and `GET /v1/boards/{board}` — and each used to
 carry its own copy of the cache selection, drifting in small ways (only one
 could live-read, only one reported a source, only one honoured the virtual

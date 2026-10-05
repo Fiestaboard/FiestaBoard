@@ -25,6 +25,37 @@ describe("API Extended Tests", () => {
       );
       await expect(api.getConfig()).rejects.toThrow("API error: 404 Not Found");
     });
+
+    // A structured detail — e.g. the 502 a partial board write answers:
+    // {"detail": {"message", "partial", "failed_regions"}} — must read as its
+    // message, not as raw JSON shown to the user.
+    it("reads the message out of an object detail", async () => {
+      server.use(
+        http.get(`${API_BASE}/v1/status`, () =>
+          HttpResponse.json(
+            {
+              detail: {
+                message: "Only part of the board was written",
+                partial: true,
+                failed_regions: [{ row: 0, col: 1, rows: 3, cols: 15 }],
+              },
+            },
+            { status: 502 },
+          ),
+        ),
+      );
+      await expect(api.getStatus()).rejects.toMatchObject({
+        message: "Only part of the board was written",
+        status: 502,
+      });
+    });
+
+    it("serializes an object detail that carries no message", async () => {
+      server.use(
+        http.get(`${API_BASE}/v1/status`, () => HttpResponse.json({ detail: { reason: "busy" } }, { status: 409 })),
+      );
+      await expect(api.getStatus()).rejects.toMatchObject({ message: '{"reason":"busy"}', status: 409 });
+    });
   });
 
   describe("generateAiPage error handling", () => {

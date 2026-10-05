@@ -255,7 +255,7 @@ class TransitionRenderMixin:
         """The send floor in milliseconds; 0 when the client is unfloored."""
         return int((getattr(self, "_min_send_interval", 0) or 0) * 1000)
 
-    def _init_transition_state(self, frames: FrameCache | None = None) -> None:
+    def _init_transition_state(self) -> None:
         # The per-board send lock, cancel token and frame cache (dedupe + last
         # frame sent) live on an OutputRuntime (src/outputs/runtime.py), which
         # owns their contract: preempt before the lock, a fresh token per run,
@@ -264,7 +264,7 @@ class TransitionRenderMixin:
         # outside the engine — this private one serves, exactly as the lock,
         # event and cache used to live on the instance.
         # The runtime also holds the transition runner (set_transition_runner).
-        self._output_runtime: OutputRuntime = OutputRuntime(frames=frames)
+        self._output_runtime: OutputRuntime = OutputRuntime()
 
     def _floor_seconds(self) -> int | None:
         """The per-type send floor in whole seconds, or ``None`` when unfloored."""

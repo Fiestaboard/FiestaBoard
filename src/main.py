@@ -27,6 +27,7 @@ from .devices import (
 from .displays.send_worker import BoardSendWorker, SendJob
 from .outputs import OutputDriver, OutputRuntime
 from .outputs.factory import build_driver
+from .outputs.registry import resolve_output_id
 from .pages.models import LineMetadata, Page
 from .pages.service import (
     CONTEXT_FINGERPRINT_PREFIX,
@@ -122,12 +123,14 @@ class BoardRuntime:
     ``DisplayService.rebuild_board_clients``.
     """
 
-    def __init__(self, client: OutputDriver | None, board_id):
+    def __init__(self, client: OutputDriver | None, board_id, output_id: str | None = None):
         self.board_id = board_id
         # Core-owned send policy for this board: the send lock, the cancel
         # token, the frame cache (dedupe + last frame sent) and external-write
         # detection. Created here, before the client is bound to it below.
-        self.output = OutputRuntime(board_id)
+        # ``output_id`` is the registered output that drives the board
+        # (src/outputs/registry.py); None for a clientless placeholder.
+        self.output = OutputRuntime(board_id, output_id=output_id)
         self.client = client
         self.config_signature = None
 
@@ -886,7 +889,7 @@ class DisplayService:
                     logger.error(f"Board {bid}: {init_errors[bid]} - skipping this board")
                     continue
                 self._attach_transition_runner(client)
-                rt = BoardRuntime(client=client, board_id=bid)
+                rt = BoardRuntime(client=client, board_id=bid, output_id=resolve_output_id(board))
                 rt.config_signature = sig
                 new_runtimes[bid] = rt
 
@@ -1182,7 +1185,7 @@ class DisplayService:
             return False
 
         self._attach_transition_runner(client)
-        rt = BoardRuntime(client=client, board_id=board_id)
+        rt = BoardRuntime(client=client, board_id=board_id, output_id=resolve_output_id(board))
         rt.config_signature = self._config_signature(board)
         runtimes = dict(self.runtimes)
         old_rt = runtimes.get(board_id)
@@ -1738,19 +1741,20 @@ class DisplayService:
             # Nothing below it - triggers, override revert, silence indicator,
             # the page send - can reach the wire.
             #
-            # A virtual board is exempt (issue #1835): it is not hardware.
+            # A pulled board is exempt (issue #1835): it is not hardware.
             # A FiestaPanel's frame is populated only by the render path here
             # - ``GET /panel/{id}/frame`` is a pure read of stored state - so
             # short-circuiting the loop froze every panel on its last frame.
             # "Preview in the web UI, never write hardware" must still drive
             # the very surface it exists to favor.
             #
-            # ``VirtualBoardClient`` sets ``is_virtual = True``; a hardware
-            # client has no such attribute. The comparison is deliberately a
-            # strict identity check, so anything other than a literal ``True``
-            # is treated as hardware: this guard is the last gate before the
-            # wire, and an ambiguous attribute must fail closed (stay silent)
-            # rather than fail open (write a board the user asked us not to).
+            # The output registry decides, not the client: a board whose
+            # output's delivery is ``"pull"`` (FiestaPanel) writes no device.
+            # Only a literal ``"pull"`` is exempt, so an output the registry
+            # does not know (or a runtime with none) is treated as hardware:
+            # this guard is the last gate before the wire, and an ambiguous
+            # answer must fail closed (stay silent) rather than fail open
+            # (write a board the user asked us not to).
             #
             # This MUST stay BELOW the ``rt.last_silence_mode_active`` latch
             # above. Returning before the latch leaves the silence flag stale
@@ -1762,7 +1766,7 @@ class DisplayService:
             # It must also stay BELOW the pause short-circuit: a paused virtual
             # board is still hands-off. Covered by
             # test_paused_virtual_board_is_not_driven_under_ui_only_target.
-            drives_hardware = getattr(rt.client, "is_virtual", False) is not True
+            drives_hardware = rt.output.delivery != "pull"
             if drives_hardware and settings_service.should_send_to_board() is False:
                 logger.debug(
                     "Output target is UI only - skipping board %s update",

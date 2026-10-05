@@ -3,6 +3,8 @@
 from unittest.mock import patch
 
 from src.board_client import board_client_from_board_dict
+from src.outputs import OutputRuntime
+from src.outputs.factory import build_driver
 from src.virtual_board_client import VirtualBoardClient
 
 
@@ -133,84 +135,60 @@ class TestFactoryDispatch:
         assert (ok, sent) == (True, True)
 
 
-class TestSharedStatePerBoard:
-    """Frames must live with the BOARD, not a client instance.
+class TestFramesLiveInTheRuntime:
+    """A virtual board's frame is its bound runtime's last-frame store.
 
-    Several code paths construct a throwaway client via
-    board_client_from_board_dict (live template render, detect-size) while
-    the display loop holds its own instance. All instances for one board id
-    must see the same frame, or a live-edit send evaporates (the bug that
-    motivated this: /templates/render/live wrote to a fresh instance and
-    the panel never saw it).
+    There is no per-board registry any more: every write to a saved board
+    goes through its one live runtime, so instances are not shared by id.
     """
 
-    def test_two_instances_for_same_board_share_frames(self):
-        a = VirtualBoardClient(device_type="flagship", board_id="b-shared")
-        b = VirtualBoardClient(device_type="flagship", board_id="b-shared")
-        a.send_characters(_grid(fill=9))
-        assert b.read_current_message() == _grid(fill=9)
-        assert b._frames.last_sent_at is not None
+    def test_a_bound_clients_send_lands_in_its_runtimes_store(self):
+        runtime = OutputRuntime("b-bound", output_id="fiestapanel")
+        client = VirtualBoardClient(device_type="flagship", board_id="b-bound")
+        client.set_output_runtime(runtime)
+        client.send_characters(_grid(fill=9))
+        assert runtime.last_frame == _grid(fill=9)
+        assert runtime.last_sent_at is not None
 
-    def test_distinct_boards_do_not_share(self):
-        a = VirtualBoardClient(device_type="flagship", board_id="b-one")
-        b = VirtualBoardClient(device_type="flagship", board_id="b-two")
+    def test_instances_for_one_board_id_do_not_share_frames(self):
+        a = VirtualBoardClient(device_type="flagship", board_id="b-same")
+        b = VirtualBoardClient(device_type="flagship", board_id="b-same")
         a.send_characters(_grid(fill=1))
         assert b.read_current_message() is None
 
-    def test_factory_passes_board_id(self):
-        board = {"api_mode": "virtual", "device_type": "flagship", "id": "b-factory"}
-        a = board_client_from_board_dict(board)
-        b = board_client_from_board_dict(board)
-        a.send_characters(_grid(fill=4))
-        assert b.read_current_message() == _grid(fill=4)
-
-    def test_anonymous_clients_stay_instance_local(self):
-        a = VirtualBoardClient(device_type="flagship")
-        b = VirtualBoardClient(device_type="flagship")
-        a.send_characters(_grid(fill=2))
-        assert b.read_current_message() is None
+    def test_the_factory_passes_the_board_id(self):
+        client = build_driver({"api_mode": "virtual", "device_type": "flagship", "id": "b-factory"})
+        assert client.board_id == "b-factory"
+        assert client.device_key() == "virtual:b-factory"
 
 
-class TestReshapeAndRelease:
-    """A panel TV-size edit reshapes the board; state must not go stale."""
+class TestReshape:
+    """A panel TV-size edit reshapes the board; its runtime must not serve stale state."""
+
+    @staticmethod
+    def _reshaped() -> tuple[OutputRuntime, VirtualBoardClient]:
+        """An 18x45 board whose runtime still stores the 12x15 frame it showed before."""
+        runtime = OutputRuntime("b-resize", output_id="fiestapanel")
+        after = VirtualBoardClient(device_type="note_array", board_id="b-resize", notes_wide=3, notes_tall=6)
+        after.set_output_runtime(runtime)
+        runtime.frames.record_sent(_grid(rows=12, cols=15, fill=5))
+        return runtime, after
 
     def test_reshaped_board_does_not_serve_the_old_shape_frame(self):
         """After a re-fit, a client with the new dims must read None, not the
-        old-shape frame.
+        old-shape frame still in the runtime's store.
 
         Repro of the live bug: resize a 55" panel (12×15) to 85" (18×45) —
         GET /panel/{ref}/frame kept returning the stale 12×15 grid while the
         config reported 18×45, so the TV rendered mismatched content forever.
         """
-        before = VirtualBoardClient(device_type="note_array", board_id="b-resize", notes_wide=1, notes_tall=4)
-        before.send_characters(_grid(rows=12, cols=15, fill=5))
-
-        after = VirtualBoardClient(device_type="note_array", board_id="b-resize", notes_wide=3, notes_tall=6)
+        runtime, after = self._reshaped()
+        assert runtime.last_frame is not None
         assert after.read_current_message() is None
 
     def test_reshaped_board_accepts_new_shape_sends(self):
         """The stale dedupe cache must not block or corrupt the first new-shape send."""
-        before = VirtualBoardClient(device_type="note_array", board_id="b-resize-2", notes_wide=1, notes_tall=4)
-        before.send_characters(_grid(rows=12, cols=15, fill=5))
-
-        after = VirtualBoardClient(device_type="note_array", board_id="b-resize-2", notes_wide=3, notes_tall=6)
+        _runtime, after = self._reshaped()
         ok, sent = after.send_characters(_grid(rows=18, cols=45, fill=7))
         assert (ok, sent) == (True, True)
         assert after.read_current_message() == _grid(rows=18, cols=45, fill=7)
-
-    def test_release_state_frees_a_deleted_boards_frames(self):
-        """Deleting a panel must drop its board's shared state from the registry."""
-        from src.virtual_board_client import release_virtual_board_state
-
-        a = VirtualBoardClient(device_type="flagship", board_id="b-released")
-        a.send_characters(_grid(fill=3))
-        release_virtual_board_state("b-released")
-
-        fresh = VirtualBoardClient(device_type="flagship", board_id="b-released")
-        assert fresh.read_current_message() is None
-
-    def test_release_state_tolerates_unknown_and_none_ids(self):
-        from src.virtual_board_client import release_virtual_board_state
-
-        release_virtual_board_state("never-existed")
-        release_virtual_board_state(None)

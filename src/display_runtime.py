@@ -345,6 +345,25 @@ def _get_first_board_dims():
     return resolve_dimensions("flagship")
 
 
+def release_board_frames(board_id: str | None) -> None:
+    """Drop a board's stored frames from its live runtime.
+
+    Called when a panel is deleted, or re-fit to a new grid, so the frame it
+    showed never outlives it — not on ``GET /panel/{id}/frame`` and not as
+    the ``expected_characters`` half of ``/board/current-message``. Only the
+    id's own runtime is touched (never the primary's by fallback); no
+    service, or no runtime for the id, is nothing to release. The rebuild
+    that follows (:func:`reinitialize_board_clients`) gives a re-fit board a
+    fresh runtime regardless — releasing first closes the window before it.
+    """
+    if board_id is None:
+        return
+    service = peek_service()
+    rt = service.get_runtime(board_id) if service is not None else None
+    if rt is not None:
+        rt.output.release_frames()
+
+
 def reinitialize_board_clients() -> None:
     """Rebuild board clients after a boards-list mutation.
 

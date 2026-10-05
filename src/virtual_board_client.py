@@ -1,22 +1,22 @@
-"""In-memory board client for virtual boards (FiestaPanel).
+"""In-memory board client for virtual boards (the ``fiestapanel`` output).
 
-A virtual board has no hardware: "sending" a frame just stores it, and
-FiestaPanel web viewers read it back through the panel API. Duck-type
-compatible with :class:`~src.board_client.BoardClient` for every external
-access the codebase makes (send/read, cache management, ``use_cloud`` for
-read-poll interval selection), mirroring
+A virtual board has no hardware: "sending" a frame just records it in the
+board's runtime, and FiestaPanel viewers pull it back through the panel API
+(``GET /panel/{id}/frame``). Duck-type compatible with
+:class:`~src.board_client.BoardClient` for every external access the
+codebase makes (send/read, cache management, ``use_cloud`` for read-poll
+interval selection), mirroring
 :class:`~src.note_array_local_client.NoteArrayLocalClient`.
 
-Frame state lives with the BOARD, not the client instance: several code
-paths (live template render, detect-size) build throwaway clients via
-``board_client_from_board_dict`` while the display loop holds its own
-instance. A per-board-id registry keeps them all looking at the same
-"glass" — without it, a live-edit send lands on a fresh instance and
-evaporates before any viewer polls it.
+The frame lives in core, not here: the board's
+:class:`~src.outputs.runtime.OutputRuntime` keeps the last frame sent (its
+:class:`~src.outputs.frames.FrameCache`), which is exactly what a pull
+viewer is served, with core's stale-shape refusal and core's release when a
+panel is deleted or re-fit. Every write to a saved board goes through that
+one live runtime, so no per-board registry of frames is needed.
 """
 
 import logging
-import threading
 from typing import Any
 
 from .board_client import (
@@ -25,47 +25,8 @@ from .board_client import (
     TransitionStrategy,
 )
 from .devices import resolve_dimensions
-from .outputs.frames import FrameCache
 
 logger = logging.getLogger(__name__)
-
-
-# A virtual board's "glass" is its runtime's FrameCache: the dedupe cache
-# (cleared by clear_cache to force a re-send) and the last-frame store, which
-# IS what the panel shows and survives clear_cache. It is shared per board id
-# because a throwaway live-render client's runtime is not the display loop's
-# (only the engine's client is bound to the board's runtime — a later layer
-# routes every client through it); the cache's lock keeps a live-edit send
-# racing the loop from desyncing the dedupe cache from the displayed frame,
-# after which a real send would be skipped as "unchanged" and the TV would
-# stick on the wrong frame.
-_states: dict[str, FrameCache] = {}
-_states_lock = threading.Lock()
-
-
-def _state_for(board_id: str | None) -> FrameCache:
-    """Shared state for a board id; instance-local state when anonymous."""
-    if board_id is None:
-        return FrameCache()
-    with _states_lock:
-        state = _states.get(board_id)
-        if state is None:
-            state = FrameCache()
-            _states[board_id] = state
-        return state
-
-
-def release_virtual_board_state(board_id: str | None) -> None:
-    """Drop a board's shared frame state from the registry.
-
-    Called when a panel (and its virtual board) is deleted so the stored
-    grids don't outlive the board. Safe for unknown or None ids; live client
-    instances keep their reference and simply expire with them.
-    """
-    if board_id is None:
-        return
-    with _states_lock:
-        _states.pop(board_id, None)
 
 
 class VirtualBoardClient(TransitionRenderMixin):
@@ -75,7 +36,7 @@ class VirtualBoardClient(TransitionRenderMixin):
         device_type: "flagship", "note", "note_array" or "panel" — with
             notes_wide/notes_tall (note_array) or grid_rows/grid_cols
             (panel), fixes the accepted grid shape.
-        board_id: Settings board id; instances sharing it share frame state.
+        board_id: Settings board id (identity for logs and ``device_key``).
         skip_unchanged: Skip acknowledging a re-send of an identical grid.
     """
 
@@ -101,10 +62,9 @@ class VirtualBoardClient(TransitionRenderMixin):
         self.use_cloud = False  # selects the local read-poll interval
         self.skip_unchanged = skip_unchanged
         self.api_key = ""
-        self._state = _state_for(board_id)
-        # Transition-plugin render state (lock, cancel event, runner slot); the
-        # runtime's frame cache is the board's shared glass.
-        self._init_transition_state(frames=self._state)
+        # Send lock, cancel token and frame cache: a private runtime until the
+        # board's BoardRuntime binds its own (set_output_runtime).
+        self._init_transition_state()
         logger.info(
             "Virtual board client initialized (%s, %d×%d, board_id=%s)",
             device_type,
@@ -119,10 +79,10 @@ class VirtualBoardClient(TransitionRenderMixin):
         return frozenset()
 
     def device_key(self) -> str:
-        """The board's shared glass: its board id (or the instance's own glass)."""
+        """The board: its board id (or, for an anonymous instance, the instance)."""
         if self.board_id is not None:
             return f"virtual:{self.board_id}"
-        return f"virtual:anonymous-{id(self._state):x}"
+        return f"virtual:anonymous-{id(self):x}"
 
     def send_text(self, text: str, force: bool = False, *, with_outcome: bool = False) -> Any:
         """Virtual boards are characters-only; mirror the note-array refusal."""
@@ -139,7 +99,7 @@ class VirtualBoardClient(TransitionRenderMixin):
         *,
         with_outcome: bool = False,
     ) -> Any:
-        """Store the frame in the board's shared state.
+        """Record the frame in the board's runtime (its last-frame store).
 
         Transition params are accepted for interface parity but ignored —
         the FiestaPanel viewer animates every frame change itself.
@@ -181,22 +141,13 @@ class VirtualBoardClient(TransitionRenderMixin):
             return self._outcome(True, True, with_outcome=with_outcome)
 
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
-        """Return a copy of the displayed frame; the memory IS the board.
+        """Return a copy of the displayed frame; the runtime's store IS the board.
 
-        A frame whose shape no longer matches the board's dimensions is
-        treated as absent: a panel TV-size edit re-fits the board's grid,
-        and serving the old-shape frame would leave the viewer rendering
-        stale mismatched content forever (config says the new size, frame
-        carries the old one).
+        Core's stale-shape refusal applies: a frame whose shape no longer
+        matches this board's dimensions is treated as absent
+        (:meth:`~src.outputs.runtime.OutputRuntime.displayed_frame`).
         """
-        frames = self._frames
-        with frames.lock:
-            displayed = frames.last_frame
-            if displayed is None:
-                return None
-            if len(displayed) != self.rows or any(len(row) != self.cols for row in displayed):
-                return None
-            return [row[:] for row in displayed]
+        return self._output_runtime.displayed_frame(self.rows, self.cols)
 
     def clear_cache(self) -> None:
         """Clear the skip-unchanged cache WITHOUT blanking the displayed frame.

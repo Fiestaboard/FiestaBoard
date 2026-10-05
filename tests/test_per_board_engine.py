@@ -20,6 +20,8 @@ from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from src.main import BoardRuntime, DisplayService
 from tests.engine_harness import TornReadRuntime
 
@@ -681,12 +683,13 @@ class TestOutputTarget:
 
         ``target="ui"`` means "don't touch hardware", but a FiestaPanel's
         frame is populated only by the render path here. Short-circuiting it
-        froze every virtual board on its last frame. ``VirtualBoardClient``
-        sets ``is_virtual = True``, which exempts it from the short-circuit.
+        froze every virtual board on its last frame. The board's output
+        (``fiestapanel``) is pulled — ``delivery == "pull"`` in the output
+        registry — which exempts it from the short-circuit.
         """
         boards = [_board("b1", "One")]
         svc, clients = _service_with_runtimes(boards)
-        clients["b1"].is_virtual = True
+        svc.runtimes["b1"].output.output_id = "fiestapanel"
         pages = _page_service({"pA": {"content": "ALPHA"}})
         schedule = _schedule_service({"b1": "pA"})
         settings = _settings_service(boards, send_to_board=False)
@@ -694,6 +697,34 @@ class TestOutputTarget:
         _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
 
         clients["b1"].render.assert_called_once()
+
+    def test_ui_only_exemption_is_the_outputs_delivery_not_the_clients_say_so(self):
+        """A client claiming ``is_virtual`` on a pushed output is still hardware."""
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].is_virtual = True
+        svc.runtimes["b1"].output.output_id = "vestaboard"
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=False)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_not_called()
+
+    @pytest.mark.parametrize("output_id", ["not-installed", None])
+    def test_ui_only_target_treats_an_unknown_output_as_hardware(self, output_id):
+        """Fail closed: an output the registry cannot vouch for is never driven under UI-only."""
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        svc.runtimes["b1"].output.output_id = output_id
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=False)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_not_called()
 
     def test_paused_virtual_board_is_not_driven_under_ui_only_target(self):
         """The virtual exemption must not reach above the pause short-circuit.
@@ -704,7 +735,7 @@ class TestOutputTarget:
         """
         boards = [_board("b1", "One")]
         svc, clients = _service_with_runtimes(boards)
-        clients["b1"].is_virtual = True
+        svc.runtimes["b1"].output.output_id = "fiestapanel"
         pages = _page_service({"pA": {"content": "ALPHA"}})
         schedule = _schedule_service({"b1": "pA"})
         settings = _settings_service(boards, paused=("b1",), send_to_board=False)
@@ -721,7 +752,7 @@ class TestOutputTarget:
         """
         boards = [_board("b1", "One")]
         svc, clients = _service_with_runtimes(boards)
-        clients["b1"].is_virtual = True
+        svc.runtimes["b1"].output.output_id = "fiestapanel"
         pages = _page_service({"pA": {"content": "ALPHA"}})
         schedule = _schedule_service({"b1": "pA"})
         settings = _settings_service(boards, send_to_board=False)

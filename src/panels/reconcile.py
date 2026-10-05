@@ -65,8 +65,8 @@ def reconcile_panel_boards() -> int:
 
 
 def _reconcile() -> int:
+    from src.display_runtime import release_board_frames
     from src.settings.service import get_settings_service
-    from src.virtual_board_client import release_virtual_board_state
 
     from .autofit import compute_autofit_grid
     from .service import get_panel_service
@@ -107,7 +107,7 @@ def _reconcile() -> int:
 
     settings_service.set_boards(boards)
     for board_id in refit_ids:
-        release_virtual_board_state(board_id)
+        release_board_frames(board_id)
 
     _retarget_pages(refits, remaining_keys={size_key(*geometry_of(b)) for b in boards})
     return len(refit_ids)

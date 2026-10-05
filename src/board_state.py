@@ -1,15 +1,18 @@
 """One reader for "what is on the board" (issue #1912).
 
-Four surfaces answer the same question — the grid of flap codes a board is
+Three surfaces answer the same question — the grid of flap codes a board is
 showing — from the same caches:
 
 * ``GET /board/current-message`` (``src/board_api/routes.py``), which may
   also read the board live;
-* ``GET /panel/{panel_id}/frame`` (``src/panels/routes.py``), the
-  unauthenticated TV viewer, which must never read a physical board live;
 * the MCP ``get_board_content`` tool (``src/mcp_server.py``), which reports
   which cache answered;
 * ``GET /v1/boards/{board}`` (``src/v1/routes_boards.py``).
+
+(The unauthenticated TV viewer, ``GET /panel/{panel_id}/frame``, used to be
+a fourth; it now reads the board runtime's last-frame store directly —
+``OutputRuntime.displayed_frame`` — and the ``want="sent"`` intent below
+keeps its semantics for any caller that asks it.)
 
 Each used to carry its own copy of the selection, and the copies had
 drifted. This module is the single implementation. The routes and the tool

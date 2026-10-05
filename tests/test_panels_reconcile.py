@@ -152,18 +152,22 @@ def test_a_shrinking_re_fit_does_not_crop_pages(services):
     assert (kept.device_type, kept.notes_wide, kept.notes_tall) == ("note_array", 4, 8)
 
 
-def test_a_re_fit_drops_the_old_shape_frame(services):
-    from src.virtual_board_client import VirtualBoardClient
+def test_a_re_fit_releases_the_boards_live_frames(services, monkeypatch):
+    import src.display_runtime as display_runtime
+    from src.main import DisplayService
 
     _legacy_panel(services)
-    old = VirtualBoardClient(device_type="note_array", board_id="panel-board", notes_wide=1, notes_tall=4)
-    old.send_characters([[1] * 15 for _ in range(12)])
-    assert old.read_current_message() is not None, "seed frame never landed"
+    service = DisplayService()
+    service._build_board_clients(sync_cache=False)
+    monkeypatch.setattr(display_runtime, "_service", service)
+    rt = service.get_runtime("panel-board")
+    rt.client.send_characters([[1] * 15 for _ in range(12)])
+    assert rt.output.last_frame is not None, "seed frame never landed"
 
     reconcile_panel_boards()
 
-    fresh = VirtualBoardClient(device_type="panel", board_id="panel-board", grid_rows=12, grid_cols=29)
-    assert fresh._last_characters is None
+    assert rt.output.last_frame is None
+    assert rt.output.frames.characters is None
 
 
 def test_an_install_without_panels_changes_nothing(services):
