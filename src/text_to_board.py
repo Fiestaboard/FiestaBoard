@@ -11,6 +11,47 @@ from .board_chars import BoardChars
 
 logger = logging.getLogger(__name__)
 
+#: Whether split-flap boards speak extended markup (plan Task 12, D16/D19;
+#: shipped together with FiestaUI's split-flap ``extendedMarkup`` major,
+#: FiestaUI #336). An LED board always did. With this on, every board parses
+#: colour spans, block spans and icons, and a split-flap board draws their
+#: degradation: a span's letters uncoloured, an icon's registry fallback
+#: tile or character. Legacy shortcuts resolve through the icon registry
+#: (``{sun}`` is ``{icon:sun}``, a yellow tile; ``{heart}`` is ``♥``).
+#:
+#: It is the default of every *renderer* that turns markup into a board —
+#: :func:`text_to_board_array`, the tile measures, message wrapping, the
+#: template engine and the page service — and of the per-output rule
+#: (:func:`src.outputs.cells.output_extended_markup`). A render that names no
+#: board is drawn as a split-flap one, so it follows too. The pure parser
+#: (:func:`src.markup.parse_line`) keeps its option off by default: it is the
+#: parity contract with FiestaUI's ``parseLine``, which did not flip either.
+#:
+#: Text with no shortcut and no extended-markup head renders byte-identically
+#: either way. Stored text this changes is what :mod:`src.markup_compat`
+#: reports at startup and on ``GET /system/markup-compat``.
+SPLIT_FLAP_EXTENDED_MARKUP = True
+
+# The head of a colour span, block span or icon (``{red:``, ``{63:``,
+# ``{#ff8800:``, ``{black/white:``, ``{icon:``), case-insensitive. ``filled``
+# / ``71`` is a tile, never a span colour.
+_SPAN_COLOUR = r"(?:6[3-9]|70|red|orange|yellow|green|blue|violet|purple|white|black|#[0-9a-f]{6})"
+_EXTENDED_HEAD = re.compile(r"\{(?:" + _SPAN_COLOUR + r"(?:/" + _SPAN_COLOUR + r")?|icon):", re.IGNORECASE)
+
+
+def needs_extended_markup(text: str, extended_markup: bool) -> bool:
+    """Whether measuring, cutting or wrapping *text* needs the extended
+    machinery: *extended_markup* is on and *text* holds a span, block or icon
+    head.
+
+    Text without one takes the legacy width paths byte for byte, so the
+    split-flap flip leaves plain text exactly as it was on every board (the
+    extended paths agree on the drawn tiles but differ from the legacy ones
+    in edge cases of wrapping and end-tag handling).
+    """
+    return extended_markup and _EXTENDED_HEAD.search(text) is not None
+
+
 # Color name to code mapping
 COLOR_CODES = {
     "red": 63,
@@ -37,7 +78,7 @@ COLOR_MARKER_PATTERN = re.compile(
 )
 
 
-def count_tiles(text: str, *, extended_markup: bool = False) -> int:
+def count_tiles(text: str, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP) -> int:
     """Count how many flaps *text* occupies.
 
     A colour marker (``{66}``, ``{green}``) is one tile regardless of how many
@@ -45,10 +86,10 @@ def count_tiles(text: str, *, extended_markup: bool = False) -> int:
     formatting artefacts and occupy none — matching :func:`text_to_board_array`,
     which skips them without advancing ``col_idx``.
 
-    With ``extended_markup`` (off by default; see :mod:`src.markup`) a colour
+    With ``extended_markup`` (the default, :data:`SPLIT_FLAP_EXTENDED_MARKUP`) a colour
     span counts the cells it draws — ``{red:HOT}`` is three — and an icon one.
     """
-    if extended_markup:
+    if needs_extended_markup(text, extended_markup):
         from .markup import count_tiles as count_extended
 
         return count_extended(text)
@@ -66,7 +107,7 @@ def count_tiles(text: str, *, extended_markup: bool = False) -> int:
     return tiles
 
 
-def take_tiles(text: str, limit: int, *, extended_markup: bool = False) -> tuple[str, str]:
+def take_tiles(text: str, limit: int, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP) -> tuple[str, str]:
     """Split *text* into ``(head, tail)``, ``head`` at most *limit* tiles wide.
 
     The split never lands inside a colour marker: a marker is taken whole or
@@ -76,7 +117,7 @@ def take_tiles(text: str, limit: int, *, extended_markup: bool = False) -> tuple
     With ``extended_markup`` a span cut in two is closed in ``head`` and
     reopened in ``tail`` (see :func:`src.markup.take_tiles`).
     """
-    if extended_markup:
+    if needs_extended_markup(text, extended_markup):
         from .markup import take_tiles as take_extended
 
         return take_extended(text, limit)
@@ -138,7 +179,7 @@ def wrap_message_text(
     cols: int = 22,
     unescape_newlines: bool = False,
     *,
-    extended_markup: bool = False,
+    extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
 ) -> str:
     r"""Prepare free-form user text for :func:`text_to_board_array` (issue #1793).
 
@@ -162,7 +203,7 @@ def wrap_message_text(
         unescape_newlines: Treat ``\n`` as a line break (single-line clients).
         extended_markup: Measure colour spans and icons by the tiles they
             draw and never wrap through their markup (see :mod:`src.markup`).
-            Off by default; nothing turns it on yet.
+            On by default (:data:`SPLIT_FLAP_EXTENDED_MARKUP`).
 
     Returns:
         Newline-separated text that fits within rows x cols.
@@ -193,7 +234,7 @@ def text_to_board_array(
     rows: int = 6,
     cols: int = 22,
     *,
-    extended_markup: bool = False,
+    extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
 ) -> list[list[int]]:
     """
     Convert formatted text to board character array.
@@ -215,7 +256,7 @@ def text_to_board_array(
         cols: Number of columns (default 22 for flagship, 15 for note)
         extended_markup: Parse colour spans and icons (see :mod:`src.markup`);
             a split-flap board draws a span's letters plain and an icon's
-            fallback. Off by default; nothing turns it on yet.
+            fallback. On by default (:data:`SPLIT_FLAP_EXTENDED_MARKUP`).
 
     Returns:
         rows x cols array of character codes (0-71)
@@ -225,7 +266,7 @@ def text_to_board_array(
 
     lines = text.split("\n")[:rows]
 
-    if extended_markup:
+    if needs_extended_markup(text, extended_markup):
         from .markup import parse_line
 
         for row_idx, line in enumerate(lines):

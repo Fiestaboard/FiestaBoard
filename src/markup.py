@@ -30,9 +30,12 @@ FiestaUI, the reference implementation):
 Tile tokens keep the spelling they were parsed from (``"63"`` or ``"red"``);
 normalising to a numeric code is the caller's job (:attr:`BoardToken.flap_code`).
 
-The flag is off by default and nothing in the app turns it on yet. With it
-off, :func:`parse_line` projects to exactly the codes
-:func:`src.text_to_board.text_to_board_array` draws today. In both modes it
+The parser's flag is off by default, as FiestaUI's ``parseLine`` is: a bare
+call is an explicit parse of the base grammar. The app's renderers turn it
+on for every board since the split-flap flip
+(:data:`src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP`). With it off,
+:func:`parse_line` projects to exactly the codes the legacy
+:func:`src.text_to_board.text_to_board_array` drew. In both modes it
 matches FiestaUI (d4e3074, PR #335) token for token; see
 ``tests/test_markup_parity.py``.
 

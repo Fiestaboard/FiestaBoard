@@ -26,7 +26,7 @@ from .devices import (
 from .displays.send_worker import BoardSendWorker, SendJob
 from .outputs import OutputDriver, OutputRuntime
 from .outputs.breaker import write_failure_reason
-from .outputs.cells import output_character_set, output_extended_markup, project_message
+from .outputs.cells import extended_markup_kw, output_character_set, project_message
 from .outputs.factory import build_driver
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
@@ -95,18 +95,20 @@ BOARD_RETRY_MAX_BACKOFF = 900.0
 
 
 def _extended_kw(client) -> dict:
-    """``{"extended_markup": True}`` for a board whose output speaks extended
-    markup (its character set is rich, plan D19), else nothing — so a
-    split-flap board's render call is exactly what it always was."""
-    return {"extended_markup": True} if output_extended_markup(client) else {}
+    """The render keywords for *client*'s board
+    (:func:`src.outputs.cells.extended_markup_kw`): ``extended_markup`` for a
+    rich output, none for a split-flap one, whose render follows the
+    renderers' split-flap default (extended markup on since Task 12)."""
+    return extended_markup_kw(client)
 
 
 def _project(client, content: str, rows: int, cols: int) -> tuple[list[list[int]], dict]:
     """*content* projected for *client*'s output (:mod:`src.outputs.cells`):
     the 0–71 grid, and the ``render`` keywords that carry its rich cells.
 
-    A split-flap board gets ``text_to_board_array`` exactly as before and no
-    keywords; a rich output's one parse yields both the grid and its cells.
+    A split-flap board gets the ``text_to_board_array`` grid (extended markup
+    degraded to letters and fallback tiles) and no keywords; a rich output's
+    one parse yields both the grid and its cells.
     """
     frame = project_message(content, rows, cols, output_character_set(client))
     return frame.characters, ({"cells": frame.cells} if frame.cells is not None else {})

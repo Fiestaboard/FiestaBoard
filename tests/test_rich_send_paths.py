@@ -190,10 +190,13 @@ def test_the_live_editor_renders_and_sends_cells_to_a_rich_board(live):
     assert driver.render.call_args.kwargs["cells"] == expected.cells
 
 
-def test_the_live_editor_on_a_split_flap_board_is_unchanged(live):
+def test_the_live_editor_on_a_split_flap_board_sends_no_cells(live):
     api, driver = live
     body = api.post("/templates/render/live", json={"template": ["{{red:HOT}}"], "board_id": "sign"}).json()
-    assert not body["rendered"].startswith("{red:HOT}")
+    # A split-flap board speaks extended markup since the Task 12 flip: the
+    # span renders, and the board draws its letters.
+    assert body["rendered"].startswith("{red:HOT}")
+    assert driver.render.call_args.args[0][0][:3] == [8, 15, 20]
     assert driver.render.call_args.args[0] == text_to_board_array(body["rendered"], rows=6, cols=22)
     assert "cells" not in driver.render.call_args.kwargs
 

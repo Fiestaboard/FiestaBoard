@@ -25,6 +25,7 @@ from src.displays.service import DisplayResult, get_display_service
 from src.plugins.manifest import DemoPageSchema
 from src.settings.service import get_settings_service
 from src.templates.engine import extract_template_plugin_ids, get_template_engine
+from src.text_to_board import SPLIT_FLAP_EXTENDED_MARKUP
 
 from .models import LineMetadata, Page, PageCreate, PageUpdate
 from .storage import PageStorage
@@ -482,7 +483,7 @@ class PageService:
         context: dict | None = None,
         contexts: dict[str, dict] | None = None,
         *,
-        extended_markup: bool = False,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
     ) -> DisplayResult:
         """Render a page to formatted text.
 
@@ -609,7 +610,7 @@ class PageService:
         )
 
     def _render_template(
-        self, page: Page, context: dict | None = None, *, extended_markup: bool = False
+        self, page: Page, context: dict | None = None, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
     ) -> DisplayResult:
         """Render a template page with variable substitution.
 
@@ -648,7 +649,7 @@ class PageService:
                 notes_tall=page.notes_tall,
                 grid_rows=page.grid_rows,
                 grid_cols=page.grid_cols,
-                **({"extended_markup": True} if extended_markup else {}),
+                extended_markup=extended_markup,
             )
 
             # Note: We do NOT truncate/pad by character count here because:
@@ -679,7 +680,7 @@ class PageService:
         context: dict | None = None,
         contexts: dict[str, dict] | None = None,
         *,
-        extended_markup: bool = False,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
     ) -> DisplayResult | None:
         """Preview a page by ID.
 
@@ -693,10 +694,11 @@ class PageService:
             context: Optional pre-built template context (skips the plugin fan-out)
             contexts: Optional per-tick shared context cache keyed by board
                 size (issue #1752); see :meth:`shared_context_for`
-            extended_markup: Render for a board that speaks extended markup
-                (see :meth:`render_page`). Such a render neither reads nor
-                writes the preview cache, which holds the split-flap render
-                the page grid shows.
+            extended_markup: Render with extended markup (see
+                :meth:`render_page`). The preview cache holds the default
+                render (:data:`~src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP`),
+                which every board now shares; a render in the other mode
+                neither reads nor writes it.
 
         Returns:
             DisplayResult or None if page not found
@@ -705,8 +707,8 @@ class PageService:
         if not page:
             return None
 
-        if extended_markup:
-            return self.render_page(page, context=context, contexts=contexts, extended_markup=True)
+        if extended_markup != SPLIT_FLAP_EXTENDED_MARKUP:
+            return self.render_page(page, context=context, contexts=contexts, extended_markup=extended_markup)
 
         # Check cache first if not forcing refresh
         if not force_refresh:
@@ -732,7 +734,7 @@ class PageService:
         force_refresh: bool = False,
         active_page_id: str | None = None,
         *,
-        extended_markup: bool = False,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
     ) -> dict[str, DisplayResult | None]:
         """Preview multiple pages, building template context once for efficiency.
 
@@ -744,16 +746,17 @@ class PageService:
             page_ids: List of page IDs to preview
             force_refresh: If True, bypass cache for all pages
             active_page_id: If set, always force refresh for this page
-            extended_markup: Render for a board that speaks extended markup
-                (see :meth:`preview_page`): every page renders fresh, and the
-                preview cache (the split-flap render) is neither read nor
-                written.
+            extended_markup: Render with extended markup (see
+                :meth:`preview_page`): a render in the mode the preview cache
+                does not hold renders every page fresh, and the cache is
+                neither read nor written.
 
         Returns:
             Dict mapping page_id to DisplayResult (or None if page not found)
         """
         results: dict[str, DisplayResult | None] = {}
         pages_to_render: list[tuple[str, Page]] = []
+        uncached_mode = extended_markup != SPLIT_FLAP_EXTENDED_MARKUP
 
         # First pass: check cache, collect pages that need rendering
         for page_id in page_ids:
@@ -762,7 +765,7 @@ class PageService:
                 results[page_id] = None
                 continue
 
-            should_force = force_refresh or (page_id == active_page_id) or extended_markup
+            should_force = force_refresh or (page_id == active_page_id) or uncached_mode
 
             if not should_force:
                 cached = self._preview_cache.get(page_id)
@@ -807,10 +810,8 @@ class PageService:
         for page_id, page in pages_to_render:
             try:
                 context = contexts_by_board.get(self._board_key(page))
-                if extended_markup:
-                    result = self.render_page(page, context=context, extended_markup=True)
-                else:
-                    result = self.render_page(page, context=context)
+                result = self.render_page(page, context=context, extended_markup=extended_markup)
+                if not uncached_mode:
                     self._preview_cache[page_id] = CachedPreview(
                         result=result, page_updated_at=page.updated_at, cached_at=time.time()
                     )

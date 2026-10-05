@@ -287,7 +287,10 @@ def test_render_lines_renders_with_the_boards_extended_markup():
 
     engine = TemplateEngine()
     assert engine.render_lines(["{{red:HOT}}"], context={}, extended_markup=True).split("\n")[0].startswith("{red:HOT}")
-    assert not engine.render_lines(["{{red:HOT}}"], context={}).split("\n")[0].startswith("{red:HOT}")
+    # The default is the split-flap mode, on since the Task 12 flip; off is the old engine.
+    assert engine.render_lines(["{{red:HOT}}"], context={}).split("\n")[0].startswith("{red:HOT}")
+    off = engine.render_lines(["{{red:HOT}}"], context={}, extended_markup=False)
+    assert not off.split("\n")[0].startswith("{red:HOT}")
 
 
 def test_an_extended_preview_bypasses_the_preview_cache(tmp_path):

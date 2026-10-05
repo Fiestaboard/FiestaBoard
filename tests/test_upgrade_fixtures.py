@@ -451,9 +451,9 @@ def test_scan_text_finds_extended_markup_heads(text, expected):
         "{red}{63}{filled}{/red}{/}",  # legacy colour tiles and end tags
         "{center}{{date_time.time}}",  # alignment prefix + template variable
         "{{weather.temperature|pad:3}}",  # filter argument inside a variable
-        "{{red:x}}",  # a template variable, not board markup
+        "{{red}}",  # a template colour tile, not a span (the Task 12 flip made {{red:x}} a span)
         "{filled:X}",  # filled is a tile, not a span colour
-        "{sun}",  # legacy symbol shortcut, untouched by D15
+        "{fog}",  # the one legacy shortcut a split-flap draws the same after the flip
         "TIME: 10:30",
     ],
 )

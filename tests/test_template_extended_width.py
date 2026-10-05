@@ -283,7 +283,8 @@ def test_validation_still_flags_extended_markup_that_overflows(engine):
 
 def test_validation_counts_heart_shortcut_as_one_tile(engine):
     assert engine._calculate_max_line_length("A{heart}", cols=22, extended_markup=True) == 2
-    assert engine._calculate_max_line_length("A{heart}", cols=22) == 3
+    assert engine._calculate_max_line_length("A{heart}", cols=22) == 2  # the default since Task 12
+    assert engine._calculate_max_line_length("A{heart}", cols=22, extended_markup=False) == 3
 
 
 def test_wrap_line_narrows_only_the_first_row():
@@ -321,11 +322,15 @@ def test_validate_for_a_rich_board_measures_rendered_tiles(api_client_with_led_b
     assert _too_long(body.json()) == []
 
 
-def test_validate_without_a_board_measures_as_split_flap(api_client_with_led_board):
+# Since the split-flap flip (plan Task 12) a split-flap board speaks extended
+# markup too, so it measures the same rendered tiles a rich board does.
+
+
+def test_validate_without_a_board_measures_rendered_tiles(api_client_with_led_board):
     body = api_client_with_led_board.post("/templates/validate", json={"template": FITS_ON_LED})
-    assert _too_long(body.json()) != []
+    assert _too_long(body.json()) == []
 
 
-def test_validate_for_an_unknown_board_measures_as_split_flap(api_client_with_led_board):
+def test_validate_for_an_unknown_board_measures_rendered_tiles(api_client_with_led_board):
     body = api_client_with_led_board.post("/templates/validate", json={"template": FITS_ON_LED, "board_id": "nope"})
-    assert _too_long(body.json()) != []
+    assert _too_long(body.json()) == []

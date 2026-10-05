@@ -181,8 +181,10 @@ class OutputPluginDriver:
 
     @property
     def extended_markup(self) -> bool:
-        """Whether this board's set is rich (colour/block spans or icons):
-        its content is rendered and parsed with extended markup (plan D19)."""
+        """Whether this board's set is rich (colour/block spans or icons), so
+        it draws extended markup as written and gets rich cells. Every board
+        parses extended markup since the split-flap flip (plan Task 12); a
+        split-flap one draws its degradation."""
         return has_extended_markup(self.character_set)
 
     @property

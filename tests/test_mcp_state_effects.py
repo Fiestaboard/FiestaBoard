@@ -2351,9 +2351,11 @@ def test_validate_template_for_an_led_board_measures_rendered_tiles(mcp, boards_
     assert result["charset"] == "led_5x7"
 
 
-def test_validate_template_without_a_board_measures_as_split_flap(mcp, boards_with_led):
+def test_validate_template_without_a_board_measures_rendered_tiles(mcp, boards_with_led):
+    # A split-flap board speaks extended markup since the Task 12 flip, so it
+    # measures what is drawn, as an LED board does.
     result = call(mcp, "validate_template", template=FITS_ON_LED)
-    assert _too_long(result) != []
+    assert _too_long(result) == []
     assert "charset" not in result
 
 
@@ -2381,9 +2383,11 @@ def test_render_page_preview_reports_the_boards_charset_issues(mcp, boards_with_
     assert {(i["row"], i["col"], i["reason"]) for i in result["charset_issues"]} >= {(0, 1, "case")}
 
 
-def test_render_page_preview_without_a_board_is_unchanged(mcp, boards_with_led):
+def test_render_page_preview_without_a_board_renders_extended_markup(mcp, boards_with_led):
+    # Rendered as a split-flap board, which speaks extended markup since the
+    # Task 12 flip; the response shape is unchanged.
     result = assert_ok(call(mcp, "render_page_preview", template_lines=["{{red:HOT}}"]), "render_page_preview")
-    assert not result["rendered"].startswith("{red:HOT}")
+    assert result["rendered"].startswith("{red:HOT}")
     assert set(result) == {"rendered", "device_type", "rows", "cols", "context_plugins"}
 
 

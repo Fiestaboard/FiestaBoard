@@ -78,7 +78,10 @@ def test_legacy_parse_projects_to_todays_board_row():
     mismatches = []
     for line in LINES:
         codes = tokens_to_codes(parse_line(line, width))
-        if codes + [0] * (width - len(codes)) != text_to_board_array(line, rows=1, cols=width)[0]:
+        if (
+            codes + [0] * (width - len(codes))
+            != text_to_board_array(line, rows=1, cols=width, extended_markup=False)[0]
+        ):
             mismatches.append(line)
     assert mismatches == []
 
@@ -88,7 +91,10 @@ def test_legacy_parse_honours_the_column_cap_like_todays_board():
     for line in LINES:
         for cols in (0, 1, 3, 15):
             codes = tokens_to_codes(parse_line(line, cols))
-            if codes + [0] * (cols - len(codes)) != text_to_board_array(line, rows=1, cols=cols)[0]:
+            if (
+                codes + [0] * (cols - len(codes))
+                != text_to_board_array(line, rows=1, cols=cols, extended_markup=False)[0]
+            ):
                 mismatches.append((line, cols))
     assert mismatches == []
 
@@ -99,13 +105,17 @@ def test_marker_free_text_board_rows_identical_with_extended_on(cols):
         line
         for line in MARKER_FREE
         if text_to_board_array(line, rows=1, cols=cols, extended_markup=True)
-        != text_to_board_array(line, rows=1, cols=cols)
+        != text_to_board_array(line, rows=1, cols=cols, extended_markup=False)
     ]
     assert changed == []
 
 
 def test_marker_free_text_tile_count_identical_with_extended_on():
-    changed = [line for line in MARKER_FREE if count_tiles(line, extended_markup=True) != count_tiles(line)]
+    changed = [
+        line
+        for line in MARKER_FREE
+        if count_tiles(line, extended_markup=True) != count_tiles(line, extended_markup=False)
+    ]
     assert changed == []
 
 
@@ -114,7 +124,7 @@ def test_marker_free_text_tile_split_identical_with_extended_on():
         (line, limit)
         for line in MARKER_FREE
         for limit in (0, 1, 4)
-        if take_tiles(line, limit, extended_markup=True) != take_tiles(line, limit)
+        if take_tiles(line, limit, extended_markup=True) != take_tiles(line, limit, extended_markup=False)
     ]
     assert changed == []
 
@@ -125,6 +135,6 @@ def test_marker_free_text_wrap_identical_with_extended_on(cols):
         line
         for line in MARKER_FREE
         if wrap_message_text(line, rows=8, cols=cols, extended_markup=True)
-        != wrap_message_text(line, rows=8, cols=cols)
+        != wrap_message_text(line, rows=8, cols=cols, extended_markup=False)
     ]
     assert changed == []

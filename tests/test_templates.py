@@ -174,20 +174,24 @@ class TestSymbols:
         for symbol in expected:
             assert symbol in SYMBOL_CHARS
 
+    # Since the split-flap extended-markup flip (plan Task 12) a shortcut is
+    # an alias of its icon on every board; SYMBOL_CHARS is the ASCII it drew
+    # before, still what a render with extended markup off produces.
+
     def test_sun_symbol(self, engine):
         """Test {sun} symbol."""
-        result = engine.render("{sun} Sunny", context={})
-        assert SYMBOL_CHARS["sun"] in result
+        assert engine.render("{sun} Sunny", context={}) == "{icon:sun} Sunny"
+        assert engine.render("{sun} Sunny", context={}, extended_markup=False) == SYMBOL_CHARS["sun"] + " Sunny"
 
     def test_cloud_symbol(self, engine):
         """Test {cloud} symbol."""
-        result = engine.render("{cloud} Cloudy", context={})
-        assert SYMBOL_CHARS["cloud"] in result
+        assert engine.render("{cloud} Cloudy", context={}) == "{icon:cloud} Cloudy"
+        assert engine.render("{cloud} Cloudy", context={}, extended_markup=False) == SYMBOL_CHARS["cloud"] + " Cloudy"
 
     def test_symbol_case_insensitive(self, engine):
         """Test symbols are case insensitive."""
         result = engine.render("{SUN} {Sun} {sun}", context={})
-        assert result.count(SYMBOL_CHARS["sun"]) == 3
+        assert result.count("{icon:sun}") == 3
 
 
 class TestValidation:

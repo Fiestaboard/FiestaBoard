@@ -79,7 +79,7 @@
       "geometry": { "kind": "panel", "rows": 12, "cols": 29 },
       "color": { "kind": "tiles" },
       "charset": "vestaboard_v2",
-      "animation": { "delivery": "none", "maxFps": 0 },
+      "animation": { "delivery": "stream", "maxFps": 0.5 },
       "appearance": { "boardColors": ["black", "white"], "options": { "board_color": ["black", "white"] } }
     },
     {

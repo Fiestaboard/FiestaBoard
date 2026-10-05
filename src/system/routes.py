@@ -34,13 +34,15 @@ import os
 
 from fastapi import APIRouter, HTTPException
 
-from src import __version__
+from src import __version__, markup_compat
 from src.api_errors import errors
 
 from . import update_service
 from .models import (
     AutoUpdateRequest,
     AutoUpdateResponse,
+    MarkupCompatFinding,
+    MarkupCompatResponse,
     ReleaseChannelRequest,
     ReleaseChannelResponse,
     ReleaseChannelSwitchResponse,
@@ -291,6 +293,45 @@ async def system_shutdown():
         return await update_service.perform_sidecar_action("shutdown")
     except update_service.SidecarError as exc:
         raise _as_http(exc) from exc
+
+
+def _markup_compat_report() -> MarkupCompatResponse:
+    findings = markup_compat.scan_live_data()
+    rows = []
+    for finding in findings:
+        before, after = markup_compat.change_of(finding)
+        rows.append(
+            MarkupCompatFinding(
+                store=finding.store,
+                location=finding.location,
+                kind=finding.kind,
+                marker=finding.marker,
+                text=finding.text,
+                item_id=finding.item_id,
+                item_name=finding.item_name,
+                before=before,
+                after=after,
+            )
+        )
+    return MarkupCompatResponse(**markup_compat.summarize(findings), findings=rows)
+
+
+@router.get("/system/markup-compat", response_model=MarkupCompatResponse, responses=errors(500))
+async def system_markup_compat():
+    """Stored board text that draws differently since the split-flap
+    extended-markup flip (plan Task 12): legacy shortcuts whose rendering
+    changed (``{sun}`` was ``*``, is a yellow tile) and text that now parses
+    as extended markup (``{red:HOT}``, ``{{icon:sun}}``), per page or
+    setting. Read-only: nothing is rewritten. The same scan runs (and logs a
+    summary) at startup.
+
+    Scans the live stores on every call, so a page fixed since startup drops
+    out. 500 only when the data directory itself cannot be read.
+    """
+    try:
+        return await asyncio.to_thread(_markup_compat_report)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Markup compatibility scan failed: {exc}") from exc
 
 
 @router.get("/system/channel", response_model=ReleaseChannelResponse)

@@ -1,12 +1,11 @@
-"""Legacy symbol shortcuts as icon-registry aliases (plan D16), behind a flag.
+"""Legacy symbol shortcuts as icon-registry aliases (plan D16).
 
 ``{sun}``, ``{cloud}``, ``{storm}``, ``{x}`` … are template shortcuts that
-render today as ASCII stand-ins (``{sun}`` -> ``*``). D16 makes them aliases
-of the icon registry, so ``{sun}`` means ``{icon:sun}``. ``{heart}`` stays the
-typed ``♥`` (code 62). This is gated exactly like extended markup: with
-``extended_markup`` off (the default and every caller today) the output is
-byte-identical to before; the visible change ships only with the coordinated
-v10 markup switch-over.
+rendered as ASCII stand-ins (``{sun}`` -> ``*``). D16 makes them aliases of
+the icon registry, so ``{sun}`` means ``{icon:sun}``. ``{heart}`` is the typed
+``♥`` (code 62). This is gated exactly like extended markup, which is on by
+default since the coordinated split-flap flip (plan Task 12); with
+``extended_markup=False`` the output is the pre-flip ASCII.
 """
 
 from __future__ import annotations
@@ -59,9 +58,9 @@ def test_the_tables_cover_every_shortcut():
     assert set(LEGACY_OUTPUT) == set(SYMBOL_CHARS) == set(EXTENDED_OUTPUT)
 
 
-@pytest.mark.parametrize("shortcut", sorted(LEGACY_OUTPUT))
-def test_shortcut_renders_its_legacy_ascii_by_default(engine, shortcut):
-    assert engine.render(f"A{{{shortcut}}}B", context={}) == f"A{LEGACY_OUTPUT[shortcut]}B"
+@pytest.mark.parametrize("shortcut", sorted(EXTENDED_OUTPUT))
+def test_shortcut_resolves_through_the_icon_registry_by_default(engine, shortcut):
+    assert engine.render(f"A{{{shortcut}}}B", context={}) == f"A{EXTENDED_OUTPUT[shortcut]}B"
 
 
 @pytest.mark.parametrize("shortcut", sorted(LEGACY_OUTPUT))

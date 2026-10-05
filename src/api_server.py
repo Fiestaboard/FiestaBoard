@@ -171,6 +171,16 @@ def _run_startup_migrations() -> None:
     from .panels.reconcile import reconcile_panel_boards
 
     reconcile_panel_boards()
+    # After the migrations, so it reads the migrated stores: report stored
+    # text that draws differently now that every board (split-flap too)
+    # speaks extended markup (plan Task 12). A report, never a rewrite.
+    try:
+        from .markup_compat import log_upgrade_scan
+        from .paths import get_data_dir
+
+        log_upgrade_scan(get_data_dir())
+    except Exception:
+        logger.warning("Markup upgrade scan failed on startup", exc_info=True)
 
 
 @asynccontextmanager

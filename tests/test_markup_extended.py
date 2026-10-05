@@ -23,7 +23,7 @@ def test_span_counts_its_letters_when_extended():
 
 
 def test_span_counts_its_characters_when_extended_is_off():
-    assert count_tiles("{red:HOT}") == 9
+    assert count_tiles("{red:HOT}", extended_markup=False) == 9
 
 
 def test_icon_counts_one_tile_when_extended():
@@ -71,7 +71,7 @@ def test_take_tiles_takes_an_icon_whole():
 
 
 def test_take_tiles_when_extended_is_off_cuts_through_a_span():
-    assert take_tiles("{red:HOTDOG}", 3) == ("{re", "d:HOTDOG}")
+    assert take_tiles("{red:HOTDOG}", 3, extended_markup=False) == ("{re", "d:HOTDOG}")
 
 
 # --- wrapping ----------------------------------------------------------------
@@ -104,7 +104,7 @@ def test_wrap_falls_back_to_legacy_wrap_when_a_row_cannot_be_written():
 
 
 def test_wrap_when_extended_is_off_breaks_inside_span_markup():
-    assert wrap_message_text("{red:HOT DOG}", rows=2, cols=8) == "{red:HOT\nDOG}"
+    assert wrap_message_text("{red:HOT DOG}", rows=2, cols=8, extended_markup=False) == "{red:HOT\nDOG}"
 
 
 def test_message_formatter_counts_spans_by_tiles_when_extended():
@@ -167,7 +167,7 @@ def test_board_array_strips_icon_colour_tiles_without_colour_tiles():
 
 
 def test_board_array_draws_span_markup_literally_when_extended_is_off():
-    assert text_to_board_array("{red:HI}", rows=1, cols=8) == [[0, 18, 5, 4, 50, 8, 9, 0]]
+    assert text_to_board_array("{red:HI}", rows=1, cols=8, extended_markup=False) == [[0, 18, 5, 4, 50, 8, 9, 0]]
 
 
 # --- span heads: colours only, never the filled tile -------------------------
