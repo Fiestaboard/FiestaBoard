@@ -503,6 +503,7 @@ OPENAPI_TAGS = [
     {"name": "plugin-support", "description": "Platform helpers that back a plugin's configuration form."},
     {"name": "staff-picks", "description": "Curated example pages shipped with the app."},
     {"name": "panels", "description": "FiestaPanel — the read-only browser view of a board."},
+    {"name": "outputs", "description": "Boards driven by output plugins: create one from a declared device model."},
     {"name": "ai", "description": "AI page generation, chat editing and the operation grammar shared with MCP."},
     {
         "name": "settings",
@@ -2046,6 +2047,12 @@ app.include_router(debug_router)
 from .panels.routes import router as panels_router  # noqa: E402
 
 app.include_router(panels_router)
+
+# Boards driven by output plugins (plan D5): POST /outputs/{output_id}/boards.
+# Vestaboards keep POST /settings/board/add, FiestaPanels POST /panels.
+from .outputs.routes import router as outputs_router  # noqa: E402
+
+app.include_router(outputs_router)
 
 
 # =============================================================================

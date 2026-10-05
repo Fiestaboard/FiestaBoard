@@ -692,6 +692,14 @@
       "kind": "Route"
     },
     {
+      "path": "/outputs/{output_id}/boards",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_board",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/pages",
       "methods": [
         "GET"

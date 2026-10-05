@@ -80,9 +80,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from src.devices import MIN_GRID_COLS, MIN_GRID_ROWS
 from src.send_outcome import FrameRegion, WriteResult
 
-from .fiestaui import CharacterSetError, builtin_character_sets, materialize_character_set
+from .fiestaui import CharacterSetError, materialize_character_set
+from .geometry import model_cell_grid
 from .hooks import ConnectionCheck
 from .plugin_base import CancelToken, CellFrame, OutputPluginBase, TimedFrame
 
@@ -98,11 +100,10 @@ __all__ = [
     "model_cell_grid",
 ]
 
-#: The platform content floor: a Note, 3 rows × 15 columns (plan D5).
-MIN_ROWS, MIN_COLS = 3, 15
-
-#: Pixel gap between LED glyphs when a pixel model's cell grid is derived.
-_GLYPH_GAP_PX = 1
+#: The platform content floor: a Note, 3 rows × 15 columns (plan D5). Core
+#: refuses a smaller board at creation (src/outputs/geometry.py), which sizes
+#: models exactly as this suite does: model_cell_grid is that module's.
+MIN_ROWS, MIN_COLS = MIN_GRID_ROWS, MIN_GRID_COLS
 
 PluginFactory = Callable[[str | None, dict, "FakeTransport"], OutputPluginBase]
 
@@ -195,58 +196,6 @@ class ConformanceReport:
         lines = [f"{self.plugin_id}: {len(self.violations)} conformance violation(s)"]
         lines += [f"  {v}" for v in self.violations]
         return "\n".join(lines)
-
-
-# --- geometry ----------------------------------------------------------------------------
-
-
-def _font_cells(charset_id: str | None, declared: Mapping[str, Any] | None) -> tuple[int, int] | None:
-    """(width, height) in pixels of a character set's glyph face, or ``None``."""
-    sets = dict(builtin_character_sets())
-    if declared is not None:
-        sets[declared["id"]] = declared
-    seen: set[str] = set()
-    while charset_id is not None and charset_id not in seen:
-        seen.add(charset_id)
-        charset = sets.get(charset_id)
-        if charset is None:
-            return None
-        font = charset.get("font")
-        if isinstance(font, str) and "x" in font:
-            width, _, height = font.partition("x")
-            if width.isdigit() and height.isdigit():
-                return int(width), int(height)
-        charset_id = charset.get("extends")
-    return None
-
-
-def model_cell_grid(model: Mapping[str, Any], character_set: Mapping[str, Any] | None = None) -> tuple[int, int] | None:
-    """The (rows, cols) of character cells a device model shows.
-
-    ``cells`` geometry is its grid. ``pixels`` is the glyph face of the
-    output's character set (the declared one wins over the model's
-    ``charset``, plan D17) with a 1 px gap. ``note_array`` and ``panel`` are
-    sized per board, so they have no fixed grid: ``None``.
-
-    Raises:
-        ValueError: a pixel model whose character set has no glyph face.
-    """
-    geometry = model["geometry"]
-    kind = geometry["kind"]
-    if kind == "cells":
-        return geometry["rows"], geometry["cols"]
-    if kind != "pixels":
-        return None
-    if character_set is None and isinstance(model.get("charset"), Mapping):
-        character_set = materialize_character_set(model["charset"])
-    charset_id = character_set["id"] if character_set is not None else model.get("charset")
-    face = _font_cells(charset_id, character_set)
-    if face is None:
-        raise ValueError(f"model {model['id']!r}: character set {charset_id!r} declares no glyph font")
-    width, height = face
-    cols = (geometry["width"] + _GLYPH_GAP_PX) // (width + _GLYPH_GAP_PX)
-    rows = (geometry["height"] + _GLYPH_GAP_PX) // (height + _GLYPH_GAP_PX)
-    return rows, cols
 
 
 # --- secrets and network -------------------------------------------------------------------

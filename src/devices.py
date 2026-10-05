@@ -211,6 +211,14 @@ class BoardInstance:
     # every other board, which therefore saves byte-identically.
     output: str | None = None
     output_config: dict | None = None
+    # The FiestaUI device model an output plugin's board was created as
+    # (POST /outputs/{output_id}/boards). Output-plugin boards only, like
+    # output/output_config: absent from to_dict for every other board.
+    device_model: str | None = None
+
+    @staticmethod
+    def _names_output_plugin(output) -> bool:
+        return isinstance(output, str) and bool(output.strip()) and output.strip() not in BUILTIN_OUTPUT_IDS
 
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
@@ -224,7 +232,13 @@ class BoardInstance:
         # "panel" is the FiestaPanel virtual board's grid, not hardware: no
         # Vestaboard accepts an arbitrary rows × cols frame. A physical board
         # claiming it falls back to the default like any unknown type.
-        if self.device_type == "panel" and self.api_mode != "virtual":
+        #
+        # A board an output PLUGIN drives is exempt: "panel" is how its custom
+        # content grid is stored (an LED matrix is any rows × cols, plan D8),
+        # and coercing it to flagship would silently make a non-Vestaboard
+        # board a Vestaboard-shaped one.
+        plugin_output = self._names_output_plugin(self.output)
+        if self.device_type == "panel" and self.api_mode != "virtual" and not plugin_output:
             self.device_type = "flagship"
         if not isinstance(self.enabled, bool):
             self.enabled = bool(self.enabled)
@@ -260,12 +274,15 @@ class BoardInstance:
             self.grid_cols = None
         # Tiles only make sense on note-array boards
         self.tiles = normalize_note_array_tiles(self.tiles) if self.device_type == "note_array" else []
-        if not isinstance(self.output, str) or not self.output.strip() or self.output.strip() in BUILTIN_OUTPUT_IDS:
+        if not plugin_output:
             self.output = None
             self.output_config = None
+            self.device_model = None
         else:
             self.output = self.output.strip()
             self.output_config = dict(self.output_config) if isinstance(self.output_config, dict) else {}
+            model = self.device_model.strip() if isinstance(self.device_model, str) else ""
+            self.device_model = model or None
 
     @property
     def effective_code62_glyph(self) -> str:
@@ -349,6 +366,8 @@ class BoardInstance:
         if self.output is None:
             del data["output"]
             del data["output_config"]
+        if self.device_model is None:
+            del data["device_model"]
         return data
 
     @classmethod
@@ -385,6 +404,7 @@ class BoardInstance:
             tiles=data.get("tiles") or [],
             output=data.get("output"),
             output_config=data.get("output_config"),
+            device_model=data.get("device_model"),
         )
 
 

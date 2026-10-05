@@ -1189,6 +1189,25 @@ back** to the commit it replaced (data plugins stay installed and report
 the error); and at load, an installed copy that cannot run falls back to the
 image's seed copy, if FiestaBoard ships one, with an error on
 `GET /plugins/errors`. An output plugin a board uses cannot be uninstalled.
+A release that was rolled back is remembered by commit and not offered again
+until a newer commit appears.
+
+Core does not trust a write to return. Each `write`/`write_sequence` gets 30 s
+(lower it with `output.write_timeout_ms`; it cannot be raised): past that,
+core stops waiting, fails the write and fires `cancel` — so honour `cancel` in
+every wait. Three failed writes in a row (raised, timed out, or
+`success=False`; a partial write does not count) open a circuit breaker for
+that device (`device_key()`): writes are refused for 300 s without calling
+the plugin, and the board's send error says why.
+
+Boards for an output plugin are created with
+`POST /outputs/{output_id}/boards` — `{"device_model": "<one you declare>",
+"output_config": {...}, "name": "...", "geometry": {...}}`. The board's
+character grid comes from the device model: a `pixels` model fits as many
+glyphs of its LED font as the matrix holds (a 64×64 Pixoo at 3×5 is 10×16); a
+`panel` or `note_array` model takes `geometry` (`rows`/`cols`, or
+`notes_wide`/`notes_tall`). A model below the 3×15 Note floor is refused
+(400), never enlarged, so declare only models that reach it.
 
 Every output plugin repo runs the shared conformance suite in its CI:
 `OutputConformanceSuite(plugin_dir, factory, config).assert_conformant()`

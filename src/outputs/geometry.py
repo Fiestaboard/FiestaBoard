@@ -1,0 +1,205 @@
+"""A device model's content grid, and the Note floor every board must reach (plan D5).
+
+A board's **content grid** is how many characters it shows — rows × cols —
+and pages, previews and templates are authored against it. For a board an
+output plugin drives, the grid comes from its FiestaUI device model's
+``geometry`` (the vocabulary FiestaUI defines; plan D15):
+
+- ``cells`` — the model's own ``rows`` × ``cols``;
+- ``pixels`` — as many glyph cells as fit, with the glyph box of the model's
+  LED font from FiestaUI's vendored ``led-fonts.json``:
+  ``cols = (width + spacingX) // (glyphWidth + spacingX)`` and
+  ``rows = (height + spacingY) // (glyphHeight + spacingY)`` — FiestaUI's
+  ``ledGridLayout``. A Divoom Pixoo 64 with the 3x5 font is 10 × 16;
+- ``panel`` — sized per board: the request's ``rows`` × ``cols``;
+- ``note_array`` — sized per board in Notes: ``notes_tall`` × 3 rows by
+  ``notes_wide`` × 15 cols.
+
+The font is the output's declared character set's font when it has one (the
+declared set wins over the model's, plan D17), else the model's own ``font``,
+else its character set's.
+
+**The floor.** Every board shows at least one Note, 3 × 15: plugins and
+templates are authored for that. A model whose grid is smaller is **refused**
+(:class:`BelowFloorError`) here, before anything resolves the board's
+geometry — ``src.devices.clamp_grid`` (which every ``panel`` grid passes
+through, LED boards included) would otherwise quietly inflate a 1 × 8 matrix
+to 3 × 15 and every frame would be cropped on the device. A grid above the
+panel ceiling (``MAX_GRID_ROWS`` × ``MAX_GRID_COLS``) is refused the same way
+rather than shrunk.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any, NamedTuple
+
+from src.devices import (
+    MAX_GRID_COLS,
+    MAX_GRID_ROWS,
+    MAX_NOTES_PER_AXIS,
+    MIN_GRID_COLS,
+    MIN_GRID_ROWS,
+    NOTE_COLS,
+    NOTE_ROWS,
+)
+
+from .fiestaui import builtin_character_sets, builtin_led_fonts, materialize_character_set
+
+#: Geometry kinds sized per board (the request supplies the size).
+CONFIGURABLE_KINDS = frozenset({"panel", "note_array"})
+
+
+class GeometryError(ValueError):
+    """A board's requested geometry cannot be used for its device model."""
+
+
+class BelowFloorError(GeometryError):
+    """A device model's grid is smaller than the 3 × 15 Note floor."""
+
+
+class GlyphBox(NamedTuple):
+    """One LED font's glyph size and the gap between glyphs, in pixels."""
+
+    width: int
+    height: int
+    spacing_x: int
+    spacing_y: int
+
+
+def led_fonts() -> Mapping[str, Mapping[str, Any]]:
+    """FiestaUI's LED fonts, by id (vendored; provenance in ``provenance.json``)."""
+    return builtin_led_fonts()
+
+
+def glyph_box(font_id: str) -> GlyphBox:
+    """The glyph box of LED font *font_id*.
+
+    Raises:
+        GeometryError: FiestaUI defines no such font.
+    """
+    font = led_fonts().get(font_id)
+    if font is None:
+        raise GeometryError(f"Unknown LED font {font_id!r}")
+    return GlyphBox(
+        width=int(font["glyphWidth"]),
+        height=int(font["glyphHeight"]),
+        spacing_x=int(font.get("spacingX", 1)),
+        spacing_y=int(font.get("spacingY", 1)),
+    )
+
+
+def _charset_font(charset_id: Any, declared: Mapping[str, Any] | None) -> str | None:
+    """The font of a character set, following ``extends``; ``None`` when none."""
+    sets = dict(builtin_character_sets())
+    if declared is not None:
+        sets[declared["id"]] = declared
+    seen: set[str] = set()
+    while isinstance(charset_id, str) and charset_id not in seen:
+        seen.add(charset_id)
+        charset = sets.get(charset_id)
+        if charset is None:
+            return None
+        if isinstance(charset.get("font"), str):
+            return charset["font"]
+        charset_id = charset.get("extends")
+    return None
+
+
+def font_for(model: Mapping[str, Any], character_set: Mapping[str, Any] | None = None) -> str | None:
+    """The LED font a board of *model* draws with.
+
+    The output's declared character set's font wins (plan D17), then the
+    model's own ``font``, then its character set's.
+    """
+    if character_set is not None:
+        font = _charset_font(character_set.get("id"), character_set)
+        if font is not None:
+            return font
+    if isinstance(model.get("font"), str):
+        return model["font"]
+    charset = model.get("charset")
+    if isinstance(charset, Mapping):
+        materialised = materialize_character_set(charset)
+        return _charset_font(materialised["id"], materialised)
+    return _charset_font(charset, None)
+
+
+def model_cell_grid(model: Mapping[str, Any], character_set: Mapping[str, Any] | None = None) -> tuple[int, int] | None:
+    """The (rows, cols) of characters a device model shows.
+
+    ``None`` for a model sized per board (``panel``, ``note_array``).
+
+    Raises:
+        ValueError: a pixel model with no LED font to size it by.
+    """
+    geometry = model["geometry"]
+    kind = geometry["kind"]
+    if kind == "cells":
+        return geometry["rows"], geometry["cols"]
+    if kind != "pixels":
+        return None
+    font = font_for(model, character_set)
+    if font is None:
+        raise GeometryError(f"model {model['id']!r}: no LED font to size its pixels by")
+    box = glyph_box(font)
+    cols = (geometry["width"] + box.spacing_x) // (box.width + box.spacing_x)
+    rows = (geometry["height"] + box.spacing_y) // (box.height + box.spacing_y)
+    return rows, cols
+
+
+def _positive(requested: Mapping[str, Any], names: tuple[str, str], model_id: str, what: str) -> tuple[int, int]:
+    values = [requested.get(name) for name in names]
+    if any(not isinstance(v, int) or isinstance(v, bool) or v < 1 for v in values):
+        raise GeometryError(f"Device model {model_id!r} is sized per board: give geometry {what}.")
+    return values[0], values[1]
+
+
+def _requested_grid(model: Mapping[str, Any], requested: Mapping[str, Any]) -> tuple[int, int]:
+    kind = model["geometry"]["kind"]
+    if kind == "panel":
+        return _positive(requested, ("rows", "cols"), model["id"], "rows and cols")
+    wide, tall = _positive(requested, ("notes_wide", "notes_tall"), model["id"], "notes_wide and notes_tall")
+    if wide > MAX_NOTES_PER_AXIS or tall > MAX_NOTES_PER_AXIS:
+        raise GeometryError(f"A note array is at most {MAX_NOTES_PER_AXIS} Notes on each side.")
+    return tall * NOTE_ROWS, wide * NOTE_COLS
+
+
+def check_floor(model_id: str, rows: int, cols: int) -> None:
+    """Refuse a grid below the Note floor or above the panel ceiling."""
+    if rows < MIN_GRID_ROWS or cols < MIN_GRID_COLS:
+        raise BelowFloorError(
+            f"Device model {model_id!r} shows {rows}x{cols} characters, below the {MIN_GRID_ROWS}x{MIN_GRID_COLS} "
+            "minimum a board needs, so FiestaBoard cannot create a board for it."
+        )
+    if rows > MAX_GRID_ROWS or cols > MAX_GRID_COLS:
+        raise GeometryError(
+            f"A {rows}x{cols} grid is larger than the {MAX_GRID_ROWS}x{MAX_GRID_COLS} maximum a board can show."
+        )
+
+
+def resolve_content_grid(
+    model: Mapping[str, Any],
+    character_set: Mapping[str, Any] | None,
+    requested: Mapping[str, Any] | None,
+) -> tuple[int, int]:
+    """The (rows, cols) a new board of *model* shows, floor checked.
+
+    *requested* is the board's geometry, accepted only for a model sized per
+    board (``panel``, ``note_array``) and required for one.
+
+    Raises:
+        BelowFloorError: the grid is smaller than 3 × 15.
+        GeometryError: geometry missing, unexpected, or above the ceiling.
+    """
+    configurable = model["geometry"]["kind"] in CONFIGURABLE_KINDS
+    if configurable:
+        rows, cols = _requested_grid(model, requested or {})
+    else:
+        if requested:
+            raise GeometryError(f"Device model {model['id']!r} has a fixed size; geometry is not accepted for it.")
+        grid = model_cell_grid(model, character_set)
+        assert grid is not None  # cells and pixels always have one
+        rows, cols = grid
+    check_floor(model["id"], rows, cols)
+    return rows, cols
