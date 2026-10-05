@@ -100,6 +100,9 @@ export function anchorProps(id: string): { [ANCHOR_ATTR]: string } {
   return { [ANCHOR_ATTR]: id };
 }
 
+/** Not a settings tab: the categories a board owns live on Displays (plan D21). */
+const DISPLAYS_SECTION = "displays";
+
 /**
  * The settings tab that owns a `update_setting` category, and the card the
  * spotlight lands on when a key has no control-level anchor of its own.
@@ -113,9 +116,10 @@ export const SETTING_SECTIONS: Record<string, { section: string; card?: string }
   polling: { section: "behavior", card: "settings.polling" },
   silence_schedule: { section: "behavior", card: "settings.silence_schedule" },
   schedule_behavior: { section: "behavior", card: "settings.schedule_behavior" },
-  output: { section: "hardware", card: "settings.output" },
-  hdmi_kiosk: { section: "hardware", card: "settings.hdmi_kiosk" },
-  boards: { section: "hardware", card: "settings.boards" },
+  // Displays have their own section (plan D21), not a settings tab.
+  output: { section: DISPLAYS_SECTION, card: "settings.output" },
+  hdmi_kiosk: { section: DISPLAYS_SECTION, card: "settings.hdmi_kiosk" },
+  boards: { section: DISPLAYS_SECTION, card: "settings.boards" },
   ai: { section: "integrations", card: "settings.ai" },
   mqtt: { section: "integrations", card: "settings.mqtt" },
   plugins: { section: "integrations", card: "settings.plugins" },
@@ -130,9 +134,10 @@ export function settingAnchors(category: string, key: string): { control: string
   return { control: `settings.${category}.${key}`, card: owner?.card ?? `settings.${category}` };
 }
 
-/** The settings route that shows `category`, with the card hash when known. */
+/** The route that shows `category`: its settings tab, or Displays for a board's. */
 export function settingsHref(category: string): string {
   const owner = SETTING_SECTIONS[category];
   const section = owner?.section ?? "general";
+  if (section === DISPLAYS_SECTION) return "/displays";
   return `/settings?section=${section}`;
 }

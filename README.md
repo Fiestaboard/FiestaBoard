@@ -291,7 +291,7 @@ Five preset sizes are available, plus a custom size up to **8 × 8 Notes**:
 | 4 stacked | 1 × 4 | 15 × 12 |
 | 2×2 grid | 2 × 2 | 30 × 6 |
 
-Note arrays connect two ways: through the **Vestaboard Cloud API** using an `X-Vestaboard-Token` (from your Vestaboard Cloud API subscription — not the Read/Write key), or in **local mode**, where FiestaBoard drives each Note directly over your network with its own IP and Local API key — no cloud subscription, no rate limit, and transitions work. Configure the board type, size, and connection in **Settings → Hardware**: paste the token (cloud), or assign each Note to its slot in the tile grid (local) and use **Identify** to flash position numbers on the wall and verify the layout. **Auto-detect from board** can read the array and pick the size for you.
+Note arrays connect two ways: through the **Vestaboard Cloud API** using an `X-Vestaboard-Token` (from your Vestaboard Cloud API subscription — not the Read/Write key), or in **local mode**, where FiestaBoard drives each Note directly over your network with its own IP and Local API key — no cloud subscription, no rate limit, and transitions work. Configure the board type, size, and connection on its page in **Displays**: paste the token (cloud), or assign each Note to its slot in the tile grid (local) and use **Identify** to flash position numbers on the wall and verify the layout. **Auto-detect from board** can read the array and pick the size for you.
 
 **→ [Note Array setup guide](docs/internal/setup/NOTE_ARRAYS.md)** for the full walkthrough, and the [Note Arrays reference](docs/internal/reference/NOTE_ARRAYS.md) for the dimensions model and API details.
 

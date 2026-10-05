@@ -760,16 +760,63 @@ export async function chooseVestaboardInWizard(page: Page) {
 
 /**
  * Open a tab on the redesigned Settings page. The page splits its content
- * across tabs (General, Hardware, Behavior, Integrations, System, Advanced),
- * so tests that look for tab-scoped content must click the right tab first.
+ * across tabs (General, Behavior, Integrations, System, Advanced), so tests
+ * that look for tab-scoped content must click the right tab first. Boards
+ * and FiestaPanels are no longer a tab: see {@link openDisplays}.
  */
 export async function openSettingsTab(
   page: Page,
-  tab: "General" | "Account" | "Hardware" | "Network" | "Behavior" | "Integrations" | "System" | "Advanced",
+  tab: "General" | "Account" | "Network" | "Behavior" | "Integrations" | "System" | "Advanced",
 ) {
   const trigger = page.getByRole("tab", { name: tab, exact: true });
   await trigger.waitFor({ state: "visible", timeout: 15_000 });
   await trigger.click();
+}
+
+/**
+ * Open Displays (plan D21; was Settings → Hardware): one card per display
+ * (`display-card`) with its live preview, output, state and a link to its
+ * page, and "Add a display".
+ */
+export async function openDisplays(page: Page) {
+  await page.goto("/displays");
+  await expect(page.getByRole("heading", { name: "Displays", level: 1 })).toBeVisible({ timeout: 15_000 });
+}
+
+/** The card for display *name* on /displays. */
+export function displayCard(page: Page, name: string): Locator {
+  return page.getByTestId("display-card").filter({ has: page.getByText(name, { exact: true }) });
+}
+
+/**
+ * Open display *name*'s page from /displays and return its settings card
+ * (`board-card`: name, pause, type, colour, connection, Remove Board) —
+ * what each collapsible board card on Settings → Hardware used to hold.
+ */
+export async function openDisplay(page: Page, name: string): Promise<Locator> {
+  await openDisplays(page);
+  await page.getByRole("link", { name: `Open settings for ${name}`, exact: true }).click();
+  const card = page.getByTestId("board-card");
+  await expect(card).toBeVisible({ timeout: 15_000 });
+  return card;
+}
+
+/**
+ * Displays → Add a display → Vestaboard → *shape*: adds that board and lands
+ * on its page. Returns the new board's id.
+ */
+export async function addVestaboardDisplay(page: Page, shape: "Flagship" | "Note" | "Note Array"): Promise<string> {
+  await openDisplays(page);
+  await page.getByRole("button", { name: "Add a display" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add a display" });
+  await dialog.getByRole("radio", { name: /Vestaboard/ }).click();
+  await dialog.getByRole("button", { name: "Next", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Add a Vestaboard" })
+    .getByRole("button", { name: shape, exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/displays\/[^/]+$/, { timeout: 15_000 });
+  return decodeURIComponent(new URL(page.url()).pathname.split("/").pop() ?? "");
 }
 
 /**

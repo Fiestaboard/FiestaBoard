@@ -63,6 +63,7 @@
     "collections": "캐러셀",
     "schedule": "스케줄",
     "integrations": "연동",
+    "displays": "디스플레이",
     "settings": "설정",
     "helpDocs": "도움말 및 문서",
     "userProfile": "프로필",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "설정 마법사",
     "setupWizardDescription": "보드 연결 및 기본 설정을 다시 구성하려면 설정 마법사를 다시 실행하세요.",
     "runSetupWizard": "설정 마법사 실행",
-    "sectionHardware": "하드웨어",
     "sectionHardwareDescription": "보드의 물리적 구성 및 연결",
     "sectionBehavior": "동작",
     "sectionBehaviorDescription": "콘텐츠 이동, 새로 고침 및 일시 정지 방식",
@@ -777,7 +777,7 @@
       "needsBeta": "출력 플러그인 베타가 필요합니다. 다음 단계에서 켤 수 있습니다.",
       "downloads": "계속하면 다운로드되므로 인터넷 연결이 필요합니다.",
       "skipTitle": "건너뛰기 — 디스플레이는 나중에 추가할게요",
-      "skipDescription": "지금은 둘러보고 페이지를 미리 볼 수 있습니다. 디스플레이는 언제든 설정에서 추가하세요."
+      "skipDescription": "지금 둘러보고 페이지를 미리 볼 수 있습니다. 디스플레이는 언제든지 디스플레이 메뉴에서 추가하세요."
     },
     "outputSetup": {
       "installing": "{name} 설치 중…",
@@ -976,8 +976,6 @@
     "transitionPluginsGroup": "플러그인 (베타)"
   },
   "displaySettings": {
-    "title": "내 보드",
-    "description": "소유한 Vestaboard를 추가하고 연결을 설정하세요.",
     "unnamedBoard": "이름 없는 보드",
     "boardDimensions": {
       "flagship": "22×6",
@@ -991,7 +989,6 @@
     "code62DegreeAriaLabel": "도 기호 플랩",
     "code62HeartAriaLabel": "하트 플랩",
     "removeBoard": "보드 제거",
-    "addBoard": "보드 추가",
     "selectType": "유형 선택:",
     "boardAdded": "보드가 추가되었습니다",
     "boardRemoved": "보드가 제거되었습니다",
@@ -1036,6 +1033,52 @@
     "notesWideLabel": "Note 가로 수",
     "notesTallLabel": "Note 세로 수",
     "customRangeError": "각 치수는 1에서 {max} 사이여야 합니다."
+  },
+  "displays": {
+    "title": "디스플레이",
+    "description": "FiestaBoard가 표시하는 모든 보드와 화면입니다. 설정을 바꾸려면 하나를 여세요.",
+    "addDisplay": "디스플레이 추가",
+    "listLabel": "내 디스플레이",
+    "empty": "아직 디스플레이가 없습니다. 하나를 추가하면 페이지를 표시할 수 있습니다.",
+    "unnamed": "이름 없는 디스플레이",
+    "openSettings": "설정",
+    "openSettingsLabel": "{name} 설정 열기",
+    "pause": "일시 중지",
+    "resume": "재개",
+    "pauseLabel": "{name} 일시 중지",
+    "resumeLabel": "{name} 재개",
+    "back": "모든 디스플레이",
+    "notFound": "이 디스플레이는 더 이상 존재하지 않습니다.",
+    "previewTitle": "현재 표시 중",
+    "settingsTitle": "설정",
+    "transition": {
+      "title": "전환 효과",
+      "description": "이 디스플레이가 한 메시지에서 다음 메시지로 바뀌는 방식입니다. 페이지 자체의 전환 효과가 여전히 우선합니다.",
+      "default": "기본값",
+      "defaultDescription": "설정 → 동작에서 선택한 전환 효과를 사용합니다.",
+      "cloudNote": "이 보드는 클라우드 API를 사용하므로 보드 전체가 한 번에 바뀝니다. 전환 효과에는 로컬 API가 필요합니다.",
+      "snapNote": "이 디스플레이는 한 번에 바뀔 수만 있어서 새 메시지로 바로 전환됩니다.",
+      "deviceDefault": "기기 기본값",
+      "unavailable": "이 디스플레이에서는 사용할 수 없음",
+      "runsAs": "실행 방식",
+      "previewLabel": "{name} 미리보기"
+    },
+    "add": {
+      "title": "디스플레이 추가",
+      "chooseDescription": "FiestaBoard를 어디에 표시할까요?",
+      "findMore": "디스플레이 더 찾기",
+      "findMoreTitle": "디스플레이 더 찾기",
+      "findMoreDescription": "FiestaBoard 플러그인 레지스트리의 디스플레이 플러그인입니다.",
+      "findMoreLoading": "레지스트리를 불러오는 중…",
+      "findMoreFailed": "플러그인 레지스트리를 불러올 수 없습니다. 인터넷 연결을 확인하고 다시 시도하세요.",
+      "findMoreEmpty": "레지스트리에 다른 디스플레이가 아직 없습니다.",
+      "byAuthor": "제작: {author}",
+      "vestaboardTitle": "Vestaboard 추가",
+      "vestaboardDescription": "형태를 고르세요. 연결은 다음에 해당 페이지에서 합니다.",
+      "panelTitle": "TV 또는 브라우저 추가",
+      "outputTitle": "{name} 추가",
+      "setupDescription": "설정한 다음 추가하세요."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "업데이트 가능",
@@ -2365,10 +2408,7 @@
     "geometryDetected": "{rows} × {cols} 감지됨",
     "applyGeometry": "크기 적용",
     "actionInputDescription": "이 작업에는 먼저 몇 가지 정보가 필요합니다.",
-    "otherDisplays": "기타 디스플레이",
     "betaRequired": "이 디스플레이를 사용하려면 설정 → 고급 → 베타 기능에서 출력 플러그인을 켜세요.",
-    "boardCreated": "보드를 추가했습니다",
-    "addOutputTitle": "{name} 보드 추가",
     "boardNameLabel": "보드 이름",
     "boardNamePlaceholder": "내 보드",
     "deviceModelLabel": "기기 모델",

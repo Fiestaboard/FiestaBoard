@@ -28,10 +28,11 @@ test.describe("Settings Page", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Tab strip exposes all six sections
-    for (const section of ["General", "Hardware", "Behavior", "Integrations", "System", "Advanced"]) {
+    // Tab strip exposes the five sections; boards moved to Displays (plan D21)
+    for (const section of ["General", "Behavior", "Integrations", "System", "Advanced"]) {
       await expect(page.getByRole("tab", { name: section, exact: true })).toBeVisible({ timeout: 5_000 });
     }
+    await expect(page.getByRole("tab", { name: "Hardware", exact: true })).toHaveCount(0);
 
     // Behavior tab contains the Update Intervals and Silence Schedule cards
     await page.getByRole("tab", { name: "Behavior", exact: true }).click();
@@ -39,10 +40,6 @@ test.describe("Settings Page", () => {
       timeout: 10_000,
     });
     await expect(page.getByText("Silence Schedule").first()).toBeVisible();
-
-    // Hardware tab contains the Boards card
-    await page.getByRole("tab", { name: "Hardware", exact: true }).click();
-    await expect(page.getByText("Boards").first()).toBeVisible({ timeout: 5_000 });
 
     // Advanced tab contains Debug Tools
     await page.getByRole("tab", { name: "Advanced", exact: true }).click();
@@ -69,5 +66,11 @@ test.describe("Settings Page", () => {
     await expect(integrationsLink.first()).toBeVisible({ timeout: 5_000 });
     await integrationsLink.first().click();
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("an old Settings → Hardware link opens Displays", async ({ page }) => {
+    await page.goto("/settings?section=hardware");
+    await expect(page).toHaveURL(/\/displays$/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Displays", level: 1 })).toBeVisible({ timeout: 15_000 });
   });
 });

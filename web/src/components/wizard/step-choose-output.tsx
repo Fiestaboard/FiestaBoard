@@ -26,18 +26,21 @@ interface StepChooseOutputProps {
   /** The chosen output's id, if any. */
   value: string | null;
   onChange: (output: AvailableOutput) => void;
-  onSkip: () => void;
+  /** "I'll add a display later" (the wizard's way out); none when absent. */
+  onSkip?: () => void;
   onValidChange: (valid: boolean) => void;
+  /** Which outputs to offer (all by default). Displays → Add a display keeps registry ones for "Find more displays". */
+  include?: (output: AvailableOutput) => boolean;
 }
 
-export function StepChooseOutput({ value, onChange, onSkip, onValidChange }: StepChooseOutputProps) {
+export function StepChooseOutput({ value, onChange, onSkip, onValidChange, include }: StepChooseOutputProps) {
   const t = useTranslations("wizard.chooseOutput");
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: AVAILABLE_OUTPUTS_QUERY_KEY,
     queryFn: () => api.listAvailableOutputs(),
     staleTime: 60_000,
   });
-  const outputs = data ?? [];
+  const outputs = include ? (data ?? []).filter(include) : (data ?? []);
   const chosen = outputs.find((output) => output.id === value) ?? null;
 
   useEffect(() => {
@@ -105,17 +108,19 @@ export function StepChooseOutput({ value, onChange, onSkip, onValidChange }: Ste
         </ToggleCardGroup>
       )}
 
-      <Stack gap="1" className="border-t pt-4">
-        <Flex>
-          <Button type="button" variant="ghost" onClick={onSkip} data-testid="wizard-skip-display">
-            {t("skipTitle")}
-            <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
-          </Button>
-        </Flex>
-        <Text size="xs" tone="muted">
-          {t("skipDescription")}
-        </Text>
-      </Stack>
+      {onSkip && (
+        <Stack gap="1" className="border-t pt-4">
+          <Flex>
+            <Button type="button" variant="ghost" onClick={onSkip} data-testid="wizard-skip-display">
+              {t("skipTitle")}
+              <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
+            </Button>
+          </Flex>
+          <Text size="xs" tone="muted">
+            {t("skipDescription")}
+          </Text>
+        </Stack>
+      )}
     </Stack>
   );
 }

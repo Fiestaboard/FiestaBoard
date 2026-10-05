@@ -18,9 +18,9 @@ A panel is a **virtual board**: FiestaBoard drives it exactly like a physical bo
 
 ## Quick Setup
 
-1. Open **Settings → Hardware → FiestaPanel** and click **Create panel**.
-2. Give it a name and choose your TV's diagonal size (presets from 32″ to 85″, or a custom value). The board's grid is computed automatically.
-3. Open the panel URL in the TV's web browser. Every panel gets a short URL that's easy to type on a TV — the first panel is `/p/1` (for example `http://192.168.1.50:4420/p/1`) — plus a QR code and a copy button in Settings.
+1. Open **Displays**, click **Add a display** and choose **FiestaPanel**.
+2. Give it a name and your TV's diagonal size in inches. The board's grid is computed automatically, and the panel's page opens. Edit the panel there to fine-tune it (size presets from 32″ to 85″, aspect ratio, calibration).
+3. Open the panel URL in the TV's web browser. Every panel gets a short URL that's easy to type on a TV — the first panel is `/p/1` (for example `http://192.168.1.50:4420/p/1`) — plus a QR code and a copy button on the panel's page.
 4. Give the panel content the same way you would any board: it appears in the board selector, so set its active page, add it to schedules, or point plugins at it. A panel's grid is any number of columns and rows — it is not built from 15×3 Note blocks — and the page editor sizes pages to it for you (see below).
 
 That's it. The TV shows a blank board until the first frame arrives.
@@ -46,7 +46,7 @@ Edit a panel any time — changes reach the TV within about 10 seconds, no reloa
 | Setting | What it does |
 |---|---|
 | **TV size** | Drives everything: the flap scale (pixels-per-inch from your diagonal) and the auto-fit grid (as many real-size flaps — columns and rows — as fit a screen of that size and aspect ratio). Changing it re-fits the board's dimensions. |
-| **Render style** | **Split-flap** (the default) draws life-size flaps. **LED matrix** draws the board as the dots of an LED sign. Each panel card in Settings shows what its TV is showing now, in the chosen style. |
+| **Render style** | **Split-flap** (the default) draws life-size flaps. **LED matrix** draws the board as the dots of an LED sign. Each panel's page in Displays shows what its TV is showing now, in the chosen style. |
 | **Flip animation** | Off by default — characters update in place instantly. Turn it on for the full mechanical spin on every change. |
 | **Auto-dim** | Fades the panel down during a nightly window (e.g. 22:00–07:00), using the TV's own clock. |
 | **Size calibration** | ±15% fine-tune for TVs whose browsers misreport their resolution or overscan the picture. |
@@ -56,7 +56,7 @@ Edit a panel any time — changes reach the TV within about 10 seconds, no reloa
 Running FiestaBoard on a FiestaPi? The Pi can drive a TV or monitor directly over HDMI — no browser setup on the TV at all:
 
 1. Connect a screen to the Pi's HDMI port.
-2. In **Settings → Hardware → FiestaPanel**, turn on **HDMI output on this FiestaPi**. The Pi installs a minimal kiosk browser (a few minutes, one time) and boots it onto the screen, pointed at the reserved `/p/display` URL.
+2. On the panel's page in **Displays**, turn on **HDMI output on this FiestaPi**. The Pi installs a minimal kiosk browser (a few minutes, one time) and boots it onto the screen, pointed at the reserved `/p/display` URL.
 3. Turn on **Display output** for the panel you want on that screen. Only one panel holds the role at a time — switching it re-points the screen from the app, no touching the Pi.
 
 Until a panel is designated, the screen shows a short instruction card. Turn the HDMI switch off to stop the kiosk and reclaim its memory.

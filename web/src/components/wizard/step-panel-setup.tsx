@@ -29,9 +29,17 @@ interface StepPanelSetupProps {
   onCreated: (board: WizardCreatedBoard) => void;
   onValidChange: (valid: boolean) => void;
   setIsLoading: (loading: boolean) => void;
+  /** Remove the untouched placeholder board once the panel's exists (the wizard's way; default). */
+  replacePlaceholder?: boolean;
 }
 
-export function StepPanelSetup({ created, onCreated, onValidChange, setIsLoading }: StepPanelSetupProps) {
+export function StepPanelSetup({
+  created,
+  onCreated,
+  onValidChange,
+  setIsLoading,
+  replacePlaceholder = true,
+}: StepPanelSetupProps) {
   const t = useTranslations("wizard.panelSetup");
   const queryClient = useQueryClient();
   const done = created?.outputId === "fiestapanel" ? created : null;
@@ -49,7 +57,7 @@ export function StepPanelSetup({ created, onCreated, onValidChange, setIsLoading
       setIsLoading(true);
       try {
         const panel = await api.createPanel({ name: name.trim(), screen_diagonal_inches: size });
-        await removeUntouchedPlaceholder(panel.board_id);
+        if (replacePlaceholder) await removeUntouchedPlaceholder(panel.board_id);
         return panel;
       } finally {
         setIsLoading(false);

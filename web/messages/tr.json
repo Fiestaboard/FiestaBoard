@@ -63,6 +63,7 @@
     "collections": "Döngüler",
     "schedule": "Zamanlama",
     "integrations": "Entegrasyonlar",
+    "displays": "Ekranlar",
     "settings": "Ayarlar",
     "helpDocs": "Yardım ve Belgeler",
     "userProfile": "Profil",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "Kurulum Sihirbazı",
     "setupWizardDescription": "Pano bağlantınızı ve temel ayarlarınızı yeniden yapılandırmak için kurulum sihirbazını tekrar çalıştırın.",
     "runSetupWizard": "Kurulum Sihirbazını Çalıştır",
-    "sectionHardware": "Donanım",
     "sectionHardwareDescription": "Fiziksel pano yapılandırması ve bağlantısı",
     "sectionBehavior": "Davranış",
     "sectionBehaviorDescription": "İçeriğin nasıl hareket ettiği, yenilendiği ve duraklatıldığı",
@@ -777,7 +777,7 @@
       "needsBeta": "Çıkış eklentileri betası gerekir. Bir sonraki adımda açabilirsiniz.",
       "downloads": "Devam ettiğinizde indirilir, bu yüzden internet bağlantısı gerekir.",
       "skipTitle": "Atla — ekranı sonra ekleyeceğim",
-      "skipDescription": "Şimdi etrafa göz atın ve sayfaları önizleyin. Ekranı istediğiniz zaman Ayarlar'dan ekleyin."
+      "skipDescription": "Şimdi etrafa göz atın ve sayfaları önizleyin. İstediğiniz zaman Ekranlar bölümünden ekran ekleyin."
     },
     "outputSetup": {
       "installing": "{name} yükleniyor…",
@@ -976,8 +976,6 @@
     "transitionPluginsGroup": "Eklentiler (beta)"
   },
   "displaySettings": {
-    "title": "Panolarınız",
-    "description": "Sahip olduğunuz her Vestaboard'u ekleyin ve bağlantısını yapılandırın.",
     "unnamedBoard": "İsimsiz Pano",
     "boardDimensions": {
       "flagship": "22×6",
@@ -991,7 +989,6 @@
     "code62DegreeAriaLabel": "Derece kanadı",
     "code62HeartAriaLabel": "Kalp kanadı",
     "removeBoard": "Panoyu Kaldır",
-    "addBoard": "Pano Ekle",
     "selectType": "Tür seçin:",
     "boardAdded": "Pano eklendi",
     "boardRemoved": "Pano kaldırıldı",
@@ -1036,6 +1033,52 @@
     "notesWideLabel": "Note genişliği",
     "notesTallLabel": "Note yüksekliği",
     "customRangeError": "Her boyut 1 ile {max} arasında olmalıdır."
+  },
+  "displays": {
+    "title": "Ekranlar",
+    "description": "FiestaBoard'un gösterim yaptığı tüm panolar ve ekranlar. Ayarlarını değiştirmek için birini açın.",
+    "addDisplay": "Ekran ekle",
+    "listLabel": "Ekranlarınız",
+    "empty": "Henüz ekran yok. Üzerinde sayfa göstermeye başlamak için bir tane ekleyin.",
+    "unnamed": "Adsız ekran",
+    "openSettings": "Ayarlar",
+    "openSettingsLabel": "{name} ayarlarını aç",
+    "pause": "Duraklat",
+    "resume": "Devam ettir",
+    "pauseLabel": "{name} duraklat",
+    "resumeLabel": "{name} devam ettir",
+    "back": "Tüm ekranlar",
+    "notFound": "Bu ekran artık yok.",
+    "previewTitle": "Şu anda gösterilen",
+    "settingsTitle": "Ayarlar",
+    "transition": {
+      "title": "Geçiş",
+      "description": "Bu ekranın bir mesajdan diğerine nasıl geçtiği. Bir sayfanın kendi geçişi yine önceliklidir.",
+      "default": "Varsayılan",
+      "defaultDescription": "Ayarlar → Davranış bölümünde seçilen geçişi kullan.",
+      "cloudNote": "Bu pano, tüm panoyu tek seferde değiştiren Bulut API'sini kullanıyor. Geçişler için Yerel API gerekir.",
+      "snapNote": "Bu ekran yalnızca her şeyi tek seferde değiştirebilir, bu yüzden her yeni mesaja doğrudan geçer.",
+      "deviceDefault": "Cihaz varsayılanı",
+      "unavailable": "Bu ekranda kullanılamaz",
+      "runsAs": "Şu şekilde çalışır",
+      "previewLabel": "{name} önizlemesi"
+    },
+    "add": {
+      "title": "Ekran ekle",
+      "chooseDescription": "FiestaBoard neyde gösterim yapsın?",
+      "findMore": "Daha fazla ekran bul",
+      "findMoreTitle": "Daha fazla ekran bul",
+      "findMoreDescription": "FiestaBoard eklenti kayıt defterindeki ekran eklentileri.",
+      "findMoreLoading": "Kayıt defteri yükleniyor…",
+      "findMoreFailed": "Eklenti kayıt defteri yüklenemedi. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+      "findMoreEmpty": "Kayıt defterinde henüz başka ekran yok.",
+      "byAuthor": "geliştirici: {author}",
+      "vestaboardTitle": "Vestaboard ekle",
+      "vestaboardDescription": "Şeklini seçin. Bağlantıyı ardından kendi sayfasında yapacaksınız.",
+      "panelTitle": "TV veya tarayıcı ekle",
+      "outputTitle": "{name} ekle",
+      "setupDescription": "Ayarlayın, sonra ekleyin."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Güncelleme Mevcut",
@@ -2365,10 +2408,7 @@
     "geometryDetected": "{rows} × {cols} algılandı",
     "applyGeometry": "Boyutu uygula",
     "actionInputDescription": "Bu işlem önce birkaç bilgi gerektiriyor.",
-    "otherDisplays": "Diğer ekranlar",
     "betaRequired": "Bu ekranı kullanmak için Ayarlar → Gelişmiş → Beta Özellikler bölümünden Çıkış Eklentilerini açın.",
-    "boardCreated": "Pano eklendi",
-    "addOutputTitle": "{name} panosu ekle",
     "boardNameLabel": "Pano adı",
     "boardNamePlaceholder": "Panom",
     "deviceModelLabel": "Cihaz modeli",

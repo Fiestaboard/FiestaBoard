@@ -63,6 +63,7 @@
     "collections": "カルーセル",
     "schedule": "スケジュール",
     "integrations": "連携",
+    "displays": "ディスプレイ",
     "settings": "設定",
     "helpDocs": "ヘルプとドキュメント",
     "userProfile": "プロフィール",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "セットアップウィザード",
     "setupWizardDescription": "セットアップウィザードを再実行して、ボード接続と基本設定を再構成します。",
     "runSetupWizard": "セットアップウィザードを実行",
-    "sectionHardware": "ハードウェア",
     "sectionHardwareDescription": "ボードの物理的な構成と接続",
     "sectionBehavior": "動作",
     "sectionBehaviorDescription": "コンテンツの動き・更新・一時停止の設定",
@@ -777,7 +777,7 @@
       "needsBeta": "出力プラグインのベータが必要です。次のステップで有効にできます。",
       "downloads": "続行するとダウンロードされるため、インターネット接続が必要です。",
       "skipTitle": "スキップ — ディスプレイはあとで追加する",
-      "skipDescription": "今はアプリを見て回り、ページをプレビューできます。ディスプレイはいつでも設定から追加できます。"
+      "skipDescription": "今はページを見て回ってプレビューできます。ディスプレイはいつでも「ディスプレイ」から追加できます。"
     },
     "outputSetup": {
       "installing": "{name} をインストールしています…",
@@ -976,8 +976,6 @@
     "transitionPluginsGroup": "プラグイン (ベータ)"
   },
   "displaySettings": {
-    "title": "ボード一覧",
-    "description": "お持ちの Vestaboard を追加し、接続を設定します。",
     "unnamedBoard": "名前未設定のボード",
     "boardDimensions": {
       "flagship": "22×6",
@@ -991,7 +989,6 @@
     "code62DegreeAriaLabel": "度記号のフラップ",
     "code62HeartAriaLabel": "ハートのフラップ",
     "removeBoard": "ボードを削除",
-    "addBoard": "ボードを追加",
     "selectType": "タイプを選択:",
     "boardAdded": "ボードを追加しました",
     "boardRemoved": "ボードを削除しました",
@@ -1036,6 +1033,52 @@
     "notesWideLabel": "Note 横数",
     "notesTallLabel": "Note 縦数",
     "customRangeError": "各寸法は 1 ～ {max} の範囲でなければなりません。"
+  },
+  "displays": {
+    "title": "ディスプレイ",
+    "description": "FiestaBoard が表示するすべてのボードと画面です。設定を変えるには開いてください。",
+    "addDisplay": "ディスプレイを追加",
+    "listLabel": "あなたのディスプレイ",
+    "empty": "ディスプレイはまだありません。追加するとページを表示できます。",
+    "unnamed": "名前のないディスプレイ",
+    "openSettings": "設定",
+    "openSettingsLabel": "{name} の設定を開く",
+    "pause": "一時停止",
+    "resume": "再開",
+    "pauseLabel": "{name} を一時停止",
+    "resumeLabel": "{name} を再開",
+    "back": "すべてのディスプレイ",
+    "notFound": "このディスプレイはもう存在しません。",
+    "previewTitle": "現在の表示",
+    "settingsTitle": "設定",
+    "transition": {
+      "title": "トランジション",
+      "description": "このディスプレイがメッセージを切り替えるときの動きです。ページ独自のトランジションが優先されます。",
+      "default": "デフォルト",
+      "defaultDescription": "設定 → 動作 で選んだトランジションを使います。",
+      "cloudNote": "このボードはクラウド API を使っているため、ボード全体が一度に切り替わります。トランジションにはローカル API が必要です。",
+      "snapNote": "このディスプレイは一度に切り替えることしかできないため、新しいメッセージにそのまま切り替わります。",
+      "deviceDefault": "デバイスのデフォルト",
+      "unavailable": "このディスプレイでは使えません",
+      "runsAs": "実行内容",
+      "previewLabel": "{name} のプレビュー"
+    },
+    "add": {
+      "title": "ディスプレイを追加",
+      "chooseDescription": "FiestaBoard を何に表示しますか？",
+      "findMore": "ほかのディスプレイを探す",
+      "findMoreTitle": "ほかのディスプレイを探す",
+      "findMoreDescription": "FiestaBoard プラグインレジストリのディスプレイプラグインです。",
+      "findMoreLoading": "レジストリを読み込み中…",
+      "findMoreFailed": "プラグインレジストリを読み込めませんでした。インターネット接続を確認して、もう一度お試しください。",
+      "findMoreEmpty": "レジストリにはまだほかのディスプレイがありません。",
+      "byAuthor": "作者: {author}",
+      "vestaboardTitle": "Vestaboard を追加",
+      "vestaboardDescription": "形を選んでください。接続は次にそのページで行います。",
+      "panelTitle": "テレビまたはブラウザを追加",
+      "outputTitle": "{name} を追加",
+      "setupDescription": "設定してから追加してください。"
+    }
   },
   "systemUpdate": {
     "updateAvailable": "アップデートがあります",
@@ -2365,10 +2408,7 @@
     "geometryDetected": "{rows} × {cols} を検出",
     "applyGeometry": "サイズを適用",
     "actionInputDescription": "この操作には先にいくつかの情報が必要です。",
-    "otherDisplays": "その他のディスプレイ",
     "betaRequired": "このディスプレイを使うには「設定 → 詳細 → ベータ機能」で出力プラグインを有効にしてください。",
-    "boardCreated": "ボードを追加しました",
-    "addOutputTitle": "{name} ボードを追加",
     "boardNameLabel": "ボード名",
     "boardNamePlaceholder": "マイボード",
     "deviceModelLabel": "デバイスモデル",

@@ -95,6 +95,24 @@ describe("NavigationSidebar active state", () => {
     });
   });
 
+  it("has a Displays item that links to /displays (plan D21)", () => {
+    mockPathname.mockReturnValue("/");
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const links = screen.getAllByText("Displays").map((label) => label.closest("a"));
+    expect(links.length).toBeGreaterThan(0);
+    links.forEach((link) => expect(link).toHaveAttribute("href", "/displays"));
+  });
+
+  it("highlights Displays on a display's own page", () => {
+    mockPathname.mockReturnValue("/displays/board-2");
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    screen.getAllByText("Displays").forEach((label) => {
+      expect(label.closest("a")).toHaveClass(activeNavClass);
+    });
+  });
+
   it("highlights Home only on exact /", () => {
     mockPathname.mockReturnValue("/");
     render(<NavigationSidebar />, { wrapper: TestWrapper });
