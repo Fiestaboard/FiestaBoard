@@ -334,7 +334,7 @@ test.describe("regression: note-arrays — auto-detect", () => {
     await page.getByRole("button", { name: "Auto-detect from board" }).first().click();
 
     // fetchApi throws Error(detail); the settings screen shows it inline
-    // (plugin-board-settings.tsx, data-testid="action-failure").
+    // under the button that ran it (action-feedback.tsx, data-testid="action-failure").
     await expect(page.getByText("Board did not return a recognizable size")).toBeVisible({ timeout: 10_000 });
 
     // The board type is unchanged (still flagship from resetToSingleBoard).

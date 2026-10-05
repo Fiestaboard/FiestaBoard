@@ -1869,7 +1869,8 @@
     "pagePickerPlaceholder": "Scegli una pagina…",
     "showSecret": "Mostra valore",
     "hideSecret": "Nascondi valore",
-    "secretSaved": "••••••••••• (impostata)"
+    "secretSaved": "••••••••••• (impostata)",
+    "fieldRequired": "Obbligatorio"
   },
   "filterPicker": {
     "noFiltersAvailable": "Nessun filtro disponibile",
@@ -2385,7 +2386,6 @@
     "dismissFailed": "Impossibile chiudere. Riprova."
   },
   "boardSettingsScreen": {
-    "scanning": "Ricerca…",
     "noDevicesFound": "Nessun dispositivo trovato. Inserisci l'indirizzo manualmente.",
     "devicesFoundLabel": "Dispositivi trovati per {field}",
     "subnetLabel": "Rete da cercare (facoltativo)",
@@ -2431,8 +2431,15 @@
     "moveSwap": "Posizione {position} — scambia con {summary}",
     "tilesDuplicate": "Più tessere puntano alla stessa bacheca: {values}",
     "tileActionsLabel": "Azioni del riquadro",
-    "requiredMissing": "Ancora richiesto: {fields}",
-    "geometryApplied": "Impostato su {rows} × {cols}"
+    "geometryApplied": "Impostato su {rows} × {cols}",
+    "searchingNetwork": "Ricerca su {network}…",
+    "searchingYourNetwork": "Ricerca sulla tua rete…",
+    "foundOneSelected": "Trovato {device} e selezionato.",
+    "foundDevices": "{count, plural, one {Trovato # dispositivo. Scegli il tuo.} other {Trovati # dispositivi. Scegli il tuo.}}",
+    "noDeviceFoundOn": "Nessun {device} trovato su {network}.",
+    "noDeviceFoundHere": "Nessun {device} trovato sulla tua rete.",
+    "enterManually": "Inserisci l'indirizzo manualmente",
+    "searchAgain": "Cerca di nuovo"
   },
   "outputSettings": {
     "vestaboard": {

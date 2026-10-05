@@ -1869,7 +1869,8 @@
     "pagePickerPlaceholder": "페이지 선택…",
     "showSecret": "값 표시",
     "hideSecret": "값 숨기기",
-    "secretSaved": "••••••••••• (설정됨)"
+    "secretSaved": "••••••••••• (설정됨)",
+    "fieldRequired": "필수"
   },
   "filterPicker": {
     "noFiltersAvailable": "사용 가능한 필터가 없습니다",
@@ -2385,7 +2386,6 @@
     "dismissFailed": "닫지 못했습니다. 다시 시도하세요."
   },
   "boardSettingsScreen": {
-    "scanning": "검색 중…",
     "noDevicesFound": "기기를 찾지 못했습니다. 주소를 직접 입력하세요.",
     "devicesFoundLabel": "{field}에서 찾은 기기",
     "subnetLabel": "검색할 네트워크(선택 사항)",
@@ -2431,8 +2431,15 @@
     "moveSwap": "슬롯 {position} — {summary}와(과) 교체",
     "tilesDuplicate": "여러 타일이 같은 보드를 가리키고 있습니다: {values}",
     "tileActionsLabel": "타일 작업",
-    "requiredMissing": "아직 필요: {fields}",
-    "geometryApplied": "{rows} × {cols}(으)로 설정됨"
+    "geometryApplied": "{rows} × {cols}(으)로 설정됨",
+    "searchingNetwork": "{network} 검색 중…",
+    "searchingYourNetwork": "네트워크 검색 중…",
+    "foundOneSelected": "{device}을(를) 찾아 선택했습니다.",
+    "foundDevices": "{count, plural, other {기기 #대를 찾았습니다. 사용할 기기를 선택하세요.}}",
+    "noDeviceFoundOn": "{network}에서 {device}을(를) 찾지 못했습니다.",
+    "noDeviceFoundHere": "네트워크에서 {device}을(를) 찾지 못했습니다.",
+    "enterManually": "주소 직접 입력",
+    "searchAgain": "다시 검색"
   },
   "outputSettings": {
     "vestaboard": {

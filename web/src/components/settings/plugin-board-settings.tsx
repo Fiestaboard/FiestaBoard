@@ -23,15 +23,15 @@
  * (`@/lib/network-hint`): in Docker bridge mode it is how the output learns
  * which network to search. It is filled in, never asked for.
  *
- * A result shows its status, message and guidance; its `fields` fill the
- * settings they name (a secret one lands in a secret input, so it is never
+ * A result shows its status, message and guidance right where the action
+ * was run — under its button, or in the device picker that ran it — never
+ * in one box for the whole form; a request that failed outright shows there
+ * too. A required setting still empty says so on its own field. A result's
+ * `fields` fill the settings they name (a secret one lands in a secret input, so it is never
  * shown in clear unless the user asks), and its `geometry` is handed to
  * `onGeometry` — at once for an `auto_apply` action, else on "Apply size".
  */
 import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
   Box,
   Button,
   Dialog,
@@ -40,20 +40,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Flex,
-  List,
-  ListItem,
   Stack,
-  Text,
 } from "@fiestaboard/ui";
-import { AlertCircle, AlertTriangle, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { asJSONSchema, type JSONSchema, SchemaForm, type SchemaProperty } from "@/components/plugin-settings";
+import { ActionFeedback, type ActionFeedbackEntry } from "@/components/plugin-settings/action-feedback";
 import {
   BoardActionsContext,
   type BoardActionsContextValue,
   missingInputs,
+  pickerFallbacks,
   type RunOptions,
 } from "@/components/plugin-settings/board-widgets";
 import { BoardScreenContext } from "@/components/plugin-settings/field-context";
@@ -82,14 +79,26 @@ function visibleProps(
   );
 }
 
-/** Actions a visible widget runs itself (a device picker's discover, a tile grid's per-tile actions). */
-export function widgetActionIds(schema: JSONSchema, values: Record<string, unknown>, facts: BoardFacts): Set<string> {
+/**
+ * Actions a visible widget runs itself: a device picker's discover and the
+ * lookups it offers when that finds nothing, a tile grid's per-tile actions.
+ */
+export function widgetActionIds(
+  schema: JSONSchema,
+  values: Record<string, unknown>,
+  facts: BoardFacts,
+  actions: OutputActionDescriptor[] = [],
+): Set<string> {
   const ids = new Set<string>();
   const walk = (props: Record<string, SchemaProperty> | undefined, scope: Record<string, unknown>) => {
-    for (const [, prop] of visibleProps(props, scope, facts)) {
+    for (const [key, prop] of visibleProps(props, scope, facts)) {
       const widget = prop["ui:widget"];
       const options = prop["ui:options"] ?? {};
-      if (widget === "device-picker") ids.add(typeof options.action === "string" ? options.action : "discover");
+      if (widget === "device-picker") {
+        const action = typeof options.action === "string" ? options.action : "discover";
+        ids.add(action);
+        for (const alt of pickerFallbacks(actions, action, key)) ids.add(alt.id);
+      }
       if (widget === "tile-grid") {
         for (const id of options.item_actions ?? []) ids.add(id);
         if (prop.items?.properties) walk(prop.items.properties, {});
@@ -189,13 +198,9 @@ export function PluginBoardSettings({
   const output = useMemo(() => localizeOutput(declared, text), [declared, text]);
   const boardFacts = useMemo<BoardFacts>(() => facts ?? {}, [facts]);
   const [running, setRunning] = useState<string | null>(null);
-  const [result, setResult] = useState<{
-    action: OutputActionDescriptor;
-    result: ActionResult;
-    filled: string[];
-    applied: boolean;
-  } | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
+  // Each action's last answer, kept by where it was run (its button, or the
+  // widget that ran it) so it shows there.
+  const [feedback, setFeedback] = useState<Record<string, ActionFeedbackEntry>>({});
   const [asking, setAsking] = useState<Asking | null>(null);
   const schema = useMemo(() => asJSONSchema(output.settings_schema), [output.settings_schema]);
   // The latest settings, for an action that finishes after they changed.
@@ -209,8 +214,15 @@ export function PluginBoardSettings({
       const action = output.actions.find((a) => a.id === actionId);
       if (!action) return null;
       const sent = withNetworkHint(action, input, lanHintHost(browserHostname()), options?.networkHint);
+      const origin = options?.origin ?? actionId;
+      const answer = (entry: Omit<ActionFeedbackEntry, "action">) =>
+        setFeedback((current) => ({ ...current, [origin]: { action, ...entry } }));
       setRunning(actionId);
-      setFailure(null);
+      setFeedback((current) => {
+        const rest = { ...current };
+        delete rest[origin];
+        return rest;
+      });
       try {
         const response = boardId
           ? await api.runBoardAction(boardId, actionId, { input: sent, output_config: values })
@@ -226,12 +238,16 @@ export function PluginBoardSettings({
         if (applied.filled.length > 0) onChange(applied.values);
         const autoApplied = !!(action.auto_apply && response.geometry && onGeometry);
         if (autoApplied) onGeometry!(response.geometry!);
-        setResult({ action, result: response, filled: applied.filled, applied: autoApplied });
+        answer({ result: response, error: null, filled: applied.filled, applied: autoApplied });
         onActionResult?.(actionId, response);
         return response;
       } catch (error) {
-        setResult(null);
-        setFailure(error instanceof Error ? error.message : t("actionFailed"));
+        answer({
+          result: null,
+          error: error instanceof Error ? error.message : t("actionFailed"),
+          filled: [],
+          applied: false,
+        });
         return null;
       } finally {
         setRunning(null);
@@ -240,32 +256,42 @@ export function PluginBoardSettings({
     [boardId, deviceModel, onActionResult, onChange, onGeometry, output, t, values],
   );
 
-  const requestInput = (action: OutputActionDescriptor, initial: Record<string, unknown>) =>
-    new Promise<Record<string, unknown> | null>((resolve) => setAsking({ action, initial, resolve }));
+  /** Run an action from a button, asking for its input first when it declares any. */
+  const start = useCallback(
+    async (actionId: string, origin?: string) => {
+      const action = output.actions.find((a) => a.id === actionId);
+      if (!action) return;
+      if (Object.keys(askedInputs(action)).length === 0) {
+        void run(action.id, undefined, { origin });
+        return;
+      }
+      const input = await new Promise<Record<string, unknown> | null>((resolve) =>
+        setAsking({ action, initial: initialInput(action, latest.current), resolve }),
+      );
+      if (input) void run(action.id, input, { origin });
+    },
+    [output.actions, run],
+  );
 
   const context: BoardActionsContextValue = useMemo(
-    () => ({ actions: output.actions, run, running }),
-    [output.actions, run, running],
+    () => ({
+      actions: output.actions,
+      run,
+      running,
+      feedback,
+      start: (actionId: string, origin: string) => void start(actionId, origin),
+      deviceName: output.name,
+      onGeometry,
+    }),
+    [output.actions, output.name, run, running, feedback, start, onGeometry],
   );
   const screen = useMemo(() => ({ facts: boardFacts, layout: layout ?? null }), [boardFacts, layout]);
 
   const props = schema.properties as Record<string, unknown>;
-  const inWidgets = widgetActionIds(schema, values, boardFacts);
+  const inWidgets = widgetActionIds(schema, values, boardFacts, output.actions);
   const buttons = output.actions.filter(
     (a) => !inWidgets.has(a.id) && isVisible(a.visible_when ?? undefined, values, props, boardFacts),
   );
-  const missing = visibleProps(schema.properties, values, boardFacts)
-    .filter(([name]) => schema.required?.includes(name) && isEmpty(values[name]))
-    .map(([name, prop]) => prop.title || name);
-
-  const onButton = async (action: OutputActionDescriptor) => {
-    if (Object.keys(askedInputs(action)).length === 0) {
-      void run(action.id);
-      return;
-    }
-    const input = await requestInput(action, initialInput(action, values));
-    if (input) void run(action.id, input);
-  };
 
   return (
     <BoardScreenContext.Provider value={screen}>
@@ -278,48 +304,34 @@ export function PluginBoardSettings({
             disabled={disabled}
             pluginId={output.builtin ? undefined : output.id}
             idPrefix={`${output.id}-${boardId ?? "draft"}-`}
+            requiredHints
           />
 
-          {missing.length > 0 && (
-            <Flex align="center" gap="1.5" data-testid="settings-missing">
-              <AlertCircle className="h-4 w-4 flex-shrink-0 text-destructive" aria-hidden="true" />
-              <Text as="span" size="xs">
-                {t("requiredMissing", { fields: missing.join(", ") })}
-              </Text>
-            </Flex>
-          )}
-
           {buttons.length > 0 && (
-            <Flex gap="2" wrap role="group" aria-label={t("actionsLabel")}>
+            <Stack gap="3" role="group" aria-label={t("actionsLabel")}>
               {buttons.map((action) => (
-                <Button
-                  key={action.id}
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={disabled || running !== null}
-                  aria-busy={running === action.id}
-                  title={action.description || undefined}
-                  data-testid={`action-${action.id}`}
-                  onClick={() => void onButton(action)}
-                >
-                  {running === action.id && <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" />}
-                  {action.label}
-                </Button>
+                <Stack key={action.id} gap="2" data-testid={`action-item-${action.id}`}>
+                  <Box>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={disabled || (running !== null && running !== action.id)}
+                      loading={running === action.id}
+                      title={action.description || undefined}
+                      data-testid={`action-${action.id}`}
+                      onClick={() => void start(action.id)}
+                    >
+                      {action.label}
+                    </Button>
+                  </Box>
+                  <Box aria-live="polite" data-testid={`action-feedback-${action.id}`}>
+                    {feedback[action.id] && <ActionFeedback entry={feedback[action.id]} onGeometry={onGeometry} />}
+                  </Box>
+                </Stack>
               ))}
-            </Flex>
+            </Stack>
           )}
-
-          <Box aria-live="polite">
-            {failure && (
-              <Alert variant="destructive" data-testid="action-failure">
-                <XCircle className="h-4 w-4" aria-hidden="true" />
-                <AlertTitle>{t("resultError")}</AlertTitle>
-                <AlertDescription>{failure}</AlertDescription>
-              </Alert>
-            )}
-            {result && <ActionResultPanel {...result} onGeometry={onGeometry} />}
-          </Box>
 
           <Dialog
             open={asking !== null}
@@ -394,76 +406,5 @@ function ActionInputDialog({
         </DialogFooter>
       </Box>
     </DialogContent>
-  );
-}
-
-function ActionResultPanel({
-  action,
-  result,
-  filled,
-  applied,
-  onGeometry,
-}: {
-  action: OutputActionDescriptor;
-  result: ActionResult;
-  filled: string[];
-  applied: boolean;
-  onGeometry?: (geometry: ActionGeometry) => void;
-}) {
-  const t = useTranslations("boardSettingsScreen");
-  const variant = result.status === "ok" ? "success" : result.status === "warning" ? "warning" : "destructive";
-  const Icon = result.status === "ok" ? CheckCircle2 : result.status === "warning" ? AlertTriangle : XCircle;
-  const title =
-    result.status === "ok" ? t("resultOk") : result.status === "warning" ? t("resultWarning") : t("resultError");
-
-  return (
-    <Alert variant={variant} data-testid="action-result" data-status={result.status}>
-      <Icon className="h-4 w-4" aria-hidden="true" />
-      <AlertTitle>
-        {title} · {action.label}
-      </AlertTitle>
-      <AlertDescription>
-        <Stack gap="2">
-          {result.message && <Text size="sm">{result.message}</Text>}
-          {result.guidance.length > 0 && (
-            <Stack gap="1">
-              <Text size="xs" weight="medium">
-                {t("guidanceLabel")}
-              </Text>
-              <List>
-                {result.guidance.map((line) => (
-                  <ListItem key={line}>{line}</ListItem>
-                ))}
-              </List>
-            </Stack>
-          )}
-          {filled.length > 0 && <Text size="xs">{t("fieldsFilled", { fields: filled.join(", ") })}</Text>}
-          {result.geometry && (
-            <Flex align="center" gap="2" wrap>
-              <Text size="xs">
-                {applied
-                  ? t("geometryApplied", { rows: result.geometry.rows, cols: result.geometry.cols })
-                  : t("geometryDetected", { rows: result.geometry.rows, cols: result.geometry.cols })}
-              </Text>
-              {onGeometry && !applied && (
-                <Button type="button" size="sm" variant="outline" onClick={() => onGeometry(result.geometry!)}>
-                  {t("applyGeometry")}
-                </Button>
-              )}
-            </Flex>
-          )}
-          {result.devices && result.devices.length === 0 && <Text size="xs">{t("noDevicesFound")}</Text>}
-          {result.devices && result.devices.length > 0 && (
-            <List>
-              {result.devices.map((device) => (
-                <ListItem key={`${device.ip}:${device.port}`}>
-                  {device.hostname || device.label || device.ip} ({device.ip}:{device.port})
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </Stack>
-      </AlertDescription>
-    </Alert>
   );
 }

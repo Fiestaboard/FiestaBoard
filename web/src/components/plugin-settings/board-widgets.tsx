@@ -8,9 +8,14 @@
  * - `mode-cards`: a string `enum` as a radiogroup of cards
  *   (`ui:options.cards: [{value, title, description}]`).
  * - `device-picker`: a text field plus a button named by the output's
- *   discover action (`ui:options.action`), which runs it and offers what it
- *   found; picking one fills the field (`value_key`, read from the device's
- *   `fields` first) and the device's other `fields` this form declares.
+ *   discover action (`ui:options.action`). While it searches it says which
+ *   network; what it found shows right under the field as a pick-list (the
+ *   only one found is picked for you); picking one fills the field
+ *   (`value_key`, read from the device's `fields` first) and the device's
+ *   other `fields` this form declares. Nothing found says so, with the way
+ *   on: type the address, the output's other lookups (an action whose
+ *   `result_fields` fill this field), search again. "Enter address
+ *   manually" is always there.
  *   The scan carries the page's private IPv4 address as `hint_host`, and,
  *   when the action declares a `subnet` input, a network the user may type.
  * - `tile-grid`: an array of `{row, col, ...}` items as a rows × cols grid
@@ -40,6 +45,8 @@ import {
   Grid,
   Input,
   Label,
+  List,
+  ListItem,
   Select,
   SelectContent,
   SelectItem,
@@ -50,14 +57,26 @@ import {
   ToggleCard,
   ToggleCardGroup,
 } from "@fiestaboard/ui";
-import { AlertCircle, Loader2, Plus, ScanSearch, Search, Trash2 } from "lucide-react";
-import React, { createContext, useContext, useMemo, useState } from "react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  Pencil,
+  Plus,
+  RotateCw,
+  ScanSearch,
+  Search,
+  SearchX,
+  Trash2,
+} from "lucide-react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
-import type { ActionResult, DiscoveredDevice, OutputActionDescriptor } from "@/lib/api";
-import { declaresInput, SUBNET } from "@/lib/network-hint";
+import type { ActionGeometry, ActionResult, DiscoveredDevice, OutputActionDescriptor } from "@/lib/api";
+import { browserHostname, declaresInput, lanHintHost, SUBNET } from "@/lib/network-hint";
 
+import { ActionFeedback, type ActionFeedbackEntry } from "./action-feedback";
 import { useFieldScope } from "./field-context";
 
 /** How a widget runs an action. */
@@ -73,6 +92,12 @@ export interface RunOptions {
    * `hint_host` get it without asking.
    */
   networkHint?: boolean;
+  /**
+   * Where the answer is shown: it is kept under this key in
+   * {@link BoardActionsContextValue.feedback}. Defaults to the action's id
+   * (its button's own spot).
+   */
+  origin?: string;
 }
 
 /** What the board settings screen lends its widgets: the declared actions and a runner. */
@@ -82,6 +107,14 @@ export interface BoardActionsContextValue {
   run: (actionId: string, input?: Record<string, unknown>, options?: RunOptions) => Promise<ActionResult | null>;
   /** The action in flight, if any. */
   running: string | null;
+  /** Each action's last answer, by where it was run ({@link RunOptions.origin}). */
+  feedback?: Record<string, ActionFeedbackEntry>;
+  /** Run an action from a widget's button — asking for its input first when it declares any — answering at *origin*. */
+  start?: (actionId: string, origin: string) => void;
+  /** What the output drives, for a picker's "No Divoom Pixoo found". */
+  deviceName?: string;
+  /** Apply a size an action detected. */
+  onGeometry?: (geometry: ActionGeometry) => void;
 }
 
 export const BoardActionsContext = createContext<BoardActionsContextValue | null>(null);
@@ -187,6 +220,10 @@ interface DevicePickerFieldProps {
   action?: string;
   valueKey?: string;
   labelKey?: string;
+  /** The setting this picker fills: an action whose result fills it is offered when a search finds nothing. */
+  field?: string;
+  /** Ids of the field's own hints (its "Required" line), read with the address input. */
+  describedBy?: string;
   disabled?: boolean;
   required?: boolean;
 }
@@ -202,6 +239,35 @@ function deviceSiblings(device: DiscoveredDevice, declared: Record<string, strin
   return Object.fromEntries(Object.entries(device.fields ?? {}).filter(([key]) => key in declared));
 }
 
+/**
+ * The network a search covers, as a person reads it: the one they typed,
+ * else the page's own /24 (`192.168.0.x`), else `null` (not known here —
+ * the output searches the network it is on).
+ */
+export function searchedNetwork(typed: string, hint: string | null): string | null {
+  if (typed) return typed;
+  if (!hint) return null;
+  return `${hint.split(".").slice(0, 3).join(".")}.x`;
+}
+
+/**
+ * The other ways to fill a picker's setting, offered when its search finds
+ * nothing: every other declared action whose `result_fields` fill that
+ * setting (a Pixoo's cloud lookup fills `host`).
+ */
+export function pickerFallbacks(
+  actions: OutputActionDescriptor[],
+  pickerAction: string,
+  field: string | undefined,
+): OutputActionDescriptor[] {
+  if (!field) return [];
+  return actions.filter(
+    (a) =>
+      a.id !== pickerAction &&
+      Object.entries(a.result_fields ?? {}).some(([name, declared]) => (declared?.fills ?? name) === field),
+  );
+}
+
 export function DevicePickerField({
   name,
   label,
@@ -211,6 +277,8 @@ export function DevicePickerField({
   action = "discover",
   valueKey = "ip",
   labelKey = "hostname",
+  field,
+  describedBy,
   disabled,
   required,
 }: DevicePickerFieldProps) {
@@ -219,27 +287,110 @@ export function DevicePickerField({
   const inUse = useContext(TileValueInUseContext);
   const { titles } = useFieldScope();
   const [devices, setDevices] = useState<DiscoveredDevice[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [network, setNetwork] = useState<string | null>(null);
+  const [autoPicked, setAutoPicked] = useState<string | null>(null);
   const [subnet, setSubnet] = useState("");
+  // The one device a search found, picked once the result has rendered — so
+  // the pick lands on the settings as they are then, not as they were when
+  // the search began.
+  const pending = useRef<DiscoveredDevice | null>(null);
   const declared = actions?.actions.find((a) => a.id === action);
   const canScan = declared !== undefined;
   const asksSubnet = declared !== undefined && declaresInput(declared, SUBNET);
   const subnetProp = asksSubnet
     ? ((declared.input_schema?.properties as Record<string, { title?: string }>)[SUBNET] ?? {})
     : null;
-  const scanning = actions?.running === action;
+  const origin = `picker:${name}`;
+  const altOrigin = `${origin}:alt`;
+  const entry = actions?.feedback?.[origin];
+  const altEntry = actions?.feedback?.[altOrigin];
+  const fallbacks = actions ? pickerFallbacks(actions.actions, action, field) : [];
+  const busy = actions?.running != null;
+  const deviceName = actions?.deviceName || label;
+
+  useEffect(() => {
+    const device = pending.current;
+    if (!device) return;
+    pending.current = null;
+    onChange(deviceText(device, valueKey), deviceSiblings(device, titles));
+  }, [devices, onChange, titles, valueKey]);
+
+  const focusAddress = () => document.getElementById(name)?.focus();
 
   const scan = async () => {
     if (!actions) return;
     const typed = subnet.trim();
-    const result = await actions.run(action, asksSubnet && typed ? { [SUBNET]: typed } : undefined, {
-      networkHint: true,
-    });
-    if (result === null) toast.error(t("actionFailed"));
-    setDevices(result?.devices ?? []);
+    setNetwork(searchedNetwork(asksSubnet ? typed : "", lanHintHost(browserHostname())));
+    setSearching(true);
+    setAutoPicked(null);
+    try {
+      const result = await actions.run(action, asksSubnet && typed ? { [SUBNET]: typed } : undefined, {
+        networkHint: true,
+        origin,
+      });
+      const found = result?.devices ?? [];
+      if (result !== null && found.length === 1 && (inUse?.(deviceText(found[0], valueKey)) ?? null) === null) {
+        pending.current = found[0];
+        setAutoPicked(deviceText(found[0], labelKey) || found[0].label || deviceText(found[0], valueKey));
+      }
+      setDevices(result === null ? null : found);
+    } finally {
+      setSearching(false);
+    }
   };
 
-  return (
+  const searchAgain = (
+    <Button type="button" variant="ghost" size="sm" onClick={() => void scan()} disabled={disabled || busy}>
+      <RotateCw className="mr-1 h-4 w-4" aria-hidden="true" />
+      {t("searchAgain")}
+    </Button>
+  );
+  const enterManually = (variant: "link" | "secondary") => (
+    <Button
+      type="button"
+      variant={variant}
+      size="sm"
+      className={variant === "link" ? "h-auto self-start px-0" : undefined}
+      onClick={focusAddress}
+      disabled={disabled}
+    >
+      <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />
+      {t("enterManually")}
+    </Button>
+  );
+  /** What to do when the search found nothing or could not run. */
+  const nextSteps = (
     <Stack gap="2">
+      <Flex gap="2" wrap>
+        {enterManually("secondary")}
+        {fallbacks.map((alt) => (
+          <Button
+            key={alt.id}
+            type="button"
+            variant="outline"
+            size="sm"
+            title={alt.description || undefined}
+            loading={actions?.running === alt.id}
+            disabled={disabled || (busy && actions?.running !== alt.id)}
+            onClick={() => actions?.start?.(alt.id, altOrigin)}
+          >
+            {alt.label}
+          </Button>
+        ))}
+        {searchAgain}
+      </Flex>
+      <Box aria-live="polite">{altEntry && <ActionFeedback entry={altEntry} onGeometry={actions?.onGeometry} />}</Box>
+    </Stack>
+  );
+
+  const searched = !searching && entry !== undefined && (devices !== null || entry.result === null);
+  const failed = searched && entry.result === null;
+  const empty = searched && !failed && devices !== null && devices.length === 0;
+  const found = searched && !failed && devices !== null && devices.length > 0;
+
+  return (
+    <Stack gap="2" data-testid="device-picker">
       <Flex gap="2">
         <Input
           id={name}
@@ -249,34 +400,86 @@ export function DevicePickerField({
           placeholder={placeholder}
           disabled={disabled}
           required={required}
+          aria-describedby={describedBy}
           className="flex-1"
         />
         {canScan && (
-          <Button type="button" variant="secondary" onClick={() => void scan()} disabled={disabled || scanning}>
-            {scanning ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Search className="mr-1 h-4 w-4" />}
-            {scanning ? t("scanning") : declared.label}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void scan()}
+            loading={searching}
+            disabled={disabled || (busy && !searching)}
+          >
+            <Search className="mr-1 h-4 w-4" aria-hidden="true" />
+            {declared.label}
           </Button>
         )}
       </Flex>
-      {canScan && subnetProp && (
-        <Stack gap="1">
-          <Label htmlFor={`${name}-subnet`}>{subnetProp.title || t("subnetLabel")}</Label>
-          <Input
-            id={`${name}-subnet`}
-            type="text"
-            value={subnet}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSubnet(e.target.value)}
-            placeholder="192.168.1.0/24"
-            disabled={disabled || scanning}
-          />
-        </Stack>
+
+      {canScan && (
+        <Box aria-live="polite" data-testid="device-picker-status">
+          {searching && (
+            <Flex align="center" gap="2">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+              <Text as="span" size="sm" tone="muted">
+                {network ? t("searchingNetwork", { network }) : t("searchingYourNetwork")}
+              </Text>
+            </Flex>
+          )}
+          {failed && (
+            <Stack gap="2">
+              <ActionFeedback entry={entry} onGeometry={actions?.onGeometry} />
+              {nextSteps}
+            </Stack>
+          )}
+          {empty && (
+            <Stack gap="2" className="rounded-lg border border-dashed p-3" data-testid="device-picker-empty">
+              <Flex align="start" gap="2">
+                <SearchX className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning" aria-hidden="true" />
+                <Text size="sm" weight="medium">
+                  {entry.result?.message ||
+                    (network
+                      ? t("noDeviceFoundOn", { device: deviceName, network })
+                      : t("noDeviceFoundHere", { device: deviceName }))}
+                </Text>
+              </Flex>
+              {entry.result && entry.result.guidance.length > 0 && (
+                <List>
+                  {entry.result.guidance.map((line) => (
+                    <ListItem key={line}>
+                      <Text as="span" size="xs">
+                        {line}
+                      </Text>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+              {nextSteps}
+            </Stack>
+          )}
+          {found && (
+            <Stack gap="1">
+              <Flex align="start" gap="2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-success" aria-hidden="true" />
+                <Text size="sm">
+                  {autoPicked
+                    ? t("foundOneSelected", { device: autoPicked })
+                    : t("foundDevices", { count: devices.length })}
+                </Text>
+              </Flex>
+              {entry.result?.message && (
+                <Text size="xs" tone="muted">
+                  {entry.result.message}
+                </Text>
+              )}
+            </Stack>
+          )}
+        </Box>
       )}
-      {devices !== null &&
-        (devices.length === 0 ? (
-          <Text size="xs" tone="muted" role="status">
-            {t("noDevicesFound")}
-          </Text>
-        ) : (
+
+      {found && (
+        <>
           <ToggleCardGroup
             size="sm"
             columns="1"
@@ -304,7 +507,28 @@ export function DevicePickerField({
               );
             })}
           </ToggleCardGroup>
-        ))}
+          <Flex gap="2" wrap>
+            {enterManually("link")}
+            {searchAgain}
+          </Flex>
+        </>
+      )}
+
+      {!searched && !searching && enterManually("link")}
+
+      {canScan && subnetProp && (
+        <Stack gap="1">
+          <Label htmlFor={`${name}-subnet`}>{subnetProp.title || t("subnetLabel")}</Label>
+          <Input
+            id={`${name}-subnet`}
+            type="text"
+            value={subnet}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSubnet(e.target.value)}
+            placeholder="192.168.1.0/24"
+            disabled={disabled || searching}
+          />
+        </Stack>
+      )}
     </Stack>
   );
 }
@@ -429,6 +653,7 @@ export function TileGridField({
   }, [inRange, uniqueFields, itemProperties]);
 
   const identify = actions?.actions.find((a) => a.id === "identify");
+  const identifyAllOrigin = `tile-grid:${name}:identify-all`;
   const identifyAll = (() => {
     const target = (identify?.input_schema?.properties as Record<string, { enum?: unknown[] }> | undefined)?.target;
     return Array.isArray(target?.enum) && target.enum.includes("all");
@@ -496,7 +721,11 @@ export function TileGridField({
             size="sm"
             disabled={disabled || assigned === 0 || actions.running !== null}
             onClick={async () => {
-              const result = await actions.run("identify", { target: "all" }, { applyFills: false });
+              const result = await actions.run(
+                "identify",
+                { target: "all" },
+                { applyFills: false, origin: identifyAllOrigin },
+              );
               if (identify) toastActionResult(identify, result, t("actionFailed"));
             }}
           >
@@ -509,6 +738,9 @@ export function TileGridField({
           </Button>
         )}
       </Flex>
+      <Box aria-live="polite">
+        {actions?.feedback?.[identifyAllOrigin] && <ActionFeedback entry={actions.feedback[identifyAllOrigin]} />}
+      </Box>
 
       {duplicates.length > 0 && (
         <Flex role="alert" align="center" gap="1.5">
@@ -665,7 +897,7 @@ function TileDialog({
   const execute = async (action: OutputActionDescriptor, input: Record<string, unknown>) => {
     if (!actions) return;
     setAsking(null);
-    const result = await actions.run(action.id, input, { applyFills: false });
+    const result = await actions.run(action.id, input, { applyFills: false, origin: "tile-dialog" });
     toastActionResult(action, result, t("actionFailed"));
     const fills: Record<string, unknown> = {};
     for (const [name, field] of Object.entries(result?.fields ?? {})) {
