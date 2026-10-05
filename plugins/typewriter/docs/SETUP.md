@@ -15,7 +15,7 @@ How to enable the Typewriter transition and use it on a page.
 3. **Apply it** — For a single page, open it in the page editor and choose **Typewriter** from the **Transition** dropdown in the toolbar, then save. For every page, choose Typewriter under Settings → Behavior → Board Transitions. A page's own choice wins over the global default; picking "Use global default" clears it.
 4. **View** — The next time that page becomes active, the board sweeps left-to-right as the new content lands.
 
-To see the reveal before you commit to it, open **Transition Lab** in the sidebar (it appears once the beta is on). Pick Typewriter and two pages, and step through the frames one at a time. The config box there is seeded with Typewriter's saved settings and lets you try different values for that run only — handy for finding a speed you like before saving it.
+Transition plugins are deprecated (see [Transitions](https://fiestaboard.app/docs/features/transitions)): pages that use one keep working, and the Transition Lab preview page has been removed.
 
 ## Template Variables
 

@@ -1789,38 +1789,6 @@
       "kind": "APIRoute"
     },
     {
-      "path": "/transitions/plugins",
-      "methods": [
-        "GET"
-      ],
-      "name": "list_transition_plugins",
-      "kind": "APIRoute"
-    },
-    {
-      "path": "/transitions/preview",
-      "methods": [
-        "POST"
-      ],
-      "name": "preview_transition",
-      "kind": "APIRoute"
-    },
-    {
-      "path": "/transitions/restore",
-      "methods": [
-        "POST"
-      ],
-      "name": "restore_after_transition_test",
-      "kind": "APIRoute"
-    },
-    {
-      "path": "/transitions/test-live",
-      "methods": [
-        "POST"
-      ],
-      "name": "run_live_transition_test",
-      "kind": "APIRoute"
-    },
-    {
       "path": "/triggers",
       "methods": [
         "GET"

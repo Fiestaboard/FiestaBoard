@@ -29,12 +29,21 @@ Removing them in v11 means: delete the projection (`src/settings/board_shape.py`
 
 ---
 
+### Transition Plugins
+
+Transition plugins (`plugin_type: "transition"`, `TransitionPluginBase`) are deprecated as of v10 (plan D22, 2026-10-04). The Transition Lab page (`/transitions`), its beta API (`GET /transitions/plugins`, `POST /transitions/preview`, `POST /transitions/test-live`, `POST /transitions/restore`) and its MCP tools (`list_transition_plugins`, `test_transition_live`, `restore_board`) were removed outright, since they were beta. The runtime stays: a page or the system default whose strategy is `plugin:<id>` still animates through `TransitionRunner`, the page and Settings pickers still offer installed transition plugins behind `beta.transition_plugins_enabled` (they read `GET /plugins` filtered by `plugin_type`), and the Integrations page badges each one **Deprecated**. Transition choice is moving to each display.
+
+Removing the kind in v11 would mean: `TransitionPluginBase` and the transition branches of the loader and registry, `src/transitions/runner.py` and the `plugin:` strategy path in the send chokepoint, `beta.transition_plugins_enabled`, the four first-party transition plugins and `plugins/_template_transition`, the pickers' plugin group, and a page-schema migration for stored `plugin:<id>` strategies. Not decided yet.
+
+---
+
 ## Deprecation Timeline
 
 | Endpoint | Deprecated Since | Planned Removal |
 |----------|-----------------|-----------------|
 | `GET /displays/{display_type}/raw` | v1.x | `Sunset: Tue, 01 Dec 2026 00:00:00 GMT` (#1941) |
 | Flat board fields (see above) | v10.0.0 | v11 (no `Sunset` date yet) |
+| Transition plugins (see above) | v10.0.0 | Removal considered for v11 |
 
 > **Note:** The route sends the shared `Sunset` date on every response (it is in `SUPERSEDED_BY_V1`, `src/api_deprecation.py`) and is deleted with the rest of that cohort in #1941, not before. The `Link` header names `/api/v1/plugins/{plugin_id}/data` as the successor; `/plugins/{plugin_id}/data` is itself in the same cohort.
 

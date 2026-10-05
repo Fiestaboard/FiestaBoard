@@ -133,7 +133,6 @@ describe("homeFor", () => {
     pause_board: "/",
     remove_board: "/settings?section=hardware",
     restart_system: "/settings?section=system",
-    restore_board: "/",
     resume_board: "/",
     send_message: "/",
     set_active_page: "/",
@@ -142,7 +141,6 @@ describe("homeFor", () => {
     set_temporary_override: "/",
     show_board_debug_info: "/settings?section=advanced",
     shutdown_system: "/settings?section=system",
-    test_transition_live: "/transitions",
     trigger_system_update: "/settings?section=system",
     uninstall_plugin: "/integrations",
     update_all_plugins: "/integrations",
@@ -166,7 +164,6 @@ describe("homeFor", () => {
     // being a board *device* the hardware tab configures.
     expect(homeFor({ name: "pause_board", args: {} })).toEqual({ href: "/", anchor: "home.active-display" });
     expect(homeFor({ name: "resume_board", args: {} }).href).toBe("/");
-    expect(homeFor({ name: "restore_board", args: {} }).href).toBe("/");
     expect(homeFor({ name: "blank_board", args: {} }).href).toBe("/settings?section=advanced");
     expect(homeFor({ name: "fill_board", args: {} }).href).toBe("/settings?section=advanced");
   });

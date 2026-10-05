@@ -57,7 +57,6 @@ READ_ONLY = {
     "export_page",
     "list_staff_picks",
     "get_current_display",
-    "list_transition_plugins",
     "list_formula_functions",
     "list_plugin_instances",
     "get_plugin_demo_page",
@@ -145,7 +144,6 @@ IDEMPOTENT = READ_ONLY | {
     "update_schedule",
     "update_collection",
     # Snapping a board back to its active page twice leaves it where once did.
-    "restore_board",
     "check_plugin_updates",
     "update_all_plugins",
     "set_default_page",

@@ -297,7 +297,6 @@ class TestDeclaredVocabularies:
             ("TemplateRenderRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
             ("TemplateRenderLiveRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
             ("TemporaryOverrideRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
-            ("TransitionPreviewRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
             ("DetectBoardSizeResponse", "device_type", ["flagship", "note", "note_array"]),
             ("PageSendRequest", "target", ["ui", "board", "both"]),
             ("OutputSettingsUpdate", "target", ["ui", "board", "both"]),
@@ -423,24 +422,6 @@ class TestVocabulariesAreEnforcedNotJustDocumented:
         response = client.put("/settings/output", json={"target": "ui"})
         assert response.status_code == 200
         assert response.json()["target"] == "ui"
-
-    def test_transition_preview_still_400s_on_an_unknown_device_type(self, client):
-        """NOT re-pinned, for the same reason plus a recorded one.
-
-        ``src/transitions/models.py`` states outright that its request models
-        keep the endpoints' own 400s rather than letting Pydantic widen them
-        into 422s. Publishing the vocabulary does not overturn that.
-        """
-        client.put("/settings/beta", json={"transition_plugins_enabled": True})
-        response = client.post(
-            "/transitions/preview",
-            json={"plugin_id": "nope", "device_type": "bogus"},
-        )
-        # 404 (unknown plugin) is checked before device_type; the point is
-        # simply that Pydantic did not reject the body first.
-        assert response.status_code in (400, 404)
-        assert "detail" in response.json()
-        assert isinstance(response.json()["detail"], str)
 
 
 # ---------------------------------------------------------------------------
