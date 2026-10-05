@@ -257,6 +257,11 @@ async def read_board_state_live(board_id: str | None, *, force: bool = False, se
         if state.characters is not None:
             _prime(rt, state.characters, time.time())
         return state
+    if getattr(getattr(client, "read_back", None), "supported", None) is False:
+        # The device cannot be read back (an output declaring read_back
+        # none, like a Pixoo): what was last sent is all anyone can know,
+        # and a "live read" would only ever answer nothing.
+        return state
 
     characters = await asyncio.to_thread(client.read_current_message)
     if characters is None:

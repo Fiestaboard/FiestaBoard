@@ -330,6 +330,7 @@ class OutputPluginDriver:
     ) -> WriteResult:
         """Run the plugin's write under the run's token and its budget; settle
         floor, frame cache and breaker."""
+        token = self._output_runtime.cancel_event
         try:
             finished, raw = self._run_bounded(call)
             result = WriteResult.of(raw) if finished else None
@@ -350,6 +351,14 @@ class OutputPluginDriver:
             return WriteResult(False, False)
         if result.throttled:
             return self._device_throttled(admission, result.retry_after_seconds)
+        if result.success and not result.was_sent and token.is_set():
+            # Preempted: the plugin stopped mid-write and nothing landed. The
+            # newer write that cancelled it owns the board, so it gets the
+            # floor slot back and the last-frame store never claims this
+            # frame — otherwise that write is "throttled" by a write that
+            # never reached the device, and the board stays dark.
+            self._output_runtime.release_send(admission)
+            return WriteResult(True, False)
         if result.success:
             # Landed — or the device already showed it (a fan-out whose every
             # part was unchanged): either way it is what the board shows.
