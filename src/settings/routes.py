@@ -681,6 +681,10 @@ async def set_active_page(request: SetActivePageRequest):
         return sent_to_board, paused, send_error
 
     sent_to_board, paused, send_error = await run_board_send(_work)
+    # The engine catches every board up now (it records what the board shows,
+    # and sends where the immediate send above could not), not a poll tick later.
+    if service is not None:
+        service.wake()
 
     # The page selection itself was persisted; a render/send problem is
     # reported via error + sent_to_board=False, the same partial-failure

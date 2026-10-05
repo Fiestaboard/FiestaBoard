@@ -256,6 +256,9 @@ class DisplayService:
     def __init__(self):
         """Initialize the display service."""
         self.running = True
+        # Set by :meth:`wake` (an active-page change): the run loop's next 1 s
+        # step runs an engine pass instead of waiting for the poll tick.
+        self._wake = threading.Event()
         # One runtime per configured board (keyed by board id). All per-board
         # display state lives on the runtime; ``self.vb_client`` and the
         # ``self._last_*`` / ``self._polled_*`` attributes are back-compat
@@ -1226,6 +1229,23 @@ class DisplayService:
         self._board_retry_state.pop(board_id, None)
         logger.info("Board %s: recovered - client initialized on retry; the board rejoins the fleet", board_id)
         return True
+
+    def wake(self) -> None:
+        """Run an engine pass on the run loop's next 1 s step, not at the next poll tick.
+
+        Called when what a board should show changed (the active page was
+        set): the engine catches every board up — and records what it shows —
+        within a second, instead of up to a poll interval later. Thread-safe;
+        a pass that finds nothing changed writes nothing (the frame cache).
+        """
+        self._wake.set()
+
+    def take_wake(self) -> bool:
+        """Whether :meth:`wake` was called since the last time this asked (and consume it)."""
+        if self._wake.is_set():
+            self._wake.clear()
+            return True
+        return False
 
     def request_board_refresh(
         self,
@@ -2824,6 +2844,9 @@ class DisplayService:
                     else:
                         primary_rt.next_collection_check = now + polling_interval
                 time.sleep(1)
+                # A page change woke the engine: its pass runs on this step.
+                if self.take_wake():
+                    engine_pass()
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")
         finally:

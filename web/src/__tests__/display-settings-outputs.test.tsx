@@ -199,6 +199,57 @@ describe("Add Board", () => {
     expect(screen.getByRole("dialog", { name: "Add a Acme Sign board" })).toBeInTheDocument();
   });
 
+  it("offers a seeded output that is not installed yet, and installs it when chosen", async () => {
+    const installs: string[] = [];
+    const calls = setup([VESTABOARD], mockOutputs);
+    server.use(
+      http.get(`${API}/outputs/available`, () =>
+        HttpResponse.json([
+          {
+            id: "acme_sign",
+            name: "Acme Sign",
+            description: "An LED sign on your network.",
+            icon: "lightbulb",
+            source: "seed",
+            installed: false,
+            builtin: false,
+            beta_gated: true,
+            available: true,
+            needs_network: false,
+            output_api: 1,
+          },
+          {
+            id: "far_sign",
+            name: "Far Sign",
+            description: "Installs from its repository.",
+            icon: null,
+            source: "registry",
+            installed: false,
+            builtin: false,
+            beta_gated: true,
+            available: false,
+            needs_network: true,
+            output_api: null,
+          },
+        ]),
+      ),
+      http.post(`${API}/outputs/:id/install`, ({ params }) => {
+        installs.push(String(params.id));
+        return HttpResponse.json(PLUGIN);
+      }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Add Board" }));
+    const others = await screen.findByTestId("other-output-cards");
+    // A registry entry waits for the beta; a seeded one is offered now.
+    expect(within(others).queryByRole("button", { name: "Far Sign" })).not.toBeInTheDocument();
+    await userEvent.click(await within(others).findByRole("button", { name: "Acme Sign" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add a Acme Sign board" });
+    expect(installs).toEqual(["acme_sign"]);
+    await userEvent.type(within(dialog).getByLabelText(/Sign address/), "192.0.2.50");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Add board" }));
+    await waitFor(() => expect(calls.create.map((c) => c.url)).toEqual(["acme_sign"]));
+  });
+
   it("disables an output plugin whose beta is off, and says why", async () => {
     setup([VESTABOARD], [...mockOutputs, { ...PLUGIN, available: false }]);
     await userEvent.click(await screen.findByRole("button", { name: "Add Board" }));

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -16,6 +18,18 @@ class MessageRequest(BaseModel):
     """
 
     text: str
+    board_id: str | None = None
+
+
+class WelcomeMessageRequest(BaseModel):
+    """Optional body of ``POST /send-welcome-message``.
+
+    ``board_id`` names the board to greet: the setup wizard names the board it
+    just created (a TV, an output plugin's device), which need not be the
+    primary — a seeded placeholder Vestaboard may still be first. Omitted →
+    the primary board, exactly as before.
+    """
+
     board_id: str | None = None
 
 
@@ -38,6 +52,12 @@ class BoardCurrentMessageResponse(BaseModel):
     #: The 2-D grid on the board. Null for a secondary board that has never
     #: been written to (issue #1247).
     characters: list[list[int]] | None = None
+    #: The same frame as rich cells (FiestaUI ``BoardToken[][]`` JSON, as
+    #: ``GET /panel/{id}/frame`` serves them), for a board whose output took
+    #: them (an LED output: colour, case and icons ``characters`` cannot
+    #: hold). Additive and present ONLY then; every other board's response is
+    #: exactly what it was.
+    cells: list[list[dict[str, Any]]] | None = None
     #: ``characters`` rendered as the string form ``BoardDisplay`` takes.
     message: str | None = None
     rows: int

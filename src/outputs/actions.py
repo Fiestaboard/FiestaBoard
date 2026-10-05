@@ -52,6 +52,8 @@ import logging
 from collections.abc import Callable, Mapping
 from typing import Any
 
+from src.output_allowlist import flush_refusal_summary
+
 from .errors import BoardNotFoundError, InvalidActionInputError, InvalidOutputConfigError, OutputNotInstalledError
 from .hooks import (
     HINT_HOST,
@@ -344,6 +346,8 @@ async def _run(
         # The exception type only: its message may carry what the plugin was handling.
         logger.error("Output %s action %s failed: %s", definition.id, spec.id, type(exc).__name__)
         outcome = ActionOutcome(status="error", message=f"'{spec.label}' failed unexpectedly.")
+    # A scan refused host by host by FIESTABOARD_OUTPUTS_ALLOW_HOSTS: its count, once.
+    flush_refusal_summary()
     logger.info(
         "Output %s action %s on %s: %s",
         definition.id,
@@ -357,8 +361,21 @@ async def _run(
         "guidance": list(outcome.guidance),
         "fields": _with_fills(spec, outcome),
         "geometry": dict(outcome.geometry) if outcome.geometry is not None else None,
-        "devices": [dict(d) for d in outcome.devices] if outcome.devices is not None else None,
+        "devices": [_device_view(d) for d in outcome.devices] if outcome.devices is not None else None,
     }
+
+
+#: What :class:`~src.outputs.models.DiscoveredDevice` names itself.
+_DEVICE_KEYS = frozenset({"ip", "port", "hostname", "source", "label", "fields"})
+
+
+def _device_view(device: Mapping[str, Any]) -> dict[str, Any]:
+    """A found device as the API answers it: the core keys, and every other
+    scalar the output reported under ``fields`` (what picking it fills)."""
+    view = {key: value for key, value in device.items() if key in _DEVICE_KEYS and key != "fields"}
+    extra = {**{k: v for k, v in device.items() if k not in _DEVICE_KEYS}, **dict(device.get("fields") or {})}
+    view["fields"] = {str(k): v for k, v in extra.items() if isinstance(v, (str, int, float, bool))}
+    return view
 
 
 # --- the two doors ---------------------------------------------------------------------------------

@@ -68,9 +68,11 @@ export const setupApi = {
       body: JSON.stringify(request),
     }),
 
-  sendWelcomeMessage: () =>
+  /** `boardId`: the board to greet (the one the wizard created); omitted, the primary. */
+  sendWelcomeMessage: (boardId?: string) =>
     fetchApi<WelcomeMessageResponse>("/send-welcome-message", {
       method: "POST",
+      ...(boardId ? { body: JSON.stringify({ board_id: boardId }) } : {}),
     }),
 
   enableLocalApi: (request: EnableLocalApiRequest) =>

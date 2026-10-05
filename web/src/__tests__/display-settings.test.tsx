@@ -709,9 +709,9 @@ describe("DisplaySettings — a Vestaboard's settings screen (from its manifest)
     );
     const card = await renderAndExpand(user);
 
-    // Discover is the address field's own button, not a separate action.
-    expect(within(card).queryByRole("button", { name: "Scan network for boards" })).not.toBeInTheDocument();
-    await user.click(within(card).getByRole("button", { name: "Find devices" }));
+    // Discover is the address field's own button (named by the action), not a separate one.
+    expect(within(card).getAllByRole("button", { name: "Scan network for boards" })).toHaveLength(1);
+    await user.click(within(card).getByRole("button", { name: "Scan network for boards" }));
     await user.click(await within(card).findByRole("radio", { name: /vestaboard\.local/ }));
     expect(calls.map((c) => c.action)).toEqual(["discover"]);
     // Picking a found board saves its address at once.
@@ -1212,7 +1212,7 @@ describe("DisplaySettings — a tile's dialog (tests, identifies, says what it d
 
     await user.click(within(card).getByTestId("tile-slot-0-1"));
     const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Find devices" }));
+    await user.click(within(dialog).getByRole("button", { name: "Scan network for boards" }));
     const taken = await within(dialog).findByRole("radio", { name: /note-a\.local/ });
     expect(taken).toHaveTextContent("Assigned to tile 1");
     expect(within(dialog).getByRole("radio", { name: /note-b\.local/ })).not.toHaveTextContent("Assigned to tile");

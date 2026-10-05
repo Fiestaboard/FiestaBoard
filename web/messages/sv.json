@@ -2385,7 +2385,6 @@
     "dismissFailed": "Det gick inte att stänga. Försök igen."
   },
   "boardSettingsScreen": {
-    "scanDevices": "Sök enheter",
     "scanning": "Söker…",
     "noDevicesFound": "Inga enheter hittades. Ange adressen själv.",
     "devicesFoundLabel": "Hittade enheter för {field}",

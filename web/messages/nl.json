@@ -2385,7 +2385,6 @@
     "dismissFailed": "Sluiten mislukt. Probeer het opnieuw."
   },
   "boardSettingsScreen": {
-    "scanDevices": "Apparaten zoeken",
     "scanning": "Zoeken…",
     "noDevicesFound": "Geen apparaten gevonden. Voer het adres zelf in.",
     "devicesFoundLabel": "Gevonden apparaten voor {field}",

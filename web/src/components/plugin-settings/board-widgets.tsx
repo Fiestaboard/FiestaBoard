@@ -7,8 +7,10 @@
  *
  * - `mode-cards`: a string `enum` as a radiogroup of cards
  *   (`ui:options.cards: [{value, title, description}]`).
- * - `device-picker`: a text field plus "Find devices", which runs the
- *   output's discover action (`ui:options.action`) and offers what it found.
+ * - `device-picker`: a text field plus a button named by the output's
+ *   discover action (`ui:options.action`), which runs it and offers what it
+ *   found; picking one fills the field (`value_key`, read from the device's
+ *   `fields` first) and the device's other `fields` this form declares.
  *   The scan carries the page's private IPv4 address as `hint_host`, and,
  *   when the action declares a `subnet` input, a network the user may type.
  * - `tile-grid`: an array of `{row, col, ...}` items as a rows × cols grid
@@ -55,6 +57,8 @@ import { toast } from "sonner";
 import { useTranslations } from "@/i18n/translations";
 import type { ActionResult, DiscoveredDevice, OutputActionDescriptor } from "@/lib/api";
 import { declaresInput, SUBNET } from "@/lib/network-hint";
+
+import { useFieldScope } from "./field-context";
 
 /** How a widget runs an action. */
 export interface RunOptions {
@@ -177,7 +181,8 @@ interface DevicePickerFieldProps {
   name: string;
   label: string;
   value: unknown;
-  onChange: (value: unknown) => void;
+  /** Commits the address, with the found device's other settings as siblings. */
+  onChange: (value: unknown, siblings?: Record<string, unknown>) => void;
   placeholder?: string;
   action?: string;
   valueKey?: string;
@@ -186,9 +191,15 @@ interface DevicePickerFieldProps {
   required?: boolean;
 }
 
+/** A device's *key*: what the output reported under `fields` first, then the core keys. */
 function deviceText(device: DiscoveredDevice, key: string): string {
-  const raw = (device as unknown as Record<string, unknown>)[key];
+  const raw = device.fields?.[key] ?? (device as unknown as Record<string, unknown>)[key];
   return raw === undefined || raw === null ? "" : String(raw);
+}
+
+/** The found device's settings that this form also declares: what picking it fills beside the address. */
+function deviceSiblings(device: DiscoveredDevice, declared: Record<string, string>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(device.fields ?? {}).filter(([key]) => key in declared));
 }
 
 export function DevicePickerField({
@@ -206,6 +217,7 @@ export function DevicePickerField({
   const t = useTranslations("boardSettingsScreen");
   const actions = useBoardActions();
   const inUse = useContext(TileValueInUseContext);
+  const { titles } = useFieldScope();
   const [devices, setDevices] = useState<DiscoveredDevice[] | null>(null);
   const [subnet, setSubnet] = useState("");
   const declared = actions?.actions.find((a) => a.id === action);
@@ -242,7 +254,7 @@ export function DevicePickerField({
         {canScan && (
           <Button type="button" variant="secondary" onClick={() => void scan()} disabled={disabled || scanning}>
             {scanning ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Search className="mr-1 h-4 w-4" />}
-            {scanning ? t("scanning") : t("scanDevices")}
+            {scanning ? t("scanning") : declared.label}
           </Button>
         )}
       </Flex>
@@ -269,7 +281,10 @@ export function DevicePickerField({
             size="sm"
             columns="1"
             value={String(value ?? "")}
-            onValueChange={(next) => onChange(next)}
+            onValueChange={(next) => {
+              const picked = devices.find((device) => deviceText(device, valueKey) === next);
+              onChange(next, picked ? deviceSiblings(picked, titles) : undefined);
+            }}
             aria-label={t("devicesFoundLabel", { field: label })}
           >
             {devices.map((device) => {

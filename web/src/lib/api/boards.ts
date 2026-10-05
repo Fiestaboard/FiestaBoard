@@ -35,6 +35,12 @@ export interface BoardCurrentMessageResponse {
   // characters/message are null for a secondary board that has no cached
   // content yet (board-state polling is primary-only; see issue #1247).
   characters: number[][] | null;
+  /**
+   * The same frame as rich cells (FiestaUI `BoardToken[][]`), present only
+   * when FiestaBoard last sent it with cells (an LED output: colour, case and
+   * icons `characters` cannot hold).
+   */
+  cells?: BoardTokenJson[][];
   message: string | null;
   rows: number;
   cols: number;

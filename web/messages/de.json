@@ -2385,7 +2385,6 @@
     "dismissFailed": "Schließen fehlgeschlagen. Bitte erneut versuchen."
   },
   "boardSettingsScreen": {
-    "scanDevices": "Geräte suchen",
     "scanning": "Suche läuft…",
     "noDevicesFound": "Keine Geräte gefunden. Gib die Adresse selbst ein.",
     "devicesFoundLabel": "Gefundene Geräte für {field}",

@@ -3,6 +3,7 @@
 
 import { fetchApi } from "./core";
 import type { DeviceType, LineMetadata, PageType, RowConfig } from "./shared";
+import type { BoardTokenJson } from "./templates";
 
 export interface PageDeleteResponse {
   /** The id of the page that was deleted. */
@@ -163,6 +164,11 @@ export interface PagePreviewResponse {
   lines: string[];
   display_type: string;
   raw: Record<string, unknown>;
+  /**
+   * The render as rich cells (FiestaUI `BoardToken[][]`): only in a batch
+   * preview asked for a board that draws a rich character set (an LED board).
+   */
+  cells?: BoardTokenJson[][];
 }
 
 /**
@@ -231,10 +237,11 @@ export const pagesApi = {
     }),
   deletePage: (pageId: string) => fetchApi<PageDeleteResponse>(`/v1/pages/${pageId}`, { method: "DELETE" }),
   previewPage: (pageId: string) => fetchApi<PagePreviewResponse>(`/pages/${pageId}/preview`, { method: "POST" }),
-  previewPagesBatch: (pageIds: string[]) =>
+  /** `boardId`: the board the previews are for — an LED board's renders its spans and icons and answers `cells`. */
+  previewPagesBatch: (pageIds: string[], boardId?: string) =>
     fetchApi<PagePreviewBatchResponse>("/pages/preview/batch", {
       method: "POST",
-      body: JSON.stringify({ page_ids: pageIds }),
+      body: JSON.stringify(boardId ? { page_ids: pageIds, board_id: boardId } : { page_ids: pageIds }),
     }),
   getPageShareString: (pageId: string) => fetchApi<{ share_string: string }>(`/pages/${pageId}/share`),
   /** 201 with the created page itself — no envelope, same as createPage. */

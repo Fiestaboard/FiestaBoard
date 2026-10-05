@@ -127,6 +127,11 @@ class DiscoveredDevice(BaseModel):
     hostname: str | None = None
     source: str | None = None
     label: str | None = None
+    fields: dict[str, str | int | float | bool] = Field(
+        default_factory=dict,
+        description="Every other scalar the output reported for the device (a Pixoo's `host`, `mac`): a "
+        "device-picker reads its `value_key` here first, and picking the device fills the same-named settings.",
+    )
 
 
 class ActionResult(BaseModel):
