@@ -97,6 +97,39 @@ describe("Change Page thumbnails for an LED board", () => {
     );
   });
 
+  it("previews an LED display's pages as LED while a split-flap board is selected", async () => {
+    // The library shows every page; a page that fits only the Pixoo is still
+    // drawn as the Pixoo, and asked for it, while the Flagship is selected.
+    const flagship = { id: "vb1", name: "Hall", device_type: "flagship" as const, device_model: null, enabled: true };
+    board.current = flagship;
+    const flagPage: Page = {
+      ...PAGE,
+      id: "page-2",
+      device_type: "flagship",
+      grid_rows: undefined,
+      grid_cols: undefined,
+    };
+    vi.mocked(api.getPages).mockResolvedValue({ pages: [PAGE, flagPage], total: 2 });
+    vi.mocked(api.getBoardSettings).mockResolvedValue({
+      board_type: "black",
+      boards: [flagship, PIXOO],
+      devices: ["flagship", "panel"],
+    } as unknown as Awaited<ReturnType<typeof api.getBoardSettings>>);
+    vi.mocked(api.previewPagesBatch).mockImplementation(async (ids: string[], boardId?: string) =>
+      boardId ? RESPONSE : { previews: {}, total: ids.length, successful: 0 },
+    );
+
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: Wrapper });
+
+    await waitFor(() => expect(api.previewPagesBatch).toHaveBeenCalledWith(["page-1"], "px1"));
+    expect(api.previewPagesBatch).toHaveBeenCalledWith(["page-2"]);
+    await waitFor(() =>
+      expect(screen.getAllByRole("img").map((el) => el.getAttribute("aria-label"))).toContainEqual(
+        expect.stringContaining("Hot"),
+      ),
+    );
+  });
+
   it("keeps a board's rich previews apart from the split-flap ones it caches", async () => {
     const { unmount } = render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, {
       wrapper: Wrapper,

@@ -6,7 +6,8 @@ import type { DeviceType } from "@/lib/api";
 export default function NewPage() {
   const { push } = useViewTransition();
   const searchParams = useSearchParams();
-  const deviceType = (searchParams.get("device") as DeviceType) || "flagship";
+  // No `?device=`: the editor targets the display selected in the sidebar.
+  const deviceType = (searchParams.get("device") as DeviceType | null) || undefined;
   const skipDraft = searchParams.get("fresh") === "1";
 
   const back = () => push("/pages", { transitionType: "slide-down" });
