@@ -439,7 +439,12 @@ async def debug_network_diagnostics():
     # Diagnose the connection the send path actually uses: the boards[]
     # store. The legacy config.json copy is never consulted (issue #1760) —
     # with no boards entry the diagnostics run without board credentials.
-    board = runtime._primary_board_entry() or {}
+    from src.settings.board_shape import board_view
+
+    board = runtime._primary_board_entry()
+    # The output's diagnostics hook reads the connection in the settings-v3
+    # flat shape; settings v4 stores it in output_config (plan D8).
+    board = board_view(board) if board else {}
 
     try:
         return run_full_diagnostics(board)

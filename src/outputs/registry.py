@@ -29,9 +29,10 @@ what core asks the output instead of knowing its device — ``discover``,
 plugin's (``Fiestaboard/fiestaboard-output--vestaboard``); ``fiestapanel``
 declares none.
 
-Which output a board uses is **derived at load** — no settings field is
-written for an existing board (the v4 settings migration persists it later,
-plan D8). One precedence rule, :func:`resolve_output_id`:
+Which output a board uses is **stored** since settings v4 (plan D8): the
+v3 -> v4 migration wrote it for every existing board by the same precedence
+rule this module applies to any dict that does not name one (a draft, a
+legacy flat write), :func:`resolve_output_id`:
 
 1. an explicit ``output`` key wins;
 2. ``api_mode == "virtual"`` is a FiestaPanel (this covers legacy virtual

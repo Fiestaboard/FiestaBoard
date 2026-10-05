@@ -838,9 +838,9 @@ class TestResetBoardConfig:
         mock_settings_service.set_boards.assert_called_once()
         boards_arg = mock_settings_service.set_boards.call_args[0][0]
         assert len(boards_arg) == 1
-        assert boards_arg[0]["local_api_key"] == ""
-        assert boards_arg[0]["cloud_key"] == ""
-        assert boards_arg[0]["host"] == ""
+        assert boards_arg[0]["output_config"]["local_api_key"] == ""
+        assert boards_arg[0]["output_config"]["cloud_key"] == ""
+        assert boards_arg[0]["output_config"]["host"] == ""
 
     def test_reset_board_config_no_service(self, client, mock_config_manager, mock_settings_service):
         """Reset when service is None still succeeds."""

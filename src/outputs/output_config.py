@@ -19,8 +19,10 @@ is secret, so the whole ``output_config`` is withheld (masked as ``"***"``)
 and an echoed ``"***"`` keeps the stored config untouched: unknown is
 treated as secret, never shown.
 
-Only output-plugin boards carry an ``output_config``; legacy boards'
-flat credential fields keep their own masking (``BOARD_SENSITIVE_FIELDS``).
+Since settings v4 every board carries an ``output_config``. These rules are
+an output *plugin's*; a Vestaboard's (the first-party output core still
+interprets, its tiles matched by endpoint) are
+:mod:`src.outputs.vestaboard.connection`'s, and a FiestaPanel's is empty.
 """
 
 from __future__ import annotations

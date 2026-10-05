@@ -79,10 +79,10 @@ ApiMode = Literal["local", "cloud", "virtual"]
 
 VALID_API_MODES: tuple[str, ...] = get_args(ApiMode)
 
-# The in-tree outputs (src/outputs/registry.py VESTABOARD / FIESTAPANEL),
-# which a board derives rather than stores. Spelled here because the outputs
-# package imports this module; tests/test_output_plugin_e2e.py holds the two
-# lists equal.
+# The first-party outputs (src/outputs/registry.py VESTABOARD / FIESTAPANEL),
+# whose board settings core still projects to the settings-v3 flat shape.
+# Spelled here because the outputs package imports this module;
+# tests/test_output_plugin_e2e.py holds the two lists equal.
 BUILTIN_OUTPUT_IDS = frozenset({"vestaboard", "fiestapanel"})
 
 # Which glyph a board's character-code-62 flap physically carries (issue #1657).
@@ -100,63 +100,60 @@ Code62Glyph = Literal["degree", "heart"]
 
 CODE62_GLYPHS = ("degree", "heart")
 
-# Sensitive per-tile fields for local note arrays (masked in API responses)
-TILE_SENSITIVE_FIELDS = {"local_api_key"}
+#: The settings-v3 flat connection fields of a Vestaboard board. Settings v4
+#: (plan D8) stores them in the board's ``output_config``; a dict that still
+#: carries them at the top level is a legacy write (or a v3 file), folded in
+#: by :meth:`BoardInstance.from_dict`. The interpretation of the fields is the
+#: Vestaboard's (:mod:`src.outputs.vestaboard.connection`).
+LEGACY_CONNECTION_FIELDS: tuple[str, ...] = (
+    "api_mode",
+    "host",
+    "port",
+    "local_api_key",
+    "cloud_key",
+    "note_array_token",
+    "tiles",
+)
+
+_VESTABOARD = "vestaboard"
+_FIESTAPANEL = "fiestapanel"
 
 
-def normalize_note_array_tiles(tiles) -> list[dict]:
-    """Normalize a local note-array tile list.
+def derive_output_id(board) -> str:
+    """The output a board dict names, by the settings-v4 precedence rule.
 
-    Each tile addresses one physical Note over the local API:
-    ``{"row", "col", "host", "port", "local_api_key", "enabled"}`` with
-    ``row``/``col`` 0-indexed in note coordinates.
-
-    Drops non-dict entries and entries without a usable row/col, coerces field
-    types, and dedupes by (row, col) keeping the last occurrence. Does NOT
-    filter to the board's current notes_wide/notes_tall — out-of-range tiles
-    are preserved in storage so shrinking and re-growing an array never
-    destroys hard-to-reobtain local API keys. Filter at point of use via
-    BoardInstance.configured_tiles().
+    An explicit ``output`` wins; else ``api_mode == "virtual"`` is a
+    FiestaPanel (this covers legacy virtual note-array panels, which predate
+    the ``panel`` device type); else a Vestaboard. The same rule as
+    :func:`src.outputs.registry.resolve_output_id`, spelled here because the
+    outputs package imports this module.
     """
-    if not isinstance(tiles, list):
-        return []
-    by_pos: dict[tuple[int, int], dict] = {}
-    for tile in tiles:
-        if not isinstance(tile, dict):
-            continue
-        try:
-            row = int(tile.get("row"))
-            col = int(tile.get("col"))
-        except (TypeError, ValueError):
-            continue
-        if isinstance(tile.get("row"), bool) or isinstance(tile.get("col"), bool):
-            continue
-        if row < 0 or col < 0:
-            continue
-        port = tile.get("port")
-        if not isinstance(port, int) or isinstance(port, bool):
-            try:
-                port = int(port)
-            except (TypeError, ValueError):
-                port = 7000
-        by_pos[(row, col)] = {
-            "row": row,
-            "col": col,
-            "host": str(tile.get("host") or "").strip(),
-            "port": port,
-            "local_api_key": str(tile.get("local_api_key") or "").strip(),
-            "enabled": bool(tile.get("enabled", True)),
-        }
-    return [by_pos[key] for key in sorted(by_pos)]
+    explicit = board.get("output")
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    if str(board.get("api_mode") or "").lower() == "virtual":
+        return _FIESTAPANEL
+    return _VESTABOARD
 
 
 @dataclass
 class BoardInstance:
-    """A configured Vestaboard instance.
+    """A configured board: identity, display, geometry, and its output.
 
-    Represents a single physical board with its own identity,
-    device type, display color, and connection settings.
-    Each board has its own API credentials and connection mode.
+    Settings v4 (plan D8): core keeps what is device-independent — identity,
+    display (colour, code-62 glyph), flags, content geometry — plus the
+    board's ``output`` (the output plugin that drives it) and
+    ``output_config`` (that plugin's settings for it). How a Vestaboard is
+    reached lives in its ``output_config``
+    (:class:`~src.outputs.vestaboard.connection.VestaboardConnection`); a
+    FiestaPanel's is empty; an output plugin's follows its manifest's
+    ``settings_schema``.
+
+    The read-only ``api_mode`` / ``host`` / ``port`` / ``local_api_key`` /
+    ``cloud_key`` / ``note_array_token`` / ``tiles`` properties are the
+    settings-v3 flat view, projected from ``output_config`` for the readers
+    and public API shapes that still speak it (D8 "Public API shapes
+    unchanged"). Construct from flat fields with :meth:`from_dict`.
     """
 
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -186,12 +183,6 @@ class BoardInstance:
     # the schedule only affects the schedule-driven rotation.
     paused: bool = False
     schedule_enabled: bool = False  # Per-board: use schedule mode for this board
-    api_mode: str = "local"
-    host: str = ""
-    port: int = 7000  # Local API port (default Vestaboard); used for multi-board mock e2e
-    local_api_key: str = ""
-    cloud_key: str = ""
-    note_array_token: str = ""  # X-Vestaboard-Token for note-array boards
     notes_wide: int = 1
     notes_tall: int = 1
     # Explicit grid for device_type == "panel" (FiestaPanel virtual boards are
@@ -199,26 +190,15 @@ class BoardInstance:
     # every other device type, whose size is implied by the type/notes.
     grid_rows: int | None = None
     grid_cols: int | None = None
-    # Local array mode: per-tile local API endpoints, one per physical Note.
-    # Only meaningful when device_type == "note_array" and api_mode == "local".
-    tiles: list = field(default_factory=list)
-    # The output PLUGIN that drives this board (plan D2), and the board's
-    # settings for it (its manifest's ``output.settings_schema``). Only an
-    # output plugin's id is stored: the built-ins ("vestaboard",
-    # "fiestapanel") stay derived at load (src/outputs/registry.py) until the
-    # settings v4 migration persists them, so a client echoing the derived
-    # id back changes nothing on disk. Both are absent from ``to_dict`` for
-    # every other board, which therefore saves byte-identically.
-    output: str | None = None
-    output_config: dict | None = None
+    # The output that drives this board (plan D2) and its settings for it.
+    # Stored for every board since settings v4 (D8): "vestaboard",
+    # "fiestapanel", or an output plugin's id.
+    output: str = _VESTABOARD
+    output_config: dict = field(default_factory=dict)
     # The FiestaUI device model an output plugin's board was created as
-    # (POST /outputs/{output_id}/boards). Output-plugin boards only, like
-    # output/output_config: absent from to_dict for every other board.
+    # (POST /outputs/{output_id}/boards). Output-plugin boards only: absent
+    # from to_dict for every other board.
     device_model: str | None = None
-
-    @staticmethod
-    def _names_output_plugin(output) -> bool:
-        return isinstance(output, str) and bool(output.strip()) and output.strip() not in BUILTIN_OUTPUT_IDS
 
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
@@ -227,18 +207,14 @@ class BoardInstance:
             self.board_color = "black"
         if self.code62_glyph not in CODE62_GLYPHS:
             self.code62_glyph = "degree"
-        if self.api_mode not in VALID_API_MODES:
-            self.api_mode = "local"
-        # "panel" is the FiestaPanel virtual board's grid, not hardware: no
-        # Vestaboard accepts an arbitrary rows × cols frame. A physical board
-        # claiming it falls back to the default like any unknown type.
-        #
-        # A board an output PLUGIN drives is exempt: "panel" is how its custom
-        # content grid is stored (an LED matrix is any rows × cols, plan D8),
-        # and coercing it to flagship would silently make a non-Vestaboard
-        # board a Vestaboard-shaped one.
-        plugin_output = self._names_output_plugin(self.output)
-        if self.device_type == "panel" and self.api_mode != "virtual" and not plugin_output:
+        self.output = self.output.strip() if isinstance(self.output, str) and self.output.strip() else _VESTABOARD
+        # "panel" is a free rows × cols content grid: a FiestaPanel's, or an
+        # output plugin's (an LED matrix is any rows × cols, plan D8). No
+        # Vestaboard accepts an arbitrary rows × cols frame, so a Vestaboard
+        # claiming it falls back to the default like any unknown type —
+        # coercing a plugin's board instead would silently make a
+        # non-Vestaboard board a Vestaboard-shaped one.
+        if self.device_type == "panel" and self.output == _VESTABOARD:
             self.device_type = "flagship"
         if not isinstance(self.enabled, bool):
             self.enabled = bool(self.enabled)
@@ -272,17 +248,70 @@ class BoardInstance:
         else:
             self.grid_rows = None
             self.grid_cols = None
-        # Tiles only make sense on note-array boards
-        self.tiles = normalize_note_array_tiles(self.tiles) if self.device_type == "note_array" else []
-        if not plugin_output:
-            self.output = None
-            self.output_config = None
+        if self.output == _VESTABOARD:
+            from src.outputs.vestaboard.connection import VestaboardConnection
+
+            self.output_config = VestaboardConnection.from_config(self.output_config, self.device_type).to_config()
+            self.device_model = None
+        elif self.output == _FIESTAPANEL:
+            # A panel renders to memory: it has no connection to configure.
+            self.output_config = {}
             self.device_model = None
         else:
-            self.output = self.output.strip()
             self.output_config = dict(self.output_config) if isinstance(self.output_config, dict) else {}
             model = self.device_model.strip() if isinstance(self.device_model, str) else ""
             self.device_model = model or None
+
+    # --- the Vestaboard connection, and its settings-v3 flat view ---------------------
+
+    @property
+    def connection(self):
+        """This board's :class:`~src.outputs.vestaboard.connection.VestaboardConnection`,
+        or ``None`` when it is not a Vestaboard."""
+        if self.output != _VESTABOARD:
+            return None
+        from src.outputs.vestaboard.connection import VestaboardConnection
+
+        return VestaboardConnection.from_config(self.output_config, self.device_type)
+
+    def _flat(self, name: str):
+        connection = self.connection
+        if connection is not None:
+            return getattr(connection, name)
+        if name == "api_mode" and self.output == _FIESTAPANEL:
+            return "virtual"
+        from src.outputs.vestaboard.connection import CONNECTION_DEFAULTS
+
+        default = CONNECTION_DEFAULTS[name]
+        return list(default) if isinstance(default, list) else default
+
+    @property
+    def api_mode(self) -> str:
+        return self._flat("api_mode")
+
+    @property
+    def host(self) -> str:
+        return self._flat("host")
+
+    @property
+    def port(self) -> int:
+        return self._flat("port")
+
+    @property
+    def local_api_key(self) -> str:
+        return self._flat("local_api_key")
+
+    @property
+    def cloud_key(self) -> str:
+        return self._flat("cloud_key")
+
+    @property
+    def note_array_token(self) -> str:
+        return self._flat("note_array_token")
+
+    @property
+    def tiles(self) -> list:
+        return self._flat("tiles")
 
     @property
     def effective_code62_glyph(self) -> str:
@@ -302,33 +331,19 @@ class BoardInstance:
 
     @property
     def uses_local_tiles(self) -> bool:
-        """True when this note array is driven tile-by-tile over the local API.
-
-        Requires BOTH api_mode == "local" and at least one saved tile: legacy
-        array dicts created without an explicit api_mode default to "local"
-        but carry only a cloud token — those must keep driving via the cloud.
-        """
-        return is_note_array(self.device_type) and self.api_mode == "local" and bool(self.tiles)
+        """True when this Vestaboard note array is driven tile-by-tile over the
+        local API (:meth:`VestaboardConnection.uses_local_tiles`)."""
+        connection = self.connection
+        return connection is not None and connection.uses_local_tiles(self.device_type)
 
     @property
     def is_connection_configured(self) -> bool:
-        if self.api_mode == "virtual":
+        if self.output == _FIESTAPANEL:
             # Virtual boards (FiestaPanel) render to memory; there is no
             # connection to configure.
             return True
-        if is_note_array(self.device_type):
-            if self.uses_local_tiles:
-                # A partial array is usable: assigned tiles receive their
-                # slice, unassigned slots simply stay dark. Requiring every
-                # slot would flip a half-assembled array back to
-                # "unconfigured" and could re-trigger first-run detection.
-                return bool(self.configured_tiles())
-            # notes_wide/notes_tall are always >= 1 (clamped in __post_init__),
-            # so configuration hinges solely on having a token.
-            return bool(self.note_array_token)
-        if self.api_mode == "cloud":
-            return bool(self.cloud_key)
-        return bool(self.local_api_key and self.host)
+        connection = self.connection
+        return connection is not None and connection.is_configured(self.device_type, self.notes_wide, self.notes_tall)
 
     @property
     def has_connection_attempt(self) -> bool:
@@ -341,43 +356,43 @@ class BoardInstance:
         as a per-board error (#1813), never flip a working install back
         into the setup wizard (#1760).
         """
-        if self.api_mode == "virtual":
+        if self.output == _FIESTAPANEL:
             return True
-        return bool(self.host or self.local_api_key or self.cloud_key or self.note_array_token or self.tiles)
+        connection = self.connection
+        return connection is not None and connection.has_attempt()
 
     def configured_tiles(self) -> list[dict]:
-        """Return tiles that are in-range for the current W×H, enabled, and credentialed.
-
-        Single source of truth for "which tiles can actually be driven" —
-        used by the client factory, the configured check, and identify.
-        """
-        return [
-            t
-            for t in self.tiles
-            if t["row"] < self.notes_tall
-            and t["col"] < self.notes_wide
-            and t["enabled"]
-            and t["host"]
-            and t["local_api_key"]
-        ]
+        """Tiles that are in-range for the current W×H, enabled, and credentialed
+        (:meth:`VestaboardConnection.configured_tiles`)."""
+        connection = self.connection
+        return connection.configured_tiles(self.notes_wide, self.notes_tall) if connection is not None else []
 
     def to_dict(self) -> dict:
+        """The board as settings v4 stores it."""
         data = asdict(self)
-        if self.output is None:
-            del data["output"]
-            del data["output_config"]
         if self.device_model is None:
             del data["device_model"]
         return data
 
     @classmethod
     def from_dict(cls, data: dict) -> "BoardInstance":
-        port = data.get("port")
-        if port is not None and not isinstance(port, int):
-            try:
-                port = int(port)
-            except (TypeError, ValueError):
-                port = 7000
+        """A board from a stored or incoming dict, settings v3 or v4.
+
+        The output follows the precedence rule (:func:`derive_output_id`).
+        For a Vestaboard, flat connection fields (a settings-v3 board, or a
+        write in the legacy flat shape) are folded into ``output_config``,
+        and win over a value the dict's ``output_config`` also carries: a
+        dict carrying both halves is a flat write over a stored board. A
+        caller that has the stored board and must honour whichever half the
+        client actually changed merges first
+        (:func:`src.settings.board_shape.merge_board_write`). Flat fields mean
+        nothing to any other output and are dropped.
+        """
+        output = derive_output_id(data)
+        config = data.get("output_config")
+        if output == _VESTABOARD:
+            flat = {name: data[name] for name in LEGACY_CONNECTION_FIELDS if name in data}
+            config = {**(config if isinstance(config, dict) else {}), **flat}
         return cls(
             id=data.get("id", str(uuid.uuid4())),
             name=data.get("name", ""),
@@ -391,19 +406,12 @@ class BoardInstance:
             enabled=data.get("enabled", True),
             paused=data.get("paused", False),
             schedule_enabled=data.get("schedule_enabled", False),
-            api_mode=data.get("api_mode", "local"),
-            host=data.get("host", ""),
-            port=port if port is not None else 7000,
-            local_api_key=data.get("local_api_key", ""),
-            cloud_key=data.get("cloud_key", ""),
-            note_array_token=(data.get("note_array_token") or "").strip(),
             notes_wide=data.get("notes_wide", 1),
             notes_tall=data.get("notes_tall", 1),
             grid_rows=data.get("grid_rows"),
             grid_cols=data.get("grid_cols"),
-            tiles=data.get("tiles") or [],
-            output=data.get("output"),
-            output_config=data.get("output_config"),
+            output=output,
+            output_config=config,
             device_model=data.get("device_model"),
         )
 
