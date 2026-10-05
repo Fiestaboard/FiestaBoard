@@ -431,6 +431,55 @@ describe("SidebarSettingsMenu update action", () => {
   });
 });
 
+describe("SidebarSettingsMenu trigger notice", () => {
+  const trigger = () => document.querySelector<HTMLElement>('[data-slot="sidebar-account-trigger"]')!;
+
+  beforeEach(() => {
+    localStorage.clear();
+    mockAuth(SIGNED_IN);
+  });
+
+  it("puts the notice it is handed on the trigger, as a dot and as words", async () => {
+    render(<SidebarSettingsMenu notice="Update available" />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    // The dot alone is colour and position; the description is what a
+    // screen reader hears, and it has to say the same thing.
+    expect(trigger()).toHaveAccessibleDescription("Update available");
+    expect(trigger().querySelector('[data-slot="sidebar-account-notice"]')).not.toBeNull();
+  });
+
+  it("draws no dot without a notice", async () => {
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    expect(trigger()).toHaveAccessibleDescription("");
+    expect(trigger().querySelector('[data-slot="sidebar-account-notice"]')).toBeNull();
+  });
+
+  it("does not work out a notice of its own when an update is waiting", async () => {
+    // The Sidebar owns the rule (one decision for the rail AND the mobile
+    // hamburger). A second copy in here would let the two drift apart.
+    server.use(
+      http.get("/api/system/update/status", () =>
+        HttpResponse.json({ update_available: true, managed_externally: false }),
+      ),
+      http.get("/api/system/update-check", () =>
+        HttpResponse.json({ update_available: true, latest_version: "8.39.0" }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    // Wait for the update to land (the menu item proves it did) before
+    // asserting the trigger stayed quiet.
+    const menu = await openMenu(user);
+    await within(menu).findByRole("menuitem", { name: /Update to 8\.39\.0/ });
+    expect(trigger()).toHaveAccessibleDescription("");
+  });
+});
+
 describe("SidebarSettingsMenu version row", () => {
   beforeEach(() => {
     pushMock.mockReset();

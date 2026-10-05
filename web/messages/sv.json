@@ -91,7 +91,7 @@
     "dark": "Mörkt",
     "system": "System",
     "devSuffix": "utvecklingsbygge",
-    "updateAvailable": "Uppdatering tillgänglig: {version}",
+    "updateAvailable": "Uppdatering tillgänglig",
     "updateTo": "Uppdatera till {version}",
     "about": "Om FiestaBoard",
     "signOut": "Logga ut"

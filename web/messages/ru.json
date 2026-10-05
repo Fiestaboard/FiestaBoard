@@ -91,7 +91,7 @@
     "dark": "Тёмная",
     "system": "Системная",
     "devSuffix": "сборка для разработки",
-    "updateAvailable": "Доступно обновление: {version}",
+    "updateAvailable": "Доступно обновление",
     "updateTo": "Обновить до {version}",
     "about": "О FiestaBoard",
     "signOut": "Выйти"

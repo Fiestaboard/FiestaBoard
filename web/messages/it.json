@@ -91,7 +91,7 @@
     "dark": "Scuro",
     "system": "Sistema",
     "devSuffix": "build di sviluppo",
-    "updateAvailable": "Aggiornamento disponibile: {version}",
+    "updateAvailable": "Aggiornamento disponibile",
     "updateTo": "Aggiorna alla {version}",
     "about": "Informazioni su FiestaBoard",
     "signOut": "Esci"

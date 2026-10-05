@@ -254,6 +254,78 @@ describe("NavigationSidebar settings shortcut", () => {
   });
 });
 
+describe("NavigationSidebar update notice", () => {
+  /** The rail's account trigger. The mobile drawer has none — its rows render inline. */
+  const accountTrigger = () =>
+    within(screen.getByRole("complementary", { name: "Main navigation" })).getByRole("button", {
+      name: "More",
+    });
+
+  /** Serve an update state, and report once the sidebar has asked for both halves of it. */
+  function mockUpdate({ available, managedExternally }: { available: boolean; managedExternally: boolean }) {
+    const served = { status: false, check: false };
+    server.use(
+      http.get("/api/system/update/status", () => {
+        served.status = true;
+        return HttpResponse.json({ updater_available: true, managed_externally: managedExternally });
+      }),
+      http.get("/api/system/update-check", () => {
+        served.check = true;
+        return HttpResponse.json({ update_available: available, latest_version: available ? "8.39.0" : "8.38.9" });
+      }),
+    );
+    return async () => {
+      await waitFor(() => expect(served).toEqual({ status: true, check: true }));
+      // One more turn for React Query to hand the responses to the render.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    };
+  }
+
+  beforeEach(() => {
+    mockPathname.mockReturnValue("/");
+  });
+
+  it("marks the account trigger when an update is waiting", async () => {
+    mockUpdate({ available: true, managedExternally: false });
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    // The "Update to …" item was already in the menu; what was missing is
+    // any sign on the closed button that the menu was worth opening.
+    await waitFor(() => expect(accountTrigger()).toHaveAccessibleDescription("Update available"));
+  });
+
+  it("marks the closed hamburger when an update is waiting", async () => {
+    mockUpdate({ available: true, managedExternally: false });
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    // The drawer has no trigger to wear the dot, so the same notice goes on
+    // the one control that opens it.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Open menu" })).toHaveAccessibleDescription("Update available"),
+    );
+  });
+
+  it("marks nothing when the install is current", async () => {
+    const settled = mockUpdate({ available: false, managedExternally: false });
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await settled();
+    expect(accountTrigger()).toHaveAccessibleDescription("");
+    expect(screen.getByRole("button", { name: "Open menu" })).toHaveAccessibleDescription("");
+  });
+
+  it("marks nothing when an external supervisor owns updates", async () => {
+    // The Home Assistant add-on case: FiestaBoard cannot apply the update, so
+    // a dot pointing at it would be an offer it cannot honour.
+    const settled = mockUpdate({ available: true, managedExternally: true });
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await settled();
+    expect(accountTrigger()).toHaveAccessibleDescription("");
+    expect(screen.getByRole("button", { name: "Open menu" })).toHaveAccessibleDescription("");
+  });
+});
+
 describe("NavigationSidebar collections link", () => {
   beforeEach(() => {
     mockPathname.mockReturnValue("/");
