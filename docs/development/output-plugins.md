@@ -238,7 +238,7 @@ FiestaBoard flattens the set once, at load. Your plugin reads the result as `sel
 
 Two choices change how an LED matrix draws tiles and block spans. Unlike `appearance`, both change the bytes a device is sent:
 
-- **`tileGap`**: `"gap"` (the default) keeps the 1-pixel gutter between cells unlit. `"fill"` lights the gutter between two neighbouring cells that are lit in the same color (two color tiles, two cells of one block span, or a tile beside a block of its color), so a run of tiles reads as one solid bar. A corner pixel lights only when all four cells around it match. Different colors never merge, and the grid does not move.
+- **`tileGap`**: `"gap"` (the default) keeps the 1-pixel gutter between cells unlit. `"fill"` lights the gutter between two neighboring cells that are lit in the same color (two color tiles, two cells of one block span, or a tile beside a block of its color), so a run of tiles reads as one solid bar. A corner pixel lights only when all four cells around it match. Different colors never merge, and the grid does not move.
 - **`blockPadding`**: `0` (the default) draws a block span's background over its cells only. `1` grows it one pixel into the gutters and margin on every side, so text on a block always has a border of its background. It never reaches into another cell or past the matrix, and a pixel between two different colors stays unlit.
 
 A model limits the choices with `layoutOptions`, each field `{"allowed": [...], "default": ...}`:
