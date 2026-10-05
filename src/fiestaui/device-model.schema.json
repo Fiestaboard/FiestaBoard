@@ -6,16 +6,27 @@
   "type": "object",
   "required": ["id", "label", "technology", "family", "geometry", "color", "charset", "animation"],
   "additionalProperties": false,
-  "if": { "properties": { "technology": { "const": "led_matrix" } } },
-  "then": {
-    "properties": {
-      "geometry": {
-        "type": "object",
-        "properties": { "kind": { "const": "pixels" } },
-        "description": "An led_matrix model is measured in pixels."
+  "allOf": [
+    {
+      "if": { "properties": { "technology": { "const": "led_matrix" } } },
+      "then": {
+        "properties": {
+          "geometry": {
+            "type": "object",
+            "properties": { "kind": { "const": "pixels" } },
+            "description": "An led_matrix model is measured in pixels."
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "technology": { "const": "split_flap" } } },
+      "then": {
+        "properties": { "layoutOptions": false },
+        "description": "A split-flap board has no LED layout, so it declares no layoutOptions."
       }
     }
-  },
+  ],
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
     "label": { "type": "string", "minLength": 1 },
@@ -102,6 +113,31 @@
       }
     },
     "font": { "enum": ["3x5", "5x7"] },
+    "layoutOptions": {
+      "type": "object",
+      "description": "LED only. CHANGES DEVICE BYTES (unlike appearance): which values of the LED layout options a board on this model may choose, and its default. A field left out is unrestricted — every value allowed, the renderer's default (tileGap \"gap\", blockPadding 0) — so a plugin published before the options existed renders exactly as before. `default` must be one of `allowed`; left out, it is the renderer's default when allowed, else the first allowed value. tileGap \"fill\" lights the 1-px gutter between two same-colour lit fields (tiles, blocks); blockPadding 1 extends a block's field one pixel into the gutters and margin. The exact pixel rules are the design spec's §7.6 and FiestaUI's layoutLedCells.",
+      "additionalProperties": false,
+      "properties": {
+        "tileGap": {
+          "type": "object",
+          "required": ["allowed"],
+          "additionalProperties": false,
+          "properties": {
+            "allowed": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["gap", "fill"] } },
+            "default": { "enum": ["gap", "fill"] }
+          }
+        },
+        "blockPadding": {
+          "type": "object",
+          "required": ["allowed"],
+          "additionalProperties": false,
+          "properties": {
+            "allowed": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": [0, 1] } },
+            "default": { "enum": [0, 1] }
+          }
+        }
+      }
+    },
     "appearance": {
       "type": "object",
       "description": "PREVIEW-ONLY: how the device looks in a preview. Nothing here ever reaches the bytes a device is sent — font, letter case and monochrome are layout options, not appearance. The plugin owns the defaults; a board may override only the fields `options` lists.",

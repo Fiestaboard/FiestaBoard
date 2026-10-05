@@ -26,7 +26,7 @@ import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { queryKeys } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
-import type { DeviceType, PageCreate, SetTemporaryOverrideRequest } from "@/lib/api";
+import type { BoardLedLayout, DeviceType, PageCreate, SetTemporaryOverrideRequest } from "@/lib/api";
 import { api } from "@/lib/api";
 import { resolveDimensions } from "@/lib/board-dimensions";
 
@@ -56,6 +56,8 @@ interface ComposePageDialogProps {
   targetBoardName?: string;
   /** The destination board's device model: an LED board previews as its LED matrix. */
   model?: DeviceModel | null;
+  /** The destination board's LED layout choices (`led_layout`), drawn with the model. */
+  ledLayout?: BoardLedLayout | null;
 }
 
 /**
@@ -83,6 +85,7 @@ export function ComposePageDialog({
   code62Glyph,
   targetBoardName,
   model = null,
+  ledLayout = null,
 }: ComposePageDialogProps) {
   const t = useTranslations("composeDialog");
   const queryClient = useQueryClient();
@@ -230,7 +233,7 @@ export function ComposePageDialog({
             <Text size="xs" tone="muted">
               {t("previewLabel")}
             </Text>
-            <DevicePreview model={model} message={preview?.rendered ?? ""} size="sm">
+            <DevicePreview model={model} ledLayout={ledLayout} message={preview?.rendered ?? ""} size="sm">
               <ScaledBoardDisplay
                 message={preview?.rendered ?? ""}
                 size="sm"

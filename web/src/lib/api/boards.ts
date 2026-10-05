@@ -213,6 +213,17 @@ export interface NoteArrayTile {
   enabled?: boolean;
 }
 
+/**
+ * An LED board's layout choices (plan D23), the values FiestaUI's
+ * `tileGap` / `blockPadding` take: `"fill"` lights the gutter between
+ * same-colour tiles and block cells; `1` grows a block span's background one
+ * pixel into the gutters and margin.
+ */
+export interface BoardLedLayout {
+  tile_gap: "gap" | "fill";
+  block_padding: 0 | 1;
+}
+
 export interface BoardInstance {
   id: string;
   name: string;
@@ -277,6 +288,13 @@ export interface BoardInstance {
   device_model_spec?: DeviceModel | null;
   /** The character set the board draws with, a FiestaUI id; `null` when unknown. Derived, never stored. */
   charset?: string | null;
+  /**
+   * An LED board's byte-changing layout choices, resolved against its model
+   * (its `output_config` `tile_gap` / `block_padding` when the model allows
+   * them, else the model's defaults), so its preview draws what the device
+   * is sent. Sent only for an LED board. Derived, never stored.
+   */
+  led_layout?: BoardLedLayout | null;
   /**
    * The board's output settings, shaped by its output's settings schema
    * (`GET /outputs`); every secret reads back as `"***"`, and echoing `"***"`

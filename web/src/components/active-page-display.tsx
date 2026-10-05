@@ -844,6 +844,7 @@ export function ActivePageDisplay() {
                 matrix; a split-flap board exactly as before. */}
             <DevicePreview
               model={resolveBoardModel(currentBoard ?? boardSettings?.boards?.[0])}
+              ledLayout={(currentBoard ?? boardSettings?.boards?.[0])?.led_layout}
               message={displayMessage}
               cells={displayCells}
               size="md"
@@ -962,6 +963,7 @@ export function ActivePageDisplay() {
         gridRows={composeTargetBoard?.grid_rows}
         gridCols={composeTargetBoard?.grid_cols}
         model={resolveBoardModel(composeTargetBoard)}
+        ledLayout={composeTargetBoard?.led_layout}
         boardColor={composeTargetBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
         code62Glyph={resolveCode62Glyph(
           composeTargetBoard?.device_type ?? getEffectiveDeviceType(boardSettings),

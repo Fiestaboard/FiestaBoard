@@ -203,19 +203,11 @@ class TestLockfile:
         with pytest.raises(LockError, match="lock_version"):
             parse_lock({"lock_version": 2, "outputs": {}})
 
-    def test_the_repos_lock_is_valid_and_pins_pixoo_as_data_only(self):
-        entries = load_lock(ROOT / LOCKFILE)
-        pixoo = entries["divoom_pixoo"]
-        assert pixoo.repository == "https://github.com/Fiestaboard/fiestaboard-output--divoom-pixoo"
-        assert pixoo.commit == "01e9ee21548012a007ef7aef78cdfe1a16cad678"
-        # The repo holds device data only (no __init__.py / manifest.json yet):
-        # it must never be loaded or auto-installed as a plugin.
-        assert pixoo.loadable is False
-
-    @pytest.mark.parametrize("output_id", ["vestaboard", "fiestapanel"])
+    @pytest.mark.parametrize("output_id", ["vestaboard", "fiestapanel", "divoom_pixoo"])
     def test_the_repos_lock_pins_the_first_party_outputs_as_loadable(self, output_id):
         entry = load_lock(ROOT / LOCKFILE)[output_id]
-        assert entry.repository == f"https://github.com/Fiestaboard/fiestaboard-output--{output_id}"
+        repo = output_id.replace("_", "-")
+        assert entry.repository == f"https://github.com/Fiestaboard/fiestaboard-output--{repo}"
         assert (entry.output_api, entry.loadable) == (1, True)
 
     def test_the_image_builds_the_seed_with_the_script_into_the_default_dir(self):

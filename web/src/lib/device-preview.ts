@@ -19,6 +19,7 @@ import {
   tryResolveDeviceModel,
 } from "@fiestaboard/ui";
 
+import type { BoardLedLayout } from "@/lib/api";
 import { pagesCompatibleWithBoard, type SizedEntity } from "@/lib/board-dimensions";
 
 /**
@@ -64,6 +65,25 @@ export function resolveBoardModel(board: BoardModelFields | null | undefined): D
 /** True when the model is an LED matrix — the boards a split-flap renderer cannot draw. */
 export function isLedModel(model: DeviceModel | null | undefined): model is DeviceModel {
   return model?.technology === "led_matrix";
+}
+
+/** `DisplayPreview`'s LED layout props (FiestaUI `tileGap` / `blockPadding`). */
+export interface LedLayoutProps {
+  tileGap?: "gap" | "fill";
+  blockPadding?: 0 | 1;
+}
+
+/**
+ * An LED board's layout choices (`led_layout` from the API) as
+ * `DisplayPreview` props, so the preview draws the bytes the device is sent:
+ * the gutter between same-colour tiles filled (`tileGap: "fill"`), a block's
+ * background grown a pixel (`blockPadding: 1`). Empty for a board that sends
+ * none, which draws its model's defaults. A FiestaUI release without the two
+ * props ignores them.
+ */
+export function ledLayoutProps(layout: BoardLedLayout | null | undefined): LedLayoutProps {
+  if (!layout) return {};
+  return { tileGap: layout.tile_gap, blockPadding: layout.block_padding };
 }
 
 /**

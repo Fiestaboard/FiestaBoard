@@ -32,7 +32,14 @@ import { StaticBoardDisplay } from "@/components/static-board-display";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { Collection, DeviceType, Page, PagePreviewBatchEntry, PagePreviewResponse } from "@/lib/api";
+import type {
+  BoardLedLayout,
+  Collection,
+  DeviceType,
+  Page,
+  PagePreviewBatchEntry,
+  PagePreviewResponse,
+} from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { boardForShape, isLedModel, resolveBoardModel } from "@/lib/device-preview";
@@ -119,6 +126,7 @@ const PageButtonPreview = memo(
     gridRows,
     gridCols,
     model = null,
+    ledLayout = null,
   }: {
     preview: PagePreviewResponse | null;
     isLoading: boolean;
@@ -131,6 +139,8 @@ const PageButtonPreview = memo(
     gridCols?: number;
     /** The current board's device model, when the page fits that board: an LED board's pages preview as LED. */
     model?: DeviceModel | null;
+    /** The board's LED layout choices (`led_layout`), drawn with the model. */
+    ledLayout?: BoardLedLayout | null;
   }) {
     const t = useTranslations("pageGridSelector");
     const ref = useRef<HTMLDivElement>(null);
@@ -185,6 +195,7 @@ const PageButtonPreview = memo(
           // made this a StaticBoardDisplay in the first place.
           <DevicePreview
             model={model}
+            ledLayout={ledLayout}
             message={preview?.message || null}
             cells={model ? (preview?.cells as BoardCellGrid | undefined) : undefined}
             size="sm"
@@ -217,7 +228,8 @@ const PageButtonPreview = memo(
       prevProps.notesTall === nextProps.notesTall &&
       prevProps.gridRows === nextProps.gridRows &&
       prevProps.gridCols === nextProps.gridCols &&
-      prevProps.model === nextProps.model
+      prevProps.model === nextProps.model &&
+      prevProps.ledLayout === nextProps.ledLayout
     );
   },
 );
@@ -234,6 +246,7 @@ const PageButton = memo(
     showActiveIndicator = true,
     boardType = "black",
     model = null,
+    ledLayout = null,
   }: {
     page: Page;
     preview: PagePreviewResponse | null;
@@ -244,6 +257,8 @@ const PageButton = memo(
     showActiveIndicator?: boolean;
     boardType?: "black" | "white" | null;
     model?: DeviceModel | null;
+    /** The board's LED layout choices (`led_layout`), drawn with the model. */
+    ledLayout?: BoardLedLayout | null;
   }) {
     const TypeIcon = LayoutTemplate;
 
@@ -316,6 +331,7 @@ const PageButton = memo(
             gridRows={page.grid_rows ?? undefined}
             gridCols={page.grid_cols ?? undefined}
             model={model}
+            ledLayout={ledLayout}
           />
         </Box>
 
@@ -335,7 +351,8 @@ const PageButton = memo(
       prevProps.page.updated_at === nextProps.page.updated_at &&
       prevProps.showActiveIndicator === nextProps.showActiveIndicator &&
       prevProps.boardType === nextProps.boardType &&
-      prevProps.model === nextProps.model
+      prevProps.model === nextProps.model &&
+      prevProps.ledLayout === nextProps.ledLayout
     );
   },
 );
@@ -659,12 +676,19 @@ export function PageGridSelector({
   // LED display (an output plugin's, such as a Pixoo) shows as LED in the
   // library even while another board is selected.
   const previewTargets = useMemo(() => {
-    const out: Record<string, { model: DeviceModel | null; richBoardId: string | null }> = {};
+    const out: Record<
+      string,
+      { model: DeviceModel | null; richBoardId: string | null; ledLayout: BoardLedLayout | null }
+    > = {};
     for (const page of pages) {
       const board =
         currentBoard && pagesCompatibleWithBoard(page, currentBoard) ? currentBoard : boardForShape(boards, [], page);
       const model = board === currentBoard ? currentBoardModel : resolveBoardModel(board);
-      out[page.id] = { model, richBoardId: board && isLedModel(model) ? board.id : null };
+      out[page.id] = {
+        model,
+        richBoardId: board && isLedModel(model) ? board.id : null,
+        ledLayout: board?.led_layout ?? null,
+      };
     }
     return out;
   }, [pages, currentBoard, currentBoardModel, boards]);
@@ -898,6 +922,7 @@ export function PageGridSelector({
             showActiveIndicator={showActiveIndicator}
             boardType={getEffectiveBoardColor(boardSettings)}
             model={previewTargets[page.id]?.model ?? null}
+            ledLayout={previewTargets[page.id]?.ledLayout ?? null}
           />
         ))}
       </Grid>

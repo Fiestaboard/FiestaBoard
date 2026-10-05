@@ -2607,7 +2607,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     >
                       {/* An LED target board previews as its LED matrix; draw
                           mode hit-tests flap tiles, so it stays on the flaps. */}
-                      <DevicePreview model={drawMode ? null : previewModel} message={editorPreviewMessage} size="md">
+                      <DevicePreview
+                        model={drawMode ? null : previewModel}
+                        ledLayout={previewBoard?.led_layout}
+                        message={editorPreviewMessage}
+                        size="md"
+                      >
                         <ScaledBoardDisplay
                           message={editorPreviewMessage}
                           isLoading={

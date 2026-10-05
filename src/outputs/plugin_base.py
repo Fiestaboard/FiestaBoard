@@ -61,7 +61,7 @@ resolved LED transition (:func:`src.led.resolve_led_transition` for its
 device model: the flip FiestaUI previews), and renders it itself::
 
     def write_transition(self, before, after, transition, *, cancel):
-        options = LedLayoutOptions(charset=self.character_set)
+        options = self.led_layout_options()   # the board's set, tile gap, block padding
         spec = led_spec_for_model(self.device_model)
         planned = plan_transition(
             layout_message(before, spec, options), layout_message(after, spec, options), transition.spec
@@ -73,7 +73,12 @@ transition plugin's frames exactly as before.
 
 **What core resolved for the board.** :attr:`~OutputPluginBase.device_model`
 (the FiestaUI DeviceModel), :attr:`~OutputPluginBase.character_set`
-(materialised) and :attr:`~OutputPluginBase.board_geometry` (rows, cols).
+(materialised), :attr:`~OutputPluginBase.board_geometry` (rows, cols) and,
+for an LED matrix, :meth:`~OutputPluginBase.led_layout_options`: the set
+plus the board's ``tile_gap`` / ``block_padding`` choices (plan D23), gated
+by the model's ``layoutOptions``. An LED output offers those choices by
+declaring ``tile_gap`` (``"gap"`` | ``"fill"``) and ``block_padding``
+(``0`` | ``1``) in its ``settings_schema``.
 
 **Capabilities.** :meth:`capabilities` defaults to what the manifest's
 ``output`` block declares; override it to narrow per board (a cloud
@@ -123,6 +128,7 @@ board shows, and :meth:`cache_cleared` when core forgets it.
 from __future__ import annotations
 
 import copy
+import logging
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
@@ -146,10 +152,13 @@ from .http import OutputHttp
 from .transitions import NativeTransition
 
 if TYPE_CHECKING:
+    from src.led import LedLayoutOptions
     from src.led.transition_registry import ResolvedLedTransition
 
     from .output_manifest import OutputManifest
     from .registry import OutputCapabilities
+
+_log = logging.getLogger(__name__)
 
 __all__ = [
     "ActionField",
@@ -303,6 +312,32 @@ class OutputPluginBase(ABC):
             declared = manifest.character_set if manifest is not None else None
             charset = declared if declared is not None else (model_character_set(model) if model else None)
         return copy.deepcopy(dict(charset)) if charset is not None else None
+
+    def led_layout_options(self) -> LedLayoutOptions:
+        """How this board's frames are laid out on an LED matrix (plans D17, D23).
+
+        :class:`~src.led.LedLayoutOptions` with the board's character set and
+        its byte-changing layout choices: ``tile_gap`` / ``block_padding``
+        from ``output_config`` (keys :data:`~src.outputs.board_profile.LED_LAYOUT_CONFIG_KEYS`),
+        each kept when the board's device model allows it, else the model's
+        default (logged once per instance). Pass it to
+        :func:`~src.led.layout_message` so the device draws what the board's
+        preview draws. A non-LED model gets the renderer's defaults.
+        """
+        from src.led import LedLayoutOptions
+
+        from .board_profile import led_layout_choice
+
+        choice = led_layout_choice(self._model(), self.config)
+        if choice is not None and choice.ignored and not getattr(self, "_led_layout_warned", False):
+            self._led_layout_warned = True
+            for reason in choice.ignored:
+                _log.warning("%s board %s: %s", self.plugin_id or type(self).__name__, self.board_id, reason)
+        return LedLayoutOptions(
+            charset=self.character_set,
+            tile_gap=choice.tile_gap if choice is not None else None,
+            block_padding=choice.block_padding if choice is not None else None,
+        )
 
     @property
     def board_geometry(self) -> tuple[int, int] | None:

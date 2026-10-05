@@ -48,8 +48,25 @@ def _errors(validator: Any, value: Any, where: str) -> list[str]:
 
 
 def validate_device_model(model: Any, where: str = "device_model") -> list[str]:
-    """Errors for one DeviceModel object against FiestaUI's schema (empty = valid)."""
-    return _errors(_validators()[DEVICE_MODEL_SCHEMA_FILE], model, where)
+    """Errors for one DeviceModel object against FiestaUI's schema (empty = valid).
+
+    Plus the one rule of FiestaUI's ``validateDeviceModel`` a JSON Schema
+    cannot state: a ``layoutOptions`` choice's ``default`` is one of its
+    ``allowed`` values.
+    """
+    errors = _errors(_validators()[DEVICE_MODEL_SCHEMA_FILE], model, where)
+    layout = model.get("layoutOptions") if isinstance(model, dict) else None
+    if isinstance(layout, dict):
+        for name in ("tileGap", "blockPadding"):
+            choice = layout.get(name)
+            if (
+                isinstance(choice, dict)
+                and isinstance(choice.get("allowed"), list)
+                and "default" in choice
+                and not any(type(v) is type(choice["default"]) and v == choice["default"] for v in choice["allowed"])
+            ):
+                errors.append(f"{where}.layoutOptions.{name}.default: one of allowed")
+    return errors
 
 
 def validate_character_set(charset: Any, where: str = "character_set") -> list[str]:

@@ -94,7 +94,12 @@ export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", cl
   // mount, so no flip animation runs.
   return (
     <Box className={className}>
-      <DevicePreview model={model} message={isLoading ? null : (data?.rendered ?? "")} size={size}>
+      <DevicePreview
+        model={model}
+        ledLayout={fitsCurrentBoard ? currentBoard?.led_layout : null}
+        message={isLoading ? null : (data?.rendered ?? "")}
+        size={size}
+      >
         <ScaledBoardDisplay
           message={isLoading ? null : (data?.rendered ?? "")}
           deviceType={deviceType}

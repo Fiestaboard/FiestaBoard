@@ -39,4 +39,12 @@ def test_every_vendored_file_is_pinned():
 
 def test_provenance_records_one_fiestaui_commit():
     assert provenance()["source"] == "Fiestaboard/FiestaUI"
-    assert provenance()["commit"] == "22db0b5245e89714252920824d7ad40c9c16987a"
+    assert provenance()["commit"] == "6c16021e264d232b17a16691da6a32506d68813e"
+
+
+def test_files_from_another_commit_are_pinned_files():
+    # FiestaUI #338 branched before #336, so plugin-models.json keeps #336's
+    # bytes; an override naming a file that is not vendored would pin nothing.
+    overrides = provenance().get("files_from", {})
+    assert set(overrides) <= set(PINNED)
+    assert set(overrides.values()) == {"22db0b5245e89714252920824d7ad40c9c16987a"}

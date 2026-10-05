@@ -102,6 +102,8 @@ def _golden_plan(case: dict):
         monochrome=raw.get("monochrome"),
         letter_case=raw.get("letterCase", "upper"),
         charset=plugin["charset"] if plugin else None,
+        tile_gap=raw.get("tileGap"),
+        block_padding=raw.get("blockPadding"),
     )
     s = case["spec"]
     grid_spec = LedMatrixSpec(s["width"], s["height"], s.get("font", "5x7"))
@@ -113,9 +115,13 @@ def _golden_plan(case: dict):
 # --- golden sequences -------------------------------------------------------
 
 
-def test_golden_has_the_ten_transition_cases():
-    assert len(CASES) == 10
-    assert {"sequence device 32-frame budget", "acme sign 12-frame budget, own charset"} <= {c["name"] for c in CASES}
+def test_golden_has_the_eleven_transition_cases():
+    assert len(CASES) == 11
+    assert {
+        "sequence device 32-frame budget",
+        "acme sign 12-frame budget, own charset",
+        "flip with half-flaps, fill and padding on",
+    } <= {c["name"] for c in CASES}
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])

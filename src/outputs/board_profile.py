@@ -30,6 +30,7 @@ from typing import Any, NamedTuple
 
 from src.fiestaui import builtin_device_models, fiestapanel_device_models
 from src.led.charsets import BUILTIN_CHARACTER_SETS, materialize_character_set
+from src.led.matrix import LedLayoutChoice, led_layout_options_for_model
 
 from .registry import FIESTAPANEL, VESTABOARD, output_registry, resolve_output_id
 
@@ -180,3 +181,50 @@ def board_character_set(board: Mapping[str, Any]) -> dict | None:
         return manifest.character_set
     model = board_device_model(board)
     return model_character_set(model) if model is not None else None
+
+
+#: The ``output_config`` keys an LED board's byte-changing layout choices are
+#: stored under (plan D23), the same for every LED output, with the values
+#: FiestaUI's ``LedLayoutOptions`` takes (``tile_gap``: ``"gap"`` | ``"fill"``;
+#: ``block_padding``: ``0`` | ``1``). An output offers them by declaring these
+#: properties in its ``settings_schema``; a board that never set one draws
+#: with its model's default.
+LED_LAYOUT_CONFIG_KEYS = ("tile_gap", "block_padding")
+
+
+def led_layout_choice(model: Mapping[str, Any] | None, config: Mapping[str, Any] | None) -> LedLayoutChoice | None:
+    """The LED layout options a board on *model* with *config* draws with.
+
+    Each choice the model's ``layoutOptions`` allows, else the model's
+    default (the reason in ``ignored``); ``None`` for a model that is not an
+    LED matrix (a split-flap board has no LED layout) or no model at all.
+    """
+    if not isinstance(model, Mapping) or model.get("technology") != "led_matrix":
+        return None
+    config = config if isinstance(config, Mapping) else {}
+    return led_layout_options_for_model(
+        model, tile_gap=config.get("tile_gap"), block_padding=config.get("block_padding")
+    )
+
+
+def board_led_layout(board: Mapping[str, Any]) -> dict[str, Any] | None:
+    """What an LED board draws with, for a preview: ``{"tile_gap", "block_padding"}``.
+
+    The board's ``output_config`` choices resolved against its device model
+    (:func:`led_layout_choice`), so a preview draws the bytes the device is
+    sent. ``None`` for a board that is not an LED matrix, or whose model is
+    unknown (an output plugin that is not installed).
+    """
+    output_id = resolve_output_id(board)
+    if output_id == VESTABOARD:
+        return None
+    config: Mapping[str, Any] | None = None
+    if output_id == FIESTAPANEL:
+        # A panel offers no LED layout settings: its model's defaults.
+        model: Mapping[str, Any] | None = fiestapanel_device_models()[_panel_render_style(board)]
+    else:
+        model = board_device_model(board)
+        raw = board.get("output_config")
+        config = raw if isinstance(raw, Mapping) else None
+    choice = led_layout_choice(model, config)
+    return None if choice is None else {"tile_gap": choice.tile_gap, "block_padding": choice.block_padding}

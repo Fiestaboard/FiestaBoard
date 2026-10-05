@@ -4,7 +4,8 @@ import { type BoardCellGrid, type DeviceModel, DisplayPreview } from "@fiestaboa
 import { memo, type ReactNode, useCallback } from "react";
 
 import { useTranslations } from "@/i18n/translations";
-import { isLedModel, ledLetterCase } from "@/lib/device-preview";
+import type { BoardLedLayout } from "@/lib/api";
+import { isLedModel, ledLayoutProps, ledLetterCase } from "@/lib/device-preview";
 
 export interface DevicePreviewProps {
   /** The board's device model (`resolveBoardModel`); `null` when unknown. */
@@ -16,6 +17,12 @@ export interface DevicePreviewProps {
   size?: "sm" | "md" | "lg";
   /** A fixed accessible name (thumbnails), instead of one built from the message. */
   previewLabel?: string;
+  /**
+   * The board's LED layout choices (`led_layout`): tile gaps filled, block
+   * padding. They change what the device is sent, so the preview draws them
+   * too. Ignored for a split-flap board.
+   */
+  ledLayout?: BoardLedLayout | null;
   /**
    * The split-flap board this surface has always drawn — its own wrapper, so
    * the user's animation and flap-speed settings, the Fit / Actual toggle and
@@ -41,6 +48,7 @@ export const DevicePreview = memo(function DevicePreview({
   cells,
   size,
   previewLabel,
+  ledLayout,
   children,
 }: DevicePreviewProps) {
   const t = useTranslations("boardDisplay");
@@ -48,6 +56,7 @@ export const DevicePreview = memo(function DevicePreview({
   if (!isLedModel(model)) return <>{children}</>;
   return (
     <DisplayPreview
+      {...ledLayoutProps(ledLayout)}
       model={model}
       message={message ?? null}
       cells={cells}
