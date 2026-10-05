@@ -1164,6 +1164,27 @@ class TestThrottledSendDoesNotPrimeDedupeCache:
         assert svc.runtimes["b1"].last_active_page_content == "ALPHA"
 
 
+class TestPreemptedSendDoesNotPrimeDedupeCache:
+    """A page send whose write was preempted mid-upload (a Pixoo: the
+    active-page PUT's own write cancelled the engine's) returns ``(True,
+    False)`` like an unchanged skip, but nothing reached the board. Caching
+    it would leave the engine sure the page is shown when the board is dark."""
+
+    def test_a_preempted_send_leaves_the_dedupe_cache_clear(self):
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].render.return_value = (True, False)
+        clients["b1"].last_send_throttled = False
+        clients["b1"].last_send_preempted = True
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+
+        _drive(svc, boards, pages=pages, schedule=_schedule_service({"b1": "pA"}))
+
+        rt = svc.runtimes["b1"]
+        assert rt.last_active_page_content is None, "cached a page the preempted write never delivered"
+        assert rt.last_active_page_id is None
+
+
 class TestOutOfBandContentFlag:
     """Issue #1831: per-board "showing out-of-band content" state.
 
