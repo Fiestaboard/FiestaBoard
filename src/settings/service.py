@@ -706,7 +706,8 @@ class BetaSettings:
       the SDK is experimental and its contract may change.
     - output_plugins_enabled: When true, output plugins installed from the
       registry or a git URL can drive boards (a board whose ``output`` names
-      one). Off by default; plugins bundled with FiestaBoard are always on.
+      one). Off by default; first-party outputs (bundled in ``plugins/`` or
+      carried by the image's output seed) are always on.
       Written to settings.json only once turned on, so a file saved by a
       build that predates the flag round-trips unchanged.
     """

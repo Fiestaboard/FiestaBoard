@@ -157,6 +157,48 @@ describe("Add Board", () => {
     });
   });
 
+  it("running an action that asks for input does not create the board", async () => {
+    const pair = {
+      id: "pair",
+      label: "Pair",
+      description: "Pair using the code on the sign.",
+      builtin: false,
+      input_schema: {
+        type: "object",
+        properties: { code: { type: "string", title: "Pairing code" } },
+        required: ["code"],
+      },
+      result_fields: {},
+    };
+    const actions: unknown[] = [];
+    const calls = setup([VESTABOARD], [...mockOutputs, { ...PLUGIN, actions: [...PLUGIN.actions, pair] }]);
+    server.use(
+      http.post(`${API}/outputs/acme_sign/actions/pair`, async ({ request }) => {
+        actions.push(await request.json());
+        return HttpResponse.json({
+          status: "ok",
+          message: "Paired.",
+          guidance: [],
+          fields: null,
+          geometry: null,
+          devices: null,
+        });
+      }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Add Board" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Acme Sign" }));
+    const add = await screen.findByRole("dialog");
+    await userEvent.click(within(add).getByRole("button", { name: "Pair" }));
+    const ask = await screen.findByRole("dialog", { name: "Pair" });
+    await userEvent.type(within(ask).getByLabelText(/Pairing code/), "1234");
+    await userEvent.click(within(ask).getByRole("button", { name: "Next" }));
+
+    await waitFor(() => expect(actions).toHaveLength(1));
+    expect(calls.create).toEqual([]);
+    expect(await screen.findByText("Paired.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Add a Acme Sign board" })).toBeInTheDocument();
+  });
+
   it("disables an output plugin whose beta is off, and says why", async () => {
     setup([VESTABOARD], [...mockOutputs, { ...PLUGIN, available: false }]);
     await userEvent.click(await screen.findByRole("button", { name: "Add Board" }));

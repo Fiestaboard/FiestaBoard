@@ -9,7 +9,8 @@
  * `POST /outputs/{id}/boards`.
  *
  * The install's failure states are told apart, because each asks something
- * different of the user: the output plugins beta is off (409 — offered right
+ * different of the user: the output plugins beta is off (409, third-party
+ * outputs only: seeded first-party ones never need it — offered right
  * here), the repository could not be downloaded (503 — check the internet
  * connection), or the plugin cannot run on this FiestaBoard (400 — the
  * server's reason).

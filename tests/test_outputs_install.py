@@ -11,9 +11,11 @@ one not installed yet — and installs the chosen one. Pinned here:
 - **install** ``POST /outputs/{output_id}/install``: from the seed with no
   network at all, from the registry through the normal install path (so the
   ``output_api`` gate refuses a plugin this core cannot run), idempotent
-  (200 with the same entry once installed), refused while the output plugins
-  beta is off, 404 for an id nothing offers, 503 when the registry's
-  repository cannot be fetched.
+  (200 with the same entry once installed), 404 for an id nothing offers,
+  503 when the registry's repository cannot be fetched;
+- **the beta gate**: a seeded output is first-party, so it is offered,
+  installed and used with ``beta.output_plugins_enabled`` off; a registry
+  (third-party) output is refused while the beta is off.
 
 Tests never reach the network: a registry "clone" copies the fixture plugin.
 """
@@ -208,10 +210,17 @@ class TestListing:
         assert (entry["name"], entry["icon"]) == ("Recording Output", "monitor")
         assert entry["description"].startswith("Test-only output plugin")
         assert entry["output_api"] == 1
-        assert (entry["builtin"], entry["beta_gated"]) == (False, True)
+        assert (entry["builtin"], entry["beta_gated"]) == (False, False)
 
-    def test_a_not_installed_output_is_unavailable_until_the_beta_is_on(self, client, seeded):
-        assert next(o for o in _available(client) if o["id"] == PLUGIN_ID)["available"] is False
+    def test_a_seeded_output_is_available_with_the_beta_off(self, client, seeded):
+        beta(False)
+        assert next(o for o in _available(client) if o["id"] == PLUGIN_ID)["available"] is True
+
+    def test_a_registry_output_is_unavailable_until_the_beta_is_on(self, client, plugins):
+        set_registry([_registry_entry()])
+        beta(False)
+        entry = next(o for o in _available(client) if o["id"] == PLUGIN_ID)
+        assert (entry["beta_gated"], entry["available"]) == (True, False)
         beta(True)
         assert next(o for o in _available(client) if o["id"] == PLUGIN_ID)["available"] is True
 
@@ -274,12 +283,19 @@ class TestInstallFromSeed:
         assert (first.status_code, second.status_code) == (201, 200)
         assert second.json() == first.json()
 
-    def test_refused_while_the_output_plugins_beta_is_off(self, client, seeded, no_network):
+    def test_installs_with_the_output_plugins_beta_off(self, client, seeded, no_network):
+        beta(False)
         resp = client.post(f"/outputs/{PLUGIN_ID}/install")
-        assert resp.status_code == 409
-        assert "output plugins beta" in resp.json()["detail"]
-        assert not (sources.get_external_plugins_dir() / PLUGIN_ID).exists()
-        assert output_registry().get(PLUGIN_ID) is None
+        assert resp.status_code == 201, resp.text
+        assert (resp.json()["beta_gated"], resp.json()["available"]) == (False, True)
+        assert output_registry().get(PLUGIN_ID) is not None
+
+    def test_a_board_is_created_on_it_with_the_beta_off(self, client, seeded, no_network):
+        beta(False)
+        assert client.post(f"/outputs/{PLUGIN_ID}/install").status_code == 201
+        body = {"name": "Kitchen sign", "device_model": "divoom_pixoo64", "output_config": {"host": "192.0.2.50"}}
+        resp = client.post(f"/outputs/{PLUGIN_ID}/boards", json=body)
+        assert resp.status_code == 201, resp.text
 
 
 class TestInstallFromRegistry:

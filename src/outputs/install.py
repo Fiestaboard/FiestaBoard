@@ -14,10 +14,10 @@ offers every output this install could drive — not only the installed ones:
   the chosen output from the seed (offline) or, failing that, from the
   registry through the normal install path — which is where the
   ``output_api`` gate refuses a plugin this core cannot run (plan D8).
-  Idempotent: an installed output is answered as it is. Every output that
-  is not bundled is beta-gated (``beta.output_plugins_enabled``), seeded
-  ones included — the loader gates them the same way — so the gate is
-  checked before anything is copied or fetched.
+  Idempotent: an installed output is answered as it is. Seeded outputs are
+  first-party and install with the beta off; a registry (third-party)
+  output is beta-gated (``beta.output_plugins_enabled``), checked before
+  anything is fetched. The loader draws the same line.
 
 Raises domain errors; ``routes.py`` maps them.
 """
@@ -111,8 +111,8 @@ def list_available_outputs() -> list[dict[str, Any]]:
                 "source": "seed",
                 "installed": False,
                 "builtin": False,
-                "beta_gated": True,
-                "available": beta,
+                "beta_gated": False,
+                "available": True,
                 "needs_network": False,
                 "output_api": entry.output_api,
             }
@@ -148,7 +148,7 @@ def install_output(output_id: str) -> tuple[dict[str, Any], bool]:
 
     Raises:
         OutputNotInstallableError: nothing offers it.
-        OutputPluginsDisabledError: it is beta-gated and the beta is off.
+        OutputPluginsDisabledError: it is third-party and the beta is off.
         OutputInstallRefusedError: it was fetched but cannot run here.
         OutputSourceUnreachableError: its repository could not be fetched.
     """
@@ -161,7 +161,7 @@ def install_output(output_id: str) -> tuple[dict[str, Any], bool]:
     from_seed = seeded_output(output_id) is not None
     if not from_seed and not any(entry.plugin_id == output_id for entry in _registry_outputs()):
         raise OutputNotInstallableError(output_id)
-    if not output_plugins_enabled():
+    if not from_seed and not output_plugins_enabled():
         raise OutputPluginsDisabledError(output_id)
 
     registry = _plugin_registry()

@@ -10,11 +10,13 @@ the manifest's ``output`` block bound, :meth:`open` called — wrapped in the
 uses it by naming the plugin id as its ``output``; the derivation rule for
 boards that name none is unchanged.
 
-**Beta gate.** An output plugin installed from the registry or a git URL is
-usable only while ``beta.output_plugins_enabled`` is on: with it off, a
-board naming it builds no driver and stays down with the reason recorded —
-never a Vestaboard in its place. Plugins bundled with FiestaBoard (the
-``plugins/`` directory) are always usable.
+**Beta gate.** A third-party output plugin (installed from the registry
+or a git URL, and not carried by the image's seed) is usable only while
+``beta.output_plugins_enabled`` is on: with it off, a board naming it builds
+no driver and stays down with the reason recorded — never a Vestaboard in
+its place. First-party outputs are always usable: plugins bundled in
+``plugins/``, and the seed's loadable outputs (:mod:`src.outputs.seed`)
+whichever copy of them runs.
 
 The plugin registry keeps an :class:`OutputPluginEntry` for each output
 plugin where it keeps data-plugin instances, so listing, install, reload and
@@ -156,7 +158,7 @@ def register_output_plugin(plugin_class: type[OutputPluginBase], manifest: Plugi
             offered_device_models=manifest.output.device_model_ids,
         )
     )
-    logger.info("Registered output plugin %s (%s)", manifest.id, "beta-gated" if gated else "bundled")
+    logger.info("Registered output plugin %s (%s)", manifest.id, "beta-gated" if gated else "first-party")
 
 
 def unregister_output_plugin(plugin_id: str) -> None:
