@@ -305,7 +305,7 @@ def test_validate_reports_a_partly_configured_board_as_misconfigured_not_first_r
 
 def test_scan_returns_the_discovered_boards_verbatim(client):
     discovered = [{"ip": "192.0.2.10", "port": 7000, "hostname": "vestaboard.local", "source": "mdns"}]
-    with patch("src.system.mdns.scan_for_boards", return_value=discovered) as scan:
+    with patch("src.outputs.registry.discover_devices", return_value=discovered) as scan:
         body = client.post("/config/board/scan", json={"timeout": 2.5}).json()
 
     assert body["boards"] == discovered
@@ -313,7 +313,7 @@ def test_scan_returns_the_discovered_boards_verbatim(client):
 
 
 def test_scan_clamps_the_timeout_into_the_supported_window(client):
-    with patch("src.system.mdns.scan_for_boards", return_value=[]) as scan:
+    with patch("src.outputs.registry.discover_devices", return_value=[]) as scan:
         client.post("/config/board/scan", json={"timeout": 900})
         assert scan.call_args.kwargs["timeout"] == 15.0
 
@@ -322,7 +322,7 @@ def test_scan_clamps_the_timeout_into_the_supported_window(client):
 
 
 def test_scan_defaults_to_a_four_second_sweep_when_no_body_is_sent(client):
-    with patch("src.system.mdns.scan_for_boards", return_value=[]) as scan:
+    with patch("src.outputs.registry.discover_devices", return_value=[]) as scan:
         assert client.post("/config/board/scan").status_code == 200
     assert scan.call_args.kwargs["timeout"] == 4.0
 

@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from .board_client import (
+    LOCAL_READ_BACK,
     VALID_STRATEGIES,
     BoardClient,
     TransitionRenderMixin,
@@ -27,6 +28,7 @@ from .devices import (
     slice_note_array_grid,
     stitch_note_array_grid,
 )
+from .outputs.hooks import ReadBack
 from .send_outcome import FrameRegion
 
 logger = logging.getLogger(__name__)
@@ -300,3 +302,13 @@ class NoteArrayLocalClient(TransitionRenderMixin):
     def test_connection(self) -> bool:
         """True if at least one tile responds (the array is partially usable)."""
         return any(client.test_connection() for client in self.tile_clients.values())
+
+    @property
+    def read_back(self) -> ReadBack:
+        """Every tile is read over the LAN."""
+        return LOCAL_READ_BACK
+
+    @property
+    def connection_label(self) -> str:
+        """The tiles are driven over the Local API."""
+        return "Local API"

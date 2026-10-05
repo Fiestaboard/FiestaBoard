@@ -894,7 +894,8 @@ def test_config_board_test(api, wire):
     wire.respond = respond
     s = Scenario(
         "config_board_test",
-        "Connection probe: one unsaved GET with timeout=10 (not the client's split timeout), local then cloud.",
+        "Connection probe: one GET through a draft driver's own request path and (connect, read) "
+        "timeout, local then cloud.",
         "POST /config/board/test",
         wire,
     )

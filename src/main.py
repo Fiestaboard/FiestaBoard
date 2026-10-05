@@ -1036,10 +1036,16 @@ class DisplayService:
     # ------------------------------------------------------------------ #
 
     def _get_board_read_interval(self) -> int:
-        """Return the board-state read poll interval in seconds based on API mode."""
+        """Return the board-state read poll interval in seconds.
+
+        The primary driver declares what a read-back costs
+        (``read_back.cost``): a ``network`` read polls at the user's cloud
+        interval, anything else at the local one.
+        """
         polling = get_settings_service().get_polling_settings()
-        use_cloud = getattr(self.vb_client, "use_cloud", False) if self.vb_client else False
-        return polling.board_read_interval_cloud if use_cloud else polling.board_read_interval_local
+        read_back = getattr(self.vb_client, "read_back", None) if self.vb_client else None
+        networked = getattr(read_back, "cost", None) == "network"
+        return polling.board_read_interval_cloud if networked else polling.board_read_interval_local
 
     def _board_poll_loop(self) -> None:
         """Background thread: periodically read the primary board's state and cache it.

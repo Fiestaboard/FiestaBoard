@@ -280,8 +280,21 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
 ]
 
 
+def primary_board_model() -> str:
+    """The HA device ``model``: the name of the output driving the primary
+    board (``"Vestaboard"`` for a Vestaboard, and for an install with no
+    board yet — the default output)."""
+    from src.board_guards import primary_board_entry
+    from src.outputs.registry import output_name_for
+
+    return output_name_for(primary_board_entry() or {})
+
+
 def build_device_info(
-    config: MQTTConfig, sw_version: str = "1.0.0", configuration_url: str | None = None
+    config: MQTTConfig,
+    sw_version: str = "1.0.0",
+    configuration_url: str | None = None,
+    model: str | None = None,
 ) -> dict[str, Any]:
     """Build the HA device info block shared by all entities.
 
@@ -292,15 +305,21 @@ def build_device_info(
         config: MQTT configuration with instance ID.
         sw_version: FiestaBoard software version string.
         configuration_url: URL to FiestaBoard web UI (e.g., 'http://192.168.1.50:4420').
+        model: The device model — the primary board's output name
+            (:func:`primary_board_model`). Omitted, the default output's.
 
     Returns:
         Device info dictionary for inclusion in discovery payloads.
     """
+    if model is None:
+        from src.outputs.registry import output_name_for
+
+        model = output_name_for({})
     device = {
         "identifiers": [config.instance_id],
         "name": "FiestaBoard",
         "manufacturer": "FiestaBoard",
-        "model": "Vestaboard",
+        "model": model,
         "sw_version": sw_version,
     }
     if configuration_url:
@@ -422,6 +441,7 @@ def build_all_discovery_messages(
     sw_version: str = "1.0.0",
     configuration_url: str | None = None,
     page_names: list[str] | None = None,
+    model: str | None = None,
 ) -> list[dict[str, Any]]:
     """Build all discovery messages for FiestaBoard.
 
@@ -434,11 +454,12 @@ def build_all_discovery_messages(
         sw_version: FiestaBoard software version.
         configuration_url: URL to FiestaBoard web UI.
         page_names: Current list of page names (for active_page select options).
+        model: The HA device model (see :func:`build_device_info`).
 
     Returns:
         List of dicts, each with 'topic' and 'payload' keys.
     """
-    device_info = build_device_info(config, sw_version, configuration_url)
+    device_info = build_device_info(config, sw_version, configuration_url, model)
     messages = []
 
     for entity in ENTITY_DEFINITIONS:

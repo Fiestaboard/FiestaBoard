@@ -1,6 +1,6 @@
 {
   "scenario": "config_board_test",
-  "description": "Connection probe: one unsaved GET with timeout=10 (not the client's split timeout), local then cloud.",
+  "description": "Connection probe: one GET through a draft driver's own request path and (connect, read) timeout, local then cloud.",
   "seam": "POST /config/board/test",
   "steps": [
     {
@@ -13,7 +13,7 @@
             "X-Vestaboard-Local-Api-Key": "test_probe_key",
             "Content-Type": "application/json"
           },
-          "timeout": 10
+          "timeout": [3.0, 10.0]
         }
       ],
       "result": {
@@ -35,7 +35,7 @@
             "X-Vestaboard-Read-Write-Key": "test_probe_rw",
             "Content-Type": "application/json"
           },
-          "timeout": 10
+          "timeout": [5.0, 10.0]
         }
       ],
       "result": {

@@ -18,7 +18,7 @@ import pytest
 from pytest_socket import SocketConnectBlockedError
 
 from src.board_client import BoardClient
-from src.network_diagnostics import check_vestaboard_connection
+from src.outputs.vestaboard.diagnostics import check_vestaboard_connection
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
