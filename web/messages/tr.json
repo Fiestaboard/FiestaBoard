@@ -91,7 +91,7 @@
     "dark": "Koyu",
     "system": "Sistem",
     "devSuffix": "geliştirme sürümü",
-    "updateAvailable": "Güncelleme mevcut: {version}",
+    "updateAvailable": "Güncelleme mevcut",
     "updateTo": "{version} sürümüne güncelle",
     "about": "FiestaBoard hakkında",
     "signOut": "Oturumu kapat"

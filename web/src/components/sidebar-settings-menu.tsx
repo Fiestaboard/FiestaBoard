@@ -58,6 +58,7 @@ import { ArrowUpCircle, ChevronRight, Info, LogOut, Monitor, Moon, Settings, Sun
 import { useState } from "react";
 
 import { AboutDialog } from "@/components/about-dialog";
+import { useAvailableUpdate } from "@/hooks/use-available-update";
 import { useRouter } from "@/hooks/use-router";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
@@ -72,9 +73,17 @@ interface SidebarSettingsMenuProps {
    * dropdown. Comes straight from FiestaUI's `renderSettingsMenu` context.
    */
   variant?: "mobile" | "desktop";
+  /**
+   * The words for the trigger's dot ("Update available"), straight from the
+   * slot context's `notice`. NavigationSidebar decides it once and hands it to
+   * the Sidebar as `menuNotice`; this only forwards it, so the rail's dot and
+   * the mobile hamburger's cannot disagree. Unused on mobile, where there is
+   * no trigger and the Sidebar dots the hamburger itself.
+   */
+  notice?: string;
 }
 
-export function SidebarSettingsMenu({ collapsed = false, variant = "desktop" }: SidebarSettingsMenuProps) {
+export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", notice }: SidebarSettingsMenuProps) {
   const t = useTranslations("settingsMenu");
   const { theme, setTheme } = useTheme();
   const router = useRouter();
@@ -91,34 +100,17 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop" }: 
   const signedIn = Boolean(authStatus?.enabled && authStatus.authenticated);
   const username = signedIn ? (authStatus?.username ?? null) : null;
 
-  // Shared cache keys with AboutDialog, so opening either usually costs no
-  // request. Not gated on the menu being open, unlike About's copies: the
-  // whole point of an update indicator is that it is there before you go
-  // looking for it.
+  // Shared cache key with AboutDialog, so opening either usually costs no
+  // request.
   const { data: version } = useQuery({
     queryKey: ["version"],
     queryFn: () => api.getVersion(),
     staleTime: Infinity,
     retry: false,
   });
-  const { data: updateStatus } = useQuery({
-    queryKey: ["update-status"],
-    queryFn: () => api.getUpdateStatus(),
-    staleTime: 1000 * 30,
-    retry: false,
-  });
-  const { data: updateCheck } = useQuery({
-    queryKey: ["update-check"],
-    queryFn: () => api.checkForUpdate(),
-    staleTime: 1000 * 60 * 60,
-    retry: false,
-  });
-
-  // Same rule as AboutDialog, and it is not cosmetic: when an external
-  // supervisor owns updates (the Home Assistant add-on) FiestaBoard cannot
-  // apply one, so pointing at it would be an offer it cannot honour.
-  const updateAvailable =
-    !updateStatus?.managed_externally && updateCheck?.update_available ? updateCheck.latest_version : null;
+  // The hook NavigationSidebar decides the dot with, so this item and the dot
+  // cannot disagree. Same cache keys, so it costs no second request.
+  const updateAvailable = useAvailableUpdate();
 
   // The trigger says who you are when the install knows, and what the menu
   // is when it doesn't. An install with auth off has no name to show, so the
@@ -255,7 +247,7 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop" }: 
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <SidebarAccountTrigger label={label} anonymous={!username} collapsed={collapsed} />
+          <SidebarAccountTrigger label={label} anonymous={!username} collapsed={collapsed} notice={notice} />
         </DropdownMenuTrigger>
         {/* side="top": the trigger is the bottom-most thing on the rail, so
             the menu has nowhere to go but up. align="start" keeps its left

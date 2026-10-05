@@ -91,7 +91,7 @@
     "dark": "Donker",
     "system": "Systeem",
     "devSuffix": "ontwikkelbuild",
-    "updateAvailable": "Update beschikbaar: {version}",
+    "updateAvailable": "Update beschikbaar",
     "updateTo": "Bijwerken naar {version}",
     "about": "Over FiestaBoard",
     "signOut": "Afmelden"

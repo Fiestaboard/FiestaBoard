@@ -9,6 +9,7 @@ import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { useSidebar } from "@/components/sidebar-context";
 import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
 import { ViewTransitionLink } from "@/components/view-transition-link";
+import { useAvailableUpdate } from "@/hooks/use-available-update";
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -54,6 +55,7 @@ export function NavigationSidebar() {
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, onTransitionEnd } = useSidebar();
   const t = useTranslations("navigation");
+  const tMenu = useTranslations("settingsMenu");
   const { isOpen: aiPanelOpen, open: openAiPanel } = useGlobalAiPanel();
   const { boards, currentBoardId, setCurrentBoardId } = useCurrentBoard();
 
@@ -75,6 +77,12 @@ export function NavigationSidebar() {
     enabled: !chromeless,
   });
   const showTransitionsLab = betaData?.settings.transition_plugins_enabled ?? false;
+
+  // Decided here, once, because `menuNotice` is one prop for both
+  // breakpoints: the Sidebar hands it back to the rail's account trigger and
+  // puts it on the mobile hamburger itself. The "Update to X.Y.Z" item was
+  // always in the menu; nothing on the closed button said to open it.
+  const updateAvailable = useAvailableUpdate({ enabled: !chromeless });
   const navPrimaryItems = showTransitionsLab ? [...primaryItems, transitionsLabItem] : primaryItems;
 
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't
@@ -163,9 +171,11 @@ export function NavigationSidebar() {
       // `variant` matters as much as `collapsed`: the drawer wants inline rows,
       // not the rail's dropdown. Dropping it here is what shipped the desktop
       // shape to mobile.
-      renderSettingsMenu={({ variant, collapsed: isCollapsed }) => (
-        <SidebarSettingsMenu variant={variant} collapsed={isCollapsed} />
+      // `notice` is `menuNotice` coming back; forwarded, not recomputed.
+      renderSettingsMenu={({ variant, collapsed: isCollapsed, notice }) => (
+        <SidebarSettingsMenu variant={variant} collapsed={isCollapsed} notice={notice} />
       )}
+      menuNotice={updateAvailable ? tMenu("updateAvailable") : undefined}
       maxWidth={MAX_APP_WIDTH}
       sidebarInset={SIDEBAR_INSET}
     />
