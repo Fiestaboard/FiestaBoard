@@ -113,6 +113,12 @@ class VirtualBoardClient(TransitionRenderMixin):
             board_id,
         )
 
+    def device_key(self) -> str:
+        """The board's shared glass: its board id (or the instance's own glass)."""
+        if self.board_id is not None:
+            return f"virtual:{self.board_id}"
+        return f"virtual:anonymous-{id(self._state):x}"
+
     def send_text(self, text: str, force: bool = False, *, with_outcome: bool = False) -> Any:
         """Virtual boards are characters-only; mirror the note-array refusal."""
         logger.error("send_text is not supported for virtual boards; use send_characters()")

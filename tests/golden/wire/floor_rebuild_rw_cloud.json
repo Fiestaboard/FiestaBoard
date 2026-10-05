@@ -1,6 +1,6 @@
 {
-  "scenario": "floor_rebuild_rw_cloud_CURRENT",
-  "description": "CURRENT BEHAVIOR, to change deliberately in layer A10: the RW Cloud floor is per client instance, so a client rebuilt from the same saved board 5 s later is NOT throttled and POSTs inside the window.",
+  "scenario": "floor_rebuild_rw_cloud",
+  "description": "RW Cloud floor is core-owned and keyed by device (a hash of the RW key): a client rebuilt from the same saved board 5 s later is still throttled.",
   "seam": "two board_client_from_board_dict(...) clients for one board",
   "steps": [
     {
@@ -35,31 +35,13 @@
     },
     {
       "action": "t=1005 rebuilt client renders TWO",
-      "requests": [
-        {
-          "method": "POST",
-          "url": "https://rw.vestaboard.com/",
-          "headers": {
-            "X-Vestaboard-Read-Write-Key": "test_rw_key",
-            "Content-Type": "application/json"
-          },
-          "json": [
-            [20, 23, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-          ],
-          "timeout": [5.0, 10.0]
-        }
-      ],
+      "requests": [],
       "result": {
         "type": "SendOutcome",
         "success": true,
-        "was_sent": true,
-        "throttled": false,
-        "retry_after_seconds": null,
+        "was_sent": false,
+        "throttled": true,
+        "retry_after_seconds": 10,
         "floor_seconds": 15
       }
     }

@@ -81,6 +81,11 @@ class NoteArrayLocalClient(TransitionRenderMixin):
             notes_tall,
         )
 
+    def device_key(self) -> str:
+        """The array, as the set of LAN endpoints its tiles answer on."""
+        endpoints = sorted(f"{client.host}:{client._port}" for client in self.tile_clients.values())
+        return "note-array-local:" + ",".join(endpoints)
+
     @property
     def _dims(self):
         return note_array_dimensions(self.notes_wide, self.notes_tall)

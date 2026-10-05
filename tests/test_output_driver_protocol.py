@@ -42,6 +42,7 @@ EXPECTED_SURFACE = {
     "render",
     "set_transition_runner",
     "set_output_runtime",
+    "device_key",
     "read_current_message",
     "clear_cache",
     "get_cache_status",

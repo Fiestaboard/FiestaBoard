@@ -8,7 +8,9 @@ note-array Cloud), :class:`~src.note_array_local_client.NoteArrayLocalClient`
 :class:`OutputDriver` writes that convention down.
 
 The surface is exactly what code *outside* the client modules uses today,
-inventoried from the callers — not what the clients happen to define:
+inventoried from the callers — not what the clients happen to define —
+plus one member core declares for itself: ``device_key()``, the identity
+the send floor (:mod:`src.outputs.floor`) is keyed by.
 
 - ``send_text`` and ``would_send`` are left out: no caller outside the
   clients uses either, and the output-plugin contract drops ``send_text``.
@@ -109,6 +111,12 @@ class OutputDriver(Protocol):
 
     def set_output_runtime(self, runtime: OutputRuntime) -> None:
         """Take the send lock and cancel token from the board's core runtime."""
+        ...
+
+    def device_key(self) -> str:
+        """Identity of the device this driver writes, for core state that must
+        outlive a driver instance (the send floor). Stable across rebuilds of
+        the same saved board; never contains a credential."""
         ...
 
     # --- reads and cache ---------------------------------------------------------
