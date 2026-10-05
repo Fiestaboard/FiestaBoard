@@ -13,6 +13,8 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from src.oauth.provider import provider_block_warnings
+
 from .base import PluginBase, TransitionPluginBase
 from .install_check import validate_install
 from .manifest import PluginManifest, collect_options_ids, load_manifest, settings_schema_ui_warnings
@@ -378,6 +380,10 @@ class PluginLoader:
         # through GET /plugins/errors rather than only in the container log.
         for message in settings_schema_ui_warnings(manifest.settings_schema):
             self._load_errors.setdefault(plugin_name, []).append(message)
+        # Same reasoning for an ``oauth`` field a newer core added.
+        for message in provider_block_warnings(manifest.raw.get("oauth")):
+            self._load_errors.setdefault(plugin_name, []).append(message)
+            logger.warning("Plugin %s: %s", plugin_name, message)
 
         # Structural problems that make the plugin unusable no matter how the
         # user configures it: a declared data file that never shipped, a

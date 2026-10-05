@@ -29,7 +29,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
 from src.config import SilenceMode
-from src.devices import DeviceType
+from src.devices import DeviceType, HardwareDeviceType
 from src.settings.service import VALID_OUTPUT_TARGETS
 
 # ---------------------------------------------------------------------------
@@ -259,6 +259,8 @@ class TemporaryOverrideResponse(BaseModel):
     device_type: str | None = None
     notes_wide: int | None = None
     notes_tall: int | None = None
+    grid_rows: int | None = None
+    grid_cols: int | None = None
 
 
 class TemporaryOverrideRequest(BaseModel):
@@ -270,6 +272,8 @@ class TemporaryOverrideRequest(BaseModel):
     device_type: DeviceType | None = None
     notes_wide: Any | None = None
     notes_tall: Any | None = None
+    grid_rows: Any | None = None
+    grid_cols: Any | None = None
     duration_minutes: Any | None = None
     revert_mode: str = "schedule"
     revert_page_id: str | None = None
@@ -353,8 +357,10 @@ class AddBoardRequest(BaseModel):
     #: ``DeviceType``, not ``str``: BoardInstance.__post_init__ rewrites an
     #: unknown device_type to "flagship", so ``{"device_type": "bogus"}``
     #: created a flagship board and answered 201. The vocabulary is now in
-    #: the schema and the coercion is unreachable from here.
-    device_type: DeviceType
+    #: the schema and the coercion is unreachable from here. Hardware shapes
+    #: only: a "panel" board is FiestaPanel's virtual grid, created by
+    #: POST /panels and sized from its TV.
+    device_type: HardwareDeviceType
     name: str | None = None
 
 
@@ -378,7 +384,7 @@ class BoardPauseResponse(BaseModel):
 class DetectBoardSizeResponse(BaseModel):
     """A board's device type and grid, classified from its live layout."""
 
-    device_type: DeviceType
+    device_type: HardwareDeviceType
     rows: int
     cols: int
     notes_wide: int | None = None

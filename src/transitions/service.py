@@ -32,7 +32,7 @@ from src.board_guards import _board_dims, _board_is_paused, _require_board, _sil
 from src.board_send_executor import run_board_send
 from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service
-from src.devices import resolve_dimensions
+from src.devices import dimensions_of
 from src.display_runtime import get_service
 from src.pages.service import get_page_service
 from src.plugins.registry import get_plugin_registry
@@ -113,11 +113,32 @@ def list_installed_transition_plugins() -> list[dict[str, Any]]:
 
 def _resolve_preview_device(request: TransitionPreviewRequest):
     """Validate the requested geometry and build its :class:`BoardContext`."""
-    from src.devices import MAX_NOTES_PER_AXIS, board_context_for
+    from src.devices import (
+        DEVICE_TYPES,
+        MAX_GRID_COLS,
+        MAX_GRID_ROWS,
+        MAX_NOTES_PER_AXIS,
+        MIN_GRID_COLS,
+        MIN_GRID_ROWS,
+        board_context_for,
+    )
 
     device_type = request.device_type
-    if device_type not in ("flagship", "note", "note_array"):
+    if device_type not in DEVICE_TYPES:
         raise TransitionError(400, f"Unknown device_type: {device_type}")
+    if device_type == "panel":
+        try:
+            grid_rows = int(request.grid_rows)
+            grid_cols = int(request.grid_cols)
+        except (TypeError, ValueError) as exc:
+            raise TransitionError(400, "grid_rows/grid_cols must be integers for a panel") from exc
+        if not (MIN_GRID_ROWS <= grid_rows <= MAX_GRID_ROWS and MIN_GRID_COLS <= grid_cols <= MAX_GRID_COLS):
+            raise TransitionError(
+                400,
+                f"grid_rows must be between {MIN_GRID_ROWS} and {MAX_GRID_ROWS}, "
+                f"grid_cols between {MIN_GRID_COLS} and {MAX_GRID_COLS}",
+            )
+        return board_context_for(device_type, grid_rows=grid_rows, grid_cols=grid_cols)
     try:
         notes_wide = int(request.notes_wide)
         notes_tall = int(request.notes_tall)
@@ -317,7 +338,7 @@ async def run_live_transition_test(request: TransitionLiveTestRequest) -> Transi
         dims = _board_dims(board)
         device_hint = board.get("device_type") or to_page.device_type
     else:
-        dims = resolve_dimensions(to_page.device_type, to_page.notes_wide, to_page.notes_tall)
+        dims = dimensions_of(to_page)
         device_hint = to_page.device_type
 
     to_grid = _render_live_page_grid(to_page_id, dims.rows, dims.cols)
@@ -399,7 +420,7 @@ async def restore_after_transition_test(request: TransitionRestoreRequest | None
     if board is not None:
         dims = _board_dims(board)
     else:
-        dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
+        dims = dimensions_of(page)
     grid = _render_live_page_grid(active_page_id, dims.rows, dims.cols)
 
     success, was_sent = await run_board_send(board_client.render, grid, strategy=None, force=True)

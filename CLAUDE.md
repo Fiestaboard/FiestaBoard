@@ -358,6 +358,25 @@ When creating a new plugin:
 10. **Add plugin to project README.md** under "Available Plugins" section (alphabetically ordered)
 11. Push branch and create a pull request for review
 
+### Plugins That Sign In (OAuth)
+
+A plugin that needs the user to sign in to an account never implements OAuth
+itself. The platform does it; the plugin declares and asks.
+
+- Declare an `oauth` block in `manifest.json` and call `self.get_oauth_token()`
+  on every fetch. `None` means not signed in: return
+  `PluginResult(available=False, ...)` and make no request.
+- **NEVER** write an OAuth flow, store a token, or put a client secret in a
+  manifest, code, tests, docs, or a commit. If a user pastes a secret, do not
+  use it, and tell them to rotate it.
+- Set `"fiestaboard_version": ">=9.5.0"` and pin the plugin's CI to match.
+- Guide: `docs/development/plugin-oauth.md` (published). AI recipe:
+  `.claude/skills/new-plugin/references/oauth.md`. Platform internals and what
+  must not change: `docs/internal/reference/OAUTH.md`. Reference
+  implementation: `Fiestaboard/fiestaboard-plugin--spotify`.
+- Test sign-in end to end with `scripts/mock_oauth_provider.py`, not a real
+  account.
+
 ### Required Plugin Files
 
 Every plugin MUST have:

@@ -98,6 +98,23 @@ class TransitionRunResult:
     last_send_monotonic: float | None = None
 
 
+def _fit_grid(grid: list[list[int]], rows: int, cols: int) -> list[list[int]]:
+    """Copy *grid* into a rows × cols grid: crop the excess, pad with blanks.
+
+    The previous frame is the shape the board WAS, which after a resize (a
+    FiestaPanel re-fit to its TV) is not the shape being animated to. Plugins
+    index from_grid by the target's rows/cols, so handing them the stale
+    shape raised IndexError mid-transition; every plugin now receives the
+    target's shape, keeping whatever characters overlap.
+    """
+    fitted = []
+    for r in range(rows):
+        source = grid[r] if r < len(grid) and isinstance(grid[r], list) else []
+        row = list(source[:cols])
+        fitted.append(row + [0] * (cols - len(row)))
+    return fitted
+
+
 class TransitionRunner:
     """Drives a transition plugin's frame generator against a board client.
 
@@ -243,8 +260,15 @@ class TransitionRunner:
         """
         rows = len(to_grid)
         cols = len(to_grid[0]) if rows else 0
-        resolved_type = device_type or classify_dimensions(rows, cols).get("device_type") or "flagship"
-        return BoardContext(device_type=resolved_type, rows=rows, cols=cols)
+        resolved_type = device_type
+        if not resolved_type:
+            try:
+                resolved_type = classify_dimensions(rows, cols).get("device_type")
+            except ValueError:
+                # Not a hardware shape (e.g. a 12x29 panel grid): the grid
+                # still sizes the frames; only the label is generic.
+                resolved_type = "panel"
+        return BoardContext(device_type=resolved_type or "flagship", rows=rows, cols=cols)
 
     def _resolve_from_grid(
         self,
@@ -262,16 +286,16 @@ class TransitionRunner:
         safe default — the runner's final snap (or the next non-cancelled
         run) lands the board on the correct target regardless.
         """
-        if explicit is not None:
-            return explicit
-
-        cached = getattr(board_client, "_last_characters", None)
-        if isinstance(cached, list) and cached:
-            return [list(row) for row in cached]
-
         rows = len(to_grid)
         cols = len(to_grid[0]) if rows else 0
-        return [[0] * cols for _ in range(rows)]
+
+        source = explicit
+        if source is None:
+            cached = getattr(board_client, "_last_characters", None)
+            source = cached if isinstance(cached, list) and cached else None
+        if source is None:
+            return [[0] * cols for _ in range(rows)]
+        return _fit_grid(source, rows, cols)
 
     def _drive_generator(
         self,

@@ -968,13 +968,17 @@ def board_client_from_board_dict(board: dict) -> Optional["BoardClient"]:
 
     # Virtual boards (FiestaPanel): no hardware, frames render to memory.
     if api_mode == "virtual":
+        from .devices import geometry_of
         from .virtual_board_client import VirtualBoardClient
 
+        geometry = geometry_of(board)
         return VirtualBoardClient(
-            device_type=board.get("device_type") or "flagship",
+            device_type=geometry.device_type,
             board_id=board.get("id"),
-            notes_wide=board.get("notes_wide") or 1,
-            notes_tall=board.get("notes_tall") or 1,
+            notes_wide=geometry.notes_wide,
+            notes_tall=geometry.notes_tall,
+            grid_rows=geometry.grid_rows,
+            grid_cols=geometry.grid_cols,
         )
 
     # Note-array boards: detected by device_type (not api_mode).

@@ -65,6 +65,10 @@ export interface Page {
   notes_wide?: number;
   /** Number of Notes tall (note_array device_type only). */
   notes_tall?: number;
+  /** Rows of characters (panel device_type only; required for a panel). */
+  grid_rows?: number | null;
+  /** Columns of characters (panel device_type only; required for a panel). */
+  grid_cols?: number | null;
 }
 
 export interface PageCreate {
@@ -86,6 +90,10 @@ export interface PageCreate {
   notes_wide?: number;
   /** Number of Notes tall (note_array device_type only). */
   notes_tall?: number;
+  /** Rows of characters (panel device_type only; required for a panel). */
+  grid_rows?: number | null;
+  /** Columns of characters (panel device_type only; required for a panel). */
+  grid_cols?: number | null;
 }
 
 export interface PageUpdate {
@@ -105,6 +113,10 @@ export interface PageUpdate {
   notes_wide?: number;
   /** Number of Notes tall (note_array device_type only). */
   notes_tall?: number;
+  /** Rows of characters (panel device_type only; required for a panel). */
+  grid_rows?: number | null;
+  /** Columns of characters (panel device_type only; required for a panel). */
+  grid_cols?: number | null;
 }
 
 export interface PagesResponse {
@@ -172,6 +184,11 @@ export interface CurrentDisplayResponse {
   page_name: string;
   page_type: PageType;
   device_type: DeviceType;
+  /** The page's full geometry, so a page started from it is the same size. */
+  notes_wide: number;
+  notes_tall: number;
+  grid_rows: number | null;
+  grid_cols: number | null;
   template: string[];
   line_metadata: LineMetadata[] | null;
 }

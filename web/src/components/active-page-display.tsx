@@ -86,7 +86,7 @@ export function ActivePageDisplay() {
 
   // Current board selection (issue #1247). Queries are board-scoped only in
   // multi-board installs so single-board behavior is completely unchanged.
-  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
+  const { currentBoardId, currentBoard, boards, isLoading: isLoadingBoards } = useCurrentBoard();
   const isMultiBoard = boards.length > 1;
   const scopedBoardId = isMultiBoard && currentBoardId ? currentBoardId : undefined;
   // Live board polling (and Live Output) only track the primary board.
@@ -283,15 +283,13 @@ export function ActivePageDisplay() {
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
 
-  // Surface per-board paused status on Home (issue #970). When a board is
-  // paused FiestaBoard does not push anything to it from any code path —
-  // mirror the settings-page badge here so users aren't confused by a board
-  // that appears "stuck" while paused.
-  const pausedBoards = useMemo(() => (boardSettings?.boards ?? []).filter((b) => b.paused === true), [boardSettings]);
-  const showBoardNameOnPauseBadge = (boardSettings?.boards?.length ?? 0) > 1;
-
   // Pause / resume from Home (issue #2051) — the same switch as Settings →
   // Hardware, for the board this display is showing.
+  //
+  // The Paused badge (issue #970) follows the same board: when it is paused
+  // FiestaBoard does not push anything to it from any code path, so the badge
+  // explains a board that appears "stuck". Another board's pause is not this
+  // board's state, and a badge states state — it never carries a board name.
   const pauseTargetBoard = currentBoard ?? boardSettings?.boards?.[0];
   const isTargetPaused = pauseTargetBoard?.paused === true;
   const pauseMutation = useMutation({
@@ -350,6 +348,12 @@ export function ActivePageDisplay() {
     // Only auto-select a page in manual mode, not in schedule mode.
     // In schedule mode, null activePageId means a gap with no default (intentional)
     if (scheduleEnabled || isLoadingActivePage || isLoadingPages || activePageId || pages.length === 0) return;
+    // Until the board list lands there is no current board to check pages
+    // against, and pages[0] would be sent with no board_id. The flag comes
+    // from the board context, not this component's own useBoardSettings():
+    // the two observers can update in different renders, and only the
+    // context's flag is in step with `currentBoard`.
+    if (isLoadingBoards) return;
     const attemptKey = scopedBoardId ?? "";
     if (autoDefaultAttemptedForRef.current === attemptKey) return;
 
@@ -373,6 +377,7 @@ export function ActivePageDisplay() {
     scheduleEnabled,
     isLoadingActivePage,
     isLoadingPages,
+    isLoadingBoards,
     activePageId,
     pages,
     currentBoard,
@@ -510,12 +515,31 @@ export function ActivePageDisplay() {
   const { data: fallbackPreview } = usePagePreview(fallbackPageId, { enabled: needsPreviewFallback });
 
   // Derive the full board geometry from the live board state's dimensions,
-  // falling back to the selected board's settings. Note arrays — including
-  // every FiestaPanel virtual board, which is always an auto-fit array —
-  // must render their true W×H: the old "anything that isn't exactly 3×15
-  // is a flagship" rule squeezed a 12×15 panel's content into a 6×22 grid
-  // (the dashboard preview showed "weird shapes" at the wrong size).
-  const activeGeometry = useMemo((): { deviceType: DeviceType; notesWide: number; notesTall: number } => {
+  // falling back to the selected board's settings. Note arrays must render
+  // their true W×H: the old "anything that isn't exactly 3×15 is a flagship"
+  // rule squeezed a 12×15 panel's content into a 6×22 grid (the dashboard
+  // preview showed "weird shapes" at the wrong size).
+  //
+  // A FiestaPanel board ("panel") is fit per character, so its grid is
+  // generally no Note multiple and classifyDimensions() cannot name it (it
+  // throws for 12×29). Its family comes from the board itself; the grid from
+  // the live state when there is one, else the board's stored grid.
+  const activeGeometry = useMemo((): {
+    deviceType: DeviceType;
+    notesWide: number;
+    notesTall: number;
+    gridRows?: number;
+    gridCols?: number;
+  } => {
+    if (currentBoard?.device_type === "panel") {
+      return {
+        deviceType: "panel",
+        notesWide: 1,
+        notesTall: 1,
+        gridRows: boardState?.rows || currentBoard.grid_rows || undefined,
+        gridCols: boardState?.cols || currentBoard.grid_cols || undefined,
+      };
+    }
     if (boardState?.rows && boardState?.cols) {
       try {
         const classified = classifyDimensions(boardState.rows, boardState.cols);
@@ -750,18 +774,17 @@ export function ActivePageDisplay() {
                 </Text>
               </Flex>
             )}
-            {pausedBoards.map((board) => (
+            {isTargetPaused && (
               <Badge
-                key={board.id}
                 variant="default"
                 className="text-xs gap-1 bg-warning text-warning-foreground hover:bg-warning"
                 data-testid="board-paused-badge"
                 title={tPause("tooltip")}
               >
                 <Pause className="h-3 w-3" aria-hidden="true" />
-                {showBoardNameOnPauseBadge ? `${tPause("badge")}: ${board.name}` : tPause("badge")}
+                {tPause("badge")}
               </Badge>
-            ))}
+            )}
           </Flex>
         </Stack>
 
@@ -818,6 +841,8 @@ export function ActivePageDisplay() {
               deviceType={activeGeometry.deviceType}
               notesWide={activeGeometry.notesWide}
               notesTall={activeGeometry.notesTall}
+              gridRows={activeGeometry.gridRows}
+              gridCols={activeGeometry.gridCols}
               // Which code-62 flap this board carries (issue #1657) — the
               // preview has to draw what is on the wall, and only the owner
               // can tell a heart-era Flagship from a degree-era one.
@@ -918,6 +943,8 @@ export function ActivePageDisplay() {
         deviceType={composeTargetBoard?.device_type ?? getEffectiveDeviceType(boardSettings)}
         notesWide={composeTargetBoard?.notes_wide ?? 1}
         notesTall={composeTargetBoard?.notes_tall ?? 1}
+        gridRows={composeTargetBoard?.grid_rows}
+        gridCols={composeTargetBoard?.grid_cols}
         boardColor={composeTargetBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
         code62Glyph={resolveCode62Glyph(
           composeTargetBoard?.device_type ?? getEffectiveDeviceType(boardSettings),

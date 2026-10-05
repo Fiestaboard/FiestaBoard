@@ -42,12 +42,16 @@ test.describe("Integrations Page", () => {
     await expect(page.getByRole("tab", { name: /installed/i })).toBeVisible({ timeout: 15_000 });
 
     // At least one known plugin name from the default installation
-    // should be visible on the page
-    const pluginLocator = page
+    // should be visible in the Installed list. Scoped to the tab panel: a
+    // page-wide substring match also finds the sidebar's collapsed "Update
+    // to x.y.z" item ("Date" in "Update"), which is hidden whenever a newer
+    // release exists, and `.first()` then resolves to it.
+    const installed = page.getByRole("tabpanel", { name: /installed/i });
+    const pluginLocator = installed
       .getByText("Weather", { exact: false })
-      .or(page.getByText("Date", { exact: false }))
-      .or(page.getByText("Stocks", { exact: false }))
-      .or(page.getByText("Traffic", { exact: false }));
+      .or(installed.getByText("Date", { exact: false }))
+      .or(installed.getByText("Stocks", { exact: false }))
+      .or(installed.getByText("Traffic", { exact: false }));
 
     await expect(pluginLocator.first()).toBeVisible({ timeout: 10_000 });
   });

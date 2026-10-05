@@ -27,7 +27,7 @@ export function useViewTransition() {
 
       // Clean up transition class after animation
       setTimeout(() => {
-        if (document.documentElement) {
+        if (typeof document !== "undefined" && document.documentElement) {
           delete document.documentElement.dataset.transition;
         }
       }, 500);
@@ -49,7 +49,7 @@ export function useViewTransition() {
 
       // Clean up transition class after animation
       setTimeout(() => {
-        if (document.documentElement) {
+        if (typeof document !== "undefined" && document.documentElement) {
           delete document.documentElement.dataset.transition;
         }
       }, 500);
@@ -71,7 +71,7 @@ export function useViewTransition() {
 
       // Clean up transition class after animation
       setTimeout(() => {
-        if (document.documentElement) {
+        if (typeof document !== "undefined" && document.documentElement) {
           delete document.documentElement.dataset.transition;
         }
       }, 500);

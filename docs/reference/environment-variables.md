@@ -15,7 +15,7 @@ This reference is useful for:
 - **Troubleshooting** - understanding what each variable controls
 
 :::tip
-**Plugin API keys should be entered through the web UI**, not `.env`. The Integrations page provides setup instructions and validates your keys. Environment variables listed below for plugins are supported for backward compatibility but the web UI is the recommended way to configure them.
+**Plugin API keys should be entered through the web UI**, not `.env`. The Integrations page provides setup instructions and validates your keys. Environment variables listed below for plugins are supported for backward compatibility but the web UI is the recommended way to configure them. A plugin variable that is set overrides the value saved in the UI until you remove it; see [A plugin ignores the settings saved in the UI](/docs/troubleshooting#plugin-ignores-ui-settings).
 :::
 
 ## Board Connection
@@ -118,7 +118,7 @@ These variables belong to plugins you install from the [registry](/docs/plugins/
 |----------|-------------|---------|
 | `REFRESH_INTERVAL_SECONDS` | Display update interval (seconds) | `300` |
 | `VERSION` | Build version (set automatically during Docker builds -- do not change) | `dev` |
-| `FIESTABOARD_OAUTH_REDIRECT_URI` | Redirect URI used when a plugin [connects an account](/docs/features/connecting-accounts). Change it only if you host your own copy of the sign-in relay. | `https://fiestaboard.app/auth/oauth/redirect.html` |
+| `FIESTABOARD_OAUTH_REDIRECT_URI` | Redirect URI used when a plugin [connects an account](/docs/features/connecting-accounts). Change it only if you host your own copy of the sign-in relay. | `https://fiestaboard.app/auth/oauth/redirect` |
 
 ## FiestaUpdater
 

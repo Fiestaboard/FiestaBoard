@@ -1,7 +1,7 @@
 {
   "name": "FiestaBoard Control",
   "short_name": "FiestaBoard",
-  "description": "Home hub for your FiestaBoard display",
+  "description": "Home hub for your split-flap display",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -23,7 +23,7 @@ from src.api_errors import errors
 from src.board_client import board_client_from_board_dict
 from src.board_guards import _board_is_paused, _require_board
 from src.board_send_executor import run_board_preview
-from src.devices import resolve_dimensions
+from src.devices import geometry_of, resolve_dimensions
 from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
 from src.text_to_board import text_to_board_array
@@ -185,6 +185,8 @@ async def render_template(request: TemplateRenderRequest):
     device_type = request.device_type
     notes_wide = request.notes_wide
     notes_tall = request.notes_tall
+    grid_rows = request.grid_rows
+    grid_cols = request.grid_cols
 
     # Row count must come from the same geometry ``render_lines`` renders at.
     # A ``DEVICE_DIMENSIONS`` lookup cannot: it has no ``note_array`` key, so
@@ -194,7 +196,7 @@ async def render_template(request: TemplateRenderRequest):
     # default for an unknown one exactly as ``render_lines`` does.
     from src.devices import DEFAULT_DEVICE_TYPE, board_context_for
 
-    dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall)
+    dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
     num_rows = dims.rows
 
     # Early return for empty templates to avoid unnecessary processing
@@ -221,6 +223,8 @@ async def render_template(request: TemplateRenderRequest):
                 device_type=device_type,
                 notes_wide=notes_wide,
                 notes_tall=notes_tall,
+                grid_rows=grid_rows,
+                grid_cols=grid_cols,
             )
         else:
             logger.info(f"Rendering template string: {template}")
@@ -253,13 +257,15 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     device_type = request.device_type
     notes_wide = request.notes_wide
     notes_tall = request.notes_tall
+    grid_rows = request.grid_rows
+    grid_cols = request.grid_cols
 
     # Same note-array-aware resolution as ``render_template`` above (#2032):
     # ``DEVICE_DIMENSIONS`` has no ``note_array`` key, so the blank path used
     # to answer flagship rows for an array.
     from src.devices import DEFAULT_DEVICE_TYPE, board_context_for
 
-    dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall)
+    dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
     num_rows = dims.rows
 
     # Render the template
@@ -280,6 +286,8 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                 device_type=device_type,
                 notes_wide=notes_wide,
                 notes_tall=notes_tall,
+                grid_rows=grid_rows,
+                grid_cols=grid_cols,
             )
         else:
             if not template.strip():
@@ -316,12 +324,9 @@ async def render_template_live(request: TemplateRenderLiveRequest):
         else:
             client = board_client_from_board_dict(target_board)
             if client:
-                device_type = target_board.get("device_type", "flagship")
-                dims = resolve_dimensions(
-                    device_type,
-                    target_board.get("notes_wide", 1),
-                    target_board.get("notes_tall", 1),
-                )
+                geometry = geometry_of(target_board)
+                device_type = geometry.device_type
+                dims = resolve_dimensions(*geometry)
                 board_array = text_to_board_array(rendered, rows=dims.rows, cols=dims.cols)
 
                 transition_settings = settings_service.get_transition_settings()

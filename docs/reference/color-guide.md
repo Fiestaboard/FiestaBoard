@@ -69,6 +69,17 @@ When using colors on your board:
 4. **Consider accessibility** - Pair colors with text labels for clarity
 5. **Less is more** - A few well-placed colors are more effective than a rainbow
 
+## Dynamic Colors
+
+Open a plugin on the **Integrations** page and use **Dynamic Colors** to color a field by its value, for example the hour black from 8pm. Rules for a field are checked in order and the first match wins.
+
+Once a field has a rule, it can be used in two ways:
+
+- `{{date_time.hour}}` shows the value with its color tile in front, such as `⬛ 21`.
+- `{{date_time.hour_color}}` shows only the color tile. The variable picker lists it next to the field.
+
+Use one form or the other on a line, not both, or the tile appears twice. Rules saved for a named instance, such as `date_time:pacific`, apply only to that instance.
+
 ## Using Colors in the Page Editor
 
 In the WYSIWYG editor, color tiles can be inserted using their character codes. The editor shows a preview of how colors will appear on the board.

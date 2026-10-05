@@ -649,6 +649,9 @@ def test_active_page_carries_the_inactive_temporary_override_block(client, page_
         "device_type": None,
         "notes_wide": None,
         "notes_tall": None,
+        # Added with the "panel" device type (an explicit per-character grid).
+        "grid_rows": None,
+        "grid_cols": None,
     }
 
 

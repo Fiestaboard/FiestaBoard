@@ -1,7 +1,7 @@
 ---
 sidebar_position: 50
-description: "Entertainment plugins for FiestaBoard: Disney park wait times, Last.fm music, Plex now playing, Star Trek quotes, and more."
-keywords: [FiestaBoard entertainment, Disney wait times, Last.fm, Plex, Star Trek quotes, split-flap entertainment]
+description: "Entertainment plugins for FiestaBoard: Disney park wait times, Last.fm music, Plex and Spotify now playing, Star Trek quotes, and more."
+keywords: [FiestaBoard entertainment, Disney wait times, Last.fm, Plex, Spotify, Star Trek quotes, split-flap entertainment]
 ---
 
 # Entertainment Plugins
@@ -11,6 +11,7 @@ FiestaBoard includes several entertainment plugins. Each now has its own dedicat
 - **[Disney Parks Queue Times](/docs/plugins/disney-parks)** -- Live ride wait times from Disney parks worldwide
 - **[Last.fm Now Playing](/docs/plugins/last-fm)** -- Display currently playing music via scrobbling
 - **[Plex Now Playing](/docs/plugins/plex)** -- Movies, TV episodes, and music playing on your Plex server
+- **[Spotify](/docs/plugins/spotify)** -- What's playing on your Spotify account, with progress and up next
 - **[Star Trek Quotes](/docs/plugins/star-trek-quotes)** -- Random quotes from TNG, Voyager, and DS9
 - **[Stardate](/docs/plugins/stardate)** -- Display the current TNG-era stardate
 - **[Sun Art](/docs/plugins/sun-art)** -- Full-screen color patterns based on sun position

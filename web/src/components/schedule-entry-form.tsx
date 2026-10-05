@@ -47,6 +47,9 @@ interface SchedulePageOption {
   device_type?: string;
   notes_wide?: number;
   notes_tall?: number;
+  /** A panel page's character grid (null for every other device type). */
+  grid_rows?: number | null;
+  grid_cols?: number | null;
 }
 
 interface ScheduleEntryFormProps {
@@ -449,6 +452,8 @@ export const ScheduleEntryForm = forwardRef<ScheduleFormHandle, ScheduleEntryFor
                       deviceType={page.device_type}
                       notesWide={page.notes_wide}
                       notesTall={page.notes_tall}
+                      gridRows={page.grid_rows}
+                      gridCols={page.grid_cols}
                     />
                   )}
                 </Flex>

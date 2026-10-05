@@ -9,9 +9,8 @@ import math
 
 import pytest
 
+from src.devices import MAX_GRID_COLS, MAX_GRID_ROWS, MIN_GRID_COLS, MIN_GRID_ROWS
 from src.panels.autofit import (
-    BLOCK_HEIGHT_IN,
-    BLOCK_WIDTH_IN,
     COL_PITCH_IN,
     ROW_PITCH_IN,
     compute_autofit_grid,
@@ -27,10 +26,6 @@ class TestConstants:
         # tile w=0.70h gutter=0.145h → col pitch 0.845h, row pitch 1.145h
         assert pytest.approx(COL_PITCH_IN * (1.145 / 0.845)) == ROW_PITCH_IN
 
-    def test_block_dimensions(self):
-        assert pytest.approx(15 * COL_PITCH_IN) == BLOCK_WIDTH_IN
-        assert pytest.approx(3 * ROW_PITCH_IN) == BLOCK_HEIGHT_IN
-
 
 class TestScreenDimensions:
     def test_16_9_diagonal_decomposition(self):
@@ -41,28 +36,45 @@ class TestScreenDimensions:
 
 
 class TestComputeAutofitGrid:
-    def test_65_inch_tv(self):
-        # 56.65" × 31.87" usable → 2 blocks wide (49"), 4 blocks tall (26.6")
-        assert compute_autofit_grid(65) == (2, 4)
+    """The grid is fit per character, not per Note block.
+
+    A 55" TV is 47.9" wide: that holds 29 columns at Note pitch, but only one
+    whole 15-column Note block — fitting in blocks left half the screen dark.
+    """
+
+    def test_returns_rows_and_cols(self):
+        grid = compute_autofit_grid(55)
+        assert (grid.rows, grid.cols) == (12, 29)
+
+    def test_55_inch_tv_fills_the_width_a_note_block_fit_wasted(self):
+        assert compute_autofit_grid(55).cols == 29
+
+    def test_columns_are_not_rounded_to_note_blocks(self):
+        assert compute_autofit_grid(65) == (14, 34)
+
+    def test_rows_are_not_rounded_to_note_blocks(self):
+        assert compute_autofit_grid(32) == (7, 17)
 
     def test_43_inch_tv(self):
-        assert compute_autofit_grid(43) == (1, 3)
+        assert compute_autofit_grid(43) == (9, 22)
 
     def test_85_inch_tv(self):
-        assert compute_autofit_grid(85) == (3, 6)
+        assert compute_autofit_grid(85) == (18, 45)
 
-    def test_3_inch_pocket_screen_gets_one_block(self):
-        """The smallest supported panel still gets a full Note block; the
+    def test_3_inch_pocket_screen_gets_a_note_sized_grid(self):
+        """The smallest supported panel still gets a Note-sized grid; the
         viewer shrinks it to fit rather than cropping it."""
-        assert compute_autofit_grid(3) == (1, 1)
+        assert compute_autofit_grid(3) == (MIN_GRID_ROWS, MIN_GRID_COLS)
 
-    def test_tiny_screen_clamps_to_one_block(self):
-        assert compute_autofit_grid(10) == (1, 1)
+    def test_a_screen_narrower_than_a_note_keeps_note_width(self):
+        # 24" holds 12 columns; every plugin is authored for >= 15.
+        assert compute_autofit_grid(24) == (5, MIN_GRID_COLS)
 
-    def test_gigantic_screen_clamps_to_max_notes_per_axis(self):
-        wide, tall = compute_autofit_grid(200)
-        assert wide <= 8
-        assert tall <= 8
+    def test_largest_supported_screen_fits_without_clamping(self):
+        assert compute_autofit_grid(200) == (44, 106)
+
+    def test_gigantic_screen_clamps_to_the_grid_maximum(self):
+        assert compute_autofit_grid(500) == (MAX_GRID_ROWS, MAX_GRID_COLS)
 
     def test_rejects_non_positive_diagonal(self):
         with pytest.raises(ValueError):
@@ -79,13 +91,16 @@ class TestAspectRatios:
     """
 
     def test_ultrawide_21_9_55_inch(self):
-        assert compute_autofit_grid(55, 21, 9) == (2, 3)
+        assert compute_autofit_grid(55, 21, 9) == (9, 30)
 
     def test_portrait_9_16_55_inch(self):
-        assert compute_autofit_grid(55, 9, 16) == (1, 7)
+        assert compute_autofit_grid(55, 9, 16) == (21, 16)
+
+    def test_portrait_9_16_200_inch(self):
+        assert compute_autofit_grid(200, 9, 16) == (78, 60)
 
     def test_4_3_signage_40_inch(self):
-        assert compute_autofit_grid(40, 4, 3) == (1, 3)
+        assert compute_autofit_grid(40, 4, 3) == (10, 19)
 
     def test_default_aspect_is_16_9(self):
         assert compute_autofit_grid(65) == compute_autofit_grid(65, 16, 9)

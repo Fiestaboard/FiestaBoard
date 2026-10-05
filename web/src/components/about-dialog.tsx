@@ -123,6 +123,8 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
       currentBoard.device_type,
       currentBoard.notes_wide ?? 1,
       currentBoard.notes_tall ?? 1,
+      currentBoard.grid_rows,
+      currentBoard.grid_cols,
     );
     facts.push({
       key: "board",

@@ -486,3 +486,82 @@ def test_set_transition_runner_can_be_cleared():
     bc.set_transition_runner(MagicMock())
     bc.set_transition_runner(None)
     assert bc._transition_runner is None
+
+
+# ---------------------------------------------------------------------------
+# Runner: any grid size (FiestaPanel per-character grids)
+# ---------------------------------------------------------------------------
+
+
+def _sized(value: int, rows: int, cols: int) -> list[list[int]]:
+    return [[value] * cols for _ in range(rows)]
+
+
+@pytest.mark.parametrize(
+    ("cached_shape", "label"),
+    [((3, 15), "smaller"), ((18, 45), "larger"), ((12, 15), "narrower"), ((5, 40), "shorter")],
+)
+def test_a_stale_from_grid_reaches_the_plugin_reshaped_to_the_target(cached_shape, label):
+    """After a board changes size (a panel re-fit), the cached previous frame
+    is the old shape. Plugins index from_grid by the target's rows/cols, so a
+    smaller cache raised IndexError mid-transition; it must arrive as the
+    target's shape, keeping the overlapping characters."""
+    captured = []
+
+    class _CapturePlugin(TransitionPluginBase):
+        @property
+        def plugin_id(self):
+            return "cap"
+
+        def generate_frames(self, from_grid, to_grid, device, config):
+            captured.append(from_grid)
+            yield to_grid, 0
+
+    plugin = _CapturePlugin(_manifest("cap", min_interval_ms=0))
+    runner = TransitionRunner(lambda pid: plugin)
+    board = _FakeBoard(cached=_sized(7, *cached_shape))
+    runner.run(plugin_id="cap", to_grid=_sized(1, 12, 29), board_client=board)
+
+    from_grid = captured[0]
+    assert (len(from_grid), {len(r) for r in from_grid}) == (12, {29}), label
+    assert from_grid[0][0] == 7, "overlapping characters are kept"
+
+
+@pytest.mark.parametrize("plugin_id", ["typewriter", "simple_dissolve", "quiet_library", "slot_machine"])
+def test_bundled_transitions_land_on_a_panel_grid_after_a_resize(plugin_id, monkeypatch):
+    """Every bundled transition animates a 12x29 panel grid from a stale
+    3x15 previous frame and snaps exactly onto the target."""
+    import importlib
+
+    # Frame pacing is real time.sleep; a 348-tile typewriter would take minutes.
+    monkeypatch.setattr("src.transitions.runner.time.sleep", lambda _s: None)
+    import json
+    from pathlib import Path
+
+    plugin_dir = Path(__file__).resolve().parent.parent / "plugins" / plugin_id
+    manifest = json.loads((plugin_dir / "manifest.json").read_text())
+    manifest.setdefault("transition_settings", {})["min_interval_ms"] = 0
+    module = importlib.import_module(f"plugins.{plugin_id}")
+    (plugin_class,) = {
+        obj
+        for obj in vars(module).values()
+        if isinstance(obj, type) and issubclass(obj, TransitionPluginBase) and obj is not TransitionPluginBase
+    }
+    plugin = plugin_class(manifest)
+    runner = TransitionRunner(lambda pid: plugin)
+
+    target = [[(r * 29 + c) % 26 + 1 for c in range(29)] for r in range(12)]
+    board = _FakeBoard(cached=_sized(5, 3, 15))
+    success, _ = runner.run(plugin_id=plugin_id, to_grid=target, board_client=board, device_type="panel")
+
+    assert success
+    assert board.sent[-1] == target
+    assert all(len(frame) == 12 and all(len(row) == 29 for row in frame) for frame in board.sent)
+
+
+def test_device_label_for_an_unclassifiable_grid_does_not_raise():
+    """With no device_type hint, a 12x29 grid is not a hardware shape; the
+    runner must still describe it rather than raise."""
+    runner = TransitionRunner(lambda pid: None)
+    device = runner._resolve_device(_sized(1, 12, 29), None)
+    assert (device.device_type, device.rows, device.cols) == ("panel", 12, 29)

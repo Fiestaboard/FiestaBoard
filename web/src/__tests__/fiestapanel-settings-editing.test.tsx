@@ -150,14 +150,17 @@ describe("FiestaPanelSettings — edit dialog", () => {
     const user = userEvent.setup();
     await openEditDialog(user);
 
-    // 55" 16:9 auto-fits 1×4 Note blocks (15 × 12 flaps)…
-    expect(screen.getByTestId("tv-preview-meta")).toHaveTextContent("15 × 12 flaps · 1 × 4 Note blocks");
-    expect(screen.getAllByTestId("tv-preview-block")).toHaveLength(4);
+    // 55" 16:9 auto-fits 29 × 12 characters (fit per character, not in
+    // whole Note blocks)…
+    expect(screen.getByTestId("tv-preview-meta")).toHaveTextContent("29 × 12 flaps at life size");
+    expect(screen.getByTestId("tv-preview-grid")).toHaveAttribute("data-cols", "29");
+    expect(screen.getByTestId("tv-preview-grid")).toHaveAttribute("data-rows", "12");
 
-    // …and the same TV declared 21:9 fits 2×3 (30 × 9 flaps), live.
+    // …and the same TV declared 21:9 fits 30 × 9, live.
     await user.click(screen.getByRole("button", { name: "21:9" }));
-    expect(screen.getByTestId("tv-preview-meta")).toHaveTextContent("30 × 9 flaps · 2 × 3 Note blocks");
-    expect(screen.getAllByTestId("tv-preview-block")).toHaveLength(6);
+    expect(screen.getByTestId("tv-preview-meta")).toHaveTextContent("30 × 9 flaps at life size");
+    expect(screen.getByTestId("tv-preview-grid")).toHaveAttribute("data-cols", "30");
+    expect(screen.getByTestId("tv-preview-grid")).toHaveAttribute("data-rows", "9");
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(patchBody).not.toBeNull());

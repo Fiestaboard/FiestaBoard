@@ -36,6 +36,37 @@ describe("templates API client note-array geometry", () => {
     });
   });
 
+  it("renderTemplate sends a panel's grid_rows and grid_cols", async () => {
+    let body: unknown;
+    server.use(
+      http.post(`${API_BASE}/templates/render`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ rendered: "", lines: [""], line_count: 1 });
+      }),
+    );
+
+    await api.renderTemplate(["HI"], undefined, "panel", undefined, undefined, { rows: 12, cols: 29 });
+
+    expect(body).toEqual({ template: ["HI"], device_type: "panel", grid_rows: 12, grid_cols: 29 });
+  });
+
+  it("renderTemplateLive sends a panel's grid after the abort signal", async () => {
+    let body: unknown;
+    server.use(
+      http.post(`${API_BASE}/templates/render/live`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ rendered: "", lines: [""], line_count: 1, sent_to_board: false });
+      }),
+    );
+
+    await api.renderTemplateLive(["HI"], "board-1", undefined, "panel", undefined, undefined, undefined, {
+      rows: 12,
+      cols: 29,
+    });
+
+    expect(body).toEqual({ template: ["HI"], board_id: "board-1", device_type: "panel", grid_rows: 12, grid_cols: 29 });
+  });
+
   it("renderTemplate omits the geometry when the caller has none", async () => {
     let body: unknown;
     server.use(

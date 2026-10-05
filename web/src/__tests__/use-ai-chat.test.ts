@@ -729,9 +729,10 @@ describe("conversation history (#2022)", () => {
 
     const id = result.current.conversationId;
     expect(id).toMatch(UUID);
-    await waitFor(() => expect(savedBodies.length).toBeGreaterThan(0));
-    const last = savedBodies[savedBodies.length - 1];
-    expect(last.id).toBe(id);
+    // Match on id: an earlier test's unmounted hook can still be finishing its
+    // own autosave, and that request may land in this test's handler.
+    await waitFor(() => expect(savedBodies.some((s) => s.id === id)).toBe(true));
+    const last = savedBodies.filter((s) => s.id === id).at(-1)!;
     expect(last.body.provider_id).toBe("p1");
     expect(last.body.model).toBe("m1");
     expect(last.body.approval).toBe(false);

@@ -123,7 +123,7 @@ def _boards_summary(settings_service: Any) -> list[dict[str, Any]]:
     MCP boundary even masked. ``error`` is the #1813 per-board init failure,
     read defensively off the engine service when one exists.
     """
-    from .devices import resolve_dimensions
+    from .devices import dimensions_of
 
     init_errors: dict[str, str] = {}
     try:
@@ -151,11 +151,7 @@ def _boards_summary(settings_service: Any) -> list[dict[str, Any]]:
         bid = board["id"]
         rows = cols = None
         try:
-            dims = resolve_dimensions(
-                board.get("device_type") or "flagship",
-                board.get("notes_wide") or 1,
-                board.get("notes_tall") or 1,
-            )
+            dims = dimensions_of(board)
             rows, cols = dims.rows, dims.cols
         except Exception as exc:
             logger.debug("get_settings_summary: could not resolve dims for board %s: %s", bid, exc)
@@ -271,7 +267,9 @@ def _build_mcp_server() -> Any:
     mcp = MCPServer(
         "FiestaBoard",
         instructions=(
-            "FiestaBoard is a smart LED matrix display controller. You can:\n"
+            "FiestaBoard is open-source software that sends content to Vestaboard\n"
+            "split-flap boards through Vestaboard's official APIs. It is not made by\n"
+            "or affiliated with Vestaboard, Inc. You can:\n"
             "  • Manage plugins/integrations (weather, stocks, transit, etc.)\n"
             "  • Create and edit display pages using template variables from plugins\n"
             "  • Schedule which page shows at which time of day\n"
@@ -1054,6 +1052,8 @@ def _build_mcp_server() -> Any:
         transition_strategy: str | None = None,
         transition_interval_ms: int | None = None,
         transition_step_size: int | None = None,
+        grid_rows: int | None = None,
+        grid_cols: int | None = None,
     ) -> dict[str, Any]:
         """Create a new template page on FiestaBoard.
 
@@ -1064,15 +1064,18 @@ def _build_mcp_server() -> Any:
         Note display is 15 columns × 3 rows.
         A note_array is notes_wide × notes_tall Notes: 15·notes_wide columns
         × 3·notes_tall rows.
+        A panel (a FiestaPanel TV) is an explicit grid_rows × grid_cols —
+        take both, with device_type 'panel', from list_panels() rows/cols.
 
         Args:
             name: Display name for the page.
             template_lines: List of template strings, one per row. Must match
                             the number of rows for the device_type
                             (6 for flagship, 3 for note, 3·notes_tall for
-                            note_array).
-            device_type: 'flagship' (default), 'note', or 'note_array'. For a
-                         FiestaPanel, take it from list_panels().
+                            note_array, grid_rows for panel).
+            device_type: 'flagship' (default), 'note', 'note_array', or
+                         'panel'. For a FiestaPanel, take it from
+                         list_panels().
             duration_seconds: How long to show this page in a time-mode collection (default: 300).
             line_metadata: Optional per-line dicts with "alignment"
                            ('left'/'center'/'right') and "wrap" (bool), one
@@ -1080,6 +1083,8 @@ def _build_mcp_server() -> Any:
                            wrap toggles. Omitted = left-aligned, no wrap.
             notes_wide: For note_array only — Notes across (1–8). Omitted = 1.
             notes_tall: For note_array only — Notes down (1–8). Omitted = 1.
+            grid_rows: For panel only (required) — rows, the panel's rows.
+            grid_cols: For panel only (required) — columns, the panel's cols.
             transition_strategy: Optional per-page transition override —
                                  'column', 'reverse-column', 'edges-to-center',
                                  'row', 'diagonal', 'random', or the
@@ -1104,6 +1109,8 @@ def _build_mcp_server() -> Any:
             transition_strategy=transition_strategy,
             transition_interval_ms=transition_interval_ms,
             transition_step_size=transition_step_size,
+            grid_rows=grid_rows,
+            grid_cols=grid_cols,
         )
 
     @_tool(destructive=False, idempotent=True)
@@ -1120,11 +1127,14 @@ def _build_mcp_server() -> Any:
         transition_interval_ms: int | None = None,
         transition_step_size: int | None = None,
         clear_transition_override: bool = False,
+        grid_rows: int | None = None,
+        grid_cols: int | None = None,
     ) -> dict[str, Any]:
         """Update any field of an existing page. Only the fields you pass change.
 
         Covers everything the web page editor saves. Changing device_type,
-        notes_wide or notes_tall RETARGETS the page to a new size: content
+        notes_wide, notes_tall, grid_rows or grid_cols RETARGETS the page to a
+        new size: content
         that no longer fits is truncated at render time, and the response's
         incompatible_references lists every board reference (a schedule
         entry, a board's active page, a silence page) that now points this
@@ -1137,9 +1147,12 @@ def _build_mcp_server() -> Any:
             template_lines: New template content (optional). Replaces all lines;
                             must match the row count of the (new) device size.
             duration_seconds: New time-mode duration in seconds (optional).
-            device_type: Retarget to 'flagship', 'note', or 'note_array' (optional).
+            device_type: Retarget to 'flagship', 'note', 'note_array', or
+                         'panel' (optional; 'panel' needs grid_rows/grid_cols).
             notes_wide: New note_array width in Notes, 1–8 (optional).
             notes_tall: New note_array height in Notes, 1–8 (optional).
+            grid_rows: New panel row count (optional; from list_panels()).
+            grid_cols: New panel column count (optional; from list_panels()).
             line_metadata: New per-line alignment/wrap list (optional). Replaces
                            the whole list; one {"alignment", "wrap"} dict per line.
             transition_strategy: New per-page transition override (optional) —
@@ -1168,6 +1181,8 @@ def _build_mcp_server() -> Any:
             transition_interval_ms=transition_interval_ms,
             transition_step_size=transition_step_size,
             clear_transition_override=clear_transition_override,
+            grid_rows=grid_rows,
+            grid_cols=grid_cols,
         )
 
     @_tool(destructive=True)
@@ -1189,6 +1204,8 @@ def _build_mcp_server() -> Any:
         line_metadata: list[dict[str, Any]] | None = None,
         notes_wide: int = 1,
         notes_tall: int = 1,
+        grid_rows: int | None = None,
+        grid_cols: int | None = None,
     ) -> dict[str, Any]:
         """Render a template to see how it will look BEFORE saving it as a page.
 
@@ -1200,14 +1217,17 @@ def _build_mcp_server() -> Any:
         Args:
             template_lines: Template strings to render (one per row). Extra
                             rows are dropped; missing rows are filled with blanks.
-            device_type: 'flagship' (22×6), 'note' (15×3), or 'note_array'
-                         (15·notes_wide × 3·notes_tall).
+            device_type: 'flagship' (22×6), 'note' (15×3), 'note_array'
+                         (15·notes_wide × 3·notes_tall), or 'panel'
+                         (grid_cols × grid_rows).
             line_metadata: Optional per-line dicts with "alignment"
                            ('left'/'center'/'right') and "wrap" (bool) — the
                            same metadata saved pages carry. Include it to
                            preview alignment and wrap faithfully.
             notes_wide: For note_array — Notes across (1–8). Ignored otherwise.
             notes_tall: For note_array — Notes down (1–8). Ignored otherwise.
+            grid_rows: For panel — rows (from list_panels()). Ignored otherwise.
+            grid_cols: For panel — columns (from list_panels()). Ignored otherwise.
 
         Returns:
             {
@@ -1234,7 +1254,7 @@ def _build_mcp_server() -> Any:
         # notes_wide × notes_tall, exactly as a saved page's geometry is.
         render_device_type = device_type or DEFAULT_DEVICE_TYPE
         try:
-            dims = resolve_dimensions(render_device_type, notes_wide, notes_tall)
+            dims = resolve_dimensions(render_device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         except ValueError:
             render_device_type = DEFAULT_DEVICE_TYPE
             dims = resolve_dimensions(render_device_type)
@@ -1246,6 +1266,8 @@ def _build_mcp_server() -> Any:
             device_type=device_type,
             notes_wide=notes_wide,
             notes_tall=notes_tall,
+            grid_rows=grid_rows,
+            grid_cols=grid_cols,
         )
         return {
             "rendered": rendered,
@@ -1313,7 +1335,12 @@ def _build_mcp_server() -> Any:
         return out
 
     @_tool(read_only=True)
-    def validate_template(template: list[str] | str, device_type: str = "flagship") -> dict[str, Any]:
+    def validate_template(
+        template: list[str] | str,
+        device_type: str = "flagship",
+        notes_wide: int = 1,
+        grid_cols: int | None = None,
+    ) -> dict[str, Any]:
         """Check template syntax without rendering, saving, or touching the board.
 
         Catches malformed {{...}} references, unknown plugins/variables,
@@ -1323,16 +1350,23 @@ def _build_mcp_server() -> Any:
         Args:
             template: Template string or list of template lines.
             device_type: Which board type's width to validate against —
-                         'flagship' (22 cols), 'note' (15 cols).
+                         'flagship' (22 cols), 'note' (15 cols), 'note_array'
+                         (15·notes_wide cols), or 'panel' (grid_cols cols).
+            notes_wide: For note_array — Notes across (1–8).
+            grid_cols: For panel (required) — the panel's cols from list_panels().
 
         Returns: {valid: bool, errors: [{line, column, message}], device_type}.
         """
-        from .devices import resolve_dimensions
+        from .devices import MIN_GRID_ROWS, resolve_dimensions
         from .templates.engine import get_template_engine
 
         try:
-            cols = resolve_dimensions(device_type).cols
+            # Width only: rows never affect template validation, so a panel's
+            # row count is irrelevant here (any in-range value works).
+            cols = resolve_dimensions(device_type, notes_wide, 1, MIN_GRID_ROWS, grid_cols).cols
         except Exception as exc:
+            if device_type == "panel":
+                raise ToolError("A panel needs grid_cols (its cols from list_panels())") from exc
             raise ToolError(f"Unknown device_type: {device_type}") from exc
 
         text = "\n".join(template) if isinstance(template, list) else template
@@ -1510,6 +1544,8 @@ def _build_mcp_server() -> Any:
             "device_type": page.device_type,
             "notes_wide": page.notes_wide,
             "notes_tall": page.notes_tall,
+            "grid_rows": page.grid_rows,
+            "grid_cols": page.grid_cols,
             "template": template,
             "line_metadata": line_metadata,
         }
@@ -2405,7 +2441,8 @@ def _build_mcp_server() -> Any:
         active it wins over the schedule and the manually selected page.
 
         Returns: {active, page_id (saved-page form), template (one-off form),
-        line_metadata, device_type, notes_wide, notes_tall, expires_at (ISO
+        line_metadata, device_type, notes_wide, notes_tall, grid_rows,
+        grid_cols, expires_at (ISO
         UTC, or null for an indefinite override), remaining_seconds (null when
         indefinite or inactive), revert_mode, revert_page_id}. Every field but
         active is null when nothing is active.
@@ -2425,6 +2462,8 @@ def _build_mcp_server() -> Any:
         duration_minutes: int | None = None,
         revert_mode: str = "schedule",
         revert_page_id: str | None = None,
+        grid_rows: int | None = None,
+        grid_cols: int | None = None,
     ) -> dict[str, Any]:
         """Temporarily show a saved page or a composed one-off on the primary board.
 
@@ -2445,9 +2484,11 @@ def _build_mcp_server() -> Any:
             line_metadata: Optional per-line {"alignment", "wrap"} dicts for
                            the one-off form (same shape as saved pages).
             device_type: Geometry the one-off content was composed for:
-                         'flagship' (default), 'note' or 'note_array'.
+                         'flagship' (default), 'note', 'note_array' or 'panel'.
             notes_wide: note_array only — notes across (1–8).
             notes_tall: note_array only — notes down (1–8).
+            grid_rows: panel only (required) — the panel's rows.
+            grid_cols: panel only (required) — the panel's cols.
             duration_minutes: How long to show it, 1–480. Omit for an
                               indefinite override that stays until cancelled.
             revert_mode: What happens when a timed override expires:
@@ -2463,6 +2504,8 @@ def _build_mcp_server() -> Any:
             device_type=device_type,
             notes_wide=notes_wide,
             notes_tall=notes_tall,
+            grid_rows=grid_rows,
+            grid_cols=grid_cols,
             duration_minutes=duration_minutes,
             revert_mode=revert_mode,
             revert_page_id=revert_page_id,
@@ -2692,17 +2735,20 @@ def _build_mcp_server() -> Any:
 
     @_tool(read_only=True)
     async def list_panels() -> dict[str, Any]:
-        """List the FiestaPanels (TV viewers) and each one's board — its
-        device_type + notes_wide / notes_tall size a page for that panel.
+        """List the FiestaPanels (TV viewers) and each one's board — a page
+        for a panel is device_type 'panel' with grid_rows = rows and
+        grid_cols = cols.
 
         Each entry has id (use it for update_panel() / delete_panel()), name,
         board_id (the virtual board — appears in the boards list too and can
         be targeted like any board), screen_diagonal_inches, screen_aspect_w /
         _h, calibration_scale, animations_enabled, is_display (the panel the
         FiestaPi HDMI kiosk shows at /p/display), backdrop, auto_dim, and the
-        board's device_type / rows / cols / notes_wide / notes_tall — never
-        divide rows/cols by 15/3 yourself. short_code is the number the TV
-        types into /p/<code>.
+        board's device_type / rows / cols / notes_wide / notes_tall. A panel's
+        board is device_type 'panel': size a page for it with device_type
+        'panel', grid_rows = rows and grid_cols = cols (notes_wide/notes_tall
+        are null — a panel is fit per character, not in Notes). short_code is
+        the number the TV types into /p/<code>.
         """
         from .panels.routes import list_panels as _rest_list_panels
 

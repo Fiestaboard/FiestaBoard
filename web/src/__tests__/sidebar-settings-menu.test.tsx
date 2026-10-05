@@ -66,7 +66,7 @@ function mockAuth(payload: typeof SIGNED_IN | typeof AUTH_OFF) {
 
 /** Open the footer menu and return its popup, whatever the trigger is called. */
 async function openMenu(user: ReturnType<typeof userEvent.setup>) {
-  const trigger = document.querySelector<HTMLElement>('[data-slot="sidebar-settings-trigger"]')!;
+  const trigger = document.querySelector<HTMLElement>('[data-slot="sidebar-account-trigger"]')!;
   await user.click(trigger);
   return await screen.findByRole("menu");
 }
@@ -85,24 +85,34 @@ describe("SidebarSettingsMenu trigger", () => {
     expect(await screen.findByText("casa")).toBeInTheDocument();
   });
 
-  it("falls back to the word for settings when auth is off", async () => {
+  it("draws the signed-in user's initial as the trigger's avatar", async () => {
+    mockAuth(SIGNED_IN);
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+
+    const trigger = await screen.findByRole("button", { name: "casa" });
+    expect(trigger.querySelector('[data-slot="avatar"]')).toHaveTextContent("C");
+  });
+
+  it("falls back to More, with no avatar, when auth is off", async () => {
     mockAuth(AUTH_OFF);
     render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
 
-    // There is no name to show on an install with no accounts, and
-    // "Settings" is what is actually behind the gear.
-    await waitFor(() => {
-      expect(screen.getByText("Settings")).toBeInTheDocument();
-    });
+    // There is no name to show on an install with no accounts. Not
+    // "Settings": the gear beside the trigger is already called that, and
+    // two neighbours with one name and different behaviour is a trap.
+    const trigger = await screen.findByRole("button", { name: "More" });
     expect(screen.queryByText("casa")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Settings" })).not.toBeInTheDocument();
+    // …and no monogram for a person who does not exist.
+    expect(trigger.querySelector('[data-slot="avatar"]')).toBeNull();
   });
 
   it("keeps the name as the accessible name when the rail is collapsed", async () => {
     mockAuth(SIGNED_IN);
     render(<SidebarSettingsMenu collapsed />, { wrapper: TestWrapper });
 
-    // The 64px rail renders the gear alone, so the name has to survive as a
-    // label or the control becomes an unnamed icon.
+    // The 64px rail renders the avatar alone, so the name has to survive as
+    // a label or the control becomes an unnamed disc.
     const trigger = await screen.findByRole("button", { name: "casa" });
     expect(trigger).toBeInTheDocument();
     expect(trigger).not.toHaveTextContent("casa");
@@ -130,11 +140,12 @@ describe("SidebarSettingsMenu contents", () => {
     const user = userEvent.setup();
     mockAuth(AUTH_OFF);
     render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
-    await waitFor(() => expect(screen.getByText("Settings")).toBeInTheDocument());
+    await screen.findByRole("button", { name: "More" });
 
     const menu = await openMenu(user);
-    // Exactly one "Settings" in the menu: the destination. A header would
-    // have echoed the trigger's fallback label back at the reader.
+    // A header would have echoed the trigger's fallback label back at the
+    // reader as if "More" were somebody's name.
+    expect(within(menu).queryByText("More")).not.toBeInTheDocument();
     expect(within(menu).getAllByText("Settings")).toHaveLength(1);
   });
 
@@ -238,7 +249,7 @@ describe("SidebarSettingsMenu contents", () => {
     const user = userEvent.setup();
     mockAuth(AUTH_OFF);
     render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
-    await waitFor(() => expect(screen.getByText("Settings")).toBeInTheDocument());
+    await screen.findByRole("button", { name: "More" });
 
     const menu = await openMenu(user);
     expect(within(menu).queryByRole("menuitem", { name: "Sign out" })).not.toBeInTheDocument();
@@ -276,7 +287,15 @@ describe("SidebarSettingsMenu on mobile", () => {
     // what this variant exists to avoid.
     expect(await screen.findByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-    expect(document.querySelector('[data-slot="sidebar-settings-trigger"]')).toBeNull();
+    expect(document.querySelector('[data-slot="sidebar-account-trigger"]')).toBeNull();
+  });
+
+  it("shows the signed-in user's avatar beside their name", async () => {
+    render(<SidebarSettingsMenu variant="mobile" />, { wrapper: TestWrapper });
+
+    // The drawer has no trigger to carry the avatar, so the name row does.
+    const name = await screen.findByText("casa");
+    expect(name.parentElement!.querySelector('[data-slot="avatar"]')).toHaveTextContent("C");
   });
 
   it("switches the theme from a segmented control, with no menu to open first", async () => {

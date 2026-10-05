@@ -148,7 +148,7 @@ When you're ready to see it on hardware, **Test live** runs the transition once 
 
 ## Performance & rate limits
 
-- The Vestaboard hardware has internal timing constraints. Sending frames faster than the flap mechanism can settle (~14s for a full revolution under heavy update) will cause the board to drop requests.
+- Boards can't accept frames arbitrarily fast. A frame sent before the board has finished showing the previous one may be dropped, so pace frames conservatively and test on a real board. Follow the rate limits in Vestaboard's API documentation rather than guessing at hardware timing.
 - The Cloud API has stricter rate limits than the Local API. Transition plugins are the *only* way to animate on Cloud-mode boards (the built-in strategies are Local API features and are ignored there), but the practical frame rate is much lower.
 - Cloud **note arrays** are throttled to one send per 15 seconds. The runner automatically paces your frames (and the final snap) to the board client's `min_send_interval_ms`, so your plugin still works — it just runs no faster than that floor. Slow, deliberate transitions are the natural fit there.
 - Use `min_interval_ms` to protect users from runaway loops in your own plugin.

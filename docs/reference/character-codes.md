@@ -132,7 +132,7 @@ Set it per board in **Settings → Hardware** (or in the setup wizard when addin
 
 The setting only affects what FiestaBoard *draws* in its previews, so the preview matches your wall. It never changes what is sent to the board: both glyphs are character code 62 on the wire, and the board draws whichever flap it physically has. It is a per-board setting, so a household with one older and one newer Flagship previews each correctly.
 
-The setting is not offered for Note devices — Note hardware has only ever carried the heart flap.
+The setting is not offered for Note devices, which draw code 62 as a heart.
 
 In a template, type the degree symbol (`°`) or a heart (`❤`) and you get code 62 either way.
 

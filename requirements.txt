@@ -34,7 +34,7 @@ icalendar>=7.3.0
 recurring-ical-events>=3.8.2
 
 # Timezone support (used by santa_tracker, visual_clock, stardate, calendar_sub plugins)
-pytz>=2026.3.post1
+pytz>=2026.4
 
 # Regular expressions for user-written template patterns. The stdlib `re` has
 # no timeout, so a pattern a page author writes could backtrack forever and

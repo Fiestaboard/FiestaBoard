@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { MAX_GRID_COLS, MAX_GRID_ROWS, MIN_GRID_COLS, MIN_GRID_ROWS } from "@/lib/board-dimensions";
 import {
   computeAutofitGrid,
   NOTE_COL_PITCH_IN,
@@ -25,41 +26,74 @@ describe("computeAutofitGrid (parity with src/panels/autofit.py)", () => {
   // These example cases are mirrored VERBATIM in
   // tests/test_panels_autofit.py — the backend sizes the board it actually
   // creates with the Python twin, so drift between the two mirrors must
-  // fail one of the suites.
-  it('65" 16:9 → 2×4', () => {
-    expect(computeAutofitGrid(65)).toEqual({ notesWide: 2, notesTall: 4 });
+  // fail one of the suites. The grid is fit per character (rows × cols),
+  // not in whole 15×3 Note blocks.
+  it("returns rows and cols", () => {
+    expect(computeAutofitGrid(55)).toEqual({ rows: 12, cols: 29 });
   });
 
-  it('43" 16:9 → 1×3', () => {
-    expect(computeAutofitGrid(43)).toEqual({ notesWide: 1, notesTall: 3 });
+  it('a 55" TV fills the width a Note-block fit wasted', () => {
+    expect(computeAutofitGrid(55).cols).toBe(29);
   });
 
-  it('85" 16:9 → 3×6', () => {
-    expect(computeAutofitGrid(85)).toEqual({ notesWide: 3, notesTall: 6 });
+  it("columns are not rounded to Note blocks", () => {
+    expect(computeAutofitGrid(65)).toEqual({ rows: 14, cols: 34 });
   });
 
-  it('3" pocket screen → 1×1', () => {
-    expect(computeAutofitGrid(3)).toEqual({ notesWide: 1, notesTall: 1 });
+  it("rows are not rounded to Note blocks", () => {
+    expect(computeAutofitGrid(32)).toEqual({ rows: 7, cols: 17 });
   });
 
-  it('55" ultrawide 21:9 → 2×3', () => {
-    expect(computeAutofitGrid(55, 21, 9)).toEqual({ notesWide: 2, notesTall: 3 });
+  it('43" TV', () => {
+    expect(computeAutofitGrid(43)).toEqual({ rows: 9, cols: 22 });
   });
 
-  it('55" portrait 9:16 → 1×7', () => {
-    expect(computeAutofitGrid(55, 9, 16)).toEqual({ notesWide: 1, notesTall: 7 });
+  it('85" TV', () => {
+    expect(computeAutofitGrid(85)).toEqual({ rows: 18, cols: 45 });
   });
 
-  it('40" 4:3 signage → 1×3', () => {
-    expect(computeAutofitGrid(40, 4, 3)).toEqual({ notesWide: 1, notesTall: 3 });
+  it('3" pocket screen gets a Note-sized grid', () => {
+    expect(computeAutofitGrid(3)).toEqual({ rows: MIN_GRID_ROWS, cols: MIN_GRID_COLS });
   });
 
-  it("clamps a gigantic screen to 8 blocks per axis", () => {
-    expect(computeAutofitGrid(400)).toEqual({ notesWide: 8, notesTall: 8 });
+  it("a screen narrower than a Note keeps Note width", () => {
+    expect(computeAutofitGrid(24)).toEqual({ rows: 5, cols: MIN_GRID_COLS });
   });
 
-  it("throws on non-positive inputs", () => {
+  it("the largest supported screen fits without clamping", () => {
+    expect(computeAutofitGrid(200)).toEqual({ rows: 44, cols: 106 });
+  });
+
+  it("a gigantic screen clamps to the grid maximum", () => {
+    expect(computeAutofitGrid(500)).toEqual({ rows: MAX_GRID_ROWS, cols: MAX_GRID_COLS });
+  });
+
+  it('ultrawide 21:9 55"', () => {
+    expect(computeAutofitGrid(55, 21, 9)).toEqual({ rows: 9, cols: 30 });
+  });
+
+  it('portrait 9:16 55"', () => {
+    expect(computeAutofitGrid(55, 9, 16)).toEqual({ rows: 21, cols: 16 });
+  });
+
+  it('portrait 9:16 200"', () => {
+    expect(computeAutofitGrid(200, 9, 16)).toEqual({ rows: 78, cols: 60 });
+  });
+
+  it('4:3 signage 40"', () => {
+    expect(computeAutofitGrid(40, 4, 3)).toEqual({ rows: 10, cols: 19 });
+  });
+
+  it("default aspect is 16:9", () => {
+    expect(computeAutofitGrid(65)).toEqual(computeAutofitGrid(65, 16, 9));
+  });
+
+  it("rejects a non-positive diagonal", () => {
     expect(() => computeAutofitGrid(0)).toThrow();
+    expect(() => computeAutofitGrid(-1)).toThrow();
+  });
+
+  it("rejects a non-positive aspect", () => {
     expect(() => computeAutofitGrid(55, 0, 9)).toThrow();
     expect(() => computeAutofitGrid(55, 16, -1)).toThrow();
   });

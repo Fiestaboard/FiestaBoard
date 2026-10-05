@@ -3,9 +3,10 @@
  * helpers that read an OAuth sign-in's outcome off the URL it returns to.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { OAuthConnectionSection, oauthReturnErrorKey, readOAuthReturn } from "@/components/plugin-settings";
@@ -14,7 +15,7 @@ import { boardAddress, type OAuthConnection } from "@/lib/api";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
-const REDIRECT_URI = "https://fiestaboard.app/auth/oauth/redirect.html";
+const REDIRECT_URI = "https://fiestaboard.app/auth/oauth/redirect";
 
 const RELAY: OAuthConnection = {
   id: "music",
@@ -24,6 +25,10 @@ const RELAY: OAuthConnection = {
   provider_name: "Example Music",
   flows: ["relay"],
   configured: true,
+  user_app: true,
+  client_id_setting: "client_id",
+  client_secret_setting: null,
+  app_setup_url: "",
   status: "disconnected",
   scopes: ["read-playing"],
   expires_at: null,
@@ -54,13 +59,36 @@ function serveConnections(...connections: OAuthConnection[]) {
   );
 }
 
-function renderSection(pluginId: string) {
+interface HarnessOptions {
+  /** The settings sheet's form values. "***" is how a saved Client ID arrives from the API. */
+  values?: Record<string, unknown>;
+  save?: () => Promise<void>;
+  setupGuideUrl?: string;
+}
+
+/** Stands in for the settings sheet, which owns the form values. */
+function Harness({ pluginId, values: initial, save, setupGuideUrl }: HarnessOptions & { pluginId: string }) {
+  const [values, setValues] = useState<Record<string, unknown>>(initial ?? { client_id: "***" });
+  return (
+    <OAuthConnectionSection
+      pluginId={pluginId}
+      appFields={{
+        values,
+        onChange: (key, value) => setValues((current) => ({ ...current, [key]: value })),
+        save: save ?? (async () => {}),
+        setupGuideUrl,
+      }}
+    />
+  );
+}
+
+function renderSection(pluginId: string, options: HarnessOptions = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <OAuthConnectionSection pluginId={pluginId} />
+      <Harness pluginId={pluginId} {...options} />
     </QueryClientProvider>,
   );
 }
@@ -89,26 +117,129 @@ describe("OAuthConnectionSection", () => {
   it("offers to connect a plugin that is not connected yet", async () => {
     serveConnections(RELAY);
     renderSection("music");
-    expect(await screen.findByRole("button", { name: "Connect to Example Music" })).toBeEnabled();
+    expect(await screen.findByRole("button", { name: "Sign in with Example Music" })).toBeEnabled();
     // The status line is a live region, so a change is announced, not just recoloured.
     expect(screen.getByText("Not connected")).toHaveAttribute("role", "status");
     expect(screen.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
   });
 
-  it("will not start a connection until a client ID is saved, and says why", async () => {
+  it("will not sign in until there is a Client ID, and says why", async () => {
     serveConnections({ ...RELAY, configured: false });
-    renderSection("music");
-    const connect = await screen.findByRole("button", { name: "Connect to Example Music" });
+    renderSection("music", { values: {} });
+    const connect = await screen.findByRole("button", { name: "Sign in with Example Music" });
     expect(connect).toBeDisabled();
-    expect(screen.getByText(/Enter a client ID in the settings below and save/)).toBeInTheDocument();
-    expect(connect).toHaveAccessibleDescription(/Enter a client ID in the settings below and save/);
+    expect(connect).toHaveAccessibleDescription("Paste the Client ID above to sign in.");
+  });
+
+  it("walks someone with no app yet through creating one, in order", async () => {
+    serveConnections({ ...RELAY, configured: false, app_setup_url: "https://example.com/developers" });
+    renderSection("music", { values: {}, setupGuideUrl: "https://github.com/example/plugin/blob/HEAD/docs/SETUP.md" });
+
+    const steps = within(await screen.findByTestId("oauth-setup-steps")).getAllByRole("listitem");
+    expect(steps).toHaveLength(3);
+    expect(steps[0]).toHaveTextContent("Create an app with Example Music");
+    expect(steps[1]).toHaveTextContent("Give the app this redirect URI");
+    expect(steps[1]).toHaveTextContent(REDIRECT_URI);
+    expect(steps[2]).toHaveTextContent("Copy the app's details here");
+    expect(within(steps[2]).getByLabelText("Client ID")).toHaveValue("");
+    expect(screen.getByText(/asks everyone to sign in through an app of their own/)).toBeInTheDocument();
+
+    const developerPage = within(steps[0]).getByRole("link", { name: "Open Example Music's developer page" });
+    expect(developerPage).toHaveAttribute("href", "https://example.com/developers");
+    expect(developerPage).toHaveAttribute("target", "_blank");
+    expect(developerPage).toHaveAttribute("rel", "noopener noreferrer");
+    expect(within(steps[0]).getByRole("link", { name: "Step-by-step guide" })).toHaveAttribute(
+      "href",
+      "https://github.com/example/plugin/blob/HEAD/docs/SETUP.md",
+    );
+  });
+
+  it("offers no links it was not given", async () => {
+    serveConnections({ ...RELAY, configured: false });
+    renderSection("music", { values: {} });
+    const steps = within(await screen.findByTestId("oauth-setup-steps")).getAllByRole("listitem");
+    expect(within(steps[0]).queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("saves a Client ID that was just typed, then starts the sign-in, with one press", async () => {
+    serveConnections({ ...RELAY, configured: false });
+    const order: string[] = [];
+    vi.stubGlobal("location", { ...window.location, origin: window.location.origin, assign: vi.fn() });
+    server.use(
+      http.post(`${API_BASE}/oauth/connections/music/authorize`, () => {
+        order.push("authorize");
+        return HttpResponse.json({ flow: "relay", authorization_url: "https://accounts.example.com/a", device: null });
+      }),
+    );
+    const user = userEvent.setup();
+    renderSection("music", {
+      values: {},
+      save: async () => {
+        order.push("save");
+      },
+    });
+
+    await user.type(await screen.findByLabelText("Client ID"), "0123456789abcdef");
+    const connect = screen.getByRole("button", { name: "Sign in with Example Music" });
+    expect(connect).toBeEnabled();
+    await user.click(connect);
+
+    await waitFor(() => expect(order).toEqual(["save", "authorize"]));
+  });
+
+  it("does not start the sign-in when the settings cannot be saved", async () => {
+    serveConnections({ ...RELAY, configured: false });
+    let authorized = false;
+    server.use(
+      http.post(`${API_BASE}/oauth/connections/music/authorize`, () => {
+        authorized = true;
+        return HttpResponse.json({ flow: "relay", authorization_url: "https://accounts.example.com/a", device: null });
+      }),
+    );
+    const { toast } = await import("sonner");
+    const errorToast = vi.spyOn(toast, "error");
+    renderSection("music", {
+      values: { client_id: "not-a-real-id" },
+      save: async () => {
+        throw new Error("Client ID should be 32 characters");
+      },
+    });
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
+
+    await waitFor(() =>
+      expect(errorToast).toHaveBeenCalledWith("Could not save the settings: Client ID should be 32 characters"),
+    );
+    expect(authorized).toBe(false);
+  });
+
+  it("asks for the client secret too when the plugin needs one", async () => {
+    serveConnections({ ...RELAY, configured: false, client_secret_setting: "client_secret" });
+    renderSection("music", { values: {} });
+    expect(await screen.findByLabelText("Client secret")).toHaveAttribute("type", "password");
+  });
+
+  it("leaves out the redirect step for a device-flow plugin", async () => {
+    serveConnections({ ...DEVICE, configured: false });
+    renderSection("git", { values: {} });
+    const steps = within(await screen.findByTestId("oauth-setup-steps")).getAllByRole("listitem");
+    expect(steps).toHaveLength(2);
+    expect(steps[1]).toHaveTextContent("Copy the app's details here");
+  });
+
+  it("puts the setup away once connected", async () => {
+    serveConnections({ ...RELAY, status: "connected" });
+    renderSection("music");
+    expect(await screen.findByText("Connected")).toBeInTheDocument();
+    expect(screen.queryByTestId("oauth-setup-steps")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Client ID")).not.toBeInTheDocument();
   });
 
   it("shows the redirect URI to register with the provider", async () => {
     serveConnections(RELAY);
     renderSection("music");
     expect(await screen.findByText(REDIRECT_URI)).toBeInTheDocument();
-    expect(screen.getByText("Redirect URI")).toBeInTheDocument();
+    expect(screen.getByText("Give the app this redirect URI")).toBeInTheDocument();
   });
 
   it("copies the redirect URI, since it is typed into another site", async () => {
@@ -126,10 +257,21 @@ describe("OAuthConnectionSection", () => {
     expect(await screen.findByText(/asks you to confirm it/)).toBeInTheDocument();
   });
 
+  it("asks for no setup when the plugin brings its own app", async () => {
+    serveConnections({ ...RELAY, user_app: false, client_id_setting: null });
+    renderSection("music", { values: {} });
+    expect(await screen.findByRole("button", { name: "Sign in with Example Music" })).toBeEnabled();
+    expect(screen.queryByTestId("oauth-setup-steps")).not.toBeInTheDocument();
+    expect(screen.queryByText(REDIRECT_URI)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Client ID")).not.toBeInTheDocument();
+    // What the trip back looks like still matters to anyone about to make it.
+    expect(screen.getByText(/asks you to confirm it/)).toBeInTheDocument();
+  });
+
   it("does not mention the relay for a device-flow plugin", async () => {
     serveConnections(DEVICE);
     renderSection("git");
-    await screen.findByRole("button", { name: "Connect to Example Git" });
+    await screen.findByRole("button", { name: "Sign in with Example Git" });
     expect(screen.queryByText(REDIRECT_URI)).not.toBeInTheDocument();
     expect(screen.queryByText(/asks you to confirm it/)).not.toBeInTheDocument();
   });
@@ -148,7 +290,7 @@ describe("OAuthConnectionSection", () => {
       ),
     );
     renderSection("music");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Connect to Example Music" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith("https://accounts.example.com/authorize?state=abc"));
   });
 
@@ -163,7 +305,7 @@ describe("OAuthConnectionSection", () => {
       }),
     );
     renderSection("music");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Connect to Example Music" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
     await waitFor(() => expect(bodies).toEqual([{ board_url: "http://192.168.1.50:4420" }]));
   });
 
@@ -182,13 +324,13 @@ describe("OAuthConnectionSection", () => {
       }),
     );
     renderSection("git");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Connect to Example Git" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Git" }));
 
     expect(await screen.findByTestId("oauth-user-code")).toHaveTextContent("WDJB-MJHT");
     expect(screen.getByText("Waiting for approval")).toHaveAttribute("role", "status");
     // The code on screen is the thing to act on; the button now only replaces it.
     expect(screen.getByRole("button", { name: "Get a new code" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Connect to Example Git" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in with Example Git" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy code" })).toBeInTheDocument();
     const link = screen.getByRole("link", { name: "https://example.com/device" });
     expect(link).toHaveAttribute("href", "https://example.com/device?user_code=WDJB-MJHT");
@@ -223,7 +365,7 @@ describe("OAuthConnectionSection", () => {
     const { toast } = await import("sonner");
     const errorToast = vi.spyOn(toast, "error");
     renderSection("music");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Connect to Example Music" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
     await waitFor(() =>
       expect(errorToast).toHaveBeenCalledWith(
         "Could not start the connection: Music needs a client ID before it can connect.",
@@ -278,7 +420,7 @@ describe("OAuthConnectionSection", () => {
       }),
     );
     renderSection("music:kitchen");
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Connect to Example Music" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Sign in with Example Music" }));
     await waitFor(() => expect(requested).toEqual(["music:kitchen"]));
   });
 });

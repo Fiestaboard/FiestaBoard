@@ -37,7 +37,7 @@ If you have (or are willing to buy) a Raspberry Pi, this is by far the easiest r
    - Click **Next** and use **Edit Settings** to pre-configure your Wi-Fi network and timezone
    - Click **Write** and wait ~5 minutes
 5. **Insert the SD card into the Pi, plug it in**, and wait 2–3 minutes for first boot.
-6. **Open a browser** on any device on the same network and go to **[the FiestaBoard setup wizard](http://fiestapi.local:4420)** at `http://fiestapi.local:4420`.
+6. **Open a browser** on any device on the same network and go to **[the FiestaBoard setup wizard](http://fiestapi.local:4420)** at `http://fiestapi.local:4420`. If that page doesn't load, go to **[fiestaboard.app/find](https://fiestaboard.app/find/)** in Chrome or Edge instead. It searches your network for the Pi and opens it.
 7. **Skip ahead to Step 2** below to grab your board's API key, then enter it in the wizard. You're done.
 
 That's the whole thing. No Docker. No Terminal. No PowerShell. The Pi runs FiestaBoard 24/7 and updates itself with one click in **Settings → System** when new versions release.
@@ -197,6 +197,8 @@ The wizard will:
 
 :::tip Accessing from a phone or another computer?
 For the default Docker setup, use the IP address of the computer running FiestaBoard, for example `http://192.168.1.50:4420`. Docker bridge networking does not advertise the container's Bonjour service on your Wi-Fi network. The FiestaPi image also supports `http://fiestapi.local:4420`.
+
+Don't know that address? Open **[fiestaboard.app/find](https://fiestaboard.app/find/)** on the phone or computer and press **Search my network**. It finds FiestaBoard and opens it.
 :::
 
 :::info Don't see anything?
@@ -309,6 +311,7 @@ Make sure Docker Desktop is open. Look for the whale icon in your menu bar (Mac)
 - Wait 30-60 seconds after starting - the server needs time to initialize
 - Make sure Docker containers are running: type `docker ps` in Terminal/PowerShell
 - Make sure nothing else is using port 4420
+- On another device, `localhost` won't work. Use **[fiestaboard.app/find](https://fiestaboard.app/find/)** to find the right address; see [I don't know my board's address](/docs/troubleshooting#i-dont-know-my-boards-address)
 
 ### Board not updating
 

@@ -56,7 +56,10 @@ logger = logging.getLogger(__name__)
 
 #: Where every provider is told to send the browser. Registered verbatim in
 #: each OAuth app, so it must never change — see the relay repo's README.
-DEFAULT_REDIRECT_URI = "https://fiestaboard.app/auth/oauth/redirect.html"
+#: 9.5.0 through 9.7.x sent this with ``.html`` on the end. The relay serves
+#: both forms, and must keep doing so: apps registered by users of those
+#: releases still name the old one.
+DEFAULT_REDIRECT_URI = "https://fiestaboard.app/auth/oauth/redirect"
 REDIRECT_URI_ENV = "FIESTABOARD_OAUTH_REDIRECT_URI"
 
 #: Refresh this long before the access token actually expires, so a plugin is
@@ -147,6 +150,9 @@ class ConnectionSource(Protocol):
     def id_for(self, plugin: object) -> str | None:
         """The registry key *plugin* is installed under, or ``None``."""
 
+    def invalidate(self, connection_id: str) -> None:
+        """Drop the plugin's cached results, so its next fetch sees the new sign-in state."""
+
 
 class RegistryConnectionSource:
     """Connection targets derived from installed plugins' manifests."""
@@ -164,7 +170,7 @@ class RegistryConnectionSource:
         manifest = registry.get_manifest(connection_id)
         if manifest is None:
             return None
-        provider = parse_provider_block(manifest.raw.get("oauth"), manifest.name)
+        provider = parse_provider_block(manifest.raw.get("oauth"), manifest.name, manifest.settings_schema)
         if provider is None:
             return None
         plugin_id, instance_label = registry.parse_instance_key(connection_id)
@@ -190,6 +196,11 @@ class RegistryConnectionSource:
             if candidate is plugin:
                 return connection_id
         return None
+
+    def invalidate(self, connection_id: str) -> None:
+        plugin = self._registry().plugins.get(connection_id)
+        if plugin is not None:
+            plugin.clear_cache()
 
 
 # ── What the service reports ────────────────────────────────────────────────
@@ -218,6 +229,16 @@ class ConnectionStatus:
     provider_name: str
     flows: tuple[str, ...]
     configured: bool
+    #: Whether the user registers their own app with the provider (the plugin
+    #: offers a client ID field). False when the plugin brings its own app.
+    user_app: bool
+    #: The settings keys the user's client ID and secret are saved under, when
+    #: the plugin offers those fields. The UI renders them inside the guided
+    #: setup instead of the general settings form.
+    client_id_setting: str | None
+    client_secret_setting: str | None
+    #: The provider's developer page, where the user creates their app.
+    app_setup_url: str
     status: str
     scopes: tuple[str, ...]
     expires_at: float | None
@@ -348,6 +369,14 @@ class OAuthService:
             provider_name=target.provider.name,
             flows=target.provider.flows,
             configured=bool(target.client_id),
+            user_app=target.provider.user_client_id,
+            client_id_setting=target.provider.client_id_setting if target.provider.user_client_id else None,
+            client_secret_setting=(
+                target.provider.client_secret_setting
+                if target.provider.client_secret_setting and target.provider.user_client_secret
+                else None
+            ),
+            app_setup_url=target.provider.app_setup_url,
             status=status,
             scopes=tokens.scopes if tokens else target.provider.scopes,
             expires_at=tokens.expires_at if tokens else None,
@@ -506,6 +535,7 @@ class OAuthService:
             return CallbackOutcome(connected=False, connection_id=connection_id, reason="exchange_failed")
 
         self._store_tokens(connection_id, response, pending.scopes, previous=None)
+        self._source.invalidate(connection_id)
         logger.info("OAuth connection established for %s", connection_id)
         return CallbackOutcome(connected=True, connection_id=connection_id)
 
@@ -587,6 +617,7 @@ class OAuthService:
                 # Superseded or disconnected while the request was in flight.
                 return False
         self._store_tokens(connection_id, response, flow.scopes, previous=None)
+        self._source.invalidate(connection_id)
         logger.info("OAuth connection established for %s", connection_id)
         return False
 
@@ -604,6 +635,10 @@ class OAuthService:
         """Delete the stored tokens for *connection_id* and report its new status."""
         target = self._target(connection_id)
         self.forget(connection_id)
+        # Results are cached for the plugin's refresh interval. Without this
+        # the board would keep showing the account's data after the user
+        # asked for it to stop.
+        self._source.invalidate(connection_id)
         return self._status(target)
 
     # ── handing tokens to plugins ───────────────────────────────────────

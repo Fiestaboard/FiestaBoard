@@ -254,15 +254,11 @@ class CommandHandler:
         Uses resolve_dimensions — never get_dimensions, which raises for
         note_array boards.
         """
-        from src.devices import resolve_dimensions
+        from src.devices import dimensions_of, resolve_dimensions
 
         try:
             if board:
-                return resolve_dimensions(
-                    board.get("device_type") or "flagship",
-                    board.get("notes_wide") or 1,
-                    board.get("notes_tall") or 1,
-                )
+                return dimensions_of(board)
         except Exception as e:
             logger.debug("Could not resolve board dims: %s", e)
         return resolve_dimensions("flagship")

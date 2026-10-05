@@ -78,8 +78,22 @@ _PUBLIC_PREFIXES: tuple = (
 # the session cookie; what authenticates it is the signed, single-use
 # ``state`` of a flow that an authenticated user started (src/oauth/state.py).
 # Only the callback is public — every other ``/oauth`` route needs a session.
+#
+# ``/discover`` is how fiestaboard.app/find recognises a board on the
+# visitor's network. The person using it has no session on the board yet;
+# the response is the version ``/health`` already gives out, plus the
+# install's name only when sign-in is off.
 _PUBLIC_EXACT: frozenset = frozenset(
-    {"/", "/auth", "/health", "/v1/health", "/api/v1/health", "/oauth/callback", "/api/oauth/callback"}
+    {
+        "/",
+        "/auth",
+        "/health",
+        "/v1/health",
+        "/api/v1/health",
+        "/oauth/callback",
+        "/api/oauth/callback",
+        "/discover",
+    }
 )
 
 

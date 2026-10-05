@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 description: "Contribute to FiestaBoard - learn about pull requests, coding standards, and how to help improve the project."
 keywords: [FiestaBoard contributing, open source, pull request, contribution guide, GitHub, community]
 ---
