@@ -82,6 +82,17 @@ _JSON_INSTRUCTION = "Reply with one JSON object and nothing else: no prose, no m
 _LISTED_MODEL_CACHE: dict[tuple[str, str], tuple[float, str]] = {}
 _LISTED_MODEL_TTL_SECONDS = 600.0
 
+#: OpenRouter counts a reasoning model's thinking against ``max_tokens``. A
+#: plugin's ``max_tokens`` is the room it needs for its *answer*: for a model
+#: that reasons by default, as much again (at least this much) is added for the
+#: thinking and capped there, so the answer is never cut off mid-JSON.
+_REASONING_RESERVE_MIN = 1024
+_OPENROUTER_HOST = "openrouter.ai"
+#: ``models URL -> (monotonic time, {model id: reasons by default})`` from
+#: OpenRouter's public model list.
+_REASONING_CACHE: dict[str, tuple[float, dict[str, bool]]] = {}
+_REASONING_TTL_SECONDS = 3600.0
+
 
 @dataclass(frozen=True)
 class AICompletion:
@@ -273,6 +284,71 @@ async def _resolve_model_or_list(
     return first
 
 
+def _openrouter_base_url(provider: dict[str, Any]) -> str | None:
+    """*provider*'s OpenRouter base URL, or ``None`` when it is another service."""
+    from urllib.parse import urlsplit
+
+    from .sign_in import PRESETS, sign_in_preset
+
+    base = provider.get("base_url")
+    preset = sign_in_preset(provider)
+    if not base and preset is not None:
+        base = PRESETS[preset].base_url
+    if not isinstance(base, str) or urlsplit(base).hostname != _OPENROUTER_HOST:
+        return None
+    return base.rstrip("/")
+
+
+async def _reasons_by_default(
+    base_url: str, model: str, *, timeout: float, client: httpx.AsyncClient | None
+) -> bool | None:
+    """Whether OpenRouter says *model* thinks unless told not to; ``None`` when unknown.
+
+    Read from the public ``GET /models`` list (no key needed), cached for an hour.
+    """
+    url = f"{base_url}/models"
+    cached = _REASONING_CACHE.get(url)
+    if cached is None or time.monotonic() - cached[0] >= _REASONING_TTL_SECONDS:
+        owns_client = client is None
+        http = client or httpx.AsyncClient(timeout=timeout)
+        try:
+            response = await http.get(url)
+            listing = response.json().get("data") if response.status_code == 200 else None
+        except (httpx.HTTPError, ValueError, AttributeError):
+            listing = None
+        finally:
+            if owns_client:
+                await http.aclose()
+        if not isinstance(listing, list):
+            return None
+        table: dict[str, bool] = {}
+        for entry in listing:
+            if isinstance(entry, dict) and isinstance(entry.get("id"), str):
+                block = entry.get("reasoning")
+                block = block if isinstance(block, dict) else {}
+                table[entry["id"]] = bool(block.get("mandatory") or block.get("default_enabled"))
+        cached = (time.monotonic(), table)
+        _REASONING_CACHE[url] = cached
+    return cached[1].get(model)
+
+
+def _leave_room_to_reason(payload: dict[str, Any], reasons: bool | None) -> None:
+    """Keep the plugin's ``max_tokens`` for the answer on an OpenRouter request.
+
+    A model that reasons by default gets the reserve added and its thinking
+    capped at it (``reasoning.max_tokens``, hidden from the reply). Unknown
+    metadata adds the reserve only: a higher ceiling, never thinking switched
+    on. A model that does not reason is sent exactly as asked.
+    """
+    if reasons is False or not isinstance(payload.get("max_tokens"), int):
+        return
+    answer = payload["max_tokens"]
+    reserve = max(_REASONING_RESERVE_MIN, answer)
+    payload["max_tokens"] = answer + reserve
+    if reasons:
+        payload["reasoning"] = {"max_tokens": reserve, "exclude": True}
+
+
 async def _complete_async(
     messages: str | list[dict[str, str]],
     *,
@@ -299,6 +375,14 @@ async def _complete_async(
         _DEFAULT_TEMPERATURE if temperature is None else float(temperature),
         _DEFAULT_MAX_TOKENS if max_tokens is None else int(max_tokens),
     )
+    openrouter = _openrouter_base_url(provider)
+    if openrouter is not None:
+        # Sign-in first: a signed-out provider sends nothing, the model list included.
+        from .sign_in import resolve_provider_auth_async
+
+        await resolve_provider_auth_async(provider)
+        reasons = await _reasons_by_default(openrouter, chosen_model, timeout=timeout, client=client)
+        _leave_room_to_reason(payload, reasons)
     from .sign_in import sign_in_preset
 
     signed_in = sign_in_preset(provider) is not None
