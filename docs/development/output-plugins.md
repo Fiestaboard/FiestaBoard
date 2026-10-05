@@ -407,7 +407,7 @@ class AcmeSign(OutputPluginBase):
         return ActionOutcome(message="Paired.", fields={"token": ActionField(token, secret=True)})
 ```
 
-Import everything from `src.plugins`. That one module is the output plugin API, versioned with `output_api`, and nothing else in FiestaBoard core is a stable import.
+Import everything from `src.plugins`. That one module is the output plugin API, versioned with `output_api`, and nothing else in FiestaBoard core is a stable import. Besides the contract it carries helpers an output may need: `validate_board_host` and `validate_board_host_is_local_network` for an address the user typed, `check_dns_resolution` and `check_port_reachable` for diagnostics, `local_ipv4` for a subnet scan, and `text_to_board_array` to lay text out as codes.
 
 ### `OutputPluginBase` reference
 
@@ -426,6 +426,14 @@ Import everything from `src.plugins`. That one module is the output plugin API, 
 | `identify()` | No | Make the device show which one it is: flash, blink, beep. |
 | `detect_geometry()` | No | Read the device's size: `{"device_type": "panel", "rows", "cols"}`, or `None`. |
 | `read_current()` | No | What the device shows, as codes, when `read_back.supported`. |
+| `accepts_frame(frame)` | No | Whether a frame has a shape the device takes. Core asks before it spends anything on the write; a refused frame is a failed write. |
+| `connection_label()` | No | How the board is connected, in words (the MQTT `board_api_mode` sensor). Defaults to the plugin id. |
+| `test_connection()` | No | Whether the device answers. Defaults to `check_connection()`'s verdict. |
+| `cache_synced(frame)` / `cache_cleared()` | No | Core adopted a read-back as what the board shows, or forgot it. Only an output that keeps its own per-device dedupe (one frame fanned out to several devices) needs them. |
+| `forced` | — | `True` while core runs a forced write, so an output with its own per-device dedupe re-sends everything. Read it; never set it. |
+| `config_from_board(board)` | No | A class method: the instance's config from a saved board. The default is the board's `output_config`. Return `None` for a board with no usable connection. |
+| `declared_capabilities(manifest)` | No | A class method: the output's capabilities before any board exists. Defaults to the manifest's; override it when the output is more than its first device model says. |
+| `markup_follows_charset` | — | A class attribute, `True` by default. `False` keeps a board's content in split-flap markup even when its character set is rich. |
 | `diagnostics()` | No | A list of `DiagnosticCheck(name, ok, detail)`. Reserved: not shown in the app yet. |
 | `run_action(action, inputs)` | No | The action dispatcher. Override it only to route actions yourself. |
 
@@ -448,7 +456,7 @@ Return `WriteResult(success, was_sent)`:
 - `WriteResult(success=False, was_sent=False)`: the device failed. Log why and return; do not raise.
 - A write that landed on part of the board (one panel of several failed): `success=False`, `partial=True`, and `failed_regions` naming the cells that did not update, each a `FrameRegion(row, col, rows, cols)`.
 
-Leave `throttled`, `retry_after_seconds` and `floor_seconds` alone. Core fills them in.
+Leave `floor_seconds` alone, and `throttled` and `retry_after_seconds` too unless the device itself refused the write for rate (an HTTP 429). Then return `WriteResult(True, False, throttled=True, retry_after_seconds=N)`: core keeps the board's send slot closed for `N` seconds and reports the send as throttled. Core keeps its own floor; never wait it out yourself.
 
 ### Talking to the device: `self.http`
 
@@ -603,6 +611,8 @@ While the contract is in beta, every third-party output plugin, listed in the re
 :::
 
 ### Outputs that ship with FiestaBoard
+
+The Vestaboard and FiestaPanel are output plugins too, written against the same API as yours. Until they move to their own repositories they ship inside FiestaBoard, in its `first_party_outputs/` directory, which is a good place to read a complete output.
 
 First-party outputs are pinned in FiestaBoard's `outputs.lock.json` (repository, commit, `output_api` and a digest of the files) and baked into the image at build time. They install with no network, which matters on a Raspberry Pi or in the Home Assistant add-on. If an installed copy cannot run, FiestaBoard falls back to the copy it shipped with, so a board never goes dark because of its plugin. First-party outputs never need the beta.
 

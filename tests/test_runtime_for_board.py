@@ -29,9 +29,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from src.board_client import TransitionRenderMixin
 from src.outputs import OutputRuntime
-from src.virtual_board_client import VirtualBoardClient
+from tests.first_party_drivers import panel_driver
 from tests.live_boards import install_live_boards
 from tests.test_wire_goldens import grid_of, install_wire_recorder, local_flagship, note_array_local
 
@@ -58,7 +57,7 @@ class _BlockingRunner:
 
 @pytest.fixture
 def plugins_on(monkeypatch):
-    monkeypatch.setattr(TransitionRenderMixin, "_transition_plugins_beta_enabled", staticmethod(lambda: True))
+    monkeypatch.setattr("src.outputs.plugin_driver.transition_plugins_enabled", lambda: True)
 
 
 @pytest.fixture
@@ -78,7 +77,7 @@ def wire(monkeypatch):
 
 class TestDirectWritesAreRuntimeWrites:
     def test_a_direct_write_preempts_the_in_flight_transition(self, plugins_on):
-        client = VirtualBoardClient(device_type="flagship")
+        client = panel_driver("flagship")
         client.set_output_runtime(OutputRuntime("panel"))
         runner = _BlockingRunner()
         client.set_transition_runner(runner)
@@ -92,7 +91,7 @@ class TestDirectWritesAreRuntimeWrites:
         assert runner.cancelled == [True], "the direct write did not preempt the running transition"
 
     def test_a_frame_sent_inside_a_run_does_not_preempt_that_run(self, plugins_on):
-        client = VirtualBoardClient(device_type="flagship")
+        client = panel_driver("flagship")
         runtime = OutputRuntime("panel")
         client.set_output_runtime(runtime)
         seen: list[bool] = []
@@ -111,20 +110,23 @@ class TestDirectWritesAreRuntimeWrites:
 
 # --- one factory --------------------------------------------------------------------
 
-CLIENT_MODULES = {
-    REPO / "src" / "board_client.py",
-    REPO / "src" / "note_array_local_client.py",
-    REPO / "src" / "virtual_board_client.py",
+# Every board's driver is an output plugin instance in the plugin adapter.
+CLIENT_MODULES = {REPO / "src" / "outputs" / "plugin_driver.py"}
+# The runtime factory, the output registry it resolves through, and the two
+# places that hold an output's builder: plugin registration (third-party) and
+# the first-party loader. (The conformance suite drives a private instance of
+# the plugin under test for its floor rule — never a board.)
+FACTORY = {
+    REPO / "src" / "outputs" / "factory.py",
+    REPO / "src" / "outputs" / "registry.py",
+    REPO / "src" / "outputs" / "plugin_registration.py",
+    REPO / "src" / "outputs" / "first_party.py",
+    REPO / "src" / "outputs" / "conformance.py",
 }
-# The runtime factory and the output registry it resolves through: the
-# registry's built-in entries hold the builders the factory calls.
-FACTORY = {REPO / "src" / "outputs" / "factory.py", REPO / "src" / "outputs" / "registry.py"}
 CONSTRUCTORS = {
-    "BoardClient",
-    "NoteArrayLocalClient",
-    "VirtualBoardClient",
-    "build_vestaboard_driver",
-    "build_fiestapanel_driver",
+    "OutputPluginDriver",
+    "VestaboardOutput",
+    "FiestaPanelOutput",
     "board_client_from_board_dict",
 }
 
@@ -152,8 +154,8 @@ class TestOneFactory:
     def test_the_scan_sees_a_planted_construction(self, tmp_path):
         planted = tmp_path / "src" / "planted.py"
         planted.parent.mkdir()
-        planted.write_text("def f(b):\n    return build_vestaboard_driver(b)\n")
-        assert len(_driver_constructions(planted.parent)) == 1
+        planted.write_text("def f(b):\n    return OutputPluginDriver(VestaboardOutput(b, {}))\n")
+        assert len(_driver_constructions(planted.parent)) == 2
 
 
 # --- the routes use the live runtime ------------------------------------------------------

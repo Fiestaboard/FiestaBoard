@@ -11,7 +11,6 @@ from contextlib import contextmanager
 import schedule
 
 from .board_chars import BoardChars
-from .board_client import BoardClient  # noqa: F401 - tests patch src.main.BoardClient
 from .collections.models import is_collection_id
 from .collections.service import get_collection_service
 from .config import Config
@@ -239,7 +238,7 @@ class BoardRuntime:
     @client.setter
     def client(self, client: OutputDriver | None) -> None:
         self._client = client
-        # Every real client binds (TransitionRenderMixin). Hand-rolled test
+        # Every real driver binds (OutputPluginDriver). Hand-rolled test
         # doubles that predate the runtime have no lock or token to bind and
         # keep working as they did, so the hook is optional here.
         bind = getattr(client, "set_output_runtime", None)
@@ -825,7 +824,7 @@ class DisplayService:
         """Connection-config signature: unchanged => keep the existing runtime.
 
         Includes the Local Array Mode tile list (#1399) so editing a tile's
-        host/key/enabled state rebuilds the NoteArrayLocalClient.
+        host/key/enabled state rebuilds the local note array's driver.
         """
         tiles = board.get("tiles") or []
         tiles_sig = tuple(sorted(str(t) for t in tiles)) if isinstance(tiles, list) else ()

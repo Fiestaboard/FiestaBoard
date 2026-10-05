@@ -1,8 +1,9 @@
-"""The ``vestaboard`` output's diagnostics hook: is the board reachable?
+"""The Vestaboard diagnostics hook: is the board reachable?
 
-Moved from ``src/network_diagnostics.py``, which keeps the device-agnostic
-checks (DNS, internet, TCP port) this module layers on, and asks the board's
-output for its own section through :func:`src.outputs.registry.diagnostics_for`.
+FiestaBoard's ``GET /debug/network-diagnostics`` runs its device-agnostic
+checks (DNS, internet) and asks the board's output for its own section.
+This module layers its checks on FiestaBoard's shared ones (``src.plugins``:
+``check_dns_resolution``, ``check_port_reachable``).
 
 - :func:`diagnose` — the board section of ``GET /debug/network-diagnostics``,
   from the saved board dict.
@@ -10,9 +11,8 @@ output for its own section through :func:`src.outputs.registry.diagnostics_for`.
   then the API call (local), or the RW Cloud API call (cloud).
 - :func:`advise` — the Vestaboard troubleshooting text for a failed section.
 
-The shared checks are called through the module (``_net.check_…``), so a
-test that patches ``src.network_diagnostics.check_dns_resolution`` steers
-this layer too.
+A test steers the shared checks by patching them where this module binds
+them (``<package>.diagnostics.check_dns_resolution``).
 """
 
 import logging
@@ -21,11 +21,23 @@ from collections.abc import Mapping
 
 import requests
 
-from src import network_diagnostics as _net
+from src.plugins import (
+    check_dns_resolution,
+    check_port_reachable,
+    describe_request_error,
+    unconfigured_board_section,
+)
+
+from . import transport
+from .transport import LOCAL_API_PORT as _LOCAL_API_PORT
 
 logger = logging.getLogger(__name__)
 
-_LOCAL_API_PORT = 7000
+#: Seconds an API check waits for the board's answer.
+_HTTP_TIMEOUT = 10
+
+#: The diagnostics summary when every check passed.
+ALL_CLEAR_SUMMARY = "All checks passed — your Vestaboard connection is healthy"
 
 
 def check_vestaboard_connection(
@@ -34,7 +46,7 @@ def check_vestaboard_connection(
     api_key: str | None = None,
     use_cloud: bool = False,
     cloud_key: str | None = None,
-    timeout: float = _net._HTTP_TIMEOUT,
+    timeout: float = _HTTP_TIMEOUT,
 ) -> dict:
     """Validate connectivity to a Vestaboard.
 
@@ -60,9 +72,7 @@ def check_vestaboard_connection(
         # Cloud API check
         # Probe the endpoint sends actually use, so an overridden
         # VESTABOARD_RW_API_URL is what gets diagnosed.
-        from src.board_client import BoardClient
-
-        url = BoardClient.CLOUD_API_URL
+        url = transport.CLOUD_API_URL
         headers = {
             "X-Vestaboard-Read-Write-Key": cloud_key or "",
             "Content-Type": "application/json",
@@ -84,7 +94,7 @@ def check_vestaboard_connection(
                 "ok": False,
                 "status_code": None,
                 "latency_ms": latency_ms,
-                "error": _net._describe_request_error(exc),
+                "error": describe_request_error(exc),
             }
 
         overall = steps.get("cloud_api", {}).get("ok", False)
@@ -92,13 +102,13 @@ def check_vestaboard_connection(
 
     # --- Local API checks ---
     # Step 1: DNS resolution
-    dns_result = _net.check_dns_resolution(host)
+    dns_result = check_dns_resolution(host)
     steps["dns"] = dns_result
     if not dns_result["ok"]:
         return {"ok": False, "mode": "local", "steps": steps}
 
     # Step 2: TCP port reachability
-    port_result = _net.check_port_reachable(host, port)
+    port_result = check_port_reachable(host, port)
     steps["port"] = port_result
     if not port_result["ok"]:
         return {"ok": False, "mode": "local", "steps": steps}
@@ -126,7 +136,7 @@ def check_vestaboard_connection(
             "ok": False,
             "status_code": None,
             "latency_ms": latency_ms,
-            "error": _net._describe_request_error(exc),
+            "error": describe_request_error(exc),
         }
 
     overall = all(step.get("ok", False) for step in steps.values())
@@ -159,7 +169,7 @@ def diagnose(board: Mapping) -> dict:
             port=board_port,
             api_key=board_api_key,
         )
-    return _net.unconfigured_board_section()
+    return unconfigured_board_section()
 
 
 def advise(vb: Mapping) -> list[dict]:

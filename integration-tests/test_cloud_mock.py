@@ -1,14 +1,14 @@
 """Integration tests for the note-array Cloud API mock server.
 
 Exercises ``integration-tests/mock-cloud/server.py`` (the stdlib-only mock of
-``https://cloud.vestaboard.com/``) and the round-trip behaviour of
-``src.board_client.BoardClient`` against it.
+``https://cloud.vestaboard.com/``) and the round-trip behaviour of the
+Vestaboard output plugin's note-array Cloud driver against it.
 
 The mock server is started in-process on an ephemeral port via a pytest
 fixture, so these tests run standalone (``pytest integration-tests/test_cloud_mock.py``)
 with only ``pytest`` + ``httpx`` installed — no Docker, no real network.
 
-``BoardClient`` is pointed at the mock by monkeypatching its class-level
+The driver is pointed at the mock by monkeypatching the plugin's
 ``CLOUD_NOTE_ARRAY_API_URL`` constant, mirroring the established integration
 pattern (real HTTP to a local mock instead of ``requests`` patching).
 """
@@ -189,12 +189,25 @@ class TestMockCloudServerReset:
 
 @pytest.fixture
 def board_client_module(monkeypatch: pytest.MonkeyPatch, mock_server: str):
-    """Import ``src.board_client`` with its Cloud URL redirected to the mock."""
+    """Note-array Cloud drivers (the Vestaboard plugin) aimed at the mock."""
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
-    from src import board_client
+    from types import SimpleNamespace
 
-    monkeypatch.setattr(board_client.BoardClient, "CLOUD_NOTE_ARRAY_API_URL", mock_server)
+    from first_party_outputs.vestaboard import transport
+    from src.outputs.factory import build_driver
+
+    monkeypatch.setattr(transport, "CLOUD_NOTE_ARRAY_API_URL", mock_server)
+
+    def note_array_cloud_driver(token: str, notes_wide: int, notes_tall: int):
+        board = {
+            "device_type": "note_array",
+            "note_array_token": token,
+            "notes_wide": notes_wide,
+            "notes_tall": notes_tall,
+        }
+        return build_driver(board)
+
     # Reset the core send floor so each test starts clean. It is keyed by
     # device (a hash of the note-array token here), so without this a send in
     # one test throttles the next test's send within the 15s window (the
@@ -203,18 +216,12 @@ def board_client_module(monkeypatch: pytest.MonkeyPatch, mock_server: str):
     from src.outputs.floor import send_floors
 
     send_floors().clear()
-    return board_client
+    return SimpleNamespace(note_array_cloud_driver=note_array_cloud_driver)
 
 
 class TestBoardClientIntegrationWithMock:
     def test_board_client_send_characters_to_mock_succeeds(self, board_client_module) -> None:
-        client = board_client_module.BoardClient(
-            api_key="tok",
-            use_cloud=True,
-            note_array_token="tok",
-            notes_wide=2,
-            notes_tall=2,
-        )
+        client = board_client_module.note_array_cloud_driver("tok", 2, 2)
         success, was_sent = client.send_characters(_grid(fill=4))
         assert (success, was_sent) == (True, True)
 
@@ -224,13 +231,7 @@ class TestBoardClientIntegrationWithMock:
         grid[5][29] = 50
         client.post("/", json={"characters": grid}, headers=_TOKEN_HEADERS)
 
-        board = board_client_module.BoardClient(
-            api_key="tok",
-            use_cloud=True,
-            note_array_token="tok",
-            notes_wide=2,
-            notes_tall=2,
-        )
+        board = board_client_module.note_array_cloud_driver("tok", 2, 2)
         result = board.read_current_message()
         assert result is not None
         assert len(result) == ROWS
@@ -242,13 +243,7 @@ class TestBoardClientIntegrationWithMock:
         grid[2][10] = 33
         grid[3][15] = 17
 
-        board = board_client_module.BoardClient(
-            api_key="tok",
-            use_cloud=True,
-            note_array_token="tok",
-            notes_wide=2,
-            notes_tall=2,
-        )
+        board = board_client_module.note_array_cloud_driver("tok", 2, 2)
         success, _ = board.send_characters(grid)
         assert success is True
 
@@ -256,15 +251,13 @@ class TestBoardClientIntegrationWithMock:
         assert result == grid
 
     def test_board_client_missing_token_raises(self, board_client_module) -> None:
-        # An empty api_key is rejected end-to-end, confirming token enforcement.
-        with pytest.raises(ValueError, match="api_key is required"):
-            board_client_module.BoardClient(
-                api_key="",
-                use_cloud=True,
-                note_array_token="",
-                notes_wide=2,
-                notes_tall=2,
-            )
+        # An empty token is no connection: no driver is built from it, and the
+        # plugin refuses to be constructed with one — token enforcement.
+        from first_party_outputs.vestaboard import VestaboardOutput
+
+        assert board_client_module.note_array_cloud_driver("", 2, 2) is None
+        with pytest.raises(ValueError, match="not configured"):
+            VestaboardOutput(None, {"device_type": "note_array", "note_array_token": ""})
 
 
 class TestMockCloudDevTools:
@@ -321,6 +314,6 @@ def test_board_client_cloud_url_env_override() -> None:
     import sys
 
     env = {**os.environ, "VESTABOARD_CLOUD_API_URL": "http://mock-host:9200/", "PYTHONPATH": str(_PROJECT_ROOT)}
-    code = "from src.board_client import BoardClient; print(BoardClient.CLOUD_NOTE_ARRAY_API_URL)"
+    code = "from first_party_outputs.vestaboard import transport; print(transport.CLOUD_NOTE_ARRAY_API_URL)"
     out = subprocess.check_output([sys.executable, "-c", code], env=env, text=True).strip()
     assert out == "http://mock-host:9200/"

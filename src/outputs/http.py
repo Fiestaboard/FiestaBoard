@@ -40,6 +40,14 @@ handles a fenced, cancelled or unreachable device with one ``except``.
 Tests replace the transport with :meth:`OutputHttp.use_transport`; the
 output conformance suite does exactly that, so it exercises the plugin's
 real request code against its fake device.
+
+**First-party outputs** (the Vestaboard and FiestaPanel packages core seeds)
+get :meth:`OutputHttp.for_first_party`: the same fence, cancel and default
+timeout, but each request is the ``requests`` module call those outputs
+made before they were plugins — ``requests.post(url, headers=..., json=...,
+timeout=...)``, keywords in the caller's order, ``requests``' own redirect
+default — so their wire goldens hold byte for byte. Only core chooses it,
+when it builds a first-party output's instance; a plugin cannot.
 """
 
 from __future__ import annotations
@@ -107,11 +115,17 @@ Transport = Callable[[HttpRequest], requests.Response]
 class OutputHttp:
     """One plugin instance's device HTTP client (see the module docstring)."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, module_requests: bool = False) -> None:
         self._transport: Transport | None = None
         self._session: requests.Session | None = None
         self._session_lock = threading.Lock()
         self._local = threading.local()
+        self._module_requests = module_requests
+
+    @classmethod
+    def for_first_party(cls) -> OutputHttp:
+        """The first-party outputs' client (see the module docstring)."""
+        return cls(module_requests=True)
 
     # --- seams -------------------------------------------------------------------------
 
@@ -148,10 +162,12 @@ class OutputHttp:
         *,
         setup: bool = False,
         cancel: _Cancellable | None = None,
-        timeout: Any = None,
         **kwargs: Any,
     ) -> requests.Response:
         """Send one request to the device, under core's fence and defaults.
+
+        ``timeout`` (``(connect, read)`` seconds) defaults to
+        :data:`DEFAULT_TIMEOUT`; every other keyword goes to ``requests``.
 
         Raises:
             RequestCancelled: the run's token fired before the request.
@@ -165,16 +181,28 @@ class OutputHttp:
         if token is not None and token.cancelled:
             raise RequestCancelled(url)
         check_output_url(url)
+        # The caller's keywords in the caller's order, the timeout where it
+        # gave one (or last): a first-party request is the call it always was.
+        ordered = dict(kwargs)
+        if ordered.get("timeout") is None:
+            ordered["timeout"] = DEFAULT_TIMEOUT
+        timeout = ordered["timeout"]
+        body = {key: value for key, value in ordered.items() if key != "timeout"}
         request = HttpRequest(
             method.upper(),
             url,
-            {**kwargs, "allow_redirects": False},
-            DEFAULT_TIMEOUT if timeout is None else timeout,
+            body if self._module_requests else {**body, "allow_redirects": False},
+            timeout,
             setup,
         )
         transport = self._transport
         if transport is not None:
             return transport(request)
+        if self._module_requests:
+            send = getattr(requests, method.lower(), None)
+            if send is None:
+                return requests.request(request.method, url, **ordered)
+            return send(url, **ordered)
         return self._session_for().request(request.method, request.url, timeout=request.timeout, **request.kwargs)
 
     def get(self, url: str, **kwargs: Any) -> requests.Response:

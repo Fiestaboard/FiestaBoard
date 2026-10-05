@@ -148,7 +148,7 @@ class TestEnableLocalApiPreconditions:
         import socket as socket_mod
 
         with (
-            patch("src.outputs.vestaboard.local_api.validate_board_host_is_local_network"),
+            patch("first_party_outputs.vestaboard.local_api.validate_board_host_is_local_network"),
             patch("socket.getaddrinfo", side_effect=socket_mod.gaierror("no such host")),
             patch("requests.post") as mock_post,
         ):

@@ -13,7 +13,7 @@ runtime so it outlives any one client. It also **drives transitions**
 declares them, ``plugin:<id>`` ones are run frame by frame by the board's
 transition runner under the run's cancel token (:mod:`src.outputs.transitions`).
 
-The contract, unchanged from when it lived in ``TransitionRenderMixin``:
+The contract, unchanged from when it lived in the old clients' ``TransitionRenderMixin``:
 
 - **Preemption before the lock.** :meth:`run` signals the in-flight run's
   token *before* it waits on the lock, so a running transition winds down

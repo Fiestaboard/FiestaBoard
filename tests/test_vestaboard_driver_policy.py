@@ -1,4 +1,9 @@
-"""Board client send policy: connection retries, backoff, and per-type send floor (#1754).
+"""Vestaboard send policy: connection retries, backoff, and per-type send floor (#1754).
+
+The Vestaboard output plugin's transport (``first_party_outputs/vestaboard``)
+in core's plugin driver, which keeps the floor. (Was ``BoardClient``'s policy
+tests; the text API they also covered is gone — the output-plugin contract
+writes character grids only.)
 
 Covers three behaviors added in issue #1754:
 
@@ -30,14 +35,15 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from src.board_client import (
+from first_party_outputs.vestaboard.transport import (
     CLOUD_MIN_SEND_INTERVAL,
     CLOUD_REQUEST_TIMEOUT,
     LOCAL_REQUEST_TIMEOUT,
     SEND_MAX_ATTEMPTS,
     SEND_RETRY_BACKOFF_SECONDS,
-    BoardClient,
 )
+from src.outputs.plugin_driver import OutputPluginDriver
+from tests.first_party_drivers import cloud_driver, local_driver, note_array_cloud_driver
 
 
 def _clock(*values):
@@ -60,7 +66,7 @@ def _ok_response() -> Mock:
     return resp
 
 
-def _no_cancel(client: BoardClient) -> Mock:
+def _no_cancel(client: OutputPluginDriver) -> Mock:
     """Make every run on the client's runtime use a cancel event that never fires.
 
     A direct ``send_characters`` is a runtime write: it starts a run of its
@@ -72,6 +78,7 @@ def _no_cancel(client: BoardClient) -> Mock:
     """
     fake_event = Mock(spec=threading.Event)
     fake_event.wait.return_value = False
+    fake_event.is_set.return_value = False
     runtime = client._output_runtime
 
     @contextmanager
@@ -81,7 +88,6 @@ def _no_cancel(client: BoardClient) -> Mock:
             yield fake_event
 
     runtime.run = run
-    client._cancel_transition = fake_event
     return fake_event
 
 
@@ -90,9 +96,9 @@ class TestConnectionRetry:
 
     @pytest.fixture
     def client(self):
-        return BoardClient(api_key="test-key", host="192.168.0.11")
+        return local_driver("test-key", "192.168.0.11")
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_connection_error_then_success_retries_once(self, mock_post, client):
         cancel = _no_cancel(client)
         mock_post.side_effect = [requests.exceptions.ConnectionError("unreachable"), _ok_response()]
@@ -103,7 +109,7 @@ class TestConnectionRetry:
         assert mock_post.call_count == 2
         cancel.wait.assert_called_once_with(SEND_RETRY_BACKOFF_SECONDS)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_connection_error_on_both_attempts_gives_up(self, mock_post, client):
         cancel = _no_cancel(client)
         mock_post.side_effect = requests.exceptions.ConnectionError("unreachable")
@@ -114,7 +120,7 @@ class TestConnectionRetry:
         assert mock_post.call_count == SEND_MAX_ATTEMPTS == 2
         cancel.wait.assert_called_once_with(SEND_RETRY_BACKOFF_SECONDS)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_read_timeout_is_not_retried(self, mock_post, client):
         """A read timeout means the board ACCEPTED the request and went quiet.
 
@@ -133,7 +139,7 @@ class TestConnectionRetry:
         assert mock_post.call_count == 1
         cancel.wait.assert_not_called()
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_wedged_board_costs_one_read_timeout_of_wall_clock(self, mock_post, client):
         """The regression the audit measured, pinned in the unit that matters.
 
@@ -173,7 +179,7 @@ class TestConnectionRetry:
         assert mock_post.call_count == 1
         cancel.wait.assert_not_called()
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_connect_timeout_is_retried(self, mock_post, client):
         """No connection was established, so the retry costs nothing extra to be
         wrong about — ConnectTimeout subclasses ConnectionError deliberately."""
@@ -185,7 +191,7 @@ class TestConnectionRetry:
         assert result == (True, True)
         assert mock_post.call_count == 2
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_http_error_response_is_not_retried(self, mock_post, client):
         cancel = _no_cancel(client)
         resp = Mock()
@@ -198,7 +204,7 @@ class TestConnectionRetry:
         assert mock_post.call_count == 1
         cancel.wait.assert_not_called()
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_success_first_try_is_single_attempt(self, mock_post, client):
         cancel = _no_cancel(client)
         mock_post.return_value = _ok_response()
@@ -209,7 +215,7 @@ class TestConnectionRetry:
         assert mock_post.call_count == 1
         cancel.wait.assert_not_called()
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_cancel_during_backoff_abandons_retry(self, mock_post, client):
         cancel = _no_cancel(client)
         cancel.wait.return_value = True  # cancel fires during the backoff
@@ -221,45 +227,35 @@ class TestConnectionRetry:
         assert mock_post.call_count == 1  # no second attempt after cancel
         cancel.wait.assert_called_once_with(SEND_RETRY_BACKOFF_SECONDS)
 
-    @patch("src.board_client.requests.post")
-    def test_send_text_retries_connection_error(self, mock_post, client):
-        _no_cancel(client)
-        mock_post.side_effect = [requests.exceptions.ConnectionError("unreachable"), _ok_response()]
-
-        result = client.send_text("hello")
-
-        assert result == (True, True)
-        assert mock_post.call_count == 2
-
 
 class TestTimeoutSplit:
     """LAN connects fail fast at 3s; cloud gets 5s; reads stay at 10s."""
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_local_send_uses_short_connect_timeout(self, mock_post):
         mock_post.return_value = _ok_response()
-        client = BoardClient(api_key="k", host="192.168.0.11")
+        client = local_driver("k", "192.168.0.11")
 
         client.send_characters(_flagship_grid(1))
 
         assert mock_post.call_args.kwargs["timeout"] == LOCAL_REQUEST_TIMEOUT == (3.0, 10.0)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_cloud_send_uses_cloud_connect_timeout(self, mock_post):
         mock_post.return_value = _ok_response()
-        client = BoardClient(api_key="rw-key", use_cloud=True)
+        client = cloud_driver("rw-key")
 
         client.send_characters(_flagship_grid(1))
 
         assert mock_post.call_args.kwargs["timeout"] == CLOUD_REQUEST_TIMEOUT == (5.0, 10.0)
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_local_read_uses_split_timeout(self, mock_get):
         resp = Mock()
         resp.raise_for_status = Mock()
         resp.json.return_value = {"message": _flagship_grid(0)}
         mock_get.return_value = resp
-        client = BoardClient(api_key="k", host="192.168.0.11")
+        client = local_driver("k", "192.168.0.11")
 
         client.read_current_message()
 
@@ -269,10 +265,10 @@ class TestTimeoutSplit:
 class TestCloudSendFloor:
     """RW Cloud sends are floored at one send per CLOUD_MIN_SEND_INTERVAL."""
 
-    def _cloud_client(self, time_func) -> BoardClient:
-        return BoardClient(api_key="rw-key", use_cloud=True, _time_func=time_func)
+    def _cloud_client(self, time_func) -> OutputPluginDriver:
+        return cloud_driver("rw-key", clock=time_func)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_second_send_within_interval_is_throttled(self, mock_post):
         mock_post.return_value = _ok_response()
         client = self._cloud_client(_clock(0.0, 10.0))
@@ -284,7 +280,7 @@ class TestCloudSendFloor:
         assert client.last_send_throttled is True
         assert mock_post.call_count == 1
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_send_after_interval_elapses_goes_through(self, mock_post):
         mock_post.return_value = _ok_response()
         client = self._cloud_client(_clock(0.0, CLOUD_MIN_SEND_INTERVAL))
@@ -294,19 +290,7 @@ class TestCloudSendFloor:
         assert client.last_send_throttled is False
         assert mock_post.call_count == 2
 
-    @patch("src.board_client.requests.post")
-    def test_send_text_shares_the_floor_with_send_characters(self, mock_post):
-        mock_post.return_value = _ok_response()
-        client = self._cloud_client(_clock(0.0, 10.0))
-
-        assert client.send_text("first") == (True, True)
-        result = client.send_characters(_flagship_grid(2))
-
-        assert result == (True, False)
-        assert client.last_send_throttled is True
-        assert mock_post.call_count == 1
-
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_unchanged_skip_within_window_is_not_marked_throttled(self, mock_post):
         """Past the floor, identical content still skips as 'unchanged', not 'throttled'."""
         mock_post.return_value = _ok_response()
@@ -316,7 +300,7 @@ class TestCloudSendFloor:
         assert client.send_characters(_flagship_grid(1)) == (True, False)
         assert client.last_send_throttled is False
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_failed_send_does_not_consume_the_slot(self, mock_post):
         """A send that never reached the board must not start the 15s window."""
         client = self._cloud_client(_clock(0.0, 5.0))
@@ -332,19 +316,19 @@ class TestCloudSendFloor:
         assert client.send_characters(_flagship_grid(2)) == (True, True)
         assert mock_post.call_count == 3
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_local_sends_have_no_floor(self, mock_post):
         mock_post.return_value = _ok_response()
-        client = BoardClient(api_key="k", host="192.168.0.11")
+        client = local_driver("k", "192.168.0.11")
 
         assert client.send_characters(_flagship_grid(1)) == (True, True)
         assert client.send_characters(_flagship_grid(2)) == (True, True)
         assert mock_post.call_count == 2
 
     def test_min_send_interval_ms_reports_per_type_floor(self):
-        cloud = BoardClient(api_key="rw", use_cloud=True)
-        local = BoardClient(api_key="k", host="192.168.0.11")
-        note_array = BoardClient(api_key="t", use_cloud=True, note_array_token="t-floor")
+        cloud = cloud_driver("rw")
+        local = local_driver("k", "192.168.0.11")
+        note_array = note_array_cloud_driver("t-floor")
 
         assert cloud.min_send_interval_ms == int(CLOUD_MIN_SEND_INTERVAL * 1000)
         assert local.min_send_interval_ms == 0
@@ -372,7 +356,7 @@ class TestThrottleConcurrency:
             return _ok_response()
 
         results: dict = {}
-        with patch("src.board_client.requests.post", side_effect=fake_post):
+        with patch("requests.post", side_effect=fake_post):
             worker = threading.Thread(target=lambda: results.setdefault("a", client.send_characters(_flagship_grid(1))))
             worker.start()
             assert entered.wait(5), "thread A never reached the POST"
@@ -383,7 +367,7 @@ class TestThrottleConcurrency:
         return results, posts
 
     def test_concurrent_cloud_sends_send_exactly_once(self):
-        client = BoardClient(api_key="rw-key", use_cloud=True, _time_func=lambda: 100.0)
+        client = cloud_driver("rw-key", clock=lambda: 100.0)
 
         results, posts = self._run_concurrent_pair(client)
 
@@ -396,12 +380,7 @@ class TestThrottleConcurrency:
         """The pre-#1754 unlocked module-global raced: a second thread checked
         the throttle while the first was mid-POST (timestamp not yet written)
         and both sends went out inside the 15s window."""
-        client = BoardClient(
-            api_key="na-tok",
-            use_cloud=True,
-            note_array_token="na-race-tok",
-            _time_func=lambda: 100.0,
-        )
+        client = note_array_cloud_driver("na-race-tok", 4, 1, clock=lambda: 100.0)
         entered = threading.Event()
         release = threading.Event()
         posts: list = []
@@ -415,7 +394,7 @@ class TestThrottleConcurrency:
         grid_a = [[0] * 60 for _ in range(3)]
         grid_b = [[1] * 60 for _ in range(3)]
         results: dict = {}
-        with patch("src.board_client.requests.post", side_effect=fake_post):
+        with patch("requests.post", side_effect=fake_post):
             worker = threading.Thread(target=lambda: results.setdefault("a", client.send_characters(grid_a)))
             worker.start()
             assert entered.wait(5), "thread A never reached the POST"

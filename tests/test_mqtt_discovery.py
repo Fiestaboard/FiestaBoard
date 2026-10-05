@@ -806,7 +806,7 @@ class TestTransitionStrategySourceOfTruth:
 
     def test_transition_options_match_board_client(self):
         """Transition style options must match VALID_STRATEGIES from board_client."""
-        from src.board_client import VALID_STRATEGIES
+        from src.outputs.transitions import VALID_STRATEGIES
 
         entity = next(e for e in ENTITY_DEFINITIONS if e.object_id == "transition_style")
         assert entity.options == list(VALID_STRATEGIES)

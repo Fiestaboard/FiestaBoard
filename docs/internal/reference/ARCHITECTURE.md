@@ -140,7 +140,9 @@ Names you will meet:
 - **`BoardRuntime`** — per-board state: its client, its worker, its last
   render memo.
 - **`OutputDriver`** (`src/outputs/driver.py`) — the Protocol every board
-  client satisfies: the surface the engine and API routes actually use.
+  driver satisfies (every board's driver is an `OutputPluginDriver` around
+  its output plugin's instance): the surface the engine and API routes
+  actually use.
   Reach for a member of it (or the board's `OutputRuntime`), never a
   client's private attribute; `tests/test_output_driver_protocol.py` holds
   the count of private peeks at zero.
@@ -188,9 +190,24 @@ Names you will meet:
   sites outside the factory at zero. Both doors resolve the board to an
   **output** first.
 - **The output registry** (`src/outputs/registry.py`) — every kind of
-  device FiestaBoard drives, by output id. Two are built in: `vestaboard`
+  device FiestaBoard drives, by output id. Two are first-party: `vestaboard`
   (Local API, RW Cloud, note-array Cloud, local note-array tiles) and
-  `fiestapanel` (a TV's in-memory board). Each entry carries a builder
+  `fiestapanel` (a TV's in-memory board). Both are **output plugins**
+  staged in-repo under `first_party_outputs/<id>/` (each laid out as its
+  future repository: root `__init__.py`, `manifest.json`,
+  `output/device-models.json`, `tests/`, README and SETUP), importing core
+  only through `src.plugins` (`tests/test_first_party_output_imports.py`).
+  `src/outputs/first_party.py` loads them through the output-plugin path the
+  first time the registry is asked for: never beta-gated, never replaceable
+  (`plugin=False`), each instance built from the board's legacy flat fields
+  by the plugin's `config_from_board` (settings v4 moves them), driven by
+  `OutputPluginDriver` in **first-party mode** (inline writes, no budget or
+  breaker, unanticipated errors propagate) with `OutputHttp.for_first_party`
+  (the `requests` module calls the old clients made), so the wire goldens
+  hold byte for byte. `GET /outputs` presents them exactly as before
+  (`tests/golden/outputs/first_party_presentation.json`); their settings
+  screens and board-settings action dispatch stay core's until P4d. Each
+  entry carries a builder
   (only the factory calls it) and the output's **capabilities** —
   `technology` (`split_flap` | `led_matrix` | `screen`), `delivery`
   (`push` | `pull`), `animation` and `native_transitions` — the most the
@@ -216,15 +233,17 @@ Names you will meet:
   troubleshooting), `read_back` (`supported`, `cost`: `cheap` | `network`,
   `suggested_interval_s`; the board-state poll picks the cloud interval for
   a `network` read) and `connection_label` (MQTT `board_api_mode`). The
-  Vestaboard answers live in `src/outputs/vestaboard/` (discovery,
-  diagnostics, connection verdicts, the `enable_local_api` action with its
-  CodeQL-recognised SSRF block); `fiestapanel` declares no hooks. The legacy
+  Vestaboard answers are its plugin's (`first_party_outputs/vestaboard`:
+  discovery, diagnostics, connection verdicts, the `enable_local_api` action
+  with its CodeQL-recognised SSRF block); core's `src/outputs/vestaboard/`
+  keeps only the board-settings action dispatcher. `fiestapanel` declares no
+  hooks. The legacy
   routes — `/config/board/scan`, `/config/board/test`,
   `/config/board/enable-local-api`, `/debug/network-diagnostics` — stay and
   delegate, response shapes unchanged. The MQTT device `model` is the
   primary board's output name. `tests/test_vestaboard_output_hooks.py`
-  ratchets the Vestaboard transport literals left in `src/` outside the
-  output's modules (count only goes down; Phase 4 takes it to zero).
+  ratchets the Vestaboard transport literals left anywhere in `src/` (count
+  only goes down; Phase 4 takes it to zero).
 - **Output plugins** (`plugin_type: "output"`, contract v1-beta) — a third
   plugin kind: a display device. The loader never constructs one; it keeps
   the class (an `OutputPluginBase` subclass, `src/outputs/plugin_base.py`)

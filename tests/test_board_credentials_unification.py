@@ -24,10 +24,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
+import requests
 from fastapi.testclient import TestClient
+
+from tests.first_party_drivers import vestaboards_built
 
 # Clearly-fake test credentials (never real keys).
 LIVE_KEY = "test_live_settings_key"
@@ -321,7 +324,7 @@ class TestLegacyCredentialMigration:
 
         assert "b1" in service.runtimes
         client = service.runtimes["b1"].client
-        assert client.api_key == STALE_KEY
+        assert client.plugin.connection.key == STALE_KEY
 
 
 # ── 2. divergence: every reader sees the settings copy ──────────────────────
@@ -347,16 +350,17 @@ class TestDivergedReadersSeeSettings:
     reader must see A."""
 
     def test_welcome_message_uses_settings_credentials(self, diverged, client):
-        with patch("src.board_client.BoardClient") as mock_bc:
-            instance = MagicMock()
-            instance.render.return_value = (True, True)
-            mock_bc.return_value = instance
+        ok = requests.models.Response()
+        ok.status_code = 200
+        ok._content = b"{}"
+        with vestaboards_built() as built, patch("requests.post", return_value=ok) as post:
             response = client.post("/send-welcome-message")
 
         assert response.status_code == 200
-        kwargs = mock_bc.call_args.kwargs
-        assert kwargs["api_key"] == LIVE_KEY
-        assert kwargs["host"] == LIVE_HOST
+        assert built[-1]["local_api_key"] == LIVE_KEY
+        assert built[-1]["host"] == LIVE_HOST
+        assert post.call_args.args[0].startswith(f"http://{LIVE_HOST}:")
+        assert post.call_args.kwargs["headers"]["X-Vestaboard-Local-Api-Key"] == LIVE_KEY
 
     def test_board_client_build_uses_settings_credentials(self, diverged):
         from src.main import DisplayService
@@ -366,8 +370,8 @@ class TestDivergedReadersSeeSettings:
 
         assert "b1" in service.runtimes
         client = service.runtimes["b1"].client
-        assert client.api_key == LIVE_KEY
-        assert STALE_KEY not in {getattr(rt.client, "api_key", None) for rt in service.runtimes.values()}
+        assert client.plugin.connection.key == LIVE_KEY
+        assert STALE_KEY not in {rt.client.plugin.connection.key for rt in service.runtimes.values()}
 
     def test_get_config_board_returns_settings_view(self, diverged, client):
         response = client.get("/config/board")
@@ -419,10 +423,10 @@ class TestNoStaleConfigFallback:
 
         self._cleared(data_dir)
         service = DisplayService()
-        with patch("src.main.BoardClient") as legacy_client:
+        with vestaboards_built() as legacy_built:
             service._build_board_clients(sync_cache=False)
 
-        legacy_client.assert_not_called()
+        assert legacy_built == []
         assert service.board_clients == {}
 
     def test_system_info_without_boards_never_reads_stale_config(self, client):

@@ -1,6 +1,6 @@
 """``OutputRuntime``: core owns each board's send lock and cancel token.
 
-The contract moved out of ``TransitionRenderMixin`` unchanged:
+The contract moved out of the old clients' ``TransitionRenderMixin`` unchanged:
 
 - a new run signals the in-flight run's token *before* it waits on the lock,
   so a running transition is preempted rather than waited out;
@@ -21,10 +21,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from src.board_client import BoardClient, TransitionRenderMixin
 from src.main import BoardRuntime
 from src.outputs import OutputRuntime
-from src.virtual_board_client import VirtualBoardClient
+from tests.first_party_drivers import local_driver, panel_driver
 
 TIMEOUT = 5.0
 
@@ -50,7 +49,7 @@ class _BlockingRunner:
 
 @pytest.fixture
 def plugins_on(monkeypatch):
-    monkeypatch.setattr(TransitionRenderMixin, "_transition_plugins_beta_enabled", staticmethod(lambda: True))
+    monkeypatch.setattr("src.outputs.plugin_driver.transition_plugins_enabled", lambda: True)
 
 
 class TestRunContract:
@@ -134,7 +133,7 @@ class TestRunContract:
 class TestClientUsesItsRuntime:
     def test_preempting_the_runtime_stops_a_clients_plugin_transition(self, plugins_on):
         runtime = OutputRuntime("panel")
-        client = VirtualBoardClient(device_type="flagship")
+        client = panel_driver("flagship")
         client.set_output_runtime(runtime)
         runner = _BlockingRunner()
         client.set_transition_runner(runner)
@@ -150,7 +149,7 @@ class TestClientUsesItsRuntime:
 
     def test_a_concurrent_render_preempts_and_then_runs_with_a_fresh_token(self, plugins_on):
         runtime = OutputRuntime("panel")
-        client = VirtualBoardClient(device_type="flagship")
+        client = panel_driver("flagship")
         client.set_output_runtime(runtime)
         runner = _BlockingRunner()
         client.set_transition_runner(runner)
@@ -166,12 +165,12 @@ class TestClientUsesItsRuntime:
         assert not runtime.cancel_event.is_set()
         assert client.read_current_message() == _grid(2)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_preempting_the_runtime_abandons_a_send_retry_backoff(self, mock_post, monkeypatch):
         # A backoff far longer than the test: only the preempt can end it.
-        monkeypatch.setattr("src.board_client.SEND_RETRY_BACKOFF_SECONDS", 60.0)
+        monkeypatch.setattr("first_party_outputs.vestaboard.tiles.SEND_RETRY_BACKOFF_SECONDS", 60.0)
         runtime = OutputRuntime("b1")
-        client = BoardClient(api_key="test_key", host="192.0.2.10")
+        client = local_driver("test_key", "192.0.2.10")
         client.set_output_runtime(runtime)
         attempted = threading.Event()
 
@@ -191,16 +190,16 @@ class TestClientUsesItsRuntime:
         assert mock_post.call_count == 1, "the retry ran after the board was preempted"
 
     def test_an_unbound_client_has_its_own_runtime(self):
-        a = VirtualBoardClient(device_type="flagship")
-        b = VirtualBoardClient(device_type="flagship")
-        a_token = a._cancel_transition
-        b._cancel_transition.set()
+        a = panel_driver("flagship")
+        b = panel_driver("flagship")
+        a_token = a._output_runtime.cancel_event
+        b._output_runtime.cancel_event.set()
         assert not a_token.is_set()
 
 
 class TestBoardRuntimeOwnsIt:
     def test_board_runtime_binds_its_output_runtime_to_the_client(self, plugins_on):
-        client = VirtualBoardClient(device_type="flagship")
+        client = panel_driver("flagship")
         rt = BoardRuntime(client=client, board_id="panel")
         runner = _BlockingRunner()
         client.set_transition_runner(runner)

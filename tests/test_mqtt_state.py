@@ -210,9 +210,9 @@ class TestStatePublisherDiagnostics:
         page_svc.list_pages.return_value = []
         get_page.return_value = page_svc
         # A real local driver: the label is the driver's own (connection_label).
-        from src.board_client import BoardClient
+        from tests.first_party_drivers import local_driver
 
-        mock_board.return_value = BoardClient(api_key="test_key", host="192.0.2.10")
+        mock_board.return_value = local_driver("test_key", "192.0.2.10")
         mock_cm.return_value._config = {"plugins": {}}
         pub = StatePublisher(mock_client)
         pub.gather_and_publish()

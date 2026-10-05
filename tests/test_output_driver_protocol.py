@@ -1,11 +1,12 @@
-"""The ``OutputDriver`` Protocol: the three board clients conform to one seam.
+"""The ``OutputDriver`` Protocol: every board's driver conforms to one seam.
 
 Pins three things:
 
-1. Conformance — ``BoardClient`` (local, RW Cloud, note-array Cloud),
-   ``NoteArrayLocalClient`` and ``VirtualBoardClient`` are all
-   ``OutputDriver`` instances, and their method signatures match the
-   Protocol's (no ``with_outcome``-style drift, #2119).
+1. Conformance — the first-party outputs' drivers (Vestaboard local, RW
+   Cloud, note-array Cloud and local tiles; FiestaPanel), each the
+   ``OutputPluginDriver`` around the output's plugin, are ``OutputDriver``
+   instances, and the driver's method signatures match the Protocol's (no
+   ``with_outcome``-style drift, #2119).
 2. Mockability — ``Mock(spec=OutputDriver)`` exposes exactly the Protocol,
    so a test double cannot quietly lean on a private attribute.
 3. The private-peek ratchet — code outside the client modules that reads a
@@ -23,10 +24,15 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.board_client import BoardClient
-from src.note_array_local_client import NoteArrayLocalClient
 from src.outputs import OutputDriver
-from src.virtual_board_client import VirtualBoardClient
+from src.outputs.plugin_driver import OutputPluginDriver
+from tests.first_party_drivers import (
+    cloud_driver,
+    local_driver,
+    note_array_cloud_driver,
+    panel_driver,
+    tiles_driver,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -74,15 +80,13 @@ def _protocol_members() -> set[str]:
 
 def _clients() -> dict[str, object]:
     return {
-        "vestaboard-local": BoardClient(api_key="test_key", host="192.0.2.10"),
-        "vestaboard-rw-cloud": BoardClient(api_key="test_key", use_cloud=True),
-        "vestaboard-note-array-cloud": BoardClient(
-            api_key="test_token", use_cloud=True, note_array_token="test_token", notes_wide=2, notes_tall=1
-        ),
-        "note-array-local": NoteArrayLocalClient(
+        "vestaboard-local": local_driver("test_key", "192.0.2.10"),
+        "vestaboard-rw-cloud": cloud_driver("test_key"),
+        "vestaboard-note-array-cloud": note_array_cloud_driver("test_token", 2, 1),
+        "note-array-local": tiles_driver(
             [{"row": 0, "col": 0, "host": "192.0.2.11", "local_api_key": "test_key"}], 1, 1
         ),
-        "virtual": VirtualBoardClient(device_type="flagship"),
+        "virtual": panel_driver("flagship"),
     }
 
 
@@ -104,7 +108,7 @@ class TestClientsConform:
     def test_client_is_an_output_driver(self, kind):
         assert isinstance(_clients()[kind], OutputDriver)
 
-    @pytest.mark.parametrize("cls", [BoardClient, NoteArrayLocalClient, VirtualBoardClient])
+    @pytest.mark.parametrize("cls", [OutputPluginDriver])
     @pytest.mark.parametrize("method", PROTOCOL_METHODS)
     def test_method_signature_matches_the_protocol(self, cls, method):
         def shape(fn):
@@ -147,10 +151,10 @@ class TestMockSpec:
 
 # --- private-peek ratchet ---------------------------------------------------
 
+# Every board's driver is the output-plugin adapter now (Phase 4): its
+# private state is what nothing outside it may read.
 CLIENT_MODULES = {
-    REPO / "src" / "board_client.py",
-    REPO / "src" / "note_array_local_client.py",
-    REPO / "src" / "virtual_board_client.py",
+    REPO / "src" / "outputs" / "plugin_driver.py",
 }
 
 # A receiver whose last name is ``client`` / ``*_client`` (``rt.client``,
@@ -246,13 +250,13 @@ def test_ratchet_scanner_sees_a_known_peek(tmp_path):
 
     The repo has no peeks left, so the scanner is pointed at a planted one.
     """
-    assert "_last_characters" in _private_client_names()
-    assert "_cancel_transition" in _private_client_names()
+    assert "_output_runtime" in _private_client_names()
+    assert "_frames" in _private_client_names()
     planted = tmp_path / "src" / "planted.py"
     planted.parent.mkdir()
     planted.write_text(
         "def peek(rt, board_client):\n"
-        "    rt.client._last_characters\n"
-        "    return getattr(board_client, '_cancel_transition', None)\n"
+        "    rt.client._frames\n"
+        "    return getattr(board_client, '_output_runtime', None)\n"
     )
     assert len(_private_peeks([planted.parent])) == 2, "the ratchet scanner missed a planted peek"

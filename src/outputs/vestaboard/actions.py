@@ -1,6 +1,9 @@
-"""The ``vestaboard`` output's board-settings actions (plan D13).
+"""Core's runner for the ``vestaboard`` output's board-settings actions (plan D13).
 
-What the hand-coded Vestaboard form does through its own routes —
+The actions themselves are declared by the plugin's manifest
+(``first_party_outputs/vestaboard/manifest.json``, ``output.actions``); every
+device conversation is the plugin's (its driver, its ``discover`` and
+``enable_local_api`` hooks). What the hand-coded Vestaboard form does through its own routes —
 ``/config/board/test``, ``/config/board/scan``, ``/config/board/enable-local-api``,
 ``/settings/board/{id}/identify``, ``/settings/board/{id}/detect-size`` —
 exposed as the actions every output answers, so the draft and saved-board
@@ -31,70 +34,12 @@ from src.outputs.hooks import (
     ActionField,
     ActionOutcome,
     OutputActionError,
-    OutputActionSpec,
-    ResultFieldSpec,
 )
 
 logger = logging.getLogger(__name__)
 
 #: Scan length bounds, the same as ``POST /config/board/scan``.
 _SCAN_DEFAULT_S, _SCAN_MIN_S, _SCAN_MAX_S = 4.0, 1.0, 15.0
-
-ACTIONS: tuple[OutputActionSpec, ...] = (
-    OutputActionSpec(id="test_connection", label="Test connection"),
-    OutputActionSpec(
-        id="discover",
-        label="Scan network",
-        description="Find Vestaboards with the Local API on this network.",
-        input_schema={
-            "type": "object",
-            "properties": {
-                "timeout": {
-                    "type": "number",
-                    "title": "Scan seconds",
-                    "minimum": _SCAN_MIN_S,
-                    "maximum": _SCAN_MAX_S,
-                    "default": _SCAN_DEFAULT_S,
-                }
-            },
-        },
-    ),
-    OutputActionSpec(
-        id="identify",
-        label="Identify",
-        description="Flash each note-array tile's position on it.",
-        input_schema={
-            "type": "object",
-            "properties": {
-                "target": {"type": "string", "enum": ["tile", "all"], "default": "tile"},
-                "row": {"type": "integer", "minimum": 0},
-                "col": {"type": "integer", "minimum": 0},
-                "host": {"type": "string"},
-                "port": {"type": "integer", "minimum": 1, "maximum": 65535},
-                "local_api_key": {"type": "string", "secret": True},
-            },
-        },
-    ),
-    OutputActionSpec(
-        id="detect_geometry",
-        label="Detect size",
-        description="Read the board's current layout and classify its size.",
-    ),
-    OutputActionSpec(
-        id="enable_local_api",
-        label="Enable Local API",
-        description="Exchange a Local API enablement token for a Local API key.",
-        input_schema={
-            "type": "object",
-            "properties": {
-                "enablement_token": {"type": "string", "title": "Enablement token", "secret": True, "minLength": 1},
-                "host": {"type": "string", "title": "Board IP address"},
-            },
-            "required": ["enablement_token"],
-        },
-        result_fields={"api_key": ResultFieldSpec(secret=True, fills="local_api_key")},
-    ),
-)
 
 
 def _draft_driver(board: Mapping[str, Any]):
@@ -240,8 +185,9 @@ async def _detect_geometry(call: ActionCall) -> ActionOutcome:
 
 
 async def _enable_local_api(call: ActionCall) -> ActionOutcome:
-    from .local_api import exchange_enablement_token
+    from src.outputs.registry import VESTABOARD, output_action
 
+    exchange_enablement_token = output_action(VESTABOARD, "enable_local_api")
     host = call.inputs.get("host") or call.board.get("host") or ""
     token = call.inputs.get("enablement_token") or ""
     if not host:

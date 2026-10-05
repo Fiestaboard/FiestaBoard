@@ -384,7 +384,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                 # Live editor sends are rapid-fire; a "plugin:<id>" system
                 # default would run a multi-second frame animation per edit.
                 # Fall back to an instant send for plugin strategies.
-                from src.board_client import TRANSITION_PLUGIN_PREFIX
+                from src.outputs.transitions import TRANSITION_PLUGIN_PREFIX
 
                 live_strategy = transition_settings.strategy
                 if isinstance(live_strategy, str) and live_strategy.startswith(TRANSITION_PLUGIN_PREFIX):

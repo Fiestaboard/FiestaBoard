@@ -1,16 +1,13 @@
-"""The ``vestaboard`` output's connection check: what a probe's answer means.
+"""The Vestaboard connection check: what a probe's answer means.
 
-Behind :meth:`BoardClient.check_connection <src.board_client.BoardClient.check_connection>`
-(the driver's ``test_connection`` hook, structured). ``POST /config/board/test``
-builds a draft driver for the unsaved credentials and serves
-:meth:`ConnectionCheck.to_verdict <src.outputs.hooks.ConnectionCheck.to_verdict>`.
+Behind :meth:`VestaboardOutput.check_connection`. ``POST /config/board/test``
+builds a draft board for the unsaved credentials and serves
+``ConnectionCheck.to_verdict()``.
 
-Moved from ``src/config_api/service.py``. Two things changed on purpose
-(A4 wire-goldens finding 4): the probe now goes through the client's own
-request path — its ``check_output_url`` fence and its ``(connect, read)``
-timeout pair, ``(3, 10)`` local and ``(5, 10)`` cloud — instead of a
-separate ``requests.get`` with a single ``timeout=10``. A board that cannot
-be connected to is now told so after 3 s (5 s cloud), not 10.
+The probe goes through the instance's own request path — ``self.http`` (the
+``FIESTABOARD_OUTPUTS_ALLOW_HOSTS`` fence) and the connection's
+``(connect, read)`` timeout pair, ``(3, 10)`` local and ``(5, 10)`` cloud. A
+board that cannot be connected to is told so after 3 s (5 s cloud).
 """
 
 from __future__ import annotations
@@ -20,13 +17,16 @@ from typing import Any
 
 import requests
 
-from src.output_allowlist import OutputHostBlocked, check_output_url
-from src.outputs.hooks import ConnectionCheck
+from src.plugins import ConnectionCheck, OutputHostBlocked, OutputHttp
+
+from .transport import is_successful_board_read_response
 
 logger = logging.getLogger(__name__)
 
 
-def probe(url: str, headers: dict[str, str], timeout: tuple[float, float], *, use_cloud: bool) -> ConnectionCheck:
+def probe(
+    http: OutputHttp, url: str, headers: dict[str, str], timeout: tuple[float, float], *, use_cloud: bool
+) -> ConnectionCheck:
     """GET the board's read endpoint once and classify the answer.
 
     Raises what is not a board verdict: a ``ValueError`` (a URL or header
@@ -35,8 +35,7 @@ def probe(url: str, headers: dict[str, str], timeout: tuple[float, float], *, us
     """
     api_mode = "cloud" if use_cloud else "local"
     try:
-        check_output_url(url)
-        response = requests.get(url, headers=headers, timeout=timeout)
+        response = http.get(url, headers=headers, timeout=timeout)
     except OutputHostBlocked as e:
         return ConnectionCheck.blocked(e.host)
     except ValueError:
@@ -58,8 +57,6 @@ def probe(url: str, headers: dict[str, str], timeout: tuple[float, float], *, us
 
 def _ok_response(response: Any, api_mode: str) -> ConnectionCheck:
     """The verdict for an HTTP 200 from the board: is this board data?"""
-    from src.board_client import is_successful_board_read_response
-
     # The whole read stays inside one ``except ValueError`` on purpose: the
     # shape inspection is part of "could this body be read at all", and
     # splitting it would send a ValueError raised past ``json()`` to the

@@ -10,8 +10,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.board_client import BoardClient
 from src.output_allowlist import ENV_VAR, OutputHostBlocked, check_output_host, check_output_url
+from tests.first_party_drivers import cloud_driver, local_driver
 
 GRID_6x22 = [[0] * 22 for _ in range(6)]
 
@@ -48,42 +48,42 @@ class TestGuard:
         assert issubclass(OutputHostBlocked, requests.exceptions.ConnectionError)
 
 
-class TestBoardClient:
-    @patch("src.board_client.requests.post")
+class TestVestaboardDriver:
+    @patch("requests.post")
     def test_local_send_to_unlisted_host_never_leaves(self, mock_post, monkeypatch):
         monkeypatch.setenv(ENV_VAR, "fiestaboard-mock-board")
-        client = BoardClient(api_key="k", host="192.168.1.20")
+        client = local_driver("k", "192.168.1.20")
 
         outcome = client.send_characters(GRID_6x22, with_outcome=True)
 
         mock_post.assert_not_called()
         assert (outcome.success, outcome.was_sent) == (False, False)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_cloud_send_refused_when_cloud_not_listed(self, mock_post, monkeypatch):
         monkeypatch.setenv(ENV_VAR, "fiestaboard-mock-board")
-        client = BoardClient(api_key="rw-key", use_cloud=True)
+        client = cloud_driver("rw-key")
 
         success, was_sent = client.send_characters(GRID_6x22)
 
         mock_post.assert_not_called()
         assert (success, was_sent) == (False, False)
 
-    @patch("src.board_client.requests.post")
+    @patch("requests.post")
     def test_listed_host_still_sends(self, mock_post, monkeypatch):
         monkeypatch.setenv(ENV_VAR, "fiestaboard-mock-board")
         mock_post.return_value = Mock(status_code=200)
-        client = BoardClient(api_key="k", host="fiestaboard-mock-board")
+        client = local_driver("k", "fiestaboard-mock-board")
 
         success, was_sent = client.send_characters(GRID_6x22)
 
         assert mock_post.call_count == 1
         assert (success, was_sent) == (True, True)
 
-    @patch("src.board_client.requests.get")
+    @patch("requests.get")
     def test_read_from_unlisted_host_never_leaves(self, mock_get, monkeypatch):
         monkeypatch.setenv(ENV_VAR, "fiestaboard-mock-board")
-        client = BoardClient(api_key="k", host="192.168.1.20")
+        client = local_driver("k", "192.168.1.20")
 
         assert client.read_current_message() is None
         mock_get.assert_not_called()

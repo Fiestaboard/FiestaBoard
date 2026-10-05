@@ -48,6 +48,7 @@ jobs:
           filters: |
             api:
               - 'src/**'
+              - 'first_party_outputs/**'
               - 'requirements.txt'
               - 'requirements-dev.txt'
               - 'Dockerfile'
@@ -193,7 +194,7 @@ jobs:
 
     - name: Verify imports
       run: |
-        python -c "import sys; sys.path.insert(0, '.'); from src import config, board_client, board_chars; print('✅ Core imports successful')"
+        python -c "import sys; sys.path.insert(0, '.'); from src import config, board_chars; print('✅ Core imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.utils import datetime, home_assistant; print('✅ Utils imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.formatters import message_formatter; print('✅ Formatter imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.main import FiestaBoardDisplayService; print('✅ Main module imports successful')"
@@ -212,12 +213,12 @@ jobs:
       run: |
         ruff --version
         # Config is in pyproject.toml [tool.ruff].
-        ruff check src/ plugins/ tests/ scripts/
+        ruff check src/ plugins/ first_party_outputs/ tests/ scripts/
 
     - name: Check formatting with ruff
       run: |
         # ruff format replaces black; same output, one tool.
-        ruff format --check src/ plugins/ tests/ scripts/
+        ruff format --check src/ plugins/ first_party_outputs/ tests/ scripts/
     
     - name: Snapshot data/ before tests
       run: |
@@ -234,7 +235,7 @@ jobs:
         # `--cov` config (source + omit) comes from pyproject.toml
         # [tool.coverage.run] — pytest-cov handles the per-worker data
         # collection and combine automatically.
-        pytest tests/ -v -m "not integration" -n auto \
+        pytest tests/ first_party_outputs/ -v -m "not integration" -n auto \
           --cov=src \
           --cov-branch \
           --cov-report=xml:coverage.xml \

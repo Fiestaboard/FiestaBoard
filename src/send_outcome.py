@@ -1,6 +1,6 @@
 """The per-call verdict of one board write.
 
-``BoardClient.send_characters`` / ``send_text`` / ``render`` have always
+A board driver's ``send_characters`` / ``render`` have always
 answered ``(success, was_sent)``, and a write the client-side send floor
 dropped is byte-identical to an unchanged-content skip: ``(True, False)``.
 The client kept the difference on an instance flag (``last_send_throttled``)
@@ -13,7 +13,7 @@ caller settled the wrong verdict (#1931 review).
 method returns it behind ``with_outcome=True``; without the keyword the
 two-tuple contract is unchanged, so no existing caller moves.
 
-It lives in its own module because both :mod:`src.board_client` (produces
+It lives in its own module because both the output plugin driver (produces
 it) and :mod:`src.board_guards` (consumes it) need the type, and neither
 should import the other for it.
 

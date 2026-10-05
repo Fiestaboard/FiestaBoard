@@ -18,13 +18,13 @@ from src.outputs import OutputRuntime
 from src.panels.models import Panel
 from src.panels.service import PanelService
 from src.panels.storage import PanelStorage
-from src.virtual_board_client import VirtualBoardClient
+from tests.first_party_drivers import panel_driver
 
 
 def _runtime(client):
     """A board runtime as ``runtime_for`` returns it: the client bound to its OutputRuntime,
     which knows the board's output (``fiestapanel`` for a virtual client)."""
-    output = OutputRuntime(output_id="fiestapanel" if isinstance(client, VirtualBoardClient) else "vestaboard")
+    output = OutputRuntime(output_id="fiestapanel" if getattr(client, "is_virtual", False) is True else "vestaboard")
     bind = getattr(client, "set_output_runtime", None)
     if bind is not None:
         bind(output)
@@ -148,7 +148,7 @@ class TestPublicPanelEndpoints:
 
     def test_frame_returns_sent_grid(self, client, mock_panel_service):
         mock_panel_service.get_panel_by_ref.return_value = _panel()
-        vclient = VirtualBoardClient(device_type="note")
+        vclient = panel_driver("note")
         grid = [[7] * 15 for _ in range(3)]
         vclient.send_characters(grid)
         board = {"id": "vboard-1", "device_type": "note", "api_mode": "virtual"}
@@ -168,7 +168,7 @@ class TestPublicPanelEndpoints:
 
     def test_frame_empty_board_returns_nulls_with_dims(self, client, mock_panel_service):
         mock_panel_service.get_panel_by_ref.return_value = _panel()
-        vclient = VirtualBoardClient(device_type="flagship")
+        vclient = panel_driver("flagship")
         board = {"id": "vboard-1", "device_type": "flagship", "api_mode": "virtual"}
         display = Mock()
         display.runtime_for.return_value = _runtime(vclient)

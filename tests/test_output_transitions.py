@@ -25,13 +25,11 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from src.board_client import VALID_STRATEGIES, BoardClient
 from src.main import BoardRuntime
-from src.note_array_local_client import NoteArrayLocalClient
 from src.outputs import OutputDriver, OutputRuntime
-from src.outputs.transitions import NATIVE_STRATEGIES, NativeTransition
+from src.outputs.transitions import NATIVE_STRATEGIES, VALID_STRATEGIES, NativeTransition
 from src.send_outcome import SendOutcome
-from src.virtual_board_client import VirtualBoardClient
+from tests.first_party_drivers import cloud_driver, local_driver, note_array_cloud_driver, panel_driver, tiles_driver
 
 
 def _grid(fill: int = 0) -> list[list[int]]:
@@ -93,15 +91,13 @@ class TestNativeTransition:
 
 def _drivers() -> dict[str, object]:
     return {
-        "vestaboard-local": BoardClient(api_key="test_key", host="192.0.2.10"),
-        "vestaboard-rw-cloud": BoardClient(api_key="test_key", use_cloud=True),
-        "vestaboard-note-array-cloud": BoardClient(
-            api_key="test_token", use_cloud=True, note_array_token="test_token", notes_wide=2, notes_tall=1
-        ),
-        "note-array-local": NoteArrayLocalClient(
+        "vestaboard-local": local_driver("test_key", "192.0.2.10"),
+        "vestaboard-rw-cloud": cloud_driver("test_key"),
+        "vestaboard-note-array-cloud": note_array_cloud_driver("test_token", 2, 1),
+        "note-array-local": tiles_driver(
             [{"row": 0, "col": 0, "host": "192.0.2.11", "local_api_key": "test_key"}], 1, 1
         ),
-        "virtual": VirtualBoardClient(device_type="flagship"),
+        "virtual": panel_driver("flagship"),
     }
 
 
@@ -236,7 +232,7 @@ class TestPluginDriving:
 
 class TestRunnerOwnership:
     def test_a_clients_runner_is_its_runtimes_runner(self):
-        client = VirtualBoardClient(device_type="flagship")
+        client = panel_driver("flagship")
         runtime = OutputRuntime("b1")
         client.set_output_runtime(runtime)
         runner = MagicMock()
@@ -245,7 +241,7 @@ class TestRunnerOwnership:
 
     def test_binding_carries_a_runner_attached_before_the_bind(self):
         # The engine attaches the runner, then BoardRuntime binds the client.
-        client = VirtualBoardClient(device_type="flagship")
+        client = panel_driver("flagship")
         runner = MagicMock()
         client.set_transition_runner(runner)
         rt = BoardRuntime(client=client, board_id="b1")

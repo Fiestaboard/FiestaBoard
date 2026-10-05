@@ -20,11 +20,9 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from src.board_client import BoardClient
 from src.main import BoardRuntime
-from src.note_array_local_client import NoteArrayLocalClient
 from src.outputs import FrameCache, OutputRuntime
-from src.virtual_board_client import VirtualBoardClient
+from tests.first_party_drivers import cloud_driver, local_driver, note_array_cloud_driver, panel_driver, tiles_driver
 
 FLAGSHIP = (6, 22)
 
@@ -152,8 +150,8 @@ class TestObserveRead:
 
 class TestBinding:
     def test_the_runtime_adopts_what_the_client_already_knew(self):
-        client = BoardClient(api_key="test_key", host="192.0.2.10")
-        with patch("src.board_client.requests.get") as get:
+        client = local_driver("test_key", "192.0.2.10")
+        with patch("requests.get") as get:
             get.return_value.json.return_value = {"message": _grid(4)}
             client.read_current_message(sync_cache=True)
 
@@ -162,10 +160,10 @@ class TestBinding:
         assert rt.output.frames.matches(_grid(4))
 
     def test_a_client_dedupes_against_its_bound_runtime(self):
-        client = BoardClient(api_key="test_key", host="192.0.2.10")
+        client = local_driver("test_key", "192.0.2.10")
         rt = BoardRuntime(client=client, board_id="b1")
         rt.output.frames.record_read(_grid(4))
-        with patch("src.board_client.requests.post") as post:
+        with patch("requests.post") as post:
             assert client.send_characters(_grid(4)) == (True, False)
         post.assert_not_called()
 
@@ -174,17 +172,15 @@ class TestBinding:
 
 
 def _local():
-    return BoardClient(api_key="test_key", host="192.0.2.10"), (6, 22)
+    return local_driver("test_key", "192.0.2.10"), (6, 22)
 
 
 def _rw_cloud():
-    return BoardClient(api_key="test_key", use_cloud=True), (6, 22)
+    return cloud_driver("test_key"), (6, 22)
 
 
 def _note_array_cloud():
-    client = BoardClient(
-        api_key="test_token", use_cloud=True, note_array_token="test_token", notes_wide=2, notes_tall=1
-    )
+    client = note_array_cloud_driver("test_token", 2, 1)
     return client, (3, 30)
 
 
@@ -193,11 +189,11 @@ def _note_array_local():
         {"row": 0, "col": 0, "host": "192.0.2.11", "local_api_key": "test_key"},
         {"row": 0, "col": 1, "host": "192.0.2.12", "local_api_key": "test_key"},
     ]
-    return NoteArrayLocalClient(tiles, 2, 1), (3, 30)
+    return tiles_driver(tiles, 2, 1), (3, 30)
 
 
 def _virtual():
-    return VirtualBoardClient(device_type="flagship"), (6, 22)
+    return panel_driver("flagship"), (6, 22)
 
 
 HTTP_KINDS = {
@@ -214,7 +210,7 @@ class TestLastFrameStore:
     def test_every_successful_send_is_stored_with_its_time(self, kind):
         client, shape = ALL_KINDS[kind]()
         rt = BoardRuntime(client=client, board_id="b1")
-        with patch("src.board_client.requests.post", return_value=_ok_response()):
+        with patch("requests.post", return_value=_ok_response()):
             assert client.send_characters(_grid(1, shape)) == (True, True)
         assert rt.output.last_frame == _grid(1, shape)
         assert rt.output.last_sent_at is not None
@@ -223,7 +219,7 @@ class TestLastFrameStore:
     def test_a_failed_send_is_not_stored(self, kind):
         client, shape = HTTP_KINDS[kind]()
         rt = BoardRuntime(client=client, board_id="b1")
-        with patch("src.board_client.requests.post", side_effect=requests.exceptions.HTTPError("500")):
+        with patch("requests.post", side_effect=requests.exceptions.HTTPError("500")):
             ok, sent = client.send_characters(_grid(1, shape))
         assert (ok, sent) == (False, False)
         assert rt.output.last_frame is None
@@ -232,7 +228,7 @@ class TestLastFrameStore:
     def test_a_throttled_send_is_not_stored(self, kind):
         client, shape = HTTP_KINDS[kind]()
         rt = BoardRuntime(client=client, board_id="b1")
-        with patch("src.board_client.requests.post", return_value=_ok_response()):
+        with patch("requests.post", return_value=_ok_response()):
             client.send_characters(_grid(1, shape))
             outcome = client.send_characters(_grid(2, shape), with_outcome=True)
         assert outcome.throttled is True
@@ -242,7 +238,7 @@ class TestLastFrameStore:
     def test_clearing_the_dedupe_cache_keeps_the_last_frame(self, kind):
         client, shape = ALL_KINDS[kind]()
         rt = BoardRuntime(client=client, board_id="b1")
-        with patch("src.board_client.requests.post", return_value=_ok_response()):
+        with patch("requests.post", return_value=_ok_response()):
             client.send_characters(_grid(1, shape))
         client.clear_cache()
         assert rt.output.frames.characters is None
@@ -251,6 +247,6 @@ class TestLastFrameStore:
     def test_an_engine_render_lands_in_the_board_runtimes_store(self):
         client, shape = _local()
         rt = BoardRuntime(client=client, board_id="b1")
-        with patch("src.board_client.requests.post", return_value=_ok_response()):
+        with patch("requests.post", return_value=_ok_response()):
             client.render(_grid(6, shape))
         assert rt.output.last_frame == _grid(6, shape)
