@@ -142,11 +142,60 @@ async def test_unknown_provider_id_is_not_configured():
         await _complete(_block(OPENAI), Provider(), provider_id="gone")
 
 
+def _models_reply(*ids: str) -> httpx.Response:
+    return httpx.Response(200, json={"data": [{"id": i} for i in ids]})
+
+
+@pytest.fixture(autouse=True)
+def _fresh_listed_models():
+    plugin_api._LISTED_MODEL_CACHE.clear()
+    yield
+    plugin_api._LISTED_MODEL_CACHE.clear()
+
+
 @pytest.mark.asyncio
-async def test_provider_without_a_model_is_not_configured():
+async def test_provider_without_a_saved_model_uses_its_first_listed_model():
+    """What FiestaBot's chat does for a provider saved by the sign-in flow (no model yet)."""
     bare = {**OPENAI, "models": [], "default_model": None}
-    with pytest.raises(AINotConfiguredError, match="no models"):
-        await _complete(_block(bare), Provider())
+    provider = Provider(_models_reply("test-listed-1", "test-listed-2"), httpx.Response(200, json=_openai_reply()))
+    result = await _complete(_block(bare), provider)
+    assert [(r.method, r.url.path) for r in provider.seen] == [("GET", "/v1/models"), ("POST", "/v1/chat/completions")]
+    assert provider.body(1)["model"] == "test-listed-1"
+    assert result.model == "test-listed-1"
+
+
+@pytest.mark.asyncio
+async def test_listed_model_is_remembered_between_calls():
+    bare = {**OPENAI, "models": [], "default_model": None}
+    provider = Provider(_models_reply("test-listed-1"), httpx.Response(200, json=_openai_reply()))
+    await _complete(_block(bare), provider)
+    await _complete(_block(bare), provider)
+    assert [r.method for r in provider.seen] == ["GET", "POST", "POST"]
+
+
+@pytest.mark.asyncio
+async def test_provider_that_lists_no_models_asks_for_one_to_be_picked():
+    bare = {**OPENAI, "models": [], "default_model": None}
+    provider = Provider(_models_reply())
+    with pytest.raises(AINotConfiguredError, match="Pick a model"):
+        await _complete(_block(bare), provider)
+    assert [r.method for r in provider.seen] == ["GET"]
+
+
+@pytest.mark.asyncio
+async def test_provider_that_cannot_list_models_asks_for_one_to_be_picked():
+    bare = {**OPENAI, "models": [], "default_model": None}
+    provider = Provider(httpx.Response(404, json={"error": "test no listing"}))
+    with pytest.raises(AINotConfiguredError, match="Pick a model"):
+        await _complete(_block(bare), provider)
+    assert [r.method for r in provider.seen] == ["GET"]
+
+
+@pytest.mark.asyncio
+async def test_a_saved_model_never_lists():
+    provider = Provider()
+    await _complete(_block(OPENAI), provider)
+    assert [r.method for r in provider.seen] == ["POST"]
 
 
 @pytest.mark.asyncio
@@ -201,6 +250,14 @@ async def test_anthropic_protocol_splits_the_system_prompt():
     assert [part["text"] for part in body["system"]] == ["test sys"]
     assert body["messages"] == [{"role": "user", "content": "test ask"}]
     assert result.text == "test claude"
+
+
+@pytest.mark.asyncio
+async def test_anthropic_temperature_is_capped_at_its_maximum():
+    """Anthropic accepts 0-1; the art plugin defaults to 1.2 and every request was refused."""
+    provider = Provider(httpx.Response(200, json={"content": [{"type": "text", "text": "test claude"}]}))
+    await _complete(_block(ANTHROPIC), provider, temperature=1.2)
+    assert provider.body()["temperature"] == 1.0
 
 
 def _sse(*events: dict[str, Any]) -> bytes:

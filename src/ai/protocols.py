@@ -191,7 +191,9 @@ def _anthropic_body(
         "model": model,
         "messages": chat,
         "max_tokens": max_tokens,
-        "temperature": temperature,
+        # Anthropic accepts 0.0-1.0 and refuses anything above; OpenAI-style
+        # callers (plugins) may pass up to 2.
+        "temperature": min(max(temperature, 0.0), 1.0),
     }
     if system:
         # Send the system prompt as a single cacheable text block, not a bare

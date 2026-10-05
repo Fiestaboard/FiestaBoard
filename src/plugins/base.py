@@ -907,8 +907,10 @@ class PluginBase(ABC):
                 ``{"role": "system"|"user"|"assistant", "content": str}``.
             provider_id: A provider id (e.g. from an ``ai_providers`` picker
                 field); ``None`` or ``""`` means FiestaBot's default provider.
-            model: A model id; ``None`` means the provider's default model.
-            temperature: Defaults to 0.7.
+            model: A model id; ``None`` means the provider's default model, or
+                the first model it lists when none is saved (as FiestaBot's
+                chat does for a provider added with Sign in).
+            temperature: Defaults to 0.7; capped at 1.0 for Anthropic.
             max_tokens: Defaults to 1500.
             json: Ask for one JSON object and parse it into ``result.data``.
             timeout: Seconds to wait for the provider.
@@ -919,7 +921,8 @@ class PluginBase(ABC):
 
         Raises:
             AINotConfiguredError: AI is turned off, no provider is set up, the
-                ``provider_id`` is unknown, or the provider has no model.
+                ``provider_id`` is unknown, or the provider has no model saved
+                and lists none.
             AIRejectedError: The key or sign-in was refused, or the user must
                 sign in again. A signed-in provider's 401 is retried once with
                 a refreshed token before this is raised.
