@@ -12,9 +12,13 @@
   <a href="https://discord.gg/2GAqKnRF6h"><img src="https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-**FiestaBoard is free, open-source software for Vestaboard and split-flap displays.** It gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you - weather, stocks, transit, sports, surf conditions, and more - and display it on your board. Compatible with Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas).
+<p align="center"><strong>Your data, out in the real world.</strong></p>
 
-You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
+**FiestaBoard turns live data into something you can glance at from across the room** — your morning commute, the markets, the surf, a little Star Trek wisdom — on the displays around you: split-flap boards like Vestaboard, or any TV with a browser. Pick from 60+ plugins, design pages in a visual editor, schedule what shows when, and build your own plugins. Free, open source, and self-hosted in Docker.
+
+**Works with:** Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas), plus [FiestaPanel](https://fiestaboard.app/docs/features/fiestapanel), which turns any TV or screen with a web browser into a virtual split-flap board.
+
+You bring the display and the API keys for the services you care about. FiestaBoard handles the rest.
 
 **[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/2GAqKnRF6h)**
 
@@ -111,7 +115,7 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 ## What Can You Display?
 
-FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit, sports, entertainment, and home automation. Here's what they look like:
+FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit, sports, entertainment, and home automation. Here's what they look like:
 
 **Weather** - Temperature, UV index, precipitation, high/low, sunset time
 

@@ -1,12 +1,14 @@
 ---
 sidebar_position: 1
-description: "FiestaBoard is free, open-source software for Vestaboard and split-flap displays. 50+ plugins including weather, stocks, sports, transit, and optional AI-assisted page drafting for your Vestaboard Flagship or Note."
-keywords: [FiestaBoard, split-flap display, split-flap display software, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, Vestaboard open source, best software for Vestaboard, smart dashboard, live display, open source, Vestaboard AI, AI page generation]
+description: "FiestaBoard puts your data out in the real world — free, open-source, self-hosted software for Vestaboard split-flap displays (Flagship, Note, and Note arrays) and any TV with a browser. 60+ plugins for weather, stocks, sports, transit, and more, plus optional AI-assisted page drafting."
+keywords: [FiestaBoard, split-flap display, split-flap display software, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, Vestaboard open source, best software for Vestaboard, Vestaboard Note array, FiestaPanel, TV dashboard, virtual split-flap display, smart dashboard, live display, self-hosted dashboard, open source, Vestaboard AI, AI page generation]
 ---
 
 # Welcome to FiestaBoard
 
-FiestaBoard is free, open-source software for Vestaboard and split-flap displays. It connects to your board and lets you control what it shows through a web interface with plugins, a visual editor, and scheduling. Compatible with Vestaboard Flagship (22x6) and Note (15x3). You bring the board, you bring the API keys for the services you care about, and FiestaBoard handles pulling data from those services and formatting it for your display.
+**Your data, out in the real world.** FiestaBoard turns live data into something you can glance at from across the room — your morning commute, the markets, the surf, a little Star Trek wisdom — on the displays around you: split-flap boards like Vestaboard, or any TV with a browser. Pick from 60+ plugins, design pages in a visual editor, schedule what shows when, and build your own plugins. Free, open source, and self-hosted in Docker.
+
+FiestaBoard works with Vestaboard Flagship (22×6), Note (15×3), and Note arrays (several Notes tiled into one canvas), plus [FiestaPanel](/docs/features/fiestapanel), which turns any TV or screen with a web browser into a virtual split-flap board. You bring the display and the API keys for the services you care about, and FiestaBoard handles pulling data from those services and formatting it for your display.
 
 ## What Can FiestaBoard Do?
 
@@ -21,12 +23,12 @@ Here's a quick look at what your board can show once FiestaBoard is running:
 | **Home** | Smart home status via Home Assistant, guest WiFi credentials |
 | **Fun & Visual** | Disney park wait times, sun art, visual clock, stardate |
 
-FiestaBoard has a catalog of **50+ plugins**, and many of them work without any API key at all. You install them from the [plugin registry](/docs/plugins/overview#installing-external-plugins) — a curated list maintained in the FiestaBoard repository — or from any public git repository. A small set ships bundled in the repo; the rest are pulled in on demand when you enable them.
+FiestaBoard has a catalog of **60+ plugins**, and many of them work without any API key at all. You install them from the [plugin registry](/docs/plugins/overview#installing-external-plugins) — a curated list maintained in the FiestaBoard repository — or from any public git repository. A small set ships bundled in the repo; the rest are pulled in on demand when you enable them.
 
 ## How It Works
 
 1. **Install FiestaBoard** on any computer with Docker (your laptop, a Raspberry Pi, a home server)
-2. **Connect your board** by entering your board's API key in the web UI. FiestaBoard talks to the board only through Vestaboard's official [Local API](/docs/setup/api-keys) or [Cloud API](/docs/setup/cloud-api) — the same APIs any developer can use.
+2. **Connect your display** in the web UI. For a Vestaboard, enter your board's API key — FiestaBoard talks to the board only through Vestaboard's official [Local API](/docs/setup/api-keys) or [Cloud API](/docs/setup/cloud-api), the same APIs any developer can use. For a TV, [create a FiestaPanel](/docs/features/fiestapanel) and open its URL in the TV's browser.
 3. **Enable plugins** to pull in the data you care about (weather, stocks, transit, etc.)
 4. **Create pages** using the visual editor to design exactly what your board displays — or describe a page in natural language and let an LLM draft it for you with the optional [Gen AI page drafts](/docs/setup/ai-providers) feature (bring your own API key)
 5. **Set a schedule** so different pages show at different times of day (optional)
@@ -35,8 +37,9 @@ Everything after the initial install is done through a web interface at **http:/
 
 ## What You'll Need
 
-- **A Vestaboard** (Flagship or Note) or compatible split-flap display, already set up and working
-- **Your board's API key** ([how to find it](/docs/setup/api-keys))
+- **A display**, either:
+  - **A Vestaboard** (Flagship, Note, or a Note array), already set up and working, plus your board's API key ([how to find it](/docs/setup/api-keys)), **or**
+  - **Any TV or screen with a web browser**, to show a [FiestaPanel](/docs/features/fiestapanel) virtual board — no API key needed
 - **A Raspberry Pi** (recommended — easiest path), **or** a computer with Docker installed, to run the FiestaBoard software. This is a separate device on your network; nothing gets installed on the board itself.
 
 That's it. No other API keys or configuration are needed to get started. Plugins that connect to external services (weather, traffic, etc.) can be enabled and configured later through the web UI.
@@ -104,7 +107,7 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 | **[Home Assistant Add-on](/docs/setup/home-assistant-addon)** | Install from the HA Add-on Store (beta) — Ingress, MQTT auto-discovery, HA backups |
 | **[Beginner's Guide](/docs/setup/beginners-guide)** | Step-by-step for non-technical users |
 | **[Your First 10 Minutes](/docs/setup/first-10-minutes)** | What to do right after setup |
-| **[Plugins Overview](/docs/plugins/overview)** | All 50+ plugins and what they do |
+| **[Plugins Overview](/docs/plugins/overview)** | All 60+ plugins and what they do |
 | **[Plugin Configuration](/docs/plugins/configuration)** | Enabling and configuring plugins |
 | **[Page Editor](/docs/features/page-editor)** | Creating and editing board content |
 | **[AI Page Drafts](/docs/setup/ai-providers)** | Optional: bring your own LLM to draft pages from a prompt |
