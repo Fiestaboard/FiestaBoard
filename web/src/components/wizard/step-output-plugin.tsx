@@ -19,6 +19,7 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Box,
   Button,
   Flex,
   Grid,
@@ -37,6 +38,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ShieldAlert, WifiOff, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { DevicePreview } from "@/components/device-preview";
 import { OUTPUTS_QUERY_KEY } from "@/components/settings/output-boards";
 import { PluginBoardSettings } from "@/components/settings/plugin-board-settings";
 import { queryKeys } from "@/hooks/use-board";
@@ -44,6 +46,7 @@ import { useTranslations } from "@/i18n/translations";
 import type { OutputSummary } from "@/lib/api";
 import { api, ApiError } from "@/lib/api";
 import { MAX_BOARD_NAME_LENGTH } from "@/lib/board-dimensions";
+import { isLedModel, resolveBoardModel } from "@/lib/device-preview";
 
 import { removeUntouchedPlaceholder } from "./default-board";
 
@@ -208,6 +211,12 @@ function OutputBoardForm({
   const [name, setName] = useState(output.name);
   const [deviceModel, setDeviceModel] = useState(output.device_models[0]?.id ?? "");
   const [config, setConfig] = useState<Record<string, unknown>>({});
+  // What the chosen LED device looks like, showing the board's name: FiestaUI
+  // draws a model it builds in as its matrix; a plugin's own model is only
+  // known once the board exists, so it shows no preview here (nor does a
+  // split-flap one, whose shape the rest of the wizard already shows).
+  const resolvedModel = resolveBoardModel({ device_model: deviceModel });
+  const previewModel = isLedModel(resolvedModel) ? resolvedModel : null;
 
   const create = useMutation({
     mutationFn: async () => {
@@ -265,6 +274,13 @@ function OutputBoardForm({
             </SelectContent>
           </Select>
         </Grid>
+      )}
+      {previewModel && (
+        <Box data-testid="wizard-output-device-preview" className="flex justify-center">
+          <DevicePreview model={previewModel} message={name.trim() || output.name} size="sm">
+            {null}
+          </DevicePreview>
+        </Box>
       )}
       <PluginBoardSettings
         output={output}

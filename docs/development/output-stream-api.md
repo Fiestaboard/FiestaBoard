@@ -54,7 +54,10 @@ curl http://fiestaboard.local:4420/api/panel/1
   "rows": 9,
   "cols": 30,
   "board_color": "black",
-  "code62_glyph": "heart"
+  "code62_glyph": "heart",
+  "render_style": "split_flap",
+  "device_model": "fiestapanel_split_flap",
+  "device_model_spec": { "id": "fiestapanel_split_flap", "technology": "split_flap", "...": "..." }
 }
 ```
 
@@ -67,6 +70,8 @@ The fields a viewer needs:
 | `code62_glyph` | What character code 62 draws on this board: `"degree"` (°) or `"heart"` (♥) |
 | `animations_enabled` | Whether the user wants a flip animation between frames |
 | `board_missing` | `true` when the panel's board was deleted; show a notice instead of a grid |
+| `render_style` | `"split_flap"` (the default) or `"led_matrix"`: how the user wants the TV to draw the board. Absent from older servers; read absent as `"split_flap"`. |
+| `device_model`, `device_model_spec` | The FiestaUI device model for that style and its full document. Pass the document to FiestaUI's `DisplayPreview` to draw the board in that style. |
 
 The response carries a few more panel settings that FiestaPanel uses, such as auto-dim. Ignore the ones you do not need.
 

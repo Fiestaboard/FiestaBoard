@@ -40,6 +40,13 @@ describe("TvPreview", () => {
     expect(screen.getByTestId("tv-preview-meta")).toHaveTextContent("15 × 3 flaps at life size");
   });
 
+  it("draws FiestaUI's television at the chosen size and aspect", () => {
+    const { container } = render(<TvPreview diagonalInches={65} aspectW={21} aspectH={9} />);
+    const tv = container.querySelector('[data-slot="tv-frame"]');
+    expect(tv).toHaveAttribute("data-diagonal", "65");
+    expect(tv).toHaveAttribute("data-aspect", (21 / 9).toFixed(4));
+  });
+
   it("renders nothing for a non-positive diagonal", () => {
     const { container } = render(<TvPreview diagonalInches={0} aspectW={16} aspectH={9} />);
     expect(container).toBeEmptyDOMElement();

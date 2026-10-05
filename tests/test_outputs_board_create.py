@@ -316,10 +316,12 @@ class TestBoardResponses:
             ({"device_type": "flagship", "code62_glyph": "heart"}, "vestaboard_flagship", "vestaboard_v2"),
             ({"device_type": "note"}, "vestaboard_note", "vestaboard_v2"),
             ({"device_type": "note_array", "notes_wide": 2}, "vestaboard_note_array", "vestaboard_v2"),
+            # A FiestaPanel's board is the model of its panel's render style
+            # (split_flap when no panel claims it): tests/test_panel_render_style.py.
             (
                 {"device_type": "panel", "api_mode": "virtual", "grid_rows": 6, "grid_cols": 30},
-                None,
-                None,
+                "fiestapanel_split_flap",
+                "vestaboard_v2",
             ),
         ],
     )

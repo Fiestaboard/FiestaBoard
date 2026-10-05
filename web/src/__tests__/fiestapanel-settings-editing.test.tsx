@@ -83,6 +83,49 @@ describe("FiestaPanelSettings — edit dialog", () => {
     expect(screen.getByRole("switch", { name: "Flip animation" })).toBeChecked();
   });
 
+  it("seeds the render style as split-flap for a panel from a server that predates it", async () => {
+    mockList();
+    const user = userEvent.setup();
+    await openEditDialog(user);
+    expect(screen.getByRole("button", { name: "Split-flap" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "LED matrix" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("saves the chosen render style", async () => {
+    mockList();
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.patch("/api/panels/abc123def456", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...PANEL, render_style: "led_matrix", incompatible_references: null });
+      }),
+    );
+    const user = userEvent.setup();
+    await openEditDialog(user);
+    await user.click(screen.getByRole("button", { name: "LED matrix" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body!.render_style).toBe("led_matrix");
+  });
+
+  it("shows each panel's live board on its TV", async () => {
+    mockList();
+    server.use(
+      http.get("/api/panel/abc123def456", () =>
+        HttpResponse.json({ ...PANEL, board_color: "black", code62_glyph: "heart" }),
+      ),
+      http.get("/api/panel/abc123def456/frame", () =>
+        HttpResponse.json({ characters: null, message: "LIVE NOW", rows: 12, cols: 30, updated_at: null }),
+      ),
+    );
+    render(<FiestaPanelSettings />, { wrapper: Wrapper });
+    const preview = await screen.findByTestId("panel-live-preview-abc123def456");
+    await waitFor(() => expect(preview.querySelector('[data-slot="tv-frame"]')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(preview.querySelector('[role="img"]')?.getAttribute("aria-label")).toContain("LIVE NOW"),
+    );
+  });
+
   it("blocks Save on an out-of-range calibration and shows the range", async () => {
     mockList();
     let patched = false;

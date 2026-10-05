@@ -20,6 +20,12 @@ _TIME_RE = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 
 BackdropStyle = Literal["wall", "dark", "none"]
 
+# How the TV draws the board: split-flap tiles (the look every panel had
+# before this setting existed, so the default) or an LED matrix. Each style
+# is one FiestaUI device model FiestaBoard declares for its own display,
+# ``fiestapanel_<style>`` (src.fiestaui.fiestapanel_device_models).
+RenderStyle = Literal["split_flap", "led_matrix"]
+
 
 def _generate_panel_id() -> str:
     return secrets.token_urlsafe(_PANEL_ID_BYTES)
@@ -66,6 +72,9 @@ class Panel(BaseModel):
     is_display: bool = False
     backdrop: BackdropStyle = "wall"
     auto_dim: AutoDim = Field(default_factory=AutoDim)
+    # Additive: a panel stored before it existed loads as split_flap, and a
+    # viewer that predates it ignores the key.
+    render_style: RenderStyle = "split_flap"
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -95,6 +104,7 @@ class PanelUpdate(BaseModel):
     is_display: bool | None = None
     backdrop: BackdropStyle | None = None
     auto_dim: AutoDim | None = None
+    render_style: RenderStyle | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +187,13 @@ class PanelPublicResponse(PanelResponse):
 
     board_color: str | None = None
     code62_glyph: str | None = None
+    #: The FiestaUI device model the panel's render style draws as
+    #: (``fiestapanel_split_flap`` / ``fiestapanel_led_matrix``), and that
+    #: model's document: FiestaUI does not build FiestaPanel's models in, so a
+    #: viewer renders from the document (``DisplayPreview model={spec}``).
+    #: Present even for an orphaned panel -- the style is the panel's.
+    device_model: str | None = None
+    device_model_spec: dict[str, Any] | None = None
 
 
 class PanelFrameResponse(BaseModel):

@@ -1333,6 +1333,10 @@ export const handlers = [
 
   // FiestaPanel panels: DisplaySettings queries the list to guard removal of
   // a panel's virtual board. Default: no panels; tests override per-case.
+  // A panel's public config / frame (the viewer's, and Settings' live
+  // preview of it). Default: no such panel; tests override per-case.
+  http.get(`${API_BASE}/panel/:panelId`, () => HttpResponse.json({ detail: "Panel not found" }, { status: 404 })),
+  http.get(`${API_BASE}/panel/:panelId/frame`, () => HttpResponse.json({ detail: "Panel not found" }, { status: 404 })),
   http.get(`${API_BASE}/panels`, () => {
     return HttpResponse.json({ panels: [], total: 0 });
   }),

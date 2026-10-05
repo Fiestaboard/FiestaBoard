@@ -41,6 +41,10 @@ class PanelService:
             return self.storage.get_by_short_code(int(ref))
         return self.storage.get(ref)
 
+    def get_panel_by_board_id(self, board_id: str) -> Panel | None:
+        """The panel whose virtual board is *board_id*, if any."""
+        return next((p for p in self.storage.list_all() if p.board_id == board_id), None)
+
     def create_panel(self, data: PanelCreate, board_id: str) -> Panel:
         """Create a panel bound to an (already created) virtual board."""
         panel = Panel(

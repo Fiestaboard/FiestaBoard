@@ -33,12 +33,13 @@ import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { PanelTvPreview } from "@/components/panel/panel-tv-preview";
 import { TvPreview } from "@/components/panel/tv-preview";
 import { TimePicker } from "@/components/ui/time-picker";
 import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import { api, type HdmiKioskStatus, type Panel } from "@/lib/api";
+import { api, type HdmiKioskStatus, type Panel, type PanelRenderStyle } from "@/lib/api";
 import { appUrl } from "@/lib/base-path";
 
 /** TV-diagonal presets offered as one-tap chips (inches) — never translated. */
@@ -50,6 +51,12 @@ const ASPECT_PRESETS: ReadonlyArray<{ label: string; w: number; h: number }> = [
   { label: "21:9", w: 21, h: 9 },
   { label: "4:3", w: 4, h: 3 },
   { label: "9:16", w: 9, h: 16 },
+];
+
+/** The render styles a panel offers, in the order the editor lists them. */
+const RENDER_STYLES: ReadonlyArray<{ value: PanelRenderStyle; labelKey: "renderStyleSplitFlap" | "renderStyleLed" }> = [
+  { value: "split_flap", labelKey: "renderStyleSplitFlap" },
+  { value: "led_matrix", labelKey: "renderStyleLed" },
 ];
 
 /** Screen bounds — mirror the backend's Panel model. */
@@ -82,6 +89,7 @@ interface EditorState {
   autoDimStart: string;
   autoDimEnd: string;
   calibration: number;
+  renderStyle: PanelRenderStyle;
 }
 
 /** Calibration bounds — mirror the backend's Panel.calibration_scale. */
@@ -101,6 +109,7 @@ const NEW_PANEL: EditorState = {
   autoDimStart: "22:00",
   autoDimEnd: "07:00",
   calibration: 1,
+  renderStyle: "split_flap",
 };
 
 function editorFromPanel(panel: Panel): EditorState {
@@ -116,6 +125,8 @@ function editorFromPanel(panel: Panel): EditorState {
     autoDimStart: panel.auto_dim.start,
     autoDimEnd: panel.auto_dim.end,
     calibration: panel.calibration_scale,
+    // A server that predates the setting sends none: every panel was split-flap.
+    renderStyle: panel.render_style ?? "split_flap",
   };
 }
 
@@ -189,6 +200,7 @@ export function FiestaPanelSettings() {
         animations_enabled: state.animationsEnabled,
         auto_dim: { enabled: state.autoDimEnabled, start: state.autoDimStart, end: state.autoDimEnd },
         calibration_scale: state.calibration,
+        render_style: state.renderStyle,
       }),
     onSuccess: (result) => {
       invalidate();
@@ -305,6 +317,10 @@ export function FiestaPanelSettings() {
                     {t("displayOutputHint")}
                   </Text>
                 )}
+                {/* What the TV is showing right now, on the TV. */}
+                <Box className="mt-2 w-full max-w-60" data-testid={`panel-live-preview-${panel.id}`}>
+                  <PanelTvPreview panelId={panel.id} />
+                </Box>
               </Stack>
               <Flex gap="1">
                 <Button
@@ -355,7 +371,9 @@ export function FiestaPanelSettings() {
       )}
 
       <Dialog open={editor !== null} onOpenChange={(open) => !open && setEditor(null)}>
-        <DialogContent>
+        {/* The editor outgrew a short viewport with the render-style choice:
+            scroll inside the dialog, so Save is always reachable. */}
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           {editor && (
             <>
               <DialogHeader>
@@ -466,6 +484,26 @@ export function FiestaPanelSettings() {
                 </Stack>
                 {editor.mode === "edit" && (
                   <>
+                    <Stack gap="2">
+                      <Label id="panel-render-style-label">{t("renderStyle")}</Label>
+                      <Flex gap="2" wrap role="group" aria-labelledby="panel-render-style-label">
+                        {RENDER_STYLES.map((style) => (
+                          <Button
+                            key={style.value}
+                            type="button"
+                            size="sm"
+                            aria-pressed={editor.renderStyle === style.value}
+                            variant={editor.renderStyle === style.value ? "default" : "outline"}
+                            onClick={() => setEditor({ ...editor, renderStyle: style.value })}
+                          >
+                            {t(style.labelKey)}
+                          </Button>
+                        ))}
+                      </Flex>
+                      <Text size="xs" tone="muted">
+                        {t("renderStyleHelp")}
+                      </Text>
+                    </Stack>
                     <Flex gap="3" align="center">
                       <Switch
                         id="panel-animations"
