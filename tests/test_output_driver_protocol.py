@@ -41,6 +41,7 @@ EXPECTED_SURFACE = {
     "send_characters",
     "render",
     "set_transition_runner",
+    "set_output_runtime",
     "read_current_message",
     "clear_cache",
     "get_cache_status",
@@ -147,7 +148,7 @@ _CLIENT_RECEIVER = re.compile(r"(^|_)client$")
 
 # Peeks at board-client private attributes outside the client modules.
 # Lower this when a layer removes one; it must never go up.
-MAX_PRIVATE_PEEKS = 7
+MAX_PRIVATE_PEEKS = 6
 
 
 def _private_client_names() -> set[str]:

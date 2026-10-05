@@ -25,7 +25,7 @@ from .devices import (
     size_key,
 )
 from .displays.send_worker import BoardSendWorker, SendJob
-from .outputs import OutputDriver
+from .outputs import OutputDriver, OutputRuntime
 from .pages.models import LineMetadata, Page
 from .pages.service import (
     CONTEXT_FINGERPRINT_PREFIX,
@@ -118,7 +118,10 @@ class BoardRuntime:
 
     def __init__(self, client: OutputDriver | None, board_id):
         self.board_id = board_id
-        self.client: OutputDriver | None = client
+        # Core-owned send policy for this board: the send lock and the cancel
+        # token. Created here, before the client is bound to it below.
+        self.output = OutputRuntime(board_id)
+        self.client = client
         self.config_signature = None
 
         # Active-page send cache (dedupes unchanged sends per board).
@@ -204,6 +207,21 @@ class BoardRuntime:
         # throttled send — invalidates this memo for free, and a future one
         # cannot forget to.
         self.last_render: tuple[str, str, str] | None = None
+
+    @property
+    def client(self) -> OutputDriver | None:
+        """The board's driver. Assigning one binds it to this board's runtime."""
+        return self._client
+
+    @client.setter
+    def client(self, client: OutputDriver | None) -> None:
+        self._client = client
+        # Every real client binds (TransitionRenderMixin). Hand-rolled test
+        # doubles that predate the runtime have no lock or token to bind and
+        # keep working as they did, so the hook is optional here.
+        bind = getattr(client, "set_output_runtime", None)
+        if bind is not None:
+            bind(self.output)
 
 
 class DisplayService:
@@ -625,14 +643,12 @@ class DisplayService:
         longer stall the fleet. A job replaced by a newer one (latest-wins)
         resolves its waiters with the replacement's outcome.
 
-        Preemption stays immediate: a plain ``render()`` call sets the
-        client's ``_cancel_transition`` event before taking the send lock, so
-        the enqueue mirrors that here — otherwise an in-flight transition
-        would only learn about the newer frame when the worker dequeued it.
+        Preemption stays immediate: a plain ``render()`` call signals the
+        board's cancel token before taking the send lock, so the enqueue
+        mirrors that here — otherwise an in-flight transition would only
+        learn about the newer frame when the worker dequeued it.
         """
-        cancel = getattr(rt.client, "_cancel_transition", None)
-        if isinstance(cancel, threading.Event):
-            cancel.set()
+        rt.output.preempt()
 
         def run_job() -> bool:
             # Job-scoped capture (#1867 review): any failure the bookkeeping
