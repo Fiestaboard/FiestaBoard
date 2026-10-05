@@ -46,6 +46,7 @@ from .registry import Delivery, capabilities_of
 from .transitions import TRANSITION_PLUGIN_PREFIX, NativeTransition, transition_plugins_enabled
 
 if TYPE_CHECKING:
+    from .cells import RichCellFrame
     from .driver import OutputDriver
 
 logger = logging.getLogger(__name__)
@@ -60,8 +61,10 @@ class _FrameSink:
     driver's declared floor, read here.
     """
 
-    def __init__(self, driver: OutputDriver) -> None:
+    def __init__(self, driver: OutputDriver, target: Grid | None = None, cells: RichCellFrame | None = None) -> None:
         self._driver = driver
+        self._target = target
+        self._cells = cells
         self.throttled = False
         self.retry_after: int | None = None
 
@@ -70,7 +73,10 @@ class _FrameSink:
         return int(self._driver.min_send_interval_ms or 0)
 
     def send_characters(self, characters: Grid, strategy: Any | None = None, force: bool = False) -> Any:
-        result = self._driver.send_characters(characters, strategy=strategy, force=force)
+        # The run lands on its target: that frame carries the target's rich
+        # cells, so a rich output ends on the coloured frame (plan D15).
+        rich = {"cells": self._cells} if self._cells is not None and characters == self._target else {}
+        result = self._driver.send_characters(characters, strategy=strategy, force=force, **rich)
         self.throttled = bool(self._driver.last_send_throttled)
         self.retry_after = self._driver.last_send_retry_after if self.throttled else None
         return result
@@ -142,6 +148,11 @@ class OutputRuntime:
         the board's shape (*rows* x *cols*); ``None`` otherwise. See
         :meth:`FrameCache.last_frame_shaped`."""
         return self._frames.last_frame_shaped(rows, cols)
+
+    def displayed_cells(self, rows: int, cols: int) -> RichCellFrame | None:
+        """The rich cells of :meth:`displayed_frame`, when that write carried
+        them (an output that takes rich cells); ``None`` otherwise."""
+        return self._frames.last_cells_shaped(rows, cols)
 
     def release_frames(self) -> None:
         """Drop the board's stored frames (panel deleted, or re-fit to a new grid)."""
@@ -307,6 +318,7 @@ class OutputRuntime:
         with_outcome: bool = False,
         plugins_enabled: Callable[[], bool] | None = None,
         on_run_start: Callable[[], None] | None = None,
+        cells: RichCellFrame | None = None,
     ) -> Any:
         """Write *characters* to *driver*, driving the requested transition.
 
@@ -328,6 +340,11 @@ class OutputRuntime:
                 Drivers pass their own patchable seam.
             on_run_start: Called under the lock once the run starts, before
                 any write (the driver resets its last-call verdict).
+            cells: The rich cells of *characters*, for an output that takes
+                them (:mod:`src.outputs.cells`). They go with the write that
+                lands on *characters*; a transition's intermediate frames
+                stay 0–71 grids. Never forwarded when ``None``, so every
+                other driver sees the call shape it always did.
 
         Returns:
             The driver's ``(success, was_sent)`` pair, or a
@@ -340,7 +357,9 @@ class OutputRuntime:
             # Forward the keyword only when asked for, so every pre-existing
             # caller (and every test double asserting the call) sees exactly
             # the send_characters call shape it always did.
-            outcome_kw: dict[str, bool] = {"with_outcome": True} if with_outcome else {}
+            outcome_kw: dict[str, Any] = {"with_outcome": True} if with_outcome else {}
+            if cells is not None:
+                outcome_kw["cells"] = cells
 
             if not is_plugin:
                 native = self._native_for(driver, NativeTransition.of(strategy, step_interval_ms, step_size))
@@ -403,7 +422,7 @@ class OutputRuntime:
 
             # "stream" (and a "sequence" driver with no upload): frames go
             # one write at a time.
-            sink = _FrameSink(driver)
+            sink = _FrameSink(driver, characters, cells)
             success, was_sent = runner.run(
                 plugin_id=plugin_id,
                 to_grid=characters,

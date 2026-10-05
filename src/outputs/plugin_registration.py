@@ -100,6 +100,7 @@ def _builder(plugin_class: type[OutputPluginBase], manifest: PluginManifest, *, 
     output_manifest = manifest.output
 
     def build(board: dict) -> OutputDriver | None:
+        from .board_profile import board_character_set
         from .plugin_driver import OutputPluginDriver
 
         if gated and not output_plugins_enabled():
@@ -107,7 +108,7 @@ def _builder(plugin_class: type[OutputPluginBase], manifest: PluginManifest, *, 
         instance = plugin_class(board.get("id"), dict(board.get("output_config") or {}))
         instance.bind_manifest(output_manifest)
         instance.open()
-        return OutputPluginDriver(instance)
+        return OutputPluginDriver(instance, character_set=board_character_set(board))
 
     return build
 

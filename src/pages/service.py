@@ -477,7 +477,12 @@ class PageService:
             return None
 
     def render_page(
-        self, page: Page, context: dict | None = None, contexts: dict[str, dict] | None = None
+        self,
+        page: Page,
+        context: dict | None = None,
+        contexts: dict[str, dict] | None = None,
+        *,
+        extended_markup: bool = False,
     ) -> DisplayResult:
         """Render a page to formatted text.
 
@@ -487,6 +492,9 @@ class PageService:
             contexts: Optional per-tick shared context cache keyed by board
                 size (see :meth:`shared_context_for`). Consulted only when
                 ``context`` is not given.
+            extended_markup: The target board speaks extended markup (its
+                output's character set is rich; plan D19). Template pages
+                only; the other page types have no template to render.
 
         Returns:
             DisplayResult with formatted text
@@ -505,7 +513,7 @@ class PageService:
         if page.type == "composite":
             return self._render_composite(page)
         if page.type == "template":
-            return self._render_template(page, context=context)
+            return self._render_template(page, context=context, extended_markup=extended_markup)
         return DisplayResult(
             display_type="page", formatted="", raw={}, available=False, error=f"Unknown page type: {page.type}"
         )
@@ -600,7 +608,9 @@ class PageService:
             available=True,
         )
 
-    def _render_template(self, page: Page, context: dict | None = None) -> DisplayResult:
+    def _render_template(
+        self, page: Page, context: dict | None = None, *, extended_markup: bool = False
+    ) -> DisplayResult:
         """Render a template page with variable substitution.
 
         Uses the template engine to:
@@ -638,6 +648,7 @@ class PageService:
                 notes_tall=page.notes_tall,
                 grid_rows=page.grid_rows,
                 grid_cols=page.grid_cols,
+                **({"extended_markup": True} if extended_markup else {}),
             )
 
             # Note: We do NOT truncate/pad by character count here because:
@@ -667,6 +678,8 @@ class PageService:
         force_refresh: bool = False,
         context: dict | None = None,
         contexts: dict[str, dict] | None = None,
+        *,
+        extended_markup: bool = False,
     ) -> DisplayResult | None:
         """Preview a page by ID.
 
@@ -680,6 +693,10 @@ class PageService:
             context: Optional pre-built template context (skips the plugin fan-out)
             contexts: Optional per-tick shared context cache keyed by board
                 size (issue #1752); see :meth:`shared_context_for`
+            extended_markup: Render for a board that speaks extended markup
+                (see :meth:`render_page`). Such a render neither reads nor
+                writes the preview cache, which holds the split-flap render
+                the page grid shows.
 
         Returns:
             DisplayResult or None if page not found
@@ -687,6 +704,9 @@ class PageService:
         page = self.get_page(page_id)
         if not page:
             return None
+
+        if extended_markup:
+            return self.render_page(page, context=context, contexts=contexts, extended_markup=True)
 
         # Check cache first if not forcing refresh
         if not force_refresh:

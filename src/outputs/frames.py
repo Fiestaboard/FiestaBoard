@@ -15,6 +15,12 @@ that used to be private attributes of each board client:
   every successful device write and never cleared by :meth:`forget` — a
   forced re-send must not blank what a viewer of the store sees.
 
+**Rich cells** (``cells`` / ``last_cells``) ride beside the grid for an
+output that takes them (an output plugin with a rich character set, see
+:mod:`src.outputs.cells`): :meth:`matches_frame` is then colour-aware —
+the same flaps recoloured are a different frame. Every other board stores
+none, and for them :meth:`matches_frame` is :meth:`matches`.
+
 Sub-unit caches stay with the driver: a local note array keeps one per tile
 so a retry re-posts only the tiles that failed (plan D3).
 
@@ -26,6 +32,10 @@ from __future__ import annotations
 
 import threading
 import time
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .cells import RichCellFrame
 
 Grid = list[list[int]]
 
@@ -46,6 +56,10 @@ class FrameCache:
         self.generation: int = 0
         self.last_frame: Grid | None = None
         self.last_sent_at: float | None = None
+        #: The rich cells of ``characters`` / ``last_frame``, when the write
+        #: carried them; else ``None``. Treated as immutable.
+        self.cells: RichCellFrame | None = None
+        self.last_cells: RichCellFrame | None = None
 
     # --- dedupe ------------------------------------------------------------------
 
@@ -53,6 +67,15 @@ class FrameCache:
         """True when *characters* equals what the board is known to show."""
         with self.lock:
             return self.characters == characters
+
+    def matches_frame(self, characters: Grid, cells: RichCellFrame | None) -> bool:
+        """True when *characters* and its rich *cells* (colour-aware) both
+        equal what the board is known to show. With no cells on either side
+        this is :meth:`matches`."""
+        from .cells import cells_equal
+
+        with self.lock:
+            return self.characters == characters and cells_equal(self.cells, cells)
 
     def matches_text(self, text: str) -> bool:
         """True when *text* equals the text message the board is known to show."""
@@ -64,12 +87,15 @@ class FrameCache:
         with self.lock:
             return self.characters, self.generation
 
-    def record_sent(self, characters: Grid, *, at: float | None = None) -> None:
-        """A device write of *characters* succeeded.
+    def record_sent(self, characters: Grid, *, at: float | None = None, cells: RichCellFrame | None = None) -> None:
+        """A device write of *characters* (and its rich *cells*, if it carried
+        any) succeeded.
 
         Updates both the dedupe cache and the last-frame store.
         """
         with self.lock:
+            self.cells = cells
+            self.last_cells = cells
             self.characters = _copy(characters)
             self.text = None
             self.generation += 1
@@ -81,6 +107,7 @@ class FrameCache:
         with self.lock:
             self.text = text
             self.characters = None
+            self.cells = None
             self.generation += 1
 
     def record_read(self, characters: Grid) -> None:
@@ -90,6 +117,7 @@ class FrameCache:
         """
         with self.lock:
             self.characters = _copy(characters)
+            self.cells = None
             self.text = None
             self.generation += 1
 
@@ -108,6 +136,15 @@ class FrameCache:
                 return None
             return _copy(frame)
 
+    def last_cells_shaped(self, rows: int, cols: int) -> RichCellFrame | None:
+        """The rich cells of the last frame sent, under the same stale-shape
+        refusal as :meth:`last_frame_shaped`; ``None`` when it carried none."""
+        with self.lock:
+            cells = self.last_cells
+            if cells is None or len(cells) != rows or any(len(row) != cols for row in cells):
+                return None
+            return [row[:] for row in cells]
+
     def clear(self) -> None:
         """Release everything: the dedupe cache *and* the last-frame store.
 
@@ -116,10 +153,13 @@ class FrameCache:
         """
         with self.lock:
             self.characters = None
+            self.cells = None
             self.text = None
             self.generation += 1
             self.last_frame = None
             self.last_sent_at = None
+            self.cells = None
+            self.last_cells = None
 
     def forget(self) -> None:
         """Clear the dedupe cache so the next send goes through.

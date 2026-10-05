@@ -14,7 +14,9 @@ it unchanged — the plugin is a pipe and every policy stays in core:
   plugin's ``device_key()`` and spaced by its declared ``min_interval_ms``.
 - **Dedupe and last-frame store.** An unchanged frame is acknowledged
   without calling the plugin; a frame that landed is recorded in the
-  runtime's :class:`~src.outputs.frames.FrameCache`.
+  runtime's :class:`~src.outputs.frames.FrameCache`. For a plugin that
+  takes rich cells (:attr:`OutputPluginDriver.takes_cells`) the frame's
+  cells go to ``write_cells`` and the comparison is colour-aware.
 - **Native transitions.** Forwarded as a
   :class:`~src.outputs.transitions.NativeTransition` only when the plugin
   declares the strategy (the runtime decides; the adapter carries it).
@@ -42,6 +44,7 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from src.led.charsets import CharacterSet, has_extended_markup
 from src.send_outcome import WriteResult
 
 from .breaker import DEFAULT_WRITE_TIMEOUT_MS, output_breakers
@@ -51,6 +54,7 @@ from .runtime import OutputRuntime
 from .transitions import NATIVE_STRATEGIES, NativeTransition, transition_plugins_enabled
 
 if TYPE_CHECKING:
+    from .cells import RichCellFrame
     from .floor import Admission
     from .frames import FrameCache
     from .registry import OutputCapabilities
@@ -80,8 +84,16 @@ def compress_sequence(frames: list[TimedFrame], max_frames: int | None) -> list[
 class OutputPluginDriver:
     """One board's output-plugin instance, as core's :class:`OutputDriver`."""
 
-    def __init__(self, plugin: OutputPluginBase, *, clock: Callable[[], float] | None = None) -> None:
+    def __init__(
+        self,
+        plugin: OutputPluginBase,
+        *,
+        clock: Callable[[], float] | None = None,
+        character_set: CharacterSet | None = None,
+    ) -> None:
         self.plugin = plugin
+        #: The whole character set the board resolved to (plan D17), or None.
+        self.character_set = character_set
         self.skip_unchanged = True
         self._clock = clock if clock is not None else time.monotonic
         self._output_runtime = OutputRuntime()
@@ -136,6 +148,18 @@ class OutputPluginDriver:
 
     def device_key(self) -> str:
         return self.plugin.device_key()
+
+    @property
+    def extended_markup(self) -> bool:
+        """Whether this board's set is rich (colour/block spans or icons):
+        its content is rendered and parsed with extended markup (plan D19)."""
+        return has_extended_markup(self.character_set)
+
+    @property
+    def takes_cells(self) -> bool:
+        """Whether rich frames reach the plugin: its set is rich and it
+        overrides :meth:`~OutputPluginBase.write_cells` (the opt-in)."""
+        return self.extended_markup and type(self.plugin).write_cells is not OutputPluginBase.write_cells
 
     @property
     def write_timeout_seconds(self) -> float:
@@ -236,7 +260,13 @@ class OutputPluginDriver:
             raise box["error"]
         return True, box["result"]
 
-    def _deliver(self, admission: Admission, final: list[list[int]], call: Callable[[CancelToken], Any]) -> WriteResult:
+    def _deliver(
+        self,
+        admission: Admission,
+        final: list[list[int]],
+        call: Callable[[CancelToken], Any],
+        cells: RichCellFrame | None = None,
+    ) -> WriteResult:
         """Run the plugin's write under the run's token and its budget; settle
         floor, frame cache and breaker."""
         try:
@@ -254,7 +284,7 @@ class OutputPluginDriver:
             self._write_failed(f"the write did not finish within {budget:g}s; it was cancelled.")
             return WriteResult(False, False)
         if result.success and result.was_sent:
-            self._frames.record_sent(final)
+            self._frames.record_sent(final, cells=cells)
         elif not result.success and not result.partial:
             self._output_runtime.release_send(admission)
         if result.success:
@@ -277,18 +307,29 @@ class OutputPluginDriver:
         force: bool = False,
         *,
         with_outcome: bool = False,
+        cells: RichCellFrame | None = None,
     ) -> Any:
-        """One frame to the plugin's :meth:`~OutputPluginBase.write`, under core's policy."""
+        """One frame to the plugin's :meth:`~OutputPluginBase.write`, under core's policy.
+
+        With rich *cells* and a plugin that :attr:`takes_cells`, the frame
+        goes to :meth:`~OutputPluginBase.write_cells` instead and the dedupe
+        is colour-aware; otherwise the cells are dropped here and nothing
+        differs from a plain write.
+        """
         if strategy is not None and strategy not in NATIVE_STRATEGIES:
             logger.error("Invalid strategy: %s", strategy)
             return self._result(WriteResult(False, False), with_outcome)
         native = NativeTransition.of(strategy, step_interval_ms, step_size)
         if native is not None and not native.supported_by(self.native_transitions):
             native = None
+        if cells is not None and not self.takes_cells:
+            cells = None
         with self._output_runtime.write():
             frames = self._frames
             with frames.lock:
-                admission = self._admit(lambda: self.skip_unchanged and not force and frames.matches(characters))
+                admission = self._admit(
+                    lambda: self.skip_unchanged and not force and frames.matches_frame(characters, cells)
+                )
             if admission.verdict == "throttled":
                 return self._result(
                     WriteResult(True, False, throttled=True, retry_after_seconds=admission.retry_after), with_outcome
@@ -298,9 +339,18 @@ class OutputPluginDriver:
             refused = self._breaker_refusal(admission)
             if refused is not None:
                 return self._result(refused, with_outcome)
-            result = self._deliver(
-                admission, characters, lambda cancel: self.plugin.write(characters, native=native, cancel=cancel)
-            )
+            if cells is not None:
+                rich = cells
+                result = self._deliver(
+                    admission,
+                    characters,
+                    lambda cancel: self.plugin.write_cells(rich, native=native, cancel=cancel),
+                    cells=rich,
+                )
+            else:
+                result = self._deliver(
+                    admission, characters, lambda cancel: self.plugin.write(characters, native=native, cancel=cancel)
+                )
             return self._result(result, with_outcome)
 
     def write_sequence(self, frames: list[TimedFrame], *, cancel: threading.Event | None = None) -> WriteResult:
@@ -335,13 +385,19 @@ class OutputPluginDriver:
         device_type: str | None = None,
         transition_config: dict | None = None,
         with_outcome: bool = False,
+        cells: RichCellFrame | None = None,
     ) -> Any:
-        """Write one grid with its transition; the bound runtime drives it."""
+        """Write one grid with its transition; the bound runtime drives it.
+
+        *cells* are the grid's rich cells (:mod:`src.outputs.cells`), which
+        land with the write that lands on *characters*.
+        """
 
         def reset() -> None:
             self._last_send_throttled = False
             self._last_send_retry_after = None
 
+        rich: dict[str, Any] = {"cells": cells} if cells is not None else {}
         return self._output_runtime.render(
             self,
             characters,
@@ -354,6 +410,7 @@ class OutputPluginDriver:
             with_outcome=with_outcome,
             plugins_enabled=transition_plugins_enabled,
             on_run_start=reset,
+            **rich,
         )
 
     # --- reads and probes ------------------------------------------------------------------

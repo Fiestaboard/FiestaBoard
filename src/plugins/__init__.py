@@ -23,6 +23,7 @@ from src.outputs.plugin_base import (
     DiagnosticCheck,
     FrameRegion,
     OutputPluginBase,
+    RichCellFrame,
     TimedFrame,
     WriteResult,
 )
@@ -61,6 +62,7 @@ __all__ = [
     "PluginResult",
     "PluginSource",
     "RegistryEntry",
+    "RichCellFrame",
     "TimedFrame",
     "TransitionFrame",
     "TransitionPluginBase",

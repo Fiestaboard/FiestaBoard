@@ -15,6 +15,12 @@ is the document an output plugin's manifest declares.
 This is core's one materialiser: the LED raster (a plugin set's ``glyphs``)
 and the output-plugin manifest (:mod:`src.outputs.output_manifest`, its
 conformance suite and board geometry) all make a set whole here.
+
+What a set does to a message is here too, ported exactly from the same
+FiestaUI file: :func:`charset_issue` (``charsetIssue``),
+:func:`charset_fallback` (``charsetFallback``) and :func:`validate_message`
+(``validateMessage``), proven against FiestaUI's golden cases
+(``tests/test_charset_fallback_parity.py``).
 """
 
 from __future__ import annotations
@@ -26,7 +32,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.fiestaui import builtin_character_sets
-from src.markup import BOARD_ICONS
+from src.markup import BOARD_ICONS, BoardToken, parse_line
 
 from .fonts import LED_FONTS
 
@@ -34,9 +40,17 @@ __all__ = [
     "BUILTIN_CHARACTER_SETS",
     "CharacterSet",
     "CharacterSetError",
+    "CharsetLookup",
+    "CharsetValidation",
+    "CharsetValidationIssue",
     "ValidationResult",
+    "charset_fallback",
+    "charset_issue",
+    "has_extended_markup",
     "materialize_character_set",
+    "resolve_character_set",
     "validate_character_set",
+    "validate_message",
 ]
 
 #: A character set document (FiestaUI ``CharacterSet``).
@@ -221,3 +235,160 @@ def materialize_character_set(declaration: dict, known: Iterable[CharacterSet] =
     if not result.ok:
         raise CharacterSetError(f'Character set "{set_id}" is invalid: {"; ".join(result.errors)}')
     return out
+
+
+# --- what a set does to a message (plan D17, answer 2) ------------------------
+
+
+def resolve_character_set(charset: str | CharacterSet) -> CharacterSet:
+    """A set given by built-in id, or the (materialised) set itself.
+
+    Raises:
+        KeyError: an id that is not a built-in.
+    """
+    return BUILTIN_CHARACTER_SETS[charset] if isinstance(charset, str) else charset
+
+
+def has_extended_markup(charset: str | CharacterSet | None) -> bool:
+    """Whether a board drawing with *charset* speaks extended markup (plan D19).
+
+    True when the set draws colour spans, block spans or any icon: a board
+    that can show ``{red:HOT}`` or ``{icon:sun}`` parses them. False for the
+    split-flap sets and for no set at all.
+    """
+    if not isinstance(charset, (str, Mapping)):
+        return False
+    s = resolve_character_set(charset)
+    return bool(s.get("colorSpans") or s.get("blockSpans") or s.get("icons"))
+
+
+class CharsetLookup:
+    """One set's ``chars`` / ``icons`` as sets, built once per use.
+
+    FiestaUI memoises these per set object; core builds one per projection
+    (a render) or per call, so nothing outlives the set it was built from.
+    """
+
+    __slots__ = ("chars", "charset", "icons")
+
+    def __init__(self, charset: str | CharacterSet) -> None:
+        self.charset = resolve_character_set(charset)
+        self.chars = frozenset(self.charset.get("chars") or ())
+        self.icons = frozenset(self.charset.get("icons") or ())
+
+
+def _lookup(charset: str | CharacterSet | CharsetLookup) -> CharsetLookup:
+    return charset if isinstance(charset, CharsetLookup) else CharsetLookup(charset)
+
+
+def charset_issue(charset: str | CharacterSet | CharsetLookup, token: BoardToken) -> str | None:
+    """The first reason *charset* cannot draw *token* as written, or ``None``
+    (FiestaUI ``charsetIssue``): ``icon``, ``tile``, ``blockSpan``,
+    ``colorSpan``, ``case`` or ``char``."""
+    look = _lookup(charset)
+    s = look.charset
+    if token.icon is not None and token.icon not in look.icons:
+        return "icon"
+    if token.type == "color":
+        return None if s.get("tiles") else "tile"
+    if token.background is not None and not s.get("blockSpans"):
+        return "blockSpan"
+    if token.color is not None and not s.get("colorSpans"):
+        return "colorSpan"
+    if token.icon is not None or token.value == " " or token.value in look.chars:
+        return None
+    upper = token.value.upper()
+    if token.value != upper and upper in look.chars:
+        return "char" if s.get("mixedCase") else "case"
+    return "char"
+
+
+def charset_fallback(charset: str | CharacterSet | CharsetLookup, token: BoardToken) -> BoardToken:
+    """What *charset* draws for *token* (FiestaUI ``charsetFallback``).
+
+    (a) An icon the set lacks becomes its registry fallback (a two-digit
+    fallback is a colour tile, anything else a character, ``None`` a blank),
+    keeping the span's ``color`` / ``background``; then (b) a tile is kept
+    when the set has tiles, else a blank; (c) an icon the set has is kept;
+    (d) a character drops ``color`` unless the set has colour spans and
+    ``background`` unless it has block spans, and one the set lacks tries
+    its uppercase, then the ``°``/``♥`` swap, then a blank.
+    """
+    look = _lookup(charset)
+    s = look.charset
+    t = token
+    if t.icon is not None and t.icon not in look.icons:
+        fallback = BOARD_ICONS[t.icon].fallback
+        if fallback is not None and len(fallback) == 2 and fallback.isdigit():
+            t = BoardToken("color", code=fallback, color=t.color, background=t.background)
+        else:
+            t = BoardToken("char", value=" " if fallback is None else fallback, color=t.color, background=t.background)
+    if t.type == "color":
+        return t if s.get("tiles") else BoardToken("char", value=" ")
+    if t.icon is not None:
+        return t
+    value = t.value
+    if value not in look.chars:
+        upper = value.upper()
+        if upper in look.chars:
+            value = upper
+        elif value == "°" and "♥" in look.chars:
+            value = "♥"
+        elif value == "♥" and "°" in look.chars:
+            value = "°"
+        elif value != " ":
+            value = " "
+    return BoardToken(
+        "char",
+        value=value,
+        color=t.color if s.get("colorSpans") else None,
+        background=t.background if s.get("blockSpans") else None,
+    )
+
+
+@dataclass(frozen=True)
+class CharsetValidationIssue:
+    """One cell a set cannot draw as written, and what it draws instead."""
+
+    row: int
+    col: int
+    token: BoardToken
+    reason: str
+    fallback: BoardToken
+
+    def to_dict(self) -> dict:
+        """FiestaUI's ``CharsetValidationIssue`` JSON shape."""
+        return {
+            "row": self.row,
+            "col": self.col,
+            "token": self.token.to_dict(),
+            "reason": self.reason,
+            "fallback": self.fallback.to_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class CharsetValidation:
+    ok: bool
+    issues: list[CharsetValidationIssue] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {"ok": self.ok, "issues": [i.to_dict() for i in self.issues]}
+
+
+def validate_message(message: str, charset: str | CharacterSet) -> CharsetValidation:
+    """Check *message* against *charset*, position by position
+    (FiestaUI ``validateMessage``).
+
+    Each line is parsed with extended markup and case preserved — the
+    message as written, before any board's projection — so the editor can
+    warn about every cell the board will draw differently.
+    """
+    look = _lookup(charset)
+    issues: list[CharsetValidationIssue] = []
+    for row, line in enumerate(message.split("\n")):
+        for col, token in enumerate(parse_line(line, extended_markup=True, preserve_case=True)):
+            reason = charset_issue(look, token)
+            if reason:
+                issues.append(CharsetValidationIssue(row, col, token, reason, charset_fallback(look, token)))
+    return CharsetValidation(not issues, issues)

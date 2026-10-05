@@ -310,6 +310,32 @@ Names you will meet:
   grid is served as no frame), and deleting or re-fitting a panel
   **releases** the board's frames (`display_runtime.release_board_frames`)
   before the rebuild. The virtual client keeps no frame state of its own.
+- **Rich cells: one parse, projected per output** (plan D15/D17/D19,
+  `src/outputs/cells.py`) — the markup string stays canonical (templates,
+  APIs, the dedupe cache and render memo key on it). Each board's driver
+  carries its **resolved character set** (`board_profile.board_character_set`;
+  output plugins only — the built-in drivers carry none). A set is **rich**
+  when it has colour spans, block spans or icons (the LED sets); then, and
+  only then, the engine renders the board's template with
+  `extended_markup=True` (`PageService.preview_page`/`render_page` →
+  `TemplateEngine.render_lines`; such a render skips the preview cache) and
+  `project_message` parses the content once into the 0–71 flap projection
+  plus a `RichCellFrame` (FiestaUI `BoardToken[][]`, every token through the
+  set's `charset_fallback`, tiles normalised to numeric codes). A split-flap
+  board (a Vestaboard set, a FiestaPanel, no set) gets
+  `text_to_board_array` exactly as before, and its render call carries no
+  new keywords. An output plugin opts into rich frames by overriding
+  `OutputPluginBase.write_cells`; core then sends rich frames there and
+  dedupes colour-aware (`FrameCache.matches_frame`, FiestaUI
+  `richTokensEqual`), and a frame-driven transition's landing frame carries
+  the cells (its intermediate frames stay 0–71). `GET /panel/{id}/frame`
+  adds `cells` only for a frame that has them; `POST /templates/render`
+  with `board_id` renders for that board and reports `charset` +
+  `charset_issues` (`src.led.charsets.validate_message`, FiestaUI
+  `validateMessage` parity, proven against `charset-golden.json`). Nothing
+  is cached across renders, so a set whose `version` changes is never
+  projected stale. Other API send paths (v1 message, MQTT, displays) still
+  hand rich outputs the plain 0–71 grid, which reaches `write()`.
 - **`WriteResult`** (`src/send_outcome.py`; `SendOutcome` is an alias) —
   a write's verdict: `(success, was_sent)`, the throttle verdict, and
   `partial` + `failed_regions` for a write that reached only part of the

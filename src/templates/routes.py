@@ -20,10 +20,12 @@ from fastapi import APIRouter, HTTPException
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_is_paused, _require_board
+from src.board_guards import _board_is_paused, _find_board, _require_board
 from src.board_send_executor import run_board_preview
 from src.devices import geometry_of, resolve_dimensions
 from src.display_runtime import live_driver
+from src.led.charsets import has_extended_markup, validate_message
+from src.outputs.board_profile import board_character_set
 from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
 from src.text_to_board import text_to_board_array
@@ -33,10 +35,10 @@ from .expressions import function_signatures
 from .filters import TEMPLATE_FILTERS
 from .models import (
     FormulaFunctionsResponse,
+    TemplateRenderCheckedResponse,
     TemplateRenderLiveRequest,
     TemplateRenderLiveResponse,
     TemplateRenderRequest,
-    TemplateRenderResponse,
     TemplateValidateRequest,
     TemplateValidationResponse,
     TemplateVariablesResponse,
@@ -171,7 +173,14 @@ async def get_formula_functions():
     return FormulaFunctionsResponse.model_validate({"functions": function_signatures()})
 
 
-@router.post("/templates/render", response_model=TemplateRenderResponse, responses=errors(400, 422))
+@router.post(
+    "/templates/render",
+    response_model=TemplateRenderCheckedResponse,
+    # `charset` / `charset_issues` are set only for a board-targeted render,
+    # so every other response is exactly what it always was.
+    response_model_exclude_unset=True,
+    responses=errors(400, 422),
+)
 async def render_template(request: TemplateRenderRequest):
     """
     Render a template with current data.
@@ -179,9 +188,15 @@ async def render_template(request: TemplateRenderRequest):
     Body should include:
     - template: Template string or list of lines to render
 
+    Optional ``board_id``: render for that board — with extended markup when
+    its output's character set is rich — and report ``charset`` and
+    ``charset_issues``, every cell of the result that set draws differently
+    (FiestaUI ``validateMessage`` parity), for the editor's warnings.
+
     Useful for previewing template output before saving as a page.
     """
     template = request.template
+    check = _CharsetCheck(request.board_id)
     device_type = request.device_type
     notes_wide = request.notes_wide
     notes_tall = request.notes_tall
@@ -200,7 +215,9 @@ async def render_template(request: TemplateRenderRequest):
     num_rows = dims.rows
 
     # Early return for empty templates to avoid unnecessary processing
-    blank = TemplateRenderResponse(rendered="\n".join([""] * num_rows), lines=[""] * num_rows, line_count=num_rows)
+    blank = TemplateRenderCheckedResponse(
+        rendered="\n".join([""] * num_rows), lines=[""] * num_rows, line_count=num_rows, **check.result(None)
+    )
     if isinstance(template, list):
         if not template or all(not line.strip() for line in template):
             return blank
@@ -225,16 +242,43 @@ async def render_template(request: TemplateRenderRequest):
                 notes_tall=notes_tall,
                 grid_rows=grid_rows,
                 grid_cols=grid_cols,
+                **check.render_kw,
             )
         else:
             logger.info(f"Rendering template string: {template}")
-            rendered = await asyncio.to_thread(template_engine.render, template)
+            rendered = await asyncio.to_thread(template_engine.render, template, **check.render_kw)
 
         lines = rendered.split("\n")
-        return TemplateRenderResponse(rendered=rendered, lines=lines, line_count=len(lines))
+        return TemplateRenderCheckedResponse(
+            rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered)
+        )
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
+
+
+class _CharsetCheck:
+    """A render targeted at a board: how to render, and what to report.
+
+    No board named: nothing changes (no keywords, no fields). A board named:
+    its resolved character set (plan D17) decides extended markup (plan
+    D19) and the issues reported; an unknown board, or one whose set is
+    unknown (a FiestaPanel), reports ``charset: null`` and checks nothing.
+    """
+
+    def __init__(self, board_id: str | None) -> None:
+        self.targeted = board_id is not None
+        board = _find_board(board_id) if board_id is not None else None
+        self.charset = board_character_set(board) if board is not None else None
+        self.render_kw: dict = {"extended_markup": True} if has_extended_markup(self.charset) else {}
+
+    def result(self, rendered: str | None) -> dict:
+        if not self.targeted:
+            return {}
+        if self.charset is None:
+            return {"charset": None, "charset_issues": None}
+        issues = validate_message(rendered or "", self.charset).issues
+        return {"charset": self.charset["id"], "charset_issues": [i.to_dict() for i in issues]}
 
 
 @router.post("/templates/render/live", response_model=TemplateRenderLiveResponse, responses=errors(400, 404, 422))
