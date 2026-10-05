@@ -1,11 +1,13 @@
 """Behaviour of ``src.led``: layout, raster and character-set materialisation.
 
 Most cases are ports of FiestaUI's own ``src/lib/led-matrix.test.ts``
-(a70b719), so the reference implementation's intent is checked one rule at a
+(45496c9), so the reference implementation's intent is checked one rule at a
 time on top of the byte-for-byte goldens in ``test_led_parity.py``.
 """
 
 from __future__ import annotations
+
+from dataclasses import replace
 
 import pytest
 
@@ -13,17 +15,22 @@ from src.led import (
     BUILTIN_CHARACTER_SETS,
     DEFAULT_LED_TEXT_COLOR,
     LED_FONTS,
+    LedDrawOp,
     LedLayoutOptions,
     LedMatrixSpec,
+    LedRenderOptions,
+    draw_glyph,
     frame_to_ascii,
     frame_to_bits,
+    glyph_key,
     grid_layout,
     layout_message,
     materialize_character_set,
     rasterize,
+    resolve_hex_option,
     validate_character_set,
 )
-from src.markup import BOARD_ICONS, message_to_grid, parse_line
+from src.markup import BOARD_ICONS, BoardToken, message_to_grid, parse_line
 
 WHITE = (255, 255, 255)
 RED = (0xEB, 0x40, 0x34)
@@ -301,9 +308,8 @@ def test_custom_glyph_draws_where_the_face_has_none():
 
 
 def test_custom_glyph_wins_over_the_shared_face():
-    # Plan D17 rule 5 and FiestaUI's own CharacterSet.glyphs contract ("a
-    # character here that the face also has wins"). FiestaUI a70b719's
-    # glyphRows looks the face up first, so no FiestaUI golden covers this.
+    # Plan D17 rule 5; FiestaUI glyphRows is `custom ?? face` since 45496c9
+    # (golden "plugin glyph overrides the face's" draws a rounded 0).
     set_ = materialize_character_set({**ACME, "glyphs": {"A": ["###", "###", "###", "###", "###"]}})
     frame = rasterize(layout_message("A", S3, LedLayoutOptions(charset=set_)))
     assert lit(frame) == 15
@@ -345,13 +351,35 @@ def test_materialise_rejects_bad_declarations(declaration, message):
         materialize_character_set(declaration, known=[])
 
 
-def test_materialise_drops_an_unknown_key_of_a_partial_declaration():
-    # As FiestaUI a70b719: over `extends`, only the merged result is
-    # validated, and it never carries the stray key. Validating the
-    # declaration itself is what catches the typo.
-    declaration = {"id": "x_v1", "extends": "led_3x5", "colour": True}
-    assert "colour" not in materialize_character_set(declaration)
+@pytest.mark.parametrize(
+    ("declaration", "message"),
+    [
+        ({"id": "x_v1", "extends": "led_3x5", "colour": "no"}, "colour: not a character set field"),
+        ({"id": "x_v1", "extends": "led_3x5", "glyph": {"A": ["###"] * 5}}, "glyph: not a character set field"),
+        ({"id": "x_v1", "extends": "led_3x5", "tiles": 1}, "tiles: a boolean"),
+        ({"id": "Bad Id", "extends": "led_3x5"}, "id: a lowercase identifier"),
+    ],
+)
+def test_materialise_validates_the_declaration_before_inheriting(declaration, message):
+    # FiestaUI 45496c9: a typo'd key is a field the author meant, never dropped.
+    with pytest.raises(ValueError, match=message):
+        materialize_character_set(declaration)
+
+
+def test_a_partial_declaration_with_a_stray_key_is_reported_alone():
+    declaration = {"id": "x_v1", "extends": "led_3x5", "colour": "no"}
     assert validate_character_set(declaration).errors == ["colour: not a character set field"]
+
+
+def test_version_is_never_inherited_down_a_plugin_chain():
+    ticker = materialize_character_set({"id": "ticker", "extends": "led_3x5", "version": 3})
+    child = materialize_character_set({"id": "ticker_child", "extends": "ticker"}, known=[ticker])
+    assert (ticker["version"], child["version"]) == (3, 1)
+    grandchild = materialize_character_set(
+        {"id": "ticker_grandchild", "extends": "ticker_child", "version": 7}, known=[ticker, child]
+    )
+    assert grandchild["version"] == 7
+    assert grandchild["chars"] == ticker["chars"] == BUILTIN_CHARACTER_SETS["led_3x5"]["chars"]
 
 
 def test_a_complete_set_needs_no_parent():
@@ -367,3 +395,77 @@ def test_validate_reports_every_problem():
     assert any(e.startswith("version:") for e in result.errors)
     assert any(e.startswith("tiles:") for e in result.errors)
     assert not validate_character_set([]).ok
+
+
+# --- icons in blocks and fallbacks (FiestaUI 45496c9) -----------------------
+
+VIOLET = (0x9B, 0x59, 0xB6)
+AMBER = (0xFF, 0xB0, 0x00)
+
+
+def test_block_lights_behind_a_tile_fallback_icon_and_the_tile_draws_on_top():
+    tile = render("{black/white:{icon:snow}A}", S3)
+    assert pixel(tile, 0, 0) == VIOLET
+    assert pixel(tile, 2, 4) == VIOLET
+    assert pixel(tile, 3, 0) == WHITE  # the joined gutter is the block's
+    assert pixel(tile, 4, 0) == WHITE  # "A" row 0 is ".#.": x=4 is background
+    assert pixel(tile, 5, 0) == OFF
+
+
+def test_a_drawn_icon_sits_on_its_block_field_in_its_own_colour():
+    sun = render("{black/white:{icon:sun}}")
+    assert (pixel(sun, 4, 0), pixel(sun, 2, 0)) == (YELLOW, WHITE)
+
+
+def test_a_blank_fallback_icon_is_an_empty_block_cell():
+    blank = render("{black/white:{icon:bus}A}", S3)
+    assert (pixel(blank, 0, 0), pixel(blank, 3, 0)) == (WHITE, WHITE)
+
+
+def test_icons_in_a_monochrome_block_are_inverse_video():
+    mono = "#ffb000"
+    tile = render("{black/white:{icon:snow}A}", S3, monochrome=mono)
+    assert (pixel(tile, 0, 0), pixel(tile, 3, 0)) == (OFF, AMBER)
+    sun = render("{black/white:{icon:sun}}", monochrome=mono)
+    assert (pixel(sun, 4, 0), pixel(sun, 2, 0)) == (OFF, AMBER)
+
+
+def test_a_colour_span_around_a_tile_fallback_icon_changes_nothing():
+    assert render("{red:{icon:snow}}", S3).pixels == render("{icon:snow}", S3).pixels
+
+
+def test_an_icon_draws_its_character_fallback_when_the_face_lacks_it():
+    # Both built-in faces carry every character-fallback icon (up, down, fog),
+    # so this branch is reached with a face stripped of its icons, as FiestaUI does.
+    face = replace(LED_FONTS["3x5"], icons={})
+    ops: list[LedDrawOp] = []
+    key = glyph_key(BoardToken("char", value="+", icon="up"))
+    draw_glyph(ops, key, 0, 0, face, "#ffffff", LedRenderOptions())
+    assert ops == [LedDrawOp("glyph", 0, 0, "#ffffff", rows=tuple(LED_FONTS["3x5"].glyphs["+"]))]
+
+
+# --- colour options ---------------------------------------------------------
+
+
+@pytest.mark.parametrize("value", ["#ffb000", "#FFB000", "ffb000", "  #FfB000\n", "FFB000 "])
+def test_hex_option_normalises_to_lowercase_hash_rrggbb(value):
+    assert resolve_hex_option(value, None) == "#ffb000"
+
+
+@pytest.mark.parametrize(
+    "value", ["", " ", "#", "#fff", "fff", "#ffb0000", "#ffb00g", "rgba(255, 176, 0, 1)", "red", "#ff b000"]
+)
+def test_hex_option_falls_back_for_anything_but_six_hex_digits(value):
+    assert resolve_hex_option(value, "#123456") == "#123456"
+    assert resolve_hex_option(value, None) is None
+
+
+def test_hex_option_of_none_is_the_fallback():
+    assert resolve_hex_option(None, "#123456") == "#123456"
+
+
+def test_layout_carries_normalised_colours():
+    assert layout_message("A", S3, LedLayoutOptions(monochrome=" FFB000 ")).options.monochrome == "#ffb000"
+    assert layout_message("A", S3, LedLayoutOptions(text_color="FFB000")).cells[0].color == "#ffb000"
+    assert layout_message("A", S3, LedLayoutOptions(text_color="#fff")).cells[0].color == DEFAULT_LED_TEXT_COLOR
+    assert layout_message("A", S3, LedLayoutOptions(monochrome="#fff")).options.monochrome is None

@@ -108,6 +108,20 @@ def test_rgb888_frame_matches_fiestaui(case):
     assert frame.pixels == expected, "first differing pixels:\n" + _pixel_diff(frame.pixels, expected, frame.width)
 
 
+def test_golden_covers_the_parity_fixes():
+    # FiestaUI 45496c9 added these after the first port; losing one on a
+    # re-vendor would silently drop the behaviour it pins.
+    names = {c["name"] for c in LAYOUT_CASES}
+    assert {
+        "plugin glyph overrides the face's",
+        "tile-fallback icons bare, in a colour span, in a block",
+        "blank-fallback icons bare, in a colour span, in a block",
+        "block behind a drawn icon",
+        "icon fallbacks in a block, monochrome",
+    } <= names
+    assert "lobby_flap" in {c["input"]["id"] for c in CHARSET_GOLDEN["sets"]}
+
+
 def test_golden_frames_are_not_dark():
     # A frame of zeros would make the byte comparison weak; every case lights something.
     for case in LAYOUT_CASES:
