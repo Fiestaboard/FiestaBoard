@@ -240,10 +240,10 @@ Names you will meet:
   The manifest's `output` block (`src/outputs/output_manifest.py`) declares
   `output_api` (outside this core's range → refused at load), FiestaUI
   `device_models` and an optional `character_set` — validated against
-  FiestaUI's vendored JSON Schemas and built-in data
-  (`src/outputs/schemas/fiestaui/`, provenance and hashes in
-  `provenance.json`); a declared set is materialised at load
-  (`src/outputs/fiestaui.py`) — plus the transport facts (`delivery`,
+  FiestaUI's vendored JSON Schemas (`src/outputs/fiestaui.py`) and built-in
+  data (vendored once, for outputs and the LED renderer alike, in
+  `src/fiestaui/`; provenance and hashes in its `provenance.json`); a declared set is materialised at load by core's one materialiser,
+  `src.led.charsets.materialize_character_set` — plus the transport facts (`delivery`,
   `min_interval_ms`, `read_back`, `native_transitions`) and the
   `settings_schema` of the board's `output_config`, whose `secret` fields are
   masked in the API and restored on save (`src/outputs/output_config.py`).

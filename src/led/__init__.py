@@ -4,8 +4,8 @@ A pure-Python port (no Pillow: output plugins cannot install dependencies) of
 FiestaUI's LED layer, the reference implementation (plan D15). It lives in
 core so output plugins share one renderer; it reaches them through the plugin
 API, versioned by ``output_api``, in a later layer. The fonts, built-in
-character sets and golden fixtures are FiestaUI's data, pinned in
-:mod:`src.led.provenance`.
+character sets and golden fixtures are FiestaUI's data, vendored once in
+:mod:`src.fiestaui` (provenance and hashes in its ``provenance.json``).
 
     >>> from src.led import LedMatrixSpec, layout_message, rasterize
     >>> frame = rasterize(layout_message("{icon:sun} 72°", LedMatrixSpec(64, 64, "3x5")))
@@ -20,6 +20,7 @@ Transitions (FiestaBoard's seeded-scramble flip, and cascade / slide / wipe
 from .charsets import (
     BUILTIN_CHARACTER_SETS,
     CharacterSet,
+    CharacterSetError,
     ValidationResult,
     materialize_character_set,
     validate_character_set,
@@ -83,6 +84,7 @@ __all__ = [
     "MAX_MATRIX_SIZE",
     "MIN_MATRIX_SIZE",
     "CharacterSet",
+    "CharacterSetError",
     "LedCell",
     "LedDrawOp",
     "LedFont",

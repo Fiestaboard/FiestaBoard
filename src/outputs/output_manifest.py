@@ -25,8 +25,9 @@ An output plugin (``plugin_type: "output"``) carries one ``output`` block::
   plugin's own directory, which must also be listed in the manifest's
   ``data_files``. A built-in model id is recognised by name; an unknown one
   is an error — never coerced to a Vestaboard.
-- The declared ``character_set`` is materialised at load (plan D17) and is
-  the output's character set: it wins over the models' ``charset``.
+- The declared ``character_set`` is materialised at load (plan D17, by
+  :func:`src.led.charsets.materialize_character_set`) and is the output's
+  character set: it wins over the models' ``charset``.
 - ``delivery``, ``min_interval_ms``, ``read_back`` and ``native_transitions``
   are transport facts FiestaUI does not model; core decides by them.
 - ``write_timeout_ms`` lowers how long core waits for one write before it
@@ -50,13 +51,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .fiestaui import (
-    CharacterSetError,
-    builtin_device_models,
-    materialize_character_set,
-    validate_character_set,
-    validate_device_model,
-)
+from src.fiestaui import builtin_device_models
+from src.led.charsets import CharacterSetError, materialize_character_set
+
+from .fiestaui import validate_character_set, validate_device_model
 from .hooks import ReadBack
 from .registry import OutputCapabilities
 from .transitions import NATIVE_STRATEGIES

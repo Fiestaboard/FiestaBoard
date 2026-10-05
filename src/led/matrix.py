@@ -4,7 +4,7 @@ A port of FiestaUI's ``src/lib/led-matrix.ts`` (45496c9), the reference
 implementation (plan D15): :func:`grid_layout` is ``ledGridLayout``,
 :func:`layout_message` is ``layoutLedMessage``, :func:`rasterize` is
 ``rasterizeLedLayout``, :func:`frame_to_bits` is ``frameToBits``. The golden
-fixtures in ``tests/fixtures/led/`` hold it to FiestaUI's bytes.
+fixtures in ``tests/fixtures/fiestaui/`` hold it to FiestaUI's bytes.
 
 A matrix lays a character grid onto its pixels from a bitmap face
 (:mod:`src.led.fonts`) and draws each cell into a row-major RGB888 frame.

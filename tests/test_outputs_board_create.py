@@ -32,8 +32,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.devices import BoardInstance
+from src.fiestaui import builtin_device_models
 from src.outputs import geometry
-from src.outputs.fiestaui import builtin_device_models
 from src.plugins.loader import PluginLoader
 
 FIXTURE = Path(__file__).parent / "fixtures" / "plugins" / "recording_output"

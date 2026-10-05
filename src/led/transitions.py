@@ -4,7 +4,7 @@ A port of FiestaUI's ``src/lib/led-transitions.ts`` (c2c3b72), the reference
 implementation (plan D15, rev-7 amendments). A transition is a pure function
 of time over two layouts: ``frame_at(0)`` is the old frame and
 ``frame_at(duration_ms)`` the new one, byte for byte. The golden sequences in
-``tests/fixtures/led/led-golden.json`` hold it to FiestaUI's bytes, frame for
+``tests/fixtures/fiestaui/led-golden.json`` hold it to FiestaUI's bytes, frame for
 frame.
 
 - ``flip``: **the FiestaBoard flip**. Every changing cell shows

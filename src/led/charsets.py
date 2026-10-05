@@ -3,17 +3,18 @@
 A character set says what a board can draw (plan D17). The built-ins
 (``vestaboard_v1`` / ``vestaboard_v2`` / ``led_5x7`` / ``led_3x5``) are
 FiestaUI's ``CHARACTER_SETS`` exported flattened and vendored verbatim as
-``character-sets.json``. A plugin's set may be partial over ``extends``;
-:func:`materialize_character_set` ports FiestaUI's ``materializeCharacterSet``
-and :func:`validate_character_set` its ``validateCharacterSet``
-(``src/lib/character-sets.ts``, 45496c9), messages included.
+``character-sets.json`` in :mod:`src.fiestaui`. A plugin's set may be partial
+over ``extends``; :func:`materialize_character_set` ports FiestaUI's
+``materializeCharacterSet`` and :func:`validate_character_set` its
+``validateCharacterSet`` (``src/lib/character-sets.ts``, 45496c9), messages
+included.
 
 Sets are plain dicts in FiestaUI's JSON shape (camelCase keys), because that
 is the document an output plugin's manifest declares.
 
-This module is self-contained on purpose: the LED raster needs a plugin set's
-``glyphs``, and Stack A is adding charset materialisation for the output-plugin
-manifest at the same time. The two must become one when the stacks meet.
+This is core's one materialiser: the LED raster (a plugin set's ``glyphs``)
+and the output-plugin manifest (:mod:`src.outputs.output_manifest`, its
+conformance suite and board geometry) all make a set whole here.
 """
 
 from __future__ import annotations
@@ -22,9 +23,9 @@ import json
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
+from src.fiestaui import builtin_character_sets
 from src.markup import BOARD_ICONS
 
 from .fonts import LED_FONTS
@@ -32,6 +33,7 @@ from .fonts import LED_FONTS
 __all__ = [
     "BUILTIN_CHARACTER_SETS",
     "CharacterSet",
+    "CharacterSetError",
     "ValidationResult",
     "materialize_character_set",
     "validate_character_set",
@@ -41,9 +43,12 @@ __all__ = [
 CharacterSet = dict[str, Any]
 
 #: Built-in id -> flattened set.
-BUILTIN_CHARACTER_SETS: Mapping[str, CharacterSet] = json.loads(
-    Path(__file__).with_name("character-sets.json").read_text(encoding="utf-8")
-)
+BUILTIN_CHARACTER_SETS: Mapping[str, CharacterSet] = builtin_character_sets()
+
+
+class CharacterSetError(ValueError):
+    """A declared character set cannot be made whole, or is not valid."""
+
 
 _KEYS = frozenset(
     {
@@ -172,7 +177,7 @@ def materialize_character_set(declaration: dict, known: Iterable[CharacterSet] =
     - ``extends`` stays on the result as lineage.
 
     Raises:
-        ValueError: an invalid declaration (a malformed field, or a key that
+        CharacterSetError: an invalid declaration (a malformed field, or a key that
             is not a set field: a typo is never silently dropped), an unknown
             or circular ``extends``, a set without ``extends`` that is not
             complete, or an invalid result.
@@ -182,7 +187,7 @@ def materialize_character_set(declaration: dict, known: Iterable[CharacterSet] =
     # before anything is inherited.
     declared = validate_character_set(declaration)
     if not declared.ok:
-        raise ValueError(f'Character set "{set_id}" is invalid: {"; ".join(declared.errors)}')
+        raise CharacterSetError(f'Character set "{set_id}" is invalid: {"; ".join(declared.errors)}')
     parent: Mapping | None = None
     if "extends" in declaration:
         parent_id = declaration["extends"]
@@ -191,9 +196,9 @@ def materialize_character_set(declaration: dict, known: Iterable[CharacterSet] =
             parent = BUILTIN_CHARACTER_SETS.get(parent_id)
         if parent is None:
             shown = parent_id if isinstance(parent_id, str) else json.dumps(parent_id)
-            raise ValueError(f'Character set "{set_id}" extends unknown set "{shown}".')
+            raise CharacterSetError(f'Character set "{set_id}" extends unknown set "{shown}".')
         if parent.get("id") == set_id:
-            raise ValueError(f'Character set "{set_id}" extends itself.')
+            raise CharacterSetError(f'Character set "{set_id}" extends itself.')
 
     out: CharacterSet = {
         "id": set_id,
@@ -214,5 +219,5 @@ def materialize_character_set(declaration: dict, known: Iterable[CharacterSet] =
             out[key] = value
     result = validate_character_set(out)
     if not result.ok:
-        raise ValueError(f'Character set "{set_id}" is invalid: {"; ".join(result.errors)}')
+        raise CharacterSetError(f'Character set "{set_id}" is invalid: {"; ".join(result.errors)}')
     return out

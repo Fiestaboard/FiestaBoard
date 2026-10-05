@@ -81,9 +81,9 @@ from pathlib import Path
 from typing import Any
 
 from src.devices import MIN_GRID_COLS, MIN_GRID_ROWS
+from src.led.charsets import CharacterSetError, materialize_character_set
 from src.send_outcome import FrameRegion, WriteResult
 
-from .fiestaui import CharacterSetError, materialize_character_set
 from .geometry import model_cell_grid
 from .hooks import ConnectionCheck
 from .plugin_base import CancelToken, CellFrame, OutputPluginBase, TimedFrame

@@ -43,8 +43,8 @@ from src.devices import (
     NOTE_COLS,
     NOTE_ROWS,
 )
-
-from .fiestaui import builtin_character_sets, builtin_led_fonts, materialize_character_set
+from src.fiestaui import builtin_character_sets, builtin_led_fonts
+from src.led.charsets import materialize_character_set
 
 #: Geometry kinds sized per board (the request supplies the size).
 CONFIGURABLE_KINDS = frozenset({"panel", "note_array"})
