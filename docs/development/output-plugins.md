@@ -301,7 +301,7 @@ The widget set is closed and versioned with `output_api`: a widget outside your 
 | Action id | Calls |
 |-----------|-------|
 | `test_connection` | `check_connection()` |
-| `discover` | `discover(timeout)` (a class method) |
+| `discover` | `discover(timeout)` or `discover(timeout, hint=None)` (a class method) |
 | `identify` | `identify()` |
 | `detect_geometry` | `detect_geometry()` |
 | any other id | `action_<id>(inputs)` |
@@ -310,6 +310,14 @@ The widget set is closed and versioned with `output_api`: a widget outside your 
 - **`result_fields`** declares what a result fills in: `{"token": {"secret": true, "fills": "token"}}` writes the returned `token` into the `token` setting, through the secret path.
 - **`visible_when`** shows the button only while a condition holds, in the same grammar as fields (board facts included).
 - **`auto_apply`**: `true` applies a detected `geometry` at once instead of offering **Apply size**.
+
+**The network hint (`hint_host`).** FiestaBoard usually runs in Docker's bridge mode, where its own address (`172.x`) belongs to a container network, not to the network your device is on. So a scan of "this host's subnet" searches the wrong network. The settings screen fills that gap: when the user opened FiestaBoard at a private IPv4 address (`10.x`, `172.16`–`172.31.x`, `192.168.x`, or link-local `169.254.x`; never `localhost` or a hostname), it sends that address as the input `hint_host` with every scan, for every output:
+
+- a `discover` action receives it as `hint` when your `discover` takes one: declare `discover(cls, timeout, hint=None)`, and search the `/24` around `hint` before your own. A `discover(timeout)` written before the hint keeps working; it is called without it. A `hint_host` that is not a private IPv4 address is refused with a 400.
+- a custom scan action receives it in `inputs["hint_host"]` if its `input_schema` declares `hint_host`. FiestaBoard fills it in for you and leaves it out of the action's dialog. Any action that does not declare it never sees it.
+- a `device-picker` sends it with the action it runs. If that action declares a `subnet` input, the picker also offers a field for the user to type a network (`192.168.1.0/24`) to search.
+
+Keep a scan to private networks and to a size you can sweep within the timeout: the Divoom Pixoo plugin's `candidate_subnets` is one way to do it.
 
 A button is not repeated for an action a visible widget already runs: a `device-picker`'s discover, or a `tile-grid`'s `item_actions`. The dialog for an action's `input_schema` starts from the settings of the same name. A tile action takes its input from the tile's fields, asks in the tile's dialog for the rest, and fills its result into the tile.
 
@@ -324,7 +332,7 @@ An action that needs more than that overrides the class method `handle_action(ct
 | `ctx.reader()` | A callable that reads what the board shows (through the live board, else a throwaway one), or `None`. |
 | `ctx.invalidate()` | Asks FiestaBoard to send the board's content again on its next cycle, after an action wrote over it. |
 
-Raise `OutputActionError(status_code, detail)` to refuse before anything is contacted. The default `handle_action` answers `discover` with the class's `discover(timeout)` and everything else through `run_action` on `ctx.instance()`. The Vestaboard's `actions.py` is a complete example.
+Raise `OutputActionError(status_code, detail)` to refuse before anything is contacted. The default `handle_action` answers `discover` with the class's `discover(timeout)` (handing it `hint` when it takes one) and everything else through `run_action` on `ctx.instance()`. The Vestaboard's `actions.py` is a complete example.
 
 An action returns an `ActionOutcome`, which FiestaBoard renders as one result panel:
 
@@ -459,7 +467,7 @@ Import everything from `src.plugins`. That one module is the output plugin API, 
 | `capabilities()` | No | Defaults to what the manifest declares. Override it to narrow a board's capabilities, for example a cloud connection that cannot animate. |
 | `open()` / `close()` | No | Bracket the instance's lifetime: connect, warm up, release. |
 | `check_connection()` | No | Probe the device once. Return a `ConnectionCheck`; never raise. |
-| `discover(timeout)` | No | A class method. Return found devices, each a dict with at least `ip` and `port`. |
+| `discover(timeout, hint=None)` | No | A class method. Return found devices, each a dict with at least `ip` and `port`. `hint` is the private IPv4 address the user opened FiestaBoard at, or `None`; see [the network hint](#actions). |
 | `identify()` | No | Make the device show which one it is: flash, blink, beep. |
 | `detect_geometry()` | No | Read the device's size: `{"device_type": "panel", "rows", "cols"}`, or `None`. |
 | `read_current()` | No | What the device shows, as codes, when `read_back.supported`. |

@@ -2389,6 +2389,7 @@
     "scanning": "Wyszukiwanie…",
     "noDevicesFound": "Nie znaleziono urządzeń. Wpisz adres ręcznie.",
     "devicesFoundLabel": "Znalezione urządzenia dla {field}",
+    "subnetLabel": "Sieć do przeszukania (opcjonalnie)",
     "tileAssigned": "Przypisany",
     "tileDialogTitle": "Kafelek {position} — wiersz {row}, kolumna {col}",
     "tileDialogDescription": "Ustawienia urządzenia w tej pozycji.",

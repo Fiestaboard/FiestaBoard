@@ -2389,6 +2389,7 @@
     "scanning": "Zoeken…",
     "noDevicesFound": "Geen apparaten gevonden. Voer het adres zelf in.",
     "devicesFoundLabel": "Gevonden apparaten voor {field}",
+    "subnetLabel": "Netwerk om te doorzoeken (optioneel)",
     "tileAssigned": "Toegewezen",
     "tileDialogTitle": "Tegel {position} — rij {row}, kolom {col}",
     "tileDialogDescription": "Instellingen voor het apparaat op deze positie.",

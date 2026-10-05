@@ -58,6 +58,8 @@ from .hooks import (
     OutputDiagnostics,
     OutputHooks,
     ReadBack,
+    call_discover,
+    lan_hint,
 )
 from .transitions import Animation
 
@@ -241,8 +243,10 @@ def output_name_for(board: Mapping) -> str:
     return definition.name if definition is not None else output_id
 
 
-def discover_devices(output_id: str, timeout: float) -> list[dict]:
+def discover_devices(output_id: str, timeout: float, hint: str | None = None) -> list[dict]:
     """Run *output_id*'s ``discover`` hook; ``[]`` when it declares none.
+    *hint* (the browser's private IPv4 address; anything else is dropped)
+    reaches a hook that takes one (:func:`~src.outputs.hooks.call_discover`).
 
     Raises:
         UnknownOutputError: *output_id* is not registered.
@@ -251,7 +255,7 @@ def discover_devices(output_id: str, timeout: float) -> list[dict]:
     if definition is None:
         raise UnknownOutputError(output_id)
     hook = definition.hooks.discover
-    return hook(timeout) if hook is not None else []
+    return call_discover(hook, timeout, lan_hint(hint)) if hook is not None else []
 
 
 def diagnostics_for(board: Mapping) -> OutputDiagnostics | None:

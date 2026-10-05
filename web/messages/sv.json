@@ -2389,6 +2389,7 @@
     "scanning": "Söker…",
     "noDevicesFound": "Inga enheter hittades. Ange adressen själv.",
     "devicesFoundLabel": "Hittade enheter för {field}",
+    "subnetLabel": "Nätverk att söka i (valfritt)",
     "tileAssigned": "Tilldelad",
     "tileDialogTitle": "Ruta {position} — rad {row}, kolumn {col}",
     "tileDialogDescription": "Inställningar för enheten på den här positionen.",

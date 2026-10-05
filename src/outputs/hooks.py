@@ -8,7 +8,8 @@ output* (plan D3), answered by the output's registry entry
 (:class:`~src.outputs.registry.OutputDefinition`) or by its driver:
 
 - per **output**, on the registry entry's :class:`OutputHooks` —
-  ``discover(timeout)`` (find devices on the network) and
+  ``discover(timeout)`` or ``discover(timeout, hint=None)`` (find devices on
+  the network; *hint* is the browser's LAN address, :data:`HINT_HOST`) and
   :class:`OutputDiagnostics` (the output's section of the network
   diagnostics);
 - per **board**, on the driver — :meth:`check_connection` returning a
@@ -34,6 +35,8 @@ actions (:class:`ActionContext`), whose outcomes carry the legacy answer in
 
 from __future__ import annotations
 
+import inspect
+import ipaddress
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -167,16 +170,67 @@ class OutputHooks:
     carries. Every member is optional."""
 
     #: ``discover(timeout)`` → devices found on the network, each a dict with
-    #: at least ``ip`` and ``port`` (plus ``hostname`` and ``source``).
-    discover: Callable[[float], list[dict]] | None = None
+    #: at least ``ip`` and ``port`` (plus ``hostname`` and ``source``). A hook
+    #: that also takes ``hint`` is handed the network hint
+    #: (:func:`call_discover`).
+    discover: Callable[..., list[dict]] | None = None
     diagnostics: OutputDiagnostics | None = None
+
+
+# --- the network hint ----------------------------------------------------------------
+
+#: The generic action input naming the address the user opened FiestaBoard
+#: at, when that is a private IPv4 address. In Docker bridge mode the
+#: container's own address (``172.x``) says nothing about the LAN, so a scan
+#: that searches "this host's /24" searches the wrong network; the browser's
+#: address names the right one. The web UI sends it with every ``discover``
+#: action, every action that declares it in its ``input_schema``, and every
+#: device-picker scan, for every output; core accepts it on any action
+#: (:func:`lan_hint`), hands it to ``discover`` hooks that take ``hint``, and
+#: drops it from a custom action that does not declare it.
+HINT_HOST = "hint_host"
+
+#: The networks a hint may name: RFC 1918 and IPv4 link-local.
+_HINT_NETWORKS = tuple(
+    ipaddress.IPv4Network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16")
+)
+
+
+def lan_hint(value: Any) -> str | None:
+    """*value* as a network hint: a private (RFC 1918) or link-local IPv4
+    address in dotted-quad form, else ``None`` — never a hostname, a
+    loopback or public address, or IPv6."""
+    if not isinstance(value, str):
+        return None
+    try:
+        address = ipaddress.IPv4Address(value.strip())
+    except ValueError:
+        return None
+    return str(address) if any(address in network for network in _HINT_NETWORKS) else None
+
+
+def _takes_hint(fn: Callable[..., Any]) -> bool:
+    try:
+        parameters = inspect.signature(fn).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(p.name == "hint" or p.kind is inspect.Parameter.VAR_KEYWORD for p in parameters)
+
+
+def call_discover(fn: Callable[..., list[dict]], timeout: float, hint: str | None = None) -> list[dict]:
+    """Run a ``discover`` hook: ``fn(timeout, hint=hint)`` when there is a
+    hint and *fn* takes one (a ``hint`` parameter or ``**kwargs``), else
+    ``fn(timeout)`` — so an output written before the hint keeps working."""
+    if hint is not None and _takes_hint(fn):
+        return fn(timeout, hint=hint)
+    return fn(timeout)
 
 
 # --- board settings actions (plan D13) -------------------------------------------
 
 #: The action ids core maps to a built-in hook instead of an ``action_<id>``
 #: method: ``test_connection`` → ``check_connection()``, ``discover`` →
-#: ``discover(timeout)``, ``identify`` → ``identify()``, ``detect_geometry``
+#: ``discover(timeout[, hint])``, ``identify`` → ``identify()``, ``detect_geometry``
 #: → ``detect_geometry()``. Every other declared id is a custom action.
 BUILTIN_ACTION_IDS: tuple[str, ...] = ("test_connection", "discover", "identify", "detect_geometry")
 
@@ -238,7 +292,9 @@ class ActionContext:
     ``output_config`` merged in and every ``"***"`` restored from the stored
     board, or a draft — and :attr:`config` its ``output_config``.
     ``board_id`` is ``None`` for a draft. ``inputs`` were checked against the
-    action's ``input_schema`` (when it came through an action route).
+    action's ``input_schema`` (when it came through an action route); a
+    ``discover`` action's (and one declaring it) may also carry
+    :data:`HINT_HOST`, the browser's private IPv4 address.
 
     Core builds every instance and closes the throwaway ones when the action
     returns; an output never constructs itself:
