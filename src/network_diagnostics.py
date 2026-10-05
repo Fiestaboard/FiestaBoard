@@ -163,7 +163,11 @@ def check_vestaboard_connection(
 
     if use_cloud:
         # Cloud API check
-        url = "https://rw.vestaboard.com/"
+        # Probe the endpoint sends actually use, so an overridden
+        # VESTABOARD_RW_API_URL is what gets diagnosed.
+        from .board_client import BoardClient
+
+        url = BoardClient.CLOUD_API_URL
         headers = {
             "X-Vestaboard-Read-Write-Key": cloud_key or "",
             "Content-Type": "application/json",
