@@ -727,8 +727,8 @@ def test_floor_survives_client_rebuild_rw_cloud(wire, clock):
 # ---------------------------------------------------------------------------
 
 
-def test_plugin_transition_frames(wire):
-    from src.outputs.factory import build_driver
+def _wire_fake_runner():
+    """A TransitionRunner resolving ``plugin:wire_fake`` (the beta turned on)."""
     from src.plugins.base import TransitionPluginBase
     from src.settings.service import get_settings_service
     from src.transitions import TransitionRunner
@@ -754,8 +754,14 @@ def test_plugin_transition_frames(wire):
         }
     )
     get_settings_service().update_beta_settings({"transition_plugins_enabled": True})
+    return TransitionRunner(lambda pid: plugin if pid == "wire_fake" else None)
+
+
+def test_plugin_transition_frames(wire):
+    from src.outputs.factory import build_driver
+
     client = build_driver(local_flagship())
-    client.set_transition_runner(TransitionRunner(lambda pid: plugin if pid == "wire_fake" else None))
+    client.set_transition_runner(_wire_fake_runner())
     s = Scenario(
         "plugin_transition_local",
         "render(strategy='plugin:wire_fake') with the beta on: each plugin frame, then the snap to target, "
@@ -767,6 +773,38 @@ def test_plugin_transition_frames(wire):
         "render TARGET via plugin:wire_fake",
         outcome_result(
             client.render(grid_of("TARGET"), strategy="plugin:wire_fake", device_type="flagship", with_outcome=True)
+        ),
+    )
+    s.check()
+
+
+@pytest.mark.parametrize(
+    ("name", "board", "device_type", "api"),
+    [
+        ("plugin_transition_rw_cloud", rw_cloud, "flagship", "Read/Write"),
+        ("plugin_transition_note_array_cloud", note_array_cloud, "note_array", "note-array"),
+    ],
+)
+def test_plugin_transition_snaps_on_a_cloud_board(wire, clock, name, board, device_type, api):
+    from src.outputs.factory import build_driver
+
+    client = build_driver(board())
+    client.set_transition_runner(_wire_fake_runner())
+    rows, cols = (3, 30) if device_type == "note_array" else (6, 22)
+    s = Scenario(
+        name,
+        f"render(strategy='plugin:wire_fake') on a {api} Cloud API board: the cloud takes one message per "
+        "15 s, so the Vestaboard plugin declares animation 'none' there and the transition snaps — one POST of "
+        "the target, no plugin frames.",
+        "BoardClient.render(..., strategy='plugin:<id>', with_outcome=True)",
+        wire,
+    )
+    s.step(
+        "render TARGET via plugin:wire_fake",
+        outcome_result(
+            client.render(
+                grid_of("TARGET", rows, cols), strategy="plugin:wire_fake", device_type=device_type, with_outcome=True
+            )
         ),
     )
     s.check()

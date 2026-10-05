@@ -18,12 +18,13 @@ A write can ask for a transition in one of two ways, and core — the board's
 Animation capability (plan D3, mirrors FiestaUI ``DeviceModel.animation``):
 
 - ``"stream"`` — the device takes frames one write at a time; core paces
-  them. Every driver today.
+  them. A local Vestaboard, a FiestaPanel.
 - ``"sequence"`` — the device takes a whole timed sequence in one upload
   (``write_sequence``, e.g. a Divoom Pixoo). Not implemented yet: no driver
   declares it, and the runtime branches on it when one does.
-- ``"none"`` — the device cannot show intermediate frames; a frame-driven
-  transition snaps straight to the target.
+- ``"none"`` — the device cannot show intermediate frames (a cloud Vestaboard:
+  one message per 15 s); a frame-driven transition snaps straight to the
+  target.
 """
 
 from __future__ import annotations

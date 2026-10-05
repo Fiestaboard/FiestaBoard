@@ -8,7 +8,7 @@
 > general availability. Use it, build with it, send feedback, but don't
 > treat your plugin's interface as locked in yet.
 
-Transition plugins drive **frame-by-frame board animations** that change one display state into another. Unlike Vestaboard's built-in strategies (column wave, edges-to-center, etc.), which are Local API features the board performs on its own, a transition plugin emits a sequence of intermediate board grids and the runtime sends each one as a separate ordinary board update -- enabling typewriter reveals, slot-machine spins, dissolves, and anything else that needs custom per-frame control. Because the frames are just normal sends, plugin transitions run on Cloud connections too.
+Transition plugins drive **frame-by-frame board animations** that change one display state into another. Unlike Vestaboard's built-in strategies (column wave, edges-to-center, etc.), which are Local API features the board performs on its own, a transition plugin emits a sequence of intermediate board grids and the runtime sends each one as a separate ordinary board update -- enabling typewriter reveals, slot-machine spins, dissolves, and anything else that needs custom per-frame control. An output that cannot show intermediate frames (a cloud Vestaboard, one message per 15 s) declares `animation: "none"`, and the transition snaps to its target there.
 
 This is a different plugin type from the data plugins documented in [PLUGIN_DEVELOPMENT.md](./PLUGIN_DEVELOPMENT.md). Data plugins fetch information and expose template variables; transition plugins shape *how* a board update happens, not *what* it shows.
 
@@ -149,8 +149,7 @@ When you're ready to see it on hardware, **Test live** runs the transition once 
 ## Performance & rate limits
 
 - Boards can't accept frames arbitrarily fast. A frame sent before the board has finished showing the previous one may be dropped, so pace frames conservatively and test on a real board. Follow the rate limits in Vestaboard's API documentation rather than guessing at hardware timing.
-- The Cloud API has stricter rate limits than the Local API. Transition plugins are the *only* way to animate on Cloud-mode boards (the built-in strategies are Local API features and are ignored there), but the practical frame rate is much lower.
-- Cloud **note arrays** are throttled to one send per 15 seconds. The runner automatically paces your frames (and the final snap) to the board client's `min_send_interval_ms`, so your plugin still works — it just runs no faster than that floor. Slow, deliberate transitions are the natural fit there.
+- Cloud Vestaboards (Read/Write and note-array Cloud API) take one message per 15 seconds, so the Vestaboard plugin (1.5.0+) declares `animation: "none"` for them and the runtime **snaps** a transition plugin straight to its target there: your frames are never sent. Transitions animate over the Local API (and on any output that declares `stream`). The runner still paces frames to a driver's `min_send_interval_ms` on any floored output that streams.
 - Use `min_interval_ms` to protect users from runaway loops in your own plugin.
 
 ## Publishing an external transition plugin

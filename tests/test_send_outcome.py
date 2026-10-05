@@ -116,6 +116,13 @@ class _PreemptedRunner:
         return (True, False)
 
 
+def _streams(monkeypatch, client) -> None:
+    """Make the floored client one that streams a transition's frames: a
+    cloud Vestaboard snaps them (animation "none") since its plugin's 1.5.0,
+    and the floor is what these tests need."""
+    monkeypatch.setattr(type(client), "animation", property(lambda self: "stream"))
+
+
 def test_a_preempted_plugin_transition_does_not_inherit_a_stale_throttle(monkeypatch):
     now = {"t": 1000.0}
     client = throttled_cloud_client(now, elapsed=5.0)
@@ -123,6 +130,7 @@ def test_a_preempted_plugin_transition_does_not_inherit_a_stale_throttle(monkeyp
     assert client.last_send_throttled is True, "precondition: the previous tick was throttled"
 
     client.set_transition_runner(_PreemptedRunner())
+    _streams(monkeypatch, client)
     monkeypatch.setattr("src.outputs.plugin_driver.transition_plugins_enabled", lambda: True)
 
     assert client.render(_grid(3), strategy="plugin:fade") == (True, False)
@@ -135,6 +143,7 @@ def test_a_preempted_plugin_transition_reports_not_throttled_in_its_outcome(monk
     client = throttled_cloud_client(now, elapsed=5.0)
     assert client.send_characters(_grid(2)) == (True, False)
     client.set_transition_runner(_PreemptedRunner())
+    _streams(monkeypatch, client)
     monkeypatch.setattr("src.outputs.plugin_driver.transition_plugins_enabled", lambda: True)
 
     outcome = client.render(_grid(3), strategy="plugin:fade", with_outcome=True)

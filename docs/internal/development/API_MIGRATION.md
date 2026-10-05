@@ -102,6 +102,29 @@ GET /plugins/weather/data
 
 ---
 
+## Flat Board Fields → `output` + `output_config` (removed in v11)
+
+Settings v4 moved a board's connection into `output_config` (plan D8). Responses still project the flat fields for compatibility through v10:
+
+| Surface | Deprecated fields | Read instead |
+|---------|-------------------|--------------|
+| `GET/PUT /settings/board`, `POST /settings/board/add`, `DELETE /settings/board/{board_id}` (each `boards[]` entry) | `api_mode`, `host`, `port`, `local_api_key`, `cloud_key`, `note_array_token`, `tiles` | The entry's `output` and `output_config` |
+| `GET /board/current-message` | `api_mode` | The board's `output` / `output_config` (`GET /settings/board`) |
+| `GET /config` | `board_api_mode`, `board_host`, `board_key_set` | The primary board's `output_config` |
+| MQTT | `board_api_mode` entity | The board's `output` (the entity's value already comes from the driver's `connection_label`) |
+| MCP `update_board` / `add_board` | The `api_mode` and `host` arguments | `output_config` (v11 adds it to the tools) |
+
+Each HTTP operation above answers with:
+
+```http
+Deprecation: true
+Link: <https://fiestaboard.app/docs/reference/api-endpoints#deprecated-board-fields>; rel="deprecation"
+```
+
+There is no `Sunset` yet: v11 has no date. The operation itself is not deprecated, only those fields, so there is no `successor-version` link. The OpenAPI schema marks the typed fields `deprecated: true`; the `boards[]` entries are untyped, so the `boards` description names them. The list lives once, in `src/api_deprecation.py` (`FLAT_BOARD_FIELDS`, `flat_board_fields_notice()`), pinned by `tests/test_flat_board_fields_deprecation.py`. Write APIs keep accepting the flat shape through v10.
+
+---
+
 ## Detecting Deprecation Headers
 
 Deprecated endpoints include the following HTTP response headers:

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from src.api_deprecation import FLAT_BOARD_FIELDS_NOTE
 
 
 class MessageRequest(BaseModel):
@@ -67,6 +69,8 @@ class BoardCurrentMessageResponse(BaseModel):
     expected_characters: list[list[int]] | None = None
     #: ISO timestamp of the poll this was served from; null on a live read.
     cached_at: str | None = None
-    api_mode: str
+    #: Deprecated (removed in v11): the flat connection mode, projected for
+    #: compatibility (src/api_deprecation.py FLAT_BOARD_FIELDS).
+    api_mode: str = Field(json_schema_extra={"deprecated": True}, description=FLAT_BOARD_FIELDS_NOTE)
     #: Echo of the requested board id; null means the primary board.
     board_id: str | None = None
