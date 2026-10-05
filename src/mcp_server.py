@@ -316,10 +316,7 @@ def _build_mcp_server() -> Any:
             "  • list_staff_picks() + import_staff_pick(pick_id) — the curated gallery.\n"
             "  • get_current_display() — the raw template + line_metadata of the page\n"
             "    a board is showing, to start a new page from.\n"
-            "  • list_formula_functions() — every function usable inside {{= ...}}.\n"
-            "  • Transition Lab (beta, Settings → Beta): list_transition_plugins(),\n"
-            "    test_transition_live(plugin_id, to_page_id) runs one on the real board,\n"
-            "    restore_board() snaps it back to its active page afterwards.\n\n"
+            "  • list_formula_functions() — every function usable inside {{= ...}}.\n\n"
             "PLUGIN MANAGEMENT (everything the Integrations page can do)\n"
             "  • install_plugin(plugin_id) installs from the registry;\n"
             "    install_plugin(repository=<https git URL>, branch=...) is the\n"
@@ -533,6 +530,8 @@ def _build_mcp_server() -> Any:
         - enabled: whether the plugin is active
         - configured: whether required settings have been filled in
         - description: what the plugin does
+        - plugin_type: 'data', 'output', or 'transition' (deprecated; its
+          'plugin:<id>' is a page or system transition_strategy)
         - settings_schema: JSON Schema describing configurable fields
         - config: current configuration (sensitive values masked as '***')
         """
@@ -1106,8 +1105,9 @@ def _build_mcp_server() -> Any:
             transition_strategy: Optional per-page transition override —
                                  'column', 'reverse-column', 'edges-to-center',
                                  'row', 'diagonal', 'random', or the
-                                 'plugin:<id>' string from
-                                 list_transition_plugins(). Omitted = the
+                                 'plugin:<id>' of an installed transition
+                                 plugin (deprecated; list_installed_plugins()
+                                 reports plugin_type 'transition'). Omitted = the
                                  system transition from get_settings_summary().
             transition_interval_ms: Optional per-page step interval (0–5000 ms).
             transition_step_size: Optional per-page step size (≥ 1).
@@ -1175,7 +1175,8 @@ def _build_mcp_server() -> Any:
                            the whole list; one {"alignment", "wrap"} dict per line.
             transition_strategy: New per-page transition override (optional) —
                                  a built-in strategy name or a 'plugin:<id>'
-                                 from list_transition_plugins().
+                                 naming an installed transition plugin
+                                 (deprecated).
             transition_interval_ms: New per-page step interval, 0–5000 (optional).
             transition_step_size: New per-page step size, ≥ 1 (optional).
             clear_transition_override: Set True to remove the per-page
@@ -1590,87 +1591,6 @@ def _build_mcp_server() -> Any:
             "template": template,
             "line_metadata": line_metadata,
         }
-
-    # -----------------------------------------------------------------------
-    # Transition Lab (beta) — the /transitions endpoints. Gated behind
-    # Settings → Beta → transition plugins, exactly like the REST routes.
-    # -----------------------------------------------------------------------
-
-    @_tool(read_only=True)
-    def list_transition_plugins() -> dict[str, Any]:
-        """List installed transition plugins (frame-by-frame board animations).
-
-        Each entry has id, name, description, settings_schema (its config
-        form), transition_settings (its frame/runtime caps), config (its
-        current bound config) and strategy — the 'plugin:<id>' string to
-        store as a page's transition_strategy via update_page(), or as the
-        system transition via update_setting('transitions', ...).
-
-        Transition plugins are a beta: while Settings → Beta has them off
-        this reports an error, the same way the web UI hides the picker.
-        """
-        from .transitions import service as transitions
-
-        refusal = ops_executors._transition_beta_refusal()
-        if refusal is not None:
-            return refusal
-        return {"plugins": _serialize(transitions.list_installed_transition_plugins())}
-
-    @_tool(destructive=False)
-    async def test_transition_live(
-        plugin_id: str,
-        to_page_id: str,
-        from_page_id: str | None = None,
-        config: dict[str, Any] | None = None,
-        board_id: str | None = None,
-    ) -> dict[str, Any]:
-        """Run a transition plugin ONCE on the real board (the Transition Lab).
-
-        Snaps from_page_id onto the board (when given), then animates to
-        to_page_id with the plugin. The board is LEFT showing to_page_id —
-        call restore_board() afterwards, or wait for the display loop to put
-        the active page back. Does not change which page is active.
-
-        A paused board or an active silence window returns status "blocked"
-        (deliberate policy — relay it to the user, don't retry). Beta-gated
-        like list_transition_plugins().
-
-        Args:
-            plugin_id: The transition plugin (from list_transition_plugins()).
-            to_page_id: The page the transition lands on (from list_pages()).
-            from_page_id: Optional page shown first so the animation visibly
-                          starts from it. Omitted = whatever the board shows now.
-            config: Optional per-run overrides merged over the plugin's
-                    current config (keys from its settings_schema).
-            board_id: Board to target on a multi-board install (from the boards
-                      list in get_settings_summary()). Omitted = the primary board.
-
-        Returns: {status, message, sent, plugin_id, from_page_id, to_page_id, board_id}.
-        """
-        return await ops_executors.test_transition_live(
-            plugin_id,
-            to_page_id,
-            from_page_id=from_page_id,
-            config=config,
-            board_id=board_id,
-        )
-
-    @_tool(destructive=False, idempotent=True)
-    async def restore_board(board_id: str | None = None) -> dict[str, Any]:
-        """Snap a board back to its active page after test_transition_live().
-
-        Re-renders the board's active page and sends it plainly (no
-        transition), cancelling any still-running plugin transition. Safe to
-        repeat. A paused board or an active silence window returns status
-        "blocked". Beta-gated like list_transition_plugins().
-
-        Args:
-            board_id: Board to restore on a multi-board install (from the boards
-                      list in get_settings_summary()). Omitted = the primary board.
-
-        Returns: {status, message, page_id, sent, board_id}.
-        """
-        return await ops_executors.restore_board(board_id=board_id)
 
     # -----------------------------------------------------------------------
     # Schedule tools

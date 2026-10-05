@@ -680,9 +680,9 @@ class BetaSettings:
       to take effect.
     - transition_plugins_enabled: When true, transition plugins (frame-by-
       frame board animations driven by the TransitionPluginBase SDK)
-      become selectable from page editors and Settings → Transitions, and
-      the /transitions test harness page is reachable.  Off by default --
-      the SDK is experimental and its contract may change.
+      become selectable from page editors and Settings → Transitions.  Off
+      by default.  Transition plugins are deprecated (removal considered for
+      v11); the Transition Lab that once lived behind this flag is retired.
     - output_plugins_enabled: When true, output plugins installed from the
       registry or a git URL can drive boards (a board whose ``output`` names
       one). Off by default; first-party outputs (bundled in ``plugins/`` or

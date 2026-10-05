@@ -133,41 +133,6 @@ class TestApiSendGuards:
         assert response.json()["sent_to_board"] is False
         board_client.render.assert_not_called()
 
-    def test_live_transition_test_respects_the_target_boards_window(self, client):
-        registry = MagicMock()
-        registry.get_transition_plugin.return_value = MagicMock()
-
-        with (
-            _board_aware_silence(),
-            patch("src.transitions.routes._ensure_transition_plugins_beta"),
-            patch("src.transitions.service.get_plugin_registry", return_value=registry),
-            patch("src.transitions.service._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
-            patch("src.transitions.service.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
-        ):
-            response = client.post(
-                "/transitions/test-live",
-                json={"plugin_id": "wipe", "to_page_id": "page-1", "board_id": SILENCED_BOARD},
-            )
-
-        # The silence guard is the first thing after the board client is
-        # resolved, so any other status means it did not fire.
-        assert response.status_code == 409, response.text
-        assert "Silence" in response.json()["detail"]
-
-    def test_transition_restore_respects_the_target_boards_window(self, client):
-        with (
-            _board_aware_silence(),
-            patch("src.transitions.routes._ensure_transition_plugins_beta"),
-            patch("src.transitions.service._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
-            patch("src.transitions.service.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
-        ):
-            response = client.post("/transitions/restore", json={"board_id": SILENCED_BOARD})
-
-        # Same ordering as /transitions/test-live: anything but 409 means the
-        # guard resolved the wrong board and let the restore through.
-        assert response.status_code == 409, response.text
-        assert "Silence" in response.json()["detail"]
-
 
 # ==================== MQTT / Home Assistant ====================
 

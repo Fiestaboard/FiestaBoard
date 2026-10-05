@@ -50,12 +50,7 @@ def unpack_frame(frame: Any) -> tuple[list[list[int]] | None, int]:
     Accepts ``(grid, delay)`` tuples and bare grids (treated as zero delay).
     Returns ``(None, 0)`` on shapes we can't make sense of, leaving the caller
     to decide what that means — :meth:`TransitionRunner._drive_generator`
-    aborts the run, while ``/transitions/preview`` skips the frame.
-
-    Module level, not a method, because both callers are outside this class:
-    ``src/transitions/service.py`` open-coded a byte-for-byte copy of this
-    coercion until the router→service move gave the two loops one definition
-    of what a frame is.
+    aborts the run.
     """
     if isinstance(frame, tuple) and len(frame) == 2:
         grid, delay = frame

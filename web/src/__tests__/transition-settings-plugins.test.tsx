@@ -79,7 +79,9 @@ function useBeta(enabled: boolean) {
   );
 }
 
-function pluginEntry(id: string, name: string, description: string) {
+// One row of `GET /plugins`, the listing the picker reads now that the
+// Transition Lab's `/transitions/plugins` is retired.
+function pluginEntry(id: string, name: string, description: string, pluginType = "transition") {
   return {
     id,
     name,
@@ -87,24 +89,26 @@ function pluginEntry(id: string, name: string, description: string) {
     icon: "Sparkles",
     version: "1.0.0",
     author: "Test",
+    enabled: false,
+    configured: false,
+    category: "utility",
+    plugin_type: pluginType,
     settings_schema: {},
-    transition_settings: {
-      interruptible: true,
-      min_interval_ms: 0,
-      max_frames: 100,
-      max_runtime_seconds: 30,
-    },
     config: {},
-    strategy: `plugin:${id}`,
   };
 }
 
 function usePlugins(...entries: ReturnType<typeof pluginEntry>[]) {
   let called = 0;
   server.use(
-    http.get(`${API_BASE}/transitions/plugins`, () => {
+    http.get(`${API_BASE}/plugins`, () => {
       called += 1;
-      return HttpResponse.json({ plugins: entries });
+      return HttpResponse.json({
+        plugins: entries,
+        plugin_system_enabled: true,
+        total: entries.length,
+        enabled_count: 0,
+      });
     }),
   );
   return () => called;
@@ -128,6 +132,21 @@ describe("TransitionSettings transition plugins", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Typewriter" })).toBeInTheDocument();
     });
+  });
+
+  it("offers only the transition plugins from the plugin listing", async () => {
+    useBeta(true);
+    usePlugins(
+      pluginEntry("typewriter", "Typewriter", "Types the new message one character at a time."),
+      pluginEntry("weather", "Weather", "A data plugin.", "data"),
+    );
+
+    render(<TransitionSettings />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Typewriter" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "Weather" })).not.toBeInTheDocument();
   });
 
   it("saves strategy as plugin:<id> when a plugin option is clicked", async () => {
