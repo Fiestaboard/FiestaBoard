@@ -261,9 +261,21 @@ def test_text_is_the_clipped_grid_with_tiles_blank_and_whitespace_collapsed():
 
 
 def test_undrawable_character_is_a_blank_cell():
-    layout = layout_message("A€B", S3)
+    # "¤" is in no face and no test's set, so nothing has registered it.
+    layout = layout_message("A¤B", S3)
     assert layout.text == "A B"
     assert layout.cells[1].glyph == " "
+
+
+def test_a_set_glyph_once_seen_keeps_its_identity_but_draws_nothing_without_the_set():
+    # FiestaUI registers a set's own characters process-wide (EXTRA_GLYPHS);
+    # the port does the same, so glyph identity (and the flip's seed) agrees.
+    set_ = materialize_character_set({**ACME, "id": "acme_reg_v1", "chars": ["A", "Ŧ"], "glyphs": {"Ŧ": ["###"] * 5}})
+    layout_message("Ŧ", S3, LedLayoutOptions(charset=set_))
+    later = layout_message("Ŧ", S3)
+    assert later.cells[0].glyph == "Ŧ"
+    assert later.text == ""
+    assert lit(rasterize(later)) == 0
 
 
 # --- rich tokens in ---------------------------------------------------------

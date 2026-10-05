@@ -12,8 +12,9 @@ character sets and golden fixtures are FiestaUI's data, pinned in
     >>> len(frame.pixels) == 64 * 64 * 3
     True
 
-Transitions (FiestaBoard's seeded-scramble flip) are a later layer, once
-FiestaUI publishes their golden sequences.
+Transitions (FiestaBoard's seeded-scramble flip, and cascade / slide / wipe
+/ fade / dissolve) are :mod:`src.led.transitions`; which one a device runs is
+:mod:`src.led.transition_registry`.
 """
 
 from .charsets import (
@@ -42,14 +43,32 @@ from .matrix import (
     draw_glyph,
     frame_to_ascii,
     frame_to_bits,
+    glyph_index,
     glyph_key,
     grid_layout,
     layout_cells,
     layout_message,
     led_spec_for_model,
+    paint_ops,
     parse_hex_color,
     rasterize,
     resolve_hex_option,
+)
+from .transition_registry import (
+    LED_TRANSITIONS,
+    ResolvedLedTransition,
+    default_transition_id_for_model,
+    resolve_led_transition,
+    transition_spec_for_device,
+    transitions_for_model,
+)
+from .transitions import (
+    LED_TRANSITION_KINDS,
+    LedTransition,
+    LedTransitionSpec,
+    plan_transition,
+    scramble_pool,
+    transition_frames,
 )
 
 __all__ = [
@@ -59,6 +78,8 @@ __all__ = [
     "LED_FONTS",
     "LED_GLYPHS",
     "LED_MONO_COLORS",
+    "LED_TRANSITIONS",
+    "LED_TRANSITION_KINDS",
     "MAX_MATRIX_SIZE",
     "MIN_MATRIX_SIZE",
     "CharacterSet",
@@ -71,18 +92,30 @@ __all__ = [
     "LedLayoutOptions",
     "LedMatrixSpec",
     "LedRenderOptions",
+    "LedTransition",
+    "LedTransitionSpec",
+    "ResolvedLedTransition",
     "ValidationResult",
+    "default_transition_id_for_model",
     "draw_glyph",
     "frame_to_ascii",
     "frame_to_bits",
+    "glyph_index",
     "glyph_key",
     "grid_layout",
     "layout_cells",
     "layout_message",
     "led_spec_for_model",
     "materialize_character_set",
+    "paint_ops",
     "parse_hex_color",
+    "plan_transition",
     "rasterize",
     "resolve_hex_option",
+    "resolve_led_transition",
+    "scramble_pool",
+    "transition_frames",
+    "transition_spec_for_device",
+    "transitions_for_model",
     "validate_character_set",
 ]
