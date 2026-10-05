@@ -111,12 +111,9 @@ test.describe("regression: integrations.detail", () => {
   /** UX node: integrations.detail.installed */
   test("integrations.detail.installed — built-in plugin detail page renders", async ({ page }) => {
     await page.goto("/integrations/date_time");
-    await expect(
-      page
-        .getByRole("main")
-        .getByText(/Date|Time/i)
-        .first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("main").getByRole("heading", { level: 1, name: /Date|Time/i })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   /** UX node: integrations.detail.loading */
@@ -181,12 +178,12 @@ test.describe("regression: integrations.detail", () => {
     );
     await page.goto("/integrations/date_time");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
-    // Detail page itself still renders — header/info section is visible even without README.
-    await expect(
-      page
-        .getByRole("main")
-        .getByText(/Date|Time/i)
-        .first(),
-    ).toBeVisible({ timeout: 15_000 });
+    // Detail page itself still renders — its header is visible even without README.
+    // Scoped to <main>'s h1: an unscoped getByText(/Date|Time/) also matches
+    // chrome outside the page (e.g. the sidebar's "Update to x.y.z", which sits
+    // hidden in the mobile drawer on desktop) and resolves to that first.
+    await expect(page.getByRole("main").getByRole("heading", { level: 1, name: /Date|Time/i })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });

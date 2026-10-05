@@ -691,6 +691,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/oauth/connections/{connection_id}/complete",
+      "methods": [
+        "POST"
+      ],
+      "name": "complete_oauth_connection",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/openapi.json",
       "methods": [
         "GET",
@@ -1290,6 +1298,14 @@
         "PUT"
       ],
       "name": "update_ai_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/ai/providers/{provider_id}/models",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_ai_provider_models",
       "kind": "APIRoute"
     },
     {

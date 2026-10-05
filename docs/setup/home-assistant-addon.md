@@ -19,7 +19,7 @@ If you already run **Home Assistant OS** or **Home Assistant Supervised**, you c
 
 - **Sidebar entry via Ingress** — one-click web access from the HA sidebar, authenticated by HA itself.
 - **Auto MQTT discovery** — works zero-config with the official **Mosquitto broker** add-on.
-- **HA core API** — FiestaBoard's [Home Assistant plugin](/docs/plugins/home-assistant) talks to HA via the Supervisor proxy with no long-lived access token to create.
+- **HA core API** — FiestaBoard's [Home Assistant plugin](/plugins/detail?id=home_assistant) talks to HA via the Supervisor proxy with no long-lived access token to create.
 - **HA-managed backups** — FiestaBoard's `/app/data` (settings, plugin state, marketplace plugins) is mounted from HA's persistent `addon_config` volume, so HA snapshots capture everything.
 - **Updates through the add-on store** — a weekly workflow in the add-on repo polls this repo for new releases and opens a sync PR. Once merged and tagged, HA Supervisor offers the update like any other add-on.
 

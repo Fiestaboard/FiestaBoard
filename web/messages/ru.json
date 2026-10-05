@@ -91,7 +91,7 @@
     "dark": "Тёмная",
     "system": "Системная",
     "devSuffix": "сборка для разработки",
-    "updateAvailable": "Доступно обновление: {version}",
+    "updateAvailable": "Доступно обновление",
     "updateTo": "Обновить до {version}",
     "about": "О FiestaBoard",
     "signOut": "Выйти"
@@ -467,6 +467,8 @@
       "setupOpenGuide": "Пошаговая инструкция",
       "setupStepRedirect": "Укажите в приложении этот Redirect URI",
       "setupStepDetails": "Скопируйте сюда данные приложения",
+      "ownAppToggle": "Использовать своё приложение (необязательно)",
+      "ownAppDescription": "Вход работает и без этого. Чтобы входить через собственное приложение {provider}, создайте его и укажите здесь его данные.",
       "clientIdLabel": "Идентификатор клиента (Client ID)",
       "clientSecretLabel": "Секрет клиента (Client secret)",
       "showSecret": "Показать секрет клиента",
@@ -485,7 +487,25 @@
         "access_denied": "Вход был отклонён, поэтому ничего не подключено.",
         "exchange_failed": "Провайдер отклонил вход. Проверьте идентификатор клиента и секрет в настройках плагина, затем подключитесь снова.",
         "provider_error": "Провайдер сообщил о проблеме. Попробуйте подключиться снова."
-      }
+      },
+      "rejectedDescription": "{provider} больше не принимает вход. Войдите снова.",
+      "approvalWaiting": "Подтвердите FiestaBoard во вкладке {provider}. Обновится автоматически.",
+      "startAgainButton": "Начать заново",
+      "headlessButton": "Войти без перенаправления браузера",
+      "pasteToggle": "Вход не вернулся? Вставьте адрес или код",
+      "pasteLabel": "Адрес или код",
+      "pasteDescription": "Скопируйте полный адрес из вкладки, где остановился вход, или код, который показал провайдер.",
+      "pasteSubmit": "Завершить вход",
+      "pasteOpenAgain": "Снова открыть страницу входа",
+      "newTabHint": "{provider} откроется в новой вкладке. Когда вы закончите там, вкладка остановится на странице, которая не загружается. Так и должно быть: вы скопируете её адрес сюда.",
+      "finishTitle": "Завершите вход",
+      "finishStepSignIn": "Войдите в {provider} в новой вкладке.",
+      "finishStepCantConnect": "После этого вкладка покажет ошибку вроде «не удаётся подключиться к 127.0.0.1» или «Не удаётся получить доступ к сайту». Так и должно быть: ничего не сломалось.",
+      "finishStepCopy": "Скопируйте полный адрес из адресной строки той вкладки, вернитесь на эту вкладку и вставьте его ниже.",
+      "finishPasteLabel": "Адрес из вкладки {provider}",
+      "finishPasteDescription": "Он длинный и начинается с http://127.0.0.1. Вставьте его целиком.",
+      "finishOpenLink": "Открыть страницу входа {provider}",
+      "finishDone": "Вход в {provider} выполнен."
     },
     "templateVariablesSection": "Шаблонные переменные",
     "templateVariablesClickToCopy": "нажмите, чтобы скопировать",
@@ -650,12 +670,16 @@
       "makeDefaultButton": "Сделать основным",
       "nameLabel": "Название",
       "protocolLabel": "Протокол",
-      "protocolOpenaiOption": "OpenAI-совместимый (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "OpenAI-совместимый (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (Messages API)",
       "baseUrlLabel": "Базовый URL",
       "quickPresetsLabel": "Быстрые пресеты",
       "apiKeyLabel": "API-ключ",
       "modelsLabel": "Модели",
+      "loadModels": "Загрузить модели",
+      "pickModel": "Добавить модель провайдера",
+      "noModelMatches": "Нет подходящих моделей",
+      "loadModelsFailed": "Не удалось загрузить модели.",
       "defaultModelLabel": "Модель по умолчанию",
       "testConnectionButton": "Проверить подключение",
       "turnLimits": {
@@ -664,7 +688,40 @@
         "modelCallsLabel": "Вызовов модели за ход",
         "toolCallsLabel": "Вызовов инструментов за ход",
         "serverDefault": "Значение сервера"
-      }
+      },
+      "protocolResponsesOption": "OpenAI Responses (вход через ChatGPT)",
+      "signIn": {
+        "choicesLabel": "Или войдите вместо использования API-ключа",
+        "button": "Войти через {provider}",
+        "activeDescription": "Этот провайдер входит через {provider}. API-ключ выше не используется, пока вы входите так.",
+        "useApiKey": "Использовать API-ключ",
+        "saveFirst": "Сохраните изменения, затем войдите в {provider} здесь.",
+        "panelTitle": "Вход в {provider}"
+      },
+      "add": {
+        "title": "Какой тип провайдера?",
+        "signInTitle": "Войти",
+        "signInDescription": "Используйте аккаунт ChatGPT, OpenRouter или Hugging Face. Копировать API-ключ не нужно.",
+        "apiKeyTitle": "Использовать API-ключ",
+        "apiKeyDescription": "Вставьте ключ от OpenAI, Anthropic, DeepSeek, Mistral и других.",
+        "localTitle": "Запустить в моей сети",
+        "localDescription": "Сервер моделей на вашем компьютере: Ollama, LM Studio, llama.cpp или vLLM.",
+        "advancedTitle": "Расширенный (свой эндпоинт)",
+        "advancedDescription": "Любой эндпоинт, совместимый с OpenAI или Anthropic. Все настройки вы заполняете сами.",
+        "signInPick": "Войти через",
+        "apiKeyPick": "Какой сервис?",
+        "localPick": "Какой сервер?",
+        "back": "Назад",
+        "cancel": "Отмена"
+      },
+      "simple": {
+        "advancedToggle": "Дополнительно",
+        "addressLabel": "Адрес сервера",
+        "addressDescription": "Где слушает сервер моделей. localhost означает само это табло; если сервер работает на другом компьютере, укажите его адрес, например http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Сохраните изменения, чтобы выбрать из моделей провайдера."
+      },
+      "addModel": "Добавить модель",
+      "refreshModels": "Обновить модели"
     },
     "backup": {
       "cardTitle": "Резервное копирование и восстановление",
@@ -2383,6 +2440,14 @@
     "settingFailed": "Не удалось сохранить настройку",
     "on": "Вкл",
     "off": "Выкл"
+  },
+  "modelCombobox": {
+    "placeholder": "Найдите или введите id модели",
+    "trigger": "Показать модели",
+    "list": "Модели",
+    "empty": "Подходящих моделей нет",
+    "typedId": "Использовать этот id",
+    "showingFirst": "Показаны первые {shown} из {total}. Введите текст, чтобы сузить."
   },
   "settingsRestoreNotice": {
     "title": "Восстановлены настройки, сохранённые до обновления",

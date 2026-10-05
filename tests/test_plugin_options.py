@@ -1076,6 +1076,15 @@ def test_loader_stays_quiet_when_the_plugin_implements_get_options(tmp_path):
     assert loader.load_errors.get("goodopts", []) == []
 
 
+def test_loader_stays_quiet_for_the_core_ai_providers_picker(tmp_path):
+    """``ai_providers`` is answered by ``PluginBase.get_options`` itself."""
+    _write_options_plugin(tmp_path, "aiopts", implements_get_options=False, ui_options={"options_id": "ai_providers"})
+    loader = PluginLoader(plugins_dir=tmp_path, external_dirs=[])
+
+    assert loader.load_plugin("aiopts") is not None
+    assert loader.load_errors.get("aiopts", []) == []
+
+
 def test_a_failing_sandbox_cleanup_does_not_fail_the_request(options_registry):
     """Cleanup is best-effort — a sloppy teardown must not break the picker."""
 

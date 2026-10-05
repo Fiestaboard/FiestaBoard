@@ -91,7 +91,7 @@
     "dark": "Donker",
     "system": "Systeem",
     "devSuffix": "ontwikkelbuild",
-    "updateAvailable": "Update beschikbaar: {version}",
+    "updateAvailable": "Update beschikbaar",
     "updateTo": "Bijwerken naar {version}",
     "about": "Over FiestaBoard",
     "signOut": "Afmelden"
@@ -467,6 +467,8 @@
       "setupOpenGuide": "Stap-voor-stap-handleiding",
       "setupStepRedirect": "Geef de app deze redirect-URI",
       "setupStepDetails": "Neem de gegevens van de app hier over",
+      "ownAppToggle": "Je eigen app gebruiken (optioneel)",
+      "ownAppDescription": "Inloggen werkt ook zonder. Wil je liever inloggen via een eigen app bij {provider}, maak er dan een aan en vul hier de gegevens in.",
       "clientIdLabel": "Client-ID",
       "clientSecretLabel": "Client secret",
       "showSecret": "Client secret tonen",
@@ -485,7 +487,25 @@
         "access_denied": "Het inloggen is geweigerd, dus er is niets verbonden.",
         "exchange_failed": "De aanbieder heeft het inloggen afgewezen. Controleer de client-ID en het secret in de instellingen van de plugin en verbind daarna opnieuw.",
         "provider_error": "De aanbieder meldde een probleem. Probeer opnieuw te verbinden."
-      }
+      },
+      "rejectedDescription": "{provider} accepteert de aanmelding niet meer. Meld je opnieuw aan.",
+      "approvalWaiting": "Keur FiestaBoard goed in het tabblad van {provider}. Dit werkt zichzelf bij.",
+      "startAgainButton": "Opnieuw beginnen",
+      "headlessButton": "Aanmelden zonder doorverwijzing in de browser",
+      "pasteToggle": "Kwam de aanmelding niet terug? Plak het adres of de code",
+      "pasteLabel": "Adres of code",
+      "pasteDescription": "Kopieer het volledige adres van het tabblad waar de aanmelding stopte, of de code die de provider liet zien.",
+      "pasteSubmit": "Aanmelding voltooien",
+      "pasteOpenAgain": "Aanmeldpagina opnieuw openen",
+      "newTabHint": "{provider} opent in een nieuw tabblad. Als je daar klaar bent, eindigt dat tabblad op een pagina die niet laadt. Dat hoort zo: je kopieert het adres terug naar hier.",
+      "finishTitle": "Aanmelden afronden",
+      "finishStepSignIn": "Meld je aan bij {provider} in het nieuwe tabblad.",
+      "finishStepCantConnect": "Daarna toont dat tabblad een fout zoals 'kan geen verbinding maken met 127.0.0.1' of 'Deze site is niet bereikbaar'. Dat hoort zo: er is niets misgegaan.",
+      "finishStepCopy": "Kopieer het volledige adres uit de adresbalk van dat tabblad, ga terug naar dit tabblad en plak het hieronder.",
+      "finishPasteLabel": "Adres uit het {provider}-tabblad",
+      "finishPasteDescription": "Het is lang en begint met http://127.0.0.1. Plak het helemaal.",
+      "finishOpenLink": "Aanmeldpagina van {provider} openen",
+      "finishDone": "Aangemeld bij {provider}."
     },
     "templateVariablesSection": "Sjabloonvariabelen",
     "templateVariablesClickToCopy": "klik om te kopiëren",
@@ -650,12 +670,16 @@
       "makeDefaultButton": "Als standaard instellen",
       "nameLabel": "Naam",
       "protocolLabel": "Protocol",
-      "protocolOpenaiOption": "OpenAI-compatibel (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "OpenAI-compatibel (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (Messages API)",
       "baseUrlLabel": "Basis-URL",
       "quickPresetsLabel": "Snelle presets",
       "apiKeyLabel": "API-sleutel",
       "modelsLabel": "Modellen",
+      "loadModels": "Modellen laden",
+      "pickModel": "Een model van de aanbieder toevoegen",
+      "noModelMatches": "Geen overeenkomende modellen",
+      "loadModelsFailed": "De modellen konden niet worden geladen.",
       "defaultModelLabel": "Standaardmodel",
       "testConnectionButton": "Verbinding testen",
       "turnLimits": {
@@ -664,7 +688,40 @@
         "modelCallsLabel": "Modelaanroepen per ronde",
         "toolCallsLabel": "Toolaanroepen per ronde",
         "serverDefault": "Standaard van server"
-      }
+      },
+      "protocolResponsesOption": "OpenAI Responses (ChatGPT-aanmelding)",
+      "signIn": {
+        "choicesLabel": "Of meld je aan in plaats van een API-sleutel te gebruiken",
+        "button": "Aanmelden met {provider}",
+        "activeDescription": "Deze provider meldt zich aan met {provider}. De API-sleutel hierboven wordt niet gebruikt zolang je zo aanmeldt.",
+        "useApiKey": "Toch de API-sleutel gebruiken",
+        "saveFirst": "Sla de wijzigingen op en meld je hier aan bij {provider}.",
+        "panelTitle": "Aanmelding bij {provider}"
+      },
+      "add": {
+        "title": "Wat voor soort provider?",
+        "signInTitle": "Aanmelden",
+        "signInDescription": "Gebruik je ChatGPT-, OpenRouter- of Hugging Face-account. Geen API-sleutel om te kopiëren.",
+        "apiKeyTitle": "Een API-sleutel gebruiken",
+        "apiKeyDescription": "Plak een sleutel van OpenAI, Anthropic, DeepSeek, Mistral en anderen.",
+        "localTitle": "Op mijn netwerk draaien",
+        "localDescription": "Een modelserver op een eigen computer: Ollama, LM Studio, llama.cpp of vLLM.",
+        "advancedTitle": "Geavanceerd (eigen endpoint)",
+        "advancedDescription": "Elk OpenAI-compatibel of Anthropic-endpoint. Je vult elke instelling zelf in.",
+        "signInPick": "Aanmelden met",
+        "apiKeyPick": "Welke dienst?",
+        "localPick": "Welke server?",
+        "back": "Terug",
+        "cancel": "Annuleren"
+      },
+      "simple": {
+        "advancedToggle": "Geavanceerd",
+        "addressLabel": "Serveradres",
+        "addressDescription": "Waar de modelserver luistert. localhost betekent dit bord zelf; draait de server op een andere computer, gebruik dan het adres van die computer, zoals http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Sla de wijzigingen op om uit de modellen van de provider te kiezen."
+      },
+      "addModel": "Een model toevoegen",
+      "refreshModels": "Modellen vernieuwen"
     },
     "backup": {
       "cardTitle": "Back-up & herstel",
@@ -2383,6 +2440,14 @@
     "settingFailed": "De instelling kon niet worden opgeslagen",
     "on": "Aan",
     "off": "Uit"
+  },
+  "modelCombobox": {
+    "placeholder": "Zoek of typ een model-id",
+    "trigger": "Modellen tonen",
+    "list": "Modellen",
+    "empty": "Geen overeenkomende modellen",
+    "typedId": "Deze id gebruiken",
+    "showingFirst": "De eerste {shown} van {total}. Typ om te verfijnen."
   },
   "settingsRestoreNotice": {
     "title": "Instellingen van vóór de update zijn hersteld",

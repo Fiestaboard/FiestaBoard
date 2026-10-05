@@ -28,10 +28,17 @@ from .errors import (
     FlowNotSupported,
     InvalidBoardUrl,
     OAuthError,
+    PastedCodeRejected,
     ProviderError,
 )
-from .models import OAuthAuthorizationStart, OAuthAuthorizeRequest, OAuthConnection, OAuthConnectionList
-from .service import CallbackOutcome, get_oauth_service
+from .models import (
+    OAuthAuthorizationStart,
+    OAuthAuthorizeRequest,
+    OAuthCompleteRequest,
+    OAuthConnection,
+    OAuthConnectionList,
+)
+from .service import AI_CONNECTION_PREFIX, CallbackOutcome, get_oauth_service
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +50,7 @@ _STATUS_BY_ERROR: tuple[tuple[type[OAuthError], int], ...] = (
     (ConnectionNotConfigured, 400),
     (FlowNotSupported, 400),
     (InvalidBoardUrl, 400),
+    (PastedCodeRejected, 400),
     (ProviderError, 502),
 )
 
@@ -94,8 +102,27 @@ async def authorize_oauth_connection(connection_id: str, request: OAuthAuthorize
     see it complete.
     """
     # The device flow calls the provider, so this cannot run on the event loop.
-    start = await asyncio.to_thread(get_oauth_service().start, connection_id, request.flow, request.board_url)
+    start = await asyncio.to_thread(
+        get_oauth_service().start, connection_id, request.flow, request.board_url, request.headless
+    )
     return OAuthAuthorizationStart.model_validate(asdict(start))
+
+
+@router.post(
+    "/oauth/connections/{connection_id}/complete",
+    response_model=OAuthConnection,
+    responses=errors(400, 404, 502),
+)
+@oauth_errors_to_http
+async def complete_oauth_connection(connection_id: str, request: OAuthCompleteRequest) -> OAuthConnection:
+    """Finish a sign-in from the address or code the user pasted.
+
+    For when the browser did not come back on its own: the relay page could
+    not reach the board, or the provider shows a code instead of redirecting.
+    Needs a session, unlike ``/oauth/callback``.
+    """
+    status = await asyncio.to_thread(get_oauth_service().complete_pasted, connection_id, request.pasted)
+    return OAuthConnection.model_validate(asdict(status))
 
 
 @router.delete("/oauth/connections/{connection_id}", response_model=OAuthConnection, responses=errors(404))
@@ -112,7 +139,14 @@ def _return_location(outcome: CallbackOutcome) -> str:
     ``<base>`` is empty for a direct install and a path prefix under Home
     Assistant ingress; two levels up is the app root in both.
     """
-    query = {"tab": "installed", "oauth": "connected" if outcome.connected else "error"}
+    outcome_value = "connected" if outcome.connected else "error"
+    if outcome.connection_id and outcome.connection_id.startswith(AI_CONNECTION_PREFIX):
+        # FiestaBot's AI providers sign in from Settings, not Integrations.
+        ai_query = {"section": "integrations", "oauth": outcome_value, "connection": outcome.connection_id}
+        if outcome.reason:
+            ai_query["reason"] = outcome.reason
+        return f"../../settings?{urlencode(ai_query)}"
+    query = {"tab": "installed", "oauth": outcome_value}
     if outcome.connection_id:
         query["plugin"] = outcome.connection_id
     if outcome.reason:

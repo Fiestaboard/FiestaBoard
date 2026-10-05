@@ -90,6 +90,7 @@ function mockInstall(userApp: boolean) {
             flows: ["relay"],
             configured: !userApp,
             user_app: userApp,
+            shared_app: false,
             client_id_setting: userApp ? "client_id" : null,
             client_secret_setting: null,
             app_setup_url: "",

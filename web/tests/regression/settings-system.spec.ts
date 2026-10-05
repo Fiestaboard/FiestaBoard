@@ -417,7 +417,9 @@ test.describe("regression: settings.system", () => {
     await page.getByRole("tab", { name: "System", exact: true }).click();
 
     // Banner copy: "Update Available", version badge, "View Release" link.
-    await expect(page.getByText("Update Available")).toBeVisible({
+    // Exact, because the rail chrome now also says "Update available" (the
+    // account trigger's and hamburger's notice); a loose match finds those too.
+    await expect(page.getByText("Update Available", { exact: true })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText("v6.99.0", { exact: true })).toBeVisible();

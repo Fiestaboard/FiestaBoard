@@ -1509,7 +1509,7 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
         elif data.get("plugin_type", "data") == "output":
             errors.append("oauth is not supported for output plugins yet — sign-in per board is a later contract")
         else:
-            errors.extend(validate_provider_block(data["oauth"]))
+            errors.extend(validate_provider_block(data["oauth"], data.get("settings_schema")))
 
     # Validate board previews when present.
     #

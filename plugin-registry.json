@@ -741,6 +741,149 @@
       "icon": "music",
       "category": "entertainment",
       "added": "2026-10-02"
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "description": "Pull requests waiting for your review, your own open pull requests, and the CI status and stars of a repository. Signs in to GitHub with a code, no password or token to paste.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--github",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.11.0",
+      "icon": "git-pull-request",
+      "category": "data",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "youtube_stats",
+      "name": "YouTube Stats",
+      "description": "Show a YouTube channel's subscribers, total views and video count. Uses your own free YouTube Data API key; no sign-in needed.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--youtube-stats",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.5.0",
+      "icon": "tv",
+      "category": "entertainment",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "bluesky_stats",
+      "name": "Bluesky Stats",
+      "description": "Show any Bluesky account's followers, following and post counts, with today's change. No sign-in or API key needed.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--bluesky-stats",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.5.0",
+      "icon": "users",
+      "category": "data",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "mastodon_stats",
+      "name": "Mastodon Stats",
+      "description": "Show follower, following and post counts for any Mastodon account, with an optional change since the start of the day. No sign-in needed.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--mastodon-stats",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.5.0",
+      "icon": "users",
+      "category": "data",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "todoist",
+      "name": "Todoist",
+      "description": "Show what's on your Todoist plate: how many tasks are due today, how many are overdue, and the next task to do. Sign in with Todoist, or paste a personal API token.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--todoist",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.8.0",
+      "icon": "list-checks",
+      "category": "utility",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "twitch",
+      "name": "Twitch",
+      "description": "See which channels you follow are live on Twitch, with game, viewers and uptime, plus a channel's follower count. Signs in to your Twitch account with a short code.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--twitch",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.11.0",
+      "icon": "tv",
+      "category": "entertainment",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "strava",
+      "name": "Strava",
+      "description": "Show your latest Strava activity (distance, time, pace) and your recent and year-to-date totals. Signs in to your Strava account through your own free Strava API app.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--strava",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.11.0",
+      "icon": "activity",
+      "category": "data",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "oura",
+      "name": "Oura",
+      "description": "Show your Oura Ring's daily Sleep, Readiness and Activity scores, last night's sleep and resting heart rate, and today's steps. Signs in to your Oura account through your own free Oura API application.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--oura",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.8.0",
+      "icon": "heart-pulse",
+      "category": "data",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "google_calendar",
+      "name": "Google Calendar & Tasks",
+      "description": "Show today's agenda, what's next and what's happening now from Google Calendar, plus your Google Tasks due today. Signs in to your Google account through your own Google Cloud app.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--google-calendar",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.8.0",
+      "icon": "calendar-days",
+      "category": "utility",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "facebook_page",
+      "name": "Facebook Page",
+      "description": "Show a Facebook Page's followers and likes, with today's change. Paste a Page access token, or sign in with Facebook through your own free Meta app.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--facebook-page",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.11.0",
+      "icon": "users",
+      "category": "data",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "instagram",
+      "name": "Instagram",
+      "description": "Show an Instagram professional account's followers, following and posts, with today's change. Paste a long-lived access token or sign in through your own Meta app; the plugin renews the token for you.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--instagram",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.11.0",
+      "icon": "camera",
+      "category": "data",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "threads",
+      "name": "Threads",
+      "description": "Show your Threads followers, plus profile views and likes from the last two days. Signs in through your own free Meta app, or uses a long-lived access token you paste.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--threads",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.11.0",
+      "icon": "users",
+      "category": "data",
+      "added": "2026-10-03"
+    },
+    {
+      "id": "tiktok",
+      "name": "TikTok",
+      "description": "Show your TikTok follower, following, like and video counts. Signs in to your TikTok account through your own free TikTok developer app.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--tiktok",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.11.0",
+      "icon": "users",
+      "category": "data",
+      "added": "2026-10-03"
     }
   ]
 }

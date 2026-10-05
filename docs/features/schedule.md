@@ -113,4 +113,4 @@ The setting is off by default and applies to every board.
 
 - [Page Editor](/docs/features/page-editor) - Create pages to use in your schedule
 - [Silence Schedule](/docs/features/silence-schedule) - Set quiet hours for your board
-- [Plugins Overview](/docs/plugins/overview) - Add data sources to your pages
+- [Plugin Directory](/plugins) - Add data sources to your pages

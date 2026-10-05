@@ -105,6 +105,30 @@
         }
       ]
     },
+    "bluesky_stats": {
+      "teaser": "BSKY 12,345 +12",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "     ALICE RIVERS",
+            "  @ALICE.BSKY.SOCIAL",
+            "",
+            "FOLLOWERS  12,345 +12",
+            "FOLLOWING     321 +1",
+            "POSTS       4,567 +3"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "ALICE RIVERS",
+            "12.3K FANS +12",
+            "4.6K POSTS"
+          ]
+        }
+      ]
+    },
     "calendar_sub": {
       "teaser": "APR 3 3:30 PM",
       "previews": [
@@ -325,6 +349,30 @@
         }
       ]
     },
+    "facebook_page": {
+      "teaser": "FB 12,345 +12",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "   RIVERSIDE BAKERY",
+            "",
+            "FOLLOWERS  12,345 +12",
+            "LIKES      11,872 +4",
+            "",
+            ""
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "RIVERSIDE BAKE",
+            "12.3K FANS +12",
+            "11.9K LIKES +4"
+          ]
+        }
+      ]
+    },
     "game_of_life": {
       "teaser": "{66}{66}{66} LIFE",
       "previews": [
@@ -513,6 +561,89 @@
         }
       ]
     },
+    "github": {
+      "teaser": "{66} 3 TO REVIEW",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "    {66} FIESTABOARD",
+            "     14/14 PASSED",
+            "     3 TO REVIEW",
+            "#412 FIX LOGIN REDIREC",
+            "#409 BUMP REQUESTS",
+            "MY PRS 2   STARS 1.2K"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{66} FIESTABOARD",
+            "REVIEW 3 MINE 2",
+            "STARS 1.2K"
+          ]
+        },
+        {
+          "label": "Failing build",
+          "device_type": "flagship",
+          "rows": [
+            "    {63} FIESTABOARD",
+            "    2 OF 14 FAILED",
+            "     3 TO REVIEW",
+            "#412 FIX LOGIN REDIREC",
+            "#409 BUMP REQUESTS",
+            "MY PRS 2   STARS 1.2K"
+          ]
+        }
+      ]
+    },
+    "google_calendar": {
+      "teaser": "{66} 9AM STANDUP",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "  {66} 4 EVENTS TODAY",
+            "     9AM STANDUP",
+            "11:30AM DESIGN REVIEW",
+            "  1PM LUNCH WITH SAM",
+            "     4PM DENTIST",
+            "  2 TASKS DUE TODAY"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "NEXT IN 25M",
+            "DESIGN REVIEW",
+            "11:30AM TODAY"
+          ]
+        },
+        {
+          "label": "Busy now",
+          "device_type": "flagship",
+          "rows": [
+            "   {63} DESIGN REVIEW",
+            "    UNTIL 12:30PM",
+            "",
+            "        NEXT",
+            "  1PM LUNCH WITH SAM",
+            "       IN 1H 30M"
+          ]
+        },
+        {
+          "label": "Note Array (2 wide)",
+          "device_type": "note_array",
+          "notes_wide": 2,
+          "notes_tall": 1,
+          "rows": [
+            " {66} FRI OCT 2 - 4 EVENTS TODAY",
+            "     11:30AM DESIGN REVIEW",
+            "      2 TASKS DUE TODAY"
+          ]
+        }
+      ]
+    },
     "guest_wifi": {
       "teaser": "GUEST WIFI INFO",
       "previews": [
@@ -689,6 +820,30 @@
         }
       ]
     },
+    "instagram": {
+      "teaser": "IG 12,345 +12",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "     ALICE RIVERS",
+            " @ALICE RIVERS STUDIO",
+            "",
+            "FOLLOWERS  12,345 +12",
+            "FOLLOWING     321 +1",
+            "POSTS         456 +1"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "ALICE RIVERS",
+            "12.3K FANS +12",
+            "456 POSTS"
+          ]
+        }
+      ]
+    },
     "iss_tracker": {
       "teaser": "ISS 51.5N 0.1W",
       "previews": [
@@ -808,6 +963,30 @@
             "EMBARCADERO AT FOLSOM: 8E 1C",
             "POWELL ST BART STATION: 3E 4C",
             "FERRY BUILDING: 6E 0C"
+          ]
+        }
+      ]
+    },
+    "mastodon_stats": {
+      "teaser": "12.3K FOLLOWERS",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            " @ALICE@EXAMPLE.SOCIAL",
+            "",
+            "FOLLOWERS  12,345 {66}+12",
+            "FOLLOWING     321   +1",
+            "POSTS       4,567   +3",
+            ""
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "@ALICE",
+            "12.3K FOLLOWERS",
+            "{66}+12 TODAY"
           ]
         }
       ]
@@ -988,6 +1167,42 @@
             "{65}{65} ON THIS DAY",
             "1969",
             "MOON LANDING"
+          ]
+        }
+      ]
+    },
+    "oura": {
+      "teaser": "{65} SLEEP 82",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "         OURA",
+            "{65} SLEEP        82",
+            "{65} READINESS    76",
+            "{66} ACTIVITY     91",
+            "SLEPT 7H 32M  RHR 52",
+            "STEPS 8,423"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{65} SLEEP 82",
+            "{65} READINESS 76",
+            "{66} ACTIVITY 91"
+          ]
+        },
+        {
+          "label": "Last night",
+          "device_type": "flagship",
+          "rows": [
+            "     LAST NIGHT",
+            "SLEPT 7H 32M",
+            "IN BED 22:48 - 06:53",
+            "RESTING HR 52 BPM",
+            "HRV 48 MS",
+            "TEMP +0.2"
           ]
         }
       ]
@@ -1696,6 +1911,42 @@
         }
       ]
     },
+    "strava": {
+      "teaser": "RUN 5.02 MI",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "    {66} RUN 2H AGO",
+            "     MORNING RUN",
+            "  5.02 MI IN 40:35",
+            "     8:05/MI",
+            "",
+            " YTD 612 MI 121 RUNS"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "RUN 5.02 MI",
+            "40:35 8:05/MI",
+            "YTD 612 MI"
+          ]
+        },
+        {
+          "label": "Totals",
+          "device_type": "flagship",
+          "rows": [
+            "   STRAVA TOTALS",
+            "",
+            "4 WEEKS  68.4 MI",
+            "YEAR     612 MI",
+            "RIDES    1480 MI",
+            "SWIMS    42600 YD"
+          ]
+        }
+      ]
+    },
     "sun_art": {
       "teaser": "{65}{64}{63} SUNSET ART",
       "previews": [
@@ -1768,6 +2019,30 @@
         }
       ]
     },
+    "threads": {
+      "teaser": "12.4K FOLLOWERS",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "",
+            "    @PAPERLANTERNS",
+            "",
+            "   12.4K FOLLOWERS",
+            "     3.81K VIEWS",
+            "      257 LIKES"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "@PAPERLANTERNS",
+            "12.4K FOLLOWERS",
+            "3.81K VIEWS"
+          ]
+        }
+      ]
+    },
     "tide_times": {
       "teaser": "HIGH TIDE 2:45",
       "previews": [
@@ -1788,6 +2063,78 @@
             "{67}{67} TIDE TIMES",
             "HIGH 2:45 PM",
             "LOW  8:52 AM"
+          ]
+        }
+      ]
+    },
+    "tiktok": {
+      "teaser": "{63} 16K FOLLOWERS",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{63} TIKTOK {63}",
+            "PIXEL OWL",
+            "FOLLOWERS 16K",
+            "LIKES 1.2M",
+            "VIDEOS 87",
+            "FOLLOWING 321"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{63} PIXEL OWL",
+            "FOLLOWERS 16K",
+            "LIKES 1.2M"
+          ]
+        },
+        {
+          "label": "One line",
+          "device_type": "flagship",
+          "rows": [
+            "",
+            "",
+            "{63} PIXEL OWL",
+            "16K FANS 1.2M LIKES",
+            "",
+            ""
+          ]
+        }
+      ]
+    },
+    "todoist": {
+      "teaser": "{63} 3 DUE 1 LATE",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "    {63} TODOIST",
+            "",
+            "   3 TODAY 1 OVERDUE",
+            "",
+            "        NEXT UP",
+            "   CALL THE PLUMBER"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{63} TODOIST",
+            "3 TODAY 1 LATE",
+            "CALL THE PLUMB"
+          ]
+        },
+        {
+          "label": "Task list",
+          "device_type": "flagship",
+          "rows": [
+            "{63} 3 TODAY 1 OVERDUE",
+            "CALL THE PLUMBER",
+            "WATER THE FERNS",
+            "RENEW LIBRARY BOOKS",
+            "PACK GYM BAG",
+            ""
           ]
         }
       ]
@@ -1900,6 +2247,42 @@
             "C PERTH         D MELBOURNE",
             "",
             "{66}ANSWER: B CANBERRA"
+          ]
+        }
+      ]
+    },
+    "twitch": {
+      "teaser": "{63} 3 LIVE NOW",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{63} 3 LIVE NOW",
+            "PIXELOWL 16K",
+            "NEONFOX 1.2K",
+            "QUIET MOTH 87",
+            "",
+            "FOLLOWERS 12K"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{63} 3 LIVE NOW",
+            "PIXELOWL 16K",
+            "FOLLOWERS 12K"
+          ]
+        },
+        {
+          "label": "Top stream",
+          "device_type": "flagship",
+          "rows": [
+            "{63} PIXELOWL",
+            "MINECRAFT",
+            "BUILDING A CASTLE",
+            "16K VIEWERS",
+            "LIVE 2H 15M",
+            ""
           ]
         }
       ]
@@ -2200,6 +2583,41 @@
             "  SEATTLE-BAINBRIDGE FERRY",
             "      NEXT DEP  3:30 PM",
             "   VESSEL MV WENATCHEE"
+          ]
+        }
+      ]
+    },
+    "youtube_stats": {
+      "teaser": "{63} 12.4K SUBS",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{63} MAPLE ROAD COOKING",
+            "",
+            "SUBSCRIBERS      12.4K",
+            "VIEWS            1.23M",
+            "VIDEOS             245",
+            ""
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{63} MAPLE ROAD",
+            "12.4K SUBS",
+            "1.23M VIEWS"
+          ]
+        },
+        {
+          "label": "Note Array (2 wide)",
+          "device_type": "note_array",
+          "notes_wide": 2,
+          "notes_tall": 1,
+          "rows": [
+            "{63} MAPLE ROAD COOKING",
+            "12.4K SUBSCRIBERS",
+            "1.23M VIEWS - 245 VIDEOS"
           ]
         }
       ]

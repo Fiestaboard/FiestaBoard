@@ -11,7 +11,7 @@ your own provider, your own API key, and your own model list.
 Two protocols are supported out of the box:
 
 - **OpenAI-compatible** chat-completions — one-click presets for
-  OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together AI, and
+  OpenAI, OpenRouter, DeepSeek, Mistral, Together AI, and
   Fireworks AI, plus local servers Ollama, LM Studio, llama.cpp, and
   vLLM. Any other OpenAI-compatible endpoint works too.
 - **Anthropic Messages API** — direct access to `api.anthropic.com`
@@ -39,18 +39,18 @@ section).
 
 ## Quick setup with preset pills
 
-In **Settings → AI Providers**, the **Quick presets** row gives you one-click pills for every supported provider, grouped into **Cloud** and **Local**. Clicking a pill auto-fills the **Name**, **Base URL**, and **Protocol** for that provider — you only have to paste your API key and add the model ids you want.
+In **Settings → AI Providers**, **Add provider** first asks what kind of provider it is: **Sign in** (ChatGPT, OpenRouter, Hugging Face; saved at once, then the sign-in panel and **Load models**), **Use an API key** (a cloud preset: key and model only), **Run it on my network** (a local preset: editable server address and model), or **Advanced (custom endpoint)** (the full form, whose **Quick presets** pills auto-fill **Name**, **Base URL**, and **Protocol**). A saved provider opens in the view matching its fields (`providerSetupKind` in `ai-settings.tsx`), with the rest of the form under **Advanced**; nothing is stored to record the kind.
 
 The current preset list, sourced from `web/src/components/settings/ai-settings.tsx`:
 
-- **Cloud:** OpenRouter, OpenAI, Anthropic, Groq, DeepSeek, Mistral, Together AI, Fireworks AI.
+- **Cloud:** OpenRouter, OpenAI, Anthropic, DeepSeek, Mistral, Together AI, Fireworks AI.
 - **Local:** Ollama (`http://localhost:11434/v1`), LM Studio (`http://localhost:1234/v1`), llama.cpp (`http://localhost:8080/v1`), vLLM (`http://localhost:8000/v1`).
 
 ## Configuration
 
 1. Open **Settings → AI Providers**.
 2. Toggle the top switch to **Enabled**.
-3. Click **Add provider** and fill in:
+3. Click **Add provider**, choose **Advanced (custom endpoint)** for the full form, and fill in:
    - **Name** — any label, e.g. `OpenRouter` or `Claude`.
    - **Protocol** — pick `OpenAI-compatible` or `Anthropic`. The
      quick-pick buttons below also set this for you.

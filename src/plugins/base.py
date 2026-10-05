@@ -5,6 +5,7 @@ plugins (frame-by-frame board animations) inherit from
 :class:`TransitionPluginBase` instead.
 """
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -14,11 +15,14 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.devices import BoardContext
 
 from .manifest import MAX_TRANSITION_RUNTIME_SECONDS
+
+if TYPE_CHECKING:
+    from src.ai.plugin_api import AICompletion
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +30,27 @@ logger = logging.getLogger(__name__)
 # callers, unit tests, non-adopting plugins). Keeps the per-board cache dicts
 # uniform while preserving the historical board-agnostic behavior.
 _DEFAULT_CACHE_KEY = "__default__"
+_LAST_OAUTH_TOKEN_ATTR = "_fiestaboard_last_oauth_token"
+
+
+_AI_EXPORTS = frozenset({"AICompletion", "AIError", "AINotConfiguredError", "AIProviderError", "AIRejectedError"})
+
+
+def __getattr__(name: str) -> Any:
+    """``from src.plugins.base import AIError`` (and friends) without importing src.ai up front."""
+    if name in _AI_EXPORTS:
+        from src.ai import plugin_api
+
+        return getattr(plugin_api, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _remember_oauth_token(plugin: object, token: str | None) -> None:
+    """Note the token a plugin was handed, so a later 401 report can name it."""
+    if token:
+        with contextlib.suppress(AttributeError):
+            setattr(plugin, _LAST_OAUTH_TOKEN_ATTR, token)
+
 
 DEFAULT_REFRESH_SECONDS = 300
 MIN_REFRESH_SECONDS = 10
@@ -764,7 +789,16 @@ class PluginBase(ABC):
         Raises:
             OptionsUnavailable: The plugin cannot answer right now.
             NotImplementedError: The plugin offers no remote options (default).
+
+        The default answers ``options_id == "ai_providers"`` with
+        :meth:`ai_provider_options`, so a manifest can offer FiestaBot's AI
+        providers without any code. An override that serves its own ids
+        returns ``super().get_options(request)`` for the rest.
         """
+        from src.ai.plugin_api import AI_PROVIDERS_OPTIONS_ID
+
+        if request.options_id == AI_PROVIDERS_OPTIONS_ID:
+            return self.ai_provider_options(request)
         raise NotImplementedError(f"Plugin {self.plugin_id} does not provide options")
 
     def check_triggers(self) -> list["TriggerResult"]:
@@ -848,6 +882,112 @@ class PluginBase(ABC):
         """
         return self._manifest.get("env_vars", [])
 
+    # ── FiestaBot's AI providers (FiestaBoard 9.11.0) ──────────────────────────
+
+    def ai_complete(
+        self,
+        messages: "str | list[dict[str, str]]",
+        *,
+        provider_id: str | None = None,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        json: bool = False,
+        timeout: float = 60.0,
+    ) -> "AICompletion":
+        """Ask one of the AI providers set up in Settings → AI Providers.
+
+        Uses what FiestaBot uses: the provider's protocol (``openai``,
+        ``anthropic``, ``openai_responses``), its pasted key or its sign-in
+        token (OpenRouter, Hugging Face, ChatGPT). A plugin never needs its own
+        AI setup. Blocks until the answer arrives; safe from ``fetch_data``.
+
+        Args:
+            messages: A prompt string (one user message), or a list of
+                ``{"role": "system"|"user"|"assistant", "content": str}``.
+            provider_id: A provider id (e.g. from an ``ai_providers`` picker
+                field); ``None`` or ``""`` means FiestaBot's default provider.
+            model: A model id; ``None`` means the provider's default model, or
+                the first model it lists when none is saved (as FiestaBot's
+                chat does for a provider added with Sign in).
+            temperature: Defaults to 0.7; capped at 1.0 for Anthropic.
+            max_tokens: Defaults to 1500.
+            json: Ask for one JSON object and parse it into ``result.data``.
+            timeout: Seconds to wait for the provider.
+
+        Returns:
+            An :class:`~src.ai.plugin_api.AICompletion`: ``.text``, ``.model``,
+            ``.provider_id``, ``.usage``, ``.data``; ``str(result)`` is the text.
+
+        Raises:
+            AINotConfiguredError: AI is turned off, no provider is set up, the
+                ``provider_id`` is unknown, or the provider has no model saved
+                and lists none.
+            AIRejectedError: The key or sign-in was refused, or the user must
+                sign in again. A signed-in provider's 401 is retried once with
+                a refreshed token before this is raised.
+            AIProviderError: Unreachable, an error answer, an empty reply, or
+                (``json=True``) a reply that is not a JSON object.
+            ValueError: *messages* is malformed.
+
+        All three errors subclass ``AIError``; import them from
+        ``src.plugins.base`` or ``src.ai.plugin_api``. A plugin that must run on
+        cores before 9.11.0 guards with ``getattr(self, "ai_complete", None)``.
+        """
+        from src.ai import plugin_api
+
+        return plugin_api.complete(
+            messages,
+            provider_id=provider_id or None,
+            model=model or None,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            json=json,
+            timeout=timeout,
+        )
+
+    async def ai_complete_async(
+        self,
+        messages: "str | list[dict[str, str]]",
+        *,
+        provider_id: str | None = None,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        json: bool = False,
+        timeout: float = 60.0,
+    ) -> "AICompletion":
+        """:meth:`ai_complete` for async code."""
+        from src.ai import plugin_api
+
+        return await plugin_api.complete_async(
+            messages,
+            provider_id=provider_id or None,
+            model=model or None,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            json=json,
+            timeout=timeout,
+        )
+
+    def ai_providers(self) -> list[dict[str, Any]]:
+        """FiestaBot's AI providers without secrets; empty while AI is off.
+
+        Each is ``{id, name, protocol, model, models, default, sign_in}``.
+        """
+        from src.ai import plugin_api
+
+        return plugin_api.providers()
+
+    def ai_provider_options(self, request: "OptionsRequest") -> "OptionsResult":
+        """Options for an ``ai_providers`` picker field: every provider, every protocol.
+
+        Raises :class:`OptionsUnavailable` while AI is off or none is set up.
+        """
+        from src.ai import plugin_api
+
+        return plugin_api.provider_options(request)
+
     def get_oauth_token(self) -> str | None:
         """Return an access token for the provider in the manifest's ``oauth`` block.
 
@@ -863,7 +1003,63 @@ class PluginBase(ABC):
         """
         from src.oauth.service import get_oauth_service
 
-        return get_oauth_service().access_token_for(self)
+        token = get_oauth_service().access_token_for(self)
+        _remember_oauth_token(self, token)
+        return token
+
+    def report_oauth_rejected(self, token: str | None = None) -> str | None:
+        """Tell the platform the provider refused the token from :meth:`get_oauth_token`.
+
+        Call it when the provider answers 401 (or its equivalent). The platform
+        refreshes the token once if it can and returns the new one: retry the
+        request once with it. ``None`` means the user has to sign in again
+        (the settings say so); return ``PluginResult(available=False, ...)``.
+
+        Added in FiestaBoard 9.11.0. A plugin that must also run on older cores
+        guards the call with ``getattr(self, "report_oauth_rejected", None)``.
+
+        Args:
+            token: The token the refused request carried. Defaults to the one
+                this plugin was last given; when another request has already
+                replaced it, the newer token comes back and nothing is marked.
+        """
+        from src.oauth.service import get_oauth_service
+
+        sent = token or getattr(self, _LAST_OAUTH_TOKEN_ATTR, None)
+        new_token = get_oauth_service().report_rejected_for(self, sent)
+        _remember_oauth_token(self, new_token)
+        return new_token
+
+    def exchange_oauth_token(self, token: dict[str, Any]) -> dict[str, Any] | None:
+        """Optional hook: swap the token a sign-in produced before it is stored.
+
+        Called once after every successful sign-in, with ``{"access_token",
+        "refresh_token", "expires_at", "scopes"}`` (``expires_at`` is epoch
+        seconds or ``None``). Return ``None`` to keep that token, or
+        ``{"access_token", "expires_in"?, "refresh_token"?}`` to store instead
+        (Meta: trade the 1-hour token for a 60-day one). A missing
+        ``refresh_token`` keeps the provider's. An exception keeps the
+        sign-in token. Must not call :meth:`get_oauth_token`.
+
+        Added in FiestaBoard 9.11.0; older cores never call it.
+        """
+        return None
+
+    def refresh_oauth_token(self, token: dict[str, Any]) -> dict[str, Any] | None:
+        """Optional hook: renew the stored token the provider's own way.
+
+        Called when the stored token is within a minute of ``expires_at``,
+        before the platform's standard ``refresh_token`` grant, with the same
+        dict as :meth:`exchange_oauth_token`. Return ``None`` to let the
+        platform refresh as usual (or, with no refresh token, keep serving the
+        token until it expires), or a replacement in the same shape that
+        hook returns. An exception counts as a failed refresh: the current
+        token is served until it expires. Must not call
+        :meth:`get_oauth_token`.
+
+        Added in FiestaBoard 9.11.0; older cores never call it.
+        """
+        return None
 
 
 # Defaults for transition plugin manifest's transition_settings block.

@@ -91,7 +91,7 @@
     "dark": "Ciemny",
     "system": "Systemowy",
     "devSuffix": "kompilacja deweloperska",
-    "updateAvailable": "Dostępna aktualizacja: {version}",
+    "updateAvailable": "Dostępna aktualizacja",
     "updateTo": "Zaktualizuj do {version}",
     "about": "O FiestaBoard",
     "signOut": "Wyloguj się"
@@ -467,6 +467,8 @@
       "setupOpenGuide": "Instrukcja krok po kroku",
       "setupStepRedirect": "Dodaj w aplikacji ten adres przekierowania (Redirect URI)",
       "setupStepDetails": "Skopiuj tutaj dane aplikacji",
+      "ownAppToggle": "Użyj własnej aplikacji (opcjonalnie)",
+      "ownAppDescription": "Logowanie działa bez tego. Aby zamiast tego logować się przez własną aplikację w {provider}, utwórz ją i wpisz tutaj jej dane.",
       "clientIdLabel": "Identyfikator klienta (Client ID)",
       "clientSecretLabel": "Sekret klienta (Client secret)",
       "showSecret": "Pokaż sekret klienta",
@@ -485,7 +487,25 @@
         "access_denied": "Logowanie zostało odrzucone, więc nic nie zostało połączone.",
         "exchange_failed": "Dostawca odrzucił logowanie. Sprawdź identyfikator klienta i sekret w ustawieniach wtyczki, a następnie połącz ponownie.",
         "provider_error": "Dostawca zgłosił problem. Spróbuj połączyć ponownie."
-      }
+      },
+      "rejectedDescription": "{provider} przestał akceptować logowanie. Zaloguj się ponownie.",
+      "approvalWaiting": "Zatwierdź FiestaBoard na karcie {provider}. Odświeży się samo.",
+      "startAgainButton": "Zacznij od nowa",
+      "headlessButton": "Zaloguj bez przekierowania w przeglądarce",
+      "pasteToggle": "Logowanie nie wróciło? Wklej adres lub kod",
+      "pasteLabel": "Adres lub kod",
+      "pasteDescription": "Skopiuj cały adres z karty, na której zatrzymało się logowanie, albo kod pokazany przez dostawcę.",
+      "pasteSubmit": "Dokończ logowanie",
+      "pasteOpenAgain": "Otwórz ponownie stronę logowania",
+      "newTabHint": "{provider} otworzy się w nowej karcie. Gdy tam skończysz, ta karta zatrzyma się na stronie, która się nie ładuje. Tak ma być: skopiujesz jej adres tutaj.",
+      "finishTitle": "Dokończ logowanie",
+      "finishStepSignIn": "Zaloguj się do {provider} w nowej karcie.",
+      "finishStepCantConnect": "Potem ta karta pokaże błąd typu „nie można połączyć się z 127.0.0.1” lub „Nie można uzyskać dostępu do tej witryny”. Tak ma być: nic się nie zepsuło.",
+      "finishStepCopy": "Skopiuj cały adres z paska adresu tej karty, wróć do tej karty i wklej go poniżej.",
+      "finishPasteLabel": "Adres z karty {provider}",
+      "finishPasteDescription": "Jest długi i zaczyna się od http://127.0.0.1. Wklej go w całości.",
+      "finishOpenLink": "Otwórz stronę logowania {provider}",
+      "finishDone": "Zalogowano do {provider}."
     },
     "templateVariablesSection": "Zmienne szablonów",
     "templateVariablesClickToCopy": "kliknij, aby skopiować",
@@ -650,12 +670,16 @@
       "makeDefaultButton": "Ustaw jako domyślny",
       "nameLabel": "Nazwa",
       "protocolLabel": "Protokół",
-      "protocolOpenaiOption": "Zgodne z OpenAI (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "Zgodne z OpenAI (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (Messages API)",
       "baseUrlLabel": "Bazowy URL",
       "quickPresetsLabel": "Szybkie ustawienia",
       "apiKeyLabel": "Klucz API",
       "modelsLabel": "Modele",
+      "loadModels": "Wczytaj modele",
+      "pickModel": "Dodaj model od dostawcy",
+      "noModelMatches": "Brak pasujących modeli",
+      "loadModelsFailed": "Nie udało się wczytać modeli.",
       "defaultModelLabel": "Model domyślny",
       "testConnectionButton": "Testuj połączenie",
       "turnLimits": {
@@ -664,7 +688,40 @@
         "modelCallsLabel": "Wywołania modelu na turę",
         "toolCallsLabel": "Wywołania narzędzi na turę",
         "serverDefault": "Domyślne serwera"
-      }
+      },
+      "protocolResponsesOption": "OpenAI Responses (logowanie ChatGPT)",
+      "signIn": {
+        "choicesLabel": "Albo zaloguj się zamiast używać klucza API",
+        "button": "Zaloguj przez {provider}",
+        "activeDescription": "Ten dostawca loguje się przez {provider}. Klucz API powyżej nie jest używany, dopóki logujesz się w ten sposób.",
+        "useApiKey": "Użyj jednak klucza API",
+        "saveFirst": "Zapisz zmiany, a potem zaloguj się tutaj do {provider}.",
+        "panelTitle": "Logowanie {provider}"
+      },
+      "add": {
+        "title": "Jaki rodzaj dostawcy?",
+        "signInTitle": "Zaloguj się",
+        "signInDescription": "Użyj konta ChatGPT, OpenRouter lub Hugging Face. Bez kopiowania klucza API.",
+        "apiKeyTitle": "Użyj klucza API",
+        "apiKeyDescription": "Wklej klucz od OpenAI, Anthropic, DeepSeek, Mistral i innych.",
+        "localTitle": "Uruchom w mojej sieci",
+        "localDescription": "Serwer modeli na własnym komputerze: Ollama, LM Studio, llama.cpp lub vLLM.",
+        "advancedTitle": "Zaawansowane (własny endpoint)",
+        "advancedDescription": "Dowolny endpoint zgodny z OpenAI lub Anthropic. Wszystkie ustawienia wypełniasz sam.",
+        "signInPick": "Zaloguj się przez",
+        "apiKeyPick": "Która usługa?",
+        "localPick": "Który serwer?",
+        "back": "Wstecz",
+        "cancel": "Anuluj"
+      },
+      "simple": {
+        "advancedToggle": "Zaawansowane",
+        "addressLabel": "Adres serwera",
+        "addressDescription": "Gdzie nasłuchuje serwer modeli. localhost oznacza tę tablicę; jeśli serwer działa na innym komputerze, użyj jego adresu, np. http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Zapisz zmiany, aby wybrać spośród modeli dostawcy."
+      },
+      "addModel": "Dodaj model",
+      "refreshModels": "Odśwież modele"
     },
     "backup": {
       "cardTitle": "Kopia zapasowa i przywracanie",
@@ -2383,6 +2440,14 @@
     "settingFailed": "Nie udało się zapisać ustawienia",
     "on": "Wł.",
     "off": "Wył."
+  },
+  "modelCombobox": {
+    "placeholder": "Szukaj lub wpisz id modelu",
+    "trigger": "Pokaż modele",
+    "list": "Modele",
+    "empty": "Brak pasujących modeli",
+    "typedId": "Użyj tego id",
+    "showingFirst": "Pierwsze {shown} z {total}. Pisz, aby zawęzić."
   },
   "settingsRestoreNotice": {
     "title": "Przywrócono ustawienia sprzed aktualizacji",

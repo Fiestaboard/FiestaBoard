@@ -695,7 +695,6 @@ def render_page(schema: dict[str, Any], *, description: str) -> str:
         "## Next steps",
         "",
         "- [Docker Setup](/docs/setup/docker-setup) — how the API is served and proxied",
-        "- [Plugin Configuration](/docs/plugins/configuration) — configuring plugins over the API",
         "- `/api/docs` — the same operations as a Swagger explorer you can send requests from",
         "",
     ]

@@ -78,5 +78,5 @@ These work out of the box:
 
 ## Next Steps
 
-- [Plugins Overview](/docs/plugins/overview) - Configure and enable plugins
+- [Plugin Directory](/plugins) - Configure and enable plugins
 - [Quick Start](/docs/setup/quick-start) - Get FiestaBoard running

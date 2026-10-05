@@ -50,7 +50,23 @@ class AIGenerationError(Exception):
     returned non-JSON, network timeout). The API layer turns these into
     a 4xx/5xx response with the message in the body so the UI can show
     it without exposing tracebacks.
+
+    The subclasses below say which kind of failure it was, so a caller
+    (the plugin API in :mod:`src.ai.plugin_api`) can react differently.
+    Existing ``except AIGenerationError`` sites catch all of them.
     """
+
+
+class AINotConfiguredError(AIGenerationError):
+    """FiestaBot's AI is off, or the provider/model asked for is not set up."""
+
+
+class AIRejectedError(AIGenerationError):
+    """The provider refused the key or sign-in (401), or the sign-in must be redone."""
+
+
+class AIProviderError(AIGenerationError):
+    """The provider was unreachable or answered with an error or an unusable reply."""
 
 
 # Allow only printable ASCII (no control chars / tracebacks / newlines) for
@@ -85,6 +101,11 @@ def _user_safe_error_message(exc: BaseException, fallback: str = "AI provider er
     return match.group(0)
 
 
+def _status_error(status_code: int, message: str) -> AIGenerationError:
+    """The error for an HTTP error answer: 401 means the key or sign-in was refused."""
+    return AIRejectedError(message) if status_code == 401 else AIProviderError(message)
+
+
 def _extract_json_object(text: str) -> dict[str, Any]:
     """Parse the first JSON object found in ``text``.
 
@@ -94,7 +115,7 @@ def _extract_json_object(text: str) -> dict[str, Any]:
     """
     text = text.strip()
     if not text:
-        raise AIGenerationError("Model returned an empty response.")
+        raise AIProviderError("Model returned an empty response.")
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -115,8 +136,8 @@ def _extract_json_object(text: str) -> dict[str, Any]:
         try:
             return json.loads(candidate)
         except json.JSONDecodeError as exc:
-            raise AIGenerationError(f"Model output was not valid JSON: {exc}") from exc
-    raise AIGenerationError("Model output did not contain a JSON object.")
+            raise AIProviderError(f"Model output was not valid JSON: {exc}") from exc
+    raise AIProviderError("Model output did not contain a JSON object.")
 
 
 def _line_visible_width(line: str) -> int:
@@ -299,16 +320,16 @@ def _resolve_provider(
     Falls back to the configured default; raises if nothing is usable.
     """
     if not providers_block.get("enabled"):
-        raise AIGenerationError("AI providers are not enabled. Configure one in Settings first.")
+        raise AINotConfiguredError("AI providers are not enabled. Configure one in Settings first.")
     providers = providers_block.get("providers") or []
     if not providers:
-        raise AIGenerationError("No AI providers are configured. Add one in Settings first.")
+        raise AINotConfiguredError("No AI providers are configured. Add one in Settings first.")
 
     if provider_id:
         for provider in providers:
             if provider.get("id") == provider_id:
                 return provider
-        raise AIGenerationError(f"AI provider {provider_id!r} not found.")
+        raise AINotConfiguredError(f"AI provider {provider_id!r} not found.")
 
     default_id = providers_block.get("default_provider_id")
     if default_id:
@@ -328,7 +349,7 @@ def _resolve_model(provider: dict[str, Any], model: str | None) -> str:
     models = provider.get("models") or []
     if models:
         return models[0]
-    raise AIGenerationError(f"AI provider {provider.get('name', provider.get('id'))!r} has no models configured.")
+    raise AINotConfiguredError(f"AI provider {provider.get('name', provider.get('id'))!r} has no models configured.")
 
 
 def _build_request_payload(
@@ -359,10 +380,17 @@ async def _post_chat_completion(
     if not supplied it is derived from ``provider['protocol']`` (default
     OpenAI-compatible).
     """
+    # Imported here: sign_in imports this module for AIGenerationError.
+    from .sign_in import report_provider_rejected, resolve_provider_auth_async
+
+    signed_in_provider = provider
+    # Unchanged (the same dict) for an api_key provider; a signed-in one gets
+    # its current token, and the preset's base_url/protocol if it lacks them.
+    provider = await resolve_provider_auth_async(provider)
     proto = protocol or get_protocol(provider.get("protocol"))
     base_url = (provider.get("base_url") or "").rstrip("/")
     if not base_url:
-        raise AIGenerationError("AI provider has no base_url configured.")
+        raise AINotConfiguredError("AI provider has no base_url configured.")
     url = f"{base_url}{proto.request_path}"
     extra = provider.get("headers") or {}
     headers = proto.build_headers(
@@ -374,14 +402,20 @@ async def _post_chat_completion(
     if owns_client:
         client = httpx.AsyncClient(timeout=timeout_seconds)
     try:
+        if proto.stream_only:
+            return await _collect_stream(
+                client, url, headers, payload, proto, signed_in_provider, provider.get("api_key")
+            )
         try:
             response = await client.post(url, headers=headers, json=payload)
         except httpx.HTTPError as exc:
             # Don't echo the raw httpx exception message — it can include
             # URL/host details and CodeQL flags it as stack-trace exposure.
             logger.warning("AI provider HTTP error: %s", exc)
-            raise AIGenerationError("Could not reach AI provider.") from exc
+            raise AIProviderError("Could not reach AI provider.") from exc
         if response.status_code >= 400:
+            if response.status_code == 401:
+                await report_provider_rejected(signed_in_provider, provider.get("api_key"))
             # Try to surface the provider's own error message via the
             # protocol-specific error parser.
             err_msg: str | None = None
@@ -393,7 +427,7 @@ async def _post_chat_completion(
                 err_msg = None
             if not err_msg:
                 err_msg = response.text
-            raise AIGenerationError(f"AI provider returned {response.status_code}: {err_msg}")
+            raise _status_error(response.status_code, f"AI provider returned {response.status_code}: {err_msg}")
         try:
             return response.json()
         except Exception as exc:
@@ -401,10 +435,51 @@ async def _post_chat_completion(
             # message — only that it was non-JSON. The full exception is
             # logged for debugging.
             logger.warning("AI provider returned non-JSON response: %s", exc)
-            raise AIGenerationError("AI provider returned a non-JSON response.") from exc
+            raise AIProviderError("AI provider returned a non-JSON response.") from exc
     finally:
         if owns_client:
             await client.aclose()
+
+
+async def _collect_stream(
+    client: httpx.AsyncClient,
+    url: str,
+    headers: dict[str, str],
+    payload: dict[str, Any],
+    proto: Protocol,
+    provider: dict[str, Any],
+    sent_token: str | None = None,
+) -> dict[str, Any]:
+    """Read a stream-only provider's answer to the end; return it in that protocol's response shape."""
+    # Imported here: chat imports this module.
+    from .chat import _extract_error_message, _iter_provider_stream
+    from .sign_in import report_provider_rejected
+
+    usage: dict[str, int | None] = {"prompt_tokens": None, "completion_tokens": None, "total_tokens": None}
+    parts: list[str] = []
+    try:
+        async with client.stream("POST", url, headers=headers, json={**payload, "stream": True}) as response:
+            if response.status_code >= 400:
+                if response.status_code == 401:
+                    await report_provider_rejected(provider, sent_token)
+                err_msg = await _extract_error_message(response, proto)
+                raise _status_error(response.status_code, f"AI provider returned {response.status_code}: {err_msg}")
+            async for event in _iter_provider_stream(response, proto, usage):
+                if event["kind"] == "error":
+                    raise AIProviderError(event["message"])
+                if event["kind"] == "text":
+                    parts.append(event["text"])
+    except httpx.HTTPError as exc:
+        logger.warning("AI provider HTTP error: %s", exc)
+        raise AIProviderError("Could not reach AI provider.") from exc
+    return {
+        "output": [{"type": "message", "content": [{"type": "output_text", "text": "".join(parts)}]}],
+        "usage": {
+            "input_tokens": usage["prompt_tokens"],
+            "output_tokens": usage["completion_tokens"],
+            "total_tokens": usage["total_tokens"],
+        },
+    }
 
 
 def _extract_message_content(
@@ -419,7 +494,7 @@ def _extract_message_content(
     proto = protocol or get_protocol(None)
     content = proto.parse_content(api_response)
     if not isinstance(content, str) or not content.strip():
-        raise AIGenerationError("AI provider returned an empty message.")
+        raise AIProviderError("AI provider returned an empty message.")
     return content
 
 
@@ -478,6 +553,69 @@ async def generate_page(
         "warnings": warnings,
         "usage": usage,
     }
+
+
+async def list_models(
+    provider: dict[str, Any],
+    *,
+    timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+    client: httpx.AsyncClient | None = None,
+) -> list[dict[str, str]]:
+    """The models *provider* offers, from ``GET {base_url}/models``.
+
+    Returns ``[{"id", "name"}]``. Entries marked ``visibility`` other than
+    ``"list"`` are left out (ChatGPT lists hidden models too); ``slug`` and
+    ``display_name`` are preferred over ``id`` where present. Raises
+    :class:`AIGenerationError` when the provider cannot be asked or answers
+    something else. A 401 reports a signed-in provider's token as rejected.
+    """
+    from .sign_in import report_provider_rejected, resolve_provider_auth_async
+
+    signed_in_provider = provider
+    provider = await resolve_provider_auth_async(provider)
+    proto = get_protocol(provider.get("protocol"))
+    base_url = (provider.get("base_url") or "").rstrip("/")
+    if not base_url:
+        raise AINotConfiguredError("AI provider has no base_url configured.")
+    extra = provider.get("headers") or {}
+    headers = proto.build_headers(provider.get("api_key") or "", extra if isinstance(extra, dict) else {})
+    headers.pop("Content-Type", None)
+
+    owns_client = client is None
+    if owns_client:
+        client = httpx.AsyncClient(timeout=timeout_seconds)
+    try:
+        try:
+            response = await client.get(f"{base_url}/models", headers=headers)
+        except httpx.HTTPError as exc:
+            logger.warning("AI provider HTTP error listing models: %s", type(exc).__name__)
+            raise AIProviderError("Could not reach AI provider.") from exc
+    finally:
+        if owns_client:
+            await client.aclose()
+    if response.status_code == 401:
+        await report_provider_rejected(signed_in_provider, provider.get("api_key"))
+    if response.status_code >= 400:
+        raise _status_error(
+            response.status_code, f"AI provider returned {response.status_code} when asked for its models."
+        )
+    try:
+        body = response.json()
+    except ValueError as exc:
+        raise AIProviderError("AI provider returned a non-JSON model list.") from exc
+    entries = body.get("data", body.get("models")) if isinstance(body, dict) else None
+    if not isinstance(entries, list):
+        raise AIProviderError("AI provider returned an unexpected model list.")
+    models: list[dict[str, str]] = []
+    for entry in entries:
+        if not isinstance(entry, dict) or entry.get("visibility", "list") != "list":
+            continue
+        model_id = entry.get("slug") or entry.get("id")
+        if not isinstance(model_id, str) or not model_id:
+            continue
+        name = entry.get("display_name") or entry.get("name")
+        models.append({"id": model_id, "name": name if isinstance(name, str) and name else model_id})
+    return models
 
 
 async def test_provider(
