@@ -390,6 +390,34 @@ def test_a_failed_live_read_does_not_fall_back_to_what_was_last_sent():
         _live(None, service=service)
 
 
+def _no_read_back(**kw):
+    """A push device that cannot be read back (a Pixoo: ``read_back`` none)."""
+    from src.outputs.hooks import ReadBack
+
+    client = PhysicalClient(**kw)
+    client.read_back = ReadBack(supported=False, cost="cheap", suggested_interval_s=30)
+    return client
+
+
+@pytest.mark.parametrize("force", [False, True], ids=["cache_empty", "forced"])
+def test_a_board_without_read_back_is_served_what_was_last_sent(force):
+    client = _no_read_back(last_sent=SENT, live=None)
+    service = Service({"b1": Runtime(client)})
+
+    state = _live(None, service=service, force=force)
+
+    assert client.live_reads == 0, "a device that declares no read-back was read"
+    assert (state.source, state.characters) == ("last_sent", SENT)
+
+
+def test_a_board_without_read_back_and_nothing_sent_is_empty_not_a_failed_read():
+    service = Service({"b1": Runtime(_no_read_back(live=None))})
+
+    state = _live(None, service=service)
+
+    assert (state.source, state.characters) == ("empty", None)
+
+
 def test_a_live_read_on_a_secondary_board_primes_that_boards_runtime():
     b2 = PhysicalClient(live=NOTE_FRAME)
     service = Service({"b1": Runtime(PhysicalClient()), "b2": Runtime(b2)})
