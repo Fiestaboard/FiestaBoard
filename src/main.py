@@ -2155,7 +2155,7 @@ class DisplayService:
                 return False
 
             # Transition settings — page-level if set, otherwise system defaults.
-            system_transition = settings_service.get_transition_settings()
+            system_transition = settings_service.get_transition_settings(rt.board_id)
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
             interval_ms = (
                 page.transition_interval_ms
@@ -2299,7 +2299,7 @@ class DisplayService:
         board_array = [[BoardChars.SPACE] * dims.cols for _ in range(dims.rows)]
 
         settings_service = get_settings_service()
-        system_transition = settings_service.get_transition_settings()
+        system_transition = settings_service.get_transition_settings(rt.board_id)
 
         client = rt.client
         sink = self._error_sink()
@@ -2511,7 +2511,7 @@ class DisplayService:
         logger.info(f"⏸️  Entering silence mode (indicator) - displaying indicator for {device_type}")
 
         settings_service = get_settings_service()
-        system_transition = settings_service.get_transition_settings()
+        system_transition = settings_service.get_transition_settings(rt.board_id)
         board_array = self._build_silence_indicator_array(
             device_type, notes_wide, notes_tall, silence_config, grid_rows=grid_rows, grid_cols=grid_cols
         )
@@ -2641,7 +2641,7 @@ class DisplayService:
             )
 
         settings_service = get_settings_service()
-        system_transition = settings_service.get_transition_settings()
+        system_transition = settings_service.get_transition_settings(rt.board_id)
         strategy = page.transition_strategy or system_transition.strategy
         interval_ms = (
             page.transition_interval_ms
@@ -2768,7 +2768,7 @@ class DisplayService:
 
         logger.info("Sending triggered message to board")
         settings_service = get_settings_service()
-        system_transition = settings_service.get_transition_settings()
+        system_transition = settings_service.get_transition_settings(rt.board_id)
 
         geometry = self._runtime_geometry(rt)
         device_type = geometry.device_type

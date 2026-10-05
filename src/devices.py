@@ -201,6 +201,12 @@ class BoardInstance:
     # (POST /outputs/{output_id}/boards). Output-plugin boards only: absent
     # from to_dict for every other board.
     device_model: str | None = None
+    # How this display changes its message (plan D21): the device menu's
+    # choice — a split-flap native strategy, ``"plugin:<id>"``, an LED menu
+    # id (``"flip"``, ``"fade"``...) or ``"none"``. ``None`` follows the
+    # install's default transition. A page's own override still wins.
+    # Absent from to_dict while unset, so no stored board changes.
+    transition: str | None = None
 
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
@@ -222,6 +228,7 @@ class BoardInstance:
             self.enabled = bool(self.enabled)
         if not isinstance(self.paused, bool):
             self.paused = bool(self.paused)
+        self.transition = (self.transition.strip() or None) if isinstance(self.transition, str) else None
         # Name is user-editable (issue #1792): strip, cap, and fall back to
         # the default. "   " is truthy, so a falsy-only guard stored
         # whitespace verbatim and rendered a blank sidebar row.
@@ -371,6 +378,8 @@ class BoardInstance:
         data = asdict(self)
         if self.device_model is None:
             del data["device_model"]
+        if self.transition is None:
+            del data["transition"]
         return data
 
     @classmethod
@@ -412,6 +421,7 @@ class BoardInstance:
             output=output,
             output_config=config,
             device_model=data.get("device_model"),
+            transition=data.get("transition"),
         )
 
 

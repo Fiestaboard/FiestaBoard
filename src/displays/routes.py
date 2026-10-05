@@ -263,7 +263,8 @@ async def send_display(display_type: str, target: str | None = None):
             logger.info("Board is paused - skipping display send to board")
             paused = True
         else:
-            transition = settings_service.get_transition_settings()
+            # The first board's own transition choice, if it has one (D21).
+            transition = settings_service.get_transition_settings(settings_service.get_primary_board_id())
             # Size to the first board's geometry (flagship, note, a note
             # array's notes grid, or a panel's explicit grid).
             board_settings = settings_service.get_board_settings()

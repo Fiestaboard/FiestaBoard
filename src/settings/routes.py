@@ -634,7 +634,9 @@ async def set_active_page(request: SetActivePageRequest):
                     render_page_id, force_refresh=True, **extended_markup_kw(send_client)
                 )
                 if result and result.available:
-                    system_transition = settings_service.get_transition_settings()
+                    system_transition = settings_service.get_transition_settings(
+                        board_id or settings_service.get_primary_board_id()
+                    )
                     strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
                     interval_ms = (
                         page.transition_interval_ms
