@@ -89,6 +89,7 @@ page itself, and the OpenAPI docs keep working:
 - `GET /`, `GET /health`
 - `GET/POST /auth/*`
 - `GET /openapi.json`, `/internal/openapi.json`, `/docs`, `/redoc`
+- `GET /panel/{panel}` and `GET /panel/{panel}/frame`, the read-only [frame endpoints](/docs/development/output-stream-api) a FiestaPanel TV reads
 
 Everything else (status, config, pages, plugins, etc.) requires a valid
 session cookie.

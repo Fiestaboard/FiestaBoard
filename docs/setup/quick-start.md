@@ -84,9 +84,15 @@ The wizard asks for your board API key, device type, and board color, then start
 
 Once FiestaBoard is running (either on your Pi at `http://fiestapi.local:4420` or on your computer at `http://localhost:4420`):
 
-1. The setup wizard first asks what you want to show FiestaBoard on. Pick **Vestaboard** and it guides you through connecting your board, or pick **FiestaPanel** to use a TV. Not ready yet? Choose **Skip — I'll add a display later** to look around first. (If you've already been through setup, go to **Settings** instead.)
+1. The setup wizard first asks what you want to show FiestaBoard on. Pick **Vestaboard** and it guides you through connecting your board, or pick **FiestaPanel** to use a TV. Other displays FiestaBoard can drive are listed as cards too; choosing one installs its support and opens its own settings screen. Not ready yet? Choose **Skip — I'll add a display later** to look around first. (If you've already been through setup, go to **Settings** instead.)
 2. Once connected, the display service starts automatically
 3. Verify the dashboard shows **Running** — your board is now connected!
+
+### Adding Another Display Later
+
+Open **Settings → Hardware** and click **Add Board**. Vestaboards are added as before. Under **Other displays**, every other installed display type has a card: pick one, name the board, choose its device model, and fill in its settings screen. Buttons such as **Test connection** work before you save.
+
+Displays that ship with FiestaBoard are always available. Display types from the plugin marketplace or a git URL are a beta in FiestaBoard 10.0.0: their cards stay disabled until you turn on **Settings → Advanced → Beta Features → Output Plugins**, and the setup wizard offers to turn it on for you. Developers can add support for a new display: see [Writing an Output Plugin](/docs/development/output-plugins).
 
 <AppShot name="settings-board-config" alt="Settings page with board API key and IP address inputs" />
 
