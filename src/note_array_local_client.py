@@ -56,8 +56,6 @@ class NoteArrayLocalClient(TransitionRenderMixin):
         self.use_cloud = False  # selects the local read-poll interval
         self.skip_unchanged = skip_unchanged
         self.api_key = ""
-        self._last_characters: list[list[int]] | None = None
-        self._last_text: str | None = None
         # Per-tile send results from the most recent send_characters call
         self.last_tile_results: dict[tuple[int, int], tuple[bool, bool]] = {}
         # Transition-plugin render state (lock, cancel event, runner slot).
@@ -142,7 +140,7 @@ class NoteArrayLocalClient(TransitionRenderMixin):
             logger.error("Local note array has no configured tiles; cannot send")
             return self._outcome(False, False, with_outcome=with_outcome)
 
-        if self.skip_unchanged and not force and self._last_characters == characters:
+        if self.skip_unchanged and not force and self._frames.matches(characters):
             logger.debug("Character array unchanged, skipping send")
             return self._outcome(True, False, with_outcome=with_outcome)
 
@@ -181,8 +179,7 @@ class NoteArrayLocalClient(TransitionRenderMixin):
             # that succeeded keep their own cache and will skip the re-send.
             return self._outcome(False, any_was_sent, with_outcome=with_outcome)
 
-        self._last_characters = [row[:] for row in characters]
-        self._last_text = None
+        self._frames.record_sent(characters)
         logger.info(
             "Local note-array send complete: %d tiles updated, %d skipped (unchanged)",
             sum(1 for _, was_sent in results.values() if was_sent),
@@ -219,14 +216,12 @@ class NoteArrayLocalClient(TransitionRenderMixin):
 
         stitched = stitch_note_array_grid(reads, self.notes_wide, self.notes_tall)
         if sync_cache:
-            self._last_characters = [row[:] for row in stitched]
-            self._last_text = None
+            self._frames.record_read(stitched)
         return stitched
 
     def clear_cache(self) -> None:
         """Clear the composite cache and every tile client's cache."""
-        self._last_text = None
-        self._last_characters = None
+        self._frames.forget()
         for client in self.tile_clients.values():
             client.clear_cache()
         logger.debug(
@@ -237,7 +232,7 @@ class NoteArrayLocalClient(TransitionRenderMixin):
     def get_cache_status(self) -> dict:
         return {
             "has_cached_text": False,
-            "has_cached_characters": self._last_characters is not None,
+            "has_cached_characters": self._frames.characters is not None,
             "skip_unchanged_enabled": self.skip_unchanged,
             "cached_text_preview": None,
         }
@@ -246,7 +241,7 @@ class NoteArrayLocalClient(TransitionRenderMixin):
         if not self.skip_unchanged:
             return True
         if characters is not None:
-            return self._last_characters != characters
+            return not self._frames.matches(characters)
         return True
 
     def test_connection(self) -> bool:

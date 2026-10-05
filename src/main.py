@@ -118,8 +118,9 @@ class BoardRuntime:
 
     def __init__(self, client: OutputDriver | None, board_id):
         self.board_id = board_id
-        # Core-owned send policy for this board: the send lock and the cancel
-        # token. Created here, before the client is bound to it below.
+        # Core-owned send policy for this board: the send lock, the cancel
+        # token, the frame cache (dedupe + last frame sent) and external-write
+        # detection. Created here, before the client is bound to it below.
         self.output = OutputRuntime(board_id)
         self.client = client
         self.config_signature = None
@@ -137,13 +138,6 @@ class BoardRuntime:
         # the engine delivers real content to this board. The stored active
         # page id is never touched: it remains the restore target.
         self.showing_out_of_band: bool = False
-
-        # Baseline for external-write detection (#1946). Holds the
-        # ``_last_characters`` object the previous poll judged against; a
-        # second mismatch against the SAME object (by identity — any send
-        # replaces it) confirms an external write. See
-        # ``DisplayService._poll_board_state_once``.
-        self.external_change_suspect_baseline: list[list[int]] | None = None
 
         # Last page/board geometry mismatch reported for this board, so the
         # send-time validation warns once per distinct mismatch instead of
@@ -1063,15 +1057,12 @@ class DisplayService:
         the runtime is marked out-of-band and MQTT/HA stops reporting the
         stale active page.
 
-        Detection needs TWO consecutive mismatching polls against the same
-        unchanged baseline before flagging: a single mismatch can be our own
-        send still propagating — the cloud read API lags a POST by seconds
-        (the lag request_board_refresh absorbs), and send_characters assigns
-        ``_last_characters`` only after the POST returns, so one read can
-        race any of that. Lag resolves well before the next poll (30s local
-        / 3min cloud); a genuine external write persists. The baseline is
-        snapshotted around each read and remembered between polls by object
-        identity, so any send in between restarts the suspect cycle.
+        The judgement is the board's ``OutputRuntime.observe_read``: TWO
+        consecutive mismatching polls against the same, unchanged dedupe
+        cache before flagging, because a single mismatch can be our own send
+        still propagating (the lag request_board_refresh absorbs). Lag
+        resolves well before the next poll (30s local / 3min cloud); a
+        genuine external write persists.
 
         The poll never clears the flag — a matching read only proves the
         board shows our last write, which may itself be a manual
@@ -1081,30 +1072,15 @@ class DisplayService:
         rt = self._primary_runtime()
         if rt is None or rt.client is None:
             return
-        baseline = getattr(rt.client, "_last_characters", None)
-        chars = rt.client.read_current_message()
+        chars, external_write = rt.output.observe_read(rt.client.read_current_message)
         if not chars:
             return
         rt.polled_characters = chars
         rt.polled_at = time.time()
         logger.debug("Board state poll succeeded")
-        current = getattr(rt.client, "_last_characters", None)
-        if current is None or current is not baseline:
-            # No baseline to judge against, or a send raced the read —
-            # whatever we saw proves nothing about external writers.
-            rt.external_change_suspect_baseline = None
-            return
-        if chars == current:
-            rt.external_change_suspect_baseline = None
-            return
-        if rt.external_change_suspect_baseline is current:
-            # Second consecutive mismatch with no send in between: this is
-            # a persistent external write, not our own send's read lag.
-            rt.external_change_suspect_baseline = None
+        if external_write:
             rt.showing_out_of_band = True
             logger.info("Board content changed externally; marking out-of-band")
-        else:
-            rt.external_change_suspect_baseline = current
 
     def _retry_failed_board_inits(self) -> None:
         """Low-frequency recovery pass for boards stuck in ``board_init_errors`` (#1827).
@@ -1235,7 +1211,7 @@ class DisplayService:
 
         # Snapshot what we just sent so we can detect when the board has
         # caught up. May be None if no send has happened on this client yet.
-        last_sent = getattr(client, "_last_characters", None)
+        last_sent = rt.output.frames.characters
         expected = [row[:] for row in last_sent] if isinstance(last_sent, list) and last_sent else None
 
         def _do_refresh() -> None:

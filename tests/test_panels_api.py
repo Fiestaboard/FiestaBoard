@@ -14,10 +14,20 @@ from unittest.mock import Mock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from src.outputs import OutputRuntime
 from src.panels.models import Panel
 from src.panels.service import PanelService
 from src.panels.storage import PanelStorage
 from src.virtual_board_client import VirtualBoardClient
+
+
+def _runtime(client):
+    """A board runtime as ``runtime_for`` returns it: the client bound to its OutputRuntime."""
+    output = OutputRuntime()
+    bind = getattr(client, "set_output_runtime", None)
+    if bind is not None:
+        bind(output)
+    return SimpleNamespace(client=client, output=output, polled_characters=None, polled_at=None)
 
 
 @pytest.fixture
@@ -142,7 +152,7 @@ class TestPublicPanelEndpoints:
         vclient.send_characters(grid)
         board = {"id": "vboard-1", "device_type": "note", "api_mode": "virtual"}
         display = Mock()
-        display.runtime_for.return_value = SimpleNamespace(client=vclient, polled_characters=None, polled_at=None)
+        display.runtime_for.return_value = _runtime(vclient)
         with (
             patch("src.panels.routes._find_board", return_value=board),
             patch("src.panels.routes.get_service", return_value=display),
@@ -160,7 +170,7 @@ class TestPublicPanelEndpoints:
         vclient = VirtualBoardClient(device_type="flagship")
         board = {"id": "vboard-1", "device_type": "flagship", "api_mode": "virtual"}
         display = Mock()
-        display.runtime_for.return_value = SimpleNamespace(client=vclient, polled_characters=None, polled_at=None)
+        display.runtime_for.return_value = _runtime(vclient)
         with (
             patch("src.panels.routes._find_board", return_value=board),
             patch("src.panels.routes.get_service", return_value=display),
@@ -177,10 +187,9 @@ class TestPublicPanelEndpoints:
         """A panel misconfigured onto a physical board must not trigger live reads."""
         mock_panel_service.get_panel_by_ref.return_value = _panel()
         board = {"id": "vboard-1", "device_type": "flagship", "api_mode": "local"}
-        physical = Mock(spec=["read_current_message", "_last_characters"])
-        physical._last_characters = None
+        physical = Mock(spec=["read_current_message"])
         display = Mock()
-        display.runtime_for.return_value = SimpleNamespace(client=physical, polled_characters=None, polled_at=None)
+        display.runtime_for.return_value = _runtime(physical)
         with (
             patch("src.panels.routes._find_board", return_value=board),
             patch("src.panels.routes.get_service", return_value=display),

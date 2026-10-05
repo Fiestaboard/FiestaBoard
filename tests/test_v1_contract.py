@@ -30,6 +30,8 @@ from unittest.mock import Mock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from src.outputs import OutputRuntime
+
 #: The executor resolves the DisplayService through ``src.api_server``; the
 #: routes resolve it through ``src.display_runtime``. conftest's autouse
 #: forwarder makes one stub cover both, but both are named here so the file
@@ -70,8 +72,14 @@ def _board_client(*, render=(True, True), throttled=False):
     client.render.return_value = render
     client.last_send_throttled = throttled
     client.min_send_interval_ms = 15000
-    client._last_characters = None
     return client
+
+
+def _output(last_sent=None) -> OutputRuntime:
+    """A board's core runtime whose dedupe cache holds what FiestaBoard last sent."""
+    output = OutputRuntime()
+    output.frames.characters = last_sent
+    return output
 
 
 @pytest.fixture
@@ -82,6 +90,7 @@ def board_client():
     service.get_board_client.return_value = client
     service.vb_client = client
     runtime = Mock()
+    runtime.output = _output()
     runtime.polled_characters = None
     runtime.polled_at = None
     runtime.client = client
@@ -309,6 +318,7 @@ def test_get_board_reports_the_flaps_currently_on_it(client, boards):
     grid = [[63] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
     service = Mock()
     runtime = Mock()
+    runtime.output = _output()
     runtime.polled_characters = grid
     runtime.polled_at = 1_700_000_000.0
     runtime.client = _board_client()
@@ -330,8 +340,7 @@ def test_get_board_answers_the_primary_by_its_own_id_on_a_sentinel_keyed_install
     primary_id, _ = boards
     sent = [[63] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
     board_client = _board_client()
-    board_client._last_characters = sent
-    runtime = Mock(client=board_client, polled_characters=None, polled_at=None)
+    runtime = Mock(client=board_client, output=_output(sent), polled_characters=None, polled_at=None)
     service = Mock()
     service.get_runtime.return_value = None  # nothing keyed under the settings id
     service.runtime_for.return_value = runtime  # DisplayService.runtime_for resolves the sentinel
@@ -1146,9 +1155,9 @@ def test_get_board_reports_what_was_sent_next_to_what_is_shown(client, boards):
     sent = [[63] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
     shown = [[0] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
     board_client = _board_client()
-    board_client._last_characters = sent
     service = Mock()
     runtime = Mock()
+    runtime.output = _output(sent)
     runtime.polled_characters = shown
     runtime.polled_at = 1_700_000_000.0
     runtime.client = board_client

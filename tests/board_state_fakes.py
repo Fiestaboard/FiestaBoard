@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.outputs import OutputRuntime
 from src.virtual_board_client import VirtualBoardClient
 
 FLAGSHIP = (6, 22)
@@ -27,17 +28,22 @@ def grid(shape: tuple[int, int], code: int) -> list[list[int]]:
 
 
 class PhysicalClient:
-    """A physical board client: last-sent cache plus a scripted live read."""
+    """A physical board client: last-sent cache plus a scripted live read.
+
+    Its last-sent grid lands in the runtime's dedupe cache when a ``Runtime``
+    binds it, the way a real client's sends land there.
+    """
 
     is_virtual = False
 
-    def __init__(self, *, last_sent=None, live=None, use_cloud=False, last_sent_at=None):
-        self._last_characters = last_sent
+    def __init__(self, *, last_sent=None, live=None, use_cloud=False):
+        self._last_sent = last_sent
         self.use_cloud = use_cloud
         self._live = live
         self.live_reads = 0
-        if last_sent_at is not None:
-            self._last_sent_at = last_sent_at
+
+    def set_output_runtime(self, runtime: OutputRuntime) -> None:
+        runtime.frames.characters = self._last_sent
 
     def read_current_message(self, sync_cache: bool = False):
         self.live_reads += 1
@@ -45,10 +51,13 @@ class PhysicalClient:
 
 
 class Runtime:
-    """The three ``BoardRuntime`` fields the reader touches."""
+    """The ``BoardRuntime`` fields the reader touches; binds its client like one."""
 
     def __init__(self, client=None, polled=None, polled_at=None):
+        self.output = OutputRuntime()
         self.client = client
+        if client is not None:
+            client.set_output_runtime(self.output)
         self.polled_characters = polled
         self.polled_at = polled_at
 
@@ -99,5 +108,5 @@ def virtual(device_type: str, *, frame=None, displayed=None, sent_at: float | No
         if sent_at is not None:
             client._state.last_sent_at = sent_at
     if displayed is not None:
-        client._state.displayed_characters = displayed
+        client._state.last_frame = displayed
     return client

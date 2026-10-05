@@ -20,7 +20,7 @@ class TestVirtualBoardClientSend:
         mock_post.assert_not_called()
         mock_get.assert_not_called()
         assert client._last_characters == _grid(fill=1)
-        assert client._last_sent_at is not None
+        assert client._frames.last_sent_at is not None
 
     def test_send_characters_stores_a_copy(self):
         """Mutating the caller's grid after a send must not change the cache."""
@@ -149,7 +149,7 @@ class TestSharedStatePerBoard:
         b = VirtualBoardClient(device_type="flagship", board_id="b-shared")
         a.send_characters(_grid(fill=9))
         assert b.read_current_message() == _grid(fill=9)
-        assert b._last_sent_at is not None
+        assert b._frames.last_sent_at is not None
 
     def test_distinct_boards_do_not_share(self):
         a = VirtualBoardClient(device_type="flagship", board_id="b-one")

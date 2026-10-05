@@ -17,7 +17,6 @@ evaporates before any viewer polls it.
 
 import logging
 import threading
-import time
 from typing import Any
 
 from .board_client import (
@@ -26,43 +25,32 @@ from .board_client import (
     TransitionStrategy,
 )
 from .devices import resolve_dimensions
+from .outputs.frames import FrameCache
 
 logger = logging.getLogger(__name__)
 
 
-class _VirtualBoardState:
-    """The shared 'glass' of one virtual board."""
-
-    def __init__(self) -> None:
-        # Guards every field mutation/read below. The state is shared across
-        # client instances by design (display loop + throwaway live-render
-        # clients), and a throwaway client's send lock is not the display
-        # loop's (only the engine's client is bound to the board's runtime), so
-        # without this a live-edit send racing the loop can desync the dedupe
-        # cache from the displayed frame — after which a real send is skipped
-        # as "unchanged" and the TV sticks on the wrong frame.
-        self.lock = threading.Lock()
-        # Skip-unchanged dedupe cache (cleared by clear_cache to force a re-send).
-        self.last_characters: list[list[int]] | None = None
-        # What the panel actually shows (survives clear_cache).
-        self.displayed_characters: list[list[int]] | None = None
-        self.last_text: str | None = None
-        # When the current frame was stored (epoch seconds).
-        self.last_sent_at: float | None = None
-
-
-_states: dict[str, _VirtualBoardState] = {}
+# A virtual board's "glass" is its runtime's FrameCache: the dedupe cache
+# (cleared by clear_cache to force a re-send) and the last-frame store, which
+# IS what the panel shows and survives clear_cache. It is shared per board id
+# because a throwaway live-render client's runtime is not the display loop's
+# (only the engine's client is bound to the board's runtime — a later layer
+# routes every client through it); the cache's lock keeps a live-edit send
+# racing the loop from desyncing the dedupe cache from the displayed frame,
+# after which a real send would be skipped as "unchanged" and the TV would
+# stick on the wrong frame.
+_states: dict[str, FrameCache] = {}
 _states_lock = threading.Lock()
 
 
-def _state_for(board_id: str | None) -> _VirtualBoardState:
+def _state_for(board_id: str | None) -> FrameCache:
     """Shared state for a board id; instance-local state when anonymous."""
     if board_id is None:
-        return _VirtualBoardState()
+        return FrameCache()
     with _states_lock:
         state = _states.get(board_id)
         if state is None:
-            state = _VirtualBoardState()
+            state = FrameCache()
             _states[board_id] = state
         return state
 
@@ -114,8 +102,9 @@ class VirtualBoardClient(TransitionRenderMixin):
         self.skip_unchanged = skip_unchanged
         self.api_key = ""
         self._state = _state_for(board_id)
-        # Transition-plugin render state (lock, cancel event, runner slot).
-        self._init_transition_state()
+        # Transition-plugin render state (lock, cancel event, runner slot); the
+        # runtime's frame cache is the board's shared glass.
+        self._init_transition_state(frames=self._state)
         logger.info(
             "Virtual board client initialized (%s, %d×%d, board_id=%s)",
             device_type,
@@ -123,33 +112,6 @@ class VirtualBoardClient(TransitionRenderMixin):
             self.cols,
             board_id,
         )
-
-    # BoardClient exposes these as plain attributes; keep the same names
-    # (external code reads them via getattr) while backing them with the
-    # per-board shared state.
-    @property
-    def _last_characters(self) -> list[list[int]] | None:
-        return self._state.last_characters
-
-    @_last_characters.setter
-    def _last_characters(self, value: list[list[int]] | None) -> None:
-        self._state.last_characters = value
-
-    @property
-    def _last_text(self) -> str | None:
-        return self._state.last_text
-
-    @_last_text.setter
-    def _last_text(self, value: str | None) -> None:
-        self._state.last_text = value
-
-    @property
-    def _displayed_characters(self) -> list[list[int]] | None:
-        return self._state.displayed_characters
-
-    @property
-    def _last_sent_at(self) -> float | None:
-        return self._state.last_sent_at
 
     def send_text(self, text: str, force: bool = False, *, with_outcome: bool = False) -> Any:
         """Virtual boards are characters-only; mirror the note-array refusal."""
@@ -194,16 +156,13 @@ class VirtualBoardClient(TransitionRenderMixin):
             logger.error(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES}")
             return self._outcome(False, False, with_outcome=with_outcome)
 
-        state = self._state
-        with state.lock:
-            if self.skip_unchanged and not force and state.last_characters == characters:
+        frames = self._frames
+        with frames.lock:
+            if self.skip_unchanged and not force and frames.matches(characters):
                 logger.debug("Character array unchanged, skipping virtual send")
                 return self._outcome(True, False, with_outcome=with_outcome)
 
-            state.last_characters = [row[:] for row in characters]
-            state.displayed_characters = [row[:] for row in characters]
-            state.last_text = None
-            state.last_sent_at = time.time()
+            frames.record_sent(characters)
         logger.debug("Virtual board frame stored (%d×%d)", self.rows, self.cols)
         return self._outcome(True, True, with_outcome=with_outcome)
 
@@ -216,8 +175,9 @@ class VirtualBoardClient(TransitionRenderMixin):
         stale mismatched content forever (config says the new size, frame
         carries the old one).
         """
-        with self._state.lock:
-            displayed = self._state.displayed_characters
+        frames = self._frames
+        with frames.lock:
+            displayed = frames.last_frame
             if displayed is None:
                 return None
             if len(displayed) != self.rows or any(len(row) != self.cols for row in displayed):
@@ -232,15 +192,13 @@ class VirtualBoardClient(TransitionRenderMixin):
         displayed frame and last_sent_at survive so FiestaPanel viewers
         keep showing the board's content.
         """
-        with self._state.lock:
-            self._state.last_characters = None
-            self._state.last_text = None
+        self._frames.forget()
         logger.debug("Virtual board cache cleared")
 
     def get_cache_status(self) -> dict:
         return {
             "has_cached_text": False,
-            "has_cached_characters": self._state.last_characters is not None,
+            "has_cached_characters": self._frames.characters is not None,
             "skip_unchanged_enabled": self.skip_unchanged,
             "cached_text_preview": None,
         }
@@ -249,7 +207,7 @@ class VirtualBoardClient(TransitionRenderMixin):
         if not self.skip_unchanged:
             return True
         if characters is not None:
-            return self._state.last_characters != characters
+            return not self._frames.matches(characters)
         return True
 
     def test_connection(self) -> bool:

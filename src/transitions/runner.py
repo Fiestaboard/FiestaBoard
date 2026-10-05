@@ -158,10 +158,9 @@ class TransitionRunner:
                 to wind down at the next delay boundary.
             device_type: Optional ``"flagship"`` / ``"note"`` hint used to
                 resolve dimensions.  Defaults to the grid's shape.
-            from_grid: Optional explicit starting grid.  When *None* the
-                runner reads from ``board_client._last_characters`` (the
-                cache populated by previous sends), falling back to
-                ``read_current_message()`` and finally a blank grid.
+            from_grid: Starting grid — what the board is known to show.
+                ``render()`` passes the board runtime's dedupe cache.  When
+                *None* the transition starts from a blank grid.
             config: Optional plugin config override.  When *None* the
                 runner uses the plugin's currently bound ``config`` dict.
 
@@ -180,7 +179,7 @@ class TransitionRunner:
             return board_client.send_characters(to_grid, strategy=None, force=True)
 
         device = self._resolve_device(to_grid, device_type)
-        from_grid_resolved = self._resolve_from_grid(board_client, to_grid, from_grid)
+        from_grid_resolved = self._resolve_from_grid(to_grid, from_grid)
         config_resolved = dict(config) if config is not None else dict(plugin.config or {})
         caps = plugin.transition_settings
 
@@ -272,15 +271,14 @@ class TransitionRunner:
 
     def _resolve_from_grid(
         self,
-        board_client: Any,
         to_grid: list[list[int]],
         explicit: list[list[int]] | None,
     ) -> list[list[int]]:
         """Pick a starting grid for the transition.
 
-        Priority: explicit override → cached ``_last_characters`` → blank
-        grid sized like ``to_grid``.  We deliberately do *not* fall back to
-        a live ``read_current_message()`` call: that's a network round-trip
+        Priority: explicit grid (``render()`` passes the runtime's dedupe
+        cache) → blank grid sized like ``to_grid``.  We deliberately do *not*
+        fall back to a live ``read_current_message()`` call: that's a network round-trip
         under the send lock, and historically it returns text rather than
         a grid (so the result is rejected anyway).  A blank from-grid is a
         safe default — the runner's final snap (or the next non-cancelled
@@ -289,13 +287,9 @@ class TransitionRunner:
         rows = len(to_grid)
         cols = len(to_grid[0]) if rows else 0
 
-        source = explicit
-        if source is None:
-            cached = getattr(board_client, "_last_characters", None)
-            source = cached if isinstance(cached, list) and cached else None
-        if source is None:
+        if explicit is None:
             return [[0] * cols for _ in range(rows)]
-        return _fit_grid(source, rows, cols)
+        return _fit_grid(explicit, rows, cols)
 
     def _drive_generator(
         self,
