@@ -55,6 +55,9 @@ jobs:
               - 'tests/**'
               - 'scripts/**'
               - 'pyproject.toml'
+              # The output seed's pins: the image build fetches and verifies
+              # them, so a bumped pin must rebuild the image (plan D8/D9).
+              - 'outputs.lock.json'
             ui:
               - 'web/**'
               - 'Dockerfile'

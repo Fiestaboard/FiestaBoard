@@ -1182,6 +1182,21 @@ test kit is `tests/fixtures/plugins/recording_output`; the contract is
 described in `src/outputs/plugin_base.py` and
 `src/outputs/output_manifest.py`.
 
+`output_api` is a hard gate, applied three times: the update check never
+offers a commit whose manifest declares an `output_api` this core does not
+implement; an update that fails verification or does not load is **rolled
+back** to the commit it replaced (data plugins stay installed and report
+the error); and at load, an installed copy that cannot run falls back to the
+image's seed copy, if FiestaBoard ships one, with an error on
+`GET /plugins/errors`. An output plugin a board uses cannot be uninstalled.
+
+First-party outputs are pinned in `outputs.lock.json` (repo URL, commit,
+`output_api`, tree digest; `"loadable": false` for a repo carried for its
+device data only) and baked into the image's read-only seed by
+`scripts/seed_outputs.py` (`src/outputs/seed.py`). To bump a pin: check out
+the new commit cleanly, run `python scripts/seed_outputs.py digest <dir>` for
+`tree_sha256`, update the entry, and let CI's image build fetch and verify it.
+
 #### `live_data` vs `min_refresh_seconds`
 
 Use `live_data: true` when your plugin's output is derived entirely from the current time — clocks, countdowns, animations — and stale data would produce a wrong display. The platform calls `fetch_data()` every render tick, so there is no cache at all.

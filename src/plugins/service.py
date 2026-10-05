@@ -68,6 +68,22 @@ def sanitize_optional_plugin_id(plugin_id: str | None) -> str | None:
     return plugin_id
 
 
+def reload_installed_copy(registry: Any, plugin_id: str) -> str | None:
+    """Reload *plugin_id* after an update; why its installed copy did not
+    load, or ``None`` when it did.
+
+    An output plugin that came up from the seed (plan D8) counts as a failed
+    load: the copy just pulled is the one that cannot run, so the update
+    must be rolled back rather than reported as applied.
+    """
+    reloaded = registry.reload_plugin(plugin_id)
+    if reloaded is None:
+        detail = "; ".join(registry.get_load_errors().get(plugin_id, []))
+        return detail or "Plugin failed to reload after update."
+    fallback = registry.get_seed_fallback(plugin_id)
+    return fallback if isinstance(fallback, str) and fallback else None
+
+
 class PluginService:
     """Owns every plugin mutation's orchestration sequence."""
 
@@ -701,26 +717,30 @@ class PluginService:
             raise PluginOperationRejected(f"Plugin '{plugin_id}' is not a git repository.")
 
     async def apply_update(self, plugin_id: str) -> None:
-        """Fetch the latest commits for an external plugin and reload it."""
-        from .sources import clone_or_update_repo, get_external_plugins_dir
+        """Fetch the latest commits for an external plugin and reload it.
 
-        registry = self.registry
+        An output plugin's update that cannot run is rolled back to the
+        version it replaced (:func:`~src.plugins.sources.update_external_plugin`).
+        """
+        from .sources import get_external_plugins_dir, update_external_plugin
+
         self._validated_update_path(plugin_id)
 
-        # Pass the validated plugin_id — clone_or_update_repo resolves the
+        # Pass the validated plugin_id — update_external_plugin resolves the
         # path internally so no user-controlled Path flows into subprocess
         # sinks. Both the git fetch and the module reimport go to a worker
         # thread so the event loop keeps serving other requests during the
         # update (#1750).
-        ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=get_external_plugins_dir())
-        if not ok:
-            raise PluginOperationFailed(f"Update failed: {err}")
-
-        reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
-        if reloaded is None:
-            errors = registry.get_load_errors().get(plugin_id, [])
-            detail = "; ".join(errors) if errors else "Plugin failed to reload after update."
-            raise PluginOperationFailed(detail)
+        outcome = await asyncio.to_thread(
+            update_external_plugin,
+            plugin_id,
+            get_external_plugins_dir(),
+            reload=lambda: reload_installed_copy(self.registry, plugin_id),
+        )
+        if not outcome.ok:
+            if outcome.stage == "fetch":
+                raise PluginOperationFailed(f"Update failed: {outcome.error}")
+            raise PluginOperationFailed(outcome.error)
 
         self.clear_update_status(plugin_id)
 
@@ -732,7 +752,7 @@ class PluginService:
         """
         import os as _os
 
-        from .sources import clone_or_update_repo, get_external_plugins_dir
+        from .sources import get_external_plugins_dir, update_external_plugin
 
         registry = self.registry
         pending = [pid for pid, has_update in registry.get_update_status().items() if has_update]
@@ -764,19 +784,19 @@ class PluginService:
                 failed[plugin_id] = "Plugin is not a git repository."
                 continue
 
-            # Pass the validated plugin_id — clone_or_update_repo resolves the
-            # path internally so no user-controlled Path flows into subprocess
-            # sinks. A bulk update is N sequential git fetches; keeping them on
-            # the loop would freeze the API for the sum of all of them (#1750).
-            ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=_ext_dir)
-            if not ok:
-                failed[plugin_id] = f"git fetch failed: {err}"
-                continue
-
-            reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
-            if reloaded is None:
-                errors = registry.get_load_errors().get(plugin_id, [])
-                failed[plugin_id] = "; ".join(errors) if errors else "Reload failed."
+            # Pass the validated plugin_id — update_external_plugin resolves
+            # the path internally so no user-controlled Path flows into
+            # subprocess sinks. A bulk update is N sequential git fetches;
+            # keeping them on the loop would freeze the API for the sum of all
+            # of them (#1750).
+            outcome = await asyncio.to_thread(
+                update_external_plugin,
+                plugin_id,
+                _ext_dir,
+                reload=lambda pid=plugin_id: reload_installed_copy(registry, pid),
+            )
+            if not outcome.ok:
+                failed[plugin_id] = f"git fetch failed: {outcome.error}" if outcome.stage == "fetch" else outcome.error
                 continue
 
             self.clear_update_status(plugin_id)

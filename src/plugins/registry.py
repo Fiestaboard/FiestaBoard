@@ -201,6 +201,24 @@ def _config_in_use(plugin_id: str, stored_configs: dict[str, dict[str, Any]]) ->
     return any(key.startswith(prefix) and cfg.get("enabled", False) for key, cfg in stored_configs.items())
 
 
+def _saved_boards() -> list[dict[str, Any]]:
+    """The saved boards (raw dicts) from the settings service."""
+    from src.settings.service import get_settings_service
+
+    return [b for b in (get_settings_service().get_board_settings().boards or []) if isinstance(b, dict)]
+
+
+def boards_using_output(output_id: str) -> list[str]:
+    """Names of the saved boards whose output is *output_id* (empty when none).
+
+    Raises whatever reading the saved boards raises: a caller guarding a
+    removal must fail closed, not treat "unknown" as "unused".
+    """
+    from src.outputs.registry import resolve_output_id
+
+    return [str(b.get("name") or b.get("id") or "?") for b in _saved_boards() if resolve_output_id(b) == output_id]
+
+
 class PluginRegistry:
     """Central registry for all loaded plugins.
 
@@ -471,6 +489,9 @@ class PluginRegistry:
             logger.debug("Plugin registry already initialized - skipping reload (pass force=True to rescan)")
             return
 
+        # Before discovery, so what it installs loads with everything else.
+        self._auto_install_seeded_outputs()
+
         loaded = self._loader.load_all_plugins()
 
         # Self-heal directories left orphaned by a plugin rename: an update
@@ -543,6 +564,31 @@ class PluginRegistry:
             self._initialized = True
             enabled_count = sum(1 for e in self._enabled.values() if e)
             logger.info(f"Initialized {len(self._plugins)} plugins ({enabled_count} enabled)")
+
+    def _auto_install_seeded_outputs(self) -> list[str]:
+        """Install from the image's seed every output plugin a board names
+        that is not installed (plan D8): offline, no registry, no GitHub.
+
+        Legacy boards name no ``output`` and keep their in-tree built-ins.
+        A failure is logged, never raised: the board then reports its output
+        as not installed, exactly as without a seed.
+        """
+        external_dirs = list(self._loader._external_dirs)
+        if not external_dirs:
+            return []
+        try:
+            from src.outputs.seed import install_seeded_outputs_for_boards
+
+            boards = _saved_boards()
+            return install_seeded_outputs_for_boards(
+                boards,
+                plugin_dirs=[self._loader.plugins_dir, *external_dirs],
+                external_dir=external_dirs[0],
+                root=self._loader.seed_dir,
+            )
+        except Exception:
+            logger.exception("Could not install seeded output plugins for the saved boards")
+            return []
 
     @staticmethod
     def _overlaid(plugin_id: str, stored_config: dict[str, Any]) -> dict[str, Any]:
@@ -1603,6 +1649,11 @@ class PluginRegistry:
 
             logger.info("Rebuilt plugin instance after reload: %s", compound_key)
 
+    def get_seed_fallback(self, plugin_id: str) -> str | None:
+        """Why *plugin_id* is running from the output seed, or ``None`` when
+        its installed copy is the one loaded (plan D8)."""
+        return self._loader.seed_fallbacks.get(plugin_id)
+
     def get_load_errors(self) -> dict[str, list[str]]:
         """Get plugin load errors.
 
@@ -1865,6 +1916,22 @@ class PluginRegistry:
             return [f"Plugin not found: {plugin_id}"]
         if source.source_type == "builtin":
             return ["Cannot uninstall a built-in plugin"]
+
+        # An output plugin that drives a board stays (plan D8): removing it
+        # would take the board dark. Checked before anything is touched, and
+        # fail closed: boards that cannot be read cannot be shown unused.
+        manifest = self._loader.get_manifest(plugin_id)
+        try:
+            in_use = boards_using_output(plugin_id) if manifest is not None and manifest.plugin_type == "output" else []
+        except Exception:
+            logger.exception("Could not read the saved boards to check output plugin '%s' is unused", plugin_id)
+            return [f"Could not confirm that no board uses output plugin '{plugin_id}'; it was not uninstalled."]
+        if in_use:
+            names = ", ".join(f"'{name}'" for name in in_use)
+            return [
+                f"Output plugin '{plugin_id}' drives {len(in_use)} board(s): {names}. "
+                "Switch those boards to another output, or delete them, before uninstalling it."
+            ]
 
         instance_prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
         retired: list[tuple[str, PluginBase]] = []

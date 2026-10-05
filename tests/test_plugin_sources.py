@@ -1102,7 +1102,7 @@ class TestUpdateBlockedByCoreVersion:
         with (
             mock.patch("src.plugins.sources.get_local_head_sha", return_value=local_sha),
             mock.patch("src.plugins.sources.get_remote_head_sha", return_value=local_sha),
-            mock.patch("src.plugins.sources._read_remote_manifest_version") as read_manifest,
+            mock.patch("src.plugins.sources._read_remote_manifest") as read_manifest,
         ):
             result = check_plugin_update_available(clone)
 

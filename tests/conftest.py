@@ -46,6 +46,9 @@ def pytest_configure(config):
     worker = os.environ.get("PYTEST_XDIST_WORKER") or f"pid{os.getpid()}"
     _SESSION_DATA_ROOT = Path(tempfile.mkdtemp(prefix=f"fiestaboard-tests-{worker}-"))
     os.environ["FIESTABOARD_DATA_DIR"] = str(_SESSION_DATA_ROOT / "data")
+    # No output seed (src/outputs/seed.py) unless a test builds one: an image
+    # that bakes a seed into /opt must not change what the suite loads.
+    os.environ["FIESTABOARD_OUTPUT_SEED_DIR"] = str(_SESSION_DATA_ROOT / "no-output-seed")
 
 
 def pytest_collection_modifyitems(config, items):

@@ -959,7 +959,8 @@ async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
     import os as _os
     from pathlib import Path as _Path
 
-    from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
+    from .plugins.service import reload_installed_copy
+    from .plugins.sources import get_external_plugins_dir, update_external_plugin
 
     _ext_dir = get_external_plugins_dir()
     _ext_root = _os.path.realpath(str(_ext_dir))
@@ -985,15 +986,15 @@ async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
             failed.append(plugin_id)
             continue
 
-        ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=_ext_dir)
-        if not ok:
-            logger.warning("Auto-update: git fetch failed for %s: %s", plugin_id, err)
-            failed.append(plugin_id)
-            continue
-
-        reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
-        if reloaded is None:
-            logger.warning("Auto-update: reload failed for %s", plugin_id)
+        # An output plugin's update that cannot run is rolled back (plan D8).
+        outcome = await asyncio.to_thread(
+            update_external_plugin,
+            plugin_id,
+            _ext_dir,
+            reload=lambda pid=plugin_id: reload_installed_copy(registry, pid),
+        )
+        if not outcome.ok:
+            logger.warning("Auto-update: %s failed for %s: %s", outcome.stage, plugin_id, outcome.error)
             failed.append(plugin_id)
             continue
 

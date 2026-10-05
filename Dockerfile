@@ -111,6 +111,17 @@ COPY plugin-registry.json ./plugin-registry.json
 # marketplace can show a plugin's board before you install it.
 COPY plugin-previews.json ./plugin-previews.json
 
+# The output seed (plan D8): first-party output plugins at the commits pinned
+# in outputs.lock.json, fetched HERE at build time — FiestaBoard never fetches
+# them at runtime — so a board's output plugin installs offline. The script
+# verifies each commit and tree digest and fails the build on a mismatch.
+# The seed lives outside /app (whose ownership moves to appuser below) and is
+# made read-only: the app copies from it, never writes to it.
+COPY outputs.lock.json ./outputs.lock.json
+COPY scripts/seed_outputs.py ./scripts/seed_outputs.py
+RUN python scripts/seed_outputs.py build --lock outputs.lock.json --dest /opt/fiestaboard/seed/outputs \
+    && chmod -R a-w /opt/fiestaboard/seed
+
 # Precompile the Python sources into the image (issue #1955).
 #
 # `.dockerignore` excludes `__pycache__/`, so without this the image ships

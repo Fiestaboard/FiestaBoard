@@ -249,6 +249,27 @@ Names you will meet:
   masked in the API and restored on save (`src/outputs/output_config.py`).
   Plugins from the registry or a git URL are usable only with
   `beta.output_plugins_enabled`; with it off their boards stay down.
+- **The output seed and the `output_api` gate** (plan D8) — a board never
+  goes dark because of its plugin. The image carries a read-only seed
+  (`/opt/fiestaboard/seed/outputs`, `FIESTABOARD_OUTPUT_SEED_DIR`) of the
+  first-party outputs pinned in `outputs.lock.json` (repo, commit,
+  `output_api`, tree digest; `loadable: false` = device data only), fetched
+  and verified at **build** time by `scripts/seed_outputs.py`
+  (`src/outputs/seed.py`) — never at runtime. At boot the registry installs
+  from the seed any output a board names that is not installed (offline; a
+  plain git checkout, so it updates normally). `output_api` is enforced at
+  three points: the update check (`check_plugin_update_available` reads the
+  incoming manifest and refuses before anything is pulled; an output plugin
+  is never updated blind), install/update (`update_external_plugin` /
+  `_install_and_verify`: an output plugin's update that fails verification
+  or does not load is reset to its previous commit), and load (an output
+  plugin's precedence is **valid installed copy → seed**: an installed copy
+  whose `output_api` is unsupported, that does not import, or that fails its
+  install self-check loads the seed copy instead, reported on
+  `GET /plugins/errors`). The seed is never put in `plugins/` — built-ins
+  always win, so a seeded plugin there could never update. Uninstalling an
+  output plugin a board uses is refused (fail closed if the boards cannot be
+  read).
 - **Pull delivery** (plan D4) — a pulled board's frame is its runtime's
   last-frame store. `GET /panel/{id}/frame` serves
   `OutputRuntime.displayed_frame(rows, cols)` with core's **stale-shape

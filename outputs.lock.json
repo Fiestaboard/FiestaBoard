@@ -1,0 +1,12 @@
+{
+  "lock_version": 1,
+  "outputs": {
+    "divoom_pixoo": {
+      "repository": "https://github.com/Fiestaboard/fiestaboard-output--divoom-pixoo",
+      "commit": "01e9ee21548012a007ef7aef78cdfe1a16cad678",
+      "output_api": 1,
+      "tree_sha256": "83268137410fdde774c5c2fe46e5b061b2a8b3f6b18ca04878176b3689bed20d",
+      "loadable": false
+    }
+  }
+}

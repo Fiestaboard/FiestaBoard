@@ -6,20 +6,25 @@
  * type badge ("Output") in place of the enable switch and the
  * enabled/disabled status — in the Installed table and in the Marketplace.
  * Settings → Beta carries the switch that lets third-party outputs drive
- * boards (`output_plugins_enabled`).
+ * boards (`output_plugins_enabled`). An output plugin a board uses cannot be
+ * uninstalled; the page shows the server's reason, naming the boards.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import type { ReactElement } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import IntegrationsPage from "../../app/routes/integrations._index";
 import { BetaSettings } from "../components/settings/beta-settings";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
+
+const toastMock = vi.hoisted(() => ({ success: vi.fn(), info: vi.fn(), error: vi.fn(), warning: vi.fn() }));
+
+vi.mock("sonner", () => ({ toast: toastMock, Toaster: () => null }));
 
 function mockInstalled(plugin_type: "data" | "output") {
   const plugin = {
@@ -121,6 +126,30 @@ describe("Integrations page — output plugins", () => {
 
     const row = await rowFor("Acme Sign");
     expect(within(row).getByText("Output")).toBeInTheDocument();
+  });
+});
+
+describe("Integrations page — uninstalling an output plugin a board uses", () => {
+  it("shows the server's reason, naming the boards", async () => {
+    mockInstalled("output");
+    const reason =
+      "Output plugin 'acme_sign' drives 1 board(s): 'Kitchen'. " +
+      "Switch those boards to another output, or delete them, before uninstalling it.";
+    server.use(
+      http.delete(`${API_BASE}/plugins/acme_sign/uninstall`, () =>
+        HttpResponse.json({ detail: reason }, { status: 400 }),
+      ),
+    );
+    renderWithQuery(<IntegrationsPage />);
+    const user = userEvent.setup();
+
+    const row = await rowFor("Acme Sign");
+    await user.click(within(row).getByRole("button", { name: "More options" }));
+    await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
+    await user.click(await screen.findByRole("button", { name: /delete/i }));
+
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith(`Failed to uninstall acme_sign: ${reason}`));
+    expect(toastMock.success).not.toHaveBeenCalled();
   });
 });
 

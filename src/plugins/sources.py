@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -603,22 +604,19 @@ def get_local_head_sha(dest_dir: Path) -> str | None:
         return None
 
 
-def _read_remote_manifest_version(dest_dir: Path) -> str:
-    """Return the *incoming* manifest's ``fiestaboard_version`` constraint.
+def _read_remote_manifest(dest_dir: Path) -> dict[str, Any] | None:
+    """Return the *incoming* ``manifest.json`` at the remote head, or ``None``.
 
-    Reads ``manifest.json`` at the remote head **without touching the working
-    tree**: ``git fetch`` only writes into ``.git`` (objects plus
-    ``FETCH_HEAD``) and ``git show`` reads the blob straight out of the object
-    database.  Nothing is checked out, so a refused update leaves the plugin
-    exactly as it was.
+    Reads it **without touching the working tree**: ``git fetch`` only writes
+    into ``.git`` (objects plus ``FETCH_HEAD``) and ``git show`` reads the
+    blob straight out of the object database.  Nothing is checked out, so a
+    refused update leaves the plugin exactly as it was.
 
-    Returns ``""`` whenever the constraint cannot be determined — missing
-    remote, unreadable or malformed manifest, no ``fiestaboard_version`` key.
-    Callers treat that as "no opinion" and fall back to the plain SHA
-    comparison, so a network hiccup can never freeze a user's updates.
+    ``None`` whenever it cannot be read — missing remote, unreadable or
+    malformed manifest.
     """
     if not dest_dir.exists() or not (dest_dir / ".git").is_dir():
-        return ""
+        return None
 
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
     try:
@@ -655,7 +653,7 @@ def _read_remote_manifest_version(dest_dir: Path) -> str:
                 fetched = True
                 break
         if not fetched:
-            return ""
+            return None
 
         show_result = subprocess.run(
             ["git", "-C", str(dest_dir), "show", "FETCH_HEAD:manifest.json"],
@@ -665,12 +663,28 @@ def _read_remote_manifest_version(dest_dir: Path) -> str:
             env=env,
         )
         if show_result.returncode != 0:
-            return ""
+            return None
         data = json.loads(show_result.stdout)
     except (subprocess.SubprocessError, OSError, json.JSONDecodeError):
-        return ""
+        return None
 
-    if not isinstance(data, dict):
+    return data if isinstance(data, dict) else None
+
+
+def _read_remote_manifest_version(dest_dir: Path) -> str:
+    """Return the *incoming* manifest's ``fiestaboard_version`` constraint.
+
+    ``""`` whenever the constraint cannot be determined — missing remote,
+    unreadable or malformed manifest, no ``fiestaboard_version`` key.
+    Callers treat that as "no opinion" and fall back to the plain SHA
+    comparison, so a network hiccup can never freeze a user's updates.
+    """
+    return _manifest_version_constraint(_read_remote_manifest(dest_dir))
+
+
+def _manifest_version_constraint(data: dict[str, Any] | None) -> str:
+    """The ``fiestaboard_version`` constraint of a raw manifest, or ``""``."""
+    if data is None:
         return ""
     # RegistryEntry.from_dict is the tolerant parser: every field has a
     # default and none is required, so a manifest written for a *newer* core
@@ -699,7 +713,19 @@ def check_plugin_update_available(dest_dir: Path) -> PluginUpdateCheck:
         # manifest we have on disk.
         return PluginUpdateCheck(available=False)
 
-    constraint = _read_remote_manifest_version(dest_dir)
+    incoming = _read_remote_manifest(dest_dir)
+
+    # Output plugins drive a board, so their contract major is a hard gate
+    # (plan D8, gate 1 of 3): an incoming output_api this core does not
+    # implement is never offered, and an output plugin is never updated
+    # blind -- an unreadable incoming manifest holds the update back too.
+    if _local_plugin_type(dest_dir) == "output" or (incoming or {}).get("plugin_type") == "output":
+        refusal = output_api_refusal(incoming)
+        if refusal:
+            logger.info("Holding back output plugin update in %s: %s", dest_dir, refusal)
+            return PluginUpdateCheck(available=False, blocked_reason=refusal)
+
+    constraint = _manifest_version_constraint(incoming)
     if not constraint:
         return PluginUpdateCheck(available=True)
 
@@ -716,6 +742,147 @@ def check_plugin_update_available(dest_dir: Path) -> PluginUpdateCheck:
 
     logger.info("Holding back plugin update in %s: %s", dest_dir, reason)
     return PluginUpdateCheck(available=False, blocked_reason=reason)
+
+
+def _local_plugin_type(plugin_dir: Path) -> str:
+    """The ``plugin_type`` of the manifest on disk (``"data"`` when absent,
+    ``""`` when the manifest is unreadable)."""
+    try:
+        data = json.loads((plugin_dir / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    plugin_type = data.get("plugin_type", "data")
+    return plugin_type if isinstance(plugin_type, str) else ""
+
+
+def output_api_refusal(manifest: dict[str, Any] | None) -> str:
+    """Why this core cannot run an output plugin with *manifest*, or ``""``.
+
+    The same rule the loader applies (``SUPPORTED_OUTPUT_API``), read off a
+    raw manifest so the update check can apply it before anything is pulled.
+    """
+    # Lazy: src.outputs is heavier than this module needs at import time.
+    from src.outputs.output_manifest import SUPPORTED_OUTPUT_API
+
+    low, high = SUPPORTED_OUTPUT_API
+    supported = f"{low}" if low == high else f"{low}-{high}"
+    if manifest is None:
+        return "The update's manifest could not be read, so it is not offered for an output plugin."
+    if manifest.get("plugin_type") != "output":
+        return "The update is no longer an output plugin; a board depends on this one."
+    block = manifest.get("output")
+    api = block.get("output_api") if isinstance(block, dict) else None
+    if not isinstance(api, int) or isinstance(api, bool):
+        return f"The update declares no output_api; this FiestaBoard supports output_api {supported}."
+    if not low <= api <= high:
+        return f"The update needs output_api {api}; this FiestaBoard supports output_api {supported}."
+    return ""
+
+
+def _rollback_checkout(plugin_dir: Path, sha: str) -> bool:
+    """Reset a plugin checkout to *sha* (a commit it held before an update).
+
+    A shallow update fetch adds the new commit beside the old one, so the old
+    commit's objects are still in the clone and the reset needs no network.
+    """
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        return False
+    try:
+        subprocess.run(
+            ["git", "-C", str(plugin_dir), "reset", "--quiet", "--hard", sha],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        )
+    except (subprocess.SubprocessError, OSError) as exc:
+        logger.error("Could not roll %s back to %s: %s", plugin_dir, sha, exc)
+        return False
+    return True
+
+
+@dataclass(frozen=True)
+class UpdateOutcome:
+    """What :func:`update_external_plugin` did."""
+
+    ok: bool
+    #: Why it failed, for the person who asked (empty on success).
+    error: str = ""
+    #: ``"fetch"`` (git failed; nothing changed), ``"load"`` (the update is
+    #: on disk but would not load), or ``"rolled_back"`` (an output plugin's
+    #: update was refused and its previous commit restored).
+    stage: str = ""
+
+
+def update_external_plugin(
+    plugin_id: str,
+    external_dir: Path | None = None,
+    *,
+    reload: Callable[[], str | None] | None = None,
+) -> UpdateOutcome:
+    """Pull an installed plugin's upstream head, verify it, and reload it.
+
+    *reload* reloads the plugin and returns why the **installed copy** did
+    not load (``None`` when it did).
+
+    Data and transition plugins keep the long-standing rule: an update that
+    fails verification is left installed and reported (it may be the only
+    copy a user has). An **output plugin** drives a board, so its update is
+    all-or-nothing (plan D8, gate 2 of 3): if the new commit fails
+    verification or does not load, the checkout is reset to the commit it
+    held before (``get_local_head_sha``) and reloaded, and the update is
+    reported as refused.
+    """
+    if not PLUGIN_ID_RE.fullmatch(plugin_id):
+        return UpdateOutcome(False, f"Invalid plugin id {plugin_id!r}", "fetch")
+    _safe_id = "".join(c for c in plugin_id if c in _PLUGIN_ID_ALLOWED)
+    if _safe_id != plugin_id:
+        return UpdateOutcome(False, f"Invalid plugin id {plugin_id!r}", "fetch")
+    _ext_dir = external_dir if external_dir is not None else get_external_plugins_dir()
+    # Same CodeQL path-injection barrier as clone_or_update_repo.
+    _ext_root = os.path.realpath(str(_ext_dir))
+    _candidate = os.path.realpath(os.path.join(_ext_root, _safe_id))
+    if not _candidate.startswith(_ext_root + os.sep):
+        return UpdateOutcome(False, "Plugin path is outside the external plugins directory", "fetch")
+    plugin_dir = Path(_candidate)
+
+    previous = get_local_head_sha(plugin_dir)
+    was_output = _local_plugin_type(plugin_dir) == "output"
+
+    ok, err = clone_or_update_repo("", _safe_id, external_dir=_ext_dir)
+    if not ok:
+        return UpdateOutcome(False, err, "fetch")
+
+    is_output = was_output or _local_plugin_type(plugin_dir) == "output"
+    verified, reason = verify_installed_plugin(_safe_id, plugin_dir)
+    if not verified and not is_output:
+        logger.error("Plugin %s failed validation after update but was left installed: %s", _safe_id, reason)
+        verified = True
+    if verified and reload is not None:
+        load_error = reload()
+        if load_error:
+            if not is_output:
+                return UpdateOutcome(False, load_error, "load")
+            verified, reason = False, load_error
+    if verified:
+        return UpdateOutcome(True)
+
+    if previous is None or not _rollback_checkout(plugin_dir, previous):
+        logger.error("Output plugin %s failed its update and could not be rolled back: %s", _safe_id, reason)
+        return UpdateOutcome(False, f"The update cannot run and could not be rolled back: {reason}", "load")
+    if reload is not None:
+        after = reload()
+        if after:
+            logger.error("Output plugin %s rolled back to %s but still does not load: %s", _safe_id, previous, after)
+    logger.error("Output plugin %s update refused; rolled back to %s: %s", _safe_id, previous, reason)
+    return UpdateOutcome(
+        False,
+        f"The update was refused and the plugin rolled back to the version it had ({previous[:12]}): {reason}",
+        "rolled_back",
+    )
 
 
 def remove_external_plugin(dest_dir: Path) -> bool:
@@ -856,7 +1023,9 @@ def _install_and_verify(
     An update that fails validation is left in place and only logged: the
     plugin was already installed and may be driving a board, so tearing it
     out is a worse outcome than leaving it broken and loudly reported. The
-    failure surfaces through the loader's error list instead.
+    failure surfaces through the loader's error list instead. An **output
+    plugin**'s failed update is rolled back to its previous commit instead
+    (plan D8): a board must never be left on a copy that cannot run.
     """
     # ── Validate plugin_id ────────────────────────────────────────────────────
     if not PLUGIN_ID_RE.fullmatch(plugin_id):
@@ -888,6 +1057,8 @@ def _install_and_verify(
         return False, "Refusing to install plugin at root directory"
 
     was_installed = os.path.isdir(_candidate)
+    previous = get_local_head_sha(Path(_candidate)) if was_installed else None
+    was_output = was_installed and _local_plugin_type(Path(_candidate)) == "output"
 
     ok, err = clone_or_update_repo(repo_url, plugin_id, branch, external_dir=external_dir)
     if not ok:
@@ -896,6 +1067,15 @@ def _install_and_verify(
     verified, reason = verify_installed_plugin(_safe_id, Path(_candidate))
     if verified:
         return True, ""
+
+    if was_installed and (was_output or _local_plugin_type(Path(_candidate)) == "output"):
+        if previous is not None and _rollback_checkout(Path(_candidate), previous):
+            logger.error("Output plugin %s update refused; rolled back to %s: %s", _safe_id, previous, reason)
+            return False, (
+                f"The update was refused and the plugin rolled back to the version it had ({previous[:12]}): {reason}"
+            )
+        logger.error("Output plugin %s failed its update and could not be rolled back: %s", _safe_id, reason)
+        return False, f"The update cannot run and could not be rolled back: {reason}"
 
     if was_installed:
         logger.error(
