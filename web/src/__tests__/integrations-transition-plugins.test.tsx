@@ -6,7 +6,8 @@
  * usual enable/disable Switch for one therefore promises control the backend
  * does not honour. These tests pin the corrected presentation: transition
  * plugins get a "Transition" badge instead of a toggle and instead of an
- * enabled/disabled status, while ordinary data plugins keep both.
+ * enabled/disabled status, while ordinary data plugins keep both. Transition
+ * plugins are deprecated (plan D22), so both lists also badge that state.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -129,6 +130,14 @@ describe("Integrations page — transition plugins", () => {
     expect(within(row).getByText("Transition")).toBeInTheDocument();
   });
 
+  it("badges an installed transition plugin as Deprecated", async () => {
+    mockPlugins([{ id: "typewriter", name: "Typewriter", category: "transition", plugin_type: "transition" }]);
+    renderPage();
+
+    const row = await rowFor("Typewriter");
+    expect(within(row).getByText("Deprecated")).toBeInTheDocument();
+  });
+
   it("shows no enabled/disabled status for a transition plugin", async () => {
     mockPlugins([
       {
@@ -163,6 +172,7 @@ describe("Integrations page — transition plugins", () => {
     const row = await rowFor("Weather");
     expect(within(row).getByRole("switch")).toBeInTheDocument();
     expect(within(row).queryByText("Transition")).not.toBeInTheDocument();
+    expect(within(row).queryByText("Deprecated")).not.toBeInTheDocument();
   });
 
   it("treats a plugin with no plugin_type as a data plugin", async () => {
@@ -200,6 +210,15 @@ describe("Integrations page — transition plugins in the Marketplace", () => {
     expect(within(row).getByText("Transition")).toBeInTheDocument();
   });
 
+  it("badges a transition registry entry as Deprecated", async () => {
+    mockRegistry([{ id: "typewriter", name: "Typewriter", category: "transition", plugin_type: "transition" }]);
+    renderPage();
+    await openMarketplaceList();
+
+    const row = await rowFor("Typewriter");
+    expect(within(row).getByText("Deprecated")).toBeInTheDocument();
+  });
+
   it("does not badge a registry entry that declares no plugin_type", async () => {
     mockRegistry([{ id: "weather", name: "Weather", category: "weather" }]);
     renderPage();
@@ -210,6 +229,7 @@ describe("Integrations page — transition plugins in the Marketplace", () => {
     const row = await rowFor("Weather");
     expect(within(row).getByRole("button", { name: /install/i })).toBeInTheDocument();
     expect(within(row).queryByText("Transition")).not.toBeInTheDocument();
+    expect(within(row).queryByText("Deprecated")).not.toBeInTheDocument();
   });
 
   it("labels a transition category group with its translated name", async () => {

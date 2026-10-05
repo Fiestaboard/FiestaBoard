@@ -194,11 +194,11 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Word of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--word-of-day) | Word, pronunciation, and definition | No |
 | [WSDOT Ferries](https://github.com/Fiestaboard/fiestaboard-plugin--wsdot) | WA State ferry schedules and alerts | Yes (free) |
 
-### Transition Plugins (Beta)
+### Transition Plugins (Beta, Deprecated)
 
-> ⚠️ **Experimental.** Enable in Settings → Beta. The plugin SDK is not yet stable — APIs and manifest fields may change before general availability.
+> ⚠️ **Deprecated.** Enable in Settings → Beta. The transition plugin SDK will not reach general availability; see [Transitions](./docs/features/transitions.md).
 
-Transition plugins drive **frame-by-frame board animations** that go beyond the built-in flip patterns offered by Vestaboard's Local API. They're picked per-page (or as the system default) and animate the change from one display to the next. Preview any transition without a real board at `/transitions` (Transition Lab).
+Transition plugins drive **frame-by-frame board animations** that go beyond the built-in flip patterns offered by Vestaboard's Local API. They're picked per-page (or as the system default) and animate the change from one display to the next. Transition plugins are **deprecated**: existing pages keep working, and removal is being considered for v11.
 
 <!-- Sorted alphabetically -->
 | Plugin | What It Does |

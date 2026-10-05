@@ -1027,6 +1027,20 @@ interface InstalledPluginRowProps {
   initiallyOpen?: boolean;
 }
 
+/**
+ * The state every transition plugin is in: deprecated (plan D22). Existing
+ * `plugin:<id>` transitions keep running; removal of the plugin kind is under
+ * consideration for v11. A state, so a badge, and it carries no data.
+ */
+function DeprecatedBadge({ label }: { label: string }) {
+  return (
+    <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 h-5">
+      <AlertCircle className="h-2.5 w-2.5" />
+      {label}
+    </Badge>
+  );
+}
+
 function InstalledPluginRow({
   plugin,
   onToggle,
@@ -1677,16 +1691,20 @@ function InstalledPluginRow({
         </TableCell>
 
         {/* Status column — transitions have no enabled state to report, so the
-            cell carries the plugin type instead. */}
+            cell carries the plugin type instead, and the state every transition
+            plugin is in: deprecated. */}
         <TableCell className="px-4 py-2.5 whitespace-nowrap hidden md:table-cell">
           {isTransition ? (
-            <Badge
-              variant="outline"
-              className="text-[10px] gap-1 px-1.5 py-0 h-5 border-violet-300 text-violet-600 dark:text-violet-400 dark:border-violet-700"
-            >
-              <Wand2 className="h-2.5 w-2.5" />
-              {t("transitionBadge")}
-            </Badge>
+            <Flex align="center" gap="1">
+              <Badge
+                variant="outline"
+                className="text-[10px] gap-1 px-1.5 py-0 h-5 border-violet-300 text-violet-600 dark:text-violet-400 dark:border-violet-700"
+              >
+                <Wand2 className="h-2.5 w-2.5" />
+                {t("transitionBadge")}
+              </Badge>
+              <DeprecatedBadge label={t("deprecatedBadge")} />
+            </Flex>
           ) : isOutput ? (
             <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 h-5">
               <Tv className="h-2.5 w-2.5" />
@@ -2001,13 +2019,16 @@ function RegistryPluginRow({
                   no variables, no enable toggle — so the marketplace flags the
                   type up front, with the same badge the Installed table uses. */}
               {entry.plugin_type === "transition" && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] gap-1 px-1.5 py-0 h-5 border-violet-300 text-violet-600 dark:text-violet-400 dark:border-violet-700"
-                >
-                  <Wand2 className="h-2.5 w-2.5" />
-                  {t("transitionBadge")}
-                </Badge>
+                <>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] gap-1 px-1.5 py-0 h-5 border-violet-300 text-violet-600 dark:text-violet-400 dark:border-violet-700"
+                  >
+                    <Wand2 className="h-2.5 w-2.5" />
+                    {t("transitionBadge")}
+                  </Badge>
+                  <DeprecatedBadge label={t("deprecatedBadge")} />
+                </>
               )}
               {entry.plugin_type === "output" && (
                 <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 h-5">

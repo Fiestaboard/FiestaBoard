@@ -42,7 +42,7 @@ in `tests/layering_manifest.json`, and only those**:
 | A router may not hold domain logic | `router_no_domain_logic` | A **size proxy**: every module-level function in a transport module stays within 15 body statements and cyclomatic complexity 8 |
 
 Enforced today: **`auth`, `backup`, `config_api`, `mqtt`, `network`, `oauth`,
-`outputs`, `schedules`, `system`, `transitions`, `triggers`**. Everything else —
+`outputs`, `schedules`, `system`, `triggers`**. Everything else —
 including `pages`, `collections`, `panels`, `settings`, `board_api` — is
 **unenforced**, and most of it does not currently comply: the 2026-09 audit
 counted ~1,600 lines of domain logic living in thirteen routers. A domain
@@ -52,7 +52,8 @@ until it passes. The ratchet is a floor that only moves up.
 `config_api`, `system` and `transitions` joined by moving ~790 lines out of
 their routers: `src/config_api/service.py` is new (the domain had no service
 module at all), the transition frame loops and board routing went to
-`src/transitions/service.py`, and the update-apply and rollback workflows went
+`src/transitions/service.py` (the domain left the list when the Transition
+Lab and its router were retired, plan D22), and the update-apply and rollback workflows went
 to `src/system/update_service.py`, which also stopped importing `fastapi`.
 No rule was loosened and no exception was recorded to admit any of them.
 

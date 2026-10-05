@@ -10,7 +10,6 @@
     "outputs",
     "schedules",
     "system",
-    "transitions",
     "triggers"
   ],
   "exceptions": []

@@ -25,7 +25,6 @@ import {
   DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -92,7 +91,7 @@ import {
   useBoardSettings,
 } from "@/hooks/use-board";
 import { usePanelTargets } from "@/hooks/use-panel-targets";
-import { useRouter } from "@/hooks/use-router";
+import { useTransitionPlugins } from "@/hooks/use-transition-plugins";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
@@ -265,7 +264,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // built-in strategies identically.
   const tTransitions = useTranslations("transitionSettings");
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
@@ -878,21 +876,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     enabled: !!pageId,
   });
 
-  // Transition plugins (beta): the /transitions/plugins endpoint 404s while
-  // the flag is off, so only fetch once the flag is known to be on. Query keys
-  // match the Transition Lab route so both share one cache entry.
+  // Transition plugins (beta, deprecated): offered only while the flag is on,
+  // since the backend refuses a `plugin:` strategy otherwise. The installed
+  // ones come from the plugin listing, filtered to plugin_type "transition".
   const { data: betaSettings } = useQuery({
     queryKey: ["settings", "beta"],
     queryFn: () => api.getBetaSettings(),
   });
   const transitionPluginsEnabled = betaSettings?.settings.transition_plugins_enabled ?? false;
-
-  const { data: transitionPluginsData } = useQuery({
-    queryKey: ["transition-plugins"],
-    queryFn: () => api.listTransitionPlugins(),
-    enabled: transitionPluginsEnabled,
-  });
-  const transitionPlugins = useMemo(() => transitionPluginsData?.plugins ?? [], [transitionPluginsData]);
+  const transitionPlugins = useTransitionPlugins(transitionPluginsEnabled);
 
   // A `plugin:<id>` override whose plugin isn't in the list — the beta is off,
   // or the plugin was uninstalled. Surface it under its raw id rather than
@@ -2015,10 +2007,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           </DropdownMenuRadioItem>
                         )}
                       </DropdownMenuRadioGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-xs" onClick={() => router.push("/transitions")}>
-                        {t("transitionOpenLab")}
-                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   {/* Delete button - only show when editing */}

@@ -17,7 +17,7 @@ That is a **data** plugin, the kind this guide builds. A plugin's `plugin_type` 
 | Kind | `plugin_type` | What it does | Guide |
 |------|---------------|--------------|-------|
 | **Data** | `"data"` (the default) | Fetches data and exposes it as template variables | This guide |
-| **Transition** | `"transition"` | Animates the change from one page to the next, frame by frame | [Transitions](/docs/features/transitions) |
+| **Transition** | `"transition"` | Animates the change from one page to the next, frame by frame. **Deprecated**: existing plugins keep running, removal is being considered for v11, so do not start a new one. | [Transitions](/docs/features/transitions) |
 | **Output** | `"output"` | Drives a display device: an LED matrix, a sign. One instance per board. Beta, FiestaBoard 10.0.0 and later. | [Writing an Output Plugin](/docs/development/output-plugins) |
 
 To see every way to build on FiestaBoard, including reading frames and the API, start at [Building on FiestaBoard](/docs/development/integrations-overview).

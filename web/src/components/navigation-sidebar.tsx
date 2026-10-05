@@ -2,7 +2,7 @@
 
 import { BoardSelector, Sidebar, type SidebarLinkProps, type SidebarNavItem } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Award, Calendar, FileText, FlaskConical, GalleryHorizontalEnd, HelpCircle, Home, Puzzle } from "lucide-react";
+import { Award, Calendar, FileText, GalleryHorizontalEnd, HelpCircle, Home, Puzzle } from "lucide-react";
 
 import { useCurrentBoard } from "@/components/current-board-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
@@ -31,10 +31,6 @@ const primaryItems: NavItemDef[] = [
   { key: "integrations", href: "/integrations", icon: Puzzle },
 ];
 
-// Shown only while the transition-plugins beta flag is on (see
-// `showTransitionsLab` below) — the whole feature is invisible otherwise.
-const transitionsLabItem: NavItemDef = { key: "transitions", href: "/transitions", icon: FlaskConical };
-
 // Settings is NOT here. It lives in the footer twice over — a gear beside the
 // assistant (`settings` below) and an item of the account menu, which is also
 // where sign-out, the theme and the version live. The list is for the places
@@ -46,7 +42,7 @@ const secondaryItems: NavItemDef[] = [
 
 /**
  * App wiring around the design system's presentational <Sidebar> — routes,
- * i18n labels, board context, collapse persistence and AI/beta feature flags
+ * i18n labels, board context, collapse persistence and the AI feature flag
  * all live here; every pixel lives in @fiestaboard/ui.
  */
 export function NavigationSidebar() {
@@ -68,14 +64,6 @@ export function NavigationSidebar() {
     enabled: !chromeless,
   });
   const hasAiProviders = (aiSettings?.enabled ?? false) && (aiSettings?.providers?.length ?? 0) > 0;
-
-  const { data: betaData } = useQuery({
-    queryKey: ["settings", "beta"],
-    queryFn: () => api.getBetaSettings(),
-    enabled: !chromeless,
-  });
-  const showTransitionsLab = betaData?.settings.transition_plugins_enabled ?? false;
-  const navPrimaryItems = showTransitionsLab ? [...primaryItems, transitionsLabItem] : primaryItems;
 
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't
   // navigating anywhere until they sign in) and the FiestaPanel TV viewer
@@ -123,7 +111,7 @@ export function NavigationSidebar() {
       // One flat list, in reading order. `primaryItems`/`secondaryItems` are
       // deprecated in @fiestaboard/ui and expressed a split the rail stopped
       // rendering several releases ago.
-      items={[...navPrimaryItems, ...secondaryItems].map(toNavItem)}
+      items={[...primaryItems, ...secondaryItems].map(toNavItem)}
       renderLink={renderLink}
       collapsed={collapsed}
       transitioning={transitioning}

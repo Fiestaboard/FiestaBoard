@@ -16,7 +16,9 @@ Quiet Library is a **transition plugin**: it animates the change from the curren
 1. **Enable the beta**: Settings → Advanced → Beta Features → toggle **Transition Plugins** on. That single switch is all that gates Quiet Library — installed transition plugins have no enable step of their own.
 2. **Adjust the pacing (optional)**: *Tiles per step* and *Delay between steps* are in Quiet Library's settings on the Integrations page. The 6-tile, 14.5-second defaults are tuned for the hardware's flap debounce; change them only if you know what you want instead.
 3. **Select the transition**: open a page in the editor and choose **Quiet Library** from the **Transition** dropdown in the toolbar, or set it as the system default under Settings → Behavior → Board Transitions. A page's own choice overrides the default; "Use global default" clears it.
-4. **View**: the next time that page is sent, the board updates one small batch of tiles at a time. Preview it any time on the **Transition Lab** page, which also has a config box for trying different pacing on a single run.
+4. **View**: the next time that page is sent, the board updates one small batch of tiles at a time.
+
+Transition plugins are deprecated (see [Transitions](https://fiestaboard.app/docs/features/transitions)): pages that use one keep working, and the Transition Lab preview page has been removed.
 
 ## Template Variables
 

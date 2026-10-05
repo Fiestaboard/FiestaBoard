@@ -124,7 +124,8 @@ describe("chromeless routes do not fire app-shell queries", () => {
 
     expect(hits).toContain("/settings/board");
     expect(hits).toContain("/settings/ai");
-    expect(hits).toContain("/settings/beta");
+    // No /settings/beta: the sidebar read it only to show the Transition Lab,
+    // which is retired (plan D22).
     expect(hits).toContain("/settings/all");
   });
 });

@@ -15,7 +15,7 @@ How to enable Simple Dissolve and use it on a page.
 3. **Apply it** — Open a page in the editor, pick **Simple Dissolve** from the **Transition** dropdown in the toolbar, and save. To dissolve everywhere, pick it under Settings → Behavior → Board Transitions instead. A page's own Transition beats the global default, and "Use global default" hands the page back to it.
 4. **View** — The next time that page becomes active, the changed tiles flip away in random batches until the new message is complete.
 
-Not sure how chunky the dissolve will look on your board? Open **Transition Lab** from the sidebar, pick Simple Dissolve and two pages, and scrub the frames. The config box there starts from the saved settings and applies your edits to that preview only.
+Transition plugins are deprecated (see [Transitions](https://fiestaboard.app/docs/features/transitions)): pages that use one keep working, and the Transition Lab preview page has been removed.
 
 ## Template Variables
 

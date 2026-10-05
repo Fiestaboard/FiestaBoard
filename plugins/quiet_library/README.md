@@ -18,7 +18,7 @@ None. Transition plugins do not expose template variables; they are selected as 
 
 ## Example Templates
 
-Not applicable — Quiet Library is chosen, not written into a template. Enable the **Transition Plugins** beta in Settings → Advanced → Beta Features, then pick *Quiet Library* from the **Transition** dropdown in the page editor's toolbar for one page, or under Settings → Behavior → Board Transitions for every page. The per-page choice wins over the global default, and "Use global default" gives the page back to it. Preview it first on the **Transition Lab** page.
+Not applicable — Quiet Library is chosen, not written into a template. Enable the **Transition Plugins** beta in Settings → Advanced → Beta Features, then pick *Quiet Library* from the **Transition** dropdown in the page editor's toolbar for one page, or under Settings → Behavior → Board Transitions for every page. The per-page choice wins over the global default, and "Use global default" gives the page back to it. Transition plugins are deprecated (see [Transitions](https://fiestaboard.app/docs/features/transitions)): pages that use one keep working, and the Transition Lab preview page has been removed.
 
 ## Configuration
 
