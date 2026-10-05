@@ -37,14 +37,21 @@ COLOR_MARKER_PATTERN = re.compile(
 )
 
 
-def count_tiles(text: str) -> int:
+def count_tiles(text: str, *, extended_markup: bool = False) -> int:
     """Count how many flaps *text* occupies.
 
     A colour marker (``{66}``, ``{green}``) is one tile regardless of how many
     characters it takes to write. Closing tags (``{/green}``, ``{/}``) are
     formatting artefacts and occupy none — matching :func:`text_to_board_array`,
     which skips them without advancing ``col_idx``.
+
+    With ``extended_markup`` (off by default; see :mod:`src.markup`) a colour
+    span counts the cells it draws — ``{red:HOT}`` is three — and an icon one.
     """
+    if extended_markup:
+        from .markup import count_tiles as count_extended
+
+        return count_extended(text)
     tiles = 0
     pos = 0
     while pos < len(text):
@@ -59,13 +66,20 @@ def count_tiles(text: str) -> int:
     return tiles
 
 
-def take_tiles(text: str, limit: int) -> tuple[str, str]:
+def take_tiles(text: str, limit: int, *, extended_markup: bool = False) -> tuple[str, str]:
     """Split *text* into ``(head, tail)``, ``head`` at most *limit* tiles wide.
 
     The split never lands inside a colour marker: a marker is taken whole or
     left for the tail. Trailing closing tags cost no tiles, so they ride along
     with ``head``.
+
+    With ``extended_markup`` a span cut in two is closed in ``head`` and
+    reopened in ``tail`` (see :func:`src.markup.take_tiles`).
     """
+    if extended_markup:
+        from .markup import take_tiles as take_extended
+
+        return take_extended(text, limit)
     if limit <= 0:
         return "", text
     tiles = 0
@@ -118,7 +132,14 @@ def unescape_message_newlines(text: str) -> str:
     return MESSAGE_ESCAPE_PATTERN.sub(_replace, text)
 
 
-def wrap_message_text(text: str, rows: int = 6, cols: int = 22, unescape_newlines: bool = False) -> str:
+def wrap_message_text(
+    text: str,
+    rows: int = 6,
+    cols: int = 22,
+    unescape_newlines: bool = False,
+    *,
+    extended_markup: bool = False,
+) -> str:
     r"""Prepare free-form user text for :func:`text_to_board_array` (issue #1793).
 
     - Word-wraps to ``cols`` *tiles* (not characters — a colour marker like
@@ -139,6 +160,9 @@ def wrap_message_text(text: str, rows: int = 6, cols: int = 22, unescape_newline
         rows: Target board rows (default 6 for flagship, 3 for note).
         cols: Target board columns (default 22 for flagship, 15 for note).
         unescape_newlines: Treat ``\n`` as a line break (single-line clients).
+        extended_markup: Measure colour spans and icons by the tiles they
+            draw and never wrap through their markup (see :mod:`src.markup`).
+            Off by default; nothing turns it on yet.
 
     Returns:
         Newline-separated text that fits within rows x cols.
@@ -150,7 +174,8 @@ def wrap_message_text(text: str, rows: int = 6, cols: int = 22, unescape_newline
 
     # Ask for one row more than fits so overflow is detectable rather than
     # silently swallowed.
-    lines = MessageFormatter(rows=rows, cols=cols).split_into_lines(text, max_lines=rows + 1)
+    formatter = MessageFormatter(rows=rows, cols=cols, extended_markup=extended_markup)
+    lines = formatter.split_into_lines(text, max_lines=rows + 1)
     if len(lines) > rows:
         logger.warning(
             "Message too long for a %dx%d board: dropping everything past row %d",
@@ -162,7 +187,14 @@ def wrap_message_text(text: str, rows: int = 6, cols: int = 22, unescape_newline
     return "\n".join(lines)
 
 
-def text_to_board_array(text: str, use_color_tiles: bool = True, rows: int = 6, cols: int = 22) -> list[list[int]]:
+def text_to_board_array(
+    text: str,
+    use_color_tiles: bool = True,
+    rows: int = 6,
+    cols: int = 22,
+    *,
+    extended_markup: bool = False,
+) -> list[list[int]]:
     """
     Convert formatted text to board character array.
 
@@ -181,6 +213,9 @@ def text_to_board_array(text: str, use_color_tiles: bool = True, rows: int = 6, 
                         If False, strip color markers entirely.
         rows: Number of rows (default 6 for flagship, 3 for note)
         cols: Number of columns (default 22 for flagship, 15 for note)
+        extended_markup: Parse colour spans and icons (see :mod:`src.markup`);
+            a split-flap board draws a span's letters plain and an icon's
+            fallback. Off by default; nothing turns it on yet.
 
     Returns:
         rows x cols array of character codes (0-71)
@@ -189,6 +224,18 @@ def text_to_board_array(text: str, use_color_tiles: bool = True, rows: int = 6, 
     board = [[BoardChars.SPACE] * cols for _ in range(rows)]
 
     lines = text.split("\n")[:rows]
+
+    if extended_markup:
+        from .markup import parse_line
+
+        for row_idx, line in enumerate(lines):
+            if use_color_tiles:
+                tokens = parse_line(line, cols, extended_markup=True)
+            else:
+                tokens = [t for t in parse_line(line, extended_markup=True) if t.type != "color"][:cols]
+            for col_idx, token in enumerate(tokens):
+                board[row_idx][col_idx] = token.flap_code
+        return board
 
     # Process each line
     for row_idx, line in enumerate(lines):
