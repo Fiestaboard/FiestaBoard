@@ -228,7 +228,7 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
 
     it("saves a page for the display as a panel page of its grid", async () => {
       vi.mocked(api.getPage).mockResolvedValue(PIXOO_PAGE);
-      vi.mocked(api.updatePage).mockResolvedValue(PIXOO_PAGE);
+      vi.mocked(api.updatePage).mockResolvedValue({ page: PIXOO_PAGE, incompatible_references: [] });
       const user = userEvent.setup();
       renderExisting();
 
