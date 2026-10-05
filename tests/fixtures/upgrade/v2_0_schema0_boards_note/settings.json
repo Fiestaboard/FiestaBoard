@@ -1,0 +1,40 @@
+{
+  "transitions": {
+    "strategy": "column",
+    "step_interval_ms": null,
+    "step_size": null
+  },
+  "output": {
+    "target": "board"
+  },
+  "active_page": {
+    "page_id": "00000000-0000-4000-8000-000000000201"
+  },
+  "polling": {
+    "interval_seconds": 60
+  },
+  "board": {
+    "board_type": "white",
+    "boards": [
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "name": "Kitchen Note",
+        "device_type": "note",
+        "board_color": "white",
+        "enabled": true,
+        "schedule_enabled": false,
+        "api_mode": "local",
+        "host": "192.168.0.11",
+        "port": 7000,
+        "local_api_key": "test_note_key",
+        "cloud_key": ""
+      }
+    ],
+    "devices": [
+      "note"
+    ]
+  },
+  "schedule": {
+    "enabled": true
+  }
+}
