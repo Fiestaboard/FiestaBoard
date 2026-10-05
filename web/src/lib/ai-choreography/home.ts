@@ -38,11 +38,15 @@ export function homeFor(call: Pick<ToolCall, "name" | "args">): { href: string; 
     const category = id("category") ?? "general";
     return { href: settingsHref(category), anchor: `settings.${category}` };
   }
-  // A board *device* the hardware tab configures — not every tool whose
+  // A board *device* Displays configures (plan D21) — not every tool whose
   // name happens to end in `_board` (blank_board, pause_board, … are board
-  // state, and land on the dashboard or the debug tab below).
+  // state, and land on the dashboard or the debug tab below). A tool naming
+  // the board it changes lands on that display's page.
   if (/panel|hdmi|board_size|identify_tile|^add_board|^remove_board|^update_board/.test(name)) {
-    return { href: settingsHref("boards"), anchor: name.includes("panel") ? "settings.panels" : "settings.boards" };
+    const board = name.includes("panel") || /^(add|remove)_board/.test(name) ? undefined : id("board_id");
+    return board
+      ? { href: `/displays/${encodeURIComponent(board)}`, anchor: `settings.board.${board}` }
+      : { href: settingsHref("boards"), anchor: "settings.boards" };
   }
   if (/wifi|network/.test(name)) return { href: "/settings?section=network", anchor: "settings.network" };
   if (/system|restart|shutdown|backup|release|update_check|check_for_update/.test(name)) {

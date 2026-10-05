@@ -71,6 +71,12 @@ interface StepOutputPluginProps {
   onCreated: (board: WizardCreatedBoard) => void;
   onValidChange: (valid: boolean) => void;
   setIsLoading: (loading: boolean) => void;
+  /**
+   * Remove the fresh install's untouched placeholder board once this one
+   * exists (the wizard's way; default). Displays → Add a display leaves
+   * every board the user has where it is.
+   */
+  replacePlaceholder?: boolean;
 }
 
 type InstallFailure = { kind: "beta" } | { kind: "offline"; message: string } | { kind: "refused"; message: string };
@@ -87,6 +93,7 @@ export function StepOutputPlugin({
   onCreated,
   onValidChange,
   setIsLoading,
+  replacePlaceholder = true,
 }: StepOutputPluginProps) {
   const t = useTranslations("wizard.outputSetup");
   const tbs = useTranslations("boardSettingsScreen");
@@ -190,6 +197,7 @@ export function StepOutputPlugin({
       setIsLoading={setIsLoading}
       onCreated={onCreated}
       createLabel={tbs("createBoard")}
+      replacePlaceholder={replacePlaceholder}
     />
   );
 }
@@ -199,11 +207,13 @@ function OutputBoardForm({
   onCreated,
   setIsLoading,
   createLabel,
+  replacePlaceholder,
 }: {
   output: OutputSummary;
   onCreated: (board: WizardCreatedBoard) => void;
   setIsLoading: (loading: boolean) => void;
   createLabel: string;
+  replacePlaceholder: boolean;
 }) {
   const t = useTranslations("wizard.outputSetup");
   const tbs = useTranslations("boardSettingsScreen");
@@ -227,7 +237,7 @@ function OutputBoardForm({
           output_config: config,
           ...(name.trim() ? { name: name.trim() } : {}),
         });
-        await removeUntouchedPlaceholder(board.id);
+        if (replacePlaceholder) await removeUntouchedPlaceholder(board.id);
         return board;
       } finally {
         setIsLoading(false);

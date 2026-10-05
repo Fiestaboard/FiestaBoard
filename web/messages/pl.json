@@ -63,6 +63,7 @@
     "collections": "Karuzele",
     "schedule": "Harmonogram",
     "integrations": "Integracje",
+    "displays": "Wyświetlacze",
     "settings": "Ustawienia",
     "helpDocs": "Pomoc i dokumentacja",
     "userProfile": "Profil",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "Kreator konfiguracji",
     "setupWizardDescription": "Uruchom ponownie kreator konfiguracji, aby zmienić połączenie z tablicą i podstawowe ustawienia.",
     "runSetupWizard": "Uruchom kreator konfiguracji",
-    "sectionHardware": "Sprzęt",
     "sectionHardwareDescription": "Fizyczna konfiguracja tablicy i połączenie",
     "sectionBehavior": "Zachowanie",
     "sectionBehaviorDescription": "Jak treść się porusza, odświeża i wstrzymuje",
@@ -777,7 +777,7 @@
       "needsBeta": "Wymaga bety wtyczek wyjściowych. Możesz ją włączyć w następnym kroku.",
       "downloads": "Zostanie pobrany po przejściu dalej, więc potrzebne jest połączenie z internetem.",
       "skipTitle": "Pomiń — dodam wyświetlacz później",
-      "skipDescription": "Rozejrzyj się i obejrzyj podgląd stron. Wyświetlacz dodasz w każdej chwili w Ustawieniach."
+      "skipDescription": "Rozejrzyj się i przeglądaj strony już teraz. Wyświetlacz dodasz w każdej chwili w sekcji Wyświetlacze."
     },
     "outputSetup": {
       "installing": "Instalowanie: {name}…",
@@ -977,8 +977,6 @@
     "transitionOpenLab": "Otwórz laboratorium przejść"
   },
   "displaySettings": {
-    "title": "Twoje tablice",
-    "description": "Dodaj każdy Vestaboard, który posiadasz, i skonfiguruj jego połączenie.",
     "unnamedBoard": "Tablica bez nazwy",
     "boardDimensions": {
       "flagship": "22×6",
@@ -992,7 +990,6 @@
     "code62DegreeAriaLabel": "Klapka ze stopniem",
     "code62HeartAriaLabel": "Klapka z sercem",
     "removeBoard": "Usuń tablicę",
-    "addBoard": "Dodaj tablicę",
     "selectType": "Wybierz typ:",
     "boardAdded": "Tablica dodana",
     "boardRemoved": "Tablica usunięta",
@@ -1037,6 +1034,52 @@
     "notesWideLabel": "Notes w poziomie",
     "notesTallLabel": "Notes w pionie",
     "customRangeError": "Każdy wymiar musi mieścić się w zakresie od 1 do {max}."
+  },
+  "displays": {
+    "title": "Wyświetlacze",
+    "description": "Wszystkie tablice i ekrany, na których wyświetla FiestaBoard. Otwórz jeden, aby zmienić jego ustawienia.",
+    "addDisplay": "Dodaj wyświetlacz",
+    "listLabel": "Twoje wyświetlacze",
+    "empty": "Brak wyświetlaczy. Dodaj jeden, aby zacząć wyświetlać na nim strony.",
+    "unnamed": "Wyświetlacz bez nazwy",
+    "openSettings": "Ustawienia",
+    "openSettingsLabel": "Otwórz ustawienia: {name}",
+    "pause": "Wstrzymaj",
+    "resume": "Wznów",
+    "pauseLabel": "Wstrzymaj: {name}",
+    "resumeLabel": "Wznów: {name}",
+    "back": "Wszystkie wyświetlacze",
+    "notFound": "Ten wyświetlacz już nie istnieje.",
+    "previewTitle": "Teraz wyświetlane",
+    "settingsTitle": "Ustawienia",
+    "transition": {
+      "title": "Przejście",
+      "description": "Jak ten wyświetlacz zmienia jedną wiadomość na następną. Własne przejście strony nadal ma pierwszeństwo.",
+      "default": "Domyślne",
+      "defaultDescription": "Użyj przejścia wybranego w Ustawienia → Zachowanie.",
+      "cloudNote": "Ta tablica używa API w chmurze, które zmienia całą tablicę naraz. Przejścia wymagają lokalnego API.",
+      "snapNote": "Ten wyświetlacz może zmieniać wszystko tylko naraz, więc od razu przechodzi do każdej nowej wiadomości.",
+      "deviceDefault": "Domyślne urządzenia",
+      "unavailable": "Niedostępne na tym wyświetlaczu",
+      "runsAs": "Działa jako",
+      "previewLabel": "Podgląd: {name}"
+    },
+    "add": {
+      "title": "Dodaj wyświetlacz",
+      "chooseDescription": "Na czym FiestaBoard ma wyświetlać?",
+      "findMore": "Znajdź więcej wyświetlaczy",
+      "findMoreTitle": "Znajdź więcej wyświetlaczy",
+      "findMoreDescription": "Wtyczki wyświetlaczy z rejestru wtyczek FiestaBoard.",
+      "findMoreLoading": "Wczytywanie rejestru…",
+      "findMoreFailed": "Nie udało się wczytać rejestru wtyczek. Sprawdź połączenie z internetem i spróbuj ponownie.",
+      "findMoreEmpty": "W rejestrze nie ma jeszcze innych wyświetlaczy.",
+      "byAuthor": "autor: {author}",
+      "vestaboardTitle": "Dodaj Vestaboard",
+      "vestaboardDescription": "Wybierz jego kształt. Połączysz go potem na jego stronie.",
+      "panelTitle": "Dodaj telewizor lub przeglądarkę",
+      "outputTitle": "Dodaj: {name}",
+      "setupDescription": "Skonfiguruj, a potem dodaj."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Dostępna aktualizacja",
@@ -2403,10 +2446,7 @@
     "geometryDetected": "Wykryto {rows} × {cols}",
     "applyGeometry": "Zastosuj rozmiar",
     "actionInputDescription": "Ta akcja wymaga najpierw kilku informacji.",
-    "otherDisplays": "Inne wyświetlacze",
     "betaRequired": "Włącz wtyczki wyjścia w Ustawienia → Zaawansowane → Funkcje beta, aby używać tego wyświetlacza.",
-    "boardCreated": "Dodano tablicę",
-    "addOutputTitle": "Dodaj tablicę {name}",
     "boardNameLabel": "Nazwa tablicy",
     "boardNamePlaceholder": "Moja tablica",
     "deviceModelLabel": "Model urządzenia",

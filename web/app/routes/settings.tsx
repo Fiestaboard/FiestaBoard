@@ -17,8 +17,9 @@ import {
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
-import { Cog, MonitorCog, Plug, Settings, ShieldCheck, User, Wand2, Waves, Wifi, Wrench } from "lucide-react";
+import { Cog, Plug, Settings, ShieldCheck, User, Wand2, Waves, Wifi, Wrench } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
+import { Navigate } from "react-router";
 
 import { AccountSection } from "@/components/account-section";
 import { AboutCard } from "@/components/settings/about-card";
@@ -30,8 +31,6 @@ import { AutoUpdateIntervalCard } from "@/components/settings/auto-update-interv
 import { BackupSettings } from "@/components/settings/backup-settings";
 import { BetaSettings } from "@/components/settings/beta-settings";
 import { DebugSettings } from "@/components/settings/debug-settings";
-import { DisplaySettings } from "@/components/settings/display-settings";
-import { FiestaPanelSettings } from "@/components/settings/fiestapanel-settings";
 import { InstanceNameCard } from "@/components/settings/instance-name";
 import { LanguageSettingsCard } from "@/components/settings/language-settings";
 import { LocationSettingsCard } from "@/components/settings/location-settings";
@@ -52,12 +51,17 @@ import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
-type SectionId = "general" | "account" | "hardware" | "network" | "behavior" | "integrations" | "system" | "advanced";
+type SectionId = "general" | "account" | "network" | "behavior" | "integrations" | "system" | "advanced";
+
+/**
+ * The tab boards and FiestaPanels used to live in. Displays have their own
+ * section now (plan D21); an old `?section=hardware` link lands there.
+ */
+const LEGACY_HARDWARE_SECTION = "hardware";
 
 const SECTION_IDS: readonly SectionId[] = [
   "general",
   "account",
-  "hardware",
   "network",
   "behavior",
   "integrations",
@@ -153,7 +157,6 @@ export default function SettingsPage() {
     const all: SectionMeta[] = [
       { id: "general", label: t("sectionGeneral"), icon: User },
       { id: "account", label: t("sectionAccount"), icon: ShieldCheck },
-      { id: "hardware", label: t("sectionHardware"), icon: MonitorCog },
       { id: "network", label: t("sectionNetwork"), icon: Wifi },
       { id: "behavior", label: t("sectionBehavior"), icon: Waves },
       { id: "integrations", label: t("sectionIntegrations"), icon: Plug },
@@ -166,6 +169,12 @@ export default function SettingsPage() {
       return true;
     });
   }, [t, showAccount, showNetwork]);
+
+  // Settings → Hardware moved to Displays (plan D21): keep old links working.
+  if (requested === LEGACY_HARDWARE_SECTION) {
+    const hash = typeof window === "undefined" ? "" : window.location.hash;
+    return <Navigate to={`/displays${hash}`} replace />;
+  }
 
   return (
     <PageLayout>
@@ -212,11 +221,6 @@ export default function SettingsPage() {
               <AccountSection />
             </TabsContent>
           )}
-
-          <TabsContent value="hardware" className="mt-0">
-            <DisplaySettings />
-            <FiestaPanelSettings />
-          </TabsContent>
 
           {showNetwork && (
             <TabsContent value="network" className="mt-0">

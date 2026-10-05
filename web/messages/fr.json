@@ -63,6 +63,7 @@
     "collections": "Carrousels",
     "schedule": "Planification",
     "integrations": "Intégrations",
+    "displays": "Écrans",
     "settings": "Paramètres",
     "helpDocs": "Aide & Documentation",
     "userProfile": "Profil",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "Assistant de configuration",
     "setupWizardDescription": "Relancez l'assistant de configuration pour reconfigurer la connexion de votre tableau et les paramètres de base.",
     "runSetupWizard": "Lancer l'assistant de configuration",
-    "sectionHardware": "Matériel",
     "sectionHardwareDescription": "Configuration physique du tableau et connexion",
     "sectionBehavior": "Comportement",
     "sectionBehaviorDescription": "Comment le contenu se déplace, s'actualise et s'interrompt",
@@ -777,7 +777,7 @@
       "needsBeta": "Nécessite la bêta des plugins de sortie. Vous pourrez l'activer à l'étape suivante.",
       "downloads": "Se télécharge lorsque vous continuez : une connexion Internet est nécessaire.",
       "skipTitle": "Passer — j'ajouterai un écran plus tard",
-      "skipDescription": "Explorez et prévisualisez des pages dès maintenant. Ajoutez un écran à tout moment dans les Paramètres."
+      "skipDescription": "Explorez et prévisualisez des pages dès maintenant. Ajoutez un écran à tout moment depuis Écrans."
     },
     "outputSetup": {
       "installing": "Installation de {name}…",
@@ -977,8 +977,6 @@
     "transitionOpenLab": "Ouvrir le labo des transitions"
   },
   "displaySettings": {
-    "title": "Vos tableaux",
-    "description": "Ajoutez chaque Vestaboard que vous possédez et configurez sa connexion.",
     "unnamedBoard": "Tableau sans nom",
     "boardDimensions": {
       "flagship": "22×6",
@@ -992,7 +990,6 @@
     "code62DegreeAriaLabel": "Volet degré",
     "code62HeartAriaLabel": "Volet cœur",
     "removeBoard": "Retirer le tableau",
-    "addBoard": "Ajouter un tableau",
     "selectType": "Sélectionner le type :",
     "boardAdded": "Tableau ajouté",
     "boardRemoved": "Tableau retiré",
@@ -1037,6 +1034,52 @@
     "notesWideLabel": "Notes en largeur",
     "notesTallLabel": "Notes en hauteur",
     "customRangeError": "Chaque dimension doit être comprise entre 1 et {max}."
+  },
+  "displays": {
+    "title": "Écrans",
+    "description": "Tous les tableaux et écrans sur lesquels FiestaBoard affiche. Ouvrez-en un pour modifier ses paramètres.",
+    "addDisplay": "Ajouter un écran",
+    "listLabel": "Vos écrans",
+    "empty": "Aucun écran pour l'instant. Ajoutez-en un pour commencer à y afficher des pages.",
+    "unnamed": "Écran sans nom",
+    "openSettings": "Paramètres",
+    "openSettingsLabel": "Ouvrir les paramètres de {name}",
+    "pause": "Mettre en pause",
+    "resume": "Reprendre",
+    "pauseLabel": "Mettre {name} en pause",
+    "resumeLabel": "Reprendre {name}",
+    "back": "Tous les écrans",
+    "notFound": "Cet écran n'existe plus.",
+    "previewTitle": "Affiché en ce moment",
+    "settingsTitle": "Paramètres",
+    "transition": {
+      "title": "Transition",
+      "description": "La façon dont cet écran passe d'un message au suivant. La transition propre à une page reste prioritaire.",
+      "default": "Par défaut",
+      "defaultDescription": "Utiliser la transition choisie dans Paramètres → Comportement.",
+      "cloudNote": "Ce tableau utilise l'API cloud, qui change tout le tableau d'un coup. Les transitions nécessitent l'API locale.",
+      "snapNote": "Cet écran ne peut changer que d'un seul coup : il passe directement à chaque nouveau message.",
+      "deviceDefault": "Par défaut de l'appareil",
+      "unavailable": "Non disponible sur cet écran",
+      "runsAs": "S'exécute comme",
+      "previewLabel": "Aperçu de {name}"
+    },
+    "add": {
+      "title": "Ajouter un écran",
+      "chooseDescription": "Sur quoi voulez-vous que FiestaBoard affiche ?",
+      "findMore": "Trouver d'autres écrans",
+      "findMoreTitle": "Trouver d'autres écrans",
+      "findMoreDescription": "Plugins d'écran du registre de plugins FiestaBoard.",
+      "findMoreLoading": "Chargement du registre…",
+      "findMoreFailed": "Impossible de charger le registre de plugins. Vérifiez votre connexion internet et réessayez.",
+      "findMoreEmpty": "Le registre ne contient pas encore d'autres écrans.",
+      "byAuthor": "par {author}",
+      "vestaboardTitle": "Ajouter un Vestaboard",
+      "vestaboardDescription": "Choisissez sa forme. Vous le connecterez ensuite sur sa page.",
+      "panelTitle": "Ajouter une TV ou un navigateur",
+      "outputTitle": "Ajouter {name}",
+      "setupDescription": "Configurez-le, puis ajoutez-le."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Mise à jour disponible",
@@ -2403,10 +2446,7 @@
     "geometryDetected": "Détecté {rows} × {cols}",
     "applyGeometry": "Appliquer la taille",
     "actionInputDescription": "Cette action a d'abord besoin de quelques informations.",
-    "otherDisplays": "Autres écrans",
     "betaRequired": "Activez les plugins de sortie dans Paramètres → Avancé → Fonctionnalités bêta pour utiliser cet écran.",
-    "boardCreated": "Tableau ajouté",
-    "addOutputTitle": "Ajouter un tableau {name}",
     "boardNameLabel": "Nom du tableau",
     "boardNamePlaceholder": "Mon tableau",
     "deviceModelLabel": "Modèle d'appareil",

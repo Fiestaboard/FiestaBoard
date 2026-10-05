@@ -1,12 +1,13 @@
 import { PageCard } from "@fiestaboard/ui";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 
 import firstPartyOutputs from "@/__tests__/mocks/first-party-outputs.json";
+import { OUTPUTS_QUERY_KEY } from "@/components/settings/output-boards";
 import type { BoardInstance, BoardSettings } from "@/lib/api";
 
-import { DisplaySettings } from "./display-settings";
-import { OUTPUTS_QUERY_KEY } from "./output-boards";
+import { DisplayEditor } from "./display-editor";
 
 /** A Vestaboard's connection: its `output_config`, which the screen edits (the flat fields are the read-back view). */
 function vestaboard(config: Record<string, unknown>): Pick<BoardInstance, "output" | "output_config"> {
@@ -41,21 +42,6 @@ const noteBoard: BoardInstance = {
   ...vestaboard({ api_mode: "cloud", cloud_key: "***" }),
 };
 
-const disabledBoard: BoardInstance = {
-  id: "board-3",
-  name: "Office Board",
-  device_type: "flagship",
-  board_color: "black",
-  // A Flagship built from 2026: the same flap carries a heart (#1657).
-  code62_glyph: "heart",
-  enabled: false,
-  api_mode: "local",
-  host: "",
-  local_api_key: "",
-  cloud_key: "",
-  ...vestaboard({ api_mode: "local" }),
-};
-
 const createQueryClient = (boards: BoardInstance[]) => {
   const client = new QueryClient({
     defaultOptions: {
@@ -76,108 +62,60 @@ const createQueryClient = (boards: BoardInstance[]) => {
   return client;
 };
 
+/**
+ * PageSection pads and divides itself but draws no surface — the page card
+ * is what a display's settings live in, so a story shows it in one.
+ */
+function inCard(client: QueryClient) {
+  return function Decorator(Story: () => ReactNode) {
+    return (
+      <QueryClientProvider client={client}>
+        <div className="max-w-lg">
+          <PageCard>
+            <Story />
+          </PageCard>
+        </div>
+      </QueryClientProvider>
+    );
+  };
+}
+
 const meta = {
-  title: "Settings/DisplaySettings",
-  component: DisplaySettings,
+  title: "Displays/DisplayEditor",
+  component: DisplayEditor,
   parameters: {
     layout: "padded",
-    nextjs: {
-      appDirectory: true,
-    },
   },
+  args: { boardId: "board-1" },
   tags: ["autodocs"],
-} satisfies Meta<typeof DisplaySettings>;
+} satisfies Meta<typeof DisplayEditor>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const SingleBoard: Story = {
-  decorators: [
-    (Story) => (
-      <QueryClientProvider client={createQueryClient([flagshipBoard])}>
-        <div className="max-w-lg">
-          {/* PageSection pads and divides itself but draws no surface — the
-              page card is what a settings section lives in, so the story
-              shows it in one rather than floating unpadded. */}
-          <PageCard>
-            <Story />
-          </PageCard>
-        </div>
-      </QueryClientProvider>
-    ),
-  ],
+export const LocalFlagship: Story = {
+  decorators: [inCard(createQueryClient([flagshipBoard, noteBoard]))],
 };
 
-export const MultipleBoards: Story = {
-  decorators: [
-    (Story) => (
-      <QueryClientProvider client={createQueryClient([flagshipBoard, noteBoard, disabledBoard])}>
-        <div className="max-w-lg">
-          {/* PageSection pads and divides itself but draws no surface — the
-              page card is what a settings section lives in, so the story
-              shows it in one rather than floating unpadded. */}
-          <PageCard>
-            <Story />
-          </PageCard>
-        </div>
-      </QueryClientProvider>
-    ),
-  ],
+export const CloudNote: Story = {
+  args: { boardId: "board-2" },
+  decorators: [inCard(createQueryClient([flagshipBoard, noteBoard]))],
 };
 
 export const UnconfiguredBoard: Story = {
   decorators: [
-    (Story) => (
-      <QueryClientProvider
-        client={createQueryClient([
-          { ...flagshipBoard, host: "", local_api_key: "", name: "New Board", ...vestaboard({ api_mode: "local" }) },
-        ])}
-      >
-        <div className="max-w-lg">
-          {/* PageSection pads and divides itself but draws no surface — the
-              page card is what a settings section lives in, so the story
-              shows it in one rather than floating unpadded. */}
-          <PageCard>
-            <Story />
-          </PageCard>
-        </div>
-      </QueryClientProvider>
+    inCard(
+      createQueryClient([
+        { ...flagshipBoard, host: "", local_api_key: "", name: "New Board", ...vestaboard({ api_mode: "local" }) },
+      ]),
     ),
   ],
 };
 
 export const Loading: Story = {
-  decorators: [
-    (Story) => (
-      <QueryClientProvider client={new QueryClient()}>
-        <div className="max-w-lg">
-          {/* PageSection pads and divides itself but draws no surface — the
-              page card is what a settings section lives in, so the story
-              shows it in one rather than floating unpadded. */}
-          <PageCard>
-            <Story />
-          </PageCard>
-        </div>
-      </QueryClientProvider>
-    ),
-  ],
+  decorators: [inCard(new QueryClient())],
 };
 
 export const WhiteBoard: Story = {
-  decorators: [
-    (Story) => (
-      <QueryClientProvider
-        client={createQueryClient([{ ...flagshipBoard, board_color: "white", name: "White Flagship" }])}
-      >
-        <div className="max-w-lg">
-          {/* PageSection pads and divides itself but draws no surface — the
-              page card is what a settings section lives in, so the story
-              shows it in one rather than floating unpadded. */}
-          <PageCard>
-            <Story />
-          </PageCard>
-        </div>
-      </QueryClientProvider>
-    ),
-  ],
+  decorators: [inCard(createQueryClient([{ ...flagshipBoard, board_color: "white", name: "White Flagship" }]))],
 };

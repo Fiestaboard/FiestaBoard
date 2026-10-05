@@ -2,7 +2,7 @@
  * Note arrays — web (Playwright) regression coverage. [#1180]
  *
  * Covers the genuinely E2E-reachable note-array surface in
- * Settings → Hardware (web/src/components/settings/display-settings.tsx):
+ * a display's page on Displays (web/src/components/settings/display-settings.tsx):
  *   1. All 5 note-array presets selectable + persisted (W×H + device_type).
  *      (#1178 already covered "4 side-by-side"; this fills the other four and
  *      re-covers all five via a data-driven loop for completeness.)
@@ -29,7 +29,8 @@ import {
   ensureAuthForFetch,
   expect,
   loginIfNeeded,
-  openSettingsTab,
+  openDisplay,
+  openDisplays,
   resetToSingleBoard,
   test,
 } from "../helpers";
@@ -64,13 +65,9 @@ test.afterEach(async () => {
   await resetToSingleBoard();
 });
 
-/** Navigate to Settings → Hardware and expand the single "My Board" card. */
+/** Open the single "My Board" display's page (was: expand its card on Settings → Hardware). */
 async function openHardwareAndExpand(page: import("@playwright/test").Page) {
-  await page.goto("/settings");
-  await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-  await openSettingsTab(page, "Hardware");
-  // Expand the board card (header text is the board name).
-  await page.getByText("My Board").first().click();
+  await openDisplay(page, "My Board");
 }
 
 /** The grouped board type/size combobox inside the expanded board card. */
@@ -201,11 +198,9 @@ test.describe("regression: note-arrays — size indicator", () => {
       }),
     });
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
-    // The indicator is a role="img" in the always-visible card header.
+    // The indicator is a role="img" in the display card's summary.
     // aria-label = boardSizeIndicator.ariaLabelWithLayout
     // ("{rows} rows by {cols} columns, {layout}") → board-size-indicator.tsx:31.
     const indicator = page.getByRole("img", { name: "3 rows by 60 columns, 4 side-by-side" });
@@ -237,9 +232,7 @@ test.describe("regression: note-arrays — size indicator", () => {
       }),
     });
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
     // 3×2 notes → 6 × 45 chars; no preset matches → boardSizeIndicator.custom ("Custom").
     const indicator = page.getByRole("img", { name: "6 rows by 45 columns, Custom" });

@@ -63,6 +63,7 @@
     "collections": "Carruseles",
     "schedule": "Horario",
     "integrations": "Integraciones",
+    "displays": "Pantallas",
     "settings": "Configuración",
     "helpDocs": "Ayuda y documentación",
     "userProfile": "Perfil",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "Asistente de configuración",
     "setupWizardDescription": "Vuelve a ejecutar el asistente de configuración para reconfigurar la conexión del tablero y los ajustes básicos.",
     "runSetupWizard": "Ejecutar asistente de configuración",
-    "sectionHardware": "Hardware",
     "sectionHardwareDescription": "Configuración física del tablero y conexión",
     "sectionBehavior": "Comportamiento",
     "sectionBehaviorDescription": "Cómo se mueve, actualiza y pausa el contenido",
@@ -777,7 +777,7 @@
       "needsBeta": "Requiere la beta de plugins de salida. Puedes activarla en el siguiente paso.",
       "downloads": "Se descarga al continuar, así que necesita conexión a Internet.",
       "skipTitle": "Omitir: añadiré una pantalla más tarde",
-      "skipDescription": "Explora y previsualiza páginas ahora. Añade una pantalla cuando quieras en Ajustes."
+      "skipDescription": "Explora y previsualiza páginas ahora. Añade una pantalla cuando quieras desde Pantallas."
     },
     "outputSetup": {
       "installing": "Instalando {name}…",
@@ -977,8 +977,6 @@
     "transitionOpenLab": "Abrir el laboratorio de transiciones"
   },
   "displaySettings": {
-    "title": "Tus tableros",
-    "description": "Agrega cada Vestaboard que tengas y configura su conexión.",
     "unnamedBoard": "Tablero sin nombre",
     "boardDimensions": {
       "flagship": "22×6",
@@ -992,7 +990,6 @@
     "code62DegreeAriaLabel": "Aleta de grado",
     "code62HeartAriaLabel": "Aleta de corazón",
     "removeBoard": "Eliminar tablero",
-    "addBoard": "Agregar tablero",
     "selectType": "Selecciona el tipo:",
     "boardAdded": "Tablero agregado",
     "boardRemoved": "Tablero eliminado",
@@ -1037,6 +1034,52 @@
     "notesWideLabel": "Notes de ancho",
     "notesTallLabel": "Notes de alto",
     "customRangeError": "Cada dimensión debe estar entre 1 y {max}."
+  },
+  "displays": {
+    "title": "Pantallas",
+    "description": "Todos los tableros y pantallas en los que muestra FiestaBoard. Abre uno para cambiar su configuración.",
+    "addDisplay": "Añadir una pantalla",
+    "listLabel": "Tus pantallas",
+    "empty": "Aún no hay pantallas. Añade una para empezar a mostrar páginas en ella.",
+    "unnamed": "Pantalla sin nombre",
+    "openSettings": "Configuración",
+    "openSettingsLabel": "Abrir la configuración de {name}",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "pauseLabel": "Pausar {name}",
+    "resumeLabel": "Reanudar {name}",
+    "back": "Todas las pantallas",
+    "notFound": "Esta pantalla ya no existe.",
+    "previewTitle": "Mostrando ahora",
+    "settingsTitle": "Configuración",
+    "transition": {
+      "title": "Transición",
+      "description": "Cómo cambia esta pantalla de un mensaje al siguiente. La transición propia de una página sigue teniendo prioridad.",
+      "default": "Predeterminada",
+      "defaultDescription": "Usar la transición elegida en Configuración → Comportamiento.",
+      "cloudNote": "Este tablero usa la API en la nube, que cambia todo el tablero a la vez. Las transiciones necesitan la API local.",
+      "snapNote": "Esta pantalla solo puede cambiar todo a la vez, así que salta directamente a cada mensaje nuevo.",
+      "deviceDefault": "Predeterminada del dispositivo",
+      "unavailable": "No disponible en esta pantalla",
+      "runsAs": "Se ejecuta como",
+      "previewLabel": "Vista previa de {name}"
+    },
+    "add": {
+      "title": "Añadir una pantalla",
+      "chooseDescription": "¿En qué quieres que muestre FiestaBoard?",
+      "findMore": "Buscar más pantallas",
+      "findMoreTitle": "Buscar más pantallas",
+      "findMoreDescription": "Plugins de pantalla del registro de plugins de FiestaBoard.",
+      "findMoreLoading": "Cargando el registro…",
+      "findMoreFailed": "No se pudo cargar el registro de plugins. Comprueba tu conexión a internet e inténtalo de nuevo.",
+      "findMoreEmpty": "Todavía no hay otras pantallas en el registro.",
+      "byAuthor": "por {author}",
+      "vestaboardTitle": "Añadir un Vestaboard",
+      "vestaboardDescription": "Elige su forma. Lo conectarás después en su página.",
+      "panelTitle": "Añadir un televisor o navegador",
+      "outputTitle": "Añadir {name}",
+      "setupDescription": "Configúrala y después añádela."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Actualización disponible",
@@ -2403,10 +2446,7 @@
     "geometryDetected": "Detectado {rows} × {cols}",
     "applyGeometry": "Aplicar tamaño",
     "actionInputDescription": "Esta acción necesita algunos datos primero.",
-    "otherDisplays": "Otras pantallas",
     "betaRequired": "Activa los plugins de salida en Configuración → Avanzado → Funciones beta para usar esta pantalla.",
-    "boardCreated": "Tablero añadido",
-    "addOutputTitle": "Añadir un tablero {name}",
     "boardNameLabel": "Nombre del tablero",
     "boardNamePlaceholder": "Mi tablero",
     "deviceModelLabel": "Modelo de dispositivo",

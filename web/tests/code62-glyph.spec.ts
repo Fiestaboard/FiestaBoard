@@ -23,7 +23,7 @@ import {
   expect,
   getMockBoardState,
   lastMockMessage,
-  openSettingsTab,
+  openDisplays,
   resetMockBoard,
   resetToSingleBoard,
   setActivePage,
@@ -89,13 +89,16 @@ function tile(page: import("@playwright/test").Page, col: number) {
   return page.locator(`[data-testid="char-tile-0-${col}"]`).first();
 }
 
-/** Expand the (collapsed) board card on Settings → Hardware. */
+/** Open the (single) board's page from Displays and return its settings card. */
 async function openBoardCard(page: import("@playwright/test").Page) {
-  await page.goto("/settings");
-  await openSettingsTab(page, "Hardware");
-  const card = page.locator("[data-testid=board-card]").first();
+  await openDisplays(page);
+  await page
+    .getByTestId("display-card")
+    .first()
+    .getByRole("link", { name: /^Open settings for / })
+    .click();
+  const card = page.locator("[data-testid=board-card]");
   await expect(card).toBeVisible({ timeout: 15_000 });
-  await card.getByRole("button").first().click();
   return card;
 }
 

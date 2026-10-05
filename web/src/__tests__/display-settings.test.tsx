@@ -1,5 +1,5 @@
 /**
- * Tests for the board cards in DisplaySettings (Settings → Hardware):
+ * Tests for a display's settings (DisplayEditor, on /displays/:boardId — plan D21):
  *  - Grouped device/preset Select (replaces the old flagship/note pills)
  *  - Custom W×H inputs with 1..MAX_NOTES_PER_AXIS validation
  *  - The Vestaboard's settings screen, drawn from its plugin manifest (plan
@@ -12,9 +12,9 @@
  *    the status poll (plan D13 `status`)
  *  - Auto-detect from board (the detect action: success → flagship/note/array, errors inline)
  *
- * The per-board controls live inside a collapsed Radix Collapsible, so each
- * test expands the card first by clicking its trigger. Radix Select / detect
- * interactions rely on the pointer-capture + scrollIntoView mocks in setup.ts.
+ * Adding a board is Displays → Add a display's (add-display-dialog.test.tsx).
+ * Radix Select / detect interactions rely on the pointer-capture +
+ * scrollIntoView mocks in setup.ts.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -23,7 +23,7 @@ import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DisplaySettings } from "@/components/settings/display-settings";
+import { DisplayEditor } from "@/components/displays/display-editor";
 import { mergeStored } from "@/components/settings/output-boards";
 
 import { mockStatus } from "./mocks/handlers";
@@ -202,12 +202,16 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
-/** Render, wait for the board card, expand it, and return the card element. */
-async function renderAndExpand(user: ReturnType<typeof userEvent.setup>) {
-  render(<DisplaySettings />, { wrapper: TestWrapper });
-  const trigger = await screen.findByText("My Board");
-  await user.click(trigger);
+/** Render the display's page settings (the fixture board, "default") and return its card. */
+async function renderAndExpand(_user?: ReturnType<typeof userEvent.setup>) {
+  render(<DisplayEditor boardId="default" />, { wrapper: TestWrapper });
   const card = await screen.findByTestId("board-card");
+  // The connection screen draws once the outputs (`GET /outputs`) arrive.
+  await waitFor(() =>
+    expect(
+      card.querySelector("[data-testid='plugin-board-settings'], [data-testid='virtual-board-hint']"),
+    ).not.toBeNull(),
+  );
   return card;
 }
 
@@ -370,8 +374,7 @@ describe("DisplaySettings — board name field (#1792)", () => {
   it("clearing the name saves an empty string and shows the restored default", async () => {
     const user = userEvent.setup();
     const put = setupBoard({ device_type: "flagship", name: "Kitchen Board" });
-    render(<DisplaySettings />, { wrapper: TestWrapper });
-    await user.click(await screen.findByText("Kitchen Board"));
+    render(<DisplayEditor boardId="default" />, { wrapper: TestWrapper });
     const card = await screen.findByTestId("board-card");
 
     const nameInput = (await within(card).findByLabelText("Name")) as HTMLInputElement;
@@ -389,8 +392,7 @@ describe("DisplaySettings — board name field (#1792)", () => {
   it("re-blurring after a clear does not fire a second identical PUT", async () => {
     const user = userEvent.setup();
     const put = setupBoard({ device_type: "flagship", name: "Kitchen Board" });
-    render(<DisplaySettings />, { wrapper: TestWrapper });
-    await user.click(await screen.findByText("Kitchen Board"));
+    render(<DisplayEditor boardId="default" />, { wrapper: TestWrapper });
     const card = await screen.findByTestId("board-card");
 
     const nameInput = (await within(card).findByLabelText("Name")) as HTMLInputElement;
@@ -504,71 +506,6 @@ describe("DisplaySettings — note_array_token field", () => {
     await user.tab();
     await waitFor(() => expect(put.body).not.toBeNull());
     expect((put.body!.boards![0].output_config as BoardRecord).note_array_token).toBe("new-secret-token");
-  });
-});
-
-describe("DisplaySettings — add board picker", () => {
-  /** Register a POST /settings/board/add recorder alongside the board fixture. */
-  function setupAdd(board: BoardOverride) {
-    setupBoard(board);
-    const post: { body: BoardRecord | null } = { body: null };
-    server.use(
-      http.post(`${API_BASE}/settings/board/add`, async ({ request }) => {
-        post.body = (await request.json()) as BoardRecord;
-        return HttpResponse.json({
-          status: "success",
-          settings: { board_type: "black", boards: [], devices: [] },
-        });
-      }),
-    );
-    return post;
-  }
-
-  it("offers Note Array alongside Flagship and Note", async () => {
-    const user = userEvent.setup();
-    setupAdd({ device_type: "flagship" });
-    render(<DisplaySettings />, { wrapper: TestWrapper });
-    await screen.findByText("My Board");
-
-    await user.click(screen.getByRole("button", { name: "Add Board" }));
-
-    expect(screen.getByRole("button", { name: "Flagship" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Note" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Note Array" })).toBeInTheDocument();
-  });
-
-  it("adding a Note Array posts a 2×1 cloud-mode array", async () => {
-    const user = userEvent.setup();
-    const post = setupAdd({ device_type: "flagship" });
-    render(<DisplaySettings />, { wrapper: TestWrapper });
-    await screen.findByText("My Board");
-
-    await user.click(screen.getByRole("button", { name: "Add Board" }));
-    await user.click(screen.getByRole("button", { name: "Note Array" }));
-
-    await waitFor(() => expect(post.body).not.toBeNull());
-    expect(post.body!.device_type).toBe("note_array");
-    // Smallest real array (the "2 side-by-side" preset) is the starting point.
-    expect(post.body!.notes_wide).toBe(2);
-    expect(post.body!.notes_tall).toBe(1);
-    // Note arrays are cloud-driven today, so don't start them in local mode.
-    expect(post.body!.output).toBe("vestaboard");
-    expect(post.body!.output_config).toEqual({ api_mode: "cloud" });
-    expect(post.body).not.toHaveProperty("api_mode");
-  });
-
-  it("adding a Flagship posts only the device type", async () => {
-    const user = userEvent.setup();
-    const post = setupAdd({ device_type: "flagship" });
-    render(<DisplaySettings />, { wrapper: TestWrapper });
-    await screen.findByText("My Board");
-
-    await user.click(screen.getByRole("button", { name: "Add Board" }));
-    await user.click(screen.getByRole("button", { name: "Flagship" }));
-
-    await waitFor(() => expect(post.body).not.toBeNull());
-    expect(post.body!.device_type).toBe("flagship");
-    expect(post.body!.notes_wide).toBeUndefined();
   });
 });
 
@@ -1264,7 +1201,7 @@ describe("DisplaySettings — virtual boards (FiestaPanel)", () => {
 
   it("shows the FiestaPanel badge instead of Not configured", async () => {
     setupBoard(VIRTUAL_BOARD);
-    render(<DisplaySettings />, { wrapper: TestWrapper });
+    render(<DisplayEditor boardId="default" />, { wrapper: TestWrapper });
     await screen.findByText("My Board");
 
     expect(screen.queryByText("Not configured")).not.toBeInTheDocument();
@@ -1298,7 +1235,7 @@ describe("DisplaySettings — virtual boards (FiestaPanel)", () => {
 
   /** Two-board fixture (physical + virtual) so the last-board guard doesn't
    *  mask the panel guard; returns the expanded virtual board's card. */
-  async function renderTwoBoardsAndExpandVirtual(user: ReturnType<typeof userEvent.setup>) {
+  async function renderTwoBoardsAndExpandVirtual(_user?: ReturnType<typeof userEvent.setup>) {
     const boards = [
       { id: "b1", name: "Physical", device_type: "flagship", api_mode: "cloud", cloud_key: "***" },
       { ...VIRTUAL_BOARD, id: "b2", name: "Living Room (Panel)" },
@@ -1312,13 +1249,10 @@ describe("DisplaySettings — virtual boards (FiestaPanel)", () => {
         }),
       ),
     );
-    render(<DisplaySettings />, { wrapper: TestWrapper });
-    const trigger = await screen.findByText("Living Room (Panel)");
-    await user.click(trigger);
-    const cards = await screen.findAllByTestId("board-card");
-    const card = cards.find((c) => within(c).queryByText("Living Room (Panel)") !== null);
-    expect(card).toBeDefined();
-    return card!;
+    render(<DisplayEditor boardId="b2" />, { wrapper: TestWrapper });
+    const card = await screen.findByTestId("board-card");
+    expect(within(card).getByText("Living Room (Panel)")).toBeInTheDocument();
+    return card;
   }
 
   it("disables Remove Board while a panel still references the virtual board", async () => {

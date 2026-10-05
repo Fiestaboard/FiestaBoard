@@ -2,12 +2,13 @@
  * Multi-Board & Board Configuration E2E Tests
  *
  * Comprehensive coverage of the per-board configuration model:
- *  - Settings page: board card display (name, type, dimensions, connection badge)
- *  - Settings page: board CRUD (add, change type/color, delete)
+ *  - Displays (/displays): display card (name, type, dimensions, connection badge)
+ *  - A display's page and Add a display: board CRUD (add, change type/color, delete)
  *  - Setup Wizard: board type picker, color swatches, BoardInstance creation
  *  - Cross-feature: board config changes affect pages list tabs
  */
 import {
+  addVestaboardDisplay,
   API_URL,
   BOARD_HOST,
   chooseVestaboardInWizard,
@@ -17,7 +18,7 @@ import {
   deleteAllPages,
   deletePagesByDevice,
   expect,
-  openSettingsTab,
+  openDisplays,
   resetToSingleBoard,
   suppressWizard,
   test,
@@ -28,7 +29,7 @@ import {
 // Test Group 1: Settings – Board Card Display
 // ---------------------------------------------------------------------------
 
-test.describe("Settings – Board Card Display", () => {
+test.describe("Displays – Display Card", () => {
   test.beforeEach(async ({ page }) => {
     await configureBoard();
     await resetToSingleBoard();
@@ -40,10 +41,7 @@ test.describe("Settings – Board Card Display", () => {
   });
 
   test("board card header shows name, device type, and dimensions", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
     await expect(page.getByText("My Board").first()).toBeVisible({
       timeout: 10_000,
@@ -52,10 +50,7 @@ test.describe("Settings – Board Card Display", () => {
   });
 
   test("board card shows Connected badge when credentials are set", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
     await expect(page.getByText("Connected").first()).toBeVisible({
       timeout: 10_000,
@@ -70,10 +65,7 @@ test.describe("Settings – Board Card Display", () => {
       body: JSON.stringify({ device_type: "note" }),
     });
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
     await expect(page.getByText("Not configured").first()).toBeVisible({
       timeout: 10_000,
@@ -87,10 +79,7 @@ test.describe("Settings – Board Card Display", () => {
       body: JSON.stringify({ device_type: "note" }),
     });
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
     await expect(page.getByText("6 × 22").first()).toBeVisible({
       timeout: 10_000,
@@ -103,7 +92,7 @@ test.describe("Settings – Board Card Display", () => {
 // Test Group 2: Settings – Board Instance CRUD
 // ---------------------------------------------------------------------------
 
-test.describe("Settings – Board Instance CRUD", () => {
+test.describe("Displays – Board Instance CRUD", () => {
   test.beforeEach(async ({ page }) => {
     await configureBoard();
     await resetToSingleBoard();
@@ -114,20 +103,9 @@ test.describe("Settings – Board Instance CRUD", () => {
     await resetToSingleBoard();
   });
 
-  test("can add a Note board via the Add Board picker", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
-
-    // Click Add Board to reveal type picker
-    await page.getByRole("button", { name: "Add Board" }).click();
-    await expect(page.getByText("Select type:")).toBeVisible({
-      timeout: 5_000,
-    });
-
-    // Click the Note option in the type picker
-    await page.getByRole("button", { name: "Note", exact: true }).click();
+  test("can add a Note board via Add a display", async ({ page }) => {
+    // Displays → Add a display → Vestaboard → Note: lands on the new display's page
+    await addVestaboardDisplay(page, "Note");
 
     // Verify Note dimensions appear
     await expect(page.getByText("3 × 15").first()).toBeVisible({
@@ -141,19 +119,8 @@ test.describe("Settings – Board Instance CRUD", () => {
     expect(data.boards.some((b: { device_type: string }) => b.device_type === "note")).toBe(true);
   });
 
-  test("can add a Flagship board via the Add Board picker", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
-
-    await page.getByRole("button", { name: "Add Board" }).click();
-    await expect(page.getByText("Select type:")).toBeVisible({
-      timeout: 5_000,
-    });
-
-    // Click the Flagship option in the type picker
-    await page.getByRole("button", { name: "Flagship", exact: true }).click();
+  test("can add a Flagship board via Add a display", async ({ page }) => {
+    await addVestaboardDisplay(page, "Flagship");
 
     await expect(page.getByText("Board added"))
       .toBeVisible({ timeout: 5_000 })
@@ -168,13 +135,10 @@ test.describe("Settings – Board Instance CRUD", () => {
   });
 
   test("can change device type via the type selector", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    await openDisplays(page);
 
-    await openSettingsTab(page, "Hardware");
-
-    // Expand board card
-    await page.getByText("My Board").first().click();
+    // Open the board's own page
+    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
 
     // Open the device-type Select (grouped flagship/note + note-array presets)
     const typeSelect = page.getByRole("combobox", { name: "Board type and size" }).first();
@@ -196,13 +160,10 @@ test.describe("Settings – Board Instance CRUD", () => {
   });
 
   test("can select a note-array preset and persist W×H + token", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    await openDisplays(page);
 
-    await openSettingsTab(page, "Hardware");
-
-    // Expand board card
-    await page.getByText("My Board").first().click();
+    // Open the board's own page
+    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
 
     // Open the type Select and pick the "4 side-by-side" note-array preset
     const typeSelect = page.getByRole("combobox", { name: "Board type and size" }).first();
@@ -229,8 +190,7 @@ test.describe("Settings – Board Instance CRUD", () => {
 
     // Reload and confirm the selection + token persisted (token masked as "***").
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await openSettingsTab(page, "Hardware");
+    await expect(page.getByTestId("board-card")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("3 × 60").first()).toBeVisible({ timeout: 10_000 });
 
     res = await fetch(`${API_URL}/settings/board`);
@@ -240,10 +200,7 @@ test.describe("Settings – Board Instance CRUD", () => {
   });
 
   test("auto-detect populates type + dimensions from a mocked board read", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
     // Route-mock the board's detect action (the Vestaboard settings screen's
     // "Auto-detect from board") to read a 2×2 grid (6×30 chars).
@@ -269,8 +226,8 @@ test.describe("Settings – Board Instance CRUD", () => {
       });
     });
 
-    // Expand board card and click Auto-detect.
-    await page.getByText("My Board").first().click();
+    // Open the board's page and click Auto-detect.
+    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
     const detectBtn = page.getByRole("button", { name: "Auto-detect from board" }).first();
     await expect(detectBtn).toBeVisible({ timeout: 5_000 });
     await detectBtn.click();
@@ -286,13 +243,10 @@ test.describe("Settings – Board Instance CRUD", () => {
   });
 
   test("can change board color via swatches", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    await openDisplays(page);
 
-    await openSettingsTab(page, "Hardware");
-
-    // Expand board card
-    await page.getByText("My Board").first().click();
+    // Open the board's own page
+    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
     await expect(page.getByText("Color").first()).toBeVisible({
       timeout: 5_000,
     });
@@ -322,20 +276,14 @@ test.describe("Settings – Board Instance CRUD", () => {
       body: JSON.stringify({ device_type: "note" }),
     });
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
     const resBefore = await fetch(`${API_URL}/settings/board`);
     const dataBefore = await resBefore.json();
     expect(dataBefore.boards.length).toBe(2);
 
-    // Expand the Note board (click on 3 × 15 dimensions to target the right card)
-    await expect(page.getByText("3 × 15").first()).toBeVisible({
-      timeout: 10_000,
-    });
-    await page.getByText("3 × 15").first().click();
+    // Open the Note board's page (the second board, "My Board 2")
+    await page.getByRole("link", { name: "Open settings for My Board 2", exact: true }).click();
 
     // Click Remove Board
     const removeBtn = page.getByRole("button", { name: /Remove Board/i });
@@ -350,17 +298,14 @@ test.describe("Settings – Board Instance CRUD", () => {
   });
 
   test("cannot delete the last remaining board", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
     const res = await fetch(`${API_URL}/settings/board`);
     const data = await res.json();
     expect(data.boards.length).toBe(1);
 
-    // Expand the board card
-    await page.getByText("My Board").first().click();
+    // Open the board's page
+    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
 
     const removeBtn = page.getByRole("button", { name: /Remove Board/i });
     await expect(removeBtn).toBeVisible({ timeout: 5_000 });
@@ -532,7 +477,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
     expect(data.boards[0].board_color).toBe("black");
   });
 
-  test("wizard-created board shows correctly on settings page", async ({ page }) => {
+  test("wizard-created board shows correctly on Displays", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
     });
@@ -576,13 +521,10 @@ test.describe("Setup Wizard – Board Configuration", () => {
 
     await page.getByRole("button", { name: /Go to Dashboard|Skip/ }).click();
 
-    // Navigate to settings page
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    // Navigate to Displays
+    await openDisplays(page);
 
-    await openSettingsTab(page, "Hardware");
-
-    // Verify board card shows correct info
+    // Verify the display card shows correct info
     await expect(page.getByText("My Board").first()).toBeVisible({
       timeout: 10_000,
     });

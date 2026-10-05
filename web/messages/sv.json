@@ -63,6 +63,7 @@
     "collections": "Karuseller",
     "schedule": "Schema",
     "integrations": "Integrationer",
+    "displays": "Skärmar",
     "settings": "Inställningar",
     "helpDocs": "Hjälp & dokumentation",
     "userProfile": "Profil",
@@ -620,7 +621,6 @@
     "setupWizardTitle": "Installationsguide",
     "setupWizardDescription": "Kör installationsguiden igen för att konfigurera om din tavlas anslutning och grundinställningar.",
     "runSetupWizard": "Kör installationsguiden",
-    "sectionHardware": "Hårdvara",
     "sectionHardwareDescription": "Fysisk tavlekonfiguration och anslutning",
     "sectionBehavior": "Beteende",
     "sectionBehaviorDescription": "Hur innehåll rör sig, uppdateras och pausas",
@@ -777,7 +777,7 @@
       "needsBeta": "Kräver betan för utdataplugins. Du kan slå på den i nästa steg.",
       "downloads": "Laddas ned när du fortsätter, så det krävs en internetanslutning.",
       "skipTitle": "Hoppa över — jag lägger till en skärm senare",
-      "skipDescription": "Titta runt och förhandsgranska sidor nu. Lägg till en skärm när som helst i Inställningar."
+      "skipDescription": "Titta runt och förhandsgranska sidor nu. Lägg till en skärm när du vill under Skärmar."
     },
     "outputSetup": {
       "installing": "Installerar {name}…",
@@ -977,8 +977,6 @@
     "transitionOpenLab": "Öppna övergångslabbet"
   },
   "displaySettings": {
-    "title": "Dina tavlor",
-    "description": "Lägg till varje Vestaboard du äger och konfigurera dess anslutning.",
     "unnamedBoard": "Namnlös tavla",
     "boardDimensions": {
       "flagship": "22×6",
@@ -992,7 +990,6 @@
     "code62DegreeAriaLabel": "Gradtecken-flik",
     "code62HeartAriaLabel": "Hjärt-flik",
     "removeBoard": "Ta bort tavla",
-    "addBoard": "Lägg till tavla",
     "selectType": "Välj typ:",
     "boardAdded": "Tavla tillagd",
     "boardRemoved": "Tavla borttagen",
@@ -1037,6 +1034,52 @@
     "notesWideLabel": "Notes breda",
     "notesTallLabel": "Notes höga",
     "customRangeError": "Varje dimension måste vara mellan 1 och {max}."
+  },
+  "displays": {
+    "title": "Skärmar",
+    "description": "Alla tavlor och skärmar som FiestaBoard visar på. Öppna en för att ändra dess inställningar.",
+    "addDisplay": "Lägg till en skärm",
+    "listLabel": "Dina skärmar",
+    "empty": "Inga skärmar än. Lägg till en för att börja visa sidor på den.",
+    "unnamed": "Namnlös skärm",
+    "openSettings": "Inställningar",
+    "openSettingsLabel": "Öppna inställningar för {name}",
+    "pause": "Pausa",
+    "resume": "Återuppta",
+    "pauseLabel": "Pausa {name}",
+    "resumeLabel": "Återuppta {name}",
+    "back": "Alla skärmar",
+    "notFound": "Den här skärmen finns inte längre.",
+    "previewTitle": "Visas nu",
+    "settingsTitle": "Inställningar",
+    "transition": {
+      "title": "Övergång",
+      "description": "Hur den här skärmen byter från ett meddelande till nästa. En sidas egen övergång vinner fortfarande.",
+      "default": "Standard",
+      "defaultDescription": "Använd övergången som valts i Inställningar → Beteende.",
+      "cloudNote": "Den här tavlan använder moln-API:t, som ändrar hela tavlan på en gång. Övergångar kräver det lokala API:t.",
+      "snapNote": "Den här skärmen kan bara ändra allt på en gång, så den byter direkt till varje nytt meddelande.",
+      "deviceDefault": "Enhetens standard",
+      "unavailable": "Inte tillgänglig på den här skärmen",
+      "runsAs": "Körs som",
+      "previewLabel": "Förhandsvisning av {name}"
+    },
+    "add": {
+      "title": "Lägg till en skärm",
+      "chooseDescription": "Vad vill du att FiestaBoard ska visa på?",
+      "findMore": "Hitta fler skärmar",
+      "findMoreTitle": "Hitta fler skärmar",
+      "findMoreDescription": "Skärmtillägg från FiestaBoards tilläggsregister.",
+      "findMoreLoading": "Läser in registret…",
+      "findMoreFailed": "Det gick inte att läsa in tilläggsregistret. Kontrollera internetanslutningen och försök igen.",
+      "findMoreEmpty": "Det finns inga andra skärmar i registret än.",
+      "byAuthor": "av {author}",
+      "vestaboardTitle": "Lägg till en Vestaboard",
+      "vestaboardDescription": "Välj dess form. Du ansluter den sedan på dess sida.",
+      "panelTitle": "Lägg till en tv eller webbläsare",
+      "outputTitle": "Lägg till {name}",
+      "setupDescription": "Ställ in den och lägg sedan till den."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Uppdatering tillgänglig",
@@ -2403,10 +2446,7 @@
     "geometryDetected": "Identifierade {rows} × {cols}",
     "applyGeometry": "Använd storlek",
     "actionInputDescription": "Den här åtgärden behöver några uppgifter först.",
-    "otherDisplays": "Andra skärmar",
     "betaRequired": "Slå på utdatainsticksmoduler i Inställningar → Avancerat → Betafunktioner för att använda den här skärmen.",
-    "boardCreated": "Tavla tillagd",
-    "addOutputTitle": "Lägg till en {name}-tavla",
     "boardNameLabel": "Tavlans namn",
     "boardNamePlaceholder": "Min tavla",
     "deviceModelLabel": "Enhetsmodell",
