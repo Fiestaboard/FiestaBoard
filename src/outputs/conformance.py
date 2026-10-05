@@ -5,10 +5,10 @@ output plugin repository: FiestaBoard core runs it against its test kit
 (``tests/fixtures/plugins/recording_output``), and a plugin repo runs it in
 its own CI against the core tag it pins.
 
-**Using it from a plugin repository.** The plugin's device I/O must go
-through one seam the test can replace (a ``_post`` method, an HTTP session
-attribute...). The factory builds a plugin and routes that seam to the
-suite's :class:`FakeTransport`; the suite then plays core and device both::
+**Using it from a plugin repository.** The plugin's device traffic goes
+through ``self.http`` (:mod:`src.outputs.http`), and the suite routes that
+helper to its :class:`FakeTransport` itself, so the plugin's real request
+code runs against a fake device. The factory just builds the plugin::
 
     # tests/test_conformance.py in fiestaboard-output--acme-sign
     from pathlib import Path
@@ -18,26 +18,29 @@ suite's :class:`FakeTransport`; the suite then plays core and device both::
     from plugins.acme_sign import AcmeSign   # however your repo imports it
 
     def make_plugin(board_id, config, transport):
-        plugin = AcmeSign(board_id, config)
-        plugin._post = transport.send        # every device request -> the fake
-        return plugin
+        return AcmeSign(board_id, config)    # self.http -> the fake: the suite does it
 
     def test_conformance():
         OutputConformanceSuite(
             plugin_dir=Path(__file__).resolve().parent.parent,   # holds manifest.json
             factory=make_plugin,
             config={"host": "192.0.2.10", "token": "test_token_1234"},
-            # Optional: turn one request's payload back into the CellFrame it
-            # carries (None for requests that carry no frame). Enables the
-            # frame-level sequence rule.
+            # Optional: turn one request's payload (its JSON body, else its
+            # data) back into the CellFrame it carries (None for requests
+            # that carry no frame). Enables the frame-level sequence rule.
             decode=lambda payload: payload.get("frame"),
         ).assert_conformant()
 
-``transport.send(payload)`` records the request, waits the configured
-latency, and raises :class:`TransportError` (an ``OSError``) when the suite
-makes the device fail — so the plugin's own error handling is what is
-tested. Pass ``config`` values for every secret field the board settings
-declare: the suite checks none of them leaks into ``device_key()``.
+Each request is recorded, delayed by the configured latency, and answered
+``200 {"ok": true}`` — or failed with :class:`TransportError` (a
+``requests`` ``ConnectionError``, so an ``OSError``) when the suite makes
+the device fail, so the plugin's own error handling is what is tested.
+Pass ``config`` values for every secret field the board settings declare:
+the suite checks none of them leaks into ``device_key()``.
+
+A factory that replaces the plugin's own request seam with
+``transport.send`` still records requests, but bypasses ``self.http``: the
+``device_traffic`` rule fails it.
 
 **The rules** (each a ``check_*`` method returning :class:`Violation` s;
 :meth:`~OutputConformanceSuite.run` runs them all):
@@ -55,9 +58,15 @@ declare: the suite checks none of them leaks into ``device_key()``.
 - ``floor`` — ``min_interval_ms`` is a non-negative integer; the plugin does
   not throttle itself (core does) nor talk to the device outside a write;
   with a floor, core keeps a second frame inside it off the device;
+- ``device_traffic`` — writes, sequences and connection checks talk to the
+  device only through ``self.http`` (the host fence, timeouts, cancel): no
+  socket of their own, and no request that bypassed the helper;
 - ``write_result`` — every write answers a well-formed ``WriteResult``; a
   device failure is reported, not raised; a write that landed on part of the
-  board is ``partial`` with in-bounds ``failed_regions``;
+  board is ``partial`` with in-bounds ``failed_regions``. Requests marked
+  ``setup=True`` (a reset, a brightness command) are not part of the board
+  write: the scenario fails the first *board* request, and a lost setup
+  request the plugin tolerates does not make a landed write partial;
 - ``cancel`` — once the run's cancel token fires, ``write`` (and
   ``write_sequence``) start no further device request and return promptly;
 - ``sequence`` — for ``animation: sequence`` outputs, ``write_sequence``
@@ -75,10 +84,12 @@ import threading
 import time
 import uuid
 from collections.abc import Callable, Iterator, Mapping
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+import requests
 
 from src.devices import MIN_GRID_COLS, MIN_GRID_ROWS
 from src.led.charsets import CharacterSetError, materialize_character_set
@@ -86,6 +97,7 @@ from src.send_outcome import FrameRegion, WriteResult
 
 from .geometry import model_cell_grid
 from .hooks import ConnectionCheck
+from .http import HttpRequest
 from .plugin_base import CancelToken, CellFrame, OutputPluginBase, TimedFrame
 
 __all__ = [
@@ -111,8 +123,9 @@ PluginFactory = Callable[[str | None, dict, "FakeTransport"], OutputPluginBase]
 # --- the fake device ---------------------------------------------------------------------
 
 
-class TransportError(OSError):
-    """The fake device failed this request."""
+class TransportError(requests.exceptions.ConnectionError):
+    """The fake device failed this request (an ``OSError``, as every
+    ``requests`` connection error is)."""
 
 
 @dataclass
@@ -124,6 +137,10 @@ class Request:
     #: The frame the payload carries, when the suite was given a ``decode``.
     frame: CellFrame | None = None
     failed: bool = False
+    #: Marked ``setup=True``: not part of the board write.
+    setup: bool = False
+    #: Arrived through the plugin's ``self.http`` (not a patched seam).
+    via_http: bool = False
 
 
 class FakeTransport:
@@ -139,29 +156,61 @@ class FakeTransport:
         self.requests: list[Request] = []
         self.latency = 0.0
         self._fails: Callable[[int], bool] = lambda index: False
+        self._fails_board: Callable[[int], bool] = lambda index: False
+        self._fail_setup = False
         self._lock = threading.Lock()
 
-    def reset(self, *, latency: float = 0.0, fail: Callable[[int], bool] | None = None) -> None:
-        """Forget every request; set the latency and which requests fail
-        (by 0-based index)."""
+    def reset(
+        self,
+        *,
+        latency: float = 0.0,
+        fail: Callable[[int], bool] | None = None,
+        fail_board: Callable[[int], bool] | None = None,
+        fail_setup: bool = False,
+    ) -> None:
+        """Forget every request; set the latency and which requests fail:
+        *fail* by 0-based index over every request, *fail_board* by index
+        over board requests only (those not marked ``setup``), and with
+        *fail_setup* every request marked ``setup``."""
         with self._lock:
             self.requests = []
             self.latency = latency
             self._fails = fail or (lambda index: False)
+            self._fails_board = fail_board or (lambda index: False)
+            self._fail_setup = fail_setup
 
-    def send(self, payload: Any) -> dict[str, Any]:
-        """One device request: recorded, delayed by the latency, maybe failed."""
+    def _record(self, payload: Any, *, setup: bool, via_http: bool) -> None:
         with self._lock:
             index = len(self.requests)
+            board_index = sum(1 for r in self.requests if not r.setup)
             frame = self.decode(payload) if self.decode is not None else None
-            request = Request(payload, time.monotonic(), frame, failed=self._fails(index))
+            failed = self._fails(index) or (self._fail_setup if setup else self._fails_board(board_index))
+            request = Request(payload, time.monotonic(), frame, failed=failed, setup=setup, via_http=via_http)
             self.requests.append(request)
             latency = self.latency
         if latency:
             time.sleep(latency)
         if request.failed:
             raise TransportError(f"fake device refused request {index}")
+
+    def send(self, payload: Any) -> dict[str, Any]:
+        """One device request made around ``self.http`` (a patched seam):
+        recorded, delayed by the latency, maybe failed."""
+        self._record(payload, setup=False, via_http=False)
         return {"ok": True}
+
+    def http_send(self, request: HttpRequest) -> requests.Response:
+        """One request from the plugin's ``self.http`` — the transport the
+        suite routes the helper to. The recorded payload is the JSON body,
+        else the data."""
+        payload = request.json if request.json is not None else request.data
+        self._record(payload, setup=request.setup, via_http=True)
+        response = requests.Response()
+        response.status_code = 200
+        response._content = b'{"ok": true}'
+        response.headers["Content-Type"] = "application/json"
+        response.url = request.url
+        return response
 
 
 # --- the report --------------------------------------------------------------------------
@@ -224,14 +273,14 @@ class _NetworkBlocked(OSError):
 
 
 @contextmanager
-def _no_network(attempts: list[str]) -> Iterator[None]:
+def _no_network(attempts: list[str], during: str = "import") -> Iterator[None]:
     """Refuse (and record) every socket connect and DNS lookup inside."""
 
     def refuse(name: str) -> Callable[..., Any]:
         def blocked(*args: Any, **kwargs: Any) -> Any:
             target = args[1] if name.startswith("socket.connect") and len(args) > 1 else (args[0] if args else "")
             attempts.append(f"{name}({target!r})")
-            raise _NetworkBlocked(f"network access during import: {name}({target!r})")
+            raise _NetworkBlocked(f"network access during {during}: {name}({target!r})")
 
         return blocked
 
@@ -316,6 +365,7 @@ class OutputConformanceSuite:
         plugin = self.factory(board_id, dict(self.config), self.transport)
         if self.manifest is not None and self.manifest.output is not None:
             plugin.bind_manifest(self.manifest.output)
+        plugin.http.use_transport(self.transport.http_send)
         plugin.open()
         return plugin
 
@@ -550,23 +600,73 @@ class OutputConformanceSuite:
             if isinstance(result, WriteResult) and (result.success or result.partial or result.was_sent):
                 violations.append(Violation("write_result", f"a write that reached nothing answered {result!r}"))
 
-        self.transport.reset(fail=lambda index: index == 0)
-        result, raised = self._guarded_write(plugin, self._frame(3), "a write whose first request failed")
-        violations += raised
-        if result is not None and isinstance(result, WriteResult):
-            violations += self._well_formed(result, "a write whose first request failed")
-            requests = self.transport.requests
-            landed = [r for r in requests if not r.failed]
-            if requests and landed and not (result.partial and result.failed_regions):
-                violations.append(
-                    Violation(
-                        "write_result",
-                        f"{len(landed)} of {len(requests)} requests landed but the write answered {result!r}: "
-                        "report partial=True with the failed_regions",
-                    )
+        for code, where, reset in (
+            (3, "a write whose first board request failed", {"fail_board": lambda index: index == 0}),
+            (4, "a write whose setup requests failed", {"fail_setup": True}),
+        ):
+            self.transport.reset(**reset)
+            result, raised = self._guarded_write(plugin, self._frame(code), where)
+            violations += raised
+            if result is not None and isinstance(result, WriteResult):
+                violations += self._well_formed(result, where) + self._board_accounting(result)
+        return violations
+
+    def _board_accounting(self, result: WriteResult) -> list[Violation]:
+        """The write's verdict against the board requests that landed.
+
+        Setup requests (marked ``setup=True``) are not the board write: a
+        lost one neither makes a landed write partial nor counts as reaching
+        the board.
+        """
+        board = [r for r in self.transport.requests if not r.setup]
+        landed = [r for r in board if not r.failed]
+        if landed and len(landed) < len(board) and not (result.partial and result.failed_regions):
+            return [
+                Violation(
+                    "write_result",
+                    f"{len(landed)} of {len(board)} board requests landed but the write answered {result!r}: "
+                    "report partial=True with the failed_regions (mark a request that is not the board "
+                    "write itself setup=True)",
                 )
-            if requests and not landed and (result.success or result.partial):
-                violations.append(Violation("write_result", f"a write that reached nothing answered {result!r}"))
+            ]
+        if board and not landed and (result.success or result.partial):
+            return [Violation("write_result", f"a write that reached nothing answered {result!r}")]
+        return []
+
+    def check_device_traffic(self) -> list[Violation]:
+        plugin = self._plugin()
+        self.transport.reset()
+        attempts: list[str] = []
+        calls: list[Callable[[], Any]] = [lambda: self._write(plugin, self._frame(1)), plugin.check_connection]
+        if plugin.capabilities().animation == "sequence":
+            frames = self._sequence_frames(min(plugin.capabilities().max_frames or 4, 4))
+            calls.append(lambda: plugin.write_sequence(frames, cancel=CancelToken()))
+        with _no_network(attempts, "a write"):
+            for call in calls:
+                # Other rules judge errors; this one judges traffic.
+                with suppress(Exception):
+                    call()
+        violations: list[Violation] = []
+        if attempts:
+            violations.append(
+                Violation(
+                    "device_traffic",
+                    f"the plugin opened its own connection ({', '.join(sorted(set(attempts)))}): send every device "
+                    "request through self.http, which applies FIESTABOARD_OUTPUTS_ALLOW_HOSTS, timeouts and the "
+                    "cancel token",
+                )
+            )
+        bypassed = [r for r in self.transport.requests if not r.via_http]
+        if bypassed:
+            violations.append(
+                Violation(
+                    "device_traffic",
+                    f"{len(bypassed)} device request(s) bypassed self.http (a test factory that patches the "
+                    "plugin's request seam hides its real traffic; the suite routes self.http itself)",
+                )
+            )
+        if not attempts and not self.transport.requests:
+            return self._skip("device_traffic", "the plugin made no device request")
         return violations
 
     def _cancel_run(self, call: Callable[[CancelToken], Any], what: str) -> list[Violation]:
@@ -678,6 +778,7 @@ class OutputConformanceSuite:
         "import_network",
         "device_key",
         "floor",
+        "device_traffic",
         "write_result",
         "cancel",
         "sequence",

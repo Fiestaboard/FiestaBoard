@@ -24,6 +24,7 @@
         "animation": {"type": "string", "enum": ["stream", "sequence", "none"]},
         "min_interval_ms": {"type": "integer", "minimum": 0},
         "wait_for_cancel": {"type": "boolean"},
+        "setup_first": {"type": "boolean"},
         "panels": {
           "type": "array",
           "items": {

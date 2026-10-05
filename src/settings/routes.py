@@ -48,6 +48,7 @@ from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
 from src.devices import classify_dimensions, geometry_of
 from src.display_runtime import reinitialize_board_clients
+from src.outputs.cells import extended_markup_kw, project_for_output
 
 from .models import (
     ERROR_400,
@@ -625,7 +626,9 @@ async def set_active_page(request: SetActivePageRequest):
                 logger.info("Board is paused - skipping immediate active-page send")
                 paused = True
             else:
-                result = page_service.preview_page(render_page_id, force_refresh=True)
+                result = page_service.preview_page(
+                    render_page_id, force_refresh=True, **extended_markup_kw(send_client)
+                )
                 if result and result.available:
                     system_transition = settings_service.get_transition_settings()
                     strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
@@ -646,7 +649,9 @@ async def set_active_page(request: SetActivePageRequest):
                         dims = _board_dims(board)
                     else:
                         dims = resolve_dimensions(*geometry_of(page))
-                    board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
+                    board_array, rich = project_for_output(
+                        send_client, result.formatted, dims.rows, dims.cols, flap=text_to_board_array
+                    )
                     # render() serializes concurrent senders via the client's
                     # per-board send lock, so worker threads can't interleave.
                     success, was_sent = send_client.render(
@@ -655,6 +660,7 @@ async def set_active_page(request: SetActivePageRequest):
                         step_interval_ms=interval_ms,
                         step_size=step_size,
                         device_type=(board.get("device_type") if board is not None else page.device_type),
+                        **rich,
                     )
                     sent_to_board = was_sent
                     if not success:

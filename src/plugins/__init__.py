@@ -14,8 +14,38 @@ instance per board -- :class:`OutputPluginBase`, see :mod:`src.outputs`).
    repositories that follow the ``fiestaboard-plugin--{name}`` naming
    convention.
 3. **Git URL** – arbitrary public git repositories specified by the user.
+
+**The output-plugin author API** is importable from here, so an output
+plugin depends on one module: the contract (:class:`OutputPluginBase`,
+:class:`WriteResult`, :class:`CancelToken`, :data:`CellFrame`,
+:data:`RichCellFrame`...), the device helper's types (:class:`OutputHttp`,
+:class:`RequestCancelled`, :class:`OutputHostBlocked`), the rich cell
+(:class:`BoardToken`, :func:`cells_from_codes`, :func:`characters_to_message`)
+and core's LED renderer (:mod:`src.led`: :func:`layout_message`,
+:func:`rasterize`, :func:`plan_transition`, :func:`transition_frames`,
+:func:`resolve_led_transition`, :func:`led_flip_seed`...). Versioned with
+the manifest's ``output_api``.
 """
 
+from src.board_chars import characters_to_message
+from src.led import (
+    LedLayout,
+    LedLayoutOptions,
+    LedMatrixSpec,
+    LedTransitionSpec,
+    ResolvedLedTransition,
+    layout_message,
+    led_flip_seed,
+    led_spec_for_model,
+    plan_transition,
+    rasterize,
+    resolve_led_transition,
+    transition_frames,
+)
+from src.markup import BoardToken
+from src.output_allowlist import OutputHostBlocked
+from src.outputs.cells import cells_from_codes
+from src.outputs.http import OutputHttp, RequestCancelled
 from src.outputs.plugin_base import (
     CancelToken,
     CellFrame,
@@ -48,12 +78,19 @@ from .sources import (
 
 __all__ = [
     "INSTANCE_SEPARATOR",
+    "BoardToken",
     "CancelToken",
     "CellFrame",
     "ConnectionCheck",
     "DemoPageSchema",
     "DiagnosticCheck",
     "FrameRegion",
+    "LedLayout",
+    "LedLayoutOptions",
+    "LedMatrixSpec",
+    "LedTransitionSpec",
+    "OutputHostBlocked",
+    "OutputHttp",
     "OutputPluginBase",
     "PluginBase",
     "PluginLoader",
@@ -62,15 +99,26 @@ __all__ = [
     "PluginResult",
     "PluginSource",
     "RegistryEntry",
+    "RequestCancelled",
+    "ResolvedLedTransition",
     "RichCellFrame",
     "TimedFrame",
     "TransitionFrame",
     "TransitionPluginBase",
     "TriggerResult",
     "WriteResult",
+    "cells_from_codes",
+    "characters_to_message",
     "get_plugin_registry",
+    "layout_message",
+    "led_flip_seed",
+    "led_spec_for_model",
     "load_registry",
+    "plan_transition",
     "plugin_id_from_repo_name",
+    "rasterize",
+    "resolve_led_transition",
+    "transition_frames",
     "validate_manifest",
     "validate_registry_repo_name",
 ]

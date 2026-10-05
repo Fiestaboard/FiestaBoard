@@ -96,19 +96,35 @@ class OutputPluginEntry:
         """Nothing to release: the class is never instantiated here."""
 
 
+def _board_grid(board: dict) -> tuple[int, int] | None:
+    """The board's saved content grid (an output-plugin board is a custom
+    ``panel`` grid, plan D8); ``None`` when it saved none, and the plugin
+    falls back to its model's own grid."""
+    rows, cols = board.get("grid_rows"), board.get("grid_cols")
+    if isinstance(rows, int) and isinstance(cols, int) and rows > 0 and cols > 0:
+        return rows, cols
+    return None
+
+
 def _builder(plugin_class: type[OutputPluginBase], manifest: PluginManifest, *, gated: bool):
     output_manifest = manifest.output
 
     def build(board: dict) -> OutputDriver | None:
-        from .board_profile import board_character_set
+        from .board_profile import board_character_set, board_device_model
         from .plugin_driver import OutputPluginDriver
 
         if gated and not output_plugins_enabled():
             raise OutputPluginsDisabledError(manifest.id)
         instance = plugin_class(board.get("id"), dict(board.get("output_config") or {}))
         instance.bind_manifest(output_manifest)
+        character_set = board_character_set(board)
+        instance.bind_board(
+            device_model=board_device_model(board),
+            character_set=character_set,
+            geometry=_board_grid(board),
+        )
         instance.open()
-        return OutputPluginDriver(instance, character_set=board_character_set(board))
+        return OutputPluginDriver(instance, character_set=character_set)
 
     return build
 

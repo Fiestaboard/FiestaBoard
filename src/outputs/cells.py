@@ -28,10 +28,11 @@ be served a stale projection.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import replace
 from typing import Any, NamedTuple
 
+from src.board_chars import characters_to_message
 from src.led.charsets import CharacterSet, CharsetLookup, charset_fallback, has_extended_markup
 from src.markup import BoardToken, parse_line, rich_tokens_equal
 from src.text_to_board import COLOR_CODES, text_to_board_array
@@ -40,9 +41,12 @@ __all__ = [
     "ProjectedFrame",
     "RichCellFrame",
     "cells_equal",
+    "cells_from_codes",
     "cells_to_json",
+    "extended_markup_kw",
     "output_character_set",
     "output_extended_markup",
+    "project_for_output",
     "project_message",
 ]
 
@@ -75,6 +79,36 @@ def output_extended_markup(client: Any) -> bool:
     """Whether the board behind *client* speaks extended markup (plan D19):
     true iff its resolved set has colour spans, block spans or icons."""
     return has_extended_markup(output_character_set(client))
+
+
+def extended_markup_kw(client: Any) -> dict[str, Any]:
+    """``{"extended_markup": True}`` for a board whose output speaks extended
+    markup, else nothing — a page/template render keyword that leaves a
+    split-flap board's call exactly as it was."""
+    return {"extended_markup": True} if output_extended_markup(client) else {}
+
+
+def project_for_output(
+    client: Any,
+    message: str,
+    rows: int,
+    cols: int,
+    *,
+    flap: Callable[..., list[list[int]]] | None = None,
+) -> tuple[list[list[int]], dict[str, Any]]:
+    """*message* projected for the board behind *client*: the 0–71 grid and
+    the send keywords that carry its rich cells (``{"cells": ...}``, or
+    nothing for a split-flap board).
+
+    A split-flap board's grid comes from *flap* — the caller's own
+    ``text_to_board_array`` (a module-level name tests patch), by default
+    :func:`~src.text_to_board.text_to_board_array` — exactly as before.
+    """
+    charset = output_character_set(client)
+    if not has_extended_markup(charset):
+        return (flap or text_to_board_array)(message, rows=rows, cols=cols), {}
+    frame = project_message(message, rows, cols, charset)
+    return frame.characters, {"cells": frame.cells}
 
 
 def _numeric_tile(token: BoardToken) -> BoardToken:
@@ -123,3 +157,17 @@ def cells_equal(a: RichCellFrame | None, b: RichCellFrame | None) -> bool:
 def cells_to_json(cells: RichCellFrame) -> list[list[dict]]:
     """FiestaUI's ``BoardToken[][]`` JSON shape (absent fields omitted)."""
     return [[t.to_dict() for t in row] for row in cells]
+
+
+def _code_cell(code: int) -> BoardToken:
+    if 63 <= code <= 71:
+        return BoardToken("color", code=str(code))
+    text = characters_to_message([[code]]) if 0 <= code <= 62 else " "
+    return BoardToken("char", value=text if len(text) == 1 else " ")
+
+
+def cells_from_codes(characters: list[list[int]]) -> RichCellFrame:
+    """A 0–71 grid as rich cells: a code 63–71 is that colour tile, any
+    other its character (an unknown code is a blank). What a frame that
+    only ever was codes (a blank board, a read-back) looks like as cells."""
+    return [[_code_cell(int(code)) for code in row] for row in characters]

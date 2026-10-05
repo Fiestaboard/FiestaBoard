@@ -13,15 +13,21 @@ Per-board behaviour comes from the board's ``output_config``:
 - ``animation`` / ``min_interval_ms`` — narrow the manifest's capabilities;
 - ``wait_for_cancel`` — ``write`` blocks until core cancels it (or 5 s);
 - ``panels`` — with a transport attached, each panel is one request (a
-  vertical slice of the board), so one failed panel is a partial write.
+  vertical slice of the board), so one failed panel is a partial write;
+- ``setup_first`` — each write first sends a setup request (a brightness
+  command, say) whose failure it tolerates, marked ``setup=True`` so core's
+  accounting does not count it as part of the board write.
 
-``transport`` is the device: ``None`` (the default) records in memory only;
-the conformance suite attaches its fake transport, which every request then
-goes through (``transport.send(payload)``).
+Every device request goes through ``self.http`` (core's helper: the host
+fence, timeouts, the cancel token), as a real output plugin's must.
+``transport`` says whether a device is attached: ``None`` (the default)
+records in memory only and sends nothing; the conformance suite attaches its
+fake transport and routes ``self.http`` to it.
 """
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import threading
 
@@ -75,14 +81,25 @@ class RecordingOutput(OutputPluginBase):
             regions.append((panel.get("id", str(index)), FrameRegion(0, col, rows, span)))
         return regions
 
+    def _request(self, payload, *, setup: bool = False):
+        """One device request: a JSON POST to the sign, through core's helper."""
+        return self.http.post(f"http://{self.config.get('host', '')}/frame", json=payload, setup=setup)
+
+    def _setup(self) -> None:
+        # A setting that did not take is retried next write; the frame still goes.
+        with contextlib.suppress(OSError):
+            self._request({"setup": "brightness"}, setup=True)
+
     def _send(self, frame, cancel) -> WriteResult:
+        if self.config.get("setup_first") and not cancel.cancelled:
+            self._setup()
         landed, failed = [], []
         for panel_id, region in self._slices(frame):
             if cancel.cancelled:
                 break
             payload = {"panel": panel_id, "frame": [row[region.col : region.col + region.cols] for row in frame]}
             try:
-                self.transport.send(payload)
+                self._request(payload)
             except OSError:
                 failed.append(region)
             else:
@@ -127,7 +144,7 @@ class RecordingOutput(OutputPluginBase):
         from src.outputs.hooks import ConnectionCheck
 
         try:
-            self.transport.send({"probe": True})
+            self._request({"probe": True})
         except OSError as exc:
             return ConnectionCheck(success=False, message=f"Recording sign unreachable: {exc}")
         return ConnectionCheck(success=True, message="Recording sign reachable.")

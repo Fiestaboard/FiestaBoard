@@ -25,6 +25,7 @@ from src.board_guards import _board_is_paused
 from src.board_send_executor import run_board_send
 from src.devices import geometry_of, resolve_dimensions
 from src.display_runtime import get_service
+from src.outputs.cells import project_for_output
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service
 from src.text_to_board import text_to_board_array
 
@@ -269,7 +270,9 @@ async def send_display(display_type: str, target: str | None = None):
             geometry = geometry_of(board_settings.boards[0]) if board_settings.boards else geometry_of({})
             device_type = geometry.device_type
             dims = resolve_dimensions(*geometry)
-            board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
+            board_array, rich = project_for_output(
+                service.vb_client, result.formatted, dims.rows, dims.cols, flap=text_to_board_array
+            )
             # Board network I/O goes on the dedicated bounded send pool, never
             # inline on the event loop (#1878).
             success, was_sent = await run_board_send(
@@ -279,6 +282,7 @@ async def send_display(display_type: str, target: str | None = None):
                 step_interval_ms=transition.step_interval_ms,
                 step_size=transition.step_size,
                 device_type=device_type,
+                **rich,
             )
             sent_to_board = was_sent
             if not success:

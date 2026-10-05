@@ -70,10 +70,44 @@ export interface TemplateValidationResponse {
   }>;
 }
 
+/**
+ * One board cell as FiestaUI's `BoardToken` JSON — a rich cell (plan D15).
+ * `type: "char"` carries `value`; `type: "color"` carries `code` (numeric,
+ * `"63"`–`"71"`). `color` / `background` / `icon` appear only when set.
+ */
+export interface BoardTokenJson {
+  type: "char" | "color";
+  value?: string;
+  code?: string;
+  color?: string;
+  background?: string;
+  icon?: string;
+}
+
+/** Why a board's character set draws a cell differently from how it is written. */
+export type CharsetIssueReason = "char" | "case" | "tile" | "icon" | "colorSpan" | "blockSpan";
+
+/** One cell a board's character set cannot draw as written (FiestaUI `CharsetValidationIssue`). */
+export interface CharsetIssue {
+  row: number;
+  col: number;
+  token: BoardTokenJson;
+  reason: CharsetIssueReason;
+  /** What the board draws there instead. */
+  fallback: BoardTokenJson;
+}
+
 export interface TemplateRenderResponse {
   rendered: string;
   lines: string[];
   line_count: number;
+  /**
+   * Present only when the request named a `board_id`: that board's character
+   * set id, or `null` when it is unknown (a FiestaPanel).
+   */
+  charset?: string | null;
+  /** With `charset`: every cell the board draws differently; `null` when unknown. */
+  charset_issues?: CharsetIssue[] | null;
 }
 
 export interface TemplateRenderLiveResponse {
@@ -109,6 +143,10 @@ export const templatesApi = {
   // `grid` sizes a `panel` (a FiestaPanel's explicit rows × cols): the server
   // answers 422 for a panel render without it. It is a trailing argument so
   // every existing positional caller keeps working; ignored for other types.
+  //
+  // `boardId` renders for that board (its extended markup when its output is
+  // an LED one) and returns its `charset` / `charset_issues` for the editor's
+  // warnings. Trailing and optional, so every existing caller is unchanged.
   renderTemplate: (
     template: string | string[],
     lineMetadata?: LineMetadata[],
@@ -116,6 +154,7 @@ export const templatesApi = {
     notesWide?: number,
     notesTall?: number,
     grid?: GridSize | null,
+    boardId?: string | null,
   ) =>
     fetchApi<TemplateRenderResponse>("/templates/render", {
       method: "POST",
@@ -126,6 +165,7 @@ export const templatesApi = {
         ...(notesWide != null && { notes_wide: notesWide }),
         ...(notesTall != null && { notes_tall: notesTall }),
         ...gridFields(grid),
+        ...(boardId && { board_id: boardId }),
       }),
     }),
   renderTemplateLive: (

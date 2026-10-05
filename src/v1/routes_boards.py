@@ -29,6 +29,7 @@ from src.board_state import read_board_state
 from src.devices import geometry_of
 from src.ops import executors
 from src.outputs.board_profile import board_profile
+from src.outputs.cells import extended_markup_kw, project_for_output
 from src.outputs.registry import resolve_output_id
 from src.text_to_board import text_to_board_array, wrap_message_text
 
@@ -250,43 +251,46 @@ def _validate_grid(characters: list[list[int]], rows: int, cols: int) -> None:
         )
 
 
-def _grid_for(request: MessageRequest, rows: int, cols: int) -> tuple[list[list[int]], str, list[str] | None]:
-    """``(characters, text, template_lines)`` for whichever content field was sent.
+def _grid_for(
+    request: MessageRequest, rows: int, cols: int, client: Any = None
+) -> tuple[list[list[int]], str, list[str] | None, dict[str, Any]]:
+    """``(characters, text, template_lines, rich)`` for whichever content field was sent.
 
     ``template_lines`` is the form a timed message can be stored as; it is
     ``None`` for the two raw-grid forms, which the temporary-override store
-    has no representation for.
+    has no representation for. ``rich`` holds the send keywords carrying the
+    rich cells of a text form, for a board (*client*) whose output draws a
+    rich character set; empty otherwise, and always for the raw grids.
     """
     if request.text is not None:
         wrapped = wrap_message_text(request.text, rows=rows, cols=cols)
-        return text_to_board_array(wrapped, rows=rows, cols=cols), wrapped, wrapped.split("\n")
+        grid, rich = project_for_output(client, wrapped, rows, cols, flap=text_to_board_array)
+        return grid, wrapped, wrapped.split("\n"), rich
 
     if request.lines is not None:
         joined = "\n".join(request.lines)
-        return text_to_board_array(joined, rows=rows, cols=cols), joined, list(request.lines)
+        grid, rich = project_for_output(client, joined, rows, cols, flap=text_to_board_array)
+        return grid, joined, list(request.lines), rich
 
     if request.fill is not None:
         grid = [[request.fill] * cols for _ in range(rows)]
-        return grid, characters_to_message(grid), None
+        return grid, characters_to_message(grid), None, {}
 
     if request.characters is not None:
         _validate_grid(request.characters, rows, cols)
-        return request.characters, characters_to_message(request.characters), None
+        return request.characters, characters_to_message(request.characters), None, {}
 
     # page_id — the remaining form, guaranteed by the request model.
     from src.pages.service import get_page_service
 
     page_service = get_page_service()
-    result = page_service.preview_page(request.page_id, force_refresh=True)
+    result = page_service.preview_page(request.page_id, force_refresh=True, **extended_markup_kw(client))
     if result is None:
         raise HTTPException(status_code=404, detail=f"Page not found: {request.page_id}")
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
-    return (
-        text_to_board_array(result.formatted, rows=rows, cols=cols),
-        result.formatted,
-        result.formatted.split("\n"),
-    )
+    grid, rich = project_for_output(client, result.formatted, rows, cols, flap=text_to_board_array)
+    return grid, result.formatted, result.formatted.split("\n"), rich
 
 
 def _raise_for_executor(result: dict[str, Any]) -> None:
@@ -354,11 +358,12 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
     service = runtime.get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    if service.get_board_client(board_id) is None:
+    board_client = service.get_board_client(board_id)
+    if board_client is None:
         raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
 
     dims = board_dimensions(entry)
-    characters, text, template_lines = _grid_for(request, dims.rows, dims.cols)
+    characters, text, template_lines, rich = _grid_for(request, dims.rows, dims.cols, board_client)
 
     # A timed message is validated up front (its 400s must precede any
     # write) but ARMED only after the write is in. It used to be armed and
@@ -394,7 +399,7 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
     if request.text is not None:
         result = await run_board_send(executors.send_message, request.text, board_id, **send_kwargs)
     else:
-        result = await run_board_send(executors.send_characters, characters, board_id, **send_kwargs)
+        result = await run_board_send(executors.send_characters, characters, board_id, **send_kwargs, **rich)
 
     _raise_for_executor(result)
 

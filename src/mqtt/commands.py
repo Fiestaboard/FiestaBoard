@@ -476,6 +476,7 @@ class CommandHandler:
             logger.info("MQTT send_message blocked by silence mode")
             return
         from src.api_server import get_service
+        from src.outputs.cells import project_for_output
         from src.text_to_board import text_to_board_array, wrap_message_text
 
         service = get_service()
@@ -513,12 +514,15 @@ class CommandHandler:
             cols=dims.cols,
             unescape_newlines=self._json_object(payload) is None,
         )
-        board_array = text_to_board_array(wrapped, rows=dims.rows, cols=dims.cols)
+        # A rich (LED) board also gets the message's rich cells; a split-flap
+        # board's call is unchanged.
+        board_array, rich = project_for_output(client, wrapped, dims.rows, dims.cols, flap=text_to_board_array)
         result = client.send_characters(
             board_array,
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
+            **rich,
         )
         # NOTE: deliberately does NOT invalidate the display loop's dedupe
         # cache — see _handle_blank_board. The message must outlive the next

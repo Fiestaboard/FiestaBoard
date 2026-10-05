@@ -70,6 +70,13 @@ class TestTheKitConforms:
         report = suite(animation="sequence", panels=[]).assert_conformant()
         assert not any(s.startswith("sequence:") for s in report.skipped)
 
+    def test_the_recording_output_conforms_with_a_marked_setup_request(self):
+        # A setup request that fails without failing the write is not part of
+        # the board write: a write whose setup was lost but whose frame landed
+        # is a success, not a partial one.
+        report = suite(setup_first=True).assert_conformant()
+        assert not any(s.startswith("write_result:") for s in report.skipped)
+
     def test_the_recording_output_conforms_with_a_floor(self):
         report = suite(min_interval_ms=15_000).assert_conformant()
         assert not any(s.startswith("floor:") for s in report.skipped)
@@ -184,7 +191,7 @@ class NegativeFloor(RecordingOutput):
 
 class SendsLater(RecordingOutput):
     def write(self, frame, *, native, cancel):
-        threading.Timer(0.05, lambda: self.transport.send({"late": True})).start()
+        threading.Timer(0.05, lambda: self._request({"late": True})).start()
         return WriteResult(True, True)
 
 
@@ -196,7 +203,7 @@ class TupleResult(RecordingOutput):
 class RaisesOnFailure(RecordingOutput):
     def write(self, frame, *, native, cancel):
         for panel in self.config["panels"]:
-            self.transport.send({"panel": panel["id"]})
+            self._request({"panel": panel["id"]})
         return WriteResult(True, True)
 
 
@@ -214,14 +221,14 @@ class ClaimsThrottle(RecordingOutput):
 class IgnoresCancel(RecordingOutput):
     def write(self, frame, *, native, cancel):
         for panel in self.config["panels"]:
-            self.transport.send({"panel": panel["id"]})
+            self._request({"panel": panel["id"]})
         return WriteResult(True, True)
 
 
 class SequenceIgnoresCancel(RecordingOutput):
     def write_sequence(self, frames, *, cancel):
         for timed in frames:
-            self.transport.send({"panel": "board", "frame": timed.frame})
+            self._request({"panel": "board", "frame": timed.frame})
         return WriteResult(True, True)
 
 
@@ -240,8 +247,38 @@ class OverBudget(RecordingOutput):
 
 class ProbeRaises(RecordingOutput):
     def check_connection(self):
-        self.transport.send({"probe": True})
+        self._request({"probe": True})
         return super().check_connection()
+
+
+class RawRequests(RecordingOutput):
+    """Talks to its device with ``requests`` directly: no fence, no timeout default."""
+
+    def write(self, frame, *, native, cancel):
+        import requests
+
+        try:
+            requests.post(f"http://{self.config['host']}/frame", json={"panel": "board", "frame": frame}, timeout=0.2)
+        except requests.RequestException:
+            return WriteResult(False, False)
+        return WriteResult(True, True)
+
+
+class SeamPatched(RecordingOutput):
+    """What an old-style test factory does: route the plugin's own request
+    seam straight to the fake device, so its real request code never runs."""
+
+    def _request(self, payload, *, setup=False):
+        return self.transport.send(payload)
+
+
+class SetupUnmarked(RecordingOutput):
+    """Sends a setup request it tolerates losing, but does not mark it: core
+    counts it as part of the board write, so the write is misreported."""
+
+    def _setup(self):
+        with contextlib.suppress(OSError):
+            self._request({"setup": "brightness"})
 
 
 class ProbeLies(RecordingOutput):
@@ -249,7 +286,7 @@ class ProbeLies(RecordingOutput):
         from src.outputs.hooks import ConnectionCheck
 
         with contextlib.suppress(TransportError):
-            self.transport.send({"probe": True})
+            self._request({"probe": True})
         return ConnectionCheck(success=True, message="fine")
 
 
@@ -268,6 +305,9 @@ BROKEN = [
     pytest.param(SequenceIgnoresCancel, {"animation": "sequence"}, "cancel", id="cancel-write_sequence"),
     pytest.param(EndsOffTarget, {"animation": "sequence", "panels": []}, "sequence", id="sequence-off-target"),
     pytest.param(OverBudget, {"animation": "sequence", "panels": []}, "sequence", id="sequence-over-max-frames"),
+    pytest.param(SetupUnmarked, {"setup_first": True}, "write_result", id="write_result-setup-unmarked"),
+    pytest.param(RawRequests, {}, "device_traffic", id="device_traffic-raw-requests"),
+    pytest.param(SeamPatched, {}, "device_traffic", id="device_traffic-seam-bypasses-http"),
     pytest.param(ProbeRaises, {}, "check_connection", id="check_connection-raises"),
     pytest.param(ProbeLies, {}, "check_connection", id="check_connection-lies"),
 ]
@@ -284,6 +324,32 @@ def test_assert_conformant_lists_every_violation():
     with pytest.raises(AssertionError) as caught:
         suite(LeakyKey).assert_conformant()
     assert "[device_key]" in str(caught.value)
+
+
+def test_the_fake_transport_answers_cores_http_helper():
+    from src.outputs.http import OutputHttp
+
+    transport = FakeTransport(decode=lambda payload: payload.get("frame"))
+    http = OutputHttp()
+    http.use_transport(transport.http_send)
+    transport.reset(fail_board=lambda index: index == 1)
+    assert http.post("http://192.0.2.1/x", json={"setup": 1}, setup=True).json() == {"ok": True}
+    http.post("http://192.0.2.1/x", json={"frame": [[1]]})
+    with pytest.raises(TransportError):
+        http.post("http://192.0.2.1/x", json={"frame": [[2]]})
+    assert [(r.payload, r.frame, r.setup, r.via_http, r.failed) for r in transport.requests] == [
+        ({"setup": 1}, None, True, True, False),
+        ({"frame": [[1]]}, [[1]], False, True, False),
+        ({"frame": [[2]]}, [[2]], False, True, True),
+    ]
+
+
+def test_a_fake_device_failure_is_a_requests_connection_error():
+    # Plugins already treat that as "device unreachable".
+    import requests
+
+    assert issubclass(TransportError, requests.exceptions.ConnectionError)
+    assert issubclass(TransportError, OSError)
 
 
 def test_the_fake_transport_records_delays_and_fails():

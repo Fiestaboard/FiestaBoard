@@ -33,6 +33,7 @@ from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service
 from src.devices import geometry_of, resolve_dimensions, size_key
 from src.display_runtime import get_service
+from src.outputs.cells import extended_markup_kw, project_for_output
 from src.schedules.service import get_schedule_service
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service
 from src.text_to_board import text_to_board_array
@@ -572,8 +573,10 @@ async def send_page(
         if not page:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
-        # Render the page - always force fresh render when sending to board
-        result = page_service.preview_page(page_id, force_refresh=True)
+        # Render the page - always force fresh render when sending to board.
+        # A board whose output draws a rich character set renders it with its
+        # extended markup (plan D19); every other board's call is unchanged.
+        result = page_service.preview_page(page_id, force_refresh=True, **extended_markup_kw(board_client))
 
         if result is None:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
@@ -619,7 +622,9 @@ async def send_page(
                     dims = _board_dims(board)
                 else:
                     dims = resolve_dimensions(*geometry_of(page))
-                board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
+                board_array, rich = project_for_output(
+                    board_client, result.formatted, dims.rows, dims.cols, flap=text_to_board_array
+                )
                 # render() serializes concurrent senders via the client's
                 # per-board send lock, so worker threads can't interleave.
                 success, was_sent = board_client.render(
@@ -628,6 +633,7 @@ async def send_page(
                     step_interval_ms=interval_ms,
                     step_size=step_size,
                     device_type=(board.get("device_type") if board is not None else page.device_type),
+                    **rich,
                 )
                 sent_to_board = was_sent
                 if not success:
