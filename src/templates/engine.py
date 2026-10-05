@@ -38,6 +38,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
+from src.markup import neutralize_data, resolve_icon_name
 from src.plugins import get_plugin_registry
 from src.plugins.manifest import resolve_color_rules
 from src.text_utils import extract_alignment_from_line
@@ -49,7 +50,13 @@ from .filters import FILTER_NAMES
 
 logger = logging.getLogger(__name__)
 
-# Symbol name to character mapping
+# Symbol shortcut -> legacy ASCII stand-in. This is what `{sun}` renders as
+# with extended markup off (today, on every board). With extended markup on,
+# a shortcut is an alias of the icon registry instead (plan D16): `{sun}` is
+# `{icon:sun}`, resolved by `src.markup.resolve_icon_name` from FiestaUI's
+# registry data, so this table carries no icon meanings. `{heart}` is the
+# typed ♥ (code 62), not an icon. A shortcut the registry does not know keeps
+# its ASCII in both modes.
 SYMBOL_CHARS = {
     "sun": "*",
     "star": "*",
@@ -76,6 +83,29 @@ SYMBOL_PATTERN = re.compile(r"\{(sun|star|cloud|rain|snow|storm|fog|partly|heart
 FILL_SPACE_PATTERN = re.compile(r"\{\{fill_space\}\}", re.IGNORECASE)
 FILL_SPACE_REPEAT_PATTERN = re.compile(r"\{\{fill_space_repeat:(.+?)\}\}", re.IGNORECASE)
 FILLED_PATTERN = re.compile(r"\{\{filled:(.+?)\}\}", re.IGNORECASE)
+
+# Extended-markup authoring forms (plan D19): `{{<head>:<body>}}` where the
+# head is CLOSED: a colour (name, 63-70 or #rrggbb, never filled/71), a
+# block `fg/bg`, or the literal `icon`. Anything else is a variable.
+_SPAN_COLOUR = r"(?:red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|70|#[0-9a-fA-F]{6})"
+EXTENDED_HEAD_PATTERN = re.compile(r"\{\{(icon|" + _SPAN_COLOUR + r"(?:/" + _SPAN_COLOUR + r")?):", re.IGNORECASE)
+
+
+def _matching_double_brace(text: str, start: int) -> int:
+    """Index of the `}` closing the `{{` at *start*, counting nested braces; -1 if none.
+
+    The closing pair must be `}}`, so the form ends where both opening braces
+    are balanced (a body may hold `{{var}}`, `{{= f }}`, `{63}`, nested forms).
+    """
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return i if text[i - 1] == "}" and i - 1 > start + 1 else -1
+    return -1
 
 
 def extract_template_plugin_ids(template_lines: "list[str] | str | None") -> set[str] | None:
@@ -182,13 +212,16 @@ class TemplateEngine:
             self._config_manager = get_config_manager()
         return self._config_manager
 
-    def render(self, template: str, context: dict[str, Any] | None = None) -> str:
+    def render(self, template: str, context: dict[str, Any] | None = None, *, extended_markup: bool = False) -> str:
         """Render template with data context.
 
         Args:
             template: Template string with {{variables}} and {{colors}}
             context: Optional pre-fetched context data. If not provided,
                      data will be fetched from display sources.
+            extended_markup: Resolve symbol shortcuts (``{sun}``) through the
+                icon registry instead of their ASCII stand-ins (plan D16). Off
+                by default; nothing turns it on until the v10 markup switch.
 
         Returns:
             Rendered string with all substitutions applied
@@ -207,6 +240,11 @@ class TemplateEngine:
 
         result = template
 
+        # Extended-markup authoring forms ({{red:HOT}}, {{icon:sun}}) before
+        # anything else: VAR_PATTERN would read "red:HOT" as a variable name.
+        if extended_markup:
+            result = self._normalize_extended(result, context)
+
         # Process colors FIRST (before variables) to prevent VAR_PATTERN from matching them
         # This converts {{red}} to {{63}}, etc.
         result = self._normalize_colors(result)
@@ -223,7 +261,7 @@ class TemplateEngine:
         result = self._render_variables(result, context)
 
         # Process symbols (single brackets like {sun})
-        return self._render_symbols(result)
+        return self._render_symbols(result, extended_markup=extended_markup)
 
     def _count_tiles(self, text: str) -> int:
         """Count the number of tiles in a text string.
@@ -570,6 +608,7 @@ class TemplateEngine:
             # Apply any other filters (except wrap)
             for f in other_filters:
                 value = self._apply_filter(value, f)
+            value = self._as_data(var_part, value)
 
             # Get prefix and suffix around the variable
             prefix = template[:match_start]
@@ -898,11 +937,11 @@ class TemplateEngine:
             if "|" in expr:
                 var_part, filter_part = expr.split("|", 1)
                 value = self._get_variable_value(var_part.strip(), context)
-                filtered = self._apply_filter(value, filter_part.strip())
+                filtered = self._as_data(var_part, self._apply_filter(value, filter_part.strip()))
                 # Apply color rules to the variable (before filtering changed it)
                 color_prefix = self._get_color_for_value(var_part.strip(), context)
                 return f"{color_prefix}{filtered}" if color_prefix else filtered
-            value = self._get_variable_value(expr, context)
+            value = self._as_data(expr, self._get_variable_value(expr, context))
             # Check if the value itself is a color code (e.g., {66})
             # This allows plugins to return color codes directly
             # Only recognize color codes, not color names (to avoid issues with team names like "Green Hornets")
@@ -924,6 +963,55 @@ class TemplateEngine:
             return f"{color_prefix}{value}" if color_prefix else value
 
         return VAR_PATTERN.sub(replace_var, template)
+
+    def _as_data(self, expr: str, value: Any) -> Any:
+        """A substituted value as *data* (plan D19): neutralise any brace that
+        is not a base-grammar tile or end tag, unless the plugin declares the
+        variable ``"format": "markup"``. Applies on every output."""
+        if not isinstance(value, str) or self._variable_format(expr) == "markup":
+            return value
+        return neutralize_data(value)
+
+    def _variable_format(self, expr: str) -> str:
+        """The manifest ``format`` of ``plugin[:instance].field[.n.sub]``; ``"text"`` if undeclared."""
+        parts = expr.strip().split(".")
+        registry = getattr(self, "_plugin_registry", None)
+        if len(parts) < 2 or registry is None:
+            return "text"
+        manifest = registry.get_manifest(parts[0].lower().split(":", 1)[0])
+        if manifest is None:
+            return "text"
+        metadata = manifest.variables.metadata
+        fields = parts[1:]
+        meta = metadata.get(".".join(fields)) or metadata.get(".".join("*" if f.isdigit() else f for f in fields))
+        return meta.format if meta else "text"
+
+    def _normalize_extended(self, template: str, context: dict[str, Any]) -> str:
+        """Turn the double-brace authoring forms into single-brace markup (plan D19).
+
+        ``{{red:HOT}}`` -> ``{red:HOT}``, ``{{black/white:OPEN}}`` ->
+        ``{black/white:OPEN}``, ``{{icon:sun}}`` -> ``{icon:sun}``. The head
+        grammar is closed (:data:`EXTENDED_HEAD_PATTERN`), so everything else,
+        including instance keys like ``{{weather:sf.temperature}}`` and
+        ``{{filled:-}}``, stays a variable. The body is rendered first
+        (variables, formulas, tiles, nested spans), then wrapped. Runs before
+        variable substitution, which would otherwise read ``red:HOT`` as a
+        variable name.
+        """
+        out: list[str] = []
+        i = 0
+        while i < len(template):
+            head = EXTENDED_HEAD_PATTERN.match(template, i)
+            end = _matching_double_brace(template, i) if head else -1
+            if end == -1:
+                out.append(template[i])
+                i += 1
+                continue
+            body = template[head.end() : end - 1]
+            rendered = self.render(body, context, extended_markup=True)
+            out.append("{" + head.group(1) + ":" + rendered + "}")
+            i = end + 1
+        return "".join(out)
 
     def _get_configured_color_rules(self, plugin_id: str, base_plugin_id: str, field: str) -> list:
         """The rules that color ``plugin_id.field`` (see :func:`resolve_color_rules`)."""
@@ -1335,11 +1423,22 @@ class TemplateEngine:
 
         return value
 
-    def _render_symbols(self, template: str) -> str:
-        """Replace {symbol} shortcuts with characters."""
+    def _render_symbols(self, template: str, *, extended_markup: bool = False) -> str:
+        """Replace {symbol} shortcuts.
+
+        With ``extended_markup`` off: the legacy ASCII stand-in from
+        :data:`SYMBOL_CHARS`. With it on: the icon the registry names
+        (``{icon:<canonical name>}``), or ``♥`` for ``{heart}``.
+        """
 
         def replace_symbol(match):
             symbol = match.group(1).lower()
+            if extended_markup:
+                if symbol == "heart":
+                    return "♥"
+                icon = resolve_icon_name(symbol)
+                if icon is not None:
+                    return "{icon:" + icon + "}"
             return SYMBOL_CHARS.get(symbol, match.group(0))
 
         return SYMBOL_PATTERN.sub(replace_symbol, template)

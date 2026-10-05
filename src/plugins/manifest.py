@@ -484,6 +484,9 @@ class VariableMetadata:
     max_length: int | None = None
     group: str = ""
     example: str = ""
+    # "text" (default): the value is data and is neutralised before it reaches
+    # the board; "markup": it passes through as markup (plan D19).
+    format: str = "text"
 
 
 def _metadata_from_dict(meta_dict: dict[str, Any]) -> VariableMetadata:
@@ -493,6 +496,7 @@ def _metadata_from_dict(meta_dict: dict[str, Any]) -> VariableMetadata:
         max_length=meta_dict.get("max_length"),
         group=meta_dict.get("group", ""),
         example=meta_dict.get("example", ""),
+        format=meta_dict.get("format", "text"),
     )
 
 
@@ -887,6 +891,8 @@ class PluginManifest:
                     "max_length": m.max_length,
                     "group": m.group,
                     "example": m.example,
+                    # Only when set, so existing manifests serialise as before.
+                    **({"format": m.format} if m.format != "text" else {}),
                 }
                 for name, m in self.variables.metadata.items()
             }
@@ -1196,6 +1202,62 @@ def _validate_item_fields(item_fields: Any, path: str) -> list[str]:
     return [f"{path}.item_fields must be an array of strings or an object"]
 
 
+#: Values a variable's ``format`` may take. ``text`` (the default): the value
+#: is data, and any brace that is not a base-grammar tile is neutralised.
+#: ``markup``: the value passes through as markup (plan D19, rule 2).
+VARIABLE_FORMATS = ("text", "markup")
+
+
+def reserved_plugin_id_error(plugin_id: str) -> str | None:
+    """An error if *plugin_id* is one the template grammar reserves (plan D19)."""
+    from src.markup import RESERVED_PLUGIN_IDS
+
+    if plugin_id in RESERVED_PLUGIN_IDS:
+        return (
+            f"Plugin id '{plugin_id}' is reserved: colour names, tile codes 63-71 and 'icon' "
+            "are template markup ({{red:HOT}}, {{icon:sun}})"
+        )
+    return None
+
+
+def variable_format_errors(variables: Any) -> list[str]:
+    """Errors for any variable metadata whose ``format`` is not a known value.
+
+    Walks ``variables.simple`` (dict form) and every array's and sub-array's
+    ``item_fields`` (dict form).
+    """
+    if not isinstance(variables, dict):
+        return []
+    found: list[tuple[str, Any]] = []
+
+    def collect(fields: Any, path: str) -> None:
+        if isinstance(fields, dict):
+            for name, meta in fields.items():
+                if isinstance(meta, dict) and "format" in meta:
+                    found.append((f"{path}.{name}", meta["format"]))
+
+    collect(variables.get("simple"), "variables.simple")
+    arrays = variables.get("arrays")
+    if isinstance(arrays, dict):
+        for array_name, schema in arrays.items():
+            if not isinstance(schema, dict):
+                continue
+            collect(schema.get("item_fields"), f"variables.arrays.{array_name}.item_fields")
+            subs = schema.get("sub_arrays")
+            if isinstance(subs, dict):
+                for sub_name, sub in subs.items():
+                    if isinstance(sub, dict):
+                        collect(
+                            sub.get("item_fields"),
+                            f"variables.arrays.{array_name}.sub_arrays.{sub_name}.item_fields",
+                        )
+    return [
+        f"{path}.format must be one of {', '.join(VARIABLE_FORMATS)}, got {value!r}"
+        for path, value in found
+        if value not in VARIABLE_FORMATS
+    ]
+
+
 def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
     """Validate a manifest dictionary against the schema.
 
@@ -1223,6 +1285,8 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
         errors.append("Plugin id must start with a lowercase letter")
     elif not all(c.islower() or c.isdigit() or c == "_" for c in plugin_id):
         errors.append("Plugin id must contain only lowercase letters, numbers, and underscores")
+    elif reserved := reserved_plugin_id_error(plugin_id):
+        errors.append(reserved)
 
     # Validate version format
     version = data.get("version", "")
@@ -1264,6 +1328,7 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
             simple = variables.get("simple", [])
             if not isinstance(simple, list | dict):
                 errors.append("variables.simple must be an array or object")
+            errors.extend(variable_format_errors(variables))
 
             # Validate groups if present
             groups = variables.get("groups", {})

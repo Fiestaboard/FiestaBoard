@@ -90,6 +90,38 @@ BOARD_ICONS: dict[str, BoardIcon] = {
 BOARD_ICON_ALIASES: dict[str, str] = dict(_ICON_REGISTRY.get("aliases", {}))
 
 
+#: Plugin ids the template grammar claims (plan D19): ``{{red:HOT}}`` is a
+#: span and ``{{icon:sun}}`` an icon, so a plugin with one of these ids could
+#: not have its variables addressed. Tile names and codes, colour names, ``icon``.
+RESERVED_PLUGIN_IDS: frozenset[str] = frozenset(
+    {"red", "orange", "yellow", "green", "blue", "violet", "purple", "white", "black", "filled", "icon"}
+    | {str(code) for code in range(63, 72)}
+)
+
+
+def neutralize_data(value: str) -> str:
+    """Make a substituted variable value *data*, not markup (plan D19, rule 1).
+
+    A value keeps exactly the base grammar: tile tokens ``{63}``-``{71}``,
+    tile names ``{red}``...``{black}`` and ``{filled}``, and base end tags
+    ``{/}`` / ``{/<colour name>}`` (art plugins inject tiles through data).
+    Every other brace becomes ``(`` or ``)``, so data can never open a span,
+    a block or an icon, nor hit a template shortcut. Applied on every output.
+    """
+    out: list[str] = []
+    pos = 0
+    while pos < len(value):
+        match = COLOR_MARKER_PATTERN.match(value, pos) if value[pos] == "{" else None
+        if match:
+            out.append(match.group(0))
+            pos = match.end()
+            continue
+        char = value[pos]
+        out.append("(" if char == "{" else ")" if char == "}" else char)
+        pos += 1
+    return "".join(out)
+
+
 def resolve_icon_name(name: str) -> str | None:
     """The icon a lowercase name or alias means, or ``None``."""
     if name in BOARD_ICONS:

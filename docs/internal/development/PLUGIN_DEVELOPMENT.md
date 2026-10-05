@@ -144,6 +144,7 @@ With this format, the editor shows:
 | `max_length` | integer | Max characters this variable can produce |
 | `group` | string | Group ID to organize this variable under |
 | `example` | string | Example value shown in documentation |
+| `format` | string | `"text"` (default): the value is data, and braces other than color tiles and end tags draw as `(`/`)`. `"markup"`: the value passes through as markup (plan D19) |
 
 All fields are optional. You can mix and match — add just `description` if that's all you need.
 
