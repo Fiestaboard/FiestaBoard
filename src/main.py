@@ -2194,6 +2194,14 @@ class DisplayService:
                             board_id,
                         )
                         return False
+                    if getattr(client, "last_send_preempted", False) is True:
+                        # Cancelled by a newer write before anything landed:
+                        # the board does not show this page. Leave the cache
+                        # clear, so the next pass sends it unless the newer
+                        # write already put it there (then the driver's own
+                        # dedupe answers "unchanged").
+                        logger.info("Board %s: page send was preempted; leaving dedupe cache clear", board_id)
+                        return False
                     rt.last_active_page_content = current_content
                     rt.last_active_page_id = active_page_id
                     # Same arming as the unchanged-content branch (#1883): the
