@@ -23,6 +23,14 @@ it unchanged — the plugin is a pipe and every policy stays in core:
 
 A plugin exception is a failed write (logged with the plugin id), never an
 engine crash; the floor slot it reserved is given back.
+
+**Third-party safety** (:mod:`src.outputs.breaker`). Each write runs under a
+budget — 30 s by default, lowered by the manifest's ``write_timeout_ms`` —
+after which core stops waiting, marks it failed and fires the run's cancel
+token. Consecutive failed writes open the device's circuit breaker for a
+cool-down, during which writes are refused without calling the plugin.
+:attr:`OutputPluginDriver.last_write_error` says why the last write failed,
+and the engine puts it in the board's send error.
 """
 
 from __future__ import annotations
@@ -36,6 +44,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.send_outcome import WriteResult
 
+from .breaker import DEFAULT_WRITE_TIMEOUT_MS, output_breakers
 from .hooks import ConnectionCheck, ReadBack
 from .plugin_base import CancelToken, OutputPluginBase, TimedFrame
 from .runtime import OutputRuntime
@@ -79,6 +88,9 @@ class OutputPluginDriver:
         self._last_send_throttled = False
         self._last_send_retry_after: int | None = None
         self._closed = False
+        #: Why the last write failed (raised, timed out, refused by the
+        #: breaker, or reported failed); ``None`` after a write that landed.
+        self.last_write_error: str | None = None
 
     # --- what core reads -------------------------------------------------------------
 
@@ -125,6 +137,15 @@ class OutputPluginDriver:
     def device_key(self) -> str:
         return self.plugin.device_key()
 
+    @property
+    def write_timeout_seconds(self) -> float:
+        """How long core waits for one write: the output's budget, never
+        above :data:`~src.outputs.breaker.DEFAULT_WRITE_TIMEOUT_MS`."""
+        declared = self.capabilities.write_timeout_ms
+        if not isinstance(declared, int) or isinstance(declared, bool) or declared <= 0:
+            declared = DEFAULT_WRITE_TIMEOUT_MS
+        return min(declared, DEFAULT_WRITE_TIMEOUT_MS) / 1000.0
+
     # --- binding -----------------------------------------------------------------------
 
     def set_output_runtime(self, runtime: OutputRuntime) -> None:
@@ -162,19 +183,87 @@ class OutputPluginDriver:
             self._last_send_retry_after = admission.retry_after
         return admission
 
+    # --- third-party safety: breaker and timeout ------------------------------------
+
+    def _breaker_key(self) -> str:
+        return f"{self.connection_label}|{self.device_key()}"
+
+    def _breaker_refusal(self, admission: Admission) -> WriteResult | None:
+        """A failed result when the device's breaker is open, else ``None``.
+
+        The refused write gives its floor slot back: nothing reached the device.
+        """
+        breakers = output_breakers()
+        streak = breakers.refusal(self._breaker_key(), self._clock())
+        if streak is None:
+            return None
+        self._output_runtime.release_send(admission)
+        self.last_write_error = (
+            f"Output {self.connection_label} stopped after {streak.failures} failed writes in a row; "
+            f"retrying in {breakers.cooldown_seconds:.0f}s. Last failure: {streak.last_failure}"
+        )
+        return WriteResult(False, False)
+
+    def _write_failed(self, reason: str) -> None:
+        self.last_write_error = f"Output {self.connection_label}: {reason}"
+        output_breakers().record_failure(self._breaker_key(), reason, self._clock())
+
+    def _run_bounded(self, call: Callable[[CancelToken], Any]) -> tuple[bool, Any]:
+        """Run the plugin's call on a thread of its own and wait out its budget.
+
+        Returns ``(True, result)`` when it finished (re-raising what it
+        raised), ``(False, None)`` when the budget ran out: the run's cancel
+        token is fired and nothing waits for the thread any longer.
+        """
+        cancel_event = self._output_runtime.cancel_event
+        token = CancelToken(cancel_event)
+        box: dict[str, Any] = {}
+        done = threading.Event()
+
+        def run() -> None:
+            try:
+                box["result"] = call(token)
+            except BaseException as exc:  # handed back to the waiting caller
+                box["error"] = exc
+            finally:
+                done.set()
+
+        threading.Thread(target=run, name=f"output-write-{self.connection_label}", daemon=True).start()
+        if not done.wait(self.write_timeout_seconds):
+            cancel_event.set()
+            return False, None
+        if "error" in box:
+            raise box["error"]
+        return True, box["result"]
+
     def _deliver(self, admission: Admission, final: list[list[int]], call: Callable[[CancelToken], Any]) -> WriteResult:
-        """Run the plugin's write under the run's token; settle floor and frame cache."""
-        cancel = CancelToken(self._output_runtime.cancel_event)
+        """Run the plugin's write under the run's token and its budget; settle
+        floor, frame cache and breaker."""
         try:
-            result = WriteResult.of(call(cancel))
-        except Exception:
+            finished, raw = self._run_bounded(call)
+            result = WriteResult.of(raw) if finished else None
+        except Exception as exc:
             logger.exception("Output plugin %s: write failed", self.connection_label)
             self._output_runtime.release_send(admission)
+            self._write_failed(f"the write raised {type(exc).__name__}: {exc}")
+            return WriteResult(False, False)
+        if result is None:
+            # The slot stays taken: the device may still be receiving the write.
+            budget = self.write_timeout_seconds
+            logger.error("Output plugin %s: write still running after %gs; cancelled", self.connection_label, budget)
+            self._write_failed(f"the write did not finish within {budget:g}s; it was cancelled.")
             return WriteResult(False, False)
         if result.success and result.was_sent:
             self._frames.record_sent(final)
         elif not result.success and not result.partial:
             self._output_runtime.release_send(admission)
+        if result.success:
+            self.last_write_error = None
+            output_breakers().record_success(self._breaker_key())
+        elif not result.partial:
+            # A partial write is a device that answered: it neither trips nor
+            # resets the breaker.
+            self._write_failed("the output reported the write failed.")
         return WriteResult(
             result.success, result.was_sent, partial=result.partial, failed_regions=result.failed_regions
         )
@@ -206,6 +295,9 @@ class OutputPluginDriver:
                 )
             if admission.verdict == "unchanged":
                 return self._result(WriteResult(True, False), with_outcome)
+            refused = self._breaker_refusal(admission)
+            if refused is not None:
+                return self._result(refused, with_outcome)
             result = self._deliver(
                 admission, characters, lambda cancel: self.plugin.write(characters, native=native, cancel=cancel)
             )
@@ -226,6 +318,9 @@ class OutputPluginDriver:
             admission = self._admit(lambda: False)
             if admission.verdict == "throttled":
                 return WriteResult(True, False, throttled=True, retry_after_seconds=admission.retry_after)
+            refused = self._breaker_refusal(admission)
+            if refused is not None:
+                return refused._replace(floor_seconds=self._floor_seconds())
             result = self._deliver(admission, final, lambda token: self.plugin.write_sequence(frames, cancel=token))
             return result._replace(floor_seconds=self._floor_seconds())
 

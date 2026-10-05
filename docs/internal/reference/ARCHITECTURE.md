@@ -262,7 +262,10 @@ Names you will meet:
   incoming manifest and refuses before anything is pulled; an output plugin
   is never updated blind), install/update (`update_external_plugin` /
   `_install_and_verify`: an output plugin's update that fails verification
-  or does not load is reset to its previous commit), and load (an output
+  or does not load is reset to its previous commit, and that commit is
+  remembered in `config.json`'s `refused_plugin_updates` so the hourly check
+  does not offer it again until a newer commit appears —
+  `src/plugins/update_refusals.py`), and load (an output
   plugin's precedence is **valid installed copy → seed**: an installed copy
   whose `output_api` is unsupported, that does not import, or that fails its
   install self-check loads the seed copy instead, reported on
@@ -270,6 +273,18 @@ Names you will meet:
   always win, so a seeded plugin there could never update. Uninstalling an
   output plugin a board uses is refused (fail closed if the boards cannot be
   read).
+- **Third-party output safety** (`src/outputs/breaker.py`, Phase 2.4) —
+  applied by `OutputPluginDriver` only; the in-tree drivers are untouched.
+  Each plugin write runs on a thread of its own under a **write timeout**
+  (30 s default; a manifest's `output.write_timeout_ms` may lower it, never
+  raise it): when it runs out core stops waiting, marks the write failed and
+  fires the run's cancel token — threads cannot be killed, the same model as
+  `SEND_WAIT_TIMEOUT`. A **circuit breaker**, keyed by output and
+  `device_key()` like the floor, opens after 3 consecutive failed writes
+  (raised, timed out, or reported failed; a partial write does not count)
+  and refuses writes for 300 s without calling the plugin, then lets one
+  probe through. `OutputPluginDriver.last_write_error` says why, and the
+  engine's and the manual-write executors' failure messages carry it.
 - **Pull delivery** (plan D4) — a pulled board's frame is its runtime's
   last-frame store. `GET /panel/{id}/frame` serves
   `OutputRuntime.displayed_frame(rows, cols)` with core's **stale-shape

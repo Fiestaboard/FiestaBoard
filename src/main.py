@@ -26,6 +26,7 @@ from .devices import (
 )
 from .displays.send_worker import BoardSendWorker, SendJob
 from .outputs import OutputDriver, OutputRuntime
+from .outputs.breaker import write_failure_reason
 from .outputs.factory import build_driver
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
@@ -2150,7 +2151,13 @@ class DisplayService:
                     else:
                         logger.debug("Active page unchanged at board level")
                     return was_sent
-                self._record_send_error_to(rt, board_id, f"Failed to send active page to board: {active_page_id}", sink)
+                message = f"Failed to send active page to board: {active_page_id}"
+                # An output plugin's driver says why (timed out, breaker
+                # open, raised); every other driver keeps today's message.
+                reason = write_failure_reason(client)
+                if reason:
+                    message = f"{message} ({reason})"
+                self._record_send_error_to(rt, board_id, message, sink)
                 logger.error(f"Board {board_id}: failed to send active page: {active_page_id}")
                 return False
 
