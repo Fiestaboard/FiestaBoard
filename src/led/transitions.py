@@ -11,7 +11,7 @@ frame.
   ``scramble_steps`` glyphs drawn from the layout's own character set (a
   plugin device's set, else the face's built-in set), one per ``step_ms``,
   then its target. Cells start up to ``stagger`` steps apart. The scramble is
-  seeded from the cell and the change (``hash32`` -> ``mulberry32``), so it is
+  seeded from the cell and the change by stable glyph key (``led_flip_seed``), so it is
   the same in the preview and on the device. The second half of a step shows
   the half-turned flap (top of the next glyph over the bottom of the current)
   unless ``half_flap`` is off; a lit block field stays lit under it.
@@ -31,6 +31,7 @@ budget, is :mod:`src.led.transition_registry`.
 from __future__ import annotations
 
 import math
+import struct
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Literal
@@ -45,7 +46,6 @@ from .matrix import (
     LedFrame,
     LedLayout,
     draw_glyph,
-    glyph_index,
     glyph_key,
     layout_cells,
     paint_ops,
@@ -62,7 +62,7 @@ __all__ = [
     "LedTransition",
     "LedTransitionKind",
     "LedTransitionSpec",
-    "hash32",
+    "led_flip_seed",
     "mulberry32",
     "plan_transition",
     "scramble_pool",
@@ -207,14 +207,29 @@ def _imul(a: int, b: int) -> int:
     return (a * b) & _U32
 
 
-def hash32(*parts: int) -> int:
-    """FiestaUI's 32-bit mix of a few integers: a cell's scramble seed."""
+def _fnv1a32(data: bytes) -> int:
+    """FNV-1a, 32-bit: offset basis 0x811c9dc5, prime 0x01000193."""
     h = 0x811C9DC5
-    for part in parts:
-        h ^= part & _U32
-        h = _imul(h, 0x01000193)
-        h ^= h >> 15
+    for byte in data:
+        h = _imul(h ^ byte, 0x01000193)
     return h
+
+
+def led_flip_seed(cell_index: int, from_key: str, to_key: str, cols: int, rows: int) -> int:
+    """One cell's scramble seed (FiestaUI ``ledFlipSeed``): the same in every process.
+
+    FNV-1a 32-bit over ``u32le(cell_index) || u32le(cols) || u32le(rows) ||
+    utf8(from_key) || 0x00 || utf8(to_key) || 0x00``, where the keys are
+    stable glyph keys. It seeds :func:`mulberry32`.
+    """
+    data = (
+        struct.pack("<III", cell_index & _U32, cols & _U32, rows & _U32)
+        + from_key.encode("utf-8")
+        + b"\x00"
+        + to_key.encode("utf-8")
+        + b"\x00"
+    )
+    return _fnv1a32(data)
 
 
 def mulberry32(seed: int) -> Callable[[], float]:
@@ -243,26 +258,19 @@ def scramble_pool(charset: CharacterSet) -> list[str]:
 
     Every printable character the set has, its colour tiles 63-69 when it has
     tiles, and its icons; never blank. A character the set carries its own
-    bitmap for (``glyphs``, a plugin's ``€``) is registered here, so it is in
-    the pool whether or not a layout has drawn it yet. Stable order.
+    bitmap for (``glyphs``, a plugin's ``€``) is in the pool whether or not a
+    layout has drawn it yet. Deduplicated and **sorted by glyph key in
+    code-point order** (Python's ``str`` order, which is also UTF-8 byte
+    order), so it depends on the set's contents alone, never on the order a
+    manifest lists them in.
     """
-    pool: list[str] = []
-    seen: set[str] = set()
-
-    def add(key: str) -> None:
-        if key != " " and key not in seen:
-            seen.add(key)
-            pool.append(key)
-
     custom = charset.get("glyphs")
-    for char in charset.get("chars", ()):
-        add(glyph_key(BoardToken("char", value=char), custom))
+    keys = {glyph_key(BoardToken("char", value=char), custom) for char in charset.get("chars", ())}
     if charset.get("tiles"):
-        for code in ("63", "64", "65", "66", "67", "68", "69"):
-            add(glyph_key(BoardToken("color", code=code)))
-    for name in charset.get("icons", ()):
-        add(glyph_key(BoardToken("char", value=" ", icon=name)))
-    return pool
+        keys.update(glyph_key(BoardToken("color", code=code)) for code in ("63", "64", "65", "66", "67", "68", "69"))
+    keys.update(glyph_key(BoardToken("char", value=" ", icon=name)) for name in charset.get("icons", ()))
+    keys.discard(" ")
+    return sorted(keys)
 
 
 def _paint_half_flap(frame: bytearray, layout: LedLayout, cell_index: int, current: LedCell, next_glyph: str) -> None:
@@ -323,7 +331,7 @@ def _plan_flip(
     plans: list[_CellScramble] = []
     for index in changing:
         source, target = before.cells[index].glyph, after.cells[index].glyph
-        rng = mulberry32(hash32(index, glyph_index(source), glyph_index(target), cols, rows))
+        rng = mulberry32(led_flip_seed(index, source, target, cols, rows))
         delay = 0 if stagger == 0 else math.floor(rng() * (stagger + 1))
         sequence: list[str] = []
         previous = source

@@ -4,7 +4,7 @@
 ``ledTransitionFrames(planLedTransition(from, to, resolvedSpec), fps)`` for
 each case: every frame a device receives, as RGB888. A port must give the
 same frames, byte for byte, frame for frame. The flip's scramble is seeded,
-so the goldens pin FiestaBoard's own scramble (hash32 + mulberry32).
+so the goldens pin FiestaBoard's own scramble (led_flip_seed + mulberry32).
 
 The other cases are ports of FiestaUI's ``led-transitions.test.ts`` and
 ``led-transition-registry.test.ts`` (c2c3b72).
@@ -37,6 +37,7 @@ from src.led.transition_registry import (
 from src.led.transitions import (
     LED_TRANSITION_KINDS,
     LedTransitionSpec,
+    led_flip_seed,
     plan_transition,
     scramble_pool,
     transition_frames,
@@ -75,6 +76,15 @@ def _golden_plan(case: dict):
     if isinstance(choice, dict):
         choice = LedTransitionSpec.from_dict(choice)
     spec = resolve_led_transition(choice, model).spec if model else choice
+    if "before" in case:
+        # Lay another set's message out first and discard it: with no global
+        # glyph state, it must change nothing.
+        b = case["before"]
+        layout_message(
+            b["message"],
+            LedMatrixSpec(b["spec"]["width"], b["spec"]["height"], b["spec"].get("font", "5x7")),
+            LedLayoutOptions(charset=materialize_character_set(b["charset"])),
+        )
     raw = case.get("options", {})
     options = LedLayoutOptions(
         text_color=raw.get("textColor"),
@@ -92,8 +102,8 @@ def _golden_plan(case: dict):
 # --- golden sequences -------------------------------------------------------
 
 
-def test_golden_has_the_nine_transition_cases():
-    assert len(CASES) == 9
+def test_golden_has_the_ten_transition_cases():
+    assert len(CASES) == 10
     assert {"pixoo 32-frame budget", "acme sign 12-frame budget, own charset"} <= {c["name"] for c in CASES}
 
 
@@ -119,6 +129,38 @@ def test_every_frame_matches_fiestaui_byte_for_byte(case):
     for i, (frame, want) in enumerate(zip(frames, expected, strict=True)):
         assert (frame.width, frame.height) == (case["width"], case["height"])
         assert frame.pixels == want, f"frame {i} of {len(expected)} differs:\n" + _diff(frame.pixels, want, frame.width)
+
+
+def test_another_set_laid_out_first_changes_nothing():
+    standalone = next(c for c in CASES if c["name"] == "acme sign 12-frame budget, own charset")
+    after_other = next(c for c in CASES if "after another set" in c["name"])
+    assert after_other["frames"] == standalone["frames"]
+    *_, a = _golden_plan(standalone)
+    *_, b = _golden_plan(after_other)
+    assert [f.pixels for f in transition_frames(a)] == [f.pixels for f in transition_frames(b)]
+
+
+@pytest.mark.parametrize(
+    ("cell", "from_key", "to_key", "cols", "rows", "seed"),
+    [
+        (0, "A", "B", 6, 1, 3714565441),
+        (3, "A", "€", 6, 2, 990692943),
+        (0, " ", "tile:63", 8, 1, 2711017083),
+        (5, "icon:sun", "¥", 12, 2, 2318610564),
+    ],
+)
+def test_flip_seed_is_fiestauis(cell, from_key, to_key, cols, rows, seed):
+    assert led_flip_seed(cell, from_key, to_key, cols, rows) == seed
+
+
+def test_pool_is_sorted_by_code_point_whatever_the_declared_order():
+    acme = GOLDEN["layouts"][7]["charset"]
+    forward = materialize_character_set({**acme, "id": "fwd", "chars": ["A", "B", "€", "-"]})
+    backward = materialize_character_set({**acme, "id": "bwd", "chars": ["-", "€", "B", "A"]})
+    pool = scramble_pool(forward)
+    assert pool == scramble_pool(backward)
+    assert pool == sorted(pool)
+    assert pool.index("-") < pool.index("A") < pool.index("icon:up") < pool.index("tile:63") < pool.index("€")
 
 
 def test_pixoo_budget_is_exactly_32_frames_ending_on_the_target():

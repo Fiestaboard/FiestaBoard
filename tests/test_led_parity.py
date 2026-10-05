@@ -86,7 +86,7 @@ def test_every_led_fixture_is_pinned():
 
 def test_transition_cases_are_read_by_the_transition_tests():
     # tests/test_led_transitions.py checks every one of these frame by frame.
-    assert len(LED_GOLDEN["transitions"]) == 9
+    assert len(LED_GOLDEN["transitions"]) == 10
 
 
 # --- layout + raster goldens ------------------------------------------------
