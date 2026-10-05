@@ -13,6 +13,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { queryKeys } from "@/hooks/use-board";
+import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { appUrl } from "@/lib/base-path";
@@ -65,6 +66,8 @@ export function StepPanelSetup({
     },
     onSuccess: (panel) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
+      // The display page and page targets read panels through this key.
+      void queryClient.invalidateQueries({ queryKey: PANELS_QUERY_KEY });
       onCreated({
         outputId: "fiestapanel",
         boardId: panel.board_id,

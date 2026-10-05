@@ -12,6 +12,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 
 import { AddDisplayDialog } from "@/components/displays/add-display-dialog";
+import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import type { AvailableOutput, OutputSummary } from "@/lib/api";
 
 import { mockOutputs } from "./mocks/handlers";
@@ -66,7 +67,10 @@ const BUILT_INS = [
   available({ id: "fiestapanel", name: "FiestaPanel", builtin: true }),
 ];
 
-function setup(offered: AvailableOutput[] = BUILT_INS) {
+function setup(
+  offered: AvailableOutput[] = BUILT_INS,
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
   const calls = { add: [] as unknown[], create: [] as unknown[], install: [] as string[], removed: [] as string[] };
   server.use(
     http.get(`${API}/outputs`, () => HttpResponse.json([...mockOutputs, SIGN])),
@@ -101,7 +105,7 @@ function setup(offered: AvailableOutput[] = BUILT_INS) {
   const onCreated = vi.fn();
   const onCancel = vi.fn();
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={client}>
       <Dialog open>
         <AddDisplayDialog onCreated={onCreated} onCancel={onCancel} />
       </Dialog>
@@ -226,6 +230,27 @@ describe("Add a display", () => {
     await userEvent.click(screen.getByRole("button", { name: /Create/ }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("panel-board"));
     expect(created).toHaveLength(1);
+  });
+
+  it("a new FiestaPanel refreshes the cached panel list, so its display page shows it", async () => {
+    // The display page reads the panel list through PANELS_QUERY_KEY; a list
+    // cached before the create must not keep saying "No panels yet".
+    const panel = { id: "p1", short_code: 1, name: "Living Room TV", board_id: "panel-board" };
+    let panels: (typeof panel)[] = [];
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(PANELS_QUERY_KEY, { panels: [], total: 0 });
+    const { onCreated } = setup(BUILT_INS, client);
+    server.use(
+      http.get(`${API}/panels`, () => HttpResponse.json({ panels, total: panels.length })),
+      http.post(`${API}/panels`, () => {
+        panels = [panel];
+        return HttpResponse.json(panel, { status: 201 });
+      }),
+    );
+    await choose(/FiestaPanel/);
+    await userEvent.click(screen.getByRole("button", { name: /Create/ }));
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith("panel-board"));
+    await waitFor(() => expect(client.getQueryData<{ panels: unknown[] }>(PANELS_QUERY_KEY)?.panels).toEqual([panel]));
   });
 
   it("Back returns to the choice", async () => {
