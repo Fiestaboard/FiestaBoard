@@ -386,6 +386,22 @@ def test_fixture_stores_load_and_settle_at_current_schema(label, data_dir):
     assert page_service.storage._failed_entries == []
 
 
+@pytest.mark.parametrize("label", sorted(EXPECT))
+def test_an_upgraded_install_never_sees_the_setup_wizard(label, data_dir, api, monkeypatch):
+    """Plan D13/D18: first run is "no board has a usable output AND the wizard
+    was neither completed nor skipped". No release before this one stored a
+    wizard state, so every fixture proves its boards alone keep the wizard away.
+    The runner's board env vars are cleared so the fixture's files decide."""
+    for name in ("BOARD_READ_WRITE_KEY", "FB_READ_WRITE_KEY", "BOARD_LOCAL_API_KEY", "FB_LOCAL_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    for name in ("BOARD_HOST", "FB_HOST"):
+        monkeypatch.delenv(name, raising=False)
+    boot(label, data_dir)
+
+    assert api.get("/settings/wizard").json() == {"state": None}
+    assert api.get("/config/validate").json()["is_first_run"] is False
+
+
 def test_legacy_config_block_never_overrides_a_board_that_has_credentials(data_dir, api, wire, clock):
     """v2.0's config.json holds a stale key for another host; the board's own wins."""
     booted = boot("v2_0_schema0_boards_note", data_dir)

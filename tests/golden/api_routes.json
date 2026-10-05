@@ -210,6 +210,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/boards/{board_id}/actions/{action}",
+      "methods": [
+        "POST"
+      ],
+      "name": "run_board_action",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/cache-status",
       "methods": [
         "GET"
@@ -690,6 +698,22 @@
       ],
       "name": "openapi",
       "kind": "Route"
+    },
+    {
+      "path": "/outputs",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_outputs",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/outputs/{output_id}/actions/{action}",
+      "methods": [
+        "POST"
+      ],
+      "name": "run_output_action",
+      "kind": "APIRoute"
     },
     {
       "path": "/outputs/{output_id}/boards",
@@ -1530,6 +1554,22 @@
         "PUT"
       ],
       "name": "update_transition_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/wizard",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_wizard_state",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/wizard",
+      "methods": [
+        "PUT"
+      ],
+      "name": "set_wizard_state",
       "kind": "APIRoute"
     },
     {

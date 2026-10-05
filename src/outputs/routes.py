@@ -1,4 +1,5 @@
-"""The outputs router: boards for output plugins.
+"""The outputs router: boards for output plugins, board settings actions,
+and the installed-outputs listing.
 
 HTTP only: the service (:mod:`src.outputs.service`) does the work and raises
 domain errors, mapped to status codes by ``_STATUS_BY_ERROR``.
@@ -11,15 +12,26 @@ from fastapi import APIRouter, HTTPException
 from src.api_errors import errors
 from src.display_runtime import reinitialize_board_clients
 
+from .actions import list_outputs, run_draft_action, run_saved_action
 from .errors import (
+    BoardNotFoundError,
     BuiltinOutputError,
     GeometryError,
+    InvalidActionInputError,
     InvalidOutputConfigError,
     OutputNotInstalledError,
     OutputPluginsDisabledError,
     UndeclaredDeviceModelError,
 )
-from .models import OutputBoardCreate, OutputBoardResponse
+from .hooks import OutputActionError, UnknownOutputAction
+from .models import (
+    ActionResult,
+    DraftActionRequest,
+    OutputBoardCreate,
+    OutputBoardResponse,
+    OutputSummary,
+    SavedBoardActionRequest,
+)
 from .service import create_output_board, describe_board
 
 router = APIRouter(tags=["outputs"])
@@ -31,7 +43,26 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     UndeclaredDeviceModelError: 400,
     GeometryError: 400,
     InvalidOutputConfigError: 400,
+    BoardNotFoundError: 404,
+    UnknownOutputAction: 404,
+    InvalidActionInputError: 400,
 }
+
+
+def _as_http(exc: Exception) -> HTTPException:
+    if isinstance(exc, OutputActionError):
+        return HTTPException(status_code=exc.status_code, detail=exc.detail)
+    status = next(code for kind, code in _STATUS_BY_ERROR.items() if isinstance(exc, kind))
+    return HTTPException(status_code=status, detail=str(exc))
+
+
+_ACTION_ERRORS = (*_STATUS_BY_ERROR, OutputActionError)
+
+_ACTION_RESULT_NOTE = (
+    'Answers the closed `ActionResult` envelope. `status: "error"` is the device\'s verdict (a refused key, '
+    "nothing found) at 200; what the server refuses before contacting the device is a 4xx. Secret result "
+    "fields carry `secret: true` and are never logged."
+)
 
 
 @router.post(
@@ -59,7 +90,66 @@ async def create_board(output_id: str, request: OutputBoardCreate) -> OutputBoar
             geometry=geometry,
         )
     except tuple(_STATUS_BY_ERROR) as exc:
-        status = next(code for kind, code in _STATUS_BY_ERROR.items() if isinstance(exc, kind))
-        raise HTTPException(status_code=status, detail=str(exc)) from exc
+        raise _as_http(exc) from exc
     reinitialize_board_clients()
     return OutputBoardResponse(**describe_board(board))
+
+
+@router.get(
+    "/outputs",
+    response_model=list[OutputSummary],
+    responses=errors(500),
+    summary="List the installed outputs",
+    description=(
+        "Every output this install can drive a board with: the built-in Vestaboard and FiestaPanel, then output "
+        "plugins. Each carries what the add-a-board cards and the board settings screen render from: name, "
+        "description, icon, capabilities, device models, the `output_config` settings schema (with its "
+        "`ui:sections` / `ui:visible_when` / `ui:widget` annotations) and the screen's actions."
+    ),
+)
+async def get_outputs() -> list[OutputSummary]:
+    return [OutputSummary(**output) for output in list_outputs()]
+
+
+@router.post(
+    "/outputs/{output_id}/actions/{action}",
+    response_model=ActionResult,
+    responses=errors(400, 404, 409, 500, 503),
+    summary="Run a board settings action on draft settings",
+    description=(
+        "Runs one of the output's declared actions (test_connection, discover, identify, detect_geometry, or "
+        "the output's own) on settings typed before a board exists. `output_config` is the draft; a masked "
+        '`"***"` is refused (nothing is stored to restore it from). ' + _ACTION_RESULT_NOTE
+    ),
+)
+async def run_output_action(output_id: str, action: str, request: DraftActionRequest) -> ActionResult:
+    try:
+        result = await run_draft_action(
+            output_id,
+            action,
+            output_config=request.output_config,
+            inputs=request.input,
+            device_model=request.device_model,
+        )
+    except _ACTION_ERRORS as exc:
+        raise _as_http(exc) from exc
+    return ActionResult(**result)
+
+
+@router.post(
+    "/boards/{board_id}/actions/{action}",
+    response_model=ActionResult,
+    responses=errors(400, 404, 409, 500, 503),
+    summary="Run a board settings action on a saved board",
+    description=(
+        "Runs one of the board's output's declared actions on its stored settings, or on edited settings the "
+        'body carries (`output_config`), every `"***"` restored from the stored board exactly as saving does. '
+        + _ACTION_RESULT_NOTE
+    ),
+)
+async def run_board_action(board_id: str, action: str, request: SavedBoardActionRequest) -> ActionResult:
+    try:
+        result = await run_saved_action(board_id, action, inputs=request.input, output_config=request.output_config)
+    except _ACTION_ERRORS as exc:
+        raise _as_http(exc) from exc
+    return ActionResult(**result)

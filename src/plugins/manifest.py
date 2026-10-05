@@ -30,6 +30,19 @@ from .previews import (
     validate_previews,
     validate_teaser,
 )
+from .settings_ui import (
+    DEVICE_PICKER_UI_OPTIONS_KEYS,
+    DEVICE_PICKER_WIDGET,
+    MODE_CARDS_UI_OPTIONS_KEYS,
+    MODE_CARDS_WIDGET,
+    SECTIONS,
+    TILE_GRID_UI_OPTIONS_KEYS,
+    TILE_GRID_WIDGET,
+    VISIBLE_WHEN,
+    condition_errors,
+    sections_errors,
+    widget_errors,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +162,14 @@ def parse_data_files(raw: Any) -> list[str]:
     return cleaned
 
 
+#: The core board-setup widgets (src/plugins/settings_ui.py) and their
+#: ``ui:options`` vocabularies.
+CORE_WIDGET_UI_OPTIONS_KEYS: dict[str, frozenset[str]] = {
+    MODE_CARDS_WIDGET: MODE_CARDS_UI_OPTIONS_KEYS,
+    TILE_GRID_WIDGET: TILE_GRID_UI_OPTIONS_KEYS,
+    DEVICE_PICKER_WIDGET: DEVICE_PICKER_UI_OPTIONS_KEYS,
+}
+
 # ``ui:widget`` values the settings form knows how to render. An unrecognised
 # value is a *warning*, never an error: several installed plugins declare
 # picker widgets core never implemented, and load_manifest() returns None on
@@ -156,6 +177,9 @@ def parse_data_files(raw: Any) -> list[str]:
 KNOWN_SETTINGS_WIDGETS = frozenset(
     {
         "datetime",
+        DEVICE_PICKER_WIDGET,
+        MODE_CARDS_WIDGET,
+        TILE_GRID_WIDGET,
         JSON_PATH_MAPPER_DEPRECATED_WIDGET,
         JSON_PATH_MAPPER_WIDGET,
         "page-picker",
@@ -180,7 +204,7 @@ def _ui_options_keys_for(widget: Any) -> frozenset[str] | None:
         return UI_OPTIONS_KEYS
     if widget in (JSON_PATH_MAPPER_WIDGET, JSON_PATH_MAPPER_DEPRECATED_WIDGET):
         return JSON_PATH_MAPPER_UI_OPTIONS_KEYS
-    return None
+    return CORE_WIDGET_UI_OPTIONS_KEYS.get(widget) if isinstance(widget, str) else None
 
 
 def _inject_trigger_page_id(settings_schema: dict[str, Any]) -> dict[str, Any]:
@@ -1082,8 +1106,19 @@ def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
     for warning in settings_schema_ui_warnings(settings_schema):
         logger.warning("%s", warning)
 
+    if SECTIONS in settings_schema:
+        errors.extend(sections_errors(settings_schema[SECTIONS], root_properties))
+
     for field_path, prop, siblings in _iter_settings_fields(settings_schema):
         widget = prop.get("ui:widget")
+        if VISIBLE_WHEN in prop:
+            errors.extend(
+                f"settings_schema.{field_path}: ui:visible_when {problem}"
+                for problem in condition_errors(prop[VISIBLE_WHEN], siblings)
+            )
+        if widget in CORE_WIDGET_UI_OPTIONS_KEYS:
+            errors.extend(widget_errors(field_path, prop, siblings, settings_schema))
+            continue
         if widget in (JSON_PATH_MAPPER_WIDGET, JSON_PATH_MAPPER_DEPRECATED_WIDGET):
             errors.extend(_json_path_mapper_errors(field_path, prop))
             continue

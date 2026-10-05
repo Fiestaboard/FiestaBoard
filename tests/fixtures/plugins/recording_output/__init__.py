@@ -148,3 +148,30 @@ class RecordingOutput(OutputPluginBase):
         except OSError as exc:
             return ConnectionCheck(success=False, message=f"Recording sign unreachable: {exc}")
         return ConnectionCheck(success=True, message="Recording sign reachable.")
+
+    # --- board settings actions (plan D13): reachable only when a test's
+    # manifest copy declares them in output.actions -----------------------------
+
+    def identify(self):
+        IDENTIFIED.append(self.config.get("host"))
+
+    def detect_geometry(self):
+        return {"device_type": "panel", "rows": 10, "cols": 16} if self.config.get("host") else None
+
+    def action_pair(self, inputs):
+        from src.plugins import ActionField, ActionOutcome
+
+        if inputs.get("code") != "1234":
+            return ActionOutcome(
+                status="error", message="Wrong pairing code.", guidance=("Read the code off the sign.",)
+            )
+        return ActionOutcome(
+            message="Paired.", fields={"token": ActionField(value=f"paired-{self.config.get('host')}")}
+        )
+
+    def action_explode(self, inputs):
+        raise RuntimeError(f"secret-in-exception {self.config.get('token')}")
+
+
+#: Hosts identify was called for, in order (tests clear it).
+IDENTIFIED: list = []

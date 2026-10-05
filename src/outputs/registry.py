@@ -48,7 +48,15 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from .hooks import OutputDiagnostics, OutputHooks, ReadBack, UnknownOutputAction
+from .hooks import (
+    ActionCall,
+    ActionOutcome,
+    OutputActionSpec,
+    OutputDiagnostics,
+    OutputHooks,
+    ReadBack,
+    UnknownOutputAction,
+)
 from .transitions import NATIVE_STRATEGIES, Animation
 
 if TYPE_CHECKING:
@@ -126,6 +134,16 @@ class OutputDefinition:
     output_manifest: Any = None
     #: True for an output plugin usable only behind the output-plugins beta.
     beta_gated: bool = False
+    #: One line for the "add a board" cards (the plugin manifest's description).
+    description: str = ""
+    #: A Lucide icon name for the same cards.
+    icon: str | None = None
+    #: The board settings screen's actions (plan D13): a plugin's manifest
+    #: ``output.actions``; the built-ins' are declared below.
+    actions: tuple[OutputActionSpec, ...] = ()
+    #: Device models to offer when adding a board: the plugin's declared
+    #: models (``capabilities.device_models``), or the built-ins' own below.
+    offered_device_models: tuple[str, ...] = ()
 
 
 class OutputRegistry:
@@ -284,13 +302,30 @@ def _vestaboard_hooks() -> OutputHooks:
 
         return await exchange_enablement_token(request)
 
+    async def dispatch(call: ActionCall) -> ActionOutcome:
+        from .vestaboard.actions import dispatch as _dispatch
+
+        return await _dispatch(call)
+
     from .vestaboard import ALL_CLEAR_SUMMARY
 
     return OutputHooks(
         discover=discover,
         diagnostics=OutputDiagnostics(run=run_diagnostics, advise=advise, all_clear=ALL_CLEAR_SUMMARY),
         actions={"enable_local_api": enable_local_api},
+        dispatch=dispatch,
     )
+
+
+def _vestaboard_actions() -> tuple[OutputActionSpec, ...]:
+    from .vestaboard.actions import ACTIONS
+
+    return ACTIONS
+
+
+async def _fiestapanel_dispatch(call: ActionCall) -> ActionOutcome:
+    """A FiestaPanel draws in memory: there is no connection to fail."""
+    return ActionOutcome(message="FiestaPanel boards render in FiestaBoard itself; there is nothing to connect to.")
 
 
 def _build_fiestapanel(board: dict) -> OutputDriver | None:
@@ -315,6 +350,10 @@ def _builtin_registry() -> OutputRegistry:
             ),
             build=_build_vestaboard,
             hooks=_vestaboard_hooks(),
+            description="A Vestaboard Flagship, Note or Note array, over the Local API or the cloud.",
+            icon="layout-grid",
+            actions=_vestaboard_actions(),
+            offered_device_models=("vestaboard_flagship", "vestaboard_note", "vestaboard_note_array"),
         )
     )
     registry.register(
@@ -330,6 +369,11 @@ def _builtin_registry() -> OutputRegistry:
                 native_transitions=frozenset(),
             ),
             build=_build_fiestapanel,
+            hooks=OutputHooks(dispatch=_fiestapanel_dispatch),
+            description="Any TV or browser: a full-screen board FiestaBoard draws itself.",
+            icon="monitor",
+            actions=(OutputActionSpec(id="test_connection", label="Test connection"),),
+            offered_device_models=("vestaboard_panel",),
         )
     )
     return registry

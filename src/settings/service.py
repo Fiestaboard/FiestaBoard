@@ -199,6 +199,51 @@ def _restore_output_config(board: dict, existing: dict) -> object:
     return config
 
 
+def restore_masked_board_secrets(board: dict, existing: dict) -> dict:
+    """Restore every echoed ``"***"`` secret in *board* from *existing*, in place.
+
+    The one merge rule for a board coming back from the API masked: the flat
+    credentials (``BOARD_SENSITIVE_FIELDS``), each tile's credentials, and an
+    output plugin's ``output_config`` (its schema's secrets). ``set_boards``
+    runs it on every save, and the saved-board action route
+    (``POST /boards/{id}/actions/{action}``) on every action body, so a test
+    run from the settings page never tests a literal ``***``.
+
+    Raises ``ValueError`` when an ``output_config`` secret cannot be restored
+    or the config does not fit the output's schema.
+    """
+    from src.devices import TILE_SENSITIVE_FIELDS
+
+    for key in BOARD_SENSITIVE_FIELDS:
+        if board.get(key) == "***":
+            board[key] = existing.get(key, "")
+    # Preserve masked per-tile credentials. Match by host:port FIRST so
+    # the key follows the physical board when tiles are moved/swapped
+    # to new grid positions (the UI's "Move to position" sends masked
+    # keys at the NEW coordinates — a position-only match would pair
+    # each host with the OTHER board's key). Fall back to (row, col)
+    # for the change-the-IP-keep-the-key flow.
+    incoming_tiles = board.get("tiles")
+    if isinstance(incoming_tiles, list):
+        existing_tiles = [t for t in existing.get("tiles") or [] if isinstance(t, dict)]
+        existing_tiles_by_pos = {(t.get("row"), t.get("col")): t for t in existing_tiles}
+        existing_tiles_by_endpoint: dict = {}
+        for t in existing_tiles:
+            existing_tiles_by_endpoint.setdefault((t.get("host"), t.get("port")), t)
+        for tile in incoming_tiles:
+            if not isinstance(tile, dict):
+                continue
+            existing_tile = existing_tiles_by_endpoint.get(
+                (tile.get("host"), tile.get("port"))
+            ) or existing_tiles_by_pos.get((tile.get("row"), tile.get("col")), {})
+            for key in TILE_SENSITIVE_FIELDS:
+                if tile.get(key) == "***":
+                    tile[key] = existing_tile.get(key, "")
+    if "output_config" in board:
+        board["output_config"] = _restore_output_config(board, existing)
+    return board
+
+
 @dataclass
 class BoardSettings:
     """Board display settings for UI rendering.
@@ -683,6 +728,34 @@ class BetaSettings:
             transition_plugins_enabled=bool(data.get("transition_plugins_enabled", False)),
             output_plugins_enabled=bool(data.get("output_plugins_enabled", False)),
         )
+
+
+#: How the setup wizard ended: finished, or skipped ("I'll add a display
+#: later"). ``None``: it never ran to an end on this install.
+WizardState = Literal["completed", "skipped"]
+VALID_WIZARD_STATES: tuple[str, ...] = ("completed", "skipped")
+
+
+@dataclass
+class WizardSettings:
+    """The setup wizard's outcome, kept server-side (plan D18).
+
+    First run is "no board has a usable output AND the wizard was neither
+    completed nor skipped" (``src/config_api/service.py``), so a user who
+    skips setup is not sent back to it by the next browser they open.
+    Additive, no schema bump: the section is written only once set, so a file
+    saved by a build that predates it round-trips unchanged.
+    """
+
+    state: WizardState | None = None
+
+    def to_dict(self) -> dict:
+        return {"state": self.state}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "WizardSettings":
+        state = data.get("state") if isinstance(data, dict) else None
+        return cls(state=state if state in VALID_WIZARD_STATES else None)
 
 
 @dataclass
@@ -1190,6 +1263,7 @@ class SettingsService:
         self._location = self._load_section(file_data, "location", LocationSettings)
         self._beta = self._load_section(file_data, "beta", BetaSettings)
         self._plugins = self._load_section(file_data, "plugins", PluginSettings)
+        self._wizard = self._load_section(file_data, "wizard", WizardSettings)
         self._temporary_override: TemporaryOverride | None = self._load_temporary_override(file_data)
 
         if getattr(self, "_needs_seed_save", False):
@@ -1398,6 +1472,8 @@ class SettingsService:
                 "plugins": self._plugins.to_dict(),
                 "temporary_override": self._temporary_override.to_dict() if self._temporary_override else None,
             }
+            if self._wizard.state is not None:
+                data["wizard"] = self._wizard.to_dict()
             self._atomic_write_json(data)
             logger.debug("Settings saved to file")
         except OSError as e:
@@ -1839,39 +1915,9 @@ class SettingsService:
 
         existing_by_id = {b.get("id"): b for b in self._board.boards}
 
-        from src.devices import TILE_SENSITIVE_FIELDS
-
         validated = []
         for b in boards:
-            # Preserve sensitive fields if the incoming value is masked
-            existing = existing_by_id.get(b.get("id"), {})
-            for key in BOARD_SENSITIVE_FIELDS:
-                if b.get(key) == "***":
-                    b[key] = existing.get(key, "")
-            # Preserve masked per-tile credentials. Match by host:port FIRST so
-            # the key follows the physical board when tiles are moved/swapped
-            # to new grid positions (the UI's "Move to position" sends masked
-            # keys at the NEW coordinates — a position-only match would pair
-            # each host with the OTHER board's key). Fall back to (row, col)
-            # for the change-the-IP-keep-the-key flow.
-            incoming_tiles = b.get("tiles")
-            if isinstance(incoming_tiles, list):
-                existing_tiles = [t for t in existing.get("tiles") or [] if isinstance(t, dict)]
-                existing_tiles_by_pos = {(t.get("row"), t.get("col")): t for t in existing_tiles}
-                existing_tiles_by_endpoint: dict = {}
-                for t in existing_tiles:
-                    existing_tiles_by_endpoint.setdefault((t.get("host"), t.get("port")), t)
-                for tile in incoming_tiles:
-                    if not isinstance(tile, dict):
-                        continue
-                    existing_tile = existing_tiles_by_endpoint.get(
-                        (tile.get("host"), tile.get("port"))
-                    ) or existing_tiles_by_pos.get((tile.get("row"), tile.get("col")), {})
-                    for key in TILE_SENSITIVE_FIELDS:
-                        if tile.get(key) == "***":
-                            tile[key] = existing_tile.get(key, "")
-            if "output_config" in b:
-                b["output_config"] = _restore_output_config(b, existing)
+            restore_masked_board_secrets(b, existing_by_id.get(b.get("id"), {}))
             instance = BoardInstance.from_dict(b)
             validated.append(instance.to_dict())
 
@@ -2166,6 +2212,25 @@ class SettingsService:
         self._save_to_file()
         logger.info(f"Plugin settings updated: {self._plugins}")
         return self._plugins
+
+    # Setup wizard
+    def get_wizard_state(self) -> WizardState | None:
+        """How the setup wizard ended on this install, or ``None``."""
+        return self._wizard.state
+
+    @_locked
+    def set_wizard_state(self, state: WizardState | None) -> WizardSettings:
+        """Record how the setup wizard ended; ``None`` clears it (a reset).
+
+        Raises:
+            ValueError: *state* is not one of :data:`VALID_WIZARD_STATES`.
+        """
+        if state is not None and state not in VALID_WIZARD_STATES:
+            raise ValueError(f"Invalid wizard state: {state}. Must be one of {VALID_WIZARD_STATES}")
+        self._wizard.state = state
+        self._save_to_file()
+        logger.info(f"Setup wizard state set to: {state}")
+        return self._wizard
 
     # Temporary override
     @_locked

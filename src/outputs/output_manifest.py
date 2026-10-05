@@ -12,7 +12,8 @@ An output plugin (``plugin_type: "output"``) carries one ``output`` block::
       "read_back": {"supported": false, "cost": "cheap", "suggested_interval_s": 30},
       "native_transitions": ["column", ...],
       "write_timeout_ms": 30000,
-      "settings_schema": { <JSON Schema for the board's output_config> }
+      "settings_schema": { <JSON Schema for the board's output_config> },
+      "actions": [ {"id", "label", "description"?, "input_schema"?, "result_fields"?} ]
     }
 
 - ``output_api`` is the contract major the plugin was written against. This
@@ -38,6 +39,20 @@ An output plugin (``plugin_type: "output"``) carries one ``output`` block::
   ``"secret": true`` (or ``"ui:widget": "password"``) is masked on the way
   out of the API and restored on the way back (:mod:`src.outputs.output_config`).
 
+- ``actions`` are the buttons of the board settings screen (plan D13). The
+  ids ``test_connection``, ``discover``, ``identify`` and
+  ``detect_geometry`` map to the plugin's hooks of those names; any other id
+  is a custom action, run by the plugin's ``action_<id>(inputs)`` method (or
+  its ``run_action`` dispatch hook). ``input_schema`` describes inputs that
+  are not config fields (a pairing token, a tile position);
+  ``result_fields`` declares what a result fills (``{"secret": true,
+  "fills": "<settings field>"}``).
+- **The UI vocabulary is versioned with** ``output_api``: a
+  ``settings_schema`` or ``input_schema`` may use only the widgets of the
+  declared major (:data:`OUTPUT_UI_WIDGETS`). Unlike a data plugin's unknown
+  widget (a warning), an output's is an error: a board's setup screen that
+  cannot render is a board that cannot be set up.
+
 Validation runs twice: :func:`parse_output_block` with no directory checks
 the shape and every inline object (``validate_manifest``); with the plugin's
 directory it also loads and checks each ``$ref`` (``load_manifest``).
@@ -46,6 +61,7 @@ directory it also loads and checks each ``$ref`` (``load_manifest``).
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -55,7 +71,7 @@ from src.fiestaui import builtin_device_models
 from src.led.charsets import CharacterSetError, materialize_character_set
 
 from .fiestaui import validate_character_set, validate_device_model
-from .hooks import ReadBack
+from .hooks import OutputActionSpec, ReadBack, ResultFieldSpec
 from .registry import OutputCapabilities
 from .transitions import NATIVE_STRATEGIES
 
@@ -75,8 +91,31 @@ _KNOWN_KEYS = frozenset(
         "native_transitions",
         "settings_schema",
         "write_timeout_ms",
+        "actions",
     }
 )
+
+#: The settings widgets an output plugin may use, per ``output_api`` major.
+#: A new widget lands with a new major, so a plugin that needs it is refused
+#: by a core that cannot render it (fail closed, like the API gate itself).
+OUTPUT_UI_WIDGETS: dict[int, frozenset[str]] = {
+    1: frozenset(
+        {
+            "datetime",
+            "device-picker",
+            "mode-cards",
+            "password",
+            "remote-options",
+            "textarea",
+            "tile-grid",
+            "timezone",
+        }
+    ),
+}
+
+_ACTION_KEYS = frozenset({"id", "label", "description", "input_schema", "result_fields"})
+_RESULT_FIELD_KEYS = frozenset({"secret", "fills"})
+_ACTION_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 #: A read-back nobody declared: core never polls the device.
 NO_READ_BACK = ReadBack(supported=False, cost="cheap", suggested_interval_s=30)
@@ -99,6 +138,8 @@ class OutputManifest:
     settings_schema: dict = field(default_factory=dict)
     #: The output's write budget when it lowers the default; None = default.
     write_timeout_ms: int | None = None
+    #: The board settings screen's actions, in declared order.
+    actions: tuple[OutputActionSpec, ...] = ()
 
     @property
     def device_model_ids(self) -> tuple[str, ...]:
@@ -247,6 +288,99 @@ def _check_transport(block: Mapping[str, Any], errors: list[str]) -> tuple[str, 
     return delivery, min_interval_ms, read_back, natives
 
 
+def _widget_errors(schema: Mapping[str, Any], where: str, api: Any) -> list[str]:
+    from src.plugins.manifest import _iter_settings_fields
+
+    allowed = OUTPUT_UI_WIDGETS.get(api) if isinstance(api, int) else None
+    if allowed is None:
+        return []
+    return [
+        f"{where}.{path}: ui:widget {prop['ui:widget']!r} is not in output_api {api}'s vocabulary"
+        for path, prop, _siblings in _iter_settings_fields(dict(schema))
+        if "ui:widget" in prop and prop["ui:widget"] not in allowed
+    ]
+
+
+def _parse_result_fields(raw: Any, where: str, settings: Mapping[str, Any], errors: list[str]) -> dict:
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        errors.append(f"{where}.result_fields must be an object of field name -> {{secret, fills}}")
+        return {}
+    fields: dict[str, ResultFieldSpec] = {}
+    root = settings.get("properties") or {}
+    for name, spec in raw.items():
+        here = f"{where}.result_fields.{name}"
+        if not isinstance(spec, dict):
+            errors.append(f"{here} must be an object")
+            continue
+        for key in sorted(set(spec) - _RESULT_FIELD_KEYS):
+            errors.append(f"{here}: unknown key '{key}'")
+        secret = spec.get("secret", False)
+        fills = spec.get("fills")
+        if not isinstance(secret, bool):
+            errors.append(f"{here}.secret must be a boolean")
+        if fills is not None and (not isinstance(fills, str) or fills not in root):
+            errors.append(f"{here}.fills must name a settings_schema property, got {fills!r}")
+        fields[name] = ResultFieldSpec(secret=secret is True, fills=fills if isinstance(fills, str) else None)
+    return fields
+
+
+def _parse_input_schema(raw: Any, where: str, api: Any, errors: list[str]) -> dict | None:
+    from src.plugins.manifest import validate_settings_schema_ui
+
+    if raw is None:
+        return None
+    if not isinstance(raw, dict) or raw.get("type", "object") != "object":
+        errors.append(f"{where}.input_schema must be an object schema")
+        return None
+    errors.extend(e.replace("settings_schema", f"{where}.input_schema", 1) for e in validate_settings_schema_ui(raw))
+    errors.extend(_widget_errors(raw, f"{where}.input_schema", api))
+    return raw
+
+
+def _parse_actions(raw: Any, settings: Mapping[str, Any], api: Any, errors: list[str]) -> tuple[OutputActionSpec, ...]:
+    if raw is None:
+        return ()
+    if not isinstance(raw, list):
+        errors.append("output.actions must be an array")
+        return ()
+    actions: list[OutputActionSpec] = []
+    seen: set[str] = set()
+    for i, entry in enumerate(raw):
+        where = f"output.actions[{i}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{where} must be an object")
+            continue
+        for key in sorted(set(entry) - _ACTION_KEYS):
+            errors.append(f"{where}: unknown key '{key}'")
+        action_id = entry.get("id")
+        if not isinstance(action_id, str) or not _ACTION_ID_RE.match(action_id):
+            errors.append(f"{where}.id must match {_ACTION_ID_RE.pattern}")
+            continue
+        if action_id in seen:
+            errors.append(f"{where}: duplicate action id '{action_id}'")
+            continue
+        seen.add(action_id)
+        label = entry.get("label")
+        if not isinstance(label, str) or not label.strip():
+            errors.append(f"{where}.label must be a non-empty string")
+        description = entry.get("description", "")
+        if not isinstance(description, str):
+            errors.append(f"{where}.description must be a string")
+            description = ""
+        actions.append(
+            OutputActionSpec(
+                id=action_id,
+                label=label if isinstance(label, str) else action_id,
+                description=description,
+                input_schema=_parse_input_schema(entry.get("input_schema"), where, api, errors),
+                result_fields=_parse_result_fields(entry.get("result_fields"), where, settings, errors),
+            )
+        )
+    return tuple(actions)
+
+
 def parse_output_block(
     block: Any, *, base_dir: Path | None, data_files: list[str]
 ) -> tuple[OutputManifest | None, list[str]]:
@@ -257,6 +391,7 @@ def parse_output_block(
     ``(None, errors)`` otherwise.
     """
     from src.plugins.manifest import validate_settings_schema_ui
+    from src.plugins.settings_ui import device_picker_actions
 
     errors: list[str] = []
     if not isinstance(block, dict):
@@ -312,6 +447,13 @@ def parse_output_block(
         settings_schema = {}
     else:
         errors.extend(f"output.settings_schema: {e}" for e in validate_settings_schema_ui(settings_schema))
+        errors.extend(_widget_errors(settings_schema, "output.settings_schema", api))
+
+    actions = _parse_actions(block.get("actions"), settings_schema, api, errors)
+    declared = {a.id for a in actions}
+    for path, action in device_picker_actions(settings_schema):
+        if action not in declared:
+            errors.append(f"output.settings_schema.{path}: device-picker action '{action}' is not declared in actions")
 
     if errors:
         return None, errors
@@ -328,6 +470,7 @@ def parse_output_block(
             native_transitions=natives,
             settings_schema=settings_schema,
             write_timeout_ms=write_timeout_ms,
+            actions=actions,
         ),
         [],
     )

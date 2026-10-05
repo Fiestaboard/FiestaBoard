@@ -26,7 +26,7 @@ pinned in ``tests/golden/api_routes.json``, and delegate here (plan D8).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -164,3 +164,99 @@ class OutputHooks:
     diagnostics: OutputDiagnostics | None = None
     #: Named custom actions, e.g. ``{"enable_local_api": fn}``.
     actions: Mapping[str, Callable[..., Any]] = field(default_factory=dict)
+    #: A built-in output's board-settings action runner: ``await
+    #: dispatch(ActionCall)`` → :class:`ActionOutcome`. Output plugins need
+    #: none; core dispatches to the plugin instance (``run_action``).
+    dispatch: Callable[[ActionCall], Awaitable[ActionOutcome]] | None = None
+
+
+# --- board settings actions (plan D13) -------------------------------------------
+
+#: The action ids core maps to a built-in hook instead of an ``action_<id>``
+#: method: ``test_connection`` → ``check_connection()``, ``discover`` →
+#: ``discover(timeout)``, ``identify`` → ``identify()``, ``detect_geometry``
+#: → ``detect_geometry()``. Every other declared id is a custom action.
+BUILTIN_ACTION_IDS: tuple[str, ...] = ("test_connection", "discover", "identify", "detect_geometry")
+
+#: An action's verdict.
+ActionStatus = Literal["ok", "error", "warning"]
+
+
+@dataclass(frozen=True)
+class ActionField:
+    """One value an action hands back for the settings form to fill.
+
+    ``secret`` values are never logged and are written through the form's
+    secret path (masked once saved).
+    """
+
+    value: Any
+    secret: bool = False
+
+
+@dataclass(frozen=True)
+class ActionOutcome:
+    """What an output action answers; core renders it as the closed
+    ``ActionResult`` envelope (``src/outputs/models.py``).
+
+    ``geometry`` is ``{device_type, rows, cols, notes_wide?, notes_tall?,
+    matched_preset?}`` — the ``detect-size`` shape, so the apply step is the
+    same. ``devices`` are dicts with at least ``ip`` and ``port``.
+    """
+
+    status: ActionStatus = "ok"
+    message: str = ""
+    guidance: tuple[str, ...] = ()
+    fields: Mapping[str, ActionField] = field(default_factory=dict)
+    geometry: Mapping[str, Any] | None = None
+    devices: tuple[Mapping[str, Any], ...] | None = None
+
+    @classmethod
+    def from_check(cls, check: ConnectionCheck) -> ActionOutcome:
+        """A connection probe's verdict as an action outcome."""
+        return cls(
+            status="ok" if check.success else "error",
+            message=check.message,
+            guidance=tuple(check.troubleshooting or ()),
+        )
+
+
+@dataclass(frozen=True)
+class ActionCall:
+    """One action run: which, on what board (saved or draft), with what input.
+
+    ``board`` is the board dict the output builds a driver from — a saved
+    board with any edited ``output_config`` merged in (secrets restored), or
+    a draft. ``board_id`` is ``None`` for a draft.
+    """
+
+    action: str
+    board: Mapping[str, Any]
+    board_id: str | None
+    inputs: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class ResultFieldSpec:
+    """A declared action result field: ``secret`` marks a credential;
+    ``fills`` names the settings field the form writes it to (default: the
+    result field's own name)."""
+
+    secret: bool = False
+    fills: str | None = None
+
+
+@dataclass(frozen=True)
+class OutputActionSpec:
+    """One declared board-settings action: a button the form renders."""
+
+    id: str
+    label: str
+    description: str = ""
+    #: JSON Schema (the settings vocabulary) of the action's input, if any.
+    input_schema: Mapping[str, Any] | None = None
+    result_fields: Mapping[str, ResultFieldSpec] = field(default_factory=dict)
+
+    @property
+    def builtin(self) -> bool:
+        return self.id in BUILTIN_ACTION_IDS

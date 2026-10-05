@@ -1,0 +1,145 @@
+{
+  "_comment": "Shared conformance vectors for the ui:visible_when grammar. Evaluated by BOTH src/plugins/settings_ui.py (tests/test_settings_ui_grammar.py) and web/src/lib/visible-when.ts (visible-when.test.ts); a case that passes on one side and not the other is the bug these exist to catch. Each case: the property schemas of the object (for defaults), the object's values, the condition, and whether the field is visible.",
+  "cases": [
+    {
+      "name": "equals a string",
+      "properties": { "mode": { "type": "string" } },
+      "values": { "mode": "local" },
+      "when": { "mode": "local" },
+      "visible": true
+    },
+    {
+      "name": "does not equal a string",
+      "properties": { "mode": { "type": "string" } },
+      "values": { "mode": "cloud" },
+      "when": { "mode": "local" },
+      "visible": false
+    },
+    {
+      "name": "one of a list",
+      "properties": { "mode": { "type": "string" } },
+      "values": { "mode": "cloud" },
+      "when": { "mode": ["local", "cloud"] },
+      "visible": true
+    },
+    {
+      "name": "not one of a list",
+      "properties": { "mode": { "type": "string" } },
+      "values": { "mode": "virtual" },
+      "when": { "mode": ["local", "cloud"] },
+      "visible": false
+    },
+    {
+      "name": "every pair must hold",
+      "properties": { "mode": { "type": "string" }, "advanced": { "type": "boolean" } },
+      "values": { "mode": "local", "advanced": false },
+      "when": { "mode": "local", "advanced": true },
+      "visible": false
+    },
+    {
+      "name": "every pair holds",
+      "properties": { "mode": { "type": "string" }, "advanced": { "type": "boolean" } },
+      "values": { "mode": "local", "advanced": true },
+      "when": { "mode": "local", "advanced": true },
+      "visible": true
+    },
+    {
+      "name": "not negates",
+      "properties": { "mode": { "type": "string" } },
+      "values": { "mode": "cloud" },
+      "when": { "not": { "mode": "local" } },
+      "visible": true
+    },
+    {
+      "name": "any is an or",
+      "properties": { "mode": { "type": "string" }, "advanced": { "type": "boolean" } },
+      "values": { "mode": "cloud", "advanced": true },
+      "when": { "any": [{ "mode": "local" }, { "advanced": true }] },
+      "visible": true
+    },
+    {
+      "name": "any with none holding",
+      "properties": { "mode": { "type": "string" }, "advanced": { "type": "boolean" } },
+      "values": { "mode": "cloud", "advanced": false },
+      "when": { "any": [{ "mode": "local" }, { "advanced": true }] },
+      "visible": false
+    },
+    {
+      "name": "an absent value reads as the declared default",
+      "properties": { "mode": { "type": "string", "default": "local" } },
+      "values": {},
+      "when": { "mode": "local" },
+      "visible": true
+    },
+    {
+      "name": "an absent value with no default reads as null",
+      "properties": { "mode": { "type": "string" } },
+      "values": {},
+      "when": { "mode": null },
+      "visible": true
+    },
+    {
+      "name": "an explicit null is not replaced by the default",
+      "properties": { "mode": { "type": "string", "default": "local" } },
+      "values": { "mode": null },
+      "when": { "mode": "local" },
+      "visible": false
+    },
+    {
+      "name": "true is not 1",
+      "properties": { "flag": { "type": "integer" } },
+      "values": { "flag": 1 },
+      "when": { "flag": true },
+      "visible": false
+    },
+    {
+      "name": "0 is not false",
+      "properties": { "flag": { "type": "boolean" } },
+      "values": { "flag": false },
+      "when": { "flag": [0] },
+      "visible": false
+    },
+    {
+      "name": "1 equals 1.0",
+      "properties": { "n": { "type": "number" } },
+      "values": { "n": 1 },
+      "when": { "n": 1.0 },
+      "visible": true
+    },
+    {
+      "name": "a string is not its number",
+      "properties": { "n": { "type": "string" } },
+      "values": { "n": "1" },
+      "when": { "n": 1 },
+      "visible": false
+    },
+    {
+      "name": "an object value never matches a scalar",
+      "properties": { "o": { "type": "object" } },
+      "values": { "o": { "a": 1 } },
+      "when": { "o": "x" },
+      "visible": false
+    },
+    {
+      "name": "a malformed condition fails open",
+      "properties": { "mode": { "type": "string" } },
+      "values": { "mode": "cloud" },
+      "when": "mode == local",
+      "visible": true
+    },
+    {
+      "name": "an empty condition fails open",
+      "properties": {},
+      "values": {},
+      "when": {},
+      "visible": true
+    },
+    {
+      "name": "not beside a field fails open",
+      "properties": { "mode": { "type": "string" } },
+      "values": { "mode": "cloud" },
+      "when": { "not": { "mode": "cloud" }, "mode": "cloud" },
+      "visible": true
+    }
+  ]
+}

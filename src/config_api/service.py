@@ -35,7 +35,7 @@ import logging
 from src.board_guards import validate_board_host
 from src.config_manager import get_config_manager
 from src.outputs.hooks import OutputActionError
-from src.settings.service import get_settings_service
+from src.settings.service import VALID_WIZARD_STATES, get_settings_service
 
 from .models import BoardTestRequest, ConfigValidationResponse, EnablementTokenRequest
 
@@ -67,9 +67,17 @@ def _multi_board_connection_state() -> tuple[bool, bool]:
     has_connection_attempt = False
     try:
         from src.devices import BoardInstance
+        from src.outputs.registry import VESTABOARD, resolve_output_id
 
         board_settings = get_settings_service().get_board_settings()
         for b in board_settings.boards or []:
+            if resolve_output_id(b) != VESTABOARD:
+                # A FiestaPanel or an output plugin's board: its output is
+                # the configuration (plan D13). A Pixoo-only install is not
+                # "first run" for want of a Vestaboard key; an output that
+                # is not installed is a per-board error, never the wizard.
+                has_connection_attempt = has_configured_board_instance = True
+                break
             try:
                 instance = BoardInstance.from_dict(b)
             except Exception:  # pragma: no cover - defensive
@@ -86,6 +94,14 @@ def _multi_board_connection_state() -> tuple[bool, bool]:
 
 def determine_config_validity() -> ConfigValidationResponse:
     """Validate the configuration and decide whether this is a first run.
+
+    First run (plan D13, D18): **no board has a usable output AND the setup
+    wizard was neither completed nor skipped**. A usable output is a
+    Vestaboard with any connection detail (#1813: misconfigured is not
+    unconfigured), a FiestaPanel, or any output plugin's board. The legacy
+    ``config.json`` board block still counts as a configured Vestaboard (an
+    install that predates the boards store), but nothing has to write it any
+    more — the deprecated ``PUT /config/board`` keeps working, unneeded.
 
     A board is considered configured when either the legacy single-board
     config has the required credentials, or any board instance configured via
@@ -139,6 +155,12 @@ def determine_config_validity() -> ConfigValidationResponse:
         board_error_prefixes = ("Board cloud_key", "Board local_api_key", "Board host")
         validation_errors = [e for e in validation_errors if not e.startswith(board_error_prefixes)]
         is_valid = len(validation_errors) == 0
+
+    # The wizard ended — finished, or "I'll add a display later" — so it never
+    # comes back on its own, board or no board (plan D18). Kept server-side so
+    # the answer holds in every browser, not just the one that clicked.
+    if get_settings_service().get_wizard_state() in VALID_WIZARD_STATES:
+        is_first_run = False
 
     return ConfigValidationResponse(
         valid=is_valid,

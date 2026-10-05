@@ -1229,6 +1229,44 @@ glyphs of its LED font as the matrix holds (a 64×64 Pixoo at 3×5 is 10×16); a
 `notes_wide`/`notes_tall`). A model below the 3×15 Note floor is refused
 (400), never enlarged, so declare only models that reach it.
 
+**The board settings screen** is rendered from the manifest, never from
+plugin JS. The `settings_schema` may group fields and hide them, with three
+core widgets on top of the usual ones:
+
+- `"ui:sections": [{"id", "title", "fields": [...], "collapsible"?, "collapsed"?}]`
+  on the schema root groups properties (each in at most one section; the
+  rest render first).
+- `"ui:visible_when"` on a property shows it only when its siblings match.
+  The whole grammar: `{"field": value}` (equals), `{"field": [v1, v2]}` (one
+  of), several pairs (all hold), `{"not": cond}`, `{"any": [cond, ...]}`.
+  Values are JSON scalars compared without coercion (`true` is not `1`); an
+  absent field reads as its `default`, else `null`. A hidden field is not
+  validated. Python (`src/plugins/settings_ui.py`) and the web
+  (`web/src/lib/visible-when.ts`) run the same vectors
+  (`web/src/lib/visible-when.cases.json`).
+- `"ui:widget": "mode-cards"` (a string `enum` as selectable cards;
+  `ui:options.cards: [{value, title, description}]`), `"tile-grid"` (an
+  array of `{row, col, ...}` items; `ui:options.rows_field`/`cols_field` name
+  the integer properties that size it) and `"device-picker"` (a string filled
+  from a discovery; `ui:options.action` defaults to `discover`,
+  `value_key` to `ip`).
+
+An output may use only the widgets of its `output_api` major (an unknown one
+is an error, not a warning). `output.actions` declares the screen's buttons:
+`[{"id", "label", "description"?, "input_schema"?, "result_fields"?}]`.
+`test_connection`, `discover`, `identify` and `detect_geometry` call your
+`check_connection()`, `discover(timeout)`, `identify()` and
+`detect_geometry()`; any other id calls `action_<id>(inputs)` (or override
+`run_action(action, inputs)`). Return an `ActionOutcome(status, message,
+guidance, fields, geometry, devices)`; mark a credential you hand back
+`ActionField(value, secret=True)` and declare it in `result_fields`
+(`{"token": {"secret": true, "fills": "token"}}`) — core never logs it.
+Actions run on a throwaway instance (closed afterwards) through
+`POST /outputs/{output_id}/actions/{action}` (draft settings, before the board
+exists) or `POST /boards/{board_id}/actions/{action}` (a saved board; `"***"`
+in edited settings is restored from storage). `GET /outputs` lists every
+installed output with its schema and actions.
+
 Every output plugin repo runs the shared conformance suite in its CI:
 `OutputConformanceSuite(plugin_dir, factory, config).assert_conformant()`
 from `src/outputs/conformance.py`, where `factory(board_id, config,

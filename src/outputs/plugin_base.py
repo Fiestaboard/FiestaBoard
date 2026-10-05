@@ -92,7 +92,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 from src.markup import BoardToken
 from src.send_outcome import FrameRegion, WriteResult
 
-from .hooks import ConnectionCheck
+from .hooks import ActionField, ActionOutcome, ConnectionCheck
 from .http import OutputHttp
 from .transitions import NativeTransition
 
@@ -103,6 +103,8 @@ if TYPE_CHECKING:
     from .registry import OutputCapabilities
 
 __all__ = [
+    "ActionField",
+    "ActionOutcome",
     "CancelToken",
     "CellFrame",
     "ConnectionCheck",
@@ -370,3 +372,41 @@ class OutputPluginBase(ABC):
     def diagnostics(self) -> list[DiagnosticCheck]:
         """The output's own checks for the diagnostics page. Default: none."""
         return []
+
+    def detect_geometry(self) -> Mapping[str, Any] | None:
+        """The device's size, read from the device: ``{"device_type": "panel",
+        "rows", "cols"}`` (the ``detect-size`` shape). ``None``: it cannot tell."""
+        return None
+
+    # --- board settings actions (plan D13) -------------------------------------------
+
+    def run_action(self, action: str, inputs: Mapping[str, Any]) -> ActionOutcome | Mapping[str, Any] | None:
+        """Run a board-settings action the manifest declares (``output.actions``).
+
+        Core calls this on a throwaway instance built from the board's (or the
+        draft's) ``output_config`` — never the board's live one — and closes it
+        afterwards. The default maps ``test_connection`` → :meth:`check_connection`,
+        ``identify`` → :meth:`identify`, ``detect_geometry`` →
+        :meth:`detect_geometry`, and any other id to ``action_<id>(inputs)``.
+        Override it to dispatch yourself.
+
+        Return an :class:`ActionOutcome` (or a dict of its fields, or ``None``
+        for a plain success). ``inputs`` were validated against the action's
+        ``input_schema``. Mark credentials you hand back ``secret`` —
+        ``ActionField(value, secret=True)`` — so core never logs them and the
+        form stores them through its secret path.
+        """
+        if action == "test_connection":
+            return ActionOutcome.from_check(self.check_connection())
+        if action == "identify":
+            self.identify()
+            return ActionOutcome(message="Identify sent.")
+        if action == "detect_geometry":
+            found = self.detect_geometry()
+            if found is None:
+                return ActionOutcome(status="error", message="The device did not report its size.")
+            return ActionOutcome(message="Size detected.", geometry=found)
+        method = getattr(self, f"action_{action}", None)
+        if method is None:
+            raise NotImplementedError(f"{type(self).__name__} implements no action '{action}'")
+        return method(dict(inputs))

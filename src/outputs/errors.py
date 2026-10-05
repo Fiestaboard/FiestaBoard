@@ -8,8 +8,10 @@ from .plugin_registration import OutputPluginsDisabledError
 
 __all__ = [
     "BelowFloorError",
+    "BoardNotFoundError",
     "BuiltinOutputError",
     "GeometryError",
+    "InvalidActionInputError",
     "InvalidOutputConfigError",
     "OutputNotInstalledError",
     "OutputPluginsDisabledError",
@@ -45,3 +47,14 @@ class UndeclaredDeviceModelError(ValueError):
 
 class InvalidOutputConfigError(ValueError):
     """The board's ``output_config`` does not fit the plugin's settings schema."""
+
+
+class BoardNotFoundError(LookupError):
+    """No saved board has this id."""
+
+    def __init__(self, board_id: str) -> None:
+        super().__init__(f"Board {board_id} not found")
+
+
+class InvalidActionInputError(ValueError):
+    """An action's ``input`` does not fit its declared ``input_schema``."""
