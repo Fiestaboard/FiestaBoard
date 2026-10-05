@@ -111,7 +111,12 @@ test.describe("regression: integrations.detail", () => {
   /** UX node: integrations.detail.installed */
   test("integrations.detail.installed — built-in plugin detail page renders", async ({ page }) => {
     await page.goto("/integrations/date_time");
-    await expect(page.getByRole("main").getByText(/Date|Time/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page
+        .getByRole("main")
+        .getByText(/Date|Time/i)
+        .first(),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   /** UX node: integrations.detail.loading */
@@ -177,6 +182,11 @@ test.describe("regression: integrations.detail", () => {
     await page.goto("/integrations/date_time");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
     // Detail page itself still renders — header/info section is visible even without README.
-    await expect(page.getByRole("main").getByText(/Date|Time/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page
+        .getByRole("main")
+        .getByText(/Date|Time/i)
+        .first(),
+    ).toBeVisible({ timeout: 15_000 });
   });
 });
