@@ -55,9 +55,16 @@ class FormulaFunctionsResponse(BaseModel):
 
 
 class TemplateValidateRequest(BaseModel):
-    """``POST /templates/validate`` request body."""
+    """``POST /templates/validate`` request body.
+
+    ``board_id`` validates for that board: line length is measured in the
+    tiles it draws, so extended markup (spans, blocks, icons) counts by its
+    cells when the board's character set is rich (plan D19). An unknown board
+    validates as split-flap, exactly as with no ``board_id``.
+    """
 
     template: str | list[str]
+    board_id: str | None = None
 
 
 class TemplateValidationError(BaseModel):

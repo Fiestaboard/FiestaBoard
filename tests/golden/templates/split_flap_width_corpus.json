@@ -1,0 +1,6466 @@
+{
+ "render_lines": [
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "",
+   "out": "                      \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "HELLO",
+   "out": "HELLO                 \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY LONG LI\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot} {black/white\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "??? ??? ???           \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "{63} ALERT {63} {67}{66}          \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLM\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "{red}HOT{/red} COLD{/} WARM        \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBBBBBBBBB\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "TEMP {{demo.short}} F",
+   "out": "TEMP 72 F             \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN FOX JU\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c (red:x) {red}HOT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT             RIGHT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A          B         C\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}--------------------{63}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}MID=========\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG FOR ANY F\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}       {blue:R}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "PRE ONE TWO THREE POST\nFOUR FIVE SIX SEVEN   \nEIGHT NINE TEN        \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "{63} THE QUICK BROWN FOX \nJUMPS OVER THE LAZY   \nDOG AGAIN AND AGAIN   \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "{63}{64}{65}                   \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "FORMULA {63}             \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK BROWN \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{left}PREFIXED",
+   "out": "{left}PREFIXED        \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{center}CENTRED",
+   "out": "{center}CENTRED       \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{right}RIGHTED",
+   "out": "{right}RIGHTED        \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD WORD W\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFG\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{{{{{{{",
+   "out": "{{{{{{{{              \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "}}}} ??? { } {} {/}      \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEX\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "",
+   "out": "                      \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "HELLO",
+   "out": "HELLO                 \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY LONG   \nLINE THAT EXCEEDS THE \nBOARD                 \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot}             \n{black/white:OPEN}    \n{icon:sun}            \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "??? ??? ???           \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "{63} ALERT {63} {67}{66}          \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLM\nNOP                   \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "{red}HOT{/red} COLD{/} WARM        \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBBBBBBBBB\nBB                    \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "TEMP {{demo.short}} F",
+   "out": "TEMP 72 F             \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN FOX   \nJUMPS OVER THE LAZY   \nDOG AGAIN AND AGAIN   \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c (red:x) {red}HOT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT             RIGHT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A            B\u0000FILL_SP\nACE\u0000C                 \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}---------------------\n{63}                     \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "\u0000FILL_SPACE_REPEAT:blu\ne\u0000MID\u0000FILL_SPACE_REPEA\nT:=\u0000                  \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG FOR ANY  \nFILL             SPACE\nAT ALL HERE           \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}            {bl\nue:R}                 \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "PRE ONE TWO THREE POST\nFOUR FIVE SIX SEVEN   \nEIGHT NINE TEN        \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "{63} THE QUICK BROWN FOX \nJUMPS OVER THE LAZY   \nDOG AGAIN AND AGAIN   \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "{63}{64}{65}                   \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "FORMULA {63}             \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK BROWN \nFOX JUMPS OVER THE    \nLAZY DOG AGAIN AND    \nAGAIN}}               \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{left}PREFIXED",
+   "out": "{left}PREFIXED        \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{center}CENTRED",
+   "out": "{center}CENTRED       \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{right}RIGHTED",
+   "out": "{right}RIGHTED        \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD WORD  \nWORD WORD WORD WORD   \nWORD WORD WORD WORD   \nWORD                  \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFG\nHIJABCDEFGHIJABCDEFGHI\nJABCDEFGHIJ           \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{{{{{{{",
+   "out": "{{{{{{{{              \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "}}}} ??? { } {} {/}      \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEX\nPIALIDOCIOUSLY        \nLONGWORD              \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "",
+   "out": "                      \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "HELLO",
+   "out": "        HELLO         \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY LONG LI\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot} {black/white\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "     ??? ??? ???      \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "     {63} ALERT {63} {67}{66}     \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLM\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "    {red}HOT{/red} COLD{/} WARM    \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBBBBBBBBB\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "TEMP {{demo.short}} F",
+   "out": "      TEMP 72 F       \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN FOX JU\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c (red:x) {red}HOT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT             RIGHT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A          B         C\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}--------------------{63}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}MID=========\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG FOR ANY F\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}       {blue:R}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "PRE ONE TWO THREE POST\n FOUR FIVE SIX SEVEN  \n    EIGHT NINE TEN    \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "{63} THE QUICK BROWN FOX \n JUMPS OVER THE LAZY  \n DOG AGAIN AND AGAIN  \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "         {63}{64}{65}          \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "      FORMULA {63}       \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK BROWN \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{left}PREFIXED",
+   "out": "    {left}PREFIXED    \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{center}CENTRED",
+   "out": "   {center}CENTRED    \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{right}RIGHTED",
+   "out": "    {right}RIGHTED    \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD WORD W\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFG\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{{{{{{{",
+   "out": "       {{{{{{{{       \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "   }}}} ??? { } {} {/}   \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEX\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "",
+   "out": "                      \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "HELLO",
+   "out": "        HELLO         \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": " THIS IS A VERY LONG  \nLINE THAT EXCEEDS THE \n        BOARD         \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "      {red:hot}       \n  {black/white:OPEN}  \n      {icon:sun}      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "     ??? ??? ???      \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "     {63} ALERT {63} {67}{66}     \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLM\n         NOP          \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "    {red}HOT{/red} COLD{/} WARM    \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBBBBBBBBB\n          BB          \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "TEMP {{demo.short}} F",
+   "out": "      TEMP 72 F       \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{demo.long}}",
+   "out": " THE QUICK BROWN FOX  \n JUMPS OVER THE LAZY  \n DOG AGAIN AND AGAIN  \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c (red:x) {red}HOT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT             RIGHT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A            B\u0000FILL_SP\n        ACE\u0000C         \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}---------------------\n          {63}           \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "\u0000FILL_SPACE_REPEAT:blu\ne\u0000MID\u0000FILL_SPACE_REPEA\n         T:=\u0000         \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": " WAY TOO LONG FOR ANY \nFILL             SPACE\n     AT ALL HERE      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}            {bl\n        ue:R}         \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "PRE ONE TWO THREE POST\n FOUR FIVE SIX SEVEN  \n    EIGHT NINE TEN    \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "{63} THE QUICK BROWN FOX \n JUMPS OVER THE LAZY  \n DOG AGAIN AND AGAIN  \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "         {63}{64}{65}          \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "      FORMULA {63}       \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK BROWN \n  FOX JUMPS OVER THE  \n  LAZY DOG AGAIN AND  \n       AGAIN}}        \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{left}PREFIXED",
+   "out": "    {left}PREFIXED    \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{center}CENTRED",
+   "out": "   {center}CENTRED    \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{right}RIGHTED",
+   "out": "    {right}RIGHTED    \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": " {wrap}WORD WORD WORD \n WORD WORD WORD WORD  \n WORD WORD WORD WORD  \n         WORD         \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFG\nHIJABCDEFGHIJABCDEFGHI\n     JABCDEFGHIJ      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{{{{{{{",
+   "out": "       {{{{{{{{       \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "   }}}} ??? { } {} {/}   \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEX\n    PIALIDOCIOUSLY    \n       LONGWORD       \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "",
+   "out": "                      \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "HELLO",
+   "out": "                 HELLO\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY LONG LI\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot} {black/white\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "           ??? ??? ???\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "          {63} ALERT {63} {67}{66}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLM\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "        {red}HOT{/red} COLD{/} WARM\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBBBBBBBBB\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "TEMP {{demo.short}} F",
+   "out": "             TEMP 72 F\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN FOX JU\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c (red:x) {red}HOT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT             RIGHT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A          B         C\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}--------------------{63}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}MID=========\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG FOR ANY F\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}       {blue:R}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "PRE ONE TWO THREE POST\n   FOUR FIVE SIX SEVEN\n        EIGHT NINE TEN\n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": " {63} THE QUICK BROWN FOX\n   JUMPS OVER THE LAZY\n   DOG AGAIN AND AGAIN\n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "                   {63}{64}{65}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "             FORMULA {63}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK BROWN \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{left}PREFIXED",
+   "out": "        {left}PREFIXED\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{center}CENTRED",
+   "out": "       {center}CENTRED\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{right}RIGHTED",
+   "out": "        {right}RIGHTED\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD WORD W\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFG\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{{{{{{{",
+   "out": "              {{{{{{{{\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "      }}}} ??? { } {} {/}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEX\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "",
+   "out": "                      \n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "HELLO",
+   "out": "                 HELLO\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "   THIS IS A VERY LONG\n LINE THAT EXCEEDS THE\n                 BOARD\n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "             {red:hot}\n    {black/white:OPEN}\n            {icon:sun}\n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "           ??? ??? ???\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "          {63} ALERT {63} {67}{66}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLM\n                   NOP\n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "        {red}HOT{/red} COLD{/} WARM\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - % <3 + X\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBBBBBBBBB\n                    BB\n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "TEMP {{demo.short}} F",
+   "out": "             TEMP 72 F\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{demo.long}}",
+   "out": "   THE QUICK BROWN FOX\n   JUMPS OVER THE LAZY\n   DOG AGAIN AND AGAIN\n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c (red:x) {red}HOT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT             RIGHT\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A            B\u0000FILL_SP\n                 ACE\u0000C\n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}---------------------\n                     {63}\n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "\u0000FILL_SPACE_REPEAT:blu\ne\u0000MID\u0000FILL_SPACE_REPEA\n                  T:=\u0000\n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "  WAY TOO LONG FOR ANY\nFILL             SPACE\n           AT ALL HERE\n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}            {bl\n                 ue:R}\n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "PRE ONE TWO THREE POST\n   FOUR FIVE SIX SEVEN\n        EIGHT NINE TEN\n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": " {63} THE QUICK BROWN FOX\n   JUMPS OVER THE LAZY\n   DOG AGAIN AND AGAIN\n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "                   {63}{64}{65}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "             FORMULA {63}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red:{{demo.long}}}}",
+   "out": " {{red:THE QUICK BROWN\n    FOX JUMPS OVER THE\n    LAZY DOG AGAIN AND\n               AGAIN}}\n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{left}PREFIXED",
+   "out": "        {left}PREFIXED\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{center}CENTRED",
+   "out": "       {center}CENTRED\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{right}RIGHTED",
+   "out": "        {right}RIGHTED\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "  {wrap}WORD WORD WORD\n   WORD WORD WORD WORD\n   WORD WORD WORD WORD\n                  WORD\n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFG\nHIJABCDEFGHIJABCDEFGHI\n           JABCDEFGHIJ\n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{{{{{{{",
+   "out": "              {{{{{{{{\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "      }}}} ??? { } {} {/}\n                      \n                      \n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEX\n        PIALIDOCIOUSLY\n              LONGWORD\n                      \n                      \n                      "
+  },
+  {
+   "device": {
+    "device_type": "flagship"
+   },
+   "legacy_prefix": true,
+   "out": "                      \nHELLO                 \nTHIS IS A VERY LONG LI\n{red:hot} {black/white\n??? ??? ???           \n{63} ALERT {63} {67}{66}          "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "",
+   "out": "               \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "HELLO",
+   "out": "HELLO          \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot} {blac\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "??? ??? ???    \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "{63} ALERT {63} {67}{66}   \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEF\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "{red}HOT{/red} COLD{/} WARM \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - %\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBB\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "TEMP {{demo.short}} F",
+   "out": "TEMP 72 F      \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c (red:\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT      RIGHT\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A      B      C\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}-------------{63}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}MID======\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG FO\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}{blue:R}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "PRE ONE POST   \nTWO THREE FOUR \nFIVE SIX SEVEN "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "{63} THE QUICK    \nBROWN FOX JUMPS\nOVER THE LAZY  "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "{63}{64}{65}            \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "FORMULA {63}      \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{left}PREFIXED",
+   "out": "{left}PREFIXED \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{center}CENTRED",
+   "out": "{center}CENTRED\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{right}RIGHTED",
+   "out": "{right}RIGHTED \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{{{{{{{",
+   "out": "{{{{{{{{       \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "}}}} ??? { } {}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGIL\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "",
+   "out": "               \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "HELLO",
+   "out": "HELLO          \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY \nLONG LINE THAT \nEXCEEDS THE    "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot}      \n{black/white:OP\nEN}            "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "??? ??? ???    \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "{63} ALERT {63} {67}{66}   \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEF\nGHIJKLMNOP     \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "{red}HOT{/red} COLD{/} WARM \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - %\n<3 + X         \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBB\nBBBBBBBBB      \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "TEMP {{demo.short}} F",
+   "out": "TEMP 72 F      \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN\nFOX JUMPS OVER \nTHE LAZY DOG   "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c      \n(red:x) {red}HOT{/red}   \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT\u0000FILL_SPACE\n\u0000RIGHT         \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A            B\u0000\nFILL_SPACE\u0000C   \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}\u0000FILL_SPACE_RE\nPEAT:-\u0000{63}       \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "\u0000FILL_SPACE_REP\nEAT:blue\u0000MID\u0000FI\nLL_SPACE_REPEAT"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG   \nFOR ANY        \nFILL\u0000FILL_SPACE"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}\u0000FILL_SP\nACE\u0000{blue:R}   \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "PRE ONE POST   \nTWO THREE FOUR \nFIVE SIX SEVEN "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "{63} THE QUICK    \nBROWN FOX JUMPS\nOVER THE LAZY  "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "{63}{64}{65}            \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "FORMULA {63}      \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK\nBROWN FOX JUMPS\nOVER THE LAZY  "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{left}PREFIXED",
+   "out": "{left}PREFIXED \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{center}CENTRED",
+   "out": "{center}CENTRED\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{right}RIGHTED",
+   "out": "{right}RIGHTED \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD\nWORD WORD WORD \nWORD WORD WORD "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}\nABCDEFGHIJABCDE\nFGHIJABCDEFGHIJ"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{{{{{{{",
+   "out": "{{{{{{{{       \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "}}}} ??? { } {}\n{/}               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGIL\nISTICEXPIALIDOC\nIOUSLY         "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "",
+   "out": "               \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "HELLO",
+   "out": "     HELLO     \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot} {blac\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "  ??? ??? ???  \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": " {63} ALERT {63} {67}{66}  \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEF\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "{red}HOT{/red} COLD{/} WARM \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - %\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBB\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "TEMP {{demo.short}} F",
+   "out": "   TEMP 72 F   \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c (red:\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT      RIGHT\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A      B      C\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}-------------{63}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}MID======\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG FO\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}{blue:R}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": " PRE ONE POST  \nTWO THREE FOUR \nFIVE SIX SEVEN "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "  {63} THE QUICK  \nBROWN FOX JUMPS\n OVER THE LAZY "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "      {63}{64}{65}      \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "   FORMULA {63}   \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{left}PREFIXED",
+   "out": "{left}PREFIXED \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{center}CENTRED",
+   "out": "{center}CENTRED\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{right}RIGHTED",
+   "out": "{right}RIGHTED \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{{{{{{{",
+   "out": "   {{{{{{{{    \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "}}}} ??? { } {}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGIL\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "",
+   "out": "               \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "HELLO",
+   "out": "     HELLO     \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY \nLONG LINE THAT \n  EXCEEDS THE  "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "   {red:hot}   \n{black/white:OP\n      EN}      "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "  ??? ??? ???  \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": " {63} ALERT {63} {67}{66}  \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEF\n  GHIJKLMNOP   \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "{red}HOT{/red} COLD{/} WARM \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - %\n    <3 + X     \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBB\n   BBBBBBBBB   \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "TEMP {{demo.short}} F",
+   "out": "   TEMP 72 F   \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN\nFOX JUMPS OVER \n THE LAZY DOG  "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "   {63}{64}{65} a(b)c   \n (red:x) {red}HOT{/red}  \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT\u0000FILL_SPACE\n    \u0000RIGHT     \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A            B\u0000\n FILL_SPACE\u0000C  \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}\u0000FILL_SPACE_RE\n   PEAT:-\u0000{63}    \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "\u0000FILL_SPACE_REP\nEAT:blue\u0000MID\u0000FI\nLL_SPACE_REPEAT"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": " WAY TOO LONG  \n    FOR ANY    \nFILL\u0000FILL_SPACE"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}\u0000FILL_SP\n ACE\u0000{blue:R}  \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": " PRE ONE POST  \nTWO THREE FOUR \nFIVE SIX SEVEN "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "  {63} THE QUICK  \nBROWN FOX JUMPS\n OVER THE LAZY "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "      {63}{64}{65}      \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "   FORMULA {63}   \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK\nBROWN FOX JUMPS\n OVER THE LAZY "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{left}PREFIXED",
+   "out": "{left}PREFIXED \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{center}CENTRED",
+   "out": "{center}CENTRED\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{right}RIGHTED",
+   "out": "{right}RIGHTED \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD\nWORD WORD WORD \nWORD WORD WORD "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}\nABCDEFGHIJABCDE\nFGHIJABCDEFGHIJ"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{{{{{{{",
+   "out": "   {{{{{{{{    \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "}}}} ??? { } {}\n       {/}        \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGIL\nISTICEXPIALIDOC\n    IOUSLY     "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "",
+   "out": "               \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "HELLO",
+   "out": "          HELLO\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot} {blac\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "    ??? ??? ???\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "   {63} ALERT {63} {67}{66}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEF\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": " {red}HOT{/red} COLD{/} WARM\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - %\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBB\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "TEMP {{demo.short}} F",
+   "out": "      TEMP 72 F\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c (red:\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT      RIGHT\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A      B      C\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}-------------{63}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}MID======\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG FO\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}{blue:R}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "   PRE ONE POST\n TWO THREE FOUR\n FIVE SIX SEVEN"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "    {63} THE QUICK\nBROWN FOX JUMPS\n  OVER THE LAZY"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "            {63}{64}{65}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "      FORMULA {63}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{left}PREFIXED",
+   "out": " {left}PREFIXED\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{center}CENTRED",
+   "out": "{center}CENTRED\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{right}RIGHTED",
+   "out": " {right}RIGHTED\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{{{{{{{",
+   "out": "       {{{{{{{{\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "}}}} ??? { } {}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGIL\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "",
+   "out": "               \n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "HELLO",
+   "out": "          HELLO\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": " THIS IS A VERY\n LONG LINE THAT\n    EXCEEDS THE"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "      {red:hot}\n{black/white:OP\n            EN}"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "    ??? ??? ???\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "   {63} ALERT {63} {67}{66}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEF\n     GHIJKLMNOP\n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": " {red}HOT{/red} COLD{/} WARM\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - %\n         <3 + X\n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBB\n      BBBBBBBBB\n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "TEMP {{demo.short}} F",
+   "out": "      TEMP 72 F\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN\n FOX JUMPS OVER\n   THE LAZY DOG"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "      {63}{64}{65} a(b)c\n   (red:x) {red}HOT{/red}\n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT\u0000FILL_SPACE\n         \u0000RIGHT\n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A            B\u0000\n   FILL_SPACE\u0000C\n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}\u0000FILL_SPACE_RE\n       PEAT:-\u0000{63}\n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "\u0000FILL_SPACE_REP\nEAT:blue\u0000MID\u0000FI\nLL_SPACE_REPEAT"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "   WAY TOO LONG\n        FOR ANY\nFILL\u0000FILL_SPACE"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}\u0000FILL_SP\n   ACE\u0000{blue:R}\n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "   PRE ONE POST\n TWO THREE FOUR\n FIVE SIX SEVEN"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "    {63} THE QUICK\nBROWN FOX JUMPS\n  OVER THE LAZY"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "            {63}{64}{65}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "      FORMULA {63}\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK\nBROWN FOX JUMPS\n  OVER THE LAZY"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{left}PREFIXED",
+   "out": " {left}PREFIXED\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{center}CENTRED",
+   "out": "{center}CENTRED\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{right}RIGHTED",
+   "out": " {right}RIGHTED\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD\n WORD WORD WORD\n WORD WORD WORD"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}\nABCDEFGHIJABCDE\nFGHIJABCDEFGHIJ"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{{{{{{{",
+   "out": "       {{{{{{{{\n               \n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "}}}} ??? { } {}\n               {/}\n               "
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGIL\nISTICEXPIALIDOC\n         IOUSLY"
+  },
+  {
+   "device": {
+    "device_type": "note"
+   },
+   "legacy_prefix": true,
+   "out": "               \nHELLO          \nTHIS IS A VERY "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "",
+   "out": "                              \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "HELLO",
+   "out": "HELLO                         \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY LONG LINE THAT \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot} {black/white:OPEN} {\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "??? ??? ???                   \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "{63} ALERT {63} {67}{66}                  \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP     \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "{red}HOT{/red} COLD{/} WARM                \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - % <3 + X        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBBBBBBBBBBB      \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "TEMP {{demo.short}} F",
+   "out": "TEMP 72 F                     \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN FOX JUMPS OVER\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c (red:x) {red}HOT{/red}        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT                     RIGHT\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A              B             C\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}----------------------------{63}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}MID=============\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG FOR ANY FILLSPACE\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}               {blue:R}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "PRE ONE TWO THREE FOUR POST   \nFIVE SIX SEVEN EIGHT NINE TEN \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "{63} THE QUICK BROWN FOX JUMPS   \nOVER THE LAZY DOG AGAIN AND   \nAGAIN                         "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "{63}{64}{65}                           \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "FORMULA {63}                     \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK BROWN FOX JUMP\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{left}PREFIXED",
+   "out": "{left}PREFIXED                \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{center}CENTRED",
+   "out": "{center}CENTRED               \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{right}RIGHTED",
+   "out": "{right}RIGHTED                \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD WORD WORD WORD\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFGHIJABCDE\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "{{{{{{{{",
+   "out": "{{{{{{{{                      \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "}}}} ??? { } {} {/}              \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": false,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEXPIALIDOC\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "",
+   "out": "                              \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "HELLO",
+   "out": "HELLO                         \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY LONG LINE THAT \nEXCEEDS THE BOARD             \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot} {black/white:OPEN}  \n{icon:sun}                    \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "??? ??? ???                   \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "{63} ALERT {63} {67}{66}                  \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP     \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "{red}HOT{/red} COLD{/} WARM                \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "* * O / * ! - % <3 + X        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "A*<3BBBBBBBBBBBBBBBBBBBB      \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "TEMP {{demo.short}} F",
+   "out": "TEMP 72 F                     \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN FOX JUMPS OVER\nTHE LAZY DOG AGAIN AND AGAIN  \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "{63}{64}{65} a(b)c (red:x) {red}HOT{/red}        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT                     RIGHT\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A              B             C\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}----------------------------{63}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}MID\u0000FI\nLL_SPACE_REPEAT:=\u0000            \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG FOR ANY          \nFILL              SPACE AT ALL\nHERE                          "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}               {blue:R}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "PRE ONE TWO THREE FOUR POST   \nFIVE SIX SEVEN EIGHT NINE TEN \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "{63} THE QUICK BROWN FOX JUMPS   \nOVER THE LAZY DOG AGAIN AND   \nAGAIN                         "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "{63}{64}{65}                           \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "FORMULA {63}                     \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK BROWN FOX     \nJUMPS OVER THE LAZY DOG AGAIN \nAND AGAIN}}                   "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{left}PREFIXED",
+   "out": "{left}PREFIXED                \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{center}CENTRED",
+   "out": "{center}CENTRED               \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{right}RIGHTED",
+   "out": "{right}RIGHTED                \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD WORD WORD WORD\nWORD WORD WORD WORD WORD WORD \nWORD                          "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFGHIJABCDE\nFGHIJABCDEFGHIJABCDEFGHIJ     \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "{{{{{{{{",
+   "out": "{{{{{{{{                      \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "}}}} ??? { } {} {/}              \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "left",
+   "wrap": true,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEXPIALIDOC\nIOUSLY                        \nLONGWORD                      "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "",
+   "out": "                              \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "HELLO",
+   "out": "            HELLO             \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY LONG LINE THAT \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot} {black/white:OPEN} {\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "         ??? ??? ???          \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "         {63} ALERT {63} {67}{66}         \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "  {63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP   \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "        {red}HOT{/red} COLD{/} WARM        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "    * * O / * ! - % <3 + X    \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "   A*<3BBBBBBBBBBBBBBBBBBBB   \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "TEMP {{demo.short}} F",
+   "out": "          TEMP 72 F           \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN FOX JUMPS OVER\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "    {63}{64}{65} a(b)c (red:x) {red}HOT{/red}    \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT                     RIGHT\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A              B             C\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}----------------------------{63}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}MID=============\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG FOR ANY FILLSPACE\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}               {blue:R}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": " PRE ONE TWO THREE FOUR POST  \nFIVE SIX SEVEN EIGHT NINE TEN \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": " {63} THE QUICK BROWN FOX JUMPS  \n OVER THE LAZY DOG AGAIN AND  \n            AGAIN             "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "             {63}{64}{65}              \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "          FORMULA {63}           \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK BROWN FOX JUMP\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{left}PREFIXED",
+   "out": "        {left}PREFIXED        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{center}CENTRED",
+   "out": "       {center}CENTRED        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{right}RIGHTED",
+   "out": "        {right}RIGHTED        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD WORD WORD WORD\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFGHIJABCDE\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "{{{{{{{{",
+   "out": "           {{{{{{{{           \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "       }}}} ??? { } {} {/}       \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": false,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEXPIALIDOC\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "",
+   "out": "                              \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "HELLO",
+   "out": "            HELLO             \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY LONG LINE THAT \n      EXCEEDS THE BOARD       \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": " {red:hot} {black/white:OPEN} \n          {icon:sun}          \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "         ??? ??? ???          \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "         {63} ALERT {63} {67}{66}         \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "  {63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP   \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "        {red}HOT{/red} COLD{/} WARM        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "    * * O / * ! - % <3 + X    \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "   A*<3BBBBBBBBBBBBBBBBBBBB   \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "TEMP {{demo.short}} F",
+   "out": "          TEMP 72 F           \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN FOX JUMPS OVER\n THE LAZY DOG AGAIN AND AGAIN \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "    {63}{64}{65} a(b)c (red:x) {red}HOT{/red}    \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT                     RIGHT\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A              B             C\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}----------------------------{63}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}MID\u0000FI\n      LL_SPACE_REPEAT:=\u0000      \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "     WAY TOO LONG FOR ANY     \nFILL              SPACE AT ALL\n             HERE             "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}               {blue:R}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": " PRE ONE TWO THREE FOUR POST  \nFIVE SIX SEVEN EIGHT NINE TEN \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": " {63} THE QUICK BROWN FOX JUMPS  \n OVER THE LAZY DOG AGAIN AND  \n            AGAIN             "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "             {63}{64}{65}              \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "          FORMULA {63}           \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "  {{red:THE QUICK BROWN FOX   \nJUMPS OVER THE LAZY DOG AGAIN \n         AND AGAIN}}          "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{left}PREFIXED",
+   "out": "        {left}PREFIXED        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{center}CENTRED",
+   "out": "       {center}CENTRED        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{right}RIGHTED",
+   "out": "        {right}RIGHTED        \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD WORD WORD WORD\nWORD WORD WORD WORD WORD WORD \n             WORD             "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFGHIJABCDE\n  FGHIJABCDEFGHIJABCDEFGHIJ   \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "{{{{{{{{",
+   "out": "           {{{{{{{{           \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "       }}}} ??? { } {} {/}       \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "center",
+   "wrap": true,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEXPIALIDOC\n            IOUSLY            \n           LONGWORD           "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "",
+   "out": "                              \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "HELLO",
+   "out": "                         HELLO\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": "THIS IS A VERY LONG LINE THAT \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "{red:hot} {black/white:OPEN} {\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "                   ??? ??? ???\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "                  {63} ALERT {63} {67}{66}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "     {63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "                {red}HOT{/red} COLD{/} WARM\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "        * * O / * ! - % <3 + X\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "      A*<3BBBBBBBBBBBBBBBBBBBB\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "TEMP {{demo.short}} F",
+   "out": "                     TEMP 72 F\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN FOX JUMPS OVER\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "        {63}{64}{65} a(b)c (red:x) {red}HOT{/red}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT                     RIGHT\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A              B             C\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}----------------------------{63}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}MID=============\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "WAY TOO LONG FOR ANY FILLSPACE\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}               {blue:R}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "   PRE ONE TWO THREE FOUR POST\n FIVE SIX SEVEN EIGHT NINE TEN\n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "   {63} THE QUICK BROWN FOX JUMPS\n   OVER THE LAZY DOG AGAIN AND\n                         AGAIN"
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "                           {63}{64}{65}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "                     FORMULA {63}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "{{red:THE QUICK BROWN FOX JUMP\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{left}PREFIXED",
+   "out": "                {left}PREFIXED\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{center}CENTRED",
+   "out": "               {center}CENTRED\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{right}RIGHTED",
+   "out": "                {right}RIGHTED\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD WORD WORD WORD\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFGHIJABCDE\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "{{{{{{{{",
+   "out": "                      {{{{{{{{\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "              }}}} ??? { } {} {/}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": false,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEXPIALIDOC\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "",
+   "out": "                              \n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "HELLO",
+   "out": "                         HELLO\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "out": " THIS IS A VERY LONG LINE THAT\n             EXCEEDS THE BOARD\n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "out": "  {red:hot} {black/white:OPEN}\n                    {icon:sun}\n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "out": "                   ??? ??? ???\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "out": "                  {63} ALERT {63} {67}{66}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "out": "     {63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "out": "                {red}HOT{/red} COLD{/} WARM\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "out": "        * * O / * ! - % <3 + X\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "out": "      A*<3BBBBBBBBBBBBBBBBBBBB\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "TEMP {{demo.short}} F",
+   "out": "                     TEMP 72 F\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{demo.long}}",
+   "out": "THE QUICK BROWN FOX JUMPS OVER\n  THE LAZY DOG AGAIN AND AGAIN\n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "out": "        {63}{64}{65} a(b)c (red:x) {red}HOT{/red}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "LEFT{{fill_space}}RIGHT",
+   "out": "LEFT                     RIGHT\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "out": "A              B             C\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "out": "{63}----------------------------{63}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "out": "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}MID\u0000FI\n            LL_SPACE_REPEAT:=\u0000\n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "out": "          WAY TOO LONG FOR ANY\nFILL              SPACE AT ALL\n                          HERE"
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "out": "{red:L}               {blue:R}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "out": "   PRE ONE TWO THREE FOUR POST\n FIVE SIX SEVEN EIGHT NINE TEN\n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "out": "   {63} THE QUICK BROWN FOX JUMPS\n   OVER THE LAZY DOG AGAIN AND\n                         AGAIN"
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{demo.tiles|wrap}}",
+   "out": "                           {63}{64}{65}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "out": "                     FORMULA {63}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{red:{{demo.long}}}}",
+   "out": "     {{red:THE QUICK BROWN FOX\n JUMPS OVER THE LAZY DOG AGAIN\n                   AND AGAIN}}"
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{left}PREFIXED",
+   "out": "                {left}PREFIXED\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{center}CENTRED",
+   "out": "               {center}CENTRED\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{right}RIGHTED",
+   "out": "                {right}RIGHTED\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "out": "{wrap}WORD WORD WORD WORD WORD\n WORD WORD WORD WORD WORD WORD\n                          WORD"
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "out": "{center}{wrap}{red}ABCDEFGHIJABCDE\n     FGHIJABCDEFGHIJABCDEFGHIJ\n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "{{{{{{{{",
+   "out": "                      {{{{{{{{\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "}}}} {{ }} { } {} {/}",
+   "out": "              }}}} ??? { } {} {/}\n                              \n                              "
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "alignment": "right",
+   "wrap": true,
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "out": "SUPERCALIFRAGILISTICEXPIALIDOC\n                        IOUSLY\n                      LONGWORD"
+  },
+  {
+   "device": {
+    "device_type": "note_array",
+    "notes_wide": 2,
+    "notes_tall": 1
+   },
+   "legacy_prefix": true,
+   "out": "                              \nHELLO                         \nTHIS IS A VERY LONG LINE THAT "
+  }
+ ],
+ "helpers": [
+  {
+   "line": "",
+   "count": 0,
+   "trunc10": "",
+   "align": [
+    "               ",
+    "               ",
+    "               "
+   ],
+   "fill": "",
+   "wrap": [
+    ""
+   ],
+   "word_wrap": [
+    ""
+   ]
+  },
+  {
+   "line": "HELLO",
+   "count": 5,
+   "trunc10": "HELLO",
+   "align": [
+    "HELLO          ",
+    "     HELLO     ",
+    "          HELLO"
+   ],
+   "fill": "HELLO",
+   "wrap": [
+    "HELLO"
+   ],
+   "word_wrap": [
+    "HELLO"
+   ]
+  },
+  {
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "count": 47,
+   "trunc10": "THIS IS A ",
+   "align": [
+    "THIS IS A VERY ",
+    "THIS IS A VERY ",
+    "THIS IS A VERY "
+   ],
+   "fill": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "wrap": [
+    "THIS IS",
+    "A VERY LONG",
+    "LINE THAT",
+    "EXCEEDS THE"
+   ],
+   "word_wrap": [
+    "THIS IS",
+    "A VERY LONG",
+    "LINE THAT",
+    "EXCEEDS THE"
+   ]
+  },
+  {
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "count": 39,
+   "trunc10": "{red:hot} ",
+   "align": [
+    "{red:hot} {blac",
+    "{red:hot} {blac",
+    "{red:hot} {blac"
+   ],
+   "fill": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "wrap": [
+    "{red:ho",
+    "t}",
+    "{black/whit",
+    "e:OPEN}"
+   ],
+   "word_wrap": [
+    "{red:ho",
+    "{black/whit",
+    "{icon:sun}"
+   ]
+  },
+  {
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "count": 11,
+   "trunc10": "??? ??? ??",
+   "align": [
+    "??? ??? ???    ",
+    "  ??? ??? ???  ",
+    "    ??? ??? ???"
+   ],
+   "fill": "??? ??? ???",
+   "wrap": [
+    "??? ???",
+    "???"
+   ],
+   "word_wrap": [
+    "??? ???",
+    "???"
+   ]
+  },
+  {
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "count": 12,
+   "trunc10": "{63} ALERT {63} ",
+   "align": [
+    "{63} ALERT {63} {67}{66}   ",
+    " {63} ALERT {63} {67}{66}  ",
+    "   {63} ALERT {63} {67}{66}"
+   ],
+   "fill": "{63} ALERT {63} {67}{66}",
+   "wrap": [
+    "{63} ALERT",
+    "{63} {67}{66}"
+   ],
+   "word_wrap": [
+    "{63}",
+    "ALERT {63}",
+    "{67}{66}"
+   ]
+  },
+  {
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "count": 25,
+   "trunc10": "{63}{64}{65}{66}{67}{68}{69}{70}{71}A",
+   "align": [
+    "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEF",
+    "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEF",
+    "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEF"
+   ],
+   "fill": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "wrap": [
+    "{63}{64}{65}{66}{67}{68}{69}",
+    "{70}{71}ABCDEFGHI",
+    "JKLMNOP"
+   ],
+   "word_wrap": [
+    "{63}{64"
+   ]
+  },
+  {
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "count": 14,
+   "trunc10": "{red}HOT COLD ",
+   "align": [
+    "{red}HOT{/red} COLD{/} WARM ",
+    "{red}HOT{/red} COLD{/} WARM ",
+    " {red}HOT{/red} COLD{/} WARM"
+   ],
+   "fill": "{red}HOT{/red} COLD{/} WARM",
+   "wrap": [
+    "{red}HOT{/red}",
+    "COLD{/} WARM"
+   ],
+   "word_wrap": [
+    "{red}HO",
+    "COLD{/}",
+    "WARM"
+   ]
+  },
+  {
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "count": 22,
+   "trunc10": "* * O / * ",
+   "align": [
+    "* * O / * ! - %",
+    "* * O / * ! - %",
+    "* * O / * ! - %"
+   ],
+   "fill": "* * O / * ! - % <3 + X",
+   "wrap": [
+    "* * O /",
+    "* ! - % <3",
+    "+ X"
+   ],
+   "word_wrap": [
+    "* * O /",
+    "* ! - % <3",
+    "+ X"
+   ]
+  },
+  {
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "count": 24,
+   "trunc10": "A*<3BBBBBB",
+   "align": [
+    "A*<3BBBBBBBBBBB",
+    "A*<3BBBBBBBBBBB",
+    "A*<3BBBBBBBBBBB"
+   ],
+   "fill": "A*<3BBBBBBBBBBBBBBBBBBBB",
+   "wrap": [
+    "A*<3BBB",
+    "BBBBBBBBBBB",
+    "BBBBBB"
+   ],
+   "word_wrap": [
+    "A*<3BBB"
+   ]
+  },
+  {
+   "line": "TEMP {{demo.short}} F",
+   "count": 9,
+   "trunc10": "TEMP 72 F",
+   "align": [
+    "TEMP 72 F      ",
+    "   TEMP 72 F   ",
+    "      TEMP 72 F"
+   ],
+   "fill": "TEMP 72 F",
+   "wrap": [
+    "TEMP 72",
+    "F"
+   ],
+   "word_wrap": [
+    "TEMP 72",
+    "F"
+   ]
+  },
+  {
+   "line": "{{demo.long}}",
+   "count": 59,
+   "trunc10": "THE QUICK ",
+   "align": [
+    "THE QUICK BROWN",
+    "THE QUICK BROWN",
+    "THE QUICK BROWN"
+   ],
+   "fill": "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG AGAIN AND AGAIN",
+   "wrap": [
+    "THE",
+    "QUICK BROWN",
+    "FOX JUMPS",
+    "OVER THE"
+   ],
+   "word_wrap": [
+    "THE",
+    "QUICK BROWN",
+    "FOX JUMPS",
+    "OVER THE"
+   ]
+  },
+  {
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "count": 22,
+   "trunc10": "{63}{64}{65} a(b)c ",
+   "align": [
+    "{63}{64}{65} a(b)c (red:",
+    "{63}{64}{65} a(b)c (red:",
+    "{63}{64}{65} a(b)c (red:"
+   ],
+   "fill": "{63}{64}{65} a(b)c (red:x) {red}HOT{/red}",
+   "wrap": [
+    "{63}{64}{65}",
+    "a(b)c",
+    "(red:x)",
+    "{red}HOT{/red}"
+   ],
+   "word_wrap": [
+    "{63}{64",
+    "a(b)c",
+    "(red:x)",
+    "{red}HOT{/r"
+   ]
+  },
+  {
+   "line": "LEFT{{fill_space}}RIGHT",
+   "count": 21,
+   "trunc10": "LEFT\u0000FILL_",
+   "align": [
+    "LEFT\u0000FILL_SPACE",
+    "LEFT\u0000FILL_SPACE",
+    "LEFT\u0000FILL_SPACE"
+   ],
+   "fill": "LEFT      RIGHT",
+   "wrap": [
+    "LEFT\u0000FI",
+    "LL_SPACE\u0000RI",
+    "GHT"
+   ],
+   "word_wrap": [
+    "LEFT\u0000FI"
+   ]
+  },
+  {
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "count": 27,
+   "trunc10": "A\u0000FILL_SPA",
+   "align": [
+    "A\u0000FILL_SPACE\u0000B\u0000",
+    "A\u0000FILL_SPACE\u0000B\u0000",
+    "A\u0000FILL_SPACE\u0000B\u0000"
+   ],
+   "fill": "A      B      C",
+   "wrap": [
+    "A\u0000FILL_",
+    "SPACE\u0000B\u0000FIL",
+    "L_SPACE\u0000C"
+   ],
+   "word_wrap": [
+    "A\u0000FILL_"
+   ]
+  },
+  {
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "count": 23,
+   "trunc10": "{63}\u0000FILL_SPA",
+   "align": [
+    "{63}\u0000FILL_SPACE_RE",
+    "{63}\u0000FILL_SPACE_RE",
+    "{63}\u0000FILL_SPACE_RE"
+   ],
+   "fill": "{63}-------------{63}",
+   "wrap": [
+    "{63}\u0000FILL_",
+    "SPACE_REPEA",
+    "T:-\u0000{63}"
+   ],
+   "word_wrap": [
+    "{63}\u0000FI"
+   ]
+  },
+  {
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "count": 48,
+   "trunc10": "\u0000FILL_SPAC",
+   "align": [
+    "\u0000FILL_SPACE_REP",
+    "\u0000FILL_SPACE_REP",
+    "\u0000FILL_SPACE_REP"
+   ],
+   "fill": "{67}{67}{67}{67}{67}{67}MID======",
+   "wrap": [
+    "\u0000FILL_S",
+    "PACE_REPEAT",
+    ":blue\u0000MID\u0000F",
+    "ILL_SPACE_R"
+   ],
+   "word_wrap": [
+    "\u0000FILL_S"
+   ]
+  },
+  {
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "count": 54,
+   "trunc10": "WAY TOO LO",
+   "align": [
+    "WAY TOO LONG FO",
+    "WAY TOO LONG FO",
+    "WAY TOO LONG FO"
+   ],
+   "fill": "WAY TOO LONG FO",
+   "wrap": [
+    "WAY TOO",
+    "LONG FOR",
+    "ANY",
+    "FILL\u0000FILL_S",
+    "PACE\u0000SPACE"
+   ],
+   "word_wrap": [
+    "WAY TOO",
+    "LONG FOR",
+    "ANY",
+    "FILL\u0000FILL_S"
+   ]
+  },
+  {
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "count": 27,
+   "trunc10": "{red:L}\u0000FI",
+   "align": [
+    "{red:L}\u0000FILL_SP",
+    "{red:L}\u0000FILL_SP",
+    "{red:L}\u0000FILL_SP"
+   ],
+   "fill": "{red:L}{blue:R}",
+   "wrap": [
+    "{red:L}",
+    "\u0000FILL_SPACE",
+    "\u0000{blue:R}"
+   ],
+   "word_wrap": [
+    "{red:L}"
+   ]
+  },
+  {
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "count": 57,
+   "trunc10": "PRE ONE TW",
+   "align": [
+    "PRE ONE TWO THR",
+    "PRE ONE TWO THR",
+    "PRE ONE TWO THR"
+   ],
+   "fill": "PRE ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN POST",
+   "wrap": [
+    "PRE ONE",
+    "TWO THREE",
+    "FOUR FIVE",
+    "SIX SEVEN"
+   ],
+   "word_wrap": [
+    "PRE ONE",
+    "TWO THREE",
+    "FOUR FIVE",
+    "SIX SEVEN"
+   ]
+  },
+  {
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "count": 61,
+   "trunc10": "{63} THE QUIC",
+   "align": [
+    "{63} THE QUICK BRO",
+    "{63} THE QUICK BRO",
+    "{63} THE QUICK BRO"
+   ],
+   "fill": "{63} THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG AGAIN AND AGAIN",
+   "wrap": [
+    "{63} THE",
+    "QUICK BROWN",
+    "FOX JUMPS",
+    "OVER THE"
+   ],
+   "word_wrap": [
+    "{63}",
+    "THE QUICK",
+    "BROWN FOX",
+    "JUMPS OVER"
+   ]
+  },
+  {
+   "line": "{{demo.tiles|wrap}}",
+   "count": 3,
+   "trunc10": "{63}{64}{65}",
+   "align": [
+    "{63}{64}{65}            ",
+    "      {63}{64}{65}      ",
+    "            {63}{64}{65}"
+   ],
+   "fill": "{63}{64}{65}",
+   "wrap": [
+    "{63}{64}{65}"
+   ],
+   "word_wrap": [
+    "{63}{64"
+   ]
+  },
+  {
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "count": 9,
+   "trunc10": "FORMULA {63}",
+   "align": [
+    "FORMULA {63}      ",
+    "   FORMULA {63}   ",
+    "      FORMULA {63}"
+   ],
+   "fill": "FORMULA {63}",
+   "wrap": [
+    "FORMULA",
+    "{63}"
+   ],
+   "word_wrap": [
+    "FORMULA",
+    "{63}"
+   ]
+  },
+  {
+   "line": "{{red:{{demo.long}}}}",
+   "count": 67,
+   "trunc10": "{{red:THE ",
+   "align": [
+    "{{red:THE QUICK",
+    "{{red:THE QUICK",
+    "{{red:THE QUICK"
+   ],
+   "fill": "{{red:THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG AGAIN AND AGAIN}}",
+   "wrap": [
+    "{{red:T",
+    "HE",
+    "QUICK BROWN",
+    "FOX JUMPS"
+   ],
+   "word_wrap": [
+    "{{red:T",
+    "QUICK BROWN",
+    "FOX JUMPS",
+    "OVER THE"
+   ]
+  },
+  {
+   "line": "{left}PREFIXED",
+   "count": 14,
+   "trunc10": "{left}PREF",
+   "align": [
+    "{left}PREFIXED ",
+    "{left}PREFIXED ",
+    " {left}PREFIXED"
+   ],
+   "fill": "{left}PREFIXED",
+   "wrap": [
+    "{left}P",
+    "REFIXED"
+   ],
+   "word_wrap": [
+    "{left}P"
+   ]
+  },
+  {
+   "line": "{center}CENTRED",
+   "count": 15,
+   "trunc10": "{center}CE",
+   "align": [
+    "{center}CENTRED",
+    "{center}CENTRED",
+    "{center}CENTRED"
+   ],
+   "fill": "{center}CENTRED",
+   "wrap": [
+    "{center",
+    "}CENTRED"
+   ],
+   "word_wrap": [
+    "{center"
+   ]
+  },
+  {
+   "line": "{right}RIGHTED",
+   "count": 14,
+   "trunc10": "{right}RIG",
+   "align": [
+    "{right}RIGHTED ",
+    "{right}RIGHTED ",
+    " {right}RIGHTED"
+   ],
+   "fill": "{right}RIGHTED",
+   "wrap": [
+    "{right}",
+    "RIGHTED"
+   ],
+   "word_wrap": [
+    "{right}"
+   ]
+  },
+  {
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "count": 66,
+   "trunc10": "{wrap}WORD",
+   "align": [
+    "{wrap}WORD WORD",
+    "{wrap}WORD WORD",
+    "{wrap}WORD WORD"
+   ],
+   "fill": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "wrap": [
+    "{wrap}W",
+    "ORD",
+    "WORD WORD",
+    "WORD WORD"
+   ],
+   "word_wrap": [
+    "{wrap}W",
+    "WORD WORD",
+    "WORD WORD",
+    "WORD WORD"
+   ]
+  },
+  {
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "count": 55,
+   "trunc10": "{center}{w",
+   "align": [
+    "{center}{wrap}{red}",
+    "{center}{wrap}{red}",
+    "{center}{wrap}{red}"
+   ],
+   "fill": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "wrap": [
+    "{center",
+    "}{wrap}{red}ABC",
+    "DEFGHIJABCD",
+    "EFGHIJABCDE"
+   ],
+   "word_wrap": [
+    "{center"
+   ]
+  },
+  {
+   "line": "{{{{{{{{",
+   "count": 8,
+   "trunc10": "{{{{{{{{",
+   "align": [
+    "{{{{{{{{       ",
+    "   {{{{{{{{    ",
+    "       {{{{{{{{"
+   ],
+   "fill": "{{{{{{{{",
+   "wrap": [
+    "{{{{{{{",
+    "{"
+   ],
+   "word_wrap": [
+    "{{{{{{{"
+   ]
+  },
+  {
+   "line": "}}}} {{ }} { } {} {/}",
+   "count": 16,
+   "trunc10": "}}}} ??? {",
+   "align": [
+    "}}}} ??? { } {}",
+    "}}}} ??? { } {}",
+    "}}}} ??? { } {}"
+   ],
+   "fill": "}}}} ??? { } {} {/}",
+   "wrap": [
+    "}}}}",
+    "??? { } {} {/}"
+   ],
+   "word_wrap": [
+    "}}}}",
+    "??? { } {}",
+    "{/}"
+   ]
+  },
+  {
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "count": 45,
+   "trunc10": "SUPERCALIF",
+   "align": [
+    "SUPERCALIFRAGIL",
+    "SUPERCALIFRAGIL",
+    "SUPERCALIFRAGIL"
+   ],
+   "fill": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "wrap": [
+    "SUPERCA",
+    "LIFRAGILIST",
+    "ICEXPIALIDO",
+    "CIOUSLY"
+   ],
+   "word_wrap": [
+    "SUPERCA",
+    "LONGWORD"
+   ]
+  }
+ ],
+ "max_line_length": [
+  {
+   "line": "",
+   "cols": [
+    0,
+    0
+   ]
+  },
+  {
+   "line": "HELLO",
+   "cols": [
+    5,
+    5
+   ]
+  },
+  {
+   "line": "THIS IS A VERY LONG LINE THAT EXCEEDS THE BOARD",
+   "cols": [
+    47,
+    47
+   ]
+  },
+  {
+   "line": "{red:hot} {black/white:OPEN} {icon:sun}",
+   "cols": [
+    39,
+    39
+   ]
+  },
+  {
+   "line": "{{red:HOT}} {{black/white:OPEN}} {{icon:sun}}",
+   "cols": [
+    47,
+    68
+   ]
+  },
+  {
+   "line": "{{red}} ALERT {{red}} {{blue}}{{green}}",
+   "cols": [
+    20,
+    20
+   ]
+  },
+  {
+   "line": "{63}{64}{65}{66}{67}{68}{69}{70}{71}ABCDEFGHIJKLMNOP",
+   "cols": [
+    28,
+    28
+   ]
+  },
+  {
+   "line": "{red}HOT{/red} COLD{/} WARM",
+   "cols": [
+    14,
+    14
+   ]
+  },
+  {
+   "line": "{sun} {star} {cloud} {rain} {snow} {storm} {fog} {partly} {heart} {check} {x}",
+   "cols": [
+    22,
+    22
+   ]
+  },
+  {
+   "line": "A{sun}{heart}BBBBBBBBBBBBBBBBBBBB",
+   "cols": [
+    24,
+    24
+   ]
+  },
+  {
+   "line": "TEMP {{demo.short}} F",
+   "cols": [
+    22,
+    29
+   ]
+  },
+  {
+   "line": "{{demo.long}}",
+   "cols": [
+    15,
+    22
+   ]
+  },
+  {
+   "line": "{{demo.tiles}} {{demo.braces}} {{demo.endtag}}",
+   "cols": [
+    47,
+    68
+   ]
+  },
+  {
+   "line": "LEFT{{fill_space}}RIGHT",
+   "cols": [
+    24,
+    31
+   ]
+  },
+  {
+   "line": "A{{fill_space}}B{{fill_space}}C",
+   "cols": [
+    33,
+    47
+   ]
+  },
+  {
+   "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
+   "cols": [
+    21,
+    28
+   ]
+  },
+  {
+   "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
+   "cols": [
+    33,
+    47
+   ]
+  },
+  {
+   "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
+   "cols": [
+    57,
+    64
+   ]
+  },
+  {
+   "line": "{red:L}{{fill_space}}{blue:R}",
+   "cols": [
+    30,
+    37
+   ]
+  },
+  {
+   "line": "PRE {{demo.spaced|wrap}} POST",
+   "cols": [
+    15,
+    22
+   ]
+  },
+  {
+   "line": "{{red}} {{demo.long|upper|wrap}}",
+   "cols": [
+    15,
+    22
+   ]
+  },
+  {
+   "line": "{{demo.tiles|wrap}}",
+   "cols": [
+    15,
+    22
+   ]
+  },
+  {
+   "line": "{{= UPPER(\"formula\") }} {{= COLOR(\"red\") }}",
+   "cols": [
+    31,
+    45
+   ]
+  },
+  {
+   "line": "{{red:{{demo.long}}}}",
+   "cols": [
+    23,
+    30
+   ]
+  },
+  {
+   "line": "{left}PREFIXED",
+   "cols": [
+    14,
+    14
+   ]
+  },
+  {
+   "line": "{center}CENTRED",
+   "cols": [
+    15,
+    15
+   ]
+  },
+  {
+   "line": "{right}RIGHTED",
+   "cols": [
+    14,
+    14
+   ]
+  },
+  {
+   "line": "{wrap}WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD WORD ",
+   "cols": [
+    66,
+    66
+   ]
+  },
+  {
+   "line": "{center}{wrap}{red}ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ",
+   "cols": [
+    55,
+    55
+   ]
+  },
+  {
+   "line": "{{{{{{{{",
+   "cols": [
+    8,
+    8
+   ]
+  },
+  {
+   "line": "}}}} {{ }} { } {} {/}",
+   "cols": [
+    28,
+    35
+   ]
+  },
+  {
+   "line": "SUPERCALIFRAGILISTICEXPIALIDOCIOUSLY LONGWORD",
+   "cols": [
+    45,
+    45
+   ]
+  }
+ ]
+}

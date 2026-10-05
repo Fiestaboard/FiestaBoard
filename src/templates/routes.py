@@ -136,6 +136,8 @@ async def validate_template(request: TemplateValidateRequest):
 
     Body should include:
     - template: Template string or list of lines to validate
+    - board_id: Optional board to validate for; a board whose character set
+      is rich measures line length in the tiles it draws (extended markup)
 
     Returns validation errors if any.
     """
@@ -146,7 +148,7 @@ async def validate_template(request: TemplateValidateRequest):
         template = "\n".join(template)
 
     template_engine = get_template_engine()
-    problems = template_engine.validate_template(template)
+    problems = template_engine.validate_template(template, **_CharsetCheck(request.board_id).render_kw)
 
     return TemplateValidationResponse(
         valid=len(problems) == 0,
