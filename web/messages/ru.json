@@ -1869,7 +1869,8 @@
     "pagePickerPlaceholder": "Выберите страницу…",
     "showSecret": "Показать значение",
     "hideSecret": "Скрыть значение",
-    "secretSaved": "••••••••••• (задан)"
+    "secretSaved": "••••••••••• (задан)",
+    "fieldRequired": "Обязательно"
   },
   "filterPicker": {
     "noFiltersAvailable": "Нет доступных фильтров",
@@ -2385,7 +2386,6 @@
     "dismissFailed": "Не удалось закрыть. Попробуйте ещё раз."
   },
   "boardSettingsScreen": {
-    "scanning": "Поиск…",
     "noDevicesFound": "Устройства не найдены. Введите адрес вручную.",
     "devicesFoundLabel": "Найденные устройства для {field}",
     "subnetLabel": "Сеть для поиска (необязательно)",
@@ -2431,8 +2431,15 @@
     "moveSwap": "Ячейка {position} — поменять местами с {summary}",
     "tilesDuplicate": "Несколько плиток указывают на одну и ту же доску: {values}",
     "tileActionsLabel": "Действия с плиткой",
-    "requiredMissing": "Ещё нужно: {fields}",
-    "geometryApplied": "Установлено {rows} × {cols}"
+    "geometryApplied": "Установлено {rows} × {cols}",
+    "searchingNetwork": "Поиск в {network}…",
+    "searchingYourNetwork": "Поиск в вашей сети…",
+    "foundOneSelected": "Найдено и выбрано: {device}.",
+    "foundDevices": "{count, plural, one {Найдено устройств: #. Выберите своё.} other {Найдено устройств: #. Выберите своё.}}",
+    "noDeviceFoundOn": "{device} не найден в {network}.",
+    "noDeviceFoundHere": "{device} не найден в вашей сети.",
+    "enterManually": "Ввести адрес вручную",
+    "searchAgain": "Искать снова"
   },
   "outputSettings": {
     "vestaboard": {

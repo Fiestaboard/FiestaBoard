@@ -21,7 +21,7 @@ import {
   Textarea,
 } from "@fiestaboard/ui";
 import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
-import { ChevronDown, ChevronRight, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronRight, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -99,6 +99,10 @@ interface JSONSchema {
   "ui:sections"?: SchemaSection[];
 }
 
+function isEmptyValue(value: unknown): boolean {
+  return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+}
+
 /** The properties of an object that are visible for its current *values* (and the board's *facts*). */
 function visibleEntries(
   properties: Record<string, SchemaProperty> | undefined,
@@ -163,6 +167,11 @@ interface SchemaFormProps {
    * each label still points at its own input.
    */
   idPrefix?: string;
+  /**
+   * Say on each required field still empty that it is needed (read with its
+   * input), instead of the host listing what is missing somewhere else.
+   */
+  requiredHints?: boolean;
 }
 
 // Individual field components
@@ -184,6 +193,8 @@ interface FieldProps {
   onChange: (value: unknown, siblings?: Record<string, unknown>) => void;
   required?: boolean;
   disabled?: boolean;
+  /** Ids of the field's hint lines (its "Required" line), read with its input. */
+  describedBy?: string;
 }
 
 interface EnumSelectFieldProps {
@@ -249,7 +260,7 @@ function EnumSelectField({
   );
 }
 
-function StringField({ name, property, value, onChange, required, disabled }: FieldProps) {
+function StringField({ name, property, value, onChange, required, disabled, describedBy }: FieldProps) {
   const [_timezoneValid, setTimezoneValid] = useState(true);
   const isPassword = property["ui:widget"] === "password" || property.secret === true;
   const isTextarea = property["ui:widget"] === "textarea";
@@ -327,6 +338,7 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
         placeholder={property["ui:placeholder"] || property.description}
         disabled={disabled}
         required={required}
+        aria-describedby={describedBy}
         className="min-h-[80px]"
       />
     );
@@ -357,6 +369,7 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
         onChange={onChange}
         required={required}
         disabled={disabled}
+        describedBy={describedBy}
       />
     );
   }
@@ -370,6 +383,7 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
       placeholder={property["ui:placeholder"] || property.description}
       disabled={disabled}
       required={required}
+      aria-describedby={describedBy}
     />
   );
 }
@@ -381,7 +395,7 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
  * saved one back — so the form never sends an empty string for a key the
  * user only looked at, and never sends three asterisks as a new key.
  */
-function SecretField({ name, property, value, onChange, required, disabled }: FieldProps) {
+function SecretField({ name, property, value, onChange, required, disabled, describedBy }: FieldProps) {
   const t = useTranslations("schemaForm");
   const [wasSaved] = useState(value === MASKED_SECRET);
   const masked = value === MASKED_SECRET;
@@ -396,6 +410,7 @@ function SecretField({ name, property, value, onChange, required, disabled }: Fi
       revealDisabled={masked}
       disabled={disabled}
       required={required && !masked}
+      aria-describedby={describedBy}
       showLabel={t("showSecret")}
       hideLabel={t("hideSecret")}
     />
@@ -446,6 +461,7 @@ function NumberField(props: NumberFieldProps) {
     onChange,
     required,
     disabled,
+    describedBy,
     onLocationRequest,
     showLocationButton,
     isLocationLoading,
@@ -641,6 +657,7 @@ function NumberField(props: NumberFieldProps) {
         max={property.maximum}
         disabled={disabled}
         required={required}
+        aria-describedby={describedBy}
         className={showLocationButton ? "pr-10" : undefined}
       />
       {showLocationButton && (
@@ -828,6 +845,8 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
 }
 
 interface FormFieldProps extends FieldProps {
+  /** The property's own key (`name` is its DOM id, prefixed). */
+  fieldKey?: string;
   onLocationRequest?: (lat: number, lon: number) => void;
   showLocationButton?: boolean;
   isLocationLoading?: boolean;
@@ -841,6 +860,8 @@ function FormField({
   onChange,
   required,
   disabled,
+  describedBy,
+  fieldKey,
   onLocationRequest,
   showLocationButton,
   isLocationLoading,
@@ -886,6 +907,8 @@ function FormField({
         action={options?.action}
         valueKey={options?.value_key}
         labelKey={options?.label_key}
+        field={fieldKey}
+        describedBy={describedBy}
         disabled={disabled}
         required={required}
       />
@@ -932,6 +955,7 @@ function FormField({
                 </Label>
                 <FormField
                   name={`${name}-tile-${key}`}
+                  fieldKey={key}
                   property={propSchema}
                   value={tile[key]}
                   onChange={(val, siblings) => onTileChange({ ...tile, ...siblings, [key]: val })}
@@ -961,6 +985,7 @@ function FormField({
           onChange={onChange}
           required={required}
           disabled={disabled}
+          describedBy={describedBy}
         />
       );
     case "number":
@@ -973,6 +998,7 @@ function FormField({
           onChange={onChange}
           required={required}
           disabled={disabled}
+          describedBy={describedBy}
           onLocationRequest={onLocationRequest}
           showLocationButton={showLocationButton}
           isLocationLoading={isLocationLoading}
@@ -1088,6 +1114,7 @@ export function SchemaForm({
   className,
   pluginId,
   idPrefix = "",
+  requiredHints = false,
 }: SchemaFormProps) {
   const t = useTranslations("schemaForm");
   const { facts } = useBoardScreen();
@@ -1142,6 +1169,9 @@ export function SchemaForm({
     const colorPattern = values["color_pattern"] || schema.properties["color_pattern"]?.default || "solid";
     const shouldDisableDigitColor = isDigitColorField && colorPattern !== "solid";
     const fieldDisabled = disabled || shouldDisableDigitColor;
+    const id = `${idPrefix}${name}`;
+    const requiredHintId = `${id}-required`;
+    const showRequired = requiredHints && isRequired && isEmptyValue(values[name]);
 
     return (
       <Grid key={name} gap="1.5">
@@ -1154,12 +1184,14 @@ export function SchemaForm({
           )}
         </Label>
         <FormField
-          name={`${idPrefix}${name}`}
+          name={id}
+          fieldKey={name}
           property={property}
           value={values[name]}
           onChange={(val, siblings) => handleFieldChange(name, val, siblings)}
           required={isRequired}
           disabled={fieldDisabled}
+          describedBy={showRequired ? requiredHintId : undefined}
           onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
           showLocationButton={showLocationButton}
           isLocationLoading={false}
@@ -1169,6 +1201,14 @@ export function SchemaForm({
           <Text size="xs" tone="muted">
             {property.description}
           </Text>
+        )}
+        {showRequired && (
+          <Flex align="center" gap="1" id={requiredHintId} data-testid="field-required" data-field={name}>
+            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-destructive" aria-hidden="true" />
+            <Text as="span" size="xs">
+              {t("fieldRequired")}
+            </Text>
+          </Flex>
         )}
         {showLocationButton && (
           <Text size="xs" tone="muted">

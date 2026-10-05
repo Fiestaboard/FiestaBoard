@@ -1869,7 +1869,8 @@
     "pagePickerPlaceholder": "Bir sayfa seçin…",
     "showSecret": "Değeri göster",
     "hideSecret": "Değeri gizle",
-    "secretSaved": "••••••••••• (ayarlandı)"
+    "secretSaved": "••••••••••• (ayarlandı)",
+    "fieldRequired": "Zorunlu"
   },
   "filterPicker": {
     "noFiltersAvailable": "Kullanılabilir filtre yok",
@@ -2385,7 +2386,6 @@
     "dismissFailed": "Kapatılamadı. Tekrar deneyin."
   },
   "boardSettingsScreen": {
-    "scanning": "Aranıyor…",
     "noDevicesFound": "Cihaz bulunamadı. Adresi kendiniz girin.",
     "devicesFoundLabel": "{field} için bulunan cihazlar",
     "subnetLabel": "Aranacak ağ (isteğe bağlı)",
@@ -2431,8 +2431,15 @@
     "moveSwap": "Yuva {position} — {summary} ile yer değiştir",
     "tilesDuplicate": "Birden fazla karo aynı panoyu gösteriyor: {values}",
     "tileActionsLabel": "Döşeme işlemleri",
-    "requiredMissing": "Hâlâ gerekli: {fields}",
-    "geometryApplied": "{rows} × {cols} olarak ayarlandı"
+    "geometryApplied": "{rows} × {cols} olarak ayarlandı",
+    "searchingNetwork": "{network} aranıyor…",
+    "searchingYourNetwork": "Ağınız aranıyor…",
+    "foundOneSelected": "{device} bulundu ve seçildi.",
+    "foundDevices": "{count, plural, other {# cihaz bulundu. Sizinkini seçin.}}",
+    "noDeviceFoundOn": "{network} üzerinde {device} bulunamadı.",
+    "noDeviceFoundHere": "Ağınızda {device} bulunamadı.",
+    "enterManually": "Adresi elle girin",
+    "searchAgain": "Yeniden ara"
   },
   "outputSettings": {
     "vestaboard": {

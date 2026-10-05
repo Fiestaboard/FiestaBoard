@@ -620,7 +620,9 @@ describe("DisplaySettings — a Vestaboard's settings screen (from its manifest)
 
     expect(within(card).getByRole("radio", { name: /Local API/ })).toHaveAttribute("aria-checked", "true");
     expect(within(card).queryByLabelText(/Read\/Write API Key/)).not.toBeInTheDocument();
-    expect(within(card).getByText("Still needed: Board IP Address, Local API Key")).toBeInTheDocument();
+    // Each required setting still empty says so on its own field.
+    expect(within(card).getByLabelText(/Board IP Address/)).toHaveAccessibleDescription(/Required/);
+    expect(within(card).getByLabelText(/Local API Key/)).toHaveAccessibleDescription(/Required/);
     expect(within(card).queryByRole("button", { name: "Save settings" })).not.toBeInTheDocument();
     await user.type(within(card).getByLabelText(/Board IP Address/), "192.168.0.40");
     expect(put.count).toBe(0);
@@ -664,7 +666,7 @@ describe("DisplaySettings — a Vestaboard's settings screen (from its manifest)
     expect(within(card).getByLabelText(/Cloud API Token/)).toBeInTheDocument();
     expect(within(card).queryByLabelText(/Read\/Write API Key/)).not.toBeInTheDocument();
     expect(within(card).queryByTestId("tile-grid-assignment")).not.toBeInTheDocument();
-    expect(within(card).getByText("Still needed: Cloud API Token")).toBeInTheDocument();
+    expect(within(card).getByLabelText(/Cloud API Token/)).toHaveAccessibleDescription(/Required/);
   });
 
   it("a saved secret reads as set, cannot be revealed, and stays masked when untouched", async () => {
@@ -675,7 +677,7 @@ describe("DisplaySettings — a Vestaboard's settings screen (from its manifest)
     const key = within(card).getByLabelText(/Local API Key/) as HTMLInputElement;
     expect(key.value).toBe("");
     expect(key.placeholder).toBe("••••••••••• (set)");
-    expect(within(card).queryByText(/Still needed/)).not.toBeInTheDocument();
+    expect(within(card).queryAllByTestId("field-required")).toHaveLength(0);
     // Editing another field saves it and echoes the mask: the server restores it.
     await user.type(within(card).getByLabelText(/Board IP Address/), "1");
     await blurAndSave(user, put);
