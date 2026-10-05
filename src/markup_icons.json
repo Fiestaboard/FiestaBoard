@@ -1,16 +1,17 @@
 {
   "header": {
-    "description": "Icon table for {icon:NAME} markup, vendored from FiestaUI src/lib/board-icons.ts. Do not edit by hand: regenerate with scripts/markup_fixtures/generate.sh.",
+    "description": "Icon registry for {icon:NAME} markup, vendored from FiestaUI scripts/ci/tests/fixtures/board-icons.json. Do not edit by hand: regenerate with scripts/markup_fixtures/generate.sh.",
     "fiestaui": {
-      "branch": "feat/led-matrix-display",
-      "commit": "81ef225a054f86cf8bddf214b97dac8de655ff69",
-      "dirty": true,
+      "branch": "feat/board-extended-markup",
+      "commit": "530231c96919ea51f3c55b88f8b7ff17ce1079bb",
+      "dirty": false,
       "sources_sha256": {
-        "src/lib/board-characters.ts": "a3230432d237895299384418cf0be31d96a5e5786679c7588f3562aec5b43933",
-        "src/lib/board-icons.ts": "46c20aeebf979e819604cd383be0d121eb3395910991e34ff2be3ecf4d3e965f",
-        "src/lib/board-colors.ts": "26570c30832517d2e1c37c5d937fcdeefbbff1e5f5c3a790b486d11cac124f2c"
+        "src/lib/board-characters.ts": "2bb333a35d68d9be769b7f36a1304ebff0f56b94f7d287749d648c91aa6c8315",
+        "src/lib/board-icons.ts": "03aeca77c589296f973f7d8c7fbdc3edc2d355d231b65b23456424f8d71898d7",
+        "src/lib/board-colors.ts": "f9e3e2402bdb5cb62327793e9792210cefbbb12c49676fa6aee35560ccd22ce3",
+        "scripts/ci/tests/fixtures/board-icons.json": "d8d2aacfc3b12445db5dea4c38b7c0f7e46deb51ae14b546698eb76fb8f5ec6e"
       },
-      "note": "generated from FiestaUI feat/led-matrix-display working tree (uncommitted, revision ~6/7) - to be regenerated and pinned when FiestaUI PR 1 (parser + icons) merges"
+      "note": "commit 530231c (FiestaUI PR #324, Task 1, on Task 0 @ 5364439; unmerged, stack pending owner review); exported with git archive, not a working tree"
     }
   },
   "icons": {
@@ -83,6 +84,20 @@
       "label": "bell",
       "color": "#f8e71c",
       "fallback": null
+    },
+    "fog": {
+      "label": "fog",
+      "color": "#ffffff",
+      "fallback": "-"
+    },
+    "partly": {
+      "label": "partly cloudy",
+      "color": "#f8e71c",
+      "fallback": "69"
     }
+  },
+  "aliases": {
+    "storm": "bolt",
+    "x": "cross"
   }
 }

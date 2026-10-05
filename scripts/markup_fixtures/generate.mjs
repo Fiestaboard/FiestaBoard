@@ -154,6 +154,8 @@ const SPANS = [
   ["span-name-title", "{Red:a}"],
   ["span-purple-alias", "{purple:x}"],
   ["span-filled-alias", "{filled:x}"],
+  ["span-filled-upper", "{FILLED:x}"],
+  ["span-70", "{70:x}"],
   ["span-unknown-head", "{foo:x}"],
   ["span-empty", "A{red:}B"],
   ["span-with-space", "{red:HOT DOG}"],
@@ -176,6 +178,9 @@ const BLOCKS = [
   ["block-three-colours", "{red/blue/green:A}"],
   ["block-unknown-bg", "{red/foo:A}"],
   ["block-case", "{BLACK/White:on}"],
+  ["block-filled-bg", "{red/filled:x}"],
+  ["block-filled-fg", "{filled/red:x}"],
+  ["block-71-bg", "{red/71:x}"],
 ];
 
 const NESTING = [
@@ -190,6 +195,10 @@ const NESTING = [
   ["nest-icon-char-in-span", "{red:{icon:up}}"],
   ["nest-icon-char-in-block", "{black/white:{icon:up}}"],
   ["nest-icon-blank-in-span", "{red:{icon:bus}}"],
+  ["nest-icon-colour-in-block", "{black/white:{icon:sun}}"],
+  ["nest-icon-alias-in-span", "{red:{icon:storm}}"],
+  ["nest-icon-heart-in-block", "{black/white:{icon:heart}}"],
+  ["nest-tile-in-block", "{black/white:A{63}}"],
 ];
 
 const ICONS = [
@@ -206,6 +215,14 @@ const ICONS = [
   ["icon-trailing-space", "{icon:sun }"],
   ["icon-in-text", "AQI {icon:up} 3 {icon:sun}"],
   ["icon-run", "{icon:sun}{icon:cloud}{icon:rain}"],
+  ["icon-alias-storm", "{icon:storm}"],
+  ["icon-alias-x", "{icon:x}"],
+  ["icon-alias-upper", "{icon:STORM}"],
+  ["icon-fog", "{icon:fog}"],
+  ["icon-partly", "{icon:partly}"],
+  ["icon-heart", "{icon:heart}"],
+  ["icon-heart-upper", "{icon:HEART}"],
+  ["icon-heart-in-text", "I {icon:heart} NY"],
 ];
 
 const CODE62 = [
@@ -263,6 +280,7 @@ const GRID_MESSAGES = [
   ["grid-span-overflow", "{red:ABCDEFGHIJKLMNOPQRSTUVWXYZ}"],
   ["grid-degree", "72°\n{red:°}"],
   ["grid-typed-heart", "I ♥ NY\n❤ 72°"],
+  ["grid-icon-heart", "I {icon:heart} NY\n{red:{icon:heart}°}"],
   ["grid-icons", "{icon:sun} 72°\n{icon:rain}{icon:up}"],
   ["grid-literal", "{red:HOT}\n{icon:sun}"],
 ];
@@ -294,7 +312,43 @@ for (const extendedMarkup of MODES) {
   }
 }
 
-const icons = HAS_ICONS ? Object.fromEntries(ui.BOARD_ICON_NAMES.map((n) => [n, { ...ui.BOARD_ICONS[n] }])) : null;
+// FiestaUI publishes its icon registry as data (scripts/ci/tests/fixtures/
+// board-icons.json, checked against board-icons.ts by its own tests). Prefer
+// that file; fall back to reading the module for commits that predate it.
+const ICONS_JSON = join(fiestaUiDir, "scripts/ci/tests/fixtures/board-icons.json");
+const iconRegistry = existsSync(ICONS_JSON)
+  ? JSON.parse(readFileSync(ICONS_JSON, "utf8"))
+  : HAS_ICONS
+    ? { icons: Object.fromEntries(ui.BOARD_ICON_NAMES.map((n) => [n, { ...ui.BOARD_ICONS[n] }])), aliases: {} }
+    : null;
+const icons = iconRegistry ? iconRegistry.icons : null;
+const iconAliases = iconRegistry ? (iconRegistry.aliases ?? {}) : null;
+if (existsSync(ICONS_JSON)) SOURCES.push("scripts/ci/tests/fixtures/board-icons.json");
+
+// richTokensEqual: colour-aware equality an LED dedupe uses. Pairs differ in
+// exactly one field, plus identical pairs, so each field's role is pinned.
+const richEqual = [];
+if (typeof ui.richTokensEqual === "function") {
+  const base = { type: "char", value: "A", color: "red", background: "white", icon: "up" };
+  const tile = { type: "color", code: "65", color: "red", icon: "sun" };
+  const pairs = [
+    ["same-char", base, { ...base }],
+    ["same-tile", tile, { ...tile }],
+    ["plain-chars", { type: "char", value: "A" }, { type: "char", value: "A" }],
+    ["value-differs", base, { ...base, value: "B" }],
+    ["color-differs", base, { ...base, color: "blue" }],
+    ["color-missing", base, { type: "char", value: "A", background: "white", icon: "up" }],
+    ["background-differs", base, { ...base, background: "black" }],
+    ["background-missing", base, { type: "char", value: "A", color: "red", icon: "up" }],
+    ["icon-differs", base, { ...base, icon: "down" }],
+    ["icon-missing", base, { type: "char", value: "A", color: "red", background: "white" }],
+    ["code-differs", tile, { ...tile, code: "66" }],
+    ["code-spelling-differs", { type: "color", code: "63" }, { type: "color", code: "red" }],
+    ["type-differs", { type: "char", value: "63" }, { type: "color", code: "63" }],
+    ["tile-color-differs", tile, { ...tile, color: "blue" }],
+  ];
+  for (const [id, a, b] of pairs) richEqual.push({ id, a, b, equal: ui.richTokensEqual(a, b), flapEqual: ui.tokensEqual(a, b) });
+}
 
 const fileHashes = Object.fromEntries(
   SOURCES.map((p) => [p, createHash("sha256").update(readFileSync(join(fiestaUiDir, p))).digest("hex")]),
@@ -322,6 +376,10 @@ const out = [
   `"header": ${JSON.stringify(header)},`,
   `"colors": ${JSON.stringify(Object.keys(ui.ALL_COLOR_CODES))},`,
   `"icons": ${JSON.stringify(icons)},`,
+  `"icon_aliases": ${JSON.stringify(iconAliases)},`,
+  `"rich_equal": [`,
+  richEqual.map((c) => JSON.stringify(c)).join(",\n"),
+  `],`,
   `"lines": [`,
   lineCases.map((c) => JSON.stringify(c)).join(",\n"),
   `],`,
@@ -338,10 +396,11 @@ if (iconsFile && icons) {
   const iconsData = {
     header: {
       description:
-        "Icon table for {icon:NAME} markup, vendored from FiestaUI src/lib/board-icons.ts. Do not edit by hand: regenerate with scripts/markup_fixtures/generate.sh.",
+        "Icon registry for {icon:NAME} markup, vendored from FiestaUI scripts/ci/tests/fixtures/board-icons.json. Do not edit by hand: regenerate with scripts/markup_fixtures/generate.sh.",
       fiestaui: header.fiestaui,
     },
     icons,
+    aliases: iconAliases,
   };
   writeFileSync(iconsFile, JSON.stringify(iconsData, null, 2) + "\n");
   console.log(`wrote icons to ${iconsFile}`);
