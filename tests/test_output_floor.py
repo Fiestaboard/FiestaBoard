@@ -228,8 +228,12 @@ def test_a_non_429_http_error_still_releases_the_slot(clock, wire):
 
 
 def _digest(value: str) -> str:
-    """The credential fingerprint, computed independently: PBKDF2-HMAC-SHA256, fixed salt."""
-    return hashlib.pbkdf2_hmac("sha256", value.encode(), b"fiestaboard-device-key", 100_000).hex()
+    """The Vestaboard package's credential fingerprint, computed independently.
+
+    The device key is the output package's now, not core's: it carries its
+    own ``credential_digest`` (SHA-256), pinned by its own tests too.
+    """
+    return hashlib.sha256(value.encode()).hexdigest()
 
 
 class TestDeviceKey:
