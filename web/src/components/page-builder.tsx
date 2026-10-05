@@ -91,7 +91,7 @@ import {
   resolveCode62Glyph,
   useBoardSettings,
 } from "@/hooks/use-board";
-import { usePanelTargets } from "@/hooks/use-panel-targets";
+import { useDisplayTargets } from "@/hooks/use-panel-targets";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
@@ -113,11 +113,11 @@ import type {
 import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { charsetTokenText } from "@/lib/charset-issues";
-import { boardForShape, resolveBoardModel } from "@/lib/device-preview";
+import { boardForShape, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
-import { panelsFittingGrid } from "@/lib/panel-page-fit";
+import { panelsFittingGrid, targetValue } from "@/lib/panel-page-fit";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
@@ -131,6 +131,13 @@ const TipTapTemplateEditor = lazy(() =>
   import("@/components/tiptap-template-editor/TipTapTemplateEditor").then((m) => ({
     default: m.TipTapTemplateEditor,
   })),
+);
+
+// The rich editor for a board whose character set draws more than flaps (an
+// LED matrix): colour/block spans, icons, mixed case. Split out the same way,
+// and only ever loaded when such a board is the target.
+const CharsetTemplateEditor = lazy(() =>
+  import("@/components/charset-template-editor").then((m) => ({ default: m.CharsetTemplateEditor })),
 );
 
 interface PageBuilderProps {
@@ -254,7 +261,7 @@ interface DraftData {
 }
 
 export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(function PageBuilder(
-  { pageId, deviceType: deviceTypeProp = "flagship", skipDraft = false, onClose, onSave },
+  { pageId, deviceType: deviceTypeProp, skipDraft = false, onClose, onSave },
   ref,
 ) {
   const t = useTranslations("pageBuilder");
@@ -269,10 +276,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
-  const { currentBoardId } = useCurrentBoard();
+  const { currentBoardId, currentBoard } = useCurrentBoard();
 
-  // Device type: from prop (new pages) or from existing page (editing)
-  const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp);
+  // Device type: from prop (new pages), the sidebar's current board (a new
+  // page that asked for no device — see below), or the existing page (editing)
+  const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp ?? "flagship");
   // Note-array grid dimensions. Only meaningful when deviceType === "note_array";
   // flagship/note always stay 1×1 so they resolve to their fixed device sizes.
   // Sourced from the existing page (editing), the configured note_array board
@@ -290,7 +298,41 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // must not overwrite it with the selected board's shape. Cleared again when
   // a generic device is chosen, so the seed is back in charge.
   const [panelSizedGrid, setPanelSizedGrid] = useState(false);
-  const panelTargets = usePanelTargets();
+  // Every display a page can be sized to by name: FiestaPanels, then any other
+  // board with a custom grid (an output plugin's LED matrix, ...).
+  const panelTargets = useDisplayTargets();
+  const fiestaPanelTargets = useMemo(() => panelTargets.filter((p) => p.kind !== "display"), [panelTargets]);
+  const otherDisplayTargets = useMemo(() => panelTargets.filter((p) => p.kind === "display"), [panelTargets]);
+  // The board the page is being authored for, when that is known: the display
+  // picked by name in the size picker, or — for a new page — the display
+  // selected in the sidebar. Not stored on the page (the grid is the whole
+  // relationship); it only decides which of several same-shaped boards the
+  // editor previews and checks against, and which name the picker shows.
+  const [targetBoardId, setTargetBoardId] = useState<string | null>(null);
+
+  // A NEW page that asked for no particular device (`/pages/new`) starts on
+  // the display selected in the sidebar's board selector — with one display,
+  // that display: its device type and its exact geometry (an LED matrix's
+  // custom grid included), so it previews and checks as that board from the
+  // first keystroke. Taken once; the user can still retarget, and an
+  // existing page keeps its own shape. Adjusted during render rather than in
+  // an effect so the editor never paints a flagship first (issue #1568).
+  const [adoptedCurrentBoard, setAdoptedCurrentBoard] = useState(false);
+  if (!pageId && !deviceTypeProp && !adoptedCurrentBoard && currentBoard) {
+    setAdoptedCurrentBoard(true);
+    setDeviceType(currentBoard.device_type);
+    if (currentBoard.device_type === "note_array") {
+      setNotesWide(currentBoard.notes_wide ?? 1);
+      setNotesTall(currentBoard.notes_tall ?? 1);
+    } else if (currentBoard.device_type === "panel" && currentBoard.grid_rows && currentBoard.grid_cols) {
+      setGridRows(currentBoard.grid_rows);
+      setGridCols(currentBoard.grid_cols);
+    }
+    setTargetBoardId(currentBoard.id);
+    // The board's own shape is the choice: the generic seeding below must not
+    // replace it with another board's.
+    setPanelSizedGrid(true);
+  }
   const dims = resolveDimensions(deviceType, notesWide, notesTall, gridRows, gridCols);
   const numLines = dims.rows;
   // The grid a panel render/save needs (the API refuses a panel without one).
@@ -345,16 +387,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   /**
    * The size picker offers two kinds of choice: a generic device type, and a
-   * FiestaPanel by name (``panel:<id>``). A panel resolves to a ``panel`` page
-   * plus that panel's character grid (``grid_rows`` × ``grid_cols``) — nothing
-   * is stored on the page to say which panel it was made for. The grid is the
-   * whole relationship. (A legacy panel whose board is still a Note-block
-   * array resolves to a note_array page of its grid, as before.)
+   * display by name — a FiestaPanel (``panel:<id>``) or any other board with a
+   * custom grid, such as an output plugin's LED matrix (``display:<board id>``).
+   * Either resolves to a ``panel`` page plus that display's character grid
+   * (``grid_rows`` × ``grid_cols``) — nothing is stored on the page to say
+   * which display it was made for. The grid is the whole relationship. (A
+   * legacy panel whose board is still a Note-block array resolves to a
+   * note_array page of its grid, as before.)
    */
   const handleSizeChange = useCallback(
     (value: string) => {
-      const panel = value.startsWith("panel:") ? panelTargets.find((p) => `panel:${p.id}` === value) : undefined;
+      const panel = panelTargets.find((p) => targetValue(p) === value);
       if (panel) {
+        setTargetBoardId(panel.boardId ?? null);
         if (panel.deviceType === "panel") {
           setDeviceType("panel");
           setGridRows(panel.rows);
@@ -367,6 +412,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         setPanelSizedGrid(true);
       } else {
         setDeviceType(value as DeviceType);
+        setTargetBoardId(null);
         setPanelSizedGrid(false);
       }
       setDrawMode(false);
@@ -382,11 +428,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
    * panel whose board this grid matches is also simply truer — that IS the
    * page's shape. A panel page no panel matches any more (its TV was resized
    * or the panel deleted) shows as the bare "panel" option at its own grid.
+   * Of several displays with the same grid, the one the page is being
+   * authored for wins, then the board selected in the sidebar.
    */
   const sizeSelectValue = useMemo(() => {
-    const [fit] = panelsFittingGrid(panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols);
-    return fit ? `panel:${fit.id}` : deviceType;
-  }, [panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols]);
+    const fits = panelsFittingGrid(panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols);
+    const fit =
+      (targetBoardId ? fits.find((p) => p.boardId === targetBoardId) : undefined) ??
+      fits.find((p) => !!p.boardId && p.boardId === currentBoardId) ??
+      fits[0];
+    return fit ? targetValue(fit) : deviceType;
+  }, [panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols, targetBoardId, currentBoardId]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
   // Metadata history keyed to stroke boundaries: done/undone mirror the
   // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
@@ -734,17 +786,29 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // character set is what the render is checked against.
   const previewBoard = useMemo(
     () =>
-      boardForShape(boardSettings?.boards, [selectedBoardId, currentBoardId], {
+      boardForShape(boardSettings?.boards, [targetBoardId, selectedBoardId, currentBoardId], {
         device_type: deviceType,
         notes_wide: notesWide,
         notes_tall: notesTall,
         grid_rows: panelGrid?.rows ?? null,
         grid_cols: panelGrid?.cols ?? null,
       }),
-    [boardSettings?.boards, selectedBoardId, currentBoardId, deviceType, notesWide, notesTall, panelGrid],
+    [
+      boardSettings?.boards,
+      targetBoardId,
+      selectedBoardId,
+      currentBoardId,
+      deviceType,
+      notesWide,
+      notesTall,
+      panelGrid,
+    ],
   );
   const previewBoardId = previewBoard?.id ?? null;
   const previewModel = useMemo(() => resolveBoardModel(previewBoard), [previewBoard]);
+  // An LED target's character set: the rich editor then reads and offers that
+  // set's extended markup and keeps its case. null for a split-flap target.
+  const editorCharset = useMemo(() => ledEditorCharacterSet(previewBoard, previewModel), [previewBoard, previewModel]);
   // Cells of the last render that board's character set draws differently
   // (POST /templates/render with board_id); [] when none or no board.
   const [charsetIssues, setCharsetIssues] = useState<CharsetIssue[]>([]);
@@ -866,6 +930,58 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Track if we're manually updating wrap to prevent onChange from overwriting state
   const isUpdatingWrap = useRef(false);
+
+  // The rich editor's change handler (either editor): new lines, plus the
+  // per-line alignment and wrap arrays kept in step when lines are added or
+  // removed in the middle.
+  const handleRichEditorChange = (newValue: string) => {
+    if (isUpdatingWrap.current) {
+      return;
+    }
+    const lines = newValue.split("\n");
+    setTemplateLines(lines);
+
+    const oldLen = templateLines.length;
+    const newLen = lines.length;
+    if (newLen !== oldLen) {
+      let prefixMatch = 0;
+      while (prefixMatch < Math.min(newLen, oldLen) && lines[prefixMatch] === templateLines[prefixMatch]) {
+        prefixMatch++;
+      }
+      let suffixMatch = 0;
+      while (
+        suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
+        lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]
+      ) {
+        suffixMatch++;
+      }
+
+      const updatedAlignments = [...lineAlignments];
+      const updatedWrap = [...lineWrapEnabled];
+
+      if (newLen < oldLen) {
+        const deleteCount = oldLen - newLen;
+        const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
+        updatedAlignments.splice(deleteStart, deleteCount);
+        updatedWrap.splice(deleteStart, deleteCount);
+      } else {
+        const insertCount = newLen - oldLen;
+        const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
+        for (let i = 0; i < insertCount; i++) {
+          updatedAlignments.splice(insertStart + i, 0, "left");
+          updatedWrap.splice(insertStart + i, 0, false);
+        }
+      }
+
+      while (updatedAlignments.length < newLen) updatedAlignments.push("left");
+      while (updatedWrap.length < newLen) updatedWrap.push(false);
+      updatedAlignments.length = newLen;
+      updatedWrap.length = newLen;
+
+      setLineAlignments(updatedAlignments);
+      setLineWrapEnabled(updatedWrap);
+    }
+  };
 
   // Track if content was cleared while a mutation is in flight (to ignore stale responses)
   const shouldIgnoreNextResponse = useRef(false);
@@ -1081,6 +1197,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (board?.grid_rows && board.grid_cols) {
       setGridRows(board.grid_rows);
       setGridCols(board.grid_cols);
+      setTargetBoardId(board.id);
       return;
     }
     const target = panelTargets.find((p) => p.deviceType === "panel");
@@ -2187,91 +2304,75 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <Box {...anchorProps("page-editor.template")}>
                     {/* Template editor with device-specific dimensions */}
                     <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
-                      <TipTapTemplateEditor
-                        ref={tipTapRef}
-                        value={templateLines.join("\n")}
-                        onChange={(newValue) => {
-                          if (isUpdatingWrap.current) {
-                            return;
-                          }
-                          const lines = newValue.split("\n");
-                          setTemplateLines(lines);
-
-                          const oldLen = templateLines.length;
-                          const newLen = lines.length;
-                          if (newLen !== oldLen) {
-                            let prefixMatch = 0;
-                            while (
-                              prefixMatch < Math.min(newLen, oldLen) &&
-                              lines[prefixMatch] === templateLines[prefixMatch]
-                            ) {
-                              prefixMatch++;
-                            }
-                            let suffixMatch = 0;
-                            while (
-                              suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
-                              lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]
-                            ) {
-                              suffixMatch++;
-                            }
-
-                            const updatedAlignments = [...lineAlignments];
-                            const updatedWrap = [...lineWrapEnabled];
-
-                            if (newLen < oldLen) {
-                              const deleteCount = oldLen - newLen;
-                              const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
-                              updatedAlignments.splice(deleteStart, deleteCount);
-                              updatedWrap.splice(deleteStart, deleteCount);
-                            } else {
-                              const insertCount = newLen - oldLen;
-                              const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
-                              for (let i = 0; i < insertCount; i++) {
-                                updatedAlignments.splice(insertStart + i, 0, "left");
-                                updatedWrap.splice(insertStart + i, 0, false);
-                              }
-                            }
-
-                            while (updatedAlignments.length < newLen) updatedAlignments.push("left");
-                            while (updatedWrap.length < newLen) updatedWrap.push(false);
-                            updatedAlignments.length = newLen;
-                            updatedWrap.length = newLen;
-
-                            setLineAlignments(updatedAlignments);
-                            setLineWrapEnabled(updatedWrap);
-                          }
-                        }}
-                        lineAlignments={lineAlignments}
-                        lineWrapEnabled={lineWrapEnabled}
-                        onLineAlignmentChange={(lineIndex, alignment) => {
-                          setLineAlignments((prev) => {
-                            const newAlignments = [...prev];
-                            newAlignments[lineIndex] = alignment;
-                            return newAlignments;
-                          });
-                        }}
-                        onLineWrapChange={(lineIndex, wrapEnabled) => {
-                          setLineWrapEnabled((prev) => {
-                            const newWrapStates = [...prev];
-                            newWrapStates[lineIndex] = wrapEnabled;
-                            return newWrapStates;
-                          });
-                        }}
-                        placeholder={t("richEditorPlaceholder")}
-                        showAlignmentControls={true}
-                        showToolbar={true}
-                        boardWidth={dims.cols}
-                        boardLines={numLines}
-                        deviceType={deviceType}
-                        code62Glyph={effectiveCode62Glyph}
-                        onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                        syncFromBoardPending={syncFromBoardMutation.isPending}
-                        drawMode={drawMode}
-                        onDrawModeToggle={() => setDrawMode((v) => !v)}
-                        drawBrush={drawBrush}
-                        onDrawBrushChange={setDrawBrush}
-                        onDrawHistoryEvent={handleDrawHistoryEvent}
-                      />
+                      {editorCharset ? (
+                        // An LED target: its own character set decides what the
+                        // editor reads, offers and keeps (spans, icons, case).
+                        // No draw mode — it paints flap tiles.
+                        <CharsetTemplateEditor
+                          charset={editorCharset}
+                          value={templateLines.join("\n")}
+                          onChange={handleRichEditorChange}
+                          lineAlignments={lineAlignments}
+                          lineWrapEnabled={lineWrapEnabled}
+                          onLineAlignmentChange={(lineIndex, alignment) => {
+                            setLineAlignments((prev) => {
+                              const next = [...prev];
+                              next[lineIndex] = alignment;
+                              return next;
+                            });
+                          }}
+                          onLineWrapChange={(lineIndex, wrapEnabled) => {
+                            setLineWrapEnabled((prev) => {
+                              const next = [...prev];
+                              next[lineIndex] = wrapEnabled;
+                              return next;
+                            });
+                          }}
+                          placeholder={t("richEditorPlaceholder")}
+                          boardWidth={dims.cols}
+                          boardLines={numLines}
+                          deviceType={deviceType}
+                          code62Glyph={effectiveCode62Glyph}
+                          onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                          syncFromBoardPending={syncFromBoardMutation.isPending}
+                        />
+                      ) : (
+                        <TipTapTemplateEditor
+                          ref={tipTapRef}
+                          value={templateLines.join("\n")}
+                          onChange={handleRichEditorChange}
+                          lineAlignments={lineAlignments}
+                          lineWrapEnabled={lineWrapEnabled}
+                          onLineAlignmentChange={(lineIndex, alignment) => {
+                            setLineAlignments((prev) => {
+                              const newAlignments = [...prev];
+                              newAlignments[lineIndex] = alignment;
+                              return newAlignments;
+                            });
+                          }}
+                          onLineWrapChange={(lineIndex, wrapEnabled) => {
+                            setLineWrapEnabled((prev) => {
+                              const newWrapStates = [...prev];
+                              newWrapStates[lineIndex] = wrapEnabled;
+                              return newWrapStates;
+                            });
+                          }}
+                          placeholder={t("richEditorPlaceholder")}
+                          showAlignmentControls={true}
+                          showToolbar={true}
+                          boardWidth={dims.cols}
+                          boardLines={numLines}
+                          deviceType={deviceType}
+                          code62Glyph={effectiveCode62Glyph}
+                          onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                          syncFromBoardPending={syncFromBoardMutation.isPending}
+                          drawMode={drawMode}
+                          onDrawModeToggle={() => setDrawMode((v) => !v)}
+                          drawBrush={drawBrush}
+                          onDrawBrushChange={setDrawBrush}
+                          onDrawHistoryEvent={handleDrawHistoryEvent}
+                        />
+                      )}
                     </Suspense>
                   </Box>
                 ) : (
@@ -2391,16 +2492,42 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                               generic Notes-wide/tall selects below. Absent on an
                               install with no panels, leaving the picker exactly
                               the three sizes it has always been. */}
-                          {panelTargets.length > 0 && (
+                          {fiestaPanelTargets.length > 0 && (
                             <SelectGroup>
                               <SelectLabel>{tPanels("yourPanelsGroupLabel")}</SelectLabel>
-                              {panelTargets.map((panel) => (
-                                <SelectItem key={panel.id} value={`panel:${panel.id}`} className="text-xs">
+                              {fiestaPanelTargets.map((panel) => (
+                                <SelectItem key={panel.id} value={targetValue(panel)} className="text-xs">
                                   {tPanels("panelSizeOption", {
                                     name: panel.name,
                                     cols: panel.cols,
                                     rows: panel.rows,
                                   })}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
+                          {/* Every other display with a custom grid — an output
+                              plugin's board, such as an LED matrix — named for
+                              its board and model, so a page can be authored
+                              for it. Driven by the board list alone. */}
+                          {otherDisplayTargets.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>{tPanels("yourDisplaysGroupLabel")}</SelectLabel>
+                              {otherDisplayTargets.map((display) => (
+                                <SelectItem key={display.id} value={targetValue(display)} className="text-xs">
+                                  {tPanels(
+                                    display.modelLabel
+                                      ? display.led
+                                        ? "displaySizeOptionLed"
+                                        : "displaySizeOption"
+                                      : "panelSizeOption",
+                                    {
+                                      name: display.name,
+                                      model: display.modelLabel ?? "",
+                                      cols: display.cols,
+                                      rows: display.rows,
+                                    },
+                                  )}
                                 </SelectItem>
                               ))}
                             </SelectGroup>

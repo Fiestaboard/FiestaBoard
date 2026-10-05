@@ -10,8 +10,8 @@
  */
 import { describe, expect, it } from "vitest";
 
-import type { Panel } from "@/lib/api";
-import { panelsFittingGrid, panelTargets } from "@/lib/panel-page-fit";
+import type { BoardInstance, Panel } from "@/lib/api";
+import { displayTargets, panelsFittingGrid, panelTargets, targetValue } from "@/lib/panel-page-fit";
 
 function panel(overrides: Partial<Panel> & Pick<Panel, "id" | "name">): Panel {
   return {
@@ -174,5 +174,78 @@ describe("panelsFittingGrid — per-character panel boards", () => {
   it("does not match a panel page without a grid against any panel", () => {
     const noteSized = panelTargets([gridPanel("p4", "Tiny TV", 3, 15)])[0];
     expect(panelsFittingGrid([noteSized], "panel")).toEqual([]);
+  });
+});
+
+describe("displayTargets — every board with a custom grid", () => {
+  /** A board as GET /settings/board reports it. */
+  function board(overrides: Partial<BoardInstance> & Pick<BoardInstance, "id" | "name">): BoardInstance {
+    return {
+      device_type: "flagship",
+      board_color: "black",
+      enabled: true,
+      api_mode: "local",
+      host: "",
+      local_api_key: "",
+      cloud_key: "",
+      ...overrides,
+    } as BoardInstance;
+  }
+
+  const pixoo = board({
+    id: "b-pixoo",
+    name: "Pixoo",
+    device_type: "panel",
+    grid_rows: 10,
+    grid_cols: 16,
+    output: "divoom_pixoo",
+    device_model: "divoom_pixoo64",
+    charset: "led_3x5",
+  });
+
+  it("lists an output plugin's board as a display, named for its board and model", () => {
+    const [target] = displayTargets([], [pixoo]);
+    expect(target).toMatchObject({
+      id: "b-pixoo",
+      name: "Pixoo",
+      kind: "display",
+      boardId: "b-pixoo",
+      led: true,
+      deviceType: "panel",
+      gridRows: 10,
+      gridCols: 16,
+    });
+    expect(target.modelLabel).toMatch(/Pixoo/);
+    expect(targetValue(target)).toBe("display:b-pixoo");
+  });
+
+  it("matches a page of the display's grid", () => {
+    const targets = displayTargets([], [pixoo]);
+    expect(panelsFittingGrid(targets, "panel", 1, 1, 10, 16)).toEqual(targets);
+  });
+
+  it("lists the panels first, and a panel's own board only once", () => {
+    const kitchen = gridPanel("p1", "Kitchen TV", 12, 29);
+    const kitchenBoard = board({
+      id: "board-p1",
+      name: "Kitchen TV",
+      device_type: "panel",
+      grid_rows: 12,
+      grid_cols: 29,
+    });
+    const targets = displayTargets([kitchen], [kitchenBoard, pixoo]);
+    expect(targets.map(targetValue)).toEqual(["panel:p1", "display:b-pixoo"]);
+    expect(targets[0].boardId).toBe("board-p1");
+  });
+
+  it("skips boards with a fixed shape or no grid", () => {
+    const flagship = board({ id: "b-flag", name: "Hall" });
+    const ungridded = board({ id: "b-bare", name: "Bare", device_type: "panel", grid_rows: null, grid_cols: null });
+    expect(displayTargets(undefined, [flagship, ungridded])).toEqual([]);
+  });
+
+  it("marks a custom-grid board without an LED model as not LED", () => {
+    const sign = board({ id: "b-sign", name: "Sign", device_type: "panel", grid_rows: 4, grid_cols: 20 });
+    expect(displayTargets([], [sign])[0]).toMatchObject({ kind: "display", led: false, modelLabel: null });
   });
 });

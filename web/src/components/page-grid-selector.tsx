@@ -35,7 +35,7 @@ import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { Collection, DeviceType, Page, PagePreviewBatchEntry, PagePreviewResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
-import { isLedModel, resolveBoardModel } from "@/lib/device-preview";
+import { boardForShape, isLedModel, resolveBoardModel } from "@/lib/device-preview";
 
 // Cache key for batch previews in localStorage
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";
@@ -637,9 +637,7 @@ export function PageGridSelector({
   const { currentBoard } = useCurrentBoard();
   // The current board's device model: a page that fits it previews as it.
   const currentBoardModel = useMemo(() => resolveBoardModel(currentBoard), [currentBoard]);
-  // An LED board's previews are asked for that board (its spans and icons
-  // render, with cells) and cached apart from the split-flap renders.
-  const richBoardId = currentBoard && isLedModel(currentBoardModel) ? currentBoard.id : null;
+  const boards = boardSettings?.boards;
 
   // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
   const allPages = useMemo(() => pagesData?.pages || [], [pagesData]);
@@ -653,6 +651,23 @@ export function PageGridSelector({
     }
     return result;
   }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard]);
+
+  // The board each page previews as: the current board when the page fits it,
+  // else the first board it fits. An LED board's model draws the thumbnail,
+  // and its previews are asked for that board (spans and icons render, with
+  // cells) and cached apart from the split-flap renders — so a page for an
+  // LED display (an output plugin's, such as a Pixoo) shows as LED in the
+  // library even while another board is selected.
+  const previewTargets = useMemo(() => {
+    const out: Record<string, { model: DeviceModel | null; richBoardId: string | null }> = {};
+    for (const page of pages) {
+      const board =
+        currentBoard && pagesCompatibleWithBoard(page, currentBoard) ? currentBoard : boardForShape(boards, [], page);
+      const model = board === currentBoard ? currentBoardModel : resolveBoardModel(board);
+      out[page.id] = { model, richBoardId: board && isLedModel(model) ? board.id : null };
+    }
+    return out;
+  }, [pages, currentBoard, currentBoardModel, boards]);
 
   // State for batch preview data — only what the network produced. Both
   // outcomes are kept: a failed entry is still an answer for that page, and
@@ -673,7 +688,7 @@ export function PageGridSelector({
     const initial: Record<string, PagePreviewResponse> = {};
     const toFetch: string[] = [];
     for (const page of pages) {
-      const entry = cached[previewCacheKey(page.id, richBoardId)];
+      const entry = cached[previewCacheKey(page.id, previewTargets[page.id]?.richBoardId ?? null)];
       if (isCacheValid(entry, page.updated_at || "")) {
         initial[page.id] = entry.preview;
       } else {
@@ -681,7 +696,7 @@ export function PageGridSelector({
       }
     }
     return { cachedPreviews: cached, initialPreviews: initial, pagesToFetch: toFetch };
-  }, [pages, viewMode, richBoardId]);
+  }, [pages, viewMode, previewTargets]);
 
   // Cache hits render instantly; anything fetched since layers on top. Entries
   // that failed to render carry only `{ error, available: false }` — they stay
@@ -710,18 +725,30 @@ export function PageGridSelector({
 
     const fetchBatchPreviews = async () => {
       try {
-        const result = richBoardId
-          ? await api.previewPagesBatch(pagesToFetch, richBoardId)
-          : await api.previewPagesBatch(pagesToFetch);
+        // One batch per board the pages preview as: the split-flap ones in a
+        // plain batch (exactly as before), each LED board's in its own.
+        const groups = new Map<string | null, string[]>();
+        for (const id of pagesToFetch) {
+          const key = previewTargets[id]?.richBoardId ?? null;
+          groups.set(key, [...(groups.get(key) ?? []), id]);
+        }
+        const results = await Promise.all(
+          [...groups].map(async ([boardId, ids]) => ({
+            boardId,
+            result: boardId ? await api.previewPagesBatch(ids, boardId) : await api.previewPagesBatch(ids),
+          })),
+        );
+        const allPreviews: Record<string, PagePreviewBatchEntry> = {};
+        for (const { result } of results) Object.assign(allPreviews, result.previews ?? {});
 
-        if (mounted && result.previews) {
+        if (mounted) {
           const newCachedPreviews = { ...cachedPreviews };
 
-          for (const [pageId, preview] of Object.entries(result.previews)) {
+          for (const [pageId, preview] of Object.entries(allPreviews)) {
             if (preview.available) {
               const page = pages.find((p) => p.id === pageId);
               if (page) {
-                newCachedPreviews[previewCacheKey(pageId, richBoardId)] = {
+                newCachedPreviews[previewCacheKey(pageId, previewTargets[pageId]?.richBoardId ?? null)] = {
                   preview,
                   pageUpdatedAt: page.updated_at || "",
                   cachedAt: new Date().toISOString(),
@@ -734,7 +761,7 @@ export function PageGridSelector({
 
           setFetchedPreviews((prev) => ({
             ...prev,
-            ...result.previews,
+            ...allPreviews,
           }));
         }
       } catch (error) {
@@ -750,7 +777,7 @@ export function PageGridSelector({
     return () => {
       mounted = false;
     };
-  }, [pagesToFetch, cachedPreviews, pages, richBoardId]);
+  }, [pagesToFetch, cachedPreviews, pages, previewTargets]);
 
   if (isLoadingPages) {
     return (
@@ -870,7 +897,7 @@ export function PageGridSelector({
             onSelect={onSelectPage}
             showActiveIndicator={showActiveIndicator}
             boardType={getEffectiveBoardColor(boardSettings)}
-            model={currentBoard && pagesCompatibleWithBoard(page, currentBoard) ? currentBoardModel : null}
+            model={previewTargets[page.id]?.model ?? null}
           />
         ))}
       </Grid>
