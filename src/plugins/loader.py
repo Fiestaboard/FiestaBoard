@@ -68,10 +68,17 @@ def is_safe_plugin_dir_name(plugin_name: str) -> bool:
 
 
 def _get_fiestaboard_version() -> str:
-    """Return the running FiestaBoard version."""
-    from src import __version__
+    """Return the running FiestaBoard version.
 
-    return __version__
+    The same answer the update checker uses: on a beta image that is the
+    build's own version (10.0.0-beta.3), not ``src.__version__``, which on a
+    beta is still the stable number the branch forked from. Comparing a
+    plugin's ``>=10.0.0`` against that stale number reported a v10 plugin as
+    incompatible with the v10 beta it was built for.
+    """
+    from src.system.update_service import running_version
+
+    return running_version()
 
 
 def _parse_version(version_str: str) -> tuple[int, int, int]:
