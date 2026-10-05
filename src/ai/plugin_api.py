@@ -10,7 +10,7 @@ turned off in Settings (``enabled: false``) is honoured: nothing is sent.
 Failures are one of three :class:`AIError` subclasses a plugin can catch:
 
 - :class:`AINotConfiguredError`: AI is off, no provider, unknown
-  ``provider_id``, or the provider has no model.
+  ``provider_id``, or the provider has no model saved and lists none.
 - :class:`AIRejectedError`: the key or sign-in was refused, or the user must
   sign in again (Settings → AI Providers).
 - :class:`AIProviderError`: unreachable, an error answer, or an empty or
@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -41,6 +42,7 @@ from .generator import (
     _post_chat_completion,
     _resolve_model,
     _resolve_provider,
+    list_models,
 )
 from .protocols import get_protocol
 
@@ -74,6 +76,11 @@ _PROTOCOL_LABELS = {
     "openai_responses": "OpenAI Responses",
 }
 _JSON_INSTRUCTION = "Reply with one JSON object and nothing else: no prose, no markdown fences."
+
+#: ``(provider id, base_url) -> (monotonic time, model id)`` for providers with
+#: no saved model, so a plugin polling every few minutes does not list each time.
+_LISTED_MODEL_CACHE: dict[tuple[str, str], tuple[float, str]] = {}
+_LISTED_MODEL_TTL_SECONDS = 600.0
 
 
 @dataclass(frozen=True)
@@ -232,6 +239,40 @@ async def complete_async(
     )
 
 
+async def _resolve_model_or_list(
+    provider: dict[str, Any],
+    model: str | None,
+    *,
+    timeout: float,
+    client: httpx.AsyncClient | None,
+) -> str:
+    """The model to send: requested, saved, or the provider's first listed one.
+
+    A provider added through Settings' sign-in flow is saved before any model
+    is picked; FiestaBot's chat then uses the first model the provider lists,
+    and so does a plugin.
+    """
+    if model or provider.get("default_model") or provider.get("models"):
+        return _resolve_model(provider, model)
+    key = (str(provider.get("id")), str(provider.get("base_url") or ""))
+    cached = _LISTED_MODEL_CACHE.get(key)
+    if cached and time.monotonic() - cached[0] < _LISTED_MODEL_TTL_SECONDS:
+        return cached[1]
+    name = provider.get("name") or provider.get("id")
+    pick = f"Pick a model for AI provider {name!r} in Settings → AI Providers."
+    try:
+        listed = await list_models(provider, timeout_seconds=timeout, client=client)
+    except AIRejectedError:
+        raise
+    except AIGenerationError as exc:
+        raise AINotConfiguredError(f"{pick} ({exc})") from exc
+    first = next((m.get("id") for m in listed if m.get("id")), None)
+    if not first:
+        raise AINotConfiguredError(pick)
+    _LISTED_MODEL_CACHE[key] = (time.monotonic(), first)
+    return first
+
+
 async def _complete_async(
     messages: str | list[dict[str, str]],
     *,
@@ -248,7 +289,7 @@ async def _complete_async(
     chat = _messages(messages)
     block = _providers_block() if providers_block is None else providers_block
     provider = _resolve_provider(block, provider_id)
-    chosen_model = _resolve_model(provider, model)
+    chosen_model = await _resolve_model_or_list(provider, model, timeout=timeout, client=client)
     protocol = get_protocol(_effective_protocol(provider))
     if json:
         chat = [{"role": "system", "content": _JSON_INSTRUCTION}, *chat]

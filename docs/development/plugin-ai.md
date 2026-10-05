@@ -42,7 +42,7 @@ self.ai_complete(
     *,
     provider_id=None,       # None or "" = FiestaBot's default provider
     model=None,             # None = that provider's default model
-    temperature=None,       # default 0.7
+    temperature=None,       # default 0.7; capped at 1.0 for Anthropic providers
     max_tokens=None,        # default 1500
     json=False,             # True: ask for one JSON object and parse it into result.data
     timeout=60.0,           # seconds
@@ -53,6 +53,8 @@ It blocks until the answer arrives, so it is safe to call from `fetch_data`. Asy
 
 The result has `.text`, `.model`, `.provider_id`, `.usage` (`prompt_tokens`, `completion_tokens`, `total_tokens`, any of which may be `None`), and `.data` (the parsed object when `json=True`). `str(result)` is the text.
 
+With `model=None` and no model saved for the provider (a provider added with **Sign in** is saved before a model is picked), FiestaBoard uses the first model the provider lists, as FiestaBot's chat does, and remembers it for ten minutes.
+
 A system message works with every protocol: for Anthropic it becomes the `system` field. With `json=True` FiestaBoard adds a system instruction asking for a single JSON object and extracts it from the reply even if the model wraps it in a code fence. It does not use a provider's JSON mode, because some local servers refuse it.
 
 ## Errors
@@ -61,7 +63,7 @@ Every failure is an `AIError`. Catch the three kinds separately to tell the user
 
 | Exception | When | What to tell the user |
 |-----------|------|-----------------------|
-| `AINotConfiguredError` | AI is turned off in Settings, no provider is set up, `provider_id` names a provider that no longer exists, or the provider has no model. Nothing is sent. | Set up or turn on AI in **Settings → AI Providers**, or pick another provider. |
+| `AINotConfiguredError` | AI is turned off in Settings, no provider is set up, `provider_id` names a provider that no longer exists, or the provider has no model saved and lists none. Nothing is sent. | Set up or turn on AI in **Settings → AI Providers**, or pick another provider. |
 | `AIRejectedError` | The provider refused the key or sign-in (`401`), or a signed-in provider must be signed in again. A signed-in provider's `401` is retried once with a refreshed token before this is raised. | Reconnect the provider in **Settings → AI Providers**. |
 | `AIProviderError` | The provider could not be reached, answered with an error, returned an empty reply, or (with `json=True`) returned something that is not a JSON object. | Try again later. The message carries the provider's own error text. |
 
