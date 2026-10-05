@@ -224,7 +224,7 @@ Common causes:
 - Billing is not set up (required even for the free tier)
 - Invalid address format - try using coordinates instead of street addresses
 
-See the [Traffic Plugin](/docs/plugins/traffic) guide for detailed setup.
+See the [Traffic Plugin](/plugins/detail?id=traffic) guide for detailed setup.
 
 ### Home Assistant connection refused
 

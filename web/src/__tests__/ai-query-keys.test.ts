@@ -21,6 +21,14 @@ describe("queryKeysForTool", () => {
     );
   });
 
+  it("refreshes the AI providers FiestaBot offers when it changes the AI settings", () => {
+    // Before: "ai" fell through to all-settings, so a provider FiestaBot
+    // added stayed out of its own provider picker until the cache aged out.
+    const keys = queryKeysForTool(call("update_setting", { category: "ai", values: {} })).map((k) => k.join("/"));
+    expect(keys).toContain("ai-settings");
+    expect(keys).toContain("ai-provider-models");
+  });
+
   it("refreshes nothing for a read-only tool", () => {
     expect(queryKeysForTool(call("list_pages", {}, true))).toEqual([]);
   });

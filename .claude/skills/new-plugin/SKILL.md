@@ -304,6 +304,7 @@ validation rules. In short:
 - `references/manifest-reference.md` — full `manifest.json` field reference.
 - `references/design-guidance.md` — **auth on a domain-less appliance**, variable design, config UX.
 - `references/oauth.md` — **plugins that sign in**: flows, whose app, manifest, code, tests, docs.
+- `references/ai.md` — **plugins that call a language model**: `self.ai_complete()`, errors, the `ai_providers` picker.
 - `references/plugin-types.md` — simple / http / art / trigger / webhook variants.
 - `references/publishing-and-registry.md` — repo creation, the registry entry schema, validation.
 - Real examples next to this repo: `../fiestaboard-plugin--dad-jokes` (simple http, **root

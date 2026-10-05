@@ -91,7 +91,7 @@
     "dark": "Scuro",
     "system": "Sistema",
     "devSuffix": "build di sviluppo",
-    "updateAvailable": "Aggiornamento disponibile: {version}",
+    "updateAvailable": "Aggiornamento disponibile",
     "updateTo": "Aggiorna alla {version}",
     "about": "Informazioni su FiestaBoard",
     "signOut": "Esci"
@@ -467,6 +467,8 @@
       "setupOpenGuide": "Guida passo passo",
       "setupStepRedirect": "Aggiungi all'app questo URI di reindirizzamento",
       "setupStepDetails": "Copia qui i dati dell'app",
+      "ownAppToggle": "Usa la tua app (facoltativo)",
+      "ownAppDescription": "L'accesso funziona anche senza. Per accedere invece tramite una tua app di {provider}, creane una e inserisci qui i suoi dati.",
       "clientIdLabel": "ID client",
       "clientSecretLabel": "Secret client",
       "showSecret": "Mostra il secret client",
@@ -485,7 +487,25 @@
         "access_denied": "L'accesso è stato rifiutato, quindi non è stato connesso nulla.",
         "exchange_failed": "Il provider ha rifiutato l'accesso. Controlla l'ID client e il secret nelle impostazioni del plugin, poi connettiti di nuovo.",
         "provider_error": "Il provider ha segnalato un problema. Prova a connetterti di nuovo."
-      }
+      },
+      "rejectedDescription": "{provider} non accetta più l'accesso. Accedi di nuovo.",
+      "approvalWaiting": "Approva FiestaBoard nella scheda di {provider}. Si aggiorna da solo.",
+      "startAgainButton": "Ricomincia",
+      "headlessButton": "Accedi senza reindirizzamento del browser",
+      "pasteToggle": "L'accesso non è tornato? Incolla l'indirizzo o il codice",
+      "pasteLabel": "Indirizzo o codice",
+      "pasteDescription": "Copia l'indirizzo completo dalla scheda in cui l'accesso si è fermato, oppure il codice mostrato dal provider.",
+      "pasteSubmit": "Completa l'accesso",
+      "pasteOpenAgain": "Riapri la pagina di accesso",
+      "newTabHint": "{provider} si apre in una nuova scheda. Quando hai finito lì, quella scheda termina su una pagina che non si carica. È normale: ne ricopi l'indirizzo qui.",
+      "finishTitle": "Completa l'accesso",
+      "finishStepSignIn": "Accedi a {provider} nella nuova scheda.",
+      "finishStepCantConnect": "Alla fine quella scheda mostra un errore come «impossibile connettersi a 127.0.0.1» o «Impossibile raggiungere il sito». È normale: non è andato storto nulla.",
+      "finishStepCopy": "Copia l'indirizzo completo dalla barra degli indirizzi di quella scheda, torna a questa scheda e incollalo qui sotto.",
+      "finishPasteLabel": "Indirizzo dalla scheda di {provider}",
+      "finishPasteDescription": "È lungo e inizia con http://127.0.0.1. Incollalo tutto.",
+      "finishOpenLink": "Apri la pagina di accesso di {provider}",
+      "finishDone": "Accesso a {provider} effettuato."
     },
     "templateVariablesSection": "Variabili template",
     "templateVariablesClickToCopy": "clicca per copiare",
@@ -650,12 +670,16 @@
       "makeDefaultButton": "Imposta come predefinito",
       "nameLabel": "Nome",
       "protocolLabel": "Protocollo",
-      "protocolOpenaiOption": "Compatibile con OpenAI (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolOpenaiOption": "Compatibile con OpenAI (OpenAI, OpenRouter, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
       "protocolAnthropicOption": "Anthropic (API Messages)",
       "baseUrlLabel": "URL di base",
       "quickPresetsLabel": "Preimpostazioni rapide",
       "apiKeyLabel": "Chiave API",
       "modelsLabel": "Modelli",
+      "loadModels": "Carica modelli",
+      "pickModel": "Aggiungi un modello dal provider",
+      "noModelMatches": "Nessun modello corrispondente",
+      "loadModelsFailed": "Impossibile caricare i modelli.",
       "defaultModelLabel": "Modello predefinito",
       "testConnectionButton": "Prova connessione",
       "turnLimits": {
@@ -664,7 +688,40 @@
         "modelCallsLabel": "Chiamate al modello per turno",
         "toolCallsLabel": "Chiamate agli strumenti per turno",
         "serverDefault": "Predefinito del server"
-      }
+      },
+      "protocolResponsesOption": "OpenAI Responses (accesso ChatGPT)",
+      "signIn": {
+        "choicesLabel": "Oppure accedi invece di usare una chiave API",
+        "button": "Accedi con {provider}",
+        "activeDescription": "Questo provider accede con {provider}. La chiave API qui sopra non viene usata finché accedi in questo modo.",
+        "useApiKey": "Usa invece la chiave API",
+        "saveFirst": "Salva le modifiche, poi accedi a {provider} qui.",
+        "panelTitle": "Accesso a {provider}"
+      },
+      "add": {
+        "title": "Che tipo di provider?",
+        "signInTitle": "Accedi",
+        "signInDescription": "Usa il tuo account ChatGPT, OpenRouter o Hugging Face. Nessuna chiave API da copiare.",
+        "apiKeyTitle": "Usa una chiave API",
+        "apiKeyDescription": "Incolla una chiave di OpenAI, Anthropic, DeepSeek, Mistral e altri.",
+        "localTitle": "Eseguilo nella mia rete",
+        "localDescription": "Un server di modelli su un tuo computer: Ollama, LM Studio, llama.cpp o vLLM.",
+        "advancedTitle": "Avanzate (endpoint personalizzato)",
+        "advancedDescription": "Qualsiasi endpoint compatibile con OpenAI o Anthropic. Compili tu ogni impostazione.",
+        "signInPick": "Accedi con",
+        "apiKeyPick": "Quale servizio?",
+        "localPick": "Quale server?",
+        "back": "Indietro",
+        "cancel": "Annulla"
+      },
+      "simple": {
+        "advancedToggle": "Avanzate",
+        "addressLabel": "Indirizzo del server",
+        "addressDescription": "Dove è in ascolto il server di modelli. localhost indica questa bacheca; se il server gira su un altro computer, usa l'indirizzo di quel computer, ad esempio http://192.168.1.20:11434/v1.",
+        "modelsAfterSave": "Salva le modifiche per scegliere tra i modelli del provider."
+      },
+      "addModel": "Aggiungi un modello",
+      "refreshModels": "Aggiorna modelli"
     },
     "backup": {
       "cardTitle": "Backup e ripristino",
@@ -2383,6 +2440,14 @@
     "settingFailed": "Impossibile salvare l'impostazione",
     "on": "Attivo",
     "off": "Disattivo"
+  },
+  "modelCombobox": {
+    "placeholder": "Cerca o digita l'id di un modello",
+    "trigger": "Mostra modelli",
+    "list": "Modelli",
+    "empty": "Nessun modello corrispondente",
+    "typedId": "Usa questo id",
+    "showingFirst": "Primi {shown} di {total}. Digita per restringere."
   },
   "settingsRestoreNotice": {
     "title": "Impostazioni ripristinate a prima dell'aggiornamento",

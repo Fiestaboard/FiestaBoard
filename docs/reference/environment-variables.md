@@ -81,16 +81,16 @@ when these plugins were bundled -- the plugins themselves now install from the r
 
 ## Installable Plugin API Keys
 
-These variables belong to plugins you install from the [registry](/docs/plugins/overview), not to core FiestaBoard. Each plugin reads its own variables, so they only take effect once that plugin is installed. Configure them through the plugin's settings on the Integrations page, or set the variable if you prefer `.env`.
+These variables belong to plugins you install from the [registry](/plugins), not to core FiestaBoard. Each plugin reads its own variables, so they only take effect once that plugin is installed. Configure them through the plugin's settings on the Integrations page, or set the variable if you prefer `.env`.
 
 > Core `config_manager` does not read these -- setting one without the matching plugin installed has no effect.
 
 | Variable | Plugin | Description |
 |----------|--------|-------------|
-| `LASTFM_API_KEY` | [Last.fm](/docs/plugins/last-fm) | Last.fm API key |
-| `LASTFM_USERNAME` | [Last.fm](/docs/plugins/last-fm) | Last.fm username |
-| `WSDOT_API_ACCESS_CODE` | [WSDOT Ferries](/docs/plugins/wsdot) | WSDOT API access code |
-| `SPORTS_SCORES_API_KEY` | [Sports Scores](/docs/plugins/sports-scores) | TheSportsDB API key (optional) |
+| `LASTFM_API_KEY` | [Last.fm](/plugins/detail?id=last_fm) | Last.fm API key |
+| `LASTFM_USERNAME` | [Last.fm](/plugins/detail?id=last_fm) | Last.fm username |
+| `WSDOT_API_ACCESS_CODE` | [WSDOT Ferries](/plugins/detail?id=wsdot) | WSDOT API access code |
+| `SPORTS_SCORES_API_KEY` | [Sports Scores](/plugins/detail?id=sports_scores) | TheSportsDB API key (optional) |
 
 ## Guest WiFi
 

@@ -6,7 +6,7 @@
 import { getBasePath } from "../base-path";
 import { fetchApi } from "./core";
 
-export type OAuthFlow = "relay" | "device";
+export type OAuthFlow = "relay" | "device" | "key_exchange" | "plex_pin";
 
 /** A device-code sign-in in progress. */
 export interface OAuthDeviceStatus {
@@ -25,6 +25,8 @@ export interface OAuthDeviceStatus {
 export interface OAuthConnection {
   /** The plugin's key: `plugin_id`, or `plugin_id:label` for a named instance. */
   id: string;
+  /** Who the connection is for: a plugin, or one of FiestaBot's AI providers (`ai.<provider id>`). */
+  kind?: "plugin" | "ai";
   plugin_id: string;
   instance_label: string | null;
   plugin_name: string;
@@ -38,16 +40,30 @@ export interface OAuthConnection {
    * client ID. False when the plugin brings its own app: nothing to set up.
    */
   user_app: boolean;
+  /**
+   * Whether the plugin ships its own client ID, so sign-in works without the
+   * user's own app. With `user_app` too, their own app is an optional override.
+   */
+  shared_app: boolean;
   /** The plugin settings that hold the user's client ID and secret, when the plugin offers them. */
   client_id_setting: string | null;
   client_secret_setting: string | null;
   /** The provider's developer page, where a user creates their app. Empty when the plugin gives none. */
   app_setup_url: string;
   status: "connected" | "disconnected" | "reauthorization_required";
+  /** Why reconnecting is needed: `"rejected"` (the provider refused the token) or `"refresh_refused"`. */
+  status_reason?: string;
   scopes: string[];
   expires_at: number | null;
   connected_at: number | null;
   device: OAuthDeviceStatus | null;
+  /**
+   * The provider's redirect cannot reach this board (ChatGPT's loopback-only
+   * redirect): every sign-in ends with the user pasting the address it landed
+   * on. Known before the sign-in starts, so the provider can open in a new
+   * tab from the click itself.
+   */
+  paste_expected?: boolean;
 }
 
 export interface OAuthConnectionList {
@@ -62,6 +78,10 @@ export interface OAuthAuthorizationStart {
   authorization_url: string;
   /** device: show this code to the user. */
   device: OAuthDeviceStatus | null;
+  /** The sign-in will not come back on its own: show the paste box straight away. */
+  paste_expected?: boolean;
+  /** What to paste, when the provider needs explaining. */
+  paste_hint?: string;
 }
 
 /**
@@ -79,10 +99,20 @@ export function boardAddress(): string {
 export const oauthApi = {
   listOAuthConnections: () => fetchApi<OAuthConnectionList>("/oauth/connections"),
 
-  startOAuthConnection: (connectionId: string) =>
+  /** `headless`: sign in without a redirect back (key_exchange); the user pastes the code the provider shows. */
+  startOAuthConnection: (connectionId: string, options: { headless?: boolean } = {}) =>
     fetchApi<OAuthAuthorizationStart>(`/oauth/connections/${encodeURIComponent(connectionId)}/authorize`, {
       method: "POST",
-      body: JSON.stringify({ board_url: boardAddress() }),
+      body: JSON.stringify(
+        options.headless ? { board_url: boardAddress(), headless: true } : { board_url: boardAddress() },
+      ),
+    }),
+
+  /** Finish a sign-in from the address (or bare code) the provider showed, when it did not come back on its own. */
+  completeOAuthConnection: (connectionId: string, pasted: string) =>
+    fetchApi<OAuthConnection>(`/oauth/connections/${encodeURIComponent(connectionId)}/complete`, {
+      method: "POST",
+      body: JSON.stringify({ pasted }),
     }),
 
   disconnectOAuthConnection: (connectionId: string) =>

@@ -142,6 +142,7 @@ FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit,
 | [Airport Board](https://github.com/Fiestaboard/fiestaboard-plugin--airport-board) | Live flights near a configurable airport | No |
 | [Allergy & Health](https://github.com/Fiestaboard/fiestaboard-plugin--health) | Allergy levels and health risk indicators | No |
 | [Aurora Forecast](https://github.com/Fiestaboard/fiestaboard-plugin--aurora-forecast) | Geomagnetic Kp index and aurora visibility | No |
+| [Bluesky Stats](https://github.com/Fiestaboard/fiestaboard-plugin--bluesky-stats) | Show any Bluesky account's followers, following and post counts, with today's change. No sign-in or API key needed | No |
 | [Calendar Subscription](https://github.com/Fiestaboard/fiestaboard-plugin--calendar-sub) | Upcoming events from any .ics URL | No |
 | [Countdown](./plugins/countdown/README.md) | Time remaining until an event | No |
 | [Currency Exchange](https://github.com/Fiestaboard/fiestaboard-plugin--currency) | Live exchange rates (Frankfurter/ECB) | No |
@@ -150,22 +151,28 @@ FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit,
 | [Disney Park Queue Times](https://github.com/Fiestaboard/fiestaboard-plugin--disney-parks-times) | Wait times for Disney rides | No |
 | [Earthquake Monitor](https://github.com/Fiestaboard/fiestaboard-plugin--earthquake) | Recent USGS earthquake data | No |
 | [Element of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--element-of-day) | Periodic table element of the day | No |
+| [Facebook Page](https://github.com/Fiestaboard/fiestaboard-plugin--facebook-page) | Show a Facebook Page's followers and likes, with today's change. Paste a Page access token, or sign in with Facebook through your own free Meta app | Own Meta app |
 | [Generative AI Art](https://github.com/Fiestaboard/fiestaboard-plugin--generative-ai-art) | LLM-generated abstract art using the board's 8-color palette | Yes |
 | [Generative Dashboard](https://github.com/Fiestaboard/fiestaboard-plugin--generative-dashboard) | AI-curated dashboard from your other plugins' data | Yes |
 | [Generic Data](https://github.com/Fiestaboard/fiestaboard-plugin--generic-data) | Custom data from any JSON/XML URL | No |
+| [GitHub](https://github.com/Fiestaboard/fiestaboard-plugin--github) | Pull requests waiting for your review, your own open pull requests, and the CI status and stars of a repository. Signs in to GitHub with a code, no password or token to paste | Sign-in |
+| [Google Calendar & Tasks](https://github.com/Fiestaboard/fiestaboard-plugin--google-calendar) | Show today's agenda, what's next and what's happening now from Google Calendar, plus your Google Tasks due today. Signs in to your Google account through your own Google Cloud app | Own app (free) |
 | [Guest WiFi](https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi) | WiFi credentials for guests | No |
 | [Hacker News](https://github.com/Fiestaboard/fiestaboard-plugin--hacker-news) | Top Hacker News story title and score | No |
 | [Home Assistant](https://github.com/Fiestaboard/fiestaboard-plugin--home-assistant) | Smart home status (doors, locks, garage) | Yes (self-hosted) |
+| [Instagram](https://github.com/Fiestaboard/fiestaboard-plugin--instagram) | Show an Instagram professional account's followers, following and posts, with today's change. Paste a long-lived access token or sign in through your own Meta app; the plugin renews the token for you | Own Meta app |
 | [ISS Tracker](https://github.com/Fiestaboard/fiestaboard-plugin--iss-tracker) | Real-time ISS position and altitude | No |
 | [Last.fm Now Playing](https://github.com/Fiestaboard/fiestaboard-plugin--last-fm) | Currently playing music | Yes (free) |
 | [Lightning Alerts](https://github.com/Fiestaboard/fiestaboard-plugin--lightning) | Active NWS weather alerts by US state | No |
 | [Lyft Bike Share](https://github.com/Fiestaboard/fiestaboard-plugin--lyft-bike-share) | Lyft bike share availability — Bay Wheels, CitiBike, Divvy, and more | No |
+| [Mastodon Stats](https://github.com/Fiestaboard/fiestaboard-plugin--mastodon-stats) | Show follower, following and post counts for any Mastodon account, with an optional change since the start of the day. No sign-in needed | No |
 | [Moon Phase](https://github.com/Fiestaboard/fiestaboard-plugin--moon-phase) | Current lunar phase and illumination | No |
 | [Muni Transit](https://github.com/Fiestaboard/fiestaboard-plugin--muni) | Real-time SF Muni arrivals | Yes (free) |
 | [National Day](https://github.com/Fiestaboard/fiestaboard-plugin--national-day) | Today's national days and observances | No |
 | [Nearby Aircraft](https://github.com/Fiestaboard/fiestaboard-plugin--nearby-aircraft) | Real-time aircraft tracking | Optional |
 | [Network Speed](https://github.com/Fiestaboard/fiestaboard-plugin--network-speed) | Internet download/upload speed | No |
 | [On This Day](https://github.com/Fiestaboard/fiestaboard-plugin--on-this-day) | Historical event from today's date | No |
+| [Oura](https://github.com/Fiestaboard/fiestaboard-plugin--oura) | Show your Oura Ring's daily Sleep, Readiness and Activity scores, last night's sleep and resting heart rate, and today's steps. Signs in to your Oura account through your own free Oura API application | Own app (free) |
 | [Pet Facts](https://github.com/Fiestaboard/fiestaboard-plugin--pet-facts) | Random cat or dog fact | No |
 | [Pi-hole Stats](https://github.com/Fiestaboard/fiestaboard-plugin--pihole) | DNS query stats from local Pi-hole | No |
 | [Plex Now Playing](https://github.com/Fiestaboard/fiestaboard-plugin--plex) | Movies, TV episodes and music playing on your Plex server | Yes (Plex token) |
@@ -183,10 +190,15 @@ FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit,
 | [Star Trek Quotes](https://github.com/Fiestaboard/fiestaboard-plugin--star-trek-quotes) | Quotes from TNG, Voyager, DS9 | No |
 | [Stardate](https://github.com/Fiestaboard/fiestaboard-plugin--stardate) | Current TNG-era stardate | No |
 | [Stocks](https://github.com/Fiestaboard/fiestaboard-plugin--stocks) | Stock prices with color indicators | Optional |
+| [Strava](https://github.com/Fiestaboard/fiestaboard-plugin--strava) | Show your latest Strava activity (distance, time, pace) and your recent and year-to-date totals. Signs in to your Strava account through your own free Strava API app | Own app (free) |
 | [Sun Art](https://github.com/Fiestaboard/fiestaboard-plugin--sun-art) | Art pattern that follows the sun | No |
 | [Surf Conditions](https://github.com/Fiestaboard/fiestaboard-plugin--surf) | Wave height and quality ratings | No |
+| [Threads](https://github.com/Fiestaboard/fiestaboard-plugin--threads) | Show your Threads followers, plus profile views and likes from the last two days. Signs in through your own free Meta app, or uses a long-lived access token you paste | Own Meta app |
 | [Tide Times](https://github.com/Fiestaboard/fiestaboard-plugin--tide-times) | NOAA tide predictions by station | No |
+| [TikTok](https://github.com/Fiestaboard/fiestaboard-plugin--tiktok) | Show your TikTok follower, following, like and video counts. Signs in to your TikTok account through your own free TikTok developer app | Own app (free) |
+| [Todoist](https://github.com/Fiestaboard/fiestaboard-plugin--todoist) | Show what's on your Todoist plate: how many tasks are due today, how many are overdue, and the next task to do. Sign in with Todoist, or paste a personal API token | Sign-in |
 | [Traffic](https://github.com/Fiestaboard/fiestaboard-plugin--traffic) | Travel time with live traffic | Yes (free tier) |
+| [Twitch](https://github.com/Fiestaboard/fiestaboard-plugin--twitch) | See which channels you follow are live on Twitch, with game, viewers and uptime, plus a channel's follower count. Signs in to your Twitch account with a short code | Sign-in |
 | [UV Index](https://github.com/Fiestaboard/fiestaboard-plugin--uv-index) | UV index and sun protection advice | No |
 | [Visual Clock](https://github.com/Fiestaboard/fiestaboard-plugin--visual-clock) | Large pixel-art style clock | No |
 | [Volcano Activity](https://github.com/Fiestaboard/fiestaboard-plugin--volcano) | Active volcanoes from Smithsonian GVP | No |
@@ -197,6 +209,7 @@ FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit,
 | [Word Clock](https://github.com/Fiestaboard/fiestaboard-plugin--word-clock) | Time spelled out in words, QLOCKTWO style | No |
 | [Word of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--word-of-day) | Word, pronunciation, and definition | No |
 | [WSDOT Ferries](https://github.com/Fiestaboard/fiestaboard-plugin--wsdot) | WA State ferry schedules and alerts | Yes (free) |
+| [YouTube Stats](https://github.com/Fiestaboard/fiestaboard-plugin--youtube-stats) | Show a YouTube channel's subscribers, total views and video count. Uses your own free YouTube Data API key; no sign-in needed | Yes (free) |
 
 ### Transition Plugins (Beta, Deprecated)
 
@@ -426,7 +439,7 @@ Full documentation is at **[fiestaboard.app](https://fiestaboard.app)**, includi
 
 - **[Beginner's Guide](https://fiestaboard.app/docs/setup/beginners-guide)** - Step-by-step for non-technical users
 - **[Your First 10 Minutes](https://fiestaboard.app/docs/setup/first-10-minutes)** - What to do right after setup
-- **[Plugin Configuration](https://fiestaboard.app/docs/plugins/configuration)** - Enable and configure data sources
+- **[Plugin Directory](https://fiestaboard.app/plugins)** - Browse every plugin and its setup guide
 - **[Schedule Mode](https://fiestaboard.app/docs/features/schedule)** - Automate your display
 - **[Raspberry Pi Deployment](https://fiestaboard.app/docs/deployment/raspberry-pi)** - Always-on setup
 - **[Plugin Development Guide](https://fiestaboard.app/docs/development/plugin-guide)** - Build your own plugins

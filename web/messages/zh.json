@@ -91,7 +91,7 @@
     "dark": "深色",
     "system": "跟随系统",
     "devSuffix": "开发版本",
-    "updateAvailable": "有可用更新：{version}",
+    "updateAvailable": "有可用更新",
     "updateTo": "更新到 {version}",
     "about": "关于 FiestaBoard",
     "signOut": "退出登录"
@@ -467,6 +467,8 @@
       "setupOpenGuide": "分步指南",
       "setupStepRedirect": "将此重定向 URI 添加到应用",
       "setupStepDetails": "在此填写应用信息",
+      "ownAppToggle": "使用你自己的应用（可选）",
+      "ownAppDescription": "无需此项也能登录。如需改用你自己的 {provider} 应用登录，请创建一个应用并在此填写其信息。",
       "clientIdLabel": "客户端 ID",
       "clientSecretLabel": "客户端密钥",
       "showSecret": "显示客户端密钥",
@@ -485,7 +487,25 @@
         "access_denied": "登录已被拒绝，因此未连接任何内容。",
         "exchange_failed": "提供方拒绝了此次登录。请检查插件设置中的客户端 ID 和密钥，然后重新连接。",
         "provider_error": "提供方报告了一个问题。请尝试重新连接。"
-      }
+      },
+      "rejectedDescription": "{provider} 已不再接受此登录。请重新登录。",
+      "approvalWaiting": "请在 {provider} 标签页中批准 FiestaBoard。此处会自动更新。",
+      "startAgainButton": "重新开始",
+      "headlessButton": "不经浏览器跳转登录",
+      "pasteToggle": "登录没有返回？粘贴地址或代码",
+      "pasteLabel": "地址或代码",
+      "pasteDescription": "复制登录停下的标签页中的完整地址，或服务商显示的代码。",
+      "pasteSubmit": "完成登录",
+      "pasteOpenAgain": "重新打开登录页面",
+      "newTabHint": "{provider} 会在新标签页中打开。完成后，该标签页会停在一个无法加载的页面上。这是正常的：把它的地址复制回这里即可。",
+      "finishTitle": "完成登录",
+      "finishStepSignIn": "在新标签页中登录 {provider}。",
+      "finishStepCantConnect": "完成后，该标签页会显示类似“无法连接到 127.0.0.1”或“无法访问此网站”的错误。这是正常的，并没有出错。",
+      "finishStepCopy": "从该标签页的地址栏复制完整地址，回到此标签页，粘贴到下方。",
+      "finishPasteLabel": "{provider} 标签页中的地址",
+      "finishPasteDescription": "地址很长，以 http://127.0.0.1 开头。请完整粘贴。",
+      "finishOpenLink": "打开 {provider} 登录页面",
+      "finishDone": "已登录 {provider}。"
     },
     "templateVariablesSection": "模板变量",
     "templateVariablesClickToCopy": "点击复制",
@@ -650,12 +670,16 @@
       "makeDefaultButton": "设为默认",
       "nameLabel": "名称",
       "protocolLabel": "协议",
-      "protocolOpenaiOption": "兼容 OpenAI（OpenAI、OpenRouter、Groq、DeepSeek、Mistral、Together、Fireworks、Ollama、LM Studio、vLLM、…）",
+      "protocolOpenaiOption": "兼容 OpenAI（OpenAI、OpenRouter、DeepSeek、Mistral、Together、Fireworks、Ollama、LM Studio、vLLM、…）",
       "protocolAnthropicOption": "Anthropic (Messages API)",
       "baseUrlLabel": "基础 URL",
       "quickPresetsLabel": "快速预设",
       "apiKeyLabel": "API 密钥",
       "modelsLabel": "模型",
+      "loadModels": "加载模型",
+      "pickModel": "从提供商添加模型",
+      "noModelMatches": "没有匹配的模型",
+      "loadModelsFailed": "无法加载模型。",
       "defaultModelLabel": "默认模型",
       "testConnectionButton": "测试连接",
       "turnLimits": {
@@ -664,7 +688,40 @@
         "modelCallsLabel": "每轮模型调用次数",
         "toolCallsLabel": "每轮工具调用次数",
         "serverDefault": "服务器默认值"
-      }
+      },
+      "protocolResponsesOption": "OpenAI Responses（ChatGPT 登录）",
+      "signIn": {
+        "choicesLabel": "或者登录，而不是使用 API 密钥",
+        "button": "使用 {provider} 登录",
+        "activeDescription": "此服务商通过 {provider} 登录。以这种方式登录时，不会使用上面的 API 密钥。",
+        "useApiKey": "改用 API 密钥",
+        "saveFirst": "保存更改后，在此登录 {provider}。",
+        "panelTitle": "{provider} 登录"
+      },
+      "add": {
+        "title": "哪种提供方？",
+        "signInTitle": "登录",
+        "signInDescription": "使用你的 ChatGPT、OpenRouter 或 Hugging Face 账户。无需复制 API 密钥。",
+        "apiKeyTitle": "使用 API 密钥",
+        "apiKeyDescription": "粘贴来自 OpenAI、Anthropic、DeepSeek、Mistral 等的密钥。",
+        "localTitle": "在我的网络中运行",
+        "localDescription": "你自己电脑上的模型服务器：Ollama、LM Studio、llama.cpp 或 vLLM。",
+        "advancedTitle": "高级（自定义端点）",
+        "advancedDescription": "任何兼容 OpenAI 或 Anthropic 的端点。所有设置都由你填写。",
+        "signInPick": "登录方式",
+        "apiKeyPick": "哪项服务？",
+        "localPick": "哪台服务器？",
+        "back": "返回",
+        "cancel": "取消"
+      },
+      "simple": {
+        "advancedToggle": "高级",
+        "addressLabel": "服务器地址",
+        "addressDescription": "模型服务器监听的位置。localhost 指这块面板本身；如果服务器运行在另一台电脑上，请使用那台电脑的地址，例如 http://192.168.1.20:11434/v1。",
+        "modelsAfterSave": "保存更改后即可从提供方的模型中选择。"
+      },
+      "addModel": "添加模型",
+      "refreshModels": "刷新模型"
     },
     "backup": {
       "cardTitle": "备份与恢复",
@@ -2383,6 +2440,14 @@
     "settingFailed": "无法保存设置",
     "on": "开",
     "off": "关"
+  },
+  "modelCombobox": {
+    "placeholder": "搜索或输入模型 ID",
+    "trigger": "显示模型",
+    "list": "模型",
+    "empty": "没有匹配的模型",
+    "typedId": "使用此 ID",
+    "showingFirst": "显示 {total} 个中的前 {shown} 个。输入以缩小范围。"
   },
   "settingsRestoreNotice": {
     "title": "已恢复为升级前的设置",

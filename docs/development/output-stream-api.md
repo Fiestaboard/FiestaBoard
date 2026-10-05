@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 description: "Read what a FiestaBoard board shows from any device in any language: the panel config and frame endpoints, character codes, the message string, rich cells with colors and icons, polling cadence, and a minimal viewer."
 keywords: [FiestaBoard frame API, FiestaPanel API, board frames, panel frame endpoint, TV viewer, ESP32 display, rich cells, polling, character codes]
 ---

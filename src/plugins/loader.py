@@ -613,7 +613,8 @@ class PluginLoader:
             # and must keep working, but the mismatch is invisible until a
             # user opens the settings dialog and the picker comes up empty,
             # so surface it through GET /plugins/errors instead.
-            options_ids = collect_options_ids(manifest.settings_schema)
+            # ``ai_providers`` is answered by PluginBase.get_options itself.
+            options_ids = collect_options_ids(manifest.settings_schema) - {"ai_providers"}
             if (
                 options_ids
                 and isinstance(plugin_instance, PluginBase)

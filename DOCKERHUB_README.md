@@ -105,7 +105,7 @@ Full documentation at **[fiestaboard.app](https://fiestaboard.app)**:
 
 - [Beginner's Guide](https://fiestaboard.app/docs/setup/beginners-guide) - Step-by-step for new users
 - [Your First 10 Minutes](https://fiestaboard.app/docs/setup/first-10-minutes) - What to do after setup
-- [Plugin Configuration](https://fiestaboard.app/docs/plugins/configuration) - Enable and configure data sources
+- [Plugin Directory](https://fiestaboard.app/plugins) - Browse and enable data sources
 - [Raspberry Pi Deployment](https://fiestaboard.app/docs/deployment/raspberry-pi) - Always-on setup
 - [Troubleshooting](https://fiestaboard.app/docs/troubleshooting) - Common issues and solutions
 

@@ -122,6 +122,19 @@ class AiTestRequest(BaseModel):
     provider: dict[str, Any] | None = None
 
 
+class AiModel(BaseModel):
+    """One model a provider offers."""
+
+    id: str
+    name: str
+
+
+class AiModelsResponse(BaseModel):
+    """The models a configured provider offers, as it reported them."""
+
+    models: list[AiModel]
+
+
 class AiTestResponse(BaseModel):
     """Verdict of a provider smoke test.
 

@@ -51,6 +51,9 @@ export const SETTING_QUERY_KEYS: Record<SettingCategory, Keys> = {
   location: [["location-settings"], ["settings", "location"], ["all-settings"]],
   silence_schedule: [["all-settings"], ["status"]],
   active_page: [["activePage"], ["status"], ["board-current-message"]],
+  // FiestaBot's own provider and model pickers read these: a provider it
+  // adds must show up in them now, not when the cache ages out.
+  ai: [["ai-settings"], ["ai-provider-models"]],
 };
 
 /**

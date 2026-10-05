@@ -1,5 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +15,19 @@ function Wrapper({ children }: { children: React.ReactNode }) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+}
+
+/** Type a model id into the "Add a model" picker and commit it, as a user without a model list would. */
+async function addModel(user: ReturnType<typeof userEvent.setup>, id: string) {
+  await user.type(screen.getByRole("combobox", { name: "Add a model" }), id);
+  const escaped = id.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  await user.click(await screen.findByRole("option", { name: new RegExp(escaped) }));
+}
+
+/** Add provider, then the "Advanced (custom endpoint)" kind: today's full form. */
+async function addAdvancedProvider(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: /add provider/i }));
+  await user.click(screen.getByRole("button", { name: "Advanced (custom endpoint)" }));
 }
 
 describe("AiSettings", () => {
@@ -33,17 +46,17 @@ describe("AiSettings", () => {
     expect(await screen.findByText(/no providers configured yet/i)).toBeInTheDocument();
   });
 
-  it("can add a new provider row and reveal the model tag input", async () => {
+  it("can add a custom-endpoint provider row and reveal the model tag input", async () => {
     render(<AiSettings />, { wrapper: Wrapper });
     const user = userEvent.setup();
 
     await screen.findByText(/no providers configured yet/i);
-    await user.click(screen.getByRole("button", { name: /add provider/i }));
+    await addAdvancedProvider(user);
 
     expect(screen.getByLabelText(/^Name$/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Base URL/)).toBeInTheDocument();
     expect(screen.getByLabelText(/API Key/)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("openai/gpt-4o-mini")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Add a model" })).toBeInTheDocument();
   });
 
   it("preserves the api_key mask when re-saving without changes", async () => {
@@ -112,11 +125,9 @@ describe("AiSettings", () => {
 
     // Add an empty provider — it opens expanded so the form is visible.
     await screen.findByText(/no providers configured yet/i);
-    await user.click(screen.getByRole("button", { name: /add provider/i }));
+    await addAdvancedProvider(user);
 
-    const modelInput = screen.getByPlaceholderText("openai/gpt-4o-mini");
-    await user.type(modelInput, "gpt-4o-mini");
-    await user.keyboard("{Enter}");
+    await addModel(user, "gpt-4o-mini");
 
     // The model badge appears; check via the remove-button label to avoid
     // ambiguous multi-element matches on the badge text node.
@@ -162,7 +173,7 @@ describe("AiSettings", () => {
 
     // Open a new provider row (starts expanded).
     await screen.findByText(/no providers configured yet/i);
-    await user.click(screen.getByRole("button", { name: /add provider/i }));
+    await addAdvancedProvider(user);
 
     // Use the exact label text to avoid matching the Show/Hide button's
     // aria-label which also contains "api key".
@@ -182,7 +193,7 @@ describe("AiSettings", () => {
 
     // Add a provider to create a draft.
     await screen.findByText(/no providers configured yet/i);
-    await user.click(screen.getByRole("button", { name: /add provider/i }));
+    await addAdvancedProvider(user);
 
     // Save/Discard buttons should appear.
     expect(screen.getByRole("button", { name: /discard/i })).toBeInTheDocument();
@@ -449,6 +460,751 @@ describe("AiSettings", () => {
       // Explicitly null, not absent: the config manager clears the override
       // on a null and ignores a missing key.
       expect(receivedBodies[0].max_model_calls).toBeNull();
+    });
+  });
+
+  describe("signing in instead of pasting an API key", () => {
+    const SAVED = {
+      id: "p1",
+      name: "Test",
+      base_url: "https://example.test/v1",
+      api_key: "***",
+      models: ["test-model"],
+      default_model: "test-model",
+    };
+
+    function serveSettings(...providers: Record<string, unknown>[]) {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({ enabled: true, providers, default_provider_id: "p1" }),
+        ),
+      );
+    }
+
+    function captureSaves(): Record<string, unknown>[] {
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          bodies.push(body);
+          return HttpResponse.json(body);
+        }),
+      );
+      return bodies;
+    }
+
+    it("offers OpenRouter, Hugging Face and ChatGPT sign-in beside the API key field, which stays", async () => {
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await screen.findByText(/no providers configured yet/i);
+      await addAdvancedProvider(user);
+
+      expect(screen.getByLabelText(/API Key/)).toBeInTheDocument();
+      const choices = screen.getByRole("group", { name: "Or sign in instead of using an API key" });
+      expect(within(choices).getByRole("button", { name: "Sign in with OpenRouter" })).toBeInTheDocument();
+      expect(within(choices).getByRole("button", { name: "Sign in with Hugging Face" })).toBeInTheDocument();
+      expect(within(choices).getByRole("button", { name: "Sign in with ChatGPT" })).toBeInTheDocument();
+    });
+
+    it("choosing a sign-in saves its preset and the matching endpoint, and leaves the API key alone", async () => {
+      serveSettings(SAVED);
+      const bodies = captureSaves();
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Sign in with Hugging Face" }));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider.sign_in).toEqual({ preset: "huggingface" });
+      expect(provider.base_url).toBe("https://router.huggingface.co/v1");
+      expect(provider.protocol).toBe("openai");
+      expect(provider.api_key).toBe("***");
+      expect(provider.name).toBe("Test");
+    });
+
+    it("ChatGPT sign-in uses the Responses protocol", async () => {
+      serveSettings(SAVED);
+      const bodies = captureSaves();
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Sign in with ChatGPT" }));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider.sign_in).toEqual({ preset: "openai_chatgpt" });
+      expect(provider.base_url).toBe("https://api.openai.com/v1");
+      expect(provider.protocol).toBe("openai_responses");
+    });
+
+    it("asks to save before signing in, since the board only knows saved providers", async () => {
+      serveSettings(SAVED);
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Sign in with OpenRouter" }));
+      expect(screen.getByText("Save changes, then sign in to OpenRouter here.")).toBeInTheDocument();
+      expect(screen.queryByTestId("oauth-connection")).not.toBeInTheDocument();
+    });
+
+    it("shows the account connection of a saved signed-in provider", async () => {
+      serveSettings({ ...SAVED, sign_in: { preset: "openrouter" } });
+      server.use(
+        http.get(`${API_BASE}/oauth/connections`, () =>
+          HttpResponse.json({
+            redirect_uri: "https://fiestaboard.app/auth/oauth/redirect",
+            connections: [
+              {
+                id: "ai.p1",
+                kind: "ai",
+                plugin_id: "ai",
+                instance_label: null,
+                plugin_name: "Test (FiestaBot)",
+                provider_name: "OpenRouter",
+                flows: ["key_exchange"],
+                configured: true,
+                user_app: false,
+                shared_app: false,
+                client_id_setting: null,
+                client_secret_setting: null,
+                app_setup_url: "",
+                status: "reauthorization_required",
+                status_reason: "rejected",
+                scopes: [],
+                expires_at: null,
+                connected_at: null,
+                device: null,
+              },
+            ],
+          }),
+        ),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+
+      const panel = await screen.findByTestId("oauth-connection");
+      expect(within(panel).getByText("Reconnect needed")).toBeInTheDocument();
+      expect(within(panel).getByText("OpenRouter stopped accepting the sign-in. Sign in again.")).toBeInTheDocument();
+      // The key field stays, under Advanced, and says it is not used while sign-in is on.
+      await user.click(screen.getByRole("button", { name: "Advanced" }));
+      expect(screen.getByLabelText(/API Key/)).toBeInTheDocument();
+      expect(screen.getByText(/not used while you sign in/)).toBeInTheDocument();
+    });
+
+    it("can go back to the API key, which drops the sign-in on save", async () => {
+      serveSettings({ ...SAVED, sign_in: { preset: "openrouter" } });
+      const bodies = captureSaves();
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Advanced" }));
+      await user.click(screen.getByRole("button", { name: "Use the API key instead" }));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider).not.toHaveProperty("sign_in");
+      expect(provider.api_key).toBe("***");
+    });
+
+    it("an API-key provider saves exactly as before, with no sign_in", async () => {
+      serveSettings(SAVED);
+      const bodies = captureSaves();
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      const name = screen.getByLabelText(/^Name$/);
+      await user.clear(name);
+      await user.type(name, "Renamed");
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider).toEqual({ ...SAVED, name: "Renamed" });
+    });
+  });
+
+  describe("adding a provider starts by asking what kind", () => {
+    function captureSaves(): Record<string, unknown>[] {
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          bodies.push(body);
+          return HttpResponse.json({ enabled: false, default_provider_id: null, ...body });
+        }),
+      );
+      return bodies;
+    }
+
+    async function start(user: ReturnType<typeof userEvent.setup>) {
+      render(<AiSettings />, { wrapper: Wrapper });
+      await screen.findByText(/no providers configured yet/i);
+      await user.click(screen.getByRole("button", { name: /add provider/i }));
+    }
+
+    it("offers four kinds and no form fields yet", async () => {
+      const user = userEvent.setup();
+      await start(user);
+
+      const kinds = screen.getByRole("group", { name: "What kind of provider?" });
+      for (const name of ["Sign in", "Use an API key", "Run it on my network", "Advanced (custom endpoint)"]) {
+        expect(within(kinds).getByRole("button", { name })).toBeInTheDocument();
+      }
+      expect(screen.queryByLabelText(/^Name$/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Base URL/)).not.toBeInTheDocument();
+      // Nothing is added until a kind is chosen.
+      expect(screen.queryByRole("button", { name: /save changes/i })).not.toBeInTheDocument();
+    });
+
+    it("goes back to the kinds, and can be cancelled", async () => {
+      const user = userEvent.setup();
+      await start(user);
+      await user.click(screen.getByRole("button", { name: "Use an API key" }));
+      expect(screen.getByRole("group", { name: "Which service?" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Back" }));
+      expect(screen.getByRole("group", { name: "What kind of provider?" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(screen.queryByRole("group", { name: "What kind of provider?" })).not.toBeInTheDocument();
+      expect(screen.getByText(/no providers configured yet/i)).toBeInTheDocument();
+    });
+
+    it("Sign in: saves the provider with its sign-in at once, then shows only the sign-in and the models", async () => {
+      const bodies = captureSaves();
+      server.use(
+        http.get(`${API_BASE}/oauth/connections`, () => {
+          const saved = (bodies.at(-1)?.providers ?? []) as Array<{ id: string }>;
+          return HttpResponse.json({
+            redirect_uri: "https://fiestaboard.app/auth/oauth/redirect",
+            connections: saved.map((p) => ({
+              id: `ai.${p.id}`,
+              kind: "ai",
+              plugin_id: "ai",
+              instance_label: null,
+              plugin_name: "ChatGPT (FiestaBot)",
+              provider_name: "ChatGPT",
+              flows: ["relay"],
+              configured: true,
+              user_app: false,
+              shared_app: true,
+              client_id_setting: null,
+              client_secret_setting: null,
+              app_setup_url: "",
+              status: "disconnected",
+              scopes: [],
+              expires_at: null,
+              connected_at: null,
+              device: null,
+              paste_expected: true,
+            })),
+          });
+        }),
+      );
+      const user = userEvent.setup();
+      await start(user);
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+      const services = screen.getByRole("group", { name: "Sign in with" });
+      expect(within(services).getByRole("button", { name: "OpenRouter" })).toBeInTheDocument();
+      expect(within(services).getByRole("button", { name: "Hugging Face" })).toBeInTheDocument();
+      await user.click(within(services).getByRole("button", { name: "ChatGPT" }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider).toMatchObject({
+        name: "ChatGPT",
+        sign_in: { preset: "openai_chatgpt" },
+        base_url: "https://api.openai.com/v1",
+        protocol: "openai_responses",
+        models: [],
+      });
+      expect(bodies[0].default_provider_id).toBe(provider.id);
+
+      const panel = await screen.findByTestId("oauth-connection");
+      expect(within(panel).getByRole("button", { name: "Sign in with ChatGPT" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Load models" })).toBeInTheDocument();
+      expect(screen.queryByLabelText(/^Name$/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Base URL/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
+      // Already saved: nothing waits on Save changes.
+      expect(screen.queryByRole("button", { name: /save changes/i })).not.toBeInTheDocument();
+    });
+
+    it("Sign in > ChatGPT: the finish step survives a refetch on returning to the tab, and the pasted address signs in", async () => {
+      const AUTHORIZE_URL = "https://auth.example.com/oauth/authorize?client_id=test_client";
+      const LANDED = "http://127.0.0.1:1455/auth/callback?code=test_code&state=test_state";
+      const bodies = captureSaves();
+      let connectedAt: number | null = null;
+      let settingsReads = 0;
+      const completes: { id: unknown; body: unknown }[] = [];
+      const savedProviders = () => (bodies.at(-1)?.providers ?? []) as Array<{ id: string }>;
+      const connection = (id: string) => ({
+        id: `ai.${id}`,
+        kind: "ai",
+        plugin_id: "ai",
+        instance_label: null,
+        plugin_name: "ChatGPT (FiestaBot)",
+        provider_name: "ChatGPT",
+        flows: ["relay"],
+        configured: true,
+        user_app: false,
+        shared_app: true,
+        client_id_setting: null,
+        client_secret_setting: null,
+        app_setup_url: "",
+        status: connectedAt ? "connected" : "disconnected",
+        scopes: [],
+        expires_at: null,
+        connected_at: connectedAt,
+        device: null,
+        paste_expected: true,
+      });
+      server.use(
+        // As the board does: what was saved is what a refetch reads back.
+        http.get(`${API_BASE}/settings/ai`, () => {
+          settingsReads += 1;
+          return HttpResponse.json({ enabled: false, default_provider_id: null, providers: [], ...bodies.at(-1) });
+        }),
+        http.get(`${API_BASE}/oauth/connections`, () =>
+          HttpResponse.json({
+            redirect_uri: "https://fiestaboard.app/auth/oauth/redirect",
+            connections: savedProviders().map((p) => connection(p.id)),
+          }),
+        ),
+        http.post(`${API_BASE}/oauth/connections/:id/authorize`, () =>
+          HttpResponse.json({
+            flow: "relay",
+            device: null,
+            authorization_url: AUTHORIZE_URL,
+            paste_expected: true,
+            paste_hint: "",
+          }),
+        ),
+        http.post(`${API_BASE}/oauth/connections/:id/complete`, async ({ params, request }) => {
+          completes.push({ id: params.id, body: await request.json() });
+          connectedAt = 1_900_000_000;
+          return HttpResponse.json(connection(savedProviders()[0].id));
+        }),
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, () => HttpResponse.json({ models: [] })),
+      );
+      const open = vi.fn();
+      vi.stubGlobal("open", open);
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      });
+      const user = userEvent.setup();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <AiSettings />
+        </QueryClientProvider>,
+      );
+      await screen.findByText(/no providers configured yet/i);
+      await user.click(screen.getByRole("button", { name: /add provider/i }));
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+      await user.click(
+        within(screen.getByRole("group", { name: "Sign in with" })).getByRole("button", { name: "ChatGPT" }),
+      );
+      const panel = await screen.findByTestId("oauth-connection");
+      await user.click(within(panel).getByRole("button", { name: "Sign in with ChatGPT" }));
+
+      const step = await screen.findByRole("group", { name: "Finish signing in" });
+      expect(open).not.toHaveBeenCalled();
+      expect(within(step).getByRole("link", { name: /Open the ChatGPT sign-in page/ })).toHaveAttribute(
+        "href",
+        AUTHORIZE_URL,
+      );
+
+      // The user leaves for ChatGPT and comes back: every stale query
+      // refetches, the providers included.
+      const readsBefore = settingsReads;
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+      await waitFor(() => expect(settingsReads).toBeGreaterThan(readsBefore));
+      focusManager.setFocused(undefined);
+
+      const field = await screen.findByLabelText("Address from the ChatGPT tab");
+      await user.type(field, LANDED);
+      await user.click(screen.getByRole("button", { name: "Finish sign-in" }));
+
+      const id = savedProviders()[0].id;
+      await waitFor(() => expect(completes).toEqual([{ id: `ai.${id}`, body: { pasted: LANDED } }]));
+      expect(await screen.findByText("Signed in to ChatGPT.")).toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Finish signing in" })).not.toBeInTheDocument();
+      vi.unstubAllGlobals();
+    });
+
+    it("Use an API key: asks only for the key and the model", async () => {
+      const bodies = captureSaves();
+      const user = userEvent.setup();
+      await start(user);
+      await user.click(screen.getByRole("button", { name: "Use an API key" }));
+      await user.click(
+        within(screen.getByRole("group", { name: "Which service?" })).getByRole("button", { name: "Anthropic" }),
+      );
+
+      expect(screen.queryByLabelText(/^Name$/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Base URL/)).not.toBeInTheDocument();
+      await user.type(screen.getByLabelText("API Key"), "test_key_123");
+      await addModel(user, "claude-test");
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider).toMatchObject({
+        name: "Anthropic",
+        base_url: "https://api.anthropic.com/v1",
+        protocol: "anthropic",
+        api_key: "test_key_123",
+        models: ["claude-test"],
+        default_model: "claude-test",
+      });
+      expect(provider).not.toHaveProperty("sign_in");
+    });
+
+    it("Run it on my network: the server address is filled in and can be changed", async () => {
+      const bodies = captureSaves();
+      const user = userEvent.setup();
+      await start(user);
+      await user.click(screen.getByRole("button", { name: "Run it on my network" }));
+      await user.click(
+        within(screen.getByRole("group", { name: "Which server?" })).getByRole("button", { name: "Ollama" }),
+      );
+
+      const address = screen.getByLabelText("Server address");
+      expect(address).toHaveValue("http://localhost:11434/v1");
+      expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
+      await user.clear(address);
+      await user.type(address, "http://192.168.1.20:11434/v1");
+      await addModel(user, "llama-test");
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider).toMatchObject({
+        name: "Ollama",
+        base_url: "http://192.168.1.20:11434/v1",
+        protocol: "openai",
+        models: ["llama-test"],
+      });
+    });
+
+    it("Advanced: today's full form", async () => {
+      const user = userEvent.setup();
+      await start(user);
+      await user.click(screen.getByRole("button", { name: "Advanced (custom endpoint)" }));
+      expect(screen.getByLabelText(/^Name$/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Base URL/)).toBeInTheDocument();
+      expect(screen.getByLabelText("API Key")).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: "Or sign in instead of using an API key" })).toBeInTheDocument();
+    });
+  });
+
+  describe("editing a saved provider", () => {
+    const SIGNED_IN = {
+      id: "gpt",
+      name: "My ChatGPT",
+      protocol: "openai_responses",
+      base_url: "https://api.openai.com/v1",
+      api_key: "",
+      models: ["gpt-test"],
+      default_model: "gpt-test",
+      headers: {},
+      sign_in: { preset: "openai_chatgpt" },
+    };
+    const KEYED = {
+      id: "oa",
+      name: "Work OpenAI",
+      protocol: "openai",
+      base_url: "https://api.openai.com/v1",
+      api_key: "***",
+      models: ["gpt-a", "gpt-b"],
+      default_model: "gpt-b",
+      headers: { "X-Test": "1" },
+    };
+    const LOCAL = {
+      id: "ol",
+      name: "Den Ollama",
+      protocol: "openai",
+      base_url: "http://192.168.1.20:11434/v1",
+      api_key: "",
+      models: ["llama-test"],
+      default_model: "llama-test",
+    };
+    const CUSTOM = {
+      id: "cu",
+      name: "Custom",
+      base_url: "https://llm.example.test/v1",
+      api_key: "***",
+      models: ["m"],
+      default_model: "m",
+    };
+
+    function serve(...providers: Record<string, unknown>[]) {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({ enabled: true, providers, default_provider_id: "gpt" }),
+        ),
+      );
+    }
+
+    it("opens a key provider in the simple view, with every other field under Advanced", async () => {
+      serve(KEYED);
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Work OpenAI"));
+
+      expect(screen.getByLabelText("API Key")).toBeInTheDocument();
+      expect(screen.queryByLabelText(/^Name$/)).not.toBeInTheDocument();
+      const advanced = screen.getByRole("button", { name: "Advanced" });
+      expect(advanced).toHaveAttribute("aria-expanded", "false");
+      await user.click(advanced);
+      expect(screen.getByLabelText(/^Name$/)).toHaveValue("Work OpenAI");
+      expect(screen.getByLabelText(/Base URL/)).toHaveValue("https://api.openai.com/v1");
+    });
+
+    it("opens a local provider on its server address", async () => {
+      serve(LOCAL);
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Den Ollama"));
+      expect(screen.getByLabelText("Server address")).toHaveValue("http://192.168.1.20:11434/v1");
+      expect(screen.getByRole("button", { name: "Advanced" })).toBeInTheDocument();
+    });
+
+    it("opens a custom endpoint in the full form", async () => {
+      serve(CUSTOM);
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Custom"));
+      expect(screen.getByLabelText(/^Name$/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Base URL/)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Advanced" })).not.toBeInTheDocument();
+    });
+
+    it("loads and saves every kind of saved provider unchanged", async () => {
+      const providers = [SIGNED_IN, KEYED, LOCAL, CUSTOM];
+      serve(...providers);
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          bodies.push(body);
+          return HttpResponse.json(body);
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      // Open every row, and every Advanced section, so each view renders.
+      for (const name of ["My ChatGPT", "Work OpenAI", "Den Ollama", "Custom"]) {
+        await user.click(await screen.findByText(name));
+      }
+      for (const advanced of screen.getAllByRole("button", { name: "Advanced" })) {
+        await user.click(advanced);
+      }
+      // Dirty the page somewhere other than the providers.
+      await user.type(screen.getByLabelText(/Model calls per turn/i), "12");
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      expect(bodies[0].providers).toEqual(providers);
+      expect(bodies[0].default_provider_id).toBe("gpt");
+    });
+  });
+
+  describe("picking a model from the provider", () => {
+    const SAVED = {
+      id: "p1",
+      name: "Test",
+      base_url: "https://example.test/v1",
+      api_key: "***",
+      models: ["test-model"],
+      default_model: "test-model",
+    };
+
+    function serveSettings() {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({ enabled: true, providers: [SAVED], default_provider_id: "p1" }),
+        ),
+      );
+    }
+
+    it("loads the saved provider's models and adds the one picked", async () => {
+      serveSettings();
+      let asked = "";
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, ({ params }) => {
+          asked = String(params.id);
+          return HttpResponse.json({
+            models: [
+              { id: "test-model", name: "Test Model" },
+              { id: "test-other", name: "Test Other" },
+            ],
+          });
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Load models" }));
+
+      const picker = screen.getByRole("combobox", { name: "Add a model" });
+      await waitFor(() => expect(asked).toBe("p1"));
+      await user.click(picker);
+      // A model already in the list is not offered again.
+      expect(screen.queryByRole("option", { name: /Test Model/ })).not.toBeInTheDocument();
+      await user.click(await screen.findByRole("option", { name: /Test Other/ }));
+
+      expect(await screen.findByRole("button", { name: "Remove model test-other" })).toBeInTheDocument();
+    });
+
+    it("says why when the provider cannot list its models", async () => {
+      serveSettings();
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, () =>
+          HttpResponse.json({ detail: "AI provider returned 401 when asked for its models." }, { status: 502 }),
+        ),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Load models" }));
+
+      expect(await screen.findByText(/returned 401 when asked for its models/)).toBeInTheDocument();
+      // Typing an id by hand still works.
+      await addModel(user, "typed-model");
+      expect(await screen.findByRole("button", { name: "Remove model typed-model" })).toBeInTheDocument();
+    });
+
+    it("a signed-in provider lists its models as soon as it is connected, with no button to press", async () => {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({
+            enabled: true,
+            providers: [{ ...SAVED, models: [], default_model: undefined, sign_in: { preset: "openrouter" } }],
+            default_provider_id: "p1",
+          }),
+        ),
+        http.get(`${API_BASE}/oauth/connections`, () =>
+          HttpResponse.json({
+            redirect_uri: "https://fiestaboard.app/auth/oauth/redirect",
+            connections: [
+              {
+                id: "ai.p1",
+                kind: "ai",
+                plugin_id: "ai",
+                instance_label: null,
+                plugin_name: "Test (FiestaBot)",
+                provider_name: "OpenRouter",
+                flows: ["key_exchange"],
+                configured: true,
+                user_app: false,
+                shared_app: false,
+                client_id_setting: null,
+                client_secret_setting: null,
+                app_setup_url: "",
+                status: "connected",
+                scopes: [],
+                expires_at: null,
+                connected_at: 1_900_000_000,
+                device: null,
+              },
+            ],
+          }),
+        ),
+      );
+      let asked = 0;
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, () => {
+          asked += 1;
+          return HttpResponse.json({ models: [{ id: "vendor/live-model", name: "Live Model" }] });
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+
+      await waitFor(() => expect(asked).toBe(1));
+      await user.click(screen.getByRole("combobox", { name: "Add a model" }));
+      await user.click(await screen.findByRole("option", { name: /Live Model/ }));
+      expect(await screen.findByRole("button", { name: "Remove model vendor/live-model" })).toBeInTheDocument();
+      // A refresh stays on offer.
+      await user.click(screen.getByRole("button", { name: "Refresh models" }));
+      await waitFor(() => expect(asked).toBe(2));
+    });
+
+    it("asks a signed-in provider for nothing before it is connected", async () => {
+      server.use(
+        http.get(`${API_BASE}/settings/ai`, () =>
+          HttpResponse.json({
+            enabled: true,
+            providers: [{ ...SAVED, sign_in: { preset: "openrouter" } }],
+            default_provider_id: "p1",
+          }),
+        ),
+      );
+      let asked = 0;
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, () => {
+          asked += 1;
+          return HttpResponse.json({ models: [] });
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await screen.findByRole("combobox", { name: "Add a model" });
+      expect(asked).toBe(0);
+    });
+
+    it("the default model is picked from the same searchable list", async () => {
+      serveSettings();
+      server.use(
+        http.get(`${API_BASE}/settings/ai/providers/:id/models`, () =>
+          HttpResponse.json({
+            models: [
+              { id: "test-model", name: "Test Model" },
+              { id: "test-other", name: "Test Other" },
+            ],
+          }),
+        ),
+      );
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          bodies.push(body);
+          return HttpResponse.json(body);
+        }),
+      );
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+      await user.click(screen.getByRole("button", { name: "Load models" }));
+      const picker = screen.getByRole("combobox", { name: "Default model" });
+      await user.clear(picker);
+      await user.type(picker, "other");
+      await user.click(await screen.findByRole("option", { name: /Test Other/ }));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      const [provider] = bodies[0].providers as Array<Record<string, unknown>>;
+      expect(provider.default_model).toBe("test-other");
+      expect(provider.models).toEqual(["test-model", "test-other"]);
+    });
+
+    it("offers no model list for a provider that is not saved yet", async () => {
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await screen.findByText(/no providers configured yet/i);
+      await addAdvancedProvider(user);
+
+      expect(screen.queryByRole("button", { name: "Load models" })).not.toBeInTheDocument();
     });
   });
 });

@@ -135,6 +135,7 @@ def test_list_tells_the_ui_which_redirect_uri_to_register(client):
 def test_a_connection_reports_its_shape(client):
     assert client.get("/oauth/connections/music").json() == {
         "id": "music",
+        "kind": "plugin",
         "plugin_id": "music",
         "instance_label": None,
         "plugin_name": "Music",
@@ -142,14 +143,17 @@ def test_a_connection_reports_its_shape(client):
         "flows": ["relay"],
         "configured": True,
         "user_app": True,
+        "shared_app": False,
         "client_id_setting": "client_id",
         "client_secret_setting": None,
         "app_setup_url": "",
         "status": "disconnected",
+        "status_reason": "",
         "scopes": ["read-playing"],
         "expires_at": None,
         "connected_at": None,
         "device": None,
+        "paste_expected": False,
     }
 
 
@@ -373,6 +377,7 @@ def test_the_callback_is_reachable_without_a_session(client, auth_enabled):
         ("GET", "/oauth/connections/music"),
         ("POST", "/oauth/connections/music/authorize"),
         ("DELETE", "/oauth/connections/music"),
+        ("POST", "/oauth/connections/music/complete"),
     ],
 )
 def test_everything_but_the_callback_requires_a_session(client, auth_enabled, method, path):
@@ -463,6 +468,24 @@ def test_a_plugin_may_ship_a_default_and_still_let_users_override_it(client, reg
     assert client.get("/oauth/connections/music_app").json()["user_app"] is True
     url = client.post("/oauth/connections/music_app/authorize", json=BOARD).json()["authorization_url"]
     assert parse_qs(urlsplit(url).query)["client_id"] == ["users-own"]
+
+
+def test_a_plugin_that_ships_an_overridable_client_id_reports_a_shared_app(client, registry):
+    """The UI leads with a plain Sign in and tucks the user's own app away as optional."""
+    registry.add("music_app", "Music App", {**RELAY_BLOCK, "client_id": "plugin-shipped-id"})
+    body = client.get("/oauth/connections/music_app").json()
+    assert (body["configured"], body["user_app"], body["shared_app"]) == (True, True, True)
+
+
+def test_a_plugin_that_ships_its_client_id_without_a_field_reports_a_shared_app(client, registry):
+    registry.add("music_app", "Music App", {**RELAY_BLOCK, "client_id": "plugin-shipped-id"}, settings=())
+    assert client.get("/oauth/connections/music_app").json()["shared_app"] is True
+
+
+def test_a_plugin_without_a_shipped_client_id_reports_no_shared_app(client, registry):
+    registry.add("cal", "Calendar", RELAY_BLOCK, settings=("client_id",))
+    body = client.get("/oauth/connections/cal").json()
+    assert (body["user_app"], body["shared_app"]) == (True, False)
 
 
 def test_a_saved_secret_is_ignored_when_the_plugin_offers_no_field_for_it(service, registry, provider):
@@ -568,3 +591,83 @@ def test_a_failed_uninstall_keeps_the_tokens(service):
         plugins.uninstall("music")
 
     assert service._store.get("music").access_token == "base-token"
+
+
+# ── Paste what the provider showed you ──────────────────────────────────────
+
+
+def test_pasting_the_address_finishes_a_relay_sign_in(client, provider):
+    start = client.post("/oauth/connections/music/authorize", json=BOARD)
+    provider.replies.append((200, TOKENS))
+    pasted = f"https://fiestaboard.app/auth/oauth/redirect?code=code-1&state={_state_from(start)}"
+
+    response = client.post("/oauth/connections/music/complete", json={"pasted": pasted})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "connected"
+    assert response.json()["status_reason"] == ""
+
+
+def test_a_rejected_paste_is_a_400_with_the_reason(client):
+    response = client.post("/oauth/connections/music/complete", json={"pasted": "bare-code-1234"})
+    assert response.status_code == 400
+    assert response.json()["detail"]
+
+
+def test_pasting_for_an_unknown_connection_is_404(client):
+    response = client.post("/oauth/connections/nope/complete", json={"pasted": "bare-code-1234"})
+    assert response.status_code == 404
+
+
+def test_an_overlong_paste_is_refused_by_validation(client):
+    response = client.post("/oauth/connections/music/complete", json={"pasted": "x" * 4097})
+    assert response.status_code == 422
+
+
+def test_authorize_start_reports_no_paste_expected_for_relay(client):
+    body = client.post("/oauth/connections/music/authorize", json=BOARD).json()
+    assert body["paste_expected"] is False
+    assert body["paste_hint"] == ""
+
+
+def test_authorize_passes_headless_through(client, registry):
+    registry.add(
+        "openrouter",
+        "OpenRouter",
+        {
+            "flows": ["key_exchange"],
+            "authorization_url": "https://or.example.com/auth",
+            "token_url": "https://or.example.com/api/v1/auth/keys",
+        },
+    )
+    body = client.post("/oauth/connections/openrouter/authorize", json={"headless": True}).json()
+    assert body["flow"] == "key_exchange"
+    assert body["paste_expected"] is True
+
+
+def test_report_oauth_rejected_on_a_plugin_marks_that_instance_for_reconnecting(client, service, registry):
+    from src.plugins.base import PluginBase, PluginResult
+
+    class Music(PluginBase):
+        @property
+        def plugin_id(self):
+            return "music"
+
+        def fetch_data(self):
+            return PluginResult(available=True)
+
+    plugin = Music({"id": "music"})
+    registry.plugins["music"] = plugin
+    service._store.put("music", TokenSet(access_token="access-1"))
+
+    assert plugin.report_oauth_rejected() is None
+    body = client.get("/oauth/connections/music").json()
+    assert (body["status"], body["status_reason"]) == ("reauthorization_required", "rejected")
+
+
+def test_an_ai_sign_in_returns_to_the_ai_settings():
+    from src.oauth.routes import _return_location
+    from src.oauth.service import CallbackOutcome
+
+    location = _return_location(CallbackOutcome(connected=True, connection_id="ai.or1"))
+    assert location == "../../settings?section=integrations&oauth=connected&connection=ai.or1"

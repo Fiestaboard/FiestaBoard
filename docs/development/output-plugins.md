@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 5
 description: "Write a FiestaBoard output plugin that drives a display device: per-board instances, the manifest output block, device models and character sets, board settings screens and actions, OutputPluginBase, the LED renderer, the conformance suite, and publishing."
 keywords: [FiestaBoard output plugin, OutputPluginBase, display driver, LED matrix plugin, device model, character set, output_api, conformance suite, Divoom Pixoo, plugin development]
 ---
