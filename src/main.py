@@ -256,6 +256,8 @@ class DisplayService:
     def __init__(self):
         """Initialize the display service."""
         self.running = True
+        # initialize() said "no display configured yet" (said once per wait).
+        self._announced_waiting = False
         # Set by :meth:`wake` (an active-page change): the run loop's next 1 s
         # step runs an engine pass instead of waiting for the poll tick.
         self._wake = threading.Event()
@@ -1314,8 +1316,29 @@ class DisplayService:
         rt.refresh_thread = thread
         thread.start()
 
+    @property
+    def awaiting_first_board(self) -> bool:
+        """True while no board is set up yet (a fresh install: settings.boards
+        is empty, or holds only the empty placeholder board it seeds)."""
+        from .devices import board_is_set_up
+
+        try:
+            boards = get_settings_service().get_board_settings().boards or []
+        except Exception:
+            return False
+        return not any(board_is_set_up(board) for board in boards)
+
     def initialize(self) -> bool:
         """Initialize all components."""
+        if self.awaiting_first_board:
+            # A fresh install: nothing to drive and nothing wrong. Say so once
+            # and wait quietly; the background loop retries until a board is
+            # added (no ERROR every minute for a setup not yet finished).
+            if not self._announced_waiting:
+                logger.info("No display configured yet - the display service starts once one is added")
+                self._announced_waiting = True
+            return False
+        self._announced_waiting = False
         logger.info("Initializing FiestaBoard Display Service...")
 
         # Validate configuration

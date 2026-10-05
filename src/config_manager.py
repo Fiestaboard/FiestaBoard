@@ -1536,11 +1536,32 @@ class ConfigManager:
         # startup retry loop with the legacy-config validation errors above,
         # even though the UI's /config/validate endpoint considers them
         # configured. (issue #1102)
-        if errors and self._has_configured_board_instance():
+        #
+        # Board credentials live on settings.boards (#1760): the legacy block
+        # is never read to build a client, so once any board exists there it
+        # must not gate startup either once a board is set up — a board whose
+        # output is a plugin (a Pixoo) never fills it, and one misconfigured
+        # board is that board's own error (#1813), not the whole service's.
+        if errors and (self._has_board_instance() or self._has_configured_board_instance()):
             board_error_prefixes = ("Board cloud_key", "Board local_api_key", "Board host")
             errors = [e for e in errors if not e.startswith(board_error_prefixes)]
 
         return (len(errors) == 0, errors)
+
+    @staticmethod
+    def _has_board_instance() -> bool:
+        """Return True if any board in the multi-board settings service is set
+        up (:func:`~src.devices.board_is_set_up`): configured, or with
+        connection details entered — not the empty placeholder a fresh
+        install seeds."""
+        try:
+            from .devices import board_is_set_up
+            from .settings.service import get_settings_service
+
+            boards = get_settings_service().get_board_settings().boards or []
+        except Exception:
+            return False
+        return any(board_is_set_up(board) for board in boards)
 
     @staticmethod
     def _has_configured_board_instance() -> bool:
