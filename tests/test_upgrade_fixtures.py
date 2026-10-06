@@ -46,6 +46,12 @@ label                                     what it pins
                                           and the transition plugins beta on:
                                           the board runs the same transition
                                           as its own (settings v6)
+``v10_beta_schema5_no_board_section``     the same transition with no
+                                          ``board`` section at all: v6 builds
+                                          the default board (importing the
+                                          legacy config.json connection) so
+                                          the transition is not dropped
+``v10_beta_schema5_empty_boards``         the same with ``boards: []``
 ========================================  ====================================
 
 What a test does
@@ -343,6 +349,12 @@ EXPECT: dict[str, Expect] = {
     "v9_10_schema3_both_backups": Expect(sends=[(0, "local_flagship_send")], board_count=1, page_count=1),
     "v10_beta_schema4_https_on": Expect(sends=[(0, "local_flagship_send")], board_count=1, page_count=1, from_schema=4),
     "v10_beta_schema5_install_transition": Expect(
+        sends=[(0, "upgrade_v10_beta_schema5_install_transition")], board_count=1, page_count=1, from_schema=5
+    ),
+    "v10_beta_schema5_no_board_section": Expect(
+        sends=[(0, "upgrade_v10_beta_schema5_install_transition")], board_count=1, page_count=1, from_schema=5
+    ),
+    "v10_beta_schema5_empty_boards": Expect(
         sends=[(0, "upgrade_v10_beta_schema5_install_transition")], board_count=1, page_count=1, from_schema=5
     ),
 }

@@ -283,10 +283,11 @@ class TestRuntimeReadsTheBoard:
         svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "row"}, {**PANEL, "transition": "column"}])
         assert svc.get_transition_settings().strategy == "row"
 
-    def test_an_unknown_display_has_no_transition(self, tmp_path):
+    def test_an_unknown_display_reads_the_first(self, tmp_path):
+        """A runtime key that is no board id (DisplayService's ``__primary__``)
+        is the first display, as the engine's primary runtime is."""
         svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "row"}])
-        resolved = svc.get_transition_settings("missing")
-        assert (resolved.strategy, resolved.step_interval_ms, resolved.step_size) == (None, None, None)
+        assert svc.get_transition_settings("missing").strategy == "row"
 
     def test_an_unset_split_flap_choice_is_none(self, tmp_path):
         svc = _service_at_v6(tmp_path, [VESTA])
@@ -448,9 +449,10 @@ class TestTransitionShim:
 
 
 class TestFlagsLeaveBeta:
-    def test_the_beta_endpoint_is_gone(self, client):
-        assert client.get("/settings/beta").status_code == 404
-        assert client.put("/settings/beta", json={"transition_plugins_enabled": True}).status_code in (404, 405)
+    def test_the_beta_endpoint_is_a_deprecated_alias(self, client):
+        response = client.get("/settings/beta")
+        assert response.status_code == 200
+        assert response.headers["Deprecation"] == "true"
 
     def test_plugin_settings_carry_the_flags(self, client):
         body = client.get("/settings/plugins").json()

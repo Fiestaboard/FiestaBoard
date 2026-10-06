@@ -224,11 +224,14 @@ function SplitFlapTransitions({
   );
 }
 
-/** A number field's text as the board field: empty is the device default (`null`). */
-function parseSpeed(text: string, minimum: number): number | null | undefined {
+/** The longest step interval a display takes, as a page's (src/devices.py TRANSITION_SPEED_BOUNDS). */
+const MAX_STEP_INTERVAL_MS = 5000;
+
+/** A number field's text as the board field: empty is the device default (`null`); out of range is `undefined`. */
+function parseSpeed(text: string, minimum: number, maximum = Infinity): number | null | undefined {
   if (text.trim() === "") return null;
   const n = Number(text);
-  if (!Number.isInteger(n) || n < minimum) return undefined;
+  if (!Number.isInteger(n) || n < minimum || n > maximum) return undefined;
   return n;
 }
 
@@ -256,7 +259,7 @@ function TransitionSpeed({
 
   const intervalId = `transition-step-interval-${board.id}`;
   const sizeId = `transition-step-size-${board.id}`;
-  const intervalValue = parseSpeed(interval, 0);
+  const intervalValue = parseSpeed(interval, 0, MAX_STEP_INTERVAL_MS);
   const sizeValue = parseSpeed(size, 1);
 
   const commitInterval = () => {
@@ -283,6 +286,7 @@ function TransitionSpeed({
             type="number"
             inputMode="numeric"
             min={0}
+            max={MAX_STEP_INTERVAL_MS}
             placeholder={t("stepIntervalPlaceholder")}
             value={interval}
             disabled={disabled}

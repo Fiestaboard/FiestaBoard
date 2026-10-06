@@ -2228,7 +2228,8 @@ def _build_mcp_server() -> Any:
                   the background), transition_plugins_enabled (bool — let
                   boards and pages use the deprecated transition plugins),
                   output_plugins_enabled (bool — let third-party output
-                  plugins drive boards).
+                  plugins drive boards). 'beta' is a deprecated alias
+                  (removed in v11) taking only those two flags.
                 - mqtt (Home Assistant bridge): enabled (bool), broker_host
                   (string), broker_port (int), external_url (string).
                   username and password are set by the user in the web UI.
@@ -2610,8 +2611,8 @@ def _build_mcp_server() -> Any:
                 For an LED board, an LED menu id ('none', 'flip', 'cascade',
                 'slide', 'wipe', 'fade', 'dissolve'). A page's own
                 transition_strategy still wins over it.
-            transition_step_interval_ms: Delay between animation steps in ms
-                (0 = as fast as the board goes), for split-flap strategies.
+            transition_step_interval_ms: Delay between animation steps in ms,
+                0–5000 (0 = as fast as the board goes), for split-flap strategies.
             transition_step_size: Columns or rows that move per step (≥ 1).
         """
         return await ops_executors.update_board(

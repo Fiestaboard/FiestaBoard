@@ -89,20 +89,57 @@ def is_valid_board_transition(choice: str | None) -> bool:
     return is_led_transition_id(choice)
 
 
+@dataclass(frozen=True)
+class TransitionCapabilities:
+    """What a display's output can run, for judging a page's transition.
+
+    Taken from the output's :class:`~src.outputs.registry.OutputCapabilities`:
+    ``technology`` (``split_flap`` / ``led_matrix`` / ``screen``), the
+    split-flap strategies it animates natively, and whether it takes frames
+    at all (``animation``: ``stream`` / ``sequence`` / ``none``).
+    """
+
+    technology: str
+    native_transitions: frozenset[str]
+    animation: str
+
+    def runs(self, strategy: str) -> bool:
+        """Whether a display with these capabilities can run *strategy*.
+
+        - a split-flap strategy: when the output animates it natively;
+        - ``plugin:<id>``: when the output takes frames and is not an LED
+          matrix (an LED output resolves its own LED transition instead);
+        - an LED menu id: on an LED matrix only;
+        - anything else is the runtime's call, so it is let through.
+        """
+        if strategy in VALID_STRATEGIES:
+            return strategy in self.native_transitions
+        if strategy.startswith(TRANSITION_PLUGIN_PREFIX):
+            return self.technology != "led_matrix" and self.animation != "none"
+        from src.led.transition_registry import is_led_transition_id
+
+        if is_led_transition_id(strategy):
+            return self.technology == "led_matrix"
+        return True
+
+
 @dataclass
 class TransitionSettings:
     """The transition one display runs: its strategy and speed.
 
     Settings v6: a display's own (``SettingsService.get_transition_settings``);
-    there is no install-wide transition any more.
+    there is no install-wide transition any more. ``capabilities`` describes
+    what the display's output can run (``None`` when unknown); it is never
+    serialized.
     """
 
     strategy: str | None = None
     step_interval_ms: int | None = None
     step_size: int | None = None
+    capabilities: TransitionCapabilities | None = field(default=None, compare=False, repr=False)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        return {"strategy": self.strategy, "step_interval_ms": self.step_interval_ms, "step_size": self.step_size}
 
     @classmethod
     def from_dict(cls, data: dict) -> "TransitionSettings":
@@ -120,15 +157,32 @@ def page_transition(display, page) -> TransitionSettings:
     field, else the display's.
 
     A page strategy counts when it is truthy; a page interval or step size
-    counts whenever it is not ``None`` (0 ms is a real choice).
+    counts whenever it is not ``None`` (0 ms is a real choice). A page
+    strategy the display cannot run (``display.capabilities``: a split-flap
+    or ``plugin:`` strategy on an LED display, an LED id on a split-flap, a
+    native strategy the output lacks) does not override the display's own:
+    the whole send runs the display's transition, speed included, since the
+    page's speed was chosen for its strategy. Unknown capabilities let the
+    page's strategy through, as before.
     """
     strategy = getattr(page, "transition_strategy", None)
     interval = getattr(page, "transition_interval_ms", None)
     step_size = getattr(page, "transition_step_size", None)
+    capabilities = getattr(display, "capabilities", None)
+    unrunnable = (
+        isinstance(strategy, str)
+        and bool(strategy)
+        and isinstance(capabilities, TransitionCapabilities)
+        and not capabilities.runs(strategy)
+    )
+    if unrunnable:
+        logger.debug("Page transition %r cannot run on this display; using the display's own", strategy)
+        strategy = interval = step_size = None
     return TransitionSettings(
         strategy=strategy if strategy else display.strategy,
         step_interval_ms=interval if interval is not None else display.step_interval_ms,
         step_size=step_size if step_size is not None else display.step_size,
+        capabilities=capabilities if isinstance(capabilities, TransitionCapabilities) else None,
     )
 
 
@@ -1148,29 +1202,97 @@ def _legacy_env_transition() -> tuple[str | None, int | None, int | None]:
         return None, None, None
 
 
-def default_board_transition(board: dict) -> dict:
+def default_board_transition(board: dict, *, plugins_enabled: bool = False) -> dict:
     """The transition keys a new display starts with (settings v6).
 
     A split-flap display (a Vestaboard or a FiestaPanel) starts with what
     the legacy env / config.json sets, else ``"none"``: a plain write, the
     board's own flip, which is what an install with no transition did. An
     output plugin's display (an LED matrix) starts with ``"none"``: it snaps.
-    """
-    from src.devices import BUILTIN_OUTPUT_IDS, derive_output_id
 
-    if derive_output_id(board) not in BUILTIN_OUTPUT_IDS:
+    The legacy values are validated, because adding a display must never
+    fail over its default: a strategy no menu offers, or a ``plugin:`` one
+    while transition plugins are off (*plugins_enabled*), falls back to
+    ``"none"``, and an out-of-range speed to the device's default, each with
+    a warning.
+    """
+    from src.devices import is_split_flap, transition_speed
+
+    if not is_split_flap(board):
         return {"transition": BOARD_TRANSITION_NONE}
     strategy, interval, step_size = _legacy_env_transition()
+    if strategy is not None and (
+        not is_valid_strategy(strategy) or (strategy.startswith(TRANSITION_PLUGIN_PREFIX) and not plugins_enabled)
+    ):
+        logger.warning(
+            "BOARD_TRANSITION_STRATEGY %r is not a transition a new display can use%s; it starts with none",
+            strategy,
+            " while transition plugins are off" if is_valid_strategy(strategy) else "",
+        )
+        strategy = None
     defaults: dict = {"transition": strategy or BOARD_TRANSITION_NONE}
-    if interval is not None:
-        defaults["transition_step_interval_ms"] = interval
-    if step_size is not None:
-        defaults["transition_step_size"] = step_size
+    for key, value in (("transition_step_interval_ms", interval), ("transition_step_size", step_size)):
+        if value is None:
+            continue
+        if transition_speed(key, value) is None:
+            logger.warning("Legacy %s %r is out of range; a new display uses the device default", key, value)
+            continue
+        defaults[key] = value
     return defaults
+
+
+def _with_default_transition(board: dict, *, plugins_enabled: bool) -> dict:
+    """*board* with :func:`default_board_transition` applied, unless it
+    already names a transition. A speed the board carries is kept."""
+    if isinstance(board.get("transition"), str) and board["transition"].strip():
+        return board
+    defaults = default_board_transition(board, plugins_enabled=plugins_enabled)
+    return {**defaults, **{k: v for k, v in board.items() if v is not None}, "transition": defaults["transition"]}
+
+
+def _transition_capabilities(output_id: str) -> TransitionCapabilities | None:
+    """What output *output_id* can run, or ``None`` when it is unknown."""
+    try:
+        from src.outputs.registry import capabilities_of
+
+        caps = capabilities_of(output_id)
+    except Exception:
+        logger.debug("Could not read the capabilities of output %r", output_id, exc_info=True)
+        return None
+    if caps is None:
+        return None
+    return TransitionCapabilities(
+        technology=str(caps.technology),
+        native_transitions=frozenset(caps.native_transitions),
+        animation=str(caps.animation),
+    )
 
 
 #: The flags settings v5 still kept under ``beta``; v6 moves them to ``plugins``.
 _BETA_FLAGS = ("transition_plugins_enabled", "output_plugins_enabled")
+
+
+def _materialize_boards_for_v6(board: dict | None) -> list[dict]:
+    """The boards a v5 file without any would load with, built now so the
+    v5 -> v6 migration has somewhere to put the install's transition.
+
+    A devices-era section builds its boards from ``devices``; a missing
+    section or an empty ``boards`` list builds the default board, which
+    imports the legacy config.json connection exactly as the first-boot seed
+    and the v2 -> v3 migration do (a section built here is no longer a first
+    boot). A failure to read config.json propagates: the run aborts and
+    retries next boot rather than stamping v6 with nothing imported.
+    """
+    boards = [b for b in BoardSettings.from_dict(board or {}).boards if isinstance(b, dict)]
+    if boards and not (isinstance(board, dict) and board.get("devices")) and not _board_dict_has_credentials(boards[0]):
+        legacy = _read_legacy_board_connection()
+        importable = _connection_fields_for_board(legacy, boards[0]) if legacy is not None else None
+        if importable is not None:
+            from src.devices import BoardInstance
+
+            boards[0] = BoardInstance.from_dict({**boards[0], **importable}).to_dict()
+            logger.info("Imported legacy config.json board connection into the materialized default board")
+    return boards
 
 
 def _migrate_v5_to_v6(data: dict) -> int:
@@ -1187,8 +1309,10 @@ def _migrate_v5_to_v6(data: dict) -> int:
        is its device model's default, which is what it ran. Every board with
        no speed of its own gets the install's step interval and step size
        (they were always the install's, even for a board with its own
-       style). A devices-era ``board`` section (no ``boards`` list; built at
-       load) is materialized only when the block holds something to copy.
+       style). When there is no board to copy onto (no ``board`` section, an
+       empty ``boards`` list, or a devices-era section built at load), the
+       boards are materialized (:func:`_materialize_boards_for_v6`) whenever
+       the block holds something to copy, so it is never dropped.
     2. The ``beta`` flags (``transition_plugins_enabled``,
        ``output_plugins_enabled``) move into the ``plugins`` section, and
        ``beta`` is deleted: nothing else was left in it after v5.
@@ -1197,7 +1321,7 @@ def _migrate_v5_to_v6(data: dict) -> int:
     re-run finds no block, and every split-flap board already has a
     transition, so it changes nothing.
     """
-    from src.devices import BUILTIN_OUTPUT_IDS, derive_output_id
+    from src.devices import is_split_flap
 
     changes = 0
     strategy = interval = step_size = None
@@ -1211,9 +1335,12 @@ def _migrate_v5_to_v6(data: dict) -> int:
     board = data.get("board")
     boards = board.get("boards") if isinstance(board, dict) else None
     something_to_copy = any(value is not None for value in (strategy, interval, step_size))
-    if isinstance(board, dict) and not isinstance(boards, list) and something_to_copy:
-        boards = [b for b in BoardSettings.from_dict(board).boards if isinstance(b, dict)]
-        board["boards"] = boards
+    if something_to_copy and not (isinstance(boards, list) and boards):
+        boards = _materialize_boards_for_v6(board if isinstance(board, dict) else None)
+        if isinstance(board, dict):
+            board["boards"] = boards
+        else:
+            data["board"] = {"board_type": "black", "boards": boards}
     for entry in boards if isinstance(boards, list) else []:
         if not isinstance(entry, dict):
             continue
@@ -1223,7 +1350,7 @@ def _migrate_v5_to_v6(data: dict) -> int:
             if strategy is not None:
                 entry["transition"] = strategy
                 changed = True
-            elif derive_output_id(entry) in BUILTIN_OUTPUT_IDS:
+            elif is_split_flap(entry):
                 entry["transition"] = BOARD_TRANSITION_NONE
                 changed = True
         if interval is not None and entry.get("transition_step_interval_ms") is None:
@@ -1696,9 +1823,8 @@ class SettingsService:
         settings = BoardSettings()
         self._needs_seed_save = self._seed_connection_from_legacy_config(settings)
         # Settings v6: the first display owns its transition from the start.
-        first = settings.boards[0]
-        if not first.get("transition"):
-            first.update(default_board_transition(first))
+        # Plugins are off on a first boot, so a plugin: default is refused.
+        settings.boards[0] = _with_default_transition(settings.boards[0], plugins_enabled=False)
         return settings
 
     @staticmethod
@@ -1761,11 +1887,14 @@ class SettingsService:
 
     # Transition settings
     def _board_entry(self, board_id: str | None) -> dict | None:
-        """Stored board *board_id*, or the first board when it is ``None``."""
+        """Stored board *board_id*; the first board when it is empty, or no
+        board's id (a runtime key such as DisplayService's ``__primary__``)."""
         boards = self._board.boards
-        if board_id is None:
-            return boards[0] if boards else None
-        return next((b for b in boards if b.get("id") == board_id), None)
+        if board_id:
+            match = next((b for b in boards if b.get("id") == board_id), None)
+            if match is not None:
+                return match
+        return boards[0] if boards else None
 
     def get_transition_settings(self, board_id: str | None = None) -> TransitionSettings:
         """The transition display *board_id* runs (settings v6: its own).
@@ -1776,25 +1905,28 @@ class SettingsService:
         ``"none"`` is no transition: ``None`` for a Vestaboard or FiestaPanel,
         and kept as the LED menu's ``"none"`` for an output plugin's board,
         whose unset strategy means its model's default instead. An unset
-        choice on a split-flap board is none too.
+        choice on a split-flap board is none too. ``capabilities`` carries
+        what the board's output can run, for :func:`page_transition`.
 
-        ``board_id=None`` is the first display: the deprecated install-wide
-        callers (``GET /settings/transitions``, MQTT state) read that until
-        v11. An unknown id has no transition.
+        ``None``, ``""`` or an id no board has (a runtime key such as
+        DisplayService's ``__primary__`` fallback) is the first display: the
+        engine's primary runtime, and the deprecated install-wide callers
+        (``GET /settings/transitions``, MQTT state) until v11.
         """
-        from src.devices import BUILTIN_OUTPUT_IDS, derive_output_id
+        from src.devices import derive_output_id, is_split_flap
 
         board = self._board_entry(board_id)
         if board is None:
             return TransitionSettings()
         choice = board.get("transition")
         strategy: str | None = choice if isinstance(choice, str) and choice else None
-        if strategy == BOARD_TRANSITION_NONE and derive_output_id(board) in BUILTIN_OUTPUT_IDS:
+        if strategy == BOARD_TRANSITION_NONE and is_split_flap(board):
             strategy = None
         return TransitionSettings(
             strategy=strategy,
             step_interval_ms=board.get("transition_step_interval_ms"),
             step_size=board.get("transition_step_size"),
+            capabilities=_transition_capabilities(derive_output_id(board)),
         )
 
     @_locked
@@ -1803,49 +1935,66 @@ class SettingsService:
     ) -> TransitionSettings:
         """Deprecated (until v11): set the FIRST display's transition.
 
-        What ``PUT /settings/transitions`` and the MQTT ``transition``
-        command still drive. Use ... (Ellipsis) to leave a field unchanged;
-        a ``None`` strategy is ``"none"``, a ``None`` speed the device's
-        default. Set any display's own through its board settings instead.
+        What ``PUT /settings/transitions`` and the MQTT ``transition_style``
+        command still drive. Use ... (Ellipsis) to leave a field unchanged; a
+        ``None`` speed is the device's default. A ``None`` strategy means what
+        it meant in v5: no transition on a split-flap display (``"none"``),
+        the device model's default on an output plugin's (unset). So a GET of
+        :meth:`get_transition_settings` put straight back changes nothing.
+        Set any display's own through its board settings instead.
 
         Raises:
             ValueError: an invalid strategy, a transition plugin while they
                 are off, a bad speed, or no display to set.
         """
-        if not self._board.boards:
+        from src.devices import is_split_flap
+
+        first = self._board_entry(None)
+        if first is None:
             raise ValueError("There is no display to set a transition on")
-        first = self._board.boards[0]
-        updated = dict(first)
+        updates: dict = {}
         if strategy is not ...:
-            if not is_valid_strategy(strategy):
+            if strategy is not None and not is_valid_board_transition(strategy):
                 raise ValueError(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES} or 'plugin:<id>'")
-            self._check_board_transition(strategy, first.get("transition"))
-            updated["transition"] = strategy if strategy is not None else BOARD_TRANSITION_NONE
-        for key, value in (
-            ("transition_step_interval_ms", step_interval_ms),
-            ("transition_step_size", step_size),
-        ):
-            if value is ...:
-                continue
-            if value is None:
-                updated.pop(key, None)
+            if strategy is None:
+                updates["transition"] = BOARD_TRANSITION_NONE if is_split_flap(first) else None
             else:
-                updated[key] = value
-
-        from src.devices import BoardInstance
-
-        normalized = BoardInstance.from_dict(updated).to_dict()
-        for key, value in (
-            ("transition_step_interval_ms", step_interval_ms),
-            ("transition_step_size", step_size),
-        ):
-            if value not in (..., None) and normalized.get(key) != value:
-                raise ValueError(f"Invalid {key.removeprefix('transition_')}: {value}")
-        self._board.boards[0] = normalized
-        self._save_to_file()
-        resolved = self.get_transition_settings(normalized.get("id"))
+                updates["transition"] = strategy
+        if step_interval_ms is not ...:
+            updates["transition_step_interval_ms"] = step_interval_ms
+        if step_size is not ...:
+            updates["transition_step_size"] = step_size
+        stored = self._write_board_fields(first.get("id"), updates)
+        resolved = self.get_transition_settings(stored.get("id"))
         logger.info(f"First display's transition updated: {resolved}")
         return resolved
+
+    @_locked
+    def _write_board_fields(self, board_id: str | None, updates: dict) -> dict:
+        """Write *updates* onto stored board *board_id* (the first when
+        ``None``) and save; a ``None`` value removes the key.
+
+        Validated exactly as a board save is (:meth:`_check_board_write`),
+        then normalized through :class:`~src.devices.BoardInstance`.
+        Returns the stored board.
+        """
+        from src.devices import BoardInstance
+
+        stored = self._board_entry(board_id)
+        if stored is None:
+            raise ValueError(f"No display {board_id!r}")
+        merged = dict(stored)
+        for key, value in updates.items():
+            if value is None:
+                merged.pop(key, None)
+            else:
+                merged[key] = value
+        self._check_board_write(merged, stored)
+        normalized = BoardInstance.from_dict(merged).to_dict()
+        index = next(i for i, b in enumerate(self._board.boards) if b is stored)
+        self._board.boards[index] = normalized
+        self._save_to_file()
+        return normalized
 
     # Output settings
     def get_output_settings(self) -> OutputSettings:
@@ -2088,11 +2237,13 @@ class SettingsService:
                     name = f"My Board {n}"
                     n += 1
                 new_boards.append(
-                    BoardInstance(
-                        name=name,
-                        device_type=dt,
-                        board_color=self._board.board_type or "black",
-                    ).to_dict()
+                    self._with_default_transition(
+                        BoardInstance(
+                            name=name,
+                            device_type=dt,
+                            board_color=self._board.board_type or "black",
+                        ).to_dict()
+                    )
                 )
 
         self._board.boards = new_boards
@@ -2127,11 +2278,14 @@ class SettingsService:
         for b in boards:
             existing = existing_by_id.get(b.get("id"))
             restore_masked_board_secrets(b, existing or {})
+            if existing is None:
+                # A new display owns its transition from the start (settings v6).
+                b = self._with_default_transition(b)
             # Either shape, or both (an echoed GET): plan D8's bidirectional
             # projection, resolved against the stored board.
-            instance = BoardInstance.from_dict(merge_board_write(b, existing))
-            self._check_board_transition(instance.transition, (existing or {}).get("transition"))
-            validated.append(instance.to_dict())
+            merged = merge_board_write(b, existing)
+            self._check_board_write(merged, existing)
+            validated.append(BoardInstance.from_dict(merged).to_dict())
 
         self._board.boards = validated
         # Keep board_type in sync with the first board's color
@@ -2156,17 +2310,34 @@ class SettingsService:
 
         if not board.get("name"):
             board["name"] = self._next_board_name()
-        if not board.get("transition"):
-            # Settings v6: a new display owns its transition from the start.
-            defaults = default_board_transition(board)
-            board = {**defaults, **{k: v for k, v in board.items() if v is not None}}
-            board["transition"] = defaults["transition"]
+        # Settings v6: a new display owns its transition from the start.
+        board = self._with_default_transition(board)
+        self._check_board_write(board, None)
         instance = BoardInstance.from_dict(board)
-        self._check_board_transition(instance.transition, None)
         self._board.boards.append(instance.to_dict())
         self._save_to_file()
         logger.info(f"Added board: {instance.name} ({instance.device_type})")
         return self._board
+
+    def _with_default_transition(self, board: dict) -> dict:
+        """*board* with the transition a new display starts with, unless it
+        names one (:func:`default_board_transition`)."""
+        return _with_default_transition(board, plugins_enabled=self._plugins.transition_plugins_enabled)
+
+    def _check_board_write(self, board: dict, stored: dict | None) -> None:
+        """Refuse a board write whose transition no menu offers, a newly
+        chosen transition plugin while they are off, or a speed out of
+        range — rather than let :class:`~src.devices.BoardInstance` quietly
+        drop it."""
+        from src.devices import TRANSITION_SPEED_BOUNDS, transition_speed_error
+
+        choice = board.get("transition")
+        choice = (choice.strip() or None) if isinstance(choice, str) else None
+        self._check_board_transition(choice, (stored or {}).get("transition"))
+        for key in TRANSITION_SPEED_BOUNDS:
+            error = transition_speed_error(key, board.get(key))
+            if error:
+                raise ValueError(error)
 
     def _check_board_transition(self, choice: str | None, stored: str | None) -> None:
         """Refuse a display transition no menu offers, or a newly chosen

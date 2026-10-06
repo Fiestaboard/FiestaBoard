@@ -1325,6 +1325,22 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/settings/beta",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_beta_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/beta",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_beta_settings",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/settings/board",
       "methods": [
         "GET"

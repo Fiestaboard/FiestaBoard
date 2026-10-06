@@ -171,9 +171,14 @@ def test_update_setting_plugins_transition_plugins_flag_persists(mcp, services, 
     assert two_boards.get_plugin_settings().transition_plugins_enabled is True
 
 
-def test_update_setting_refuses_the_retired_beta_category(mcp, services, two_boards):
-    call_expect_error(mcp, "update_setting", category="beta", values={"transition_plugins_enabled": True})
-    assert two_boards.get_plugin_settings().transition_plugins_enabled is False
+def test_update_setting_beta_is_a_deprecated_alias_for_the_plugin_flags(mcp, services, two_boards):
+    assert_ok(call(mcp, "update_setting", category="beta", values={"transition_plugins_enabled": True}), "beta")
+    assert two_boards.get_plugin_settings().transition_plugins_enabled is True
+
+
+def test_update_setting_beta_takes_only_the_two_flags(mcp, services, two_boards):
+    call_expect_error(mcp, "update_setting", category="beta", values={"auto_update": False})
+    assert two_boards.get_plugin_settings().auto_update is True
 
 
 def test_update_board_sets_that_board_transition(mcp, services, two_boards):

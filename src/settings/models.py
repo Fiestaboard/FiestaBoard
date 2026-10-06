@@ -175,12 +175,14 @@ class TransitionSettingsUpdate(BaseModel):
     """Partial transition update.
 
     An explicit ``null`` clears a field; an omitted key leaves it alone. The
-    handler tells the two apart with ``exclude_unset``.
+    handler tells the two apart with ``exclude_unset``. The bounds are a
+    display's (``src.devices.TRANSITION_SPEED_BOUNDS``), the interval's the
+    same as a page's.
     """
 
     strategy: str | None = None
-    step_interval_ms: int | None = None
-    step_size: int | None = None
+    step_interval_ms: int | None = Field(default=None, ge=0, le=5000)
+    step_size: int | None = Field(default=None, ge=1)
 
 
 # ---------------------------------------------------------------------------
@@ -512,6 +514,36 @@ class SunTimesWeekResponse(BaseModel):
 
     location_configured: bool
     dates: dict[str, SunTimesForDay]
+
+
+# ---------------------------------------------------------------------------
+# Beta (deprecated alias of the plugin flags, until v11)
+# ---------------------------------------------------------------------------
+
+
+class BetaSettings(BaseModel):
+    """The two plugin flags, as ``/settings/beta`` still reports them."""
+
+    transition_plugins_enabled: bool
+    output_plugins_enabled: bool = False
+
+
+class BetaSettingsResponse(BaseModel):
+    """``GET``/``PUT /settings/beta``: deprecated, read ``/settings/plugins``."""
+
+    settings: BetaSettings
+
+
+class BetaSettingsUpdate(BaseModel):
+    """Partial update of the two plugin flags through the deprecated alias.
+
+    Any other key is ignored — ``https_enabled`` (removed in v5) and
+    ``auto_update`` (never a beta flag) included — so an old client gets a
+    200 and no change.
+    """
+
+    transition_plugins_enabled: StrictBool | None = None
+    output_plugins_enabled: StrictBool | None = None
 
 
 # ---------------------------------------------------------------------------

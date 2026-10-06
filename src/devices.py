@@ -239,8 +239,10 @@ class BoardInstance:
         if not isinstance(self.paused, bool):
             self.paused = bool(self.paused)
         self.transition = (self.transition.strip() or None) if isinstance(self.transition, str) else None
-        self.transition_step_interval_ms = _bounded_int(self.transition_step_interval_ms, minimum=0)
-        self.transition_step_size = _bounded_int(self.transition_step_size, minimum=1)
+        self.transition_step_interval_ms = transition_speed(
+            "transition_step_interval_ms", self.transition_step_interval_ms
+        )
+        self.transition_step_size = transition_speed("transition_step_size", self.transition_step_size)
         # Name is user-editable (issue #1792): strip, cap, and fall back to
         # the default. "   " is truthy, so a falsy-only guard stored
         # whitespace verbatim and rendered a blank sidebar row.
@@ -697,12 +699,49 @@ class Geometry(NamedTuple):
     grid_cols: int | None = None
 
 
-def _bounded_int(value, *, minimum: int) -> int | None:
+def _bounded_int(value, *, minimum: int, maximum: int | None = None) -> int | None:
     """*value* when it is a whole number (an int, never a bool or a float)
-    no smaller than *minimum*; otherwise ``None``."""
+    within ``[minimum, maximum]``; otherwise ``None``."""
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
         return None
+    if maximum is not None and value > maximum:
+        return None
     return value
+
+
+#: A display's transition speed fields and their bounds (settings v6). The
+#: interval matches a page's own (``transition_interval_ms``, 0-5000 ms).
+TRANSITION_SPEED_BOUNDS: dict[str, tuple[int, int | None]] = {
+    "transition_step_interval_ms": (0, 5000),
+    "transition_step_size": (1, None),
+}
+
+
+def transition_speed(key: str, value) -> int | None:
+    """*value* for speed field *key* when it is in bounds, else ``None``.
+
+    The one validator for a display's transition speed: the board model,
+    the settings API and the MCP executors all use it.
+    """
+    minimum, maximum = TRANSITION_SPEED_BOUNDS[key]
+    return _bounded_int(value, minimum=minimum, maximum=maximum)
+
+
+def transition_speed_error(key: str, value) -> str | None:
+    """Why *value* is no valid speed for *key* (``None`` is: the device default)."""
+    if value is None or transition_speed(key, value) is not None:
+        return None
+    minimum, maximum = TRANSITION_SPEED_BOUNDS[key]
+    bound = f"between {minimum} and {maximum}" if maximum is not None else f"of at least {minimum}"
+    return f"{key} must be a whole number {bound} (got {value!r})."
+
+
+def is_split_flap(board) -> bool:
+    """Whether *board* is driven by a first-party split-flap output (a
+    Vestaboard, or a FiestaPanel imitating one), not an output plugin's
+    device (an LED matrix). Decides what an unset transition means: none on
+    a split-flap, the device model's default on an output plugin's board."""
+    return derive_output_id(board) in BUILTIN_OUTPUT_IDS
 
 
 def _optional_int(value) -> int | None:

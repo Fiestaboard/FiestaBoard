@@ -39,7 +39,7 @@ Pick one for each display in **Displays → (choose a display) → Transition**:
 
 The list shows only the strategies that display can run. With a built-in strategy selected, the same section shows **Speed**, with two optional settings:
 
-- **Step Interval (ms)** — delay between animation steps. Leave empty for the board default.
+- **Step Interval (ms)** — delay between animation steps, from 0 to 5000. Leave empty for the board default.
 - **Step Size** — how many rows or columns animate at once. Leave empty for the board default.
 
 LED displays have no split-flap strategies; their **Transition** section offers the effects the device itself supports, such as **None** and **Flip**.
@@ -107,6 +107,8 @@ Picking anything other than **Use the display's transition** creates a page-leve
 
 1. The page's own transition, setting by setting (strategy, step interval, step size)
 2. Otherwise, the transition of the display the page is sent to
+
+A page's transition only counts on a display that can run it. Sent to a display that cannot, such as a built-in flip strategy on an LED display, the page uses that display's own transition instead.
 
 :::note
 Transitions cannot currently be set per collection or per schedule entry. A scheduled page uses its own page-level transition if it has one, and the display's transition otherwise.

@@ -330,6 +330,18 @@ describe("/displays/:boardId", () => {
     expect(calls.put).toHaveLength(0);
   });
 
+  it("a step interval above 5000 ms is not saved", async () => {
+    const calls = setup([{ ...KITCHEN, transition: "row" }]);
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    const interval = await screen.findByRole("spinbutton", { name: "Step Interval (ms)" });
+    expect(interval).toHaveAttribute("max", "5000");
+    await userEvent.type(interval, "5001");
+    await userEvent.tab();
+    expect(interval).toHaveAttribute("aria-invalid", "true");
+    expect(calls.put).toHaveLength(0);
+  });
+
   it("None has no speed to set", async () => {
     setup([{ ...KITCHEN, transition: "none" }]);
     params.boardId = "kitchen";

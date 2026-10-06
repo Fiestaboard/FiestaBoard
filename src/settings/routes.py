@@ -36,7 +36,7 @@ from datetime import UTC
 import requests
 from fastapi import APIRouter, HTTPException
 
-from src.api_deprecation import flat_board_fields_notice
+from src.api_deprecation import deprecation_notice, flat_board_fields_notice
 from src.api_errors import errors
 from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
@@ -58,6 +58,8 @@ from .models import (
     AiTestRequest,
     AiTestResponse,
     AllSettingsResponse,
+    BetaSettingsResponse,
+    BetaSettingsUpdate,
     BoardIdentifyRequest,
     BoardIdentifyResponse,
     BoardPauseRequest,
@@ -451,7 +453,18 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
     }
 
 
-@router.get("/settings/transitions", response_model=TransitionSettingsResponse, deprecated=True)
+#: A display's transition is saved with its board (settings v6).
+_TRANSITIONS_SUCCESSOR = "/api/settings/board"
+#: The beta flags moved into the plugin settings (settings v6).
+_BETA_SUCCESSOR = "/api/settings/plugins"
+
+
+@router.get(
+    "/settings/transitions",
+    response_model=TransitionSettingsResponse,
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_TRANSITIONS_SUCCESSOR)],
+)
 async def get_transition_settings():
     """The FIRST display's transition. Deprecated: removed in v11.
 
@@ -470,7 +483,13 @@ async def get_transition_settings():
     }
 
 
-@router.put("/settings/transitions", response_model=TransitionSettings, responses={**ERROR_400}, deprecated=True)
+@router.put(
+    "/settings/transitions",
+    response_model=TransitionSettings,
+    responses={**ERROR_400},
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_TRANSITIONS_SUCCESSOR)],
+)
 async def update_transition_settings(request: TransitionSettingsUpdate):
     """
     Set the FIRST display's transition. Deprecated: removed in v11; set a
@@ -1423,6 +1442,48 @@ async def get_location_sun_times_week(week_start: str):
             }
 
     return {"location_configured": True, "dates": result}
+
+
+def _beta_view() -> dict:
+    flags = get_settings_service().get_plugin_settings()
+    return {
+        "settings": {
+            "transition_plugins_enabled": flags.transition_plugins_enabled,
+            "output_plugins_enabled": flags.output_plugins_enabled,
+        }
+    }
+
+
+@router.get(
+    "/settings/beta",
+    response_model=BetaSettingsResponse,
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_BETA_SUCCESSOR)],
+)
+async def get_beta_settings():
+    """The two plugin flags. Deprecated: removed in v11, read
+    ``GET /settings/plugins`` (settings v6 moved them there)."""
+    return _beta_view()
+
+
+@router.put(
+    "/settings/beta",
+    response_model=BetaSettingsResponse,
+    responses={**ERROR_500},
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_BETA_SUCCESSOR)],
+)
+async def update_beta_settings(request: BetaSettingsUpdate):
+    """Set the two plugin flags. Deprecated: removed in v11, write
+    ``PUT /settings/plugins`` (settings v6 moved them there).
+
+    Body may include ``transition_plugins_enabled`` and
+    ``output_plugins_enabled``; any other key is ignored.
+    """
+    provided = {k: v for k, v in request.model_dump(exclude_unset=True).items() if v is not None}
+    if provided:
+        get_settings_service().update_plugin_settings(provided)
+    return _beta_view()
 
 
 @router.get("/settings/plugins", response_model=PluginSettingsResponse)

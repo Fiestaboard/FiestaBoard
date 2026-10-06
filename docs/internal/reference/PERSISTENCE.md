@@ -168,8 +168,12 @@ and the `beta` block:
   default, which is what it ran. Every board without a speed of its own gets
   the old `step_interval_ms` / `step_size` as `transition_step_interval_ms` /
   `transition_step_size` (the speed was always install-wide, even for a
-  board with its own style). A devices-era `board` section is materialized
-  only when there is something to copy.
+  board with its own style). When there is no board to copy onto (no
+  `board` section, an empty `boards` list, or a devices-era section) and the
+  block holds something to copy, the boards are materialized first
+  (`_materialize_boards_for_v6`), importing the legacy config.json
+  connection into a default board as the first-boot seed would, so the
+  transition is never dropped.
 - `beta.transition_plugins_enabled` and `beta.output_plugins_enabled` move to
   `plugins`, and `beta` is deleted.
 
@@ -181,8 +185,11 @@ block removed. It never reads the environment: every save wrote the
 (`default_board_transition`). The runtime reads only the board
 (`SettingsService.get_transition_settings(board_id)`); a page's own
 transition wins field by field (`page_transition`). `GET/PUT
-/settings/transitions` is a deprecated alias for the first board's until
-v11; `/settings/beta` is gone.
+/settings/transitions` is a deprecated alias for the first board's, and
+`GET/PUT /settings/beta` for the two plugin flags, until v11 (both send a
+`Deprecation` header and a `Link` to their successor). A page strategy the
+display cannot run (judged from its output's capabilities) falls through to
+the display's own.
 
 **Rollback.** One step back, to a v5 build, restores
 `settings.json.v5_backup` with its `transitions` and `beta` blocks; changes

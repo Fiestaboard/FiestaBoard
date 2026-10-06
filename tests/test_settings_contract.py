@@ -716,11 +716,22 @@ class TestLocation:
 
 
 class TestBeta:
-    def test_the_beta_routes_are_gone(self, client):
-        # CHANGED (settings v6): the last two beta flags moved to
-        # /settings/plugins, and /settings/beta went with the empty block.
-        assert client.get("/settings/beta").status_code == 404
-        assert client.put("/settings/beta", json={"transition_plugins_enabled": True}).status_code in (404, 405)
+    def test_get_reads_the_plugin_flags(self, client):
+        # CHANGED (settings v6): a deprecated alias (until v11) for the two
+        # flags /settings/plugins now carries; it sends a Deprecation notice.
+        response = client.get("/settings/beta")
+        assert response.json() == {"settings": {"transition_plugins_enabled": False, "output_plugins_enabled": False}}
+        assert response.headers["Deprecation"] == "true"
+
+    def test_put_returns_the_settings(self, client):
+        response = client.put("/settings/beta", json={"transition_plugins_enabled": True})
+        assert response.status_code == 200
+        assert response.json() == {"settings": {"transition_plugins_enabled": True, "output_plugins_enabled": False}}
+
+    def test_put_ignores_the_retired_https_flag(self, client):
+        response = client.put("/settings/beta", json={"https_enabled": True})
+        assert response.status_code == 200
+        assert response.json() == {"settings": {"transition_plugins_enabled": False, "output_plugins_enabled": False}}
 
 
 # ---------------------------------------------------------------------------

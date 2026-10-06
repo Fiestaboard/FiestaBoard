@@ -1666,6 +1666,11 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
 
             allowed = GENERAL_SETTING_KEYS
             handler = lambda: update_general_config(GeneralConfigUpdate(**body))  # noqa: E731
+        elif category == "beta":
+            # Deprecated alias (until v11): settings v6 moved the beta flags
+            # to "plugins". Only the two flags, as the REST alias takes.
+            allowed = models.BetaSettingsUpdate.model_fields
+            handler = lambda: api.update_plugin_settings(models.PluginSettingsUpdate(**body))  # noqa: E731
         elif category == "plugins":
             allowed = models.PluginSettingsUpdate.model_fields
             handler = lambda: api.update_plugin_settings(models.PluginSettingsUpdate(**body))  # noqa: E731
@@ -1883,7 +1888,14 @@ def _validate_board_fields(**fields: Any) -> dict[str, Any] | None:
     value. A malformed host raises the guard's own HTTPException(400).
     """
     from src.board_guards import validate_board_host
-    from src.devices import CODE62_GLYPHS, DEVICE_TYPES, MAX_NOTES_PER_AXIS, VALID_API_MODES
+    from src.devices import (
+        CODE62_GLYPHS,
+        DEVICE_TYPES,
+        MAX_NOTES_PER_AXIS,
+        TRANSITION_SPEED_BOUNDS,
+        VALID_API_MODES,
+        transition_speed_error,
+    )
 
     vocab = {
         "device_type": DEVICE_TYPES,
@@ -1906,12 +1918,10 @@ def _validate_board_fields(**fields: Any) -> dict[str, Any] | None:
             continue
         if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_NOTES_PER_AXIS:
             return err(f"{key} must be an integer between 1 and {MAX_NOTES_PER_AXIS}.")
-    for key, minimum in (("transition_step_interval_ms", 0), ("transition_step_size", 1)):
-        value = fields.get(key)
-        if value is None:
-            continue
-        if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
-            return err(f"{key} must be an integer of at least {minimum}.")
+    for key in TRANSITION_SPEED_BOUNDS:
+        error = transition_speed_error(key, fields.get(key))
+        if error:
+            return err(error)
     host = fields.get("host")
     if host is not None:
         validate_board_host(host)
