@@ -82,14 +82,14 @@ LED_TRANSITIONS: Mapping[str, LedTransitionEntry] = {
         8,
         "subsample",
     ),
-    "cascade": _entry("cascade", "Cascade", "One flip per changed cell, in reading order.", 10, 30, 6, "quantise"),
+    "cascade": _entry("cascade", "Cascade", "One flip per changed cell, in reading order.", 5, 30, 6, "quantise"),
     "slide": _entry(
-        "slide", "Slide", "The new message pushes the old one up and off the panel.", 10, 30, 6, "quantise"
+        "slide", "Slide", "The new message pushes the old one up and off the panel.", 5, 30, 6, "quantise"
     ),
-    "wipe": _entry("wipe", "Wipe", "A curtain reveals the new message from left to right.", 10, 30, 6, "quantise"),
-    "fade": _entry("fade", "Fade", "The old message dims as the new one brightens.", 10, 30, 4, "quantise"),
+    "wipe": _entry("wipe", "Wipe", "A curtain reveals the new message from left to right.", 5, 30, 6, "quantise"),
+    "fade": _entry("fade", "Fade", "The old message dims as the new one brightens.", 5, 30, 4, "quantise"),
     "dissolve": _entry(
-        "dissolve", "Dissolve", "Pixels switch from old to new in a scattered order.", 10, 30, 4, "quantise"
+        "dissolve", "Dissolve", "Pixels switch from old to new in a scattered order.", 5, 30, 4, "quantise"
     ),
 }
 
