@@ -563,6 +563,33 @@ def test_a_per_send_transition_overrides_the_stored_settings(client, boards, boa
     assert kwargs["step_size"] == 3
 
 
+def test_a_send_without_a_transition_runs_the_boards_own_choice(client, boards, board_client):
+    from src.settings.service import get_settings_service
+
+    settings = get_settings_service()
+    rows = [dict(b) for b in settings.get_board_settings().boards]
+    rows[0]["transition"] = "row"
+    settings.set_boards(rows)
+
+    client.post("/v1/boards/primary/message", json={"text": "Hello"})
+
+    assert board_client.render.call_args.kwargs["strategy"] == "row"
+
+
+def test_the_deprecated_send_message_also_runs_the_named_boards_own_transition(client, boards, board_client):
+    from src.settings.service import get_settings_service
+
+    primary_id, _ = boards
+    settings = get_settings_service()
+    rows = [dict(b) for b in settings.get_board_settings().boards]
+    rows[0]["transition"] = "row"
+    settings.set_boards(rows)
+
+    client.post("/send-message", json={"text": "Hello", "board_id": primary_id})
+
+    assert board_client.render.call_args.kwargs["strategy"] == "row"
+
+
 # ── boards: the gates, observed through v1 ──────────────────────────────────
 
 
