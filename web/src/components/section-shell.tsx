@@ -1,4 +1,5 @@
 import {
+  Box,
   PageCard,
   PageHeader,
   PageLayout,
@@ -70,7 +71,7 @@ export function SectionShell({ icon, title, description, href, action, detail, f
         title: detail.title,
         description: detail.description,
         crumbs: [{ label: title, href: detail.backHref ?? href }],
-        action: <div ref={setSlot} className="contents" data-slot="section-action" />,
+        action: <Box ref={setSlot} className="contents" data-slot="section-action" />,
       },
     [detail, title, href],
   );

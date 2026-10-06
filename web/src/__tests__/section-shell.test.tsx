@@ -6,7 +6,7 @@ import { render, screen, within } from "@testing-library/react";
 import { Monitor } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
 
-import { SectionAction, SectionShell, type SectionDetail } from "@/components/section-shell";
+import { SectionAction, type SectionDetail,SectionShell } from "@/components/section-shell";
 
 const route = { pathname: "/displays" };
 

@@ -9,9 +9,6 @@ import {
   DialogTitle,
   Flex,
   Grid,
-  PageCard,
-  PageHeader,
-  PageLayout,
   PageSection,
   PageToolbar,
   Skeleton,
@@ -22,7 +19,7 @@ import {
   Textarea,
 } from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Download, FileText, LayoutGrid, List, Plus } from "lucide-react";
+import { Download, LayoutGrid, List, Plus } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -92,7 +89,7 @@ export function ImportPageDialog({ open, onOpenChange }: { open: boolean; onOpen
       queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
       toast.success(t("toastImported", { name: data.name }));
       onOpenChange(false);
-      push(`/pages/edit/${data.id}`, { transitionType: "slide-up" });
+      push(`/pages/edit/${data.id}`);
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -190,7 +187,7 @@ export default function PagesPage() {
 
   const handleSelectPage = useCallback(
     (pageId: string) => {
-      push(`/pages/edit/${pageId}`, { transitionType: "slide-up" });
+      push(`/pages/edit/${pageId}`);
     },
     [push],
   );
@@ -200,143 +197,139 @@ export default function PagesPage() {
     // On the selected display's own tab, ask for no device: the editor then
     // targets that display exactly (its grid, model and character set).
     if (currentBoard && currentBoard.device_type === device) {
-      push("/pages/new", { transitionType: "slide-up" });
+      push("/pages/new");
       return;
     }
-    push(`/pages/new?device=${device}`, { transitionType: "slide-up" });
+    push(`/pages/new?device=${device}`);
   }, [push, activeTab, configuredDevices, currentBoard]);
 
+  // The section (pages.tsx) owns the card and the header; this is the body.
   return (
-    <PageLayout>
-      <PageCard>
-        <PageHeader icon={FileText} title={t("title")} description={t("description")} />
-        <PageToolbar
-          left={
-            <Flex align="center" className="border rounded-md" role="group" aria-label={t("viewModeLabel")}>
-              <Button
-                size="sm"
-                variant={viewMode === "grid" ? "secondary" : "ghost"}
-                onClick={() => handleViewModeChange("grid")}
-                className="h-8 w-8 p-0 rounded-r-none"
-                aria-label={t("gridView")}
-                aria-pressed={viewMode === "grid"}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant={viewMode === "list" ? "secondary" : "ghost"}
-                onClick={() => handleViewModeChange("list")}
-                className="h-8 w-8 p-0 rounded-l-none"
-                aria-label={t("listView")}
-                aria-pressed={viewMode === "list"}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </Flex>
-          }
-          right={
-            <Flex align="center" gap="2">
-              <Button
-                variant="brand"
-                size="sm"
-                onClick={handleCreateNew}
-                className="h-9 sm:h-8 px-3 text-xs btn-lift"
-                {...anchorProps("pages.new")}
-              >
-                <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
-                {t("newPage")}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setImportOpen(true)}
-                className="h-9 sm:h-8 px-3 text-xs btn-lift"
-              >
-                <Download className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
-                {t("importPage")}
-              </Button>
-            </Flex>
-          }
-        />
+    <>
+      <PageToolbar
+        left={
+          <Flex align="center" className="border rounded-md" role="group" aria-label={t("viewModeLabel")}>
+            <Button
+              size="sm"
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              onClick={() => handleViewModeChange("grid")}
+              className="h-8 w-8 p-0 rounded-r-none"
+              aria-label={t("gridView")}
+              aria-pressed={viewMode === "grid"}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              onClick={() => handleViewModeChange("list")}
+              className="h-8 w-8 p-0 rounded-l-none"
+              aria-label={t("listView")}
+              aria-pressed={viewMode === "list"}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </Flex>
+        }
+        right={
+          <Flex align="center" gap="2">
+            <Button
+              variant="brand"
+              size="sm"
+              onClick={handleCreateNew}
+              className="h-9 sm:h-8 px-3 text-xs btn-lift"
+              {...anchorProps("pages.new")}
+            >
+              <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
+              {t("newPage")}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setImportOpen(true)}
+              className="h-9 sm:h-8 px-3 text-xs btn-lift"
+            >
+              <Download className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
+              {t("importPage")}
+            </Button>
+          </Flex>
+        }
+      />
 
-        <PageSection {...anchorProps("pages.root")}>
-          {hasMultipleDevices ? (
-            <Tabs value={activeTab ?? availableDevices[0]} onValueChange={(v) => setActiveTab(v as DeviceType)}>
-              {/* No inset any more: the section's own padding puts this strip on
+      <PageSection {...anchorProps("pages.root")}>
+        {hasMultipleDevices ? (
+          <Tabs value={activeTab ?? availableDevices[0]} onValueChange={(v) => setActiveTab(v as DeviceType)}>
+            {/* No inset any more: the section's own padding puts this strip on
                 the content column, and the tiles below sit on it too. */}
-              <TabsList className="mb-5">
-                {availableDevices.includes("flagship") && (
-                  <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>
-                )}
-                {availableDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
-                {availableDevices.includes("note_array") && (
-                  <TabsTrigger value="note_array">{t("noteArrayTab")}</TabsTrigger>
-                )}
-                {availableDevices.includes("panel") && <TabsTrigger value="panel">{t("panelTab")}</TabsTrigger>}
-              </TabsList>
-              {availableDevices.includes("flagship") && (
-                <TabsContent value="flagship">
-                  <PageGridSelector
-                    onSelectPage={handleSelectPage}
-                    label={null}
-                    showActiveIndicator={false}
-                    showCollections={false}
-                    deviceTypeFilter="flagship"
-                    viewMode={viewMode}
-                  />
-                </TabsContent>
-              )}
-              {availableDevices.includes("note") && (
-                <TabsContent value="note">
-                  <PageGridSelector
-                    onSelectPage={handleSelectPage}
-                    label={null}
-                    showActiveIndicator={false}
-                    showCollections={false}
-                    deviceTypeFilter="note"
-                    viewMode={viewMode}
-                  />
-                </TabsContent>
-              )}
+            <TabsList className="mb-5">
+              {availableDevices.includes("flagship") && <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>}
+              {availableDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
               {availableDevices.includes("note_array") && (
-                <TabsContent value="note_array">
-                  <PageGridSelector
-                    onSelectPage={handleSelectPage}
-                    label={null}
-                    showActiveIndicator={false}
-                    showCollections={false}
-                    deviceTypeFilter="note_array"
-                    viewMode={viewMode}
-                  />
-                </TabsContent>
+                <TabsTrigger value="note_array">{t("noteArrayTab")}</TabsTrigger>
               )}
-              {availableDevices.includes("panel") && (
-                <TabsContent value="panel">
-                  <PageGridSelector
-                    onSelectPage={handleSelectPage}
-                    label={null}
-                    showActiveIndicator={false}
-                    showCollections={false}
-                    deviceTypeFilter="panel"
-                    viewMode={viewMode}
-                  />
-                </TabsContent>
-              )}
-            </Tabs>
-          ) : (
-            <PageGridSelector
-              onSelectPage={handleSelectPage}
-              label={null}
-              showActiveIndicator={false}
-              showCollections={false}
-              deviceTypeFilter={(availableDevices[0] ?? configuredDevices[0]) as DeviceType}
-              viewMode={viewMode}
-            />
-          )}
-        </PageSection>
-      </PageCard>
+              {availableDevices.includes("panel") && <TabsTrigger value="panel">{t("panelTab")}</TabsTrigger>}
+            </TabsList>
+            {availableDevices.includes("flagship") && (
+              <TabsContent value="flagship">
+                <PageGridSelector
+                  onSelectPage={handleSelectPage}
+                  label={null}
+                  showActiveIndicator={false}
+                  showCollections={false}
+                  deviceTypeFilter="flagship"
+                  viewMode={viewMode}
+                />
+              </TabsContent>
+            )}
+            {availableDevices.includes("note") && (
+              <TabsContent value="note">
+                <PageGridSelector
+                  onSelectPage={handleSelectPage}
+                  label={null}
+                  showActiveIndicator={false}
+                  showCollections={false}
+                  deviceTypeFilter="note"
+                  viewMode={viewMode}
+                />
+              </TabsContent>
+            )}
+            {availableDevices.includes("note_array") && (
+              <TabsContent value="note_array">
+                <PageGridSelector
+                  onSelectPage={handleSelectPage}
+                  label={null}
+                  showActiveIndicator={false}
+                  showCollections={false}
+                  deviceTypeFilter="note_array"
+                  viewMode={viewMode}
+                />
+              </TabsContent>
+            )}
+            {availableDevices.includes("panel") && (
+              <TabsContent value="panel">
+                <PageGridSelector
+                  onSelectPage={handleSelectPage}
+                  label={null}
+                  showActiveIndicator={false}
+                  showCollections={false}
+                  deviceTypeFilter="panel"
+                  viewMode={viewMode}
+                />
+              </TabsContent>
+            )}
+          </Tabs>
+        ) : (
+          <PageGridSelector
+            onSelectPage={handleSelectPage}
+            label={null}
+            showActiveIndicator={false}
+            showCollections={false}
+            deviceTypeFilter={(availableDevices[0] ?? configuredDevices[0]) as DeviceType}
+            viewMode={viewMode}
+          />
+        )}
+      </PageSection>
       <ImportPageDialog open={importOpen} onOpenChange={setImportOpen} />
-    </PageLayout>
+    </>
   );
 }

@@ -45,9 +45,12 @@ export function PageEditorShell({ pageId, deviceType, skipDraft, onClose, onSave
   }, [register, unregister, pageId]);
 
   return (
-    <Flex className="flex-1 min-h-0 w-full overflow-hidden bg-background">
-      <Stack className="h-full w-full min-w-0 flex-1 overflow-y-auto bg-background px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 lg:py-3">
+    <Flex className="flex-1 min-h-0 w-full overflow-hidden">
+      {/* No padding of its own: it sits in the Pages section's card, which
+          already puts the editor on the content column. */}
+      <Stack className="h-full w-full min-w-0 flex-1 overflow-y-auto">
         <PageBuilder
+          embedded
           ref={builderRef}
           pageId={pageId}
           deviceType={deviceType}

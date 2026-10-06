@@ -10,7 +10,7 @@ export default function NewPage() {
   const deviceType = (searchParams.get("device") as DeviceType | null) || undefined;
   const skipDraft = searchParams.get("fresh") === "1";
 
-  const back = () => push("/pages", { transitionType: "slide-down" });
+  const back = () => push("/pages");
 
   return <PageEditorShell deviceType={deviceType} skipDraft={skipDraft} onClose={back} onSave={back} />;
 }

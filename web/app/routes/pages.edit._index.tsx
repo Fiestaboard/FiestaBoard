@@ -1,4 +1,4 @@
-import { PageLayout, Text } from "@fiestaboard/ui";
+import { Text } from "@fiestaboard/ui";
 import { useEffect, useState } from "react";
 
 import { PageBuilder } from "@/components/page-builder";
@@ -23,31 +23,25 @@ export default function EditPage() {
 
   useEffect(() => {
     if (!pageId) {
-      push("/pages", { transitionType: "slide-down" });
+      push("/pages");
     }
   }, [pageId, push]);
 
   const handleClose = () => {
-    push("/pages", { transitionType: "slide-down" });
+    push("/pages");
   };
 
   const handleSave = () => {
-    push("/pages", { transitionType: "slide-down" });
+    push("/pages");
   };
 
   if (!pageId) {
     return (
-      <PageLayout>
-        <Text tone="muted" className="text-center">
-          {tCommon("loading")}
-        </Text>
-      </PageLayout>
+      <Text tone="muted" className="py-6 text-center">
+        {tCommon("loading")}
+      </Text>
     );
   }
 
-  return (
-    <PageLayout outerClassName="flex flex-col" className="flex-1 flex flex-col min-h-0">
-      <PageBuilder pageId={pageId} onClose={handleClose} onSave={handleSave} />
-    </PageLayout>
-  );
+  return <PageBuilder embedded pageId={pageId} onClose={handleClose} onSave={handleSave} />;
 }
