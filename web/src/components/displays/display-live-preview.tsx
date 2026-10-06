@@ -21,7 +21,14 @@ export const DisplayLivePreview = memo(function DisplayLivePreview({
   board: BoardInstance;
   size?: "sm" | "md";
 }) {
-  const { data: state, isLoading } = useBoardCurrentMessage(board.id);
+  // A paused board is hands-off and may be unplugged: read it once, never poll.
+  const paused = board.paused === true;
+  const { data: state, isLoading, errorUpdateCount } = useBoardCurrentMessage(board.id, { poll: !paused });
+  // The loading animation is for the first read only. A query that never
+  // succeeded goes back to "pending" on every refetch, so an unreachable
+  // board would replay the animation on each poll; once a read has failed,
+  // it stays a still (empty) board. A paused board never animates.
+  const loading = isLoading && !paused && errorUpdateCount === 0;
   const message = state?.message ?? null;
   // A rich board's frame as its cells (colour, case, icons), when it was sent with them.
   const cells = message !== null ? (state?.cells as BoardCellGrid | undefined) : undefined;
@@ -35,7 +42,7 @@ export const DisplayLivePreview = memo(function DisplayLivePreview({
     >
       <ScaledBoardDisplay
         message={message}
-        isLoading={isLoading}
+        isLoading={loading}
         size={size}
         boardType={board.board_color}
         deviceType={board.device_type}

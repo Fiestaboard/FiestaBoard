@@ -94,11 +94,15 @@ export function collectionPollMs(nextCheckSeconds: number | null | undefined): n
 // A secondary boardId is served from the backend's per-board runtime cache
 // (last-sent content); `message`/`characters` are null until something is
 // sent to it (issue #1247).
-export function useBoardCurrentMessage(boardId?: string) {
+/**
+ * What a board shows, polled every 30 s. `poll: false` reads it once and
+ * stops — a paused board does not change, and may be unplugged.
+ */
+export function useBoardCurrentMessage(boardId?: string, { poll = true }: { poll?: boolean } = {}) {
   return useQuery({
     queryKey: queryKeys.boardCurrentMessage(boardId),
     queryFn: () => api.getBoardCurrentMessage(boardId),
-    refetchInterval: 30_000,
+    refetchInterval: poll ? 30_000 : false,
     staleTime: 25_000,
   });
 }

@@ -148,8 +148,12 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
     is_primary = board is None or board_id == runtime.get_settings_service().get_primary_board_id()
 
     if is_primary:
+        # A paused board is hands-off — and may be unplugged: never read it
+        # live, serve what is known (a failed read here was a 503 on every
+        # poll, and the web preview's loading animation with it).
+        paused = runtime.get_settings_service().is_paused(board_id=board_id) is True
         try:
-            state = await read_board_state_live(board_id, force=force, service=service)
+            state = await read_board_state_live(board_id, force=force, service=service, paused=paused)
         except BoardReadError:
             raise HTTPException(status_code=503, detail="Failed to read current board message") from None
     else:

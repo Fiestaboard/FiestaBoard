@@ -1130,6 +1130,12 @@ class DisplayService:
         rt = self._primary_runtime()
         if rt is None or rt.client is None:
             return
+        # A paused board is hands-off (issue #970) and may be unplugged:
+        # reading it would only wait on the network and fail every cycle.
+        # Strict ``is True`` — a Mock settings service never counts as paused.
+        settings = get_settings_service()
+        if settings.is_paused(board_id=settings.get_primary_board_id()) is True:
+            return
         chars, external_write = rt.output.observe_read(rt.client.read_current_message)
         if not chars:
             return
