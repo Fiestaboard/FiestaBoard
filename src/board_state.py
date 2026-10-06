@@ -228,9 +228,16 @@ def read_board_state(board_id: str | None, *, want: Want, service: Any) -> Board
     return _select(rt, board_id, want=want)
 
 
-async def read_board_state_live(board_id: str | None, *, force: bool = False, service: Any) -> BoardState:
+async def read_board_state_live(
+    board_id: str | None, *, force: bool = False, service: Any, paused: bool = False
+) -> BoardState:
     """``want="board"``, plus a live read of a physical board where the poll
     cache cannot answer.
+
+    A *paused* board is never read live, ``force`` or not: pause is
+    hands-off (issue #970), and a paused board may well be unplugged, where
+    a read would only wait on the network and fail on every request. It is
+    served from what is known — the poll cache, then what was last sent.
 
     The network read runs on a worker thread, and only when it happens: a
     populated poll cache (unless ``force``) and a virtual board's memory are
@@ -249,9 +256,9 @@ async def read_board_state_live(board_id: str | None, *, force: bool = False, se
     if rt is None:
         return _empty(board_id)
 
-    state = _select(rt, board_id, want="board", skip_poll_cache=force)
+    state = _select(rt, board_id, want="board", skip_poll_cache=force and not paused)
     client = rt.client
-    if state.source == "polled" or client is None:
+    if state.source == "polled" or client is None or paused:
         return state
     if _is_virtual(client):
         if state.characters is not None:

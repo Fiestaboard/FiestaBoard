@@ -418,6 +418,38 @@ def test_a_board_without_read_back_and_nothing_sent_is_empty_not_a_failed_read()
     assert (state.source, state.characters) == ("empty", None)
 
 
+@pytest.mark.parametrize("force", [False, True], ids=["cache_empty", "forced"])
+def test_a_paused_board_is_never_read_live_and_is_served_what_was_last_sent(force):
+    """A paused board is hands-off: it may be unplugged in a box, so a read
+    would only hang on the network and fail. Serve what FiestaBoard knows."""
+    client = PhysicalClient(last_sent=SENT, live=None)
+    service = Service({"b1": Runtime(client)})
+
+    with _no_thread_hop():
+        state = asyncio.run(read_board_state_live(None, force=force, service=service, paused=True))
+
+    assert client.live_reads == 0, "a paused board was read live"
+    assert (state.source, state.characters) == ("last_sent", SENT)
+
+
+def test_a_paused_board_keeps_its_last_poll_even_when_forced():
+    client = PhysicalClient(last_sent=SENT, live=LIVE)
+    service = Service({"b1": Runtime(client, polled=POLLED, polled_at=POLLED_AT)})
+
+    state = asyncio.run(read_board_state_live(None, force=True, service=service, paused=True))
+
+    assert client.live_reads == 0
+    assert (state.source, state.characters) == ("polled", POLLED)
+
+
+def test_a_paused_board_with_nothing_known_is_empty_not_a_failed_read():
+    service = Service({"b1": Runtime(PhysicalClient(live=None))})
+
+    state = asyncio.run(read_board_state_live(None, service=service, paused=True))
+
+    assert (state.source, state.characters) == ("empty", None)
+
+
 def test_a_live_read_on_a_secondary_board_primes_that_boards_runtime():
     b2 = PhysicalClient(live=NOTE_FRAME)
     service = Service({"b1": Runtime(PhysicalClient()), "b2": Runtime(b2)})
@@ -498,3 +530,30 @@ def test_current_message_serves_the_poll_cache_without_leaving_the_loop(app_clie
 
     assert response.status_code == 200
     assert response.json()["characters"] == POLLED
+
+
+def test_current_message_never_reads_a_paused_primary_board(app_client, primary_is_b1):
+    """An unreachable board the owner paused answers at once, from what is
+    known, instead of a live read that fails with 503 on every poll."""
+    client = PhysicalClient(last_sent=SENT, live=None)
+    service = Service({"b1": Runtime(client)})
+    primary_is_b1.is_paused.return_value = True
+
+    with patch("src.display_runtime.get_service", return_value=service), _no_thread_hop():
+        response = app_client.get("/board/current-message")
+
+    assert client.live_reads == 0
+    assert response.status_code == 200
+    assert response.json()["characters"] == SENT
+
+
+def test_current_message_still_reads_an_unpaused_primary_board_live(app_client, primary_is_b1):
+    client = PhysicalClient(last_sent=SENT, live=LIVE)
+    service = Service({"b1": Runtime(client)})
+    primary_is_b1.is_paused.return_value = False
+
+    with patch("src.display_runtime.get_service", return_value=service):
+        response = app_client.get("/board/current-message")
+
+    assert client.live_reads == 1
+    assert response.json()["characters"] == LIVE
