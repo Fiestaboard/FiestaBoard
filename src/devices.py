@@ -3,6 +3,7 @@
 Defines the supported Vestaboard device types and their physical constraints.
 """
 
+import logging
 import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal, NamedTuple, get_args
@@ -239,10 +240,10 @@ class BoardInstance:
         if not isinstance(self.paused, bool):
             self.paused = bool(self.paused)
         self.transition = (self.transition.strip() or None) if isinstance(self.transition, str) else None
-        self.transition_step_interval_ms = transition_speed(
+        self.transition_step_interval_ms = clamp_transition_speed(
             "transition_step_interval_ms", self.transition_step_interval_ms
         )
-        self.transition_step_size = transition_speed("transition_step_size", self.transition_step_size)
+        self.transition_step_size = clamp_transition_speed("transition_step_size", self.transition_step_size)
         # Name is user-editable (issue #1792): strip, cap, and fall back to
         # the default. "   " is truthy, so a falsy-only guard stored
         # whitespace verbatim and rendered a blank sidebar row.
@@ -709,10 +710,15 @@ def _bounded_int(value, *, minimum: int, maximum: int | None = None) -> int | No
     return value
 
 
-#: A display's transition speed fields and their bounds (settings v6). The
-#: interval matches a page's own (``transition_interval_ms``, 0-5000 ms).
+#: The longest transition step interval, in ms: a display's
+#: (``transition_step_interval_ms``) and a page's (``transition_interval_ms``).
+#: The one definition: the settings and page models, the MCP docs and the web
+#: UI (``MAX_STEP_INTERVAL_MS`` in display-transition.tsx) all follow it.
+MAX_TRANSITION_STEP_INTERVAL_MS: int = 5000
+
+#: A display's transition speed fields and their bounds (settings v6).
 TRANSITION_SPEED_BOUNDS: dict[str, tuple[int, int | None]] = {
-    "transition_step_interval_ms": (0, 5000),
+    "transition_step_interval_ms": (0, MAX_TRANSITION_STEP_INTERVAL_MS),
     "transition_step_size": (1, None),
 }
 
@@ -725,6 +731,17 @@ def transition_speed(key: str, value) -> int | None:
     """
     minimum, maximum = TRANSITION_SPEED_BOUNDS[key]
     return _bounded_int(value, minimum=minimum, maximum=maximum)
+
+
+def clamp_transition_speed(key: str, value) -> int | None:
+    """*value* for speed field *key* as stored data is normalized: above the
+    maximum it is clamped to the maximum (and logged), so data written before
+    the cap never blocks a later write; otherwise :func:`transition_speed`."""
+    _, maximum = TRANSITION_SPEED_BOUNDS[key]
+    if maximum is not None and isinstance(value, int) and not isinstance(value, bool) and value > maximum:
+        logging.getLogger(__name__).warning("%s %r is above the %d maximum; clamped", key, value, maximum)
+        return maximum
+    return transition_speed(key, value)
 
 
 def transition_speed_error(key: str, value) -> str | None:

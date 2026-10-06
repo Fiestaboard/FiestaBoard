@@ -97,9 +97,9 @@ class TestResolution:
         svc = _service(settings_file, [VESTA, {**PIXOO, "transition": "none"}])
         assert svc.get_transition_settings("px").strategy == "none"
 
-    def test_an_unknown_board_reads_the_first_display(self, settings_file):
+    def test_an_unknown_board_has_no_transition(self, settings_file):
         svc = _service(settings_file, [{**VESTA, "transition": "diagonal"}])
-        assert svc.get_transition_settings("missing").strategy == "diagonal"
+        assert svc.get_transition_settings("missing").strategy is None
 
 
 class TestSaving:

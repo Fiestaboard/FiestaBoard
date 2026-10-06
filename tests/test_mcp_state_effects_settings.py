@@ -1006,6 +1006,7 @@ def test_get_settings_summary_reports_every_update_setting_category(mcp, service
     for block in ("general", "display", "transitions", "output", "polling", "location", "silence_schedule"):
         assert block in summary, f"{block} missing from the summary"
     assert "beta" not in summary
+    assert set(summary["transitions"]) == {"strategy", "step_interval_ms", "step_size"}, "nothing extra serialized"
     assert summary["plugins"]["transition_plugins_enabled"] is False
     assert "auto_update" in summary["plugins"]
     assert set(summary["general"]) == {"instance_name", "timezone", "time_format", "date_format", "welcome_message"}

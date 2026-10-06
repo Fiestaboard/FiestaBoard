@@ -43,6 +43,7 @@ from src.collections.service import resolve_active_page_id, resolve_next_check_s
 from src.devices import classify_dimensions, geometry_of
 from src.display_runtime import reinitialize_board_clients
 from src.outputs.cells import extended_markup_kw, project_for_output
+from src.outputs.transitions import driver_runs_strategy
 
 from .models import (
     ERROR_400,
@@ -693,6 +694,7 @@ async def set_active_page(request: SetActivePageRequest):
                     resolved = page_transition(
                         settings_service.get_transition_settings(board_id or settings_service.get_primary_board_id()),
                         page,
+                        runs=lambda s: driver_runs_strategy(send_client, s),
                     )
                     strategy, interval_ms, step_size = (
                         resolved.strategy,

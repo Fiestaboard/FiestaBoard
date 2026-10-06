@@ -102,18 +102,8 @@ class TestDefaultIsValidated:
 
 
 # ---------------------------------------------------------------------------
-# 2. A page strategy the display cannot run falls through to the display's
+# 2. A page strategy the board's driver cannot run falls through to the board's
 # ---------------------------------------------------------------------------
-
-
-def _caps(technology: str, natives=(), animation: str = "stream"):
-    from src.settings.service import TransitionCapabilities
-
-    return TransitionCapabilities(technology=technology, native_transitions=frozenset(natives), animation=animation)
-
-
-SPLIT_FLAP = ("split_flap", ("column", "row", "diagonal"))
-LED = ("led_matrix", ())
 
 
 def _page(strategy, interval=None, step_size=None):
@@ -122,83 +112,166 @@ def _page(strategy, interval=None, step_size=None):
     )
 
 
+def _driver(natives=(), animation="stream", takes_transitions=False):
+    """A stand-in driver: the attributes the runtime reads to pick a transition."""
+    return SimpleNamespace(
+        native_transitions=frozenset(natives), animation=animation, takes_transitions=takes_transitions
+    )
+
+
+VESTA_DRIVER = _driver(("column", "row", "diagonal"))
+PANEL_DRIVER = _driver(())
+LED_DRIVER = _driver((), takes_transitions=True)
+CLOUD_DRIVER = _driver((), animation="none")
+
+
+class TestDriverRunsStrategy:
+    @pytest.mark.parametrize(
+        ("driver", "strategy", "runs"),
+        [
+            (VESTA_DRIVER, "column", True),
+            (VESTA_DRIVER, "random", False),
+            (VESTA_DRIVER, "plugin:typewriter", True),
+            (VESTA_DRIVER, "flip", False),
+            (PANEL_DRIVER, "column", False),
+            (PANEL_DRIVER, "plugin:typewriter", True),
+            (CLOUD_DRIVER, "plugin:typewriter", False),
+            (LED_DRIVER, "fade", True),
+            (LED_DRIVER, "column", False),
+            (LED_DRIVER, "plugin:typewriter", False),
+            (VESTA_DRIVER, "sparkle", False),
+        ],
+    )
+    def test_the_runtime_predicate(self, driver, strategy, runs):
+        from src.outputs.transitions import driver_runs_strategy
+
+        assert driver_runs_strategy(driver, strategy) is runs
+
+    def test_a_driver_that_says_nothing_runs_whatever_it_is_asked(self):
+        from unittest.mock import Mock
+
+        from src.outputs.transitions import driver_runs_strategy
+
+        assert driver_runs_strategy(Mock(), "column") is True
+        assert driver_runs_strategy(None, "column") is True
+
+
 class TestPageStrategyMustBeRunnable:
-    def _display(self, technology, natives, strategy="row", animation="stream"):
+    def _display(self, strategy="none"):
         from src.settings.service import TransitionSettings
 
-        return TransitionSettings(
-            strategy=strategy,
-            step_interval_ms=40,
-            step_size=2,
-            capabilities=_caps(technology, natives, animation),
-        )
+        return TransitionSettings(strategy=strategy, step_interval_ms=40, step_size=2)
 
     @pytest.mark.parametrize(
-        ("display", "page_strategy"),
-        [(LED, "column"), (LED, "plugin:typewriter"), (SPLIT_FLAP, "flip"), (("screen", ()), "column")],
-        ids=["native-on-led", "plugin-on-led", "led-id-on-split-flap", "native-the-output-lacks"],
+        ("driver", "page_strategy"),
+        [(LED_DRIVER, "column"), (LED_DRIVER, "plugin:typewriter"), (VESTA_DRIVER, "flip"), (PANEL_DRIVER, "row")],
+        ids=["native-on-led", "plugin-on-led", "led-id-on-split-flap", "native-the-driver-lacks"],
     )
-    def test_an_unrunnable_page_strategy_falls_through_to_the_display(self, display, page_strategy):
-        resolved = page_transition(self._display(*display, strategy="none"), _page(page_strategy, interval=5))
+    def test_an_unrunnable_page_strategy_falls_back_to_the_board_and_its_speed(self, driver, page_strategy):
+        from src.outputs.transitions import driver_runs_strategy
+
+        page = _page(page_strategy, interval=5, step_size=9)
+        resolved = page_transition(self._display(), page, runs=lambda s: driver_runs_strategy(driver, s))
         assert (resolved.strategy, resolved.step_interval_ms, resolved.step_size) == ("none", 40, 2)
 
-    @pytest.mark.parametrize(
-        ("display", "page_strategy"),
-        [(SPLIT_FLAP, "column"), (SPLIT_FLAP, "plugin:typewriter"), (LED, "fade")],
-    )
-    def test_a_runnable_page_strategy_still_wins(self, display, page_strategy):
-        assert page_transition(self._display(*display), _page(page_strategy)).strategy == page_strategy
+    def test_a_runnable_page_strategy_still_wins(self):
+        from src.outputs.transitions import driver_runs_strategy
 
-    def test_a_display_that_takes_no_frames_cannot_run_a_plugin(self):
-        display = self._display("split_flap", ("row",), strategy=None, animation="none")
-        assert page_transition(display, _page("plugin:typewriter")).strategy is None
+        resolved = page_transition(
+            self._display(), _page("column", interval=5), runs=lambda s: driver_runs_strategy(VESTA_DRIVER, s)
+        )
+        assert (resolved.strategy, resolved.step_interval_ms) == ("column", 5)
 
-    def test_unknown_capabilities_keep_the_page_strategy(self):
+    def test_no_driver_to_ask_keeps_the_page_strategy(self):
+        assert page_transition(self._display(), _page("column")).strategy == "column"
+
+    def test_transition_settings_carry_nothing_but_the_three_fields(self):
+        import dataclasses
+
         from src.settings.service import TransitionSettings
 
-        assert page_transition(TransitionSettings(strategy="row"), _page("column")).strategy == "column"
-
-    def test_the_display_transition_carries_its_output_capabilities(self, tmp_path):
-        svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "row"}, {**PANEL, "transition": "none"}])
-        vb, tv = svc.get_transition_settings("vb"), svc.get_transition_settings("tv")
-        assert vb.capabilities is not None and "column" in vb.capabilities.native_transitions
-        assert tv.capabilities is not None and not tv.capabilities.native_transitions
-        assert page_transition(vb, _page("column")).strategy == "column"
-        assert page_transition(tv, _page("column")).strategy is None
-
-    def test_capabilities_stay_off_the_wire(self, tmp_path):
-        svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "row"}])
-        assert set(svc.get_transition_settings("vb").to_dict()) == {"strategy", "step_interval_ms", "step_size"}
+        assert [f.name for f in dataclasses.fields(TransitionSettings)] == ["strategy", "step_interval_ms", "step_size"]
 
 
 # ---------------------------------------------------------------------------
-# 3. A transition with no board to land on is not dropped
+# 3. A transition with no board to land on is carried to first boot, never read config.json
 # ---------------------------------------------------------------------------
+
+
+def _config_unreadable(monkeypatch):
+    import src.config_manager as config_manager
+    import src.settings.service as service
+
+    def refuse(*args, **kwargs):
+        raise OSError("config.json unreadable")
+
+    monkeypatch.setattr(config_manager, "get_config_manager", refuse)
+    monkeypatch.setattr(service, "_read_legacy_board_connection", refuse)
+
+
+NO_BOARDS = [
+    pytest.param(None, id="no-board-section"),
+    pytest.param({"board_type": "black", "boards": [], "devices": ["flagship"]}, id="empty-boards-with-devices"),
+    pytest.param({"board_type": "black", "boards": []}, id="empty-boards"),
+    pytest.param({"board_type": "black", "devices": ["note"]}, id="devices-era"),
+]
 
 
 class TestNoBoardsToCopyOnto:
-    @pytest.mark.parametrize("board", [None, {"board_type": "black", "boards": []}], ids=["no-board-key", "empty"])
-    def test_a_default_board_is_materialized_with_the_install_transition(self, monkeypatch, board):
+    @pytest.mark.parametrize("board", NO_BOARDS)
+    def test_the_migration_never_reads_config_json(self, monkeypatch, board):
         import src.settings.service as service
 
-        monkeypatch.setattr(service, "_read_legacy_board_connection", lambda: None)
-        data = {"schema_version": 5, "transitions": INSTALL}
+        _config_unreadable(monkeypatch)
+        data = {"schema_version": 5, "transitions": INSTALL, "beta": {"transition_plugins_enabled": True}}
         if board is not None:
-            data["board"] = board
-        service._migrate_v5_to_v6(data)
-        boards = data["board"]["boards"]
-        assert len(boards) == 1
-        assert (boards[0]["transition"], boards[0]["transition_step_interval_ms"]) == ("diagonal", 40)
+            data["board"] = copy.deepcopy(board)
+        service._migrate_v5_to_v6(data)  # must not raise
+        assert data["plugins"]["transition_plugins_enabled"] is True
+        assert "transitions" not in data
 
-    def test_the_materialized_board_imports_the_legacy_connection(self, monkeypatch):
+    @pytest.mark.parametrize("board", NO_BOARDS)
+    def test_nothing_is_lost_when_config_json_is_unreadable(self, tmp_path, monkeypatch, board):
+        import json
+
+        from src.settings.service import SettingsService
+
+        _config_unreadable(monkeypatch)
+        data = {"schema_version": 5, "transitions": INSTALL, "beta": {"transition_plugins_enabled": True}}
+        if board is not None:
+            data["board"] = copy.deepcopy(board)
+        path = tmp_path / "settings.json"
+        path.write_text(json.dumps(data))
+
+        svc = SettingsService(settings_file=str(path))
+
+        on_disk = json.loads(path.read_text())
+        assert on_disk["schema_version"] == 6
+        assert svc.get_plugin_settings().transition_plugins_enabled is True
+        first = svc.get_board_settings().boards[0]
+        assert (first["transition"], first["transition_step_interval_ms"], first["transition_step_size"]) == (
+            "diagonal",
+            40,
+            2,
+        )
+        # Persisted, and the hand-off key consumed.
+        assert on_disk["board"]["boards"][0]["transition"] == "diagonal"
+        assert not any(key.startswith("pending") or "pending" in key for key in on_disk)
+
+    def test_the_first_boot_seed_still_imports_the_connection(self, tmp_path, monkeypatch):
+        import json
+
         import src.settings.service as service
         from src.settings.board_shape import flat_connection
 
         legacy = {"api_mode": "local", "host": "192.0.2.10", "local_api_key": "test_key", "cloud_key": ""}
         monkeypatch.setattr(service, "_read_legacy_board_connection", lambda: {**legacy, "note_array_token": ""})
-        data = {"schema_version": 5, "transitions": INSTALL}
-        service._migrate_v5_to_v6(data)
-        assert flat_connection(data["board"]["boards"][0])["local_api_key"] == "test_key"
+        path = tmp_path / "settings.json"
+        path.write_text(json.dumps({"schema_version": 5, "transitions": INSTALL}))
+        svc = service.SettingsService(settings_file=str(path))
+        first = svc.get_board_settings().boards[0]
+        assert flat_connection(first)["local_api_key"] == "test_key"
+        assert first["transition"] == "diagonal"
 
     def test_nothing_to_copy_leaves_a_missing_board_section_to_first_boot(self):
         from src.settings.service import _migrate_v5_to_v6
@@ -266,13 +339,13 @@ class TestShimNullAndRoundTrip:
 
 
 # ---------------------------------------------------------------------------
-# 5. A runtime key that is not a board id reads the first display
+# 5. Only "" and the primary runtime key read the first display
 # ---------------------------------------------------------------------------
 
 
 class TestRuntimeKeysFallBackToTheFirstDisplay:
-    @pytest.mark.parametrize("key", ["__primary__", "", "missing"])
-    def test_a_non_board_key_reads_the_first_display(self, tmp_path, key):
+    @pytest.mark.parametrize("key", ["__primary__", "", None])
+    def test_the_primary_keys_read_the_first_display(self, tmp_path, key):
         svc = _service_at_v6(
             tmp_path,
             [{**VESTA, "transition": "row", "transition_step_size": 3}, {**PANEL, "transition": "column"}],
@@ -280,10 +353,21 @@ class TestRuntimeKeysFallBackToTheFirstDisplay:
         resolved = svc.get_transition_settings(key)
         assert (resolved.strategy, resolved.step_size) == ("row", 3)
 
-    def test_the_display_service_fallback_key_is_covered(self):
-        from src.main import DisplayService
+    def test_an_unknown_id_has_no_transition(self, tmp_path):
+        svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "row", "transition_step_size": 3}])
+        resolved = svc.get_transition_settings("missing")
+        assert (resolved.strategy, resolved.step_interval_ms, resolved.step_size) == (None, None, None)
 
-        assert DisplayService._PRIMARY_FALLBACK_KEY == "__primary__"
+    def test_writing_an_unknown_id_is_refused(self, tmp_path):
+        svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "row"}])
+        with pytest.raises(ValueError):
+            svc._write_board_fields("missing", {"transition": "column"})
+
+    def test_the_display_service_uses_the_shared_primary_key(self):
+        from src.main import DisplayService
+        from src.settings.service import PRIMARY_RUNTIME_KEY
+
+        assert DisplayService._PRIMARY_FALLBACK_KEY == PRIMARY_RUNTIME_KEY == "__primary__"
 
 
 # ---------------------------------------------------------------------------
@@ -341,8 +425,9 @@ class TestIntervalCap:
         assert (
             BoardInstance.from_dict({**VESTA, "transition_step_interval_ms": 5000}).transition_step_interval_ms == 5000
         )
+        # Stored data above the cap is clamped, never dropped (second review).
         assert (
-            BoardInstance.from_dict({**VESTA, "transition_step_interval_ms": 5001}).transition_step_interval_ms is None
+            BoardInstance.from_dict({**VESTA, "transition_step_interval_ms": 5001}).transition_step_interval_ms == 5000
         )
 
     @pytest.mark.parametrize(("key", "value"), [("transition_step_interval_ms", 9000), ("transition_step_size", 0)])
@@ -394,3 +479,123 @@ def test_is_split_flap(board, expected):
     from src.devices import is_split_flap
 
     assert is_split_flap(board) is expected
+
+
+# ===========================================================================
+# Second review
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# B. Out-of-range stored speeds are clamped, and only written fields validated
+# ---------------------------------------------------------------------------
+
+
+class TestStoredSpeedsAreClamped:
+    def test_a_stored_interval_above_the_cap_loads_clamped_and_logged(self, tmp_path, caplog):
+        with caplog.at_level(logging.WARNING):
+            svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "row", "transition_step_interval_ms": 9000}])
+        assert svc.get_board_settings().boards[0]["transition_step_interval_ms"] == 5000
+        assert "9000" in caplog.text
+
+    def test_the_migration_clamps_the_install_interval(self, caplog):
+        from src.settings.service import _migrate_v5_to_v6
+
+        data = {
+            "schema_version": 5,
+            "transitions": {"strategy": "row", "step_interval_ms": 9000, "step_size": None},
+            "board": {"board_type": "black", "boards": [dict(VESTA)], "devices": ["flagship"]},
+        }
+        with caplog.at_level(logging.WARNING):
+            _migrate_v5_to_v6(data)
+        assert data["board"]["boards"][0]["transition_step_interval_ms"] == 5000
+        assert "9000" in caplog.text
+
+    def test_get_then_put_of_the_boards_succeeds(self, client):
+        boards = client.get("/settings/board").json()["boards"]
+        assert client.put("/settings/board", json={"boards": boards}).status_code == 200
+
+    def test_a_write_that_leaves_a_bad_stored_transition_alone_is_not_refused(self, tmp_path):
+        svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "sparkle"}])
+        stored = svc.get_board_settings().boards[0]
+        svc.set_boards([{**stored, "name": "Hall"}])
+        assert svc.get_board_settings().boards[0]["name"] == "Hall"
+
+    def test_one_constant_bounds_every_interval(self):
+        from src.devices import MAX_TRANSITION_STEP_INTERVAL_MS, TRANSITION_SPEED_BOUNDS
+        from src.pages.models import PageCreate
+        from src.settings.models import TransitionSettingsUpdate
+
+        def le(model, name):
+            return next(m.le for m in model.model_fields[name].metadata if hasattr(m, "le"))
+
+        assert TRANSITION_SPEED_BOUNDS["transition_step_interval_ms"][1] == MAX_TRANSITION_STEP_INTERVAL_MS
+        assert le(TransitionSettingsUpdate, "step_interval_ms") == MAX_TRANSITION_STEP_INTERVAL_MS
+        assert le(PageCreate, "transition_interval_ms") == MAX_TRANSITION_STEP_INTERVAL_MS
+
+    def test_the_mcp_doc_names_the_cap(self):
+        import inspect
+
+        from src.devices import MAX_TRANSITION_STEP_INTERVAL_MS
+        from src.mcp_server import _build_mcp_server
+
+        source = inspect.getsource(_build_mcp_server)
+        assert f"0–{MAX_TRANSITION_STEP_INTERVAL_MS}" in source
+
+    def test_the_ui_constant_matches(self):
+        from pathlib import Path
+
+        from src.devices import MAX_TRANSITION_STEP_INTERVAL_MS
+
+        ui = Path(__file__).resolve().parent.parent / "web/src/components/displays/display-transition.tsx"
+        assert f"MAX_STEP_INTERVAL_MS = {MAX_TRANSITION_STEP_INTERVAL_MS};" in ui.read_text()
+
+
+# ---------------------------------------------------------------------------
+# D. An LED id or "none" on a plugin without LED transitions is a plain write
+# ---------------------------------------------------------------------------
+
+
+def test_an_led_choice_on_a_native_plugin_drops_its_speed_too(monkeypatch):
+    from src.outputs.factory import build_driver
+    from src.plugins.loader import PluginLoader
+    from tests.test_output_plugin_e2e import FIXTURES, GRID, PLUGIN_ID, board
+
+    loader = PluginLoader(plugins_dir=FIXTURES, external_dirs=[])
+    assert loader.load_plugin(PLUGIN_ID) is not None, loader.load_errors
+    try:
+        driver = build_driver(board())
+        assert "column" in driver.native_transitions
+        driver.render(GRID, strategy="none", step_interval_ms=50, step_size=2)
+        assert driver.plugin.natives == [None]
+    finally:
+        loader.unload_plugin(PLUGIN_ID)
+
+
+# ---------------------------------------------------------------------------
+# F. The shim validates per board type; a speed-only write leaves the strategy alone
+# ---------------------------------------------------------------------------
+
+
+class TestShimPerBoardType:
+    def test_an_led_id_is_refused_on_a_split_flap(self, tmp_path):
+        svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "row"}])
+        with pytest.raises(ValueError, match="column"):
+            svc.update_transition_settings(strategy="fade")
+        assert svc.get_board_settings().boards[0]["transition"] == "row"
+
+    def test_a_split_flap_strategy_is_refused_on_an_led_board(self, tmp_path):
+        svc = _service_at_v6(tmp_path, [{**PIXOO, "transition": "fade"}])
+        with pytest.raises(ValueError, match="flip"):
+            svc.update_transition_settings(strategy="column")
+        assert svc.get_board_settings().boards[0]["transition"] == "fade"
+
+    def test_a_speed_only_update_does_not_revalidate_the_stored_strategy(self, tmp_path):
+        svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "sparkle"}])
+        svc.update_transition_settings(step_interval_ms=30)
+        board = svc.get_board_settings().boards[0]
+        assert (board["transition"], board["transition_step_interval_ms"]) == ("sparkle", 30)
+
+    def test_the_api_names_what_the_board_accepts(self, client):
+        response = client.put("/settings/transitions", json={"strategy": "fade"})
+        assert response.status_code == 400
+        assert "column" in response.json()["detail"]

@@ -168,18 +168,22 @@ and the `beta` block:
   default, which is what it ran. Every board without a speed of its own gets
   the old `step_interval_ms` / `step_size` as `transition_step_interval_ms` /
   `transition_step_size` (the speed was always install-wide, even for a
-  board with its own style). When there is no board to copy onto (no
-  `board` section, an empty `boards` list, or a devices-era section) and the
-  block holds something to copy, the boards are materialized first
-  (`_materialize_boards_for_v6`), importing the legacy config.json
-  connection into a default board as the first-boot seed would, so the
-  transition is never dropped.
+  board with its own style); an interval above 5000 ms
+  (`MAX_TRANSITION_STEP_INTERVAL_MS`) is clamped. When there is no board to
+  copy onto (no `board` section, an empty `boards` list, or a devices-era
+  section) the transition is parked under `pending_board_transition`; the
+  board loader applies it to the boards it builds (after the first-boot
+  seed fills a fresh board's connection) and saves, and the save never
+  writes the key. The migration never reads config.json and cannot abort,
+  so the beta flags and the transition survive an unreadable config.json.
 - `beta.transition_plugins_enabled` and `beta.output_plugins_enabled` move to
   `plugins`, and `beta` is deleted.
 
 It is idempotent (a re-run finds no block, and every split-flap board
 already has a transition) and logs its count: boards changed plus one per
-block removed. It never reads the environment: every save wrote the
+block removed. Stored speeds above the cap are clamped on load too
+(logged), and a board write is validated only on the fields it changes, so
+old data never blocks a write. It never reads the environment: every save wrote the
 `transitions` block, so a file without one is hand-made. The legacy
 `BOARD_TRANSITION_*` env values now only seed a new split-flap display
 (`default_board_transition`). The runtime reads only the board
@@ -188,8 +192,8 @@ transition wins field by field (`page_transition`). `GET/PUT
 /settings/transitions` is a deprecated alias for the first board's, and
 `GET/PUT /settings/beta` for the two plugin flags, until v11 (both send a
 `Deprecation` header and a `Link` to their successor). A page strategy the
-display cannot run (judged from its output's capabilities) falls through to
-the display's own.
+board's driver cannot run (`driver_runs_strategy`, the rule its write path
+applies) falls through to the board's own transition and speed.
 
 **Rollback.** One step back, to a v5 build, restores
 `settings.json.v5_backup` with its `transitions` and `beta` blocks; changes

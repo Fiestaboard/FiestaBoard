@@ -38,7 +38,7 @@ from .pages.service import (
     get_page_service,
 )
 from .schedules.service import get_schedule_service
-from .settings.service import get_settings_service, page_transition
+from .settings.service import PRIMARY_RUNTIME_KEY, get_settings_service, page_transition
 from .templates.engine import extract_template_plugin_ids
 from .triggers.service import get_trigger_service
 
@@ -249,12 +249,19 @@ class BoardRuntime:
             bind(self.output)
 
 
+def _driver_runs(driver):
+    """The page-override check for sends through *driver* (its own rule)."""
+    from .outputs.transitions import driver_runs_strategy
+
+    return lambda strategy: driver_runs_strategy(driver, strategy)
+
+
 class DisplayService:
     """Main service for displaying information on the board."""
 
     # Runtime key for the primary board when no board id is available
     # (tests that set ``vb_client`` directly without a boards list).
-    _PRIMARY_FALLBACK_KEY = "__primary__"
+    _PRIMARY_FALLBACK_KEY = PRIMARY_RUNTIME_KEY
 
     def __init__(self):
         """Initialize the display service."""
@@ -2158,7 +2165,9 @@ class DisplayService:
                 return False
 
             # The page's own transition where it sets one, else this display's.
-            resolved = page_transition(settings_service.get_transition_settings(rt.board_id), page)
+            resolved = page_transition(
+                settings_service.get_transition_settings(rt.board_id), page, runs=_driver_runs(rt.client)
+            )
             strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
             # resolve_dimensions (never get_dimensions, which raises for
@@ -2636,7 +2645,9 @@ class DisplayService:
             )
 
         settings_service = get_settings_service()
-        resolved = page_transition(settings_service.get_transition_settings(rt.board_id), page)
+        resolved = page_transition(
+            settings_service.get_transition_settings(rt.board_id), page, runs=_driver_runs(rt.client)
+        )
         strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
         dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)

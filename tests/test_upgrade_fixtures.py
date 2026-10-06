@@ -47,11 +47,11 @@ label                                     what it pins
                                           the board runs the same transition
                                           as its own (settings v6)
 ``v10_beta_schema5_no_board_section``     the same transition with no
-                                          ``board`` section at all: v6 builds
-                                          the default board (importing the
-                                          legacy config.json connection) so
-                                          the transition is not dropped
-``v10_beta_schema5_empty_boards``         the same with ``boards: []``
+                                          ``board`` section at all: carried
+                                          to the first-boot board, which the
+                                          seed gives the legacy connection
+``v10_beta_schema5_empty_boards``         the same with ``boards: []`` and
+                                          ``devices`` (what the app writes)
 ========================================  ====================================
 
 What a test does
@@ -311,6 +311,8 @@ class Expect:
     #: settings.json schema_version the fixture ships with (a backup of
     #: exactly these bytes must exist after boot when it is behind)
     from_schema: int = 3
+    #: board indexes that boot with no connection (an init error, no driver)
+    unconfigured: tuple[int, ...] = ()
 
 
 EXPECT: dict[str, Expect] = {
@@ -354,9 +356,9 @@ EXPECT: dict[str, Expect] = {
     "v10_beta_schema5_no_board_section": Expect(
         sends=[(0, "upgrade_v10_beta_schema5_install_transition")], board_count=1, page_count=1, from_schema=5
     ),
-    "v10_beta_schema5_empty_boards": Expect(
-        sends=[(0, "upgrade_v10_beta_schema5_install_transition")], board_count=1, page_count=1, from_schema=5
-    ),
+    # ``board`` is on disk, so no first-boot seed: the board it builds carries
+    # the transition but no connection, and sends nothing.
+    "v10_beta_schema5_empty_boards": Expect(sends=[], board_count=1, page_count=1, from_schema=5, unconfigured=(0,)),
 }
 
 
@@ -375,8 +377,9 @@ def test_fixture_boots_to_the_same_wire(label, data_dir, api, wire, clock):
     expect = EXPECT[label]
     booted = boot(label, data_dir)
 
-    assert booted.service.board_init_errors == {}, booted.service.board_init_errors
     boards = booted.boards
+    expected_errors = {boards[i]["id"] for i in expect.unconfigured}
+    assert set(booted.service.board_init_errors) == expected_errors, booted.service.board_init_errors
     assert len(boards) == expect.board_count
     for index, (device_type, rows, cols) in expect.shapes.items():
         board = boards[index]

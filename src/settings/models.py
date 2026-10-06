@@ -30,7 +30,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
 from src.api_deprecation import FLAT_BOARD_FIELDS_NOTE
 from src.config import SilenceMode
-from src.devices import DeviceType, HardwareDeviceType
+from src.devices import MAX_TRANSITION_STEP_INTERVAL_MS, DeviceType, HardwareDeviceType
 from src.settings.service import VALID_OUTPUT_TARGETS, SettingsRestoreNotice
 
 # ---------------------------------------------------------------------------
@@ -181,7 +181,7 @@ class TransitionSettingsUpdate(BaseModel):
     """
 
     strategy: str | None = None
-    step_interval_ms: int | None = Field(default=None, ge=0, le=5000)
+    step_interval_ms: int | None = Field(default=None, ge=0, le=MAX_TRANSITION_STEP_INTERVAL_MS)
     step_size: int | None = Field(default=None, ge=1)
 
 

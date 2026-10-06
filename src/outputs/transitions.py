@@ -91,6 +91,36 @@ class NativeTransition:
         return self.strategy is None or self.strategy in native_transitions
 
 
+def driver_runs_strategy(driver, strategy: str) -> bool:
+    """Whether *driver* runs *strategy* as a transition, by the rule its
+    write path applies — the one predicate a page's override is judged by.
+
+    - A driver that takes LED transitions (an output plugin's
+      ``takes_transitions``) runs LED menu ids; anything else falls back to
+      its model's default (``OutputPluginDriver.resolve_transition``).
+    - ``plugin:<id>``: when the driver takes frames (``animation`` is not
+      ``"none"``), as :meth:`OutputRuntime.render` requires.
+    - A split-flap strategy: when the driver declares it
+      (:meth:`NativeTransition.supported_by`, as the runtime forwards it).
+    - Anything else (an LED id on a split-flap, a typo) is no transition.
+
+    A driver that does not say (no ``native_transitions`` set, e.g. a test
+    double) runs whatever it is asked, as before.
+    """
+    from src.led.transition_registry import is_led_transition_id
+
+    natives = getattr(driver, "native_transitions", None)
+    if not isinstance(natives, set | frozenset):
+        return True
+    if getattr(driver, "takes_transitions", False) is True:
+        return strategy not in NATIVE_STRATEGIES and is_led_transition_id(strategy)
+    if strategy.startswith(TRANSITION_PLUGIN_PREFIX):
+        return getattr(driver, "animation", "none") != "none"
+    if strategy in NATIVE_STRATEGIES:
+        return NativeTransition.of(strategy, None, None).supported_by(natives)
+    return False
+
+
 def transition_plugins_enabled() -> bool:
     """Whether the ``transition_plugins`` beta flag is on.
 

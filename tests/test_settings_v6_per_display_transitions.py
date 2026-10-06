@@ -185,12 +185,17 @@ class TestMigrateV5ToV6:
         assert vb["transition"] == "none"
         assert "transition" not in px
 
-    def test_a_devices_era_board_section_is_materialized_to_keep_a_strategy(self):
-        from src.settings.service import _migrate_v5_to_v6
+    def test_a_devices_era_board_section_keeps_its_strategy_through_load(self, tmp_path):
+        """Its boards are built at load, so the migration parks the
+        transition and the loader puts it on them."""
+        from src.settings.service import PENDING_TRANSITION_KEY, SettingsService, _migrate_v5_to_v6
 
         data = {"schema_version": 5, "transitions": INSTALL, "board": {"board_type": "black", "devices": ["note"]}}
         _migrate_v5_to_v6(data)
-        boards = data["board"]["boards"]
+        assert data[PENDING_TRANSITION_KEY]["strategy"] == "diagonal"
+        path = tmp_path / "settings.json"
+        path.write_text(json.dumps({**data, "schema_version": 6}))
+        boards = SettingsService(settings_file=str(path)).get_board_settings().boards
         assert [(b["device_type"], b["transition"]) for b in boards] == [("note", "diagonal")]
 
     def test_it_is_the_registered_v6_migration(self):
@@ -283,11 +288,9 @@ class TestRuntimeReadsTheBoard:
         svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "row"}, {**PANEL, "transition": "column"}])
         assert svc.get_transition_settings().strategy == "row"
 
-    def test_an_unknown_display_reads_the_first(self, tmp_path):
-        """A runtime key that is no board id (DisplayService's ``__primary__``)
-        is the first display, as the engine's primary runtime is."""
+    def test_an_unknown_display_has_no_transition(self, tmp_path):
         svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "row"}])
-        assert svc.get_transition_settings("missing").strategy == "row"
+        assert svc.get_transition_settings("missing").strategy is None
 
     def test_an_unset_split_flap_choice_is_none(self, tmp_path):
         svc = _service_at_v6(tmp_path, [VESTA])
@@ -501,8 +504,10 @@ def _last_local_payload(wire) -> dict:
     [
         ({}, ("diagonal", 40, 2)),
         ({"transition_strategy": "row", "transition_step_size": 5}, ("row", 40, 5)),
+        # An LED id a Vestaboard's driver cannot run: the board's own, speed included.
+        ({"transition_strategy": "flip", "transition_interval_ms": 5}, ("diagonal", 40, 2)),
     ],
-    ids=["no-override", "override-wins-field-by-field"],
+    ids=["no-override", "override-wins-field-by-field", "unrunnable-override-falls-back"],
 )
 def test_a_page_send_runs_the_display_transition_unless_the_page_sets_one(
     _isolated_data_dir, monkeypatch, page_override, expected

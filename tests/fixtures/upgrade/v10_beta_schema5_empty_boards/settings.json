@@ -19,7 +19,10 @@
   },
   "board": {
     "board_type": "black",
-    "boards": []
+    "boards": [],
+    "devices": [
+      "flagship"
+    ]
   },
   "schedule": {
     "enabled": false,
