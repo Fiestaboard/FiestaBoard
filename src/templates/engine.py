@@ -432,6 +432,7 @@ class TemplateEngine:
         grid_cols: int | None = None,
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        display: Any = None,
     ) -> str:
         """Render a list of template lines (for template pages).
 
@@ -482,7 +483,7 @@ class TemplateEngine:
         # board size — including note arrays (no fixed DEVICE_DIMENSIONS entry).
         if context is None:
             context = self._build_context(
-                BoardContext(render_device_type, rows=dims.rows, cols=dims.cols),
+                BoardContext(render_device_type, rows=dims.rows, cols=dims.cols, display=display),
                 plugin_ids=extract_template_plugin_ids(template_lines),
             )
         # Pin the clock once for the whole board: every line's render()

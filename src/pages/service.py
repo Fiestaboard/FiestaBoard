@@ -8,6 +8,7 @@ import time
 from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -390,6 +391,7 @@ class PageService:
         grid_rows: int | None = None,
         grid_cols: int | None = None,
         plugin_ids: Collection[str] | None = None,
+        display: Any = None,
     ) -> dict | None:
         """Get-or-build the per-tick shared template context for one board size.
 
@@ -417,6 +419,10 @@ class PageService:
             return None
         geometry = (device_type or DEFAULT_DEVICE_TYPE, notes_wide or 1, notes_tall or 1, grid_rows, grid_cols)
         key = size_key(*geometry)
+        if display is not None:
+            # One size, two displays (split-flap and LED): plugins that adapt
+            # to the display get a context each.
+            key = f"{key}|{display.key}"
         coverage_key = _CONTEXT_COVERAGE_PREFIX + key
         fingerprint_key = CONTEXT_FINGERPRINT_PREFIX + key
         try:
@@ -425,7 +431,7 @@ class PageService:
             registry = get_plugin_registry()
             context = contexts.get(key)
             if context is None:
-                board = board_context_for(*geometry)
+                board = board_context_for(*geometry, display=display)
                 fingerprints: dict[str, str] = {}
                 if plugin_ids is None:
                     context = registry.build_template_context(board, fingerprints=fingerprints)
@@ -484,6 +490,7 @@ class PageService:
         contexts: dict[str, dict] | None = None,
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        display: Any = None,
     ) -> DisplayResult:
         """Render a page to formatted text.
 
@@ -508,13 +515,14 @@ class PageService:
                 # page's template references. None (a formula page) keeps
                 # the fetch-all fallback.
                 plugin_ids=extract_template_plugin_ids(page.template),
+                display=display,
             )
         if page.type == "single":
             return self._render_single(page)
         if page.type == "composite":
             return self._render_composite(page)
         if page.type == "template":
-            return self._render_template(page, context=context, extended_markup=extended_markup)
+            return self._render_template(page, context=context, extended_markup=extended_markup, display=display)
         return DisplayResult(
             display_type="page", formatted="", raw={}, available=False, error=f"Unknown page type: {page.type}"
         )
@@ -610,7 +618,12 @@ class PageService:
         )
 
     def _render_template(
-        self, page: Page, context: dict | None = None, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+        self,
+        page: Page,
+        context: dict | None = None,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        display: Any = None,
     ) -> DisplayResult:
         """Render a template page with variable substitution.
 
@@ -650,6 +663,7 @@ class PageService:
                 grid_rows=page.grid_rows,
                 grid_cols=page.grid_cols,
                 extended_markup=extended_markup,
+                display=display,
             )
 
             # Note: We do NOT truncate/pad by character count here because:
@@ -681,6 +695,7 @@ class PageService:
         contexts: dict[str, dict] | None = None,
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        display: Any = None,
     ) -> DisplayResult | None:
         """Preview a page by ID.
 
@@ -707,8 +722,13 @@ class PageService:
         if not page:
             return None
 
-        if extended_markup != SPLIT_FLAP_EXTENDED_MARKUP:
-            return self.render_page(page, context=context, contexts=contexts, extended_markup=extended_markup)
+        if extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None:
+            # A render for one display is that display's: the shared preview
+            # cache holds the display-agnostic render and is neither read nor
+            # written.
+            return self.render_page(
+                page, context=context, contexts=contexts, extended_markup=extended_markup, display=display
+            )
 
         # Check cache first if not forcing refresh
         if not force_refresh:
@@ -735,6 +755,7 @@ class PageService:
         active_page_id: str | None = None,
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        display: Any = None,
     ) -> dict[str, DisplayResult | None]:
         """Preview multiple pages, building template context once for efficiency.
 
@@ -756,7 +777,9 @@ class PageService:
         """
         results: dict[str, DisplayResult | None] = {}
         pages_to_render: list[tuple[str, Page]] = []
-        uncached_mode = extended_markup != SPLIT_FLAP_EXTENDED_MARKUP
+        # A render for one display (or in the other markup mode) is that
+        # display's: the shared preview cache is neither read nor written.
+        uncached_mode = extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None
 
         # First pass: check cache, collect pages that need rendering
         for page_id in page_ids:
@@ -792,7 +815,7 @@ class PageService:
                 continue
             key = self._board_key(p)
             if key not in boards:
-                boards[key] = board_context_for(*geometry_of(p))
+                boards[key] = board_context_for(*geometry_of(p), display=display)
             refs = extract_template_plugin_ids(p.template)
             if key not in ids_by_board:
                 ids_by_board[key] = set(refs) if refs is not None else None
@@ -810,7 +833,7 @@ class PageService:
         for page_id, page in pages_to_render:
             try:
                 context = contexts_by_board.get(self._board_key(page))
-                result = self.render_page(page, context=context, extended_markup=extended_markup)
+                result = self.render_page(page, context=context, extended_markup=extended_markup, display=display)
                 if not uncached_mode:
                     self._preview_cache[page_id] = CachedPreview(
                         result=result, page_updated_at=page.updated_at, cached_at=time.time()

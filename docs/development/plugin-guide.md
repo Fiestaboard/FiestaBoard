@@ -580,6 +580,7 @@ Your plugin inherits these from `PluginBase`:
 | `get_oauth_token()` | method | Returns the current access token for the provider in the manifest's `oauth` block, or `None` if the user is not signed in. Call it on every fetch (see [Signing In with OAuth](/docs/development/plugin-oauth)). |
 | `ai_complete(messages, *, provider_id=None, model=None, temperature=None, max_tokens=None, json=False)` | method | **9.11.0.** Asks one of the AI providers set up in Settings → AI Providers and returns an `AICompletion` (`.text`, `.data`, ...). Raises `AINotConfiguredError`, `AIRejectedError`, or `AIProviderError`. See [Using FiestaBoard's AI Providers](/docs/development/plugin-ai). |
 | `ai_providers()` | method | **9.11.0.** The AI providers set up in Settings, without keys or tokens. A settings field with `"options_id": "ai_providers"` gets them as a picker with no code. |
+| `board` | property | The board this render is for: a `BoardContext` with `rows`, `cols`, `device_type` and (**10.0.0**) `display`. `None` outside a board-scoped render. See [Knowing the Board and Its Display](#knowing-the-board-and-its-display). |
 
 ### PluginResult
 
@@ -615,6 +616,42 @@ You can also fall back to environment variables:
 ```python
 api_key = self.config.get("api_key") or os.getenv("MY_PLUGIN_API_KEY")
 ```
+
+### Knowing the Board and Its Display
+
+A user can show your plugin on very different hardware: a Vestaboard
+(split-flap, capitals, eight colour tiles), a Divoom Pixoo (a full-colour LED
+pixel display with lowercase, coloured text and icons) or a TV. Read
+`self.board` inside `fetch_data()` instead of assuming any of them:
+
+- `self.board.rows` / `self.board.cols`: the grid you are filling, in tiles.
+- `self.board.display` (**10.0.0**): what that display can draw, as its output
+  plugin declares it. `None` when no board is in hand (unit tests, a size-only
+  preview); treat `None` as a split-flap board.
+
+| `display.` | Meaning |
+|---|---|
+| `technology` | `"split_flap"`, `"led_matrix"` or `"screen"` |
+| `device_model` | The device, e.g. `"vestaboard_flagship"`, `"divoom_pixoo64"` |
+| `color` | `"tiles"` (a flap's fixed colours), `"rgb"` or `"mono"` |
+| `supports(feature)` | `"lowercase"`, `"color_text"` (`{green:63F}`), `"background"` (`{yellow/black:AQI}`), `"tiles"`, `"icons"` (`{icon:sun}`), `"rgb"`, `"solid_shapes"` (same-coloured tiles join into one filled area) |
+| `icons` | The icon names this display draws |
+| `ai_brief()` | Ready-made text for an AI prompt: the markup this display draws and nothing it cannot |
+| `check(text)` | What in `text` the display cannot draw, and what it shows instead |
+
+```python
+def fetch_data(self) -> PluginResult:
+    display = self.board.display if self.board else None
+    if display is not None and display.supports("color_text"):
+        temperature = f"{{green:{reading}F}}"   # coloured on an LED
+    else:
+        temperature = f"{reading}F"             # plain on a split-flap
+    ...
+```
+
+A plugin that writes board text with an AI model should put
+`display.ai_brief()` in its prompt instead of describing the board itself, so
+it learns every new display FiestaBoard supports without a change.
 
 ### Constructor
 

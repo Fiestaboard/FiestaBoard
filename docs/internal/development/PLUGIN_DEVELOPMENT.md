@@ -259,6 +259,7 @@ def fetch_data(self) -> PluginResult:
 | `device_type` | `"flagship"`, `"note"`, `"note_array"`, `"panel"` |
 | `cols` / `width` | board width in tiles (aliases) |
 | `rows` / `height` | board height in tiles (aliases) |
+| `display` | what the display can draw (`src.outputs.display_profile.DisplayProfile`): technology, colour, lowercase, coloured text, backgrounds, tiles, icons, plus `supports()`, `ai_brief()` and `check()`. `None` without a board; treat as split-flap |
 
 ### Rules
 
@@ -277,10 +278,16 @@ def fetch_data(self) -> PluginResult:
 - **Don't ask the user for the board size.** A settings field for device type
   or width is always wrong: the platform already knows, and one config has to
   serve every board the user owns.
+- **Adapt to the display, not just its size.** `board.display` says whether
+  the board is split-flap or LED, and what markup it draws. An AI plugin puts
+  `board.display.ai_brief()` in its prompt; never hard-code "split-flap" or
+  "uppercase only".
 - **Key any cache of your own by geometry.** `PluginBase.get_data()` already
   caches results per geometry (`note_array:{cols}x{rows}`, `panel:{cols}x{rows}`), but a cache or
   simulation state you hold yourself must include rows and cols, or one board's
-  frame is served to another.
+  frame is served to another. Include `board.display.key` when your output
+  depends on the display: two boards of one size (a split-flap panel and an
+  LED panel) draw differently. Core's own caches already do.
 
 ### Prove it with the conformance suite
 

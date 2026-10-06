@@ -562,8 +562,14 @@ class PluginBase(ABC):
         if board is None:
             return _DEFAULT_CACHE_KEY
         if board.device_type in ("flagship", "note"):
-            return board.device_type
-        return f"{board.device_type}:{board.cols}x{board.rows}"
+            key = board.device_type
+        else:
+            key = f"{board.device_type}:{board.cols}x{board.rows}"
+        # Two boards of one size can draw differently (a split-flap and an LED
+        # panel); a plugin that adapts to the display must not serve one
+        # board's result to the other.
+        display = getattr(board, "display", None)
+        return f"{key}|{display.key}" if display is not None else key
 
     def clear_cache(self) -> None:
         """Clear all cached data, forcing a fresh fetch on the next get_data() call.

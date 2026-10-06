@@ -26,7 +26,8 @@ from .devices import (
 from .displays.send_worker import BoardSendWorker, SendJob
 from .outputs import OutputDriver, OutputRuntime
 from .outputs.breaker import write_failure_reason
-from .outputs.cells import extended_markup_kw, output_character_set, project_message
+from .outputs.cells import output_character_set, project_message
+from .outputs.display_profile import render_kw
 from .outputs.factory import build_driver
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
@@ -96,10 +97,11 @@ BOARD_RETRY_MAX_BACKOFF = 900.0
 
 def _extended_kw(client) -> dict:
     """The render keywords for *client*'s board
-    (:func:`src.outputs.cells.extended_markup_kw`): ``extended_markup`` for a
-    rich output, none for a split-flap one, whose render follows the
-    renderers' split-flap default (extended markup on since Task 12)."""
-    return extended_markup_kw(client)
+    (:func:`src.outputs.display_profile.render_kw`): ``extended_markup`` for a
+    rich output (none for a split-flap one, whose render follows the
+    renderers' split-flap default), and ``display`` — what the board can
+    draw — so data plugins adapt to the display they are rendered for."""
+    return render_kw(client)
 
 
 def _project(client, content: str, rows: int, cols: int) -> tuple[list[list[int]], dict]:
