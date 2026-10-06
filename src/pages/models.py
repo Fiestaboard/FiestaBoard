@@ -94,7 +94,7 @@ class Page(BaseModel):
     # Rotation settings
     duration_seconds: int = Field(default=300, ge=10, le=3600)  # 10s to 1h
 
-    # Transition settings (per-page override, None means use system defaults).
+    # Transition settings (per-page override, None means use the display's own).
     # Valid strategies: column, reverse-column, edges-to-center, row, diagonal,
     # random, or "plugin:<id>" to drive a frame-by-frame transition plugin
     # (e.g. "plugin:typewriter").  Pydantic stores any string; the strategy

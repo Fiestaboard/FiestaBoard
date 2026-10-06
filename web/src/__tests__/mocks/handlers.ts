@@ -12,6 +12,7 @@ import type {
   PageCreate,
   PagesResponse,
   PluginDetailResponse,
+  PluginSettings,
   PreviewResponse,
   SetTemporaryOverrideRequest,
   SilenceStatus,
@@ -61,6 +62,12 @@ export const mockConfig: ConfigSummary = {
   guest_wifi_enabled: false,
   star_trek_quotes_enabled: true,
   rotation_enabled: true,
+};
+
+export const mockPluginSettings: PluginSettings = {
+  auto_update: true,
+  transition_plugins_enabled: false,
+  output_plugins_enabled: false,
 };
 
 export const mockTransitionSettings: TransitionSettings = {
@@ -271,7 +278,6 @@ export const mockSilenceSchedulePlugin: PluginDetailResponse = {
 // Store for tracking request bodies in tests
 export const requestStore: {
   lastPageCreate?: PageCreate;
-  lastTransitionUpdate?: Partial<TransitionSettings>;
   lastOutputUpdate?: { target: string };
   lastLiveRender?: { template: string | string[]; board_id?: string };
   lastTemporaryOverride?: SetTemporaryOverrideRequest;
@@ -333,13 +339,16 @@ export const handlers = [
     return HttpResponse.json(mockStatus);
   }),
 
-  // Beta settings — queried by the navigation sidebar on every render.
-  // Both flags default off; tests exercising beta features override via
-  // server.use().
-  http.get(`${API_BASE}/settings/beta`, () => {
-    return HttpResponse.json({
-      settings: { transition_plugins_enabled: false, output_plugins_enabled: false },
-    });
+  // Plugin settings: auto-update and the transition / output plugin flags
+  // (/settings/beta until settings v6). Both flags default off; tests
+  // exercising them override via server.use().
+  http.get(`${API_BASE}/settings/plugins`, () => {
+    return HttpResponse.json(mockPluginSettings);
+  }),
+
+  http.put(`${API_BASE}/settings/plugins`, async ({ request }) => {
+    const body = (await request.json()) as Partial<PluginSettings>;
+    return HttpResponse.json({ ...mockPluginSettings, ...body });
   }),
 
   http.get(`${API_BASE}/preview`, () => {
@@ -383,27 +392,6 @@ export const handlers = [
   }),
 
   // Settings endpoints
-  http.get(`${API_BASE}/settings/transitions`, () => {
-    return HttpResponse.json(mockTransitionSettings);
-  }),
-
-  http.put(`${API_BASE}/settings/transitions`, async ({ request }) => {
-    const body = (await request.json()) as Partial<TransitionSettings>;
-    requestStore.lastTransitionUpdate = body;
-    // Key presence, not nullishness: the real handler treats an explicit
-    // null as "clear this field" and an absent key as "leave it alone"
-    // (PUT /settings/transitions, exclude_unset). `??` collapsed the two,
-    // so a reset test could not tell them apart.
-    const response: TransitionSettings = {
-      strategy: "strategy" in body ? (body.strategy ?? null) : mockTransitionSettings.strategy,
-      step_interval_ms:
-        "step_interval_ms" in body ? (body.step_interval_ms ?? null) : mockTransitionSettings.step_interval_ms,
-      step_size: "step_size" in body ? (body.step_size ?? null) : mockTransitionSettings.step_size,
-      available_strategies: mockTransitionSettings.available_strategies,
-    };
-    return HttpResponse.json(response);
-  }),
-
   http.get(`${API_BASE}/settings/output`, () => {
     return HttpResponse.json(mockOutputSettings);
   }),
@@ -912,6 +900,7 @@ export const handlers = [
       polling: { interval_seconds: 300, board_read_interval_local: 30, board_read_interval_cloud: 180 },
       transitions: mockTransitionSettings,
       output: mockOutputSettings,
+      plugins: mockPluginSettings,
       board: {
         board_type: "black",
         boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],

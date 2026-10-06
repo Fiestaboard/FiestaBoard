@@ -38,7 +38,7 @@ from .pages.service import (
     get_page_service,
 )
 from .schedules.service import get_schedule_service
-from .settings.service import get_settings_service
+from .settings.service import get_settings_service, page_transition
 from .templates.engine import extract_template_plugin_ids
 from .triggers.service import get_trigger_service
 
@@ -1370,12 +1370,6 @@ class DisplayService:
                     "configuration is fixed; other boards keep running"
                 )
             logger.info("Syncing cache with current board state...")
-            # Log transition settings if configured
-            transition = Config.get_transition_settings()
-            if transition["strategy"]:
-                logger.info(
-                    f"Default transition: {transition['strategy']} (interval={transition['step_interval_ms']}ms, step_size={transition['step_size']})"
-                )
         except Exception as e:
             logger.error(f"Failed to initialize board client: {e}")
             return False
@@ -2163,17 +2157,9 @@ class DisplayService:
                 logger.warning("Board client not initialized")
                 return False
 
-            # Transition settings — page-level if set, otherwise system defaults.
-            system_transition = settings_service.get_transition_settings(rt.board_id)
-            strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-            interval_ms = (
-                page.transition_interval_ms
-                if page.transition_interval_ms is not None
-                else system_transition.step_interval_ms
-            )
-            step_size = (
-                page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-            )
+            # The page's own transition where it sets one, else this display's.
+            resolved = page_transition(settings_service.get_transition_settings(rt.board_id), page)
+            strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
             # resolve_dimensions (never get_dimensions, which raises for
             # note_array) so a note-array page renders at its true size.
@@ -2650,14 +2636,8 @@ class DisplayService:
             )
 
         settings_service = get_settings_service()
-        system_transition = settings_service.get_transition_settings(rt.board_id)
-        strategy = page.transition_strategy or system_transition.strategy
-        interval_ms = (
-            page.transition_interval_ms
-            if page.transition_interval_ms is not None
-            else system_transition.step_interval_ms
-        )
-        step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
+        resolved = page_transition(settings_service.get_transition_settings(rt.board_id), page)
+        strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
         dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         client = rt.client

@@ -636,7 +636,9 @@
       "createAction": "Demoseite erstellen",
       "recreateAction": "Demoseite neu erstellen",
       "requirementsWarning": "Konfigurieren Sie unten die erforderlichen Einstellungen, bevor Sie eine Demoseite erstellen."
-    }
+    },
+    "outputPluginsLabel": "Anzeigen von Drittanbietern (Beta)",
+    "outputPluginsDescription": "Lass Anzeigen aus dem Marktplatz oder von einer Git-URL deine Boards steuern. Mit FiestaBoard gelieferte Anzeigen funktionieren immer."
   },
   "settings": {
     "title": "Einstellungen",
@@ -651,7 +653,7 @@
     "sectionSystem": "System",
     "sectionSystemDescription": "Updates, Sicherungen und Systemsteuerung",
     "sectionAdvanced": "Erweitert",
-    "sectionAdvancedDescription": "Diagnose und experimentelle Funktionen",
+    "sectionAdvancedDescription": "Diagnose",
     "sectionGeneral": "Allgemein",
     "sectionGeneralDescription": "Einstellungen, Sprache, Barrierefreiheit",
     "sectionAccount": "Konto",
@@ -843,7 +845,7 @@
       "installFailed": "{name} konnte nicht installiert werden",
       "offline": "FiestaBoard konnte {name} nicht herunterladen. Prüfe die Internetverbindung dieses Geräts und versuche es erneut.",
       "betaTitle": "{name} benötigt die Beta für Ausgabe-Plugins",
-      "betaBody": "Anzeigen aus dem Plugin-Verzeichnis führen eigenen Code auf deinem FiestaBoard aus. Deshalb bleiben sie aus, bis du die Beta für Ausgabe-Plugins einschaltest. Unter Einstellungen → Erweitert → Beta-Funktionen kannst du sie wieder ausschalten.",
+      "betaBody": "Anzeigen aus dem Plugin-Verzeichnis führen eigenen Code auf deinem FiestaBoard aus. Deshalb bleiben sie aus, bis du die Beta für Ausgabe-Plugins einschaltest. Auf der Seite Integrationen kannst du sie wieder ausschalten.",
       "enableBeta": "Beta für Ausgabe-Plugins einschalten",
       "enableBetaFailed": "Die Beta konnte nicht eingeschaltet werden. Versuche es erneut.",
       "retry": "Erneut versuchen",
@@ -1030,9 +1032,9 @@
     "transitionMenuTitle": "Übergang",
     "transitionPickerAriaLabel": "Seitenübergang",
     "transitionPickerTooltip": "Übergang für diese Seite: {strategy}",
-    "transitionUseGlobalDefault": "Globalen Standard verwenden",
     "transitionBuiltInGroup": "Integriert",
-    "transitionPluginsGroup": "Plugins (Beta)"
+    "transitionPluginsGroup": "Plugins (Beta)",
+    "transitionUseDisplayTransition": "Übergang der Anzeige verwenden"
   },
   "displaySettings": {
     "unnamedBoard": "Unbenanntes Board",
@@ -1113,14 +1115,24 @@
     "transition": {
       "title": "Übergang",
       "description": "Wie diese Anzeige von einer Nachricht zur nächsten wechselt. Der eigene Übergang einer Seite hat weiterhin Vorrang.",
-      "default": "Standard",
-      "defaultDescription": "Den in Einstellungen → Zeitplanung gewählten Übergang verwenden.",
       "cloudNote": "Dieses Board nutzt die Cloud-API, die das ganze Board auf einmal ändert. Übergänge brauchen die lokale API.",
       "snapNote": "Diese Anzeige kann nur alles auf einmal ändern, deshalb springt sie direkt zu jeder neuen Nachricht.",
       "deviceDefault": "Gerätestandard",
       "unavailable": "Auf dieser Anzeige nicht verfügbar",
       "runsAs": "Läuft als",
-      "previewLabel": "Vorschau: {name}"
+      "previewLabel": "Vorschau: {name}",
+      "stepIntervalLabel": "Schrittintervall (ms)",
+      "stepIntervalPlaceholder": "Standard",
+      "stepIntervalDescription": "Verzögerung zwischen den einzelnen Animationsschritten. Leer lassen für den Board-Standard.",
+      "stepSizeLabel": "Schrittgröße",
+      "stepSizePlaceholder": "Standard",
+      "stepSizeDescription": "Wie viele Zeilen oder Spalten gleichzeitig animiert werden. Leer lassen für den Board-Standard.",
+      "pluginsLabel": "Übergangs-Plugins",
+      "pluginsBadge": "Beta",
+      "speedTitle": "Geschwindigkeit",
+      "pluginsDescription": "Bild-für-Bild-Animationen wie Schreibmaschine und Auflösen (veraltet). Gilt für alle Anzeigen.",
+      "pluginsSavedToast": "Einstellung für Übergangs-Plugins gespeichert.",
+      "pluginsSaveFailedToast": "Einstellung für Übergangs-Plugins konnte nicht gespeichert werden: {error}"
     },
     "add": {
       "title": "Anzeige hinzufügen",
@@ -1159,24 +1171,7 @@
     "lastChecked": "Zuletzt geprüft: {time}"
   },
   "transitionSettings": {
-    "title": "Board-Übergänge",
-    "description": "Wählen Sie, wie das Board beim Wechsel zu einer neuen Nachricht animiert wird. Übergänge steuern den Klapp-Animationsstil der Zeichen auf Ihrem Vestaboard.",
-    "transitionStyle": "Übergangsstil",
-    "advancedOptions": "Erweiterte Optionen",
-    "stepIntervalLabel": "Schrittintervall (ms)",
-    "stepIntervalPlaceholder": "Standard",
-    "stepIntervalDescription": "Verzögerung zwischen den einzelnen Animationsschritten. Leer lassen für den Board-Standard.",
-    "stepSizeLabel": "Schrittgröße",
-    "stepSizePlaceholder": "Standard",
-    "stepSizeDescription": "Wie viele Zeilen oder Spalten gleichzeitig animiert werden. Leer lassen für den Board-Standard.",
-    "localApiNote": "Übergänge werden nur von der lokalen API unterstützt. Wenn Ihr Board für die Cloud API konfiguriert ist, haben Übergangseinstellungen keine Wirkung. Einzelne Seiten können diesen Standard auch im Seiteneditor überschreiben.",
-    "pluginNote": "Plugin-Übergänge werden von FiestaBoard animiert und als normale Board-Aktualisierungen gesendet, funktionieren also mit jeder Board-Verbindung.",
-    "builtInGroup": "Integriert",
-    "pluginsGroup": "Übergangs-Plugins",
-    "pluginsBetaBadge": "Beta",
     "unavailablePluginNote": "Dieses Übergangs-Plugin ist derzeit nicht verfügbar. Wählen Sie eine andere Option, um es zu ändern.",
-    "toastSaved": "Übergangseinstellungen gespeichert",
-    "toastSaveFailed": "Übergangseinstellungen konnten nicht gespeichert werden: {error}",
     "strategies": {
       "none": {
         "label": "Keine",
@@ -1694,19 +1689,6 @@
     "valueLabel": "Wert",
     "insert": "Einfügen",
     "searchAriaLabel": "Entitäten suchen"
-  },
-  "betaSettings": {
-    "title": "Beta-Funktionen",
-    "betaBadge": "Beta",
-    "description": "Experimentelle Funktionen, die wir testen. Aktiviere auf eigenes Risiko – sie können sich ändern oder entfernt werden.",
-    "savedToast": "Beta-Einstellungen gespeichert.",
-    "saveFailedToast": "Beta-Einstellungen konnten nicht gespeichert werden: {error}",
-    "transitionsLabel": "Übergangs-Plugins",
-    "transitionsDescription": "Steckbare Frame-für-Frame-Animationen — Schreibmaschinen-Effekte, Auflösungen, leise Wort-für-Wort-Updates und Community-Übergänge.",
-    "transitionsWarning": "Das Plugin-SDK ist experimentell; APIs und Plugin-Verhalten können sich vor der allgemeinen Verfügbarkeit ändern.",
-    "outputsLabel": "Ausgabe-Plugins",
-    "outputsDescription": "Erlaubt Ausgabe-Plugins aus dem Marktplatz oder einer Git-URL, deine Boards anzusteuern – LED-Matrizen, Schilder und andere Displays über Vestaboard hinaus.",
-    "outputsWarning": "Die Schnittstelle für Ausgabe-Plugins ist eine Beta und kann sich vor der allgemeinen Verfügbarkeit ändern. Mit FiestaBoard gelieferte Ausgaben funktionieren immer."
   },
   "systemControls": {
     "title": "System",
@@ -2438,7 +2420,7 @@
     "geometryDetected": "Erkannt: {rows} × {cols}",
     "applyGeometry": "Größe übernehmen",
     "actionInputDescription": "Für diese Aktion werden zuerst ein paar Angaben benötigt.",
-    "betaRequired": "Aktiviere Ausgabe-Plugins unter Einstellungen → Erweitert → Beta-Funktionen, um dieses Display zu nutzen.",
+    "betaRequired": "Aktiviere „Anzeigen von Drittanbietern (Beta)“ auf der Seite Integrationen, um diese Anzeige zu nutzen.",
     "boardNameLabel": "Board-Name",
     "boardNamePlaceholder": "Mein Board",
     "deviceModelLabel": "Gerätemodell",

@@ -636,7 +636,9 @@
       "createAction": "デモページを作成",
       "recreateAction": "デモページを再作成",
       "requirementsWarning": "デモページを作成する前に、下の必須設定を構成してください。"
-    }
+    },
+    "outputPluginsLabel": "サードパーティ製ディスプレイ (ベータ)",
+    "outputPluginsDescription": "マーケットプレイスや git URL のディスプレイでボードを動かせるようにします。FiestaBoard に同梱のディスプレイは常に使用できます。"
   },
   "settings": {
     "title": "設定",
@@ -651,7 +653,7 @@
     "sectionSystem": "システム",
     "sectionSystemDescription": "アップデート、バックアップ、システム制御",
     "sectionAdvanced": "詳細設定",
-    "sectionAdvancedDescription": "診断と実験的機能",
+    "sectionAdvancedDescription": "診断",
     "sectionGeneral": "一般",
     "sectionGeneralDescription": "環境設定、言語、アクセシビリティ",
     "sectionAccount": "アカウント",
@@ -843,7 +845,7 @@
       "installFailed": "{name} をインストールできませんでした",
       "offline": "FiestaBoard は {name} をダウンロードできませんでした。このデバイスのインターネット接続を確認して、もう一度お試しください。",
       "betaTitle": "{name} には出力プラグインのベータが必要です",
-      "betaBody": "プラグインレジストリのディスプレイは FiestaBoard 上で独自のコードを実行するため、出力プラグインのベータを有効にするまでオフのままです。設定 → 詳細 → ベータ機能でいつでも無効にできます。",
+      "betaBody": "プラグインレジストリのディスプレイは FiestaBoard 上で独自のコードを実行するため、出力プラグインのベータを有効にするまでオフのままです。連携ページでいつでも無効にできます。",
       "enableBeta": "出力プラグインのベータを有効にする",
       "enableBetaFailed": "ベータを有効にできませんでした。もう一度お試しください。",
       "retry": "再試行",
@@ -1030,9 +1032,9 @@
     "transitionMenuTitle": "トランジション",
     "transitionPickerAriaLabel": "ページのトランジション",
     "transitionPickerTooltip": "このページのトランジション: {strategy}",
-    "transitionUseGlobalDefault": "全体のデフォルトを使用",
     "transitionBuiltInGroup": "組み込み",
-    "transitionPluginsGroup": "プラグイン (ベータ)"
+    "transitionPluginsGroup": "プラグイン (ベータ)",
+    "transitionUseDisplayTransition": "ディスプレイのトランジションを使用"
   },
   "displaySettings": {
     "unnamedBoard": "名前未設定のボード",
@@ -1113,14 +1115,24 @@
     "transition": {
       "title": "トランジション",
       "description": "このディスプレイがメッセージを切り替えるときの動きです。ページ独自のトランジションが優先されます。",
-      "default": "デフォルト",
-      "defaultDescription": "設定 → スケジュール で選んだトランジションを使います。",
       "cloudNote": "このボードはクラウド API を使っているため、ボード全体が一度に切り替わります。トランジションにはローカル API が必要です。",
       "snapNote": "このディスプレイは一度に切り替えることしかできないため、新しいメッセージにそのまま切り替わります。",
       "deviceDefault": "デバイスのデフォルト",
       "unavailable": "このディスプレイでは使えません",
       "runsAs": "実行内容",
-      "previewLabel": "{name} のプレビュー"
+      "previewLabel": "{name} のプレビュー",
+      "stepIntervalLabel": "ステップ間隔（ミリ秒）",
+      "stepIntervalPlaceholder": "デフォルト",
+      "stepIntervalDescription": "各アニメーションステップ間の遅延。ボードのデフォルトを使用する場合は空のままにしてください。",
+      "stepSizeLabel": "ステップサイズ",
+      "stepSizePlaceholder": "デフォルト",
+      "stepSizeDescription": "一度にアニメーションする行または列の数。ボードのデフォルトを使用する場合は空のままにしてください。",
+      "pluginsLabel": "トランジションプラグイン",
+      "pluginsBadge": "ベータ",
+      "speedTitle": "速度",
+      "pluginsDescription": "タイプライターやディゾルブなどのフレーム単位のアニメーション（非推奨）。すべてのディスプレイに適用されます。",
+      "pluginsSavedToast": "トランジションプラグインの設定を保存しました。",
+      "pluginsSaveFailedToast": "トランジションプラグインの設定を保存できませんでした: {error}"
     },
     "add": {
       "title": "ディスプレイを追加",
@@ -1159,24 +1171,7 @@
     "lastChecked": "最終確認: {time}"
   },
   "transitionSettings": {
-    "title": "ボードトランジション",
-    "description": "ボードが新しいメッセージに更新される際のアニメーション方法を選択します。トランジションは Vestaboard の文字のフリップアニメーションスタイルを制御します。",
-    "transitionStyle": "トランジションスタイル",
-    "advancedOptions": "詳細オプション",
-    "stepIntervalLabel": "ステップ間隔（ミリ秒）",
-    "stepIntervalPlaceholder": "デフォルト",
-    "stepIntervalDescription": "各アニメーションステップ間の遅延。ボードのデフォルトを使用する場合は空のままにしてください。",
-    "stepSizeLabel": "ステップサイズ",
-    "stepSizePlaceholder": "デフォルト",
-    "stepSizeDescription": "一度にアニメーションする行または列の数。ボードのデフォルトを使用する場合は空のままにしてください。",
-    "localApiNote": "トランジションはローカル API のみでサポートされています。ボードがクラウド API を使用するよう設定されている場合、トランジション設定は反映されません。個別のページでこのデフォルトをページビルダーで上書きすることもできます。",
-    "pluginNote": "プラグイントランジションは FiestaBoard がアニメーションを生成し、通常のボード更新として送信されるため、どのボード接続でも動作します。",
-    "builtInGroup": "組み込み",
-    "pluginsGroup": "トランジションプラグイン",
-    "pluginsBetaBadge": "ベータ",
     "unavailablePluginNote": "このトランジションプラグインは現在利用できません。変更するには別のオプションを選択してください。",
-    "toastSaved": "トランジション設定を保存しました",
-    "toastSaveFailed": "トランジション設定の保存に失敗しました: {error}",
     "strategies": {
       "none": {
         "label": "なし",
@@ -1694,19 +1689,6 @@
     "valueLabel": "値",
     "insert": "挿入",
     "searchAriaLabel": "エンティティを検索"
-  },
-  "betaSettings": {
-    "title": "ベータ機能",
-    "betaBadge": "ベータ",
-    "description": "テスト中の実験的機能です。自己責任で有効化してください — 変更または削除される可能性があります。",
-    "savedToast": "ベータ設定を保存しました。",
-    "saveFailedToast": "ベータ設定の保存に失敗: {error}",
-    "transitionsLabel": "トランジションプラグイン",
-    "transitionsDescription": "フレーム単位のボードアニメーション — タイプライター表示、ディゾルブ、単語ごとの静音更新、コミュニティ製トランジションなど。",
-    "transitionsWarning": "プラグインSDKは実験段階です。正式リリース前にAPIや動作が変わる可能性があります。",
-    "outputsLabel": "出力プラグイン",
-    "outputsDescription": "マーケットプレイスまたは git URL からインストールした出力プラグインでボードを駆動できるようにします。LED マトリクスやサインなど、Vestaboard 以外のディスプレイに対応します。",
-    "outputsWarning": "出力プラグインの仕様はベータ版で、一般提供までに変更される可能性があります。FiestaBoard に同梱された出力は常に動作します。"
   },
   "systemControls": {
     "title": "システム",
@@ -2438,7 +2420,7 @@
     "geometryDetected": "{rows} × {cols} を検出",
     "applyGeometry": "サイズを適用",
     "actionInputDescription": "この操作には先にいくつかの情報が必要です。",
-    "betaRequired": "このディスプレイを使うには「設定 → 詳細 → ベータ機能」で出力プラグインを有効にしてください。",
+    "betaRequired": "このディスプレイを使うには、連携ページで「サードパーティ製ディスプレイ (ベータ)」を有効にしてください。",
     "boardNameLabel": "ボード名",
     "boardNamePlaceholder": "マイボード",
     "deviceModelLabel": "デバイスモデル",

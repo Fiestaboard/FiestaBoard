@@ -156,6 +156,42 @@ nginx over. `tests/test_settings_v5_https_removed.py`, the
 settings half of this; the two-boot timing is the v4 entrypoint's and is not
 tested here.
 
+### Settings v6: each display owns its transition
+
+Schema v6 (`_migrate_v5_to_v6`) removes the install-wide `transitions` block
+and the `beta` block:
+
+- Every board without a `transition` of its own gets the old block's
+  `strategy`. A null strategy becomes `"none"` on a split-flap board (a
+  Vestaboard or FiestaPanel, where null meant no transition); an output
+  plugin's board stays unset, because unset there means its device model's
+  default, which is what it ran. Every board without a speed of its own gets
+  the old `step_interval_ms` / `step_size` as `transition_step_interval_ms` /
+  `transition_step_size` (the speed was always install-wide, even for a
+  board with its own style). A devices-era `board` section is materialized
+  only when there is something to copy.
+- `beta.transition_plugins_enabled` and `beta.output_plugins_enabled` move to
+  `plugins`, and `beta` is deleted.
+
+It is idempotent (a re-run finds no block, and every split-flap board
+already has a transition) and logs its count: boards changed plus one per
+block removed. It never reads the environment: every save wrote the
+`transitions` block, so a file without one is hand-made. The legacy
+`BOARD_TRANSITION_*` env values now only seed a new split-flap display
+(`default_board_transition`). The runtime reads only the board
+(`SettingsService.get_transition_settings(board_id)`); a page's own
+transition wins field by field (`page_transition`). `GET/PUT
+/settings/transitions` is a deprecated alias for the first board's until
+v11; `/settings/beta` is gone.
+
+**Rollback.** One step back, to a v5 build, restores
+`settings.json.v5_backup` with its `transitions` and `beta` blocks; changes
+made to a display's transition after the upgrade are in the set-aside file.
+`tests/test_settings_v6_per_display_transitions.py`, the
+`v10_beta_schema5_install_transition` upgrade fixture (and its wire golden)
+and `test_a_v6_upgrade_rolled_back_to_the_v5_build_runs_the_same_transition`
+pin this.
+
 ## 3. A failed write is never swallowed
 
 A store write that fails must surface. Silent partial success — the change

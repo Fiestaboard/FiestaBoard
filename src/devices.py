@@ -203,10 +203,20 @@ class BoardInstance:
     device_model: str | None = None
     # How this display changes its message (plan D21): the device menu's
     # choice — a split-flap native strategy, ``"plugin:<id>"``, an LED menu
-    # id (``"flip"``, ``"fade"``...) or ``"none"``. ``None`` follows the
-    # install's default transition. A page's own override still wins.
-    # Absent from to_dict while unset, so no stored board changes.
+    # id (``"flip"``, ``"fade"``...) or ``"none"``. Since settings v6 every
+    # display owns its transition: there is no install-wide default any more.
+    # ``None`` survives only on an output plugin's board migrated from v5
+    # without a choice, where it means its device model's default (a flip
+    # where the device can show one). A new display is given one when it is
+    # added (``SettingsService.add_board``). A page's own override still wins.
+    # Absent from to_dict while unset.
     transition: str | None = None
+    # The transition's speed (settings v6): the delay between animation
+    # steps in ms (0 = as fast as the device goes) and how many columns or
+    # rows move per step, forwarded to devices that animate natively.
+    # ``None`` is the device's own default. Absent from to_dict while unset.
+    transition_step_interval_ms: int | None = None
+    transition_step_size: int | None = None
 
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
@@ -229,6 +239,8 @@ class BoardInstance:
         if not isinstance(self.paused, bool):
             self.paused = bool(self.paused)
         self.transition = (self.transition.strip() or None) if isinstance(self.transition, str) else None
+        self.transition_step_interval_ms = _bounded_int(self.transition_step_interval_ms, minimum=0)
+        self.transition_step_size = _bounded_int(self.transition_step_size, minimum=1)
         # Name is user-editable (issue #1792): strip, cap, and fall back to
         # the default. "   " is truthy, so a falsy-only guard stored
         # whitespace verbatim and rendered a blank sidebar row.
@@ -378,8 +390,9 @@ class BoardInstance:
         data = asdict(self)
         if self.device_model is None:
             del data["device_model"]
-        if self.transition is None:
-            del data["transition"]
+        for key in ("transition", "transition_step_interval_ms", "transition_step_size"):
+            if data[key] is None:
+                del data[key]
         return data
 
     @classmethod
@@ -422,6 +435,8 @@ class BoardInstance:
             output_config=config,
             device_model=data.get("device_model"),
             transition=data.get("transition"),
+            transition_step_interval_ms=data.get("transition_step_interval_ms"),
+            transition_step_size=data.get("transition_step_size"),
         )
 
 
@@ -680,6 +695,14 @@ class Geometry(NamedTuple):
     notes_tall: int = 1
     grid_rows: int | None = None
     grid_cols: int | None = None
+
+
+def _bounded_int(value, *, minimum: int) -> int | None:
+    """*value* when it is a whole number (an int, never a bool or a float)
+    no smaller than *minimum*; otherwise ``None``."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        return None
+    return value
 
 
 def _optional_int(value) -> int | None:

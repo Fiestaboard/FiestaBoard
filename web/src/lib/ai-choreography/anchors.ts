@@ -38,8 +38,6 @@ const LEGACY_SELECTORS: Record<string, readonly string[]> = {
   "settings.polling.interval_seconds": ["#polling-interval"],
   "settings.polling.board_read_interval_local": ["#board-read-local"],
   "settings.polling.board_read_interval_cloud": ["#board-read-cloud"],
-  "settings.transitions.step_interval_ms": ["#step-interval"],
-  "settings.transitions.step_size": ["#step-size"],
   "settings.silence_schedule": ["#silence-schedule"],
   "settings.silence_schedule.enabled": ["#silence-enabled"],
   "settings.silence_schedule.start_time": ["#silence-start"],
@@ -115,11 +113,13 @@ export const SETTING_SECTIONS: Record<string, { section: string; card?: string }
   general: { section: "general" },
   location: { section: "general", card: "settings.location" },
   display: { section: "general", card: "settings.display" },
-  transitions: { section: "scheduling", card: "settings.transitions" },
   polling: { section: "scheduling", card: "settings.polling" },
   silence_schedule: { section: "scheduling", card: "settings.silence_schedule" },
   schedule_behavior: { section: "scheduling", card: "settings.schedule_behavior" },
-  // Displays have their own section (plan D21), not a settings tab.
+  // Displays have their own section (plan D21), not a settings tab. Each
+  // display owns its transition (settings v6); "transitions" is the
+  // deprecated alias for the first display's.
+  transitions: { section: DISPLAYS_SECTION, card: "settings.transitions" },
   output: { section: DISPLAYS_SECTION, card: "settings.output" },
   hdmi_kiosk: { section: DISPLAYS_SECTION, card: "settings.hdmi_kiosk" },
   boards: { section: DISPLAYS_SECTION, card: "settings.boards" },
@@ -128,7 +128,6 @@ export const SETTING_SECTIONS: Record<string, { section: string; card?: string }
   plugins: { section: INTEGRATIONS_PAGE, card: "settings.plugins" },
   release_channel: { section: "system", card: "settings.release_channel" },
   auto_update: { section: "system", card: "settings.auto_update" },
-  beta: { section: "advanced", card: "settings.beta" },
 };
 
 /** The anchor for one setting key, and the card behind it. */

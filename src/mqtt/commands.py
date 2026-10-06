@@ -497,7 +497,7 @@ class CommandHandler:
         if paused is True:
             logger.info("MQTT send_message blocked: board is paused")
             return
-        transition = settings.get_transition_settings()
+        transition = settings.get_transition_settings(board_id)
         # Grid sized to the target board (issue #1793): the named board when
         # given, else the primary board, else the flagship 6x22 default.
         # Plain-string payloads (what HA's text entity sends) used to fall

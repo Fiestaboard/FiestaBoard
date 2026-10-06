@@ -6,8 +6,7 @@ What this module pins, in order:
    every other beta flag, is idempotent, and logs the count it changed;
 2. a v4 install with HTTPS on upgrades to v5 with the flag gone and its
    pre-migration snapshot in ``settings.json.v4_backup``;
-3. the beta API no longer reports or accepts the flag, and has no cert
-   status or restart hint;
+3. (settings v6 then removed the beta API altogether);
 4. startup removes the self-signed cert files FiestaBoard generated in
    ``<data>/certs/`` — those two files, only when the cert is its self-signed
    one, and nothing else;
@@ -24,7 +23,6 @@ import logging
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -78,8 +76,8 @@ class TestMigrateV4ToV5:
     def test_it_is_the_registered_v5_migration(self):
         from src.settings.service import CURRENT_SETTINGS_SCHEMA_VERSION, MIGRATIONS, _migrate_v4_to_v5
 
-        assert CURRENT_SETTINGS_SCHEMA_VERSION == 5
-        assert MIGRATIONS[-1] == (5, _migrate_v4_to_v5)
+        assert CURRENT_SETTINGS_SCHEMA_VERSION >= 5
+        assert (5, _migrate_v4_to_v5) in MIGRATIONS
 
 
 # ---------------------------------------------------------------------------
@@ -100,10 +98,12 @@ def test_a_v4_file_with_https_on_loads_at_v5_without_it(tmp_path, caplog):
     assert "Settings schema migration v4->v5: 1 change(s) applied" in caplog.text
     assert (tmp_path / "settings.json.v4_backup").read_bytes() == v4
     on_disk = json.loads(path.read_text())
-    assert on_disk["schema_version"] == 5
-    assert "https_enabled" not in on_disk["beta"]
-    assert on_disk["beta"]["transition_plugins_enabled"] is True
-    assert service.get_beta_settings().transition_plugins_enabled is True
+    # Settings v6 then moves the remaining beta flags into "plugins".
+    assert on_disk["schema_version"] == 6
+    assert "beta" not in on_disk
+    assert "https_enabled" not in on_disk["plugins"]
+    assert on_disk["plugins"]["transition_plugins_enabled"] is True
+    assert service.get_plugin_settings().transition_plugins_enabled is True
 
 
 def test_the_https_on_upgrade_fixture_boots_without_the_flag_or_its_certs(_isolated_data_dir):
@@ -118,51 +118,23 @@ def test_the_https_on_upgrade_fixture_boots_without_the_flag_or_its_certs(_isola
     boot("v10_beta_schema4_https_on", _isolated_data_dir)
 
     on_disk = json.loads((_isolated_data_dir / "settings.json").read_text())
-    assert on_disk["schema_version"] == 5
-    assert on_disk["beta"] == {"transition_plugins_enabled": False}
+    assert on_disk["schema_version"] == 6
+    assert "beta" not in on_disk  # settings v6 moved the rest into "plugins"
+    assert "https_enabled" not in on_disk["plugins"]
+    assert on_disk["plugins"]["transition_plugins_enabled"] is False
     assert (_isolated_data_dir / "settings.json.v4_backup").read_bytes() == original
     assert not certs.exists()
 
 
-def test_beta_settings_have_no_https_flag():
-    from src.settings.service import BetaSettings
+def test_plugin_settings_have_no_https_flag():
+    from src.settings.service import PluginSettings
 
-    assert "https_enabled" not in BetaSettings().to_dict()
-    assert "https_enabled" not in BetaSettings.from_dict({"https_enabled": True}).to_dict()
+    assert "https_enabled" not in PluginSettings.from_dict({"https_enabled": True}).to_dict()
 
 
 # ---------------------------------------------------------------------------
-# 3. The beta API
+# 3. The beta API — gone in settings v6 (tests/test_settings_v6_per_display_transitions.py)
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def client() -> TestClient:
-    from src.api_server import app
-
-    return TestClient(app)
-
-
-def test_get_beta_reports_only_the_flags(client):
-    body = client.get("/settings/beta").json()
-    assert set(body) == {"settings"}
-    assert "https_enabled" not in body["settings"]
-    assert body["settings"]["transition_plugins_enabled"] is False
-
-
-def test_put_beta_ignores_a_stale_https_flag(client):
-    response = client.put("/settings/beta", json={"https_enabled": True})
-    assert response.status_code == 200
-    body = response.json()
-    assert set(body) == {"settings"}
-    assert "https_enabled" not in body["settings"]
-    assert "https_enabled" not in client.get("/settings/all").json()["beta"]
-
-
-def test_put_beta_still_toggles_transition_plugins(client):
-    response = client.put("/settings/beta", json={"transition_plugins_enabled": True})
-    assert response.status_code == 200
-    assert response.json() == {"settings": {"transition_plugins_enabled": True, "output_plugins_enabled": False}}
 
 
 # ---------------------------------------------------------------------------

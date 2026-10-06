@@ -41,6 +41,11 @@ label                                     what it pins
 ``v10_beta_schema4_https_on``             settings v4 with the retired HTTPS
                                           (Beta) flag on: boots to plain HTTP
                                           with the flag dropped (settings v5)
+``v10_beta_schema5_install_transition``   settings v5 with an install-wide
+                                          transition (diagonal, 40 ms, step 2)
+                                          and the transition plugins beta on:
+                                          the board runs the same transition
+                                          as its own (settings v6)
 ========================================  ====================================
 
 What a test does
@@ -247,6 +252,15 @@ UPGRADE_GOLDENS: dict[str, UpgradeGolden] = {
         seam="POST /send-message with board_id, booted from tests/fixtures/upgrade/v2_0_schema0_boards_note",
         actions=("send text HI NOTE",),
     ),
+    "upgrade_v10_beta_schema5_install_transition": UpgradeGolden(
+        driver="local_flagship_send",
+        description=(
+            "A v10 beta install stored an install-wide transition (diagonal, 40 ms, step 2); settings v6 copies "
+            "it onto the board, and the Local-API payload carries all three exactly as before the upgrade."
+        ),
+        seam="POST /send-message with board_id, booted from tests/fixtures/upgrade/v10_beta_schema5_install_transition",
+        actions=("send text HELLO WORLD",),
+    ),
 }
 
 
@@ -328,6 +342,9 @@ EXPECT: dict[str, Expect] = {
     ),
     "v9_10_schema3_both_backups": Expect(sends=[(0, "local_flagship_send")], board_count=1, page_count=1),
     "v10_beta_schema4_https_on": Expect(sends=[(0, "local_flagship_send")], board_count=1, page_count=1, from_schema=4),
+    "v10_beta_schema5_install_transition": Expect(
+        sends=[(0, "upgrade_v10_beta_schema5_install_transition")], board_count=1, page_count=1, from_schema=5
+    ),
 }
 
 

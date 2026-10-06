@@ -295,7 +295,7 @@ Names you will meet:
   `settings_schema` of the board's `output_config`, whose `secret` fields are
   masked in the API and restored on save (`src/outputs/output_config.py`).
   Only **third-party** output plugins (registry or git URL, and not in the
-  seed) are behind `beta.output_plugins_enabled`; with it off their boards
+  seed) are behind `plugins.output_plugins_enabled`; with it off their boards
   stay down. First-party outputs — built-ins, plugins bundled in `plugins/`,
   and the seed's loadable outputs whichever copy runs — are always on: the
   loader decides once (`PluginLoader._register_output_locked` →

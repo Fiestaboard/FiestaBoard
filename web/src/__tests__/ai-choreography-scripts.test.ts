@@ -220,7 +220,7 @@ describe("anchors", () => {
   });
 
   it("maps every setting category to a tab, or a board's to Displays", () => {
-    const boards = new Set(["boards", "output", "hdmi_kiosk"]);
+    const boards = new Set(["boards", "output", "hdmi_kiosk", "transitions"]);
     const tabs = new Set(["general", "account", "network", "scheduling", "ai", "system", "advanced"]);
     for (const category of Object.keys(SETTING_SECTIONS)) {
       if (boards.has(category)) expect(settingsHref(category), category).toBe("/displays");

@@ -515,39 +515,6 @@ class SunTimesWeekResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Beta
-# ---------------------------------------------------------------------------
-
-
-class BetaSettings(BaseModel):
-    """Opt-in beta feature flags."""
-
-    transition_plugins_enabled: bool
-    output_plugins_enabled: bool = False
-
-
-class BetaSettingsResponse(BaseModel):
-    """The beta flags."""
-
-    settings: BetaSettings
-
-
-class BetaSettingsUpdateResponse(BetaSettingsResponse):
-    """The beta flags after a write."""
-
-
-class BetaSettingsUpdate(BaseModel):
-    """Partial beta update: only the flags present are changed.
-
-    An unknown key is ignored, so a client from before HTTPS (Beta) was
-    removed that still sends ``https_enabled`` gets a 200 and no change.
-    """
-
-    transition_plugins_enabled: StrictBool | None = None
-    output_plugins_enabled: StrictBool | None = None
-
-
-# ---------------------------------------------------------------------------
 # Setup wizard
 # ---------------------------------------------------------------------------
 
@@ -571,9 +538,15 @@ class WizardStateBody(BaseModel):
 
 
 class PluginSettingsResponse(BaseModel):
-    """Plugin-system settings."""
+    """Plugin-system settings.
+
+    ``transition_plugins_enabled`` / ``output_plugins_enabled`` were the
+    ``/settings/beta`` flags until settings v6.
+    """
 
     auto_update: bool
+    transition_plugins_enabled: bool = False
+    output_plugins_enabled: bool = False
 
 
 class PluginSettingsUpdate(BaseModel):
@@ -585,6 +558,8 @@ class PluginSettingsUpdate(BaseModel):
     """
 
     auto_update: StrictBool | None = None
+    transition_plugins_enabled: StrictBool | None = None
+    output_plugins_enabled: StrictBool | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -704,7 +679,6 @@ class AllSettingsResponse(BaseModel):
     mqtt: MqttSettingsResponse
     display: DisplaySettingsResponse
     location: LocationSettingsResponse
-    beta: BetaSettings
     plugins: PluginSettingsResponse
     schedule: ScheduleBehaviourBlock
     status: ServiceStatus

@@ -1,5 +1,10 @@
 {
-  "schema_version": 6,
+  "schema_version": 5,
+  "transitions": {
+    "strategy": null,
+    "step_interval_ms": null,
+    "step_size": null
+  },
   "output": {
     "target": "board"
   },
@@ -37,8 +42,7 @@
           "cloud_key": "",
           "note_array_token": "",
           "tiles": []
-        },
-        "transition": "none"
+        }
       }
     ],
     "devices": [
@@ -67,10 +71,11 @@
     "latitude": null,
     "longitude": null
   },
+  "beta": {
+    "transition_plugins_enabled": false
+  },
   "plugins": {
-    "auto_update": true,
-    "transition_plugins_enabled": false,
-    "output_plugins_enabled": false
+    "auto_update": true
   },
   "temporary_override": null
 }

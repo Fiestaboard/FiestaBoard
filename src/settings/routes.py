@@ -58,9 +58,6 @@ from .models import (
     AiTestRequest,
     AiTestResponse,
     AllSettingsResponse,
-    BetaSettingsResponse,
-    BetaSettingsUpdate,
-    BetaSettingsUpdateResponse,
     BoardIdentifyRequest,
     BoardIdentifyResponse,
     BoardPauseRequest,
@@ -100,7 +97,7 @@ from .models import (
     TransitionSettingsUpdate,
     WizardStateBody,
 )
-from .service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES
+from .service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, page_transition
 from .service import temporary_override_payload as _temporary_override_payload
 
 logger = logging.getLogger(__name__)
@@ -454,9 +451,15 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
     }
 
 
-@router.get("/settings/transitions", response_model=TransitionSettingsResponse)
+@router.get("/settings/transitions", response_model=TransitionSettingsResponse, deprecated=True)
 async def get_transition_settings():
-    """Get current transition animation settings."""
+    """The FIRST display's transition. Deprecated: removed in v11.
+
+    Settings v6 gives every display its own transition (the board's
+    ``transition``, ``transition_step_interval_ms`` and
+    ``transition_step_size`` in ``GET /settings/board``); there is no
+    install-wide one any more.
+    """
     settings_service = get_settings_service()
     transition = settings_service.get_transition_settings()
     return {
@@ -467,14 +470,15 @@ async def get_transition_settings():
     }
 
 
-@router.put("/settings/transitions", response_model=TransitionSettings, responses={**ERROR_400})
+@router.put("/settings/transitions", response_model=TransitionSettings, responses={**ERROR_400}, deprecated=True)
 async def update_transition_settings(request: TransitionSettingsUpdate):
     """
-    Update transition animation settings.
+    Set the FIRST display's transition. Deprecated: removed in v11; set a
+    display's own through ``PUT /settings/board`` instead.
 
     Body can include:
     - strategy: One of column, reverse-column, edges-to-center, row, diagonal, random,
-                "plugin:<id>" to drive a transition plugin, or null to disable.
+                "plugin:<id>" to drive a transition plugin, or null for none.
     - step_interval_ms: Delay between animation steps (ms), or null for default
     - step_size: How many columns/rows animate at once, or null for default
 
@@ -667,19 +671,14 @@ async def set_active_page(request: SetActivePageRequest):
                     render_page_id, force_refresh=True, **extended_markup_kw(send_client)
                 )
                 if result and result.available:
-                    system_transition = settings_service.get_transition_settings(
-                        board_id or settings_service.get_primary_board_id()
+                    resolved = page_transition(
+                        settings_service.get_transition_settings(board_id or settings_service.get_primary_board_id()),
+                        page,
                     )
-                    strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-                    interval_ms = (
-                        page.transition_interval_ms
-                        if page.transition_interval_ms is not None
-                        else system_transition.step_interval_ms
-                    )
-                    step_size = (
-                        page.transition_step_size
-                        if page.transition_step_size is not None
-                        else system_transition.step_size
+                    strategy, interval_ms, step_size = (
+                        resolved.strategy,
+                        resolved.step_interval_ms,
+                        resolved.step_size,
                     )
 
                     # Size the grid to the explicit target board when given
@@ -1426,38 +1425,6 @@ async def get_location_sun_times_week(week_start: str):
     return {"location_configured": True, "dates": result}
 
 
-@router.get("/settings/beta", response_model=BetaSettingsResponse)
-async def get_beta_settings():
-    """Get opt-in beta-feature settings."""
-    settings_service = get_settings_service()
-    return {"settings": settings_service.get_beta_settings().to_dict()}
-
-
-@router.put(
-    "/settings/beta",
-    response_model=BetaSettingsUpdateResponse,
-    responses={**ERROR_500},
-)
-async def update_beta_settings(request: BetaSettingsUpdate):
-    """Update beta-feature settings.
-
-    Body may include:
-    - output_plugins_enabled: bool — let third-party output plugins
-      (installed from the registry or a git URL; first-party seeded outputs
-      need no beta) drive boards. Takes effect on the next board
-      rebuild (saving a board, or a restart).
-    - transition_plugins_enabled: bool — enable/disable the experimental
-      transition-plugin system (frame-by-frame board animations). Takes
-      effect immediately; no restart required.
-
-    Unknown keys are ignored — including ``https_enabled``, whose HTTPS
-    (Beta) feature was removed in settings v5.
-    """
-    provided = request.model_dump(exclude_unset=True)
-    updated = get_settings_service().update_beta_settings(provided)
-    return {"settings": updated.to_dict()}
-
-
 @router.get("/settings/plugins", response_model=PluginSettingsResponse)
 async def get_plugin_settings():
     """Get plugin system settings."""
@@ -1471,9 +1438,17 @@ async def update_plugin_settings(request: PluginSettingsUpdate):
 
     Body may include:
     - auto_update: bool — when true, plugins are updated automatically in the background.
+    - transition_plugins_enabled: bool — let displays and pages use the
+      experimental (deprecated) transition plugins. Takes effect at once.
+    - output_plugins_enabled: bool — let third-party output plugins
+      (installed from the registry or a git URL; first-party seeded outputs
+      need neither) drive boards. Takes effect on the next board rebuild
+      (saving a board, or a restart).
 
-    ``auto_update`` is a ``StrictBool``: ``"yes"`` is a 422, not a silent
-    opt-in to background plugin updates.
+    These two were ``PUT /settings/beta`` until settings v6.
+
+    Every flag is a ``StrictBool``: ``"yes"`` is a 422, not a silent
+    opt-in.
     """
     settings_service = get_settings_service()
     updated = settings_service.update_plugin_settings(request.model_dump(exclude_unset=True))
@@ -1489,7 +1464,7 @@ async def get_all_settings():
     - general config (timezone, etc.)
     - silence_schedule plugin config
     - polling interval settings
-    - transitions settings
+    - transitions: the first display's transition (deprecated, until v11)
     - output settings
     - board settings
     - mqtt integration settings
@@ -1511,7 +1486,6 @@ async def get_all_settings():
     mqtt = settings_service.get_mqtt_settings()
     display = settings_service.get_display_settings()
     location = settings_service.get_location_settings()
-    beta = settings_service.get_beta_settings()
     plugins = settings_service.get_plugin_settings()
     schedule = settings_service.get_schedule_settings()
 
@@ -1525,7 +1499,6 @@ async def get_all_settings():
         "mqtt": mqtt.to_dict(mask_secrets=True),
         "display": display.to_dict(),
         "location": location.to_dict(),
-        "beta": beta.to_dict(),
         "plugins": plugins.to_dict(),
         "schedule": schedule.to_dict(),
         "status": {

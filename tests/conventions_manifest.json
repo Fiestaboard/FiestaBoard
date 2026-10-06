@@ -188,11 +188,6 @@
       "reason": "Read-only, no path or body parameters: it returns the stored the whole settings page in one payload and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
     },
     {
-      "route": "GET /settings/beta",
-      "rule": "declared_errors",
-      "reason": "Read-only, no path or body parameters: it returns the stored beta flags and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
-    },
-    {
       "route": "GET /settings/restore-notice",
       "rule": "declared_errors",
       "reason": "Read-only, no path or body parameters: it reports the downgrade bridge's notice, and an unreadable or malformed notice file is answered as 'no notice' (the bridge's boot log is the record of the swap; the notice only drives a banner). There is no failure path to declare."

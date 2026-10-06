@@ -1,13 +1,16 @@
 {
-  "schema_version": 6,
+  "schema_version": 5,
+  "transitions": {
+    "strategy": "diagonal",
+    "step_interval_ms": 40,
+    "step_size": 2
+  },
   "output": {
     "target": "board"
   },
   "active_page": {
-    "page_id": "page-golden-1",
-    "by_board": {
-      "board-golden-1": "page-golden-1"
-    }
+    "page_id": null,
+    "by_board": {}
   },
   "polling": {
     "interval_seconds": 15,
@@ -18,8 +21,8 @@
     "board_type": "black",
     "boards": [
       {
-        "id": "board-golden-1",
-        "name": "Golden Board",
+        "id": "00000000-0000-4000-8000-000000000012",
+        "name": "Living Room",
         "device_type": "flagship",
         "board_color": "black",
         "code62_glyph": "degree",
@@ -28,17 +31,18 @@
         "schedule_enabled": false,
         "notes_wide": 1,
         "notes_tall": 1,
+        "grid_rows": null,
+        "grid_cols": null,
         "output": "vestaboard",
         "output_config": {
           "api_mode": "local",
-          "host": "192.0.2.10",
+          "host": "192.168.0.10",
           "port": 7000,
-          "local_api_key": "test_key_golden",
+          "local_api_key": "test_local_key",
           "cloud_key": "",
           "note_array_token": "",
           "tiles": []
-        },
-        "transition": "none"
+        }
       }
     ],
     "devices": [
@@ -64,13 +68,15 @@
     "board_flap_speed": "standard"
   },
   "location": {
-    "latitude": null,
-    "longitude": null
+    "latitude": 40.7128,
+    "longitude": -74.006
+  },
+  "beta": {
+    "transition_plugins_enabled": true,
+    "output_plugins_enabled": false
   },
   "plugins": {
-    "auto_update": true,
-    "transition_plugins_enabled": false,
-    "output_plugins_enabled": false
+    "auto_update": true
   },
   "temporary_override": null
 }

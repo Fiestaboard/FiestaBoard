@@ -253,15 +253,17 @@ describe("/displays/:boardId", () => {
     expect(await screen.findByTestId("display-not-found")).toBeInTheDocument();
   });
 
-  it("a split-flap display offers Default, None and the strategies its output animates", async () => {
+  it("a split-flap display offers None and the strategies its output animates, and no Default", async () => {
     setup([KITCHEN]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
     const section = await screen.findByTestId("display-transition");
     const group = within(section).getByRole("radiogroup", { name: "Transition" });
     await waitFor(() => expect(within(group).getByRole("radio", { name: /Diagonal/ })).toBeInTheDocument());
-    expect(within(group).getByRole("radio", { name: /Default/ })).toHaveAttribute("aria-checked", "true");
-    expect(within(group).getByRole("radio", { name: /None/ })).toBeInTheDocument();
+    // Settings v6: every display owns its transition; there is no install default to follow.
+    expect(within(group).queryByRole("radio", { name: /Default/ })).not.toBeInTheDocument();
+    // An unset choice runs as no transition, and reads as None.
+    expect(within(group).getByRole("radio", { name: /None/ })).toHaveAttribute("aria-checked", "true");
     expect(within(section).queryByTestId("display-transition-cloud")).not.toBeInTheDocument();
   });
 
@@ -278,14 +280,94 @@ describe("/displays/:boardId", () => {
     expect(boards.find((b) => b.id === "desk")?.transition).toBeUndefined();
   });
 
-  it("Default clears the display's own choice", async () => {
+  it("None is saved as the display's choice", async () => {
     const calls = setup([{ ...KITCHEN, transition: "row" }]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
     const section = await screen.findByTestId("display-transition");
-    await userEvent.click(within(section).getByRole("radio", { name: /Default/ }));
+    await userEvent.click(within(section).getByRole("radio", { name: /None/ }));
     await waitFor(() => expect(calls.put).toHaveLength(1));
-    expect(calls.put[0].boards[0].transition).toBeNull();
+    expect(calls.put[0].boards[0].transition).toBe("none");
+  });
+
+  it("a native strategy shows its speed, and a step interval saves with the display", async () => {
+    const calls = setup([{ ...KITCHEN, transition: "row", transition_step_size: 2 }, DESK]);
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    const interval = await screen.findByRole("spinbutton", { name: "Step Interval (ms)" });
+    expect(screen.getByRole("spinbutton", { name: "Step Size" })).toHaveValue(2);
+    await userEvent.type(interval, "40");
+    await userEvent.tab();
+    await waitFor(() => expect(calls.put).toHaveLength(1));
+    const boards = calls.put[0].boards;
+    expect(boards.find((b) => b.id === "kitchen")).toMatchObject({
+      transition: "row",
+      transition_step_interval_ms: 40,
+      transition_step_size: 2,
+    });
+    expect(boards.find((b) => b.id === "desk")?.transition_step_interval_ms).toBeUndefined();
+  });
+
+  it("clearing a speed field saves the device's default", async () => {
+    const calls = setup([{ ...KITCHEN, transition: "row", transition_step_size: 3 }]);
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    const size = await screen.findByRole("spinbutton", { name: "Step Size" });
+    await userEvent.clear(size);
+    await userEvent.tab();
+    await waitFor(() => expect(calls.put).toHaveLength(1));
+    expect(calls.put[0].boards[0].transition_step_size).toBeNull();
+  });
+
+  it("a step size below 1 is not saved", async () => {
+    const calls = setup([{ ...KITCHEN, transition: "row" }]);
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    const size = await screen.findByRole("spinbutton", { name: "Step Size" });
+    await userEvent.type(size, "0");
+    await userEvent.tab();
+    expect(size).toHaveAttribute("aria-invalid", "true");
+    expect(calls.put).toHaveLength(0);
+  });
+
+  it("None has no speed to set", async () => {
+    setup([{ ...KITCHEN, transition: "none" }]);
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    await screen.findByTestId("display-transition");
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Diagonal/ })).toBeInTheDocument());
+    expect(screen.queryByTestId("display-transition-speed")).not.toBeInTheDocument();
+  });
+
+  it("turns transition plugins on for every display from a split-flap display", async () => {
+    let body: unknown = null;
+    setup([KITCHEN]);
+    server.use(
+      http.put(`${API}/settings/plugins`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({
+          auto_update: true,
+          transition_plugins_enabled: true,
+          output_plugins_enabled: false,
+        });
+      }),
+    );
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    const section = await screen.findByTestId("display-transition-plugins");
+    expect(section).toHaveTextContent(/all displays/i);
+    const toggle = within(section).getByRole("switch", { name: "Transition Plugins" });
+    expect(toggle).not.toBeChecked();
+    await userEvent.click(toggle);
+    await waitFor(() => expect(body).toEqual({ transition_plugins_enabled: true }));
+  });
+
+  it("offers no transition plugins switch where frames cannot run", async () => {
+    setup([{ ...KITCHEN, output_config: { api_mode: "cloud", cloud_key: "***" } }, DESK]);
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    await screen.findByTestId("display-transition-cloud");
+    expect(screen.queryByTestId("display-transition-plugins")).not.toBeInTheDocument();
   });
 
   it("a cloud Vestaboard says it changes all at once", async () => {

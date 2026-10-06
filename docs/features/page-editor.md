@@ -181,11 +181,11 @@ See the [Color Guide](/docs/reference/color-guide) for detailed usage examples.
 
 The editor's header toolbar has a **Transition** dropdown that controls how the board animates when it changes to this page.
 
-- **Use global default** - inherit the transition set in **Settings → Scheduling → Board Transitions**
+- **Use the display's transition** - inherit the transition set for the display the page is sent to, in **Displays → (a display) → Transition**
 - A **built-in strategy** (Wave, Drift, Curtain, Row, Diagonal, Random) - performed by the board itself, Local API only
-- A **transition plugin** (Typewriter, Simple Dissolve, and others) - animated by FiestaBoard, works on any connection, shown only when the Transition Plugins beta is enabled
+- A **transition plugin** (Typewriter, Simple Dissolve, and others) - animated by FiestaBoard, shown only when the Transition Plugins beta is enabled; a Cloud API board shows the new message at once
 
-Anything other than **Use global default** becomes a page-level override that applies whenever this page is sent. Switching back to **Use global default** clears it.
+Anything other than **Use the display's transition** becomes a page-level override that applies whenever this page is sent, on any display. Switching back to **Use the display's transition** clears it.
 
 See [Transitions](/docs/features/transitions) for how the two kinds differ and what they require. Transition plugins are deprecated; pages that use one keep working.
 

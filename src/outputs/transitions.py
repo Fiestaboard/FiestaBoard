@@ -101,7 +101,7 @@ def transition_plugins_enabled() -> bool:
     try:
         from src.settings.service import get_settings_service
 
-        return bool(get_settings_service().get_beta_settings().transition_plugins_enabled)
+        return bool(get_settings_service().get_plugin_settings().transition_plugins_enabled)
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning("render: could not read transition_plugins beta flag: %s", exc)
         return False

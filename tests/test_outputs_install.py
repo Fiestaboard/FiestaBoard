@@ -173,7 +173,7 @@ def fake_clone(monkeypatch, *, output_api: int = 1) -> list[str]:
 def beta(on: bool) -> None:
     from src.settings.service import get_settings_service
 
-    get_settings_service().update_beta_settings({"output_plugins_enabled": on})
+    get_settings_service().update_plugin_settings({"output_plugins_enabled": on})
 
 
 @pytest.fixture

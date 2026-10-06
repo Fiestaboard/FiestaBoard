@@ -537,7 +537,7 @@ OPENAPI_TAGS = [
     {"name": "ai", "description": "AI page generation, chat editing and the operation grammar shared with MCP."},
     {
         "name": "settings",
-        "description": "Install settings: boards, display, location, polling, output, MQTT, AI, beta flags.",
+        "description": "Install settings: boards, display, location, polling, output, MQTT, AI, plugin flags.",
     },
     {"name": "config", "description": "Board connection configuration and its validation/discovery helpers."},
     {"name": "backup", "description": "Export and import the whole install as one file."},
@@ -2056,9 +2056,6 @@ async def validate_traffic_route(request: dict):
 # =============================================================================
 # Settings Endpoints
 # =============================================================================
-
-
-# ==================== Beta Settings (HTTPS, etc.) ====================
 
 
 # =============================================================================

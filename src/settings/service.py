@@ -11,7 +11,7 @@ import os
 import shutil
 import threading
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, Optional, TypeVar, get_args
@@ -69,14 +69,14 @@ def is_valid_strategy(strategy: str | None) -> bool:
 
 
 #: A display's own "no transition" (plan D21). Distinct from an unset choice,
-#: which follows the install's default.
+#: which on an output plugin's board means its device model's default.
 BOARD_TRANSITION_NONE = "none"
 
 
 def is_valid_board_transition(choice: str | None) -> bool:
     """Whether *choice* is something a display's transition menu offers.
 
-    ``None`` (follow the install's default), ``"none"``, a split-flap
+    ``None`` (the device's default), ``"none"``, a split-flap
     strategy or ``plugin:<id>`` (:func:`is_valid_strategy`), or an LED menu
     id (FiestaUI's registry, :func:`src.led.transition_registry.is_led_transition_id`).
     Whether the device can run it is the runtime's call: an LED choice a
@@ -91,7 +91,11 @@ def is_valid_board_transition(choice: str | None) -> bool:
 
 @dataclass
 class TransitionSettings:
-    """Transition animation settings."""
+    """The transition one display runs: its strategy and speed.
+
+    Settings v6: a display's own (``SettingsService.get_transition_settings``);
+    there is no install-wide transition any more.
+    """
 
     strategy: str | None = None
     step_interval_ms: int | None = None
@@ -107,6 +111,25 @@ class TransitionSettings:
             step_interval_ms=data.get("step_interval_ms"),
             step_size=data.get("step_size"),
         )
+
+
+def page_transition(display, page) -> TransitionSettings:
+    """What a send of *page* runs on a display whose own transition is
+    *display* (anything with ``strategy`` / ``step_interval_ms`` /
+    ``step_size``): the page's own transition where it sets one, field by
+    field, else the display's.
+
+    A page strategy counts when it is truthy; a page interval or step size
+    counts whenever it is not ``None`` (0 ms is a real choice).
+    """
+    strategy = getattr(page, "transition_strategy", None)
+    interval = getattr(page, "transition_interval_ms", None)
+    step_size = getattr(page, "transition_step_size", None)
+    return TransitionSettings(
+        strategy=strategy if strategy else display.strategy,
+        step_interval_ms=interval if interval is not None else display.step_interval_ms,
+        step_size=step_size if step_size is not None else display.step_size,
+    )
 
 
 @dataclass
@@ -682,50 +705,32 @@ class DisplaySettings:
 
 @dataclass
 class PluginSettings:
-    """Plugin system settings."""
+    """Plugin system settings.
+
+    - auto_update: update installed plugins in the background.
+    - transition_plugins_enabled: transition plugins (frame-by-frame board
+      animations driven by the TransitionPluginBase SDK) become selectable as
+      a display's or a page's transition. Off by default. Deprecated
+      (removal considered for v11). ``beta.transition_plugins_enabled``
+      until settings v6.
+    - output_plugins_enabled: output plugins installed from the registry or
+      a git URL can drive boards (a board whose ``output`` names one). Off by
+      default; first-party outputs (bundled in ``plugins/`` or carried by the
+      image's output seed) are always on. ``beta.output_plugins_enabled``
+      until settings v6.
+    """
 
     auto_update: bool = True
+    transition_plugins_enabled: bool = False
+    output_plugins_enabled: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "PluginSettings":
-        return cls(auto_update=bool(data.get("auto_update", True)))
-
-
-@dataclass
-class BetaSettings:
-    """Opt-in beta features.
-
-    These are experimental settings that may change behavior or be removed
-    in future releases. Currently:
-
-    - transition_plugins_enabled: When true, transition plugins (frame-by-
-      frame board animations driven by the TransitionPluginBase SDK)
-      become selectable from page editors and Settings → Transitions.  Off
-      by default.  Transition plugins are deprecated (removal considered for
-      v11); the Transition Lab that once lived behind this flag is retired.
-    - output_plugins_enabled: When true, output plugins installed from the
-      registry or a git URL can drive boards (a board whose ``output`` names
-      one). Off by default; first-party outputs (bundled in ``plugins/`` or
-      carried by the image's output seed) are always on.
-      Written to settings.json only once turned on, so a file saved by a
-      build that predates the flag round-trips unchanged.
-    """
-
-    transition_plugins_enabled: bool = False
-    output_plugins_enabled: bool = False
-
-    def to_dict(self) -> dict:
-        data = asdict(self)
-        if not self.output_plugins_enabled:
-            del data["output_plugins_enabled"]
-        return data
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "BetaSettings":
         return cls(
+            auto_update=bool(data.get("auto_update", True)),
             transition_plugins_enabled=bool(data.get("transition_plugins_enabled", False)),
             output_plugins_enabled=bool(data.get("output_plugins_enabled", False)),
         )
@@ -814,7 +819,7 @@ class MQTTSettings:
 # pre-migration file is written to ``settings.json.v{N}_backup`` before the
 # first migration runs.
 
-CURRENT_SETTINGS_SCHEMA_VERSION = 5
+CURRENT_SETTINGS_SCHEMA_VERSION = 6
 
 _LEGACY_CAROUSEL_PREFIX = "carousel:"
 _COLLECTION_PREFIX = "collection:"
@@ -1124,12 +1129,130 @@ def _migrate_v4_to_v5(data: dict) -> int:
     return 1
 
 
+def _legacy_env_transition() -> tuple[str | None, int | None, int | None]:
+    """The transition the legacy env / config.json board block sets
+    (``BOARD_TRANSITION_STRATEGY``, ``BOARD_TRANSITION_INTERVAL_MS``,
+    ``BOARD_TRANSITION_STEP_SIZE``): what a new split-flap display starts
+    with. A read failure is "unset": these only seed a default.
+    """
+    try:
+        from src.config import Config
+
+        return (
+            Config.FB_TRANSITION_STRATEGY or None,
+            Config.FB_TRANSITION_INTERVAL_MS,
+            Config.FB_TRANSITION_STEP_SIZE,
+        )
+    except Exception:
+        logger.warning("Could not read the legacy transition settings; using none", exc_info=True)
+        return None, None, None
+
+
+def default_board_transition(board: dict) -> dict:
+    """The transition keys a new display starts with (settings v6).
+
+    A split-flap display (a Vestaboard or a FiestaPanel) starts with what
+    the legacy env / config.json sets, else ``"none"``: a plain write, the
+    board's own flip, which is what an install with no transition did. An
+    output plugin's display (an LED matrix) starts with ``"none"``: it snaps.
+    """
+    from src.devices import BUILTIN_OUTPUT_IDS, derive_output_id
+
+    if derive_output_id(board) not in BUILTIN_OUTPUT_IDS:
+        return {"transition": BOARD_TRANSITION_NONE}
+    strategy, interval, step_size = _legacy_env_transition()
+    defaults: dict = {"transition": strategy or BOARD_TRANSITION_NONE}
+    if interval is not None:
+        defaults["transition_step_interval_ms"] = interval
+    if step_size is not None:
+        defaults["transition_step_size"] = step_size
+    return defaults
+
+
+#: The flags settings v5 still kept under ``beta``; v6 moves them to ``plugins``.
+_BETA_FLAGS = ("transition_plugins_enabled", "output_plugins_enabled")
+
+
+def _migrate_v5_to_v6(data: dict) -> int:
+    """Migration 5 -> 6 (idempotent; operates on the raw settings dict).
+
+    Each display owns its transition (settings reorg, PR C):
+
+    1. The install-wide ``transitions`` block (``strategy``,
+       ``step_interval_ms``, ``step_size``) is copied onto the boards, then
+       deleted. A board without a ``transition`` of its own gets the
+       install's strategy; when that was null, a split-flap board (a
+       Vestaboard or a FiestaPanel) gets ``"none"`` (null was no
+       transition), while an output plugin's board stays unset: unset there
+       is its device model's default, which is what it ran. Every board with
+       no speed of its own gets the install's step interval and step size
+       (they were always the install's, even for a board with its own
+       style). A devices-era ``board`` section (no ``boards`` list; built at
+       load) is materialized only when the block holds something to copy.
+    2. The ``beta`` flags (``transition_plugins_enabled``,
+       ``output_plugins_enabled``) move into the ``plugins`` section, and
+       ``beta`` is deleted: nothing else was left in it after v5.
+
+    Returns the number of boards changed plus one per block removed. A
+    re-run finds no block, and every split-flap board already has a
+    transition, so it changes nothing.
+    """
+    from src.devices import BUILTIN_OUTPUT_IDS, derive_output_id
+
+    changes = 0
+    strategy = interval = step_size = None
+    if "transitions" in data:
+        raw = data.pop("transitions")
+        if isinstance(raw, dict):
+            strategy, interval, step_size = raw.get("strategy"), raw.get("step_interval_ms"), raw.get("step_size")
+        changes += 1
+    strategy = strategy.strip() if isinstance(strategy, str) and strategy.strip() else None
+
+    board = data.get("board")
+    boards = board.get("boards") if isinstance(board, dict) else None
+    something_to_copy = any(value is not None for value in (strategy, interval, step_size))
+    if isinstance(board, dict) and not isinstance(boards, list) and something_to_copy:
+        boards = [b for b in BoardSettings.from_dict(board).boards if isinstance(b, dict)]
+        board["boards"] = boards
+    for entry in boards if isinstance(boards, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        changed = False
+        own = entry.get("transition")
+        if not (isinstance(own, str) and own.strip()):
+            if strategy is not None:
+                entry["transition"] = strategy
+                changed = True
+            elif derive_output_id(entry) in BUILTIN_OUTPUT_IDS:
+                entry["transition"] = BOARD_TRANSITION_NONE
+                changed = True
+        if interval is not None and entry.get("transition_step_interval_ms") is None:
+            entry["transition_step_interval_ms"] = interval
+            changed = True
+        if step_size is not None and entry.get("transition_step_size") is None:
+            entry["transition_step_size"] = step_size
+            changed = True
+        changes += changed
+
+    if "beta" in data:
+        beta = data.pop("beta")
+        plugins = data.get("plugins")
+        if not isinstance(plugins, dict):
+            plugins = data["plugins"] = {}
+        for key in _BETA_FLAGS:
+            if isinstance(beta, dict) and key in beta:
+                plugins.setdefault(key, bool(beta[key]))
+        changes += 1
+    return changes
+
+
 MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (1, _migrate_v0_to_v1),
     (2, _migrate_v1_to_v2),
     (3, _migrate_v2_to_v3),
     (4, _migrate_v3_to_v4),
     (5, _migrate_v4_to_v5),
+    (6, _migrate_v5_to_v6),
 ]
 
 
@@ -1305,7 +1428,6 @@ class SettingsService:
         # migration pass above) — on a 15 KB file that is ~200 KB read and
         # ~185 KB parsed per construction, on the Pi boot path.
         file_data = self._load_from_file()
-        self._transition = self._load_transition_settings(file_data)
         self._output = self._load_output_settings(file_data)
         self._active_page = self._load_section(file_data, "active_page", ActivePageSettings)
         self._polling = self._load_section(file_data, "polling", PollingSettings)
@@ -1314,7 +1436,6 @@ class SettingsService:
         self._mqtt = self._load_mqtt_settings(file_data)
         self._display = self._load_section(file_data, "display", DisplaySettings)
         self._location = self._load_section(file_data, "location", LocationSettings)
-        self._beta = self._load_section(file_data, "beta", BetaSettings)
         self._plugins = self._load_section(file_data, "plugins", PluginSettings)
         self._wizard = self._load_section(file_data, "wizard", WizardSettings)
         self._temporary_override: TemporaryOverride | None = self._load_temporary_override(file_data)
@@ -1512,7 +1633,6 @@ class SettingsService:
         try:
             data = {
                 "schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
-                "transitions": self._transition.to_dict(),
                 "output": self._output.to_dict(),
                 "active_page": self._active_page.to_dict(),
                 "polling": self._polling.to_dict(),
@@ -1521,7 +1641,6 @@ class SettingsService:
                 "mqtt": self._mqtt.to_dict(mask_secrets=False),
                 "display": self._display.to_dict(),
                 "location": self._location.to_dict(),
-                "beta": self._beta.to_dict(),
                 "plugins": self._plugins.to_dict(),
                 "temporary_override": self._temporary_override.to_dict() if self._temporary_override else None,
             }
@@ -1536,30 +1655,16 @@ class SettingsService:
     def _load_section(self, file_data: dict, key: str, cls: type[_Section]) -> _Section:
         """Read one settings section, or fall back to the dataclass default.
 
-        Seven sections (active_page, polling, schedule, display, location,
-        beta, plugins) are exactly this and nothing else — they had seven
-        six-line methods, one caller each. The two sections with an env-var
-        fallback (transitions, output), the one that seeds from legacy
-        config.json (board), the one with env fallbacks (mqtt) and the one
-        with expiry (temporary_override) keep their own loaders below.
+        Six sections (active_page, polling, schedule, display, location,
+        plugins) are exactly this and nothing else — they had six-line
+        methods, one caller each. The section with an env-var fallback
+        (output), the one that seeds from legacy config.json (board), the
+        one with env fallbacks (mqtt) and the one with expiry
+        (temporary_override) keep their own loaders below.
         """
         if key in file_data:
             return cls.from_dict(file_data[key])
         return cls()
-
-    def _load_transition_settings(self, file_data: dict) -> TransitionSettings:
-        """Load transition settings from the parsed file, or env."""
-        if "transitions" in file_data:
-            return TransitionSettings.from_dict(file_data["transitions"])
-
-        # Fall back to env
-        from src.config import Config
-
-        return TransitionSettings(
-            strategy=Config.FB_TRANSITION_STRATEGY,
-            step_interval_ms=Config.FB_TRANSITION_INTERVAL_MS,
-            step_size=Config.FB_TRANSITION_STEP_SIZE,
-        )
 
     def _load_output_settings(self, file_data: dict) -> OutputSettings:
         """Load output settings from the parsed file, or env."""
@@ -1590,6 +1695,10 @@ class SettingsService:
 
         settings = BoardSettings()
         self._needs_seed_save = self._seed_connection_from_legacy_config(settings)
+        # Settings v6: the first display owns its transition from the start.
+        first = settings.boards[0]
+        if not first.get("transition"):
+            first.update(default_board_transition(first))
         return settings
 
     @staticmethod
@@ -1651,71 +1760,92 @@ class SettingsService:
             return None
 
     # Transition settings
-    def get_transition_settings(self, board_id: str | None = None) -> TransitionSettings:
-        """The install's transition settings, or those display *board_id* runs.
+    def _board_entry(self, board_id: str | None) -> dict | None:
+        """Stored board *board_id*, or the first board when it is ``None``."""
+        boards = self._board.boards
+        if board_id is None:
+            return boards[0] if boards else None
+        return next((b for b in boards if b.get("id") == board_id), None)
 
-        A display's own choice (its ``transition``, plan D21) replaces the
-        install's strategy; the step interval and size stay the install's.
+    def get_transition_settings(self, board_id: str | None = None) -> TransitionSettings:
+        """The transition display *board_id* runs (settings v6: its own).
+
+        Strategy, step interval and step size are the board's
+        (``transition``, ``transition_step_interval_ms``,
+        ``transition_step_size``); there is no install-wide transition.
         ``"none"`` is no transition: ``None`` for a Vestaboard or FiestaPanel,
         and kept as the LED menu's ``"none"`` for an output plugin's board,
-        whose unset strategy would mean its model's default instead. A
-        display with no choice, or an unknown id, gets the install's.
-        """
-        if board_id:
-            from src.devices import BUILTIN_OUTPUT_IDS, derive_output_id
+        whose unset strategy means its model's default instead. An unset
+        choice on a split-flap board is none too.
 
-            for board in self._board.boards:
-                if board.get("id") != board_id:
-                    continue
-                choice = board.get("transition")
-                if not isinstance(choice, str) or not choice:
-                    break
-                strategy: str | None = choice
-                if choice == BOARD_TRANSITION_NONE and derive_output_id(board) in BUILTIN_OUTPUT_IDS:
-                    strategy = None
-                return replace(self._transition, strategy=strategy)
-        return self._transition
+        ``board_id=None`` is the first display: the deprecated install-wide
+        callers (``GET /settings/transitions``, MQTT state) read that until
+        v11. An unknown id has no transition.
+        """
+        from src.devices import BUILTIN_OUTPUT_IDS, derive_output_id
+
+        board = self._board_entry(board_id)
+        if board is None:
+            return TransitionSettings()
+        choice = board.get("transition")
+        strategy: str | None = choice if isinstance(choice, str) and choice else None
+        if strategy == BOARD_TRANSITION_NONE and derive_output_id(board) in BUILTIN_OUTPUT_IDS:
+            strategy = None
+        return TransitionSettings(
+            strategy=strategy,
+            step_interval_ms=board.get("transition_step_interval_ms"),
+            step_size=board.get("transition_step_size"),
+        )
 
     @_locked
     def update_transition_settings(
         self, strategy: str | None = ..., step_interval_ms: int | None = ..., step_size: int | None = ...
     ) -> TransitionSettings:
-        """Update transition settings.
+        """Deprecated (until v11): set the FIRST display's transition.
 
-        Use ... (Ellipsis) to leave a setting unchanged, None to clear it.
+        What ``PUT /settings/transitions`` and the MQTT ``transition``
+        command still drive. Use ... (Ellipsis) to leave a field unchanged;
+        a ``None`` strategy is ``"none"``, a ``None`` speed the device's
+        default. Set any display's own through its board settings instead.
 
-        Args:
-            strategy: Transition strategy or None to disable
-            step_interval_ms: Step interval or None for default
-            step_size: Step size or None for default
-
-        Returns:
-            Updated TransitionSettings
+        Raises:
+            ValueError: an invalid strategy, a transition plugin while they
+                are off, a bad speed, or no display to set.
         """
+        if not self._board.boards:
+            raise ValueError("There is no display to set a transition on")
+        first = self._board.boards[0]
+        updated = dict(first)
         if strategy is not ...:
             if not is_valid_strategy(strategy):
                 raise ValueError(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES} or 'plugin:<id>'")
-            if (
-                isinstance(strategy, str)
-                and strategy.startswith(TRANSITION_PLUGIN_PREFIX)
-                and not self._beta.transition_plugins_enabled
-            ):
-                raise ValueError(
-                    "Transition plugins are an experimental beta. "
-                    "Enable them in Settings → Beta before selecting a "
-                    "plugin: strategy."
-                )
-            self._transition.strategy = strategy
+            self._check_board_transition(strategy, first.get("transition"))
+            updated["transition"] = strategy if strategy is not None else BOARD_TRANSITION_NONE
+        for key, value in (
+            ("transition_step_interval_ms", step_interval_ms),
+            ("transition_step_size", step_size),
+        ):
+            if value is ...:
+                continue
+            if value is None:
+                updated.pop(key, None)
+            else:
+                updated[key] = value
 
-        if step_interval_ms is not ...:
-            self._transition.step_interval_ms = step_interval_ms
+        from src.devices import BoardInstance
 
-        if step_size is not ...:
-            self._transition.step_size = step_size
-
+        normalized = BoardInstance.from_dict(updated).to_dict()
+        for key, value in (
+            ("transition_step_interval_ms", step_interval_ms),
+            ("transition_step_size", step_size),
+        ):
+            if value not in (..., None) and normalized.get(key) != value:
+                raise ValueError(f"Invalid {key.removeprefix('transition_')}: {value}")
+        self._board.boards[0] = normalized
         self._save_to_file()
-        logger.info(f"Transition settings updated: {self._transition}")
-        return self._transition
+        resolved = self.get_transition_settings(normalized.get("id"))
+        logger.info(f"First display's transition updated: {resolved}")
+        return resolved
 
     # Output settings
     def get_output_settings(self) -> OutputSettings:
@@ -2026,6 +2156,11 @@ class SettingsService:
 
         if not board.get("name"):
             board["name"] = self._next_board_name()
+        if not board.get("transition"):
+            # Settings v6: a new display owns its transition from the start.
+            defaults = default_board_transition(board)
+            board = {**defaults, **{k: v for k, v in board.items() if v is not None}}
+            board["transition"] = defaults["transition"]
         instance = BoardInstance.from_dict(board)
         self._check_board_transition(instance.transition, None)
         self._board.boards.append(instance.to_dict())
@@ -2035,8 +2170,8 @@ class SettingsService:
 
     def _check_board_transition(self, choice: str | None, stored: str | None) -> None:
         """Refuse a display transition no menu offers, or a newly chosen
-        transition plugin while their beta is off (as the install's setting
-        does). A plugin choice already stored keeps saving with the board."""
+        transition plugin while they are off. A plugin choice already stored
+        keeps saving with the board."""
         if not is_valid_board_transition(choice):
             raise ValueError(
                 f"Invalid transition: {choice}. Must be 'none', one of {VALID_STRATEGIES}, "
@@ -2046,11 +2181,11 @@ class SettingsService:
             isinstance(choice, str)
             and choice.startswith(TRANSITION_PLUGIN_PREFIX)
             and choice != stored
-            and not self._beta.transition_plugins_enabled
+            and not self._plugins.transition_plugins_enabled
         ):
             raise ValueError(
                 "Transition plugins are an experimental beta. "
-                "Enable them in Settings → Beta before selecting a plugin: transition."
+                "Turn them on in a display's Transition section before selecting a plugin: transition."
             )
 
     def _next_board_name(self) -> str:
@@ -2280,36 +2415,21 @@ class SettingsService:
         logger.info(f"Location settings updated: {self._location}")
         return self._location
 
-    def get_beta_settings(self) -> "BetaSettings":
-        """Return current beta-feature settings."""
-        return self._beta
-
-    @_locked
-    def update_beta_settings(self, updates: dict) -> "BetaSettings":
-        """Update beta-feature settings and persist.
-
-        Only keys present in *updates* are changed. This method only
-        records the user's preference -- side effects like generating
-        or removing TLS certificates are handled by the API layer so
-        the settings module stays free of system-level concerns.
-        """
-        if "transition_plugins_enabled" in updates:
-            self._beta.transition_plugins_enabled = bool(updates["transition_plugins_enabled"])
-        if "output_plugins_enabled" in updates:
-            self._beta.output_plugins_enabled = bool(updates["output_plugins_enabled"])
-        self._save_to_file()
-        logger.info(f"Beta settings updated: {self._beta}")
-        return self._beta
-
     def get_plugin_settings(self) -> "PluginSettings":
         """Return current plugin system settings."""
         return self._plugins
 
     @_locked
     def update_plugin_settings(self, updates: dict) -> "PluginSettings":
-        """Update plugin settings and persist. Only keys present in *updates* are changed."""
-        if "auto_update" in updates:
-            self._plugins.auto_update = bool(updates["auto_update"])
+        """Update plugin settings and persist. Only keys present in *updates* are changed.
+
+        ``transition_plugins_enabled`` takes effect immediately;
+        ``output_plugins_enabled`` on the next board rebuild (saving a board,
+        or a restart).
+        """
+        for key in ("auto_update", "transition_plugins_enabled", "output_plugins_enabled"):
+            if key in updates and updates[key] is not None:
+                setattr(self._plugins, key, bool(updates[key]))
         self._save_to_file()
         logger.info(f"Plugin settings updated: {self._plugins}")
         return self._plugins

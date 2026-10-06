@@ -393,7 +393,7 @@ def test_a_v5_upgrade_rolled_back_to_the_v4_build_gets_its_v4_file_back(data_dir
     wire = install_wire_recorder(monkeypatch)
     install_floor_clock(monkeypatch)
     boot("v10_beta_schema4_https_on", data_dir)
-    assert json.loads((data_dir / "settings.json").read_text())["schema_version"] == 5
+    assert json.loads((data_dir / "settings.json").read_text())["schema_version"] == CURRENT
     v4_bytes = (data_dir / "settings.json.v4_backup").read_bytes()
 
     _as_the_build_at(monkeypatch, 4)
@@ -401,8 +401,39 @@ def test_a_v5_upgrade_rolled_back_to_the_v4_build_gets_its_v4_file_back(data_dir
     rolled_back = Booted(data_dir)
 
     notice = rolled_back.settings.get_restore_notice()
-    assert notice is not None and (notice.found_version, notice.restored_version) == (5, 4)
+    assert notice is not None and (notice.found_version, notice.restored_version) == (CURRENT, 4)
     assert (data_dir / "settings.json").read_bytes() == v4_bytes
     assert json.loads(v4_bytes)["beta"]["https_enabled"] is True
     assert rolled_back.service.board_init_errors == {}
     check_send("local_flagship_send", TestClient(app), wire, rolled_back.boards[0]["id"])
+
+
+def test_a_v6_upgrade_rolled_back_to_the_v5_build_runs_the_same_transition(data_dir, monkeypatch):
+    """Settings v6 (per-display transitions), rolled back one release: this
+    build moves a v5 install's transition onto its board (leaving
+    ``settings.json.v5_backup``); the v5 build then boots the v6 file, steps
+    back onto the backup — its install-wide transition and beta block
+    included — and its board sends the transition it sent before."""
+    from src.api_server import app
+    from tests.conftest import _drop_all_singletons
+    from tests.test_upgrade_fixtures import Booted, boot, check_send
+    from tests.test_wire_goldens import install_floor_clock, install_wire_recorder
+
+    wire = install_wire_recorder(monkeypatch)
+    install_floor_clock(monkeypatch)
+    upgraded = boot("v10_beta_schema5_install_transition", data_dir)
+    on_disk = json.loads((data_dir / "settings.json").read_text())
+    assert on_disk["schema_version"] == 6
+    assert "transitions" not in on_disk and "beta" not in on_disk
+    v5_bytes = (data_dir / "settings.json.v5_backup").read_bytes()
+    check_send("upgrade_v10_beta_schema5_install_transition", TestClient(app), wire, upgraded.boards[0]["id"])
+
+    _as_the_build_at(monkeypatch, 5)
+    _drop_all_singletons()
+    rolled_back = Booted(data_dir)
+
+    notice = rolled_back.settings.get_restore_notice()
+    assert notice is not None and (notice.found_version, notice.restored_version) == (6, 5)
+    assert (data_dir / "settings.json").read_bytes() == v5_bytes
+    assert json.loads(v5_bytes)["transitions"]["strategy"] == "diagonal"
+    assert rolled_back.service.board_init_errors == {}

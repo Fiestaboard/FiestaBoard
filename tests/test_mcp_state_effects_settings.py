@@ -164,10 +164,46 @@ def test_update_setting_refuses_unknown_keys_instead_of_ignoring_them(mcp, servi
     assert two_boards.get_display_settings().reduce_motion is False, "a refused call must change nothing"
 
 
-def test_update_setting_beta_transition_plugins_flag_persists(mcp, services, two_boards):
-    assert two_boards.get_beta_settings().transition_plugins_enabled is False
-    assert_ok(call(mcp, "update_setting", category="beta", values={"transition_plugins_enabled": True}), "beta")
-    assert two_boards.get_beta_settings().transition_plugins_enabled is True
+def test_update_setting_plugins_transition_plugins_flag_persists(mcp, services, two_boards):
+    """Settings v6 moved the flag from the retired 'beta' category to 'plugins'."""
+    assert two_boards.get_plugin_settings().transition_plugins_enabled is False
+    assert_ok(call(mcp, "update_setting", category="plugins", values={"transition_plugins_enabled": True}), "plugins")
+    assert two_boards.get_plugin_settings().transition_plugins_enabled is True
+
+
+def test_update_setting_refuses_the_retired_beta_category(mcp, services, two_boards):
+    call_expect_error(mcp, "update_setting", category="beta", values={"transition_plugins_enabled": True})
+    assert two_boards.get_plugin_settings().transition_plugins_enabled is False
+
+
+def test_update_board_sets_that_board_transition(mcp, services, two_boards):
+    board_id = two_boards.get_board_settings().boards[1]["id"]
+    result = assert_ok(
+        call(
+            mcp,
+            "update_board",
+            board_id=board_id,
+            transition="row",
+            transition_step_interval_ms=30,
+            transition_step_size=2,
+        ),
+        "update_board",
+    )
+    assert (
+        result["board"]["transition"],
+        result["board"]["transition_step_interval_ms"],
+        result["board"]["transition_step_size"],
+    ) == ("row", 30, 2)
+    resolved = two_boards.get_transition_settings(board_id)
+    assert (resolved.strategy, resolved.step_interval_ms, resolved.step_size) == ("row", 30, 2)
+    first = two_boards.get_board_settings().boards[0]["id"]
+    assert two_boards.get_transition_settings(first).strategy != "row"
+
+
+def test_update_board_refuses_a_bad_transition_speed(mcp, services, two_boards):
+    board_id = two_boards.get_board_settings().boards[0]["id"]
+    message = call_expect_error(mcp, "update_board", board_id=board_id, transition_step_size=0)
+    assert "transition_step_size" in message
 
 
 def test_update_setting_plugins_auto_update_persists(mcp, services, two_boards):
@@ -964,7 +1000,8 @@ def test_get_settings_summary_reports_every_update_setting_category(mcp, service
     summary = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
     for block in ("general", "display", "transitions", "output", "polling", "location", "silence_schedule"):
         assert block in summary, f"{block} missing from the summary"
-    assert summary["beta"]["transition_plugins_enabled"] is False
+    assert "beta" not in summary
+    assert summary["plugins"]["transition_plugins_enabled"] is False
     assert "auto_update" in summary["plugins"]
     assert set(summary["general"]) == {"instance_name", "timezone", "time_format", "date_format", "welcome_message"}
 
