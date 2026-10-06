@@ -9,13 +9,15 @@ What this module pins, in order:
 3. the beta API no longer reports or accepts the flag, and has no cert
    status or restart hint;
 4. startup removes the self-signed cert files FiestaBoard generated in
-   ``<data>/certs/`` — those two files and nothing else;
+   ``<data>/certs/`` — those two files, only when the cert is its self-signed
+   one, and nothing else;
 5. the image no longer ships the HTTPS nginx config, the cert module or the
    entrypoint branch that switched nginx over.
 """
 
 from __future__ import annotations
 
+import base64
 import copy
 import json
 import logging
@@ -168,10 +170,22 @@ def test_put_beta_still_toggles_transition_plugins(client):
 # ---------------------------------------------------------------------------
 
 
-def _plant_certs(data_dir: Path) -> Path:
+def _pem(der: bytes) -> str:
+    body = base64.encodebytes(der).decode()
+    return f"-----BEGIN CERTIFICATE-----\n{body}-----END CERTIFICATE-----\n"
+
+
+#: Stand-in DER for the pair the old entrypoint generated: self-signed, so
+#: its issuer and subject both carry ``O = FiestaBoard, CN = fiestaboard.local``.
+GENERATED_DER = b"\x30issuer O=FiestaBoard CN=fiestaboard.local subject O=FiestaBoard CN=fiestaboard.local"
+#: A user's own cert for the same host name, issued by someone else.
+USER_DER = b"\x30issuer O=Example CA CN=Example Root subject O=FiestaBoard CN=fiestaboard.local"
+
+
+def _plant_certs(data_dir: Path, der: bytes = GENERATED_DER) -> Path:
     certs = data_dir / "certs"
     certs.mkdir(parents=True)
-    (certs / "fiestaboard.crt").write_text("test_cert_placeholder")
+    (certs / "fiestaboard.crt").write_text(_pem(der))
     (certs / "fiestaboard.key").write_text("test_key_placeholder")
     return certs
 
@@ -191,6 +205,25 @@ class TestLegacyCertCleanup:
         (certs / "my-own.pem").write_text("test_user_file")
         assert remove_legacy_https_certs(tmp_path) == 2
         assert sorted(p.name for p in certs.iterdir()) == ["my-own.pem"]
+
+    def test_it_keeps_a_pair_the_user_put_there(self, tmp_path):
+        """The old beta API allowed a manual cert drop under the same names;
+        a key FiestaBoard did not generate must survive the upgrade."""
+        from src.system.legacy_https import remove_legacy_https_certs
+
+        certs = _plant_certs(tmp_path, der=USER_DER)
+        assert remove_legacy_https_certs(tmp_path) == 0
+        assert sorted(p.name for p in certs.iterdir()) == ["fiestaboard.crt", "fiestaboard.key"]
+
+    def test_it_keeps_a_cert_it_cannot_read(self, tmp_path):
+        from src.system.legacy_https import remove_legacy_https_certs
+
+        certs = tmp_path / "certs"
+        certs.mkdir()
+        (certs / "fiestaboard.crt").write_text("not a pem")
+        (certs / "fiestaboard.key").write_text("test_key_placeholder")
+        assert remove_legacy_https_certs(tmp_path) == 0
+        assert (certs / "fiestaboard.key").exists()
 
     def test_no_certs_dir_is_a_no_op(self, tmp_path):
         from src.system.legacy_https import remove_legacy_https_certs

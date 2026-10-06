@@ -140,12 +140,21 @@ flag was on. An install that had it on serves plain HTTP on its usual port
 configs, and the image ships no `nginx.https.conf`. At startup
 `src/system/legacy_https.py::remove_legacy_https_certs` deletes the two files
 the old entrypoint generated, `data/certs/fiestaboard.crt` and
-`fiestaboard.key`, and removes `data/certs/` only if that leaves it empty.
+`fiestaboard.key`, and removes `data/certs/` only if that leaves it empty. It
+deletes them only when the cert is the self-signed one FiestaBoard made
+(`O = FiestaBoard` as both issuer and subject). A pair the user dropped in
+under the same names, which the old beta API allowed, is kept.
 
-**Rollback.** One step back, to a v4 build, boots from
-`settings.json.v4_backup` (flag included); that build regenerates its
-certificate on start. `tests/test_settings_v5_https_removed.py`, the
-`v10_beta_schema4_https_on` upgrade fixture and the bridge module pin it.
+**Rollback.** One step back, to a v4 build, restores
+`settings.json.v4_backup` (flag included), but HTTPS comes back only on the
+**second** boot. The v4 entrypoint reads `beta.https_enabled` before the API
+starts, while `settings.json` is still the v5 file without the flag, so the
+first boot serves plain HTTP with no certificate. The bridge then restores the
+v4 settings, and the next restart generates a new certificate and switches
+nginx over. `tests/test_settings_v5_https_removed.py`, the
+`v10_beta_schema4_https_on` upgrade fixture and the bridge module pin the
+settings half of this; the two-boot timing is the v4 entrypoint's and is not
+tested here.
 
 ## 3. A failed write is never swallowed
 
