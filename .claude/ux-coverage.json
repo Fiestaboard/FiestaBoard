@@ -1147,39 +1147,39 @@
         "web/tests/settings.spec.ts:48",
         "web/tests/settings-full.spec.ts:152",
         "web/tests/settings-full.spec.ts:174",
-        "web/tests/regression/settings-scheduling-ai.spec.ts:38"
+        "web/tests/regression/settings-scheduling-ai-tabs.spec.ts:38"
       ]
     },
     "settings.behavior.silence-saved": {
       "status": "covered",
       "specs": [
         "web/tests/settings-full.spec.ts:174",
-        "web/tests/regression/settings-scheduling-ai.spec.ts:108"
+        "web/tests/regression/settings-scheduling-ai-tabs.spec.ts:108"
       ]
     },
     "settings.tab-integrations": {
       "status": "covered",
-      "specs": ["web/tests/regression/settings-scheduling-ai.spec.ts:173"]
+      "specs": ["web/tests/regression/settings-scheduling-ai-tabs.spec.ts:173"]
     },
     "settings.integrations.ai-test": {
       "status": "covered",
-      "specs": ["web/tests/regression/settings-scheduling-ai.spec.ts:209"]
+      "specs": ["web/tests/regression/settings-scheduling-ai-tabs.spec.ts:209"]
     },
     "settings.integrations.mcp-rotate-confirm": {
       "status": "covered",
-      "specs": ["web/tests/regression/settings-scheduling-ai.spec.ts:295"]
+      "specs": ["web/tests/regression/settings-scheduling-ai-tabs.spec.ts:295"]
     },
     "settings.integrations.mcp-revoke-confirm": {
       "status": "covered",
-      "specs": ["web/tests/regression/settings-scheduling-ai.spec.ts:358"]
+      "specs": ["web/tests/regression/settings-scheduling-ai-tabs.spec.ts:358"]
     },
     "settings.integrations.mcp-token-dialog": {
       "status": "covered",
-      "specs": ["web/tests/regression/settings-scheduling-ai.spec.ts:418"]
+      "specs": ["web/tests/regression/settings-scheduling-ai-tabs.spec.ts:418"]
     },
     "settings.integrations.mqtt-saved": {
       "status": "covered",
-      "specs": ["web/tests/regression/settings-scheduling-ai.spec.ts:494"]
+      "specs": ["web/tests/regression/settings-scheduling-ai-tabs.spec.ts:494"]
     },
     "settings.tab-system": {
       "status": "covered",
