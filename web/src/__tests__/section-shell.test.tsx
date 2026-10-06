@@ -6,7 +6,7 @@ import { render, screen, within } from "@testing-library/react";
 import { Monitor } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
 
-import { SectionAction, type SectionDetail,SectionShell } from "@/components/section-shell";
+import { SectionAction, type SectionDetail, SectionShell } from "@/components/section-shell";
 
 const route = { pathname: "/displays" };
 
@@ -95,5 +95,20 @@ describe("SectionShell", () => {
     route.pathname = "/displays";
     rerender(shell(null, list));
     expect(document.activeElement).toBe(screen.getByTestId("open-kitchen"));
+  });
+
+  it("returns focus to an opening button that names its item (a page tile)", () => {
+    const list = (
+      <button type="button" data-section-item="kitchen" data-testid="tile">
+        Kitchen
+      </button>
+    );
+    route.pathname = "/displays";
+    const { rerender } = render(shell(null, list));
+    route.pathname = "/displays/kitchen";
+    rerender(shell(KITCHEN, <p>detail</p>));
+    route.pathname = "/displays";
+    rerender(shell(null, list));
+    expect(document.activeElement).toBe(screen.getByTestId("tile"));
   });
 });

@@ -2112,7 +2112,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     <ArrowLeft className="h-4 w-4" />
                   </Button>
                 )}
-                <CardTitle className="text-base sm:text-lg truncate">
+                {/* Embedded, the page's name is the section's h2 just above; this
+                    row is the editor's own label, so it steps down to a quiet
+                    caption instead of reading as a second heading of equal rank. */}
+                <CardTitle
+                  className={cn(
+                    "text-base sm:text-lg truncate",
+                    embedded && "text-sm font-medium text-muted-foreground sm:text-sm",
+                  )}
+                >
                   {pageId ? t("editPage") : t("createPage")}
                 </CardTitle>
               </Flex>

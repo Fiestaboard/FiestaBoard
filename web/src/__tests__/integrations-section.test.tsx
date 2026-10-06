@@ -100,6 +100,19 @@ describe("/integrations section", () => {
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 
+  it("says what the plugin is right under its name: description, category, author, version", async () => {
+    mockRegistry();
+    params.pluginId = "weather";
+    renderSection(<PluginDetailPage />);
+    await screen.findByRole("heading", { level: 2, name: "Weather" });
+    const subheader = within(document.querySelector<HTMLElement>("[data-slot=page-subheader]")!);
+    expect(subheader.getByText("Current conditions on your board")).toBeInTheDocument();
+    expect(subheader.getByText(/FiestaBoard$/)).toBeInTheDocument();
+    expect(subheader.getByText(/>=8\.0\.0/)).toBeInTheDocument();
+    // …and only there: the page body no longer repeats it in an untitled block.
+    expect(screen.getAllByText("Current conditions on your board")).toHaveLength(1);
+  });
+
   it("puts Install on the sub-header row beside the plugin's name", async () => {
     mockRegistry();
     params.pluginId = "weather";

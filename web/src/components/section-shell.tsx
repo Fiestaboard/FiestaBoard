@@ -79,36 +79,42 @@ export function SectionShell({ icon, title, description, href, action, detail, f
   // Coming back to the list, put focus on the link that opened the item. The
   // sub-header goes inert as it closes, which drops focus from the crumb the
   // reader just used; without this it lands on <body>.
-  const openedPath = useRef<string | null>(null);
+  // A list opens items with links (matched by href) or with buttons that
+  // navigate in a handler (a page tile), which say which item they open with
+  // `data-section-item="<id>"`.
+  const opened = useRef<{ path: string; id: string } | null>(null);
   useEffect(() => {
     if (detail) {
-      openedPath.current = pathname;
+      opened.current = { path: pathname, id: detail.id };
       return;
     }
-    const opened = openedPath.current;
-    openedPath.current = null;
-    if (!opened) return;
-    const links = document.querySelectorAll<HTMLAnchorElement>("[data-slot=page-outlet] a[href]");
-    const link = Array.from(links).find((a) => a.getAttribute("href")?.endsWith(opened));
-    link?.focus({ preventScroll: true });
+    const was = opened.current;
+    opened.current = null;
+    if (!was) return;
+    const outlet = "[data-slot=page-outlet]";
+    const byId = document.querySelector<HTMLElement>(`${outlet} [data-section-item="${CSS.escape(was.id)}"]`);
+    const byHref = Array.from(document.querySelectorAll<HTMLAnchorElement>(`${outlet} a[href]`)).find((a) =>
+      a.getAttribute("href")?.endsWith(was.path),
+    );
+    (byId ?? byHref)?.focus({ preventScroll: true });
   }, [detail, pathname]);
 
   return (
     <PageLayout fillHeight={fill}>
       <PageCard fillHeight={fill}>
-          <PageHeader icon={icon} title={title} description={description} collapsed={detail != null}>
-            {action}
-          </PageHeader>
-          <PageSubheader
-            detail={subheader}
-            breadcrumbLabel={t("breadcrumb")}
-            renderLink={({ href: to, children: label }) => <Link href={to}>{label}</Link>}
-          />
-          <ActionSlot value={slot}>
-            <PageOutlet key={pathname} fill={fill}>
-              {children}
-            </PageOutlet>
-          </ActionSlot>
+        <PageHeader icon={icon} title={title} description={description} collapsed={detail != null}>
+          {action}
+        </PageHeader>
+        <PageSubheader
+          detail={subheader}
+          breadcrumbLabel={t("breadcrumb")}
+          renderLink={({ href: to, children: label }) => <Link href={to}>{label}</Link>}
+        />
+        <ActionSlot value={slot}>
+          <PageOutlet key={pathname} fill={fill}>
+            {children}
+          </PageOutlet>
+        </ActionSlot>
       </PageCard>
     </PageLayout>
   );

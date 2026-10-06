@@ -4,14 +4,19 @@ import { FadeContent } from "@fiestaboard/ui";
 
 import { usePathname } from "@/hooks/use-router";
 
+/** Sections whose layout (SectionShell) animates its own list ↔ item moves. */
+const SECTIONS = new Set(["displays", "integrations", "pages"]);
+
 /**
- * The section a path belongs to: its first segment ("/displays/kitchen" →
- * "/displays"). Moving within a section is the section layout's to animate
- * (SectionShell); only moving between sections is a new page.
+ * What the app-level fade is keyed on. Inside a section, its root
+ * ("/displays/kitchen" → "/displays"): moving between the list and an item is
+ * the section's to animate, and remounting would undo it. Everywhere else the
+ * whole path, as before — /panel/:id and friends may seed state from the URL
+ * on mount and rely on a fresh mount per URL.
  */
 export function sectionKey(pathname: string): string {
   const first = pathname.split("/").find(Boolean);
-  return first ? `/${first}` : "/";
+  return first && SECTIONS.has(first) ? `/${first}` : pathname;
 }
 
 export function PageFadeWrapper({ children }: { children: React.ReactNode }) {

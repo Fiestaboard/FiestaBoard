@@ -258,6 +258,20 @@ describe("/displays section", () => {
     expect(within(trail).getByRole("link", { name: "Displays" })).toHaveAttribute("href", "/displays");
   });
 
+  it("does not repeat the name as the description when the output is called the same", async () => {
+    setup([{ ...KITCHEN, name: "Vestaboard" }]);
+    params.boardId = "kitchen";
+    renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    await screen.findByRole("heading", { level: 2, name: "Vestaboard" });
+    const subheader = within(document.querySelector<HTMLElement>("[data-slot=page-subheader]")!);
+    // Crumb + h2 only; no third "Vestaboard" underneath.
+    expect(subheader.getAllByText("Vestaboard")).toHaveLength(2);
+  });
+
   it("drops the old back button — the breadcrumb is the way back", async () => {
     setup([KITCHEN]);
     params.boardId = "kitchen";

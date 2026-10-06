@@ -12,10 +12,15 @@ const route = { pathname: "/displays" };
 vi.mock("@/hooks/use-router", () => ({ usePathname: () => route.pathname }));
 
 describe("sectionKey", () => {
-  it("is the first path segment", () => {
+  it("is the section root for a section with items to drill into", () => {
     expect(sectionKey("/displays/kitchen")).toBe("/displays");
     expect(sectionKey("/pages/edit/abc")).toBe("/pages");
     expect(sectionKey("/integrations")).toBe("/integrations");
+  });
+
+  it("is the whole path everywhere else, so those routes remount per URL as before", () => {
+    expect(sectionKey("/panel/a")).toBe("/panel/a");
+    expect(sectionKey("/p/b")).toBe("/p/b");
     expect(sectionKey("/")).toBe("/");
   });
 });

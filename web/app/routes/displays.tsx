@@ -57,13 +57,18 @@ export function DisplaysSection({ children }: { children: React.ReactNode }) {
 
   const board = boardId ? displays.boards.find((b) => b.id === boardId) : undefined;
   const outputId = board?.output ?? "vestaboard";
+  const outputName = outputs?.find((o) => o.id === outputId)?.name ?? outputId;
+  const name = board ? board.name || t("unnamed") : undefined;
   const detail = boardId
     ? {
         id: boardId,
         // A display the list no longer has keeps its id as the name, so the
         // trail still says where the reader is while the page says it is gone.
-        title: board ? board.name || t("unnamed") : displays.isLoading ? tCommon("loading") : boardId,
-        description: board ? (outputs?.find((o) => o.id === outputId)?.name ?? outputId) : undefined,
+        title: name ?? (displays.isLoading ? tCommon("loading") : boardId),
+        // A display named after its output ("Divoom Pixoo 64" on a Divoom
+        // Pixoo 64) would read its name three times running; say the output
+        // only when it adds something.
+        description: board && outputName !== name ? outputName : undefined,
       }
     : null;
 

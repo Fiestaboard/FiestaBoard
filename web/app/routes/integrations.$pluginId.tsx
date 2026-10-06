@@ -57,19 +57,6 @@ export default function PluginDetailPage() {
   const [instanceLabel, setInstanceLabel] = useState("");
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
 
-  const CATEGORY_LABELS: Record<string, string> = {
-    art: t("categories.art"),
-    data: t("categories.data"),
-    entertainment: t("categories.entertainment"),
-    finance: t("categories.finance"),
-    home: t("categories.home"),
-    output: t("categories.output"),
-    transit: t("categories.transit"),
-    transition: t("categories.transition"),
-    utility: t("categories.utility"),
-    weather: t("categories.weather"),
-  };
-
   // Find the registry entry for this plugin
   const { data: registryData, isLoading: isLoadingRegistry } = useQuery({
     queryKey: ["plugin-registry"],
@@ -96,7 +83,6 @@ export default function PluginDetailPage() {
         readmeRaw.resolvedBranch,
       )
     : null;
-  const categoryLabel = CATEGORY_LABELS[entry?.category ?? "utility"] ?? entry?.category ?? t("categories.utility");
   const previews = entry?.previews ?? [];
 
   // Install mutation
@@ -197,34 +183,8 @@ export default function PluginDetailPage() {
           </PageSection>
         )}
 
-        {/* What it is: category, the version it needs, its own description. */}
-        <PageSection>
-          {isLoading ? (
-            <Stack gap="2">
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-4 w-2/3" />
-            </Stack>
-          ) : (
-            <Stack gap="3">
-              <Flex align="center" gap="3" wrap>
-                <PluginCategoryBadge category={entry?.category ?? "utility"} label={categoryLabel} />
-                {entry?.fiestaboard_version && (
-                  <Text as="span" size="xs" tone="muted">
-                    {t("requiresFiestaboard", { version: entry.fiestaboard_version })}
-                  </Text>
-                )}
-              </Flex>
-              {entry?.description && (
-                <Text tone="muted" className="leading-relaxed">
-                  {entry.description}
-                </Text>
-              )}
-            </Stack>
-          )}
-        </PageSection>
-
-        {/* README */}
-        <PageSection>
+        {/* README — kept to a reading measure; the card is far wider than a line of prose should be. */}
+        <PageSection contentClassName="max-w-3xl">
           {isLoadingReadme ? (
             <Stack gap="3">
               <Skeleton className="h-5 w-1/3" />

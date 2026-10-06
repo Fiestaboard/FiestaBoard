@@ -293,6 +293,7 @@ const PageButton = memo(
         className={buttonClassName}
         type="button"
         aria-pressed={isActive}
+        data-section-item={page.id}
         {...anchorProps(`page.${page.id}`)}
       >
         <Flex align="center" gap="2.5" className="min-w-0">
@@ -413,6 +414,7 @@ const PageListItem = memo(
         className={buttonClassName}
         type="button"
         aria-pressed={isActive}
+        data-section-item={page.id}
         {...anchorProps(`page.${page.id}`)}
       >
         <LayoutTemplate className={iconClassName} aria-hidden="true" />
