@@ -144,7 +144,7 @@ def _return_location(outcome: CallbackOutcome) -> str:
         # FiestaBot's AI providers sign in from Settings → AI, not the
         # Integrations page. (The tab was called Integrations before 10.0;
         # the web app still maps that old id to AI.)
-        ai_query = {"section": "ai","oauth": outcome_value, "connection": outcome.connection_id}
+        ai_query = {"section": "ai", "oauth": outcome_value, "connection": outcome.connection_id}
         if outcome.reason:
             ai_query["reason"] = outcome.reason
         return f"../../settings?{urlencode(ai_query)}"
