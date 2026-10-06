@@ -576,6 +576,64 @@ def test_an_led_choice_on_a_native_plugin_drops_its_speed_too(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture
+def recording_output():
+    """The recording output plugin: models ``recording_sign`` (a split-flap
+    sign, natives ``column``) and ``divoom_pixoo64`` (an LED matrix)."""
+    from src.plugins.loader import PluginLoader
+    from tests.test_output_plugin_e2e import FIXTURES, PLUGIN_ID
+
+    loader = PluginLoader(plugins_dir=FIXTURES, external_dirs=[])
+    assert loader.load_plugin(PLUGIN_ID) is not None, loader.load_errors
+    yield PLUGIN_ID
+    loader.unload_plugin(PLUGIN_ID)
+
+
+def _plugin_board(output_id: str, model: str) -> dict:
+    return {
+        "id": "rec",
+        "name": "Sign",
+        "device_type": "panel",
+        "grid_rows": 6,
+        "grid_cols": 22,
+        "output": output_id,
+        "device_model": model,
+        "output_config": {"host": "192.0.2.50"},
+        "transition": "none",
+    }
+
+
+class TestShimSplitsOnTheBoardModel:
+    """The shim takes what the board's own menu offers, and the menu is
+    chosen by the board's device model (LED matrix or not) — not by whether
+    an output plugin drives it."""
+
+    def test_a_non_led_output_plugin_board_takes_its_natives_and_plugins(self, tmp_path, recording_output):
+        svc = _service_at_v6(tmp_path, [_plugin_board(recording_output, "recording_sign")])
+        svc.update_plugin_settings({"transition_plugins_enabled": True})
+        svc.update_transition_settings(strategy="column")
+        assert svc.get_board_settings().boards[0]["transition"] == "column"
+        svc.update_transition_settings(strategy="plugin:typewriter")
+        assert svc.get_board_settings().boards[0]["transition"] == "plugin:typewriter"
+        with pytest.raises(ValueError, match="column"):
+            svc.update_transition_settings(strategy="fade")
+
+    def test_an_led_model_on_the_same_output_takes_led_ids_only(self, tmp_path, recording_output):
+        svc = _service_at_v6(tmp_path, [_plugin_board(recording_output, "divoom_pixoo64")])
+        svc.update_transition_settings(strategy="fade")
+        assert svc.get_board_settings().boards[0]["transition"] == "fade"
+        with pytest.raises(ValueError, match="flip"):
+            svc.update_transition_settings(strategy="column")
+
+    def test_an_led_fiestapanel_takes_led_ids(self, tmp_path, monkeypatch):
+        import src.outputs.board_profile as board_profile
+
+        monkeypatch.setattr(board_profile, "_panel_render_style", lambda board: "led_matrix")
+        svc = _service_at_v6(tmp_path, [{**PANEL, "transition": "none"}])
+        svc.update_transition_settings(strategy="fade")
+        assert svc.get_board_settings().boards[0]["transition"] == "fade"
+
+
 class TestShimPerBoardType:
     def test_an_led_id_is_refused_on_a_split_flap(self, tmp_path):
         svc = _service_at_v6(tmp_path, [{**VESTA, "transition": "row"}])

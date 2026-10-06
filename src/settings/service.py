@@ -1202,18 +1202,21 @@ def default_board_transition(board: dict, *, plugins_enabled: bool = False) -> d
 
 def _check_strategy_for_board(strategy: str, board: dict) -> None:
     """Refuse a strategy *board*'s own menu does not offer, naming what it
-    does: a split-flap board takes ``"none"``, its native strategies and
-    ``plugin:<id>``; an output plugin's (LED) board takes LED menu ids."""
-    from src.devices import is_split_flap
+    does. The menu follows the board's device model, as the display page's
+    does (:func:`src.outputs.board_profile.board_is_led`): an LED matrix
+    takes LED menu ids; any other board (a Vestaboard, a split-flap
+    FiestaPanel, a non-LED output plugin's) takes ``"none"``, the split-flap
+    strategies and ``plugin:<id>``."""
     from src.led.transition_registry import LED_TRANSITIONS, is_led_transition_id
+    from src.outputs.board_profile import board_is_led
 
-    if is_split_flap(board):
-        if strategy == BOARD_TRANSITION_NONE or is_valid_strategy(strategy):
+    if board_is_led(board):
+        if is_led_transition_id(strategy):
             return
-        raise ValueError(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES} or 'plugin:<id>'")
-    if is_led_transition_id(strategy):
+        raise ValueError(f"Invalid strategy: {strategy}. This LED display takes one of {list(LED_TRANSITIONS)}")
+    if strategy == BOARD_TRANSITION_NONE or is_valid_strategy(strategy):
         return
-    raise ValueError(f"Invalid strategy: {strategy}. This LED display takes one of {list(LED_TRANSITIONS)}")
+    raise ValueError(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES} or 'plugin:<id>'")
 
 
 def _with_default_transition(board: dict, *, plugins_enabled: bool) -> dict:
