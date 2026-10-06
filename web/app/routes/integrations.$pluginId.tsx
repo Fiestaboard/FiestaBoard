@@ -14,7 +14,7 @@ import {
   Input,
   Label,
   List,
-  PageLayout,
+  PageSection,
   PluginCategoryBadge,
   Skeleton,
   Stack,
@@ -28,13 +28,13 @@ import {
   TextLink,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDownToLine, ArrowLeft, CopyPlus, ExternalLink, Puzzle } from "lucide-react";
+import { ArrowDownToLine, CopyPlus, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
-import Link from "@/components/smart-link";
+import { SectionAction } from "@/components/section-shell";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
 import { useEffectiveCode62Glyph } from "@/hooks/use-effective-code62-glyph";
 import { useParams, useRouter } from "@/hooks/use-router";
@@ -141,121 +141,90 @@ export default function PluginDetailPage() {
   }
 
   return (
-    <PageLayout>
-      {/* Back navigation */}
-      <Box className="mb-4">
-        <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground hover:text-foreground" asChild>
-          <Link href="/integrations?tab=marketplace">
-            <ArrowLeft className="h-4 w-4" />
-            {t("backToMarketplace")}
-          </Link>
-        </Button>
-      </Box>
+    <>
+      {/* The Integrations section (integrations.tsx) names the plugin in the
+          breadcrumb and heading above this; its actions sit on that row. */}
+      <SectionAction>
+        <Flex align="center" gap="2" wrap>
+          {entry?.repository && (
+            <Button variant="outline" size="sm" asChild>
+              {/* asChild hands this anchor Button's own chrome (border/bg/text) — TextLink's
+                  underline+text-primary styling would clash with that, so it stays raw
+                  (couldn't snap — see wave 1 report). */}
+              {/* eslint-disable-next-line react/forbid-elements -- single Slot child of Button asChild; the Button merges its chrome onto this anchor and TextLink would layer conflicting link styling */}
+              <a href={entry.repository} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                {t("githubLink")}
+              </a>
+            </Button>
+          )}
+          {!isLoading &&
+            (isInstalled ? (
+              <Button size="sm" variant="outline" onClick={() => setAddInstanceOpen(true)}>
+                <CopyPlus className="h-3.5 w-3.5 mr-1.5" />
+                {t("addInstance")}
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => installMutation.mutate()} disabled={installMutation.isPending}>
+                <ArrowDownToLine className={cn("h-3.5 w-3.5 mr-1.5", installMutation.isPending && "animate-bounce")} />
+                {installMutation.isPending ? t("installing") : t("install")}
+              </Button>
+            ))}
+        </Flex>
+      </SectionAction>
 
-      <Stack gap="6" className="max-w-3xl mx-auto animate-card-fade-in" {...anchorProps(`plugin.${pluginId}`)}>
+      <Box {...anchorProps(`plugin.${pluginId}`)}>
         {/* Board hero — what this plugin actually puts on a board, the same
             way the public directory leads at fiestaboard.app/plugins. Absent
-            for plugins that predate the previews contract, in which case the
-            page falls back to leading with the header card. */}
+            for plugins that predate the previews contract. */}
         {previews.length > 0 && (
-          <BoardShowcase
-            previews={previews}
-            previewLabel={t("boardPreviewLabel", { name: entry?.name ?? pluginId })}
-            defaultBoardType={boardColor}
-            code62Glyph={code62Glyph}
-            labels={{
-              flagship: t("deviceFlagship"),
-              note: t("deviceNote"),
-              noteArray: t("deviceNoteArray"),
-              boardShape: t("boardShapeLabel"),
-              boardColor: t("boardColorLabel"),
-              blackBoard: t("blackBoard"),
-              whiteBoard: t("whiteBoard"),
-            }}
-          />
+          <PageSection>
+            <BoardShowcase
+              previews={previews}
+              previewLabel={t("boardPreviewLabel", { name: entry?.name ?? pluginId })}
+              defaultBoardType={boardColor}
+              code62Glyph={code62Glyph}
+              labels={{
+                flagship: t("deviceFlagship"),
+                note: t("deviceNote"),
+                noteArray: t("deviceNoteArray"),
+                boardShape: t("boardShapeLabel"),
+                boardColor: t("boardColorLabel"),
+                blackBoard: t("blackBoard"),
+                whiteBoard: t("whiteBoard"),
+              }}
+            />
+          </PageSection>
         )}
 
-        {/* Plugin header card */}
-        <Box className="rounded-xl border bg-card px-6 py-5">
-          <Flex align="start" justify="between" gap="4">
-            <Flex align="start" gap="4" className="min-w-0">
-              <Box className="p-2.5 rounded-lg bg-muted text-muted-foreground shrink-0 mt-0.5">
-                <Puzzle className="h-5 w-5" />
-              </Box>
-              <Box className="min-w-0">
-                {isLoading ? (
-                  <>
-                    <Skeleton className="h-6 w-48 mb-2" />
-                    <Skeleton className="h-4 w-32" />
-                  </>
-                ) : (
-                  <>
-                    <Flex align="center" gap="2" wrap className="mb-1">
-                      {/* Custom card header (icon + badge + trailing actions) doesn't
-                          match PageHeader's shape, so the page h1 stays raw here
-                          (couldn't snap — see wave 1 report). */}
-                      {/* eslint-disable-next-line react/forbid-elements -- custom card-header hero title; PageHeader's icon+card shape doesn't fit and Heading has no level=1 */}
-                      <h1 className="text-xl font-semibold">{entry?.name ?? pluginId}</h1>
-                      <PluginCategoryBadge category={entry?.category ?? "utility"} label={categoryLabel} />
-                    </Flex>
-                    <Text tone="muted">
-                      {entry?.author && (
-                        <Text as="span" tone="muted" className="mr-3">
-                          {t("byAuthor", { author: entry.author })}
-                        </Text>
-                      )}
-                      {entry?.fiestaboard_version && (
-                        <Text as="span" size="xs" tone="muted">
-                          {t("requiresFiestaboard", { version: entry.fiestaboard_version })}
-                        </Text>
-                      )}
-                    </Text>
-                  </>
+        {/* What it is: category, the version it needs, its own description. */}
+        <PageSection>
+          {isLoading ? (
+            <Stack gap="2">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-4 w-2/3" />
+            </Stack>
+          ) : (
+            <Stack gap="3">
+              <Flex align="center" gap="3" wrap>
+                <PluginCategoryBadge category={entry?.category ?? "utility"} label={categoryLabel} />
+                {entry?.fiestaboard_version && (
+                  <Text as="span" size="xs" tone="muted">
+                    {t("requiresFiestaboard", { version: entry.fiestaboard_version })}
+                  </Text>
                 )}
-              </Box>
-            </Flex>
-
-            {/* Actions */}
-            <Flex align="center" gap="2" className="shrink-0">
-              {entry?.repository && (
-                <Button variant="outline" size="sm" asChild>
-                  {/* asChild hands this anchor Button's own chrome (border/bg/text) — TextLink's
-                      underline+text-primary styling would clash with that, so it stays raw
-                      (couldn't snap — see wave 1 report). */}
-                  {/* eslint-disable-next-line react/forbid-elements -- single Slot child of Button asChild; the Button merges its chrome onto this anchor and TextLink would layer conflicting link styling */}
-                  <a href={entry.repository} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                    {t("githubLink")}
-                  </a>
-                </Button>
+              </Flex>
+              {entry?.description && (
+                <Text tone="muted" className="leading-relaxed">
+                  {entry.description}
+                </Text>
               )}
-              {!isLoading &&
-                (isInstalled ? (
-                  <Button size="sm" variant="outline" onClick={() => setAddInstanceOpen(true)}>
-                    <CopyPlus className="h-3.5 w-3.5 mr-1.5" />
-                    {t("addInstance")}
-                  </Button>
-                ) : (
-                  <Button size="sm" onClick={() => installMutation.mutate()} disabled={installMutation.isPending}>
-                    <ArrowDownToLine
-                      className={cn("h-3.5 w-3.5 mr-1.5", installMutation.isPending && "animate-bounce")}
-                    />
-                    {installMutation.isPending ? t("installing") : t("install")}
-                  </Button>
-                ))}
-            </Flex>
-          </Flex>
-
-          {/* Description */}
-          {entry?.description && (
-            <Text tone="muted" className="mt-4 leading-relaxed border-t pt-4">
-              {entry.description}
-            </Text>
+            </Stack>
           )}
-        </Box>
+        </PageSection>
 
         {/* README */}
-        <Box className="rounded-xl border bg-card px-6 py-5">
+        <PageSection>
           {isLoadingReadme ? (
             <Stack gap="3">
               <Skeleton className="h-5 w-1/3" />
@@ -381,8 +350,8 @@ export default function PluginDetailPage() {
               {t("documentationNotAvailable")}
             </Text>
           )}
-        </Box>
-      </Stack>
+        </PageSection>
+      </Box>
 
       <Dialog open={addInstanceOpen} onOpenChange={setAddInstanceOpen}>
         <DialogContent>
@@ -417,6 +386,6 @@ export default function PluginDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </PageLayout>
+    </>
   );
 }

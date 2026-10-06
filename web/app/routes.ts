@@ -19,8 +19,10 @@ export default [
     route(":boardId", "routes/displays.$boardId.tsx"),
   ]),
   route("picks", "routes/picks.tsx"),
-  route("integrations", "routes/integrations._index.tsx"),
-  route("integrations/:pluginId", "routes/integrations.$pluginId.tsx"),
+  route("integrations", "routes/integrations.tsx", [
+    index("routes/integrations._index.tsx"),
+    route(":pluginId", "routes/integrations.$pluginId.tsx"),
+  ]),
   route("pages", "routes/pages._index.tsx"),
   route("pages/new", "routes/pages.new.tsx"),
   route("pages/edit", "routes/pages.edit._index.tsx"),
