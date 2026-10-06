@@ -1062,7 +1062,6 @@
     "resume": "Resume",
     "pauseLabel": "Pause {name}",
     "resumeLabel": "Resume {name}",
-    "back": "All displays",
     "notFound": "This display doesn't exist anymore.",
     "previewTitle": "Now showing",
     "settingsTitle": "Settings",
@@ -1728,7 +1727,6 @@
       "utility": "Utilities",
       "weather": "Weather & Environment"
     },
-    "backToMarketplace": "Back to Marketplace",
     "byAuthor": "by {author}",
     "requiresFiestaboard": "Requires FiestaBoard {version}",
     "addInstance": "Add Instance",

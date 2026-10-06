@@ -1106,7 +1106,6 @@
     "resume": "Återuppta",
     "pauseLabel": "Pausa {name}",
     "resumeLabel": "Återuppta {name}",
-    "back": "Alla skärmar",
     "notFound": "Den här skärmen finns inte längre.",
     "previewTitle": "Visas nu",
     "settingsTitle": "Inställningar",
@@ -1772,7 +1771,6 @@
       "utility": "Verktyg",
       "weather": "Väder & miljö"
     },
-    "backToMarketplace": "Tillbaka till Marketplace",
     "byAuthor": "av {author}",
     "requiresFiestaboard": "Kräver FiestaBoard {version}",
     "addInstance": "Lägg till instans",

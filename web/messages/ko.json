@@ -1106,7 +1106,6 @@
     "resume": "재개",
     "pauseLabel": "{name} 일시 중지",
     "resumeLabel": "{name} 재개",
-    "back": "모든 디스플레이",
     "notFound": "이 디스플레이는 더 이상 존재하지 않습니다.",
     "previewTitle": "현재 표시 중",
     "settingsTitle": "설정",
@@ -1772,7 +1771,6 @@
       "utility": "유틸리티",
       "weather": "날씨 및 환경"
     },
-    "backToMarketplace": "마켓플레이스로 돌아가기",
     "byAuthor": "작성자: {author}",
     "requiresFiestaboard": "FiestaBoard {version} 필요",
     "addInstance": "인스턴스 추가",

@@ -1106,7 +1106,6 @@
     "resume": "Fortsetzen",
     "pauseLabel": "{name} pausieren",
     "resumeLabel": "{name} fortsetzen",
-    "back": "Alle Anzeigen",
     "notFound": "Diese Anzeige gibt es nicht mehr.",
     "previewTitle": "Wird gerade angezeigt",
     "settingsTitle": "Einstellungen",
@@ -1772,7 +1771,6 @@
       "utility": "Dienstprogramme",
       "weather": "Wetter & Umwelt"
     },
-    "backToMarketplace": "Zurück zum Marktplatz",
     "byAuthor": "von {author}",
     "requiresFiestaboard": "Benötigt FiestaBoard {version}",
     "addInstance": "Instanz hinzufügen",
