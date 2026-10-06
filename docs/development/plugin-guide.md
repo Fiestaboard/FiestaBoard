@@ -620,8 +620,8 @@ api_key = self.config.get("api_key") or os.getenv("MY_PLUGIN_API_KEY")
 ### Knowing the Board and Its Display
 
 A user can show your plugin on very different hardware: a Vestaboard
-(split-flap, capitals, eight colour tiles), a Divoom Pixoo (a full-colour LED
-pixel display with lowercase, coloured text and icons) or a TV. Read
+(split-flap, capitals, eight color tiles), a Divoom Pixoo (a full-color LED
+pixel display with lowercase, colored text and icons) or a TV. Read
 `self.board` inside `fetch_data()` instead of assuming any of them:
 
 - `self.board.rows` / `self.board.cols`: the grid you are filling, in tiles.
@@ -633,8 +633,8 @@ pixel display with lowercase, coloured text and icons) or a TV. Read
 |---|---|
 | `technology` | `"split_flap"`, `"led_matrix"` or `"screen"` |
 | `device_model` | The device, e.g. `"vestaboard_flagship"`, `"divoom_pixoo64"` |
-| `color` | `"tiles"` (a flap's fixed colours), `"rgb"` or `"mono"` |
-| `supports(feature)` | `"lowercase"`, `"color_text"` (`{green:63F}`), `"background"` (`{yellow/black:AQI}`), `"tiles"`, `"icons"` (`{icon:sun}`), `"rgb"`, `"solid_shapes"` (same-coloured tiles join into one filled area) |
+| `color` | `"tiles"` (a flap's fixed colors), `"rgb"` or `"mono"` |
+| `supports(feature)` | `"lowercase"`, `"color_text"` (`{green:63F}`), `"background"` (`{yellow/black:AQI}`), `"tiles"`, `"icons"` (`{icon:sun}`), `"rgb"`, `"solid_shapes"` (same-colored tiles join into one filled area) |
 | `icons` | The icon names this display draws |
 | `ai_brief()` | Ready-made text for an AI prompt: the markup this display draws and nothing it cannot |
 | `check(text)` | What in `text` the display cannot draw, and what it shows instead |
@@ -643,7 +643,7 @@ pixel display with lowercase, coloured text and icons) or a TV. Read
 def fetch_data(self) -> PluginResult:
     display = self.board.display if self.board else None
     if display is not None and display.supports("color_text"):
-        temperature = f"{{green:{reading}F}}"   # coloured on an LED
+        temperature = f"{{green:{reading}F}}"   # colored on an LED
     else:
         temperature = f"{reading}F"             # plain on a split-flap
     ...

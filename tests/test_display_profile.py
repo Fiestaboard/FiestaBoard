@@ -16,7 +16,6 @@ from src.devices import BoardContext, board_context_for
 from src.fiestaui import builtin_device_models
 from src.led.charsets import resolve_character_set
 from src.outputs.display_profile import (
-    DisplayProfile,
     display_profile_for_client,
     render_kw,
 )
