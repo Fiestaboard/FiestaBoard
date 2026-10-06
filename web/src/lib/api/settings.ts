@@ -54,7 +54,6 @@ export interface DisplaySettings {
 }
 
 export interface BetaSettings {
-  https_enabled: boolean;
   transition_plugins_enabled: boolean;
   /** Output plugins from the registry or a git URL may drive boards. */
   output_plugins_enabled: boolean;
@@ -64,23 +63,11 @@ export interface PluginSettings {
   auto_update: boolean;
 }
 
-export interface BetaHttpsStatus {
-  cert_present: boolean;
-  cert_path: string;
-  key_path: string;
-  updater_available: boolean;
-}
-
 export interface BetaSettingsResponse {
   settings: BetaSettings;
-  https: BetaHttpsStatus;
 }
 
-export interface BetaSettingsUpdateResponse {
-  settings: BetaSettings;
-  https: BetaHttpsStatus;
-  restart_required: boolean;
-}
+export type BetaSettingsUpdateResponse = BetaSettingsResponse;
 
 export interface LocationSettings {
   latitude: number | null;
@@ -194,7 +181,7 @@ export const settingsApi = {
   getSunTimesWeek: (weekStart: string) =>
     fetchApi<SunTimesWeekResponse>(`/settings/location/sun-times-week?week_start=${weekStart}`),
 
-  // Beta features (HTTPS, transition plugins, etc.)
+  // Beta features (transition and output plugins)
   getBetaSettings: () => fetchApi<BetaSettingsResponse>("/settings/beta"),
   updateBetaSettings: (updates: Partial<BetaSettings>) =>
     fetchApi<BetaSettingsUpdateResponse>("/settings/beta", {

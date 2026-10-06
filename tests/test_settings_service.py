@@ -693,26 +693,32 @@ class TestBetaSettings:
 
     def test_defaults_to_disabled(self):
         bs = BetaSettings()
-        assert bs.https_enabled is False
+        assert bs.transition_plugins_enabled is False
+        assert bs.output_plugins_enabled is False
 
-    def test_from_dict_with_https_enabled(self):
-        bs = BetaSettings.from_dict({"https_enabled": True})
-        assert bs.https_enabled is True
+    def test_from_dict_with_transition_plugins_enabled(self):
+        bs = BetaSettings.from_dict({"transition_plugins_enabled": True})
+        assert bs.transition_plugins_enabled is True
 
     def test_from_dict_empty(self):
         bs = BetaSettings.from_dict({})
-        assert bs.https_enabled is False
+        assert bs.transition_plugins_enabled is False
 
     def test_from_dict_coerces_truthy(self):
-        bs = BetaSettings.from_dict({"https_enabled": 1})
-        assert bs.https_enabled is True
-        bs = BetaSettings.from_dict({"https_enabled": ""})
-        assert bs.https_enabled is False
+        bs = BetaSettings.from_dict({"transition_plugins_enabled": 1})
+        assert bs.transition_plugins_enabled is True
+        bs = BetaSettings.from_dict({"transition_plugins_enabled": ""})
+        assert bs.transition_plugins_enabled is False
+
+    def test_from_dict_ignores_the_retired_https_flag(self):
+        """HTTPS (Beta) was removed in settings v5; a stray key is dropped."""
+        bs = BetaSettings.from_dict({"https_enabled": True})
+        assert bs.to_dict() == {"transition_plugins_enabled": False}
 
     def test_to_dict_roundtrip(self):
-        original = BetaSettings(https_enabled=True)
+        original = BetaSettings(transition_plugins_enabled=True)
         restored = BetaSettings.from_dict(original.to_dict())
-        assert restored.https_enabled is True
+        assert restored.transition_plugins_enabled is True
 
 
 class TestSettingsServiceBeta:
@@ -720,33 +726,39 @@ class TestSettingsServiceBeta:
 
     def test_get_beta_settings_default(self, settings_service):
         bs = settings_service.get_beta_settings()
-        assert bs.https_enabled is False
+        assert bs.transition_plugins_enabled is False
 
-    def test_update_beta_settings_enables_https(self, settings_service):
-        bs = settings_service.update_beta_settings({"https_enabled": True})
-        assert bs.https_enabled is True
+    def test_update_beta_settings_enables_transition_plugins(self, settings_service):
+        bs = settings_service.update_beta_settings({"transition_plugins_enabled": True})
+        assert bs.transition_plugins_enabled is True
         # Reload from disk to confirm persistence.
         with open(settings_service.settings_file) as f:
             data = json.load(f)
-        assert data["beta"]["https_enabled"] is True
+        assert data["beta"] == {"transition_plugins_enabled": True}
 
     def test_update_beta_settings_partial_update_preserves_other_keys(self, settings_service):
-        settings_service.update_beta_settings({"https_enabled": True})
+        settings_service.update_beta_settings({"transition_plugins_enabled": True})
         # Empty update keeps existing value.
         bs = settings_service.update_beta_settings({})
-        assert bs.https_enabled is True
+        assert bs.transition_plugins_enabled is True
 
-    def test_update_beta_settings_disables_https(self, settings_service):
-        settings_service.update_beta_settings({"https_enabled": True})
-        bs = settings_service.update_beta_settings({"https_enabled": False})
-        assert bs.https_enabled is False
+    def test_update_beta_settings_disables_transition_plugins(self, settings_service):
+        settings_service.update_beta_settings({"transition_plugins_enabled": True})
+        bs = settings_service.update_beta_settings({"transition_plugins_enabled": False})
+        assert bs.transition_plugins_enabled is False
+
+    def test_update_beta_settings_ignores_the_retired_https_flag(self, settings_service):
+        bs = settings_service.update_beta_settings({"https_enabled": True})
+        assert not hasattr(bs, "https_enabled")
+        with open(settings_service.settings_file) as f:
+            assert "https_enabled" not in json.load(f)["beta"]
 
     def test_beta_settings_persist_across_reload(self, settings_file, mock_config):
         svc1 = SettingsService(settings_file=settings_file)
-        svc1.update_beta_settings({"https_enabled": True})
+        svc1.update_beta_settings({"transition_plugins_enabled": True})
 
         svc2 = SettingsService(settings_file=settings_file)
-        assert svc2.get_beta_settings().https_enabled is True
+        assert svc2.get_beta_settings().transition_plugins_enabled is True
 
 
 class TestDisplaySettings:

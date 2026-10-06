@@ -522,37 +522,27 @@ class SunTimesWeekResponse(BaseModel):
 class BetaSettings(BaseModel):
     """Opt-in beta feature flags."""
 
-    https_enabled: bool
     transition_plugins_enabled: bool
     output_plugins_enabled: bool = False
 
 
-class BetaHttpsStatus(BaseModel):
-    """Runtime status of the HTTPS beta feature."""
-
-    cert_present: bool
-    cert_path: str
-    key_path: str
-    updater_available: bool
-
-
 class BetaSettingsResponse(BaseModel):
-    """Beta flags plus the certificate/sidecar status behind them."""
+    """The beta flags."""
 
     settings: BetaSettings
-    https: BetaHttpsStatus
 
 
 class BetaSettingsUpdateResponse(BetaSettingsResponse):
-    """Beta flags after a write, plus whether a restart is needed."""
-
-    restart_required: bool
+    """The beta flags after a write."""
 
 
 class BetaSettingsUpdate(BaseModel):
-    """Partial beta update: only the flags present are changed."""
+    """Partial beta update: only the flags present are changed.
 
-    https_enabled: StrictBool | None = None
+    An unknown key is ignored, so a client from before HTTPS (Beta) was
+    removed that still sends ``https_enabled`` gets a 200 and no change.
+    """
+
     transition_plugins_enabled: StrictBool | None = None
     output_plugins_enabled: StrictBool | None = None
 

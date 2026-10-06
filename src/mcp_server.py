@@ -2056,7 +2056,7 @@ def _build_mcp_server() -> Any:
           update_setting()
         - silence_schedule: the install-wide quiet-hours config, plus
           by_board overrides keyed by board id
-        - beta: https_enabled, transition_plugins_enabled
+        - beta: transition_plugins_enabled
         - plugins: auto_update
         - mqtt: enabled, broker_host, broker_port, external_url, username and
           password masked as "***" when set
@@ -2214,8 +2214,7 @@ def _build_mcp_server() -> Any:
                   switching the board immediately.
                 - active_page: page_id (string), board_id (optional) — the
                   same selection set_active_page() makes.
-                - beta: https_enabled (bool — needs a restart_system() to
-                  take effect), transition_plugins_enabled (bool).
+                - beta: transition_plugins_enabled (bool).
                 - plugins: auto_update (bool — update installed plugins in
                   the background).
                 - mqtt (Home Assistant bridge): enabled (bool), broker_host
@@ -2871,7 +2870,7 @@ def _build_mcp_server() -> Any:
         (get_system_status() → update.updater_available).
 
         WARNING: the web UI and this connection drop for ~5 seconds. Needed
-        after enabling HTTPS (beta) or changing the polling interval.
+        after changing the polling interval.
         """
         return await ops_executors.restart_system()
 

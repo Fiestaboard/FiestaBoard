@@ -32,7 +32,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import UTC
-from typing import Any
 
 import requests
 from fastapi import APIRouter, HTTPException
@@ -1427,33 +1426,11 @@ async def get_location_sun_times_week(week_start: str):
     return {"location_configured": True, "dates": result}
 
 
-def _beta_https_status() -> dict[str, Any]:
-    """Return the runtime status of the HTTPS beta feature.
-
-    Reports whether the cert files currently exist on disk and whether
-    the fiestaupdater sidecar is reachable for one-click restarts.
-    """
-    from src.system import https_certs
-
-    cert_path, key_path = https_certs.cert_paths()
-    return {
-        "cert_present": https_certs.cert_exists(),
-        "cert_path": str(cert_path),
-        "key_path": str(key_path),
-        "updater_available": bool(_updater_token()) and _updater_probe(),
-    }
-
-
 @router.get("/settings/beta", response_model=BetaSettingsResponse)
 async def get_beta_settings():
-    """Get opt-in beta-feature settings + runtime status."""
+    """Get opt-in beta-feature settings."""
     settings_service = get_settings_service()
-    settings = settings_service.get_beta_settings()
-    status = await asyncio.to_thread(_beta_https_status)
-    return {
-        "settings": settings.to_dict(),
-        "https": status,
-    }
+    return {"settings": settings_service.get_beta_settings().to_dict()}
 
 
 @router.put(
@@ -1465,7 +1442,6 @@ async def update_beta_settings(request: BetaSettingsUpdate):
     """Update beta-feature settings.
 
     Body may include:
-    - https_enabled: bool — enable/disable the HTTPS (Beta) feature.
     - output_plugins_enabled: bool — let third-party output plugins
       (installed from the registry or a git URL; first-party seeded outputs
       need no beta) drive boards. Takes effect on the next board
@@ -1474,64 +1450,12 @@ async def update_beta_settings(request: BetaSettingsUpdate):
       transition-plugin system (frame-by-frame board animations). Takes
       effect immediately; no restart required.
 
-    Side effects:
-    - When https_enabled flips to ``true``, a self-signed certificate is
-      generated under ``data/certs/`` (if not already present). nginx
-      will switch to HTTPS the next time the container starts.
-    - When https_enabled flips to ``false``, the cert files are removed
-      so the next container start reverts to HTTP.
-
-    Returns the updated settings, the cert status, and a hint about
-    whether a restart is required for the change to take effect.
-
-    Certificate generation failing is a 500, not a 200 with a warning: the
-    user asked for HTTPS and did not get it. The preference is persisted
-    first either way, so the next container start (or a manual cert drop)
-    still honours the choice, and the message stays generic — the raw
-    exception can carry paths and config internals (CodeQL
-    py/stack-trace-exposure).
+    Unknown keys are ignored — including ``https_enabled``, whose HTTPS
+    (Beta) feature was removed in settings v5.
     """
-    from src.system import https_certs
-
     provided = request.model_dump(exclude_unset=True)
-    settings_service = get_settings_service()
-    previous = settings_service.get_beta_settings().https_enabled
-    requested = provided.get("https_enabled", previous)
-
-    cert_error: str | None = None
-    if "https_enabled" in provided:
-        if requested and not previous:
-            # User just turned HTTPS on -> generate cert eagerly so nginx
-            # finds it on the next restart.
-            try:
-                await asyncio.to_thread(https_certs.generate_cert)
-            except Exception:  # noqa: BLE001 - reported as a 500 below
-                logger.exception("Failed to generate HTTPS certificate")
-                cert_error = "Certificate generation failed — check the server logs for details."
-        elif previous and not requested:
-            # User just turned HTTPS off -> remove the cert so nginx
-            # falls back to HTTP on next restart.
-            try:
-                await asyncio.to_thread(https_certs.remove_cert)
-            except Exception as e:  # noqa: BLE001
-                logger.warning("Failed to remove HTTPS certificate: %s", e)
-
-    updated = settings_service.update_beta_settings(provided)
-
-    if cert_error:
-        # The preference above is already persisted; the failure is still a
-        # failure and must not be served as a 200.
-        raise HTTPException(status_code=500, detail=cert_error)
-
-    status = await asyncio.to_thread(_beta_https_status)
-
-    # A restart is required whenever the on/off state changed, since
-    # nginx only re-reads its config on container start.
-    return {
-        "settings": updated.to_dict(),
-        "https": status,
-        "restart_required": updated.https_enabled != previous,
-    }
+    updated = get_settings_service().update_beta_settings(provided)
+    return {"settings": updated.to_dict()}
 
 
 @router.get("/settings/plugins", response_model=PluginSettingsResponse)

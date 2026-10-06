@@ -716,61 +716,25 @@ class TestLocation:
 
 
 class TestBeta:
-    def test_get_reports_the_settings_and_the_cert_status(self, client):
-        with (
-            patch("src.system.update_service._updater_token", return_value=""),
-            patch("src.system.update_service._updater_probe", return_value=False),
-        ):
-            body = client.get("/settings/beta").json()
-        assert body["settings"]["https_enabled"] is False
-        assert body["https"]["cert_present"] is False
-        assert body["https"]["updater_available"] is False
+    def test_get_reports_the_settings(self, client):
+        # CHANGED (settings v5): HTTPS (Beta) was removed, and with it the
+        # "https" cert/updater status block and "settings.https_enabled".
+        assert client.get("/settings/beta").json() == {
+            "settings": {"transition_plugins_enabled": False, "output_plugins_enabled": False}
+        }
 
-    def test_put_returns_the_settings_the_status_and_the_restart_hint(self, client):
-        with (
-            patch("src.system.update_service._updater_token", return_value=""),
-            patch("src.system.update_service._updater_probe", return_value=False),
-        ):
-            response = client.put("/settings/beta", json={"transition_plugins_enabled": True})
+    def test_put_returns_the_settings(self, client):
+        response = client.put("/settings/beta", json={"transition_plugins_enabled": True})
         assert response.status_code == 200
-        body = response.json()
-        # CHANGED (conventions, bare bodies): "status" dropped. There is no
-        # "cert_error" key any more either — a certificate failure is now a
-        # 500, so a 200 body never has to carry one.
-        assert body["settings"]["transition_plugins_enabled"] is True
-        assert body["restart_required"] is False
-        assert "cert_error" not in body
+        # CHANGED (conventions, bare bodies): "status" dropped. CHANGED
+        # (settings v5): "https" and "restart_required" dropped with HTTPS
+        # (Beta) — no beta flag needs a restart any more.
+        assert response.json() == {"settings": {"transition_plugins_enabled": True, "output_plugins_enabled": False}}
 
-    def test_put_enabling_https_generates_a_cert_and_asks_for_a_restart(self, client):
-        with (
-            patch("src.system.https_certs.generate_cert", return_value=("c", "k")) as generate,
-            patch("src.system.update_service._updater_token", return_value=""),
-            patch("src.system.update_service._updater_probe", return_value=False),
-        ):
-            response = client.put("/settings/beta", json={"https_enabled": True})
+    def test_put_ignores_the_retired_https_flag(self, client):
+        response = client.put("/settings/beta", json={"https_enabled": True})
         assert response.status_code == 200
-        assert generate.call_count == 1
-        assert response.json()["restart_required"] is True
-
-    def test_put_500s_when_certificate_generation_fails(self, client):
-        with (
-            patch("src.system.https_certs.generate_cert", side_effect=OSError("boom")),
-            patch("src.system.update_service._updater_token", return_value=""),
-            patch("src.system.update_service._updater_probe", return_value=False),
-        ):
-            response = client.put("/settings/beta", json={"https_enabled": True})
-        # CHANGED (conventions, no_200_on_failure): was 200 with
-        # {"status": "warning", "cert_error": "..."} — the user asked for
-        # HTTPS, did not get it, and the API answered success. The preference
-        # is still persisted before the raise (asserted below), so the next
-        # container start honours the choice.
-        assert response.status_code == 500
-        assert response.json() == {"detail": "Certificate generation failed — check the server logs for details."}
-        with (
-            patch("src.system.update_service._updater_token", return_value=""),
-            patch("src.system.update_service._updater_probe", return_value=False),
-        ):
-            assert client.get("/settings/beta").json()["settings"]["https_enabled"] is True
+        assert response.json() == {"settings": {"transition_plugins_enabled": False, "output_plugins_enabled": False}}
 
 
 # ---------------------------------------------------------------------------

@@ -402,16 +402,28 @@ class TestGoldenOnDiskFormat:
         SettingsService(settings_file=str(path))._save_to_file()
         assert path.read_bytes() == golden
 
-    def test_settings_json_v3_golden_migrates_to_the_v4_golden(self, tmp_path):
-        """Settings v4 (plan D8) changed the board's on-disk shape on purpose:
-        the v3 golden, loaded and saved, is exactly the v4 golden, and the
-        pre-migration backup holds the v3 bytes."""
+    def test_settings_json_v3_golden_migrates_to_the_current_golden(self, tmp_path):
+        """Settings v4 (plan D8) changed the board's on-disk shape on purpose,
+        and v5 dropped ``beta.https_enabled``: the v3 golden, loaded and saved,
+        is exactly the current golden, and the pre-migration backup holds the
+        v3 bytes."""
         from src.settings.service import SettingsService
 
         path, v3 = _pin(tmp_path, "settings_v3.json")
         SettingsService(settings_file=str(path))._save_to_file()
         assert path.read_bytes() == (GOLDEN / "settings.json").read_bytes()
         assert path.with_suffix(".json.v3_backup").read_bytes() == v3
+
+    def test_settings_json_v4_golden_migrates_to_the_v5_golden(self, tmp_path):
+        """Settings v5 (HTTPS (Beta) removed) drops ``beta.https_enabled`` and
+        nothing else: the v4 golden, loaded and saved, is exactly the v5
+        golden, and the pre-migration backup holds the v4 bytes."""
+        from src.settings.service import SettingsService
+
+        path, v4 = _pin(tmp_path, "settings_v4.json")
+        SettingsService(settings_file=str(path))._save_to_file()
+        assert path.read_bytes() == (GOLDEN / "settings.json").read_bytes()
+        assert path.with_suffix(".json.v4_backup").read_bytes() == v4
 
     def test_system_update_state_json_round_trips_byte_identical(self, tmp_path, monkeypatch):
         from src.system import update_service

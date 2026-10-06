@@ -1,5 +1,5 @@
 {
-  "schema_version": 5,
+  "schema_version": 4,
   "transitions": {
     "strategy": null,
     "step_interval_ms": null,
@@ -72,6 +72,7 @@
     "longitude": null
   },
   "beta": {
+    "https_enabled": false,
     "transition_plugins_enabled": false
   },
   "plugins": {
