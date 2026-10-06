@@ -10,6 +10,7 @@
     "configure": "설정",
     "language": "언어",
     "back": "뒤로",
+    "breadcrumb": "탐색 경로",
     "next": "다음",
     "create": "생성",
     "update": "업데이트",

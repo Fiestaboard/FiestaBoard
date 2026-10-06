@@ -24,14 +24,16 @@ interface NavItemDef {
   external?: boolean;
 }
 
+// Displays sits right under Home: the hardware is what everything else is
+// for, so it leads the places you set up, ahead of what goes on it.
 const primaryItems: NavItemDef[] = [
   { key: "home", href: "/", icon: Home },
+  // Every board and screen FiestaBoard shows on (plan D21).
+  { key: "displays", href: "/displays", icon: Monitor },
   { key: "pages", href: "/pages", icon: FileText },
   { key: "collections", href: "/collections", icon: GalleryHorizontalEnd },
   { key: "schedule", href: "/schedule", icon: Calendar },
   { key: "integrations", href: "/integrations", icon: Puzzle },
-  // Every board and screen FiestaBoard shows on (plan D21).
-  { key: "displays", href: "/displays", icon: Monitor },
 ];
 
 // Settings is NOT here. It lives in the footer twice over — a gear beside the

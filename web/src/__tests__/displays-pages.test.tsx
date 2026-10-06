@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DisplaysSection } from "../../app/routes/displays";
 import DisplaysPage from "../../app/routes/displays._index";
 import DisplayPage from "../../app/routes/displays.$boardId";
 import { mockOutputs, mockStatus } from "./mocks/handlers";
@@ -216,7 +217,11 @@ describe("/displays", () => {
 
   it("Add a display opens the output-first flow", async () => {
     setup([KITCHEN]);
-    renderWith(<DisplaysPage />);
+    renderWith(
+      <DisplaysSection>
+        <DisplaysPage />
+      </DisplaysSection>,
+    );
     await userEvent.click(await screen.findByRole("button", { name: "Add a display" }));
     const dialog = await screen.findByRole("dialog", { name: "Add a display" });
     expect(await within(dialog).findByRole("radio", { name: /Vestaboard/ })).toBeInTheDocument();
@@ -224,7 +229,11 @@ describe("/displays", () => {
 
   it("opens a newly added display's page", async () => {
     setup([KITCHEN]);
-    renderWith(<DisplaysPage />);
+    renderWith(
+      <DisplaysSection>
+        <DisplaysPage />
+      </DisplaysSection>,
+    );
     await userEvent.click(await screen.findByRole("button", { name: "Add a display" }));
     await userEvent.click(await screen.findByRole("radio", { name: /Vestaboard/ }));
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
@@ -234,12 +243,51 @@ describe("/displays", () => {
   });
 });
 
+describe("/displays section", () => {
+  it("keeps Displays as the page heading and names the open display under a breadcrumb", async () => {
+    setup([KITCHEN, DESK]);
+    params.boardId = "kitchen";
+    renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    expect(screen.getByRole("heading", { level: 1, name: "Displays" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 2, name: "Kitchen" })).toBeInTheDocument();
+    const trail = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(within(trail).getByRole("link", { name: "Displays" })).toHaveAttribute("href", "/displays");
+  });
+
+  it("drops the old back button — the breadcrumb is the way back", async () => {
+    setup([KITCHEN]);
+    params.boardId = "kitchen";
+    renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    await screen.findByRole("heading", { level: 2, name: "Kitchen" });
+    expect(screen.queryByRole("link", { name: "All displays" })).not.toBeInTheDocument();
+  });
+
+  it("tucks Add a display away while a display is open", async () => {
+    setup([KITCHEN]);
+    params.boardId = "kitchen";
+    renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    await screen.findByRole("heading", { level: 2, name: "Kitchen" });
+    expect(screen.getByRole("button", { name: "Add a display" }).closest("[inert]")).not.toBeNull();
+  });
+});
+
 describe("/displays/:boardId", () => {
   it("shows that display's settings, preview and transition", async () => {
     setup([KITCHEN, DESK]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
-    expect(await screen.findByRole("heading", { level: 1, name: /Kitchen/ })).toBeInTheDocument();
     const card = await screen.findByTestId("board-card");
     expect(within(card).getByTestId("board-name-input")).toHaveValue("Kitchen");
     expect(screen.getByTestId("display-transition")).toBeInTheDocument();

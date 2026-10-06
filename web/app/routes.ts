@@ -12,8 +12,12 @@ export default [
   route("settings", "routes/settings.tsx"),
   route("collections", "routes/collections.tsx"),
   route("debug", "routes/debug.tsx"),
-  route("displays", "routes/displays._index.tsx"),
-  route("displays/:boardId", "routes/displays.$boardId.tsx"),
+  // A section layout: the card and header stay mounted between the list and
+  // a display (section-shell.tsx).
+  route("displays", "routes/displays.tsx", [
+    index("routes/displays._index.tsx"),
+    route(":boardId", "routes/displays.$boardId.tsx"),
+  ]),
   route("picks", "routes/picks.tsx"),
   route("integrations", "routes/integrations._index.tsx"),
   route("integrations/:pluginId", "routes/integrations.$pluginId.tsx"),

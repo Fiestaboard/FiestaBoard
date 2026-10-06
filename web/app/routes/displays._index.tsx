@@ -2,12 +2,8 @@ import {
   Badge,
   Box,
   Button,
-  Dialog,
   Flex,
   Grid,
-  PageCard,
-  PageHeader,
-  PageLayout,
   PageSection,
   PageToolbar,
   Skeleton,
@@ -19,17 +15,16 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Monitor, Pause, Play, Plus, Settings2 } from "lucide-react";
+import { Pause, Play, Settings2 } from "lucide-react";
 import { useState } from "react";
 
-import { AddDisplayDialog } from "@/components/displays/add-display-dialog";
+import { useAddDisplay } from "@/components/displays/add-display-context";
 import { DisplayLivePreview } from "@/components/displays/display-live-preview";
 import { DisplayMarketplace } from "@/components/displays/display-marketplace";
 import { BoardStatusBadges, BoardSummary, useDisplayBoards } from "@/components/settings/display-settings";
 import { AVAILABLE_OUTPUTS_QUERY_KEY, useOutputs } from "@/components/settings/output-boards";
 import Link from "@/components/smart-link";
-import type { WizardOutputChoice } from "@/components/wizard/step-output-plugin";
-import { useRouter, useSearchParams } from "@/hooks/use-router";
+import { useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { BoardInstance } from "@/lib/api";
@@ -40,29 +35,27 @@ type Tab = "displays" | "marketplace";
 /**
  * Displays (plan D21): every display FiestaBoard shows on — its live
  * preview, name, output and state, with a way into its settings and a
- * pause / resume — and "Add a display".
+ * pause / resume. Rendered inside the Displays section (displays.tsx), which
+ * owns the page header, "Add a display" and the add flow.
  *
  * The Marketplace tab lists every display FiestaBoard can drive, installed
  * or not, the way Integrations → Marketplace lists plugins. A card's "Add
- * display" (or a `?add=<output id>` link) opens the add flow at that
- * display's setup.
+ * display" (or a `?add=<output id>` link, handled by the section) opens the
+ * add flow at that display's setup.
  */
 export default function DisplaysPage() {
   const t = useTranslations("displays");
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const openAdd = useAddDisplay();
   const displays = useDisplayBoards();
   const { data: outputs } = useOutputs();
   const [tab, setTab] = useState<Tab>(() => (searchParams.get("tab") === "marketplace" ? "marketplace" : "displays"));
-  // true: the add flow from its first step; an output: from that output's setup.
-  const [adding, setAdding] = useState<boolean | WizardOutputChoice>(false);
   const outputName = (board: BoardInstance) => {
     const id = board.output ?? "vestaboard";
     return outputs?.find((o) => o.id === id)?.name ?? id;
   };
 
-  // Shared with the marketplace (same key): the tab's count, and the name a
-  // `?add=<id>` link needs.
+  // Shared with the marketplace and the section (same key): the tab's count.
   const available = useQuery({
     queryKey: AVAILABLE_OUTPUTS_QUERY_KEY,
     queryFn: () => api.listAvailableOutputs(),
@@ -70,29 +63,12 @@ export default function DisplaysPage() {
   });
   const toInstall = (available.data ?? []).filter((o) => !o.installed).length;
 
-  // A marketplace card's link (`?add=<id>`) opens the add flow for the
-  // output it names; closing the dialog drops the parameter.
-  const addParam = searchParams.get("add");
-  const linked = addParam ? available.data?.find((o) => o.id === addParam) : undefined;
-  const open: false | true | WizardOutputChoice =
-    adding !== false ? adding : linked ? { id: linked.id, name: linked.name } : false;
-  const close = () => {
-    setAdding(false);
-    if (addParam) router.replace(`/displays?tab=${tab}`, { scroll: false });
-  };
-
   return (
-    <PageLayout>
-      <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
-        <PageCard>
-          <PageHeader icon={Monitor} title={t("title")} description={t("description")}>
-            <Button onClick={() => setAdding(true)} data-testid="add-display">
-              <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
-              {t("addDisplay")}
-            </Button>
-          </PageHeader>
-
-          <PageToolbar>
+    // Tabs wraps the toolbar, so the toolbar is no longer a direct child of
+    // PageCard and takes the block padding PageCard would have given it (as
+    // on Integrations).
+    <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
+          <PageToolbar className="mb-0 py-6">
             <TabsList className="w-fit">
               <TabsTrigger value="displays">
                 {t("tabDisplays")}
@@ -115,7 +91,7 @@ export default function DisplaysPage() {
 
           <PageSection {...anchorProps("settings.boards")}>
             <TabsContent value="marketplace" className="mt-0">
-              <DisplayMarketplace onAdd={(output) => setAdding(output)} />
+              <DisplayMarketplace onAdd={(output) => openAdd(output)} />
             </TabsContent>
             <TabsContent value="displays" className="mt-0">
               {displays.isLoading ? (
@@ -186,22 +162,6 @@ export default function DisplaysPage() {
               )}
             </TabsContent>
           </PageSection>
-        </PageCard>
-      </Tabs>
-
-      <Dialog open={open !== false} onOpenChange={(isOpen) => !isOpen && close()}>
-        {open !== false && (
-          <AddDisplayDialog
-            key={open === true ? "choose" : open.id}
-            initialOutput={open === true ? undefined : open}
-            onCancel={close}
-            onCreated={(boardId) => {
-              setAdding(false);
-              router.push(`/displays/${encodeURIComponent(boardId)}`);
-            }}
-          />
-        )}
-      </Dialog>
-    </PageLayout>
+    </Tabs>
   );
 }

@@ -10,6 +10,7 @@
     "configure": "Configure",
     "language": "Language",
     "back": "Back",
+    "breadcrumb": "Breadcrumb",
     "next": "Next",
     "create": "Create",
     "update": "Update",
