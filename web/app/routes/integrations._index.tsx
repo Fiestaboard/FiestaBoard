@@ -286,6 +286,7 @@ import {
   readOAuthReturn,
   SchemaForm,
 } from "@/components/plugin-settings";
+import { PluginUpdatesControl } from "@/components/plugin-updates-control";
 import Link from "@/components/smart-link";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
@@ -2113,7 +2114,6 @@ export default function IntegrationsPage() {
   const [uninstallingId, setUninstallingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [isUpdatingAll, setIsUpdatingAll] = useState(false);
-  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [gitDialogOpen, setGitDialogOpen] = useState(false);
   const [gitUrl, setGitUrl] = useState("");
@@ -2232,24 +2232,6 @@ export default function IntegrationsPage() {
       toast.error(t("toastUpdateFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }));
     } finally {
       setUpdatingId(null);
-    }
-  };
-
-  const handleCheckForUpdates = async () => {
-    setIsCheckingForUpdates(true);
-    try {
-      const result = await api.triggerPluginUpdateCheck();
-      const count = result.updates_available.length;
-      if (count > 0) {
-        toast.success(t("toastUpdatesFound", { count }));
-      } else {
-        toast.success(t("toastNoUpdates"));
-      }
-    } catch (err) {
-      toast.error(t("toastCheckFailed", { error: err instanceof Error ? err.message : tCommon("error") }));
-    } finally {
-      setIsCheckingForUpdates(false);
-      queryClient.invalidateQueries({ queryKey: ["plugins"] });
     }
   };
 
@@ -2491,18 +2473,11 @@ export default function IntegrationsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <PageCard>
           <PageHeader icon={Puzzle} title={t("title")} description={t("description")}>
-            <Flex className="mt-3 justify-start sm:justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCheckForUpdates}
-                disabled={isCheckingForUpdates}
-                className="gap-2"
-              >
-                <RefreshCw className={cn("h-3.5 w-3.5", isCheckingForUpdates && "animate-spin")} />
-                {isCheckingForUpdates ? t("checking") : t("checkForUpdates")}
-              </Button>
-            </Flex>
+            {/* Plugin updates (auto-update + check now) moved here from
+                Settings: they act on the plugins listed below. */}
+            <Box className="mt-3">
+              <PluginUpdatesControl />
+            </Box>
           </PageHeader>
 
           {/* PageToolbar via its children escape hatch, not its left/right slots:

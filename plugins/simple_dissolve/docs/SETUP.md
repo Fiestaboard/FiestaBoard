@@ -12,7 +12,7 @@ How to enable Simple Dissolve and use it on a page.
 
 1. **Turn on the beta** — Settings → Advanced → Beta Features → **Transition Plugins**. Every installed transition plugin becomes selectable at that point; there is nothing else to switch on.
 2. **Tune it (optional)** — `tiles_per_frame`, `frame_interval_ms`, and `seed` live in Simple Dissolve's settings on the Integrations page. Six tiles every 100 ms is the default.
-3. **Apply it** — Open a page in the editor, pick **Simple Dissolve** from the **Transition** dropdown in the toolbar, and save. To dissolve everywhere, pick it under Settings → Behavior → Board Transitions instead. A page's own Transition beats the global default, and "Use global default" hands the page back to it.
+3. **Apply it** — Open a page in the editor, pick **Simple Dissolve** from the **Transition** dropdown in the toolbar, and save. To dissolve everywhere, pick it under Settings → Scheduling → Board Transitions instead. A page's own Transition beats the global default, and "Use global default" hands the page back to it.
 4. **View** — The next time that page becomes active, the changed tiles flip away in random batches until the new message is complete.
 
 Transition plugins are deprecated (see [Transitions](https://fiestaboard.app/docs/features/transitions)): pages that use one keep working, and the Transition Lab preview page has been removed.

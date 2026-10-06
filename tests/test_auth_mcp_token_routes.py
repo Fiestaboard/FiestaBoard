@@ -173,7 +173,7 @@ def test_clear_blocked_when_env_var_pins_the_token(signed_in, client, monkeypatc
 #
 # When the install opted out of login, there's no session cookie to send.
 # While no token exists the mcp-token endpoints must still respond so
-# Settings → Integrations can render — before the #857 fix these 401s
+# Settings → AI can render — before the #857 fix these 401s
 # triggered an infinite /login bounce. But once a token IS configured,
 # managing it requires presenting the current token as a Bearer (#1825):
 # with no session concept, possession of the credential is the credential.

@@ -8,7 +8,7 @@
  *   for that model, via `LedTransitionPicker` — entries the device cannot run
  *   are marked with why, so a Pixoo (two frames a second) offers only None:
  *   it snaps to each message, and says so.
- * - A split-flap display: "Default" (the install's Settings → Behavior
+ * - A split-flap display: "Default" (the install's Settings → Scheduling
  *   choice), None, the strategies its output animates natively
  *   (`native_transitions`), and installed transition plugins while their
  *   beta is on. A cloud Vestaboard changes all at once; the note says so.

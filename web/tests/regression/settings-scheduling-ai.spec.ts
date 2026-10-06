@@ -1,8 +1,10 @@
 /**
  * Auto-generated regression stubs from .claude/ux-coverage.json.
- * Subarea: settings.tab-behavior + settings.tab-integrations
+ * Subarea: settings.tab-behavior + settings.tab-integrations (the tabs were
+ * renamed Scheduling and AI in 10.0; the UX node ids keep their old names).
  *
- * Priority cluster #2 from the auditor: integrations cards (AI / MCP / MQTT)
+ * Priority cluster #2 from the auditor: AI / MCP cards (AI tab) and MQTT
+ * (General tab since 10.0)
  * — 6 nodes ranked high-value.
  */
 import { API_URL, authHeaders, configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
@@ -19,7 +21,7 @@ test.beforeEach(async ({ context, page }) => {
 test.describe("regression: settings.behavior", () => {
   /**
    * UX node: settings.tab-behavior
-   * Route: /settings (Behavior tab)
+   * Route: /settings (Scheduling tab)
    * Expected (missing from current coverage):
    *   - TransitionSettings preset selector exercised
    *   - UpdateIntervals per-plugin polling edited
@@ -38,9 +40,9 @@ test.describe("regression: settings.behavior", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("tab", { name: "Behavior", exact: true }).click();
+    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
 
-    // All three Behavior cards render.
+    // All three Scheduling cards render.
     await expect(page.getByRole("heading", { name: "Board Transitions" })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("Update intervals", { exact: false })).toBeVisible();
     await expect(page.getByLabel("Silence Schedule")).toBeVisible();
@@ -82,7 +84,7 @@ test.describe("regression: settings.behavior", () => {
 
   /**
    * UX node: settings.behavior.silence-saved
-   * Route: /settings (Behavior tab)
+   * Route: /settings (Scheduling tab)
    * Expected (missing from current coverage):
    *   - 'toastSettingsSaved' toast text asserted
    *   - hasChanges flag flipping back to false verified
@@ -99,7 +101,7 @@ test.describe("regression: settings.behavior", () => {
 
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "Behavior", exact: true }).click();
+    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
 
     const silenceToggle = page.locator("#silence-enabled");
     await expect(silenceToggle).toBeVisible({ timeout: 10_000 });
@@ -138,7 +140,7 @@ test.describe("regression: settings.behavior", () => {
 
   /**
    * UX node: settings.behavior.silence-per-board
-   * Route: /settings (Behavior tab)
+   * Route: /settings (Scheduling tab)
    * Issue #1788: silence settings used to be global, so a Note and a Flagship
    * were forced to share one quiet period and one (single-sized) silence page.
    * A per-board write must land on the targeted board only and leave the other
@@ -213,10 +215,10 @@ test.describe("regression: settings.behavior", () => {
     });
     expect(ghostRes.status).toBe(404);
 
-    // The Behavior tab still renders the silence card for the current board.
+    // The Scheduling tab still renders the silence card for the current board.
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "Behavior", exact: true }).click();
+    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
     await expect(page.getByLabel("Silence Schedule")).toBeVisible({ timeout: 10_000 });
 
     // Restore: write the original window back to that board.
@@ -234,19 +236,19 @@ test.describe("regression: settings.behavior", () => {
   });
 });
 
-test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
+test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)", () => {
   /**
    * UX node: settings.tab-integrations
-   * Route: /settings (Integrations tab)
-   * Expected: AI / MCP / MQTT cards render; each has Configure / Test buttons
+   * Route: /settings (AI tab)
+   * Expected: AI / MCP cards render on the AI tab; MQTT renders on General
    * Source refs: web/src/components/settings/integrations/*
    * Coverage status: uncovered
    */
-  test("settings.tab-integrations — AI / MCP / MQTT cards render with expected controls", async ({ page }) => {
+  test("settings.tab-integrations — AI / MCP cards on AI, MQTT on General", async ({ page }) => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("tab", { name: "Integrations", exact: true }).click();
+    await page.getByRole("tab", { name: "AI", exact: true }).click();
 
     // AI card
     await expect(page.getByText("AI Providers", { exact: true })).toBeVisible({
@@ -260,13 +262,15 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     await expect(page.getByText("MCP / external clients")).toBeVisible();
     await expect(page.getByText("Status:", { exact: false }).first()).toBeVisible();
 
-    // MQTT card
-    await expect(page.getByText("Home Assistant (MQTT)")).toBeVisible();
+    // MQTT moved to General in 10.0: not on the AI tab any more.
+    await expect(page.getByText("Home Assistant (MQTT)")).toHaveCount(0);
+    await page.getByRole("tab", { name: "General", exact: true }).click();
+    await expect(page.getByText("Home Assistant (MQTT)")).toBeVisible({ timeout: 10_000 });
   });
 
   /**
    * UX node: settings.integrations.ai-test
-   * Route: /settings (Integrations tab → AI card)
+   * Route: /settings (AI tab → AI card)
    * Interactions: configure provider → click:test
    * Expected: pending state on Test button; success or error toast on completion
    * Source refs: web/src/components/settings/integrations/*
@@ -321,7 +325,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("tab", { name: "Integrations", exact: true }).click();
+    await page.getByRole("tab", { name: "AI", exact: true }).click();
     await expect(page.getByText("AI Providers", { exact: true })).toBeVisible({
       timeout: 10_000,
     });
@@ -348,7 +352,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
 
   /**
    * UX node: settings.integrations.mcp-rotate-confirm
-   * Route: /settings (Integrations tab → MCP card)
+   * Route: /settings (AI tab → MCP card)
    * Interactions: click:rotate-token → AlertDialog
    * Expected: confirm dialog warns; Confirm rotates token; new token surfaced
    * Source refs: web/src/components/settings/integrations/*
@@ -378,7 +382,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
 
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "Integrations", exact: true }).click();
+    await page.getByRole("tab", { name: "AI", exact: true }).click();
 
     await expect(page.getByText("MCP / external clients")).toBeVisible({
       timeout: 10_000,
@@ -402,7 +406,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
 
   /**
    * UX node: settings.integrations.mcp-revoke-confirm
-   * Route: /settings (Integrations tab → MCP card)
+   * Route: /settings (AI tab → MCP card)
    * Interactions: click:revoke → AlertDialog
    * Expected: confirm dialog warns; Confirm revokes token; row disabled
    * Source refs: web/src/components/settings/mcp-settings.tsx
@@ -439,7 +443,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("tab", { name: "Integrations", exact: true }).click();
+    await page.getByRole("tab", { name: "AI", exact: true }).click();
 
     // MCP card and its action buttons should render.
     await expect(page.getByText("MCP / external clients")).toBeVisible({
@@ -463,7 +467,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
 
   /**
    * UX node: settings.integrations.mcp-token-dialog
-   * Route: /settings (Integrations tab → MCP card)
+   * Route: /settings (AI tab → MCP card)
    * Interactions: open:show-token dialog
    * Expected: dialog shows MCP token with Copy affordance; Copy → clipboard
    * Source refs: web/src/components/settings/integrations/*
@@ -500,7 +504,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
 
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "Integrations", exact: true }).click();
+    await page.getByRole("tab", { name: "AI", exact: true }).click();
 
     await expect(page.getByText("MCP / external clients")).toBeVisible({
       timeout: 10_000,
@@ -534,7 +538,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
 
   /**
    * UX node: settings.integrations.mqtt-saved
-   * Route: /settings (Integrations tab → MQTT card)
+   * Route: /settings (General tab → MQTT card)
    * Expected: edit MQTT config + Save → success toast and connection-status indicator updates
    * Source refs: web/src/components/settings/integrations/*
    * Coverage status: uncovered
@@ -548,7 +552,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
 
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "Integrations", exact: true }).click();
+    await page.getByRole("tab", { name: "General", exact: true }).click();
 
     await expect(page.getByText("Home Assistant (MQTT)")).toBeVisible({
       timeout: 10_000,
@@ -570,7 +574,10 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
       { timeout: 10_000 },
     );
 
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    // General carries other cards with their own Save button (instance name,
+    // location), so scope to the MQTT card.
+    const mqttCard = page.locator('[data-ai-anchor="settings.mqtt"]');
+    await mqttCard.getByRole("button", { name: "Save", exact: true }).click();
     const saveResponse = await savePromise;
     expect(saveResponse.status()).toBe(200);
 
@@ -581,7 +588,7 @@ test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
 
     // The Save button should disappear (hasDraft flips to false after
     // mutation success).
-    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+    await expect(mqttCard.getByRole("button", { name: "Save", exact: true })).toBeHidden();
 
     // Restore prior settings.
     if (before) {

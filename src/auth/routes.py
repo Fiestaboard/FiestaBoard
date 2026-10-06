@@ -439,7 +439,7 @@ async def auth_disable(payload: DisableAuthRequest, request: Request, response: 
 # no session; once a token is configured, every management route (status
 # included — it leaks the token's source) requires presenting the *current*
 # token as a Bearer (possession is the credential — #1825). Only the first
-# mint stays open, so Settings → Integrations can still bootstrap a token
+# mint stays open, so Settings → AI can still bootstrap a token
 # on an install with the login off.
 
 
@@ -449,7 +449,7 @@ def _require_admin(request: Request) -> str:
     When auth is explicitly *disabled* (``FIESTABOARD_AUTH_ENABLED=0`` or the
     persisted preference is ``disabled``) there is no admin concept and no
     session cookie ever gets issued — return a sentinel instead of a 401.
-    Without this the Settings → Integrations page hits a 401, the web client
+    Without this the Settings → AI page hits a 401, the web client
     redirects to ``/login``, the login page sees auth is disabled and bounces
     back, and the user is stuck in an infinite reload loop. The MCP token
     routes reach this only through :func:`_require_admin_or_mcp_token`, which

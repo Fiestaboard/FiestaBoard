@@ -7,7 +7,7 @@ schedules through conversation rather than the web UI.
 
 This page walks through wiring each client up to a self-hosted FiestaBoard.
 
-> **Where to get your token:** **Settings → Integrations → MCP / external
+> **Where to get your token:** **Settings → AI → MCP / external
 > clients → Generate token** (or **Rotate token**). The plaintext value is
 > shown exactly once — copy it into your client config immediately.
 
@@ -41,7 +41,7 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 
 > **Note:** When `FIESTABOARD_MCP_TOKEN` is set it takes precedence over any
 > token stored by the Settings UI, and the **Generate / Rotate token** buttons
-> in **Settings → Integrations** are disabled. To manage the token from the UI
+> in **Settings → AI** are disabled. To manage the token from the UI
 > again, unset the variable and restart the container.
 
 > **Once a token exists, `/api/mcp/` requires it** — in every auth mode,
@@ -60,7 +60,7 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 > current token as an `Authorization: Bearer` header, and anonymous
 > requests get a 401. Only the first mint stays open, by design — until a
 > token exists the whole REST surface is open, so gating it would protect
-> nothing, and it keeps **Settings → Integrations** rendering without a
+> nothing, and it keeps **Settings → AI** rendering without a
 > login-redirect loop. (Earlier releases left these routes fully anonymous
 > on such installs, so anyone who could reach the port could mint or
 > revoke the token — fixed in Fiestaboard/FiestaBoard#1825.)
@@ -73,7 +73,7 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 > as an `Authorization: Bearer` header and are refused with a `403`
 > otherwise (Fiestaboard/FiestaBoard#1880). Disabling the login is never
 > gated. To add a login later on such an install, send the token with the
-> request or clear it in **Settings → Integrations** first.
+> request or clear it in **Settings → AI** first.
 > `FIESTABOARD_MCP_TOKEN` is not gated this way because there is nothing
 > to hijack: while it is set, the mutating routes refuse with `409` even
 > for a caller presenting the token, so it cannot be rotated or revoked
@@ -111,7 +111,7 @@ Desktop's launch environment. On macOS with Homebrew Node that usually
 "just works"; with `nvm` you may need to use the absolute path (see
 [Troubleshooting](#troubleshooting)).
 
-1. In FiestaBoard's web UI, open **Settings → Integrations → MCP / external
+1. In FiestaBoard's web UI, open **Settings → AI → MCP / external
    clients** and click **Generate token** (or **Rotate token**). Keep the
    reveal dialog open — it shows the token and a Desktop config snippet.
 2. Open the Claude Desktop config file and merge in the `fiestaboard` entry
@@ -577,7 +577,7 @@ inherit your PATH.
   `C:\Program Files\nodejs\npx.cmd`.
 
 **`401 Unauthorized`** — the token is wrong or was rotated. Generate a
-new one in **Settings → Integrations** and update the `Authorization`
+new one in **Settings → AI** and update the `Authorization`
 header.
 
 **Tools call succeeds but the page-preview image doesn't render

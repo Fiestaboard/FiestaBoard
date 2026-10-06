@@ -141,8 +141,10 @@ def _return_location(outcome: CallbackOutcome) -> str:
     """
     outcome_value = "connected" if outcome.connected else "error"
     if outcome.connection_id and outcome.connection_id.startswith(AI_CONNECTION_PREFIX):
-        # FiestaBot's AI providers sign in from Settings, not Integrations.
-        ai_query = {"section": "integrations", "oauth": outcome_value, "connection": outcome.connection_id}
+        # FiestaBot's AI providers sign in from Settings → AI, not the
+        # Integrations page. (The tab was called Integrations before 10.0;
+        # the web app still maps that old id to AI.)
+        ai_query = {"section": "ai","oauth": outcome_value, "connection": outcome.connection_id}
         if outcome.reason:
             ai_query["reason"] = outcome.reason
         return f"../../settings?{urlencode(ai_query)}"

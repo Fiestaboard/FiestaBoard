@@ -389,7 +389,7 @@ FiestaBoard exposes a built-in **MCP (Model Context Protocol) server** at `/api/
 
 ### Connecting Claude Desktop
 
-Claude Desktop only accepts stdio MCP entries, so connect via the `mcp-remote` proxy. First generate a bearer token in **Settings → Integrations → MCP / external clients**, then add to your `claude_desktop_config.json`:
+Claude Desktop only accepts stdio MCP entries, so connect via the `mcp-remote` proxy. First generate a bearer token in **Settings → AI → MCP / external clients**, then add to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -429,7 +429,7 @@ The MCP server exposes 28 tools covering the full FiestaBoard API:
 | Collections | `list_collections`, `create_collection`, `update_collection`, `delete_collection` |
 | System | `get_system_status`, `get_settings_summary`, `set_active_page`, `set_schedule_mode` |
 
-The MCP server requires a bearer token for all requests. Generate one in **Settings → Integrations → MCP / external clients**. See [MCP Clients Setup](docs/internal/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
+The MCP server requires a bearer token for all requests. Generate one in **Settings → AI → MCP / external clients**. See [MCP Clients Setup](docs/internal/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
 
 ---
 

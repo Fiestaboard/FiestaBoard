@@ -103,6 +103,9 @@ export function anchorProps(id: string): { [ANCHOR_ATTR]: string } {
 /** Not a settings tab: the categories a board owns live on Displays (plan D21). */
 const DISPLAYS_SECTION = "displays";
 
+/** Not a settings tab either: plugin updates live on the Integrations page toolbar. */
+const INTEGRATIONS_PAGE = "integrations-page";
+
 /**
  * The settings tab that owns a `update_setting` category, and the card the
  * spotlight lands on when a key has no control-level anchor of its own.
@@ -112,17 +115,17 @@ export const SETTING_SECTIONS: Record<string, { section: string; card?: string }
   general: { section: "general" },
   location: { section: "general", card: "settings.location" },
   display: { section: "general", card: "settings.display" },
-  transitions: { section: "behavior", card: "settings.transitions" },
-  polling: { section: "behavior", card: "settings.polling" },
-  silence_schedule: { section: "behavior", card: "settings.silence_schedule" },
-  schedule_behavior: { section: "behavior", card: "settings.schedule_behavior" },
+  transitions: { section: "scheduling", card: "settings.transitions" },
+  polling: { section: "scheduling", card: "settings.polling" },
+  silence_schedule: { section: "scheduling", card: "settings.silence_schedule" },
+  schedule_behavior: { section: "scheduling", card: "settings.schedule_behavior" },
   // Displays have their own section (plan D21), not a settings tab.
   output: { section: DISPLAYS_SECTION, card: "settings.output" },
   hdmi_kiosk: { section: DISPLAYS_SECTION, card: "settings.hdmi_kiosk" },
   boards: { section: DISPLAYS_SECTION, card: "settings.boards" },
-  ai: { section: "integrations", card: "settings.ai" },
-  mqtt: { section: "integrations", card: "settings.mqtt" },
-  plugins: { section: "integrations", card: "settings.plugins" },
+  ai: { section: "ai", card: "settings.ai" },
+  mqtt: { section: "general", card: "settings.mqtt" },
+  plugins: { section: INTEGRATIONS_PAGE, card: "settings.plugins" },
   release_channel: { section: "system", card: "settings.release_channel" },
   auto_update: { section: "system", card: "settings.auto_update" },
   beta: { section: "advanced", card: "settings.beta" },
@@ -134,10 +137,14 @@ export function settingAnchors(category: string, key: string): { control: string
   return { control: `settings.${category}.${key}`, card: owner?.card ?? `settings.${category}` };
 }
 
-/** The route that shows `category`: its settings tab, or Displays for a board's. */
+/**
+ * The route that shows `category`: its settings tab, Displays for a board's,
+ * or the Integrations page for plugin updates.
+ */
 export function settingsHref(category: string): string {
   const owner = SETTING_SECTIONS[category];
   const section = owner?.section ?? "general";
   if (section === DISPLAYS_SECTION) return "/displays";
+  if (section === INTEGRATIONS_PAGE) return "/integrations";
   return `/settings?section=${section}`;
 }

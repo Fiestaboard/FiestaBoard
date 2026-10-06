@@ -20,7 +20,7 @@ None. Transition plugins don't expose template variables.
 
 ## Example Templates
 
-Simple Dissolve isn't referenced from a template. Once the **Transition Plugins** beta is on (Settings → Advanced → Beta Features), pick it from the **Transition** dropdown in the page editor's toolbar for a single page, or from Settings → Behavior → Board Transitions for every page. A page's own setting wins over the global default; "Use global default" clears it.
+Simple Dissolve isn't referenced from a template. Once the **Transition Plugins** beta is on (Settings → Advanced → Beta Features), pick it from the **Transition** dropdown in the page editor's toolbar for a single page, or from Settings → Scheduling → Board Transitions for every page. A page's own setting wins over the global default; "Use global default" clears it.
 
 Pages store the choice as `transition_strategy = "plugin:simple_dissolve"`.
 
