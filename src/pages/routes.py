@@ -35,7 +35,8 @@ from src.devices import board_context_for, geometry_of, resolve_dimensions, size
 from src.display_runtime import get_service
 from src.led.charsets import has_extended_markup
 from src.outputs.board_profile import board_character_set
-from src.outputs.cells import cells_to_json, extended_markup_kw, project_for_output, project_message
+from src.outputs.cells import cells_to_json, project_for_output, project_message
+from src.outputs.display_profile import display_profile_for_board, render_kw
 from src.schedules.service import get_schedule_service
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service
 from src.text_to_board import text_to_board_array
@@ -439,6 +440,8 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
     board = _find_board(request.board_id) if request.board_id else None
     charset = board_character_set(board) if board is not None else None
     rich = has_extended_markup(charset)
+    # What the board draws, so a display-aware plugin previews as it will show.
+    display = display_profile_for_board(board) if board is not None else None
 
     page_service = get_page_service()
     settings_service = get_settings_service()
@@ -456,6 +459,7 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
         force_refresh=request.force_refresh,
         active_page_id=active_page_id,
         **({"extended_markup": True} if rich else {}),
+        **({"display": display} if display is not None else {}),
     )
     dims = board_context_for(*geometry_of(board)) if rich else None
 
@@ -592,7 +596,7 @@ async def send_page(
         # Render the page - always force fresh render when sending to board.
         # A board whose output draws a rich character set renders it with its
         # extended markup (plan D19); every other board's call is unchanged.
-        result = page_service.preview_page(page_id, force_refresh=True, **extended_markup_kw(board_client))
+        result = page_service.preview_page(page_id, force_refresh=True, **render_kw(board_client))
 
         if result is None:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")

@@ -444,6 +444,12 @@ class BoardContext:
     device_type: str  # "flagship" | "note" | future/composite
     rows: int  # height in tiles
     cols: int  # width in tiles
+    # What the display can draw (src.outputs.display_profile.DisplayProfile):
+    # its technology, colour, lowercase, coloured text, backgrounds, tiles
+    # and icons, as its output plugin declares them. None when the render has
+    # no board in hand (a size-only preview, a unit test); a plugin treats
+    # None as the split-flap baseline.
+    display: Any = None
 
     @property
     def width(self) -> int:
@@ -746,6 +752,7 @@ def board_context_for(
     notes_tall: int = 1,
     grid_rows: int | None = None,
     grid_cols: int | None = None,
+    display: Any = None,
 ) -> BoardContext:
     """Build a :class:`BoardContext` for any device type, including note arrays.
 
@@ -760,4 +767,4 @@ def board_context_for(
     except ValueError:
         device_type = DEFAULT_DEVICE_TYPE
         dims = resolve_dimensions(device_type, notes_wide, notes_tall)
-    return BoardContext(device_type=device_type, rows=dims.rows, cols=dims.cols)
+    return BoardContext(device_type=device_type, rows=dims.rows, cols=dims.cols, display=display)

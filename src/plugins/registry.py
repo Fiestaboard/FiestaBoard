@@ -2134,7 +2134,16 @@ class PluginRegistry:
         # The identity of a fetch: one plugin ON one board geometry. The
         # in-flight registry, the circuit breaker and the timeout streaks all
         # key off it, so they agree on what "this fetch" means.
-        board_key = None if board is None else (board.device_type, board.rows, board.cols)
+        board_key = (
+            None
+            if board is None
+            else (
+                board.device_type,
+                board.rows,
+                board.cols,
+                getattr(getattr(board, "display", None), "key", None),
+            )
+        )
 
         # Circuit-breaker gate (issue #1884): a quarantined plugin is dropped
         # from this build entirely — not submitted, and crucially not WAITED
