@@ -455,9 +455,9 @@ describe("an output plugin", () => {
           : HttpResponse.json(SIGN, { status: 201 }),
       ),
     );
-    const beta = record("put", "/api/settings/beta", (body) => {
+    const beta = record("put", "/api/settings/plugins", (body) => {
       gated = false;
-      return HttpResponse.json({ settings: body });
+      return HttpResponse.json({ auto_update: true, transition_plugins_enabled: false, ...(body as object) });
     });
     renderWizard();
     await choose(/Recording Sign/);

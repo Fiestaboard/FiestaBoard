@@ -598,6 +598,24 @@ describe("SidebarSettingsMenu About box", () => {
     expect(within(dialog).getByText("© 2026 Fiestaboard contributors")).toBeInTheDocument();
   });
 
+  it("links to the documentation", async () => {
+    // Settings → System used to carry an About card whose one unique fact was
+    // this link; the card is gone, so the About box has to carry it.
+    const user = userEvent.setup();
+    mockAuth(SIGNED_IN);
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("menuitem", { name: "About FiestaBoard" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("link", { name: "Documentation" })).toHaveAttribute(
+      "href",
+      "https://fiestaboard.app/docs/intro",
+    );
+  });
+
   it("closes on Escape", async () => {
     const user = userEvent.setup();
     mockAuth(SIGNED_IN);

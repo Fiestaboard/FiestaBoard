@@ -3088,7 +3088,7 @@
       "preconditions": [
         "section:behavior"
       ],
-      "description": "Behavior tab: TransitionSettings (page transition presets), UpdateIntervals (per-plugin polling), and SilenceSchedule (quiet hours editor with start/end pickers, mode selector indicator/page, indicator text input).",
+      "description": "Scheduling tab (?section=scheduling; was Behavior, ?section=behavior still opens it): TransitionSettings (page transition presets), UpdateIntervals (per-plugin polling), and SilenceSchedule (quiet hours editor with start/end pickers, mode selector indicator/page, indicator text input).",
       "interactions": [
         "select:transition",
         "type:interval",
@@ -3130,7 +3130,7 @@
       "preconditions": [
         "section:integrations"
       ],
-      "description": "Integrations tab: stacks AiSettings, McpSettings, MqttSettings, and PluginSettingsCard. Each card has independent expand/edit/save states.",
+      "description": "AI tab (?section=ai; was Integrations, ?section=integrations still opens it): stacks AiSettings and McpSettings. MqttSettings moved to the General tab and plugin updates to the /integrations page header. Each card has independent expand/edit/save states.",
       "interactions": [
         "click:expand-ai",
         "click:expand-mcp",
@@ -3147,8 +3147,7 @@
       "source_refs": [
         "web/src/components/settings/ai-settings.tsx",
         "web/src/components/settings/mcp-settings.tsx",
-        "web/src/components/settings/mqtt-settings.tsx",
-        "web/src/components/settings/plugin-settings.tsx"
+        "web/src/components/settings/mqtt-settings.tsx"
       ],
       "i18n_sensitive": true
     },
@@ -3248,7 +3247,7 @@
       "preconditions": [
         "section:system"
       ],
-      "description": "System tab: SystemControls (restart/shutdown/factory-reset cards), AutoUpdateInterval, BackupSettings (export/import), 'Setup wizard' card with Wand2 brand button, and AboutCard (version/license).",
+      "description": "System tab: SystemControls (restart/shutdown/factory-reset cards), AutoUpdateInterval, BackupSettings (export/import), and the 'Setup wizard' card with Wand2 brand button. (The About card was removed in 10.0; version/licence/docs live in the account menu's About box.)",
       "interactions": [
         "click:restart",
         "click:shutdown",
@@ -3268,8 +3267,7 @@
       "source_refs": [
         "web/src/components/settings/system-controls.tsx",
         "web/src/components/settings/auto-update-interval.tsx",
-        "web/src/components/settings/backup-settings.tsx",
-        "web/src/components/settings/about-card.tsx"
+        "web/src/components/settings/backup-settings.tsx"
       ],
       "i18n_sensitive": true
     },

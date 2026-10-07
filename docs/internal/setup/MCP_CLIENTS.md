@@ -7,7 +7,7 @@ schedules through conversation rather than the web UI.
 
 This page walks through wiring each client up to a self-hosted FiestaBoard.
 
-> **Where to get your token:** **Settings → Integrations → MCP / external
+> **Where to get your token:** **Settings → AI → MCP / external
 > clients → Generate token** (or **Rotate token**). The plaintext value is
 > shown exactly once — copy it into your client config immediately.
 
@@ -41,7 +41,7 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 
 > **Note:** When `FIESTABOARD_MCP_TOKEN` is set it takes precedence over any
 > token stored by the Settings UI, and the **Generate / Rotate token** buttons
-> in **Settings → Integrations** are disabled. To manage the token from the UI
+> in **Settings → AI** are disabled. To manage the token from the UI
 > again, unset the variable and restart the container.
 
 > **Once a token exists, `/api/mcp/` requires it** — in every auth mode,
@@ -60,7 +60,7 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 > current token as an `Authorization: Bearer` header, and anonymous
 > requests get a 401. Only the first mint stays open, by design — until a
 > token exists the whole REST surface is open, so gating it would protect
-> nothing, and it keeps **Settings → Integrations** rendering without a
+> nothing, and it keeps **Settings → AI** rendering without a
 > login-redirect loop. (Earlier releases left these routes fully anonymous
 > on such installs, so anyone who could reach the port could mint or
 > revoke the token — fixed in Fiestaboard/FiestaBoard#1825.)
@@ -73,7 +73,7 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 > as an `Authorization: Bearer` header and are refused with a `403`
 > otherwise (Fiestaboard/FiestaBoard#1880). Disabling the login is never
 > gated. To add a login later on such an install, send the token with the
-> request or clear it in **Settings → Integrations** first.
+> request or clear it in **Settings → AI** first.
 > `FIESTABOARD_MCP_TOKEN` is not gated this way because there is nothing
 > to hijack: while it is set, the mutating routes refuse with `409` even
 > for a caller presenting the token, so it cannot be rotated or revoked
@@ -111,7 +111,7 @@ Desktop's launch environment. On macOS with Homebrew Node that usually
 "just works"; with `nvm` you may need to use the absolute path (see
 [Troubleshooting](#troubleshooting)).
 
-1. In FiestaBoard's web UI, open **Settings → Integrations → MCP / external
+1. In FiestaBoard's web UI, open **Settings → AI → MCP / external
    clients** and click **Generate token** (or **Rotate token**). Keep the
    reveal dialog open — it shows the token and a Desktop config snippet.
 2. Open the Claude Desktop config file and merge in the `fiestaboard` entry
@@ -317,6 +317,26 @@ until it opts back in, by naming the fields it wants:
 carries only the fields you name, plus `id`, which is always included. Naming
 a field no entry has is an error that lists the valid ones.
 
+### 5. Transitions are per display, and the `beta` category is deprecated
+
+FiestaBoard 10 (settings schema v6) drops the install-wide transition: each
+display owns its own.
+
+- `update_board` takes `transition`, `transition_step_interval_ms` and
+  `transition_step_size` — the display's strategy (a built-in name,
+  `plugin:<id>`, or `null` for none) and its speed (interval 0–5000 ms,
+  step size 1 or more).
+- `update_setting("transitions", ...)` is a deprecated alias that reads and
+  sets the **first** board's transition. It is removed in v11; move to
+  `update_board`.
+- `transition_plugins_enabled` and `output_plugins_enabled` now belong to
+  the `plugins` category, next to `auto_update`. `update_setting("beta", ...)`
+  still sets those two flags as a deprecated alias, removed in v11.
+  `get_settings_summary()` has no `beta` block.
+
+A page's own `transition_strategy` / `transition_interval_ms` /
+`transition_step_size` still wins over the display's, field by field.
+
 ### Also new: tool annotations
 
 Every tool now carries the standard MCP annotations (`readOnlyHint`,
@@ -515,8 +535,9 @@ external client can do the same things a person can there:
 
 - `update_setting(category, values)` gained the categories `general`
   (`instance_name` — how you rename the install — `timezone`,
-  `time_format`, `date_format`, `welcome_message`), `beta`, `plugins`
-  (`auto_update`), `mqtt` (broker address and `external_url`; not the
+  `time_format`, `date_format`, `welcome_message`), `plugins`
+  (`auto_update`, `transition_plugins_enabled`, `output_plugins_enabled`;
+  these two flags were a separate `beta` category until settings v6), `mqtt` (broker address and `external_url`; not the
   username/password), `ai` (enabled, default provider, and each provider's
   non-secret fields; never `api_key`), `release_channel`, `auto_update`
   (interval) and `hdmi_kiosk`. `silence_schedule` and `active_page` accept
@@ -577,7 +598,7 @@ inherit your PATH.
   `C:\Program Files\nodejs\npx.cmd`.
 
 **`401 Unauthorized`** — the token is wrong or was rotated. Generate a
-new one in **Settings → Integrations** and update the `Authorization`
+new one in **Settings → AI** and update the `Authorization`
 header.
 
 **Tools call succeeds but the page-preview image doesn't render

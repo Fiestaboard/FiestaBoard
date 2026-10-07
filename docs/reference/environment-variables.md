@@ -36,13 +36,13 @@ Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_RE
 
 ## Board Transition & Display
 
-These control the board's animation and where output is sent. The `BOARD_TRANSITION_*` variables apply in local mode only; `OUTPUT_TARGET` applies in both modes.
+These control the board's animation and where output is sent. The `BOARD_TRANSITION_*` variables only seed a **new** split-flap display: when you add one, it starts with these values in its **Transition** section. They are not an install-wide setting, and changing them never touches a display that already exists — set each display's transition in **Displays → (a display) → Transition** instead (see [Transitions](/docs/features/transitions)). Built-in strategies run over the Local API only. `OUTPUT_TARGET` applies in both modes.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BOARD_TRANSITION_STRATEGY` | Transition animation style (local mode only) | - |
-| `BOARD_TRANSITION_INTERVAL_MS` | Delay between animation steps | `0` |
-| `BOARD_TRANSITION_STEP_SIZE` | Columns/rows per animation step | `0` |
+| `BOARD_TRANSITION_STRATEGY` | Starting transition style for new split-flap displays | - |
+| `BOARD_TRANSITION_INTERVAL_MS` | Starting step interval (ms) for new split-flap displays | `0` |
+| `BOARD_TRANSITION_STEP_SIZE` | Starting step size (columns/rows per step) for new split-flap displays | `0` |
 | `OUTPUT_TARGET` | Where rendered content goes: `ui` (preview only), `board` (send to board), or `both` | `board` |
 
 ## Weather

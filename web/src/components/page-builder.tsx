@@ -91,6 +91,7 @@ import {
   useBoardSettings,
 } from "@/hooks/use-board";
 import { useDisplayTargets } from "@/hooks/use-panel-targets";
+import { usePluginSettings } from "@/hooks/use-plugin-settings";
 import { useTransitionPlugins } from "@/hooks/use-transition-plugins";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
@@ -371,7 +372,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
 
-  // Per-page transition override. `null` means "inherit the global default"
+  // Per-page transition override. `null` means "inherit the display's transition"
   // — the backend clears a stored override only when it is sent an explicit
   // null, so this always goes out on the wire (see the save mutation).
   const [transitionStrategy, setTransitionStrategy] = useState<string | null>(null);
@@ -995,16 +996,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Transition plugins (beta, deprecated): offered only while the flag is on,
   // since the backend refuses a `plugin:` strategy otherwise. The installed
   // ones come from the plugin listing, filtered to plugin_type "transition".
-  const { data: betaSettings } = useQuery({
-    queryKey: ["settings", "beta"],
-    queryFn: () => api.getBetaSettings(),
-  });
-  const transitionPluginsEnabled = betaSettings?.settings.transition_plugins_enabled ?? false;
+  const { data: pluginSettings } = usePluginSettings();
+  const transitionPluginsEnabled = pluginSettings?.transition_plugins_enabled ?? false;
   const transitionPlugins = useTransitionPlugins(transitionPluginsEnabled);
 
   // A `plugin:<id>` override whose plugin isn't in the list — the beta is off,
   // or the plugin was uninstalled. Surface it under its raw id rather than
-  // silently showing "Use global default"; the user's setting is never cleared
+  // silently showing "Use the display's transition"; the user's setting is never cleared
   // behind their back.
   const unknownPluginStrategy = useMemo(() => {
     if (!transitionStrategy?.startsWith(PLUGIN_STRATEGY_PREFIX)) return null;
@@ -1014,7 +1012,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Human-readable name for the currently selected transition, for the tooltip.
   const transitionLabel = useMemo(() => {
-    if (!transitionStrategy) return t("transitionUseGlobalDefault");
+    if (!transitionStrategy) return t("transitionUseDisplayTransition");
     if (unknownPluginStrategy) return unknownPluginStrategy;
     if (transitionStrategy.startsWith(PLUGIN_STRATEGY_PREFIX)) {
       const id = transitionStrategy.slice(PLUGIN_STRATEGY_PREFIX.length);
@@ -1106,7 +1104,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setDebouncedLineAlignments(alignments);
       setDebouncedLineWrapEnabled(wrapStates);
       setDebouncedTemplateLines(contents);
-      // Per-page transition override (null = inherit the global default).
+      // Per-page transition override (null = inherit the display's transition).
       const savedTransition = existingPage.transition_strategy ?? null;
       setTransitionStrategy(savedTransition);
       setSavedSnapshot({
@@ -1366,7 +1364,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           line_metadata: metadata,
           // Always sent, even when null: the API clears a stored override only
           // for keys it actually receives, so omitting this would silently keep
-          // a previous per-page transition after the user chose "global default".
+          // a previous per-page transition after the user chose "Use the display's transition".
           transition_strategy: transitionStrategy,
           ...geometryFields(deviceType, notesWide, notesTall, panelGrid),
         };
@@ -2088,7 +2086,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                          *  Save. Picking a transition is a one-shot choice,
                          *  so every item closes the menu. */}
                         <DropdownMenuRadioItem value={TRANSITION_INHERIT} className="text-xs" closeOnClick>
-                          {t("transitionUseGlobalDefault")}
+                          {t("transitionUseDisplayTransition")}
                         </DropdownMenuRadioItem>
                         <DropdownMenuLabel className="text-[11px] text-muted-foreground">
                           {t("transitionBuiltInGroup")}

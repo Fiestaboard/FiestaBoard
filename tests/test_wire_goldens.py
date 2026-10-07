@@ -753,7 +753,7 @@ def _wire_fake_runner():
             "transition_settings": {"min_interval_ms": 0},
         }
     )
-    get_settings_service().update_beta_settings({"transition_plugins_enabled": True})
+    get_settings_service().update_plugin_settings({"transition_plugins_enabled": True})
     return TransitionRunner(lambda pid: plugin if pid == "wire_fake" else None)
 
 

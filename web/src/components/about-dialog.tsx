@@ -41,6 +41,7 @@ import { resolveDimensions } from "@/lib/board-dimensions";
 const LICENSE_HOLDER = "Fiestaboard contributors";
 const LICENSE_YEAR = "2026";
 const REPO_URL = "https://github.com/Fiestaboard/FiestaBoard";
+const DOCS_URL = "https://fiestaboard.app/docs/intro";
 
 interface AboutDialogProps {
   open: boolean;
@@ -185,9 +186,14 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
           <Text size="xs" tone="muted">
             {t("copyright", { year: LICENSE_YEAR, holder: LICENSE_HOLDER })}
           </Text>
-          <TextLink href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-xs">
-            {t("sourceCode")}
-          </TextLink>
+          <Flex align="center" justify="center" gap="3">
+            <TextLink href={DOCS_URL} target="_blank" rel="noopener noreferrer" className="text-xs">
+              {t("documentation")}
+            </TextLink>
+            <TextLink href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-xs">
+              {t("sourceCode")}
+            </TextLink>
+          </Flex>
         </Stack>
       </DialogContent>
     </Dialog>

@@ -62,7 +62,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from src.led.charsets import CharacterSet, has_extended_markup
-from src.led.transition_registry import ResolvedLedTransition, resolve_led_transition
+from src.led.transition_registry import ResolvedLedTransition, is_led_transition_id, resolve_led_transition
 from src.send_outcome import WriteResult
 
 from .breaker import DEFAULT_WRITE_TIMEOUT_MS, output_breakers
@@ -585,6 +585,13 @@ class OutputPluginDriver:
                 reset()
                 return self._render_transition(characters, cells, strategy, force, with_outcome)
 
+        # A board's LED menu choice ("none", "flip"...; settings v6 gives
+        # every new display one) means nothing to a plugin that takes no LED
+        # transitions: it is a plain write, never a refused native strategy.
+        # Its speed goes with it: a NativeTransition built from the speed
+        # alone would reach a plugin that declares native transitions.
+        if isinstance(strategy, str) and strategy not in NATIVE_STRATEGIES and is_led_transition_id(strategy):
+            strategy = step_interval_ms = step_size = None
         rich: dict[str, Any] = {"cells": cells} if cells is not None else {}
         return self._output_runtime.render(
             self,

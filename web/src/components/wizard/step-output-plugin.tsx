@@ -42,6 +42,7 @@ import { DevicePreview } from "@/components/device-preview";
 import { OUTPUTS_QUERY_KEY } from "@/components/settings/output-boards";
 import { PluginBoardSettings } from "@/components/settings/plugin-board-settings";
 import { queryKeys } from "@/hooks/use-board";
+import { PLUGIN_SETTINGS_QUERY_KEY } from "@/hooks/use-plugin-settings";
 import { useTranslations } from "@/i18n/translations";
 import type { OutputSummary } from "@/lib/api";
 import { api, ApiError } from "@/lib/api";
@@ -111,8 +112,11 @@ export function StepOutputPlugin({
     },
   });
   const enableBeta = useMutation({
-    mutationFn: () => api.updateBetaSettings({ output_plugins_enabled: true }),
-    onSuccess: () => install.mutate(),
+    mutationFn: () => api.updatePluginSettings({ output_plugins_enabled: true }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: PLUGIN_SETTINGS_QUERY_KEY });
+      install.mutate();
+    },
   });
 
   // Install as soon as the step opens (choosing an output installs it, plan

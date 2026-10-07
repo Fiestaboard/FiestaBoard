@@ -1507,7 +1507,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await configureAiProvider();
     await initPage(page);
 
-    await page.goto("/settings?section=integrations");
+    await page.goto("/settings?section=ai");
     await page.waitForTimeout(3000);
 
     const card = page.getByText(/ai providers/i).first();

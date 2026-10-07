@@ -1186,8 +1186,8 @@ transitions. The manifest carries an `output` block — `output_api` (currently
 (mark credentials `"secret": true`). Output plugins declare no `variables`,
 `teaser` or `previews`; registry repos use the `fiestaboard-output--` prefix.
 Only **third-party** outputs (registry or git URL, not carried by the seed)
-need **Settings → Advanced → Beta Features → Output Plugins**
-(`beta.output_plugins_enabled`); built-ins, `plugins/` and the seed's
+need the **Third-party displays (beta)** switch in the **Integrations**
+page header (`plugins.output_plugins_enabled`); built-ins, `plugins/` and the seed's
 loadable outputs are always on. The loader decides once and records it as
 `OutputDefinition.beta_gated` (`PluginLoader._register_output_locked`). The
 in-repo test kit is `tests/fixtures/plugins/recording_output`; the contract
@@ -1846,7 +1846,7 @@ logger.error("Failed to fetch data")
 
 External plugins installed from the registry or a git URL are updated automatically. A background task in `src/api_server.py` polls every hour, calls `registry.check_for_updates()`, and — when the user's **Auto-update plugins** setting is on — silently pulls the latest commit for any plugin that has changed.
 
-The behaviour is controlled by **Settings → Plugin Updates**. Users can choose between automatic application and a manual flow that surfaces the available update on the Integrations page (per-plugin update button or the bulk "Apply all updates" action).
+The behaviour is controlled by the **Auto-update plugins** switch in the Integrations page header (beside **Check for updates**; it was a Settings card before 10.0). Users can choose between automatic application and a manual flow that surfaces the available update on the Integrations page (per-plugin update button or the bulk "Apply all updates" action).
 
 For plugin authors this means users on the default settings will receive fixes and new variables shortly after changes land on the plugin's default branch. Keep the default branch stable — breaking changes should be gated behind a version bump in `manifest.json`.
 

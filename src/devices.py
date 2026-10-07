@@ -3,6 +3,7 @@
 Defines the supported Vestaboard device types and their physical constraints.
 """
 
+import logging
 import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal, NamedTuple, get_args
@@ -219,10 +220,20 @@ class BoardInstance:
     device_model: str | None = None
     # How this display changes its message (plan D21): the device menu's
     # choice — a split-flap native strategy, ``"plugin:<id>"``, an LED menu
-    # id (``"flip"``, ``"fade"``...) or ``"none"``. ``None`` follows the
-    # install's default transition. A page's own override still wins.
-    # Absent from to_dict while unset, so no stored board changes.
+    # id (``"flip"``, ``"fade"``...) or ``"none"``. Since settings v6 every
+    # display owns its transition: there is no install-wide default any more.
+    # ``None`` survives only on an output plugin's board migrated from v5
+    # without a choice, where it means its device model's default (a flip
+    # where the device can show one). A new display is given one when it is
+    # added (``SettingsService.add_board``). A page's own override still wins.
+    # Absent from to_dict while unset.
     transition: str | None = None
+    # The transition's speed (settings v6): the delay between animation
+    # steps in ms (0 = as fast as the device goes) and how many columns or
+    # rows move per step, forwarded to devices that animate natively.
+    # ``None`` is the device's own default. Absent from to_dict while unset.
+    transition_step_interval_ms: int | None = None
+    transition_step_size: int | None = None
 
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
@@ -245,6 +256,10 @@ class BoardInstance:
         if not isinstance(self.paused, bool):
             self.paused = bool(self.paused)
         self.transition = (self.transition.strip() or None) if isinstance(self.transition, str) else None
+        self.transition_step_interval_ms = clamp_transition_speed(
+            "transition_step_interval_ms", self.transition_step_interval_ms
+        )
+        self.transition_step_size = clamp_transition_speed("transition_step_size", self.transition_step_size)
         # Name is user-editable (issue #1792): strip, cap, and fall back to
         # the default. "   " is truthy, so a falsy-only guard stored
         # whitespace verbatim and rendered a blank sidebar row.
@@ -395,8 +410,9 @@ class BoardInstance:
         data = asdict(self)
         if self.device_model is None:
             del data["device_model"]
-        if self.transition is None:
-            del data["transition"]
+        for key in ("transition", "transition_step_interval_ms", "transition_step_size"):
+            if data[key] is None:
+                del data[key]
         return data
 
     @classmethod
@@ -439,6 +455,8 @@ class BoardInstance:
             output_config=config,
             device_model=data.get("device_model"),
             transition=data.get("transition"),
+            transition_step_interval_ms=data.get("transition_step_interval_ms"),
+            transition_step_size=data.get("transition_step_size"),
         )
 
 
@@ -707,6 +725,67 @@ class Geometry(NamedTuple):
     notes_tall: int = 1
     grid_rows: int | None = None
     grid_cols: int | None = None
+
+
+def _bounded_int(value, *, minimum: int, maximum: int | None = None) -> int | None:
+    """*value* when it is a whole number (an int, never a bool or a float)
+    within ``[minimum, maximum]``; otherwise ``None``."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        return None
+    if maximum is not None and value > maximum:
+        return None
+    return value
+
+
+#: The longest transition step interval, in ms: a display's
+#: (``transition_step_interval_ms``) and a page's (``transition_interval_ms``).
+#: The one definition: the settings and page models, the MCP docs and the web
+#: UI (``MAX_STEP_INTERVAL_MS`` in display-transition.tsx) all follow it.
+MAX_TRANSITION_STEP_INTERVAL_MS: int = 5000
+
+#: A display's transition speed fields and their bounds (settings v6).
+TRANSITION_SPEED_BOUNDS: dict[str, tuple[int, int | None]] = {
+    "transition_step_interval_ms": (0, MAX_TRANSITION_STEP_INTERVAL_MS),
+    "transition_step_size": (1, None),
+}
+
+
+def transition_speed(key: str, value) -> int | None:
+    """*value* for speed field *key* when it is in bounds, else ``None``.
+
+    The one validator for a display's transition speed: the board model,
+    the settings API and the MCP executors all use it.
+    """
+    minimum, maximum = TRANSITION_SPEED_BOUNDS[key]
+    return _bounded_int(value, minimum=minimum, maximum=maximum)
+
+
+def clamp_transition_speed(key: str, value) -> int | None:
+    """*value* for speed field *key* as stored data is normalized: above the
+    maximum it is clamped to the maximum (and logged), so data written before
+    the cap never blocks a later write; otherwise :func:`transition_speed`."""
+    _, maximum = TRANSITION_SPEED_BOUNDS[key]
+    if maximum is not None and isinstance(value, int) and not isinstance(value, bool) and value > maximum:
+        logging.getLogger(__name__).warning("%s %r is above the %d maximum; clamped", key, value, maximum)
+        return maximum
+    return transition_speed(key, value)
+
+
+def transition_speed_error(key: str, value) -> str | None:
+    """Why *value* is no valid speed for *key* (``None`` is: the device default)."""
+    if value is None or transition_speed(key, value) is not None:
+        return None
+    minimum, maximum = TRANSITION_SPEED_BOUNDS[key]
+    bound = f"between {minimum} and {maximum}" if maximum is not None else f"of at least {minimum}"
+    return f"{key} must be a whole number {bound} (got {value!r})."
+
+
+def is_split_flap(board) -> bool:
+    """Whether *board* is driven by a first-party split-flap output (a
+    Vestaboard, or a FiestaPanel imitating one), not an output plugin's
+    device (an LED matrix). Decides what an unset transition means: none on
+    a split-flap, the device model's default on an output plugin's board."""
+    return derive_output_id(board) in BUILTIN_OUTPUT_IDS
 
 
 def _optional_int(value) -> int | None:

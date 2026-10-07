@@ -122,7 +122,7 @@ main `e2e-tests` job alongside everything else:
 `offline`, `pages-edit`, `pages-import-dialog`, `pages-list`, `pages-new`,
 `picks`, `schedule-calendar`, `schedule-delete-confirm`, `schedule-form`,
 `schedule-list`, `schedule-toolbar`, `settings-advanced`,
-`settings-behavior-integrations`, `settings-general-account`,
+`settings-general-account`, `settings-scheduling-ai`,
 `settings-hardware-network`, `settings-system`.
 
 A handful of individual cases are still `test.fixme` where the UI affordance

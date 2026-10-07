@@ -229,7 +229,7 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 | `duration_minutes` | `integer` \| `null` | no | Show this for N minutes, then revert. Omit for a message that stays until something else replaces it. (1–480) |
 | `revert_mode` | `"schedule"` \| `"page"` \| `"blank"` \| `null` | no | What to show when a timed message expires. Requires duration_minutes. Defaults to "schedule". |
 | `revert_page_id` | `string` \| `null` | no | The page to revert to. Required when revert_mode is "page". |
-| `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the install's transition animation for this one send. |
+| `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the board's own transition animation for this one send. |
 | `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. (default `false`) |
 
 **Responses**
@@ -1388,7 +1388,7 @@ Exactly one of `text`, `lines`, `characters`, `page_id` or
 | `duration_minutes` | `integer` \| `null` | no | Show this for N minutes, then revert. Omit for a message that stays until something else replaces it. (1–480) |
 | `revert_mode` | `"schedule"` \| `"page"` \| `"blank"` \| `null` | no | What to show when a timed message expires. Requires duration_minutes. Defaults to "schedule". |
 | `revert_page_id` | `string` \| `null` | no | The page to revert to. Required when revert_mode is "page". |
-| `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the install's transition animation for this one send. |
+| `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the board's own transition animation for this one send. |
 | `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. (default `false`) |
 
 ### `MessageResponse` {#schema-messageresponse}

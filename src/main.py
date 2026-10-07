@@ -38,7 +38,7 @@ from .pages.service import (
     get_page_service,
 )
 from .schedules.service import get_schedule_service
-from .settings.service import get_settings_service
+from .settings.service import PRIMARY_RUNTIME_KEY, get_settings_service, page_transition
 from .templates.engine import extract_template_plugin_ids
 from .triggers.service import get_trigger_service
 
@@ -78,8 +78,7 @@ ADHOC_PAGE_ID = "__adhoc__"
 # entirely — see src/transitions/runner.py — which is why they are clamped to
 # the 120s cap and the executing job is budgeted at that full cap.)
 #
-# nginx must OUTWAIT this number: nginx.conf / nginx.https.conf /
-# nginx-dev.conf set proxy_read_timeout and proxy_send_timeout to 300s on both
+# nginx must OUTWAIT this number: nginx.conf / nginx-dev.conf set proxy_read_timeout and proxy_send_timeout to 300s on both
 # /api location blocks. At the stock 60s any send that legitimately ran longer
 # than a minute returned 504 to the browser while this thread kept waiting 4x
 # longer (issue #1886). Raise both together;
@@ -250,12 +249,19 @@ class BoardRuntime:
             bind(self.output)
 
 
+def _driver_runs(driver):
+    """The page-override check for sends through *driver* (its own rule)."""
+    from .outputs.transitions import driver_runs_strategy
+
+    return lambda strategy: driver_runs_strategy(driver, strategy)
+
+
 class DisplayService:
     """Main service for displaying information on the board."""
 
     # Runtime key for the primary board when no board id is available
     # (tests that set ``vb_client`` directly without a boards list).
-    _PRIMARY_FALLBACK_KEY = "__primary__"
+    _PRIMARY_FALLBACK_KEY = PRIMARY_RUNTIME_KEY
 
     def __init__(self):
         """Initialize the display service."""
@@ -1371,12 +1377,6 @@ class DisplayService:
                     "configuration is fixed; other boards keep running"
                 )
             logger.info("Syncing cache with current board state...")
-            # Log transition settings if configured
-            transition = Config.get_transition_settings()
-            if transition["strategy"]:
-                logger.info(
-                    f"Default transition: {transition['strategy']} (interval={transition['step_interval_ms']}ms, step_size={transition['step_size']})"
-                )
         except Exception as e:
             logger.error(f"Failed to initialize board client: {e}")
             return False
@@ -2164,17 +2164,11 @@ class DisplayService:
                 logger.warning("Board client not initialized")
                 return False
 
-            # Transition settings — page-level if set, otherwise system defaults.
-            system_transition = settings_service.get_transition_settings(rt.board_id)
-            strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-            interval_ms = (
-                page.transition_interval_ms
-                if page.transition_interval_ms is not None
-                else system_transition.step_interval_ms
+            # The page's own transition where it sets one, else this display's.
+            resolved = page_transition(
+                settings_service.get_transition_settings(rt.board_id), page, runs=_driver_runs(rt.client)
             )
-            step_size = (
-                page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-            )
+            strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
             # resolve_dimensions (never get_dimensions, which raises for
             # note_array) so a note-array page renders at its true size.
@@ -2651,14 +2645,10 @@ class DisplayService:
             )
 
         settings_service = get_settings_service()
-        system_transition = settings_service.get_transition_settings(rt.board_id)
-        strategy = page.transition_strategy or system_transition.strategy
-        interval_ms = (
-            page.transition_interval_ms
-            if page.transition_interval_ms is not None
-            else system_transition.step_interval_ms
+        resolved = page_transition(
+            settings_service.get_transition_settings(rt.board_id), page, runs=_driver_runs(rt.client)
         )
-        step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
+        strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
         dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         client = rt.client

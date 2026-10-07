@@ -207,7 +207,7 @@ class MessageRequest(BaseModel):
     )
     transition: TransitionOverride | None = Field(
         default=None,
-        description="Override the install's transition animation for this one send.",
+        description="Override the board's own transition animation for this one send.",
     )
     force: StrictBool = Field(
         default=False,

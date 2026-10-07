@@ -5,8 +5,9 @@
  * registry's enabled flag means nothing for it. Like a transition, it gets a
  * type badge ("Output") in place of the enable switch and the
  * enabled/disabled status — in the Installed table and in the Marketplace.
- * Settings → Beta carries the switch that lets third-party outputs drive
- * boards (`output_plugins_enabled`). An output plugin a board uses cannot be
+ * The page's toolbar carries the switch that lets third-party outputs drive
+ * boards (`plugins.output_plugins_enabled`; Settings → Beta until settings
+ * v6). An output plugin a board uses cannot be
  * uninstalled; the page shows the server's reason, naming the boards. A
  * first-party output (`required`: Vestaboard, FiestaPanel) updates here like
  * any plugin but offers no uninstall at all.
@@ -19,7 +20,7 @@ import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import IntegrationsPage from "../../app/routes/integrations._index";
-import { BetaSettings } from "../components/settings/beta-settings";
+import { PluginUpdatesControl } from "../components/plugin-updates-control";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -180,22 +181,22 @@ describe("Integrations page — a first-party output (required)", () => {
   });
 });
 
-describe("Settings → Beta — output plugins", () => {
-  it("turns the output plugins beta on", async () => {
+describe("Integrations toolbar — third-party displays", () => {
+  it("turns output plugins on", async () => {
     let body: unknown = null;
     server.use(
-      http.put(`${API_BASE}/settings/beta`, async ({ request }) => {
+      http.put(`${API_BASE}/settings/plugins`, async ({ request }) => {
         body = await request.json();
         return HttpResponse.json({
-          settings: { https_enabled: false, transition_plugins_enabled: false, output_plugins_enabled: true },
-          https: { cert_present: false, cert_path: "", key_path: "", updater_available: false },
-          restart_required: false,
+          auto_update: true,
+          transition_plugins_enabled: false,
+          output_plugins_enabled: true,
         });
       }),
     );
-    renderWithQuery(<BetaSettings />);
+    renderWithQuery(<PluginUpdatesControl />);
 
-    const toggle = await screen.findByRole("switch", { name: "Output Plugins" });
+    const toggle = await screen.findByRole("switch", { name: "Third-party displays (beta)" });
     expect(toggle).not.toBeChecked();
     await userEvent.setup().click(toggle);
     await waitFor(() => expect(body).toEqual({ output_plugins_enabled: true }));
