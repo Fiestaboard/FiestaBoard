@@ -19,6 +19,7 @@ still. Drilling in drops a breadcrumb and a lower-level sub-header beneath it,
 animated as an expand; going back collapses them.
 
 Success:
+
 - Moving between a section's list and its detail never remounts the `PageCard`
   or `PageHeader` (verifiable: header DOM node identity survives navigation).
 - Every drill-in shows `Section › Item` with the section crumb as the way back;
