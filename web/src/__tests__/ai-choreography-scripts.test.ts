@@ -170,9 +170,15 @@ describe("homeFor", () => {
 
   it("sends a settings write to the tab that owns its category", () => {
     expect(homeFor({ name: "update_setting", args: { category: "mqtt" } })).toEqual({
-      href: "/settings?section=integrations",
+      href: "/settings?section=general",
       anchor: "settings.mqtt",
     });
+    expect(homeFor({ name: "update_setting", args: { category: "ai" } }).href).toBe("/settings?section=ai");
+    expect(homeFor({ name: "update_setting", args: { category: "polling" } }).href).toBe(
+      "/settings?section=scheduling",
+    );
+    // Plugin updates moved out of Settings onto the Integrations page.
+    expect(homeFor({ name: "update_setting", args: { category: "plugins" } }).href).toBe("/integrations");
     expect(homeFor({ name: "update_setting", args: {} }).href).toBe("/settings?section=general");
   });
 
@@ -215,9 +221,14 @@ describe("anchors", () => {
 
   it("maps every setting category to a tab, or a board's to Displays", () => {
     const boards = new Set(["boards", "output", "hdmi_kiosk"]);
+    const tabs = new Set(["general", "account", "network", "scheduling", "ai", "system", "advanced"]);
     for (const category of Object.keys(SETTING_SECTIONS)) {
       if (boards.has(category)) expect(settingsHref(category), category).toBe("/displays");
-      else expect(settingsHref(category), category).toMatch(/^\/settings\?section=/);
+      else if (category === "plugins") expect(settingsHref(category), category).toBe("/integrations");
+      else {
+        const section = new URLSearchParams(settingsHref(category).split("?")[1]).get("section");
+        expect(tabs.has(section ?? ""), `${category} → ${section}`).toBe(true);
+      }
     }
     expect(settingAnchors("general", "instance_name")).toEqual({
       control: "settings.general.instance_name",

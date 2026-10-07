@@ -136,7 +136,7 @@ Choose conservatively. A transition with `max_frames: 5000` and `min_interval_ms
 Once your plugin is installed it is ready to use. Unlike data plugins, transition plugins are not gated on the Integrations page's enabled toggle — `PluginRegistry.get_transition_plugin()` never consults it, because a transition has no polling loop or background cost. Installing is opting in. (The `beta.transition_plugins_enabled` flag above still gates the feature as a whole; with it off, `BoardClient.render()` logs and snaps to the target grid.) Users select your plugin from:
 
 - The **Transition** dropdown in the page editor's toolbar, which sets that one page's transition
-- Settings → Behavior → Board Transitions, which sets the default for every page
+- Settings → Scheduling → Board Transitions, which sets the default for every page
 
 A page's own transition wins over the global default; the dropdown's "Use global default" option clears the page-level override.
 

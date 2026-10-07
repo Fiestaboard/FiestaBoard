@@ -78,7 +78,7 @@ future request.
 | `FIESTABOARD_AUTH_ENABLED` | *(unset, first-run picker)* | `true`/`1`/`yes`/`on` force-enables, `false`/`0`/`no`/`off` force-disables. Unset = use stored preference; if none, show the first-run picker. |
 | `FIESTABOARD_SESSION_TTL_SECONDS` | `604800` (7d) | Lifetime for a normal sign-in (without "Keep me logged in"), in seconds. Caps the session-cookie token. |
 | `FIESTABOARD_REMEMBER_ME_TTL_SECONDS` | `2592000` (30d) | Lifetime when "Keep me logged in" is checked, in seconds. Sets both the persistent cookie's `Max-Age` and the token expiry. |
-| `FIESTABOARD_MCP_TOKEN` | *(unset)* | Pre-shared bearer token for `/api/mcp/`. Takes precedence over a token stored from **Settings → Integrations**, and disables the UI's rotate/revoke buttons. See [MCP clients and the bearer token](#mcp-clients-and-the-bearer-token). |
+| `FIESTABOARD_MCP_TOKEN` | *(unset)* | Pre-shared bearer token for `/api/mcp/`. Takes precedence over a token stored from **Settings → AI**, and disables the UI's rotate/revoke buttons. See [MCP clients and the bearer token](#mcp-clients-and-the-bearer-token). |
 | `FIESTABOARD_CORS_ORIGINS` | *(unset, no credentialed cross-origin access)* | Comma-separated list of exact origins allowed to send credentials on cross-origin browser requests. See [Cross-origin browser access](#cross-origin-browser-access-cors). |
 
 ## Public endpoints
@@ -99,7 +99,7 @@ session cookie.
 External MCP clients — Claude Desktop, Claude Code — can't drive a
 cookie-based login, so they authenticate to `/api/mcp/` with a pre-shared
 bearer token instead of a session cookie. Configure one in
-**Settings → Integrations**, or by setting `FIESTABOARD_MCP_TOKEN`.
+**Settings → AI**, or by setting `FIESTABOARD_MCP_TOKEN`.
 
 :::warning Behaviour change: a configured token is now enforced in every auth mode
 
@@ -109,7 +109,7 @@ auth was disabled, so a client could reach `/api/mcp/` without sending it.
 
 If an MCP client that used to work starts returning `401`, put the token in
 its config so it sends `Authorization: Bearer <your-token>`. Alternatively,
-clear the token in **Settings → Integrations** if you want `/api/mcp/` to
+clear the token in **Settings → AI** if you want `/api/mcp/` to
 stay open.
 
 **Installs with no token configured are unaffected** — they behave exactly
@@ -134,7 +134,7 @@ must present it as an `Authorization: Bearer` header too, and are refused
 with a `403` otherwise (Fiestaboard/FiestaBoard#1880). Turning the login
 *off* is never gated; it cannot take anything over. If you chose *Continue
 without login* and later want to add one, send the token with the request
-or clear it in **Settings → Integrations** first. A token pinned by
+or clear it in **Settings → AI** first. A token pinned by
 `FIESTABOARD_MCP_TOKEN` is not gated this way because there is nothing to
 hijack: while it is set, both mutating routes refuse with `409` and the
 token cannot be changed over the network at all.

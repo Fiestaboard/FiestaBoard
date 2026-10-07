@@ -64,7 +64,7 @@ test.describe("transition pickers", () => {
 
   test("global picker saves a transition plugin as plugin:<id>", async ({ page }) => {
     await page.goto("/settings");
-    await page.getByRole("tab", { name: /behavior/i }).click();
+    await page.getByRole("tab", { name: /scheduling/i }).click();
 
     const option = page.getByRole("button", { name: PLUGIN_NAME, exact: true });
     await expect(option, "transition plugin missing from Board Transitions").toBeVisible();
@@ -78,7 +78,7 @@ test.describe("transition pickers", () => {
   test("global picker hides plugin options when the beta is off", async ({ page }) => {
     await setBeta(false);
     await page.goto("/settings");
-    await page.getByRole("tab", { name: /behavior/i }).click();
+    await page.getByRole("tab", { name: /scheduling/i }).click();
 
     // The built-in strategies must still be there -- only the plugin group
     // goes. "Wave" is the display label for the `column` strategy.

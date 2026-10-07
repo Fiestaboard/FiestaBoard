@@ -25,7 +25,7 @@ FiestaBoard has **two different kinds of transitions**, and they behave differen
 
 Built-in strategies are a **Vestaboard Local API** feature. FiestaBoard sends the new message plus the name of a flip pattern through the API, and the board handles the animation.
 
-Set the default in **Settings → Behavior → Board Transitions**:
+Set the default in **Settings → Scheduling → Board Transitions**:
 
 | Name in the UI | API value | What it looks like |
 |---|---|---|
@@ -85,7 +85,7 @@ There are two places to choose a transition, and the more specific one wins.
 
 ### Global default
 
-**Settings → Behavior → Board Transitions** sets the default for every board update. When the beta is on, the picker lists the built-in strategies under **Built-in** and your installed transition plugins under **Transition Plugins**.
+**Settings → Scheduling → Board Transitions** sets the default for every board update. When the beta is on, the picker lists the built-in strategies under **Built-in** and your installed transition plugins under **Transition Plugins**.
 
 ### Per page
 

@@ -18,7 +18,7 @@ None. Transition plugins don't expose template variables.
 
 ## Example Templates
 
-Slot Machine isn't referenced from a template. With the **Transition Plugins** beta on (Settings → Advanced → Beta Features), select it from the **Transition** dropdown in the page editor's toolbar for one page, or from Settings → Behavior → Board Transitions for every page. The per-page choice wins; "Use global default" clears it.
+Slot Machine isn't referenced from a template. With the **Transition Plugins** beta on (Settings → Advanced → Beta Features), select it from the **Transition** dropdown in the page editor's toolbar for one page, or from Settings → Scheduling → Board Transitions for every page. The per-page choice wins; "Use global default" clears it.
 
 Pages store the choice as `transition_strategy = "plugin:slot_machine"`.
 

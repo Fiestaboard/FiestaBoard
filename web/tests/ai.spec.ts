@@ -8,7 +8,7 @@
  * The mock OpenAI server (integration-tests/mock-llm/server.py) speaks just
  * enough of the chat completions API for src/ai/generator.py to round-trip
  * end-to-end. We configure a provider pointing at it via PUT /settings/ai,
- * then drive both the API and the Settings → Integrations tab UI.
+ * then drive both the API and the Settings → AI tab UI.
  *
  * Gated behind RUN_AI_TESTS in playwright.config.ts because the spec needs
  * the mock-llm container reachable at MOCK_LLM_URL — only the dedicated CI
@@ -432,8 +432,8 @@ test.describe("AI", () => {
     });
   });
 
-  test.describe("Settings → Integrations UI", () => {
-    test("AI Settings card renders inside the Integrations tab", async ({ page, request }) => {
+  test.describe("Settings → AI UI", () => {
+    test("AI Settings card renders inside the AI tab", async ({ page, request }) => {
       await configureMockProvider(request);
       // The WizardProvider holds every non-/login page on a full-screen
       // loader (then SetupWizard) while `/config/validate` reports
@@ -446,9 +446,9 @@ test.describe("AI", () => {
       expect(boardRes.ok()).toBe(true);
 
       await page.goto("/settings");
-      // Settings page splits into tabs (General / Behavior / Integrations /
-      // System / Advanced). AI Settings live in Integrations.
-      await page.getByRole("tab", { name: "Integrations", exact: true }).click();
+      // Settings page splits into tabs (General / Scheduling / AI / System /
+      // Advanced). AI Settings live in AI.
+      await page.getByRole("tab", { name: "AI", exact: true }).click();
 
       // The settings component is loaded — assert on a stable string from
       // its header / description copy rather than a specific button label.

@@ -12,7 +12,7 @@ How to enable Slot Machine and use it on a page.
 
 1. **Turn on the beta** — Settings → Advanced → Beta Features → **Transition Plugins**. That is the only switch; installed transition plugins have no separate enable step.
 2. **Tune the spin (optional)** — `spin_frames`, `column_stagger`, `frame_interval_ms`, and `seed` live in Slot Machine's settings on the Integrations page. The defaults give a six-frame spin with a one-frame cascade between columns.
-3. **Apply it** — In the page editor, pick **Slot Machine** from the **Transition** dropdown in the toolbar and save that page. To spin on every page instead, pick it under Settings → Behavior → Board Transitions. Whatever a page sets for itself overrides the global default.
+3. **Apply it** — In the page editor, pick **Slot Machine** from the **Transition** dropdown in the toolbar and save that page. To spin on every page instead, pick it under Settings → Scheduling → Board Transitions. Whatever a page sets for itself overrides the global default.
 4. **View** — The next page transition will spin each column before locking on the new content.
 
 Transition plugins are deprecated (see [Transitions](https://fiestaboard.app/docs/features/transitions)): pages that use one keep working, and the Transition Lab preview page has been removed.

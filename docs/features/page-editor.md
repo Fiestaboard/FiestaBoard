@@ -181,7 +181,7 @@ See the [Color Guide](/docs/reference/color-guide) for detailed usage examples.
 
 The editor's header toolbar has a **Transition** dropdown that controls how the board animates when it changes to this page.
 
-- **Use global default** - inherit the transition set in **Settings → Behavior → Board Transitions**
+- **Use global default** - inherit the transition set in **Settings → Scheduling → Board Transitions**
 - A **built-in strategy** (Wave, Drift, Curtain, Row, Diagonal, Random) - performed by the board itself, Local API only
 - A **transition plugin** (Typewriter, Simple Dissolve, and others) - animated by FiestaBoard, works on any connection, shown only when the Transition Plugins beta is enabled
 
