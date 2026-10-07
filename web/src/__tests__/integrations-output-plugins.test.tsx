@@ -187,9 +187,7 @@ describe("Settings → Beta — output plugins", () => {
       http.put(`${API_BASE}/settings/beta`, async ({ request }) => {
         body = await request.json();
         return HttpResponse.json({
-          settings: { https_enabled: false, transition_plugins_enabled: false, output_plugins_enabled: true },
-          https: { cert_present: false, cert_path: "", key_path: "", updater_available: false },
-          restart_required: false,
+          settings: { transition_plugins_enabled: false, output_plugins_enabled: true },
         });
       }),
     );

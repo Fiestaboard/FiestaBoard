@@ -69,7 +69,6 @@ const mockAllSettings: AllSettingsResponse = {
     longitude: -74.006,
   },
   beta: {
-    https_enabled: false,
     transition_plugins_enabled: false,
     output_plugins_enabled: false,
   },

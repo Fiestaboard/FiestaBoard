@@ -38,6 +38,9 @@ label                                     what it pins
 ``v9_10_schema3_both_backups``            settings v3 with BOTH
                                           ``settings.json.v2_backup`` and
                                           ``.v3_backup`` on disk (plan D8)
+``v10_beta_schema4_https_on``             settings v4 with the retired HTTPS
+                                          (Beta) flag on: boots to plain HTTP
+                                          with the flag dropped (settings v5)
 ========================================  ====================================
 
 What a test does
@@ -324,6 +327,7 @@ EXPECT: dict[str, Expect] = {
         shapes={4: ("panel", 12, 29)},
     ),
     "v9_10_schema3_both_backups": Expect(sends=[(0, "local_flagship_send")], board_count=1, page_count=1),
+    "v10_beta_schema4_https_on": Expect(sends=[(0, "local_flagship_send")], board_count=1, page_count=1, from_schema=4),
 }
 
 

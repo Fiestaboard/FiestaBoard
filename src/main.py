@@ -78,8 +78,7 @@ ADHOC_PAGE_ID = "__adhoc__"
 # entirely — see src/transitions/runner.py — which is why they are clamped to
 # the 120s cap and the executing job is budgeted at that full cap.)
 #
-# nginx must OUTWAIT this number: nginx.conf / nginx.https.conf /
-# nginx-dev.conf set proxy_read_timeout and proxy_send_timeout to 300s on both
+# nginx must OUTWAIT this number: nginx.conf / nginx-dev.conf set proxy_read_timeout and proxy_send_timeout to 300s on both
 # /api location blocks. At the stock 60s any send that legitimately ran longer
 # than a minute returned 504 to the browser while this thread kept waiting 4x
 # longer (issue #1886). Raise both together;

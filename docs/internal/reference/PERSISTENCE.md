@@ -130,6 +130,32 @@ in the set-aside file. Further back, the older build refuses the v4 file: put
 `tests/test_settings_v4_output_migration.py` and the bridge module pin all of
 this, including a real upgrade rolled back onto a simulated bridge build.
 
+### Settings v5: HTTPS (Beta) is gone
+
+Schema v5 removes the HTTPS (Beta) feature. `_migrate_v4_to_v5` drops
+`beta.https_enabled` whatever its value and keeps every other beta flag; it is
+idempotent and logs how many files it changed (0 or 1), with a warning when the
+flag was on. An install that had it on serves plain HTTP on its usual port
+(`http://<host>:4420`) after the upgrade: the entrypoint no longer swaps nginx
+configs, and the image ships no `nginx.https.conf`. At startup
+`src/system/legacy_https.py::remove_legacy_https_certs` deletes the two files
+the old entrypoint generated, `data/certs/fiestaboard.crt` and
+`fiestaboard.key`, and removes `data/certs/` only if that leaves it empty. It
+deletes them only when the cert is the self-signed one FiestaBoard made
+(`O = FiestaBoard` as both issuer and subject). A pair the user dropped in
+under the same names, which the old beta API allowed, is kept.
+
+**Rollback.** One step back, to a v4 build, restores
+`settings.json.v4_backup` (flag included), but HTTPS comes back only on the
+**second** boot. The v4 entrypoint reads `beta.https_enabled` before the API
+starts, while `settings.json` is still the v5 file without the flag, so the
+first boot serves plain HTTP with no certificate. The bridge then restores the
+v4 settings, and the next restart generates a new certificate and switches
+nginx over. `tests/test_settings_v5_https_removed.py`, the
+`v10_beta_schema4_https_on` upgrade fixture and the bridge module pin the
+settings half of this; the two-boot timing is the v4 entrypoint's and is not
+tested here.
+
 ## 3. A failed write is never swallowed
 
 A store write that fails must surface. Silent partial success — the change

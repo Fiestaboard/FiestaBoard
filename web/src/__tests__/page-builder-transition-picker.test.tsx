@@ -165,8 +165,7 @@ describe("PageBuilder — per-page transition picker", () => {
     server.use(
       http.get(`${API_BASE}/settings/beta`, () =>
         HttpResponse.json({
-          settings: { https_enabled: false, transition_plugins_enabled: true },
-          https: { cert_present: false, cert_path: "", key_path: "", updater_available: false },
+          settings: { transition_plugins_enabled: true },
         }),
       ),
       // The plugin listing: the picker keeps the transition plugins and drops

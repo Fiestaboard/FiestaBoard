@@ -698,13 +698,9 @@ class PluginSettings:
 class BetaSettings:
     """Opt-in beta features.
 
-    These are experimental settings that may change behavior, require a
-    container restart, or be removed in future releases. Currently:
+    These are experimental settings that may change behavior or be removed
+    in future releases. Currently:
 
-    - https_enabled: When true, nginx serves HTTPS on the container's
-      external port using a per-instance self-signed certificate
-      generated at container startup. Toggling this requires a restart
-      to take effect.
     - transition_plugins_enabled: When true, transition plugins (frame-by-
       frame board animations driven by the TransitionPluginBase SDK)
       become selectable from page editors and Settings → Transitions.  Off
@@ -718,7 +714,6 @@ class BetaSettings:
       build that predates the flag round-trips unchanged.
     """
 
-    https_enabled: bool = False
     transition_plugins_enabled: bool = False
     output_plugins_enabled: bool = False
 
@@ -731,7 +726,6 @@ class BetaSettings:
     @classmethod
     def from_dict(cls, data: dict) -> "BetaSettings":
         return cls(
-            https_enabled=bool(data.get("https_enabled", False)),
             transition_plugins_enabled=bool(data.get("transition_plugins_enabled", False)),
             output_plugins_enabled=bool(data.get("output_plugins_enabled", False)),
         )
@@ -820,7 +814,7 @@ class MQTTSettings:
 # pre-migration file is written to ``settings.json.v{N}_backup`` before the
 # first migration runs.
 
-CURRENT_SETTINGS_SCHEMA_VERSION = 4
+CURRENT_SETTINGS_SCHEMA_VERSION = 5
 
 _LEGACY_CAROUSEL_PREFIX = "carousel:"
 _COLLECTION_PREFIX = "collection:"
@@ -1109,11 +1103,33 @@ def _migrate_v3_to_v4(data: dict) -> int:
     return sum(1 for b in boards if isinstance(b, dict) and migrate_board_to_v4(b))
 
 
+def _migrate_v4_to_v5(data: dict) -> int:
+    """Migration 4 -> 5 (idempotent; operates on the raw settings dict).
+
+    The HTTPS (Beta) feature is removed (settings reorg, PR B): drop
+    ``beta.https_enabled`` whatever its value. An install that had it on now
+    serves plain HTTP on its usual port; the self-signed cert files the old
+    entrypoint generated are deleted at startup by
+    :func:`src.system.legacy_https.remove_legacy_https_certs`. Every other beta
+    flag is kept. Returns 1 when the flag was dropped, 0 otherwise.
+    """
+    beta = data.get("beta")
+    if not isinstance(beta, dict) or "https_enabled" not in beta:
+        return 0
+    was_on = bool(beta.pop("https_enabled"))
+    if was_on:
+        logger.warning(
+            "HTTPS (Beta) has been removed; FiestaBoard now serves plain HTTP. Browse to http://<host>:4420 instead."
+        )
+    return 1
+
+
 MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (1, _migrate_v0_to_v1),
     (2, _migrate_v1_to_v2),
     (3, _migrate_v2_to_v3),
     (4, _migrate_v3_to_v4),
+    (5, _migrate_v4_to_v5),
 ]
 
 
@@ -2277,8 +2293,6 @@ class SettingsService:
         or removing TLS certificates are handled by the API layer so
         the settings module stays free of system-level concerns.
         """
-        if "https_enabled" in updates:
-            self._beta.https_enabled = bool(updates["https_enabled"])
         if "transition_plugins_enabled" in updates:
             self._beta.transition_plugins_enabled = bool(updates["transition_plugins_enabled"])
         if "output_plugins_enabled" in updates:

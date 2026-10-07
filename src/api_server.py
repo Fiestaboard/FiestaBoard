@@ -171,6 +171,15 @@ def _run_startup_migrations() -> None:
     from .panels.reconcile import reconcile_panel_boards
 
     reconcile_panel_boards()
+    # HTTPS (Beta) is gone (settings v5): delete the self-signed cert pair it
+    # generated. Never raises (logs instead) — see src/system/legacy_https.py.
+    try:
+        from .paths import get_data_dir
+        from .system.legacy_https import remove_legacy_https_certs
+
+        remove_legacy_https_certs(get_data_dir())
+    except Exception:
+        logger.warning("Leftover HTTPS certificate cleanup failed on startup", exc_info=True)
     # After the migrations, so it reads the migrated stores: report stored
     # text that draws differently now that every board (split-flap too)
     # speaks extended markup (plan Task 12). A report, never a rewrite.
