@@ -366,10 +366,14 @@ def _build_mcp_server() -> Any:
             "SETTINGS, HARDWARE AND SYSTEM (everything the Settings page can change,\n"
             "except secrets)\n"
             "  • update_setting(category, values) — general (instance_name renames\n"
-            "    the install, timezone, time/date format), display, transitions,\n"
-            "    output, polling, location, silence_schedule, active_page, beta,\n"
-            "    plugins (auto_update), mqtt (no username/password), ai (no\n"
-            "    api_key), release_channel, auto_update, hdmi_kiosk\n"
+            "    the install, timezone, time/date format), display, output,\n"
+            "    polling, location, silence_schedule, active_page, plugins\n"
+            "    (auto_update, transition_plugins_enabled, output_plugins_enabled),\n"
+            "    mqtt (no username/password), ai (no api_key), release_channel,\n"
+            "    auto_update, hdmi_kiosk. Each board owns its transition: set it\n"
+            "    with update_board(transition=..., transition_step_interval_ms=...,\n"
+            "    transition_step_size=...); 'transitions' is a deprecated alias for\n"
+            "    the first board's\n"
             "  • Boards: update_board() renames/retypes/resizes a board, sets its\n"
             "    colour, code-62 glyph, API mode or host; add_board(),\n"
             "    remove_board(), detect_board_size(), identify_tile()\n"
@@ -531,7 +535,7 @@ def _build_mcp_server() -> Any:
         - configured: whether required settings have been filled in
         - description: what the plugin does
         - plugin_type: 'data', 'output', or 'transition' (deprecated; its
-          'plugin:<id>' is a page or system transition_strategy)
+          'plugin:<id>' is a page or board transition)
         - settings_schema: JSON Schema describing configurable fields
         - config: current configuration (sensitive values masked as '***')
         """
@@ -1108,7 +1112,8 @@ def _build_mcp_server() -> Any:
                                  'plugin:<id>' of an installed transition
                                  plugin (deprecated; list_installed_plugins()
                                  reports plugin_type 'transition'). Omitted = the
-                                 system transition from get_settings_summary().
+                                 board's own transition (its boards entry in
+                                 get_settings_summary()).
             transition_interval_ms: Optional per-page step interval (0–5000 ms).
             transition_step_size: Optional per-page step size (≥ 1).
 
@@ -1180,7 +1185,7 @@ def _build_mcp_server() -> Any:
             transition_interval_ms: New per-page step interval, 0–5000 (optional).
             transition_step_size: New per-page step size, ≥ 1 (optional).
             clear_transition_override: Set True to remove the per-page
-                transition override so the page follows the system
+                transition override so the page follows its board's
                 transition again. Needed because omitting the transition
                 fields means "unchanged".
 
@@ -2056,8 +2061,10 @@ def _build_mcp_server() -> Any:
           update_setting()
         - silence_schedule: the install-wide quiet-hours config, plus
           by_board overrides keyed by board id
-        - beta: https_enabled, transition_plugins_enabled
-        - plugins: auto_update
+        - plugins: auto_update, transition_plugins_enabled,
+          output_plugins_enabled
+        - transitions: deprecated (removed in v11) — the FIRST board's
+          transition; each board's own is on its boards entry
         - mqtt: enabled, broker_host, broker_port, external_url, username and
           password masked as "***" when set
         - ai: enabled, default_provider_id, providers (id, name, protocol,
@@ -2067,7 +2074,8 @@ def _build_mcp_server() -> Any:
         - boards: one entry per configured board with id, name, device_type,
           rows/cols, notes_wide/notes_tall, board_color, code62_glyph,
           api_mode, has_host, has_credentials, primary, enabled, paused,
-          schedule_enabled, active_page_id, and error (why the board failed to
+          schedule_enabled, transition, transition_step_interval_ms,
+          transition_step_size, active_page_id, and error (why the board failed to
           initialize, or null). Use a board's id as the board_id argument to
           board-targeting tools, and its rows/cols to size templates for it.
 
@@ -2086,7 +2094,6 @@ def _build_mcp_server() -> Any:
             ("output", svc.get_output_settings),
             ("transitions", svc.get_transition_settings),
             ("polling", svc.get_polling_settings),
-            ("beta", svc.get_beta_settings),
             ("plugins", svc.get_plugin_settings),
         ):
             try:
@@ -2176,7 +2183,7 @@ def _build_mcp_server() -> Any:
         Args:
             category: Which settings group to change. One of 'general',
                 'display', 'transitions', 'output', 'polling', 'location',
-                'silence_schedule', 'schedule_behavior', 'active_page', 'beta',
+                'silence_schedule', 'schedule_behavior', 'active_page',
                 'plugins', 'mqtt', 'ai', 'release_channel', 'auto_update', or
                 'hdmi_kiosk'.
             values: The keys to change within that category — see "Keys
@@ -2194,9 +2201,12 @@ def _build_mcp_server() -> Any:
                   ("on" | "desktop" | "off"), site_animations ("on" | "off"),
                   board_flap_speed ("hardware" | "quick" | "standard" |
                   "relaxed", or a millisecond count).
-                - transitions (how the physical board animates between
-                  pages): strategy (string), step_interval_ms (int),
-                  step_size (int).
+                - transitions: DEPRECATED (removed in v11) — sets the FIRST
+                  board's transition: strategy (string, null = none),
+                  step_interval_ms (int), step_size (int). Every board owns
+                  its transition: set one with update_board(board_id,
+                  transition=..., transition_step_interval_ms=...,
+                  transition_step_size=...) instead.
                 - output: target ("ui" | "board" | "both").
                 - polling: interval_seconds (int) — how often plugins
                   refresh; board_read_interval_local / _cloud (int seconds).
@@ -2214,10 +2224,12 @@ def _build_mcp_server() -> Any:
                   switching the board immediately.
                 - active_page: page_id (string), board_id (optional) — the
                   same selection set_active_page() makes.
-                - beta: https_enabled (bool — needs a restart_system() to
-                  take effect), transition_plugins_enabled (bool).
                 - plugins: auto_update (bool — update installed plugins in
-                  the background).
+                  the background), transition_plugins_enabled (bool — let
+                  boards and pages use the deprecated transition plugins),
+                  output_plugins_enabled (bool — let third-party output
+                  plugins drive boards). 'beta' is a deprecated alias
+                  (removed in v11) taking only those two flags.
                 - mqtt (Home Assistant bridge): enabled (bool), broker_host
                   (string), broker_port (int), external_url (string).
                   username and password are set by the user in the web UI.
@@ -2563,8 +2575,11 @@ def _build_mcp_server() -> Any:
         code62_glyph: str | None = None,
         api_mode: str | None = None,
         host: str | None = None,
+        transition: str | None = None,
+        transition_step_interval_ms: int | None = None,
+        transition_step_size: int | None = None,
     ) -> dict[str, Any]:
-        """Rename, retype, resize or reconfigure one board's non-secret hardware fields.
+        """Rename, retype, resize or reconfigure one board's non-secret hardware fields, or set its transition.
 
         Only the fields you pass change. Read the roster first with
         get_settings_summary() (the boards list). Changing device_type or the
@@ -2588,6 +2603,17 @@ def _build_mcp_server() -> Any:
             host: IP address or hostname of the board on the LAN (local API
                 mode). Write-only: the summary reports has_host, never the
                 address. Deprecated with the flat board fields (removed in v11).
+            transition: How this board changes its message — every board owns
+                its own (there is no install-wide transition). For a split-flap
+                board, one of 'none', 'column', 'reverse-column', 'edges-to-center',
+                'row', 'diagonal', 'random', or 'plugin:<id>' of an installed
+                transition plugin (needs plugins.transition_plugins_enabled).
+                For an LED board, an LED menu id ('none', 'flip', 'cascade',
+                'slide', 'wipe', 'fade', 'dissolve'). A page's own
+                transition_strategy still wins over it.
+            transition_step_interval_ms: Delay between animation steps in ms,
+                0–5000 (0 = as fast as the board goes), for split-flap strategies.
+            transition_step_size: Columns or rows that move per step (≥ 1).
         """
         return await ops_executors.update_board(
             board_id,
@@ -2599,6 +2625,9 @@ def _build_mcp_server() -> Any:
             code62_glyph=code62_glyph,
             api_mode=api_mode,
             host=host,
+            transition=transition,
+            transition_step_interval_ms=transition_step_interval_ms,
+            transition_step_size=transition_step_size,
         )
 
     @_tool(destructive=False)
@@ -2871,7 +2900,7 @@ def _build_mcp_server() -> Any:
         (get_system_status() → update.updater_available).
 
         WARNING: the web UI and this connection drop for ~5 seconds. Needed
-        after enabling HTTPS (beta) or changing the polling interval.
+        after changing the polling interval.
         """
         return await ops_executors.restart_system()
 

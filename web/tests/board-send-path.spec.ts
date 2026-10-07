@@ -25,13 +25,17 @@ import {
   configureBoard,
   createPage,
   deleteAllPages,
+  type DisplayTransitionFields,
   ensureAuthForFetch,
   expect,
+  getDisplayTransition,
   getMockBoardState,
   gridToText,
   resetMockBoard,
   resetToSingleBoard,
   setActivePage,
+  setDisplayTransition,
+  setTransitionPlugins,
   test,
   updatePluginConfig,
 } from "./helpers";
@@ -73,29 +77,6 @@ async function setOutputTarget(target: string): Promise<void> {
   if (!res.ok) throw new Error(`setOutputTarget failed: ${res.status} ${await res.text()}`);
 }
 
-async function getGlobalStrategy(): Promise<string | null> {
-  const res = await fetch(`${API_URL}/settings/transitions`, { headers: authHeaders() });
-  return (await res.json()).strategy ?? null;
-}
-
-async function setGlobalStrategy(strategy: string | null): Promise<void> {
-  const res = await fetch(`${API_URL}/settings/transitions`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ strategy }),
-  });
-  if (!res.ok) throw new Error(`setGlobalStrategy failed: ${res.status} ${await res.text()}`);
-}
-
-async function setBeta(transitionPluginsEnabled: boolean): Promise<void> {
-  const res = await fetch(`${API_URL}/settings/beta`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ transition_plugins_enabled: transitionPluginsEnabled }),
-  });
-  if (!res.ok) throw new Error(`setBeta failed: ${res.status} ${await res.text()}`);
-}
-
 async function setScheduleEnabled(enabled: boolean): Promise<void> {
   const res = await fetch(`${API_URL}/schedules/enabled`, {
     method: "PUT",
@@ -119,7 +100,7 @@ const TRANSITION_PLUGIN = "plugin:typewriter";
 
 test.describe("Board send-path integration", () => {
   let priorTarget = "both";
-  let priorStrategy: string | null = null;
+  let priorTransition: DisplayTransitionFields = {};
 
   test.beforeEach(async () => {
     await ensureAuthForFetch();
@@ -127,15 +108,15 @@ test.describe("Board send-path integration", () => {
     await setScheduleEnabled(false); // manual mode: the poll loop only ever sends the active page
     await deleteAllPages();
     priorTarget = await getOutputTarget();
-    priorStrategy = await getGlobalStrategy();
+    priorTransition = await getDisplayTransition();
   });
 
   test.afterEach(async () => {
     // Restore anything the tests mutated so sibling specs on this backend
     // see a clean slate.
     await setOutputTarget(priorTarget).catch(() => {});
-    await setGlobalStrategy(priorStrategy).catch(() => {});
-    await setBeta(false).catch(() => {});
+    await setDisplayTransition(priorTransition).catch(() => {});
+    await setTransitionPlugins(false).catch(() => {});
     await deleteAllPages().catch(() => {});
     await resetToSingleBoard().catch(() => {});
   });
@@ -193,8 +174,8 @@ test.describe("Board send-path integration", () => {
 
   test("a stepped transition sends multiple frames and lands on the target grid", async () => {
     test.setTimeout(90_000);
-    await setBeta(true); // plugin transitions are gated behind the beta flag
-    await setGlobalStrategy(TRANSITION_PLUGIN);
+    await setTransitionPlugins(true); // plugin transitions are gated behind the beta flag
+    await setDisplayTransition({ transition: TRANSITION_PLUGIN }); // the display's own (settings v6)
     // Sweep a whole row per frame so the transition still steps (>1 frame) but
     // finishes quickly instead of ticking through all 132 tiles one at a time.
     // If the config isn't picked up the test still holds (just slower), since

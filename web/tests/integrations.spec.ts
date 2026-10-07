@@ -159,6 +159,33 @@ test.describe("Integrations Page", () => {
 // ---------------------------------------------------------------------------
 
 test.describe("Check for Updates", () => {
+  test("saves the auto-update switch from the page toolbar", async ({ page }) => {
+    // Plugin updates moved here from Settings in 10.0.
+    await page.goto("/integrations");
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
+
+    const toggle = page.getByRole("switch", { name: "Auto-update plugins" });
+    await expect(toggle).toBeVisible({ timeout: 10_000 });
+    const wasOn = (await toggle.getAttribute("aria-checked")) === "true";
+
+    const save = page.waitForResponse(
+      (resp) => resp.url().includes("/settings/plugins") && resp.request().method() === "PUT",
+      { timeout: 10_000 },
+    );
+    await toggle.click();
+    expect((await save).status()).toBe(200);
+    await expect(toggle).toHaveAttribute("aria-checked", wasOn ? "false" : "true", { timeout: 5_000 });
+
+    // Put it back.
+    const restore = page.waitForResponse(
+      (resp) => resp.url().includes("/settings/plugins") && resp.request().method() === "PUT",
+      { timeout: 10_000 },
+    );
+    await toggle.click();
+    expect((await restore).status()).toBe(200);
+    await expect(toggle).toHaveAttribute("aria-checked", wasOn ? "true" : "false", { timeout: 5_000 });
+  });
+
   test("shows the Check for Updates button on the Installed tab", async ({ page }) => {
     await page.goto("/integrations");
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });

@@ -29,13 +29,19 @@ test.describe("Settings Page", () => {
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Tab strip exposes the five sections; boards moved to Displays (plan D21)
-    for (const section of ["General", "Behavior", "Integrations", "System", "Advanced"]) {
+    for (const section of ["General", "Scheduling", "AI", "System", "Advanced"]) {
       await expect(page.getByRole("tab", { name: section, exact: true })).toBeVisible({ timeout: 5_000 });
     }
-    await expect(page.getByRole("tab", { name: "Hardware", exact: true })).toHaveCount(0);
+    // Renamed in 10.0: Behavior is Scheduling, Integrations is AI.
+    for (const gone of ["Hardware", "Behavior", "Integrations"]) {
+      await expect(page.getByRole("tab", { name: gone, exact: true })).toHaveCount(0);
+    }
 
-    // Behavior tab contains the Update Intervals and Silence Schedule cards
-    await page.getByRole("tab", { name: "Behavior", exact: true }).click();
+    // General tab carries MQTT (moved from Integrations)
+    await expect(page.getByText("Home Assistant (MQTT)")).toBeVisible({ timeout: 10_000 });
+
+    // Scheduling tab contains the Update Intervals and Silence Schedule cards
+    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
     await expect(page.getByText("Update Intervals").first()).toBeVisible({
       timeout: 10_000,
     });
@@ -47,11 +53,29 @@ test.describe("Settings Page", () => {
       timeout: 5_000,
     });
 
-    // System tab contains the Setup Wizard card
+    // System tab contains the Setup Wizard card, and no About card (the
+    // About box in the account menu replaced it)
     await page.getByRole("tab", { name: "System", exact: true }).click();
     await expect(page.getByText("Setup Wizard").first()).toBeVisible({
       timeout: 5_000,
     });
+    await expect(page.getByText("About This FiestaBoard")).toHaveCount(0);
+  });
+
+  test("an old ?section=behavior link opens Scheduling", async ({ page }) => {
+    await page.goto("/settings?section=behavior");
+    await expect(page.getByRole("tab", { name: "Scheduling", exact: true })).toHaveAttribute("aria-selected", "true", {
+      timeout: 15_000,
+    });
+    await expect(page.getByText("Silence Schedule").first()).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("an old ?section=integrations link opens AI", async ({ page }) => {
+    await page.goto("/settings?section=integrations");
+    await expect(page.getByRole("tab", { name: "AI", exact: true })).toHaveAttribute("aria-selected", "true", {
+      timeout: 15_000,
+    });
+    await expect(page.getByText("AI Providers", { exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
   test("can navigate to integrations from settings", async ({ page }) => {

@@ -44,7 +44,7 @@ class OutputPluginsDisabledError(ValueError):
     """A board names a third-party output plugin while the beta is off."""
 
     def __init__(self, output_id: str) -> None:
-        super().__init__(f"Output plugin '{output_id}' needs the output plugins beta (Settings > Beta)")
+        super().__init__(f"Output plugin '{output_id}' needs the output plugins beta (Integrations page)")
         self.output_id = output_id
 
 
@@ -53,7 +53,7 @@ def output_plugins_enabled() -> bool:
     try:
         from src.settings.service import get_settings_service
 
-        return bool(get_settings_service().get_beta_settings().output_plugins_enabled)
+        return bool(get_settings_service().get_plugin_settings().output_plugins_enabled)
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning("Could not read the output_plugins beta flag: %s", exc)
         return False
