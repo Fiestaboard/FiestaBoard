@@ -126,7 +126,7 @@ The breadcrumb accepts `asChild` links, so FiestaBoard passes its `smart-link`.
   the header.
 - **Pages:** `pages.new` / `pages.edit.$id` render the editor inside the Pages
   card, under `Pages › <page name>` ("New page" until named). The
-  `slide-up`/`slide-down` view-transition types on these navigations are
+  `slide-up`/`slide-down` view-transition types on these routes are
   removed — the expand replaces them. The editor's own close button navigates
   to `/pages` (same as the crumb); its full-height `flex-1 min-h-0` sizing is
   preserved by giving the Pages layout `PageLayout fillHeight` /
