@@ -302,7 +302,9 @@ Names you will meet:
   `POST /outputs/{id}/install` (`src/outputs/install.py`) back the setup
   wizard's first step and the Displays page's Marketplace tab
   (`web/src/components/displays/display-marketplace.tsx`): installed, then
-  seeded, then registry outputs. The
+  seeded, then registry outputs. Its "Bring your own display" panel side-loads
+  from a git URL through the same `POST /plugins/install` as Integrations
+  (`web/src/components/plugin-git-install.tsx`, shared by both). The
   published author contract is `docs/development/output-plugins.md` (pull
   viewers: `output-stream-api.md`; landing page: `integrations-overview.md`).
 - **The output seed and the `output_api` gate** (plan D8) — a board never

@@ -92,7 +92,7 @@ Once FiestaBoard is running (either on your Pi at `http://fiestapi.local:4420` o
 
 Open **Displays** and click **Add a display**. Pick what to add — a Vestaboard, a TV (FiestaPanel), or another installed display type — or **Find more displays** in the plugin registry. For a display plugin, name the board, choose its device model, and fill in its settings screen. Buttons such as **Test connection** work before you save.
 
-To see every kind of display FiestaBoard can drive, open the **Marketplace** tab on the **Displays** page. It works like the **Integrations** marketplace: install a display plugin, update one, or click **Add display** on a card to set up a board with it. Every display plugin is available to everyone, with nothing to turn on first. Developers can add support for a new display: see [Writing an Output Plugin](/docs/development/output-plugins).
+To see every kind of display FiestaBoard can drive, open the **Marketplace** tab on the **Displays** page. It works like the **Integrations** marketplace: install a display plugin, update one, or click **Add display** on a card to set up a board with it. To side-load a display plugin that isn't listed, paste its git repository URL under **Bring your own display**. Every display plugin is available to everyone, with nothing to turn on first. Developers can add support for a new display: see [Writing an Output Plugin](/docs/development/output-plugins).
 
 <AppShot name="settings-board-config" alt="Settings page with board API key and IP address inputs" />
 

@@ -11,11 +11,13 @@
  * opt-in gates any of them (settings v7). A card's action is what the display
  * needs next: Install, or Add display (plus Update when the plugin has one,
  * from `GET /plugins`). The card's link opens the add flow for that display
- * (`/displays?tab=marketplace&add=<id>`); the page owns the dialog.
+ * (`/displays?tab=marketplace&add=<id>`); the page owns the dialog. "Bring
+ * your own display" side-loads a display plugin from a git URL.
  */
 import {
   Alert,
   AlertDescription,
+  AlertTitle,
   Box,
   Button,
   Flex,
@@ -30,10 +32,11 @@ import {
 import { EmptyState } from "@fiestaboard/ui/components/feedback/empty-state";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDownToLine, Plus, RefreshCw, Search } from "lucide-react";
+import { ArrowDownToLine, Download, Plus, RefreshCw, Search } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
+import { GitInstallFields, useGitPluginInstall } from "@/components/plugin-git-install";
 import { AVAILABLE_OUTPUTS_QUERY_KEY, OUTPUTS_QUERY_KEY } from "@/components/settings/output-boards";
 import Link from "@/components/smart-link";
 import { useTranslations } from "@/i18n/translations";
@@ -237,19 +240,116 @@ export function DisplayMarketplace({ onAdd }: { onAdd: (output: { id: string; na
         </>
       )}
 
-      <Stack gap="2" className="rounded-xl border border-dashed p-4" data-testid="display-marketplace-build">
-        <Heading level={2} size="sm">
-          {t("buildTitle")}
-        </Heading>
-        <Text size="sm" tone="muted">
-          {t("buildBody")}
-        </Text>
+      <BringYourOwnDisplay onAdd={onAdd} />
+    </Stack>
+  );
+}
+
+type SideLoadOutcome =
+  | { kind: "display"; id: string; name: string }
+  | { kind: "data"; pluginId: string }
+  | { kind: "error"; message: string };
+
+/**
+ * "Bring your own display": side-load a display plugin from its git
+ * repository (the same `POST /plugins/install` as Integrations → Install
+ * Plugin from Git), then add a display with it. A repository that holds a
+ * data plugin installs too, and is pointed at Integrations.
+ */
+function BringYourOwnDisplay({ onAdd }: { onAdd: (output: { id: string; name: string }) => void }) {
+  const t = useTranslations("displays.marketplace");
+  const tCommon = useTranslations("common");
+  const queryClient = useQueryClient();
+  const gitInstall = useGitPluginInstall();
+  const [outcome, setOutcome] = useState<SideLoadOutcome | null>(null);
+  const failedTitleId = useId();
+
+  const sideLoad = async () => {
+    setOutcome(null);
+    let pluginId: string;
+    try {
+      pluginId = await gitInstall.install();
+    } catch (err) {
+      setOutcome({ kind: "error", message: err instanceof Error ? err.message : tCommon("unknownError") });
+      return;
+    }
+    gitInstall.reset();
+    const outputs = await queryClient
+      .fetchQuery({ queryKey: AVAILABLE_OUTPUTS_QUERY_KEY, queryFn: () => api.listAvailableOutputs(), staleTime: 0 })
+      .catch(() => [] as AvailableOutput[]);
+    const output = outputs.find((o) => o.id === pluginId && o.installed);
+    setOutcome(output ? { kind: "display", id: output.id, name: output.name } : { kind: "data", pluginId });
+  };
+
+  return (
+    <Stack gap="3" className="rounded-xl border border-dashed p-4" data-testid="display-marketplace-build">
+      <Heading level={2} size="sm">
+        {t("buildTitle")}
+      </Heading>
+      <Text size="sm" tone="muted">
+        {t("buildBody")}
+      </Text>
+      <GitInstallFields
+        install={gitInstall}
+        idPrefix="display-git"
+        urlPlaceholder="https://github.com/user/fiestaboard-output--my-display.git"
+      />
+      <Flex align="center" gap="3" wrap>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void sideLoad()}
+          disabled={gitInstall.isInstalling || !gitInstall.canInstall}
+        >
+          <Download
+            className={cn("mr-1 h-3.5 w-3.5", gitInstall.isInstalling && "animate-bounce")}
+            aria-hidden="true"
+          />
+          {gitInstall.isInstalling ? t("installing") : t("gitInstall")}
+        </Button>
         <Text size="sm">
           <TextLink href={OUTPUT_PLUGIN_GUIDE_URL} target="_blank" rel="noopener noreferrer">
             {t("buildLink")}
           </TextLink>
         </Text>
-      </Stack>
+      </Flex>
+
+      {outcome?.kind === "display" && (
+        <Alert variant="success">
+          <AlertDescription>
+            <Flex align="center" justify="between" gap="3" wrap>
+              <Text size="sm">{t("toastInstalled", { name: outcome.name })}</Text>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => onAdd({ id: outcome.id, name: outcome.name })}
+                aria-label={t("addLabel", { name: outcome.name })}
+              >
+                <Plus className="mr-1 h-3 w-3" aria-hidden="true" />
+                {t("add")}
+              </Button>
+            </Flex>
+          </AlertDescription>
+        </Alert>
+      )}
+      {outcome?.kind === "data" && (
+        <Alert>
+          <AlertDescription>
+            <Flex align="center" justify="between" gap="3" wrap>
+              <Text size="sm">{t("gitInstalledData", { pluginId: outcome.pluginId })}</Text>
+              <Button asChild type="button" size="sm" variant="outline">
+                <Link href="/integrations?tab=installed">{t("gitOpenIntegrations")}</Link>
+              </Button>
+            </Flex>
+          </AlertDescription>
+        </Alert>
+      )}
+      {outcome?.kind === "error" && (
+        <Alert variant="destructive" aria-labelledby={failedTitleId}>
+          <AlertTitle id={failedTitleId}>{t("gitFailedTitle")}</AlertTitle>
+          <AlertDescription>{outcome.message}</AlertDescription>
+        </Alert>
+      )}
     </Stack>
   );
 }

@@ -1126,8 +1126,12 @@
       "retry": "Try again",
       "noMatch": "No displays match \"{query}\"",
       "buildTitle": "Bring your own display",
-      "buildBody": "FiestaBoard can drive any display a plugin teaches it. Write one for your device, or install one from a git URL in Integrations → Marketplace.",
-      "buildLink": "Write a display plugin"
+      "buildBody": "FiestaBoard can drive any display a plugin teaches it. Paste a display plugin's git repository to install it, or write one for your device.",
+      "buildLink": "Write a display plugin",
+      "gitInstall": "Install from git",
+      "gitInstalledData": "{pluginId} is installed, but it's a data plugin, not a display. Use it from the Integrations page.",
+      "gitOpenIntegrations": "Open Integrations",
+      "gitFailedTitle": "Couldn't install from that repository"
     }
   },
   "systemUpdate": {

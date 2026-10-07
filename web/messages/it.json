@@ -1170,8 +1170,12 @@
       "retry": "Riprova",
       "noMatch": "Nessun display corrisponde a \"{query}\"",
       "buildTitle": "Porta il tuo display",
-      "buildBody": "FiestaBoard può gestire qualsiasi display che un plugin gli insegni. Scrivine uno per il tuo dispositivo o installane uno da un URL git in Integrazioni → Marketplace.",
-      "buildLink": "Scrivi un plugin per display"
+      "buildBody": "FiestaBoard può gestire qualsiasi display che un plugin gli insegni. Incolla il repository git di un plugin per display per installarlo, o scrivine uno per il tuo dispositivo.",
+      "buildLink": "Scrivi un plugin per display",
+      "gitInstall": "Installa da git",
+      "gitInstalledData": "{pluginId} è installato, ma è un plugin di dati, non un display. Usalo dalla pagina Integrazioni.",
+      "gitOpenIntegrations": "Apri Integrazioni",
+      "gitFailedTitle": "Impossibile installare da quel repository"
     }
   },
   "systemUpdate": {

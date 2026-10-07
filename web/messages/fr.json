@@ -1170,8 +1170,12 @@
       "retry": "Réessayer",
       "noMatch": "Aucun écran ne correspond à « {query} »",
       "buildTitle": "Apportez votre propre écran",
-      "buildBody": "FiestaBoard peut piloter tout écran qu'un plugin lui apprend. Écrivez-en un pour votre appareil, ou installez-en un depuis une URL git dans Intégrations → Marketplace.",
-      "buildLink": "Écrire un plugin d'écran"
+      "buildBody": "FiestaBoard peut piloter tout écran qu'un plugin lui apprend. Collez le dépôt git d'un plugin d'écran pour l'installer, ou écrivez-en un pour votre appareil.",
+      "buildLink": "Écrire un plugin d'écran",
+      "gitInstall": "Installer depuis git",
+      "gitInstalledData": "{pluginId} est installé, mais c'est un plugin de données, pas un écran. Utilisez-le depuis la page Intégrations.",
+      "gitOpenIntegrations": "Ouvrir Intégrations",
+      "gitFailedTitle": "Impossible d'installer depuis ce dépôt"
     }
   },
   "systemUpdate": {

@@ -1170,8 +1170,12 @@
       "retry": "Tentar novamente",
       "noMatch": "Nenhum ecrã corresponde a \"{query}\"",
       "buildTitle": "Traga o seu próprio ecrã",
-      "buildBody": "O FiestaBoard consegue controlar qualquer ecrã que um plugin lhe ensine. Escreva um para o seu dispositivo ou instale um a partir de um URL git em Integrações → Marketplace.",
-      "buildLink": "Escrever um plugin de ecrã"
+      "buildBody": "O FiestaBoard consegue controlar qualquer ecrã que um plugin lhe ensine. Cole o repositório git de um plugin de ecrã para o instalar, ou escreva um para o seu dispositivo.",
+      "buildLink": "Escrever um plugin de ecrã",
+      "gitInstall": "Instalar a partir do git",
+      "gitInstalledData": "{pluginId} está instalado, mas é um plugin de dados, não um ecrã. Use-o na página Integrações.",
+      "gitOpenIntegrations": "Abrir Integrações",
+      "gitFailedTitle": "Não foi possível instalar a partir desse repositório"
     }
   },
   "systemUpdate": {

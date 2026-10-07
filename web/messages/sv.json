@@ -1170,8 +1170,12 @@
       "retry": "Försök igen",
       "noMatch": "Inga skärmar matchar \"{query}\"",
       "buildTitle": "Ta med din egen skärm",
-      "buildBody": "FiestaBoard kan styra alla skärmar som ett plugin lär det. Skriv ett för din enhet, eller installera ett från en git-URL under Integrationer → Marknadsplats.",
-      "buildLink": "Skriv ett skärmplugin"
+      "buildBody": "FiestaBoard kan styra alla skärmar som ett plugin lär det. Klistra in ett skärmplugins git-repo för att installera det, eller skriv ett för din enhet.",
+      "buildLink": "Skriv ett skärmplugin",
+      "gitInstall": "Installera från git",
+      "gitInstalledData": "{pluginId} är installerat, men det är ett dataplugin, inte en skärm. Använd det på sidan Integrationer.",
+      "gitOpenIntegrations": "Öppna Integrationer",
+      "gitFailedTitle": "Kunde inte installera från det repot"
     }
   },
   "systemUpdate": {

@@ -342,3 +342,59 @@ class TestInstallOther:
         resp = client.post("/outputs/vestaboard/install")
         assert resp.status_code == 200
         assert resp.json()["id"] == "vestaboard"
+
+
+# --- side-loading from a git URL (Displays → Marketplace) ----------------------------------------
+
+
+class TestInstallFromGitUrl:
+    """A display plugin pasted as a git URL (``POST /plugins/install``, what
+    Integrations and Displays → Marketplace both call) becomes an output a
+    board can use, with no opt-in (settings v7) — behind the same fences."""
+
+    GIT_URL = "https://github.com/example/fiestaboard-output--recording-output.git"
+
+    def test_a_git_installed_output_is_listed_installed_and_takes_a_board(self, client, plugins, monkeypatch):
+        cloned = fake_clone(monkeypatch)
+        resp = client.post("/plugins/install", json={"repository": self.GIT_URL, "plugin_id": PLUGIN_ID})
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["plugin_id"] == PLUGIN_ID
+        assert cloned == [self.GIT_URL]
+
+        assert PLUGIN_ID in [o["id"] for o in client.get("/outputs").json()]
+        entry = next(o for o in _available(client) if o["id"] == PLUGIN_ID)
+        assert (entry["source"], entry["installed"]) == ("installed", True)
+
+        body = {"name": "Garage sign", "device_model": "divoom_pixoo64", "output_config": {"host": "192.0.2.50"}}
+        board = client.post(f"/outputs/{PLUGIN_ID}/boards", json=body)
+        assert board.status_code == 201, board.text
+
+    def test_it_runs_behind_the_safety_fences(self, client, plugins, monkeypatch):
+        from src.outputs.factory import build_driver
+        from src.outputs.plugin_driver import OutputPluginDriver
+        from src.outputs.plugin_registration import release_driver
+
+        fake_clone(monkeypatch)
+        assert (
+            client.post("/plugins/install", json={"repository": self.GIT_URL, "plugin_id": PLUGIN_ID}).status_code
+            == 201
+        )
+        driver = build_driver(
+            {
+                "id": "g",
+                "name": "G",
+                "device_type": "panel",
+                "output": PLUGIN_ID,
+                "output_config": {"host": "192.0.2.50"},
+            }
+        )
+        assert isinstance(driver, OutputPluginDriver)
+        assert driver.first_party is False
+        release_driver(driver)
+
+    def test_an_output_api_this_core_cannot_run_is_refused_with_the_reason(self, client, plugins, monkeypatch):
+        fake_clone(monkeypatch, output_api=99)
+        resp = client.post("/plugins/install", json={"repository": self.GIT_URL, "plugin_id": PLUGIN_ID})
+        assert resp.status_code == 400
+        assert "output_api 99" in resp.json()["detail"]
+        assert PLUGIN_ID not in [o["id"] for o in client.get("/outputs").json()]

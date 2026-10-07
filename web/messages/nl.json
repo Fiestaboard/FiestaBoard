@@ -1170,8 +1170,12 @@
       "retry": "Opnieuw proberen",
       "noMatch": "Geen schermen gevonden voor \"{query}\"",
       "buildTitle": "Breng je eigen scherm mee",
-      "buildBody": "FiestaBoard kan elk scherm aansturen dat een plugin het leert. Schrijf er een voor je apparaat, of installeer er een via een git-URL in Integraties → Marktplaats.",
-      "buildLink": "Een schermplugin schrijven"
+      "buildBody": "FiestaBoard kan elk scherm aansturen dat een plugin het leert. Plak de git-repository van een schermplugin om die te installeren, of schrijf er een voor je apparaat.",
+      "buildLink": "Een schermplugin schrijven",
+      "gitInstall": "Installeren vanuit git",
+      "gitInstalledData": "{pluginId} is geïnstalleerd, maar het is een dataplugin, geen scherm. Gebruik het via de pagina Integraties.",
+      "gitOpenIntegrations": "Integraties openen",
+      "gitFailedTitle": "Kan niet installeren vanuit die repository"
     }
   },
   "systemUpdate": {

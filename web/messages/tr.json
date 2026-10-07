@@ -1170,8 +1170,12 @@
       "retry": "Tekrar dene",
       "noMatch": "\"{query}\" ile eşleşen ekran yok",
       "buildTitle": "Kendi ekranını getir",
-      "buildBody": "FiestaBoard, bir eklentinin öğrettiği her ekranı sürebilir. Cihazın için bir tane yaz ya da Entegrasyonlar → Pazar Yeri'nden bir git URL'siyle kur.",
-      "buildLink": "Ekran eklentisi yaz"
+      "buildBody": "FiestaBoard, bir eklentinin öğrettiği her ekranı sürebilir. Kurmak için bir ekran eklentisinin git deposunu yapıştır ya da cihazın için bir tane yaz.",
+      "buildLink": "Ekran eklentisi yaz",
+      "gitInstall": "Git'ten kur",
+      "gitInstalledData": "{pluginId} kuruldu, ancak bu bir ekran değil, bir veri eklentisi. Entegrasyonlar sayfasından kullan.",
+      "gitOpenIntegrations": "Entegrasyonları aç",
+      "gitFailedTitle": "Bu depodan kurulamadı"
     }
   },
   "systemUpdate": {

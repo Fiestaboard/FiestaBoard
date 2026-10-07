@@ -1170,8 +1170,12 @@
       "retry": "再試行",
       "noMatch": "「{query}」に一致するディスプレイはありません",
       "buildTitle": "自分のディスプレイを使う",
-      "buildBody": "FiestaBoardは、プラグインが教えるどんなディスプレイでも動かせます。お使いのデバイス用に書くか、連携 → マーケットプレイスでgit URLからインストールしてください。",
-      "buildLink": "ディスプレイプラグインを書く"
+      "buildBody": "FiestaBoardは、プラグインが教えるどんなディスプレイでも動かせます。ディスプレイプラグインのgitリポジトリを貼り付けてインストールするか、お使いのデバイス用に書いてください。",
+      "buildLink": "ディスプレイプラグインを書く",
+      "gitInstall": "gitからインストール",
+      "gitInstalledData": "{pluginId}をインストールしましたが、これはディスプレイではなくデータプラグインです。連携ページから使ってください。",
+      "gitOpenIntegrations": "連携を開く",
+      "gitFailedTitle": "そのリポジトリからインストールできませんでした"
     }
   },
   "systemUpdate": {

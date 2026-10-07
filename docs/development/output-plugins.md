@@ -661,7 +661,7 @@ PYTHONPATH="$(pwd):/path/to/FiestaBoard" python -m pytest tests/
 
 ### Install it while you develop
 
-Install your repository from **Integrations → Marketplace → Install Plugin from Git**, or with the API:
+Paste your repository's URL under **Bring your own display** in **Displays → Marketplace** (or in **Integrations → Marketplace → Add from Git**), or install it with the API:
 
 ```bash
 curl -X POST http://localhost:4420/api/plugins/install \

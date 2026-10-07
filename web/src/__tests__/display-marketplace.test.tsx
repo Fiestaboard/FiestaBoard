@@ -277,4 +277,91 @@ describe("Displays → Marketplace", () => {
     await userEvent.click(await screen.findByRole("tab", { name: /Marketplace/ }));
     expect(await marketplace()).toBeInTheDocument();
   });
+
+  describe("side-loading from a git URL", () => {
+    const GIT = "https://github.com/example/fiestaboard-output--garage-sign.git";
+
+    function gitInstall(respond: (body: Record<string, unknown>) => Response, becomes?: Available) {
+      const bodies: Record<string, unknown>[] = [];
+      let installed = false;
+      server.use(
+        http.post(`${API}/plugins/install`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          bodies.push(body);
+          const response = respond(body);
+          installed = response.status < 400;
+          return response;
+        }),
+        http.get(`${API}/outputs/available`, () =>
+          HttpResponse.json(installed && becomes ? [VESTABOARD, FIESTAPANEL, becomes] : [VESTABOARD, FIESTAPANEL]),
+        ),
+      );
+      return bodies;
+    }
+
+    async function fillAndInstall(branch = "") {
+      const panel = await screen.findByTestId("display-marketplace-build");
+      await userEvent.type(within(panel).getByLabelText("Repository URL"), GIT);
+      if (branch) await userEvent.type(within(panel).getByLabelText("Branch (optional)"), branch);
+      await userEvent.click(within(panel).getByRole("button", { name: "Install from git" }));
+      return panel;
+    }
+
+    it("installs a display plugin from its repository and offers to add a display with it", async () => {
+      setup({ outputs: [VESTABOARD, FIESTAPANEL] });
+      const garage = available("garage_sign", "Garage Sign", "installed");
+      const bodies = gitInstall(
+        () => HttpResponse.json({ plugin_id: "garage_sign", message: "installed" }, { status: 201 }),
+        garage,
+      );
+      renderPage();
+      const panel = await fillAndInstall("v1.2.0");
+      await waitFor(() => expect(bodies).toEqual([{ repository: GIT, plugin_id: undefined, branch: "v1.2.0" }]));
+      // It is a display: it joins the installed ones, and the panel offers it.
+      expect(
+        await within(panel).findByText("Garage Sign is installed. Add a display to start using it."),
+      ).toBeInTheDocument();
+      const installed = within(await marketplace()).getByRole("region", { name: "On this FiestaBoard" });
+      expect(await within(installed).findByRole("heading", { name: "Garage Sign" })).toBeInTheDocument();
+      await userEvent.click(within(panel).getByRole("button", { name: "Add a display with Garage Sign" }));
+      expect(await screen.findByRole("dialog", { name: "Add a Garage Sign" })).toBeInTheDocument();
+    });
+
+    it("says a data plugin is not a display and points to Integrations", async () => {
+      setup({ outputs: [VESTABOARD, FIESTAPANEL] });
+      gitInstall(() => HttpResponse.json({ plugin_id: "weather_x", message: "installed" }, { status: 201 }));
+      renderPage();
+      const panel = await fillAndInstall();
+      expect(
+        await within(panel).findByText(
+          "weather_x is installed, but it's a data plugin, not a display. Use it from the Integrations page.",
+        ),
+      ).toBeInTheDocument();
+      expect(within(panel).getByRole("link", { name: "Open Integrations" })).toHaveAttribute(
+        "href",
+        "/integrations?tab=installed",
+      );
+    });
+
+    it("shows the server's reason when the install is refused", async () => {
+      setup({ outputs: [VESTABOARD, FIESTAPANEL] });
+      gitInstall(() =>
+        HttpResponse.json(
+          { detail: "garage_sign targets output_api 99; this FiestaBoard supports output_api 1" },
+          { status: 400 },
+        ),
+      );
+      renderPage();
+      const panel = await fillAndInstall();
+      const alert = await within(panel).findByRole("alert", { name: /Couldn't install from that repository/ });
+      expect(alert).toHaveTextContent("garage_sign targets output_api 99; this FiestaBoard supports output_api 1");
+    });
+
+    it("needs a repository URL before it installs", async () => {
+      setup();
+      renderPage();
+      const panel = await screen.findByTestId("display-marketplace-build");
+      expect(within(panel).getByRole("button", { name: "Install from git" })).toBeDisabled();
+    });
+  });
 });

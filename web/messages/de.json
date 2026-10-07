@@ -1170,8 +1170,12 @@
       "retry": "Erneut versuchen",
       "noMatch": "Keine Anzeigen passen zu „{query}“",
       "buildTitle": "Eigene Anzeige anbinden",
-      "buildBody": "FiestaBoard kann jede Anzeige steuern, die ein Plugin ihm beibringt. Schreibe eins für dein Gerät oder installiere eins über eine Git-URL unter Integrationen → Marktplatz.",
-      "buildLink": "Ein Anzeige-Plugin schreiben"
+      "buildBody": "FiestaBoard kann jede Anzeige steuern, die ein Plugin ihm beibringt. Füge das Git-Repository eines Anzeige-Plugins ein, um es zu installieren, oder schreibe eins für dein Gerät.",
+      "buildLink": "Ein Anzeige-Plugin schreiben",
+      "gitInstall": "Aus Git installieren",
+      "gitInstalledData": "{pluginId} ist installiert, aber es ist ein Daten-Plugin, keine Anzeige. Nutze es auf der Seite Integrationen.",
+      "gitOpenIntegrations": "Integrationen öffnen",
+      "gitFailedTitle": "Installation aus diesem Repository fehlgeschlagen"
     }
   },
   "systemUpdate": {

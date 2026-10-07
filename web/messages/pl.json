@@ -1170,8 +1170,12 @@
       "retry": "Spróbuj ponownie",
       "noMatch": "Brak wyświetlaczy pasujących do \"{query}\"",
       "buildTitle": "Podłącz własny wyświetlacz",
-      "buildBody": "FiestaBoard może sterować każdym wyświetlaczem, którego nauczy go wtyczka. Napisz ją dla swojego urządzenia albo zainstaluj z adresu git w Integracje → Sklep.",
-      "buildLink": "Napisz wtyczkę wyświetlacza"
+      "buildBody": "FiestaBoard może sterować każdym wyświetlaczem, którego nauczy go wtyczka. Wklej repozytorium git wtyczki wyświetlacza, aby ją zainstalować, albo napisz własną dla swojego urządzenia.",
+      "buildLink": "Napisz wtyczkę wyświetlacza",
+      "gitInstall": "Zainstaluj z git",
+      "gitInstalledData": "{pluginId} jest zainstalowany, ale to wtyczka danych, a nie wyświetlacz. Użyj jej na stronie Integracje.",
+      "gitOpenIntegrations": "Otwórz Integracje",
+      "gitFailedTitle": "Nie udało się zainstalować z tego repozytorium"
     }
   },
   "systemUpdate": {

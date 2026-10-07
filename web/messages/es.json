@@ -1170,8 +1170,12 @@
       "retry": "Reintentar",
       "noMatch": "Ninguna pantalla coincide con \"{query}\"",
       "buildTitle": "Trae tu propia pantalla",
-      "buildBody": "FiestaBoard puede controlar cualquier pantalla que un plugin le enseñe. Escribe uno para tu dispositivo o instala uno desde una URL de git en Integraciones → Mercado.",
-      "buildLink": "Escribir un plugin de pantalla"
+      "buildBody": "FiestaBoard puede controlar cualquier pantalla que un plugin le enseñe. Pega el repositorio git de un plugin de pantalla para instalarlo, o escribe uno para tu dispositivo.",
+      "buildLink": "Escribir un plugin de pantalla",
+      "gitInstall": "Instalar desde git",
+      "gitInstalledData": "{pluginId} está instalado, pero es un plugin de datos, no una pantalla. Úsalo desde la página de Integraciones.",
+      "gitOpenIntegrations": "Abrir Integraciones",
+      "gitFailedTitle": "No se pudo instalar desde ese repositorio"
     }
   },
   "systemUpdate": {

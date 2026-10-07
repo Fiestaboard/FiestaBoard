@@ -1170,8 +1170,12 @@
       "retry": "重试",
       "noMatch": "没有与“{query}”匹配的显示屏",
       "buildTitle": "接入你自己的显示屏",
-      "buildBody": "只要有插件教会它，FiestaBoard 就能驱动任何显示屏。为你的设备编写一个，或在 集成 → 插件市场 中通过 git URL 安装。",
-      "buildLink": "编写显示屏插件"
+      "buildBody": "只要有插件教会它，FiestaBoard 就能驱动任何显示屏。粘贴显示屏插件的 git 仓库即可安装，或为你的设备编写一个。",
+      "buildLink": "编写显示屏插件",
+      "gitInstall": "从 git 安装",
+      "gitInstalledData": "{pluginId} 已安装，但它是数据插件，不是显示屏。请在集成页面中使用。",
+      "gitOpenIntegrations": "打开集成",
+      "gitFailedTitle": "无法从该仓库安装"
     }
   },
   "systemUpdate": {

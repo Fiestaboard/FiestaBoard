@@ -1170,8 +1170,12 @@
       "retry": "다시 시도",
       "noMatch": "\"{query}\"와(과) 일치하는 디스플레이가 없습니다",
       "buildTitle": "나만의 디스플레이 연결",
-      "buildBody": "FiestaBoard는 플러그인이 알려 주는 모든 디스플레이를 구동할 수 있습니다. 내 기기용 플러그인을 작성하거나, 통합 → 마켓플레이스에서 git URL로 설치하세요.",
-      "buildLink": "디스플레이 플러그인 작성하기"
+      "buildBody": "FiestaBoard는 플러그인이 알려 주는 모든 디스플레이를 구동할 수 있습니다. 디스플레이 플러그인의 git 저장소를 붙여 넣어 설치하거나, 내 기기용 플러그인을 작성하세요.",
+      "buildLink": "디스플레이 플러그인 작성하기",
+      "gitInstall": "git에서 설치",
+      "gitInstalledData": "{pluginId}이(가) 설치되었지만 디스플레이가 아닌 데이터 플러그인입니다. 통합 페이지에서 사용하세요.",
+      "gitOpenIntegrations": "통합 열기",
+      "gitFailedTitle": "해당 저장소에서 설치하지 못했습니다"
     }
   },
   "systemUpdate": {
