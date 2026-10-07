@@ -1,6 +1,7 @@
 /**
- * Plugin updates live on the Integrations page now, not in Settings: the
- * page toolbar carries the auto-update switch beside "Check for updates".
+ * Plugin updates live on the Integrations section now, not in Settings: the
+ * section header carries the auto-update switch beside "Check for updates",
+ * on the list and on every plugin's page alike.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -8,7 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import IntegrationsPage from "../../app/routes/integrations._index";
+import { IntegrationsSection } from "../../app/routes/integrations";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -17,11 +18,27 @@ const toastMock = vi.hoisted(() => ({ success: vi.fn(), info: vi.fn(), error: vi
 
 vi.mock("sonner", () => ({ toast: toastMock, Toaster: () => null }));
 
+vi.mock("@/hooks/use-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/hooks/use-router")>()),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+  useParams: () => ({}),
+}));
+
+vi.mock("@/components/smart-link", () => ({
+  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <IntegrationsPage />
+      <IntegrationsSection>
+        <p>list</p>
+      </IntegrationsSection>
     </QueryClientProvider>,
   );
 }
@@ -46,8 +63,8 @@ beforeEach(() => {
   );
 });
 
-describe("Integrations page — plugin updates", () => {
-  it("shows the auto-update setting in the toolbar", async () => {
+describe("Integrations section — plugin updates", () => {
+  it("shows the auto-update setting in the section header", async () => {
     renderPage();
     const toggle = await screen.findByRole("switch", { name: "Auto-update plugins" });
     await waitFor(() => expect(toggle).toBeChecked());
