@@ -559,6 +559,21 @@ class TestCountdownBoardAwareness:
         assert [line.strip() for line in lines if "PASSED" in line] == ["HAS PASSED"]
 
     @patch.object(countdown_module, "datetime")
+    def test_a_10_wide_led_board_gets_a_header_that_fits(self, mock_datetime, sample_manifest, sample_config):
+        """A Pixoo 64 in its large 5x7 face is 8x10: "COUNTDOWN UNTIL" (15
+        tiles) does not fit 10 columns, so the header shortens."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = sample_config
+        lines = plugin.get_data(BoardContext("panel", rows=8, cols=10)).formatted_lines
+
+        assert all(len(line) <= 10 for line in lines), lines
+        assert lines[0].strip() == "COUNTDOWN"
+
+    @patch.object(countdown_module, "datetime")
     def test_expired_event_stays_on_one_row_when_it_fits(self, mock_datetime, sample_manifest, sample_config):
         tz = ZoneInfo("America/Los_Angeles")
         mock_datetime.now.return_value = datetime(2025, 7, 1, 0, 0, 0, tzinfo=tz)

@@ -1045,7 +1045,9 @@
     },
     "notesWideLabel": "Notes wide",
     "notesTallLabel": "Notes tall",
-    "customRangeError": "Each dimension must be between 1 and {max}."
+    "customRangeError": "Each dimension must be between 1 and {max}.",
+    "resizeMovedPages": "Pages moved to the board's new size: {pages}.",
+    "resizeStaleRefs": "The board's new size no longer fits these pages: {pages}. Edit them or they won't display on this board."
   },
   "displays": {
     "title": "Displays",

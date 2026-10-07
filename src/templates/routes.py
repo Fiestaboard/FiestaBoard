@@ -27,6 +27,7 @@ from src.display_runtime import live_driver
 from src.led.charsets import has_extended_markup, validate_message
 from src.outputs.board_profile import board_character_set
 from src.outputs.cells import extended_markup_kw, project_for_output
+from src.outputs.display_profile import display_profile_for_board, display_profile_for_client
 from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
 from src.text_to_board import text_to_board_array
@@ -241,7 +242,7 @@ async def render_template(request: TemplateRenderRequest):
                 notes_tall=notes_tall,
                 grid_rows=grid_rows,
                 grid_cols=grid_cols,
-                **check.render_kw,
+                **check.lines_kw,
             )
         else:
             logger.info(f"Rendering template string: {template}")
@@ -286,6 +287,15 @@ class _CharsetCheck:
         self.board = board
         self.charset = board_character_set(board) if board is not None else None
         self.render_kw: dict = {"extended_markup": True} if has_extended_markup(self.charset) else {}
+        #: What the board draws (its size and face included), for the
+        #: plugins a board-sized render fetches; ``None`` with no board.
+        self.display = display_profile_for_board(board) if board is not None else None
+
+    @property
+    def lines_kw(self) -> dict:
+        """:attr:`render_kw` plus ``display``, for ``render_lines`` (which
+        builds the plugins' :class:`~src.devices.BoardContext`)."""
+        return {**self.render_kw, "display": self.display} if self.display is not None else dict(self.render_kw)
 
     def result(self, rendered: str | None) -> dict:
         if not self.targeted:
@@ -354,6 +364,10 @@ async def render_template_live(request: TemplateRenderLiveRequest):
         _require_board(board_id)
     client = live_driver(target_board.get("id")) if target_board else None
     render_kw = extended_markup_kw(client)
+    # The plugins see the board the render is sent to: its size and face.
+    display = display_profile_for_client(client) if client is not None else None
+    if display is None and target_board is not None:
+        display = display_profile_for_board(target_board)
 
     # Render the template
     try:
@@ -368,6 +382,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                 grid_rows=grid_rows,
                 grid_cols=grid_cols,
                 **render_kw,
+                **({"display": display} if display is not None else {}),
             )
         else:
             rendered = await asyncio.to_thread(template_engine.render, template, **render_kw)

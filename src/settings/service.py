@@ -218,6 +218,18 @@ def _restore_output_config(board: dict, existing: dict) -> object:
     return config
 
 
+def _with_derived_grid(board: dict) -> dict:
+    """*board* with the grid its output plugin's device model sets, when it
+    sets one (:func:`src.outputs.geometry.derived_plugin_grid`): an LED
+    board's grid follows its text size, whatever grid the write carried."""
+    from src.outputs.geometry import derived_plugin_grid
+
+    grid = derived_plugin_grid(board)
+    if grid is None:
+        return board
+    return {**board, "device_type": "panel", "grid_rows": grid[0], "grid_cols": grid[1]}
+
+
 def restore_masked_board_secrets(board: dict, existing: dict) -> dict:
     """Restore every echoed ``"***"`` secret in *board* from *existing*, in place.
 
@@ -1983,7 +1995,7 @@ class SettingsService:
             restore_masked_board_secrets(b, existing or {})
             # Either shape, or both (an echoed GET): plan D8's bidirectional
             # projection, resolved against the stored board.
-            instance = BoardInstance.from_dict(merge_board_write(b, existing))
+            instance = BoardInstance.from_dict(_with_derived_grid(merge_board_write(b, existing)))
             self._check_board_transition(instance.transition, (existing or {}).get("transition"))
             validated.append(instance.to_dict())
 
@@ -2010,7 +2022,7 @@ class SettingsService:
 
         if not board.get("name"):
             board["name"] = self._next_board_name()
-        instance = BoardInstance.from_dict(board)
+        instance = BoardInstance.from_dict(_with_derived_grid(board))
         self._check_board_transition(instance.transition, None)
         self._board.boards.append(instance.to_dict())
         self._save_to_file()

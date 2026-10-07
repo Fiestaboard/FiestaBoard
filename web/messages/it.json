@@ -1089,7 +1089,9 @@
     },
     "notesWideLabel": "Notes in larghezza",
     "notesTallLabel": "Notes in altezza",
-    "customRangeError": "Ogni dimensione deve essere compresa tra 1 e {max}."
+    "customRangeError": "Ogni dimensione deve essere compresa tra 1 e {max}.",
+    "resizeMovedPages": "Pagine adattate alla nuova dimensione della bacheca: {pages}.",
+    "resizeStaleRefs": "La nuova dimensione della bacheca non è più adatta a queste pagine: {pages}. Modificale o non verranno mostrate su questa bacheca."
   },
   "displays": {
     "title": "Schermi",

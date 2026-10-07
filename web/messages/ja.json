@@ -1089,7 +1089,9 @@
     },
     "notesWideLabel": "Note 横数",
     "notesTallLabel": "Note 縦数",
-    "customRangeError": "各寸法は 1 ～ {max} の範囲でなければなりません。"
+    "customRangeError": "各寸法は 1 ～ {max} の範囲でなければなりません。",
+    "resizeMovedPages": "ボードの新しいサイズに合わせてページを移動しました：{pages}。",
+    "resizeStaleRefs": "ボードの新しいサイズにこれらのページが収まらなくなりました：{pages}。編集しないとこのボードに表示されません。"
   },
   "displays": {
     "title": "ディスプレイ",

@@ -636,7 +636,9 @@ pixel display with lowercase, colored text and icons) or a TV. Read
 | `color` | `"tiles"` (a flap's fixed colors), `"rgb"` or `"mono"` |
 | `supports(feature)` | `"lowercase"`, `"color_text"` (`{green:63F}`), `"background"` (`{yellow/black:AQI}`), `"tiles"`, `"icons"` (`{icon:sun}`), `"rgb"`, `"solid_shapes"` (same-colored tiles join into one filled area) |
 | `icons` | The icon names this display draws |
-| `ai_brief()` | Ready-made text for an AI prompt: the markup this display draws and nothing it cannot |
+| `font` (**10.0.0**) | An LED board's text face: `"5x7"` (Large) or `"3x5"` (Small); `None` on a split-flap |
+| `key` | Identity for caches: two displays with equal keys draw identically |
+| `ai_brief()` | Ready-made text for an AI prompt: the board's size, its text face, and the markup this display draws and nothing it cannot |
 | `check(text)` | What in `text` the display cannot draw, and what it shows instead |
 
 ```python
@@ -652,6 +654,32 @@ def fetch_data(self) -> PluginResult:
 A plugin that writes board text with an AI model should put
 `display.ai_brief()` in its prompt instead of describing the board itself, so
 it learns every new display FiestaBoard supports without a change.
+
+#### The board's size can change at runtime
+
+Never assume a board keeps the size you last rendered for. A user can switch
+an LED board's text size (**10.0.0**): a Divoom Pixoo 64 shows 10 rows of 16
+characters in the Small (3×5) face and 8 rows of 10 in the Large (5×7) face,
+under the same board and the same `device_type` (`"panel"`). FiestaBoard moves
+the board's pages to the new size, and your plugin sees the new
+`self.board.rows` / `self.board.cols` and `self.board.display.font` on the
+very next render. Write rows that fit `cols`: an LED board can be as narrow
+as 10 columns.
+
+Results FiestaBoard caches for you (`refresh_seconds`) are keyed on the
+board's size and display, so a result rendered for the old size is never
+reused for the new one. If you keep your own per-board state (a cache, a
+rotation index, a layout), key it on `self.board.key`, which is exactly that
+key, never on `device_type` alone:
+
+```python
+def fetch_data(self) -> PluginResult:
+    key = self.board.key if self.board else "default"
+    layout = self._layouts.get(key)
+    if layout is None:
+        layout = self._layouts[key] = self._build_layout(self.board)
+    ...
+```
 
 ### Constructor
 

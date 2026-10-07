@@ -259,7 +259,8 @@ def fetch_data(self) -> PluginResult:
 | `device_type` | `"flagship"`, `"note"`, `"note_array"`, `"panel"` |
 | `cols` / `width` | board width in tiles (aliases) |
 | `rows` / `height` | board height in tiles (aliases) |
-| `display` | what the display can draw (`src.outputs.display_profile.DisplayProfile`): technology, colour, lowercase, coloured text, backgrounds, tiles, icons, plus `supports()`, `ai_brief()` and `check()`. `None` without a board; treat as split-flap |
+| `display` | what the display can draw (`src.outputs.display_profile.DisplayProfile`): technology, colour, lowercase, coloured text, backgrounds, tiles, icons, an LED board's text face (`font`: `"5x7"` / `"3x5"`), plus `supports()`, `ai_brief()` and `check()`. `None` without a board; treat as split-flap |
+| `key` | identity for per-board state: size plus `display.key`, exactly what `get_data()` caches on |
 
 ### Rules
 
@@ -282,12 +283,15 @@ def fetch_data(self) -> PluginResult:
   the board is split-flap or LED, and what markup it draws. An AI plugin puts
   `board.display.ai_brief()` in its prompt; never hard-code "split-flap" or
   "uppercase only".
-- **Key any cache of your own by geometry.** `PluginBase.get_data()` already
-  caches results per geometry (`note_array:{cols}x{rows}`, `panel:{cols}x{rows}`), but a cache or
-  simulation state you hold yourself must include rows and cols, or one board's
-  frame is served to another. Include `board.display.key` when your output
-  depends on the display: two boards of one size (a split-flap panel and an
-  LED panel) draw differently. Core's own caches already do.
+- **Key any cache of your own on `board.key`.** `PluginBase.get_data()`
+  already caches results on it (size plus `display.key`), but a cache or
+  simulation state you hold yourself must use it too, or one board's frame is
+  served to another. Never key on `device_type` alone: a board's size can
+  change at runtime (an LED board's text size moves a Pixoo between 10x16 and
+  8x10 under `device_type` `"panel"`), and two boards of one size (a
+  split-flap panel and an LED panel) draw differently.
+- **Fit 10 columns.** An LED board in its large face is as narrow as 10x4;
+  the conformance suite renders every plugin at 10x8 and 10x4.
 
 ### Prove it with the conformance suite
 

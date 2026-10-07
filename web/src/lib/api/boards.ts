@@ -222,7 +222,16 @@ export interface NoteArrayTile {
 export interface BoardLedLayout {
   tile_gap: "gap" | "fill";
   block_padding: 0 | 1;
+  /**
+   * The face the board draws text in — its text size: `"5x7"` (Large) or
+   * `"3x5"` (Small). It sizes an LED board's grid (a Pixoo 64 is 8x10 in 5x7,
+   * 10x16 in 3x5). Stored as `output_config.font`; absent from an older core.
+   */
+  font?: LedFontId;
 }
+
+/** An LED face, as FiestaUI names it: Large `"5x7"` or Small `"3x5"`. */
+export type LedFontId = "5x7" | "3x5";
 
 export interface BoardInstance {
   id: string;
@@ -367,6 +376,42 @@ export interface BoardSettings {
 }
 
 /**
+ * A page moved onto a board's new grid when a save resized the board in
+ * place (an LED board's text size). Mirrors `RetargetedPage` in
+ * src/settings/models.py.
+ */
+export interface RetargetedPage {
+  page_id: string;
+  page_name: string;
+  /** The page's size key before, e.g. `panel:10x16`. */
+  from_size: string;
+  /** The page's size key now, e.g. `panel:8x10`. */
+  to_size: string;
+}
+
+/**
+ * A schedule entry or active page whose page no longer fits a board a save
+ * resized (warn-only). Mirrors `IncompatibleBoardReference`.
+ */
+export interface IncompatibleBoardReference {
+  board_id: string;
+  board_name: string;
+  page_id: string;
+  page_name: string;
+  surface: "schedule" | "active_page";
+  schedule_id: string | null;
+}
+
+/**
+ * `PUT /settings/board`: the board settings, plus what a resize moved. Both
+ * lists are null unless `boards` was saved (`BoardSettingsUpdateResponse`).
+ */
+export interface BoardSettingsUpdateResult extends BoardSettings {
+  retargeted_pages?: RetargetedPage[] | null;
+  incompatible_references?: IncompatibleBoardReference[] | null;
+}
+
+/**
  * Response from POST /settings/board/{id}/detect-size. Mirrors the Python
  * `classify_dimensions()` return shape. The note-grid fields are always
  * present and null for a flagship or a single Note. `matched_preset` is a
@@ -461,7 +506,7 @@ export const boardsApi = {
     devices?: DeviceType[];
     boards?: BoardInstance[];
   }) =>
-    fetchApi<BoardSettings>("/settings/board", {
+    fetchApi<BoardSettingsUpdateResult>("/settings/board", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),

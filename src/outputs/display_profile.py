@@ -52,6 +52,11 @@ class DisplayProfile:
         chars: Every character the board draws.
         tile_gap: LED tile style: ``"fill"`` joins same-coloured neighbours
             into solid shapes, ``"gap"`` keeps a dark gutter; ``None`` off LED.
+        font: The LED face the board draws text in: ``"5x7"`` (Large) or
+            ``"3x5"`` (Small); ``None`` off LED. A board's face can change
+            at runtime (its text size setting), and its grid with it.
+        rows: The board's grid height in characters, when known.
+        cols: The board's grid width in characters, when known.
     """
 
     technology: str = "split_flap"
@@ -65,13 +70,21 @@ class DisplayProfile:
     icons: tuple[str, ...] = ()
     chars: str = ""
     tile_gap: str | None = None
+    font: str | None = None
+    rows: int | None = None
+    cols: int | None = None
 
     @property
     def key(self) -> str:
-        """Identity for caches: two boards with equal keys draw identically."""
-        return "|".join(
-            str(part) for part in (self.device_model or self.technology, self.charset, self.color, self.tile_gap)
-        )
+        """Identity for caches: two boards with equal keys draw identically.
+
+        The grid is not part of it (a cache keys on the board's size beside
+        it, :attr:`src.devices.BoardContext.key`); the face is.
+        """
+        parts = [self.device_model or self.technology, self.charset, self.color, self.tile_gap]
+        if self.font is not None:
+            parts.append(self.font)
+        return "|".join(str(part) for part in parts)
 
     def supports(self, feature: str) -> bool:
         """Whether this display can draw *feature* (one of :data:`FEATURES`).
@@ -124,6 +137,14 @@ class DisplayProfile:
             "screen": "a screen",
         }.get(self.technology, "a display board")
         lines = [f"THE DISPLAY: {kind}."]
+        size = []
+        if self.rows and self.cols:
+            size.append(f"It shows {self.rows} rows of {self.cols} characters")
+        if self.font is not None:
+            face = "large" if self.font == "5x7" else "small"
+            size.append(("in" if size else "Text is drawn in") + f" the {face} {self.font} text face")
+        if size:
+            lines.append(" ".join(size) + ". Keep every line within that width.")
         if self.mixed_case:
             lines.append("Lowercase is drawn as lowercase: write normal sentence case, not all caps.")
         else:
@@ -179,10 +200,14 @@ def _charset_of(client: Any, model: Mapping[str, Any] | None) -> Mapping[str, An
 
 
 def _profile(
-    model: Mapping[str, Any], charset: Mapping[str, Any] | None, config: Mapping[str, Any] | None
+    model: Mapping[str, Any],
+    charset: Mapping[str, Any] | None,
+    config: Mapping[str, Any] | None,
+    grid: tuple[int, int] | None = None,
 ) -> DisplayProfile:
-    """One :class:`DisplayProfile` from a resolved device model, character
-    set and the board's output config (for the LED tile style)."""
+    """One :class:`DisplayProfile` from a resolved (effective) device model,
+    character set, the board's output config (for the LED tile style) and its
+    content grid."""
     charset = charset or {}
     color = model.get("color")
     color_kind = color.get("kind") if isinstance(color, Mapping) else None
@@ -203,7 +228,24 @@ def _profile(
         icons=tuple(str(i) for i in icons if str(i) in BOARD_ICONS),
         chars="".join(str(c) for c in chars),
         tile_gap=layout.tile_gap if layout is not None else None,
+        font=layout.font if layout is not None else None,
+        rows=grid[0] if grid else None,
+        cols=grid[1] if grid else None,
     )
+
+
+def _grid(rows: Any, cols: Any) -> tuple[int, int] | None:
+    if isinstance(rows, int) and isinstance(cols, int) and rows > 0 and cols > 0:
+        return rows, cols
+    return None
+
+
+def _client_grid(plugin: Any) -> tuple[int, int] | None:
+    try:
+        grid = getattr(plugin, "board_geometry", None)
+    except Exception:  # a hint, never an error
+        return None
+    return _grid(*grid) if isinstance(grid, tuple) and len(grid) == 2 else None
 
 
 def display_profile_for_client(client: Any) -> DisplayProfile | None:
@@ -214,8 +256,11 @@ def display_profile_for_client(client: Any) -> DisplayProfile | None:
     model = _model_of(client)
     if model is None:
         return None
-    config = getattr(getattr(client, "plugin", None), "config", None)
-    return _profile(model, _charset_of(client, model), config if isinstance(config, Mapping) else None)
+    plugin = getattr(client, "plugin", None)
+    config = getattr(plugin, "config", None)
+    return _profile(
+        model, _charset_of(client, model), config if isinstance(config, Mapping) else None, _client_grid(plugin)
+    )
 
 
 def display_profile_for_board(board: Mapping[str, Any]) -> DisplayProfile | None:
@@ -227,7 +272,12 @@ def display_profile_for_board(board: Mapping[str, Any]) -> DisplayProfile | None
     if not isinstance(model, Mapping):
         return None
     config = board.get("output_config")
-    return _profile(model, board_character_set(board), config if isinstance(config, Mapping) else None)
+    return _profile(
+        model,
+        board_character_set(board),
+        config if isinstance(config, Mapping) else None,
+        _grid(board.get("grid_rows"), board.get("grid_cols")),
+    )
 
 
 def render_kw(client: Any) -> dict[str, Any]:

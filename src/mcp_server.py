@@ -1287,7 +1287,11 @@ def _build_mcp_server() -> Any:
         except ValueError:
             render_device_type = DEFAULT_DEVICE_TYPE
             dims = resolve_dimensions(render_device_type)
-        context = engine._build_context(BoardContext(render_device_type, rows=dims.rows, cols=dims.cols))
+        # With board_id, the plugins also see what that board draws (its
+        # face included), as the engine's own render does.
+        context = engine._build_context(
+            BoardContext(render_device_type, rows=dims.rows, cols=dims.cols, display=check.display)
+        )
         rendered = engine.render_lines(
             template_lines,
             context=context,

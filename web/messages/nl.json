@@ -1089,7 +1089,9 @@
     },
     "notesWideLabel": "Notes breed",
     "notesTallLabel": "Notes hoog",
-    "customRangeError": "Elke dimensie moet tussen 1 en {max} liggen."
+    "customRangeError": "Elke dimensie moet tussen 1 en {max} liggen.",
+    "resizeMovedPages": "Pagina's aangepast aan het nieuwe formaat van het bord: {pages}.",
+    "resizeStaleRefs": "Het nieuwe formaat van het bord past niet meer bij deze pagina's: {pages}. Bewerk ze, anders worden ze niet op dit bord getoond."
   },
   "displays": {
     "title": "Schermen",

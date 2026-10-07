@@ -24,6 +24,14 @@ export interface OutputActionDescriptor {
 export interface OutputDeviceModel {
   id: string;
   label: string;
+  /**
+   * The LED face a new board on this model is created in (`"5x7"` Large /
+   * `"3x5"` Small) and the built-in character set drawn in it, so an "add a
+   * board" preview draws what the board will be; null for a model with no
+   * face choice. Absent from an older core.
+   */
+  new_board_font?: "5x7" | "3x5" | null;
+  new_board_charset?: string | null;
 }
 
 /** `GET /outputs` — an installed output. */

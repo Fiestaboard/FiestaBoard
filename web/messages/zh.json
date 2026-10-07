@@ -1089,7 +1089,9 @@
     },
     "notesWideLabel": "Note 宽度",
     "notesTallLabel": "Note 高度",
-    "customRangeError": "每个尺寸必须介于 1 和 {max} 之间。"
+    "customRangeError": "每个尺寸必须介于 1 和 {max} 之间。",
+    "resizeMovedPages": "已将页面调整为看板的新尺寸：{pages}。",
+    "resizeStaleRefs": "看板的新尺寸已无法容纳这些页面：{pages}。请编辑它们，否则它们不会在此看板上显示。"
   },
   "displays": {
     "title": "显示设备",

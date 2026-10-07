@@ -42,7 +42,7 @@ from src.api_errors import errors
 from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
 from src.devices import classify_dimensions, geometry_of
-from src.display_runtime import reinitialize_board_clients
+from src.display_runtime import reinitialize_board_clients, release_board_frames
 from src.outputs.cells import extended_markup_kw, project_for_output
 
 from .models import (
@@ -68,6 +68,7 @@ from .models import (
     BoardPauseResponse,
     BoardSettingsResponse,
     BoardSettingsUpdate,
+    BoardSettingsUpdateResponse,
     ClearTemporaryOverrideResponse,
     DetectBoardSizeResponse,
     DisplaySettingsResponse,
@@ -1035,7 +1036,7 @@ async def get_board_settings():
 
 @router.put(
     "/settings/board",
-    response_model=BoardSettingsResponse,
+    response_model=BoardSettingsUpdateResponse,
     responses={**ERROR_400},
     dependencies=[flat_board_fields_notice()],
 )
@@ -1052,6 +1053,12 @@ async def update_board_settings(request: BoardSettingsUpdate):
     board_type — unchanged from before the conventions pass. The list-shape
     checks the handler used to hand-roll are now the request model's job, so
     a non-list `devices` is a 422 rather than a 400.
+
+    A `boards` save that resizes a board in place (an LED board's text size
+    moves a Pixoo between 10 x 16 and 8 x 10) drops the board's old-shape
+    frames before its client is rebuilt, moves an output-plugin board's
+    pages sized for the old grid onto the new one (`retargeted_pages`), and
+    reports the references that still do not fit (`incompatible_references`).
     """
     settings_service = get_settings_service()
     provided = request.model_dump(exclude_unset=True)
@@ -1062,9 +1069,16 @@ async def update_board_settings(request: BoardSettingsUpdate):
             reinitialize_board_clients()
             return board.to_dict()
         if "boards" in provided:
+            before = [dict(b) for b in (settings_service.get_board_settings().boards or []) if isinstance(b, dict)]
             board = settings_service.set_boards(provided["boards"])
+            resized = _resized_boards(before, board.boards)
+            # Drop each resized board's old-shape frames BEFORE rebuilding
+            # its client (as PATCH /panels does on a re-fit): the stale frame
+            # must never be drawn, or transitioned from, on the new grid.
+            for _old, new in resized:
+                release_board_frames(new.get("id"))
             reinitialize_board_clients()
-            return board.to_dict()
+            return {**board.to_dict(), **_follow_resized_boards(resized, board.boards)}
         if "board_type" in provided:
             board = settings_service.set_board_type(provided["board_type"])
             return board.to_dict()
@@ -1075,6 +1089,44 @@ async def update_board_settings(request: BoardSettingsUpdate):
         status_code=400,
         detail="One of board_type, devices, or boards is required",
     )
+
+
+def _resized_boards(before: list[dict], after: list[dict]) -> list[tuple[dict, dict]]:
+    """``(old, new)`` for each board kept across a save whose grid changed."""
+    from src.devices import size_key
+
+    old_by_id = {b.get("id"): b for b in before}
+    resized = []
+    for new in after:
+        old = old_by_id.get(new.get("id"))
+        if old is not None and size_key(*geometry_of(old)) != size_key(*geometry_of(new)):
+            resized.append((old, dict(new)))
+    return resized
+
+
+def _follow_resized_boards(resized: list[tuple[dict, dict]], boards: list[dict]) -> dict[str, list[dict]]:
+    """Retarget pages after a resize; the references that still do not fit.
+
+    Only an output-plugin board's pages follow it: its grid is set by its
+    device model and text size, which the user just chose. A Vestaboard or
+    FiestaPanel resize stays warn-only (issue #1250), as it was.
+    """
+    from src.devices import BUILTIN_OUTPUT_IDS, size_key
+    from src.outputs.registry import resolve_output_id
+    from src.pages.retarget import add_resize, retarget_pages
+    from src.pages.service import find_incompatible_board_references
+
+    resizes: dict = {}
+    for old, new in resized:
+        if resolve_output_id(new) not in BUILTIN_OUTPUT_IDS:
+            add_resize(resizes, old, new)
+    moved = retarget_pages(resizes, {size_key(*geometry_of(b)) for b in boards}, allow_shrink=True) if resizes else []
+    incompatible = [
+        {"board_id": new.get("id") or "", "board_name": new.get("name") or "", **ref}
+        for _old, new in resized
+        for ref in find_incompatible_board_references(new)
+    ]
+    return {"retargeted_pages": moved, "incompatible_references": incompatible}
 
 
 @router.post(

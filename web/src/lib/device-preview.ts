@@ -14,12 +14,14 @@ import {
   type CharacterSet,
   characterSetForModel,
   type DeviceModel,
+  type DisplayPreview,
   type LedLetterCase,
   tryResolveCharacterSet,
   tryResolveDeviceModel,
 } from "@fiestaboard/ui";
+import type { ComponentProps } from "react";
 
-import type { BoardLedLayout } from "@/lib/api";
+import type { BoardLedLayout, LedFontId, OutputDeviceModel } from "@/lib/api";
 import { pagesCompatibleWithBoard, type SizedEntity } from "@/lib/board-dimensions";
 
 /**
@@ -67,11 +69,23 @@ export function isLedModel(model: DeviceModel | null | undefined): model is Devi
   return model?.technology === "led_matrix";
 }
 
-/** `DisplayPreview`'s LED layout props (FiestaUI `tileGap` / `blockPadding`). */
+/** `DisplayPreview`'s LED layout props (FiestaUI `tileGap` / `blockPadding` / `font`). */
 export interface LedLayoutProps {
   tileGap?: "gap" | "fill";
   blockPadding?: 0 | 1;
+  font?: LedFontId;
 }
+
+/**
+ * Whether this FiestaUI release's `DisplayPreview` takes a `font` prop
+ * (FiestaUI #342, the release after 8.0.0). Until it does, a board's face
+ * reaches the preview through the model document core sends instead
+ * (`device_model_spec`: the model in the board's face), so nothing is lost.
+ * The `satisfies` fails to compile once the bumped release takes `font`:
+ * flip it to `true` then.
+ */
+export const PREVIEW_TAKES_FONT = false satisfies PreviewTakesFont;
+type PreviewTakesFont = "font" extends keyof ComponentProps<typeof DisplayPreview> ? true : false;
 
 /**
  * An LED board's layout choices (`led_layout` from the API) as
@@ -83,7 +97,27 @@ export interface LedLayoutProps {
  */
 export function ledLayoutProps(layout: BoardLedLayout | null | undefined): LedLayoutProps {
   if (!layout) return {};
-  return { tileGap: layout.tile_gap, blockPadding: layout.block_padding };
+  const props: LedLayoutProps = { tileGap: layout.tile_gap, blockPadding: layout.block_padding };
+  if (PREVIEW_TAKES_FONT && layout.font) props.font = layout.font;
+  return props;
+}
+
+/**
+ * The model a NEW board on `model` draws as: the model in the face the output
+ * says a new board is created in (`new_board_font` / `new_board_charset` from
+ * `GET /outputs`; a Pixoo 64 is created Large, 5x7). `model` itself when the
+ * output names no face, or it is the model's own.
+ */
+export function modelInNewBoardFace(
+  model: DeviceModel | null,
+  face: Pick<OutputDeviceModel, "new_board_font" | "new_board_charset"> | null | undefined,
+): DeviceModel | null {
+  if (!model || !face?.new_board_font || !face.new_board_charset) return model;
+  if (face.new_board_font === model.font) return model;
+  // The set id is core's (`led_charset_for_font`); FiestaUI validates it.
+  const charset = face.new_board_charset as DeviceModel["charset"];
+  const resolved = tryResolveDeviceModel({ ...model, font: face.new_board_font, charset });
+  return resolved.model ?? model;
 }
 
 /**

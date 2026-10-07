@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import { DevicePreview } from "@/components/device-preview";
 import { charsetTokenText } from "@/lib/charset-issues";
-import { boardForShape, isLedModel, ledLetterCase, resolveBoardModel } from "@/lib/device-preview";
+import { boardForShape, isLedModel, ledLetterCase, modelInNewBoardFace, resolveBoardModel } from "@/lib/device-preview";
 
 import { FIESTAPANEL_LED_MATRIX, FIESTAPANEL_SPLIT_FLAP } from "./mocks/fiestapanel-models";
 
@@ -25,10 +25,47 @@ describe("resolveBoardModel", () => {
     ).toBe("fiestapanel_led_matrix");
   });
 
+  it("draws a Pixoo switched to the large face as the 5x7 model core sends", () => {
+    // Core sends the model a board draws as when it differs from FiestaUI's
+    // built-in: here the Pixoo in its 5x7 face (text size Large), carrying
+    // the face choice (`layoutOptions.font`, FiestaUI #342) the built-in
+    // declares from FiestaUI 8.1.0 on.
+    const builtin = resolveBoardModel({ device_model: "divoom_pixoo64" })!;
+    const spec = {
+      ...builtin,
+      font: "5x7",
+      charset: "led_5x7",
+      layoutOptions: {
+        tileGap: { allowed: ["gap", "fill"], default: "gap" },
+        blockPadding: { allowed: [0, 1], default: 0 },
+        font: { allowed: ["5x7", "3x5"], default: "5x7" },
+      },
+    };
+    const model = resolveBoardModel({ device_model: "divoom_pixoo64", device_model_spec: spec as never });
+    expect(model?.font).toBe("5x7");
+    expect(model?.charset).toBe("led_5x7");
+  });
+
   it("is null for an id it cannot resolve, never a guess", () => {
     expect(resolveBoardModel({ device_model: "acme_unknown" })).toBeNull();
     expect(resolveBoardModel({ device_model: null })).toBeNull();
     expect(resolveBoardModel(null)).toBeNull();
+  });
+});
+
+describe("modelInNewBoardFace", () => {
+  it("draws the face a new board on the model is created in", () => {
+    const pixoo = resolveBoardModel({ device_model: "divoom_pixoo64" })!;
+    const large = modelInNewBoardFace(pixoo, { new_board_font: "5x7", new_board_charset: "led_5x7" });
+    expect(large?.font).toBe("5x7");
+    expect(large?.charset).toBe("led_5x7");
+  });
+
+  it("is the model itself when the output names no face", () => {
+    const pixoo = resolveBoardModel({ device_model: "divoom_pixoo64" })!;
+    expect(modelInNewBoardFace(pixoo, { new_board_font: null, new_board_charset: null })).toBe(pixoo);
+    expect(modelInNewBoardFace(pixoo, undefined)).toBe(pixoo);
+    expect(modelInNewBoardFace(null, { new_board_font: "5x7", new_board_charset: "led_5x7" })).toBeNull();
   });
 });
 

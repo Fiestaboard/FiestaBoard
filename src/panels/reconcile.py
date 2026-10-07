@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 
-from src.devices import DeviceDimensions, dimensions_of, geometry_of, size_key
+from src.devices import DeviceDimensions, geometry_of, size_key
 from src.outputs.registry import FIESTAPANEL, resolve_output_id
 
 logger = logging.getLogger(__name__)
@@ -67,6 +67,7 @@ def reconcile_panel_boards() -> int:
 
 def _reconcile() -> int:
     from src.display_runtime import release_board_frames
+    from src.pages.retarget import add_resize, retarget_pages
     from src.settings.service import get_settings_service
 
     from .autofit import compute_autofit_grid
@@ -80,8 +81,7 @@ def _reconcile() -> int:
     boards = [dict(b) for b in (settings_service.get_board_settings().boards or []) if isinstance(b, dict)]
     by_id = {b.get("id"): b for b in boards}
 
-    # old size key -> every (old dims, new dims) a refit of that size produced
-    refits: dict[str, list[tuple[DeviceDimensions, DeviceDimensions]]] = {}
+    resizes: dict = {}
     refit_ids: list[str] = []
     for panel in panels:
         board = by_id.get(panel.board_id)
@@ -91,9 +91,9 @@ def _reconcile() -> int:
         if board_matches_grid(board, grid):
             continue
         old_key = size_key(*geometry_of(board))
-        old_dims = dimensions_of(board)
+        old_board = dict(board)
         fit_board_to_grid(board, grid)
-        refits.setdefault(old_key, []).append((old_dims, grid))
+        add_resize(resizes, old_board, board)
         refit_ids.append(panel.board_id)
         logger.info(
             "Panel %r re-fit from %s to panel:%dx%d",
@@ -110,49 +110,6 @@ def _reconcile() -> int:
     for board_id in refit_ids:
         release_board_frames(board_id)
 
-    _retarget_pages(refits, remaining_keys={size_key(*geometry_of(b)) for b in boards})
+    # A re-fit is not the user's choice: pages only grow with it, never crop.
+    retarget_pages(resizes, remaining_keys={size_key(*geometry_of(b)) for b in boards})
     return len(refit_ids)
-
-
-def _retarget_pages(
-    refits: dict[str, list[tuple[DeviceDimensions, DeviceDimensions]]],
-    remaining_keys: set[str],
-) -> None:
-    """Move pages sized for a re-fit panel's old grid onto its new grid."""
-    from src.pages.models import PageUpdate
-    from src.pages.service import get_page_service
-
-    targets: dict[str, DeviceDimensions] = {}
-    for old_key, moves in refits.items():
-        new_grids = {new for _old, new in moves}
-        if len(new_grids) != 1:
-            logger.info("Pages sized %s left in place: panels that shared it now fit differently", old_key)
-            continue
-        if old_key in remaining_keys:
-            logger.info("Pages sized %s left in place: another board still has that size", old_key)
-            continue
-        new = next(iter(new_grids))
-        if any(new.rows < old.rows or new.cols < old.cols for old, _new in moves):
-            logger.info("Pages sized %s left in place: the new grid is smaller and would crop them", old_key)
-            continue
-        targets[old_key] = new
-
-    if not targets:
-        return
-
-    page_service = get_page_service()
-    moved = 0
-    for page in page_service.list_pages():
-        new = targets.get(size_key(*geometry_of(page)))
-        if new is None:
-            continue
-        try:
-            page_service.update_page(
-                page.id,
-                PageUpdate(device_type="panel", grid_rows=new.rows, grid_cols=new.cols),
-            )
-            moved += 1
-        except ValueError:
-            logger.warning("Could not retarget page %r to its panel's new grid", page.name, exc_info=True)
-    if moved:
-        logger.info("Retargeted %d page(s) to their panels' re-fit grids", moved)

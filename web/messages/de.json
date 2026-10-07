@@ -1089,7 +1089,9 @@
     },
     "notesWideLabel": "Notes breit",
     "notesTallLabel": "Notes hoch",
-    "customRangeError": "Jede Dimension muss zwischen 1 und {max} liegen."
+    "customRangeError": "Jede Dimension muss zwischen 1 und {max} liegen.",
+    "resizeMovedPages": "Seiten an die neue Größe des Boards angepasst: {pages}.",
+    "resizeStaleRefs": "Die neue Größe des Boards passt nicht mehr zu diesen Seiten: {pages}. Bearbeite sie, sonst werden sie auf diesem Board nicht angezeigt."
   },
   "displays": {
     "title": "Anzeigen",

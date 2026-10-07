@@ -1089,7 +1089,9 @@
     },
     "notesWideLabel": "Note genişliği",
     "notesTallLabel": "Note yüksekliği",
-    "customRangeError": "Her boyut 1 ile {max} arasında olmalıdır."
+    "customRangeError": "Her boyut 1 ile {max} arasında olmalıdır.",
+    "resizeMovedPages": "Sayfalar panonun yeni boyutuna taşındı: {pages}.",
+    "resizeStaleRefs": "Panonun yeni boyutu artık bu sayfalara uymuyor: {pages}. Düzenlemezseniz bu panoda gösterilmezler."
   },
   "displays": {
     "title": "Ekranlar",
