@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.canvas.models import Canvas, validate_page_canvases
 from src.canvas.schemas import CanvasIssueModel, CanvasLayerModel
-
 from src.devices import (
     ABSOLUTE_MIN_GRID_COLS,
     ABSOLUTE_MIN_GRID_ROWS,

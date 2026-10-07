@@ -21,16 +21,16 @@ A page's template fills the board with characters. A canvas claims a rectangle o
 
 The canvas tools appear in the page builder when the page is being edited for an LED pixel board. For any other board they are hidden; a page that already has canvases shows a short notice that this board leaves canvas areas blank.
 
-1. Open a page in the page builder and find the **Canvases** section.
+1. Open a page in the page builder and find the **Pixel canvases** section under the preview.
 2. Select **Add canvas**. The new canvas gets an id (lowercase letters, digits, `_` or `-`, up to 16 characters) that you can change.
-3. Set its **area**: the first row and column (counted from 1) and how many rows and columns it covers. You can type the numbers or drag across the preview grid to select the cells.
+3. Set its **area**: the first row and column (counted from 1) and how many rows and columns it covers. You can type the numbers or drag across the small board grid under them to select the cells; every canvas on the page is outlined there.
 4. Choose the canvas options:
-   - **Bleed**: which sides extend to the panel edge (top, left, right, bottom, or all). A side only bleeds where the area touches that edge of the grid.
+   - **Bleed**: which sides extend to the panel edge (top, left, right, bottom; all four is stored as `"all"`). A side only bleeds where the area touches that edge of the grid.
    - **Scale**: how many panel pixels each canvas pixel takes, from 1 to 8. A scale of 2 draws chunky, double-size pixels.
    - **Text**: **Hide** blanks the text under the canvas; **Flow** wraps the text around it.
-5. Draw the canvas with one of the three tabs below. The live preview shows the result on the board, and any problem the server finds (a bad color, a variable with no value) is listed under it.
+5. Draw the canvas with one of the three tabs below. The server renders the preview for the board, and any problem it finds (a bad color, a variable with no value) is listed in the canvas section.
 
-To remove a canvas, select **Delete** on it. The raw template view shows a read-only `{canvas:<id>}` marker on the canvas's first row so you can see where it sits; the marker is not part of the template text.
+To remove a canvas, select **Delete** on it. The plain-text template view shows a read-only `{canvas:<id>}` marker on the canvas's first row so you can see where it sits; the marker is not part of the template text.
 
 ### Draw
 

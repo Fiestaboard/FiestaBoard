@@ -9,6 +9,7 @@ import { type AiChatController, AiChatPanel } from "@/components/ai-chat-panel";
 import { AiDrawerResizeHandle } from "@/components/ai-drawer-resize-handle";
 import { useSpotlight } from "@/components/ai-spotlight/spotlight-provider";
 import { labelForTool } from "@/components/ai-tool-labels";
+import { useCurrentBoard } from "@/components/current-board-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
@@ -53,6 +54,8 @@ export function GlobalAiChatDrawer() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { getEditorSnapshot, staging: pageStaging } = usePageEditorBridge();
+  // The chat teaches this board's display (LED colours, icons, canvases).
+  const { currentBoardId } = useCurrentBoard();
   const { staging: scheduleStaging } = useScheduleEditorBridge();
   const spotlight = useSpotlight();
   const tPanel = useTranslations("aiChatPanel");
@@ -257,6 +260,7 @@ export function GlobalAiChatDrawer() {
     const editorSnapshot = getEditorSnapshot();
     return {
       deviceType: "flagship",
+      ...(currentBoardId && { boardId: currentBoardId }),
       // "editor" when the user is actively editing a page (so the AI
       // should bias toward updating THAT page); "global" otherwise (so the
       // AI biases toward creating things the app then opens).
@@ -268,7 +272,7 @@ export function GlobalAiChatDrawer() {
       availableCollections: collections,
       registryPlugins,
     };
-  }, [pagesData, pluginsData, schedulesData, collectionsData, registryData, getEditorSnapshot]);
+  }, [pagesData, pluginsData, schedulesData, collectionsData, registryData, getEditorSnapshot, currentBoardId]);
 
   // ---------------------------------------------------------------------------
   // After a tool ran: the toast, and for schedules the same Undo affordances

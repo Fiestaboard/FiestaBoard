@@ -215,7 +215,9 @@ async def render_template(request: TemplateRenderRequest):
     num_rows = dims.rows
 
     if request.canvases:
-        return await render_template_with_canvases(request, check, (device_type, notes_wide, notes_tall, grid_rows, grid_cols))
+        return await render_template_with_canvases(
+            request, check, (device_type, notes_wide, notes_tall, grid_rows, grid_cols)
+        )
 
     # Early return for empty templates to avoid unnecessary processing
     blank = TemplateRenderCheckedResponse(
@@ -260,7 +262,7 @@ async def render_template(request: TemplateRenderRequest):
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
 
 
-async def render_template_with_canvases(request: TemplateRenderRequest, check: "_CharsetCheck", geometry: tuple):
+async def render_template_with_canvases(request: TemplateRenderRequest, check: _CharsetCheck, geometry: tuple):
     """``POST /templates/render`` for a template with pixel canvases (the page editor's preview).
 
     Renders exactly as the page would: an unsaved template page with these
@@ -291,9 +293,7 @@ async def render_template_with_canvases(request: TemplateRenderRequest, check: "
     except ValueError as e:  # pydantic ValidationError included
         raise HTTPException(status_code=422, detail=str(e)) from e
 
-    result = await asyncio.to_thread(
-        get_page_service().render_page, page, display=check.display, **check.render_kw
-    )
+    result = await asyncio.to_thread(get_page_service().render_page, page, display=check.display, **check.render_kw)
     if not result.available:
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {result.error}")
     rendered = result.formatted

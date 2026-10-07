@@ -282,7 +282,9 @@ describe("CanvasShapesEditor", () => {
     expect(spy).not.toHaveBeenCalled();
     fireEvent.change(json, { target: { value: '{"type": "rect"}' } });
     expect(screen.getByRole("alert")).toHaveTextContent("Shapes JSON must be a list.");
-    fireEvent.change(json, { target: { value: '[{"type": "line", "x1": 0, "y1": 0, "x2": 3, "y2": 3, "stroke": "red"}]' } });
+    fireEvent.change(json, {
+      target: { value: '[{"type": "line", "x1": 0, "y1": 0, "x2": 3, "y2": 3, "stroke": "red"}]' },
+    });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(spy).toHaveBeenLastCalledWith([{ type: "line", x1: 0, y1: 0, x2: 3, y2: 3, stroke: "red" }]);
   });

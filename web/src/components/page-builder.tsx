@@ -1589,16 +1589,21 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         };
       }
 
-      return api.renderTemplate(
-        cleanedLines,
-        metadata,
-        deviceType,
-        notesWide,
-        notesTall,
-        panelGrid,
-        previewBoardId,
-        hasCanvases ? debouncedCanvases : undefined,
-      );
+      // Canvases ride along only when there are some: every other render's
+      // request is exactly what it always was.
+      if (hasCanvases) {
+        return api.renderTemplate(
+          cleanedLines,
+          metadata,
+          deviceType,
+          notesWide,
+          notesTall,
+          panelGrid,
+          previewBoardId,
+          debouncedCanvases,
+        );
+      }
+      return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall, panelGrid, previewBoardId);
     },
     onSuccess: (data: TemplateRenderResponse) => {
       if (shouldIgnoreNextResponse.current) {

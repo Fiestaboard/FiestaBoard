@@ -3,7 +3,7 @@
 // rasterises canvases; these only place them for the editor, and convert the
 // pixel pad's colour grid to and from `content.pixels` + `palette`.
 
-import { type DeviceModel, LED_FONTS, type LedFontId,ledGridLayout } from "@fiestaboard/ui";
+import { type DeviceModel, LED_FONTS, type LedFontId, ledGridLayout } from "@fiestaboard/ui";
 
 import type { Canvas, CanvasArea, CanvasContent, TemplateVariables } from "@/lib/api";
 

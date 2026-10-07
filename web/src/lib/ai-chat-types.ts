@@ -388,6 +388,12 @@ export type ChatSurface = "editor" | "global";
 export interface ChatTurnContext {
   deviceType: DeviceType;
   surface: ChatSurface;
+  /**
+   * The board the chat is for (the sidebar's current board). The server
+   * teaches that board's display: an LED board's colours and icons, a pixel
+   * board's canvases. Absent: the split-flap rules.
+   */
+  boardId?: string;
   currentPage?: CurrentPageSnapshot;
   availablePages?: PageRef[];
   installedPlugins?: InstalledPluginRef[];
@@ -410,6 +416,7 @@ export interface ChatRequestBody {
   resume?: ResumePayload;
   approval?: ChatApprovalOptions;
   device_type: DeviceType;
+  board_id?: string;
   surface?: ChatSurface;
   current_page?: CurrentPageSnapshot;
   available_pages?: PageRef[];

@@ -186,3 +186,25 @@ split-flap TVs, free (non-cell) placement.
   Vestaboard character rules; a pixel board's chat also gets `CANVAS_RULES` (JSON shape, area / bleed / scale /
   text flow, shapes, expressions / `if` / `foreach`, plugin `source`). The generate mode never teaches canvases
   (its output schema has none). No board, an unknown board, or a split-flap board: the Vestaboard rules as before.
+  The web chat sends `board_id` (the sidebar's current board) on every turn.
+
+## 12. What core PR 4 implements — web editor
+
+- **Where.** `web/src/components/canvas-editor/` (`CanvasesPanel`, `CanvasAreaPicker`, `CanvasDrawTab` +
+  `PixelPad`, `CanvasShapesEditor`, `CanvasSourcePicker`) and `web/src/lib/canvas-editing.ts` (placement mirror of
+  `canvas_placement`, pixel grid ⇄ `pixels` + `palette`, flood fill, canvas-source variables). The page builder
+  shows the panel only when its preview board's model is an LED pixel matrix (`pixelBoardOf`); on any other board
+  a page with canvases shows a notice, and the canvases are kept and saved unchanged.
+- **Preview.** The editor previews unsaved work, so it does not use the batch preview (saved pages only):
+  `POST /templates/render` takes `canvases` and renders a transient template page through
+  `PageService.render_page` (flow / hide, blanked cells; `layers` + `canvas_issues` for a pixel `board_id`; a bad
+  canvas is a 422 whose message the panel shows). Canvases are sent only when there are some, so every other
+  render request is unchanged. Layers reach `DevicePreview`, which draws them once `PREVIEW_TAKES_LAYERS` flips.
+- **Draw.** The pad is the content's `size` (else the canvas's pixel size on the board, capped at 128). Painting
+  re-encodes the whole grid: a colour keeps the palette key it had, new colours take free keys, unused keys are
+  dropped, more than 62 colours is refused, and `size` is pinned so a later area change scales the drawing. The pad
+  edits `pixels` only; shapes and the background draw under them on the board but not on the pad.
+- **Variables.** `GET /v1/variables` `variable_metadata` entries carry `format` when it is not `"text"`; the
+  Source tab lists the `"canvas"` ones.
+- **Raw view.** The plain-text editor shows `{canvas:<id>}` beside a canvas's first row (`lineMarkers`); it is
+  never written into the template.

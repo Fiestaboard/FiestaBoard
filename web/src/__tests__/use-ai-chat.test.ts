@@ -119,6 +119,16 @@ describe("useAiChat", () => {
     expect(lastBody().resume).toBeUndefined();
   });
 
+  it("send() names the board the chat is for, so the server teaches that board's display", () => {
+    const { result } = renderHook(() =>
+      useAiChat(makeOpts({ getTurnContext: () => ({ deviceType: "panel", surface: "editor", boardId: "pixoo-1" }) })),
+    );
+    act(() => {
+      result.current.send("draw a sunset");
+    });
+    expect((lastBody() as { board_id?: string }).board_id).toBe("pixoo-1");
+  });
+
   it("send() trims whitespace and ignores blank input", () => {
     const { result } = renderHook(() => useAiChat(makeOpts()));
     act(() => {
