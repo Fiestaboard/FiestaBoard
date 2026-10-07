@@ -1185,11 +1185,10 @@ transitions. The manifest carries an `output` block — `output_api` (currently
 `native_transitions`, and the `settings_schema` of each board's settings
 (mark credentials `"secret": true`). Output plugins declare no `variables`,
 `teaser` or `previews`; registry repos use the `fiestaboard-output--` prefix.
-Only **third-party** outputs (registry or git URL, not carried by the seed)
-need the **Third-party displays (beta)** switch in the **Integrations**
-page header (`plugins.output_plugins_enabled`); built-ins, `plugins/` and the seed's
-loadable outputs are always on. The loader decides once and records it as
-`OutputDefinition.beta_gated` (`PluginLoader._register_output_locked`). The
+No opt-in gates an output plugin: since settings v7 every installed one can
+drive a board, and the **Displays** page's **Marketplace** tab lists them all
+(installed, bundled with the image, and registry entries with
+`"plugin_type": "output"`). The
 in-repo test kit is `tests/fixtures/plugins/recording_output`; the contract
 is described in `src/outputs/plugin_base.py` and
 `src/outputs/output_manifest.py`. The published author guide is

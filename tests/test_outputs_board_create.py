@@ -253,15 +253,8 @@ class TestCreate:
             "and a FiestaPanel with POST /panels."
         )
 
-    def test_a_third_party_output_needs_the_beta(self, third_party, client):
-        response = client.post(URL, json=_body())
-        assert response.status_code == 409
-        assert response.json()["detail"] == (
-            f"Output plugin '{PLUGIN_ID}' needs the output plugins beta (Integrations page)"
-        )
-
-    def test_with_the_beta_on_a_third_party_output_creates(self, third_party, client):
-        _settings().update_plugin_settings({"output_plugins_enabled": True})
+    def test_an_installed_marketplace_output_creates_with_no_opt_in(self, third_party, client):
+        """Display plugins need no opt-in (settings v7)."""
         assert client.post(URL, json=_body()).status_code == 201
 
     @pytest.mark.parametrize(

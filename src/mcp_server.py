@@ -368,7 +368,7 @@ def _build_mcp_server() -> Any:
             "  • update_setting(category, values) — general (instance_name renames\n"
             "    the install, timezone, time/date format), display, output,\n"
             "    polling, location, silence_schedule, active_page, plugins\n"
-            "    (auto_update, transition_plugins_enabled, output_plugins_enabled),\n"
+            "    (auto_update, transition_plugins_enabled),\n"
             "    mqtt (no username/password), ai (no api_key), release_channel,\n"
             "    auto_update, hdmi_kiosk. Each board owns its transition: set it\n"
             "    with update_board(transition=..., transition_step_interval_ms=...,\n"
@@ -2061,8 +2061,7 @@ def _build_mcp_server() -> Any:
           update_setting()
         - silence_schedule: the install-wide quiet-hours config, plus
           by_board overrides keyed by board id
-        - plugins: auto_update, transition_plugins_enabled,
-          output_plugins_enabled
+        - plugins: auto_update, transition_plugins_enabled
         - transitions: deprecated (removed in v11) — the FIRST board's
           transition; each board's own is on its boards entry
         - mqtt: enabled, broker_host, broker_port, external_url, username and
@@ -2226,10 +2225,10 @@ def _build_mcp_server() -> Any:
                   same selection set_active_page() makes.
                 - plugins: auto_update (bool — update installed plugins in
                   the background), transition_plugins_enabled (bool — let
-                  boards and pages use the deprecated transition plugins),
-                  output_plugins_enabled (bool — let third-party output
-                  plugins drive boards). 'beta' is a deprecated alias
-                  (removed in v11) taking only those two flags.
+                  boards and pages use the deprecated transition plugins).
+                  Display plugins need no opt-in. 'beta' is a deprecated
+                  alias (removed in v11) taking only
+                  transition_plugins_enabled.
                 - mqtt (Home Assistant bridge): enabled (bool), broker_host
                   (string), broker_port (int), external_url (string).
                   username and password are set by the user in the web UI.

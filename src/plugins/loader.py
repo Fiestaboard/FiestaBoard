@@ -601,7 +601,7 @@ class PluginLoader:
         # factory -- never here (plan D2). The loader keeps its class and
         # manifest and registers it with the output registry.
         if expected_type == "output":
-            return self._register_output_locked(plugin_name, plugin_dir, plugin_class, manifest, from_seed=from_seed)
+            return self._register_output_locked(plugin_name, plugin_dir, plugin_class, manifest)
 
         # Instantiate plugin
         try:
@@ -668,7 +668,7 @@ class PluginLoader:
         try:
             loaded = reload_first_party(plugin_name, seed_dir=self.seed_dir, external_dir=plugin_dir.parent)
         except Exception as exc:
-            message = f"First-party output '{plugin_name}' could not be loaded: {exc}"
+            message = f"The '{plugin_name}' display that ships with FiestaBoard could not be loaded: {exc}"
             self._load_errors[plugin_name] = [message]
             logger.error(message)
             return None
@@ -693,22 +693,15 @@ class PluginLoader:
         plugin_dir: Path,
         plugin_class: type,
         manifest: PluginManifest,
-        *,
-        from_seed: bool = False,
     ) -> OutputPluginEntry | None:
         """Keep an output plugin's class and manifest; register it as an output.
 
-        Only a third-party output plugin is behind the output-plugins beta.
-        A first-party one is never gated: a built-in, or an output the image's
-        seed carries as loadable, whether the seed's copy runs or an
-        installed copy of it does.
+        Every output plugin registers the same way, wherever it came from:
+        display plugins need no opt-in (settings v7).
         """
         source = self._source_for_dir(plugin_dir)
-        first_party = (
-            source.source_type == "builtin" or from_seed or seeded_output(manifest.id, self.seed_dir) is not None
-        )
         try:
-            register_output_plugin(plugin_class, manifest, gated=not first_party)
+            register_output_plugin(plugin_class, manifest)
         except ValueError as exc:
             self._load_errors.setdefault(plugin_name, []).append(str(exc))
             logger.error("Output plugin %s refused: %s", plugin_name, exc)

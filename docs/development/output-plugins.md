@@ -13,7 +13,7 @@ This page is the complete reference for output plugin authors. It assumes you kn
 :::info Beta: FiestaBoard 10.0.0 and later
 Output plugins arrive with FiestaBoard **10.0.0**, and the contract (`output_api` 1) is a **beta**: it may still change before it is declared stable. Set `"fiestaboard_version": ">=10.0.0"` in your manifest.
 
-Third-party output plugins, installed from the plugin registry or a git URL, run only while the **Third-party displays (beta)** switch in the **Integrations** page header is on. Outputs that ship with FiestaBoard need no beta.
+Users need nothing turned on to use your plugin. Every installed output plugin can drive a board, whether it came from the plugin registry, a git URL, or ships with FiestaBoard. The **Displays → Marketplace** tab lists them all.
 :::
 
 ## The Short Version
@@ -661,7 +661,7 @@ PYTHONPATH="$(pwd):/path/to/FiestaBoard" python -m pytest tests/
 
 ### Install it while you develop
 
-With the **Third-party displays (beta)** switch in the **Integrations** page header on, install your repository from **Integrations → Marketplace → Install Plugin from Git**, or with the API:
+Install your repository from **Integrations → Marketplace → Install Plugin from Git**, or with the API:
 
 ```bash
 curl -X POST http://localhost:4420/api/plugins/install \
@@ -679,7 +679,7 @@ Set `FIESTABOARD_OUTPUTS_ALLOW_HOSTS` to your device's address while you test, s
 
 1. **The update check** reads the incoming manifest and never offers an update this FiestaBoard cannot run.
 2. **An update** that fails verification or does not load is rolled back to the version it replaced, and that version is not offered again until a newer one appears.
-3. **Load** refuses the plugin and reports why with the plugin's load errors. A first-party output falls back to the copy FiestaBoard shipped with.
+3. **Load** refuses the plugin and reports why with the plugin's load errors. An output that ships with FiestaBoard falls back to the copy FiestaBoard shipped with.
 
 The settings widgets you may use are versioned with it, too. When the contract changes incompatibly, the major goes up; keep targeting the major your users' FiestaBoard supports.
 
@@ -689,15 +689,13 @@ An output plugin a board uses cannot be uninstalled. Remove the board first.
 
 Once it works on your device, open a pull request against FiestaBoard that adds your plugin to `plugin-registry.json`, as for any [external plugin](/docs/development/plugin-guide#developing-an-external-plugin), with `"plugin_type": "output"` in the entry. Your repository must follow the `fiestaboard-output--<name>` convention.
 
-:::note Third-party outputs in the beta
-While the contract is in beta, every third-party output plugin, listed in the registry or installed by git URL, stays behind the **Third-party displays (beta)** switch in the **Integrations** page header. The setup wizard shows such displays as needing the beta, and offers to turn it on.
-:::
+Once it is in the registry, your display shows up in the **Displays → Marketplace** tab and in the setup wizard's first step, where anyone can install it and add a board with it.
 
 ### Outputs that ship with FiestaBoard
 
 The Vestaboard and FiestaPanel are output plugins too, written against the same API as yours, each in its own repository: [fiestaboard-output--vestaboard](https://github.com/Fiestaboard/fiestaboard-output--vestaboard) and [fiestaboard-output--fiestapanel](https://github.com/Fiestaboard/fiestaboard-output--fiestapanel). Either is a good place to read a complete output, with its tests.
 
-First-party outputs are pinned in FiestaBoard's `outputs.lock.json` (repository, commit, `output_api` and a digest of the files) and baked into the image at build time, so they need no network, which matters on a Raspberry Pi or in the Home Assistant add-on. FiestaBoard installs each one from that copy, and from then on it updates from **Integrations** like any plugin, through the same three `output_api` gates. If an installed copy cannot run, FiestaBoard falls back to the copy it shipped with and shows the error, so a board never goes dark because of its plugin. First-party outputs never need the beta.
+These outputs are pinned in FiestaBoard's `outputs.lock.json` (repository, commit, `output_api` and a digest of the files) and baked into the image at build time, so they need no network, which matters on a Raspberry Pi or in the Home Assistant add-on. FiestaBoard installs each one from that copy, and from then on it updates from **Integrations** like any plugin, through the same three `output_api` gates. If an installed copy cannot run, FiestaBoard falls back to the copy it shipped with and shows the error, so a board never goes dark because of its plugin.
 
 The Vestaboard and FiestaPanel follow three extra rules:
 

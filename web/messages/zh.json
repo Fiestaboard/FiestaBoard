@@ -636,9 +636,7 @@
       "createAction": "创建演示页面",
       "recreateAction": "重新创建演示页面",
       "requirementsWarning": "创建演示页面前，请先配置下方的必填设置。"
-    },
-    "outputPluginsLabel": "第三方显示设备（测试版）",
-    "outputPluginsDescription": "允许来自 Marketplace 或 git URL 的显示设备驱动你的看板。FiestaBoard 自带的显示设备始终可用。"
+    }
   },
   "settings": {
     "title": "设置",
@@ -835,7 +833,6 @@
       "loadFailed": "无法加载显示设备列表。",
       "retry": "重试",
       "optionsLabel": "显示设备",
-      "needsBeta": "需要输出插件测试版。你可以在下一步中开启。",
       "downloads": "继续后会下载，因此需要连接互联网。",
       "skipTitle": "跳过 — 稍后再添加显示设备",
       "skipDescription": "现在可以四处看看并预览页面。随时可以在“显示设备”中添加显示设备。"
@@ -844,10 +841,6 @@
       "installing": "正在安装 {name}…",
       "installFailed": "无法安装 {name}",
       "offline": "FiestaBoard 无法下载 {name}。请检查此设备的互联网连接，然后重试。",
-      "betaTitle": "{name} 需要输出插件测试版",
-      "betaBody": "插件注册表中的显示设备会在你的 FiestaBoard 上运行自己的代码，因此在你开启输出插件测试版之前它们保持关闭。你可以在集成页面中再次关闭。",
-      "enableBeta": "开启输出插件测试版",
-      "enableBetaFailed": "无法开启测试版。请重试。",
       "retry": "重试",
       "created": "{board} 已保存，可以使用了。",
       "createFailed": "无法保存显示板"
@@ -1100,6 +1093,8 @@
     "description": "FiestaBoard 进行显示的所有看板和屏幕。打开其中一个即可更改其设置。",
     "addDisplay": "添加显示设备",
     "listLabel": "你的显示设备",
+    "tabDisplays": "你的显示设备",
+    "tabMarketplace": "Marketplace",
     "empty": "还没有显示设备。添加一个即可开始在上面显示页面。",
     "unnamed": "未命名的显示设备",
     "openSettings": "设置",
@@ -1149,6 +1144,34 @@
       "panelTitle": "添加电视或浏览器",
       "outputTitle": "添加 {name}",
       "setupDescription": "先完成设置，再添加。"
+    },
+    "marketplace": {
+      "searchLabel": "搜索显示屏",
+      "searchPlaceholder": "搜索显示屏...",
+      "installedHeading": "此 FiestaBoard 上的",
+      "availableHeading": "可安装",
+      "byAuthor": "作者：{author}",
+      "installsOffline": "离线安装",
+      "downloads": "安装时下载",
+      "install": "安装",
+      "installing": "正在安装...",
+      "installLabel": "安装 {name}",
+      "add": "添加显示屏",
+      "addLabel": "使用 {name} 添加显示屏",
+      "update": "更新",
+      "updating": "正在更新...",
+      "updateLabel": "更新 {name}",
+      "toastInstalled": "{name} 已安装。添加一个显示屏即可开始使用。",
+      "toastInstallFailed": "无法安装 {name}：{error}",
+      "toastUpdated": "{name} 已是最新。",
+      "toastUpdateFailed": "无法更新 {name}：{error}",
+      "loading": "正在加载显示屏…",
+      "loadFailed": "无法加载 FiestaBoard 可驱动的显示屏。",
+      "retry": "重试",
+      "noMatch": "没有与“{query}”匹配的显示屏",
+      "buildTitle": "接入你自己的显示屏",
+      "buildBody": "只要有插件教会它，FiestaBoard 就能驱动任何显示屏。为你的设备编写一个，或在 集成 → 插件市场 中通过 git URL 安装。",
+      "buildLink": "编写显示屏插件"
     }
   },
   "systemUpdate": {
@@ -2420,7 +2443,6 @@
     "geometryDetected": "检测到 {rows} × {cols}",
     "applyGeometry": "应用尺寸",
     "actionInputDescription": "此操作需要先提供一些信息。",
-    "betaRequired": "要使用此显示设备，请在集成页面开启“第三方显示设备（测试版）”。",
     "boardNameLabel": "看板名称",
     "boardNamePlaceholder": "我的看板",
     "deviceModelLabel": "设备型号",

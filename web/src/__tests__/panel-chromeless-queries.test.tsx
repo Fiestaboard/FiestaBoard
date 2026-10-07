@@ -79,7 +79,7 @@ function trackShellRequests() {
     }),
     http.get("/api/settings/plugins", () => {
       hits.push("/settings/plugins");
-      return HttpResponse.json({ auto_update: true, transition_plugins_enabled: false, output_plugins_enabled: false });
+      return HttpResponse.json({ auto_update: true, transition_plugins_enabled: false });
     }),
   );
   return hits;

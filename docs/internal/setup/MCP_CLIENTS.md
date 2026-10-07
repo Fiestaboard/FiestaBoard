@@ -332,6 +332,8 @@ display owns its own.
 - `transition_plugins_enabled` and `output_plugins_enabled` now belong to
   the `plugins` category, next to `auto_update`. `update_setting("beta", ...)`
   still sets those two flags as a deprecated alias, removed in v11.
+  (Settings v7 then dropped `output_plugins_enabled`: display plugins need no
+  opt-in, so setting it is accepted and does nothing.)
   `get_settings_summary()` has no `beta` block.
 
 A page's own `transition_strategy` / `transition_interval_ms` /

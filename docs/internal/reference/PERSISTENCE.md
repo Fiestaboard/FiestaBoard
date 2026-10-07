@@ -203,6 +203,37 @@ made to a display's transition after the upgrade are in the set-aside file.
 and `test_a_v6_upgrade_rolled_back_to_the_v5_build_runs_the_same_transition`
 pin this.
 
+### Settings v7: display plugins need no opt-in
+
+Schema v7 (`_migrate_v6_to_v7`) drops `plugins.output_plugins_enabled`, the
+"Third-party displays (beta)" switch, whatever its value. Every installed
+display (output) plugin can drive a board: bundled with the image, from the
+marketplace or from a git URL. Every other plugin setting is kept. The
+migration is idempotent (a re-run finds no key) and counts 1 when it removed
+the key; it logs a line when the stored value was off, since display plugins
+that were held back can now drive their boards.
+
+What an output plugin runs behind is unchanged: the write timeout and
+breaker (`src/outputs/breaker.py`), the network allowlist
+(`FIESTABOARD_OUTPUTS_ALLOW_HOSTS`, `src/outputs/http.py`), and the
+`output_api` gate and install self-check. The Vestaboard and FiestaPanel keep
+their own rules (`docs/internal/development/FIRST_PARTY_OUTPUTS.md`).
+
+On the wire the field stays until v11, deprecated: `GET /settings/plugins`
+(and the deprecated `/settings/beta` alias) report `output_plugins_enabled:
+true`, and a `PUT` of it is accepted and ignored. `GET /outputs` and
+`GET /outputs/available` keep `beta_gated` (always `false`) and `available`
+(always `true`), also deprecated. Nothing answers 409 for a display plugin
+any more.
+
+**Rollback.** One step back, to a v6 build, restores
+`settings.json.v6_backup` with the stored opt-in; on the v6 build a board
+driven by a display plugin the image does not carry stays down again while
+that opt-in is off.
+`tests/test_settings_v7_display_plugins_open.py`, the
+`v10_beta_schema6_display_opt_in_off` upgrade fixture and
+`test_a_v7_upgrade_rolled_back_to_the_v6_build_gets_its_opt_in_back` pin this.
+
 ## 3. A failed write is never swallowed
 
 A store write that fails must surface. Silent partial success — the change

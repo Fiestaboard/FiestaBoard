@@ -13,8 +13,8 @@ output plugin that records what core hands it. Pinned here:
   plugin's ``device_key`` (shared across boards on one device), a newer
   write cancels the one in flight, a native transition reaches the plugin
   only when declared, and a ``sequence`` output gets ``write_sequence``;
-- a third-party output plugin builds nothing while
-  ``plugins.output_plugins_enabled`` is off — the board stays down, never a Vestaboard;
+- an output plugin installed from the marketplace or a git URL builds with
+  no opt-in (settings v7), still behind the timeout and breaker;
 - the board's ``output_config`` masks declared secrets, nested ones too, and
   restores them when echoed back; legacy boards save unchanged.
 """
@@ -33,7 +33,7 @@ from fastapi.testclient import TestClient
 from src.devices import BUILTIN_OUTPUT_IDS
 from src.outputs.factory import build_driver
 from src.outputs.plugin_driver import OutputPluginDriver, compress_sequence
-from src.outputs.plugin_registration import OutputPluginEntry, OutputPluginsDisabledError
+from src.outputs.plugin_registration import OutputPluginEntry
 from src.outputs.registry import FIESTAPANEL, VESTABOARD, output_registry
 from src.plugins.loader import PluginLoader
 
@@ -74,20 +74,14 @@ def loaded():
 
 
 @pytest.fixture
-def third_party(tmp_path):
-    """The recording output installed as an EXTERNAL plugin (beta-gated)."""
+def external(tmp_path):
+    """The recording output installed as an EXTERNAL plugin (the marketplace's way)."""
     external = tmp_path / "external"
     shutil.copytree(FIXTURES / PLUGIN_ID, external / PLUGIN_ID)
     loader = PluginLoader(plugins_dir=tmp_path / "builtin", external_dirs=[external])
     assert loader.load_plugin(PLUGIN_ID) is not None, loader.load_errors
     yield loader
     loader.unload_plugin(PLUGIN_ID)
-
-
-def set_beta(on: bool) -> None:
-    from src.settings.service import get_settings_service
-
-    get_settings_service().update_plugin_settings({"output_plugins_enabled": on})
 
 
 # --- the loader ------------------------------------------------------------------------
@@ -260,37 +254,35 @@ class TestCorePolicy:
         assert driver.send_characters(GRID) == (True, True)
 
 
-# --- the beta gate --------------------------------------------------------------------------
+# --- no opt-in (settings v7) ---------------------------------------------------------------
 
 
-class TestBetaGate:
-    def test_a_third_party_output_builds_nothing_while_the_beta_is_off(self, third_party):
-        set_beta(False)
-        with pytest.raises(OutputPluginsDisabledError):
-            build_driver(board())
+class TestNoOptIn:
+    """Display plugins need no opt-in: settings v7 dropped
+    ``plugins.output_plugins_enabled``. An output plugin installed from the
+    marketplace or a git URL builds like a bundled one — behind the same
+    safety fences as before (not core's own output: timeout and breaker)."""
 
-    def test_the_board_stays_down_never_a_vestaboard(self, third_party):
+    def test_an_installed_output_plugin_builds_behind_the_safety_fences(self, external):
+        driver = build_driver(board())
+        assert isinstance(driver, OutputPluginDriver)
+        assert driver.first_party is False
+
+    def test_its_board_comes_up(self, external):
         from tests.live_boards import install_live_boards
 
-        set_beta(False)
         service = install_live_boards([board("rec")])
-        assert service.runtime_for("rec") is None
-        assert "output plugins beta" in service.board_init_errors["rec"]
+        assert service.runtime_for("rec") is not None
+        assert "rec" not in service.board_init_errors
 
-    def test_with_the_beta_on_it_builds(self, third_party):
-        set_beta(True)
+    def test_a_bundled_output_plugin_builds(self, loaded):
         assert isinstance(build_driver(board()), OutputPluginDriver)
 
-    def test_a_bundled_output_plugin_needs_no_beta(self, loaded):
-        set_beta(False)
-        assert isinstance(build_driver(board()), OutputPluginDriver)
-
-    def test_the_flag_lives_with_the_plugin_settings(self):
-        """Settings v6 moved it out of ``beta`` into ``plugins``."""
+    def test_the_plugin_settings_carry_no_opt_in(self):
         from src.settings.service import PluginSettings
 
-        assert PluginSettings().to_dict()["output_plugins_enabled"] is False
-        assert PluginSettings(output_plugins_enabled=True).to_dict()["output_plugins_enabled"] is True
+        assert "output_plugins_enabled" not in PluginSettings().to_dict()
+        assert "output_plugins_enabled" not in PluginSettings.from_dict({"output_plugins_enabled": False}).to_dict()
 
 
 # --- output_config secrets ------------------------------------------------------------------

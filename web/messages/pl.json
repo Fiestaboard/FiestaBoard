@@ -636,9 +636,7 @@
       "createAction": "Utwórz stronę demo",
       "recreateAction": "Utwórz stronę demo ponownie",
       "requirementsWarning": "Przed utworzeniem strony demo skonfiguruj wymagane ustawienia poniżej."
-    },
-    "outputPluginsLabel": "Wyświetlacze innych firm (beta)",
-    "outputPluginsDescription": "Pozwól wyświetlaczom z Marketplace lub z adresu URL git sterować Twoimi tablicami. Wyświetlacze dołączone do FiestaBoard działają zawsze."
+    }
   },
   "settings": {
     "title": "Ustawienia",
@@ -835,7 +833,6 @@
       "loadFailed": "Nie udało się wczytać listy wyświetlaczy.",
       "retry": "Spróbuj ponownie",
       "optionsLabel": "Wyświetlacze",
-      "needsBeta": "Wymaga bety wtyczek wyjściowych. Możesz ją włączyć w następnym kroku.",
       "downloads": "Zostanie pobrany po przejściu dalej, więc potrzebne jest połączenie z internetem.",
       "skipTitle": "Pomiń — dodam wyświetlacz później",
       "skipDescription": "Rozejrzyj się i przeglądaj strony już teraz. Wyświetlacz dodasz w każdej chwili w sekcji Wyświetlacze."
@@ -844,10 +841,6 @@
       "installing": "Instalowanie: {name}…",
       "installFailed": "Nie udało się zainstalować: {name}",
       "offline": "FiestaBoard nie mógł pobrać: {name}. Sprawdź połączenie tego urządzenia z internetem i spróbuj ponownie.",
-      "betaTitle": "{name} wymaga bety wtyczek wyjściowych",
-      "betaBody": "Wyświetlacze z rejestru wtyczek uruchamiają własny kod na Twoim FiestaBoard, dlatego pozostają wyłączone, dopóki nie włączysz bety wtyczek wyjściowych. Możesz ją wyłączyć na stronie Integracje.",
-      "enableBeta": "Włącz betę wtyczek wyjściowych",
-      "enableBetaFailed": "Nie udało się włączyć bety. Spróbuj ponownie.",
       "retry": "Spróbuj ponownie",
       "created": "Tablica {board} jest zapisana i gotowa.",
       "createFailed": "Nie udało się zapisać tablicy"
@@ -1100,6 +1093,8 @@
     "description": "Wszystkie tablice i ekrany, na których wyświetla FiestaBoard. Otwórz jeden, aby zmienić jego ustawienia.",
     "addDisplay": "Dodaj wyświetlacz",
     "listLabel": "Twoje wyświetlacze",
+    "tabDisplays": "Twoje wyświetlacze",
+    "tabMarketplace": "Marketplace",
     "empty": "Brak wyświetlaczy. Dodaj jeden, aby zacząć wyświetlać na nim strony.",
     "unnamed": "Wyświetlacz bez nazwy",
     "openSettings": "Ustawienia",
@@ -1149,6 +1144,34 @@
       "panelTitle": "Dodaj telewizor lub przeglądarkę",
       "outputTitle": "Dodaj: {name}",
       "setupDescription": "Skonfiguruj, a potem dodaj."
+    },
+    "marketplace": {
+      "searchLabel": "Szukaj wyświetlaczy",
+      "searchPlaceholder": "Szukaj wyświetlaczy...",
+      "installedHeading": "Na tym FiestaBoard",
+      "availableHeading": "Gotowe do instalacji",
+      "byAuthor": "autor: {author}",
+      "installsOffline": "Instaluje się offline",
+      "downloads": "Pobierane podczas instalacji",
+      "install": "Zainstaluj",
+      "installing": "Instalowanie...",
+      "installLabel": "Zainstaluj {name}",
+      "add": "Dodaj wyświetlacz",
+      "addLabel": "Dodaj wyświetlacz z {name}",
+      "update": "Aktualizuj",
+      "updating": "Aktualizowanie...",
+      "updateLabel": "Aktualizuj {name}",
+      "toastInstalled": "{name} jest zainstalowany. Dodaj wyświetlacz, aby zacząć go używać.",
+      "toastInstallFailed": "Nie udało się zainstalować {name}: {error}",
+      "toastUpdated": "{name} jest aktualny.",
+      "toastUpdateFailed": "Nie udało się zaktualizować {name}: {error}",
+      "loading": "Ładowanie wyświetlaczy…",
+      "loadFailed": "Nie udało się załadować wyświetlaczy, którymi FiestaBoard może sterować.",
+      "retry": "Spróbuj ponownie",
+      "noMatch": "Brak wyświetlaczy pasujących do \"{query}\"",
+      "buildTitle": "Podłącz własny wyświetlacz",
+      "buildBody": "FiestaBoard może sterować każdym wyświetlaczem, którego nauczy go wtyczka. Napisz ją dla swojego urządzenia albo zainstaluj z adresu git w Integracje → Sklep.",
+      "buildLink": "Napisz wtyczkę wyświetlacza"
     }
   },
   "systemUpdate": {
@@ -2420,7 +2443,6 @@
     "geometryDetected": "Wykryto {rows} × {cols}",
     "applyGeometry": "Zastosuj rozmiar",
     "actionInputDescription": "Ta akcja wymaga najpierw kilku informacji.",
-    "betaRequired": "Włącz Wyświetlacze innych firm (beta) na stronie Integracje, aby używać tego wyświetlacza.",
     "boardNameLabel": "Nazwa tablicy",
     "boardNamePlaceholder": "Moja tablica",
     "deviceModelLabel": "Model urządzenia",

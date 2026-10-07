@@ -9,11 +9,10 @@
  * `POST /outputs/{id}/boards`.
  *
  * The install's failure states are told apart, because each asks something
- * different of the user: the output plugins beta is off (409, third-party
- * outputs only: seeded first-party ones never need it — offered right
- * here), the repository could not be downloaded (503 — check the internet
- * connection), or the plugin cannot run on this FiestaBoard (400 — the
- * server's reason).
+ * different of the user: the repository could not be downloaded (503 —
+ * check the internet connection), or the plugin cannot run on this
+ * FiestaBoard (400 — the server's reason). No opt-in is ever asked for:
+ * display plugins need none since settings v7.
  */
 import {
   Alert,
@@ -35,14 +34,13 @@ import {
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ShieldAlert, WifiOff, XCircle } from "lucide-react";
+import { CheckCircle2, WifiOff, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { DevicePreview } from "@/components/device-preview";
 import { OUTPUTS_QUERY_KEY } from "@/components/settings/output-boards";
 import { PluginBoardSettings } from "@/components/settings/plugin-board-settings";
 import { queryKeys } from "@/hooks/use-board";
-import { PLUGIN_SETTINGS_QUERY_KEY } from "@/hooks/use-plugin-settings";
 import { useTranslations } from "@/i18n/translations";
 import type { OutputSummary } from "@/lib/api";
 import { api, ApiError } from "@/lib/api";
@@ -80,10 +78,9 @@ interface StepOutputPluginProps {
   replacePlaceholder?: boolean;
 }
 
-type InstallFailure = { kind: "beta" } | { kind: "offline"; message: string } | { kind: "refused"; message: string };
+type InstallFailure = { kind: "offline"; message: string } | { kind: "refused"; message: string };
 
 function classify(error: unknown): InstallFailure {
-  if (error instanceof ApiError && error.status === 409) return { kind: "beta" };
   if (error instanceof ApiError && error.status === 503) return { kind: "offline", message: error.message };
   return { kind: "refused", message: error instanceof Error ? error.message : String(error) };
 }
@@ -111,13 +108,6 @@ export function StepOutputPlugin({
       void queryClient.invalidateQueries({ queryKey: OUTPUTS_QUERY_KEY });
     },
   });
-  const enableBeta = useMutation({
-    mutationFn: () => api.updatePluginSettings({ output_plugins_enabled: true }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: PLUGIN_SETTINGS_QUERY_KEY });
-      install.mutate();
-    },
-  });
 
   // Install as soon as the step opens (choosing an output installs it, plan
   // D18). Once per step: the server answers an installed output as it is.
@@ -137,7 +127,7 @@ export function StepOutputPlugin({
     );
   }
 
-  if (install.isPending || enableBeta.isPending) {
+  if (install.isPending) {
     return (
       <Flex align="center" gap="2" role="status" data-testid="wizard-output-installing">
         <Spinner label={null} />
@@ -152,44 +142,26 @@ export function StepOutputPlugin({
     const failure = classify(install.error);
     return (
       <Stack gap="3" data-testid="wizard-output-install-error" data-kind={failure.kind}>
-        {failure.kind === "beta" ? (
-          <Alert variant="warning">
-            <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-            <AlertTitle>{t("betaTitle", { name: choice.name })}</AlertTitle>
-            <AlertDescription>
-              <Stack gap="2">
-                <Text size="sm">{t("betaBody")}</Text>
-                {enableBeta.isError && <Text size="sm">{t("enableBetaFailed")}</Text>}
-                <Flex>
-                  <Button type="button" size="sm" onClick={() => enableBeta.mutate()}>
-                    {t("enableBeta")}
-                  </Button>
-                </Flex>
-              </Stack>
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <Alert variant="destructive">
-            {failure.kind === "offline" ? (
-              <WifiOff className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <XCircle className="h-4 w-4" aria-hidden="true" />
-            )}
-            <AlertTitle>{t("installFailed", { name: choice.name })}</AlertTitle>
-            <AlertDescription>
-              <Stack gap="2">
-                <Text size="sm">
-                  {failure.kind === "offline" ? t("offline", { name: choice.name }) : failure.message}
-                </Text>
-                <Flex>
-                  <Button type="button" size="sm" variant="outline" onClick={() => install.mutate()}>
-                    {t("retry")}
-                  </Button>
-                </Flex>
-              </Stack>
-            </AlertDescription>
-          </Alert>
-        )}
+        <Alert variant="destructive">
+          {failure.kind === "offline" ? (
+            <WifiOff className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <XCircle className="h-4 w-4" aria-hidden="true" />
+          )}
+          <AlertTitle>{t("installFailed", { name: choice.name })}</AlertTitle>
+          <AlertDescription>
+            <Stack gap="2">
+              <Text size="sm">
+                {failure.kind === "offline" ? t("offline", { name: choice.name }) : failure.message}
+              </Text>
+              <Flex>
+                <Button type="button" size="sm" variant="outline" onClick={() => install.mutate()}>
+                  {t("retry")}
+                </Button>
+              </Flex>
+            </Stack>
+          </AlertDescription>
+        </Alert>
       </Stack>
     );
   }
@@ -257,11 +229,6 @@ function OutputBoardForm({
     // Not a <form>: an action's input dialog is a form of its own, and React
     // bubbles its submit through the portal into any form around it.
     <Stack gap="4">
-      {!output.available && (
-        <Alert variant="warning">
-          <AlertDescription>{tbs("betaRequired")}</AlertDescription>
-        </Alert>
-      )}
       <Grid gap="1.5">
         <Label htmlFor="wizard-output-board-name">{tbs("boardNameLabel")}</Label>
         <Input

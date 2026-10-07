@@ -636,9 +636,7 @@
       "createAction": "Demopagina aanmaken",
       "recreateAction": "Demopagina opnieuw aanmaken",
       "requirementsWarning": "Configureer hieronder de vereiste instellingen voordat je een demopagina aanmaakt."
-    },
-    "outputPluginsLabel": "Schermen van derden (bèta)",
-    "outputPluginsDescription": "Laat schermen uit de marketplace of van een git-URL je borden aansturen. Schermen die bij FiestaBoard horen, werken altijd."
+    }
   },
   "settings": {
     "title": "Instellingen",
@@ -835,7 +833,6 @@
       "loadFailed": "De lijst met schermen kon niet worden geladen.",
       "retry": "Opnieuw proberen",
       "optionsLabel": "Schermen",
-      "needsBeta": "Vereist de bèta voor uitvoerplug-ins. Je kunt die in de volgende stap aanzetten.",
       "downloads": "Wordt gedownload als je doorgaat, dus er is een internetverbinding nodig.",
       "skipTitle": "Overslaan — ik voeg later een scherm toe",
       "skipDescription": "Kijk rond en bekijk nu alvast pagina's. Voeg op elk moment een scherm toe via Schermen."
@@ -844,10 +841,6 @@
       "installing": "{name} installeren…",
       "installFailed": "{name} kon niet worden geïnstalleerd",
       "offline": "FiestaBoard kon {name} niet downloaden. Controleer de internetverbinding van dit apparaat en probeer het opnieuw.",
-      "betaTitle": "{name} vereist de bèta voor uitvoerplug-ins",
-      "betaBody": "Schermen uit het plug-inregister draaien hun eigen code op je FiestaBoard, dus ze blijven uit tot je de bèta voor uitvoerplug-ins aanzet. Je kunt die weer uitzetten op de pagina Integraties.",
-      "enableBeta": "Bèta voor uitvoerplug-ins aanzetten",
-      "enableBetaFailed": "De bèta kon niet worden aangezet. Probeer het opnieuw.",
       "retry": "Opnieuw proberen",
       "created": "{board} is opgeslagen en klaar.",
       "createFailed": "Het bord kon niet worden opgeslagen"
@@ -1100,6 +1093,8 @@
     "description": "Elk bord en scherm waarop FiestaBoard toont. Open er een om de instellingen te wijzigen.",
     "addDisplay": "Scherm toevoegen",
     "listLabel": "Je schermen",
+    "tabDisplays": "Je schermen",
+    "tabMarketplace": "Marketplace",
     "empty": "Nog geen schermen. Voeg er een toe om er pagina's op te tonen.",
     "unnamed": "Naamloos scherm",
     "openSettings": "Instellingen",
@@ -1149,6 +1144,34 @@
       "panelTitle": "Tv of browser toevoegen",
       "outputTitle": "{name} toevoegen",
       "setupDescription": "Stel het in en voeg het dan toe."
+    },
+    "marketplace": {
+      "searchLabel": "Schermen zoeken",
+      "searchPlaceholder": "Schermen zoeken...",
+      "installedHeading": "Op deze FiestaBoard",
+      "availableHeading": "Klaar om te installeren",
+      "byAuthor": "door {author}",
+      "installsOffline": "Installeert offline",
+      "downloads": "Wordt gedownload bij installatie",
+      "install": "Installeren",
+      "installing": "Bezig met installeren...",
+      "installLabel": "{name} installeren",
+      "add": "Scherm toevoegen",
+      "addLabel": "Een scherm toevoegen met {name}",
+      "update": "Bijwerken",
+      "updating": "Bezig met bijwerken...",
+      "updateLabel": "{name} bijwerken",
+      "toastInstalled": "{name} is geïnstalleerd. Voeg een scherm toe om het te gebruiken.",
+      "toastInstallFailed": "Kan {name} niet installeren: {error}",
+      "toastUpdated": "{name} is up-to-date.",
+      "toastUpdateFailed": "Kan {name} niet bijwerken: {error}",
+      "loading": "Schermen laden…",
+      "loadFailed": "Kan de schermen die FiestaBoard kan aansturen niet laden.",
+      "retry": "Opnieuw proberen",
+      "noMatch": "Geen schermen gevonden voor \"{query}\"",
+      "buildTitle": "Breng je eigen scherm mee",
+      "buildBody": "FiestaBoard kan elk scherm aansturen dat een plugin het leert. Schrijf er een voor je apparaat, of installeer er een via een git-URL in Integraties → Marktplaats.",
+      "buildLink": "Een schermplugin schrijven"
     }
   },
   "systemUpdate": {
@@ -2420,7 +2443,6 @@
     "geometryDetected": "{rows} × {cols} gedetecteerd",
     "applyGeometry": "Formaat toepassen",
     "actionInputDescription": "Deze actie heeft eerst een paar gegevens nodig.",
-    "betaRequired": "Zet Schermen van derden (bèta) aan op de pagina Integraties om dit scherm te gebruiken.",
     "boardNameLabel": "Bordnaam",
     "boardNamePlaceholder": "Mijn bord",
     "deviceModelLabel": "Apparaatmodel",

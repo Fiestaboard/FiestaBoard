@@ -452,61 +452,47 @@ class TestLoadPrecedence:
         assert output_registry().get(PLUGIN_ID) is None
 
 
-# --- the beta gate: first-party outputs are never behind it --------------------------------------
+# --- no opt-in: every installed output builds (settings v7) ---------------------------------------
 
 
-def _beta_off() -> None:
-    from src.settings.service import get_settings_service
+class TestEveryInstalledOutputBuilds:
+    """Display plugins need no opt-in (settings v7 dropped
+    ``plugins.output_plugins_enabled``): a seeded output builds whichever
+    copy runs, and so does one the seed does not carry. The safety fences an
+    output plugin runs behind (write timeout, breaker, network allowlist)
+    are untouched: only the Vestaboard and FiestaPanel run inline."""
 
-    get_settings_service().update_plugin_settings({"output_plugins_enabled": False})
-
-
-class TestFirstPartyIsNotBetaGated:
-    """Plan: bundled outputs are always on; only third-party installs sit
-    behind ``beta.output_plugins_enabled``. A seeded output is first-party
-    whichever copy runs (the seed's, or an installed copy of it)."""
-
-    def test_an_installed_copy_of_a_seeded_output_builds_with_the_beta_off(self, seed, tmp_path, loaders):
+    def test_an_installed_copy_of_a_seeded_output_builds(self, seed, tmp_path, loaders):
         from src.outputs.factory import build_driver
         from src.outputs.plugin_registration import release_driver
 
-        _beta_off()
         make_loader(loaders, tmp_path, seed, installed_copy(tmp_path)).load_plugin(PLUGIN_ID)
-        assert output_registry().get(PLUGIN_ID).beta_gated is False
         driver = build_driver({**named(), "output_config": {"host": "192.0.2.50"}})
         assert driver is not None
         release_driver(driver)
 
-    def test_the_seed_fallback_copy_builds_with_the_beta_off(self, seed, tmp_path, loaders):
+    def test_the_seed_fallback_copy_builds(self, seed, tmp_path, loaders):
         from src.outputs.factory import build_driver
         from src.outputs.plugin_registration import release_driver
 
-        _beta_off()
         external = installed_copy(tmp_path)
         set_output_api(external / PLUGIN_ID, 2)
         make_loader(loaders, tmp_path, seed, external).load_plugin(PLUGIN_ID)
-        assert output_registry().get(PLUGIN_ID).beta_gated is False
         driver = build_driver({**named(), "output_config": {"host": "192.0.2.50"}})
         assert driver is not None
         release_driver(driver)
 
-    def test_an_installed_output_the_seed_does_not_carry_stays_behind_the_beta(self, tmp_path, loaders):
+    def test_an_installed_output_the_seed_does_not_carry_builds_behind_the_safety_fences(self, tmp_path, loaders):
         from src.outputs.factory import build_driver
-        from src.outputs.plugin_registration import OutputPluginsDisabledError
+        from src.outputs.plugin_driver import OutputPluginDriver
+        from src.outputs.plugin_registration import release_driver
 
-        _beta_off()
         make_loader(loaders, tmp_path, tmp_path / "no-seed", installed_copy(tmp_path)).load_plugin(PLUGIN_ID)
-        assert output_registry().get(PLUGIN_ID).beta_gated is True
-        with pytest.raises(OutputPluginsDisabledError):
-            build_driver({**named(), "output_config": {"host": "192.0.2.50"}})
-
-    def test_a_data_only_seed_entry_does_not_make_an_installed_output_first_party(self, tmp_path, loaders):
-        repo, head = output_repo(tmp_path / "origin")
-        lock = write_lock(tmp_path / LOCKFILE, lock_for(repo, head, loadable=False))
-        root = tmp_path / "seed"
-        build_seed(lock, root, repositories={PLUGIN_ID: repo.as_uri()})
-        make_loader(loaders, tmp_path, root, installed_copy(tmp_path)).load_plugin(PLUGIN_ID)
-        assert output_registry().get(PLUGIN_ID).beta_gated is True
+        driver = build_driver({**named(), "output_config": {"host": "192.0.2.50"}})
+        assert isinstance(driver, OutputPluginDriver)
+        # Not core's own output: writes keep the timeout and the breaker.
+        assert driver.first_party is False
+        release_driver(driver)
 
 
 # --- gate 1: the update check ---------------------------------------------------------------------

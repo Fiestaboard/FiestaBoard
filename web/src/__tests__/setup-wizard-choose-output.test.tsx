@@ -59,7 +59,6 @@ const SIGN_AVAILABLE: AvailableOutput = {
   source: "seed",
   installed: false,
   builtin: false,
-  // Seeded outputs are first-party: never behind the output plugins beta.
   beta_gated: false,
   available: true,
   needs_network: false,
@@ -142,23 +141,16 @@ describe("choosing the display", () => {
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
   });
 
-  it("explains a display that needs the beta and one that downloads", async () => {
+  it("says which display downloads, and never asks for an opt-in", async () => {
     available([
+      // What a pre-v7 server said about a marketplace display: the wizard no
+      // longer reads these deprecated fields.
       { ...SIGN_AVAILABLE, source: "registry", beta_gated: true, available: false },
-      {
-        ...SIGN_AVAILABLE,
-        id: "far_sign",
-        name: "Far Sign",
-        source: "registry",
-        beta_gated: true,
-        needs_network: true,
-      },
+      { ...SIGN_AVAILABLE, id: "far_sign", name: "Far Sign", source: "registry", needs_network: true },
     ]);
     renderWizard();
-    expect(await screen.findByRole("radio", { name: /Recording Sign/ })).toHaveTextContent(
-      "Needs the output plugins beta",
-    );
-    expect(screen.getByRole("radio", { name: /Far Sign/ })).toHaveTextContent("needs an internet connection");
+    expect(await screen.findByRole("radio", { name: /Far Sign/ })).toHaveTextContent("needs an internet connection");
+    expect(screen.getByRole("radio", { name: /Recording Sign/ })).not.toHaveTextContent(/beta/i);
   });
 
   it("'I'll add a display later' ends the wizard as skipped", async () => {
@@ -441,32 +433,36 @@ describe("an output plugin", () => {
     expect(actions).toEqual([{ output_config: { host: "192.0.2.10" }, device_model: "sign_small" }]);
   });
 
-  it("explains the beta gate and turns the beta on to continue", async () => {
-    // A third-party (registry) output: only those are behind the beta.
-    available([{ ...SIGN_AVAILABLE, source: "registry", beta_gated: true, needs_network: true }]);
-    let gated = true;
+  it("installs a marketplace display straight into its settings, with no opt-in", async () => {
+    // Settings v7: a registry output installs like a bundled one.
+    available([{ ...SIGN_AVAILABLE, source: "registry", needs_network: true }]);
+    server.use(http.post(`/api/outputs/${SIGN.id}/install`, () => HttpResponse.json(SIGN, { status: 201 })));
+    const settingsWrites = record("put", "/api/settings/plugins", (body) => HttpResponse.json(body as object));
+    renderWizard();
+    await choose(/Recording Sign/);
+    expect(await screen.findByTestId("plugin-board-settings")).toBeInTheDocument();
+    expect(settingsWrites).toEqual([]);
+  });
+
+  it("a refused install shows the server's reason and never offers an opt-in", async () => {
+    // A 409 used to mean "turn on the output plugins beta"; no such switch
+    // exists any more, so any refusal is the server's own reason.
+    available([{ ...SIGN_AVAILABLE, source: "registry", needs_network: true }]);
     server.use(
       http.post(`/api/outputs/${SIGN.id}/install`, () =>
-        gated
-          ? HttpResponse.json(
-              { detail: "Output plugin 'recording_sign' needs the output plugins beta" },
-              { status: 409 },
-            )
-          : HttpResponse.json(SIGN, { status: 201 }),
+        HttpResponse.json({ detail: "Recording Sign is already being installed" }, { status: 409 }),
       ),
     );
-    const beta = record("put", "/api/settings/plugins", (body) => {
-      gated = false;
-      return HttpResponse.json({ auto_update: true, transition_plugins_enabled: false, ...(body as object) });
-    });
     renderWizard();
     await choose(/Recording Sign/);
     const failure = await screen.findByTestId("wizard-output-install-error");
-    expect(failure).toHaveAttribute("data-kind", "beta");
-    expect(failure).toHaveTextContent("Recording Sign needs the output plugins beta");
-    await userEvent.click(screen.getByRole("button", { name: "Turn on the output plugins beta" }));
-    expect(await screen.findByTestId("plugin-board-settings")).toBeInTheDocument();
-    expect(beta).toEqual([{ output_plugins_enabled: true }]);
+    expect(failure).toHaveAttribute("data-kind", "refused");
+    expect(failure).toHaveTextContent("Recording Sign is already being installed");
+    expect(
+      within(failure)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["Try again"]);
   });
 
   it("says when the display could not be downloaded, and retries", async () => {

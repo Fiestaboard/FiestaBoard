@@ -294,16 +294,15 @@ Names you will meet:
   `min_interval_ms`, `read_back`, `native_transitions`) and the
   `settings_schema` of the board's `output_config`, whose `secret` fields are
   masked in the API and restored on save (`src/outputs/output_config.py`).
-  Only **third-party** output plugins (registry or git URL, and not in the
-  seed) are behind `plugins.output_plugins_enabled`; with it off their boards
-  stay down. First-party outputs — built-ins, plugins bundled in `plugins/`,
-  and the seed's loadable outputs whichever copy runs — are always on: the
-  loader decides once (`PluginLoader._register_output_locked` →
-  `OutputDefinition.beta_gated`), and `GET /outputs`,
-  `GET /outputs/available`, `POST /outputs/{id}/install` and
-  `POST /outputs/{id}/boards` all read that one flag. `GET /outputs/available`
-  and `POST /outputs/{id}/install` (`src/outputs/install.py`) back the setup
-  wizard's first step: installed, then seeded, then registry outputs. The
+  No opt-in gates an output plugin (settings v7 dropped
+  `plugins.output_plugins_enabled`): every registered one can drive a board,
+  bundled, seeded, from the registry or from a git URL. It still runs behind
+  the write timeout, breaker and network allowlist, and the `output_api` gate
+  at install and load. `GET /outputs/available` and
+  `POST /outputs/{id}/install` (`src/outputs/install.py`) back the setup
+  wizard's first step and the Displays page's Marketplace tab
+  (`web/src/components/displays/display-marketplace.tsx`): installed, then
+  seeded, then registry outputs. The
   published author contract is `docs/development/output-plugins.md` (pull
   viewers: `output-stream-api.md`; landing page: `integrations-overview.md`).
 - **The output seed and the `output_api` gate** (plan D8) — a board never

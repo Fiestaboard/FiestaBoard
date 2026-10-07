@@ -279,9 +279,11 @@ class TestListing:
         assert enable["input_schema"]["required"] == ["enablement_token"]
         assert enable["result_fields"] == {"api_key": {"secret": True, "fills": "local_api_key"}}
 
-    def test_a_beta_gated_plugin_is_listed_unavailable_while_the_beta_is_off(self, client, third_party):
+    def test_a_marketplace_plugin_is_listed_available_with_no_opt_in(self, client, third_party):
+        """Settings v7: display plugins need no opt-in; the deprecated wire
+        fields read "not gated, available"."""
         output = next(o for o in client.get("/outputs").json() if o["id"] == PLUGIN_ID)
-        assert (output["beta_gated"], output["available"]) == (True, False)
+        assert (output["beta_gated"], output["available"]) == (False, True)
 
 
 # --- the draft route --------------------------------------------------------------------------------
@@ -381,8 +383,8 @@ class TestDraftRoute:
         body = _draft(client, "discover").json()
         assert (body["status"], body["devices"]) == ("ok", [])
 
-    def test_a_beta_gated_plugin_is_409_while_the_beta_is_off(self, client, third_party):
-        assert _draft(client, "test_connection").status_code == 409
+    def test_a_marketplace_plugin_runs_draft_actions_with_no_opt_in(self, client, third_party):
+        assert _draft(client, "test_connection").status_code == 200
 
     def test_an_undeclared_device_model_is_refused(self, client, bundled):
         assert _draft(client, "test_connection", device_model="vestaboard_flagship").status_code == 400

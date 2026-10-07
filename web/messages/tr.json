@@ -636,9 +636,7 @@
       "createAction": "Demo Sayfası Oluştur",
       "recreateAction": "Demo Sayfasını Yeniden Oluştur",
       "requirementsWarning": "Demo sayfası oluşturmadan önce aşağıdaki zorunlu ayarları yapılandırın."
-    },
-    "outputPluginsLabel": "Üçüncü taraf ekranlar (beta)",
-    "outputPluginsDescription": "Marketplace'teki veya bir git URL'sindeki ekranların panolarınızı yönetmesine izin verin. FiestaBoard ile birlikte gelen ekranlar her zaman çalışır."
+    }
   },
   "settings": {
     "title": "Ayarlar",
@@ -835,7 +833,6 @@
       "loadFailed": "Ekran listesi yüklenemedi.",
       "retry": "Tekrar dene",
       "optionsLabel": "Ekranlar",
-      "needsBeta": "Çıkış eklentileri betası gerekir. Bir sonraki adımda açabilirsiniz.",
       "downloads": "Devam ettiğinizde indirilir, bu yüzden internet bağlantısı gerekir.",
       "skipTitle": "Atla — ekranı sonra ekleyeceğim",
       "skipDescription": "Şimdi etrafa göz atın ve sayfaları önizleyin. İstediğiniz zaman Ekranlar bölümünden ekran ekleyin."
@@ -844,10 +841,6 @@
       "installing": "{name} yükleniyor…",
       "installFailed": "{name} yüklenemedi",
       "offline": "FiestaBoard {name} öğesini indiremedi. Bu cihazın internet bağlantısını kontrol edip tekrar deneyin.",
-      "betaTitle": "{name} için çıkış eklentileri betası gerekir",
-      "betaBody": "Eklenti kayıt defterindeki ekranlar FiestaBoard'unuzda kendi kodlarını çalıştırır; bu nedenle çıkış eklentileri betasını açana kadar kapalı kalırlar. Betayı Entegrasyonlar sayfasından yeniden kapatabilirsiniz.",
-      "enableBeta": "Çıkış eklentileri betasını aç",
-      "enableBetaFailed": "Beta açılamadı. Tekrar deneyin.",
       "retry": "Tekrar dene",
       "created": "{board} kaydedildi ve hazır.",
       "createFailed": "Pano kaydedilemedi"
@@ -1100,6 +1093,8 @@
     "description": "FiestaBoard'un gösterim yaptığı tüm panolar ve ekranlar. Ayarlarını değiştirmek için birini açın.",
     "addDisplay": "Ekran ekle",
     "listLabel": "Ekranlarınız",
+    "tabDisplays": "Ekranlarınız",
+    "tabMarketplace": "Marketplace",
     "empty": "Henüz ekran yok. Üzerinde sayfa göstermeye başlamak için bir tane ekleyin.",
     "unnamed": "Adsız ekran",
     "openSettings": "Ayarlar",
@@ -1149,6 +1144,34 @@
       "panelTitle": "TV veya tarayıcı ekle",
       "outputTitle": "{name} ekle",
       "setupDescription": "Ayarlayın, sonra ekleyin."
+    },
+    "marketplace": {
+      "searchLabel": "Ekranlarda ara",
+      "searchPlaceholder": "Ekranlarda ara...",
+      "installedHeading": "Bu FiestaBoard'da",
+      "availableHeading": "Kuruluma hazır",
+      "byAuthor": "geliştirici: {author}",
+      "installsOffline": "Çevrimdışı kurulur",
+      "downloads": "Kurulurken indirilir",
+      "install": "Kur",
+      "installing": "Kuruluyor...",
+      "installLabel": "{name} kur",
+      "add": "Ekran ekle",
+      "addLabel": "{name} ile ekran ekle",
+      "update": "Güncelle",
+      "updating": "Güncelleniyor...",
+      "updateLabel": "{name} güncelle",
+      "toastInstalled": "{name} kuruldu. Kullanmaya başlamak için bir ekran ekleyin.",
+      "toastInstallFailed": "{name} kurulamadı: {error}",
+      "toastUpdated": "{name} güncel.",
+      "toastUpdateFailed": "{name} güncellenemedi: {error}",
+      "loading": "Ekranlar yükleniyor…",
+      "loadFailed": "FiestaBoard'un sürebildiği ekranlar yüklenemedi.",
+      "retry": "Tekrar dene",
+      "noMatch": "\"{query}\" ile eşleşen ekran yok",
+      "buildTitle": "Kendi ekranını getir",
+      "buildBody": "FiestaBoard, bir eklentinin öğrettiği her ekranı sürebilir. Cihazın için bir tane yaz ya da Entegrasyonlar → Pazar Yeri'nden bir git URL'siyle kur.",
+      "buildLink": "Ekran eklentisi yaz"
     }
   },
   "systemUpdate": {
@@ -2420,7 +2443,6 @@
     "geometryDetected": "{rows} × {cols} algılandı",
     "applyGeometry": "Boyutu uygula",
     "actionInputDescription": "Bu işlem önce birkaç bilgi gerektiriyor.",
-    "betaRequired": "Bu ekranı kullanmak için Entegrasyonlar sayfasında Üçüncü taraf ekranlar (beta) seçeneğini açın.",
     "boardNameLabel": "Pano adı",
     "boardNamePlaceholder": "Panom",
     "deviceModelLabel": "Cihaz modeli",

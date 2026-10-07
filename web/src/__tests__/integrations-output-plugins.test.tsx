@@ -5,9 +5,8 @@
  * registry's enabled flag means nothing for it. Like a transition, it gets a
  * type badge ("Output") in place of the enable switch and the
  * enabled/disabled status — in the Installed table and in the Marketplace.
- * The page's toolbar carries the switch that lets third-party outputs drive
- * boards (`plugins.output_plugins_enabled`; Settings → Beta until settings
- * v6). An output plugin a board uses cannot be
+ * Display plugins need no opt-in (settings v7): the toolbar carries no
+ * switch for them. An output plugin a board uses cannot be
  * uninstalled; the page shows the server's reason, naming the boards. A
  * first-party output (`required`: Vestaboard, FiestaPanel) updates here like
  * any plugin but offers no uninstall at all.
@@ -181,24 +180,13 @@ describe("Integrations page — a first-party output (required)", () => {
   });
 });
 
-describe("Integrations toolbar — third-party displays", () => {
-  it("turns output plugins on", async () => {
-    let body: unknown = null;
-    server.use(
-      http.put(`${API_BASE}/settings/plugins`, async ({ request }) => {
-        body = await request.json();
-        return HttpResponse.json({
-          auto_update: true,
-          transition_plugins_enabled: false,
-          output_plugins_enabled: true,
-        });
-      }),
-    );
+describe("Integrations toolbar — no display opt-in", () => {
+  it("offers auto-update and nothing that gates display plugins", async () => {
+    // Settings v7: display plugins need no opt-in, so the toolbar's only
+    // switch is auto-update.
     renderWithQuery(<PluginUpdatesControl />);
-
-    const toggle = await screen.findByRole("switch", { name: "Third-party displays (beta)" });
-    expect(toggle).not.toBeChecked();
-    await userEvent.setup().click(toggle);
-    await waitFor(() => expect(body).toEqual({ output_plugins_enabled: true }));
+    const switches = await screen.findAllByRole("switch");
+    expect(switches.map((s) => s.getAttribute("id"))).toEqual(["plugin-auto-update"]);
+    expect(screen.queryByText(/third-party|beta/i)).not.toBeInTheDocument();
   });
 });

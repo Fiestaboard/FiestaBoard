@@ -201,8 +201,8 @@ class TestMigrateV5ToV6:
     def test_it_is_the_registered_v6_migration(self):
         from src.settings.service import CURRENT_SETTINGS_SCHEMA_VERSION, MIGRATIONS, _migrate_v5_to_v6
 
-        assert CURRENT_SETTINGS_SCHEMA_VERSION == 6
-        assert MIGRATIONS[-1] == (6, _migrate_v5_to_v6)
+        assert CURRENT_SETTINGS_SCHEMA_VERSION >= 6
+        assert (6, _migrate_v5_to_v6) in MIGRATIONS
 
 
 # ---------------------------------------------------------------------------
@@ -223,7 +223,7 @@ def test_a_v5_file_loads_at_v6_with_a_backup(tmp_path, caplog):
     assert "Settings schema migration v5->v6: 3 change(s) applied" in caplog.text
     assert (tmp_path / "settings.json.v5_backup").read_bytes() == v5
     on_disk = json.loads(path.read_text())
-    assert on_disk["schema_version"] == 6
+    assert on_disk["schema_version"] == 7  # v6, then v7 (no output-plugin opt-in)
     assert "transitions" not in on_disk and "beta" not in on_disk
     assert on_disk["board"]["boards"][0]["transition"] == "diagonal"
     assert service.get_plugin_settings().transition_plugins_enabled is True
@@ -238,7 +238,8 @@ def test_a_saved_file_has_no_install_transition_or_beta_block(tmp_path, no_env_t
     on_disk = json.loads(path.read_text())
     assert "transitions" not in on_disk
     assert "beta" not in on_disk
-    assert set(on_disk["plugins"]) == {"auto_update", "transition_plugins_enabled", "output_plugins_enabled"}
+    # Settings v7 dropped output_plugins_enabled (display plugins need no opt-in).
+    assert set(on_disk["plugins"]) == {"auto_update", "transition_plugins_enabled"}
 
 
 # ---------------------------------------------------------------------------
@@ -459,7 +460,8 @@ class TestFlagsLeaveBeta:
 
     def test_plugin_settings_carry_the_flags(self, client):
         body = client.get("/settings/plugins").json()
-        assert body == {"auto_update": True, "transition_plugins_enabled": False, "output_plugins_enabled": False}
+        # output_plugins_enabled: deprecated, always true since settings v7.
+        assert body == {"auto_update": True, "transition_plugins_enabled": False, "output_plugins_enabled": True}
 
     def test_put_plugin_settings_toggles_a_flag(self, client):
         response = client.put("/settings/plugins", json={"transition_plugins_enabled": True})

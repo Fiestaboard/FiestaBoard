@@ -22,7 +22,7 @@ const PLUGIN: OutputSummary = {
   description: "An LED sign on your network.",
   icon: "lightbulb",
   builtin: false,
-  beta_gated: true,
+  beta_gated: false,
   available: true,
   output_api: 1,
   capabilities: {

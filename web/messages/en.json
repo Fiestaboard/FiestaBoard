@@ -592,9 +592,7 @@
       "createAction": "Create Demo Page",
       "recreateAction": "Recreate Demo Page",
       "requirementsWarning": "Configure the required settings below before creating a demo page."
-    },
-    "outputPluginsLabel": "Third-party displays (beta)",
-    "outputPluginsDescription": "Let displays from the marketplace or a git URL drive your boards. Displays bundled with FiestaBoard always work."
+    }
   },
   "settings": {
     "title": "Settings",
@@ -791,7 +789,6 @@
       "loadFailed": "Couldn't load the list of displays.",
       "retry": "Try again",
       "optionsLabel": "Displays",
-      "needsBeta": "Needs the output plugins beta. You can turn it on in the next step.",
       "downloads": "Downloads when you continue, so it needs an internet connection.",
       "skipTitle": "Skip — I'll add a display later",
       "skipDescription": "Look around and preview pages now. Add a display any time from Displays."
@@ -800,10 +797,6 @@
       "installing": "Installing {name}…",
       "installFailed": "{name} could not be installed",
       "offline": "FiestaBoard couldn't download {name}. Check this device's internet connection, then try again.",
-      "betaTitle": "{name} needs the output plugins beta",
-      "betaBody": "Displays from the plugin registry run their own code on your FiestaBoard, so they stay off until you turn on the output plugins beta. You can turn it off again on the Integrations page.",
-      "enableBeta": "Turn on the output plugins beta",
-      "enableBetaFailed": "Couldn't turn on the beta. Try again.",
       "retry": "Try again",
       "created": "{board} is saved and ready.",
       "createFailed": "Couldn't save the board"
@@ -1056,6 +1049,8 @@
     "description": "Every board and screen FiestaBoard shows on. Open one to change its settings.",
     "addDisplay": "Add a display",
     "listLabel": "Your displays",
+    "tabDisplays": "Your displays",
+    "tabMarketplace": "Marketplace",
     "empty": "No displays yet. Add one to start showing pages on it.",
     "unnamed": "Unnamed display",
     "openSettings": "Settings",
@@ -1105,6 +1100,34 @@
       "panelTitle": "Add a TV or browser",
       "outputTitle": "Add a {name}",
       "setupDescription": "Set it up, then add it."
+    },
+    "marketplace": {
+      "searchLabel": "Search displays",
+      "searchPlaceholder": "Search displays...",
+      "installedHeading": "On this FiestaBoard",
+      "availableHeading": "Ready to install",
+      "byAuthor": "by {author}",
+      "installsOffline": "Installs offline",
+      "downloads": "Downloads when you install it",
+      "install": "Install",
+      "installing": "Installing...",
+      "installLabel": "Install {name}",
+      "add": "Add display",
+      "addLabel": "Add a display with {name}",
+      "update": "Update",
+      "updating": "Updating...",
+      "updateLabel": "Update {name}",
+      "toastInstalled": "{name} is installed. Add a display to start using it.",
+      "toastInstallFailed": "Couldn't install {name}: {error}",
+      "toastUpdated": "{name} is up to date.",
+      "toastUpdateFailed": "Couldn't update {name}: {error}",
+      "loading": "Loading displays…",
+      "loadFailed": "Couldn't load the displays FiestaBoard can drive.",
+      "retry": "Try again",
+      "noMatch": "No displays match \"{query}\"",
+      "buildTitle": "Bring your own display",
+      "buildBody": "FiestaBoard can drive any display a plugin teaches it. Write one for your device, or install one from a git URL in Integrations → Marketplace.",
+      "buildLink": "Write a display plugin"
     }
   },
   "systemUpdate": {
@@ -2420,7 +2443,6 @@
     "geometryDetected": "Detected {rows} × {cols}",
     "applyGeometry": "Apply size",
     "actionInputDescription": "This action needs a few details first.",
-    "betaRequired": "Turn on Third-party displays (beta) on the Integrations page to use this display.",
     "boardNameLabel": "Board name",
     "boardNamePlaceholder": "My Board",
     "deviceModelLabel": "Device model",

@@ -14,6 +14,9 @@
  *    settings screen with Find / Test on draft settings (`StepOutputPlugin`).
  * 3. The new display's page opens.
  *
+ * Opened from a Displays → Marketplace card (`initialOutput`), it starts at
+ * step 2 for that display; Back leads to step 1.
+ *
  * Unlike the wizard, adding a display never removes the untouched
  * placeholder board: every board the user has stays where it is.
  */
@@ -56,14 +59,19 @@ const ignore = () => undefined;
 export function AddDisplayDialog({
   onCreated,
   onCancel,
+  initialOutput,
 }: {
   onCreated: (boardId: string) => void;
   onCancel: () => void;
+  /** Start at this display's setup (a marketplace card's "Add display"). */
+  initialOutput?: WizardOutputChoice;
 }) {
   const t = useTranslations("displays.add");
   const tc = useTranslations("common");
-  const [step, setStep] = useState<Step>({ kind: "choose" });
-  const [chosen, setChosen] = useState<WizardOutputChoice | null>(null);
+  const [step, setStep] = useState<Step>(() =>
+    initialOutput ? { kind: "setup", output: initialOutput, from: "choose" } : { kind: "choose" },
+  );
+  const [chosen, setChosen] = useState<WizardOutputChoice | null>(initialOutput ?? null);
   const [canNext, setCanNext] = useState(false);
   const displays = useDisplayBoards();
 

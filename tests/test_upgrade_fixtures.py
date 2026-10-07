@@ -52,6 +52,10 @@ label                                     what it pins
                                           seed gives the legacy connection
 ``v10_beta_schema5_empty_boards``         the same with ``boards: []`` and
                                           ``devices`` (what the app writes)
+``v10_beta_schema6_display_opt_in_off``   settings v6 with the display-plugin
+                                          opt-in stored off: the key is
+                                          dropped (settings v7) and the board
+                                          sends exactly as before
 ========================================  ====================================
 
 What a test does
@@ -359,6 +363,9 @@ EXPECT: dict[str, Expect] = {
     # ``board`` is on disk, so no first-boot seed: the board it builds carries
     # the transition but no connection, and sends nothing.
     "v10_beta_schema5_empty_boards": Expect(sends=[], board_count=1, page_count=1, from_schema=5, unconfigured=(0,)),
+    "v10_beta_schema6_display_opt_in_off": Expect(
+        sends=[(0, "upgrade_v10_beta_schema5_install_transition")], board_count=1, page_count=1, from_schema=6
+    ),
 }
 
 

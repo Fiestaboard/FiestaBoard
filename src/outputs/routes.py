@@ -24,7 +24,6 @@ from .errors import (
     OutputInstallRefusedError,
     OutputNotInstallableError,
     OutputNotInstalledError,
-    OutputPluginsDisabledError,
     OutputSourceUnreachableError,
     UndeclaredDeviceModelError,
 )
@@ -45,7 +44,6 @@ router = APIRouter(tags=["outputs"])
 
 _STATUS_BY_ERROR: dict[type[Exception], int] = {
     OutputNotInstalledError: 404,
-    OutputPluginsDisabledError: 409,
     BuiltinOutputError: 400,
     UndeclaredDeviceModelError: 400,
     GeometryError: 400,
@@ -79,7 +77,7 @@ _ACTION_RESULT_NOTE = (
     "/outputs/{output_id}/boards",
     response_model=OutputBoardResponse,
     status_code=201,
-    responses=errors(400, 404, 409),
+    responses=errors(400, 404),
     summary="Create a board driven by an output plugin",
     description=(
         "Creates a board for an installed output plugin, as one of the device models the plugin declares. "
@@ -127,8 +125,8 @@ async def get_outputs() -> list[OutputSummary]:
     responses=errors(500),
     summary="List the outputs that can be picked, installed or not",
     description=(
-        "What the setup wizard's first step offers: the installed outputs (built-ins first), then the first-party "
-        "outputs bundled with this image (`source: seed`, installed with no network), then output plugins listed in "
+        "What the setup wizard's first step and the Displays marketplace offer: the installed outputs (built-ins "
+        "first), then the outputs bundled with this image (`source: seed`, installed with no network), then output plugins listed in "
         "the plugin registry (`source: registry`). Each id once. When the registry cannot be read, the installed "
         "and bundled outputs are listed alone."
     ),
@@ -141,14 +139,13 @@ async def get_available_outputs() -> list[AvailableOutput]:
     "/outputs/{output_id}/install",
     response_model=OutputSummary,
     status_code=201,
-    responses=errors(400, 404, 409, 503),
+    responses=errors(400, 404, 503),
     summary="Install an output so a board can use it",
     description=(
         "Installs an output listed by `GET /outputs/available`: from the image's bundled seed when it holds it "
         "(no network), otherwise from the plugin registry through the normal install path, which refuses a plugin "
         "whose `output_api` this FiestaBoard does not support (400). 201 with the installed output; 200 with it "
-        "when it was already installed. Every output that is not bundled needs the output plugins beta (409, "
-        "checked before anything is fetched); 503 when the repository could not be downloaded."
+        "when it was already installed. 503 when the repository could not be downloaded."
     ),
 )
 async def install_an_output(output_id: str, response: Response) -> OutputSummary:
@@ -164,7 +161,7 @@ async def install_an_output(output_id: str, response: Response) -> OutputSummary
 @router.post(
     "/outputs/{output_id}/actions/{action}",
     response_model=ActionResult,
-    responses=errors(400, 404, 409, 500, 503),
+    responses=errors(400, 404, 500, 503),
     summary="Run a board settings action on draft settings",
     description=(
         "Runs one of the output's declared actions (test_connection, discover, identify, detect_geometry, or "
@@ -189,7 +186,7 @@ async def run_output_action(output_id: str, action: str, request: DraftActionReq
 @router.post(
     "/boards/{board_id}/actions/{action}",
     response_model=ActionResult,
-    responses=errors(400, 404, 409, 500, 503),
+    responses=errors(400, 404, 500, 503),
     summary="Run a board settings action on a saved board",
     description=(
         "Runs one of the board's output's declared actions on its stored settings, or on edited settings the "

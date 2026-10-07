@@ -31,7 +31,6 @@ class TestPluginSettingsDataclass:
         assert s.to_dict() == {
             "auto_update": False,
             "transition_plugins_enabled": False,
-            "output_plugins_enabled": False,
         }
 
     def test_from_dict_explicit_false(self):
