@@ -1,0 +1,59 @@
+[
+  {
+    "id": "divoom_pixoo64",
+    "label": "Divoom Pixoo 64",
+    "technology": "led_matrix",
+    "family": "divoom",
+    "geometry": {
+      "kind": "pixels",
+      "width": 64,
+      "height": 64
+    },
+    "color": {
+      "kind": "rgb",
+      "bitDepth": 24
+    },
+    "charset": "led_3x5",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 5,
+      "notes": "Verified on a Pixoo 64 (hardware 92), camera-timed, in two labs (2026-10-04 and 2026-10-05). FiestaBoard STREAMS on this device: every frame is its own single-frame Draw/SendHttpGif push (PicNum 1), which plays once with no overlay and no loop, and the last frame always lands cleanly. maxFps 5 is the measured stream rate: each push takes ~0.19 s whatever the frame size (64 px and 32 px alike); paced at 5 fps, 19 of 20 frames displayed (12 of 12 at 4 fps); back-to-back pushes reach ~4.2-5 fps with an occasional dropped middle frame; 6 fps cannot be sent. Two requests in flight drop frames, and Draw/CommandList shows only its last frame and is no faster, so frames go one at a time in order. Core-planned flip, slide, wipe, cascade, dissolve and fade, streamed at 5 fps, all displayed as intended (lab 2). Channel/SetBrightness answers in ~75 ms, so a fade through black (dim, swap, brighten) takes ~1.1 s. Why not an uploaded animation (lab 1): Draw/SendHttpGif uploads (one POST per frame, PicNum frames, PicOffset index, PicSpeed ms per frame, PicData base64 RGB888 row-major from the top left, PicWidth 64) LOOP FOREVER with no play-once flag; any upload longer than ~1.2 s (more than ~3 frames) shows a LOADING overlay; landing on a still after an animation keeps the old loop running with frame 0 replaced for ~5 s. PicID: a push displays only if PicID > the last accepted one (skipping ahead is fine); a reused or lower PicID still answers error_code 0 but is silently ignored. Draw/GetHttpGifId returns the next id (0 right after a reset). Draw/ResetHttpGifId does not clear the screen and needs no wait afterwards. Not verified: the community report of a freeze after ~300 pushes without a reset (the plugin resets every 32), and behaviour on other firmware. mDNS: the device advertises nothing.",
+      "sources": [
+        "FiestaBoard hardware lab on a Pixoo 64, 2026-10-04 (camera-timed; fiestaboard-output--divoom-pixoo PR #1)",
+        "FiestaBoard hardware lab 2 on a Pixoo 64, 2026-10-05 (camera-timed single-frame streaming, brightness ramps, core-planned transitions)",
+        "https://doc.divoom-gz.com/web/#/12?page_id=93 (Draw/SendHttpGif; read via the ShowDoc JSON API)",
+        "https://doc.divoom-gz.com/web/#/12?page_id=192 (Draw/GetHttpGifId)",
+        "https://doc.divoom-gz.com/web/#/12?page_id=236 (Draw/ResetHttpGifId)",
+        "https://raw.githubusercontent.com/cyanheads/pixoo-toolkit/main/AGENTS.md",
+        "https://github.com/SomethingWithComputers/pixoo",
+        "https://github.com/gickowtf/pixoo-homeassistant/pull/158"
+      ]
+    },
+    "font": "3x5",
+    "layoutOptions": {
+      "tileGap": {
+        "allowed": [
+          "gap",
+          "fill"
+        ],
+        "default": "gap"
+      },
+      "blockPadding": {
+        "allowed": [
+          0,
+          1
+        ],
+        "default": 0
+      }
+    },
+    "appearance": {
+      "pixelShape": "square",
+      "dotRatio": 0.82,
+      "offColor": "#171717",
+      "substrateColor": "#0a0a0a"
+    },
+    "legacy": {
+      "preset": "pixoo64"
+    }
+  }
+]

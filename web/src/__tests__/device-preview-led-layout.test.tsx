@@ -36,14 +36,15 @@ describe("ledLayoutProps", () => {
     expect(ledLayoutProps({ tile_gap: "gap", block_padding: 0 })).toEqual({ tileGap: "gap", blockPadding: 0 });
   });
 
-  it("hands the board's face to a DisplayPreview that takes one", () => {
-    // FiestaUI 8.0.0's DisplayPreview has no `font` prop: until the bump to
-    // the release with FiestaUI #342, the face reaches the preview through
-    // the model document core sends (`device_model_spec`) instead.
+  it("hands the board's face to DisplayPreview as `font`", () => {
+    // FiestaUI 8.1.0's DisplayPreview takes `font` (FiestaUI #342).
+    expect(PREVIEW_TAKES_FONT).toBe(true);
     const props = ledLayoutProps({ tile_gap: "gap", block_padding: 0, font: "5x7" });
-    expect(props).toEqual(
-      PREVIEW_TAKES_FONT ? { tileGap: "gap", blockPadding: 0, font: "5x7" } : { tileGap: "gap", blockPadding: 0 },
-    );
+    expect(props).toEqual({ tileGap: "gap", blockPadding: 0, font: "5x7" });
+  });
+
+  it("leaves `font` out when the board names no face", () => {
+    expect(ledLayoutProps({ tile_gap: "gap", block_padding: 0 })).not.toHaveProperty("font");
   });
 
   it("is empty for a board that sends none, so the model's defaults draw", () => {
@@ -61,6 +62,20 @@ describe("DevicePreview with an LED board's layout", () => {
     );
     expect(seen).toHaveLength(1);
     expect(seen[0]).toMatchObject({ tileGap: "fill", blockPadding: 1, message: "HI" });
+  });
+
+  it("hands the board's face to DisplayPreview", () => {
+    render(
+      <DevicePreview
+        model={FIESTAPANEL_LED_MATRIX}
+        message="HI"
+        ledLayout={{ tile_gap: "gap", block_padding: 0, font: "3x5" }}
+      >
+        <div />
+      </DevicePreview>,
+    );
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ font: "3x5", message: "HI" });
   });
 
   it("passes neither when the board sends no layout", () => {

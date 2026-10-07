@@ -8,8 +8,8 @@
  *
  * - An LED display (its model an LED matrix): FiestaUI's transition registry
  *   for that model, via `LedTransitionPicker` — entries the device cannot run
- *   are marked with why, so a Pixoo (two frames a second) offers only None:
- *   it snaps to each message, and says so.
+ *   are marked with why, so a device that pushes two frames a second (an
+ *   AWTRIX clock) offers only None: it snaps to each message, and says so.
  * - A split-flap display: None, the strategies its output animates natively
  *   (`native_transitions`) with their speed (step interval and step size),
  *   and installed transition plugins while they are on. The transition
@@ -125,7 +125,7 @@ function LedTransitions({
   );
   return (
     <Stack gap="3">
-      {/* Only None runs here (a Pixoo shows two frames a second): it snaps. */}
+      {/* Only None runs here (the device pushes too few frames a second): it snaps. */}
       {runnable.length <= 1 && (
         <Alert data-testid="display-transition-snaps">
           <Info className="h-4 w-4" aria-hidden="true" />
