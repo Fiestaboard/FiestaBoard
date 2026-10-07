@@ -199,8 +199,13 @@ async def _run_chat_turn(
     limits: TurnLimits = TurnLimits(),
     approval_mode: AiApprovalMode = "ask",
     auto_approve_destructive: bool = False,
+    display: Any = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """Run one user turn to completion or to a pause. Yields stream events.
+
+    ``display`` is the :class:`~src.outputs.display_profile.DisplayProfile`
+    of the board the chat is for, when it names one: the prompt then
+    teaches that board's markup (and canvases on a pixel board).
 
     ``approval_mode`` is the install's setting; ``auto_approve_destructive``
     is this conversation's "don't ask again" flag. Either one lets a
@@ -287,6 +292,7 @@ async def _run_chat_turn(
         available_collections=available_collections,
         registry_plugins=registry_plugins,
         mode="chat",
+        display=display,
     )
     system_message = {
         "role": "system",

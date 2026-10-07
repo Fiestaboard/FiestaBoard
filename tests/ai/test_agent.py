@@ -856,3 +856,14 @@ def test_the_nudge_respects_the_model_call_budget():
     events = _run_turn(provider, FakeBackend(), USER, limits=TurnLimits(max_model_calls=1))
     assert len(provider.requests) == 1
     assert _only(events, "done")[0]["reason"] == "complete"
+
+
+def test_a_turn_for_a_pixel_board_teaches_that_boards_display_and_canvases():
+    from src.outputs.display_profile import DisplayProfile
+
+    pixel = DisplayProfile(technology="led_matrix", color="rgb", mixed_case=True, rows=10, cols=16, width=64, height=64)
+    provider = ScriptedProvider(_sse("Hi."))
+    _run_turn(provider, FakeBackend(), USER, display=pixel)
+    system = provider.messages_of(0)[0]["content"]
+    assert "sentence case" in system
+    assert "PIXEL CANVASES" in system

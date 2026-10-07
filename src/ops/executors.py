@@ -374,6 +374,7 @@ def create_page(
     transition_step_size: int | None = None,
     grid_rows: int | None = None,
     grid_cols: int | None = None,
+    canvases: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Create a new template page with every field the page editor saves.
 
@@ -381,8 +382,10 @@ def create_page(
     ``grid_rows``/``grid_cols`` a ``panel`` page; ``line_metadata``
     is the per-line alignment + wrap the editor stores; the three
     ``transition_*`` fields are the per-page override of the board's
-    transition. Omitted fields take the model defaults, exactly like a REST
-    ``POST /pages`` body that leaves them out.
+    transition. ``canvases`` are the page's pixel canvases (validated by
+    ``PageCreate``, areas against the page's grid). Omitted fields take the
+    model defaults, exactly like a REST ``POST /pages`` body that leaves them
+    out.
     """
     try:
         from src.pages.models import PageCreate
@@ -409,6 +412,7 @@ def create_page(
             "transition_strategy": transition_strategy,
             "transition_interval_ms": transition_interval_ms,
             "transition_step_size": transition_step_size,
+            "canvases": canvases,
         }
         fields.update({key: value for key, value in supplied.items() if value is not None})
         page = svc.create_page(PageCreate(**fields))
@@ -437,6 +441,7 @@ def update_page(
     clear_transition_override: bool = False,
     grid_rows: int | None = None,
     grid_cols: int | None = None,
+    canvases: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Update any of the fields the page editor saves. Only supplied fields change.
 
@@ -448,6 +453,7 @@ def update_page(
     which leaves no way to drop a per-page transition override and fall back
     to the board's transition — ``clear_transition_override=True`` is that
     escape hatch (the ``clear_end_time`` pattern from :func:`update_schedule`).
+    ``canvases`` replaces every canvas; an empty list removes them all.
 
     A device or size retarget (``device_type``/``notes_wide``/``notes_tall``/
     ``grid_rows``/``grid_cols``)
@@ -481,6 +487,9 @@ def update_page(
             "transition_step_size": transition_step_size,
         }
         fields: dict[str, Any] = {key: value for key, value in supplied.items() if value is not None}
+        if canvases is not None:
+            # An empty list clears them: stored as null, as PUT /pages does.
+            fields["canvases"] = canvases or None
         if clear_transition_override:
             # Explicit Nones: PageStorage.update lets exactly these three be
             # cleared back to "inherit the board's transition" (#1306).
@@ -488,8 +497,8 @@ def update_page(
         if not fields:
             return err(
                 "Nothing to update: pass at least one of name, template_lines, duration_seconds, "
-                "device_type, notes_wide, notes_tall, grid_rows, grid_cols, line_metadata, transition_strategy, "
-                "transition_interval_ms, transition_step_size, or clear_transition_override."
+                "device_type, notes_wide, notes_tall, grid_rows, grid_cols, line_metadata, canvases, "
+                "transition_strategy, transition_interval_ms, transition_step_size, or clear_transition_override."
             )
 
         existing = svc.get_page(page_id)

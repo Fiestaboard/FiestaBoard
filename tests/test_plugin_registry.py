@@ -2631,3 +2631,41 @@ def test_max_lengths_include_color_tile_for_fields_with_rules(
     assert max_lengths["test_plugin.var1_color"] == 1
     assert "test_plugin.var2_color" not in max_lengths
     assert max_lengths["test_plugin.var1"] == 10
+
+
+def test_get_all_variables_with_metadata_reports_a_canvas_format(registry, mock_loader, mock_plugin):
+    """A ``"format": "canvas"`` variable says so (the page editor's canvas Source picker filters on it);
+    a plain text variable carries no ``format`` key, exactly as before."""
+    from src.plugins.manifest import VariableMetadata, VariablesSchema
+
+    manifest = MagicMock(spec=PluginManifest)
+    manifest.id = "test_plugin"
+    manifest.name = "Test"
+    manifest.version = "1.0.0"
+    manifest.description = ""
+    manifest.author = ""
+    manifest.icon = "puzzle"
+    manifest.category = "utility"
+    manifest.fiestaboard_version = ""
+    manifest.max_lengths = {}
+    manifest.raw = {}
+    manifest.color_rules_schema = {}
+    manifest.variables = VariablesSchema(
+        simple=["art", "title"],
+        auto_discover=False,
+        metadata={
+            "art": VariableMetadata(description="A drawing", type="string", format="canvas"),
+            "title": VariableMetadata(description="Title"),
+        },
+    )
+
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "test_plugin" else None
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"art": {"background": "#000"}, "title": "X"})
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
+        registry.initialize()
+
+    meta = registry.get_all_variables_with_metadata()["test_plugin"]
+    assert meta["art"]["format"] == "canvas"
+    assert "format" not in meta["title"]

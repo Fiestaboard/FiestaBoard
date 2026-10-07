@@ -636,7 +636,8 @@ pixel display with lowercase, colored text and icons) or a TV. Read
 | `technology` | `"split_flap"`, `"led_matrix"` or `"screen"` |
 | `device_model` | The device, e.g. `"vestaboard_flagship"`, `"divoom_pixoo64"` |
 | `color` | `"tiles"` (a flap's fixed colors), `"rgb"` or `"mono"` |
-| `supports(feature)` | `"lowercase"`, `"color_text"` (`{green:63F}`), `"background"` (`{yellow/black:AQI}`), `"tiles"`, `"icons"` (`{icon:sun}`), `"rgb"`, `"solid_shapes"` (same-colored tiles join into one filled area) |
+| `supports(feature)` | `"lowercase"`, `"color_text"` (`{green:63F}`), `"background"` (`{yellow/black:AQI}`), `"tiles"`, `"icons"` (`{icon:sun}`), `"rgb"`, `"solid_shapes"` (same-colored tiles join into one filled area), `"pixels"` (a pixel-matrix display that draws [pixel canvases](#pixel-canvases)) |
+| `width` / `height` | A pixel-matrix display's size in pixels; `None` on any other display |
 | `icons` | The icon names this display draws |
 | `font` (**10.0.0**) | An LED board's text face: `"5x7"` (Large) or `"3x5"` (Small); `None` on a split-flap |
 | `key` | Identity for caches: two displays with equal keys draw identically |
@@ -682,6 +683,56 @@ def fetch_data(self) -> PluginResult:
         layout = self._layouts[key] = self._build_layout(self.board)
     ...
 ```
+
+### Drawing Pixel Canvases {#pixel-canvases}
+
+A page can hold [pixel canvases](../features/pixel-canvases.md): areas of the
+board that an LED pixel display draws as a picture instead of characters. A
+plugin draws one by exposing a variable with `"format": "canvas"` and returning
+a **content object** for it: a plain dict with any of `size`, `background`,
+`palette`, `shapes`, and `pixels`, in the format the
+[Pixel Canvases](../features/pixel-canvases.md#content) page describes.
+
+```json
+"variables": {
+  "simple": {
+    "canvas": { "description": "A picture for a pixel canvas", "format": "canvas" }
+  }
+}
+```
+
+```python
+def fetch_data(self) -> PluginResult:
+    display = self.board.display if self.board else None
+    data = {"art": self._tile_art()}  # text for every board
+    if display is not None and display.supports("pixels"):
+        width, height = display.width, display.height
+        data["canvas"] = {
+            "size": [width, height],
+            "background": "#000000",
+            "shapes": [
+                {"type": "gradient", "from": "#002244", "to": "#ff8800"},
+                {"type": "circle", "cx": width / 2, "cy": height / 2, "r": 8, "fill": "#ffee66"},
+            ],
+        }
+    return PluginResult(available=True, data=data)
+```
+
+- **The user places it.** A page's canvas names your variable in its `source`
+  (`"{{my_plugin.canvas}}"`), and the page decides where it sits and how big
+  it is. Draw at any `size` (up to 128×128): FiestaBoard scales the drawing to
+  the canvas area, keeping its aspect, so 64×64 works without knowing the
+  area. The display's `width` and `height` are a good default.
+- **Only pixel displays draw it.** Check `display.supports("pixels")` before
+  building a picture you would throw away. Used in a template line, a canvas
+  variable draws as nothing, so keep a text variable for split-flap boards.
+- **Keep it valid.** An invalid content object is reported as a canvas issue
+  in the page preview, and the canvas falls back to the page's own drawing, or
+  stays empty. Colors are `#rgb`, `#rrggbb`, palette keys or board color names.
+- **Demo pages can use it.** A manifest demo page (`demo.<device>`) can carry
+  `canvases` in page JSON. Areas are clamped to the board the page renders on,
+  so `{"row": 1, "col": 1, "rows": 96, "cols": 128}` covers the whole board on
+  every size.
 
 ### Constructor
 

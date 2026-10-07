@@ -214,6 +214,9 @@ async def render_template(request: TemplateRenderRequest):
     dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
     num_rows = dims.rows
 
+    if request.canvases:
+        return await render_template_with_canvases(request, check, (device_type, notes_wide, notes_tall, grid_rows, grid_cols))
+
     # Early return for empty templates to avoid unnecessary processing
     blank = TemplateRenderCheckedResponse(
         rendered="\n".join([""] * num_rows), lines=[""] * num_rows, line_count=num_rows, **check.result(None)
@@ -255,6 +258,55 @@ async def render_template(request: TemplateRenderRequest):
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
+
+
+async def render_template_with_canvases(request: TemplateRenderRequest, check: "_CharsetCheck", geometry: tuple):
+    """``POST /templates/render`` for a template with pixel canvases (the page editor's preview).
+
+    Renders exactly as the page would: an unsaved template page with these
+    canvases through :meth:`PageService.render_page` — text flows around
+    ``flow`` canvases, every covered cell is blank — and, for a pixel-matrix
+    target board, the canvases' ``layers`` and ``canvas_issues``. An area
+    that starts outside the grid is a 422, as it is on a page save.
+    """
+    from src.devices import DEFAULT_DEVICE_TYPE
+    from src.pages.models import Page
+    from src.pages.service import draws_pixels, get_page_service
+
+    device_type, notes_wide, notes_tall, grid_rows, grid_cols = geometry
+    template = request.template if isinstance(request.template, list) else request.template.split("\n")
+    try:
+        page = Page(
+            name="preview",
+            type="template",
+            template=template,
+            line_metadata=request.line_metadata,
+            device_type=device_type or DEFAULT_DEVICE_TYPE,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+            grid_rows=grid_rows,
+            grid_cols=grid_cols,
+            canvases=request.canvases,
+        )
+    except ValueError as e:  # pydantic ValidationError included
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    result = await asyncio.to_thread(
+        get_page_service().render_page, page, display=check.display, **check.render_kw
+    )
+    if not result.available:
+        raise HTTPException(status_code=400, detail=f"Template rendering failed: {result.error}")
+    rendered = result.formatted
+    lines = rendered.split("\n")
+    extra: dict = {}
+    if draws_pixels(check.display):
+        extra = {
+            "layers": [layer.to_json() for layer in result.layers or ()],
+            "canvas_issues": [issue.to_json() for issue in result.canvas_issues or ()],
+        }
+    return TemplateRenderCheckedResponse(
+        rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered), **extra
+    )
 
 
 def _render_geometry(request, board: dict | None) -> tuple:

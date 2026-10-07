@@ -1,6 +1,7 @@
 // Templates domain: template variables/functions, validation and
 // rendering, plus the Home Assistant entity catalog they draw on.
 
+import type { Canvas, CanvasIssue, CanvasLayerJson } from "./canvas";
 import { fetchApi } from "./core";
 import type { GridSize, LineMetadata } from "./shared";
 
@@ -22,6 +23,12 @@ export interface VariableMetadataEntry {
   group?: string;
   preview?: string;
   example?: string;
+  /**
+   * The manifest's value format, sent only when not plain text: `"markup"`
+   * passes through as board markup, `"canvas"` is a pixel canvas content
+   * object (a canvas `source`, not text).
+   */
+  format?: "markup" | "canvas";
 }
 
 export interface VariableGroup {
@@ -108,6 +115,13 @@ export interface TemplateRenderResponse {
   charset?: string | null;
   /** With `charset`: every cell the board draws differently; `null` when unknown. */
   charset_issues?: CharsetIssue[] | null;
+  /**
+   * The request's canvases rasterised for its `board_id`, only when that
+   * board is a pixel matrix (and canvases were sent). Drawn over the cells.
+   */
+  layers?: CanvasLayerJson[];
+  /** Problems drawing those canvases; present exactly when `layers` is. */
+  canvas_issues?: CanvasIssue[];
 }
 
 export interface TemplateRenderLiveResponse {
@@ -147,6 +161,9 @@ export const templatesApi = {
   // `boardId` renders for that board (its extended markup when its output is
   // an LED one) and returns its `charset` / `charset_issues` for the editor's
   // warnings. Trailing and optional, so every existing caller is unchanged.
+  //
+  // `canvases` previews the page's pixel canvases: their cells blank (or text
+  // flows around them) and, for a pixel `boardId`, `layers` + `canvas_issues`.
   renderTemplate: (
     template: string | string[],
     lineMetadata?: LineMetadata[],
@@ -155,6 +172,7 @@ export const templatesApi = {
     notesTall?: number,
     grid?: GridSize | null,
     boardId?: string | null,
+    canvases?: Canvas[],
   ) =>
     fetchApi<TemplateRenderResponse>("/templates/render", {
       method: "POST",
@@ -166,6 +184,7 @@ export const templatesApi = {
         ...(notesTall != null && { notes_tall: notesTall }),
         ...gridFields(grid),
         ...(boardId && { board_id: boardId }),
+        ...(canvases?.length && { canvases }),
       }),
     }),
   renderTemplateLive: (

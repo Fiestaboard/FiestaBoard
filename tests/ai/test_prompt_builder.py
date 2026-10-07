@@ -524,3 +524,67 @@ def test_prompt_contains_scope_guardrails_chat_mode():
     assert "Return ONLY" not in sp
     # A short conversational-style section is included instead.
     assert "CONVERSATIONAL STYLE" in sp
+
+
+# ── The board the chat targets: its display brief, and canvases on a pixel board ──
+
+
+def _pixel_display():
+    from src.outputs.display_profile import DisplayProfile
+
+    return DisplayProfile(
+        technology="led_matrix",
+        device_model="divoom_pixoo64",
+        color="rgb",
+        mixed_case=True,
+        color_spans=True,
+        block_spans=True,
+        icons=("sun",),
+        font="3x5",
+        rows=10,
+        cols=16,
+        width=64,
+        height=64,
+    )
+
+
+def _split_flap_display():
+    from src.outputs.display_profile import DisplayProfile
+
+    return DisplayProfile(technology="split_flap", device_model="vestaboard_flagship", rows=6, cols=22)
+
+
+def test_an_led_board_prompt_teaches_its_display_brief_instead_of_the_vestaboard_rules():
+    prompt = build_prompt("Hi", "flagship", display=_pixel_display(), mode="chat").system_prompt
+    assert "sentence case" in prompt
+    assert "{green:63F}" in prompt and "#rrggbb" in prompt
+    assert "{icon:name}" in prompt
+    assert "The board uppercases all letters" not in prompt
+    assert "Vestaboard split-flap display" not in prompt
+
+
+def test_a_pixel_board_chat_prompt_teaches_canvases():
+    prompt = build_prompt("Draw a sunset", "flagship", display=_pixel_display(), mode="chat").system_prompt
+    assert "PIXEL CANVASES" in prompt
+    for taught in ('"area"', '"bleed"', '"scale"', '"text": "flow"', '"foreach"', '"if"', '"pixels"', "gradient"):
+        assert taught in prompt, taught
+    assert "{{generative_ai_art.canvas}}" in prompt
+    assert "render_page_preview" in prompt
+
+
+def test_a_split_flap_board_keeps_the_vestaboard_rules_and_learns_no_canvases():
+    prompt = build_prompt("Hi", "flagship", display=_split_flap_display(), mode="chat").system_prompt
+    assert "The board uppercases all letters" in prompt
+    assert "PIXEL CANVASES" not in prompt
+
+
+def test_no_board_means_the_vestaboard_rules_and_no_canvases():
+    prompt = build_prompt("Hi", "flagship", mode="chat").system_prompt
+    assert "The board uppercases all letters" in prompt
+    assert "PIXEL CANVASES" not in prompt
+
+
+def test_the_generate_mode_teaches_no_canvases_its_output_cannot_hold():
+    prompt = build_prompt("Hi", "flagship", display=_pixel_display(), mode="generate").system_prompt
+    assert "sentence case" in prompt
+    assert "PIXEL CANVASES" not in prompt

@@ -16,6 +16,13 @@ interface PlainTextEditorProps {
   className?: string;
   boardLines?: number;
   boardWidth?: number;
+  /**
+   * Read-only markers by 0-based line (`{canvas:sky}` where a pixel canvas
+   * starts), shown beside the line and never part of the text.
+   */
+  lineMarkers?: Record<number, string[]>;
+  /** Tooltip / accessible description for a marker. */
+  lineMarkerTitle?: string;
 }
 
 /**
@@ -31,10 +38,13 @@ export function PlainTextEditor({
   className,
   boardLines = 6,
   boardWidth = 22,
+  lineMarkers,
+  lineMarkerTitle,
 }: PlainTextEditorProps) {
   const t = useTranslations("plainTextEditor");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
+  const markersRef = useRef<HTMLElement>(null);
   const mirrorRef = useRef<HTMLDivElement>(null);
   const effectivePlaceholder = placeholder ?? t("placeholder");
   const [lineHeights, setLineHeights] = useState<number[]>([]);
@@ -99,9 +109,13 @@ export function PlainTextEditor({
     if (lineNumbersRef.current) {
       lineNumbersRef.current.scrollTop = e.currentTarget.scrollTop;
     }
+    if (markersRef.current) {
+      markersRef.current.scrollTop = e.currentTarget.scrollTop;
+    }
   };
 
   const lineCount = value.split("\n").length;
+  const hasMarkers = !!lineMarkers && Object.keys(lineMarkers).length > 0;
   const isOverLimit = lineCount > boardLines;
 
   const gutterNumbers =
@@ -189,6 +203,26 @@ export function PlainTextEditor({
             lineHeight: "1.5rem",
           }}
         />
+
+        {/* Read-only markers (a pixel canvas's first row): beside the text, never in it */}
+        {hasMarkers && (
+          <Box
+            ref={markersRef}
+            data-testid="line-markers"
+            className="select-none overflow-hidden border-l bg-muted/40 shrink-0 font-mono"
+            style={{ fontSize: "0.7rem", lineHeight: "1.5rem", paddingTop: "0.5rem", paddingBottom: "0.5rem" }}
+          >
+            {gutterNumbers.map(({ height, label }) => (
+              <Box key={label} style={{ height: `${height}px` }} className="px-1.5 text-muted-foreground">
+                {(lineMarkers?.[label - 1] ?? []).map((marker) => (
+                  <Text as="span" size="xs" key={marker} title={lineMarkerTitle} className="mr-1 font-mono">
+                    {marker}
+                  </Text>
+                ))}
+              </Box>
+            ))}
+          </Box>
+        )}
       </Box>
 
       {/* Line counter */}

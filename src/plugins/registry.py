@@ -1363,7 +1363,7 @@ class PluginRegistry:
         """Get variables with rich metadata for every enabled plugin.
 
         Returns:
-            ``{plugin_id: {var_name: {description, type, max_length, group, example, preview}}}``
+            ``{plugin_id: {var_name: {description, type, max_length, group, example, preview, format?}}}``
         """
         all_vars, synthetic = self._collect_variables()
         context = self.build_template_context()
@@ -1429,6 +1429,11 @@ class PluginRegistry:
                     "example": meta.example,
                     "preview": preview,
                 }
+                # Only a non-default format is named, so every text variable's
+                # entry is exactly what it was; the page editor's canvas Source
+                # picker lists the ``"canvas"`` ones.
+                if meta.format != "text":
+                    var_dict[name]["format"] = meta.format
 
             if var_dict:
                 result[plugin_id] = var_dict

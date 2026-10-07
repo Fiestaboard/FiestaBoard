@@ -216,3 +216,63 @@ def test_the_v1_board_detail_answers_a_pixel_boards_layers(api, monkeypatch):
         flap = client.get("/v1/boards/hall-1").json()
     assert pixel["layers"] == [layer.to_json()]
     assert flap.get("layers") is None
+
+
+# --- The editor's live preview: POST /templates/render with canvases ---------------------------------
+
+
+def _render(client, **body):
+    request = {"template": ["HELLO", "WORLD"], "device_type": "panel", "grid_rows": 10, "grid_cols": 16, **body}
+    return client.post("/templates/render", json=request)
+
+
+def test_template_render_with_canvases_for_a_pixel_board_answers_layers_and_issues(api):
+    client, _ = api
+    response = _render(client, board_id="pixoo-1", canvases=[CANVAS])
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert [set(layer) for layer in body["layers"]] == [LAYER_KEYS]
+    assert _red(body["layers"][0])
+    assert body["canvas_issues"] == []
+
+
+def test_template_render_with_canvases_blanks_the_cells_under_a_hide_canvas(api):
+    client, _ = api
+    body = _render(client, board_id="pixoo-1", canvases=[CANVAS]).json()
+    # The canvas covers row 1, cols 1-2: "HELLO" loses its first two cells.
+    assert body["lines"][0].startswith("  LLO") or body["lines"][0].lower().startswith("  llo")
+
+
+def test_template_render_flows_text_around_a_flow_canvas(api):
+    client, _ = api
+    flow = {**CANVAS, "text": "flow"}
+    body = _render(client, board_id="pixoo-1", canvases=[flow], line_metadata=[{"wrap": True}, {}]).json()
+    assert body["lines"][0][:2] == "  "
+    assert "HELLO".lower() in body["lines"][0].lower()
+
+
+def test_template_render_reports_canvas_issues(api):
+    client, _ = api
+    broken = {**CANVAS, "source": "{{nope.canvas}}", "content": None}
+    body = _render(client, board_id="pixoo-1", canvases=[broken]).json()
+    assert body["layers"] is not None
+    assert [issue["canvas_id"] for issue in body["canvas_issues"]] == ["sun"]
+
+
+def test_template_render_with_canvases_for_a_split_flap_board_has_no_layers(api):
+    client, _ = api
+    response = client.post(
+        "/templates/render", json={"template": ["HELLO"], "board_id": "hall-1", "canvases": [CANVAS]}
+    )
+    body = response.json()
+    assert response.status_code == 200, response.text
+    assert "layers" not in body and "canvas_issues" not in body
+    assert body["lines"][0].startswith("  ")
+
+
+def test_template_render_refuses_an_invalid_canvas(api):
+    client, _ = api
+    bad = {**CANVAS, "content": {"shapes": [{"type": "rect", "x": "oops", "y": 0, "w": 1, "h": 1}]}}
+    response = _render(client, board_id="pixoo-1", canvases=[bad])
+    assert response.status_code == 422
+    assert "x" in response.text
