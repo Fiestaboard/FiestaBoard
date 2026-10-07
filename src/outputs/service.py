@@ -94,9 +94,9 @@ def new_board_font(
     policy = layout_policy_for_model(model)["font"]
     if requested is not None and requested not in policy["allowed"]:
         logger.warning(
-            "New %s board: text size %r is not one %s offers (%s); creating it in %s",
+            # The value itself is not logged: it comes from output_config, which can hold secrets.
+            "New %s board: its text size is not one %s offers (%s); creating it in %s",
             definition.id,
-            requested,
             model.get("id"),
             ", ".join(policy["allowed"]),
             policy["default"],

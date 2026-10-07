@@ -211,7 +211,10 @@ class TestBoardFont:
         with caplog.at_level(logging.WARNING, logger="src.outputs.board_profile"):
             font = board_font(_board(output_config={"host": "192.0.2.50", "font": "9x9"}), PIXOO)
         assert font == "3x5"
-        assert any("9x9" in r.getMessage() for r in caplog.records), caplog.text
+        messages = [r.getMessage() for r in caplog.records]
+        assert any("pixoo-1" in m and "5x7, 3x5" in m for m in messages), caplog.text
+        # output_config can hold secrets: the stored value itself is never logged.
+        assert not any("9x9" in m for m in messages), caplog.text
 
     def test_an_output_that_declares_its_own_character_set_keeps_that_sets_face(self, declared_set_output):
         from src.outputs.board_profile import board_device_model, board_profile

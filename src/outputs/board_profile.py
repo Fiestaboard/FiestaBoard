@@ -215,9 +215,9 @@ def board_font(board: Mapping[str, Any], model: Mapping[str, Any] | None) -> str
         if key not in _warned_fonts:
             _warned_fonts.add(key)
             logger.warning(
-                "Board %s: text size %r is not one %s offers (%s); drawing in %s",
+                # The value itself is not logged: it comes from output_config, which can hold secrets.
+                "Board %s: its text size is not one %s offers (%s); drawing in %s",
                 board.get("id"),
-                requested,
                 model.get("id"),
                 ", ".join(allowed),
                 own,
