@@ -141,7 +141,19 @@ export function useDisplayBoards() {
   const updateMutation = useMutation({
     mutationFn: (updates: { board_type?: "black" | "white" | null; boards?: BoardInstance[] }) =>
       api.updateBoardSettings(updates),
-    onSuccess: invalidate,
+    onSuccess: (result) => {
+      invalidate();
+      // A save that resized a board in place (an LED board's text size)
+      // moved the pages sized for its old grid with it, and may leave
+      // references to pages that still do not fit (warn-only, as a
+      // FiestaPanel TV-size re-fit does).
+      const pageNames = (refs: { page_name: string }[] | null | undefined) =>
+        [...new Set((refs ?? []).map((ref) => ref.page_name))].join(", ");
+      const moved = pageNames(result.retargeted_pages);
+      if (moved) toast.info(t("resizeMovedPages", { pages: moved }), { duration: 10000 });
+      const stale = pageNames(result.incompatible_references);
+      if (stale) toast.warning(t("resizeStaleRefs", { pages: stale }), { duration: 10000 });
+    },
     onError: (error: Error) => toast.error(error.message),
   });
 

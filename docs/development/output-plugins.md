@@ -271,6 +271,24 @@ To let users choose, declare `tile_gap` and `block_padding` in your `settings_sc
 }
 ```
 
+### Text size (LED face)
+
+An LED model measured in pixels can offer a choice of face with `layoutOptions.font`: Large (`"5x7"`) or Small (`"3x5"`). The face sets the grid, so the user is choosing between bigger letters and more of them: a 64 × 64 matrix shows 8 rows of 10 characters in 5×7 and 10 rows of 16 in 3×5.
+
+```json
+"font": "3x5",
+"charset": "led_3x5",
+"layoutOptions": {
+  "font": { "allowed": ["5x7", "3x5"], "default": "5x7" }
+}
+```
+
+- `allowed` must include the model's own `font`, and `charset` must be the built-in set drawn in that face (`led_3x5` for `"3x5"`, `led_5x7` for `"5x7"`). The board's character set always follows its face, so do not declare an output `character_set` if you offer the choice: a declared set fixes the face.
+- `default` is the face a **new** board gets. Core writes it into the board's `output_config.font` when the board is created. A board saved before the choice existed keeps the face its stored grid was sized for, and anything else the model does not offer falls back to the model's own `font`, with a warning in the log.
+- To let users choose, declare `font` in your `settings_schema` with the values your model allows, for example `"enum": ["5x7", "3x5"], "enumNames": ["Large", "Small"]`.
+
+**The board's size changes at runtime.** When the user switches the face, core rewrites the board's grid, moves pages sized for the old grid to the new one, drops the board's old frames and rebuilds your instance. The new instance's `self.device_model` is the model in the chosen face (its `font` and `charset` swapped), `self.character_set` is that face's set and `self.board_geometry` is the new grid. Lay out every frame from them, through `led_spec_for_model(self.device_model)` and `self.led_layout_options()`, and never cache a size of your own across frames.
+
 ### Appearance
 
 A model's `appearance` describes how the device looks in a preview: `pixelShape` (`"round"` or `"square"`), `dotRatio`, `offColor`, `substrateColor`, `bezel` and, for split-flap boards, `boardColors`. It is **preview-only**: nothing in it ever changes the bytes sent to a device. `options` lists the appearance fields a board may override, each with its allowed values, for example `{"board_color": ["black", "white"]}`.
@@ -525,9 +543,9 @@ What core resolved for the board is on the instance:
 |----------|-------|
 | `self.config` | The board's `output_config` |
 | `self.board_id` | The board's id, or `None` for a draft |
-| `self.device_model` | The board's DeviceModel dict: the model the board was created as, else your first |
+| `self.device_model` | The board's DeviceModel dict: the model the board was created as, else your first, in the board's [text size](#text-size-led-face) |
 | `self.character_set` | The board's character set, flattened |
-| `self.board_geometry` | The board's character grid, `(rows, cols)` |
+| `self.board_geometry` | The board's character grid, `(rows, cols)`. It changes when the user switches the board's text size: your instance is rebuilt with the new one |
 | `self.led_layout_options()` | `LedLayoutOptions` for `layout_message()`: the character set plus the board's `tile_gap` and `block_padding`, checked against the model |
 | `self.http` | The device HTTP client |
 

@@ -1093,7 +1093,9 @@
     },
     "notesWideLabel": "Notes de ancho",
     "notesTallLabel": "Notes de alto",
-    "customRangeError": "Cada dimensión debe estar entre 1 y {max}."
+    "customRangeError": "Cada dimensión debe estar entre 1 y {max}.",
+    "resizeMovedPages": "Páginas ajustadas al nuevo tamaño del tablero: {pages}.",
+    "resizeStaleRefs": "El nuevo tamaño del tablero ya no admite estas páginas: {pages}. Edítalas o no se mostrarán en este tablero."
   },
   "displays": {
     "title": "Pantallas",

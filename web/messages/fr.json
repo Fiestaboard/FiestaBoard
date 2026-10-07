@@ -1093,7 +1093,9 @@
     },
     "notesWideLabel": "Notes en largeur",
     "notesTallLabel": "Notes en hauteur",
-    "customRangeError": "Chaque dimension doit être comprise entre 1 et {max}."
+    "customRangeError": "Chaque dimension doit être comprise entre 1 et {max}.",
+    "resizeMovedPages": "Pages adaptées à la nouvelle taille du tableau : {pages}.",
+    "resizeStaleRefs": "La nouvelle taille du tableau ne convient plus à ces pages : {pages}. Modifiez-les, sinon elles ne s'afficheront pas sur ce tableau."
   },
   "displays": {
     "title": "Écrans",

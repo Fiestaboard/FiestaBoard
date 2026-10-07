@@ -1093,7 +1093,9 @@
     },
     "notesWideLabel": "Notes de largura",
     "notesTallLabel": "Notes de altura",
-    "customRangeError": "Cada dimensão deve estar entre 1 e {max}."
+    "customRangeError": "Cada dimensão deve estar entre 1 e {max}.",
+    "resizeMovedPages": "Páginas ajustadas ao novo tamanho do painel: {pages}.",
+    "resizeStaleRefs": "O novo tamanho do painel não comporta mais estas páginas: {pages}. Edite-as ou elas não serão exibidas neste painel."
   },
   "displays": {
     "title": "Ecrãs",

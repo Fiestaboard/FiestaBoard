@@ -1093,7 +1093,9 @@
     },
     "notesWideLabel": "Notes w poziomie",
     "notesTallLabel": "Notes w pionie",
-    "customRangeError": "Każdy wymiar musi mieścić się w zakresie od 1 do {max}."
+    "customRangeError": "Każdy wymiar musi mieścić się w zakresie od 1 do {max}.",
+    "resizeMovedPages": "Strony dopasowano do nowego rozmiaru tablicy: {pages}.",
+    "resizeStaleRefs": "Nowy rozmiar tablicy nie mieści już tych stron: {pages}. Edytuj je, inaczej nie będą wyświetlane na tej tablicy."
   },
   "displays": {
     "title": "Wyświetlacze",

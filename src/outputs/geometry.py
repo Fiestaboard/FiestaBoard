@@ -243,3 +243,35 @@ def resolve_content_grid(
         rows, cols = grid
     check_floor(model, rows, cols)
     return rows, cols
+
+
+def derived_plugin_grid(board: Mapping[str, Any]) -> tuple[int, int] | None:
+    """The content grid an output-plugin board's device model sets, or ``None``.
+
+    A board on a ``cells`` or ``pixels`` model has the grid its model (in the
+    board's face, for an LED board: :func:`src.outputs.board_profile.board_font`)
+    shows, never one a client sends: a text size switch moves a Pixoo between
+    10 x 16 and 8 x 10 whatever grid the settings form echoes. ``None`` for a
+    Vestaboard, a FiestaPanel, a model sized per board (``panel``,
+    ``note_array``), an output that is not installed, or a grid below the
+    model's floor (the stored grid is then kept, never inflated).
+    """
+    from .board_profile import board_device_model
+    from .registry import FIESTAPANEL, VESTABOARD, output_registry, resolve_output_id
+
+    output_id = resolve_output_id(board)
+    if output_id in (VESTABOARD, FIESTAPANEL):
+        return None
+    model = board_device_model(board)
+    if not isinstance(model, Mapping) or model.get("geometry", {}).get("kind") not in ("cells", "pixels"):
+        return None
+    definition = output_registry().get(output_id)
+    manifest = definition.output_manifest if definition is not None else None
+    try:
+        grid = model_cell_grid(model, manifest.character_set if manifest is not None else None)
+        if grid is None:
+            return None
+        check_floor(model, *grid)
+    except (GeometryError, KeyError):
+        return None
+    return grid

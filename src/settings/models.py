@@ -364,6 +364,47 @@ class BoardSettingsResponse(BaseModel):
     devices: list[str]
 
 
+class RetargetedPage(BaseModel):
+    """A page moved onto a board's new grid when the board was resized in place
+    (an LED board's text size switch): it was sized exactly for the old grid
+    and no other board still has that size."""
+
+    page_id: str
+    page_name: str
+    from_size: str = Field(description="The page's size key before, e.g. `panel:10x16`.")
+    to_size: str = Field(description="The page's size key now, e.g. `panel:8x10`.")
+
+
+class IncompatibleBoardReference(BaseModel):
+    """A schedule entry or active page whose page no longer fits a resized board.
+
+    Warn-only, exactly like ``PATCH /panels/{id}`` after a re-fit: the
+    reference is left in place and the caller decides what to do.
+    """
+
+    board_id: str
+    board_name: str
+    page_id: str
+    page_name: str
+    surface: str
+    schedule_id: str | None = None
+
+
+class BoardSettingsUpdateResponse(BoardSettingsResponse):
+    """``PUT /settings/board``: the board settings, plus what a resize moved.
+
+    A board whose grid changed in the save (an LED board's text size: a
+    Pixoo is 10 x 16 in the small face and 8 x 10 in the large one) has its
+    pages sized for the old grid moved onto the new one
+    (``retarget``), unless another board still has that size; the
+    references to pages that still do not fit are reported
+    (``incompatible_references``). Both are null unless ``boards`` was saved.
+    """
+
+    retargeted_pages: list[RetargetedPage] | None = None
+    incompatible_references: list[IncompatibleBoardReference] | None = None
+
+
 class BoardSettingsUpdate(BaseModel):
     """Update the board colour, the device list, or the whole boards array.
 

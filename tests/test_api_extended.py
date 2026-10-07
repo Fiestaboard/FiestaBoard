@@ -739,7 +739,12 @@ class TestSettingsEndpoints:
         response = client.put("/settings/board", json={"board_type": "white"})
         assert response.status_code == 200
         # Bare BoardSettings since the conventions pass (Phase 2, Task 8).
-        assert response.json() == mock_settings_service.set_board_type.return_value.to_dict()
+        # A board_type save resizes nothing: what a boards save moved is null.
+        assert response.json() == {
+            **mock_settings_service.set_board_type.return_value.to_dict(),
+            "retargeted_pages": None,
+            "incompatible_references": None,
+        }
 
     def test_update_board_settings_devices(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"devices": ["flagship"]})

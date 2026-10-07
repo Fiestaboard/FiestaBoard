@@ -1093,7 +1093,9 @@
     },
     "notesWideLabel": "Note в ширину",
     "notesTallLabel": "Note в высоту",
-    "customRangeError": "Каждый размер должен быть от 1 до {max}."
+    "customRangeError": "Каждый размер должен быть от 1 до {max}.",
+    "resizeMovedPages": "Страницы перенесены на новый размер доски: {pages}.",
+    "resizeStaleRefs": "Новый размер доски больше не подходит для этих страниц: {pages}. Отредактируйте их, иначе они не будут показаны на этой доске."
   },
   "displays": {
     "title": "Дисплеи",

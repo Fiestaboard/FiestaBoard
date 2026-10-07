@@ -411,6 +411,21 @@ describe("an output plugin", () => {
     expect(within(preview).getByRole("img").getAttribute("aria-label")).toContain("Recording Sign");
   });
 
+  it("previews a new LED board in the face it will be created in", async () => {
+    // A new Pixoo board is created Large (5x7, 8x10), not in the model's own
+    // small 3x5 face: core names the new-board face per device model.
+    available([SIGN_AVAILABLE]);
+    const pixoo = {
+      ...SIGN,
+      device_models: [{ id: "divoom_pixoo64", label: "Pixoo 64", new_board_font: "5x7", new_board_charset: "led_5x7" }],
+    };
+    record("post", `/api/outputs/${SIGN.id}/install`, () => HttpResponse.json(pixoo, { status: 201 }));
+    renderWizard();
+    await choose(/Recording Sign/);
+    const preview = await screen.findByTestId("wizard-output-device-preview");
+    expect(preview.querySelector("[data-font]")).toHaveAttribute("data-font", "5x7");
+  });
+
   it("shows no device preview for a plugin's own model it cannot resolve", async () => {
     available([SIGN_AVAILABLE]);
     signInstalls();

@@ -172,6 +172,13 @@ class OutputActionDescriptor(BaseModel):
 class OutputDeviceModel(BaseModel):
     id: str
     label: str
+    #: The LED face (text size) a new board on this model is created in --
+    #: ``"5x7"`` (Large) or ``"3x5"`` (Small) -- and the built-in character
+    #: set drawn in it, so an "add a board" preview draws what the board will
+    #: be. ``None`` for a model with no face choice (not an LED board measured
+    #: in pixels, or an output whose own character set fixes the face).
+    new_board_font: str | None = None
+    new_board_charset: str | None = None
 
 
 class OutputCapabilitiesSummary(BaseModel):

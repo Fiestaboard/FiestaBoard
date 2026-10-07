@@ -487,6 +487,26 @@ def _model_label(model_id: str, manifest: Any) -> str:
     return str(found.get("label") or model_id) if found else model_id
 
 
+def _new_board_face(definition: OutputDefinition, model_id: str) -> dict[str, Any]:
+    """``{new_board_font, new_board_charset}``: the face a new board on
+    *model_id* is created in (:func:`src.outputs.service.new_board_font`);
+    empty for a model with no face to name."""
+    from src.led.matrix import led_charset_for_font
+
+    from .service import new_board_font
+
+    manifest = definition.output_manifest
+    font = None
+    if manifest is not None and model_id in manifest.device_model_ids:
+        model = manifest.model(manifest.device_model_ids.index(model_id))
+        font = new_board_font(model, definition, None, definition.settings_schema)
+    # Only a model that has a face to name carries the two keys (the response
+    # model answers null for the rest), so every other output reads as before.
+    if font is None:
+        return {}
+    return {"new_board_font": font, "new_board_charset": led_charset_for_font(font)}
+
+
 def _describe_action(spec: OutputActionSpec) -> dict[str, Any]:
     return {
         "id": spec.id,
@@ -522,7 +542,8 @@ def describe_output(definition: OutputDefinition) -> dict[str, Any]:
             "charset": caps.charset,
         },
         "device_models": [
-            {"id": model_id, "label": _model_label(model_id, manifest)} for model_id in definition.offered_device_models
+            {"id": model_id, "label": _model_label(model_id, manifest), **_new_board_face(definition, model_id)}
+            for model_id in definition.offered_device_models
         ],
         "settings_schema": dict(definition.settings_schema),
         "actions": [_describe_action(spec) for spec in definition.actions],

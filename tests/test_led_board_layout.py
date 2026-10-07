@@ -142,11 +142,13 @@ def test_a_split_flap_plugin_gets_the_renderer_defaults():
 
 
 def test_the_board_view_names_an_led_boards_resolved_choice(output_plugin):
-    assert board_led_layout(PIXOO) == {"tile_gap": "gap", "block_padding": 0}
+    # The face (text size) rides along: a board that never chose one draws
+    # in the face its stored grid was sized for (this fixture's is 3x5).
+    assert board_led_layout(PIXOO) == {"tile_gap": "gap", "block_padding": 0, "font": "3x5"}
     seamless = {**PIXOO, "output_config": {"host": "192.0.2.50", "tile_gap": "fill", "block_padding": 1}}
-    assert board_led_layout(seamless) == {"tile_gap": "fill", "block_padding": 1}
+    assert board_led_layout(seamless) == {"tile_gap": "fill", "block_padding": 1, "font": "3x5"}
     garbage = {**PIXOO, "output_config": {"host": "192.0.2.50", "tile_gap": "seamless", "block_padding": "1"}}
-    assert board_led_layout(garbage) == {"tile_gap": "gap", "block_padding": 0}
+    assert board_led_layout(garbage) == {"tile_gap": "gap", "block_padding": 0, "font": "3x5"}
 
 
 def test_a_split_flap_board_has_no_led_layout(output_plugin):
@@ -161,5 +163,5 @@ def test_get_settings_board_carries_led_layout_for_led_boards_only(output_plugin
     seamless = {**PIXOO, "output_config": {"host": "192.0.2.50", "tile_gap": "fill", "block_padding": 1}}
     get_settings_service().set_boards([HALL, seamless])
     boards = {b["id"]: b for b in TestClient(app).get("/settings/board").json()["boards"]}
-    assert boards["pixoo-1"]["led_layout"] == {"tile_gap": "fill", "block_padding": 1}
+    assert boards["pixoo-1"]["led_layout"] == {"tile_gap": "fill", "block_padding": 1, "font": "3x5"}
     assert "led_layout" not in boards["hall-1"]

@@ -1,9 +1,9 @@
 """Board-geometry conformance checks for plugins.
 
 A FiestaBoard plugin can be rendered onto any board the platform supports:
-a Flagship (22x6), a Note (15x3), or a Note array of any size from 15x3 up
-to 120x24 -- which is also what a FiestaPanel is (a virtual note array sized
-to a TV). A plugin that only ever considered the Flagship will overflow a
+a Flagship (22x6), a Note (15x3), a Note array of any size from 15x3 up
+to 120x24, a FiestaPanel (any grid a TV fits), or an LED pixel board as
+narrow as 10 columns (a Pixoo 64 in its large text face is 10x8). A plugin that only ever considered the Flagship will overflow a
 Note and leave a panel almost entirely blank.
 
 This module is the shared conformance suite. Plugin repositories import it
@@ -91,6 +91,17 @@ PANEL_GEOMETRIES: tuple[Geometry, ...] = (
     Geometry('panel 106x44 (200")', panel(44, 106)),
 )
 
+# LED pixel boards measured in pixels show as many glyphs as fit, so they are
+# NARROWER than a Note: the LED floor is 3 rows of 10, not 3 of 15. A Divoom
+# Pixoo 64 in the large 5x7 text face is 8 x 10 (and 10 x 16 in the small
+# 3x5 face, which the panel grids above already bracket); a 64 x 32 HUB75 or
+# Tidbyt in 5x7 is 4 x 10. A board's text size can change at runtime, so a
+# plugin rendered on a 16-column Pixoo can be asked for 10 columns next.
+LED_GEOMETRIES: tuple[Geometry, ...] = (
+    Geometry("LED 10x8 (Pixoo 64, 5x7)", panel(8, 10)),
+    Geometry("LED 10x4 (64x32, 5x7)", panel(4, 10)),
+)
+
 # The standard matrix. Note arrays are not simply "bigger than a Flagship":
 # a 1-wide x 4-tall array is 15x12, NARROWER than a Flagship but twice as
 # tall, and a 8-wide x 1-tall array is 120x3, wider but shorter. Code that
@@ -104,6 +115,7 @@ STANDARD_GEOMETRIES: tuple[Geometry, ...] = (
     Geometry("wide-short 120x3", note_array(8, 1)),
     Geometry("max array 120x24", note_array(8, 8)),
     *PANEL_GEOMETRIES,
+    *LED_GEOMETRIES,
 )
 
 # Same width, increasing height. Holding width constant isolates the height

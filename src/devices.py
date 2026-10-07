@@ -487,6 +487,26 @@ class BoardContext:
     display: Any = None
 
     @property
+    def key(self) -> str:
+        """Identity for per-board state: equal keys render identically.
+
+        Key any per-board cache or state on this, never on ``device_type``
+        alone: a board's size can change at runtime (an LED board's text
+        size switches a Pixoo between 10 x 16 and 8 x 10 under one
+        ``device_type``), and two boards of one size can draw differently
+        (a split-flap and an LED panel). It is the key core caches plugin
+        results on. Flagship and Note have fixed sizes, so their
+        ``device_type`` stands for the size; every other family folds its
+        dimensions in; the display's own key is appended when known.
+        """
+        if self.device_type in ("flagship", "note"):
+            key = self.device_type
+        else:
+            key = f"{self.device_type}:{self.cols}x{self.rows}"
+        display = self.display
+        return f"{key}|{display.key}" if display is not None else key
+
+    @property
     def width(self) -> int:
         """Board width in tiles (alias for ``cols``)."""
         return self.cols

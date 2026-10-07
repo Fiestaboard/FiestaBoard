@@ -47,7 +47,7 @@ import { useTranslations } from "@/i18n/translations";
 import type { OutputSummary } from "@/lib/api";
 import { api, ApiError } from "@/lib/api";
 import { MAX_BOARD_NAME_LENGTH } from "@/lib/board-dimensions";
-import { isLedModel, resolveBoardModel } from "@/lib/device-preview";
+import { isLedModel, modelInNewBoardFace, resolveBoardModel } from "@/lib/device-preview";
 
 import { removeUntouchedPlaceholder } from "./default-board";
 
@@ -229,7 +229,12 @@ function OutputBoardForm({
   // draws a model it builds in as its matrix; a plugin's own model is only
   // known once the board exists, so it shows no preview here (nor does a
   // split-flap one, whose shape the rest of the wizard already shows).
-  const resolvedModel = resolveBoardModel({ device_model: deviceModel });
+  // A new LED board is drawn in the face it will be created in (a Pixoo 64
+  // is created Large, 5x7), which core names per device model.
+  const resolvedModel = modelInNewBoardFace(
+    resolveBoardModel({ device_model: deviceModel }),
+    output.device_models.find((model) => model.id === deviceModel),
+  );
   const previewModel = isLedModel(resolvedModel) ? resolvedModel : null;
 
   const create = useMutation({

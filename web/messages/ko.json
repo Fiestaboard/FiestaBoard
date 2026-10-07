@@ -1093,7 +1093,9 @@
     },
     "notesWideLabel": "Note 가로 수",
     "notesTallLabel": "Note 세로 수",
-    "customRangeError": "각 치수는 1에서 {max} 사이여야 합니다."
+    "customRangeError": "각 치수는 1에서 {max} 사이여야 합니다.",
+    "resizeMovedPages": "보드의 새 크기에 맞게 페이지를 옮겼습니다: {pages}.",
+    "resizeStaleRefs": "보드의 새 크기에 다음 페이지가 더 이상 맞지 않습니다: {pages}. 편집하지 않으면 이 보드에 표시되지 않습니다."
   },
   "displays": {
     "title": "디스플레이",

@@ -1093,7 +1093,9 @@
     },
     "notesWideLabel": "Notes breda",
     "notesTallLabel": "Notes höga",
-    "customRangeError": "Varje dimension måste vara mellan 1 och {max}."
+    "customRangeError": "Varje dimension måste vara mellan 1 och {max}.",
+    "resizeMovedPages": "Sidor flyttade till tavlans nya storlek: {pages}.",
+    "resizeStaleRefs": "Tavlans nya storlek passar inte längre de här sidorna: {pages}. Redigera dem, annars visas de inte på den här tavlan."
   },
   "displays": {
     "title": "Skärmar",
