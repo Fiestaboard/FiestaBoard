@@ -16,6 +16,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DisplaysSection } from "../../app/routes/displays";
 import DisplaysPage from "../../app/routes/displays._index";
 import { mockOutputs } from "./mocks/handlers";
 import { server } from "./mocks/server";
@@ -140,10 +141,15 @@ function setup({ outputs = [VESTABOARD, FIESTAPANEL, PIXOO, ACME], updates = {} 
   return calls;
 }
 
+// The list inside its section, as the app mounts it: the section owns the
+// add flow (the header's button, the dialog, `?add=<id>` links), and a
+// Marketplace card asks it to open.
 function renderPage() {
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <DisplaysPage />
+      <DisplaysSection>
+        <DisplaysPage />
+      </DisplaysSection>
     </QueryClientProvider>,
   );
 }

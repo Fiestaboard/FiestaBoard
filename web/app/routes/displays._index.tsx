@@ -68,100 +68,100 @@ export default function DisplaysPage() {
     // PageCard and takes the block padding PageCard would have given it (as
     // on Integrations).
     <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
-          <PageToolbar className="mb-0 py-6">
-            <TabsList className="w-fit">
-              <TabsTrigger value="displays">
-                {t("tabDisplays")}
-                {!displays.isLoading && (
-                  <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 py-0 text-[10px]">
-                    {displays.boards.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="marketplace">
-                {t("tabMarketplace")}
-                {toInstall > 0 && (
-                  <Badge variant="outline" className="ml-1.5 h-4 px-1.5 py-0 text-[10px]">
-                    {toInstall}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </PageToolbar>
+      <PageToolbar className="mb-0 py-6">
+        <TabsList className="w-fit">
+          <TabsTrigger value="displays">
+            {t("tabDisplays")}
+            {!displays.isLoading && (
+              <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 py-0 text-[10px]">
+                {displays.boards.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="marketplace">
+            {t("tabMarketplace")}
+            {toInstall > 0 && (
+              <Badge variant="outline" className="ml-1.5 h-4 px-1.5 py-0 text-[10px]">
+                {toInstall}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+      </PageToolbar>
 
-          <PageSection {...anchorProps("settings.boards")}>
-            <TabsContent value="marketplace" className="mt-0">
-              <DisplayMarketplace onAdd={(output) => openAdd(output)} />
-            </TabsContent>
-            <TabsContent value="displays" className="mt-0">
-              {displays.isLoading ? (
-                <Grid gap="4" className="md:grid-cols-2">
-                  <Skeleton className="h-48 w-full" />
-                  <Skeleton className="h-48 w-full" />
-                </Grid>
-              ) : displays.boards.length === 0 ? (
-                <Text tone="muted">{t("empty")}</Text>
-              ) : (
-                <Grid gap="4" className="md:grid-cols-2" role="list" aria-label={t("listLabel")}>
-                  {displays.boards.map((board) => {
-                    const name = board.name || t("unnamed");
-                    const paused = board.paused === true;
-                    return (
-                      <Box
-                        key={board.id}
-                        role="listitem"
-                        data-testid="display-card"
-                        data-paused={paused ? "true" : undefined}
-                        {...anchorProps(`displays.card.${board.id}`)}
-                        className={`flex flex-col gap-3 rounded-lg border p-4 ${paused ? "border-amber-500/60 bg-amber-500/5" : ""}`}
+      <PageSection {...anchorProps("settings.boards")}>
+        <TabsContent value="marketplace" className="mt-0">
+          <DisplayMarketplace onAdd={(output) => openAdd(output)} />
+        </TabsContent>
+        <TabsContent value="displays" className="mt-0">
+          {displays.isLoading ? (
+            <Grid gap="4" className="md:grid-cols-2">
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </Grid>
+          ) : displays.boards.length === 0 ? (
+            <Text tone="muted">{t("empty")}</Text>
+          ) : (
+            <Grid gap="4" className="md:grid-cols-2" role="list" aria-label={t("listLabel")}>
+              {displays.boards.map((board) => {
+                const name = board.name || t("unnamed");
+                const paused = board.paused === true;
+                return (
+                  <Box
+                    key={board.id}
+                    role="listitem"
+                    data-testid="display-card"
+                    data-paused={paused ? "true" : undefined}
+                    {...anchorProps(`displays.card.${board.id}`)}
+                    className={`flex flex-col gap-3 rounded-lg border p-4 ${paused ? "border-amber-500/60 bg-amber-500/5" : ""}`}
+                  >
+                    <Flex justify="center" className="overflow-hidden" style={{ contain: "layout style paint" }}>
+                      <DisplayLivePreview board={board} />
+                    </Flex>
+                    <Flex align="start" justify="between" gap="2">
+                      <Stack gap="1" className="min-w-0">
+                        <Text weight="medium" className="truncate">
+                          {name}
+                        </Text>
+                        <Text size="xs" tone="muted" data-testid="display-output">
+                          {outputName(board)}
+                        </Text>
+                        <BoardSummary board={board} />
+                      </Stack>
+                      <BoardStatusBadges board={board} status={displays.statusFor(board.id)} />
+                    </Flex>
+                    <Flex gap="2" wrap>
+                      <Button asChild variant="outline" size="sm">
+                        <Link
+                          href={`/displays/${encodeURIComponent(board.id)}`}
+                          aria-label={t("openSettingsLabel", { name })}
+                        >
+                          <Settings2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                          {t("openSettings")}
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => displays.setPaused(board.id, !paused)}
+                        disabled={displays.pausePending}
+                        aria-label={paused ? t("resumeLabel", { name }) : t("pauseLabel", { name })}
                       >
-                        <Flex justify="center" className="overflow-hidden" style={{ contain: "layout style paint" }}>
-                          <DisplayLivePreview board={board} />
-                        </Flex>
-                        <Flex align="start" justify="between" gap="2">
-                          <Stack gap="1" className="min-w-0">
-                            <Text weight="medium" className="truncate">
-                              {name}
-                            </Text>
-                            <Text size="xs" tone="muted" data-testid="display-output">
-                              {outputName(board)}
-                            </Text>
-                            <BoardSummary board={board} />
-                          </Stack>
-                          <BoardStatusBadges board={board} status={displays.statusFor(board.id)} />
-                        </Flex>
-                        <Flex gap="2" wrap>
-                          <Button asChild variant="outline" size="sm">
-                            <Link
-                              href={`/displays/${encodeURIComponent(board.id)}`}
-                              aria-label={t("openSettingsLabel", { name })}
-                            >
-                              <Settings2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                              {t("openSettings")}
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => displays.setPaused(board.id, !paused)}
-                            disabled={displays.pausePending}
-                            aria-label={paused ? t("resumeLabel", { name }) : t("pauseLabel", { name })}
-                          >
-                            {paused ? (
-                              <Play className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                            ) : (
-                              <Pause className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                            )}
-                            {paused ? t("resume") : t("pause")}
-                          </Button>
-                        </Flex>
-                      </Box>
-                    );
-                  })}
-                </Grid>
-              )}
-            </TabsContent>
-          </PageSection>
+                        {paused ? (
+                          <Play className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                        ) : (
+                          <Pause className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                        )}
+                        {paused ? t("resume") : t("pause")}
+                      </Button>
+                    </Flex>
+                  </Box>
+                );
+              })}
+            </Grid>
+          )}
+        </TabsContent>
+      </PageSection>
     </Tabs>
   );
 }
