@@ -26,8 +26,8 @@ Choose push when the device has an API that FiestaBoard can reach, and you want 
 
 [Writing an Output Plugin](/docs/development/output-plugins) covers the manifest, the plugin class, LED rendering, testing and publishing.
 
-:::info Beta
-Output plugins arrive with FiestaBoard 10.0.0 as a beta. Third-party output plugins run only while the **Third-party displays (beta)** switch in the **Integrations** page header is on; the outputs that ship with FiestaBoard need no beta.
+:::info Beta contract
+Output plugins arrive with FiestaBoard 10.0.0, and the contract (`output_api` 1) is a beta: it may still change before it is declared stable. Every installed output plugin can drive a board, with nothing for the user to turn on, and the **Displays → Marketplace** tab lists them all.
 :::
 
 ## Pull: Subscribe to Frames

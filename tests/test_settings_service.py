@@ -698,12 +698,13 @@ class TestGetSettingsService:
 
 
 class TestPluginSettingsFlags:
-    """The transition/output plugin flags on PluginSettings."""
+    """The transition plugin flag on PluginSettings (the output flag was
+    dropped in settings v7: display plugins need no opt-in)."""
 
     def test_defaults_to_disabled(self):
         ps = PluginSettings()
         assert ps.transition_plugins_enabled is False
-        assert ps.output_plugins_enabled is False
+        assert not hasattr(ps, "output_plugins_enabled")
 
     def test_from_dict_with_transition_plugins_enabled(self):
         assert PluginSettings.from_dict({"transition_plugins_enabled": True}).transition_plugins_enabled is True
@@ -716,15 +717,14 @@ class TestPluginSettingsFlags:
         assert PluginSettings.from_dict({"transition_plugins_enabled": ""}).transition_plugins_enabled is False
 
     def test_from_dict_ignores_unknown_keys(self):
-        ps = PluginSettings.from_dict({"https_enabled": True})
+        ps = PluginSettings.from_dict({"https_enabled": True, "output_plugins_enabled": False})
         assert ps.to_dict() == {
             "auto_update": True,
             "transition_plugins_enabled": False,
-            "output_plugins_enabled": False,
         }
 
     def test_to_dict_roundtrip(self):
-        original = PluginSettings(transition_plugins_enabled=True, output_plugins_enabled=True)
+        original = PluginSettings(transition_plugins_enabled=True)
         assert PluginSettings.from_dict(original.to_dict()) == original
 
 

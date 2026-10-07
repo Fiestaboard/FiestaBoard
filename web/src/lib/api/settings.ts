@@ -54,15 +54,18 @@ export interface DisplaySettings {
 }
 
 /**
- * `GET`/`PUT /settings/plugins`. The two plugin flags were the
- * `/settings/beta` flags until settings v6.
+ * `GET`/`PUT /settings/plugins`. `transition_plugins_enabled` was a
+ * `/settings/beta` flag until settings v6.
  */
 export interface PluginSettings {
   auto_update: boolean;
   /** Transition plugins (deprecated, beta) may be chosen as a display's or a page's transition. */
   transition_plugins_enabled: boolean;
-  /** Output plugins from the registry or a git URL may drive boards (beta). */
-  output_plugins_enabled: boolean;
+  /**
+   * @deprecated Always true, and ignored on a write: display plugins need no
+   * opt-in since settings v7. Removed in v11.
+   */
+  output_plugins_enabled?: boolean;
 }
 
 export interface LocationSettings {

@@ -636,9 +636,7 @@
       "createAction": "Criar página de demonstração",
       "recreateAction": "Recriar página de demonstração",
       "requirementsWarning": "Configure as definições obrigatórias abaixo antes de criar uma página de demonstração."
-    },
-    "outputPluginsLabel": "Ecrãs de terceiros (beta)",
-    "outputPluginsDescription": "Permita que ecrãs do Marketplace ou de um URL git controlem os seus quadros. Os ecrãs incluídos no FiestaBoard funcionam sempre."
+    }
   },
   "settings": {
     "title": "Configurações",
@@ -835,7 +833,6 @@
       "loadFailed": "Não foi possível carregar a lista de ecrãs.",
       "retry": "Tentar novamente",
       "optionsLabel": "Ecrãs",
-      "needsBeta": "Requer a beta de plugins de saída. Pode ativá-la no passo seguinte.",
       "downloads": "É transferido quando continuar, por isso precisa de ligação à Internet.",
       "skipTitle": "Ignorar — adiciono um ecrã mais tarde",
       "skipDescription": "Explore e pré-visualize páginas agora. Adicione um ecrã quando quiser em Ecrãs."
@@ -844,10 +841,6 @@
       "installing": "A instalar {name}…",
       "installFailed": "Não foi possível instalar {name}",
       "offline": "O FiestaBoard não conseguiu transferir {name}. Verifique a ligação à Internet deste dispositivo e tente novamente.",
-      "betaTitle": "{name} requer a beta de plugins de saída",
-      "betaBody": "Os ecrãs do registo de plugins executam o seu próprio código no seu FiestaBoard, por isso ficam desligados até ativar a beta de plugins de saída. Pode desativá-la novamente na página Integrações.",
-      "enableBeta": "Ativar a beta de plugins de saída",
-      "enableBetaFailed": "Não foi possível ativar a beta. Tente novamente.",
       "retry": "Tentar novamente",
       "created": "{board} está guardado e pronto.",
       "createFailed": "Não foi possível guardar o painel"
@@ -1102,6 +1095,8 @@
     "description": "Todos os painéis e ecrãs em que o FiestaBoard mostra conteúdo. Abra um para alterar as configurações.",
     "addDisplay": "Adicionar um ecrã",
     "listLabel": "Os seus ecrãs",
+    "tabDisplays": "Os seus ecrãs",
+    "tabMarketplace": "Marketplace",
     "empty": "Ainda não há ecrãs. Adicione um para começar a mostrar páginas nele.",
     "unnamed": "Ecrã sem nome",
     "openSettings": "Configurações",
@@ -1151,6 +1146,38 @@
       "panelTitle": "Adicionar uma TV ou um navegador",
       "outputTitle": "Adicionar {name}",
       "setupDescription": "Configure-o e depois adicione-o."
+    },
+    "marketplace": {
+      "searchLabel": "Pesquisar ecrãs",
+      "searchPlaceholder": "Pesquisar ecrãs...",
+      "installedHeading": "Neste FiestaBoard",
+      "availableHeading": "Prontos a instalar",
+      "byAuthor": "por {author}",
+      "installsOffline": "Instala-se offline",
+      "downloads": "É transferido ao instalar",
+      "install": "Instalar",
+      "installing": "A instalar...",
+      "installLabel": "Instalar {name}",
+      "add": "Adicionar ecrã",
+      "addLabel": "Adicionar um ecrã com {name}",
+      "update": "Atualizar",
+      "updating": "A atualizar...",
+      "updateLabel": "Atualizar {name}",
+      "toastInstalled": "{name} está instalado. Adicione um ecrã para começar a usá-lo.",
+      "toastInstallFailed": "Não foi possível instalar {name}: {error}",
+      "toastUpdated": "{name} está atualizado.",
+      "toastUpdateFailed": "Não foi possível atualizar {name}: {error}",
+      "loading": "A carregar ecrãs…",
+      "loadFailed": "Não foi possível carregar os ecrãs que o FiestaBoard consegue controlar.",
+      "retry": "Tentar novamente",
+      "noMatch": "Nenhum ecrã corresponde a \"{query}\"",
+      "buildTitle": "Traga o seu próprio ecrã",
+      "buildBody": "O FiestaBoard consegue controlar qualquer ecrã que um plugin lhe ensine. Cole o repositório git de um plugin de ecrã para o instalar, ou escreva um para o seu dispositivo.",
+      "buildLink": "Escrever um plugin de ecrã",
+      "gitInstall": "Instalar a partir do git",
+      "gitInstalledData": "{pluginId} está instalado, mas é um plugin de dados, não um ecrã. Use-o na página Integrações.",
+      "gitOpenIntegrations": "Abrir Integrações",
+      "gitFailedTitle": "Não foi possível instalar a partir desse repositório"
     }
   },
   "systemUpdate": {
@@ -2422,7 +2449,6 @@
     "geometryDetected": "Detectado {rows} × {cols}",
     "applyGeometry": "Aplicar tamanho",
     "actionInputDescription": "Esta ação precisa de algumas informações primeiro.",
-    "betaRequired": "Ative Ecrãs de terceiros (beta) na página Integrações para usar este ecrã.",
     "boardNameLabel": "Nome do painel",
     "boardNamePlaceholder": "Meu painel",
     "deviceModelLabel": "Modelo do dispositivo",

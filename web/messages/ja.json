@@ -636,9 +636,7 @@
       "createAction": "デモページを作成",
       "recreateAction": "デモページを再作成",
       "requirementsWarning": "デモページを作成する前に、下の必須設定を構成してください。"
-    },
-    "outputPluginsLabel": "サードパーティ製ディスプレイ (ベータ)",
-    "outputPluginsDescription": "マーケットプレイスや git URL のディスプレイでボードを動かせるようにします。FiestaBoard に同梱のディスプレイは常に使用できます。"
+    }
   },
   "settings": {
     "title": "設定",
@@ -835,7 +833,6 @@
       "loadFailed": "ディスプレイの一覧を読み込めませんでした。",
       "retry": "再試行",
       "optionsLabel": "ディスプレイ",
-      "needsBeta": "出力プラグインのベータが必要です。次のステップで有効にできます。",
       "downloads": "続行するとダウンロードされるため、インターネット接続が必要です。",
       "skipTitle": "スキップ — ディスプレイはあとで追加する",
       "skipDescription": "今はページを見て回ってプレビューできます。ディスプレイはいつでも「ディスプレイ」から追加できます。"
@@ -844,10 +841,6 @@
       "installing": "{name} をインストールしています…",
       "installFailed": "{name} をインストールできませんでした",
       "offline": "FiestaBoard は {name} をダウンロードできませんでした。このデバイスのインターネット接続を確認して、もう一度お試しください。",
-      "betaTitle": "{name} には出力プラグインのベータが必要です",
-      "betaBody": "プラグインレジストリのディスプレイは FiestaBoard 上で独自のコードを実行するため、出力プラグインのベータを有効にするまでオフのままです。連携ページでいつでも無効にできます。",
-      "enableBeta": "出力プラグインのベータを有効にする",
-      "enableBetaFailed": "ベータを有効にできませんでした。もう一度お試しください。",
       "retry": "再試行",
       "created": "{board} を保存しました。準備完了です。",
       "createFailed": "ボードを保存できませんでした"
@@ -1102,6 +1095,8 @@
     "description": "FiestaBoard が表示するすべてのボードと画面です。設定を変えるには開いてください。",
     "addDisplay": "ディスプレイを追加",
     "listLabel": "あなたのディスプレイ",
+    "tabDisplays": "あなたのディスプレイ",
+    "tabMarketplace": "マーケットプレイス",
     "empty": "ディスプレイはまだありません。追加するとページを表示できます。",
     "unnamed": "名前のないディスプレイ",
     "openSettings": "設定",
@@ -1151,6 +1146,38 @@
       "panelTitle": "テレビまたはブラウザを追加",
       "outputTitle": "{name} を追加",
       "setupDescription": "設定してから追加してください。"
+    },
+    "marketplace": {
+      "searchLabel": "ディスプレイを検索",
+      "searchPlaceholder": "ディスプレイを検索...",
+      "installedHeading": "このFiestaBoardにあるもの",
+      "availableHeading": "インストール可能",
+      "byAuthor": "作者: {author}",
+      "installsOffline": "オフラインでインストール",
+      "downloads": "インストール時にダウンロード",
+      "install": "インストール",
+      "installing": "インストール中...",
+      "installLabel": "{name}をインストール",
+      "add": "ディスプレイを追加",
+      "addLabel": "{name}でディスプレイを追加",
+      "update": "更新",
+      "updating": "更新中...",
+      "updateLabel": "{name}を更新",
+      "toastInstalled": "{name}をインストールしました。ディスプレイを追加して使い始めましょう。",
+      "toastInstallFailed": "{name}をインストールできませんでした: {error}",
+      "toastUpdated": "{name}は最新です。",
+      "toastUpdateFailed": "{name}を更新できませんでした: {error}",
+      "loading": "ディスプレイを読み込み中…",
+      "loadFailed": "FiestaBoardが扱えるディスプレイを読み込めませんでした。",
+      "retry": "再試行",
+      "noMatch": "「{query}」に一致するディスプレイはありません",
+      "buildTitle": "自分のディスプレイを使う",
+      "buildBody": "FiestaBoardは、プラグインが教えるどんなディスプレイでも動かせます。ディスプレイプラグインのgitリポジトリを貼り付けてインストールするか、お使いのデバイス用に書いてください。",
+      "buildLink": "ディスプレイプラグインを書く",
+      "gitInstall": "gitからインストール",
+      "gitInstalledData": "{pluginId}をインストールしましたが、これはディスプレイではなくデータプラグインです。連携ページから使ってください。",
+      "gitOpenIntegrations": "連携を開く",
+      "gitFailedTitle": "そのリポジトリからインストールできませんでした"
     }
   },
   "systemUpdate": {
@@ -2422,7 +2449,6 @@
     "geometryDetected": "{rows} × {cols} を検出",
     "applyGeometry": "サイズを適用",
     "actionInputDescription": "この操作には先にいくつかの情報が必要です。",
-    "betaRequired": "このディスプレイを使うには、連携ページで「サードパーティ製ディスプレイ (ベータ)」を有効にしてください。",
     "boardNameLabel": "ボード名",
     "boardNamePlaceholder": "マイボード",
     "deviceModelLabel": "デバイスモデル",

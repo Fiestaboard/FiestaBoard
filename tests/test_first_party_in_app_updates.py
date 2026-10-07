@@ -265,7 +265,7 @@ class TestLoader:
         loader = PluginLoader(plugins_dir=tmp_path / "builtin", external_dirs=[external])
         assert loader.load_plugin(VESTABOARD) is not None
         definition = output_registry().get(VESTABOARD)
-        assert (definition.plugin, definition.beta_gated) == (False, False)
+        assert definition.plugin is False
         assert running_file().parent == external / VESTABOARD
         assert loader.get_source(VESTABOARD).local_path == str(external / VESTABOARD)
         assert loader.seed_fallbacks == {}

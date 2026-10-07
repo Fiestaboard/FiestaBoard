@@ -13,9 +13,9 @@ one not installed yet — and installs the chosen one. Pinned here:
   ``output_api`` gate refuses a plugin this core cannot run), idempotent
   (200 with the same entry once installed), 404 for an id nothing offers,
   503 when the registry's repository cannot be fetched;
-- **the beta gate**: a seeded output is first-party, so it is offered,
-  installed and used with ``beta.output_plugins_enabled`` off; a registry
-  (third-party) output is refused while the beta is off.
+- **no opt-in** (settings v7): a seeded output and a marketplace (registry)
+  output are both offered as available, install, and take a board on a
+  fresh install; there is no setting that gates them.
 
 Tests never reach the network: a registry "clone" copies the fixture plugin.
 """
@@ -170,12 +170,6 @@ def fake_clone(monkeypatch, *, output_api: int = 1) -> list[str]:
     return cloned
 
 
-def beta(on: bool) -> None:
-    from src.settings.service import get_settings_service
-
-    get_settings_service().update_plugin_settings({"output_plugins_enabled": on})
-
-
 @pytest.fixture
 def client():
     from src.api_server import app
@@ -212,17 +206,15 @@ class TestListing:
         assert entry["output_api"] == 1
         assert (entry["builtin"], entry["beta_gated"]) == (False, False)
 
-    def test_a_seeded_output_is_available_with_the_beta_off(self, client, seeded):
-        beta(False)
+    def test_a_seeded_output_is_available(self, client, seeded):
         assert next(o for o in _available(client) if o["id"] == PLUGIN_ID)["available"] is True
 
-    def test_a_registry_output_is_unavailable_until_the_beta_is_on(self, client, plugins):
+    def test_a_registry_output_is_available_with_no_opt_in(self, client, plugins):
+        """Display plugins need no opt-in (settings v7): a marketplace entry
+        is offered as usable, and the deprecated ``beta_gated`` reads false."""
         set_registry([_registry_entry()])
-        beta(False)
         entry = next(o for o in _available(client) if o["id"] == PLUGIN_ID)
-        assert (entry["beta_gated"], entry["available"]) == (True, False)
-        beta(True)
-        assert next(o for o in _available(client) if o["id"] == PLUGIN_ID)["available"] is True
+        assert (entry["beta_gated"], entry["available"]) == (False, True)
 
     def test_a_data_only_seed_entry_is_not_offered(self, client, plugins, tmp_path, monkeypatch):
         root = _build_seed(tmp_path, loadable=False)
@@ -244,7 +236,6 @@ class TestListing:
         assert [o["source"] for o in entries] == ["seed"]
 
     def test_an_installed_output_is_listed_once_as_installed(self, client, seeded):
-        beta(True)
         assert client.post(f"/outputs/{PLUGIN_ID}/install").status_code == 201
         set_registry([_registry_entry()])
         entries = [o for o in _available(client) if o["id"] == PLUGIN_ID]
@@ -265,7 +256,6 @@ class TestListing:
 
 class TestInstallFromSeed:
     def test_installs_offline_and_answers_the_output(self, client, seeded, no_network):
-        beta(True)
         resp = client.post(f"/outputs/{PLUGIN_ID}/install")
         assert resp.status_code == 201, resp.text
         body = resp.json()
@@ -277,21 +267,18 @@ class TestInstallFromSeed:
         assert PLUGIN_ID in [o["id"] for o in client.get("/outputs").json()]
 
     def test_a_second_install_answers_200_with_the_same_output(self, client, seeded, no_network):
-        beta(True)
         first = client.post(f"/outputs/{PLUGIN_ID}/install")
         second = client.post(f"/outputs/{PLUGIN_ID}/install")
         assert (first.status_code, second.status_code) == (201, 200)
         assert second.json() == first.json()
 
-    def test_installs_with_the_output_plugins_beta_off(self, client, seeded, no_network):
-        beta(False)
+    def test_installs_with_no_opt_in(self, client, seeded, no_network):
         resp = client.post(f"/outputs/{PLUGIN_ID}/install")
         assert resp.status_code == 201, resp.text
         assert (resp.json()["beta_gated"], resp.json()["available"]) == (False, True)
         assert output_registry().get(PLUGIN_ID) is not None
 
-    def test_a_board_is_created_on_it_with_the_beta_off(self, client, seeded, no_network):
-        beta(False)
+    def test_a_board_is_created_on_it(self, client, seeded, no_network):
         assert client.post(f"/outputs/{PLUGIN_ID}/install").status_code == 201
         body = {"name": "Kitchen sign", "device_model": "divoom_pixoo64", "output_config": {"host": "192.0.2.50"}}
         resp = client.post(f"/outputs/{PLUGIN_ID}/boards", json=body)
@@ -302,7 +289,6 @@ class TestInstallFromRegistry:
     def test_installs_through_the_normal_install_path(self, client, plugins, monkeypatch):
         set_registry([_registry_entry()])
         cloned = fake_clone(monkeypatch)
-        beta(True)
         resp = client.post(f"/outputs/{PLUGIN_ID}/install")
         assert resp.status_code == 201, resp.text
         assert cloned == [REPO_URL]
@@ -312,19 +298,21 @@ class TestInstallFromRegistry:
     def test_the_output_api_gate_refuses_a_plugin_this_core_cannot_run(self, client, plugins, monkeypatch):
         set_registry([_registry_entry()])
         fake_clone(monkeypatch, output_api=99)
-        beta(True)
         resp = client.post(f"/outputs/{PLUGIN_ID}/install")
         assert resp.status_code == 400
         assert "output_api 99" in resp.json()["detail"]
         assert not (sources.get_external_plugins_dir() / PLUGIN_ID).exists()
         assert output_registry().get(PLUGIN_ID) is None
 
-    def test_refused_while_the_beta_is_off_before_anything_is_fetched(self, client, plugins, monkeypatch):
+    def test_a_marketplace_output_installs_and_drives_a_board_with_no_opt_in(self, client, plugins, monkeypatch):
+        """No opt-in exists (settings v7): installing from the marketplace and
+        adding a board on it both work on a fresh install."""
         set_registry([_registry_entry()])
-        cloned = fake_clone(monkeypatch)
-        resp = client.post(f"/outputs/{PLUGIN_ID}/install")
-        assert resp.status_code == 409
-        assert cloned == []
+        fake_clone(monkeypatch)
+        assert client.post(f"/outputs/{PLUGIN_ID}/install").status_code == 201
+        body = {"name": "Kitchen sign", "device_model": "divoom_pixoo64", "output_config": {"host": "192.0.2.50"}}
+        resp = client.post(f"/outputs/{PLUGIN_ID}/boards", json=body)
+        assert resp.status_code == 201, resp.text
 
     def test_an_unreachable_repository_is_a_503(self, client, plugins, monkeypatch):
         set_registry([_registry_entry()])
@@ -333,7 +321,6 @@ class TestInstallFromRegistry:
             "clone_or_update_repo",
             lambda *a, **k: (False, "git clone failed: fatal: unable to access: Could not resolve host"),
         )
-        beta(True)
         resp = client.post(f"/outputs/{PLUGIN_ID}/install")
         assert resp.status_code == 503
         assert "Could not resolve host" in resp.json()["detail"]
@@ -341,14 +328,12 @@ class TestInstallFromRegistry:
     def test_a_data_plugin_in_the_registry_is_not_installed_here(self, client, plugins, monkeypatch):
         set_registry([_registry_entry("data", "weather_x")])
         cloned = fake_clone(monkeypatch)
-        beta(True)
         assert client.post("/outputs/weather_x/install").status_code == 404
         assert cloned == []
 
 
 class TestInstallOther:
     def test_an_id_nothing_offers_is_a_404(self, client, plugins):
-        beta(True)
         resp = client.post("/outputs/no_such_sign/install")
         assert resp.status_code == 404
         assert "no_such_sign" in resp.json()["detail"]
@@ -357,3 +342,59 @@ class TestInstallOther:
         resp = client.post("/outputs/vestaboard/install")
         assert resp.status_code == 200
         assert resp.json()["id"] == "vestaboard"
+
+
+# --- side-loading from a git URL (Displays → Marketplace) ----------------------------------------
+
+
+class TestInstallFromGitUrl:
+    """A display plugin pasted as a git URL (``POST /plugins/install``, what
+    Integrations and Displays → Marketplace both call) becomes an output a
+    board can use, with no opt-in (settings v7) — behind the same fences."""
+
+    GIT_URL = "https://github.com/example/fiestaboard-output--recording-output.git"
+
+    def test_a_git_installed_output_is_listed_installed_and_takes_a_board(self, client, plugins, monkeypatch):
+        cloned = fake_clone(monkeypatch)
+        resp = client.post("/plugins/install", json={"repository": self.GIT_URL, "plugin_id": PLUGIN_ID})
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["plugin_id"] == PLUGIN_ID
+        assert cloned == [self.GIT_URL]
+
+        assert PLUGIN_ID in [o["id"] for o in client.get("/outputs").json()]
+        entry = next(o for o in _available(client) if o["id"] == PLUGIN_ID)
+        assert (entry["source"], entry["installed"]) == ("installed", True)
+
+        body = {"name": "Garage sign", "device_model": "divoom_pixoo64", "output_config": {"host": "192.0.2.50"}}
+        board = client.post(f"/outputs/{PLUGIN_ID}/boards", json=body)
+        assert board.status_code == 201, board.text
+
+    def test_it_runs_behind_the_safety_fences(self, client, plugins, monkeypatch):
+        from src.outputs.factory import build_driver
+        from src.outputs.plugin_driver import OutputPluginDriver
+        from src.outputs.plugin_registration import release_driver
+
+        fake_clone(monkeypatch)
+        assert (
+            client.post("/plugins/install", json={"repository": self.GIT_URL, "plugin_id": PLUGIN_ID}).status_code
+            == 201
+        )
+        driver = build_driver(
+            {
+                "id": "g",
+                "name": "G",
+                "device_type": "panel",
+                "output": PLUGIN_ID,
+                "output_config": {"host": "192.0.2.50"},
+            }
+        )
+        assert isinstance(driver, OutputPluginDriver)
+        assert driver.first_party is False
+        release_driver(driver)
+
+    def test_an_output_api_this_core_cannot_run_is_refused_with_the_reason(self, client, plugins, monkeypatch):
+        fake_clone(monkeypatch, output_api=99)
+        resp = client.post("/plugins/install", json={"repository": self.GIT_URL, "plugin_id": PLUGIN_ID})
+        assert resp.status_code == 400
+        assert "output_api 99" in resp.json()["detail"]
+        assert PLUGIN_ID not in [o["id"] for o in client.get("/outputs").json()]

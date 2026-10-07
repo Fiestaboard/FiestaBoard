@@ -4,7 +4,6 @@ each to its code (API_CONVENTIONS.md, "Routers and services")."""
 from __future__ import annotations
 
 from .geometry import BelowFloorError, GeometryError
-from .plugin_registration import OutputPluginsDisabledError
 
 __all__ = [
     "BelowFloorError",
@@ -16,7 +15,6 @@ __all__ = [
     "OutputInstallRefusedError",
     "OutputNotInstallableError",
     "OutputNotInstalledError",
-    "OutputPluginsDisabledError",
     "OutputSourceUnreachableError",
     "UndeclaredDeviceModelError",
 ]

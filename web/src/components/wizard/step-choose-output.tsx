@@ -4,8 +4,8 @@
  * The setup wizard's first step (plan D18): what will FiestaBoard show on?
  *
  * One card per output `GET /outputs/available` offers — installed ones
- * (Vestaboard, FiestaPanel, any output plugin), first-party outputs bundled
- * with the image, and output plugins from the registry — plus a first-class
+ * (Vestaboard, FiestaPanel, any output plugin), outputs bundled with the
+ * image, and output plugins from the registry — plus a first-class
  * way out: "I'll add a display later" ends the wizard as skipped, and the app
  * opens with previews only.
  */
@@ -94,11 +94,7 @@ export function StepChooseOutput({ value, onChange, onSkip, onValidChange, inclu
               data-testid={`wizard-output-${output.id}`}
             >
               {/* Spans: the card is a <button>, which may hold phrasing content only. */}
-              {!output.available ? (
-                <Text as="span" size="xs" tone="muted" className="block">
-                  {t("needsBeta")}
-                </Text>
-              ) : output.needs_network ? (
+              {output.needs_network ? (
                 <Text as="span" size="xs" tone="muted" className="block">
                   {t("downloads")}
                 </Text>

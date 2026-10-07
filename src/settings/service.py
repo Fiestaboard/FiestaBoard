@@ -738,16 +738,14 @@ class PluginSettings:
       a display's or a page's transition. Off by default. Deprecated
       (removal considered for v11). ``beta.transition_plugins_enabled``
       until settings v6.
-    - output_plugins_enabled: output plugins installed from the registry or
-      a git URL can drive boards (a board whose ``output`` names one). Off by
-      default; first-party outputs (bundled in ``plugins/`` or carried by the
-      image's output seed) are always on. ``beta.output_plugins_enabled``
-      until settings v6.
+
+    There is no switch for display (output) plugins: since settings v7 every
+    installed one can drive a board (``plugins.output_plugins_enabled`` was
+    the opt-in until then; :func:`_migrate_v6_to_v7` drops it).
     """
 
     auto_update: bool = True
     transition_plugins_enabled: bool = False
-    output_plugins_enabled: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -757,7 +755,6 @@ class PluginSettings:
         return cls(
             auto_update=bool(data.get("auto_update", True)),
             transition_plugins_enabled=bool(data.get("transition_plugins_enabled", False)),
-            output_plugins_enabled=bool(data.get("output_plugins_enabled", False)),
         )
 
 
@@ -844,7 +841,7 @@ class MQTTSettings:
 # pre-migration file is written to ``settings.json.v{N}_backup`` before the
 # first migration runs.
 
-CURRENT_SETTINGS_SCHEMA_VERSION = 6
+CURRENT_SETTINGS_SCHEMA_VERSION = 7
 
 _LEGACY_CAROUSEL_PREFIX = "carousel:"
 _COLLECTION_PREFIX = "collection:"
@@ -1364,6 +1361,25 @@ def _migrate_v5_to_v6(data: dict) -> int:
     return changes
 
 
+def _migrate_v6_to_v7(data: dict) -> int:
+    """Migration 6 -> 7 (idempotent; operates on the raw settings dict).
+
+    Display plugins need no opt-in: ``plugins.output_plugins_enabled`` (the
+    "Third-party displays (beta)" switch) is dropped whatever its value, and
+    every installed display plugin can drive a board. Every other plugin
+    setting is kept. Returns 1 when the key was removed, else 0.
+    """
+    plugins = data.get("plugins")
+    if not isinstance(plugins, dict) or "output_plugins_enabled" not in plugins:
+        return 0
+    was_off = plugins.pop("output_plugins_enabled") is not True
+    if was_off:
+        logger.info(
+            "Settings v7: display plugins need no opt-in any more; installed display plugins can now drive boards"
+        )
+    return 1
+
+
 MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (1, _migrate_v0_to_v1),
     (2, _migrate_v1_to_v2),
@@ -1371,6 +1387,7 @@ MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (4, _migrate_v3_to_v4),
     (5, _migrate_v4_to_v5),
     (6, _migrate_v5_to_v6),
+    (7, _migrate_v6_to_v7),
 ]
 
 
@@ -2600,11 +2617,11 @@ class SettingsService:
     def update_plugin_settings(self, updates: dict) -> "PluginSettings":
         """Update plugin settings and persist. Only keys present in *updates* are changed.
 
-        ``transition_plugins_enabled`` takes effect immediately;
-        ``output_plugins_enabled`` on the next board rebuild (saving a board,
-        or a restart).
+        ``transition_plugins_enabled`` takes effect immediately. Any other
+        key is ignored — ``output_plugins_enabled`` included: display plugins
+        need no opt-in since settings v7.
         """
-        for key in ("auto_update", "transition_plugins_enabled", "output_plugins_enabled"):
+        for key in ("auto_update", "transition_plugins_enabled"):
             if key in updates and updates[key] is not None:
                 setattr(self._plugins, key, bool(updates[key]))
         self._save_to_file()

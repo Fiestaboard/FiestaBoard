@@ -1504,7 +1504,8 @@ def _beta_view() -> dict:
     return {
         "settings": {
             "transition_plugins_enabled": flags.transition_plugins_enabled,
-            "output_plugins_enabled": flags.output_plugins_enabled,
+            # Deprecated: display plugins need no opt-in since settings v7.
+            "output_plugins_enabled": True,
         }
     }
 
@@ -1532,8 +1533,9 @@ async def update_beta_settings(request: BetaSettingsUpdate):
     """Set the two plugin flags. Deprecated: removed in v11, write
     ``PUT /settings/plugins`` (settings v6 moved them there).
 
-    Body may include ``transition_plugins_enabled`` and
-    ``output_plugins_enabled``; any other key is ignored.
+    Body may include ``transition_plugins_enabled``; any other key is
+    ignored, ``output_plugins_enabled`` included (settings v7: display
+    plugins need no opt-in, and it reads ``true``).
     """
     provided = {k: v for k, v in request.model_dump(exclude_unset=True).items() if v is not None}
     if provided:
@@ -1556,12 +1558,12 @@ async def update_plugin_settings(request: PluginSettingsUpdate):
     - auto_update: bool — when true, plugins are updated automatically in the background.
     - transition_plugins_enabled: bool — let displays and pages use the
       experimental (deprecated) transition plugins. Takes effect at once.
-    - output_plugins_enabled: bool — let third-party output plugins
-      (installed from the registry or a git URL; first-party seeded outputs
-      need neither) drive boards. Takes effect on the next board rebuild
-      (saving a board, or a restart).
+    - output_plugins_enabled: deprecated and ignored (removed in v11).
+      Display plugins need no opt-in since settings v7, and the field
+      always reads ``true``.
 
-    These two were ``PUT /settings/beta`` until settings v6.
+    ``transition_plugins_enabled`` was ``PUT /settings/beta`` until
+    settings v6.
 
     Every flag is a ``StrictBool``: ``"yes"`` is a 422, not a silent
     opt-in.

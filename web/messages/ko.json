@@ -636,9 +636,7 @@
       "createAction": "데모 페이지 만들기",
       "recreateAction": "데모 페이지 다시 만들기",
       "requirementsWarning": "데모 페이지를 만들기 전에 아래 필수 설정을 구성하세요."
-    },
-    "outputPluginsLabel": "서드파티 디스플레이 (베타)",
-    "outputPluginsDescription": "마켓플레이스나 git URL의 디스플레이가 보드를 구동하도록 허용합니다. FiestaBoard에 기본 포함된 디스플레이는 항상 작동합니다."
+    }
   },
   "settings": {
     "title": "설정",
@@ -835,7 +833,6 @@
       "loadFailed": "디스플레이 목록을 불러오지 못했습니다.",
       "retry": "다시 시도",
       "optionsLabel": "디스플레이",
-      "needsBeta": "출력 플러그인 베타가 필요합니다. 다음 단계에서 켤 수 있습니다.",
       "downloads": "계속하면 다운로드되므로 인터넷 연결이 필요합니다.",
       "skipTitle": "건너뛰기 — 디스플레이는 나중에 추가할게요",
       "skipDescription": "지금 둘러보고 페이지를 미리 볼 수 있습니다. 디스플레이는 언제든지 디스플레이 메뉴에서 추가하세요."
@@ -844,10 +841,6 @@
       "installing": "{name} 설치 중…",
       "installFailed": "{name}을(를) 설치하지 못했습니다",
       "offline": "FiestaBoard가 {name}을(를) 다운로드하지 못했습니다. 이 기기의 인터넷 연결을 확인한 뒤 다시 시도하세요.",
-      "betaTitle": "{name}에는 출력 플러그인 베타가 필요합니다",
-      "betaBody": "플러그인 레지스트리의 디스플레이는 FiestaBoard에서 자체 코드를 실행하므로, 출력 플러그인 베타를 켤 때까지 꺼져 있습니다. 연동 페이지에서 다시 끌 수 있습니다.",
-      "enableBeta": "출력 플러그인 베타 켜기",
-      "enableBetaFailed": "베타를 켜지 못했습니다. 다시 시도하세요.",
       "retry": "다시 시도",
       "created": "{board}이(가) 저장되어 준비되었습니다.",
       "createFailed": "보드를 저장하지 못했습니다"
@@ -1102,6 +1095,8 @@
     "description": "FiestaBoard가 표시하는 모든 보드와 화면입니다. 설정을 바꾸려면 하나를 여세요.",
     "addDisplay": "디스플레이 추가",
     "listLabel": "내 디스플레이",
+    "tabDisplays": "내 디스플레이",
+    "tabMarketplace": "마켓플레이스",
     "empty": "아직 디스플레이가 없습니다. 하나를 추가하면 페이지를 표시할 수 있습니다.",
     "unnamed": "이름 없는 디스플레이",
     "openSettings": "설정",
@@ -1151,6 +1146,38 @@
       "panelTitle": "TV 또는 브라우저 추가",
       "outputTitle": "{name} 추가",
       "setupDescription": "설정한 다음 추가하세요."
+    },
+    "marketplace": {
+      "searchLabel": "디스플레이 검색",
+      "searchPlaceholder": "디스플레이 검색...",
+      "installedHeading": "이 FiestaBoard에 있음",
+      "availableHeading": "설치 가능",
+      "byAuthor": "제작: {author}",
+      "installsOffline": "오프라인으로 설치",
+      "downloads": "설치할 때 다운로드",
+      "install": "설치",
+      "installing": "설치 중...",
+      "installLabel": "{name} 설치",
+      "add": "디스플레이 추가",
+      "addLabel": "{name}(으)로 디스플레이 추가",
+      "update": "업데이트",
+      "updating": "업데이트 중...",
+      "updateLabel": "{name} 업데이트",
+      "toastInstalled": "{name}이(가) 설치되었습니다. 디스플레이를 추가해 사용을 시작하세요.",
+      "toastInstallFailed": "{name}을(를) 설치하지 못했습니다: {error}",
+      "toastUpdated": "{name}이(가) 최신 상태입니다.",
+      "toastUpdateFailed": "{name}을(를) 업데이트하지 못했습니다: {error}",
+      "loading": "디스플레이를 불러오는 중…",
+      "loadFailed": "FiestaBoard가 구동할 수 있는 디스플레이를 불러오지 못했습니다.",
+      "retry": "다시 시도",
+      "noMatch": "\"{query}\"와(과) 일치하는 디스플레이가 없습니다",
+      "buildTitle": "나만의 디스플레이 연결",
+      "buildBody": "FiestaBoard는 플러그인이 알려 주는 모든 디스플레이를 구동할 수 있습니다. 디스플레이 플러그인의 git 저장소를 붙여 넣어 설치하거나, 내 기기용 플러그인을 작성하세요.",
+      "buildLink": "디스플레이 플러그인 작성하기",
+      "gitInstall": "git에서 설치",
+      "gitInstalledData": "{pluginId}이(가) 설치되었지만 디스플레이가 아닌 데이터 플러그인입니다. 통합 페이지에서 사용하세요.",
+      "gitOpenIntegrations": "통합 열기",
+      "gitFailedTitle": "해당 저장소에서 설치하지 못했습니다"
     }
   },
   "systemUpdate": {
@@ -2422,7 +2449,6 @@
     "geometryDetected": "{rows} × {cols} 감지됨",
     "applyGeometry": "크기 적용",
     "actionInputDescription": "이 작업에는 먼저 몇 가지 정보가 필요합니다.",
-    "betaRequired": "이 디스플레이를 사용하려면 연동 페이지에서 서드파티 디스플레이 (베타)를 켜세요.",
     "boardNameLabel": "보드 이름",
     "boardNamePlaceholder": "내 보드",
     "deviceModelLabel": "기기 모델",

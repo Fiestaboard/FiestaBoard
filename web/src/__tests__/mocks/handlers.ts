@@ -67,7 +67,6 @@ export const mockConfig: ConfigSummary = {
 export const mockPluginSettings: PluginSettings = {
   auto_update: true,
   transition_plugins_enabled: false,
-  output_plugins_enabled: false,
 };
 
 export const mockTransitionSettings: TransitionSettings = {

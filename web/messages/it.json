@@ -636,9 +636,7 @@
       "createAction": "Crea pagina dimostrativa",
       "recreateAction": "Ricrea pagina dimostrativa",
       "requirementsWarning": "Configura le impostazioni obbligatorie qui sotto prima di creare una pagina dimostrativa."
-    },
-    "outputPluginsLabel": "Schermi di terze parti (beta)",
-    "outputPluginsDescription": "Consenti agli schermi del marketplace o di un URL git di controllare le tue bacheche. Gli schermi inclusi in FiestaBoard funzionano sempre."
+    }
   },
   "settings": {
     "title": "Impostazioni",
@@ -835,7 +833,6 @@
       "loadFailed": "Impossibile caricare l'elenco degli schermi.",
       "retry": "Riprova",
       "optionsLabel": "Schermi",
-      "needsBeta": "Richiede la beta dei plugin di output. Puoi attivarla nel passaggio successivo.",
       "downloads": "Viene scaricato quando continui, quindi serve una connessione a Internet.",
       "skipTitle": "Salta: aggiungerò uno schermo più tardi",
       "skipDescription": "Esplora e visualizza in anteprima le pagine ora. Aggiungi uno schermo quando vuoi da Schermi."
@@ -844,10 +841,6 @@
       "installing": "Installazione di {name}…",
       "installFailed": "Impossibile installare {name}",
       "offline": "FiestaBoard non è riuscito a scaricare {name}. Controlla la connessione a Internet di questo dispositivo e riprova.",
-      "betaTitle": "{name} richiede la beta dei plugin di output",
-      "betaBody": "Gli schermi del registro dei plugin eseguono il proprio codice sul tuo FiestaBoard, quindi restano disattivati finché non attivi la beta dei plugin di output. Puoi disattivarla di nuovo nella pagina Integrazioni.",
-      "enableBeta": "Attiva la beta dei plugin di output",
-      "enableBetaFailed": "Impossibile attivare la beta. Riprova.",
       "retry": "Riprova",
       "created": "{board} è salvato e pronto.",
       "createFailed": "Impossibile salvare il tabellone"
@@ -1102,6 +1095,8 @@
     "description": "Tutte le bacheche e gli schermi su cui FiestaBoard mostra contenuti. Aprine uno per modificarne le impostazioni.",
     "addDisplay": "Aggiungi uno schermo",
     "listLabel": "I tuoi schermi",
+    "tabDisplays": "I tuoi schermi",
+    "tabMarketplace": "Marketplace",
     "empty": "Ancora nessuno schermo. Aggiungine uno per iniziare a mostrarci delle pagine.",
     "unnamed": "Schermo senza nome",
     "openSettings": "Impostazioni",
@@ -1151,6 +1146,38 @@
       "panelTitle": "Aggiungi una TV o un browser",
       "outputTitle": "Aggiungi {name}",
       "setupDescription": "Configuralo, poi aggiungilo."
+    },
+    "marketplace": {
+      "searchLabel": "Cerca display",
+      "searchPlaceholder": "Cerca display...",
+      "installedHeading": "Su questo FiestaBoard",
+      "availableHeading": "Pronti da installare",
+      "byAuthor": "di {author}",
+      "installsOffline": "Si installa offline",
+      "downloads": "Si scarica durante l'installazione",
+      "install": "Installa",
+      "installing": "Installazione...",
+      "installLabel": "Installa {name}",
+      "add": "Aggiungi display",
+      "addLabel": "Aggiungi un display con {name}",
+      "update": "Aggiorna",
+      "updating": "Aggiornamento...",
+      "updateLabel": "Aggiorna {name}",
+      "toastInstalled": "{name} è installato. Aggiungi un display per iniziare a usarlo.",
+      "toastInstallFailed": "Impossibile installare {name}: {error}",
+      "toastUpdated": "{name} è aggiornato.",
+      "toastUpdateFailed": "Impossibile aggiornare {name}: {error}",
+      "loading": "Caricamento dei display…",
+      "loadFailed": "Impossibile caricare i display che FiestaBoard può gestire.",
+      "retry": "Riprova",
+      "noMatch": "Nessun display corrisponde a \"{query}\"",
+      "buildTitle": "Porta il tuo display",
+      "buildBody": "FiestaBoard può gestire qualsiasi display che un plugin gli insegni. Incolla il repository git di un plugin per display per installarlo, o scrivine uno per il tuo dispositivo.",
+      "buildLink": "Scrivi un plugin per display",
+      "gitInstall": "Installa da git",
+      "gitInstalledData": "{pluginId} è installato, ma è un plugin di dati, non un display. Usalo dalla pagina Integrazioni.",
+      "gitOpenIntegrations": "Apri Integrazioni",
+      "gitFailedTitle": "Impossibile installare da quel repository"
     }
   },
   "systemUpdate": {
@@ -2422,7 +2449,6 @@
     "geometryDetected": "Rilevato {rows} × {cols}",
     "applyGeometry": "Applica dimensioni",
     "actionInputDescription": "Questa azione richiede prima alcuni dati.",
-    "betaRequired": "Attiva Schermi di terze parti (beta) nella pagina Integrazioni per usare questo schermo.",
     "boardNameLabel": "Nome del tabellone",
     "boardNamePlaceholder": "Il mio tabellone",
     "deviceModelLabel": "Modello del dispositivo",

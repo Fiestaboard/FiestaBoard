@@ -66,7 +66,6 @@ from .hooks import (
     lan_hint,
 )
 from .output_config import validate_output_config
-from .plugin_registration import OutputPluginsDisabledError, output_plugins_enabled
 from .registry import FIESTAPANEL, VESTABOARD, OutputDefinition, output_registry, resolve_output_id
 
 logger = logging.getLogger(__name__)
@@ -82,8 +81,6 @@ def _definition(output_id: str) -> OutputDefinition:
     definition = output_registry().get(output_id)
     if definition is None:
         raise OutputNotInstalledError(output_id)
-    if definition.beta_gated and not output_plugins_enabled():
-        raise OutputPluginsDisabledError(output_id)
     return definition
 
 
@@ -337,7 +334,7 @@ async def _run(
 ) -> dict[str, Any]:
     try:
         outcome = await execute_action(definition, spec.id, board=board, board_id=board_id, inputs=inputs)
-    except (OutputActionError, UnknownOutputAction, OutputPluginsDisabledError):
+    except (OutputActionError, UnknownOutputAction):
         raise
     except NotImplementedError:
         logger.warning("Output %s declares action %s but does not implement it", definition.id, spec.id)
@@ -406,7 +403,7 @@ async def run_draft_action(
     """Run *action* of output *output_id* on draft settings (no board yet).
 
     Raises:
-        OutputNotInstalledError, OutputPluginsDisabledError, UnknownOutputAction,
+        OutputNotInstalledError, UnknownOutputAction,
         InvalidOutputConfigError (a masked secret), InvalidActionInputError,
         OutputActionError (refused before the device was contacted).
     """
@@ -463,7 +460,7 @@ async def run_saved_action(
     """Run *action* on saved board *board_id*, optionally with edited settings.
 
     Raises:
-        BoardNotFoundError, OutputNotInstalledError, OutputPluginsDisabledError,
+        BoardNotFoundError, OutputNotInstalledError,
         UnknownOutputAction, InvalidOutputConfigError, InvalidActionInputError,
         OutputActionError.
     """
@@ -531,8 +528,10 @@ def describe_output(definition: OutputDefinition) -> dict[str, Any]:
         "description": definition.description,
         "icon": definition.icon,
         "builtin": not definition.plugin,
-        "beta_gated": definition.beta_gated,
-        "available": not definition.beta_gated or output_plugins_enabled(),
+        # Deprecated wire fields (until v11): display plugins need no opt-in
+        # since settings v7, so nothing is gated and everything is available.
+        "beta_gated": False,
+        "available": True,
         "output_api": manifest.output_api if manifest is not None else None,
         "capabilities": {
             "technology": caps.technology,

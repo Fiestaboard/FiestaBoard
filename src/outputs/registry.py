@@ -139,8 +139,6 @@ class OutputDefinition:
     #: The parsed manifest ``output`` block (an ``OutputManifest``: device
     #: models, character set), for output plugins; None for the built-ins.
     output_manifest: Any = None
-    #: True for an output plugin usable only behind the output-plugins beta.
-    beta_gated: bool = False
     #: One line for the "add a board" cards (the plugin manifest's description).
     description: str = ""
     #: A Lucide icon name for the same cards.

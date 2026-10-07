@@ -636,9 +636,7 @@
       "createAction": "Demoseite erstellen",
       "recreateAction": "Demoseite neu erstellen",
       "requirementsWarning": "Konfigurieren Sie unten die erforderlichen Einstellungen, bevor Sie eine Demoseite erstellen."
-    },
-    "outputPluginsLabel": "Anzeigen von Drittanbietern (Beta)",
-    "outputPluginsDescription": "Lass Anzeigen aus dem Marktplatz oder von einer Git-URL deine Boards steuern. Mit FiestaBoard gelieferte Anzeigen funktionieren immer."
+    }
   },
   "settings": {
     "title": "Einstellungen",
@@ -835,7 +833,6 @@
       "loadFailed": "Die Liste der Anzeigen konnte nicht geladen werden.",
       "retry": "Erneut versuchen",
       "optionsLabel": "Anzeigen",
-      "needsBeta": "Benötigt die Beta für Ausgabe-Plugins. Du kannst sie im nächsten Schritt einschalten.",
       "downloads": "Wird beim Fortfahren heruntergeladen und braucht daher eine Internetverbindung.",
       "skipTitle": "Überspringen – ich füge später eine Anzeige hinzu",
       "skipDescription": "Sieh dich um und schau dir Seiten in der Vorschau an. Eine Anzeige kannst du jederzeit unter Anzeigen hinzufügen."
@@ -844,10 +841,6 @@
       "installing": "{name} wird installiert…",
       "installFailed": "{name} konnte nicht installiert werden",
       "offline": "FiestaBoard konnte {name} nicht herunterladen. Prüfe die Internetverbindung dieses Geräts und versuche es erneut.",
-      "betaTitle": "{name} benötigt die Beta für Ausgabe-Plugins",
-      "betaBody": "Anzeigen aus dem Plugin-Verzeichnis führen eigenen Code auf deinem FiestaBoard aus. Deshalb bleiben sie aus, bis du die Beta für Ausgabe-Plugins einschaltest. Auf der Seite Integrationen kannst du sie wieder ausschalten.",
-      "enableBeta": "Beta für Ausgabe-Plugins einschalten",
-      "enableBetaFailed": "Die Beta konnte nicht eingeschaltet werden. Versuche es erneut.",
       "retry": "Erneut versuchen",
       "created": "{board} ist gespeichert und bereit.",
       "createFailed": "Das Board konnte nicht gespeichert werden"
@@ -1102,6 +1095,8 @@
     "description": "Alle Boards und Bildschirme, auf denen FiestaBoard anzeigt. Öffne eine Anzeige, um ihre Einstellungen zu ändern.",
     "addDisplay": "Anzeige hinzufügen",
     "listLabel": "Deine Anzeigen",
+    "tabDisplays": "Deine Anzeigen",
+    "tabMarketplace": "Marktplatz",
     "empty": "Noch keine Anzeigen. Füge eine hinzu, um Seiten darauf anzuzeigen.",
     "unnamed": "Unbenannte Anzeige",
     "openSettings": "Einstellungen",
@@ -1151,6 +1146,38 @@
       "panelTitle": "Fernseher oder Browser hinzufügen",
       "outputTitle": "{name} hinzufügen",
       "setupDescription": "Richte sie ein und füge sie dann hinzu."
+    },
+    "marketplace": {
+      "searchLabel": "Anzeigen durchsuchen",
+      "searchPlaceholder": "Anzeigen durchsuchen...",
+      "installedHeading": "Auf diesem FiestaBoard",
+      "availableHeading": "Bereit zur Installation",
+      "byAuthor": "von {author}",
+      "installsOffline": "Wird offline installiert",
+      "downloads": "Wird bei der Installation heruntergeladen",
+      "install": "Installieren",
+      "installing": "Wird installiert...",
+      "installLabel": "{name} installieren",
+      "add": "Anzeige hinzufügen",
+      "addLabel": "Anzeige mit {name} hinzufügen",
+      "update": "Aktualisieren",
+      "updating": "Wird aktualisiert...",
+      "updateLabel": "{name} aktualisieren",
+      "toastInstalled": "{name} ist installiert. Füge eine Anzeige hinzu, um es zu verwenden.",
+      "toastInstallFailed": "{name} konnte nicht installiert werden: {error}",
+      "toastUpdated": "{name} ist auf dem neuesten Stand.",
+      "toastUpdateFailed": "{name} konnte nicht aktualisiert werden: {error}",
+      "loading": "Anzeigen werden geladen…",
+      "loadFailed": "Die Anzeigen, die FiestaBoard steuern kann, konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "noMatch": "Keine Anzeigen passen zu „{query}“",
+      "buildTitle": "Eigene Anzeige anbinden",
+      "buildBody": "FiestaBoard kann jede Anzeige steuern, die ein Plugin ihm beibringt. Füge das Git-Repository eines Anzeige-Plugins ein, um es zu installieren, oder schreibe eins für dein Gerät.",
+      "buildLink": "Ein Anzeige-Plugin schreiben",
+      "gitInstall": "Aus Git installieren",
+      "gitInstalledData": "{pluginId} ist installiert, aber es ist ein Daten-Plugin, keine Anzeige. Nutze es auf der Seite Integrationen.",
+      "gitOpenIntegrations": "Integrationen öffnen",
+      "gitFailedTitle": "Installation aus diesem Repository fehlgeschlagen"
     }
   },
   "systemUpdate": {
@@ -2422,7 +2449,6 @@
     "geometryDetected": "Erkannt: {rows} × {cols}",
     "applyGeometry": "Größe übernehmen",
     "actionInputDescription": "Für diese Aktion werden zuerst ein paar Angaben benötigt.",
-    "betaRequired": "Aktiviere „Anzeigen von Drittanbietern (Beta)“ auf der Seite Integrationen, um diese Anzeige zu nutzen.",
     "boardNameLabel": "Board-Name",
     "boardNamePlaceholder": "Mein Board",
     "deviceModelLabel": "Gerätemodell",

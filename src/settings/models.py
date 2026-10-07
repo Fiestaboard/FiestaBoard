@@ -566,7 +566,11 @@ class BetaSettings(BaseModel):
     """The two plugin flags, as ``/settings/beta`` still reports them."""
 
     transition_plugins_enabled: bool
-    output_plugins_enabled: bool = False
+    output_plugins_enabled: bool = Field(
+        default=True,
+        deprecated=True,
+        description="Always true: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
 
 
 class BetaSettingsResponse(BaseModel):
@@ -580,11 +584,16 @@ class BetaSettingsUpdate(BaseModel):
 
     Any other key is ignored — ``https_enabled`` (removed in v5) and
     ``auto_update`` (never a beta flag) included — so an old client gets a
-    200 and no change.
+    200 and no change. ``output_plugins_enabled`` is accepted and ignored
+    too (settings v7: display plugins need no opt-in).
     """
 
     transition_plugins_enabled: StrictBool | None = None
-    output_plugins_enabled: StrictBool | None = None
+    output_plugins_enabled: StrictBool | None = Field(
+        default=None,
+        deprecated=True,
+        description="Ignored: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -613,13 +622,18 @@ class WizardStateBody(BaseModel):
 class PluginSettingsResponse(BaseModel):
     """Plugin-system settings.
 
-    ``transition_plugins_enabled`` / ``output_plugins_enabled`` were the
-    ``/settings/beta`` flags until settings v6.
+    ``transition_plugins_enabled`` was a ``/settings/beta`` flag until
+    settings v6. ``output_plugins_enabled`` was the display-plugin opt-in
+    until settings v7; it is kept on the wire, always true, until v11.
     """
 
     auto_update: bool
     transition_plugins_enabled: bool = False
-    output_plugins_enabled: bool = False
+    output_plugins_enabled: bool = Field(
+        default=True,
+        deprecated=True,
+        description="Always true: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
 
 
 class PluginSettingsUpdate(BaseModel):
@@ -632,7 +646,12 @@ class PluginSettingsUpdate(BaseModel):
 
     auto_update: StrictBool | None = None
     transition_plugins_enabled: StrictBool | None = None
-    output_plugins_enabled: StrictBool | None = None
+    #: Accepted (an old client may still send it) and ignored.
+    output_plugins_enabled: StrictBool | None = Field(
+        default=None,
+        deprecated=True,
+        description="Ignored: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
 
 
 # ---------------------------------------------------------------------------
