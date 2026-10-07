@@ -169,7 +169,6 @@ def mock_settings_service():
         plugin_settings.to_dict.return_value = {
             "auto_update": True,
             "transition_plugins_enabled": False,
-            "output_plugins_enabled": False,
         }
         ss.get_plugin_settings.return_value = plugin_settings
         ss.update_plugin_settings.return_value = plugin_settings

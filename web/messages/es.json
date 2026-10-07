@@ -636,9 +636,7 @@
       "createAction": "Crear página de demostración",
       "recreateAction": "Recrear página de demostración",
       "requirementsWarning": "Configura los ajustes requeridos a continuación antes de crear una página de demostración."
-    },
-    "outputPluginsLabel": "Pantallas de terceros (beta)",
-    "outputPluginsDescription": "Permite que pantallas del mercado o de una URL de git controlen tus tableros. Las pantallas incluidas con FiestaBoard siempre funcionan."
+    }
   },
   "settings": {
     "title": "Configuración",
@@ -835,7 +833,6 @@
       "loadFailed": "No se pudo cargar la lista de pantallas.",
       "retry": "Reintentar",
       "optionsLabel": "Pantallas",
-      "needsBeta": "Requiere la beta de plugins de salida. Puedes activarla en el siguiente paso.",
       "downloads": "Se descarga al continuar, así que necesita conexión a Internet.",
       "skipTitle": "Omitir: añadiré una pantalla más tarde",
       "skipDescription": "Explora y previsualiza páginas ahora. Añade una pantalla cuando quieras desde Pantallas."
@@ -844,10 +841,6 @@
       "installing": "Instalando {name}…",
       "installFailed": "No se pudo instalar {name}",
       "offline": "FiestaBoard no pudo descargar {name}. Comprueba la conexión a Internet de este dispositivo y vuelve a intentarlo.",
-      "betaTitle": "{name} requiere la beta de plugins de salida",
-      "betaBody": "Las pantallas del registro de plugins ejecutan su propio código en tu FiestaBoard, por eso están desactivadas hasta que actives la beta de plugins de salida. Puedes volver a desactivarla en la página Integraciones.",
-      "enableBeta": "Activar la beta de plugins de salida",
-      "enableBetaFailed": "No se pudo activar la beta. Vuelve a intentarlo.",
       "retry": "Reintentar",
       "created": "{board} está guardado y listo.",
       "createFailed": "No se pudo guardar el tablero"
@@ -1102,6 +1095,8 @@
     "description": "Todos los tableros y pantallas en los que muestra FiestaBoard. Abre uno para cambiar su configuración.",
     "addDisplay": "Añadir una pantalla",
     "listLabel": "Tus pantallas",
+    "tabDisplays": "Tus pantallas",
+    "tabMarketplace": "Mercado",
     "empty": "Aún no hay pantallas. Añade una para empezar a mostrar páginas en ella.",
     "unnamed": "Pantalla sin nombre",
     "openSettings": "Configuración",
@@ -1151,6 +1146,38 @@
       "panelTitle": "Añadir un televisor o navegador",
       "outputTitle": "Añadir {name}",
       "setupDescription": "Configúrala y después añádela."
+    },
+    "marketplace": {
+      "searchLabel": "Buscar pantallas",
+      "searchPlaceholder": "Buscar pantallas...",
+      "installedHeading": "En este FiestaBoard",
+      "availableHeading": "Listas para instalar",
+      "byAuthor": "por {author}",
+      "installsOffline": "Se instala sin conexión",
+      "downloads": "Se descarga al instalarla",
+      "install": "Instalar",
+      "installing": "Instalando...",
+      "installLabel": "Instalar {name}",
+      "add": "Añadir pantalla",
+      "addLabel": "Añadir una pantalla con {name}",
+      "update": "Actualizar",
+      "updating": "Actualizando...",
+      "updateLabel": "Actualizar {name}",
+      "toastInstalled": "{name} está instalada. Añade una pantalla para empezar a usarla.",
+      "toastInstallFailed": "No se pudo instalar {name}: {error}",
+      "toastUpdated": "{name} está actualizada.",
+      "toastUpdateFailed": "No se pudo actualizar {name}: {error}",
+      "loading": "Cargando pantallas…",
+      "loadFailed": "No se pudieron cargar las pantallas que FiestaBoard puede controlar.",
+      "retry": "Reintentar",
+      "noMatch": "Ninguna pantalla coincide con \"{query}\"",
+      "buildTitle": "Trae tu propia pantalla",
+      "buildBody": "FiestaBoard puede controlar cualquier pantalla que un plugin le enseñe. Pega el repositorio git de un plugin de pantalla para instalarlo, o escribe uno para tu dispositivo.",
+      "buildLink": "Escribir un plugin de pantalla",
+      "gitInstall": "Instalar desde git",
+      "gitInstalledData": "{pluginId} está instalado, pero es un plugin de datos, no una pantalla. Úsalo desde la página de Integraciones.",
+      "gitOpenIntegrations": "Abrir Integraciones",
+      "gitFailedTitle": "No se pudo instalar desde ese repositorio"
     }
   },
   "systemUpdate": {
@@ -2422,7 +2449,6 @@
     "geometryDetected": "Detectado {rows} × {cols}",
     "applyGeometry": "Aplicar tamaño",
     "actionInputDescription": "Esta acción necesita algunos datos primero.",
-    "betaRequired": "Activa Pantallas de terceros (beta) en la página Integraciones para usar esta pantalla.",
     "boardNameLabel": "Nombre del tablero",
     "boardNamePlaceholder": "Mi tablero",
     "deviceModelLabel": "Modelo de dispositivo",

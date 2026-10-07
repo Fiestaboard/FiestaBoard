@@ -198,11 +198,6 @@ export function OutputBoardSettings({
           : undefined
       }
     >
-      {!output.available && (
-        <Alert variant="warning">
-          <AlertDescription>{t("betaRequired")}</AlertDescription>
-        </Alert>
-      )}
       <PluginBoardSettings
         output={output}
         values={values}

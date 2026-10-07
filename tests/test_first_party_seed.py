@@ -137,7 +137,7 @@ class TestLoadedFromTheSeed:
     @pytest.mark.parametrize("output_id", FIRST_PARTY_OUTPUTS)
     def test_they_are_registered_first_party(self, output_id):
         definition = output_registry().get(output_id)
-        assert (definition.plugin, definition.beta_gated) == (False, False)
+        assert definition.plugin is False
 
 
 # --- the trust rule -------------------------------------------------------------------------

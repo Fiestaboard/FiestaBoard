@@ -10,13 +10,12 @@ the manifest's ``output`` block bound, :meth:`open` called — wrapped in the
 uses it by naming the plugin id as its ``output``; the derivation rule for
 boards that name none is unchanged.
 
-**Beta gate.** A third-party output plugin (installed from the registry
-or a git URL, and not carried by the image's seed) is usable only while
-``beta.output_plugins_enabled`` is on: with it off, a board naming it builds
-no driver and stays down with the reason recorded — never a Vestaboard in
-its place. First-party outputs are always usable: plugins bundled in
-``plugins/``, and the seed's loadable outputs (:mod:`src.outputs.seed`)
-whichever copy of them runs.
+**No opt-in.** Every registered output plugin is usable — bundled, seeded,
+from the marketplace or a git URL. Until settings v7 the ones the image did
+not carry sat behind ``plugins.output_plugins_enabled``; that switch is gone.
+What every output plugin still runs behind is unchanged: the write timeout
+and breaker (:mod:`src.outputs.breaker`), the network allowlist
+(:mod:`src.outputs.http`) and the ``output_api`` gate at install and load.
 
 The plugin registry keeps an :class:`OutputPluginEntry` for each output
 plugin where it keeps data-plugin instances, so listing, install, reload and
@@ -38,25 +37,6 @@ if TYPE_CHECKING:
     from .plugin_base import OutputPluginBase
 
 logger = logging.getLogger(__name__)
-
-
-class OutputPluginsDisabledError(ValueError):
-    """A board names a third-party output plugin while the beta is off."""
-
-    def __init__(self, output_id: str) -> None:
-        super().__init__(f"Output plugin '{output_id}' needs the output plugins beta (Integrations page)")
-        self.output_id = output_id
-
-
-def output_plugins_enabled() -> bool:
-    """Whether the ``output_plugins`` beta flag is on. Failures read as off."""
-    try:
-        from src.settings.service import get_settings_service
-
-        return bool(get_settings_service().get_plugin_settings().output_plugins_enabled)
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning("Could not read the output_plugins beta flag: %s", exc)
-        return False
 
 
 class OutputPluginEntry:
@@ -108,15 +88,13 @@ def _board_grid(board: dict) -> tuple[int, int] | None:
     return None
 
 
-def _builder(plugin_class: type[OutputPluginBase], manifest: PluginManifest, *, gated: bool):
+def _builder(plugin_class: type[OutputPluginBase], manifest: PluginManifest):
     output_manifest = manifest.output
 
     def build(board: dict) -> OutputDriver | None:
         from .board_profile import board_character_set, board_device_model
         from .plugin_driver import OutputPluginDriver
 
-        if gated and not output_plugins_enabled():
-            raise OutputPluginsDisabledError(manifest.id)
         instance = plugin_class(board.get("id"), dict(board.get("output_config") or {}))
         instance.bind_manifest(output_manifest)
         character_set = board_character_set(board)
@@ -131,7 +109,7 @@ def _builder(plugin_class: type[OutputPluginBase], manifest: PluginManifest, *, 
     return build
 
 
-def register_output_plugin(plugin_class: type[OutputPluginBase], manifest: PluginManifest, *, gated: bool) -> None:
+def register_output_plugin(plugin_class: type[OutputPluginBase], manifest: PluginManifest) -> None:
     """Put a loaded output plugin in the output registry (replacing an
     earlier load of it).
 
@@ -146,12 +124,11 @@ def register_output_plugin(plugin_class: type[OutputPluginBase], manifest: Plugi
             id=manifest.id,
             name=manifest.name,
             capabilities=manifest.output.capabilities,
-            build=_builder(plugin_class, manifest, gated=gated),
+            build=_builder(plugin_class, manifest),
             hooks=OutputHooks(discover=plugin_class.discover),
             plugin=True,
             settings_schema=manifest.output.settings_schema,
             output_manifest=manifest.output,
-            beta_gated=gated,
             description=manifest.description,
             icon=manifest.icon,
             actions=manifest.output.actions,
@@ -159,7 +136,7 @@ def register_output_plugin(plugin_class: type[OutputPluginBase], manifest: Plugi
             plugin_class=plugin_class,
         )
     )
-    logger.info("Registered output plugin %s (%s)", manifest.id, "beta-gated" if gated else "first-party")
+    logger.info("Registered output plugin %s", manifest.id)
 
 
 def unregister_output_plugin(plugin_id: str) -> None:

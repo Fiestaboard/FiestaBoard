@@ -719,19 +719,20 @@ class TestBeta:
     def test_get_reads_the_plugin_flags(self, client):
         # CHANGED (settings v6): a deprecated alias (until v11) for the two
         # flags /settings/plugins now carries; it sends a Deprecation notice.
+        # CHANGED (settings v7): output_plugins_enabled always reads true.
         response = client.get("/settings/beta")
-        assert response.json() == {"settings": {"transition_plugins_enabled": False, "output_plugins_enabled": False}}
+        assert response.json() == {"settings": {"transition_plugins_enabled": False, "output_plugins_enabled": True}}
         assert response.headers["Deprecation"] == "true"
 
     def test_put_returns_the_settings(self, client):
         response = client.put("/settings/beta", json={"transition_plugins_enabled": True})
         assert response.status_code == 200
-        assert response.json() == {"settings": {"transition_plugins_enabled": True, "output_plugins_enabled": False}}
+        assert response.json() == {"settings": {"transition_plugins_enabled": True, "output_plugins_enabled": True}}
 
     def test_put_ignores_the_retired_https_flag(self, client):
         response = client.put("/settings/beta", json={"https_enabled": True})
         assert response.status_code == 200
-        assert response.json() == {"settings": {"transition_plugins_enabled": False, "output_plugins_enabled": False}}
+        assert response.json() == {"settings": {"transition_plugins_enabled": False, "output_plugins_enabled": True}}
 
 
 # ---------------------------------------------------------------------------
@@ -744,10 +745,12 @@ class TestPluginSettings:
         # CHANGED (conventions, bare bodies): the bare PluginSettings, was
         # {"settings": {...}}.
         # CHANGED (settings v6): carries the two flags /settings/beta had.
+        # CHANGED (settings v7): output_plugins_enabled is deprecated and
+        # always true — display plugins need no opt-in.
         assert client.get("/settings/plugins").json() == {
             "auto_update": True,
             "transition_plugins_enabled": False,
-            "output_plugins_enabled": False,
+            "output_plugins_enabled": True,
         }
 
     def test_put_returns_the_saved_plugin_settings(self, client):
@@ -757,12 +760,12 @@ class TestPluginSettings:
         assert response.json() == {
             "auto_update": False,
             "transition_plugins_enabled": False,
-            "output_plugins_enabled": False,
+            "output_plugins_enabled": True,
         }
         assert client.get("/settings/plugins").json() == {
             "auto_update": False,
             "transition_plugins_enabled": False,
-            "output_plugins_enabled": False,
+            "output_plugins_enabled": True,
         }
 
     def test_put_refuses_a_non_boolean_auto_update(self, client):
@@ -773,11 +776,13 @@ class TestPluginSettings:
         assert client.get("/settings/plugins").json()["auto_update"] is True
 
     def test_put_toggles_a_plugin_flag(self, client):
-        response = client.put("/settings/plugins", json={"output_plugins_enabled": True})
+        # CHANGED (settings v7): toggles transition_plugins_enabled; the
+        # output flag it used to toggle is deprecated and ignored.
+        response = client.put("/settings/plugins", json={"transition_plugins_enabled": True})
         assert response.status_code == 200
         assert response.json() == {
             "auto_update": True,
-            "transition_plugins_enabled": False,
+            "transition_plugins_enabled": True,
             "output_plugins_enabled": True,
         }
 
@@ -944,10 +949,11 @@ class TestAllSettings:
         assert body["mqtt"]["password"] == ""
         assert body["display"]["board_flap_speed"] == "standard"
         assert body["location"] == {"latitude": None, "longitude": None}
+        # CHANGED (settings v7): output_plugins_enabled is deprecated, always true.
         assert body["plugins"] == {
             "auto_update": True,
             "transition_plugins_enabled": False,
-            "output_plugins_enabled": False,
+            "output_plugins_enabled": True,
         }
         assert body["status"] == {"running": False}
         assert body["silence_schedule"]["config"]["mode"] == "freeze"

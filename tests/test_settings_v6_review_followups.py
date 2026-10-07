@@ -246,7 +246,7 @@ class TestNoBoardsToCopyOnto:
         svc = SettingsService(settings_file=str(path))
 
         on_disk = json.loads(path.read_text())
-        assert on_disk["schema_version"] == 6
+        assert on_disk["schema_version"] == 7  # v6, then v7 (no output-plugin opt-in)
         assert svc.get_plugin_settings().transition_plugins_enabled is True
         first = svc.get_board_settings().boards[0]
         assert (first["transition"], first["transition_step_interval_ms"], first["transition_step_size"]) == (
@@ -377,10 +377,11 @@ class TestRuntimeKeysFallBackToTheFirstDisplay:
 
 class TestBetaAlias:
     def test_get_beta_reads_the_plugin_flags_with_a_deprecation_notice(self, client):
-        client.put("/settings/plugins", json={"output_plugins_enabled": True})
+        client.put("/settings/plugins", json={"transition_plugins_enabled": True})
         response = client.get("/settings/beta")
         assert response.status_code == 200
-        assert response.json() == {"settings": {"transition_plugins_enabled": False, "output_plugins_enabled": True}}
+        # output_plugins_enabled: always true since settings v7 (no opt-in).
+        assert response.json() == {"settings": {"transition_plugins_enabled": True, "output_plugins_enabled": True}}
         assert response.headers["Deprecation"] == "true"
         assert "/api/settings/plugins" in response.headers["Link"]
 

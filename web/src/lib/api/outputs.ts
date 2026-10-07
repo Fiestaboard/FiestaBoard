@@ -43,9 +43,9 @@ export interface OutputSummary {
   icon: string | null;
   /** Vestaboard and FiestaPanel: created through their own flows. */
   builtin: boolean;
-  /** A third-party output plugin, usable only with the output plugins beta. */
+  /** @deprecated Always false: display plugins need no opt-in since settings v7. Removed in v11. */
   beta_gated: boolean;
-  /** Whether a board can use it now (false: the beta is off). */
+  /** @deprecated Always true: display plugins need no opt-in since settings v7. Removed in v11. */
   available: boolean;
   output_api: number | null;
   capabilities: {
@@ -76,9 +76,9 @@ export interface AvailableOutput {
   installed: boolean;
   /** Vestaboard and FiestaPanel: created through their own flows. */
   builtin: boolean;
-  /** Usable only with the output plugins beta. */
+  /** @deprecated Always false: display plugins need no opt-in since settings v7. Removed in v11. */
   beta_gated: boolean;
-  /** Whether it can be installed and used now (false: the beta is off). */
+  /** @deprecated Always true: display plugins need no opt-in since settings v7. Removed in v11. */
   available: boolean;
   /** Installing it fetches its repository. */
   needs_network: boolean;

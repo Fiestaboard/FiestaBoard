@@ -5,8 +5,7 @@
 every other board, from what the output plugin declares:
 
 1. the output must be an installed output **plugin** (a built-in id is sent
-   to its own route), usable now (the output-plugins beta, for a third-party
-   plugin);
+   to its own route);
 2. the device model must be one the plugin declares;
 3. the content grid comes from that model (:mod:`src.outputs.geometry`) and
    is **refused below the 3 × 15 Note floor here, before the board's geometry
@@ -40,12 +39,10 @@ from .errors import (
     BuiltinOutputError,
     InvalidOutputConfigError,
     OutputNotInstalledError,
-    OutputPluginsDisabledError,
     UndeclaredDeviceModelError,
 )
 from .geometry import resolve_content_grid
 from .output_config import mask_output_config, masked_secret_paths, validate_output_config
-from .plugin_registration import output_plugins_enabled
 from .registry import OutputDefinition, output_registry
 
 logger = logging.getLogger(__name__)
@@ -63,8 +60,6 @@ def _plugin_output(output_id: str) -> OutputDefinition:
     definition = output_registry().get(output_id)
     if definition is None or not definition.plugin or definition.output_manifest is None:
         raise OutputNotInstalledError(output_id)
-    if definition.beta_gated and not output_plugins_enabled():
-        raise OutputPluginsDisabledError(output_id)
     return definition
 
 
@@ -136,7 +131,7 @@ def create_output_board(
     Returns the saved board dict (unmasked; :func:`describe_board` shows it).
 
     Raises:
-        BuiltinOutputError, OutputNotInstalledError, OutputPluginsDisabledError,
+        BuiltinOutputError, OutputNotInstalledError,
         UndeclaredDeviceModelError, BelowFloorError, GeometryError,
         InvalidOutputConfigError.
     """

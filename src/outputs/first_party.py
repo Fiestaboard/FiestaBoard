@@ -346,7 +346,7 @@ def load_first_party(
     if refusal is None:
         return loaded
     message = (
-        f"The installed copy of first-party output '{output_id}' cannot run ({refusal}). Running the copy "
+        f"The installed copy of '{output_id}' cannot run ({refusal}). Running the copy "
         f"bundled with FiestaBoard (commit {(seed.commit or '?')[:12]}) instead; update or reinstall it."
     )
     logger.error(message)

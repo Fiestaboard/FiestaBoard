@@ -164,7 +164,7 @@ describe("PageBuilder — per-page transition picker", () => {
     servePageWithTransition(null);
     server.use(
       http.get(`${API_BASE}/settings/plugins`, () =>
-        HttpResponse.json({ auto_update: true, transition_plugins_enabled: true, output_plugins_enabled: false }),
+        HttpResponse.json({ auto_update: true, transition_plugins_enabled: true }),
       ),
       // The plugin listing: the picker keeps the transition plugins and drops
       // every other kind.

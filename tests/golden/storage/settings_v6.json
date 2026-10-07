@@ -1,5 +1,5 @@
 {
-  "schema_version": 7,
+  "schema_version": 6,
   "output": {
     "target": "board"
   },
@@ -69,7 +69,8 @@
   },
   "plugins": {
     "auto_update": true,
-    "transition_plugins_enabled": false
+    "transition_plugins_enabled": false,
+    "output_plugins_enabled": false
   },
   "temporary_override": null
 }

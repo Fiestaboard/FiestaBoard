@@ -80,9 +80,9 @@ class TestLoading:
         assert driver.first_party is True
 
     @pytest.mark.parametrize("output_id", FIRST_PARTY_OUTPUTS)
-    def test_first_party_entries_are_never_beta_gated_nor_replaceable(self, output_id):
+    def test_first_party_entries_are_never_replaceable(self, output_id):
         definition = output_registry().get(output_id)
-        assert (definition.plugin, definition.beta_gated) == (False, False)
+        assert definition.plugin is False
         imposter = OutputDefinition(
             id=output_id, name="Imposter", capabilities=definition.capabilities, build=lambda b: None, plugin=True
         )

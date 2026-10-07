@@ -77,17 +77,6 @@ export interface LedLayoutProps {
 }
 
 /**
- * Whether this FiestaUI release's `DisplayPreview` takes a `font` prop
- * (FiestaUI #342, the release after 8.0.0). Until it does, a board's face
- * reaches the preview through the model document core sends instead
- * (`device_model_spec`: the model in the board's face), so nothing is lost.
- * The `satisfies` fails to compile once the bumped release takes `font`:
- * flip it to `true` then.
- */
-export const PREVIEW_TAKES_FONT = false satisfies PreviewTakesFont;
-type PreviewTakesFont = "font" extends keyof ComponentProps<typeof DisplayPreview> ? true : false;
-
-/**
  * Whether this FiestaUI release's `DisplayPreview` takes a `layers` prop
  * (bitmap layers: a page's pixel canvases, Fiestaboard/FiestaUI#343, after
  * 8.1.0). Until it does, a preview draws the cells alone and the canvases
@@ -112,6 +101,17 @@ export function ledLayerProps(layers: CanvasLayerJson[] | null | undefined): Led
   if (!PREVIEW_TAKES_LAYERS || !layers?.length) return {};
   return { layers };
 }
+
+/**
+ * Whether this FiestaUI release's `DisplayPreview` takes a `font` prop
+ * (FiestaUI #342, the release after 8.0.0). Until it does, a board's face
+ * reaches the preview through the model document core sends instead
+ * (`device_model_spec`: the model in the board's face), so nothing is lost.
+ * The `satisfies` fails to compile once the bumped release takes `font`:
+ * flip it to `true` then.
+ */
+export const PREVIEW_TAKES_FONT = false satisfies PreviewTakesFont;
+type PreviewTakesFont = "font" extends keyof ComponentProps<typeof DisplayPreview> ? true : false;
 
 /**
  * An LED board's layout choices (`led_layout` from the API) as

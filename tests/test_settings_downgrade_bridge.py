@@ -423,7 +423,7 @@ def test_a_v6_upgrade_rolled_back_to_the_v5_build_runs_the_same_transition(data_
     install_floor_clock(monkeypatch)
     upgraded = boot("v10_beta_schema5_install_transition", data_dir)
     on_disk = json.loads((data_dir / "settings.json").read_text())
-    assert on_disk["schema_version"] == 6
+    assert on_disk["schema_version"] == CURRENT
     assert "transitions" not in on_disk and "beta" not in on_disk
     v5_bytes = (data_dir / "settings.json.v5_backup").read_bytes()
     check_send("upgrade_v10_beta_schema5_install_transition", TestClient(app), wire, upgraded.boards[0]["id"])
@@ -433,7 +433,38 @@ def test_a_v6_upgrade_rolled_back_to_the_v5_build_runs_the_same_transition(data_
     rolled_back = Booted(data_dir)
 
     notice = rolled_back.settings.get_restore_notice()
-    assert notice is not None and (notice.found_version, notice.restored_version) == (6, 5)
+    assert notice is not None and (notice.found_version, notice.restored_version) == (CURRENT, 5)
     assert (data_dir / "settings.json").read_bytes() == v5_bytes
     assert json.loads(v5_bytes)["transitions"]["strategy"] == "diagonal"
     assert rolled_back.service.board_init_errors == {}
+
+
+def test_a_v7_upgrade_rolled_back_to_the_v6_build_gets_its_opt_in_back(data_dir, monkeypatch):
+    """Settings v7 (display plugins need no opt-in), rolled back one release:
+    this build drops ``plugins.output_plugins_enabled`` (leaving
+    ``settings.json.v6_backup``); the v6 build then boots the v7 file, steps
+    back onto the backup — the stored opt-in included — and its board sends
+    the transition it sent before."""
+    from src.api_server import app
+    from tests.conftest import _drop_all_singletons
+    from tests.test_upgrade_fixtures import Booted, boot, check_send
+    from tests.test_wire_goldens import install_floor_clock, install_wire_recorder
+
+    wire = install_wire_recorder(monkeypatch)
+    install_floor_clock(monkeypatch)
+    boot("v10_beta_schema6_display_opt_in_off", data_dir)
+    on_disk = json.loads((data_dir / "settings.json").read_text())
+    assert on_disk["schema_version"] == CURRENT
+    assert "output_plugins_enabled" not in on_disk["plugins"]
+    v6_bytes = (data_dir / "settings.json.v6_backup").read_bytes()
+
+    _as_the_build_at(monkeypatch, 6)
+    _drop_all_singletons()
+    rolled_back = Booted(data_dir)
+
+    notice = rolled_back.settings.get_restore_notice()
+    assert notice is not None and (notice.found_version, notice.restored_version) == (CURRENT, 6)
+    assert (data_dir / "settings.json").read_bytes() == v6_bytes
+    assert json.loads(v6_bytes)["plugins"]["output_plugins_enabled"] is False
+    assert rolled_back.service.board_init_errors == {}
+    check_send("upgrade_v10_beta_schema5_install_transition", TestClient(app), wire, rolled_back.boards[0]["id"])

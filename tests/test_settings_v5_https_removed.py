@@ -98,8 +98,9 @@ def test_a_v4_file_with_https_on_loads_at_v5_without_it(tmp_path, caplog):
     assert "Settings schema migration v4->v5: 1 change(s) applied" in caplog.text
     assert (tmp_path / "settings.json.v4_backup").read_bytes() == v4
     on_disk = json.loads(path.read_text())
-    # Settings v6 then moves the remaining beta flags into "plugins".
-    assert on_disk["schema_version"] == 6
+    # Settings v6 then moves the remaining beta flags into "plugins" (and v7
+    # drops the output-plugin opt-in).
+    assert on_disk["schema_version"] == 7
     assert "beta" not in on_disk
     assert "https_enabled" not in on_disk["plugins"]
     assert on_disk["plugins"]["transition_plugins_enabled"] is True
@@ -118,7 +119,7 @@ def test_the_https_on_upgrade_fixture_boots_without_the_flag_or_its_certs(_isola
     boot("v10_beta_schema4_https_on", _isolated_data_dir)
 
     on_disk = json.loads((_isolated_data_dir / "settings.json").read_text())
-    assert on_disk["schema_version"] == 6
+    assert on_disk["schema_version"] == 7  # v5, v6, then v7
     assert "beta" not in on_disk  # settings v6 moved the rest into "plugins"
     assert "https_enabled" not in on_disk["plugins"]
     assert on_disk["plugins"]["transition_plugins_enabled"] is False

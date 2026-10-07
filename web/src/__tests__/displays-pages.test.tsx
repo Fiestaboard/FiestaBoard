@@ -65,7 +65,7 @@ const PIXOO_OUTPUT = {
   description: "A Pixoo on your network.",
   icon: "grid-3x3",
   builtin: false,
-  beta_gated: true,
+  beta_gated: false,
   available: true,
   output_api: 1,
   capabilities: {
@@ -360,7 +360,6 @@ describe("/displays/:boardId", () => {
         return HttpResponse.json({
           auto_update: true,
           transition_plugins_enabled: true,
-          output_plugins_enabled: false,
         });
       }),
     );

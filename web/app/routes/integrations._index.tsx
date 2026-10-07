@@ -276,6 +276,7 @@ import type { ReactNode } from "react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { GitInstallFields, useGitPluginInstall } from "@/components/plugin-git-install";
 import {
   asJSONSchema,
   findOAuthConnection,
@@ -2116,10 +2117,7 @@ export default function IntegrationsPage() {
   const [isUpdatingAll, setIsUpdatingAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [gitDialogOpen, setGitDialogOpen] = useState(false);
-  const [gitUrl, setGitUrl] = useState("");
-  const [gitPluginId, setGitPluginId] = useState("");
-  const [gitBranch, setGitBranch] = useState("");
-  const [isInstallingGit, setIsInstallingGit] = useState(false);
+  const gitInstall = useGitPluginInstall();
 
   // Fetch installed plugins list
   const { data, isLoading, error } = useQuery({
@@ -2259,29 +2257,15 @@ export default function IntegrationsPage() {
   };
 
   const handleInstallFromGit = async () => {
-    if (!gitUrl.trim()) return;
-    setIsInstallingGit(true);
+    if (!gitInstall.canInstall) return;
     try {
-      const result = await api.installGitPlugin(
-        gitUrl.trim(),
-        gitPluginId.trim() || undefined,
-        gitBranch.trim() || undefined,
-      );
-      toast.success(t("toastInstalledFromGit", { pluginId: result.plugin_id }));
-      queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
-      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
-      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
-      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
+      const pluginId = await gitInstall.install();
+      toast.success(t("toastInstalledFromGit", { pluginId }));
       setGitDialogOpen(false);
       setActiveTab("installed");
-      setGitUrl("");
-      setGitPluginId("");
-      setGitBranch("");
+      gitInstall.reset();
     } catch (err) {
       toast.error(t("toastInstallFromGitFailed", { error: err instanceof Error ? err.message : tCommon("error") }));
-    } finally {
-      setIsInstallingGit(false);
     }
   };
 
@@ -2396,58 +2380,15 @@ export default function IntegrationsPage() {
           <DialogTitle>{t("gitInstallTitle")}</DialogTitle>
           <DialogDescription>{t("gitInstallDescription")}</DialogDescription>
         </DialogHeader>
-        {/* `variant="warning"` rather than the `default` variant hand-tinted with raw
-            `border-yellow-600 text-yellow-700 …` classes: @fiestaboard/ui 6 owns the
-            warning recipe (border, 8% fill, and `[&>svg]:text-warning` on the icon,
-            in both themes) and derives the announcement role from the variant. The
-            hand-rolled version rendered `role="status"`, so this warning — that
-            external code is about to run on the reader's device — stopped announcing
-            assertively and `getByRole("alert")` stopped finding it. */}
-        <Alert variant="warning">
-          <ShieldAlert className="h-4 w-4" />
-          <AlertTitle>{t("securityWarningTitle")}</AlertTitle>
-          <AlertDescription>{t("securityWarning")}</AlertDescription>
-        </Alert>
-        <Stack gap="4" className="py-2">
-          <Stack gap="2">
-            <Label htmlFor="git-url">{t("repoUrl")}</Label>
-            <Input
-              id="git-url"
-              placeholder="https://github.com/user/fiestaboard-plugin-example.git"
-              value={gitUrl}
-              onChange={(e) => setGitUrl(e.target.value)}
-              disabled={isInstallingGit}
-            />
-          </Stack>
-          <Grid cols="2" gap="4">
-            <Stack gap="2">
-              <Label htmlFor="git-plugin-id">{t("pluginIdOptional")}</Label>
-              <Input
-                id="git-plugin-id"
-                placeholder={t("autoDetectedPlaceholder")}
-                value={gitPluginId}
-                onChange={(e) => setGitPluginId(e.target.value)}
-                disabled={isInstallingGit}
-              />
-            </Stack>
-            <Stack gap="2">
-              <Label htmlFor="git-branch">{t("branchOptional")}</Label>
-              <Input
-                id="git-branch"
-                placeholder={t("defaultBranchPlaceholder")}
-                value={gitBranch}
-                onChange={(e) => setGitBranch(e.target.value)}
-                disabled={isInstallingGit}
-              />
-            </Stack>
-          </Grid>
-        </Stack>
+        <Box className="py-2">
+          <GitInstallFields install={gitInstall} idPrefix="git" />
+        </Box>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setGitDialogOpen(false)} disabled={isInstallingGit}>
+          <Button variant="outline" onClick={() => setGitDialogOpen(false)} disabled={gitInstall.isInstalling}>
             {tCommon("cancel")}
           </Button>
-          <Button onClick={handleInstallFromGit} disabled={isInstallingGit || !gitUrl.trim()}>
-            {isInstallingGit ? (
+          <Button onClick={handleInstallFromGit} disabled={gitInstall.isInstalling || !gitInstall.canInstall}>
+            {gitInstall.isInstalling ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 {t("installing")}

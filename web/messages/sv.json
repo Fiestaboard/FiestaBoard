@@ -636,9 +636,7 @@
       "createAction": "Skapa demosida",
       "recreateAction": "Skapa om demosidan",
       "requirementsWarning": "Konfigurera de obligatoriska inställningarna nedan innan du skapar en demosida."
-    },
-    "outputPluginsLabel": "Skärmar från tredje part (beta)",
-    "outputPluginsDescription": "Låt skärmar från Marketplace eller en git-URL styra dina tavlor. Skärmar som ingår i FiestaBoard fungerar alltid."
+    }
   },
   "settings": {
     "title": "Inställningar",
@@ -835,7 +833,6 @@
       "loadFailed": "Det gick inte att läsa in listan över skärmar.",
       "retry": "Försök igen",
       "optionsLabel": "Skärmar",
-      "needsBeta": "Kräver betan för utdataplugins. Du kan slå på den i nästa steg.",
       "downloads": "Laddas ned när du fortsätter, så det krävs en internetanslutning.",
       "skipTitle": "Hoppa över — jag lägger till en skärm senare",
       "skipDescription": "Titta runt och förhandsgranska sidor nu. Lägg till en skärm när du vill under Skärmar."
@@ -844,10 +841,6 @@
       "installing": "Installerar {name}…",
       "installFailed": "{name} kunde inte installeras",
       "offline": "FiestaBoard kunde inte ladda ned {name}. Kontrollera enhetens internetanslutning och försök igen.",
-      "betaTitle": "{name} kräver betan för utdataplugins",
-      "betaBody": "Skärmar från pluginregistret kör sin egen kod på din FiestaBoard, så de är avstängda tills du slår på betan för utdataplugins. Du kan stänga av den igen på sidan Integrationer.",
-      "enableBeta": "Slå på betan för utdataplugins",
-      "enableBetaFailed": "Det gick inte att slå på betan. Försök igen.",
       "retry": "Försök igen",
       "created": "{board} är sparad och redo.",
       "createFailed": "Det gick inte att spara tavlan"
@@ -1102,6 +1095,8 @@
     "description": "Alla tavlor och skärmar som FiestaBoard visar på. Öppna en för att ändra dess inställningar.",
     "addDisplay": "Lägg till en skärm",
     "listLabel": "Dina skärmar",
+    "tabDisplays": "Dina skärmar",
+    "tabMarketplace": "Marketplace",
     "empty": "Inga skärmar än. Lägg till en för att börja visa sidor på den.",
     "unnamed": "Namnlös skärm",
     "openSettings": "Inställningar",
@@ -1151,6 +1146,38 @@
       "panelTitle": "Lägg till en tv eller webbläsare",
       "outputTitle": "Lägg till {name}",
       "setupDescription": "Ställ in den och lägg sedan till den."
+    },
+    "marketplace": {
+      "searchLabel": "Sök skärmar",
+      "searchPlaceholder": "Sök skärmar...",
+      "installedHeading": "På den här FiestaBoard",
+      "availableHeading": "Redo att installera",
+      "byAuthor": "av {author}",
+      "installsOffline": "Installeras offline",
+      "downloads": "Laddas ner när du installerar",
+      "install": "Installera",
+      "installing": "Installerar...",
+      "installLabel": "Installera {name}",
+      "add": "Lägg till skärm",
+      "addLabel": "Lägg till en skärm med {name}",
+      "update": "Uppdatera",
+      "updating": "Uppdaterar...",
+      "updateLabel": "Uppdatera {name}",
+      "toastInstalled": "{name} är installerad. Lägg till en skärm för att börja använda den.",
+      "toastInstallFailed": "Kunde inte installera {name}: {error}",
+      "toastUpdated": "{name} är uppdaterad.",
+      "toastUpdateFailed": "Kunde inte uppdatera {name}: {error}",
+      "loading": "Läser in skärmar…",
+      "loadFailed": "Kunde inte läsa in skärmarna som FiestaBoard kan styra.",
+      "retry": "Försök igen",
+      "noMatch": "Inga skärmar matchar \"{query}\"",
+      "buildTitle": "Ta med din egen skärm",
+      "buildBody": "FiestaBoard kan styra alla skärmar som ett plugin lär det. Klistra in ett skärmplugins git-repo för att installera det, eller skriv ett för din enhet.",
+      "buildLink": "Skriv ett skärmplugin",
+      "gitInstall": "Installera från git",
+      "gitInstalledData": "{pluginId} är installerat, men det är ett dataplugin, inte en skärm. Använd det på sidan Integrationer.",
+      "gitOpenIntegrations": "Öppna Integrationer",
+      "gitFailedTitle": "Kunde inte installera från det repot"
     }
   },
   "systemUpdate": {
@@ -2422,7 +2449,6 @@
     "geometryDetected": "Identifierade {rows} × {cols}",
     "applyGeometry": "Använd storlek",
     "actionInputDescription": "Den här åtgärden behöver några uppgifter först.",
-    "betaRequired": "Slå på Skärmar från tredje part (beta) på sidan Integrationer för att använda den här skärmen.",
     "boardNameLabel": "Tavlans namn",
     "boardNamePlaceholder": "Min tavla",
     "deviceModelLabel": "Enhetsmodell",

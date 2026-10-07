@@ -23,6 +23,7 @@ from src.plugins.base import PluginBase
 
 PIXOO = builtin_device_models()["divoom_pixoo64"]
 FLAGSHIP = builtin_device_models()["vestaboard_flagship"]
+MAX7219 = builtin_device_models()["max7219_4in1"]
 
 
 def _driver(model, charset_id=None, config=None):
@@ -60,6 +61,15 @@ def test_a_flagship_is_a_split_flap_with_capitals_and_tiles_only():
     assert (profile.technology, profile.color) == ("split_flap", "tiles")
     assert not (profile.mixed_case or profile.color_spans or profile.block_spans)
     assert profile.icons == () and profile.tile_gap is None
+
+
+def test_a_monochrome_led_reports_mono_colour_not_tiles():
+    # FiestaUI's colour kind for a single-colour panel is "monochrome" (device-model schema).
+    assert MAX7219["color"]["kind"] == "monochrome"
+    profile = display_profile_for_client(_driver(MAX7219, "led_3x5"))
+    assert profile.color == "mono"
+    assert not profile.supports("rgb")
+    assert "single-colour LED pixel display" in profile.ai_brief()
 
 
 def test_the_led_tile_style_is_the_one_the_device_is_drawn_with():

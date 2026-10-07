@@ -19,7 +19,7 @@ Each also has an **installed copy** in the external plugins directory (`data/ext
 
 - An output is first-party only when core drives it itself (`FIRST_PARTY_OUTPUTS` in `src/outputs/registry.py`) **and** the seed's lock pins it as `loadable: true`. An id the lock does not list loads nothing, and its boards stay down with the reason in the log.
 - The seed copy's tree digest is checked against the lock's `tree_sha256` every time it loads. A corrupted or edited copy is refused, never run. Only that output is left out; the other still loads.
-- Their registry entries are never beta-gated and never replaceable: the output registry holds them as first-party entries (`plugin=False`), whichever copy runs, and refuses a plugin entry with either id.
+- Their registry entries are never replaceable: the output registry holds them as first-party entries (`plugin=False`), whichever copy runs, and refuses a plugin entry with either id.
 - Only a checkout of the output's own repository (the lock's `repository`, read from the checkout's `origin`) ever runs. Installing a plugin with either id from the registry or a git URL is refused, and at boot a copy from another repository is set aside as `.<id>.set-aside-<time>` (kept, never run) and replaced by the seed's.
 - They can be updated, never uninstalled (`DELETE /plugins/{id}/uninstall` answers 400; `GET /plugins` marks them `required: true`, and the Integrations page offers no Uninstall).
 

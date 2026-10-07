@@ -197,8 +197,14 @@ class OutputSummary(BaseModel):
     description: str
     icon: str | None
     builtin: bool = Field(description="Vestaboard and FiestaPanel: created through their own flows.")
-    beta_gated: bool = Field(description="A third-party output plugin, usable only with the output plugins beta.")
-    available: bool = Field(description="Whether a board can use it now (false: the beta is off).")
+    beta_gated: bool = Field(
+        deprecated=True,
+        description="Always false: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
+    available: bool = Field(
+        deprecated=True,
+        description="Always true: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
     output_api: int | None = Field(description="The contract major an output plugin targets; null for a built-in.")
     capabilities: OutputCapabilitiesSummary
     device_models: list[OutputDeviceModel]
@@ -221,8 +227,14 @@ class AvailableOutput(BaseModel):
     )
     installed: bool
     builtin: bool = Field(description="Vestaboard and FiestaPanel: created through their own flows.")
-    beta_gated: bool = Field(description="Usable only with the output plugins beta.")
-    available: bool = Field(description="Whether it can be installed and used now (false: the beta is off).")
+    beta_gated: bool = Field(
+        deprecated=True,
+        description="Always false: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
+    available: bool = Field(
+        deprecated=True,
+        description="Always true: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
     needs_network: bool = Field(description="Installing it fetches its repository.")
     output_api: int | None = Field(
         description="The contract major it targets, where known before install; null for a built-in or a registry entry."
