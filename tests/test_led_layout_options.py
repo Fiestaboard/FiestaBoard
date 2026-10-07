@@ -27,10 +27,13 @@ from src.led import (
     LedRenderOptions,
     LedTransitionSpec,
     frame_to_bits,
+    grid_layout,
     layout_message,
     layout_policy_for_model,
+    led_charset_for_font,
     led_layout_options_for_model,
     led_spec_for_model,
+    model_with_led_font,
     plan_transition,
     rasterize,
     transition_frames,
@@ -277,11 +280,13 @@ def _led_models():
 def test_every_builtin_led_model_allows_both_with_todays_defaults_and_split_flap_declares_none():
     assert _led_models()
     for m in _led_models():
-        assert m["layoutOptions"] == {
+        declared = {k: v for k, v in m["layoutOptions"].items() if k != "font"}
+        assert declared == {
             "tileGap": {"allowed": ["gap", "fill"], "default": "gap"},
             "blockPadding": {"allowed": [0, 1], "default": 0},
         }, m["id"]
-        assert layout_policy_for_model(m) == m["layoutOptions"], m["id"]
+        policy = layout_policy_for_model(m)
+        assert {k: v for k, v in policy.items() if k != "font"} == declared, m["id"]
         spec = led_spec_for_model(m)
         assert (spec.tile_gap, spec.block_padding) == ("gap", 0), m["id"]
     for m in MODELS.values():
@@ -294,6 +299,7 @@ def test_an_undeclared_field_is_unrestricted_and_a_declared_one_narrows():
     assert layout_policy_for_model(base) == {
         "tileGap": {"allowed": ["gap", "fill"], "default": "gap"},
         "blockPadding": {"allowed": [0, 1], "default": 0},
+        "font": {"allowed": ["5x7"], "default": "5x7"},
     }
     fill_only = {**base, "layoutOptions": {"tileGap": {"allowed": ["fill"]}}}
     assert layout_policy_for_model(fill_only)["tileGap"] == {"allowed": ["fill"], "default": "fill"}
@@ -304,14 +310,15 @@ def test_an_undeclared_field_is_unrestricted_and_a_declared_one_narrows():
     assert layout_policy_for_model(padded) == {
         "tileGap": {"allowed": ["fill", "gap"], "default": "gap"},
         "blockPadding": {"allowed": [0, 1], "default": 1},
+        "font": {"allowed": ["5x7"], "default": "5x7"},
     }
     assert led_spec_for_model(padded) == LedMatrixSpec(64, 32, "5x7", tile_gap="gap", block_padding=1)
 
 
 def test_a_boards_choice_is_honoured_when_allowed_and_falls_back_to_the_default_otherwise():
     base = MODELS["divoom_pixoo64"]
-    assert led_layout_options_for_model(base) == ("gap", 0, [])
-    assert led_layout_options_for_model(base, tile_gap="fill", block_padding=1) == ("fill", 1, [])
+    assert led_layout_options_for_model(base) == ("gap", 0, "3x5", [])
+    assert led_layout_options_for_model(base, tile_gap="fill", block_padding=1) == ("fill", 1, "3x5", [])
     gap_only = {
         **base,
         "layoutOptions": {"tileGap": {"allowed": ["gap"]}, "blockPadding": {"allowed": [1], "default": 1}},
@@ -322,7 +329,7 @@ def test_a_boards_choice_is_honoured_when_allowed_and_falls_back_to_the_default_
         'tileGap="fill" is not a value divoom_pixoo64 allows (tileGap: "gap"); using "gap"',
         "blockPadding=0 is not a value divoom_pixoo64 allows (blockPadding: 1); using 1",
     ]
-    assert led_layout_options_for_model(gap_only) == ("gap", 1, [])
+    assert led_layout_options_for_model(gap_only) == ("gap", 1, "3x5", [])
 
 
 def test_a_garbage_board_value_is_ignored_never_raised():
@@ -351,3 +358,169 @@ def test_the_vendored_schema_checks_a_layout_options_declaration():
         assert validate_device_model({**base, "layoutOptions": bad}), bad
     flagship = copy.deepcopy(MODELS["vestaboard_flagship"])
     assert validate_device_model({**flagship, "layoutOptions": {"tileGap": {"allowed": ["gap"]}}})
+
+
+# --- device models: layoutOptions.font (FiestaUI #342, per-board text size) ------------
+#
+# Ports of FiestaUI devices.test.ts's face-choice cases. hub75_64x32 is a 5x7
+# model that declares no face choice; the built-in Pixoo 64 offers both, keeps
+# font 3x5 / led_3x5 for boards that chose nothing, and gives a NEW board 5x7.
+
+PIXOO = MODELS["divoom_pixoo64"]
+HUB75 = MODELS["hub75_64x32"]
+
+
+def test_the_builtin_pixoo_offers_both_faces_and_keeps_its_own():
+    assert PIXOO["layoutOptions"]["font"] == {"allowed": ["5x7", "3x5"], "default": "5x7"}
+    assert (PIXOO["font"], PIXOO["charset"]) == ("3x5", "led_3x5")
+    assert validate_device_model(copy.deepcopy(PIXOO)) == []
+
+
+def test_the_face_policy_is_the_declared_choice():
+    assert layout_policy_for_model(PIXOO)["font"] == {"allowed": ["5x7", "3x5"], "default": "5x7"}
+
+
+def test_an_undeclared_face_choice_allows_only_the_models_own_face():
+    # Unlike tileGap / blockPadding, undeclared is NOT unrestricted: a face changes the grid.
+    assert layout_policy_for_model(HUB75)["font"] == {"allowed": ["5x7"], "default": "5x7"}
+    assert layout_policy_for_model({**HUB75, "font": "3x5"})["font"] == {"allowed": ["3x5"], "default": "3x5"}
+
+
+def test_a_model_without_a_font_offers_the_renderers_face():
+    faceless = {k: v for k, v in HUB75.items() if k != "font"}
+    assert layout_policy_for_model(faceless)["font"] == {"allowed": ["5x7"], "default": "5x7"}
+
+
+def test_a_declared_face_choice_without_a_default_defaults_to_the_models_own_face():
+    pixoo = {**PIXOO, "layoutOptions": {**PIXOO["layoutOptions"], "font": {"allowed": ["5x7", "3x5"]}}}
+    assert layout_policy_for_model(pixoo)["font"] == {"allowed": ["5x7", "3x5"], "default": "3x5"}
+
+
+def test_led_charset_for_font_is_the_builtin_set_drawn_in_that_face():
+    assert led_charset_for_font("5x7") == "led_5x7"
+    assert led_charset_for_font("3x5") == "led_3x5"
+
+
+def test_led_charset_for_font_raises_for_a_face_no_builtin_set_draws():
+    with pytest.raises(ValueError, match='No built-in LED character set is drawn in font "7x9"'):
+        led_charset_for_font("7x9")
+
+
+def test_model_with_led_font_swaps_the_face_and_its_set_and_nothing_else():
+    large = model_with_led_font(PIXOO, "5x7")
+    assert (large["font"], large["charset"]) == ("5x7", "led_5x7")
+    assert {k: v for k, v in large.items() if k not in ("font", "charset")} == {
+        k: v for k, v in PIXOO.items() if k not in ("font", "charset")
+    }
+    assert (PIXOO["font"], PIXOO["charset"]) == ("3x5", "led_3x5")
+
+
+def test_model_with_led_font_returns_the_model_itself_for_its_own_face():
+    assert model_with_led_font(PIXOO, "3x5") is PIXOO
+    assert model_with_led_font(HUB75, "5x7") is HUB75
+
+
+def test_model_with_led_font_raises_for_a_face_the_model_does_not_offer():
+    with pytest.raises(ValueError) as raised:
+        model_with_led_font(HUB75, "3x5")
+    assert str(raised.value) == 'hub75_64x32 does not offer font "3x5" (font: "5x7")'
+
+
+def test_led_spec_for_model_without_a_font_is_the_models_own_face():
+    assert led_spec_for_model(PIXOO) == LedMatrixSpec(64, 64, "3x5", tile_gap="gap", block_padding=0)
+
+
+def test_led_spec_for_model_draws_a_chosen_face_the_model_offers():
+    spec = led_spec_for_model(PIXOO, font="5x7")
+    assert spec == LedMatrixSpec(64, 64, "5x7", tile_gap="gap", block_padding=0)
+    grid = grid_layout(spec.width, spec.height, spec.font)
+    assert (grid.rows, grid.cols) == (8, 10)
+
+
+def test_led_spec_for_model_raises_for_a_face_the_model_does_not_offer():
+    with pytest.raises(ValueError, match=r'hub75_64x32 does not offer font "3x5" \(font: "5x7"\)'):
+        led_spec_for_model(HUB75, font="3x5")
+
+
+def test_an_unset_board_face_is_the_models_own_not_the_new_board_default():
+    # layoutOptions.font.default (5x7) is what a NEW board gets; a board that
+    # chose nothing draws exactly what it drew before the choice existed.
+    assert led_layout_options_for_model(PIXOO).font == "3x5"
+
+
+def test_an_offered_board_face_stands():
+    assert led_layout_options_for_model(PIXOO, font="5x7") == ("gap", 0, "5x7", [])
+    assert led_layout_options_for_model(PIXOO, font="3x5") == ("gap", 0, "3x5", [])
+
+
+def test_a_face_the_model_does_not_offer_is_its_own_with_a_reason():
+    chosen = led_layout_options_for_model(HUB75, font="3x5")
+    assert chosen.font == "5x7"
+    assert chosen.ignored == ['font="3x5" is not a value hub75_64x32 allows (font: "5x7"); using "5x7"']
+
+
+@pytest.mark.parametrize("garbage", ["7x9", "5X7", 5, True, ["5x7"]])
+def test_a_garbage_board_face_is_ignored_never_raised(garbage):
+    chosen = led_layout_options_for_model(PIXOO, font=garbage)
+    assert chosen.font == "3x5"
+    assert len(chosen.ignored) == 1
+
+
+# --- validator: layoutOptions.font -------------------------------------------------------
+
+
+def _with_font_choice(model, choice):
+    return {**copy.deepcopy(model), "layoutOptions": {**model.get("layoutOptions", {}), "font": choice}}
+
+
+def test_a_face_choice_on_a_5x7_model_validates():
+    assert validate_device_model(_with_font_choice(HUB75, {"allowed": ["5x7", "3x5"], "default": "3x5"})) == []
+
+
+def test_the_face_choice_must_include_the_models_own_face():
+    errors = validate_device_model(_with_font_choice(PIXOO, {"allowed": ["5x7"]}))
+    assert 'device_model.layoutOptions.font.allowed: must include the model\'s own font ("3x5")' in errors
+
+
+def test_a_face_choice_needs_the_model_to_declare_its_font():
+    faceless = {k: v for k, v in PIXOO.items() if k != "font"}
+    errors = validate_device_model(_with_font_choice(faceless, {"allowed": ["5x7", "3x5"]}))
+    assert "device_model.font: required when layoutOptions.font is declared" in errors
+
+
+def test_a_face_choice_needs_the_builtin_set_drawn_in_the_models_face():
+    errors = validate_device_model({**_with_font_choice(PIXOO, {"allowed": ["5x7", "3x5"]}), "charset": "led_5x7"})
+    assert (
+        'device_model.charset: "led_3x5" (the built-in set drawn in font "3x5") when layoutOptions.font is declared'
+        in errors
+    )
+
+
+def test_a_face_choice_with_an_inline_set_is_refused():
+    inline = {"id": "my_led", "extends": "led_3x5"}
+    errors = validate_device_model({**_with_font_choice(PIXOO, {"allowed": ["5x7", "3x5"]}), "charset": inline})
+    assert (
+        'device_model.charset: "led_3x5" (the built-in set drawn in font "3x5") when layoutOptions.font is declared'
+        in errors
+    )
+
+
+def test_the_face_default_must_be_one_of_allowed():
+    errors = validate_device_model(_with_font_choice(HUB75, {"allowed": ["5x7"], "default": "3x5"}))
+    assert "device_model.layoutOptions.font.default: one of allowed" in errors
+
+
+@pytest.mark.parametrize(
+    "choice",
+    [
+        {"allowed": []},
+        {"allowed": ["5x7", "5x7"]},
+        {"allowed": ["5x7", "7x9"]},
+        {"allowed": ["5x7"], "default": "7x9"},
+        {"allowed": ["5x7"], "size": "large"},
+        {"default": "5x7"},
+        ["5x7", "3x5"],
+    ],
+)
+def test_the_schema_refuses_a_malformed_face_choice(choice):
+    assert validate_device_model(_with_font_choice(HUB75, choice)), choice

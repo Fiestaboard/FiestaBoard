@@ -39,10 +39,19 @@ def test_every_vendored_file_is_pinned():
 
 def test_provenance_records_one_fiestaui_commit():
     assert provenance()["source"] == "Fiestaboard/FiestaUI"
-    assert provenance()["commit"] == "6b7dbbc9101ed9ce3892a9d875274753ed835ba9"
+    assert provenance()["commit"] == "3cfe46d208f31c5b39849a74a09cb3750b13f9e3"
 
 
-def test_every_file_comes_from_the_one_released_tag():
-    # Since 8.0.0 every vendored file is byte-identical at the tag; an override
-    # would mean a file pinned to some other, unreleased commit.
+def test_every_file_comes_from_the_one_commit():
+    # Every vendored file is byte-identical at `commit`; an override would mean
+    # a file pinned to some other commit.
     assert provenance().get("files_from", {}) == {}
+
+
+def test_the_unreleased_face_choice_commit_says_so():
+    # 3cfe46d2 is FiestaUI #342 (layoutOptions.font) on top of the v8.0.0 tag,
+    # vendored before its release; the record must say to re-vendor from it.
+    record = provenance()
+    assert 342 in record["pull_requests"]
+    assert record["status"].startswith("unreleased")
+    assert "re-vendor" in record["status"]

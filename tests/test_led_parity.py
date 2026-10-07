@@ -174,6 +174,16 @@ def test_pixoo64_is_a_10_by_16_grid():
     assert (grid.origin_x, grid.origin_y) == (0, 2)
 
 
+def test_golden_covers_the_pixoo_large_grid():
+    # FiestaUI #342: a Pixoo board set to Large draws the 5x7 face on 8 x 10
+    # cells, ledSpecForModel(pixoo, { font: "5x7" }).
+    case = next(c for c in LAYOUT_CASES if c["name"] == "pixoo 5x7 large grid")
+    spec = led_spec_for_model(DEVICE_MODELS["divoom_pixoo64"], font="5x7")
+    assert case["spec"] == {"width": spec.width, "height": spec.height, "font": spec.font}
+    grid = grid_layout(spec.width, spec.height, spec.font)
+    assert (grid.rows, grid.cols) == (8, 10)
+
+
 def test_split_flap_models_have_no_led_spec():
     assert led_spec_for_model(DEVICE_MODELS["vestaboard_flagship"]) is None
 

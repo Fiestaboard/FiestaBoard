@@ -170,8 +170,17 @@ def test_flip_seed_is_fiestauis(cell, from_key, to_key, cols, rows, seed):
     assert led_flip_seed(cell, from_key, to_key, cols, rows) == seed
 
 
+# The golden's acme_sign_v1 declaration, by id: a new layout case (FiestaUI
+# #342 added one before it) must not shift which set these tests extend.
+_ACME_SIGN = next(
+    c["charset"]
+    for c in GOLDEN["layouts"]
+    if isinstance(c.get("charset"), dict) and c["charset"].get("id") == "acme_sign_v1"
+)
+
+
 def test_pool_is_sorted_by_code_point_whatever_the_declared_order():
-    acme = GOLDEN["layouts"][7]["charset"]
+    acme = _ACME_SIGN
     forward = materialize_character_set({**acme, "id": "fwd", "chars": ["A", "B", "€", "-"]})
     backward = materialize_character_set({**acme, "id": "bwd", "chars": ["-", "€", "B", "A"]})
     pool = scramble_pool(forward)
@@ -258,7 +267,7 @@ def test_built_in_pool_holds_only_what_the_set_draws():
 
 
 def test_a_sets_own_characters_are_in_its_pool_before_any_layout_draws_them():
-    acme = GOLDEN["layouts"][7]["charset"]
+    acme = _ACME_SIGN
     set_ = materialize_character_set(
         {**acme, "id": "acme_sign_yen", "chars": ["A", "B", "¥"], "glyphs": {"¥": ["#.#", ".#.", "###", ".#.", ".#."]}}
     )

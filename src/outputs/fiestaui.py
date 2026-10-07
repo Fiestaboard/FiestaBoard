@@ -52,12 +52,16 @@ def validate_device_model(model: Any, where: str = "device_model") -> list[str]:
 
     Plus the one rule of FiestaUI's ``validateDeviceModel`` a JSON Schema
     cannot state: a ``layoutOptions`` choice's ``default`` is one of its
-    ``allowed`` values.
+    ``allowed`` values. A face choice (``layoutOptions.font``, FiestaUI #342)
+    also gets ``validateDeviceModel``'s own wording for the rules the schema
+    states as if/then (the model declares ``font``, ``allowed`` includes it,
+    ``charset`` is the built-in set drawn in it), beside the schema's.
     """
     errors = _errors(_validators()[DEVICE_MODEL_SCHEMA_FILE], model, where)
     layout = model.get("layoutOptions") if isinstance(model, dict) else None
     if isinstance(layout, dict):
-        for name in ("tileGap", "blockPadding"):
+        errors.extend(_font_choice_errors(model, layout.get("font"), where))
+        for name in ("tileGap", "blockPadding", "font"):
             choice = layout.get(name)
             if (
                 isinstance(choice, dict)
@@ -66,6 +70,37 @@ def validate_device_model(model: Any, where: str = "device_model") -> list[str]:
                 and not any(type(v) is type(choice["default"]) and v == choice["default"] for v in choice["allowed"])
             ):
                 errors.append(f"{where}.layoutOptions.{name}.default: one of allowed")
+    return errors
+
+
+def _font_choice_errors(model: dict, choice: Any, where: str) -> list[str]:
+    """FiestaUI ``validateDeviceModel``'s face-choice rules, in its words."""
+    from src.led import LED_FONTS
+    from src.led.matrix import led_charset_for_font
+
+    if choice is None:
+        return []
+    font = model.get("font")
+    if font is None:
+        return [f"{where}.font: required when layoutOptions.font is declared"]
+    if not (isinstance(font, str) and font in LED_FONTS):
+        return []
+    errors = []
+    allowed = choice.get("allowed") if isinstance(choice, dict) else None
+    # Only a well-formed list is checked for it; a malformed one already said so.
+    if (
+        isinstance(allowed, list)
+        and allowed
+        and all(isinstance(f, str) and f in LED_FONTS for f in allowed)
+        and len(set(allowed)) == len(allowed)
+        and font not in allowed
+    ):
+        errors.append(f'{where}.layoutOptions.font.allowed: must include the model\'s own font ("{font}")')
+    paired = led_charset_for_font(font)
+    if model.get("charset") != paired:
+        errors.append(
+            f'{where}.charset: "{paired}" (the built-in set drawn in font "{font}") when layoutOptions.font is declared'
+        )
     return errors
 
 

@@ -20,6 +20,65 @@
       }
     },
     {
+      "if": {
+        "required": ["layoutOptions"],
+        "properties": { "layoutOptions": { "type": "object", "required": ["font"], "properties": { "font": true } } }
+      },
+      "then": {
+        "required": ["font"],
+        "properties": { "font": true },
+        "description": "A model offering a face choice declares its own face."
+      }
+    },
+    {
+      "if": {
+        "required": ["font", "layoutOptions"],
+        "properties": {
+          "font": { "const": "3x5" },
+          "layoutOptions": { "type": "object", "required": ["font"], "properties": { "font": true } }
+        }
+      },
+      "then": {
+        "properties": {
+          "charset": { "const": "led_3x5" },
+          "layoutOptions": {
+            "type": "object",
+            "properties": {
+              "font": {
+                "type": "object",
+                "properties": { "allowed": { "type": "array", "contains": { "const": "3x5" } } }
+              }
+            }
+          }
+        },
+        "description": "A 3x5 model offering a face choice draws led_3x5, and offers its own face."
+      }
+    },
+    {
+      "if": {
+        "required": ["font", "layoutOptions"],
+        "properties": {
+          "font": { "const": "5x7" },
+          "layoutOptions": { "type": "object", "required": ["font"], "properties": { "font": true } }
+        }
+      },
+      "then": {
+        "properties": {
+          "charset": { "const": "led_5x7" },
+          "layoutOptions": {
+            "type": "object",
+            "properties": {
+              "font": {
+                "type": "object",
+                "properties": { "allowed": { "type": "array", "contains": { "const": "5x7" } } }
+              }
+            }
+          }
+        },
+        "description": "A 5x7 model offering a face choice draws led_5x7, and offers its own face."
+      }
+    },
+    {
       "if": { "properties": { "technology": { "const": "split_flap" } } },
       "then": {
         "properties": { "layoutOptions": false },
@@ -115,7 +174,7 @@
     "font": { "enum": ["3x5", "5x7"] },
     "layoutOptions": {
       "type": "object",
-      "description": "LED only. CHANGES DEVICE BYTES (unlike appearance): which values of the LED layout options a board on this model may choose, and its default. A field left out is unrestricted — every value allowed, the renderer's default (tileGap \"gap\", blockPadding 0) — so a plugin published before the options existed renders exactly as before. `default` must be one of `allowed`; left out, it is the renderer's default when allowed, else the first allowed value. tileGap \"fill\" lights the 1-px gutter between two same-colour lit fields (tiles, blocks); blockPadding 1 extends a block's field one pixel into the gutters and margin. The exact pixel rules are the design spec's §7.6 and FiestaUI's layoutLedCells.",
+      "description": "LED only. CHANGES DEVICE BYTES (unlike appearance): which values of the LED layout options a board on this model may choose, and its default. A tileGap or blockPadding left out is unrestricted — every value allowed, the renderer's default (tileGap \"gap\", blockPadding 0) — so a plugin published before the options existed renders exactly as before. `default` must be one of `allowed`; left out, it is the renderer's default when allowed, else the first allowed value. tileGap \"fill\" lights the 1-px gutter between two same-colour lit fields (tiles, blocks); blockPadding 1 extends a block's field one pixel into the gutters and margin. The exact pixel rules are the design spec's §7.6 and FiestaUI's layoutLedCells.",
       "additionalProperties": false,
       "properties": {
         "tileGap": {
@@ -134,6 +193,16 @@
           "properties": {
             "allowed": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": [0, 1] } },
             "default": { "enum": [0, 1] }
+          }
+        },
+        "font": {
+          "type": "object",
+          "description": "The faces a board may be set in (FiestaBoard's per-board text size: 5x7 Large, 3x5 Small). Unlike tileGap and blockPadding, leaving it out allows only the model's own `font`. Declared, `allowed` must include the model's `font`, the model must declare `font`, and its `charset` must be the built-in set drawn in that face (led_5x7 for 5x7, led_3x5 for 3x5): a board's set is derived from its face, so an inline or custom set cannot offer a choice. `default` is the face a NEW board gets and may differ from the model's `font`, which stays the face an older consumer (or a board that chose nothing) draws in.",
+          "required": ["allowed"],
+          "additionalProperties": false,
+          "properties": {
+            "allowed": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["3x5", "5x7"] } },
+            "default": { "enum": ["3x5", "5x7"] }
           }
         }
       }
