@@ -284,6 +284,7 @@ import {
   readOAuthReturn,
   SchemaForm,
 } from "@/components/plugin-settings";
+import { PluginAutoUpdateSwitch } from "@/components/plugin-updates-control";
 import Link from "@/components/smart-link";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
@@ -2401,8 +2402,8 @@ export default function IntegrationsPage() {
     </Dialog>
   );
 
-  // The section (integrations.tsx) owns the card, the header and the plugin
-  // updates control; this is the body under it. The toolbar is no longer a direct
+  // The section (integrations.tsx) owns the card, the header and its "Check
+  // for updates"; this is the body under it. The toolbar is no longer a direct
   // child of PageCard (Tabs wraps it), so it takes the block padding PageCard
   // would have given it itself.
   return (
@@ -2419,7 +2420,7 @@ export default function IntegrationsPage() {
             className={
               activeTab === "marketplace"
                 ? "grid grid-cols-1 gap-3 items-center md:grid-cols-[auto_minmax(12rem,1fr)_auto]"
-                : "grid grid-cols-1 gap-3 items-center sm:grid-cols-[auto_minmax(0,1fr)]"
+                : "grid grid-cols-1 gap-3 items-center sm:grid-cols-[auto_minmax(0,1fr)_auto]"
             }
           >
             <TabsList className="w-fit">
@@ -2451,6 +2452,10 @@ export default function IntegrationsPage() {
                 className="pl-9 w-full"
               />
             </Box>
+            {/* Auto-update governs the installed plugins, so it rides with
+                their tab: right of the search on a wide screen, a one-line row
+                of its own under it on a phone. */}
+            {activeTab === "installed" && <PluginAutoUpdateSwitch className="sm:justify-self-end" />}
             {activeTab === "marketplace" && (
               <Flex align="center" gap="2" className="shrink-0 md:justify-self-end">
                 <Flex className="rounded-md border overflow-hidden">

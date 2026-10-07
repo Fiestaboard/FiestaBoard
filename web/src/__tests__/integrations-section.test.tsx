@@ -78,6 +78,16 @@ describe("/integrations section", () => {
     expect(screen.getByRole("button", { name: /check for updates/i }).closest("[inert]")).toBeNull();
   });
 
+  it("leaves no plugin-settings anchor in the collapsed header on a plugin's page", async () => {
+    mockRegistry();
+    params.pluginId = "weather";
+    renderSection(<PluginDetailPage />);
+    await screen.findByRole("heading", { level: 2, name: "Weather" });
+    // The AI walkthrough for update_setting(category="plugins") must never
+    // spotlight something tucked away (inert, zero height).
+    expect(document.querySelector("[inert] [data-ai-anchor^='settings.plugins']")).toBeNull();
+  });
+
   it("names the open plugin under a breadcrumb back to the Marketplace", async () => {
     mockRegistry();
     params.pluginId = "weather";

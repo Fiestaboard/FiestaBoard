@@ -164,8 +164,11 @@ test.describe("Check for Updates", () => {
     await page.goto("/integrations");
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
-    const toggle = page.getByRole("switch", { name: "Auto-update plugins" });
+    // It rides with the Installed tab on the toolbar row, not in the header.
+    const toolbar = page.locator("[data-slot=page-toolbar]");
+    const toggle = toolbar.getByRole("switch", { name: "Auto-update plugins" });
     await expect(toggle).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("[data-slot=page-header]").getByRole("switch")).toHaveCount(0);
     const wasOn = (await toggle.getAttribute("aria-checked")) === "true";
 
     const save = page.waitForResponse(
@@ -186,11 +189,34 @@ test.describe("Check for Updates", () => {
     await expect(toggle).toHaveAttribute("aria-checked", wasOn ? "true" : "false", { timeout: 5_000 });
   });
 
-  test("shows the Check for Updates button on the Installed tab", async ({ page }) => {
+  test("hides the auto-update switch on the Marketplace tab", async ({ page }) => {
+    await page.goto("/integrations");
+    const toggle = page.getByRole("switch", { name: "Auto-update plugins" });
+    await expect(toggle).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("tab", { name: /marketplace/i }).click();
+
+    await expect(toggle).toHaveCount(0);
+  });
+
+  test("keeps the auto-update switch on one line on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/integrations");
+    const toggle = page.getByRole("switch", { name: "Auto-update plugins" });
+    await expect(toggle).toBeVisible({ timeout: 15_000 });
+    const label = page.getByText("Auto-update plugins", { exact: true });
+    const [sw, lb] = [await toggle.boundingBox(), await label.boundingBox()];
+    // One line: the label sits beside the switch and does not wrap.
+    expect(lb!.height).toBeLessThan(sw!.height + 8);
+    expect(Math.abs(lb!.y + lb!.height / 2 - (sw!.y + sw!.height / 2))).toBeLessThan(4);
+  });
+
+  test("shows Check for updates as the section header's action", async ({ page }) => {
     await page.goto("/integrations");
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole("button", { name: /check for updates/i })).toBeVisible({ timeout: 5_000 });
+    const header = page.locator("[data-slot=page-header]");
+    await expect(header.getByRole("button", { name: /check for updates/i })).toBeVisible({ timeout: 5_000 });
   });
 
   test("shows all-up-to-date toast when no updates are found", async ({ page }) => {

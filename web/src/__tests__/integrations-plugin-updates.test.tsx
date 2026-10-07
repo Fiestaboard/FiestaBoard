@@ -1,16 +1,19 @@
 /**
- * Plugin updates live on the Integrations section now, not in Settings: the
- * section header carries the auto-update switch beside "Check for updates".
- * It shows on the list; on a plugin's page the header collapses and tucks it
- * away with the rest of the header's action slot.
+ * Plugin updates live on the Integrations section now, not in Settings. The
+ * section header carries one action, "Check for updates" (the same shape as
+ * Displays' "Add a display"). The auto-update switch is a setting of the
+ * installed plugins, so it sits on the Installed tab's toolbar row beside the
+ * plugins it acts on, and carries the AI walkthrough's `settings.plugins`
+ * anchors.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IntegrationsSection } from "../../app/routes/integrations";
+import IntegrationsPage from "../../app/routes/integrations._index";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -38,11 +41,14 @@ function renderPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <IntegrationsSection>
-        <p>list</p>
+        <IntegrationsPage />
       </IntegrationsSection>
     </QueryClientProvider>,
   );
 }
+
+const header = () => document.querySelector<HTMLElement>("[data-slot=page-header]")!;
+const anchor = (id: string) => document.querySelector<HTMLElement>(`[data-ai-anchor="${id}"]`);
 
 let saved: unknown[] = [];
 
@@ -65,10 +71,20 @@ beforeEach(() => {
 });
 
 describe("Integrations section — plugin updates", () => {
-  it("shows the auto-update setting in the section header", async () => {
+  it("keeps only Check for updates in the section header", async () => {
+    renderPage();
+    // Wait for the switch to load wherever it lives, so its absence from the
+    // header is not just the settings request still being in flight.
+    await screen.findByRole("switch", { name: "Auto-update plugins" });
+    expect(within(header()).getByRole("button", { name: /check for updates/i })).toBeInTheDocument();
+    expect(within(header()).queryByRole("switch")).not.toBeInTheDocument();
+  });
+
+  it("shows the auto-update switch on the Installed tab's toolbar", async () => {
     renderPage();
     const toggle = await screen.findByRole("switch", { name: "Auto-update plugins" });
     await waitFor(() => expect(toggle).toBeChecked());
+    expect(toggle.closest("[data-slot=page-toolbar]")).not.toBeNull();
   });
 
   it("saves auto-update when the switch is turned off", async () => {
@@ -83,8 +99,23 @@ describe("Integrations section — plugin updates", () => {
     await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
   });
 
-  it("keeps Check for updates next to it", async () => {
+  it("hides the auto-update switch on the Marketplace tab", async () => {
+    const user = userEvent.setup();
     renderPage();
-    expect(await screen.findByRole("button", { name: /check for updates/i })).toBeInTheDocument();
+    await screen.findByRole("switch", { name: "Auto-update plugins" });
+
+    await user.click(screen.getByRole("tab", { name: /marketplace/i }));
+
+    await waitFor(() => expect(screen.queryByRole("switch", { name: "Auto-update plugins" })).not.toBeInTheDocument());
+  });
+
+  it("lands the AI walkthrough's plugin-settings anchors on the toolbar, not the header", async () => {
+    renderPage();
+    const toggle = await screen.findByRole("switch", { name: "Auto-update plugins" });
+    expect(anchor("settings.plugins.auto_update")).toBe(toggle);
+    const card = anchor("settings.plugins");
+    expect(card).not.toBeNull();
+    expect(card).toContainElement(toggle);
+    expect(header()).not.toContainElement(card);
   });
 });

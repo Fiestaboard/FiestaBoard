@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Puzzle } from "lucide-react";
 import { Outlet } from "react-router";
 
-import { PluginUpdatesControl } from "@/components/plugin-updates-control";
+import { PluginUpdateCheckButton } from "@/components/plugin-updates-control";
 import { SectionShell } from "@/components/section-shell";
 import { useParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -26,8 +26,9 @@ const CATEGORY_KEYS = new Set([
 /**
  * The Integrations section: its card and header stay mounted while the list
  * (/integrations, Installed and Marketplace tabs) and one plugin's page
- * (/integrations/:pluginId) swap beneath them. Plugin updates (auto-update +
- * check now) sit in the header: they act on every plugin in the section.
+ * (/integrations/:pluginId) swap beneath them. "Check for updates" is the
+ * header's one action: it acts on every plugin in the section. The
+ * auto-update switch sits on the Installed tab's toolbar (integrations._index).
  */
 export function IntegrationsSection({ children }: { children: React.ReactNode }) {
   const t = useTranslations("integrations");
@@ -86,7 +87,7 @@ export function IntegrationsSection({ children }: { children: React.ReactNode })
       description={t("description")}
       href="/integrations"
       detail={detail}
-      action={<PluginUpdatesControl />}
+      action={<PluginUpdateCheckButton />}
     >
       {children}
     </SectionShell>
