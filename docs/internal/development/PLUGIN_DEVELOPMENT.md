@@ -1240,8 +1240,9 @@ Boards for an output plugin are created with
 character grid comes from the device model: a `pixels` model fits as many
 glyphs of its LED font as the matrix holds (a 64×64 Pixoo at 3×5 is 10×16); a
 `panel` or `note_array` model takes `geometry` (`rows`/`cols`, or
-`notes_wide`/`notes_tall`). A model below the 3×15 Note floor is refused
-(400), never enlarged, so declare only models that reach it.
+`notes_wide`/`notes_tall`). A model below its floor — the 3×15 Note, or
+3×10 for a `pixels` model (a 64×64 Pixoo at 5×7 is 8×10) — is refused (400),
+never enlarged, so declare only models that reach it.
 
 **The board settings screen** is rendered from the manifest, never from
 plugin JS. The `settings_schema` may group fields and hide them, with three
@@ -1301,8 +1302,8 @@ Every output plugin repo runs the shared conformance suite in its CI:
 `OutputConformanceSuite(plugin_dir, factory, config).assert_conformant()`
 from `src/outputs/conformance.py`, where `factory(board_id, config,
 transport)` just builds the plugin: the suite routes its `self.http` to the
-suite's `FakeTransport`. It checks the manifest and character set, the 3×15
-geometry floor, no network at import, a stable credential-free
+suite's `FakeTransport`. It checks the manifest and character set, the
+geometry floor (3×15; 3×10 for a `pixels` model), no network at import, a stable credential-free
 `device_key()`, the send floor, that device traffic goes through
 `self.http`, `WriteResult` shapes (including partial writes; `setup=True`
 requests are not counted as the board write), cancellation, sequence

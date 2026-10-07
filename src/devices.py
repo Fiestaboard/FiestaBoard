@@ -53,6 +53,22 @@ MIN_GRID_COLS: int = NOTE_COLS
 MAX_GRID_ROWS: int = 96
 MAX_GRID_COLS: int = 128
 
+# The floor of an LED board measured in pixels (a device model with
+# ``pixels`` geometry, src/outputs/geometry.py): 3 × 10. Its grid is how many
+# glyphs fit, so it follows the font: a Divoom Pixoo 64 in the 5x7 face is
+# 8 × 10, a 64 × 32 HUB75 or Tidbyt is 4 × 10. Pages longer than 10 columns
+# are cut off there; the owner accepts that for a face legible across a room.
+# Vestaboards, FiestaPanel autofit and every other model keep the Note floor.
+MIN_LED_GRID_ROWS: int = 3
+MIN_LED_GRID_COLS: int = 10
+
+# The smallest grid any board can have — the lower of the two floors on each
+# axis. Stored grids (clamp_grid) and page/template geometry are bounded by
+# this; which floor a *new* board must reach depends on its device model
+# (src/outputs/geometry.py check_floor).
+ABSOLUTE_MIN_GRID_ROWS: int = min(MIN_GRID_ROWS, MIN_LED_GRID_ROWS)
+ABSOLUTE_MIN_GRID_COLS: int = min(MIN_GRID_COLS, MIN_LED_GRID_COLS)
+
 #: Every field that sizes a page/board. A change to any of them is a size
 #: retarget (re-validate, warn about now-incompatible references).
 GEOMETRY_FIELDS: tuple[str, ...] = ("device_type", "notes_wide", "notes_tall", "grid_rows", "grid_cols")
@@ -245,7 +261,8 @@ class BoardInstance:
             self.notes_tall = 1
         if self.notes_tall > MAX_NOTES_PER_AXIS:
             self.notes_tall = MAX_NOTES_PER_AXIS
-        # A panel always carries a valid grid (clamped; a missing axis falls
+        # A panel always carries a valid grid (clamped to the absolute 3 × 10
+        # minimum, so an LED board's 8 × 10 is kept; a missing axis falls
         # back to the Note-sized minimum so the board still resolves); every
         # other type carries none, so a stale grid can never leak into a
         # flagship's geometry after a type change.
@@ -514,11 +531,21 @@ def is_panel(device_type: str) -> bool:
     return device_type == "panel"
 
 
-def clamp_grid(grid_rows: int, grid_cols: int) -> DeviceDimensions:
-    """Clamp a panel grid into [MIN_GRID_*, MAX_GRID_*] on each axis."""
+def clamp_grid(
+    grid_rows: int,
+    grid_cols: int,
+    min_rows: int = ABSOLUTE_MIN_GRID_ROWS,
+    min_cols: int = ABSOLUTE_MIN_GRID_COLS,
+) -> DeviceDimensions:
+    """Clamp a panel grid into [min_*, MAX_GRID_*] on each axis.
+
+    The floor defaults to the absolute minimum (ABSOLUTE_MIN_GRID_*, 3 × 10),
+    so a stored LED board's 8 × 10 grid is kept, not widened to 15. FiestaPanel
+    autofit passes the Note floor (src/panels/autofit.py).
+    """
     return DeviceDimensions(
-        rows=max(MIN_GRID_ROWS, min(MAX_GRID_ROWS, int(grid_rows))),
-        cols=max(MIN_GRID_COLS, min(MAX_GRID_COLS, int(grid_cols))),
+        rows=max(min_rows, min(MAX_GRID_ROWS, int(grid_rows))),
+        cols=max(min_cols, min(MAX_GRID_COLS, int(grid_cols))),
     )
 
 

@@ -49,8 +49,9 @@ A factory that replaces the plugin's own request seam with
   ``output_api``, ``$ref`` files) and is ``plugin_type: "output"``;
 - ``character_set`` — a declared character set materialises non-empty, and
   so does every character set a device model embeds;
-- ``geometry_floor`` — every declared device model reaches the 3×15 Note
-  floor in cells (core refuses a smaller board);
+- ``geometry_floor`` — every declared device model reaches its floor in
+  cells: the 3×15 Note, or 3×10 for an LED board measured in pixels (core
+  refuses a smaller board; ``src.outputs.geometry.grid_floor``);
 - ``import_network`` — importing the plugin package makes no network call
   (no socket connect, no DNS lookup) and yields an ``OutputPluginBase``;
 - ``device_key`` — a non-empty string, stable across calls and across
@@ -94,17 +95,19 @@ from typing import Any
 
 import requests
 
-from src.devices import MIN_GRID_COLS, MIN_GRID_ROWS
+from src.devices import MIN_GRID_COLS, MIN_GRID_ROWS, MIN_LED_GRID_COLS, MIN_LED_GRID_ROWS
 from src.led.charsets import CharacterSetError, materialize_character_set
 from src.send_outcome import FrameRegion, WriteResult
 
-from .geometry import model_cell_grid
+from .geometry import grid_floor, model_cell_grid
 from .hooks import ConnectionCheck
 from .http import HttpRequest
 from .plugin_base import CancelToken, CellFrame, OutputPluginBase, TimedFrame
 
 __all__ = [
     "MIN_COLS",
+    "MIN_LED_COLS",
+    "MIN_LED_ROWS",
     "MIN_ROWS",
     "ConformanceReport",
     "FakeTransport",
@@ -115,10 +118,13 @@ __all__ = [
     "model_cell_grid",
 ]
 
-#: The platform content floor: a Note, 3 rows × 15 columns (plan D5). Core
-#: refuses a smaller board at creation (src/outputs/geometry.py), which sizes
-#: models exactly as this suite does: model_cell_grid is that module's.
+#: The platform content floor: a Note, 3 rows × 15 columns (plan D5) — and
+#: 3 × 10 for an LED board measured in pixels (MIN_LED_*). Core refuses a
+#: smaller board at creation (src/outputs/geometry.py), which sizes models
+#: and picks their floor exactly as this suite does: model_cell_grid and
+#: grid_floor are that module's.
 MIN_ROWS, MIN_COLS = MIN_GRID_ROWS, MIN_GRID_COLS
+MIN_LED_ROWS, MIN_LED_COLS = MIN_LED_GRID_ROWS, MIN_LED_GRID_COLS
 
 PluginFactory = Callable[[str | None, dict, "FakeTransport"], OutputPluginBase]
 
@@ -438,12 +444,13 @@ class OutputConformanceSuite:
             if grid is None:
                 continue
             rows, cols = grid
-            if rows < MIN_ROWS or cols < MIN_COLS:
+            min_rows, min_cols = grid_floor(model)
+            if rows < min_rows or cols < min_cols:
                 violations.append(
                     Violation(
                         "geometry_floor",
                         f"device model {model['id']!r} shows {rows}x{cols} cells, below the "
-                        f"{MIN_ROWS}x{MIN_COLS} floor: core refuses a board this small",
+                        f"{min_rows}x{min_cols} floor: core refuses a board this small",
                     )
                 )
         return violations

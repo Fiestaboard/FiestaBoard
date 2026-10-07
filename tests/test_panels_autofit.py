@@ -64,11 +64,13 @@ class TestComputeAutofitGrid:
     def test_3_inch_pocket_screen_gets_a_note_sized_grid(self):
         """The smallest supported panel still gets a Note-sized grid; the
         viewer shrinks it to fit rather than cropping it."""
-        assert compute_autofit_grid(3) == (MIN_GRID_ROWS, MIN_GRID_COLS)
+        assert compute_autofit_grid(3) == (MIN_GRID_ROWS, MIN_GRID_COLS) == (3, 15)
 
     def test_a_screen_narrower_than_a_note_keeps_note_width(self):
         # 24" holds 12 columns; every plugin is authored for >= 15.
         assert compute_autofit_grid(24) == (5, MIN_GRID_COLS)
+        # Literally 15: the 3x10 floor is for LED boards in pixels, not panels.
+        assert compute_autofit_grid(24) == (5, 15)
 
     def test_largest_supported_screen_fits_without_clamping(self):
         assert compute_autofit_grid(200) == (44, 106)
