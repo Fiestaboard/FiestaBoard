@@ -1,7 +1,7 @@
 # Core dependencies
 requests>=2.32.0
 pyyaml>=6.0.3
-python-dotenv>=1.2.3
+python-dotenv>=1.2.4
 schedule>=1.2.2
 defusedxml>=0.7.1
 
@@ -24,7 +24,7 @@ astral>=3.2
 docker>=7.1.0
 
 # mDNS/Bonjour local network discovery (fiestaboard.local)
-zeroconf>=0.151.3
+zeroconf>=0.151.5
 
 # MQTT client for Home Assistant auto-discovery and control
 paho-mqtt>=2.1.0
@@ -39,10 +39,10 @@ pytz>=2026.4
 # Regular expressions for user-written template patterns. The stdlib `re` has
 # no timeout, so a pattern a page author writes could backtrack forever and
 # stall the render loop that drives the board; this one takes `timeout=`.
-regex>=2026.9.10
+regex>=2026.9.29
 
 # MCP (Model Context Protocol) server — exposes FiestaBoard as an MCP tool server
-mcp>=2.2.0
+mcp>=2.3.0
 
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0
