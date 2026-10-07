@@ -120,7 +120,10 @@ class DisplayProfile:
         """
         kind = {
             "split_flap": "a split-flap board",
-            "led_matrix": "a full-colour LED pixel display" if self.color == "rgb" else "an LED pixel display",
+            "led_matrix": {
+                "rgb": "a full-colour LED pixel display",
+                "mono": "a single-colour LED pixel display",
+            }.get(self.color, "an LED pixel display"),
             "screen": "a screen",
         }.get(self.technology, "a display board")
         lines = [f"THE DISPLAY: {kind}."]
@@ -195,7 +198,8 @@ def _profile(
         technology=str(model.get("technology") or "unknown"),
         device_model=str(model.get("id")) if model.get("id") else None,
         charset=str(charset.get("id")) if charset.get("id") else None,
-        color="rgb" if color_kind == "rgb" else ("mono" if color_kind == "mono" else "tiles"),
+        # FiestaUI's colour kinds are "rgb", "monochrome" and "tiles" (device-model schema).
+        color="rgb" if color_kind == "rgb" else ("mono" if color_kind == "monochrome" else "tiles"),
         mixed_case=bool(charset.get("mixedCase")),
         color_spans=bool(charset.get("colorSpans")),
         block_spans=bool(charset.get("blockSpans")),
