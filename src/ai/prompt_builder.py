@@ -12,11 +12,14 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from src.devices import DeviceType, get_dimensions
 from src.ops.teaching import TEMPLATE_FILTERS, construct_lines, dimensions_phrase
 from src.templates.expressions import function_signatures
+
+if TYPE_CHECKING:
+    from src.outputs.display_profile import DisplayProfile
 
 # Which caller is building the prompt. The shared core (device limits,
 # character set, syntax, available variables, exemplars) is identical
@@ -412,6 +415,38 @@ def _format_available_collections(collections: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+#: What a pixel board's chat learns about canvases (design PIXEL_CANVAS.md §1).
+#: Chat mode only: the generate mode's output schema has no ``canvases``.
+CANVAS_RULES = (
+    "PIXEL CANVASES (this board draws them)\n"
+    "- A page may carry up to 8 `canvases` (create_page / update_page arg):\n"
+    "  drawings over a block of character cells, in any RGB colour. One:\n"
+    '  {"id": "sky", "area": {"row": 1, "col": 1, "rows": 3, "cols": 8},\n'
+    '   "bleed": ["top", "left"], "scale": 1, "text": "flow",\n'
+    '   "content": {"size": [32, 16], "background": "#001830",\n'
+    '     "palette": {"y": "#ffcc00"}, "shapes": [...], "pixels": ["..yy..", ...]}}\n'
+    "- area: 1-based cells; may run past the grid edge (clipped), must\n"
+    "  start inside. bleed: sides touching the grid edge reach the panel\n"
+    "  border (top/left/right/bottom/all). scale: 1-8 pixels per canvas pixel.\n"
+    '  "text": "hide" blanks the cells under it; "flow" wraps text (lines\n'
+    "  with wrap on) around it.\n"
+    "- content: size = drawing space (scaled to fit; default the canvas\n"
+    "  size). Colours: #rgb, #rrggbb, a colour name, a palette key, none.\n"
+    '  pixels: rows of palette keys, "." transparent; drawn last.\n'
+    '- shapes, drawn in order, each with "type": rect {x,y,w,h,fill,stroke},\n'
+    "  circle {cx,cy,r}, ellipse {cx,cy,rx,ry}, line {x1,y1,x2,y2,stroke,width},\n"
+    "  polygon {points: [[x,y],...]}, text {x,y,text,color,font: 3x5|5x7},\n"
+    "  gradient {from,to,angle; x,y,w,h optional}.\n"
+    '- Any field may be a {{...}} expression: "h": "{{= weather.temperature / 4 }}".\n'
+    '  "if": "{{...}}" skips a falsy shape; "foreach": "{{plugin.list}}",\n'
+    '  "as": "p" repeats it per item (p.field, p.index).\n'
+    '- "source": "{{generative_ai_art.canvas}}" draws a plugin variable of\n'
+    "  format canvas (a content object) instead of content.\n"
+    "- Check with render_page_preview(board_id=..., canvases=...):\n"
+    "  canvas_issues name each problem.\n"
+)
+
+
 def build_prompt(
     user_prompt: str,
     device_type: DeviceType,
@@ -424,6 +459,7 @@ def build_prompt(
     available_collections: list[dict[str, Any]] | None = None,
     registry_plugins: list[dict[str, Any]] | None = None,
     mode: PromptMode = "generate",
+    display: DisplayProfile | None = None,
 ) -> PromptContext:
     """Build the system + user messages for the LLM.
 
@@ -449,6 +485,11 @@ def build_prompt(
             ``src.ai.chat`` for any structured actions. The two modes
             share every other section (variables, examples, layout
             rules) so the model sees consistent constraints.
+        display: What the board the chat targets draws, when known. An
+            LED board's own brief (:meth:`DisplayProfile.ai_brief`:
+            lowercase, colours, hex, icons) replaces the Vestaboard
+            character rules; a pixel board's chat also learns canvases.
+            ``None`` or a split-flap board: the Vestaboard rules.
 
     Returns:
         A ``PromptContext`` with the rendered system prompt and the
@@ -485,6 +526,16 @@ def build_prompt(
         "  without one (e.g. `72F`) since the `\u00b0` character is not in\n"
         "  the Vestaboard character set.\n"
     )
+
+    led = display is not None and display.technology != "split_flap"
+    if led:
+        char_rules = (
+            "CHARACTER SET\n"
+            + display.ai_brief()
+            + "\n- In templates `{{red}}`, `{{red:HOT}}` and `{{icon:sun}}` work too.\n"
+        )
+    canvas_rules = "\n" + CANVAS_RULES if mode == "chat" and display is not None and display.supports("pixels") else ""
+    audience = "the user's board (see CHARACTER SET)" if led else "a Vestaboard split-flap display"
 
     layout_rules = (
         f"DEVICE: {device_type} ({dimensions_phrase(device_type)}).\n"
@@ -693,13 +744,14 @@ def build_prompt(
 
     system_prompt = (
         "You are FiestaBoard's page-generation assistant. You design\n"
-        "short, glanceable pages for a Vestaboard split-flap display\n"
+        f"short, glanceable pages for {audience}\n"
         "based on the user's natural-language request.\n\n"
         + scope_rules
         + "\n"
         + layout_rules
         + "\n"
         + char_rules
+        + canvas_rules
         + "\n"
         + template_syntax
         + "\n"

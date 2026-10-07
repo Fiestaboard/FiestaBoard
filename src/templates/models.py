@@ -14,8 +14,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
+from src.canvas.models import Canvas, validate_page_canvases
+from src.canvas.schemas import CanvasIssueModel, CanvasLayerModel
 from src.devices import (
     ABSOLUTE_MIN_GRID_COLS,
     ABSOLUTE_MIN_GRID_ROWS,
@@ -123,6 +125,16 @@ class TemplateRenderRequest(BaseModel):
     grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
     grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
     line_metadata: list[dict[str, Any]] | None = None
+    #: The page's pixel canvases (``POST /templates/render`` only; the live
+    #: render ignores them). Their cells are blanked (or text flows around a
+    #: ``flow`` canvas) on every board; for a pixel-matrix ``board_id`` the
+    #: response also carries their ``layers`` and ``canvas_issues``.
+    canvases: list[Canvas] | None = None
+
+    @field_validator("canvases")
+    @classmethod
+    def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
+        return None if value is None else validate_page_canvases(value)
 
     @model_validator(mode="after")
     def _panel_needs_a_grid(self) -> TemplateRenderRequest:
@@ -167,6 +179,11 @@ class TemplateRenderCheckedResponse(TemplateRenderResponse):
 
     charset: str | None = None
     charset_issues: list[CharsetIssue] | None = None
+    #: The request's canvases rasterised for its ``board_id`` when that board
+    #: is a pixel matrix. Present ONLY then; draw them over the cells.
+    layers: list[CanvasLayerModel] | None = None
+    #: Problems drawing those canvases. Present exactly when ``layers`` is.
+    canvas_issues: list[CanvasIssueModel] | None = None
 
 
 class TemplateRenderLiveRequest(TemplateRenderRequest):

@@ -248,6 +248,11 @@ class AIChatRequest(BaseModel):
     registry_plugins: list[dict[str, Any]] | None = None
     provider_id: str | None = None
     model: str | None = None
+    board_id: str | None = Field(
+        default=None,
+        description="The board the chat is for. The prompt then teaches what that board draws (an LED board's "
+        "lowercase, colours and icons; a pixel board's canvases). Omitted or unknown: Vestaboard rules.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -655,6 +660,7 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
     limits = TurnLimits.from_providers_block(providers_block)
 
     backend = _tool_backend()
+    display = _display_for_board(request.board_id)
 
     async def event_source():
         """Render the normalized event stream as SSE bytes."""
@@ -680,6 +686,7 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
                 approval_mode=approval_mode,
                 auto_approve_destructive=auto_approve_destructive,
                 limits=limits,
+                display=display,
             ):
                 yield _format_sse_event(evt["event"], evt["data"])
         except Exception:
@@ -698,6 +705,19 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
             "Connection": "keep-alive",
         },
     )
+
+
+def _display_for_board(board_id: str | None) -> Any:
+    """The :class:`~src.outputs.display_profile.DisplayProfile` of a board, or
+    ``None`` (no board named, an unknown board, or one whose device model is
+    unknown): the chat then teaches the Vestaboard rules, as before."""
+    if not board_id:
+        return None
+    from src.board_guards import _find_board
+    from src.outputs.display_profile import display_profile_for_board
+
+    board = _find_board(board_id)
+    return display_profile_for_board(board) if board is not None else None
 
 
 def _format_sse_event(event: str, data: dict[str, Any]) -> bytes:

@@ -841,3 +841,37 @@ def test_chat_endpoint_rejects_invalid_device_type(reset_throttle):
     # validation detail still names the field, which is what this asserts.
     assert r.status_code == 422
     assert "device_type" in r.text
+
+
+def test_the_chat_board_id_reaches_the_turn_as_that_boards_display(reset_throttle, monkeypatch):
+    """``board_id`` names the board the chat is for; the turn is taught its display."""
+    from fastapi.testclient import TestClient
+
+    from src.api_server import app
+    from src.fiestaui import builtin_device_models
+
+    pixoo = {
+        "id": "pixoo-1",
+        "device_type": "panel",
+        "grid_rows": 10,
+        "grid_cols": 16,
+        "device_model": "divoom_pixoo64",
+    }
+    monkeypatch.setattr("src.board_guards._find_board", lambda board_id: pixoo if board_id == "pixoo-1" else None)
+    monkeypatch.setattr(
+        "src.outputs.display_profile.board_device_model", lambda board: builtin_device_models()["divoom_pixoo64"]
+    )
+    seen: dict = {}
+
+    async def fake_turn(**kwargs):
+        seen.update(kwargs)
+        yield {"event": "done", "data": {"reason": "complete"}}
+
+    monkeypatch.setattr("src.ai.agent.run_chat_turn", fake_turn)
+    client = TestClient(app)
+    body = {"messages": [{"role": "user", "content": "hi"}], "board_id": "pixoo-1"}
+    assert client.post("/pages/ai/chat", json=body).status_code == 200
+    assert seen["display"] is not None and seen["display"].supports("pixels")
+    seen.clear()
+    assert client.post("/pages/ai/chat", json={**body, "board_id": "gone"}).status_code == 200
+    assert seen["display"] is None

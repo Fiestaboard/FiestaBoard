@@ -65,6 +65,7 @@ import {
 import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
+import { CanvasesPanel } from "@/components/canvas-editor/canvases-panel";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DevicePreview } from "@/components/device-preview";
 import type { StrokeCell } from "@/components/drawable-board-preview";
@@ -98,6 +99,9 @@ import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
   BoardInstance,
+  Canvas,
+  CanvasIssue,
+  CanvasLayerJson,
   CharsetIssue,
   DeviceType,
   GridSize,
@@ -112,8 +116,9 @@ import type {
 } from "@/lib/api";
 import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
+import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
 import { charsetTokenText } from "@/lib/charset-issues";
-import { boardForShape, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
+import { boardForShape, ledEditorCharacterSet, PREVIEW_TAKES_LAYERS, resolveBoardModel } from "@/lib/device-preview";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
@@ -257,6 +262,7 @@ interface DraftData {
   templateLines: string[];
   lineAlignments: LineAlignment[];
   lineWrapEnabled?: boolean[]; // Optional for backward compatibility
+  canvases?: Canvas[];
   timestamp: number;
 }
 
@@ -266,6 +272,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 ) {
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
+  const tCanvas = useTranslations("canvasEditor");
   const tDisplaySettings = useTranslations("displaySettings");
   const tPanels = useTranslations("fiestaPanels");
   // Shared with the global transition settings card so both surfaces label the
@@ -377,6 +384,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // null, so this always goes out on the wire (see the save mutation).
   const [transitionStrategy, setTransitionStrategy] = useState<string | null>(null);
 
+  // Pixel canvases (design PIXEL_CANVAS.md §5): stored beside the template,
+  // edited only for an LED pixel board, previewed by the server's render
+  // (`layers` + `canvas_issues` for the preview board, or its refusal).
+  const [canvases, setCanvases] = useState<Canvas[]>([]);
+  const [debouncedCanvases, setDebouncedCanvases] = useState<Canvas[]>([]);
+  const [previewLayers, setPreviewLayers] = useState<CanvasLayerJson[] | null>(null);
+  const [canvasIssues, setCanvasIssues] = useState<CanvasIssue[]>([]);
+  const [canvasError, setCanvasError] = useState<string | null>(null);
+
   // Pencil draw-mode state — see handleStrokeCommit / drawPreviewMessage
   // below for how a painted stroke flows back into templateLines.
   const [drawMode, setDrawMode] = useState(false);
@@ -453,6 +469,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     lineAlignments: LineAlignment[];
     lineWrapEnabled: boolean[];
     transitionStrategy: string | null;
+    canvases: Canvas[];
   } | null>(null);
 
   // Export dialog
@@ -518,9 +535,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       JSON.stringify(templateLines) !== JSON.stringify(savedSnapshot.templateLines) ||
       JSON.stringify(lineAlignments) !== JSON.stringify(savedSnapshot.lineAlignments) ||
       JSON.stringify(lineWrapEnabled) !== JSON.stringify(savedSnapshot.lineWrapEnabled) ||
-      transitionStrategy !== savedSnapshot.transitionStrategy
+      transitionStrategy !== savedSnapshot.transitionStrategy ||
+      JSON.stringify(canvases) !== JSON.stringify(savedSnapshot.canvases)
     );
-  }, [savedSnapshot, name, templateLines, lineAlignments, lineWrapEnabled, transitionStrategy]);
+  }, [savedSnapshot, name, templateLines, lineAlignments, lineWrapEnabled, transitionStrategy, canvases]);
 
   const pushUndoSnapshot = useCallback(() => {
     const snap: PageSnapshot = {
@@ -808,6 +826,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // An LED target's character set: the rich editor then reads and offers that
   // set's extended markup and keeps its case. null for a split-flap target.
   const editorCharset = useMemo(() => ledEditorCharacterSet(previewBoard, previewModel), [previewBoard, previewModel]);
+  // The preview board as a pixel matrix (its size and face), when it is one:
+  // only then are the page's canvases drawn, and so edited.
+  const pixelBoard = useMemo(
+    () => pixelBoardOf(previewModel, previewBoard?.led_layout),
+    [previewModel, previewBoard?.led_layout],
+  );
   // Cells of the last render that board's character set draws differently
   // (POST /templates/render with board_id); [] when none or no board.
   const [charsetIssues, setCharsetIssues] = useState<CharsetIssue[]>([]);
@@ -1107,12 +1131,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       // Per-page transition override (null = inherit the display's transition).
       const savedTransition = existingPage.transition_strategy ?? null;
       setTransitionStrategy(savedTransition);
+      const savedCanvases = existingPage.canvases ?? [];
+      setCanvases(savedCanvases);
+      setDebouncedCanvases(savedCanvases);
       setSavedSnapshot({
         name: pageName,
         templateLines: contents,
         lineAlignments: alignments,
         lineWrapEnabled: wrapStates,
         transitionStrategy: savedTransition,
+        canvases: savedCanvases,
       });
     } else if (!pageId && !loadingPage) {
       const draftKey = getDraftKey();
@@ -1137,6 +1165,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               setDebouncedTemplateLines(restoredLines);
               setDebouncedLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
               setDebouncedLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
+              setCanvases(draft.canvases ?? []);
+              setDebouncedCanvases(draft.canvases ?? []);
               setDraftRestored(true);
 
               // Auto-dismiss the alert after 5 seconds
@@ -1218,6 +1248,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     return () => clearTimeout(timeoutId);
   }, [lineWrapEnabled]);
 
+  // Canvases preview a little later than text: a paint stroke sends many edits.
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedCanvases(canvases);
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [canvases]);
+
   // Auto-save draft to localStorage (debounced)
   useEffect(() => {
     const draftKey = getDraftKey(pageId);
@@ -1239,6 +1277,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           templateLines,
           lineAlignments,
           lineWrapEnabled,
+          ...(canvases.length > 0 && { canvases }),
           timestamp: Date.now(),
         };
         localStorage.setItem(draftKey, JSON.stringify(draft));
@@ -1249,7 +1288,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     }, 1000); // Save draft 1 second after last change
 
     return () => clearTimeout(timeoutId);
-  }, [name, templateLines, lineAlignments, lineWrapEnabled, pageId, existingPage, stagingActive]);
+  }, [name, templateLines, lineAlignments, lineWrapEnabled, canvases, pageId, existingPage, stagingActive]);
 
   // Auto-resize textareas when content changes
   useEffect(() => {
@@ -1367,6 +1406,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           // a previous per-page transition after the user chose "Use the display's transition".
           transition_strategy: transitionStrategy,
           ...geometryFields(deviceType, notesWide, notesTall, panelGrid),
+          // Always sent: null clears canvases the user deleted.
+          canvases: canvases.length > 0 ? canvases : null,
         };
         return api.updatePage(pageId, payload);
       } else {
@@ -1378,6 +1419,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           line_metadata: metadata,
           transition_strategy: transitionStrategy,
           ...geometryFields(deviceType, notesWide, notesTall, panelGrid),
+          ...(canvases.length > 0 && { canvases }),
         };
         const created = await api.createPage(payload);
         return { page: created, incompatible_references: [] };
@@ -1535,7 +1577,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         debouncedLineWrapEnabled,
       );
 
-      const hasContent = cleanedLines.some((line) => line.trim().length > 0);
+      const hasCanvases = debouncedCanvases.length > 0;
+      const hasContent = hasCanvases || cleanedLines.some((line) => line.trim().length > 0);
 
       if (!hasContent) {
         const emptyCount = dims.rows;
@@ -1546,6 +1589,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         };
       }
 
+      // Canvases ride along only when there are some: every other render's
+      // request is exactly what it always was.
+      if (hasCanvases) {
+        return api.renderTemplate(
+          cleanedLines,
+          metadata,
+          deviceType,
+          notesWide,
+          notesTall,
+          panelGrid,
+          previewBoardId,
+          debouncedCanvases,
+        );
+      }
       return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall, panelGrid, previewBoardId);
     },
     onSuccess: (data: TemplateRenderResponse) => {
@@ -1554,8 +1611,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         return;
       }
       setCharsetIssues(data.charset_issues ?? []);
+      setPreviewLayers(data.layers ?? null);
+      setCanvasIssues(data.canvas_issues ?? []);
+      setCanvasError(null);
 
-      const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+      const hasContent = debouncedCanvases.length > 0 || debouncedTemplateLines.some((line) => line.trim().length > 0);
       if (!hasContent) {
         setPreview(null);
         return;
@@ -1592,9 +1652,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         previewMutation.mutate();
       }
     },
-    onError: () => {
+    onError: (error: Error) => {
       setPreview(null);
       setCharsetIssues([]);
+      setPreviewLayers(null);
+      setCanvasIssues([]);
+      // With canvases, a refusal is most likely theirs (a 422 naming the field).
+      setCanvasError(debouncedCanvases.length > 0 ? error.message : null);
       needsRePreview.current = false;
     },
   });
@@ -1624,10 +1688,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       return;
     }
 
-    const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+    const hasCanvases = debouncedCanvases.length > 0;
+    const hasContent = hasCanvases || debouncedTemplateLines.some((line) => line.trim().length > 0);
 
     if (!hasContent) {
       setPreview(null);
+      setPreviewLayers(null);
+      setCanvasIssues([]);
+      setCanvasError(null);
       needsRePreview.current = false;
       if (previewMutationRef.current.isPending) {
         shouldIgnoreNextResponse.current = true;
@@ -1643,7 +1711,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     const debounceMs = skipNextPreviewDebounceRef.current ? 0 : 200;
     skipNextPreviewDebounceRef.current = false;
     const timeoutId = setTimeout(() => {
-      const stillHasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+      const stillHasContent = hasCanvases || debouncedTemplateLines.some((line) => line.trim().length > 0);
 
       if (!stillHasContent) {
         setPreview(null);
@@ -1674,6 +1742,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     debouncedTemplateLines,
     debouncedLineAlignments,
     debouncedLineWrapEnabled,
+    debouncedCanvases,
     liveOutputEnabled,
     notesWide,
     notesTall,
@@ -2364,6 +2433,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 ) : (
                   <Box {...anchorProps("page-editor.template")}>
                     <PlainTextEditor
+                      lineMarkers={pixelBoard ? canvasMarkers(canvases, numLines) : undefined}
+                      lineMarkerTitle={tCanvas("markerTitle")}
                       value={templateLines.join("\n")}
                       onChange={(newValue) => {
                         setTemplateLines(newValue.split("\n"));
@@ -2608,6 +2679,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <DevicePreview
                         model={drawMode ? null : previewModel}
                         ledLayout={previewBoard?.led_layout}
+                        layers={drawMode ? undefined : previewLayers}
                         message={editorPreviewMessage}
                         size="md"
                       >
@@ -2692,6 +2764,33 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     )}
                   </Flex>
                 </Box>
+
+                {/* Pixel canvases: edited for an LED pixel board; on any other
+                    board a page that has them says why their areas are blank. */}
+                {pixelBoard ? (
+                  <Box className="mt-2 border-t pt-4">
+                    {canvases.length > 0 && !PREVIEW_TAKES_LAYERS && (
+                      <Text size="xs" tone="muted" className="mb-2">
+                        {tCanvas("previewWithoutLayers")}
+                      </Text>
+                    )}
+                    <CanvasesPanel
+                      canvases={canvases}
+                      onChange={setCanvases}
+                      gridRows={dims.rows}
+                      gridCols={dims.cols}
+                      board={pixelBoard}
+                      issues={canvasIssues}
+                      error={canvasError}
+                    />
+                  </Box>
+                ) : (
+                  canvases.length > 0 && (
+                    <Alert data-testid="canvas-not-pixel-notice">
+                      <AlertDescription>{tCanvas("notPixelNotice")}</AlertDescription>
+                    </Alert>
+                  )
+                )}
               </Stack>
             </ScrollArea>
           </CardContent>

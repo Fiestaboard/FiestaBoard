@@ -241,6 +241,137 @@ def _charset_check(board_id: str | None) -> Any:
     return _CharsetCheck(board_id)
 
 
+_SHAPE_TYPES = frozenset({"rect", "circle", "ellipse", "line", "polygon", "text", "gradient"})
+
+
+def _error_path(loc: tuple[Any, ...]) -> str:
+    """A pydantic error location as ``content.shapes[0].fill``.
+
+    A shape's ``type`` tag (the union branch pydantic names) is left out:
+    the author wrote ``shapes[0].fill``, not ``shapes[0].rect.fill``.
+    """
+    path = ""
+    for i, part in enumerate(loc):
+        if isinstance(part, int):
+            path += f"[{part}]"
+        elif i > 0 and isinstance(loc[i - 1], int) and part in _SHAPE_TYPES:
+            continue
+        else:
+            path += f".{part}" if path else str(part)
+    return path
+
+
+def _canvas_errors(canvases: list[Any], rows: int | None, cols: int | None) -> list[dict[str, str]]:
+    """Every problem with a page's *canvases*, as ``{path, message}``.
+
+    The checks ``PageCreate`` makes (each canvas valid, at most 8, ids
+    unique, every area starting inside the grid), reported one by one so an
+    author can fix them all at once. ``rows``/``cols`` ``None`` skips the
+    area check on that axis (a size the caller did not give).
+    """
+    from pydantic import ValidationError
+
+    from src.canvas.models import MAX_CANVASES_PER_PAGE, Canvas
+
+    errors: list[dict[str, str]] = []
+    if len(canvases) > MAX_CANVASES_PER_PAGE:
+        errors.append({"path": "canvases", "message": f"a page has at most {MAX_CANVASES_PER_PAGE} canvases"})
+    seen: set[str] = set()
+    for index, raw in enumerate(canvases):
+        where = f"canvases[{index}]"
+        try:
+            canvas = Canvas.model_validate(raw)
+        except ValidationError as exc:
+            for e in exc.errors():
+                sub = _error_path(tuple(e["loc"]))
+                message = str(e["msg"]).removeprefix("Value error, ")
+                errors.append({"path": f"{where}.{sub}" if sub else where, "message": message})
+            continue
+        if canvas.id in seen:
+            errors.append({"path": f"{where}.id", "message": f"canvas id {canvas.id!r} is used twice"})
+        seen.add(canvas.id)
+        area = canvas.area
+        if (rows is not None and area.row > rows) or (cols is not None and area.col > cols):
+            errors.append(
+                {
+                    "path": f"{where}.area",
+                    "message": f"area starts at row {area.row}, col {area.col}, outside the "
+                    f"{rows if rows is not None else '?'} x {cols if cols is not None else '?'} grid "
+                    "(it may run past the edge, but must start inside)",
+                }
+            )
+    return errors
+
+
+def _layers_summary(layers: list[Any], issues: list[Any], *, pixels: bool) -> dict[str, Any]:
+    """A pixel board's canvas layers for a tool result: placement, not pixels.
+
+    ``rgba`` (base64, often kilobytes) only when *pixels* asks for it, so a
+    preview stays small in a model's context.
+    """
+    from src.canvas.schemas import issues_json, layers_json
+
+    shown = layers_json(layers)
+    if not pixels:
+        shown = [{key: layer[key] for key in ("x", "y", "width", "height")} for layer in shown]
+    return {"layer_count": len(shown), "layers": shown, "canvas_issues": issues_json(issues)}
+
+
+def _preview_with_canvases(
+    template_lines: list[str],
+    canvases: list[dict[str, Any]],
+    check: Any,
+    context: dict[str, Any],
+    *,
+    device_type: str,
+    line_metadata: list[dict[str, Any]] | None,
+    size: tuple[Any, Any, Any, Any],
+    pixels: bool,
+) -> dict[str, Any]:
+    """``render_page_preview`` for a template with canvases: an unsaved page
+    rendered exactly as a saved one (text flowed or blanked under the
+    canvases, and for a pixel board the layers the board would draw)."""
+    from pydantic import ValidationError
+
+    from .devices import resolve_dimensions
+    from .pages.models import Page
+    from .pages.service import draws_pixels, get_page_service
+
+    notes_wide, notes_tall, grid_rows, grid_cols = size
+    try:
+        page = Page(
+            name="preview",
+            type="template",
+            template=template_lines or [""],
+            line_metadata=line_metadata,
+            device_type=device_type,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+            grid_rows=grid_rows,
+            grid_cols=grid_cols,
+            canvases=canvases,
+        )
+    except (ValidationError, ValueError) as exc:
+        raise ToolError(f"Invalid page or canvases: {exc}") from exc
+    result = get_page_service().render_page(page, context=context, display=check.display, **check.render_kw)
+    if not result.available:
+        raise ToolError(result.error or "Page rendering failed.")
+    dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
+    out: dict[str, Any] = {
+        "rendered": result.formatted,
+        "device_type": device_type,
+        "rows": dims.rows,
+        "cols": dims.cols,
+        "context_plugins": sorted(context.keys()),
+        **check.result(result.formatted),
+    }
+    if draws_pixels(check.display):
+        out.update(_layers_summary(result.layers, result.canvas_issues, pixels=pixels))
+    else:
+        out["layers"] = None
+    return out
+
+
 def _format_array_entry(
     plugin_id: str,
     var_name: str,
@@ -1075,6 +1206,7 @@ def _build_mcp_server() -> Any:
         transition_step_size: int | None = None,
         grid_rows: int | None = None,
         grid_cols: int | None = None,
+        canvases: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Create a new template page on FiestaBoard.
 
@@ -1106,14 +1238,12 @@ def _build_mcp_server() -> Any:
             notes_tall: For note_array only — Notes down (1–8). Omitted = 1.
             grid_rows: For panel only (required) — rows, the panel's rows.
             grid_cols: For panel only (required) — columns, the panel's cols.
+            canvases: Optional pixel canvases (LED pixel boards; see the
+                      PIXEL CANVASES rules).
             transition_strategy: Optional per-page transition override —
                                  'column', 'reverse-column', 'edges-to-center',
-                                 'row', 'diagonal', 'random', or the
-                                 'plugin:<id>' of an installed transition
-                                 plugin (deprecated; list_installed_plugins()
-                                 reports plugin_type 'transition'). Omitted = the
-                                 board's own transition (its boards entry in
-                                 get_settings_summary()).
+                                 'row', 'diagonal', 'random' (or a deprecated
+                                 'plugin:<id>'). Omitted = the board's own.
             transition_interval_ms: Optional per-page step interval (0–5000 ms).
             transition_step_size: Optional per-page step size (≥ 1).
 
@@ -1134,6 +1264,7 @@ def _build_mcp_server() -> Any:
             transition_step_size=transition_step_size,
             grid_rows=grid_rows,
             grid_cols=grid_cols,
+            canvases=canvases,
         )
 
     @_tool(destructive=False, idempotent=True)
@@ -1152,6 +1283,7 @@ def _build_mcp_server() -> Any:
         clear_transition_override: bool = False,
         grid_rows: int | None = None,
         grid_cols: int | None = None,
+        canvases: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Update any field of an existing page. Only the fields you pass change.
 
@@ -1178,10 +1310,8 @@ def _build_mcp_server() -> Any:
             grid_cols: New panel column count (optional; from list_panels()).
             line_metadata: New per-line alignment/wrap list (optional). Replaces
                            the whole list; one {"alignment", "wrap"} dict per line.
-            transition_strategy: New per-page transition override (optional) —
-                                 a built-in strategy name or a 'plugin:<id>'
-                                 naming an installed transition plugin
-                                 (deprecated).
+            canvases: New pixel canvases (optional); replaces all, [] removes them.
+            transition_strategy: New per-page transition override (optional).
             transition_interval_ms: New per-page step interval, 0–5000 (optional).
             transition_step_size: New per-page step size, ≥ 1 (optional).
             clear_transition_override: Set True to remove the per-page
@@ -1207,6 +1337,7 @@ def _build_mcp_server() -> Any:
             clear_transition_override=clear_transition_override,
             grid_rows=grid_rows,
             grid_cols=grid_cols,
+            canvases=canvases,
         )
 
     @_tool(destructive=True)
@@ -1231,6 +1362,8 @@ def _build_mcp_server() -> Any:
         grid_rows: int | None = None,
         grid_cols: int | None = None,
         board_id: str | None = None,
+        canvases: list[dict[str, Any]] | None = None,
+        include_layer_pixels: bool = False,
     ) -> dict[str, Any]:
         """Render a template to see how it will look BEFORE saving it as a page.
 
@@ -1245,21 +1378,21 @@ def _build_mcp_server() -> Any:
             device_type: 'flagship' (22×6), 'note' (15×3), 'note_array'
                          (15·notes_wide × 3·notes_tall), or 'panel'
                          (grid_cols × grid_rows).
-            line_metadata: Optional per-line dicts with "alignment"
-                           ('left'/'center'/'right') and "wrap" (bool) — the
-                           same metadata saved pages carry. Include it to
-                           preview alignment and wrap faithfully.
+            line_metadata: Optional per-line {"alignment", "wrap"} dicts, as
+                           saved pages carry; include it to preview them.
             notes_wide: For note_array — Notes across (1–8). Ignored otherwise.
             notes_tall: For note_array — Notes down (1–8). Ignored otherwise.
             grid_rows: For panel — rows (from list_panels()). Ignored otherwise.
             grid_cols: For panel — columns (from list_panels()). Ignored otherwise.
-            board_id: Optional board to render for (from the boards list in
-                      get_settings_summary()). Its character set decides
-                      extended markup ({{red:HOT}} spans, blocks, icons) and
-                      widths count the tiles it draws; adds charset and
-                      charset_issues (cells that board draws differently,
-                      e.g. lowercase on a split-flap). Geometry still comes
-                      from device_type and the size fields.
+            board_id: Optional board to render for (get_settings_summary()
+                      boards). Its character set decides extended markup
+                      ({{red:HOT}}, icons) and tile widths; adds charset and
+                      charset_issues (cells it draws differently). Geometry
+                      still comes from device_type and the size fields.
+            canvases: Optional pixel canvases. Text under them is blanked (or
+                      flows); for a pixel board_id adds layer_count, layers
+                      ({x, y, width, height}) and canvas_issues.
+            include_layer_pixels: Add each layer's base64 rgba (large).
 
         Returns:
             {
@@ -1297,6 +1430,17 @@ def _build_mcp_server() -> Any:
         context = engine._build_context(
             BoardContext(render_device_type, rows=dims.rows, cols=dims.cols, display=check.display)
         )
+        if canvases:
+            return _preview_with_canvases(
+                template_lines,
+                canvases,
+                check,
+                context,
+                device_type=render_device_type,
+                line_metadata=line_metadata,
+                size=(notes_wide, notes_tall, grid_rows, grid_cols),
+                pixels=include_layer_pixels,
+            )
         rendered = engine.render_lines(
             template_lines,
             context=context,
@@ -1381,6 +1525,7 @@ def _build_mcp_server() -> Any:
         notes_wide: int = 1,
         grid_cols: int | None = None,
         board_id: str | None = None,
+        canvases: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Check template syntax without rendering, saving, or touching the board.
 
@@ -1400,9 +1545,11 @@ def _build_mcp_server() -> Any:
                       (an LED), line length counts the tiles it draws, so
                       {{red:HOT}} is 3 wide. Adds charset; charset_issues
                       need a render — use render_page_preview(board_id=...).
+            canvases: Optional pixel canvases to check; their errors carry
+                      a path (canvases[0].content.shapes[2].fill).
 
-        Returns: {valid: bool, errors: [{line, column, message}], device_type,
-        and — when board_id is given — charset}.
+        Returns: {valid: bool, errors: [{line, column, message} or
+        {path, message}], device_type, and — when board_id is given — charset}.
         """
         from .devices import MIN_GRID_ROWS, resolve_dimensions
         from .templates.engine import get_template_engine
@@ -1419,9 +1566,15 @@ def _build_mcp_server() -> Any:
         check = _charset_check(board_id)
         text = "\n".join(template) if isinstance(template, list) else template
         errors = get_template_engine().validate_template(text, cols=cols, **check.render_kw)
+        found: list[dict[str, Any]] = [{"line": e.line, "column": e.column, "message": e.message} for e in errors]
+        if canvases:
+            # Rows are known only for a fixed shape (a Note array's height
+            # and a panel's rows are not parameters here).
+            rows = {"flagship": 6, "note": 3}.get(device_type)
+            found += _canvas_errors(canvases, rows, cols)
         out: dict[str, Any] = {
-            "valid": len(errors) == 0,
-            "errors": [{"line": e.line, "column": e.column, "message": e.message} for e in errors],
+            "valid": len(found) == 0,
+            "errors": found,
             "device_type": device_type,
         }
         if check.targeted:

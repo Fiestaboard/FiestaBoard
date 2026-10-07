@@ -273,6 +273,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             resume: options.resume,
             approval: autoApproveRef.current ? { auto_approve_destructive: true } : undefined,
             device_type: ctx.deviceType,
+            ...(ctx.boardId && { board_id: ctx.boardId }),
             surface: ctx.surface,
             current_page: ctx.currentPage,
             available_pages: ctx.availablePages,
