@@ -2692,7 +2692,6 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "Ytorna godkändes inte: {message}",
     "notPixelNotice": "Den här sidan har pixelytor. Den här tavlan kan inte rita dem, så deras områden förblir tomma. Förhandsgranska sidan på en LED-pixeltavla för att redigera dem.",
-    "previewWithoutLayers": "Den här förhandsgranskningen visar bara texten; ytorna ritas på själva tavlan.",
     "markerTitle": "En yta börjar på den här raden (inte en del av texten)"
   }
 }

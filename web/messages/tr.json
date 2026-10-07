@@ -2692,7 +2692,6 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "Tuvaller kabul edilmedi: {message}",
     "notPixelNotice": "Bu sayfada piksel tuvalleri var. Bu pano bunları çizemez, bu yüzden alanları boş kalır. Düzenlemek için sayfayı LED piksel panosunda önizleyin.",
-    "previewWithoutLayers": "Bu önizleme yalnızca metni gösterir; tuvaller panonun kendisinde çizilir.",
     "markerTitle": "Bir tuval bu satırda başlıyor (metnin parçası değil)"
   }
 }

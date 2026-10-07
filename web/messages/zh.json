@@ -2692,7 +2692,6 @@
     "issue": "{canvas} · {path}：{message}",
     "serverError": "画布未被接受：{message}",
     "notPixelNotice": "此页面包含像素画布。该看板无法绘制它们，因此其区域保持空白。请在 LED 像素看板上预览页面以进行编辑。",
-    "previewWithoutLayers": "此预览仅显示文字；画布在看板上绘制。",
     "markerTitle": "画布从此行开始（不属于文字）"
   }
 }

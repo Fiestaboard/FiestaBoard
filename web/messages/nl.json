@@ -2692,7 +2692,6 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "De canvassen zijn niet geaccepteerd: {message}",
     "notPixelNotice": "Deze pagina bevat pixelcanvassen. Dit bord kan ze niet tekenen, dus hun gebieden blijven leeg. Bekijk een voorbeeld van de pagina op een LED-pixelbord om ze te bewerken.",
-    "previewWithoutLayers": "Dit voorbeeld toont alleen de tekst; de canvassen worden op het bord zelf getekend.",
     "markerTitle": "Op deze rij begint een canvas (geen onderdeel van de tekst)"
   }
 }

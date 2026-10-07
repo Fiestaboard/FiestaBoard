@@ -121,8 +121,8 @@ const PIXOO_PAGE = page({
 
 const lastRenderBoardId = () => vi.mocked(api.renderTemplate).mock.calls.at(-1)?.[6];
 
-// The page editor draws its preview through DevicePreview; record what it is
-// handed (the real one only forwards `layers` once FiestaUI takes them).
+// The page editor draws its preview through DevicePreview, which hands an LED
+// board to FiestaUI's DisplayPreview; record the layers each is handed.
 const devicePreviewProps: Array<{ layers?: unknown }> = [];
 vi.mock("@/components/device-preview", async () => {
   const actual = await vi.importActual<typeof import("@/components/device-preview")>("@/components/device-preview");
@@ -130,6 +130,17 @@ vi.mock("@/components/device-preview", async () => {
     DevicePreview: (props: Parameters<typeof actual.DevicePreview>[0]) => {
       devicePreviewProps.push({ layers: props.layers });
       return <actual.DevicePreview {...props} />;
+    },
+  };
+});
+const displayPreviewLayers: unknown[] = [];
+vi.mock("@fiestaboard/ui", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@fiestaboard/ui")>();
+  return {
+    ...actual,
+    DisplayPreview: (props: Parameters<typeof actual.DisplayPreview>[0]) => {
+      displayPreviewLayers.push(props.layers);
+      return <actual.DisplayPreview {...props} />;
     },
   };
 });
@@ -154,6 +165,7 @@ describe("PageBuilder — pixel canvases", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     devicePreviewProps.length = 0;
+    displayPreviewLayers.length = 0;
     localStorage.clear();
     servePanels();
     vi.mocked(api.getTemplateVariables).mockResolvedValue({
@@ -191,6 +203,12 @@ describe("PageBuilder — pixel canvases", () => {
       await waitFor(() => expect(lastRenderCanvases()).toEqual([SKY]), { timeout: 5000 });
       expect(lastRenderBoardId()).toBe("pixoo-1");
       await waitFor(() => expect(devicePreviewProps.at(-1)?.layers).toEqual([LAYER]));
+    });
+
+    it("draws the layers in FiestaUI's preview, with no text-only notice", async () => {
+      renderExisting();
+      await waitFor(() => expect(displayPreviewLayers.at(-1)).toEqual([LAYER]), { timeout: 5000 });
+      expect(screen.queryByText(/shows the text only/i)).not.toBeInTheDocument();
     });
 
     it("shows the canvas issues the preview reports", async () => {

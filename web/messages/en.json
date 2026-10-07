@@ -2692,7 +2692,6 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "The canvases were not accepted: {message}",
     "notPixelNotice": "This page has pixel canvases. This board can't draw them, so their areas stay blank. Preview the page on an LED pixel board to edit them.",
-    "previewWithoutLayers": "This preview shows the text only; the canvases draw on the board itself.",
     "markerTitle": "A canvas starts on this row (not part of the text)"
   }
 }

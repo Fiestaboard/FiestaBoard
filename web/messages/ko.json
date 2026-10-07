@@ -2692,7 +2692,6 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "캔버스가 허용되지 않았습니다: {message}",
     "notPixelNotice": "이 페이지에는 픽셀 캔버스가 있습니다. 이 보드는 캔버스를 그릴 수 없어 해당 영역이 비어 있습니다. 편집하려면 LED 픽셀 보드에서 페이지를 미리 보세요.",
-    "previewWithoutLayers": "이 미리보기는 텍스트만 표시하며, 캔버스는 보드에서 직접 그려집니다.",
     "markerTitle": "이 행에서 캔버스가 시작됩니다 (텍스트의 일부 아님)"
   }
 }

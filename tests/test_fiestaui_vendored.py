@@ -39,7 +39,7 @@ def test_every_vendored_file_is_pinned():
 
 def test_provenance_records_one_fiestaui_commit():
     assert provenance()["source"] == "Fiestaboard/FiestaUI"
-    assert provenance()["commit"] == "2250b760a91ec463c592f4c0b88818344bb9bf39"
+    assert provenance()["commit"] == "2df29c78167e56b790b637769e195f83a580954b"
 
 
 def test_every_file_comes_from_the_one_commit():
@@ -48,13 +48,13 @@ def test_every_file_comes_from_the_one_commit():
     assert provenance().get("files_from", {}) == {}
 
 
-def test_the_vendored_commit_is_the_8_3_0_release():
-    # 2250b760 is the @fiestaboard/ui 8.3.0 release commit (tag v8.3.0), which
-    # ships #341 (the Pixoo 64 streams at 5 fps) on top of #342
-    # (layoutOptions.font, 8.1.0).
+def test_the_vendored_commit_is_the_8_4_0_release():
+    # 2df29c78 is the @fiestaboard/ui 8.4.0 release commit (tag v8.4.0), which
+    # ships #343 (LED bitmap layers and their goldens) on top of #341 (the
+    # Pixoo 64 streams at 5 fps, 8.3.0) and #342 (layoutOptions.font, 8.1.0).
     record = provenance()
-    assert {341, 342} <= set(record["pull_requests"])
-    assert record["tag"] == "v8.3.0"
-    assert record["version"] == "8.3.0"
+    assert {341, 342, 343} <= set(record["pull_requests"])
+    assert record["tag"] == "v8.4.0"
+    assert record["version"] == "8.4.0"
     assert record["status"].startswith("released")
     assert "branch" not in record

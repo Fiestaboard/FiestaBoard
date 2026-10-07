@@ -2692,7 +2692,6 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "Kanwy nie zostały zaakceptowane: {message}",
     "notPixelNotice": "Ta strona zawiera kanwy pikselowe. Ta tablica nie może ich rysować, więc ich obszary pozostają puste. Aby je edytować, wyświetl podgląd strony na tablicy LED z pikselami.",
-    "previewWithoutLayers": "Ten podgląd pokazuje tylko tekst; kanwy są rysowane na samej tablicy.",
     "markerTitle": "W tym wierszu zaczyna się kanwa (nie jest częścią tekstu)"
   }
 }

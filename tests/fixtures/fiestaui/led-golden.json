@@ -1,6 +1,54 @@
 {
-  "about": "Golden cases for ports of FiestaUI's LED layout, raster and transitions. Frames are RGB888, row-major, origin top-left, base64. A layout case with `charset` lays out with that plugin set materialised (materializeCharacterSet) over the built-in it extends; one with `cells` lays out that parsed grid with layoutLedCellGrid and must draw the same frame as its `message`. `options.tileGap` (\"gap\" default | \"fill\") and `options.blockPadding` (0 default | 1) change device bytes by the rules in design spec §7.6: \"fill\" lights a gutter pixel when every cell around it (two for an edge, four for a corner) is a lit field of one colour — a colour tile, a block cell, a tile-fallback icon; padding 1 lights every gutter or margin pixel bordering a block cell in the block's colour; a pixel bordered by fields of two colours is never lit; the margin is never lit by fill; nothing is lit outside the matrix or inside a glyph box; in \"gap\" a block's rect still joins a same-colour block cell to its right and below, as it always did. A transition case's `resolvedSpec` is `transition` as written, or resolved through `model`'s (a built-in id) or `pluginModel`'s (a plugin declaration, its set inline and materialised) animation capability (resolveLedTransition) so the device's frame budget applies; with `pluginModel` both messages lay out with its set, so the flip's scramble draws only from it; a case with `before` first lays that message out with that set (materialised) and discards it, and its frames must be byte-identical to the same case without it — glyph identity is a stable key (the character, `tile:<numeric code>`, `icon:<name>`, `\" \"` blank), the flip seed is FNV-1a over u32le(cellIndex) ‖ u32le(cols) ‖ u32le(rows) ‖ utf8(fromKey) ‖ 0x00 ‖ utf8(toKey) ‖ 0x00 into mulberry32, and the scramble pool is the set's glyph keys sorted in code-point order; `frames` is ledTransitionFrames(planLedTransition(from, to, resolvedSpec), fps ?? 30) — exactly the sequence a device receives, the last frame always the settled `to`. Regenerate with `node scripts/ci/led-fixtures.mjs`.",
+  "about": "Golden cases for ports of FiestaUI's LED layout, raster and transitions. Frames are RGB888, row-major, origin top-left, base64. A layout case with `charset` lays out with that plugin set materialised (materializeCharacterSet) over the built-in it extends; one with `cells` lays out that parsed grid with layoutLedCellGrid and must draw the same frame as its `message`. `options.tileGap` (\"gap\" default | \"fill\") and `options.blockPadding` (0 default | 1) change device bytes by the rules in design spec §7.6: \"fill\" lights a gutter pixel when every cell around it (two for an edge, four for a corner) is a lit field of one colour — a colour tile, a block cell, a tile-fallback icon; padding 1 lights every gutter or margin pixel bordering a block cell in the block's colour; a pixel bordered by fields of two colours is never lit; the margin is never lit by fill; nothing is lit outside the matrix or inside a glyph box; in \"gap\" a block's rect still joins a same-colour block cell to its right and below, as it always did. A transition case's `resolvedSpec` is `transition` as written, or resolved through `model`'s (a built-in id) or `pluginModel`'s (a plugin declaration, its set inline and materialised) animation capability (resolveLedTransition) so the device's frame budget applies; with `pluginModel` both messages lay out with its set, so the flip's scramble draws only from it; a case with `before` first lays that message out with that set (materialised) and discards it, and its frames must be byte-identical to the same case without it — glyph identity is a stable key (the character, `tile:<numeric code>`, `icon:<name>`, `\" \"` blank), the flip seed is FNV-1a over u32le(cellIndex) ‖ u32le(cols) ‖ u32le(rows) ‖ utf8(fromKey) ‖ 0x00 ‖ utf8(toKey) ‖ 0x00 into mulberry32, and the scramble pool is the set's glyph keys sorted in code-point order; `options.layers` (layout cases) and `fromLayers` / `toLayers` (transition cases) are bitmap layers — {x, y, width, height, rgba: base64 RGBA, row-major} — drawn after every cell op, in order: a pixel with alpha > 0 overwrites with its RGB (no blending), alpha 0 leaves what is under, pixels outside the matrix are clipped; on a monochrome panel a pixel with alpha > 0 lights in the panel colour when 299·r + 587·g + 114·b ≥ 127500 and is unlit otherwise. Per-pixel transitions work on the frames, layers included; flip and cascade draw their mid-way layouts with the from layers for the first half and the to layers for the second (flip frame f of F frames: to layers when 2f ≥ F − 1; cascade slot n of N changed cells: when 2n ≥ N), and repaint the layers over every half-turned flap. `frames` is ledTransitionFrames(planLedTransition(from, to, resolvedSpec), fps ?? 30) — exactly the sequence a device receives, the last frame always the settled `to`. Regenerate with `node scripts/ci/led-fixtures.mjs`.",
   "layouts": [
+    {
+      "name": "bitmap layers over text, alpha and clipping",
+      "message": "HI {63}\nYO",
+      "spec": { "width": 16, "height": 11, "font": "3x5" },
+      "options": {
+        "layers": [
+          {
+            "x": -2,
+            "y": -1,
+            "width": 7,
+            "height": 5,
+            "rgba": "ADzcAAA83P8APNz/ADzc/wA83P8APNz/ADzc/yhQtP8oULQAKFC0/yhQtP8oULT/KFC0/yhQtP9QZIz/UGSM/1BkjP9QZIz/UGSM/1BkjP9QZIz/eHhk/3h4ZP94eGT/eHhk/3h4ZP94eGT/eHhk/6CMPP+gjDz/oIw8/6CMPP+gjDz/oIw8/6CMPP8="
+          },
+          {
+            "x": 13,
+            "y": 8,
+            "width": 5,
+            "height": 5,
+            "rgba": "Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/w=="
+          }
+        ]
+      },
+      "text": "HI YO",
+      "width": 16,
+      "height": 11,
+      "frame": "KFC0KFC0KFC0KFC0KFC0////////AAAAAAAAAAAAAAAAAAAA60A060A060A0AAAAUGSMUGSMUGSMUGSMUGSM////AAAAAAAAAAAAAAAAAAAAAAAA60A060A060A0AAAAeHhkeHhkeHhkeHhkeHhk////AAAAAAAAAAAAAAAAAAAAAAAA60A060A060A0AAAAoIw8oIw8oIw8oIw8oIw8////AAAAAAAAAAAAAAAAAAAAAAAA60A060A060A0AAAA////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA60A060A060A0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAHsg8Hsg8Hsg8AAAA////AAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAHsg8Hsg8Hsg8AAAA////AAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAHsg8Hsg8Hsg8"
+    },
+    {
+      "name": "bitmap layer on a monochrome red panel",
+      "message": "HI {63}\nYO",
+      "spec": { "width": 16, "height": 11, "font": "3x5" },
+      "options": {
+        "monochrome": "#ff3b1f",
+        "layers": [
+          {
+            "x": 0,
+            "y": 9,
+            "width": 16,
+            "height": 2,
+            "rgba": "AAAA/xEREf8iIiL/MzMz/0RERP9VVVX/ZmZm/3d3d/+IiIgAmZmZ/6qqqv+7u7v/zMzM/93d3f/u7u7///////8AAP//EAD//yAA//8wAP//QAD//1AA//9gAP//cAD//4AA//+QAP//oAD//7AA///AAP//0AD//+AA///wAP8="
+          }
+        ]
+      },
+      "text": "HI YO",
+      "width": 16,
+      "height": 11,
+      "frame": "/zsfAAAA/zsfAAAA/zsf/zsf/zsfAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsfAAAA/zsfAAAA/zsfAAAAAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsfAAAA/zsf/zsf/zsfAAAAAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsfAAAA/zsfAAAA/zsfAAAAAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsfAAAA/zsfAAAA/zsfAAAA/zsf/zsf/zsfAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/zsfAAAA/zsfAAAAAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/zsfAAAA/zsfAAAA/zsfAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/zsfAAAAAAAA/zsfAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsf/zsf/zsf/zsf/zsfAAAAAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsf/zsf/zsf/zsf/zsf/zsf/zsf/zsf"
+    },
     {
       "name": "awtrix 3x5 clip",
       "message": "72° {66}OK TOO LONG",
@@ -898,6 +946,87 @@
         "AAAA60A0SpDZAAAASpDZSpDZAAAAAAAAAAAAAAAAAAAAAAAA60A0AAAA60A0AAAA60A0AAAASpDZAAAAAAAAAAAAAAAAAAAA60A060A060A0AAAASpDZAAAAAAAAAAAAAAAAAAAAAAAAAAAA60A0AAAA60A0AAAASpDZAAAA60A0AAAAAAAAAAAAAAAAAAAAAAAASpDZSpDZAAAASpDZSpDZAAAAAAAAAAAAAAAAAAAAAAAA",
         "AAAASpDZSpDZAAAASpDZSpDZAAAAAAAAAAAAAAAAAAAAAAAA60A0AAAA60A0AAAA60A0AAAASpDZAAAAAAAAAAAAAAAAAAAASpDZ60A0AAAAAAAASpDZAAAASpDZAAAAAAAAAAAAAAAAAAAASpDZAAAA60A0AAAASpDZAAAASpDZAAAAAAAAAAAAAAAAAAAAAAAASpDZSpDZAAAASpDZSpDZAAAAAAAAAAAAAAAAAAAAAAAA",
         "AAAASpDZSpDZAAAASpDZSpDZAAAAAAAAAAAAAAAAAAAAAAAASpDZAAAAAAAAAAAASpDZAAAASpDZAAAAAAAAAAAAAAAAAAAASpDZAAAAAAAAAAAASpDZAAAASpDZAAAAAAAAAAAAAAAAAAAASpDZAAAAAAAAAAAASpDZAAAASpDZAAAAAAAAAAAAAAAAAAAAAAAASpDZSpDZAAAASpDZSpDZAAAAAAAAAAAAAAAAAAAAAAAA"
+      ]
+    },
+    {
+      "name": "flip with half-flaps, layers swapped half-way",
+      "from": "AB",
+      "to": "CD",
+      "spec": { "width": 12, "height": 5, "font": "3x5" },
+      "transition": { "kind": "flip", "stepMs": 80, "scrambleSteps": 3, "stagger": 1 },
+      "fps": 25,
+      "fromLayers": [
+        {
+          "x": 0,
+          "y": 3,
+          "width": 12,
+          "height": 2,
+          "rgba": "/wAA//8AEP//ACD//wAw//8AQP//AFD//wBg//8AcP//AID//wCQ//8AoP//ALD//wAA//8AEP//ACD//wAw//8AQP//AFD//wBg//8AcP//AID//wCQ//8AoP//ALD/"
+        }
+      ],
+      "toLayers": [
+        {
+          "x": 0,
+          "y": 3,
+          "width": 12,
+          "height": 2,
+          "rgba": "AAD/AAAQ//8AIP//ADD//wBA//8AUP//AGD//wBw//8AgP//AJD//wCg//8AsP//AAD/AAAQ//8AIP//ADD//wBA//8AUP//AGD//wBw//8AgP//AJD//wCg//8AsP//"
+        }
+      ],
+      "resolvedSpec": { "kind": "flip", "stepMs": 80, "scrambleSteps": 3, "stagger": 1 },
+      "durationMs": 400,
+      "frameCount": null,
+      "width": 12,
+      "height": 5,
+      "frames": [
+        "AAAA////AAAAAAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////////////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+        "AAAA////AAAAAAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////////////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+        "AAAA////AAAAAAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////////////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+        "AAAA////AAAAAAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+        "AAAA////AAAAAAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+        "AAAAAAAAAAAAAAAAAAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+        "AAAAAAAAAAAAAAAAAAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAAAAAAABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/AAAAABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/",
+        "////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/AAAAABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/",
+        "////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/",
+        "AAAA////////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////AAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////AAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/",
+        "AAAA////////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////AAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////AAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/AAAAABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/"
+      ]
+    },
+    {
+      "name": "fade between layers alone",
+      "from": "HI",
+      "to": "HI",
+      "spec": { "width": 12, "height": 5, "font": "3x5" },
+      "transition": { "kind": "fade", "durationMs": 200, "maxFrames": 5 },
+      "fromLayers": [
+        {
+          "x": 0,
+          "y": 3,
+          "width": 12,
+          "height": 2,
+          "rgba": "/wAA//8AEP//ACD//wAw//8AQP//AFD//wBg//8AcP//AID//wCQ//8AoP//ALD//wAA//8AEP//ACD//wAw//8AQP//AFD//wBg//8AcP//AID//wCQ//8AoP//ALD/"
+        }
+      ],
+      "toLayers": [
+        {
+          "x": 0,
+          "y": 3,
+          "width": 12,
+          "height": 2,
+          "rgba": "AAD/AAAQ//8AIP//ADD//wBA//8AUP//AGD//wBw//8AgP//AJD//wCg//8AsP//AAD/AAAQ//8AIP//ADD//wBA//8AUP//AGD//wBw//8AgP//AJD//wCg//8AsP//"
+        }
+      ],
+      "resolvedSpec": { "kind": "fade", "durationMs": 200, "maxFrames": 5 },
+      "durationMs": 200,
+      "frameCount": 5,
+      "width": 12,
+      "height": 5,
+      "frames": [
+        "////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+        "////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/0BAvwRMvwhYvwxkvxBwvxR8vxiIvxyUvyCgvySsvyi4vyzE/0BAvwRMvwhYvwxkvxBwvxR8vxiIvxyUvyCgvySsvyi4vyzE",
+        "////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/4CAgAiIgBCQgBiYgCCggCiogDCwgDi4gEDAgEjIgFDQgFjY/4CAgAiIgBCQgBiYgCCggCiogDCwgDi4gEDAgEjIgFDQgFjY",
+        "////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/7+/QAzDQBjHQCTLQDDPQDzTQEjXQFTbQGDfQGzjQHjnQITr/7+/QAzDQBjHQCTLQDDPQDzTQEjXQFTbQGDfQGzjQHjnQITr",
+        "////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/"
       ]
     }
   ]

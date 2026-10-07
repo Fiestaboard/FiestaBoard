@@ -1,8 +1,7 @@
 /**
  * A pixel board's canvas layers (`layers` from a batch preview or the board's
- * current message) reach FiestaUI's `DisplayPreview` once the installed
- * release takes them (`PREVIEW_TAKES_LAYERS`, FiestaUI#343). Until then the
- * preview draws the cells alone. `DisplayPreview` is stubbed to record props.
+ * current message) reach FiestaUI's `DisplayPreview`, which draws them over
+ * the cells (FiestaUI#343). `DisplayPreview` is stubbed to record props.
  */
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,8 +32,14 @@ beforeEach(() => {
 });
 
 describe("ledLayerProps", () => {
-  it("hands layers on only when the installed DisplayPreview takes them", () => {
-    expect(ledLayerProps([LAYER])).toEqual(PREVIEW_TAKES_LAYERS ? { layers: [LAYER] } : {});
+  it("holds the installed DisplayPreview's layers prop", () => {
+    // The constant's `satisfies` only compiles while the pinned FiestaUI
+    // release takes `layers`.
+    expect(PREVIEW_TAKES_LAYERS).toBe(true);
+  });
+
+  it("hands the layers on as DisplayPreview's layers prop", () => {
+    expect(ledLayerProps([LAYER])).toEqual({ layers: [LAYER] });
   });
 
   it("is empty when there are no layers", () => {
@@ -45,14 +50,14 @@ describe("ledLayerProps", () => {
 });
 
 describe("DevicePreview with canvas layers", () => {
-  it("passes an LED board's layers through the gate to DisplayPreview", () => {
+  it("passes an LED board's layers to DisplayPreview", () => {
     render(
       <DevicePreview model={FIESTAPANEL_LED_MATRIX} message="HI" layers={[LAYER]}>
         <div />
       </DevicePreview>,
     );
     expect(seen).toHaveLength(1);
-    expect(seen[0].layers).toEqual(PREVIEW_TAKES_LAYERS ? [LAYER] : undefined);
+    expect(seen[0].layers).toEqual([LAYER]);
   });
 
   it("draws a split-flap board's own children and never DisplayPreview", () => {

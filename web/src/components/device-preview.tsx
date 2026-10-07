@@ -14,10 +14,7 @@ export interface DevicePreviewProps {
   message?: string | null;
   /** Parsed cells (`BoardToken[][]`) where the API provides them; win over `message`. */
   cells?: BoardCellGrid;
-  /**
-   * A pixel board's canvas layers (`layers` from the API), drawn over the
-   * cells once the installed FiestaUI takes them (`PREVIEW_TAKES_LAYERS`).
-   */
+  /** A pixel board's canvas layers (`layers` from the API), drawn over the cells. Ignored for a split-flap board. */
   layers?: CanvasLayerJson[] | null;
   size?: "sm" | "md" | "lg";
   /** A fixed accessible name (thumbnails), instead of one built from the message. */

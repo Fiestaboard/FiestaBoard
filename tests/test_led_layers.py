@@ -1,9 +1,12 @@
 """LED bitmap layers: a page's pixel canvases drawn over the cells (design §3 steps 5-6).
 
-The goldens are FiestaUI's own bytes (``tests/fixtures/fiestaui-led-layers.json``,
-copied from Fiestaboard/FiestaUI#343 at a8a62517): two layouts (alpha,
-clipping, a monochrome panel) and two transitions (a half-flap flip whose
-layers swap half-way, a fade between layers alone).
+The goldens are FiestaUI's own bytes: the layer cases in the vendored
+``tests/fixtures/fiestaui/led-golden.json`` (Fiestaboard/FiestaUI#343) — two
+layouts (alpha, clipping, a monochrome panel) and two transitions (a
+half-flap flip whose layers swap half-way, a fade between layers alone).
+``tests/test_led_parity.py`` and ``tests/test_led_transitions.py`` check
+them frame for frame with every other golden case; this file pins that
+they are there, and the rules one by one.
 """
 
 from __future__ import annotations
@@ -12,67 +15,28 @@ import base64
 import json
 from pathlib import Path
 
-import pytest
-
 from src.canvas import CanvasLayer
 from src.led import LedLayoutOptions, LedMatrixSpec, layout_message, rasterize
 from src.led.matrix import LedBitmapLayer, decode_layers, grid_layout, layout_cells
-from src.led.transitions import LedTransitionSpec, plan_transition, transition_frames
+from src.led.transitions import LedTransitionSpec, plan_transition
 
-FIXTURE = json.loads(
-    (Path(__file__).resolve().parent / "fixtures" / "fiestaui-led-layers.json").read_text(encoding="utf-8")
+GOLDEN = json.loads(
+    (Path(__file__).resolve().parent / "fixtures" / "fiestaui" / "led-golden.json").read_text(encoding="utf-8")
 )
-LAYOUTS = FIXTURE["layouts"]
-TRANSITIONS = FIXTURE["transitions"]
+LAYER_LAYOUTS = [c for c in GOLDEN["layouts"] if c.get("options", {}).get("layers")]
+LAYER_TRANSITIONS = [c for c in GOLDEN["transitions"] if c.get("fromLayers") or c.get("toLayers")]
 
 
-def _spec(raw: dict) -> LedMatrixSpec:
-    return LedMatrixSpec(width=raw["width"], height=raw["height"], font=raw.get("font", "5x7"))
-
-
-def _layout_case(case: dict):
-    raw = case.get("options", {})
-    options = LedLayoutOptions(monochrome=raw.get("monochrome"), text_color=raw.get("textColor"))
-    return layout_message(case["message"], _spec(case["spec"]), options, layers=raw.get("layers", ()))
-
-
-def _diff(actual: bytes, expected: bytes, width: int, limit: int = 6) -> str:
-    out = []
-    for p in range(min(len(actual), len(expected)) // 3):
-        got, want = actual[p * 3 : p * 3 + 3], expected[p * 3 : p * 3 + 3]
-        if got != want:
-            out.append(f"  ({p % width}, {p // width}): got #{got.hex()} want #{want.hex()}")
-            if len(out) == limit:
-                break
-    return "\n".join(out)
-
-
-def test_fixture_holds_the_four_layer_cases_from_fiestaui_343():
-    assert FIXTURE["source"]["commit"] == "a8a62517"
-    assert len(LAYOUTS) == 2 and len(TRANSITIONS) == 2
-
-
-@pytest.mark.parametrize("case", LAYOUTS, ids=[c["name"] for c in LAYOUTS])
-def test_layer_layout_frame_matches_fiestaui(case):
-    layout = _layout_case(case)
-    frame = rasterize(layout)
-    expected = base64.b64decode(case["frame"])
-    assert layout.text == case["text"]
-    assert frame.pixels == expected, "first differing pixels:\n" + _diff(frame.pixels, expected, frame.width)
-
-
-@pytest.mark.parametrize("case", TRANSITIONS, ids=[c["name"] for c in TRANSITIONS])
-def test_layer_transition_frames_match_fiestaui(case):
-    spec = _spec(case["spec"])
-    before = layout_message(case["from"], spec, layers=case["fromLayers"])
-    after = layout_message(case["to"], spec, layers=case["toLayers"])
-    tr = plan_transition(before, after, LedTransitionSpec.from_dict(case["transition"]))
-    assert (tr.duration_ms, tr.frame_count) == (case["durationMs"], case["frameCount"])
-    frames = transition_frames(tr, case.get("fps", 30))
-    expected = [base64.b64decode(f) for f in case["frames"]]
-    assert len(frames) == len(expected)
-    for i, (frame, want) in enumerate(zip(frames, expected, strict=True)):
-        assert frame.pixels == want, f"frame {i} of {len(expected)} differs:\n" + _diff(frame.pixels, want, frame.width)
+def test_the_vendored_golden_holds_the_four_layer_cases_from_fiestaui_343():
+    # A re-vendor that dropped one would leave that rule unpinned.
+    assert {c["name"] for c in LAYER_LAYOUTS} == {
+        "bitmap layers over text, alpha and clipping",
+        "bitmap layer on a monochrome red panel",
+    }
+    assert {c["name"] for c in LAYER_TRANSITIONS} == {
+        "flip with half-flaps, layers swapped half-way",
+        "fade between layers alone",
+    }
 
 
 # --- the rules, one by one ---------------------------------------------------
