@@ -19,6 +19,7 @@ from src.devices import (
     MAX_GRID_COLS,
     MAX_GRID_ROWS,
     MAX_NOTES_PER_AXIS,
+    MAX_TRANSITION_STEP_INTERVAL_MS,
     DeviceType,
     resolve_dimensions,
 )
@@ -94,13 +95,13 @@ class Page(BaseModel):
     # Rotation settings
     duration_seconds: int = Field(default=300, ge=10, le=3600)  # 10s to 1h
 
-    # Transition settings (per-page override, None means use system defaults).
+    # Transition settings (per-page override, None means use the display's own).
     # Valid strategies: column, reverse-column, edges-to-center, row, diagonal,
     # random, or "plugin:<id>" to drive a frame-by-frame transition plugin
     # (e.g. "plugin:typewriter").  Pydantic stores any string; the strategy
     # is validated lazily at send-time by board_client.render().
     transition_strategy: str | None = None
-    transition_interval_ms: int | None = Field(default=None, ge=0, le=5000)
+    transition_interval_ms: int | None = Field(default=None, ge=0, le=MAX_TRANSITION_STEP_INTERVAL_MS)
     transition_step_size: int | None = Field(default=None, ge=1)
 
     # Plugin demo page tracking (singleton per plugin)
@@ -192,7 +193,7 @@ class PageCreate(BaseModel):
     duration_seconds: int = Field(default=300, ge=10, le=3600)
     # Transition settings (per-page override)
     transition_strategy: str | None = None
-    transition_interval_ms: int | None = Field(default=None, ge=0, le=5000)
+    transition_interval_ms: int | None = Field(default=None, ge=0, le=MAX_TRANSITION_STEP_INTERVAL_MS)
     transition_step_size: int | None = Field(default=None, ge=1)
     # Plugin demo page tracking
     demo_plugin_id: str | None = None
@@ -227,7 +228,7 @@ class PageUpdate(BaseModel):
     duration_seconds: int | None = Field(default=None, ge=10, le=3600)
     # Transition settings (per-page override, use ... sentinel to leave unchanged)
     transition_strategy: str | None = None
-    transition_interval_ms: int | None = Field(default=None, ge=0, le=5000)
+    transition_interval_ms: int | None = Field(default=None, ge=0, le=MAX_TRANSITION_STEP_INTERVAL_MS)
     transition_step_size: int | None = Field(default=None, ge=1)
     # Note-array dimensions (only used when device_type is "note_array")
     notes_wide: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)

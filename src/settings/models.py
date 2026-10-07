@@ -30,7 +30,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
 from src.api_deprecation import FLAT_BOARD_FIELDS_NOTE
 from src.config import SilenceMode
-from src.devices import DeviceType, HardwareDeviceType
+from src.devices import MAX_TRANSITION_STEP_INTERVAL_MS, DeviceType, HardwareDeviceType
 from src.settings.service import VALID_OUTPUT_TARGETS, SettingsRestoreNotice
 
 # ---------------------------------------------------------------------------
@@ -175,12 +175,14 @@ class TransitionSettingsUpdate(BaseModel):
     """Partial transition update.
 
     An explicit ``null`` clears a field; an omitted key leaves it alone. The
-    handler tells the two apart with ``exclude_unset``.
+    handler tells the two apart with ``exclude_unset``. The bounds are a
+    display's (``src.devices.TRANSITION_SPEED_BOUNDS``), the interval's the
+    same as a page's.
     """
 
     strategy: str | None = None
-    step_interval_ms: int | None = None
-    step_size: int | None = None
+    step_interval_ms: int | None = Field(default=None, ge=0, le=MAX_TRANSITION_STEP_INTERVAL_MS)
+    step_size: int | None = Field(default=None, ge=1)
 
 
 # ---------------------------------------------------------------------------
@@ -556,44 +558,31 @@ class SunTimesWeekResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Beta
+# Beta (deprecated alias of the plugin flags, until v11)
 # ---------------------------------------------------------------------------
 
 
 class BetaSettings(BaseModel):
-    """Opt-in beta feature flags."""
+    """The two plugin flags, as ``/settings/beta`` still reports them."""
 
-    https_enabled: bool
     transition_plugins_enabled: bool
     output_plugins_enabled: bool = False
 
 
-class BetaHttpsStatus(BaseModel):
-    """Runtime status of the HTTPS beta feature."""
-
-    cert_present: bool
-    cert_path: str
-    key_path: str
-    updater_available: bool
-
-
 class BetaSettingsResponse(BaseModel):
-    """Beta flags plus the certificate/sidecar status behind them."""
+    """``GET``/``PUT /settings/beta``: deprecated, read ``/settings/plugins``."""
 
     settings: BetaSettings
-    https: BetaHttpsStatus
-
-
-class BetaSettingsUpdateResponse(BetaSettingsResponse):
-    """Beta flags after a write, plus whether a restart is needed."""
-
-    restart_required: bool
 
 
 class BetaSettingsUpdate(BaseModel):
-    """Partial beta update: only the flags present are changed."""
+    """Partial update of the two plugin flags through the deprecated alias.
 
-    https_enabled: StrictBool | None = None
+    Any other key is ignored — ``https_enabled`` (removed in v5) and
+    ``auto_update`` (never a beta flag) included — so an old client gets a
+    200 and no change.
+    """
+
     transition_plugins_enabled: StrictBool | None = None
     output_plugins_enabled: StrictBool | None = None
 
@@ -622,9 +611,15 @@ class WizardStateBody(BaseModel):
 
 
 class PluginSettingsResponse(BaseModel):
-    """Plugin-system settings."""
+    """Plugin-system settings.
+
+    ``transition_plugins_enabled`` / ``output_plugins_enabled`` were the
+    ``/settings/beta`` flags until settings v6.
+    """
 
     auto_update: bool
+    transition_plugins_enabled: bool = False
+    output_plugins_enabled: bool = False
 
 
 class PluginSettingsUpdate(BaseModel):
@@ -636,6 +631,8 @@ class PluginSettingsUpdate(BaseModel):
     """
 
     auto_update: StrictBool | None = None
+    transition_plugins_enabled: StrictBool | None = None
+    output_plugins_enabled: StrictBool | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -755,7 +752,6 @@ class AllSettingsResponse(BaseModel):
     mqtt: MqttSettingsResponse
     display: DisplaySettingsResponse
     location: LocationSettingsResponse
-    beta: BetaSettings
     plugins: PluginSettingsResponse
     schedule: ScheduleBehaviourBlock
     status: ServiceStatus

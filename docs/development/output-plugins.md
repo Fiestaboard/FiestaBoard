@@ -13,7 +13,7 @@ This page is the complete reference for output plugin authors. It assumes you kn
 :::info Beta: FiestaBoard 10.0.0 and later
 Output plugins arrive with FiestaBoard **10.0.0**, and the contract (`output_api` 1) is a **beta**: it may still change before it is declared stable. Set `"fiestaboard_version": ">=10.0.0"` in your manifest.
 
-Third-party output plugins, installed from the plugin registry or a git URL, run only while **Settings → Advanced → Beta Features → Output Plugins** is on. Outputs that ship with FiestaBoard need no beta.
+Third-party output plugins, installed from the plugin registry or a git URL, run only while the **Third-party displays (beta)** switch in the **Integrations** page header is on. Outputs that ship with FiestaBoard need no beta.
 :::
 
 ## The Short Version
@@ -679,7 +679,7 @@ PYTHONPATH="$(pwd):/path/to/FiestaBoard" python -m pytest tests/
 
 ### Install it while you develop
 
-With **Settings → Advanced → Beta Features → Output Plugins** on, install your repository from **Integrations → Marketplace → Install Plugin from Git**, or with the API:
+With the **Third-party displays (beta)** switch in the **Integrations** page header on, install your repository from **Integrations → Marketplace → Install Plugin from Git**, or with the API:
 
 ```bash
 curl -X POST http://localhost:4420/api/plugins/install \
@@ -708,7 +708,7 @@ An output plugin a board uses cannot be uninstalled. Remove the board first.
 Once it works on your device, open a pull request against FiestaBoard that adds your plugin to `plugin-registry.json`, as for any [external plugin](/docs/development/plugin-guide#developing-an-external-plugin), with `"plugin_type": "output"` in the entry. Your repository must follow the `fiestaboard-output--<name>` convention.
 
 :::note Third-party outputs in the beta
-While the contract is in beta, every third-party output plugin, listed in the registry or installed by git URL, stays behind **Settings → Advanced → Beta Features → Output Plugins**. The setup wizard shows such displays as needing the beta, and offers to turn it on.
+While the contract is in beta, every third-party output plugin, listed in the registry or installed by git URL, stays behind the **Third-party displays (beta)** switch in the **Integrations** page header. The setup wizard shows such displays as needing the beta, and offers to turn it on.
 :::
 
 ### Outputs that ship with FiestaBoard

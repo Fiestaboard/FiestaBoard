@@ -108,7 +108,7 @@ settings_service.should_send_to_board.return_value = False
 settings_service.get_primary_board_id.return_value = "board-1"
 settings_service.get_output_settings.return_value = MagicMock(target="ui")
 settings_service.get_transition_settings.return_value = MagicMock(strategy=None, step_interval_ms=None, step_size=None)
-settings_service.get_beta_settings.return_value = MagicMock(transition_plugins_enabled=True)
+settings_service.get_plugin_settings.return_value = MagicMock(transition_plugins_enabled=True)
 
 collection_service = MagicMock()
 collection_service.resolve_page_id.return_value = "page:abc"

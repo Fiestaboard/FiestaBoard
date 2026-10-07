@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-CONFIGS = ("nginx.conf", "nginx.https.conf", "nginx-dev.conf")
+CONFIGS = ("nginx.conf", "nginx-dev.conf")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 

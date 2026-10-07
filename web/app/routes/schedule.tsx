@@ -287,7 +287,7 @@ export default function SchedulePage() {
   }, [allSettings]);
 
   const handleSilenceClick = useCallback(() => {
-    router.push("/settings?section=behavior#silence-schedule");
+    router.push("/settings?section=scheduling#silence-schedule");
   }, [router]);
 
   // Toggle schedule (per board when multi-board)

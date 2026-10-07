@@ -53,33 +53,16 @@ export interface DisplaySettings {
   board_flap_speed: string | number;
 }
 
-export interface BetaSettings {
-  https_enabled: boolean;
-  transition_plugins_enabled: boolean;
-  /** Output plugins from the registry or a git URL may drive boards. */
-  output_plugins_enabled: boolean;
-}
-
+/**
+ * `GET`/`PUT /settings/plugins`. The two plugin flags were the
+ * `/settings/beta` flags until settings v6.
+ */
 export interface PluginSettings {
   auto_update: boolean;
-}
-
-export interface BetaHttpsStatus {
-  cert_present: boolean;
-  cert_path: string;
-  key_path: string;
-  updater_available: boolean;
-}
-
-export interface BetaSettingsResponse {
-  settings: BetaSettings;
-  https: BetaHttpsStatus;
-}
-
-export interface BetaSettingsUpdateResponse {
-  settings: BetaSettings;
-  https: BetaHttpsStatus;
-  restart_required: boolean;
+  /** Transition plugins (deprecated, beta) may be chosen as a display's or a page's transition. */
+  transition_plugins_enabled: boolean;
+  /** Output plugins from the registry or a git URL may drive boards (beta). */
+  output_plugins_enabled: boolean;
 }
 
 export interface LocationSettings {
@@ -102,13 +85,13 @@ export interface AllSettingsResponse {
   general: GeneralConfig;
   silence_schedule: SilenceScheduleSettings;
   polling: PollingSettings;
+  /** The FIRST display's transition. Deprecated (removed in v11): each display owns its own. */
   transitions: TransitionSettings;
   output: OutputSettings;
   board: BoardSettings;
   mqtt: MqttSettings;
   display: DisplaySettings;
   location: LocationSettings;
-  beta: BetaSettings;
   plugins: PluginSettings;
   schedule: ScheduleBehaviorSettings;
   status: {
@@ -139,13 +122,9 @@ export const settingsApi = {
   getSettingsRestoreNotice: () => fetchApi<SettingsRestoreNoticeResponse>("/settings/restore-notice"),
   dismissSettingsRestoreNotice: () =>
     fetchApi<SettingsRestoreNoticeResponse>("/settings/restore-notice", { method: "DELETE" }),
-  // Settings endpoints
-  getTransitionSettings: () => fetchApi<TransitionSettings>("/settings/transitions"),
-  updateTransitionSettings: (settings: Partial<TransitionSettings>) =>
-    fetchApi<TransitionSettings>("/settings/transitions", {
-      method: "PUT",
-      body: JSON.stringify(settings),
-    }),
+  // Settings endpoints. A display's transition is saved with its board
+  // (`PUT /settings/board`); `/settings/transitions` is a deprecated alias
+  // for the first display's, kept for other clients until v11.
   getOutputSettings: () => fetchApi<OutputSettings>("/settings/output"),
   updateOutputSettings: (target: "ui" | "board" | "both") =>
     fetchApi<{ target: string }>("/settings/output", {
@@ -194,14 +173,7 @@ export const settingsApi = {
   getSunTimesWeek: (weekStart: string) =>
     fetchApi<SunTimesWeekResponse>(`/settings/location/sun-times-week?week_start=${weekStart}`),
 
-  // Beta features (HTTPS, transition plugins, etc.)
-  getBetaSettings: () => fetchApi<BetaSettingsResponse>("/settings/beta"),
-  updateBetaSettings: (updates: Partial<BetaSettings>) =>
-    fetchApi<BetaSettingsUpdateResponse>("/settings/beta", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    }),
+  // Plugin settings: auto-update and the transition / output plugin flags
   getPluginSettings: () => fetchApi<PluginSettings>("/settings/plugins"),
   updatePluginSettings: (updates: Partial<PluginSettings>) =>
     fetchApi<PluginSettings>("/settings/plugins", {

@@ -213,9 +213,9 @@ FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit,
 
 ### Transition Plugins (Beta, Deprecated)
 
-> ⚠️ **Deprecated.** Enable in Settings → Beta. The transition plugin SDK will not reach general availability; see [Transitions](./docs/features/transitions.md).
+> ⚠️ **Deprecated.** Enable with the **Transition Plugins** switch in a display's Transition section (Displays → a display → Transition). The transition plugin SDK will not reach general availability; see [Transitions](./docs/features/transitions.md).
 
-Transition plugins drive **frame-by-frame board animations** that go beyond the built-in flip patterns offered by Vestaboard's Local API. They're picked per-page (or as the system default) and animate the change from one display to the next. Transition plugins are **deprecated**: existing pages keep working, and removal is being considered for v11.
+Transition plugins drive **frame-by-frame board animations** that go beyond the built-in flip patterns offered by Vestaboard's Local API. They're picked per page (or as a display's transition) and animate the change from one display to the next. Transition plugins are **deprecated**: existing pages keep working, and removal is being considered for v11.
 
 <!-- Sorted alphabetically -->
 | Plugin | What It Does |
@@ -389,7 +389,7 @@ FiestaBoard exposes a built-in **MCP (Model Context Protocol) server** at `/api/
 
 ### Connecting Claude Desktop
 
-Claude Desktop only accepts stdio MCP entries, so connect via the `mcp-remote` proxy. First generate a bearer token in **Settings → Integrations → MCP / external clients**, then add to your `claude_desktop_config.json`:
+Claude Desktop only accepts stdio MCP entries, so connect via the `mcp-remote` proxy. First generate a bearer token in **Settings → AI → MCP / external clients**, then add to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -429,7 +429,7 @@ The MCP server exposes 28 tools covering the full FiestaBoard API:
 | Collections | `list_collections`, `create_collection`, `update_collection`, `delete_collection` |
 | System | `get_system_status`, `get_settings_summary`, `set_active_page`, `set_schedule_mode` |
 
-The MCP server requires a bearer token for all requests. Generate one in **Settings → Integrations → MCP / external clients**. See [MCP Clients Setup](docs/internal/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
+The MCP server requires a bearer token for all requests. Generate one in **Settings → AI → MCP / external clients**. See [MCP Clients Setup](docs/internal/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
 
 ---
 

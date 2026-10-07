@@ -165,17 +165,12 @@ def mock_settings_service():
         location.to_dict.return_value = {"latitude": None, "longitude": None}
         ss.get_location_settings.return_value = location
 
-        beta = Mock()
-        beta.https_enabled = False
-        # transition_plugins_enabled added with the conventions pass: the
-        # field has existed since the transition-plugin beta, and the
-        # response_model now validates it.
-        beta.to_dict.return_value = {"https_enabled": False, "transition_plugins_enabled": False}
-        ss.get_beta_settings.return_value = beta
-        ss.update_beta_settings.return_value = beta
-
         plugin_settings = Mock()
-        plugin_settings.to_dict.return_value = {"auto_update": True}
+        plugin_settings.to_dict.return_value = {
+            "auto_update": True,
+            "transition_plugins_enabled": False,
+            "output_plugins_enabled": False,
+        }
         ss.get_plugin_settings.return_value = plugin_settings
         ss.update_plugin_settings.return_value = plugin_settings
 

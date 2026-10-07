@@ -1,9 +1,10 @@
 """A display's own transition choice (plan D21).
 
-Each board (display) may carry ``transition``: the choice its device menu
+Each board (display) carries ``transition``: the choice its device menu
 offers — a split-flap strategy, ``plugin:<id>``, an LED menu id, or
-``"none"``. Unset follows the install's default; a page's own override still
-wins over it at the send sites.
+``"none"``. Since settings v6 there is no install-wide default: these files
+predate it, so the v5 -> v6 migration copies their ``transitions`` block onto
+boards without a choice. A page's own override still wins at the send sites.
 """
 
 import json
@@ -82,10 +83,10 @@ class TestResolution:
         resolved = svc.get_transition_settings("vb")
         assert (resolved.strategy, resolved.step_interval_ms, resolved.step_size) == ("diagonal", 40, 2)
 
-    def test_the_install_setting_is_left_alone(self, settings_file):
-        svc = _service(settings_file, [{**VESTA, "transition": "diagonal"}])
-        svc.get_transition_settings("vb")
-        assert svc.get_transition_settings().strategy == "column"
+    def test_another_display_keeps_its_own(self, settings_file):
+        svc = _service(settings_file, [{**VESTA, "transition": "diagonal"}, {**VESTA, "id": "vb2"}])
+        assert svc.get_transition_settings("vb").strategy == "diagonal"
+        assert svc.get_transition_settings("vb2").strategy == "column"
 
     def test_none_on_a_vestaboard_is_no_strategy(self, settings_file):
         svc = _service(settings_file, [{**VESTA, "transition": "none"}])
@@ -96,9 +97,9 @@ class TestResolution:
         svc = _service(settings_file, [VESTA, {**PIXOO, "transition": "none"}])
         assert svc.get_transition_settings("px").strategy == "none"
 
-    def test_an_unknown_board_runs_the_install_default(self, settings_file):
+    def test_an_unknown_board_has_no_transition(self, settings_file):
         svc = _service(settings_file, [{**VESTA, "transition": "diagonal"}])
-        assert svc.get_transition_settings("missing").strategy == "column"
+        assert svc.get_transition_settings("missing").strategy is None
 
 
 class TestSaving:
@@ -111,7 +112,7 @@ class TestSaving:
         svc = _service(settings_file, [VESTA])
         with pytest.raises(ValueError, match="Invalid transition"):
             svc.set_boards([{**VESTA, "transition": "sparkle"}])
-        assert "transition" not in svc.get_board_settings().boards[0]
+        assert svc.get_board_settings().boards[0]["transition"] == "column"
 
     def test_a_new_plugin_choice_needs_the_beta(self, settings_file):
         svc = _service(settings_file, [VESTA])

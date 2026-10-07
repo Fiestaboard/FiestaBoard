@@ -157,6 +157,20 @@ def board_model_spec(board: Mapping[str, Any]) -> dict | None:
     return dict(model)
 
 
+def board_is_led(board: Mapping[str, Any]) -> bool:
+    """Whether *board* is drawn as an LED matrix: its device model's
+    ``technology``, resolved as a client resolves the board response (the
+    web's ``isLedModel(resolveBoardModel(board))``): the model document
+    (:func:`board_model_spec`) when the response carries one, else the
+    built-in model its ``device_model`` id (:func:`board_profile`) names.
+    A board whose model is unknown is not."""
+    model: Mapping[str, Any] | None = board_model_spec(board)
+    if model is None:
+        model_id = board_profile(board).device_model
+        model = builtin_device_models().get(model_id) if model_id else None
+    return isinstance(model, Mapping) and model.get("technology") == "led_matrix"
+
+
 def model_character_set(model: Mapping[str, Any]) -> dict | None:
     """A device model's own character set, whole: a built-in id looked up,
     an inline set materialised; ``None`` when it names none or an unknown id."""

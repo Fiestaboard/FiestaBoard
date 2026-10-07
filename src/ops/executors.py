@@ -345,7 +345,7 @@ def _plugin_strategy_refusal(transition_strategy: str | None) -> dict[str, Any] 
     """The REST layer's beta gate on ``plugin:<id>`` strategies, as an envelope.
 
     ``POST/PUT /pages`` and ``POST /pages/import`` all refuse a plugin
-    transition while ``beta.transition_plugins_enabled`` is off, so a page
+    transition while ``plugins.transition_plugins_enabled`` is off, so a page
     can never store a strategy the runtime will not honor. The same guard
     is reused here rather than re-derived, so the three page writers and
     their MCP counterparts cannot disagree about it.
@@ -380,7 +380,7 @@ def create_page(
     ``notes_wide``/``notes_tall`` size a ``note_array`` page and
     ``grid_rows``/``grid_cols`` a ``panel`` page; ``line_metadata``
     is the per-line alignment + wrap the editor stores; the three
-    ``transition_*`` fields are the per-page override of the system
+    ``transition_*`` fields are the per-page override of the board's
     transition. Omitted fields take the model defaults, exactly like a REST
     ``POST /pages`` body that leaves them out.
     """
@@ -446,7 +446,7 @@ def update_page(
 
     That wipe-protection makes ``transition_strategy=None`` mean "unchanged",
     which leaves no way to drop a per-page transition override and fall back
-    to the system default — ``clear_transition_override=True`` is that
+    to the board's transition — ``clear_transition_override=True`` is that
     escape hatch (the ``clear_end_time`` pattern from :func:`update_schedule`).
 
     A device or size retarget (``device_type``/``notes_wide``/``notes_tall``/
@@ -483,7 +483,7 @@ def update_page(
         fields: dict[str, Any] = {key: value for key, value in supplied.items() if value is not None}
         if clear_transition_override:
             # Explicit Nones: PageStorage.update lets exactly these three be
-            # cleared back to "inherit the system transition" (#1306).
+            # cleared back to "inherit the board's transition" (#1306).
             fields.update(transition_strategy=None, transition_interval_ms=None, transition_step_size=None)
         if not fields:
             return err(
@@ -742,12 +742,12 @@ def _target_dimensions(target: _SendTarget):
 
 
 def _transition_for(target: _SendTarget, strategy, step_interval_ms, step_size):
-    """Per-call transition overrides, falling back to the stored settings.
+    """Per-call transition overrides, falling back to the target display's.
 
-    ``None`` means "use what the install is configured for" — the behavior
+    ``None`` means "use what the display is configured for" — the behavior
     every caller had before the overrides existed.
     """
-    stored = target.settings_service.get_transition_settings()
+    stored = target.settings_service.get_transition_settings(target.board.get("id") or target.board_id)
     return (
         stored.strategy if strategy is None else strategy,
         stored.step_interval_ms if step_interval_ms is None else step_interval_ms,
@@ -1667,8 +1667,10 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
             allowed = GENERAL_SETTING_KEYS
             handler = lambda: update_general_config(GeneralConfigUpdate(**body))  # noqa: E731
         elif category == "beta":
+            # Deprecated alias (until v11): settings v6 moved the beta flags
+            # to "plugins". Only the two flags, as the REST alias takes.
             allowed = models.BetaSettingsUpdate.model_fields
-            handler = lambda: api.update_beta_settings(models.BetaSettingsUpdate(**body))  # noqa: E731
+            handler = lambda: api.update_plugin_settings(models.PluginSettingsUpdate(**body))  # noqa: E731
         elif category == "plugins":
             allowed = models.PluginSettingsUpdate.model_fields
             handler = lambda: api.update_plugin_settings(models.PluginSettingsUpdate(**body))  # noqa: E731
@@ -1852,6 +1854,9 @@ BOARD_PUBLIC_FIELDS: tuple[str, ...] = (
     "enabled",
     "paused",
     "schedule_enabled",
+    "transition",
+    "transition_step_interval_ms",
+    "transition_step_size",
 )
 
 
@@ -1883,7 +1888,14 @@ def _validate_board_fields(**fields: Any) -> dict[str, Any] | None:
     value. A malformed host raises the guard's own HTTPException(400).
     """
     from src.board_guards import validate_board_host
-    from src.devices import CODE62_GLYPHS, DEVICE_TYPES, MAX_NOTES_PER_AXIS, VALID_API_MODES
+    from src.devices import (
+        CODE62_GLYPHS,
+        DEVICE_TYPES,
+        MAX_NOTES_PER_AXIS,
+        TRANSITION_SPEED_BOUNDS,
+        VALID_API_MODES,
+        transition_speed_error,
+    )
 
     vocab = {
         "device_type": DEVICE_TYPES,
@@ -1906,6 +1918,10 @@ def _validate_board_fields(**fields: Any) -> dict[str, Any] | None:
             continue
         if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_NOTES_PER_AXIS:
             return err(f"{key} must be an integer between 1 and {MAX_NOTES_PER_AXIS}.")
+    for key in TRANSITION_SPEED_BOUNDS:
+        error = transition_speed_error(key, fields.get(key))
+        if error:
+            return err(error)
     host = fields.get("host")
     if host is not None:
         validate_board_host(host)
@@ -1922,8 +1938,11 @@ async def update_board(
     code62_glyph: str | None = None,
     api_mode: str | None = None,
     host: str | None = None,
+    transition: str | None = None,
+    transition_step_interval_ms: int | None = None,
+    transition_step_size: int | None = None,
 ) -> dict[str, Any]:
-    """Change non-secret hardware fields of one board.
+    """Change non-secret hardware fields of one board, or its transition.
 
     The Settings page edits a board by re-sending the whole roster to
     ``PUT /settings/board`` with one entry changed; this does the same, so
@@ -1948,13 +1967,17 @@ async def update_board(
                 "code62_glyph": code62_glyph,
                 "api_mode": api_mode,
                 "host": host,
+                "transition": transition,
+                "transition_step_interval_ms": transition_step_interval_ms,
+                "transition_step_size": transition_step_size,
             }.items()
             if value is not None
         }
         if not updates:
             return err(
                 "Nothing to update: pass at least one of name, device_type, notes_wide, notes_tall, "
-                "board_color, code62_glyph, api_mode, host."
+                "board_color, code62_glyph, api_mode, host, transition, transition_step_interval_ms, "
+                "transition_step_size."
             )
         refusal = _validate_board_fields(**updates)
         if refusal is not None:

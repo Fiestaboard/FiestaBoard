@@ -57,7 +57,7 @@ export default function DisplayPage() {
           <DisplayTransition
             board={board}
             disabled={displays.saving}
-            onChange={(transition) => displays.updateBoard(board.id, { transition })}
+            onChange={(updates) => displays.updateBoard(board.id, updates)}
           />
         )}
 

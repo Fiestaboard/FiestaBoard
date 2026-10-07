@@ -80,7 +80,7 @@ install's default interval and `false` as `manual`.
 
 External plugins (installed from the registry or a git URL) are kept up to date automatically. FiestaBoard checks for new plugin versions every hour and silently pulls the latest commit for any plugin that has changed.
 
-This is enabled by default. To turn it off, go to **Settings → Plugin Updates** and toggle **Auto-update plugins** off. When disabled, you can update plugins individually from the **Integrations** page.
+This is enabled by default. To turn it off, open the **Integrations** page and turn off the **Auto-update plugins** switch in its header. When disabled, you can update plugins individually from the **Integrations** page.
 
 The setting is stored in `data/settings.json` under `plugins.auto_update`.
 

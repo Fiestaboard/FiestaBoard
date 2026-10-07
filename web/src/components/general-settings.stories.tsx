@@ -68,13 +68,10 @@ const mockAllSettings: AllSettingsResponse = {
     latitude: 40.7128,
     longitude: -74.006,
   },
-  beta: {
-    https_enabled: false,
-    transition_plugins_enabled: false,
-    output_plugins_enabled: false,
-  },
   plugins: {
     auto_update: true,
+    transition_plugins_enabled: false,
+    output_plugins_enabled: false,
   },
   schedule: {
     defer_on_reenable: false,

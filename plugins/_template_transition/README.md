@@ -16,7 +16,7 @@ None. Transition plugins don't expose template variables.
 
 ## Example Templates
 
-Select your transition from a page's Transition picker or set it as the global default in Settings → Board Transitions.
+Select your transition from a page's Transition picker, or set it as a display's transition in Displays → (a display) → Transition.
 
 ## Configuration
 

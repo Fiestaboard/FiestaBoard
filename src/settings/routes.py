@@ -32,18 +32,18 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import UTC
-from typing import Any
 
 import requests
 from fastapi import APIRouter, HTTPException
 
-from src.api_deprecation import flat_board_fields_notice
+from src.api_deprecation import deprecation_notice, flat_board_fields_notice
 from src.api_errors import errors
 from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
 from src.devices import classify_dimensions, geometry_of
 from src.display_runtime import reinitialize_board_clients, release_board_frames
 from src.outputs.cells import extended_markup_kw, project_for_output
+from src.outputs.transitions import driver_runs_strategy
 
 from .models import (
     ERROR_400,
@@ -61,7 +61,6 @@ from .models import (
     AllSettingsResponse,
     BetaSettingsResponse,
     BetaSettingsUpdate,
-    BetaSettingsUpdateResponse,
     BoardIdentifyRequest,
     BoardIdentifyResponse,
     BoardPauseRequest,
@@ -102,7 +101,7 @@ from .models import (
     TransitionSettingsUpdate,
     WizardStateBody,
 )
-from .service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES
+from .service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, page_transition
 from .service import temporary_override_payload as _temporary_override_payload
 
 logger = logging.getLogger(__name__)
@@ -456,9 +455,26 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
     }
 
 
-@router.get("/settings/transitions", response_model=TransitionSettingsResponse)
+#: A display's transition is saved with its board (settings v6).
+_TRANSITIONS_SUCCESSOR = "/api/settings/board"
+#: The beta flags moved into the plugin settings (settings v6).
+_BETA_SUCCESSOR = "/api/settings/plugins"
+
+
+@router.get(
+    "/settings/transitions",
+    response_model=TransitionSettingsResponse,
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_TRANSITIONS_SUCCESSOR)],
+)
 async def get_transition_settings():
-    """Get current transition animation settings."""
+    """The FIRST display's transition. Deprecated: removed in v11.
+
+    Settings v6 gives every display its own transition (the board's
+    ``transition``, ``transition_step_interval_ms`` and
+    ``transition_step_size`` in ``GET /settings/board``); there is no
+    install-wide one any more.
+    """
     settings_service = get_settings_service()
     transition = settings_service.get_transition_settings()
     return {
@@ -469,14 +485,21 @@ async def get_transition_settings():
     }
 
 
-@router.put("/settings/transitions", response_model=TransitionSettings, responses={**ERROR_400})
+@router.put(
+    "/settings/transitions",
+    response_model=TransitionSettings,
+    responses={**ERROR_400},
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_TRANSITIONS_SUCCESSOR)],
+)
 async def update_transition_settings(request: TransitionSettingsUpdate):
     """
-    Update transition animation settings.
+    Set the FIRST display's transition. Deprecated: removed in v11; set a
+    display's own through ``PUT /settings/board`` instead.
 
     Body can include:
     - strategy: One of column, reverse-column, edges-to-center, row, diagonal, random,
-                "plugin:<id>" to drive a transition plugin, or null to disable.
+                "plugin:<id>" to drive a transition plugin, or null for none.
     - step_interval_ms: Delay between animation steps (ms), or null for default
     - step_size: How many columns/rows animate at once, or null for default
 
@@ -669,19 +692,15 @@ async def set_active_page(request: SetActivePageRequest):
                     render_page_id, force_refresh=True, **extended_markup_kw(send_client)
                 )
                 if result and result.available:
-                    system_transition = settings_service.get_transition_settings(
-                        board_id or settings_service.get_primary_board_id()
+                    resolved = page_transition(
+                        settings_service.get_transition_settings(board_id or settings_service.get_primary_board_id()),
+                        page,
+                        runs=lambda s: driver_runs_strategy(send_client, s),
                     )
-                    strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-                    interval_ms = (
-                        page.transition_interval_ms
-                        if page.transition_interval_ms is not None
-                        else system_transition.step_interval_ms
-                    )
-                    step_size = (
-                        page.transition_step_size
-                        if page.transition_step_size is not None
-                        else system_transition.step_size
+                    strategy, interval_ms, step_size = (
+                        resolved.strategy,
+                        resolved.step_interval_ms,
+                        resolved.step_size,
                     )
 
                     # Size the grid to the explicit target board when given
@@ -1480,111 +1499,46 @@ async def get_location_sun_times_week(week_start: str):
     return {"location_configured": True, "dates": result}
 
 
-def _beta_https_status() -> dict[str, Any]:
-    """Return the runtime status of the HTTPS beta feature.
-
-    Reports whether the cert files currently exist on disk and whether
-    the fiestaupdater sidecar is reachable for one-click restarts.
-    """
-    from src.system import https_certs
-
-    cert_path, key_path = https_certs.cert_paths()
+def _beta_view() -> dict:
+    flags = get_settings_service().get_plugin_settings()
     return {
-        "cert_present": https_certs.cert_exists(),
-        "cert_path": str(cert_path),
-        "key_path": str(key_path),
-        "updater_available": bool(_updater_token()) and _updater_probe(),
+        "settings": {
+            "transition_plugins_enabled": flags.transition_plugins_enabled,
+            "output_plugins_enabled": flags.output_plugins_enabled,
+        }
     }
 
 
-@router.get("/settings/beta", response_model=BetaSettingsResponse)
+@router.get(
+    "/settings/beta",
+    response_model=BetaSettingsResponse,
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_BETA_SUCCESSOR)],
+)
 async def get_beta_settings():
-    """Get opt-in beta-feature settings + runtime status."""
-    settings_service = get_settings_service()
-    settings = settings_service.get_beta_settings()
-    status = await asyncio.to_thread(_beta_https_status)
-    return {
-        "settings": settings.to_dict(),
-        "https": status,
-    }
+    """The two plugin flags. Deprecated: removed in v11, read
+    ``GET /settings/plugins`` (settings v6 moved them there)."""
+    return _beta_view()
 
 
 @router.put(
     "/settings/beta",
-    response_model=BetaSettingsUpdateResponse,
+    response_model=BetaSettingsResponse,
     responses={**ERROR_500},
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_BETA_SUCCESSOR)],
 )
 async def update_beta_settings(request: BetaSettingsUpdate):
-    """Update beta-feature settings.
+    """Set the two plugin flags. Deprecated: removed in v11, write
+    ``PUT /settings/plugins`` (settings v6 moved them there).
 
-    Body may include:
-    - https_enabled: bool — enable/disable the HTTPS (Beta) feature.
-    - output_plugins_enabled: bool — let third-party output plugins
-      (installed from the registry or a git URL; first-party seeded outputs
-      need no beta) drive boards. Takes effect on the next board
-      rebuild (saving a board, or a restart).
-    - transition_plugins_enabled: bool — enable/disable the experimental
-      transition-plugin system (frame-by-frame board animations). Takes
-      effect immediately; no restart required.
-
-    Side effects:
-    - When https_enabled flips to ``true``, a self-signed certificate is
-      generated under ``data/certs/`` (if not already present). nginx
-      will switch to HTTPS the next time the container starts.
-    - When https_enabled flips to ``false``, the cert files are removed
-      so the next container start reverts to HTTP.
-
-    Returns the updated settings, the cert status, and a hint about
-    whether a restart is required for the change to take effect.
-
-    Certificate generation failing is a 500, not a 200 with a warning: the
-    user asked for HTTPS and did not get it. The preference is persisted
-    first either way, so the next container start (or a manual cert drop)
-    still honours the choice, and the message stays generic — the raw
-    exception can carry paths and config internals (CodeQL
-    py/stack-trace-exposure).
+    Body may include ``transition_plugins_enabled`` and
+    ``output_plugins_enabled``; any other key is ignored.
     """
-    from src.system import https_certs
-
-    provided = request.model_dump(exclude_unset=True)
-    settings_service = get_settings_service()
-    previous = settings_service.get_beta_settings().https_enabled
-    requested = provided.get("https_enabled", previous)
-
-    cert_error: str | None = None
-    if "https_enabled" in provided:
-        if requested and not previous:
-            # User just turned HTTPS on -> generate cert eagerly so nginx
-            # finds it on the next restart.
-            try:
-                await asyncio.to_thread(https_certs.generate_cert)
-            except Exception:  # noqa: BLE001 - reported as a 500 below
-                logger.exception("Failed to generate HTTPS certificate")
-                cert_error = "Certificate generation failed — check the server logs for details."
-        elif previous and not requested:
-            # User just turned HTTPS off -> remove the cert so nginx
-            # falls back to HTTP on next restart.
-            try:
-                await asyncio.to_thread(https_certs.remove_cert)
-            except Exception as e:  # noqa: BLE001
-                logger.warning("Failed to remove HTTPS certificate: %s", e)
-
-    updated = settings_service.update_beta_settings(provided)
-
-    if cert_error:
-        # The preference above is already persisted; the failure is still a
-        # failure and must not be served as a 200.
-        raise HTTPException(status_code=500, detail=cert_error)
-
-    status = await asyncio.to_thread(_beta_https_status)
-
-    # A restart is required whenever the on/off state changed, since
-    # nginx only re-reads its config on container start.
-    return {
-        "settings": updated.to_dict(),
-        "https": status,
-        "restart_required": updated.https_enabled != previous,
-    }
+    provided = {k: v for k, v in request.model_dump(exclude_unset=True).items() if v is not None}
+    if provided:
+        get_settings_service().update_plugin_settings(provided)
+    return _beta_view()
 
 
 @router.get("/settings/plugins", response_model=PluginSettingsResponse)
@@ -1600,9 +1554,17 @@ async def update_plugin_settings(request: PluginSettingsUpdate):
 
     Body may include:
     - auto_update: bool — when true, plugins are updated automatically in the background.
+    - transition_plugins_enabled: bool — let displays and pages use the
+      experimental (deprecated) transition plugins. Takes effect at once.
+    - output_plugins_enabled: bool — let third-party output plugins
+      (installed from the registry or a git URL; first-party seeded outputs
+      need neither) drive boards. Takes effect on the next board rebuild
+      (saving a board, or a restart).
 
-    ``auto_update`` is a ``StrictBool``: ``"yes"`` is a 422, not a silent
-    opt-in to background plugin updates.
+    These two were ``PUT /settings/beta`` until settings v6.
+
+    Every flag is a ``StrictBool``: ``"yes"`` is a 422, not a silent
+    opt-in.
     """
     settings_service = get_settings_service()
     updated = settings_service.update_plugin_settings(request.model_dump(exclude_unset=True))
@@ -1618,7 +1580,7 @@ async def get_all_settings():
     - general config (timezone, etc.)
     - silence_schedule plugin config
     - polling interval settings
-    - transitions settings
+    - transitions: the first display's transition (deprecated, until v11)
     - output settings
     - board settings
     - mqtt integration settings
@@ -1640,7 +1602,6 @@ async def get_all_settings():
     mqtt = settings_service.get_mqtt_settings()
     display = settings_service.get_display_settings()
     location = settings_service.get_location_settings()
-    beta = settings_service.get_beta_settings()
     plugins = settings_service.get_plugin_settings()
     schedule = settings_service.get_schedule_settings()
 
@@ -1654,7 +1615,6 @@ async def get_all_settings():
         "mqtt": mqtt.to_dict(mask_secrets=True),
         "display": display.to_dict(),
         "location": location.to_dict(),
-        "beta": beta.to_dict(),
         "plugins": plugins.to_dict(),
         "schedule": schedule.to_dict(),
         "status": {

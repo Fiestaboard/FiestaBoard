@@ -37,8 +37,9 @@ from src.led.charsets import has_extended_markup
 from src.outputs.board_profile import board_character_set
 from src.outputs.cells import cells_to_json, project_for_output, project_message
 from src.outputs.display_profile import display_profile_for_board, render_kw
+from src.outputs.transitions import driver_runs_strategy
 from src.schedules.service import get_schedule_service
-from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service
+from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service, page_transition
 from src.text_to_board import text_to_board_array
 
 from .models import (
@@ -89,13 +90,13 @@ def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
     if not strategy.startswith(TRANSITION_PLUGIN_PREFIX):
         return
     settings_service = get_settings_service()
-    if not settings_service.get_beta_settings().transition_plugins_enabled:
+    if not settings_service.get_plugin_settings().transition_plugins_enabled:
         raise HTTPException(
             status_code=400,
             detail=(
-                "Transition plugins are an experimental beta. Enable them "
-                "in Settings → Beta before assigning a 'plugin:<id>' "
-                "strategy to a page."
+                "Transition plugins are an experimental beta. Turn them on "
+                "in a display's Transition section before assigning a "
+                "'plugin:<id>' strategy to a page."
             ),
         )
 
@@ -624,17 +625,13 @@ async def send_page(
                 logger.info("Board is paused - blocking manual page send")
                 paused = True
             else:
-                # Use page-level transitions if set, otherwise fall back to system defaults
-                system_transition = settings_service.get_transition_settings()
-                strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-                interval_ms = (
-                    page.transition_interval_ms
-                    if page.transition_interval_ms is not None
-                    else system_transition.step_interval_ms
+                # The page's own transition where it sets one, else the target display's.
+                resolved = page_transition(
+                    settings_service.get_transition_settings(board.get("id") if board is not None else None),
+                    page,
+                    runs=lambda s: driver_runs_strategy(board_client, s),
                 )
-                step_size = (
-                    page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-                )
+                strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
                 # Size the grid to the explicit target board when given (issue
                 # #1244); otherwise keep sizing to the page's device type.

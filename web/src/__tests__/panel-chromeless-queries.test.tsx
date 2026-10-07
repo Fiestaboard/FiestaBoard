@@ -77,9 +77,9 @@ function trackShellRequests() {
       hits.push("/settings/ai");
       return HttpResponse.json({ enabled: false, providers: [] });
     }),
-    http.get("/api/settings/beta", () => {
-      hits.push("/settings/beta");
-      return HttpResponse.json({ settings: { transition_plugins_enabled: false } });
+    http.get("/api/settings/plugins", () => {
+      hits.push("/settings/plugins");
+      return HttpResponse.json({ auto_update: true, transition_plugins_enabled: false, output_plugins_enabled: false });
     }),
   );
   return hits;
@@ -124,8 +124,9 @@ describe("chromeless routes do not fire app-shell queries", () => {
 
     expect(hits).toContain("/settings/board");
     expect(hits).toContain("/settings/ai");
-    // No /settings/beta: the sidebar read it only to show the Transition Lab,
-    // which is retired (plan D22).
+    // No /settings/plugins: the sidebar used to read the transition plugins
+    // flag (then /settings/beta) only to show the Transition Lab, which is
+    // retired (plan D22).
     expect(hits).toContain("/settings/all");
   });
 });

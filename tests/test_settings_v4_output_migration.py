@@ -183,7 +183,7 @@ class TestMigrationRun:
             SettingsService(settings_file=str(path))
         assert "Settings schema migration v3->v4: 2 change(s) applied" in caplog.text
         assert (tmp_path / "settings.json.v3_backup").read_bytes() == v3
-        assert json.loads(path.read_text())["schema_version"] == CURRENT_SETTINGS_SCHEMA_VERSION == 4
+        assert json.loads(path.read_text())["schema_version"] == CURRENT_SETTINGS_SCHEMA_VERSION
 
     def test_the_default_board_is_born_in_the_v4_shape(self):
         from src.settings.service import BoardSettings
@@ -206,7 +206,7 @@ def test_every_upgrade_fixture_is_stored_in_the_v4_shape_and_migrates_once(label
     boot(label, _isolated_data_dir)
     on_disk = json.loads((_isolated_data_dir / "settings.json").read_text())
 
-    assert on_disk["schema_version"] == 4
+    assert on_disk["schema_version"] == CURRENT_SETTINGS_SCHEMA_VERSION
     for board in on_disk["board"]["boards"]:
         assert isinstance(board["output"], str) and isinstance(board["output_config"], dict), board
         assert not set(FLAT) & set(board), f"{label}: flat fields left at the top level of {board['id']}"
@@ -456,7 +456,7 @@ def test_a_v3_backup_restores_onto_this_build_and_migrates_on_load(_isolated_dat
     boards = get_settings_service().get_board_settings().boards
 
     on_disk = json.loads((_isolated_data_dir / "settings.json").read_text())
-    assert on_disk["schema_version"] == 4
+    assert on_disk["schema_version"] == CURRENT_SETTINGS_SCHEMA_VERSION
     assert [b["output"] for b in boards] == ["vestaboard"] * 4 + ["fiestapanel"]
     flat = [board_view(b) for b in boards]
     want = [(b["api_mode"], b["host"], b["local_api_key"], b["cloud_key"], b["note_array_token"])
