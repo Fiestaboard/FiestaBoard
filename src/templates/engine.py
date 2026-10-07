@@ -47,7 +47,7 @@ from src.text_utils import extract_alignment_from_line
 
 from .colors import COLOR_CODES
 from .colors import is_color_code as _is_color_code
-from .expressions import ensure_render_clock, find_formulas, render_expressions, validate_expression
+from .expressions import ensure_render_clock, evaluate_value, find_formulas, render_expressions, validate_expression
 from .filters import FILTER_NAMES
 
 logger = logging.getLogger(__name__)
@@ -284,6 +284,20 @@ class TemplateEngine:
         context = ensure_render_clock(context)
 
         return _unprotect(self._render(template, context, extended_markup, 0))
+
+    def evaluate_expression(
+        self, expression: str, context: dict[str, Any], *, bindings: dict[str, Any] | None = None
+    ) -> Any:
+        """Evaluate one formula-language expression to its native value.
+
+        The body of a ``{{…}}`` / ``{{= … }}`` without the braces, against a
+        template *context* (plugin data), with optional *bindings* (extra
+        names, e.g. a loop item). Unlike :meth:`render` it returns data, not
+        board text, and raises :class:`~src.templates.expressions.FormulaError`
+        on any error. Used by pixel canvases (``src.canvas``); template
+        rendering does not go through it.
+        """
+        return evaluate_value(expression, ensure_render_clock(context), bindings)
 
     def _render(self, template: str, context: dict[str, Any], extended_markup: bool, span_depth: int) -> str:
         """:meth:`render`'s passes, for a template nested *span_depth* forms deep.
