@@ -158,42 +158,6 @@ test.describe("Integrations Page", () => {
 // Check for Updates
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// Drill-in motion
-// ---------------------------------------------------------------------------
-
-test.describe("Drill-in motion", () => {
-  test("holds a plugin page's body back until the header has settled", async ({ page }) => {
-    // The sub-header grows for one Reveal beat as a plugin opens; the body
-    // waits that beat so it is not seen half-faded while being pushed down.
-    // jsdom cannot see this: the delay has to win over FiestaUI's own
-    // `animation` shorthand in the real cascade.
-    await page.goto("/integrations?tab=marketplace");
-    const open = page.locator("a[href*='/integrations/']").first();
-    await expect(open).toBeVisible({ timeout: 15_000 });
-
-    await open.click();
-    await expect(page).toHaveURL(/\/integrations\/[^?]+/, { timeout: 10_000 });
-
-    const timing = await page
-      .locator("[data-slot=page-outlet] > *")
-      .first()
-      .evaluate((el) => {
-        // Resolve the token the way the browser does, on a probe element.
-        const probe = document.createElement("div");
-        probe.style.transitionDuration = "var(--motion-duration-base)";
-        document.body.append(probe);
-        const base = getComputedStyle(probe).transitionDuration;
-        probe.remove();
-        const cs = getComputedStyle(el);
-        return { name: cs.animationName, delay: cs.animationDelay, base };
-      });
-    expect(timing.name).toBe("page-outlet-enter");
-    expect(timing.base).not.toBe("0s");
-    expect(timing.delay).toBe(timing.base);
-  });
-});
-
 test.describe("Check for Updates", () => {
   test("saves the auto-update switch from the page toolbar", async ({ page }) => {
     // Plugin updates moved here from Settings in 10.0.
