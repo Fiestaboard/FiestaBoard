@@ -2168,6 +2168,37 @@ def evaluate(expression: str, context: dict[str, Any] | None = None) -> str:
         return exc.code
 
 
+def evaluate_value(
+    expression: str, context: dict[str, Any] | None = None, bindings: dict[str, Any] | None = None
+) -> Any:
+    """Parse and evaluate ``expression``, returning its *native* value.
+
+    The data counterpart of :func:`evaluate` for callers that need the value
+    itself rather than its board text (pixel canvases: numbers stay numbers,
+    a plugin's dict or list stays data). ``bindings`` are extra names visible
+    to the expression the way ``FOREACH``'s ``item`` is (names are
+    case-insensitive and shadow plugin ids). Any parse or evaluation error
+    raises :class:`FormulaError` with its tag (``#REF``, ``#SYNTAX``, ...)
+    instead of being rendered.
+    """
+    ctx = context or {}
+    if bindings:
+        scope = dict(ctx.get(_LOCALS_KEY) or {})
+        scope.update({name.lower(): value for name, value in bindings.items()})
+        ctx = {**ctx, _LOCALS_KEY: scope}
+    tokens = _tokenize(expression)
+    tree = _Parser(tokens).parse()
+    result = _eval_node(tree, ctx)
+    if _is_error(result):
+        raise FormulaError(result.code, f"{expression.strip()} evaluated to {result.code}")
+    return result
+
+
+def value_to_text(value: Any) -> str:
+    """A native value as the board text :func:`evaluate` would render (raises ``#VALUE`` for arrays)."""
+    return _to_string(value)
+
+
 @dataclass(frozen=True)
 class ExpressionIssue:
     """A single problem found by :func:`validate_expression`.
@@ -2422,9 +2453,11 @@ __all__ = [
     "FormulaError",
     "ensure_render_clock",
     "evaluate",
+    "evaluate_value",
     "find_formulas",
     "function_signatures",
     "list_builtins",
     "render_expressions",
     "validate_expression",
+    "value_to_text",
 ]
