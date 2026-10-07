@@ -1,7 +1,8 @@
 /**
  * Plugin updates live on the Integrations section now, not in Settings: the
- * section header carries the auto-update switch beside "Check for updates",
- * on the list and on every plugin's page alike.
+ * section header carries the auto-update switch beside "Check for updates".
+ * It shows on the list; on a plugin's page the header collapses and tucks it
+ * away with the rest of the header's action slot.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";

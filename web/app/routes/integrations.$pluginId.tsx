@@ -15,7 +15,6 @@ import {
   Label,
   List,
   PageSection,
-  PluginCategoryBadge,
   Skeleton,
   Stack,
   Table,
