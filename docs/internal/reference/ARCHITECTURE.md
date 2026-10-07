@@ -350,10 +350,12 @@ Names you will meet:
   grid comes from the model (`src/outputs/geometry.py`): `cells` as
   declared, `pixels` from the glyph box of FiestaUI's vendored
   `led-fonts.json` (`(W+spacing)//(glyph+spacing)` per axis; Pixoo 64 at 3x5
-  = 10x16), `panel`/`note_array` from the request. A grid below the 3x15
-  Note floor (or above the panel ceiling) is **refused** there, before the
-  board's geometry is resolved — `clamp_grid` would otherwise inflate a
-  32x8 matrix's 1x8 to 3x15. The board is stored with an explicit `output`,
+  = 10x16, at 5x7 = 8x10), `panel`/`note_array` from the request. A grid
+  below the model's floor — the 3x15 Note, or 3x10 for a `pixels` model
+  (`grid_floor`) — or above the panel ceiling is **refused** there, before
+  the board's geometry is resolved — `clamp_grid` (which floors at the
+  absolute 3x10) would otherwise inflate a 32x8 matrix's 1x8 to 3x10.
+  FiestaPanel autofit keeps the 3x15 Note floor. The board is stored with an explicit `output`,
   `output_config` and `device_model`, as a custom `panel` grid;
   `BoardInstance` no longer coerces a plugin board's `panel` to `flagship`
   (a legacy Vestaboard claiming `panel` still falls back, unchanged). Board

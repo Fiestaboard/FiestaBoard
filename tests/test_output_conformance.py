@@ -141,8 +141,51 @@ class TestManifestRules:
 
     def test_the_pixoo_64_grid_follows_its_font(self):
         pixoo = builtin_device_models()["divoom_pixoo64"]
-        assert model_cell_grid(pixoo) == (10, 16)  # led_3x5: clears 3x15
-        assert model_cell_grid(pixoo, {"id": "five", "font": "5x7"}) == (8, 10)  # led_5x7: does not
+        assert model_cell_grid(pixoo) == (10, 16)  # led_3x5
+        assert model_cell_grid(pixoo, {"id": "five", "font": "5x7"}) == (8, 10)  # led_5x7
+
+    def test_a_64x64_pixel_model_at_5x7_clears_the_led_floor(self, tmp_path):
+        # 8x10 is below the 3x15 Note but meets the 3x10 floor of an LED
+        # board measured in pixels.
+        def edit(m):
+            inline_model(
+                m,
+                technology="led_matrix",
+                geometry={"kind": "pixels", "width": 64, "height": 64},
+                color={"kind": "rgb", "bitDepth": 24},
+                charset="led_5x7",
+                font="5x7",
+            )
+            del m["output"]["character_set"]  # the kit's own set is 3x5, and a declared set's font wins
+
+        fine = manifest_dir(tmp_path, edit)
+        assert model_cell_grid(suite(plugin_dir=fine).manifest.output.model(0)) == (8, 10)
+        assert suite(plugin_dir=fine).check_geometry_floor() == []
+
+    def test_a_pixel_model_below_3x10_breaks_geometry_floor(self, tmp_path):
+        # 35x17 pixels at 3x5 is 3x9.
+        broken = manifest_dir(
+            tmp_path,
+            lambda m: inline_model(
+                m,
+                technology="led_matrix",
+                geometry={"kind": "pixels", "width": 35, "height": 17},
+                color={"kind": "rgb", "bitDepth": 24},
+                charset="led_3x5",
+                font="3x5",
+            ),
+        )
+        violations = suite(plugin_dir=broken).check_geometry_floor()
+        assert [v.message for v in violations] == [
+            "device model 'broken_sign' shows 3x9 cells, below the 3x10 floor: core refuses a board this small"
+        ]
+
+    def test_a_cells_model_keeps_the_3x15_floor(self, tmp_path):
+        broken = manifest_dir(tmp_path, lambda m: inline_model(m, geometry={"kind": "cells", "rows": 8, "cols": 10}))
+        violations = suite(plugin_dir=broken).check_geometry_floor()
+        assert [v.message for v in violations] == [
+            "device model 'broken_sign' shows 8x10 cells, below the 3x15 floor: core refuses a board this small"
+        ]
 
     def test_a_network_call_at_import_breaks_import_network(self, tmp_path):
         broken = manifest_dir(tmp_path, lambda m: None)

@@ -17,11 +17,11 @@ from typing import Any
 from pydantic import BaseModel, Field, model_validator
 
 from src.devices import (
+    ABSOLUTE_MIN_GRID_COLS,
+    ABSOLUTE_MIN_GRID_ROWS,
     MAX_GRID_COLS,
     MAX_GRID_ROWS,
     MAX_NOTES_PER_AXIS,
-    MIN_GRID_COLS,
-    MIN_GRID_ROWS,
     DeviceType,
 )
 
@@ -120,8 +120,8 @@ class TemplateRenderRequest(BaseModel):
     device_type: DeviceType | None = None
     notes_wide: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
     notes_tall: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
-    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
-    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
+    grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
     line_metadata: list[dict[str, Any]] | None = None
 
     @model_validator(mode="after")
