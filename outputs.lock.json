@@ -3,9 +3,9 @@
   "outputs": {
     "divoom_pixoo": {
       "repository": "https://github.com/Fiestaboard/fiestaboard-output--divoom-pixoo",
-      "commit": "49e5514a6e10a6511d641af4cb869dfa1a0788c4",
+      "commit": "c0a90a5dff360259ab96b5fe983dd7254b3361f2",
       "output_api": 1,
-      "tree_sha256": "db29ff71b961d3ebed9deda3876c839846440fd362b5c7df1676c889af17a22d",
+      "tree_sha256": "a616e193ced59cd8e55d1ebbf670be97cfd755c69436dcdeb974566a0524bc64",
       "loadable": true
     },
     "fiestapanel": {
