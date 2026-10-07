@@ -104,11 +104,10 @@ export function ledLayerProps(layers: CanvasLayerJson[] | null | undefined): Led
 
 /**
  * Whether this FiestaUI release's `DisplayPreview` takes a `font` prop
- * (FiestaUI #342, in 8.2.0). It does, so a board's face goes to the preview
- * directly. Before 8.2.0 it reached the preview through the model document
- * core sends instead (`device_model_spec`: the model in the board's face).
- * The `satisfies` pins this to the installed release's props: a downgrade
- * below 8.2.0 fails to compile until this is `false` again.
+ * (FiestaUI #342, shipped in 8.1.0). It does, so a board's face reaches the
+ * preview directly as well as through the model document core sends
+ * (`device_model_spec`: the model in the board's face). The `satisfies` fails
+ * to compile if `@fiestaboard/ui` is ever pinned back to a release without it.
  */
 export const PREVIEW_TAKES_FONT = true satisfies PreviewTakesFont;
 type PreviewTakesFont = "font" extends keyof ComponentProps<typeof DisplayPreview> ? true : false;
@@ -118,13 +117,13 @@ type PreviewTakesFont = "font" extends keyof ComponentProps<typeof DisplayPrevie
  * `DisplayPreview` props, so the preview draws the bytes the device is sent:
  * the gutter between same-colour tiles filled (`tileGap: "fill"`), a block's
  * background grown a pixel (`blockPadding: 1`). Empty for a board that sends
- * none, which draws its model's defaults. A FiestaUI release without the two
- * props ignores them.
+ * none, which draws its model's defaults. The board's face (`font`) rides
+ * along when it names one.
  */
 export function ledLayoutProps(layout: BoardLedLayout | null | undefined): LedLayoutProps {
   if (!layout) return {};
   const props: LedLayoutProps = { tileGap: layout.tile_gap, blockPadding: layout.block_padding };
-  if (PREVIEW_TAKES_FONT && layout.font) props.font = layout.font;
+  if (layout.font) props.font = layout.font;
   return props;
 }
 

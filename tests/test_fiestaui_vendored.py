@@ -39,7 +39,7 @@ def test_every_vendored_file_is_pinned():
 
 def test_provenance_records_one_fiestaui_commit():
     assert provenance()["source"] == "Fiestaboard/FiestaUI"
-    assert provenance()["commit"] == "3cfe46d208f31c5b39849a74a09cb3750b13f9e3"
+    assert provenance()["commit"] == "0f73bc4045e840fb59008d6918d7ca824065fa1d"
 
 
 def test_every_file_comes_from_the_one_commit():
@@ -48,10 +48,14 @@ def test_every_file_comes_from_the_one_commit():
     assert provenance().get("files_from", {}) == {}
 
 
-def test_the_unreleased_face_choice_commit_says_so():
-    # 3cfe46d2 is FiestaUI #342 (layoutOptions.font) on top of the v8.0.0 tag,
-    # vendored before its release; the record must say to re-vendor from it.
+def test_the_vendored_commit_is_the_8_1_0_release():
+    # 0f73bc40 is the @fiestaboard/ui 8.1.0 release commit (tag v8.1.0), which
+    # ships #342 (layoutOptions.font). The data was first vendored ahead of the
+    # release from the PR branch; it now comes from the tag, so the record must
+    # name the release and no longer ask to be re-vendored.
     record = provenance()
     assert 342 in record["pull_requests"]
-    assert record["status"].startswith("unreleased")
-    assert "re-vendor" in record["status"]
+    assert record["tag"] == "v8.1.0"
+    assert record["version"] == "8.1.0"
+    assert record["status"].startswith("released")
+    assert "branch" not in record

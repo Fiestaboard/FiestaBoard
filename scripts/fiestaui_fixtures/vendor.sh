@@ -33,7 +33,7 @@ for f in $GOLDENS; do
   cp "$TMP/$FIX/$f" "$ROOT/tests/fixtures/fiestaui/$f"
 done
 
-echo "FiestaUI commit: $(git -C "$FIESTAUI" rev-parse "$COMMIT")"
+echo "FiestaUI commit: $(git -C "$FIESTAUI" rev-parse "$COMMIT^{commit}")"
 cd "$ROOT"
 for f in $DATA; do shasum -a 256 "src/fiestaui/$f"; done
 for f in $GOLDENS; do shasum -a 256 "tests/fixtures/fiestaui/$f"; done
