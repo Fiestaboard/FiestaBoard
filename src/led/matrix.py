@@ -40,7 +40,7 @@ from typing import Literal, NamedTuple
 
 from src.markup import BOARD_ICONS, BoardToken, parse_line
 
-from .charsets import CharacterSet
+from .charsets import BUILTIN_CHARACTER_SETS, CharacterSet
 from .fonts import LED_FONTS, LedFont
 
 __all__ = [
@@ -748,6 +748,10 @@ class LedLayoutChoice(NamedTuple):
 
     tile_gap: str
     block_padding: int
+    #: The board's face (``"5x7"`` | ``"3x5"``): its own choice when the model
+    #: offers it, else the model's own ``font`` (never ``layoutOptions.font.default``,
+    #: which is only the face a NEW board is created with).
+    font: str
     #: Why a requested value was not used, one line each: for a log warning.
     ignored: list[str]
 
@@ -769,24 +773,32 @@ def layout_policy_for_model(model: Mapping) -> dict:
     does not declare allows every value with the renderer's default; a
     declared one allows what it lists, and its default is the one it names,
     else the renderer's default when allowed, else the first allowed value.
-    Shape: ``{"tileGap": {"allowed", "default"}, "blockPadding": {...}}``.
+    The face (``font``, FiestaUI #342) is the exception: undeclared, it allows
+    only the model's own face, since a face changes the grid; declared
+    without a default, it defaults to the model's own face.
+    Shape: ``{"tileGap": {"allowed", "default"}, "blockPadding": {...}, "font": {...}}``.
     """
     declared = model.get("layoutOptions")
     declared = declared if isinstance(declared, Mapping) else {}
+    own = _own_led_font(model)
     return {
         "tileGap": _policy(declared.get("tileGap"), LED_TILE_GAPS, DEFAULT_LED_TILE_GAP),
         "blockPadding": _policy(declared.get("blockPadding"), LED_BLOCK_PADDINGS, DEFAULT_LED_BLOCK_PADDING),
+        "font": _policy(declared.get("font"), (own,), own),
     }
 
 
 def led_layout_options_for_model(
-    model: Mapping, *, tile_gap: object = None, block_padding: object = None
+    model: Mapping, *, tile_gap: object = None, block_padding: object = None, font: object = None
 ) -> LedLayoutChoice:
     """The layout options a board on *model* draws with (FiestaUI ``ledLayoutOptionsForModel``).
 
     Each requested value when the model allows it, else the model's default,
     with the reason in ``ignored``; never raises, since a stale board setting
-    must not take a board down. ``None`` is unset: the model's default.
+    must not take a board down. ``None`` is unset: the model's default. For
+    ``font`` that is the model's own ``font``, not ``layoutOptions.font.default``
+    (the face a NEW board gets): a board that chose nothing draws exactly what
+    it drew before the choice existed.
     """
     policy = layout_policy_for_model(model)
     ignored: list[str] = []
@@ -807,24 +819,80 @@ def led_layout_options_for_model(
     return LedLayoutChoice(
         pick("tileGap", tile_gap, policy["tileGap"], is_led_tile_gap),
         pick("blockPadding", block_padding, policy["blockPadding"], is_led_block_padding),
+        pick("font", font, {"allowed": policy["font"]["allowed"], "default": _own_led_font(model)}, is_led_font_id),
         ignored,
     )
 
 
-def led_spec_for_model(model: Mapping) -> LedMatrixSpec | None:
+def led_spec_for_model(model: Mapping, *, font: str | None = None) -> LedMatrixSpec | None:
     """A FiestaUI ``DeviceModel``'s matrix spec, or ``None`` for a non-pixel device.
 
     The spec carries the model's defaults for the byte-changing layout
     options (:func:`layout_policy_for_model`); an explicit option wins.
+    *font* sets a board's chosen face (the grid follows it); it must be one
+    the model offers, else :class:`ValueError` (gate a stored board setting
+    with :func:`led_layout_options_for_model` first). Unset, the face is the
+    model's own ``font``.
     """
     geometry = model.get("geometry", {})
     if geometry.get("kind") != "pixels":
         return None
     policy = layout_policy_for_model(model)
+    if font is not None:
+        _assert_led_font_offered(model, font)
     return LedMatrixSpec(
         width=geometry["width"],
         height=geometry["height"],
-        font=model.get("font") or "5x7",
+        font=font if font is not None else _own_led_font(model),
         tile_gap=policy["tileGap"]["default"],
         block_padding=policy["blockPadding"]["default"],
     )
+
+
+#: The renderer's face when a spec names none (:func:`grid_layout`).
+DEFAULT_LED_FONT = "5x7"
+
+
+def is_led_font_id(value: object) -> bool:
+    return isinstance(value, str) and value in LED_FONTS
+
+
+def _own_led_font(model: Mapping) -> str:
+    """The face a model draws in when nothing is chosen: its own, else the renderer's default."""
+    return model.get("font") or DEFAULT_LED_FONT
+
+
+def _assert_led_font_offered(model: Mapping, font: object) -> None:
+    allowed = layout_policy_for_model(model)["font"]["allowed"]
+    if not (is_led_font_id(font) and font in allowed):
+        offered = ", ".join(json.dumps(f) for f in allowed)
+        raise ValueError(f"{model.get('id')} does not offer font {json.dumps(font)} (font: {offered})")
+
+
+def led_charset_for_font(font: str) -> str:
+    """The built-in LED character set drawn in *font* (FiestaUI ``ledCharsetForFont``).
+
+    ``led_5x7`` for ``"5x7"``, ``led_3x5`` for ``"3x5"``: a board's set is
+    derived from its face this way, never declared beside it. Raises
+    :class:`ValueError` for a face no built-in set is drawn in.
+    """
+    for set_id, charset in BUILTIN_CHARACTER_SETS.items():
+        if charset.get("font") == font:
+            return set_id
+    raise ValueError(f"No built-in LED character set is drawn in font {json.dumps(font)}")
+
+
+def model_with_led_font(model: Mapping, font: str) -> Mapping:
+    """The model a board that chose *font* draws as (FiestaUI ``modelWithLedFont``).
+
+    A copy with ``font`` and its derived ``charset`` (:func:`led_charset_for_font`)
+    swapped in, everything else (layout choices included) the same, so
+    :func:`led_spec_for_model` and the character set follow the board's face.
+    The model's own face returns *model* itself. A face the model does not
+    offer raises :class:`ValueError`: gate a stored setting with
+    :func:`led_layout_options_for_model`.
+    """
+    if font == _own_led_font(model):
+        return model
+    _assert_led_font_offered(model, font)
+    return {**model, "font": font, "charset": led_charset_for_font(font)}

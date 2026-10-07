@@ -83,12 +83,12 @@ def test_the_config_keys_are_the_layout_options_snake_cased():
 
 
 def test_a_board_that_chose_nothing_draws_with_its_models_defaults():
-    assert led_layout_choice(PIXOO_MODEL, {"host": "192.0.2.50"}) == ("gap", 0, [])
-    assert led_layout_choice(PIXOO_MODEL, None) == ("gap", 0, [])
+    assert led_layout_choice(PIXOO_MODEL, {"host": "192.0.2.50"}) == ("gap", 0, "3x5", [])
+    assert led_layout_choice(PIXOO_MODEL, None) == ("gap", 0, "3x5", [])
 
 
 def test_an_allowed_choice_stands():
-    assert led_layout_choice(PIXOO_MODEL, {"tile_gap": "fill", "block_padding": 1}) == ("fill", 1, [])
+    assert led_layout_choice(PIXOO_MODEL, {"tile_gap": "fill", "block_padding": 1}) == ("fill", 1, "3x5", [])
 
 
 def test_a_choice_the_model_does_not_allow_is_its_default_with_a_reason():

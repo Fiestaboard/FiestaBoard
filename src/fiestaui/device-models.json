@@ -93,7 +93,8 @@
     "font": "3x5",
     "layoutOptions": {
       "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
-      "blockPadding": { "allowed": [0, 1], "default": 0 }
+      "blockPadding": { "allowed": [0, 1], "default": 0 },
+      "font": { "allowed": ["5x7", "3x5"], "default": "5x7" }
     },
     "appearance": { "pixelShape": "square", "dotRatio": 0.82, "offColor": "#171717", "substrateColor": "#0a0a0a" },
     "legacy": { "preset": "pixoo64" }
