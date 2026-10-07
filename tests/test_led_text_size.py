@@ -212,7 +212,7 @@ class TestBoardFont:
             font = board_font(_board(output_config={"host": "192.0.2.50", "font": "9x9"}), PIXOO)
         assert font == "3x5"
         messages = [r.getMessage() for r in caplog.records]
-        assert any("pixoo-1" in m and "5x7, 3x5" in m for m in messages), caplog.text
+        assert any("divoom_pixoo64" in m and "5x7, 3x5" in m for m in messages), caplog.text
         # output_config can hold secrets: the stored value itself is never logged.
         assert not any("9x9" in m for m in messages), caplog.text
 
