@@ -31,7 +31,9 @@ from .cells import extended_markup_kw, output_character_set
 SPAN_COLORS: tuple[str, ...] = ("red", "orange", "yellow", "green", "blue", "violet", "white", "black")
 
 #: The features :meth:`DisplayProfile.supports` answers for.
-FEATURES: frozenset[str] = frozenset({"lowercase", "color_text", "background", "tiles", "icons", "rgb", "solid_shapes"})
+FEATURES: frozenset[str] = frozenset(
+    {"lowercase", "color_text", "background", "tiles", "icons", "rgb", "solid_shapes", "pixels"}
+)
 
 
 @dataclass(frozen=True)
@@ -57,6 +59,10 @@ class DisplayProfile:
             at runtime (its text size setting), and its grid with it.
         rows: The board's grid height in characters, when known.
         cols: The board's grid width in characters, when known.
+        width: A pixel-matrix board's width in pixels; ``None`` on any
+            other board. With ``height`` it is what ``supports("pixels")``
+            answers: the board draws a page's pixel canvases.
+        height: A pixel-matrix board's height in pixels; ``None`` otherwise.
     """
 
     technology: str = "split_flap"
@@ -73,15 +79,20 @@ class DisplayProfile:
     font: str | None = None
     rows: int | None = None
     cols: int | None = None
+    width: int | None = None
+    height: int | None = None
 
     @property
     def key(self) -> str:
         """Identity for caches: two boards with equal keys draw identically.
 
         The grid is not part of it (a cache keys on the board's size beside
-        it, :attr:`src.devices.BoardContext.key`); the face is.
+        it, :attr:`src.devices.BoardContext.key`); the face and a pixel
+        matrix's pixel size are.
         """
         parts = [self.device_model or self.technology, self.charset, self.color, self.tile_gap]
+        if self.width is not None and self.height is not None:
+            parts.append(f"{self.width}x{self.height}")
         if self.font is not None:
             parts.append(self.font)
         return "|".join(str(part) for part in parts)
@@ -90,8 +101,10 @@ class DisplayProfile:
         """Whether this display can draw *feature* (one of :data:`FEATURES`).
 
         ``"solid_shapes"`` means same-coloured tiles join into one filled area
-        (an LED board in the seamless tile style). An unknown feature name is
-        a programming error and raises ``ValueError``.
+        (an LED board in the seamless tile style). ``"pixels"`` means a
+        pixel matrix: it draws a page's pixel canvases (any pixel, any colour
+        on an RGB panel), and :attr:`width` / :attr:`height` are its size. An
+        unknown feature name is a programming error and raises ``ValueError``.
         """
         if feature not in FEATURES:
             raise ValueError(f"Unknown display feature {feature!r}; one of {sorted(FEATURES)}")
@@ -103,6 +116,7 @@ class DisplayProfile:
             "icons": bool(self.icons),
             "rgb": self.color == "rgb",
             "solid_shapes": self.tiles and self.tile_gap == "fill",
+            "pixels": self.width is not None and self.height is not None,
         }[feature]
 
     def check(self, text: str) -> list[dict[str, Any]]:
@@ -174,6 +188,13 @@ class DisplayProfile:
             symbols = "".join(ch for ch in self.chars if not ch.isalnum() and ch != " ")
             if symbols:
                 lines.append(f"Punctuation it draws: {' '.join(symbols)}. Anything else shows as a blank.")
+        if self.supports("pixels"):
+            lines.append(
+                f"It is a {self.width} x {self.height} pixel matrix: a page can also hold pixel canvases "
+                "(drawings over a block of character cells, in any "
+                + ("colour" if self.color == "rgb" else "lit or unlit pixels")
+                + "), and text under a canvas is hidden or flows around it."
+            )
         return "\n".join(lines)
 
 
@@ -214,6 +235,10 @@ def _profile(
     # The tile style the device is actually drawn with: the board's choice
     # resolved against what its model allows (the preview uses the same).
     layout = led_layout_choice(model, config)
+    geometry = model.get("geometry")
+    pixel_size = None
+    if isinstance(geometry, Mapping) and geometry.get("kind") == "pixels":
+        pixel_size = (int(geometry["width"]), int(geometry["height"]))
     icons = charset.get("icons") or ()
     chars = charset.get("chars") or ()
     return DisplayProfile(
@@ -231,6 +256,8 @@ def _profile(
         font=layout.font if layout is not None else None,
         rows=grid[0] if grid else None,
         cols=grid[1] if grid else None,
+        width=pixel_size[0] if pixel_size else None,
+        height=pixel_size[1] if pixel_size else None,
     )
 
 
@@ -290,3 +317,23 @@ def render_kw(client: Any) -> dict[str, Any]:
     if profile is not None:
         kw["display"] = profile
     return kw
+
+
+def board_layers_json(board: Mapping[str, Any] | None, cells: Any) -> list[dict[str, Any]] | None:
+    """What a board shows of a page's pixel canvases, as API JSON.
+
+    ``None`` for a board that is not a pixel matrix (the response leaves the
+    key out); otherwise the layers the frame *cells* carry
+    (:class:`~src.outputs.cells.RichCells`), ``[]`` when it carries none.
+    """
+    if not isinstance(board, Mapping):
+        return None
+    try:
+        profile = display_profile_for_board(board)
+    except Exception:  # a hint for a read endpoint, never its failure
+        return None
+    if profile is None or not profile.supports("pixels"):
+        return None
+    from .cells import frame_layers
+
+    return [layer.to_json() for layer in frame_layers(cells)]

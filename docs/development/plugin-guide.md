@@ -469,7 +469,9 @@ A plugin that builds its display out of markup can opt out per variable with `"f
 }
 ```
 
-`format` is `"text"` (the default) or `"markup"`. It works in `simple` and in array `item_fields`. Rows of color tiles, such as `{red}{red}{orange}`, are fine without it.
+`format` is `"text"` (the default), `"markup"`, or `"canvas"`. It works in `simple` and in array `item_fields`. Rows of color tiles, such as `{red}{red}{orange}`, are fine without it.
+
+`"canvas"` marks a variable whose value is a drawing for a page's pixel canvas: a plain object (a dict in Python) with optional `size`, `background`, `palette`, `shapes`, and `pixels`. A canvas reads it through its `source`, such as `"{{my_plugin.canvas}}"`. A pixel-matrix board draws it; used in a template line it draws as nothing.
 
 ### Max Lengths
 

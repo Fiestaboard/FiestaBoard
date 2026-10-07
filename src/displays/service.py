@@ -6,8 +6,9 @@ from each display source via the plugin system.
 
 from __future__ import annotations
 
+import hashlib
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from src.devices import BoardContext
@@ -34,6 +35,29 @@ class DisplayResult:
     raw: dict[str, Any]
     available: bool
     error: str | None = None
+    #: A page's pixel canvases rasterised for the board it was rendered for
+    #: (``src.canvas.CanvasLayer``s, in page order). Only a render for a
+    #: pixel-matrix display has any; every other result has none.
+    layers: list[Any] = field(default_factory=list)
+    #: Problems met drawing those canvases (``src.canvas.CanvasIssue``s);
+    #: the canvases still draw.
+    canvas_issues: list[Any] = field(default_factory=list)
+
+    def content_key(self) -> str:
+        """What the board would show, as one string: the dedupe / in-flight key.
+
+        ``formatted`` itself when there are no layers, so every result without
+        canvases keys exactly as before; with layers, ``formatted`` plus a
+        digest of every layer's geometry and pixels, so a canvas change alone
+        (the text unchanged) is a new frame.
+        """
+        if not self.layers:
+            return self.formatted
+        digest = hashlib.sha256()
+        for layer in self.layers:
+            digest.update(f"{layer.x},{layer.y},{layer.w},{layer.h};".encode())
+            digest.update(layer.rgba)
+        return f"{self.formatted}\x00layers:{digest.hexdigest()}"
 
 
 class DisplayService:

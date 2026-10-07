@@ -31,6 +31,8 @@ caller's job (core, per output, with ``charsetFallback``). A set passed in
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import math
 import re
@@ -55,6 +57,7 @@ __all__ = [
     "MAX_MATRIX_SIZE",
     "MIN_MATRIX_SIZE",
     "GutterPixel",
+    "LedBitmapLayer",
     "LedBlockPadding",
     "LedCell",
     "LedDrawOp",
@@ -66,6 +69,7 @@ __all__ = [
     "LedMatrixSpec",
     "LedRenderOptions",
     "LedTileGap",
+    "decode_layers",
     "draw_glyph",
     "frame_to_ascii",
     "frame_to_bits",
@@ -78,6 +82,7 @@ __all__ = [
     "layout_message",
     "layout_policy_for_model",
     "led_layout_options_for_model",
+    "led_monochrome_lit",
     "led_spec_for_model",
     "paint_ops",
     "parse_hex_color",
@@ -278,15 +283,38 @@ class LedCell:
 
 @dataclass(frozen=True)
 class LedDrawOp:
-    """A bitmap glyph (``rows``) or a solid rectangle (``w`` x ``h``), in matrix pixels."""
+    """A bitmap glyph (``rows``), a solid rectangle (``w`` x ``h``) or an RGBA
+    bitmap (``kind == "bitmap"``: ``rgba`` is ``w x h x 4`` bytes, row-major;
+    ``color`` unused), in matrix pixels."""
 
-    kind: Literal["glyph", "rect"]
+    kind: Literal["glyph", "rect", "bitmap"]
     x: int
     y: int
     color: str
     rows: tuple[str, ...] = ()
     w: int = 0
     h: int = 0
+    rgba: bytes = field(default=b"", repr=False)
+
+
+@dataclass(frozen=True)
+class LedBitmapLayer:
+    """A bitmap drawn over a layout's cells (FiestaUI ``DecodedLedBitmapLayer``).
+
+    ``width x height`` pixels at matrix ``(x, y)`` (either may be negative:
+    clipped), ``rgba`` exactly ``width x height x 4`` bytes, row-major. A
+    pixel with alpha > 0 overwrites the RGB under it (alpha is coverage, not
+    a blend), alpha 0 leaves it; later layers paint over earlier ones. A
+    page's pixel canvases reach the renderer as these (``src.canvas``'s
+    ``CanvasLayer`` and its JSON form both decode to one, see
+    :func:`decode_layers`).
+    """
+
+    x: int
+    y: int
+    width: int
+    height: int
+    rgba: bytes = field(repr=False)
 
 
 @dataclass(frozen=True)
@@ -304,6 +332,12 @@ class LedLayout:
     #: tiles and undrawable characters blank, icons as their label,
     #: whitespace collapsed.
     text: str
+    #: The bitmap layers drawn over the cells, decoded: the last ops are
+    #: their ``"bitmap"`` ops. Empty when there are none (a layout without
+    #: layers draws exactly what it drew before layers existed). A per-cell
+    #: transition redraws mid-way layouts with the old layers for the first
+    #: half of its frames and the new ones for the second.
+    layers: tuple[LedBitmapLayer, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -579,7 +613,86 @@ def gutter_pixels(grid: LedGridLayout, cells: Sequence[LedCell], options: LedRen
     return out
 
 
-def layout_cells(grid: LedGridLayout, cells: list[LedCell], options: LedRenderOptions) -> LedLayout:
+def led_monochrome_lit(r: int, g: int, b: int) -> bool:
+    """Whether a layer pixel lights on a monochrome panel (FiestaUI ``ledMonochromeLit``):
+    Rec. 601 luma at least 50%, in integers — ``299·r + 587·g + 114·b >= 127500``."""
+    return 299 * r + 587 * g + 114 * b >= 127_500
+
+
+def _monochrome_rgba(rgba: bytes, panel: tuple[int, int, int]) -> bytes:
+    """A layer's RGBA as a monochrome panel draws it (FiestaUI ``ledMonochromeRgba``):
+    alpha > 0 becomes the panel colour (lit) or black (unlit), opaque; alpha 0 stays transparent."""
+    out = bytearray(len(rgba))
+    lit = bytes((*panel, 255))
+    for i in range(0, len(rgba), 4):
+        if rgba[i + 3] == 0:
+            continue
+        if led_monochrome_lit(rgba[i], rgba[i + 1], rgba[i + 2]):
+            out[i : i + 4] = lit
+        else:
+            out[i + 3] = 255
+    return bytes(out)
+
+
+def _layer_field(layer: object, *names: str) -> object:
+    for name in names:
+        if isinstance(layer, Mapping):
+            if name in layer:
+                return layer[name]
+        elif hasattr(layer, name):
+            return getattr(layer, name)
+    raise KeyError(names[0])
+
+
+def _decode_layer(layer: object) -> LedBitmapLayer | None:
+    """One layer normalised for drawing (FiestaUI ``decodeLedBitmapLayer``), or ``None``.
+
+    Accepts a :class:`LedBitmapLayer`, any object with ``x, y, w|width,
+    h|height, rgba`` (``src.canvas.CanvasLayer``) or the JSON form
+    ``{x, y, width, height, rgba}`` with ``rgba`` bytes or base64. Geometry is
+    floored to integers; a layer with no area, a non-finite size or bad
+    base64 is dropped; ``rgba`` is padded with transparent pixels or cut to
+    exactly ``width x height x 4`` bytes.
+    """
+    if isinstance(layer, LedBitmapLayer):
+        return layer
+    try:
+        raw = [_layer_field(layer, "x"), _layer_field(layer, "y")]
+        raw += [_layer_field(layer, "width", "w"), _layer_field(layer, "height", "h")]
+        x, y, width, height = (math.floor(float(v)) for v in raw)  # type: ignore[arg-type]
+        rgba = _layer_field(layer, "rgba")
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return None
+    if width <= 0 or height <= 0:
+        return None
+    if isinstance(rgba, str):
+        try:
+            data = base64.b64decode(rgba, validate=True)
+        except (binascii.Error, ValueError):
+            return None
+    elif isinstance(rgba, bytes | bytearray | memoryview):
+        data = bytes(rgba)
+    else:
+        return None
+    size = width * height * 4
+    if len(data) != size:
+        data = data[:size].ljust(size, b"\x00")
+    return LedBitmapLayer(x, y, width, height, data)
+
+
+def decode_layers(layers: Sequence[object] | None) -> tuple[LedBitmapLayer, ...]:
+    """Decode *layers* (FiestaUI ``decodeLedBitmapLayers``), dropping the ones that cannot draw."""
+    out = []
+    for layer in layers or ():
+        decoded = _decode_layer(layer)
+        if decoded is not None:
+            out.append(decoded)
+    return tuple(out)
+
+
+def layout_cells(
+    grid: LedGridLayout, cells: list[LedCell], options: LedRenderOptions, layers: Sequence[object] = ()
+) -> LedLayout:
     """The ops and text for resolved cells (FiestaUI ``layoutLedCells``).
 
     Every cell draws its glyph box: a block cell lights its field first (in
@@ -621,8 +734,14 @@ def layout_cells(grid: LedGridLayout, cells: list[LedCell], options: LedRenderOp
         run = [p.x, p.y, 1, p.color]
     if run is not None:
         ops.append(LedDrawOp("rect", run[0], run[1], run[3], w=run[2], h=1))
+    # Bitmap layers last, over everything the cells drew.
+    decoded = decode_layers(layers)
+    panel = parse_hex_color(options.monochrome) if options.monochrome else None
+    for layer in decoded:
+        rgba = _monochrome_rgba(layer.rgba, panel) if panel else layer.rgba
+        ops.append(LedDrawOp("bitmap", layer.x, layer.y, "", w=layer.width, h=layer.height, rgba=rgba))
     text = _JS_SPACES.sub(" ", " ".join(lines)).strip(" ")
-    return LedLayout(grid.width, grid.height, grid, cells, options, ops, text)
+    return LedLayout(grid.width, grid.height, grid, cells, options, ops, text, decoded)
 
 
 def _cell_for_token(
@@ -659,6 +778,8 @@ def layout_message(
     message: str | Sequence[Sequence[BoardToken]],
     spec: LedMatrixSpec,
     options: LedLayoutOptions | None = None,
+    *,
+    layers: Sequence[object] = (),
 ) -> LedLayout:
     """Lay a message out on the matrix's character grid (FiestaUI ``layoutLedMessage``).
 
@@ -669,6 +790,11 @@ def layout_message(
             grid are clipped; short rows are padded with blanks.
         spec: Matrix size and face.
         options: Colours, case and the character set's custom glyphs.
+        layers: Bitmap layers drawn over the cells, in order (a page's pixel
+            canvases: ``src.canvas.CanvasLayer``, its JSON form, or
+            :class:`LedBitmapLayer`; see :func:`decode_layers`). An output
+            plugin passes ``getattr(frame, "layers", ())``. Empty draws
+            exactly what a layout drew before layers existed.
     """
     options = options or LedLayoutOptions()
     grid = grid_layout(spec.width, spec.height, spec.font)
@@ -687,7 +813,7 @@ def layout_message(
         ),
     )
     if grid.rows == 0 or grid.cols == 0:
-        return layout_cells(grid, [], resolved)
+        return layout_cells(grid, [], resolved, layers)
 
     if isinstance(message, str):
         lines = message.split("\n")
@@ -704,7 +830,7 @@ def layout_message(
         for c in range(grid.cols):
             token = tokens[c] if c < len(tokens) else _BLANK_TOKEN
             cells.append(_cell_for_token(token, text_color, monochrome, custom))
-    return layout_cells(grid, cells, resolved)
+    return layout_cells(grid, cells, resolved, layers)
 
 
 def rasterize(layout: LedLayout) -> LedFrame:
@@ -717,6 +843,9 @@ def rasterize(layout: LedLayout) -> LedFrame:
 def paint_ops(pixels: bytearray, width: int, height: int, ops: Sequence[LedDrawOp]) -> None:
     """Paint ops, in order, into a ``width x height`` RGB888 buffer (FiestaUI ``rasterizeLedOps``)."""
     for op in ops:
+        if op.kind == "bitmap":
+            _paint_bitmap(pixels, width, height, op)
+            continue
         rgb = bytes(parse_hex_color(op.color) or (0, 0, 0))
         if op.kind == "rect":
             points = ((op.x + dx, op.y + dy) for dy in range(op.h) for dx in range(op.w))
@@ -728,6 +857,21 @@ def paint_ops(pixels: bytearray, width: int, height: int, ops: Sequence[LedDrawO
             if 0 <= x < width and 0 <= y < height:
                 i = (y * width + x) * 3
                 pixels[i : i + 3] = rgb
+
+
+def _paint_bitmap(pixels: bytearray, width: int, height: int, op: LedDrawOp) -> None:
+    """One bitmap op, clipped to the matrix: alpha > 0 overwrites, alpha 0 leaves (FiestaUI ``paintBitmap``)."""
+    x0, y0 = max(0, op.x), max(0, op.y)
+    x1, y1 = min(width, op.x + op.w), min(height, op.y + op.h)
+    rgba = op.rgba
+    for y in range(y0, y1):
+        src = ((y - op.y) * op.w + (x0 - op.x)) * 4
+        dst = (y * width + x0) * 3
+        for _x in range(x0, x1):
+            if rgba[src + 3]:
+                pixels[dst : dst + 3] = rgba[src : src + 3]
+            src += 4
+            dst += 3
 
 
 def frame_to_bits(frame: LedFrame) -> bytes:

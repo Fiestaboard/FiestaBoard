@@ -39,6 +39,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from src.config_manager import unmask_sensitive_values
 
 from .errors import (
@@ -429,7 +431,11 @@ class PluginService:
             if existing is not None:
                 return {"page": existing, "created": False, "recreated": False, "device_type": resolved_device_type}
 
-        page, recreated = page_service.create_demo_page(plugin_id, demo_schema)
+        try:
+            page, recreated = page_service.create_demo_page(plugin_id, demo_schema)
+        except ValidationError as exc:
+            # The manifest's demo canvases are not valid page canvases.
+            raise PluginOperationRejected(f"Plugin '{plugin_id}' demo page is invalid: {exc}") from exc
         return {"page": page, "created": True, "recreated": recreated, "device_type": resolved_device_type}
 
     # -- config / enablement mutations --------------------------------------

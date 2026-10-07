@@ -357,6 +357,7 @@ Saves a new page and answers with it, including the generated `id` you refer to 
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
 | `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `canvases` | array of [`Canvas`](#schema-canvas) \| `null` | no | — |
 
 **Responses**
 
@@ -426,6 +427,7 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
 | `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `canvases` | array of [`Canvas`](#schema-canvas) \| `null` | no | — |
 
 **Responses**
 
@@ -1158,6 +1160,7 @@ one document, because "what is this board doing" is one question.
 | `source` | `"manual"` \| `"schedule"` \| `"none"` | yes | Where `resolved_page_id` came from. |
 | `default_page_id` | `string` \| `null` | no | The page shown when the schedule has a gap. |
 | `override_expires_at` | `string` \| `null` | no | When the active timed message expires (ISO 8601), or null if none is running. |
+| `layers` | array of [`CanvasLayerModel`](#schema-canvaslayermodel) \| `null` | no | A pixel-matrix board only: the page's pixel canvases on the frame it shows, drawn over `characters` (`{x, y, width, height, rgba}`, rgba base64 RGBA; `[]` for none). Null on any other board. |
 
 ### `BoardListResponse` {#schema-boardlistresponse}
 
@@ -1212,6 +1215,69 @@ a consumer writing to a board has any use for.
 | `paused` | `boolean` \| `null` | no | Pause or resume the board. While paused nothing is written to it from any code path. |
 | `schedule_enabled` | `boolean` \| `null` | no | Turn this board's schedule on or off. |
 | `default_page_id` | `string` \| `null` | no | Page shown when the schedule has a gap. Send null to clear it. |
+
+### `Canvas` {#schema-canvas}
+
+One pixel canvas on a page.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes | — |
+| `area` | [`CanvasArea`](#schema-canvasarea) | yes | — |
+| `bleed` | array of `"top"` \| `"left"` \| `"right"` \| `"bottom"` \| `"all"` | no | — |
+| `scale` | `integer` | no | 1–8; default `1` |
+| `text` | `"hide"` \| `"flow"` | no | default `"hide"` |
+| `content` | [`CanvasContent`](#schema-canvascontent) \| `null` | no | — |
+| `source` | `string` \| `null` | no | — |
+
+### `CanvasArea` {#schema-canvasarea}
+
+1-based character cells of the page grid.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `row` | `integer` | yes | min 1 |
+| `col` | `integer` | yes | min 1 |
+| `rows` | `integer` | yes | min 1 |
+| `cols` | `integer` | yes | min 1 |
+
+### `CanvasContent` {#schema-canvascontent}
+
+What a canvas draws, in its own coordinate space (`size`).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `size` | array of `any` \| `null` | no | — |
+| `background` | `string` \| `null` | no | — |
+| `palette` | object of `string` | no | — |
+| `shapes` | array of [`RectShape`](#schema-rectshape) \| [`CircleShape`](#schema-circleshape) \| [`EllipseShape`](#schema-ellipseshape) \| [`LineShape`](#schema-lineshape) \| [`PolygonShape`](#schema-polygonshape) \| [`TextShape`](#schema-textshape) \| [`GradientShape`](#schema-gradientshape) | no | — |
+| `pixels` | array of `string` | no | — |
+
+### `CanvasLayerModel` {#schema-canvaslayermodel}
+
+One canvas drawn in panel pixels (FiestaUI `LedBitmapLayer`).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `x` | `integer` | yes | Panel x of the layer's left column. |
+| `y` | `integer` | yes | Panel y of the layer's top row. |
+| `width` | `integer` | yes | Pixels across. |
+| `height` | `integer` | yes | Pixels down. |
+| `rgba` | `string` | yes | Base64 of width x height x 4 bytes of straight-alpha RGBA, row-major. A pixel with alpha > 0 overwrites what the cells drew; alpha 0 is transparent. |
+
+### `CircleShape` {#schema-circleshape}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `cx` | `number` \| `integer` \| `string` | yes | — |
+| `cy` | `number` \| `integer` \| `string` | yes | — |
+| `r` | `number` \| `integer` \| `string` | yes | — |
+| `fill` | `string` \| `null` | no | — |
+| `stroke` | `string` \| `null` | no | — |
 
 ### `Collection` {#schema-collection}
 
@@ -1276,6 +1342,21 @@ Request model for updating an existing collection.
 | `variable` | [`VariableModeConfig`](#schema-variablemodeconfig) \| `null` | no | — |
 | `random` | [`RandomModeConfig`](#schema-randommodeconfig) \| `null` | no | — |
 
+### `EllipseShape` {#schema-ellipseshape}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `cx` | `number` \| `integer` \| `string` | yes | — |
+| `cy` | `number` \| `integer` \| `string` | yes | — |
+| `rx` | `number` \| `integer` \| `string` | yes | — |
+| `ry` | `number` \| `integer` \| `string` | yes | — |
+| `fill` | `string` \| `null` | no | — |
+| `stroke` | `string` \| `null` | no | — |
+
 ### `ErrorResponse` {#schema-errorresponse}
 
 The single error body the API serves.
@@ -1312,6 +1393,22 @@ One built-in formula function, as the function picker lists it.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `functions` | object of [`FormulaFunctionEntry`](#schema-formulafunctionentry) | yes | — |
+
+### `GradientShape` {#schema-gradientshape}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `y` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `w` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `h` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `from` | `string` | yes | — |
+| `to` | `string` | yes | — |
+| `angle` | `number` \| `integer` \| `string` | no | default `90` |
 
 ### `HealthResponse` {#schema-healthresponse}
 
@@ -1355,6 +1452,21 @@ inline prefixes (`{center}`, `{wrap}`, etc.) in the template strings.
 |-------|------|----------|-------------|
 | `alignment` | `"left"` \| `"center"` \| `"right"` | no | default `"left"` |
 | `wrap` | `boolean` | no | default `false` |
+
+### `LineShape` {#schema-lineshape}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x1` | `number` \| `integer` \| `string` | yes | — |
+| `y1` | `number` \| `integer` \| `string` | yes | — |
+| `x2` | `number` \| `integer` \| `string` | yes | — |
+| `y2` | `number` \| `integer` \| `string` | yes | — |
+| `stroke` | `string` | yes | — |
+| `width` | `number` \| `integer` \| `string` | no | default `1` |
 
 ### `MessageRequest (board_api)` {#schema-src-board-api-models-messagerequest}
 
@@ -1450,6 +1562,7 @@ Each page targets a specific device type (flagship: 22x6, note: 15x3).
 | `notes_tall` | `integer` | no | 1–8; default `1` |
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
 | `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `canvases` | array of [`Canvas`](#schema-canvas) \| `null` | no | — |
 | `created_at` | `date-time` | no | — |
 | `updated_at` | `date-time` \| `null` | no | — |
 
@@ -1475,6 +1588,7 @@ Request model for creating a new page.
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
 | `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `canvases` | array of [`Canvas`](#schema-canvas) \| `null` | no | — |
 
 ### `PageDeleteResponse` {#schema-pagedeleteresponse}
 
@@ -1522,6 +1636,7 @@ Request model for updating an existing page.
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
 | `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `canvases` | array of [`Canvas`](#schema-canvas) \| `null` | no | — |
 
 ### `PageUpdateResponse` {#schema-pageupdateresponse}
 
@@ -1681,6 +1796,18 @@ which is what a client round-trips when it edits one field of a form.
 | `enabled` | `boolean` \| `null` | no | Enable or disable the plugin. |
 | `config` | `object` \| `null` | no | Replace the plugin's settings. Send "***" for a secret you do not want to change. |
 
+### `PolygonShape` {#schema-polygonshape}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `points` | array of array of `any` \| `string` | yes | — |
+| `fill` | `string` \| `null` | no | — |
+| `stroke` | `string` \| `null` | no | — |
+
 ### `RandomModeConfig` {#schema-randommodeconfig}
 
 Settings for random page selection.
@@ -1691,6 +1818,21 @@ page is shown before a new one is selected.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `interval_seconds` | `integer` | no | 5–86400; default `30` |
+
+### `RectShape` {#schema-rectshape}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x` | `number` \| `integer` \| `string` | yes | — |
+| `y` | `number` \| `integer` \| `string` | yes | — |
+| `w` | `number` \| `integer` \| `string` | yes | — |
+| `h` | `number` \| `integer` \| `string` | yes | — |
+| `fill` | `string` \| `null` | no | — |
+| `stroke` | `string` \| `null` | no | — |
 
 ### `RefreshRequest` {#schema-refreshrequest}
 
@@ -1905,6 +2047,20 @@ a status code, not a flag.
 | `rendered` | `string` | yes | — |
 | `lines` | array of `string` | yes | — |
 | `line_count` | `integer` | yes | — |
+
+### `TextShape` {#schema-textshape}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x` | `number` \| `integer` \| `string` | yes | — |
+| `y` | `number` \| `integer` \| `string` | yes | — |
+| `text` | `string` | yes | max length 256 |
+| `color` | `string` | yes | — |
+| `font` | `"3x5"` \| `"5x7"` | no | default `"5x7"` |
 
 ### `TimeModeConfig` {#schema-timemodeconfig}
 

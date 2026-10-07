@@ -12,6 +12,8 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from src.canvas import covered_cells, free_spans, render_canvases_on_grid, scale_area
+from src.canvas.refs import canvas_plugin_ids
 from src.devices import (
     DEFAULT_DEVICE_TYPE,
     GEOMETRY_FIELDS,
@@ -23,6 +25,7 @@ from src.devices import (
     size_key,
 )
 from src.displays.service import DisplayResult, get_display_service
+from src.led.matrix import DEFAULT_LED_FONT, grid_layout
 from src.plugins.manifest import DemoPageSchema
 from src.settings.service import get_settings_service
 from src.templates.engine import extract_template_plugin_ids, get_template_engine
@@ -78,6 +81,29 @@ DEFAULT_PAGE_TEMPLATES = {
 
 # Backward compatibility alias
 DEFAULT_PAGE_TEMPLATE = DEFAULT_PAGE_TEMPLATES["flagship"]
+
+
+def page_plugin_ids(page: Page) -> set[str] | None:
+    """The plugin ids a page's render reads: its template's and its canvases'.
+
+    ``None`` when either cannot be determined statically (a formula), which
+    callers read as "fetch every enabled plugin" (issue #1751).
+    """
+    template_refs = extract_template_plugin_ids(getattr(page, "template", None))
+    canvases = getattr(page, "canvases", None)
+    canvas_refs = canvas_plugin_ids(canvases) if isinstance(canvases, list) else set()
+    if template_refs is None or canvas_refs is None:
+        return None
+    return template_refs | canvas_refs
+
+
+def draws_pixels(display: Any) -> bool:
+    """Whether *display* (a :class:`~src.outputs.display_profile.DisplayProfile`) is a pixel matrix."""
+    supports = getattr(display, "supports", None)
+    try:
+        return bool(supports and supports("pixels"))
+    except ValueError:
+        return False
 
 
 @dataclass
@@ -181,6 +207,7 @@ class PageService:
             notes_tall=data.notes_tall or 1,
             grid_rows=data.grid_rows,
             grid_cols=data.grid_cols,
+            canvases=data.canvases,
             created_at=datetime.now(UTC),
         )
 
@@ -202,6 +229,7 @@ class PageService:
                 fits the new geometry)
         """
         updates = data.model_dump(exclude_unset=True)
+        self._scale_canvases_on_retarget(page_id, updates)
 
         # Device/size retarget (issue #1250): re-validate the prospective page
         # before persisting so a retarget can't strand an invalid config.
@@ -231,6 +259,33 @@ class PageService:
             logger.debug(f"Invalidated preview cache for page {page_id}")
 
         return updated_page
+
+    def _scale_canvases_on_retarget(self, page_id: str, updates: dict) -> None:
+        """A size retarget that does not send ``canvases`` scales the stored areas.
+
+        Canvas areas are cells of the page grid, so a grid change (a board's
+        text size switch, a FiestaPanel re-fit, the editor's retarget) moves
+        them proportionally (:func:`src.canvas.scale_area`) rather than
+        leaving them where they no longer fit. Explicit ``canvases`` in the
+        same update win: the caller already placed them.
+        """
+        if "canvases" in updates or not any(key in updates for key in GEOMETRY_FIELDS):
+            return
+        existing = self.storage.get(page_id)
+        if existing is None or not existing.canvases:
+            return
+        merged = {**existing.model_dump(), **{k: v for k, v in updates.items() if v is not None}}
+        try:
+            old = dimensions_of(existing)
+            new = dimensions_of(merged)
+        except ValueError:
+            return  # the retarget itself is invalid; update_page reports that
+        if (old.rows, old.cols) == (new.rows, new.cols):
+            return
+        updates["canvases"] = [
+            canvas.model_copy(update={"area": scale_area(canvas.area, (old.rows, old.cols), (new.rows, new.cols))})
+            for canvas in existing.canvases
+        ]
 
     def delete_page(self, page_id: str) -> DeleteResult:
         """Delete a page.
@@ -347,14 +402,6 @@ class PageService:
         Returns:
             Tuple of (created_page, was_recreated)
         """
-        recreated = False
-        existing = self.get_demo_page(plugin_id, device_type=demo.device_type)
-        if existing:
-            self.storage.delete(existing.id)
-            self._invalidate_cache(existing.id)
-            recreated = True
-            logger.info(f"Deleted existing demo page {existing.id} for plugin {plugin_id}")
-
         line_metadata = None
         if demo.line_metadata:
             line_metadata = [
@@ -373,8 +420,19 @@ class PageService:
             line_metadata=line_metadata,
             duration_seconds=demo.duration_seconds,
             demo_plugin_id=plugin_id,
+            canvases=getattr(demo, "canvases", None),
             created_at=datetime.now(UTC),
         )
+
+        # Built (and validated) before the old demo goes, so an invalid demo
+        # leaves the existing page in place.
+        recreated = False
+        existing = self.get_demo_page(plugin_id, device_type=demo.device_type)
+        if existing:
+            self.storage.delete(existing.id)
+            self._invalidate_cache(existing.id)
+            recreated = True
+            logger.info(f"Deleted existing demo page {existing.id} for plugin {plugin_id}")
 
         created = self.storage.create(page)
         logger.info(f"Created demo page {created.id} for plugin {plugin_id}")
@@ -507,25 +565,61 @@ class PageService:
         Returns:
             DisplayResult with formatted text
         """
-        if context is None and contexts is not None and page.type == "template":
+        canvases = page.canvases or []
+        pixels = bool(canvases) and draws_pixels(display)
+        if context is None and contexts is not None and (page.type == "template" or pixels):
             context = self.shared_context_for(
                 contexts,
                 *geometry_of(page),
                 # Demand-driven fetch (issue #1751): only the plugins this
-                # page's template references. None (a formula page) keeps
-                # the fetch-all fallback.
-                plugin_ids=extract_template_plugin_ids(page.template),
+                # page's template and canvases reference. None (a formula
+                # page) keeps the fetch-all fallback.
+                plugin_ids=page_plugin_ids(page),
                 display=display,
             )
+        if context is None and pixels:
+            # The canvases read the same context the template renders with.
+            context = get_template_engine().build_context(
+                board_context_for(*geometry_of(page), display=display), plugin_ids=page_plugin_ids(page)
+            )
         if page.type == "single":
-            return self._render_single(page)
-        if page.type == "composite":
-            return self._render_composite(page)
-        if page.type == "template":
-            return self._render_template(page, context=context, extended_markup=extended_markup, display=display)
-        return DisplayResult(
-            display_type="page", formatted="", raw={}, available=False, error=f"Unknown page type: {page.type}"
+            result = self._render_single(page)
+        elif page.type == "composite":
+            result = self._render_composite(page)
+        elif page.type == "template":
+            result = self._render_template(page, context=context, extended_markup=extended_markup, display=display)
+        else:
+            return DisplayResult(
+                display_type="page", formatted="", raw={}, available=False, error=f"Unknown page type: {page.type}"
+            )
+        if canvases and result.available:
+            self._apply_canvases(page, result, context, extended_markup=extended_markup, display=display)
+        return result
+
+    @staticmethod
+    def _apply_canvases(
+        page: Page, result: DisplayResult, context: dict | None, *, extended_markup: bool, display: Any
+    ) -> None:
+        """Design §3: blank the cells under the page's canvases (every board),
+        then, for a pixel-matrix *display*, rasterise them into ``result.layers``.
+
+        ``flow`` canvases already kept text out of their cells
+        (:meth:`_render_template`); this blanks every covered cell, so a
+        ``hide`` canvas's text is gone and a non-template page's too. The
+        layers are drawn on the board's own LED grid (its pixel size and the
+        face its text size chose) with the page's variable *context*.
+        """
+        canvases = page.canvases or []
+        dims = dimensions_of(page)
+        result.formatted = get_template_engine().blank_cells(
+            result.formatted, covered_cells(canvases, dims.rows, dims.cols), extended_markup=extended_markup
         )
+        if not draws_pixels(display):
+            return
+        grid = grid_layout(display.width, display.height, display.font or DEFAULT_LED_FONT)
+        layers, issues = render_canvases_on_grid(canvases, grid, context or {})
+        result.layers = layers
+        result.canvas_issues = issues
 
     @staticmethod
     def _board_for_page(page: Page) -> BoardContext:
@@ -653,6 +747,10 @@ class PageService:
             # The template engine already handles tile-aware truncation in render_lines()
             # via _truncate_to_tiles() - color codes like {63} count as 1 tile each
             meta = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
+            spans = None
+            if any(c.text == "flow" for c in page.canvases or ()):
+                dims = dimensions_of(page)
+                spans = free_spans(page.canvases, dims.rows, dims.cols)
             formatted = template_engine.render_lines(
                 page.template,
                 context=context,
@@ -664,6 +762,7 @@ class PageService:
                 grid_cols=page.grid_cols,
                 extended_markup=extended_markup,
                 display=display,
+                free_spans=spans,
             )
 
             # Note: We do NOT truncate/pad by character count here because:
@@ -811,12 +910,12 @@ class PageService:
         # all) as soon as any page's references cannot be determined.
         ids_by_board: dict[str, Collection[str] | None] = {}
         for _, p in pages_to_render:
-            if p.type != "template":
+            if p.type != "template" and not (p.canvases and draws_pixels(display)):
                 continue
             key = self._board_key(p)
             if key not in boards:
                 boards[key] = board_context_for(*geometry_of(p), display=display)
-            refs = extract_template_plugin_ids(p.template)
+            refs = page_plugin_ids(p)
             if key not in ids_by_board:
                 ids_by_board[key] = set(refs) if refs is not None else None
             elif ids_by_board[key] is not None:

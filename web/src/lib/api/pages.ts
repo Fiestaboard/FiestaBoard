@@ -1,6 +1,7 @@
 // Pages domain: page CRUD, previews, sharing, staff picks, and the
 // active-page setting.
 
+import type { Canvas, CanvasIssue, CanvasLayerJson } from "./canvas";
 import { fetchApi } from "./core";
 import type { DeviceType, LineMetadata, PageType, RowConfig } from "./shared";
 import type { BoardTokenJson } from "./templates";
@@ -70,6 +71,8 @@ export interface Page {
   grid_rows?: number | null;
   /** Columns of characters (panel device_type only; required for a panel). */
   grid_cols?: number | null;
+  /** Pixel canvases (up to 8). `null` in an update removes them all. */
+  canvases?: Canvas[] | null;
 }
 
 export interface PageCreate {
@@ -95,6 +98,8 @@ export interface PageCreate {
   grid_rows?: number | null;
   /** Columns of characters (panel device_type only; required for a panel). */
   grid_cols?: number | null;
+  /** Pixel canvases (up to 8). `null` in an update removes them all. */
+  canvases?: Canvas[] | null;
 }
 
 export interface PageUpdate {
@@ -118,6 +123,8 @@ export interface PageUpdate {
   grid_rows?: number | null;
   /** Columns of characters (panel device_type only; required for a panel). */
   grid_cols?: number | null;
+  /** Pixel canvases (up to 8). `null` in an update removes them all. */
+  canvases?: Canvas[] | null;
 }
 
 export interface PagesResponse {
@@ -169,6 +176,14 @@ export interface PagePreviewResponse {
    * preview asked for a board that draws a rich character set (an LED board).
    */
   cells?: BoardTokenJson[][];
+  /**
+   * The page's pixel canvases rasterised for the batch's board: only when
+   * that board is a pixel matrix (`[]` for a page without canvases). Drawn
+   * over `cells`.
+   */
+  layers?: CanvasLayerJson[];
+  /** Problems drawing those canvases; present exactly when `layers` is. */
+  canvas_issues?: CanvasIssue[];
 }
 
 /**

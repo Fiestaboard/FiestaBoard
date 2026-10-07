@@ -509,7 +509,8 @@ class VariableMetadata:
     group: str = ""
     example: str = ""
     # "text" (default): the value is data and is neutralised before it reaches
-    # the board; "markup": it passes through as markup (plan D19).
+    # the board; "markup": it passes through as markup (plan D19); "canvas": a
+    # pixel-canvas content object for a canvas source (empty text in a line).
     format: str = "text"
 
 
@@ -556,6 +557,11 @@ class DemoPageSchema:
     device_type: str = "flagship"
     line_metadata: list[dict[str, Any]] | None = None
     duration_seconds: int = 300
+    #: Pixel canvases for the demo page, as page JSON (validated when the page
+    #: is created). Areas may run past the grid's edge: they are clamped to
+    #: the board the page renders on, so ``{"row": 1, "col": 1, "rows": 96,
+    #: "cols": 128}`` is "the whole board" on every size.
+    canvases: list[dict[str, Any]] | None = None
 
 
 @dataclass
@@ -802,6 +808,7 @@ class PluginManifest:
                     device_type=demo_raw.get("device_type", "flagship"),
                     line_metadata=demo_raw.get("line_metadata"),
                     duration_seconds=demo_raw.get("duration_seconds", 300),
+                    canvases=demo_raw.get("canvases"),
                 )
                 demo = {schema.device_type: schema}
             else:
@@ -815,6 +822,7 @@ class PluginManifest:
                             device_type=dt,
                             line_metadata=entry.get("line_metadata"),
                             duration_seconds=entry.get("duration_seconds", 300),
+                            canvases=entry.get("canvases"),
                         )
                 if not demo:
                     demo = None
@@ -1240,7 +1248,10 @@ def _validate_item_fields(item_fields: Any, path: str) -> list[str]:
 #: Values a variable's ``format`` may take. ``text`` (the default): the value
 #: is data, and any brace that is not a base-grammar tile is neutralised.
 #: ``markup``: the value passes through as markup (plan D19, rule 2).
-VARIABLE_FORMATS = ("text", "markup")
+#: ``canvas``: the value is a pixel-canvas content object (a dict) for a
+#: canvas ``source`` (``docs/internal/reference/PIXEL_CANVAS.md``); a canvas
+#: reads it natively, and a template line draws it as empty text.
+VARIABLE_FORMATS = ("text", "markup", "canvas")
 
 
 def reserved_plugin_id_error(plugin_id: str) -> str | None:

@@ -1,6 +1,6 @@
 # Pixel canvas — design record
 
-<!-- cspell:words Colours colours rasterise rasterised rasterisation rasteriser neighbour letterboxed -->
+<!-- cspell:words luma Colours colours rasterise rasterised rasterisation rasteriser neighbour letterboxed -->
 
 Owner-approved direction (chat, 2026-10-06/07): canvases live INSIDE normal pages, a page can hold several, a canvas
 can bleed to the panel border, content is stored data beside the template (option 1), any pixel any RGB colour,
@@ -131,3 +131,40 @@ split-flap TVs, free (non-cell) placement.
 4. core `feat/canvas-editor`: web editor + TS types + MCP + AI teaching + docs (after 3; FiestaUI bump after 2 releases).
 5. divoom-pixoo: layers passthrough (after 3).
 6. generative-ai-art: `canvas` variable (after 1 for the format; tests against 3).
+
+## 10. What core PR 3 (`feat/canvas-pages`) implements
+
+- **Storage.** `Page.canvases` on `Page` / `PageCreate` / `PageUpdate` (`PageUpdate.canvases: null` clears them) and
+  on the import preview. `pages.json` schema v6 (`_migrate_v5_to_v6`) adds `canvases: null` where absent. Canvases
+  are stored in their JSON form (`if` / `as` / `from`, unset fields left out), are in share strings, and ride along
+  on import.
+- **Area validation and clamping.** An area must *start* inside the page grid (`row <= rows`, `col <= cols`; spans
+  at least 1); it may run past the right or bottom edge. Every consumer clamps it to the grid it draws on
+  (`clamp_area`), so `{"row": 1, "col": 1, "rows": 96, "cols": 128}` means "the whole board" on every size.
+  Plugin demo pages (manifest `demo.<device>.canvases`) use this so one demo fits any board.
+- **Retarget.** A size change that does not send `canvases` scales the stored areas (`scale_area`) — the editor's
+  retarget, an LED board's text-size switch and a FiestaPanel re-fit (both via `retarget_pages`).
+- **Text.** `flow` canvases give `render_lines(..., free_spans=...)` per-row spans; wrapping lines fill them in
+  reading order (whole rendered line, words never split unless no later span can hold them), alignment is per
+  span, lines without wrap take their row's first span and clip. Then every covered cell is blanked
+  (`TemplateEngine.blank_cells`; extended markup via `markup.blank_tiles`) on every board and page type.
+- **Layers.** For a display whose `DisplayProfile.supports("pixels")` (`width` / `height` set from a `pixels`
+  model), `PageService.render_page` draws the canvases on `grid_layout(width, height, font)` with the page's
+  template context into `DisplayResult.layers` (+ `canvas_issues`). The fetch set (`page_plugin_ids`) includes
+  plugin roots the canvases name (a formula makes it fetch-all). `DisplayResult.content_key()` (text plus a layer
+  digest) is the engine's dedupe / in-flight key, so a canvas change alone is resent. The display-agnostic preview
+  cache never holds layers.
+- **`"format": "canvas"`** plugin variables reach a canvas `source` as the plugin's native dict; in a template line
+  they render as empty text.
+- **LED renderer.** `layout_message(..., layers=)` / `layout_cells(..., layers=)`, `LedLayout.layers`, `"bitmap"`
+  ops after all cell ops, and the FiestaUI#343 rules (overwrite on alpha > 0, clip, monochrome luma rule; flip /
+  cascade switch layers half-way and repaint them over half-flaps). Pinned by FiestaUI's 4 layer goldens in
+  `tests/fixtures/fiestaui-led-layers.json` (copied from FiestaUI#343 at `a8a62517`; replace with the vendored
+  fixture when FiestaUI releases).
+- **Output plugins.** Rich frames are `RichCells` (a `list` with `.layers`); `write_cells` and `write_transition`
+  (before and after) receive them; `FrameCache` equality and the last-frame store include layers. An LED output
+  plugin draws them with `layout_message(frame, spec, options, layers=getattr(frame, "layers", ()))`. Split-flap
+  outputs get no rich cells, so never any layers.
+- **APIs.** `layers: [{x, y, width, height, rgba}]` (+ `canvas_issues`) on the batch preview for a pixel board, on
+  `POST /pages/{id}/send` (null for other boards), on `GET /board/current-message` and `GET /v1/boards/{board}` for
+  a pixel board. The web passes them to `DevicePreview` behind `PREVIEW_TAKES_LAYERS` until FiestaUI ships the prop.

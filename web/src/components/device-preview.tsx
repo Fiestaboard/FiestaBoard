@@ -4,8 +4,8 @@ import { type BoardCellGrid, type DeviceModel, DisplayPreview } from "@fiestaboa
 import { memo, type ReactNode, useCallback } from "react";
 
 import { useTranslations } from "@/i18n/translations";
-import type { BoardLedLayout } from "@/lib/api";
-import { isLedModel, ledLayoutProps, ledLetterCase } from "@/lib/device-preview";
+import type { BoardLedLayout, CanvasLayerJson } from "@/lib/api";
+import { isLedModel, ledLayerProps, ledLayoutProps, ledLetterCase } from "@/lib/device-preview";
 
 export interface DevicePreviewProps {
   /** The board's device model (`resolveBoardModel`); `null` when unknown. */
@@ -14,6 +14,11 @@ export interface DevicePreviewProps {
   message?: string | null;
   /** Parsed cells (`BoardToken[][]`) where the API provides them; win over `message`. */
   cells?: BoardCellGrid;
+  /**
+   * A pixel board's canvas layers (`layers` from the API), drawn over the
+   * cells once the installed FiestaUI takes them (`PREVIEW_TAKES_LAYERS`).
+   */
+  layers?: CanvasLayerJson[] | null;
   size?: "sm" | "md" | "lg";
   /** A fixed accessible name (thumbnails), instead of one built from the message. */
   previewLabel?: string;
@@ -46,6 +51,7 @@ export const DevicePreview = memo(function DevicePreview({
   model,
   message,
   cells,
+  layers,
   size,
   previewLabel,
   ledLayout,
@@ -57,6 +63,7 @@ export const DevicePreview = memo(function DevicePreview({
   return (
     <DisplayPreview
       {...ledLayoutProps(ledLayout)}
+      {...ledLayerProps(layers)}
       model={model}
       message={message ?? null}
       cells={cells}

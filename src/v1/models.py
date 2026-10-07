@@ -14,6 +14,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, StrictBool, StrictInt, model_validator
 
+from src.canvas.schemas import CanvasLayerModel
+
 #: Highest valid flap code. 0-71 covers blank, the alphabet, digits,
 #: punctuation and the eight colour tiles.
 MAX_CHARACTER_CODE = 71
@@ -132,6 +134,14 @@ class BoardDetail(BoardSummary):
     override_expires_at: str | None = Field(
         default=None,
         description="When the active timed message expires (ISO 8601), or null if none is running.",
+    )
+    layers: list[CanvasLayerModel] | None = Field(
+        default=None,
+        description=(
+            "A pixel-matrix board only: the page's pixel canvases on the frame it shows, drawn over "
+            "``characters`` (``{x, y, width, height, rgba}``, rgba base64 RGBA; ``[]`` for none). Null on any "
+            "other board."
+        ),
     )
 
 

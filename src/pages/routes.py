@@ -29,6 +29,7 @@ from fastapi import APIRouter, HTTPException, Query
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.board_guards import _board_dims, _board_is_paused, _find_board, _require_board, _silence_active
+from src.canvas.schemas import issues_json, layers_json
 from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service
 from src.devices import board_context_for, geometry_of, resolve_dimensions, size_key
@@ -63,7 +64,7 @@ from .models import (
     ShareStringResponse,
 )
 from .models import Page as PageModel
-from .service import find_incompatible_references, get_page_service
+from .service import draws_pixels, find_incompatible_references, get_page_service
 from .share import decode_page, encode_page
 
 logger = logging.getLogger(__name__)
@@ -482,6 +483,10 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
             if dims is not None:
                 cells = project_message(result.formatted, dims.rows, dims.cols, charset).cells
                 results[page_id]["cells"] = cells_to_json(cells) if cells is not None else None
+            if draws_pixels(display):
+                # A pixel-matrix board: the page's canvases, drawn over the cells.
+                results[page_id]["layers"] = layers_json(result.layers)
+                results[page_id]["canvas_issues"] = issues_json(result.canvas_issues)
 
     return PagePreviewBatchResponse(
         previews=results,
@@ -597,7 +602,9 @@ async def send_page(
         # Render the page - always force fresh render when sending to board.
         # A board whose output draws a rich character set renders it with its
         # extended markup (plan D19); every other board's call is unchanged.
-        result = page_service.preview_page(page_id, force_refresh=True, **render_kw(board_client))
+        kw = render_kw(board_client)
+        result = page_service.preview_page(page_id, force_refresh=True, **kw)
+        pixel_board = draws_pixels(kw.get("display"))
 
         if result is None:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
@@ -640,7 +647,7 @@ async def send_page(
                 else:
                     dims = resolve_dimensions(*geometry_of(page))
                 board_array, rich = project_for_output(
-                    board_client, result.formatted, dims.rows, dims.cols, flap=text_to_board_array
+                    board_client, result.formatted, dims.rows, dims.cols, flap=text_to_board_array, layers=result.layers
                 )
                 # render() serializes concurrent senders via the client's
                 # per-board send lock, so worker threads can't interleave.
@@ -678,6 +685,8 @@ async def send_page(
             paused=paused,
             target=target or settings_service.get_output_settings().target,
             board_id=board_id,
+            layers=layers_json(result.layers) if pixel_board else None,
+            canvas_issues=issues_json(result.canvas_issues) if pixel_board else None,
         )
 
     # Board network I/O goes on the dedicated bounded send pool, never the

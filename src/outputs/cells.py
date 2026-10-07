@@ -23,6 +23,16 @@ character (one code point), a colour tile (numeric code) or an icon (its
 canonical name), plus ``color`` / ``background``. Its JSON shape is
 :func:`cells_to_json`.
 
+**Layers.** A projected frame is a :class:`RichCells`: still a plain list of
+rows (every plugin written before canvases keeps working), with a
+``.layers`` attribute — the page's pixel canvases rasterised for the board
+(``src.canvas.CanvasLayer``s, ``(x, y, w, h, rgba)``; empty on most frames).
+An LED output plugin draws them with
+``layout_message(frame, spec, options, layers=getattr(frame, "layers", ()))``.
+Frame equality (:func:`cells_equal`, so the dedupe) includes them. Only a
+pixel-matrix board's render produces any, and only a rich output gets cells,
+so a split-flap output never sees a layer.
+
 Nothing is cached across renders: a set's lookups are built once per
 projection, so a set whose content changes (a new ``version``) can never
 be served a stale projection.
@@ -30,7 +40,7 @@ be served a stale projection.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from typing import Any, NamedTuple
 
@@ -42,19 +52,55 @@ from src.text_to_board import COLOR_CODES, SPLIT_FLAP_EXTENDED_MARKUP, text_to_b
 __all__ = [
     "ProjectedFrame",
     "RichCellFrame",
+    "RichCells",
     "cells_equal",
     "cells_from_codes",
     "cells_to_json",
     "charset_extended_markup",
     "extended_markup_kw",
+    "frame_layers",
     "output_character_set",
     "output_extended_markup",
     "project_for_output",
     "project_message",
 ]
 
-#: One rich frame: rows of FiestaUI ``BoardToken``s, board-shaped.
+#: One rich frame: rows of FiestaUI ``BoardToken``s, board-shaped. A
+#: projected frame is a :class:`RichCells` (this, plus ``.layers``).
 RichCellFrame = list[list[BoardToken]]
+
+
+class RichCells(list):
+    """A rich frame (rows of ``BoardToken``s) that also carries its bitmap ``layers``.
+
+    A ``list`` subclass so it is a :data:`RichCellFrame` wherever one is
+    expected: indexing, iteration, ``==`` against a plain list (cells only)
+    and :func:`cells_to_json` are unchanged. ``layers`` is a tuple of
+    ``src.canvas.CanvasLayer`` (``x``, ``y``, ``w``, ``h``, ``rgba``), drawn
+    over the cells in order; ``()`` when the frame has none. Use
+    :func:`cells_equal` to compare frames including their layers.
+    """
+
+    __slots__ = ("layers",)
+
+    def __init__(self, rows=(), layers=()) -> None:
+        super().__init__(rows)
+        self.layers: tuple = tuple(layers)
+
+    def __repr__(self) -> str:
+        return f"RichCells({list.__repr__(self)}, layers={len(self.layers)})"
+
+    def __copy__(self) -> RichCells:
+        return RichCells(self, self.layers)
+
+    def __reduce__(self):
+        return (RichCells, (list(self), self.layers))
+
+
+def frame_layers(cells: object) -> tuple:
+    """The bitmap layers a rich frame carries (``()`` for a plain list or ``None``)."""
+    return tuple(getattr(cells, "layers", ()) or ())
+
 
 _BLANK = BoardToken("char", value=" ")
 
@@ -111,6 +157,7 @@ def project_for_output(
     cols: int,
     *,
     flap: Callable[..., list[list[int]]] | None = None,
+    layers: Sequence[Any] = (),
 ) -> tuple[list[list[int]], dict[str, Any]]:
     """*message* projected for the board behind *client*: the 0–71 grid and
     the send keywords that carry its rich cells (``{"cells": ...}``, or
@@ -121,11 +168,14 @@ def project_for_output(
     :func:`~src.text_to_board.text_to_board_array`, whose default is the
     split-flap mode (:data:`~src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP`),
     so the call shape a patched seam sees is the one it always was.
+
+    *layers* (a pixel-matrix render's canvases) ride on the rich cells; a
+    split-flap board gets none.
     """
     charset = output_character_set(client)
     if not has_extended_markup(charset):
         return (flap or text_to_board_array)(message, rows=rows, cols=cols), {}
-    frame = project_message(message, rows, cols, charset)
+    frame = project_message(message, rows, cols, charset, layers=layers)
     return frame.characters, {"cells": frame.cells}
 
 
@@ -135,12 +185,15 @@ def _numeric_tile(token: BoardToken) -> BoardToken:
     return token
 
 
-def project_message(message: str, rows: int, cols: int, charset: CharacterSet | None) -> ProjectedFrame:
+def project_message(
+    message: str, rows: int, cols: int, charset: CharacterSet | None, *, layers: Sequence[Any] = ()
+) -> ProjectedFrame:
     """*message* as a ``rows`` x ``cols`` board drawn with *charset*.
 
     A set that is not rich (or none) gets the split-flap grid (parsed with
     :func:`charset_extended_markup`) and no cells. A rich set gets one
-    extended-markup parse, projected twice (see module docstring).
+    extended-markup parse, projected twice (see module docstring), and its
+    cells carry *layers* (:class:`RichCells`).
     """
     if not has_extended_markup(charset):
         grid = text_to_board_array(message, rows=rows, cols=cols, extended_markup=charset_extended_markup(charset))
@@ -148,7 +201,7 @@ def project_message(message: str, rows: int, cols: int, charset: CharacterSet | 
     look = CharsetLookup(charset)
     lines = message.split("\n")
     characters: list[list[int]] = []
-    cells: RichCellFrame = []
+    cells = RichCells(layers=layers)
     for row in range(rows):
         line = lines[row] if row < len(lines) else ""
         tokens = parse_line(line, cols, extended_markup=True, preserve_case=True)
@@ -159,13 +212,14 @@ def project_message(message: str, rows: int, cols: int, charset: CharacterSet | 
 
 
 def cells_equal(a: RichCellFrame | None, b: RichCellFrame | None) -> bool:
-    """Colour-aware frame equality (FiestaUI ``richTokensEqual`` per cell).
+    """Colour-aware frame equality (FiestaUI ``richTokensEqual`` per cell),
+    bitmap layers included (:func:`frame_layers`).
 
     Two missing frames are equal; a missing and a present one are not.
     """
     if a is None or b is None:
         return a is b
-    if len(a) != len(b):
+    if len(a) != len(b) or frame_layers(a) != frame_layers(b):
         return False
     for row_a, row_b in zip(a, b, strict=True):
         if len(row_a) != len(row_b) or not all(rich_tokens_equal(x, y) for x, y in zip(row_a, row_b, strict=True)):

@@ -198,6 +198,7 @@ const PageButtonPreview = memo(
             ledLayout={ledLayout}
             message={preview?.message || null}
             cells={model ? (preview?.cells as BoardCellGrid | undefined) : undefined}
+            layers={model ? preview?.layers : undefined}
             size="sm"
           >
             <ScaledBoardDisplay
