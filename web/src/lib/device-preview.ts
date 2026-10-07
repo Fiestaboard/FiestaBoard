@@ -78,12 +78,12 @@ export interface LedLayoutProps {
 
 /**
  * Whether this FiestaUI release's `DisplayPreview` takes a `layers` prop
- * (bitmap layers: a page's pixel canvases, Fiestaboard/FiestaUI#343, after
- * 8.1.0). Until it does, a preview draws the cells alone and the canvases
- * show only on the device. The `satisfies` fails to compile once the bumped
- * release takes `layers`: flip it to `true` then.
+ * (bitmap layers: a page's pixel canvases, Fiestaboard/FiestaUI#343, shipped
+ * in 8.4.0). It does, so a preview draws the canvases over the cells as the
+ * device does. The `satisfies` fails to compile if `@fiestaboard/ui` is ever
+ * pinned back to a release without it.
  */
-export const PREVIEW_TAKES_LAYERS = false satisfies PreviewTakesLayers;
+export const PREVIEW_TAKES_LAYERS = true satisfies PreviewTakesLayers;
 type PreviewTakesLayers = "layers" extends keyof ComponentProps<typeof DisplayPreview> ? true : false;
 
 /** `DisplayPreview`'s bitmap-layer prop (FiestaUI `LedBitmapLayer[]`, `rgba` base64). */
@@ -93,12 +93,10 @@ export interface LedLayerProps {
 
 /**
  * A pixel board's canvas layers (`layers` from a preview or the board's
- * current message) as `DisplayPreview` props: empty until the installed
- * FiestaUI release draws them ({@link PREVIEW_TAKES_LAYERS}), or when there
- * are none.
+ * current message) as `DisplayPreview` props; empty when there are none.
  */
 export function ledLayerProps(layers: CanvasLayerJson[] | null | undefined): LedLayerProps {
-  if (!PREVIEW_TAKES_LAYERS || !layers?.length) return {};
+  if (!layers?.length) return {};
   return { layers };
 }
 

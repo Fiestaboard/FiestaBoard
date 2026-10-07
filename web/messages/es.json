@@ -2692,7 +2692,6 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "No se aceptaron los lienzos: {message}",
     "notPixelNotice": "Esta página tiene lienzos de píxeles. Este tablero no puede dibujarlos, así que sus áreas quedan en blanco. Previsualiza la página en un tablero LED de píxeles para editarlos.",
-    "previewWithoutLayers": "Esta vista previa muestra solo el texto; los lienzos se dibujan en el propio tablero.",
     "markerTitle": "Un lienzo empieza en esta fila (no forma parte del texto)"
   }
 }

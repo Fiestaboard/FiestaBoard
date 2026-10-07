@@ -118,7 +118,7 @@ import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
 import { charsetTokenText } from "@/lib/charset-issues";
-import { boardForShape, ledEditorCharacterSet, PREVIEW_TAKES_LAYERS, resolveBoardModel } from "@/lib/device-preview";
+import { boardForShape, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
@@ -2791,11 +2791,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     board a page that has them says why their areas are blank. */}
                 {pixelBoard ? (
                   <Box className="mt-2 border-t pt-4">
-                    {canvases.length > 0 && !PREVIEW_TAKES_LAYERS && (
-                      <Text size="xs" tone="muted" className="mb-2">
-                        {tCanvas("previewWithoutLayers")}
-                      </Text>
-                    )}
                     <CanvasesPanel
                       canvases={canvases}
                       onChange={setCanvases}

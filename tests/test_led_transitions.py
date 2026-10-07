@@ -107,20 +107,22 @@ def _golden_plan(case: dict):
     )
     s = case["spec"]
     grid_spec = LedMatrixSpec(s["width"], s["height"], s.get("font", "5x7"))
-    before = layout_message(case["from"], grid_spec, options)
-    after = layout_message(case["to"], grid_spec, options)
+    before = layout_message(case["from"], grid_spec, options, layers=case.get("fromLayers", ()))
+    after = layout_message(case["to"], grid_spec, options, layers=case.get("toLayers", ()))
     return spec, before, after, plan_transition(before, after, spec)
 
 
 # --- golden sequences -------------------------------------------------------
 
 
-def test_golden_has_the_eleven_transition_cases():
-    assert len(CASES) == 11
+def test_golden_has_the_thirteen_transition_cases():
+    assert len(CASES) == 13
     assert {
         "sequence device 32-frame budget",
         "acme sign 12-frame budget, own charset",
         "flip with half-flaps, fill and padding on",
+        "flip with half-flaps, layers swapped half-way",
+        "fade between layers alone",
     } <= {c["name"] for c in CASES}
 
 

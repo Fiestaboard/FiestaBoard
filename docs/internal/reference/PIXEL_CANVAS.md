@@ -158,16 +158,15 @@ split-flap TVs, free (non-cell) placement.
   they render as empty text.
 - **LED renderer.** `layout_message(..., layers=)` / `layout_cells(..., layers=)`, `LedLayout.layers`, `"bitmap"`
   ops after all cell ops, and the FiestaUI#343 rules (overwrite on alpha > 0, clip, monochrome luma rule; flip /
-  cascade switch layers half-way and repaint them over half-flaps). Pinned by FiestaUI's 4 layer goldens in
-  `tests/fixtures/fiestaui-led-layers.json` (copied from FiestaUI#343 at `a8a62517`; replace with the vendored
-  fixture when FiestaUI releases).
+  cascade switch layers half-way and repaint them over half-flaps). Pinned by FiestaUI's 4 layer goldens in the
+  vendored `tests/fixtures/fiestaui/led-golden.json` (FiestaUI 8.4.0), checked with every other golden case.
 - **Output plugins.** Rich frames are `RichCells` (a `list` with `.layers`); `write_cells` and `write_transition`
   (before and after) receive them; `FrameCache` equality and the last-frame store include layers. An LED output
   plugin draws them with `layout_message(frame, spec, options, layers=getattr(frame, "layers", ()))`. Split-flap
   outputs get no rich cells, so never any layers.
 - **APIs.** `layers: [{x, y, width, height, rgba}]` (+ `canvas_issues`) on the batch preview for a pixel board, on
   `POST /pages/{id}/send` (null for other boards), on `GET /board/current-message` and `GET /v1/boards/{board}` for
-  a pixel board. The web passes them to `DevicePreview` behind `PREVIEW_TAKES_LAYERS` until FiestaUI ships the prop.
+  a pixel board. The web passes them to `DevicePreview`, which hands them to FiestaUI's `DisplayPreview` (8.4.0+).
 
 ## 11. What core PR 4 implements — MCP / AI
 
@@ -199,7 +198,7 @@ split-flap TVs, free (non-cell) placement.
   `POST /templates/render` takes `canvases` and renders a transient template page through
   `PageService.render_page` (flow / hide, blanked cells; `layers` + `canvas_issues` for a pixel `board_id`; a bad
   canvas is a 422 whose message the panel shows). Canvases are sent only when there are some, so every other
-  render request is unchanged. Layers reach `DevicePreview`, which draws them once `PREVIEW_TAKES_LAYERS` flips.
+  render request is unchanged. Layers reach `DevicePreview`, which draws them over the cells.
 - **Draw.** The pad is the content's `size` (else the canvas's pixel size on the board, capped at 128). Painting
   re-encodes the whole grid: a colour keeps the palette key it had, new colours take free keys, unused keys are
   dropped, more than 62 colours is refused, and `size` is pinned so a later area change scales the drawing. The pad

@@ -2692,7 +2692,6 @@
     "issue": "{canvas} · {path} : {message}",
     "serverError": "Les canevas n'ont pas été acceptés : {message}",
     "notPixelNotice": "Cette page contient des canevas de pixels. Ce tableau ne peut pas les dessiner, leurs zones restent donc vides. Prévisualisez la page sur un tableau LED à pixels pour les modifier.",
-    "previewWithoutLayers": "Cet aperçu n'affiche que le texte ; les canevas se dessinent sur le tableau lui-même.",
     "markerTitle": "Un canevas commence sur cette ligne (ne fait pas partie du texte)"
   }
 }

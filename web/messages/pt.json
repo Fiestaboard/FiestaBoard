@@ -2692,7 +2692,6 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "As telas não foram aceitas: {message}",
     "notPixelNotice": "Esta página tem telas de pixels. Este quadro não consegue desenhá-las, então suas áreas ficam em branco. Visualize a página em um quadro LED de pixels para editá-las.",
-    "previewWithoutLayers": "Esta visualização mostra apenas o texto; as telas são desenhadas no próprio quadro.",
     "markerTitle": "Uma tela começa nesta linha (não faz parte do texto)"
   }
 }

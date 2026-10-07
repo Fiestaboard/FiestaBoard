@@ -2692,7 +2692,6 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "Die Canvas wurden nicht akzeptiert: {message}",
     "notPixelNotice": "Diese Seite enthält Pixel-Canvas. Diese Tafel kann sie nicht darstellen, daher bleiben ihre Bereiche leer. Zeige die Seite auf einer LED-Pixeltafel in der Vorschau an, um sie zu bearbeiten.",
-    "previewWithoutLayers": "Diese Vorschau zeigt nur den Text; die Canvas werden auf der Tafel selbst gezeichnet.",
     "markerTitle": "In dieser Zeile beginnt ein Canvas (nicht Teil des Textes)"
   }
 }

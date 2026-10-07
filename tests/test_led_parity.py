@@ -65,7 +65,8 @@ def _layout(case: dict):
     message = case["message"]
     if "cells" in case:
         message = [[BoardToken(**token) for token in row] for row in case["cells"]]
-    return layout_message(message, _spec(case["spec"]), _options(case))
+    layers = case.get("options", {}).get("layers", ())
+    return layout_message(message, _spec(case["spec"]), _options(case), layers=layers)
 
 
 def _pixel_diff(actual: bytes, expected: bytes, width: int, limit: int = 8) -> str:
@@ -87,7 +88,7 @@ def _pixel_diff(actual: bytes, expected: bytes, width: int, limit: int = 8) -> s
 
 def test_transition_cases_are_read_by_the_transition_tests():
     # tests/test_led_transitions.py checks every one of these frame by frame.
-    assert len(LED_GOLDEN["transitions"]) == 11
+    assert len(LED_GOLDEN["transitions"]) == 13
 
 
 # --- layout + raster goldens ------------------------------------------------
