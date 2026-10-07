@@ -124,6 +124,7 @@ import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-ou
 import { getDraftKey } from "@/lib/page-draft";
 import { panelsFittingGrid, targetValue } from "@/lib/panel-page-fit";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
+import { cn } from "@/lib/utils";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
 // barrel push this module past 500 kB minified on their own (see #1575).
@@ -151,6 +152,12 @@ interface PageBuilderProps {
   skipDraft?: boolean; // If true, ignore and clear any saved draft
   onClose: () => void;
   onSave?: () => void;
+  /**
+   * Rendered inside the Pages section (section-shell.tsx): the section's
+   * breadcrumb is the way back, so the back arrow goes, and the editor sits
+   * in the section's card as a block instead of a second card inside it.
+   */
+  embedded?: boolean;
 }
 
 /**
@@ -267,7 +274,7 @@ interface DraftData {
 }
 
 export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(function PageBuilder(
-  { pageId, deviceType: deviceTypeProp, skipDraft = false, onClose, onSave },
+  { pageId, deviceType: deviceTypeProp, skipDraft = false, onClose, onSave, embedded = false },
   ref,
 ) {
   const t = useTranslations("pageBuilder");
@@ -2085,20 +2092,35 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     <>
       <Box className="flex-1 min-h-0 w-full max-w-full overflow-x-hidden">
         {/* Main Editor */}
-        <Card className="flex flex-col min-h-0 w-full max-w-full overflow-x-hidden">
+        <Card
+          className={cn(
+            "flex flex-col min-h-0 w-full max-w-full overflow-x-hidden",
+            embedded && "rounded-none border-0 bg-transparent shadow-none",
+          )}
+        >
           <CardHeader className="pb-1 flex-shrink-0 px-4 sm:px-6">
             <Flex align="center" justify="between">
               <Flex align="center" gap="2" className="min-w-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  onClick={onClose}
-                  aria-label={t("backToPages")}
+                {!embedded && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={onClose}
+                    aria-label={t("backToPages")}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                )}
+                {/* Embedded, the page's name is the section's h2 just above; this
+                    row is the editor's own label, so it steps down to a quiet
+                    caption instead of reading as a second heading of equal rank. */}
+                <CardTitle
+                  className={cn(
+                    "text-base sm:text-lg truncate",
+                    embedded && "text-sm font-medium text-muted-foreground sm:text-sm",
+                  )}
                 >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <CardTitle className="text-base sm:text-lg truncate">
                   {pageId ? t("editPage") : t("createPage")}
                 </CardTitle>
               </Flex>

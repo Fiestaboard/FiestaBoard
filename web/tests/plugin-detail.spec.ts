@@ -4,7 +4,7 @@
  * Tests the /integrations/[pluginId] route:
  *   - Navigation from Marketplace tab to plugin detail page
  *   - Plugin name, category badge, and header card visible
- *   - "Back to Marketplace" navigation link present
+ *   - Breadcrumb "Integrations" link back to the Marketplace present
  *   - Install button visible for uninstalled plugins
  *   - Installed badge shown for already-installed plugins
  *   - Unknown plugin ID shows an appropriate error/empty state
@@ -48,7 +48,7 @@ test.describe("Plugin Detail Page", () => {
     }
   });
 
-  test("plugin detail page shows Back to Marketplace link", async ({ page }) => {
+  test("plugin detail page shows a breadcrumb back to Integrations", async ({ page }) => {
     // Get the registry to find a real plugin ID
     const registryRes = await fetch(`${API_URL}/plugins/registry`);
 
@@ -68,8 +68,10 @@ test.describe("Plugin Detail Page", () => {
     const pluginId = entries[0].id;
     await page.goto(`/integrations/${pluginId}`);
 
-    // Back link must be present
-    await expect(page.getByRole("link", { name: /back to marketplace/i })).toBeVisible({ timeout: 15_000 });
+    // The breadcrumb is the way back
+    await expect(
+      page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Integrations" }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("plugin detail page shows plugin name and category badge", async ({ page }) => {
@@ -136,7 +138,7 @@ test.describe("Plugin Detail Page", () => {
     expect(hasInstall || hasInstalled).toBe(true);
   });
 
-  test("Back to Marketplace link navigates to /integrations?tab=marketplace", async ({ page }) => {
+  test("breadcrumb link goes back to /integrations?tab=marketplace", async ({ page }) => {
     const registryRes = await fetch(`${API_URL}/plugins/registry`);
 
     if (!registryRes.ok) {
@@ -154,7 +156,7 @@ test.describe("Plugin Detail Page", () => {
 
     await page.goto(`/integrations/${entries[0].id}`);
 
-    const backLink = page.getByRole("link", { name: /back to marketplace/i });
+    const backLink = page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Integrations" });
     await expect(backLink).toBeVisible({ timeout: 10_000 });
 
     const href = await backLink.getAttribute("href");
@@ -205,8 +207,8 @@ test.describe("Plugin Detail Page", () => {
     // Next.js generic error page title pattern (visible text only)
     expect(visibleText).not.toMatch(/\b500\b.*Something went wrong/i);
 
-    // The page should still render the layout (Back link should be present)
-    const backLink = page.getByRole("link", { name: /back to marketplace/i });
+    // The page should still render the layout (the breadcrumb should be present)
+    const backLink = page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Integrations" });
     await expect(backLink).toBeVisible({ timeout: 10_000 });
   });
 

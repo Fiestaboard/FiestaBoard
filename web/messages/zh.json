@@ -10,6 +10,7 @@
     "configure": "配置",
     "language": "语言",
     "back": "返回",
+    "breadcrumb": "面包屑导航",
     "next": "下一步",
     "create": "创建",
     "update": "更新",
@@ -1105,7 +1106,6 @@
     "resume": "继续",
     "pauseLabel": "暂停 {name}",
     "resumeLabel": "继续 {name}",
-    "back": "所有显示设备",
     "notFound": "此显示设备已不存在。",
     "previewTitle": "当前显示",
     "settingsTitle": "设置",
@@ -1771,7 +1771,6 @@
       "utility": "实用工具",
       "weather": "天气与环境"
     },
-    "backToMarketplace": "返回 Marketplace",
     "byAuthor": "作者:{author}",
     "requiresFiestaboard": "需要 FiestaBoard {version}",
     "addInstance": "添加实例",

@@ -10,6 +10,7 @@
     "configure": "Configurer",
     "language": "Langue",
     "back": "Retour",
+    "breadcrumb": "Fil d’Ariane",
     "next": "Suivant",
     "create": "Créer",
     "update": "Mettre à jour",
@@ -1105,7 +1106,6 @@
     "resume": "Reprendre",
     "pauseLabel": "Mettre {name} en pause",
     "resumeLabel": "Reprendre {name}",
-    "back": "Tous les écrans",
     "notFound": "Cet écran n'existe plus.",
     "previewTitle": "Affiché en ce moment",
     "settingsTitle": "Paramètres",
@@ -1771,7 +1771,6 @@
       "utility": "Utilitaires",
       "weather": "Météo & environnement"
     },
-    "backToMarketplace": "Retour à la place de marché",
     "byAuthor": "par {author}",
     "requiresFiestaboard": "Nécessite FiestaBoard {version}",
     "addInstance": "Ajouter une instance",

@@ -190,6 +190,16 @@ describe("PageBuilder", () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
+  it("leaves the way back to the section's breadcrumb when embedded", async () => {
+    render(<PageBuilder embedded onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("My Custom Page")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /back to pages/i })).not.toBeInTheDocument();
+    expect(screen.getByText("Create Page")).toBeInTheDocument();
+  });
+
   it("shows preview display", async () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 

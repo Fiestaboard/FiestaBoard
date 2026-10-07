@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import IntegrationsPage from "../../app/routes/integrations._index";
-import { PluginUpdatesControl } from "../components/plugin-updates-control";
+import { PluginAutoUpdateSwitch } from "../components/plugin-updates-control";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -184,7 +184,7 @@ describe("Integrations toolbar — no display opt-in", () => {
   it("offers auto-update and nothing that gates display plugins", async () => {
     // Settings v7: display plugins need no opt-in, so the toolbar's only
     // switch is auto-update.
-    renderWithQuery(<PluginUpdatesControl />);
+    renderWithQuery(<PluginAutoUpdateSwitch />);
     const switches = await screen.findAllByRole("switch");
     expect(switches.map((s) => s.getAttribute("id"))).toEqual(["plugin-auto-update"]);
     expect(screen.queryByText(/third-party|beta/i)).not.toBeInTheDocument();

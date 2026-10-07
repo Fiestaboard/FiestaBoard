@@ -104,6 +104,17 @@ describe("NavigationSidebar active state", () => {
     links.forEach((link) => expect(link).toHaveAttribute("href", "/displays"));
   });
 
+  it("lists the sections in order: Home, Displays, Pages, Collections, Schedule, Integrations", () => {
+    mockPathname.mockReturnValue("/");
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const nav = screen.getAllByRole("navigation", { name: "Primary navigation" })[0];
+    const labels = within(nav)
+      .getAllByRole("link")
+      .map((link) => link.textContent?.trim());
+    expect(labels.slice(0, 6)).toEqual(["Home", "Displays", "Pages", "Collections", "Schedule", "Integrations"]);
+  });
+
   it("highlights Displays on a display's own page", () => {
     mockPathname.mockReturnValue("/displays/board-2");
     render(<NavigationSidebar />, { wrapper: TestWrapper });

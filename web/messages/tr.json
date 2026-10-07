@@ -10,6 +10,7 @@
     "configure": "Yapılandır",
     "language": "Dil",
     "back": "Geri",
+    "breadcrumb": "İçerik haritası",
     "next": "İleri",
     "create": "Oluştur",
     "update": "Güncelle",
@@ -1105,7 +1106,6 @@
     "resume": "Devam ettir",
     "pauseLabel": "{name} duraklat",
     "resumeLabel": "{name} devam ettir",
-    "back": "Tüm ekranlar",
     "notFound": "Bu ekran artık yok.",
     "previewTitle": "Şu anda gösterilen",
     "settingsTitle": "Ayarlar",
@@ -1771,7 +1771,6 @@
       "utility": "Yardımcı Programlar",
       "weather": "Hava ve Çevre"
     },
-    "backToMarketplace": "Marketplace'e Dön",
     "byAuthor": "{author} tarafından",
     "requiresFiestaboard": "FiestaBoard {version} gerektirir",
     "addInstance": "Örnek Ekle",

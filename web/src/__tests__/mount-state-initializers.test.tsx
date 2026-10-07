@@ -99,7 +99,9 @@ describe("browser state read on the first render", () => {
 
       render(<EditPage />);
 
-      expect(pushSpy).toHaveBeenCalledWith("/pages", { transitionType: "slide-down" });
+      // A plain push: within the Pages section the editor collapses back
+      // into the list, so there is no whole-<main> slide to ask for.
+      expect(pushSpy).toHaveBeenCalledWith("/pages");
     });
   });
 

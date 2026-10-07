@@ -10,6 +10,7 @@
     "configure": "Configurar",
     "language": "Idioma",
     "back": "Voltar",
+    "breadcrumb": "Trilha de navegação",
     "next": "Próximo",
     "create": "Criar",
     "update": "Atualizar",
@@ -1105,7 +1106,6 @@
     "resume": "Retomar",
     "pauseLabel": "Pausar {name}",
     "resumeLabel": "Retomar {name}",
-    "back": "Todos os ecrãs",
     "notFound": "Este ecrã já não existe.",
     "previewTitle": "Em exibição agora",
     "settingsTitle": "Configurações",
@@ -1771,7 +1771,6 @@
       "utility": "Utilidades",
       "weather": "Tempo e ambiente"
     },
-    "backToMarketplace": "Voltar ao Marketplace",
     "byAuthor": "por {author}",
     "requiresFiestaboard": "Requer FiestaBoard {version}",
     "addInstance": "Adicionar instância",

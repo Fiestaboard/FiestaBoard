@@ -12,15 +12,23 @@ export default [
   route("settings", "routes/settings.tsx"),
   route("collections", "routes/collections.tsx"),
   route("debug", "routes/debug.tsx"),
-  route("displays", "routes/displays._index.tsx"),
-  route("displays/:boardId", "routes/displays.$boardId.tsx"),
+  // A section layout: the card and header stay mounted between the list and
+  // a display (section-shell.tsx).
+  route("displays", "routes/displays.tsx", [
+    index("routes/displays._index.tsx"),
+    route(":boardId", "routes/displays.$boardId.tsx"),
+  ]),
   route("picks", "routes/picks.tsx"),
-  route("integrations", "routes/integrations._index.tsx"),
-  route("integrations/:pluginId", "routes/integrations.$pluginId.tsx"),
-  route("pages", "routes/pages._index.tsx"),
-  route("pages/new", "routes/pages.new.tsx"),
-  route("pages/edit", "routes/pages.edit._index.tsx"),
-  route("pages/edit/:id", "routes/pages.edit.$id.tsx"),
+  route("integrations", "routes/integrations.tsx", [
+    index("routes/integrations._index.tsx"),
+    route(":pluginId", "routes/integrations.$pluginId.tsx"),
+  ]),
+  route("pages", "routes/pages.tsx", [
+    index("routes/pages._index.tsx"),
+    route("new", "routes/pages.new.tsx"),
+    route("edit", "routes/pages.edit._index.tsx"),
+    route("edit/:id", "routes/pages.edit.$id.tsx"),
+  ]),
   route("schedule", "routes/schedule.tsx"),
   route("panel/:panelId", "routes/panel.tsx"),
   route("p/:panelId", "routes/panel-short.tsx"),

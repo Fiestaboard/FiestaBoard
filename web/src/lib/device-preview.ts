@@ -104,13 +104,13 @@ export function ledLayerProps(layers: CanvasLayerJson[] | null | undefined): Led
 
 /**
  * Whether this FiestaUI release's `DisplayPreview` takes a `font` prop
- * (FiestaUI #342, the release after 8.0.0). Until it does, a board's face
- * reaches the preview through the model document core sends instead
- * (`device_model_spec`: the model in the board's face), so nothing is lost.
- * The `satisfies` fails to compile once the bumped release takes `font`:
- * flip it to `true` then.
+ * (FiestaUI #342, in 8.2.0). It does, so a board's face goes to the preview
+ * directly. Before 8.2.0 it reached the preview through the model document
+ * core sends instead (`device_model_spec`: the model in the board's face).
+ * The `satisfies` pins this to the installed release's props: a downgrade
+ * below 8.2.0 fails to compile until this is `false` again.
  */
-export const PREVIEW_TAKES_FONT = false satisfies PreviewTakesFont;
+export const PREVIEW_TAKES_FONT = true satisfies PreviewTakesFont;
 type PreviewTakesFont = "font" extends keyof ComponentProps<typeof DisplayPreview> ? true : false;
 
 /**

@@ -10,6 +10,7 @@
     "configure": "設定",
     "language": "言語",
     "back": "戻る",
+    "breadcrumb": "パンくずリスト",
     "next": "次へ",
     "create": "作成",
     "update": "更新",
@@ -1105,7 +1106,6 @@
     "resume": "再開",
     "pauseLabel": "{name} を一時停止",
     "resumeLabel": "{name} を再開",
-    "back": "すべてのディスプレイ",
     "notFound": "このディスプレイはもう存在しません。",
     "previewTitle": "現在の表示",
     "settingsTitle": "設定",
@@ -1771,7 +1771,6 @@
       "utility": "ユーティリティ",
       "weather": "天気と環境"
     },
-    "backToMarketplace": "マーケットプレイスに戻る",
     "byAuthor": "{author} 作",
     "requiresFiestaboard": "FiestaBoard {version} が必要",
     "addInstance": "インスタンスを追加",

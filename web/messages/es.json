@@ -10,6 +10,7 @@
     "configure": "Configurar",
     "language": "Idioma",
     "back": "Atrás",
+    "breadcrumb": "Ruta de navegación",
     "next": "Siguiente",
     "create": "Crear",
     "update": "Actualizar",
@@ -1105,7 +1106,6 @@
     "resume": "Reanudar",
     "pauseLabel": "Pausar {name}",
     "resumeLabel": "Reanudar {name}",
-    "back": "Todas las pantallas",
     "notFound": "Esta pantalla ya no existe.",
     "previewTitle": "Mostrando ahora",
     "settingsTitle": "Configuración",
@@ -1771,7 +1771,6 @@
       "utility": "Utilidades",
       "weather": "Clima y medio ambiente"
     },
-    "backToMarketplace": "Volver al mercado",
     "byAuthor": "por {author}",
     "requiresFiestaboard": "Requiere FiestaBoard {version}",
     "addInstance": "Añadir instancia",

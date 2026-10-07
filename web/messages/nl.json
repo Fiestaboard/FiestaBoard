@@ -10,6 +10,7 @@
     "configure": "Configureren",
     "language": "Taal",
     "back": "Terug",
+    "breadcrumb": "Kruimelpad",
     "next": "Volgende",
     "create": "Aanmaken",
     "update": "Bijwerken",
@@ -1105,7 +1106,6 @@
     "resume": "Hervatten",
     "pauseLabel": "{name} pauzeren",
     "resumeLabel": "{name} hervatten",
-    "back": "Alle schermen",
     "notFound": "Dit scherm bestaat niet meer.",
     "previewTitle": "Nu te zien",
     "settingsTitle": "Instellingen",
@@ -1771,7 +1771,6 @@
       "utility": "Hulpprogramma's",
       "weather": "Weer & omgeving"
     },
-    "backToMarketplace": "Terug naar Marketplace",
     "byAuthor": "door {author}",
     "requiresFiestaboard": "Vereist FiestaBoard {version}",
     "addInstance": "Instantie toevoegen",

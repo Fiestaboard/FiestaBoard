@@ -10,6 +10,7 @@
     "configure": "Настроить",
     "language": "Язык",
     "back": "Назад",
+    "breadcrumb": "Навигационная цепочка",
     "next": "Далее",
     "create": "Создать",
     "update": "Обновить",
@@ -1105,7 +1106,6 @@
     "resume": "Возобновить",
     "pauseLabel": "Приостановить: {name}",
     "resumeLabel": "Возобновить: {name}",
-    "back": "Все дисплеи",
     "notFound": "Этого дисплея больше нет.",
     "previewTitle": "Сейчас на экране",
     "settingsTitle": "Настройки",
@@ -1771,7 +1771,6 @@
       "utility": "Утилиты",
       "weather": "Погода и окружающая среда"
     },
-    "backToMarketplace": "Назад в Marketplace",
     "byAuthor": "от {author}",
     "requiresFiestaboard": "Требуется FiestaBoard {version}",
     "addInstance": "Добавить экземпляр",
