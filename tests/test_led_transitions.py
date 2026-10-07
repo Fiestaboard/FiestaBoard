@@ -472,10 +472,39 @@ def test_menu_per_model_with_reasons():
     sequence = transitions_for_model(SEQUENCE_MODEL)
     assert all(a.available for a in sequence)
     assert all(a.degraded and "32 frames" in a.reason for a in sequence if a.id != "none")
-    # The Pixoo 64 snaps (hardware test, 2026-10-04): 2 pushes a second.
-    pixoo = transitions_for_model(MODELS["divoom_pixoo64"])
-    assert [a.id for a in pixoo if a.available] == ["none"]
-    assert "push rate is 2." in next(a for a in pixoo if a.id == "flip").reason
+
+
+#: The Divoom Pixoo plugin's own model at v0.4.0 (fiestaboard-output--divoom-pixoo
+#: commit 49e5514, the version outputs.lock.json seeds), copied byte for byte.
+PIXOO_PLUGIN_V040 = json.loads(
+    (Path(__file__).resolve().parent / "fixtures/outputs/divoom_pixoo_v0.4.0/device-models.json").read_text("utf-8")
+)[0]
+
+
+@pytest.mark.parametrize(
+    "model",
+    [MODELS["divoom_pixoo64"], PIXOO_PLUGIN_V040],
+    ids=["vendored-fiestaui", "plugin-v0.4.0"],
+)
+def test_the_pixoo_64_streams_at_5_fps_and_offers_every_transition(model):
+    """Hardware lab 2 (2026-10-05): single-frame pushes at 5 fps show every
+    core-planned transition. Flip runs at 200 ms steps without half-flaps;
+    nothing else is degraded, and nothing says it needs about 10 fps."""
+    assert (model["id"], model["animation"]["delivery"], model["animation"]["maxFps"]) == (
+        "divoom_pixoo64",
+        "stream",
+        5,
+    )
+    menu = {a.id: a for a in transitions_for_model(model)}
+    assert list(menu) == ["none", "flip", "cascade", "slide", "wipe", "fade", "dissolve"]
+    assert all(a.available for a in menu.values()), {a.id: a.reason for a in menu.values() if not a.available}
+    flip = menu["flip"]
+    assert flip.degraded
+    assert flip.spec == LedTransitionSpec("flip", step_ms=200, half_flap=False)
+    assert flip.reason == "200 ms per step, no half-flaps: the device pushes about 5 frames a second"
+    for tid in ("cascade", "slide", "wipe", "fade", "dissolve"):
+        assert (menu[tid].spec, menu[tid].degraded, menu[tid].reason) == (LedTransitionSpec(tid), False, None), tid
+    assert default_transition_id_for_model(model) == "flip"
 
 
 SPLIT_FLAP_MODELS = [m for m in MODELS.values() if m["technology"] == "split_flap"]
@@ -532,7 +561,7 @@ def test_a_callers_tighter_budget_wins_and_the_device_caps_a_looser_one():
 def test_default_is_flip_when_the_device_can_show_it_else_none():
     assert default_transition_id_for_model(MODELS["hub75_128x64"]) == "flip"
     assert default_transition_id_for_model(SEQUENCE_MODEL) == "flip"
-    assert default_transition_id_for_model(MODELS["divoom_pixoo64"]) == "none"
+    assert default_transition_id_for_model(MODELS["divoom_pixoo64"]) == "flip"
     assert default_transition_id_for_model(MODELS["ulanzi_tc001_awtrix"]) == "none"
     assert default_transition_id_for_model(MODELS["vestaboard_flagship"]) == "none"
 

@@ -450,14 +450,34 @@ describe("/displays/:boardId", () => {
     expect(await screen.findByTestId("display-transition-cloud")).toBeInTheDocument();
   });
 
-  it("a Pixoo shows the LED menu and says it snaps", async () => {
+  it("a Pixoo offers every LED transition at 5 frames a second, without the snap note", async () => {
     setup([KITCHEN, DESK]);
     params.boardId = "desk";
     renderWith(<DisplayPage />);
     const section = await screen.findByTestId("display-transition");
-    expect(within(section).getByTestId("display-transition-snaps")).toBeInTheDocument();
+    expect(within(section).queryByTestId("display-transition-snaps")).not.toBeInTheDocument();
     // No split-flap strategies on an LED display.
     expect(within(section).queryByRole("radio", { name: /Diagonal/ })).not.toBeInTheDocument();
+    const offered = ["none", "flip", "cascade", "slide", "wipe", "fade", "dissolve"];
+    const cards = within(section)
+      .getAllByRole("radio")
+      .map((radio) => radio.closest("[data-transition]") ?? radio);
+    expect(cards.map((card) => card.getAttribute("data-transition"))).toEqual(offered);
+    for (const card of cards) {
+      expect(card).not.toHaveAttribute("aria-disabled", "true");
+      expect(card).toHaveAttribute("data-available");
+    }
+    // Flip runs degraded (200 ms steps, no half-flaps) and is the default.
+    expect(cards[1]).toHaveAttribute("data-degraded");
+    expect(within(section).queryByText(/frames a second; this device's push rate/)).not.toBeInTheDocument();
+  });
+
+  it("an LED display that only snaps says so", async () => {
+    setup([KITCHEN, { ...DESK, device_model: "ulanzi_tc001_awtrix" }]);
+    params.boardId = "desk";
+    renderWith(<DisplayPage />);
+    const section = await screen.findByTestId("display-transition");
+    expect(within(section).getByTestId("display-transition-snaps")).toBeInTheDocument();
     expect(within(section).getByRole("radio", { name: /None/ })).toBeInTheDocument();
   });
 
