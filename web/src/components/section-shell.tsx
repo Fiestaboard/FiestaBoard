@@ -49,9 +49,11 @@ interface SectionShellProps {
  * header's action slot and the sub-header) runs `duration-base`; PageOutlet's
  * fade is the same token, so the body starts once the header has settled.
  * `both` fill keeps it at opacity 0 while it waits. Targets the outlet's inner
- * box, which is the element carrying `animate-page-outlet-enter`.
+ * box, which is the element carrying `animate-page-outlet-enter`. Important,
+ * because that class sets the `animation` shorthand outside any cascade layer,
+ * which beats every Tailwind utility (layered) whatever its specificity.
  */
-const DELAYED_ENTER = "[&>*]:[animation-delay:var(--motion-duration-base)]";
+const DELAYED_ENTER = "[&>*]:[animation-delay:var(--motion-duration-base)]!";
 
 /** The sub-header's action slot, for a detail page's own buttons. Null outside a shell. */
 const ActionSlot = createContext<HTMLElement | null | undefined>(undefined);
