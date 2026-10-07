@@ -796,13 +796,13 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
     from datetime import datetime, timedelta
 
     from src.devices import (
+        ABSOLUTE_MIN_GRID_COLS,
+        ABSOLUTE_MIN_GRID_ROWS,
         DEFAULT_DEVICE_TYPE,
         DEVICE_TYPES,
         MAX_GRID_COLS,
         MAX_GRID_ROWS,
         MAX_NOTES_PER_AXIS,
-        MIN_GRID_COLS,
-        MIN_GRID_ROWS,
     )
 
     from .service import (
@@ -863,8 +863,9 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
 
         if device_type == "panel":
             for key, raw, low, high in (
-                ("grid_rows", request.grid_rows, MIN_GRID_ROWS, MAX_GRID_ROWS),
-                ("grid_cols", request.grid_cols, MIN_GRID_COLS, MAX_GRID_COLS),
+                # Any grid a board can have, down to an LED board's 3x10.
+                ("grid_rows", request.grid_rows, ABSOLUTE_MIN_GRID_ROWS, MAX_GRID_ROWS),
+                ("grid_cols", request.grid_cols, ABSOLUTE_MIN_GRID_COLS, MAX_GRID_COLS),
             ):
                 if raw is None:
                     raise HTTPException(status_code=422, detail=f"{key} is required for a panel")

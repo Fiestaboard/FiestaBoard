@@ -11,9 +11,11 @@ an output plugin's declared device models. Pinned here:
 - **geometry** — the content grid comes from the device model: ``cells`` as
   declared, ``pixels`` from the glyph box of FiestaUI's vendored LED fonts
   (cols = (W+1)/(gw+1), rows = (H+1)/(gh+1)), ``panel`` and ``note_array``
-  from the request's geometry. A grid below the 3x15 Note floor is
-  **refused** before any geometry resolution: never inflated by clamp_grid
-  (Divoom Pixoo 64 at 3x5 = 10x16 passes; a 32x8 AWTRIX = 1x8 does not);
+  from the request's geometry. A grid below the floor is **refused** before
+  any geometry resolution: never inflated by clamp_grid. The floor is the
+  3x15 Note, except for an LED board measured in pixels (``pixels``
+  geometry), whose floor is 3x10 (Divoom Pixoo 64 at 3x5 = 10x16 and at
+  5x7 = 8x10 pass; a 32x8 AWTRIX = 1x8 does not);
 - **no coercion** — a plugin board stores its grid as a custom ``panel``
   grid and stays that way; a legacy Vestaboard claiming ``panel`` still
   falls back to flagship exactly as before;
@@ -55,6 +57,18 @@ def _install(root: Path) -> Path:
 @pytest.fixture
 def bundled(tmp_path):
     loader = PluginLoader(plugins_dir=_install(tmp_path / "plugins"), external_dirs=[])
+    assert loader.load_plugin(PLUGIN_ID) is not None, loader.load_errors
+    yield loader
+    loader.unload_plugin(PLUGIN_ID)
+
+
+@pytest.fixture
+def bundled_5x7(tmp_path):
+    """The recording output with its character set drawn in the 5x7 face."""
+    root = _install(tmp_path / "plugins")
+    path = root / PLUGIN_ID / "output" / "character-set.json"
+    path.write_text(json.dumps({"id": "recording_sign_v1", "label": "Recording sign", "extends": "led_5x7"}), "utf-8")
+    loader = PluginLoader(plugins_dir=root, external_dirs=[])
     assert loader.load_plugin(PLUGIN_ID) is not None, loader.load_errors
     yield loader
     loader.unload_plugin(PLUGIN_ID)
@@ -112,7 +126,7 @@ class TestGeometry:
         with pytest.raises(geometry.BelowFloorError) as raised:
             geometry.resolve_content_grid(_model("ulanzi_tc001_awtrix"), None, None)
         assert str(raised.value) == (
-            "Device model 'ulanzi_tc001_awtrix' shows 1x8 characters, below the 3x15 minimum a board "
+            "Device model 'ulanzi_tc001_awtrix' shows 1x8 characters, below the 3x10 minimum an LED board "
             "needs, so FiestaBoard cannot create a board for it."
         )
 
@@ -127,8 +141,45 @@ class TestGeometry:
 
     def test_a_declared_character_sets_font_wins(self):
         five_by_seven = {"id": "five", "font": "5x7"}
-        with pytest.raises(geometry.BelowFloorError, match="8x10"):
-            geometry.resolve_content_grid(_model("divoom_pixoo64"), five_by_seven, None)
+        assert geometry.resolve_content_grid(_model("divoom_pixoo64"), five_by_seven, None) == (8, 10)
+
+    @pytest.mark.parametrize(
+        ("model_id", "grid"),
+        [("hub75_64x64", (8, 10)), ("hub75_64x32", (4, 10)), ("tidbyt_tronbyt", (4, 10))],
+    )
+    def test_an_led_board_at_5x7_clears_the_3x10_led_floor(self, model_id, grid):
+        assert geometry.resolve_content_grid(_model(model_id), None, None) == grid
+
+    @pytest.mark.parametrize(
+        ("model_id", "grid"),
+        [("ulanzi_tc001_awtrix", "1x8"), ("max7219_4in1", "1x8"), ("p10_hub12_32x16", "2x5")],
+    )
+    def test_an_led_board_below_3x10_is_still_refused(self, model_id, grid):
+        with pytest.raises(geometry.BelowFloorError, match=f"shows {grid} characters, below the 3x10 minimum"):
+            geometry.resolve_content_grid(_model(model_id), None, None)
+
+    @pytest.mark.parametrize(
+        ("pixels", "grid"),
+        # 3x5 glyphs on a 1-pixel gap: a column is 4 pixels, a row 6.
+        [({"width": 35, "height": 17}, "3x9"), ({"width": 55, "height": 11}, "2x14")],
+    )
+    def test_an_led_grid_just_below_3x10_is_refused(self, pixels, grid):
+        model = {**_model("divoom_pixoo64"), "geometry": {"kind": "pixels", **pixels}}
+        with pytest.raises(geometry.BelowFloorError, match=f"shows {grid} characters, below the 3x10 minimum"):
+            geometry.resolve_content_grid(model, None, None)
+
+    def test_a_panel_model_keeps_the_3x15_note_floor(self):
+        with pytest.raises(geometry.BelowFloorError) as raised:
+            geometry.resolve_content_grid(_model("vestaboard_panel"), None, {"rows": 8, "cols": 10})
+        assert str(raised.value) == (
+            "Device model 'vestaboard_panel' shows 8x10 characters, below the 3x15 minimum a board "
+            "needs, so FiestaBoard cannot create a board for it."
+        )
+
+    def test_a_cells_model_keeps_the_3x15_note_floor(self):
+        model = {**_model("vestaboard_flagship"), "geometry": {"kind": "cells", "rows": 8, "cols": 10}}
+        with pytest.raises(geometry.BelowFloorError, match="below the 3x15 minimum"):
+            geometry.resolve_content_grid(model, None, None)
 
     def test_a_cells_model_is_its_declared_grid(self):
         assert geometry.resolve_content_grid(_model("vestaboard_flagship"), None, None) == (6, 22)
@@ -200,10 +251,17 @@ class TestCreate:
             response = client.post(URL, json=_body(device_model="ulanzi_tc001_awtrix"))
         assert response.status_code == 400
         assert response.json()["detail"] == (
-            "Device model 'ulanzi_tc001_awtrix' shows 1x8 characters, below the 3x15 minimum a board "
+            "Device model 'ulanzi_tc001_awtrix' shows 1x8 characters, below the 3x10 minimum an LED board "
             "needs, so FiestaBoard cannot create a board for it."
         )
         assert _stored() == before
+
+    def test_a_pixoo_drawn_at_5x7_is_created_as_an_8x10_board(self, bundled_5x7, client):
+        response = client.post(URL, json=_body())
+        assert response.status_code == 201, response.text
+        assert (response.json()["rows"], response.json()["cols"]) == (8, 10)
+        (stored,) = [b for b in _stored() if b["id"] == response.json()["id"]]
+        assert (stored["device_type"], stored["grid_rows"], stored["grid_cols"]) == ("panel", 8, 10)
 
     def test_a_panel_model_board_takes_its_geometry(self, bundled, client):
         response = client.post(URL, json=_body(device_model="vestaboard_panel", geometry={"rows": 8, "cols": 32}))
@@ -285,6 +343,18 @@ class TestNoCoercion:
             {"output": PLUGIN_ID, "device_type": "panel", "grid_rows": 10, "grid_cols": 16, "api_mode": "local"}
         )
         assert (board.device_type, board.grid_rows, board.grid_cols) == ("panel", 10, 16)
+
+    def test_an_8x10_led_grid_is_kept_not_widened_to_15(self):
+        board = BoardInstance.from_dict(
+            {"output": PLUGIN_ID, "device_type": "panel", "grid_rows": 8, "grid_cols": 10, "api_mode": "local"}
+        )
+        assert (board.grid_rows, board.grid_cols) == (8, 10)
+
+    def test_a_grid_below_3x10_is_clamped_to_3x10(self):
+        board = BoardInstance.from_dict(
+            {"output": PLUGIN_ID, "device_type": "panel", "grid_rows": 1, "grid_cols": 8, "api_mode": "local"}
+        )
+        assert (board.grid_rows, board.grid_cols) == (3, 10)
 
     def test_it_survives_a_save_and_reload(self, bundled, client):
         board_id = client.post(URL, json=_body()).json()["id"]

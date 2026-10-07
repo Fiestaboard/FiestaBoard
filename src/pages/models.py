@@ -13,13 +13,13 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.devices import (
+    ABSOLUTE_MIN_GRID_COLS,
+    ABSOLUTE_MIN_GRID_ROWS,
     DEFAULT_DEVICE_TYPE,
     MAX_GRID_COLS,
     MAX_GRID_ROWS,
     MAX_NOTES_PER_AXIS,
     MAX_TRANSITION_STEP_INTERVAL_MS,
-    MIN_GRID_COLS,
-    MIN_GRID_ROWS,
     DeviceType,
     resolve_dimensions,
 )
@@ -116,8 +116,8 @@ class Page(BaseModel):
     # rows × cols, because a FiestaPanel is sized per character from its TV
     # and need not be a Note multiple. Named grid_* because ``rows`` is the
     # composite row config.
-    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
-    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
+    grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
 
     # Metadata
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -204,8 +204,8 @@ class PageCreate(BaseModel):
     # rows × cols, because a FiestaPanel is sized per character from its TV
     # and need not be a Note multiple. Named grid_* because ``rows`` is the
     # composite row config.
-    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
-    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
+    grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
 
     @model_validator(mode="after")
     def _check_panel_grid(self) -> "PageCreate":
@@ -237,8 +237,8 @@ class PageUpdate(BaseModel):
     # rows × cols, because a FiestaPanel is sized per character from its TV
     # and need not be a Note multiple. Named grid_* because ``rows`` is the
     # composite row config.
-    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
-    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
+    grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
 
 
 # ---------------------------------------------------------------------------

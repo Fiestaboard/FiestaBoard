@@ -155,3 +155,18 @@ def test_sending_the_page_to_the_display_delivers_its_rich_cells(api):
     cells = pixoo_client.render.call_args.kwargs["cells"]
     assert (len(grid), len(grid[0])) == (10, 16)
     assert [c.value for c in cells[0][:5]] == list("Hello")
+
+
+def test_a_page_for_the_display_at_5x7_fits_its_8x10_grid(api):
+    """At the 5x7 face the Pixoo is 8x10: the board keeps that grid and a page fits it."""
+    client, service = api
+    from src.settings.service import get_settings_service
+
+    large = {**PIXOO, "id": "pixoo-large", "grid_rows": 8, "grid_cols": 10}
+    get_settings_service().set_boards([HALL, large])
+    (stored,) = [b for b in get_settings_service().get_board_settings().to_dict()["boards"] if b["id"] == "pixoo-large"]
+    assert (stored["grid_rows"], stored["grid_cols"]) == (8, 10)
+
+    page = service.get_page(_create(client, device_type="panel", grid_rows=8, grid_cols=10)["id"])
+    assert pages_compatible_with_board(page, stored)
+    assert not pages_compatible_with_board(page, PIXOO)

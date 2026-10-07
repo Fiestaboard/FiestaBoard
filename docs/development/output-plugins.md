@@ -207,7 +207,7 @@ A `$ref` names a JSON file inside your plugin directory, and the same path must 
 | `layoutOptions` | No | LED only. Which LED layout options a board may choose, and the default. See [LED layout options](#led-layout-options). |
 | `appearance` | No | Preview cosmetics only. See [Appearance](#appearance). |
 
-**The 3 × 15 floor.** Every board must hold at least 3 rows of 15 characters, the size of a Vestaboard Note, so every page fits every board. A `pixels` model's grid is how many glyphs of its font fit: a 64 × 64 matrix with the 3×5 font and 1-pixel gaps is 10 rows × 16 columns. A model below 3 × 15 is refused when a board is created, never enlarged. A 64 × 64 matrix with the 5×7 font is only 8 × 10, so it does not fit. Declare only models that reach the floor.
+**The floor.** Every board must hold at least 3 rows of 15 characters, the size of a Vestaboard Note, so every page fits every board. An LED board measured in pixels (a `pixels` model) is the exception: its floor is 3 rows of 10, so a 5×7 face that reads from across a room fits. A `pixels` model's grid is how many glyphs of its font fit: a 64 × 64 matrix with the 3×5 font and 1-pixel gaps is 10 rows × 16 columns, and with the 5×7 font 8 × 10. Pages wider than 10 columns are cut off on an 8 × 10 board. A model below its floor is refused when a board is created, never enlarged: a 32 × 8 matrix (1 × 8) and a 32 × 16 matrix with the 5×7 font (2 × 5) do not fit. Declare only models that reach the floor.
 
 ### Character sets
 
@@ -627,7 +627,7 @@ The suite plays the device: it routes your plugin's `self.http` to a fake transp
 |------|--------|
 | `manifest` | `manifest.json` loads with no error and is `plugin_type: "output"` |
 | `character_set` | Every declared character set flattens to a non-empty set |
-| `geometry_floor` | Every device model reaches the 3 × 15 floor |
+| `geometry_floor` | Every device model reaches its floor: 3 × 15, or 3 × 10 for a `pixels` model |
 | `import_network` | Importing the plugin makes no network call |
 | `device_key` | Non-empty, stable across calls and instances, and free of secrets |
 | `floor` | The plugin does not throttle itself or talk to the device outside a write |

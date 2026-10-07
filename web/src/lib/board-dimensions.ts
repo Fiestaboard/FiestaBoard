@@ -11,6 +11,16 @@ export const MIN_GRID_ROWS = NOTE_ROWS;
 export const MIN_GRID_COLS = NOTE_COLS;
 export const MAX_GRID_ROWS = 96;
 export const MAX_GRID_COLS = 128;
+/**
+ * The floor of an LED board measured in pixels (mirror src/devices.py): 3 × 10,
+ * so a legible 5x7 face fits (a Divoom Pixoo 64 at 5x7 is 8 × 10). FiestaPanel
+ * autofit (computeAutofitGrid) and Vestaboards keep the Note floor above.
+ */
+export const MIN_LED_GRID_ROWS = 3;
+export const MIN_LED_GRID_COLS = 10;
+/** The smallest grid any board can have: the lower floor on each axis. */
+export const ABSOLUTE_MIN_GRID_ROWS = Math.min(MIN_GRID_ROWS, MIN_LED_GRID_ROWS);
+export const ABSOLUTE_MIN_GRID_COLS = Math.min(MIN_GRID_COLS, MIN_LED_GRID_COLS);
 /** Board display names are capped at storage time by BoardInstance.__post_init__. */
 export const MAX_BOARD_NAME_LENGTH = 64;
 
@@ -71,20 +81,33 @@ export function isPanel(deviceType: string): boolean {
   return deviceType === "panel";
 }
 
-function clampAxis(value: number | null | undefined, min: number, max: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return min;
+function clampAxis(value: number | null | undefined, min: number, max: number, missing: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return missing;
   return Math.max(min, Math.min(max, Math.trunc(value)));
 }
 
+/** The lower bound panelDimensions clamps each axis to. */
+export interface GridFloor {
+  rows: number;
+  cols: number;
+}
+
 /**
- * Dimensions of a panel grid, each axis clamped into [MIN_GRID_*, MAX_GRID_*].
- * A missing axis resolves to its minimum (matching `@fiestaboard/ui`), where
- * Python's panel_dimensions() raises — the UI must always draw something.
+ * Dimensions of a panel grid, each axis clamped into [floor, MAX_GRID_*].
+ * The floor defaults to the absolute minimum (ABSOLUTE_MIN_GRID_*, 3 × 10),
+ * so an LED board's 8 × 10 grid is kept (mirrors Python clamp_grid). A
+ * missing axis resolves to the Note minimum (matching `@fiestaboard/ui` and
+ * BoardInstance), where Python's panel_dimensions() raises — the UI must
+ * always draw something.
  */
-export function panelDimensions(gridRows?: number | null, gridCols?: number | null): BoardDimensions {
+export function panelDimensions(
+  gridRows?: number | null,
+  gridCols?: number | null,
+  floor: GridFloor = { rows: ABSOLUTE_MIN_GRID_ROWS, cols: ABSOLUTE_MIN_GRID_COLS },
+): BoardDimensions {
   return {
-    rows: clampAxis(gridRows, MIN_GRID_ROWS, MAX_GRID_ROWS),
-    cols: clampAxis(gridCols, MIN_GRID_COLS, MAX_GRID_COLS),
+    rows: clampAxis(gridRows, floor.rows, MAX_GRID_ROWS, MIN_GRID_ROWS),
+    cols: clampAxis(gridCols, floor.cols, MAX_GRID_COLS, MIN_GRID_COLS),
   };
 }
 

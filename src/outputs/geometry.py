@@ -1,4 +1,4 @@
-"""A device model's content grid, and the Note floor every board must reach (plan D5).
+"""A device model's content grid, and the floor every board must reach (plan D5).
 
 A board's **content grid** is how many characters it shows — rows × cols —
 and pages, previews and templates are authored against it. For a board an
@@ -22,13 +22,16 @@ declared set wins over the model's, plan D17), else the model's own ``font``,
 else its character set's.
 
 **The floor.** Every board shows at least one Note, 3 × 15: plugins and
-templates are authored for that. A model whose grid is smaller is **refused**
-(:class:`BelowFloorError`) here, before anything resolves the board's
-geometry — ``src.devices.clamp_grid`` (which every ``panel`` grid passes
-through, LED boards included) would otherwise quietly inflate a 1 × 8 matrix
-to 3 × 15 and every frame would be cropped on the device. A grid above the
-panel ceiling (``MAX_GRID_ROWS`` × ``MAX_GRID_COLS``) is refused the same way
-rather than shrunk.
+templates are authored for that — except an LED board measured in pixels
+(``pixels`` geometry), whose floor is 3 × 10 (``MIN_LED_GRID_*``) so a
+legible 5x7 face fits: a Divoom Pixoo 64 at 5x7 is 8 × 10, a 64 × 32 HUB75
+or Tidbyt 4 × 10. :func:`grid_floor` picks the model's floor. A model whose
+grid is smaller is **refused** (:class:`BelowFloorError`) here, before
+anything resolves the board's geometry — ``src.devices.clamp_grid`` (which
+every ``panel`` grid passes through, LED boards included) would otherwise
+quietly inflate a 1 × 8 matrix to 3 × 10 and every frame would be cropped on
+the device. A grid above the panel ceiling (``MAX_GRID_ROWS`` ×
+``MAX_GRID_COLS``) is refused the same way rather than shrunk.
 """
 
 from __future__ import annotations
@@ -42,6 +45,8 @@ from src.devices import (
     MAX_NOTES_PER_AXIS,
     MIN_GRID_COLS,
     MIN_GRID_ROWS,
+    MIN_LED_GRID_COLS,
+    MIN_LED_GRID_ROWS,
     NOTE_COLS,
     NOTE_ROWS,
 )
@@ -57,7 +62,7 @@ class GeometryError(ValueError):
 
 
 class BelowFloorError(GeometryError):
-    """A device model's grid is smaller than the 3 × 15 Note floor."""
+    """A device model's grid is smaller than its floor (3 × 15; 3 × 10 for an LED board in pixels)."""
 
 
 class GlyphBox(NamedTuple):
@@ -181,12 +186,30 @@ def _requested_grid(model: Mapping[str, Any], requested: Mapping[str, Any]) -> t
     return tall * NOTE_ROWS, wide * NOTE_COLS
 
 
-def check_floor(model_id: str, rows: int, cols: int) -> None:
-    """Refuse a grid below the Note floor or above the panel ceiling."""
-    if rows < MIN_GRID_ROWS or cols < MIN_GRID_COLS:
+def is_led_pixel_model(model: Mapping[str, Any]) -> bool:
+    """Whether *model* is an LED board measured in pixels (``pixels`` geometry)."""
+    return model["geometry"]["kind"] == "pixels"
+
+
+def grid_floor(model: Mapping[str, Any]) -> tuple[int, int]:
+    """The smallest (rows, cols) a board of *model* may show.
+
+    3 × 10 for an LED board measured in pixels; the 3 × 15 Note for every
+    other model (cells, panel, note array).
+    """
+    if is_led_pixel_model(model):
+        return MIN_LED_GRID_ROWS, MIN_LED_GRID_COLS
+    return MIN_GRID_ROWS, MIN_GRID_COLS
+
+
+def check_floor(model: Mapping[str, Any], rows: int, cols: int) -> None:
+    """Refuse a grid below *model*'s floor (:func:`grid_floor`) or above the panel ceiling."""
+    min_rows, min_cols = grid_floor(model)
+    if rows < min_rows or cols < min_cols:
+        what = "an LED board" if is_led_pixel_model(model) else "a board"
         raise BelowFloorError(
-            f"Device model {model_id!r} shows {rows}x{cols} characters, below the {MIN_GRID_ROWS}x{MIN_GRID_COLS} "
-            "minimum a board needs, so FiestaBoard cannot create a board for it."
+            f"Device model {model['id']!r} shows {rows}x{cols} characters, below the {min_rows}x{min_cols} "
+            f"minimum {what} needs, so FiestaBoard cannot create a board for it."
         )
     if rows > MAX_GRID_ROWS or cols > MAX_GRID_COLS:
         raise GeometryError(
@@ -206,7 +229,7 @@ def resolve_content_grid(
     ``panel`` that declares its own size, which is used when none is asked.
 
     Raises:
-        BelowFloorError: the grid is smaller than 3 × 15.
+        BelowFloorError: the grid is below the model's floor (3 × 15; 3 × 10 for an LED board in pixels).
         GeometryError: geometry missing, unexpected, or above the ceiling.
     """
     configurable = model["geometry"]["kind"] in CONFIGURABLE_KINDS
@@ -218,5 +241,5 @@ def resolve_content_grid(
         grid = model_cell_grid(model, character_set)
         assert grid is not None  # cells and pixels always have one
         rows, cols = grid
-    check_floor(model["id"], rows, cols)
+    check_floor(model, rows, cols)
     return rows, cols
