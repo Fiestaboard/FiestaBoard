@@ -69,7 +69,9 @@ test.describe("Plugin Detail Page", () => {
     await page.goto(`/integrations/${pluginId}`);
 
     // The breadcrumb is the way back
-    await expect(page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Integrations" })).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Integrations" }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("plugin detail page shows plugin name and category badge", async ({ page }) => {
