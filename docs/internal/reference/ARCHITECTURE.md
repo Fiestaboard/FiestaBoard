@@ -355,7 +355,7 @@ Names you will meet:
   (`grid_floor`) — or above the panel ceiling is **refused** there, before
   the board's geometry is resolved — `clamp_grid` (which floors at the
   absolute 3x10) would otherwise inflate a 32x8 matrix's 1x8 to 3x10.
-  FiestaPanel autofit keeps the 3x15 Note floor. The board is stored with an explicit `output`,
+  FiestaPanel's automatic sizing keeps the 3x15 Note floor. The board is stored with an explicit `output`,
   `output_config` and `device_model`, as a custom `panel` grid;
   `BoardInstance` no longer coerces a plugin board's `panel` to `flagship`
   (a legacy Vestaboard claiming `panel` still falls back, unchanged). Board
