@@ -9,6 +9,7 @@
       "shape": {
         "pages": [
           {
+            "canvases": "null",
             "created_at": "str",
             "demo_plugin_id": "null",
             "device_type": "str",
@@ -37,6 +38,7 @@
             "updated_at": "null"
           },
           {
+            "canvases": "null",
             "created_at": "str",
             "demo_plugin_id": "null",
             "device_type": "str",
@@ -74,6 +76,7 @@
       "path_template": "/pages",
       "status": 201,
       "shape": {
+        "canvases": "null",
         "created_at": "str",
         "demo_plugin_id": "null",
         "device_type": "str",
@@ -129,6 +132,7 @@
       "path_template": "/pages/{page_id}",
       "status": 200,
       "shape": {
+        "canvases": "null",
         "created_at": "str",
         "demo_plugin_id": "null",
         "device_type": "str",
@@ -174,6 +178,7 @@
       "shape": {
         "incompatible_references": [],
         "page": {
+          "canvases": "null",
           "created_at": "str",
           "demo_plugin_id": "null",
           "device_type": "str",
@@ -259,6 +264,7 @@
       "path_template": "/pages/import/preview",
       "status": 200,
       "shape": {
+        "canvases": "null",
         "device_type": "str",
         "display_type": "null",
         "duration_seconds": "int",
@@ -298,6 +304,7 @@
       "path_template": "/pages/import",
       "status": 201,
       "shape": {
+        "canvases": "null",
         "created_at": "str",
         "demo_plugin_id": "null",
         "device_type": "str",
@@ -674,6 +681,8 @@
       "status": 200,
       "shape": {
         "board_id": "null",
+        "canvas_issues": "null",
+        "layers": "null",
         "message": "str",
         "page_id": "str",
         "paused": "bool",

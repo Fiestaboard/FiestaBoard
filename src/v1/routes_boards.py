@@ -30,6 +30,7 @@ from src.devices import geometry_of
 from src.ops import executors
 from src.outputs.board_profile import board_profile
 from src.outputs.cells import extended_markup_kw, project_for_output
+from src.outputs.display_profile import board_layers_json
 from src.outputs.registry import resolve_output_id
 from src.text_to_board import text_to_board_array, wrap_message_text
 
@@ -177,6 +178,7 @@ async def get_board(board: str) -> BoardDetail:
         source=source,
         default_page_id=schedule_service.get_default_page(board_id=board_id),
         override_expires_at=(override.expires_at if override is not None and board_id == primary_id else None),
+        layers=board_layers_json(entry, state.cells if state.characters is not None else None),
     )
 
 

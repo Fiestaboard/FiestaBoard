@@ -18,6 +18,15 @@ frame.
 - ``cascade``: one half-flap per changed cell, in reading order.
 - ``slide`` / ``wipe`` / ``fade`` / ``dissolve``: per pixel, on the two frames.
 
+**Bitmap layers** (a page's pixel canvases, :attr:`~src.led.matrix.LedLayout.layers`)
+ride along, as FiestaUI#343 draws them. Per-pixel kinds work on the
+rasterised frames, layers included. Per-cell kinds redraw their mid-way
+layouts with the old layers for the first half and the new ones for the
+second — a flip's frame ``f`` of ``F`` uses the new layers when
+``2f >= F - 1``, a cascade's slot ``n`` of ``N`` changed cells when
+``2n >= N`` — and repaint the layers over every half-turned flap. A change
+of layers alone moves no cell, so a per-cell kind snaps it.
+
 A device **frame budget** (``max_frames``) bounds the whole transition, first
 frame to final frame inclusive: a flip's scramble keeps up to
 ``max_frames - 2`` steps and its stagger takes what is left (the stagger
@@ -302,6 +311,17 @@ def _paint_half_flap(frame: bytearray, layout: LedLayout, cell_index: int, curre
         frame[dst : dst + (x1 - x0) * 3] = scratch[src : src + (x1 - x0) * 3]
 
 
+def _layers_at(before: LedLayout, after: LedLayout, use_after: bool) -> tuple:
+    """The layers a per-cell kind's mid-way layout draws: the old ones, or (*use_after*) the new."""
+    return after.layers if use_after else before.layers
+
+
+def _repaint_layers(frame: bytearray, layout: LedLayout) -> None:
+    """Paint a layout's bitmap ops over *frame* again — after a half-flap, so layers stay on top."""
+    if layout.layers:
+        paint_ops(frame, layout.width, layout.height, [op for op in layout.ops if op.kind == "bitmap"])
+
+
 @dataclass(frozen=True)
 class _CellScramble:
     index: int
@@ -369,7 +389,7 @@ def _plan_flip(
             cells = list(before.cells)
             for plan in plans:
                 cells[plan.index] = replace(after.cells[plan.index], glyph=glyph_at(plan, f))
-            layouts[f] = layout_cells(after.grid, cells, after.options)
+            layouts[f] = layout_cells(after.grid, cells, after.options, _layers_at(before, after, 2 * f >= frames - 1))
         return layouts[f]
 
     rendered: dict[tuple[int, bool], LedFrame] = {}
@@ -388,6 +408,7 @@ def _plan_flip(
                     nxt = glyph_at(plan, f + 1)
                     if nxt != layout.cells[plan.index].glyph:
                         _paint_half_flap(pixels, layout, plan.index, layout.cells[plan.index], nxt)
+                _repaint_layers(pixels, layout)
             rendered[key] = LedFrame(layout.width, layout.height, bytes(pixels))
         return rendered[key]
 
@@ -435,7 +456,7 @@ def _plan_cascade(
         cells = list(before.cells)
         for j in range(n):
             cells[changed[j]] = after.cells[changed[j]]
-        return layout_cells(after.grid, cells, after.options)
+        return layout_cells(after.grid, cells, after.options, _layers_at(before, after, 2 * n >= len(changed)))
 
     rendered: dict[int, LedFrame] = {}
 
@@ -451,6 +472,7 @@ def _plan_cascade(
             i = changed[n]
             current = replace(after.cells[i], glyph=layout.cells[i].glyph)
             _paint_half_flap(pixels, layout, i, current, after.cells[i].glyph)
+            _repaint_layers(pixels, layout)
             rendered[n] = LedFrame(layout.width, layout.height, bytes(pixels))
         return rendered[n]
 

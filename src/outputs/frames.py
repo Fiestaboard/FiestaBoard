@@ -18,8 +18,10 @@ that used to be private attributes of each board client:
 **Rich cells** (``cells`` / ``last_cells``) ride beside the grid for an
 output that takes them (an output plugin with a rich character set, see
 :mod:`src.outputs.cells`): :meth:`matches_frame` is then colour-aware —
-the same flaps recoloured are a different frame. Every other board stores
-none, and for them :meth:`matches_frame` is :meth:`matches`.
+the same flaps recoloured are a different frame — and layer-aware: rich
+cells carry the page's pixel-canvas layers (``cells.layers``), so a canvas
+change alone is a different frame too. Every other board stores none, and
+for them :meth:`matches_frame` is :meth:`matches`.
 
 Sub-unit caches stay with the driver: a local note array keeps one per tile
 so a retry re-posts only the tiles that failed (plan D3).
@@ -139,11 +141,13 @@ class FrameCache:
     def last_cells_shaped(self, rows: int, cols: int) -> RichCellFrame | None:
         """The rich cells of the last frame sent, under the same stale-shape
         refusal as :meth:`last_frame_shaped`; ``None`` when it carried none."""
+        from .cells import RichCells, frame_layers
+
         with self.lock:
             cells = self.last_cells
             if cells is None or len(cells) != rows or any(len(row) != cols for row in cells):
                 return None
-            return [row[:] for row in cells]
+            return RichCells((row[:] for row in cells), frame_layers(cells))
 
     def clear(self) -> None:
         """Release everything: the dedupe cache *and* the last-frame store.

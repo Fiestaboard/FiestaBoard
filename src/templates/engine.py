@@ -34,12 +34,13 @@ Plugin IDs are used as template namespaces (e.g., {{weather.temp}}, {{stocks.sym
 
 import logging
 import re
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
+from src.markup import blank_tiles, neutralize_data, resolve_icon_name, split_rows, take_tiles, wrap_line
 from src.markup import count_tiles as markup_count_tiles
-from src.markup import neutralize_data, resolve_icon_name, split_rows, take_tiles, wrap_line
 from src.plugins import get_plugin_registry
 from src.plugins.manifest import resolve_color_rules
 from src.text_to_board import SPLIT_FLAP_EXTENDED_MARKUP, needs_extended_markup
@@ -447,6 +448,7 @@ class TemplateEngine:
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         display: Any = None,
+        free_spans: Sequence[Sequence[tuple[int, int]]] | None = None,
     ) -> str:
         """Render a list of template lines (for template pages).
 
@@ -477,6 +479,11 @@ class TemplateEngine:
             extended_markup: The target board speaks extended markup (its
                 character set is rich; plan D19). Every line renders with it,
                 as :meth:`render` documents.
+            free_spans: Per row, the half-open ``(start_col, end_col)`` runs
+                text may use (pixel canvases with ``text: "flow"`` take the
+                rest; :func:`src.canvas.free_spans`). ``None``, or every row
+                one full-width span, renders exactly as without it. Otherwise
+                see :meth:`_render_flow`.
 
         Returns:
             Rendered string with newlines
@@ -548,6 +555,48 @@ class TemplateEngine:
                 rendered_cache[idx] = self.render(contents[idx], context, extended_markup=extended_markup)
             return rendered_cache[idx]
 
+        def _overflow_budget(start: int) -> int:
+            """Rows an overflowing line at ``start`` may fill, itself included.
+
+            A row is available if it is literally empty, opts into the
+            region with wrap=True, or renders to whitespace (e.g.
+            ``{{plugin.var}}`` where var resolves to ""). A wrap=False row
+            that renders visible content hard-stops the overflow — that is
+            what protects a footer the author put below.
+
+            Both overflow paths share this: ``|wrap`` and a row-emitting
+            formula spill the same way, so they must stop the same way.
+            """
+            available = 1  # the overflowing line itself
+            for j in range(start + 1, num_rows):
+                if contents[j].strip() == "":
+                    available += 1
+                    continue
+                if wraps[j] or "|wrap}}" in contents[j] or "|wrap|" in contents[j]:
+                    available += 1
+                    continue
+                if _render_cached(j).strip() == "":
+                    available += 1
+                    continue
+                break
+            return available
+
+        flow = free_spans is not None and any(
+            list(free_spans[r] if r < len(free_spans) else [(0, board_width)]) != [(0, board_width)]
+            for r in range(num_rows)
+        )
+        if flow:
+            return self._render_flow(
+                contents,
+                alignments,
+                wraps,
+                free_spans,
+                render_cached=_render_cached,
+                overflow_budget=_overflow_budget,
+                board_width=board_width,
+                extended_markup=extended_markup,
+            )
+
         for i in range(num_rows):
             if i <= skip_until:
                 continue
@@ -557,32 +606,6 @@ class TemplateEngine:
             content = contents[i]
 
             has_wrap = wrap_enabled or "|wrap}}" in content or "|wrap|" in content
-
-            def _overflow_budget(start: int) -> int:
-                """Rows an overflowing line at ``start`` may fill, itself included.
-
-                A row is available if it is literally empty, opts into the
-                region with wrap=True, or renders to whitespace (e.g.
-                ``{{plugin.var}}`` where var resolves to ""). A wrap=False row
-                that renders visible content hard-stops the overflow — that is
-                what protects a footer the author put below.
-
-                Both overflow paths share this: ``|wrap`` and a row-emitting
-                formula spill the same way, so they must stop the same way.
-                """
-                available = 1  # the overflowing line itself
-                for j in range(start + 1, num_rows):
-                    if contents[j].strip() == "":
-                        available += 1
-                        continue
-                    if wraps[j] or "|wrap}}" in contents[j] or "|wrap|" in contents[j]:
-                        available += 1
-                        continue
-                    if _render_cached(j).strip() == "":
-                        available += 1
-                        continue
-                    break
-                return available
 
             if has_wrap:
                 wrapped_lines = self._render_with_wrap(
@@ -640,6 +663,164 @@ class TemplateEngine:
                     )
 
         return "\n".join(rendered)
+
+    def _render_flow(
+        self,
+        contents: list[str],
+        alignments: list[str],
+        wraps: list[bool],
+        free_spans: Sequence[Sequence[tuple[int, int]]],
+        *,
+        render_cached: Callable[[int], str],
+        overflow_budget: Callable[[int], int],
+        board_width: int,
+        extended_markup: bool,
+    ) -> str:
+        """:meth:`render_lines` for a page whose ``flow`` canvases take cells from some rows.
+
+        Each row offers its free spans in reading order (left span, then
+        right span). A wrapping line (wrap on, or a ``|wrap`` variable — the
+        whole rendered line wraps) flows from its own row's first span through
+        every span of the rows its overflow budget allows, a word never split
+        across spans (one too wide for a span moves on to the next span that
+        can hold it); alignment applies within each span. A line without wrap
+        takes its row's first span and is clipped at the span's end. Cells
+        outside every span are blank.
+        """
+        num_rows = len(contents)
+        row_spans = [list(free_spans[r]) if r < len(free_spans) else [(0, board_width)] for r in range(num_rows)]
+        placed: dict[tuple[int, int], str] = {}
+
+        def put(row: int, span: tuple[int, int], text: str, alignment: str) -> None:
+            width = span[1] - span[0]
+            text = self._process_fill_space(text, width=width, extended_markup=extended_markup)
+            placed[(row, span[0])] = self._apply_alignment(
+                text, alignment, width=width, extended_markup=extended_markup
+            )
+
+        skip_until = -1
+        for i in range(num_rows):
+            if i <= skip_until:
+                continue
+            content, alignment = contents[i], alignments[i]
+            if wraps[i] or "|wrap}}" in content or "|wrap|" in content:
+                last = min(num_rows, i + overflow_budget(i))
+                slots = [(r, span) for r in range(i, last) for span in row_spans[r]]
+                if not slots:
+                    continue
+                lines = self._flow_wrap(render_cached(i), [b - a for _r, (a, b) in slots], extended_markup)
+                for (row, span), line in zip(slots, lines, strict=False):
+                    put(row, span, line, alignment)
+                if lines:
+                    skip_until = slots[len(lines) - 1][0]
+                continue
+            rendered_line = render_cached(i)
+            if "\n" in rendered_line:
+                all_rows = (
+                    split_rows(rendered_line)
+                    if needs_extended_markup(rendered_line, extended_markup)
+                    else rendered_line.split("\n")
+                )
+                split_lines = all_rows[: overflow_budget(i)]
+                for k, line in enumerate(split_lines):
+                    if i + k < num_rows and row_spans[i + k]:
+                        put(i + k, row_spans[i + k][0], line, alignment)
+                if len(split_lines) > 1:
+                    skip_until = min(i + len(split_lines) - 1, num_rows - 1)
+            elif row_spans[i]:
+                put(i, row_spans[i][0], rendered_line, alignment)
+
+        out: list[str] = []
+        for row in range(num_rows):
+            parts: list[str] = []
+            col = 0
+            for start, end in row_spans[row]:
+                parts.append(" " * (start - col))
+                parts.append(placed.get((row, start), " " * (end - start)))
+                col = end
+            parts.append(" " * (board_width - col))
+            out.append("".join(parts))
+        return "\n".join(out)
+
+    def _flow_wrap(self, text: str, widths: list[int], extended_markup: bool) -> list[str]:
+        """Word-wrap *text* into rows of the given *widths* (tiles); words never split
+        unless no later row can hold them. At most ``len(widths)`` rows."""
+        if not text.strip():
+            return []
+        if needs_extended_markup(text, extended_markup):
+            return wrap_line(text, max(widths), widths=widths, keep_words=True)
+        words: list[str] = []
+        word: list[str] = []
+        for token in self._split_into_tokens(text):
+            if len(token) == 1 and token.isspace():
+                if word:
+                    words.append("".join(word))
+                    word = []
+            else:
+                word.append(token)
+        if word:
+            words.append("".join(word))
+        lines: list[str] = []
+        line, line_tiles, k = "", 0, 0
+        for w in words:
+            tiles = self._count_tiles(w, extended_markup=False)
+            while k < len(widths):
+                width = widths[k]
+                if line and line_tiles + 1 + tiles <= width:
+                    line, line_tiles = f"{line} {w}", line_tiles + 1 + tiles
+                    break
+                if line:
+                    lines.append(line)
+                    line, line_tiles, k = "", 0, k + 1
+                    continue
+                if tiles <= width:
+                    line, line_tiles = w, tiles
+                    break
+                if any(tiles <= later for later in widths[k + 1 :]):
+                    lines.append("")
+                    k += 1
+                    continue
+                line, line_tiles = self._truncate_to_tiles(w, width, extended_markup=False), width
+                break
+            else:
+                break
+        if line and k < len(widths):
+            lines.append(line)
+        return lines
+
+    def blank_cells(
+        self, text: str, cells: Collection[tuple[int, int]], *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> str:
+        """*text* (board rows) with every 0-based ``(row, col)`` in *cells* drawn blank.
+
+        What a ``text: "hide"`` pixel canvas does to the text under it, on
+        every board: the row renders as usual, then the covered cells become
+        blank tiles (a colour tile, a coloured letter or a block's background
+        included). Other cells keep exactly what they drew.
+        """
+        if not cells:
+            return text
+        by_row: dict[int, set[int]] = {}
+        for row, col in cells:
+            by_row.setdefault(row, set()).add(col)
+        rows = text.split("\n")
+        for row, cols in by_row.items():
+            if row >= len(rows):
+                continue
+            line = rows[row]
+            if needs_extended_markup(line, extended_markup):
+                rows[row] = blank_tiles(line, cols)
+                continue
+            out: list[str] = []
+            tile = 0
+            for token in self._split_into_tokens(line):
+                if token.startswith("{/"):
+                    out.append(token)
+                    continue
+                out.append(" " if tile in cols else token)
+                tile += 1
+            rows[row] = "".join(out)
+        return "\n".join(rows)
 
     @staticmethod
     def _find_wrap_expression(template: str) -> tuple[int, int, str] | None:
@@ -1052,6 +1233,15 @@ class TemplateEngine:
 
         return lines
 
+    def build_context(self, board: BoardContext | None = None, plugin_ids: "set[str] | None" = None) -> dict[str, Any]:
+        """The template context (plugin data) a render on *board* reads; see :meth:`_build_context`.
+
+        Public so a page render that needs the context itself (its pixel
+        canvases read it too) builds it once and hands it to
+        :meth:`render_lines`.
+        """
+        return self._build_context(board, plugin_ids=plugin_ids)
+
     def _build_context(self, board: BoardContext | None = None, plugin_ids: "set[str] | None" = None) -> dict[str, Any]:
         """Build context by fetching data from enabled plugins.
 
@@ -1085,11 +1275,17 @@ class TemplateEngine:
             # Check for filter: {{value|filter:arg}}
             if "|" in expr:
                 var_part, filter_part = expr.split("|", 1)
+                if self._variable_format(var_part) == "canvas":
+                    return ""
                 value = self._get_variable_value(var_part.strip(), context)
                 filtered = self._as_data(var_part, self._apply_filter(value, filter_part.strip()))
                 # Apply color rules to the variable (before filtering changed it)
                 color_prefix = self._get_color_for_value(var_part.strip(), context)
                 return f"{color_prefix}{filtered}" if color_prefix else filtered
+            if self._variable_format(expr) == "canvas":
+                # A canvas content object is drawn by a canvas's ``source``,
+                # never as board text: in a line it is empty, not "???".
+                return ""
             value = self._as_data(expr, self._get_variable_value(expr, context))
             # Check if the value itself is a color code (e.g., {66})
             # This allows plugins to return color codes directly

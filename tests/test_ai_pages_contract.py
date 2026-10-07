@@ -70,6 +70,8 @@ PAGE_NULL_FIELDS = {
     # Added with the "panel" device type (an explicit per-character grid).
     "grid_rows",
     "grid_cols",
+    # Pixel canvases (schema v6).
+    "canvases",
 }
 
 

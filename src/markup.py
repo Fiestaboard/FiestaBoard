@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
@@ -61,6 +62,7 @@ __all__ = [
     "SPAN_COLOR_CODES",
     "BoardIcon",
     "BoardToken",
+    "blank_tiles",
     "count_tiles",
     "message_to_grid",
     "parse_line",
@@ -614,7 +616,49 @@ def _is_space(piece: _Piece) -> bool:
     return token is not None and token.type == "char" and token.icon is None and piece.source.isspace()
 
 
-def wrap_line(line: str, cols: int, *, first_cols: int | None = None) -> list[str]:
+def blank_tiles(line: str, cols: Collection[int]) -> str:
+    """*line* with the tiles at 0-based columns *cols* drawn blank (no colour, no background).
+
+    The extended-grammar way to empty cells under a pixel canvas: a span the
+    blank cuts through is closed before it and reopened after it, so every
+    other cell keeps exactly what it drew. A line no blank touches comes back
+    unchanged.
+    """
+    pieces = _pieces(line, extended_markup=True)
+    out: list[_Piece] = []
+    tile = 0
+    changed = False
+    for piece in pieces:
+        if piece.token is None:
+            out.append(piece)
+            continue
+        if tile in cols:
+            out.append(_Piece(_BLANK, " ", (), piece.start, piece.root))
+            changed = True
+        else:
+            out.append(piece)
+        tile += 1
+    if not changed:
+        return line
+    if _round_trips(out):
+        return _serialize(out)
+    # Literal braces a blank cut away from their span: no markup expresses the
+    # rest, so keep the drawn characters and drop the colours.
+    return "".join(
+        " " if p.token is None or p.token.type != "char" or p.token.icon else p.token.value
+        for p in out
+        if p.token is not None
+    )
+
+
+def wrap_line(
+    line: str,
+    cols: int,
+    *,
+    first_cols: int | None = None,
+    widths: Sequence[int] | None = None,
+    keep_words: bool = False,
+) -> list[str]:
     """Greedy word-wrap one line to *cols* tiles under the extended grammar.
 
     The rules are :meth:`MessageFormatter._wrap_line`'s — words split on
@@ -626,6 +670,12 @@ def wrap_line(line: str, cols: int, *, first_cols: int | None = None) -> list[st
 
     ``first_cols`` narrows the first row only (a template's ``|wrap`` value
     shares its first row with the text around it); later rows get *cols*.
+
+    ``widths`` instead gives every row its own width (text flowing around
+    pixel canvases): at most ``len(widths)`` rows come back. With
+    ``keep_words`` a word wider than its row moves on to the next row wide
+    enough for it, leaving the narrow one empty, and is only hard-broken when
+    no later row can hold it.
     """
     from .formatters.message_formatter import MessageFormatter
 
@@ -654,6 +704,8 @@ def wrap_line(line: str, cols: int, *, first_cols: int | None = None) -> list[st
     rows: list[list[_Piece]] = []
 
     def width() -> int:
+        if widths is not None:
+            return widths[len(rows)] if len(rows) < len(widths) else 0
         return cols if rows else first
 
     current: list[_Piece] = []
@@ -669,6 +721,9 @@ def wrap_line(line: str, cols: int, *, first_cols: int | None = None) -> list[st
         if current:
             rows.append(current)
             current, current_tiles = [], 0
+        if keep_words and widths is not None:
+            while word_tiles > width() and any(w >= word_tiles for w in widths[len(rows) + 1 :]):
+                rows.append([])
         # Hard-break a word wider than the board, walking it once: each row
         # starts where the last one ended, never at a re-sliced copy.
         cut = 0
@@ -686,8 +741,12 @@ def wrap_line(line: str, cols: int, *, first_cols: int | None = None) -> list[st
     if current:
         rows.append(current)
 
+    if widths is not None:
+        rows = rows[: len(widths)]
     if not all(_round_trips(row) for row in rows):
         # Literal braces inside a span that a row boundary would cut: no
         # markup expresses that, so wrap the raw text the legacy way.
-        return MessageFormatter(cols=min(cols, first))._wrap_line(line)
+        narrowest = min(widths) if widths else min(cols, first)
+        wrapped = MessageFormatter(cols=max(1, narrowest))._wrap_line(line)
+        return wrapped[: len(widths)] if widths is not None else wrapped
     return [_serialize(row) for row in rows]

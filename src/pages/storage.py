@@ -18,7 +18,7 @@ from .models import Page
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 5
+CURRENT_SCHEMA_VERSION = 6
 
 
 # Mapping from obsolete plugin id (used in template variable references,
@@ -214,6 +214,24 @@ def _migrate_v4_to_v5(pages_data: list[dict]) -> int:
     return migrated
 
 
+def _migrate_v5_to_v6(pages_data: list[dict]) -> int:
+    """Migration 5 -> 6: add the ``canvases`` field to all pages.
+
+    Pixel canvases (``docs/internal/reference/PIXEL_CANVAS.md``) are stored
+    beside the template. No page before this version has any, so every page
+    without the key gets ``None``.
+
+    Idempotent: a page that already has the key (``None`` or a list) is skipped.
+    """
+    migrated = 0
+    for page_data in pages_data:
+        if "canvases" not in page_data:
+            page_data["canvases"] = None
+            migrated += 1
+    logger.info("Pages migration v5 -> v6: added canvases to %d page(s)", migrated)
+    return migrated
+
+
 # Ordered list of (target_version, migration_function).
 # Each function receives the raw pages list and returns the number of pages affected.
 MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
@@ -222,6 +240,7 @@ MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
     (3, _migrate_v2_to_v3),
     (4, _migrate_v3_to_v4),
     (5, _migrate_v4_to_v5),
+    (6, _migrate_v5_to_v6),
 ]
 
 
@@ -442,6 +461,7 @@ class PageStorage:
             "transition_strategy",
             "transition_interval_ms",
             "transition_step_size",
+            "canvases",
         }
         for key, value in updates.items():
             if key in page_dict and (value is not None or key in nullable_fields):

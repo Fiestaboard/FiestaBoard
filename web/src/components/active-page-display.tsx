@@ -573,6 +573,8 @@ export function ActivePageDisplay() {
   // state is what is drawn and FiestaBoard sent it with them.
   const displayCells =
     !liveMessageForBoard && boardState?.message != null ? (boardState.cells as BoardCellGrid | undefined) : undefined;
+  // A pixel board's canvases on that same frame (drawn over the cells).
+  const displayLayers = displayCells ? boardState?.layers : undefined;
 
   // Out-of-sync: the board was updated externally if its current state differs
   // from what FiestaBoard last sent.
@@ -847,6 +849,7 @@ export function ActivePageDisplay() {
               ledLayout={(currentBoard ?? boardSettings?.boards?.[0])?.led_layout}
               message={displayMessage}
               cells={displayCells}
+              layers={displayLayers}
               size="md"
             >
               <ScaledBoardDisplay

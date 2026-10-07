@@ -10,8 +10,18 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    FieldSerializationInfo,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
+from src.canvas.models import Canvas, validate_page_canvases
+from src.canvas.schemas import CanvasIssueModel, CanvasLayerModel
 from src.devices import (
     ABSOLUTE_MIN_GRID_COLS,
     ABSOLUTE_MIN_GRID_ROWS,
@@ -32,6 +42,47 @@ def _require_panel_grid(device_type, grid_rows, grid_cols) -> None:
     """A panel page has no implied size: both grid axes must be given."""
     if device_type == "panel" and (grid_rows is None or grid_cols is None):
         raise ValueError("A panel page needs grid_rows and grid_cols")
+
+
+def _check_canvas_list(value: Any) -> Any:
+    """Every canvas valid, at most 8, ids unique (:func:`validate_page_canvases`)."""
+    if value is None:
+        return None
+    return validate_page_canvases(value)
+
+
+def _check_canvases_fit(
+    canvases: list[Canvas] | None, device_type, notes_wide, notes_tall, grid_rows, grid_cols
+) -> None:
+    """Every canvas area starts inside the page's character grid.
+
+    An area may run past the grid's right or bottom edge: it is clamped to
+    the grid when the page renders (:func:`src.canvas.geometry.clamp_area`),
+    so ``{"row": 1, "col": 1, "rows": 96, "cols": 128}`` means "the whole
+    board" on every board size. One that starts outside the grid cannot be
+    clamped and is refused.
+    """
+    if not canvases:
+        return
+    dims = resolve_dimensions(device_type, notes_wide or 1, notes_tall or 1, grid_rows, grid_cols)
+    for canvas in canvases:
+        area = canvas.area
+        if area.row > dims.rows or area.col > dims.cols:
+            raise ValueError(
+                f"canvas {canvas.id!r} area starts at row {area.row}, col {area.col}, outside the page's "
+                f"{dims.rows} x {dims.cols} grid (an area may run past the grid's edge, but must start inside it)"
+            )
+
+
+def _dump_canvases(canvases: list[Canvas] | None, info: FieldSerializationInfo) -> Any:
+    """Canvases as their JSON form: ``if`` / ``as`` / ``from`` (not ``if_``…), unset fields left out.
+
+    Used by every dump of a page (storage, share strings, API responses), so
+    what is stored is exactly what an author writes and validates back.
+    """
+    if canvases is None:
+        return None
+    return [c.model_dump(mode=info.mode, by_alias=True, exclude_none=True) for c in canvases]
 
 
 LineAlignment = Literal["left", "center", "right"]
@@ -119,6 +170,11 @@ class Page(BaseModel):
     grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
     grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
 
+    # Pixel canvases (design PIXEL_CANVAS.md §1): drawings over cell areas of
+    # the page grid. Drawn on pixel-matrix boards; every board blanks the
+    # cells under them (or flows text around a ``text: "flow"`` canvas).
+    canvases: list[Canvas] | None = None
+
     # Metadata
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime | None = None
@@ -139,7 +195,21 @@ class Page(BaseModel):
         if self.device_type != "panel":
             self.grid_rows = None
             self.grid_cols = None
+        _check_canvases_fit(
+            self.canvases, self.device_type, self.notes_wide, self.notes_tall, self.grid_rows, self.grid_cols
+        )
         return self
+
+    @field_validator("canvases")
+    @classmethod
+    def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
+        return _check_canvas_list(value)
+
+    @field_serializer("canvases")
+    def _canvases_dump(
+        self, value: list[Canvas] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_canvases(value, info)
 
     def validate_config(self) -> list[str]:
         """Validate that page configuration is complete and consistent.
@@ -206,11 +276,27 @@ class PageCreate(BaseModel):
     # composite row config.
     grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
     grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
+    # Pixel canvases (see Page.canvases); every area must fit the page grid.
+    canvases: list[Canvas] | None = None
 
     @model_validator(mode="after")
     def _check_panel_grid(self) -> "PageCreate":
         _require_panel_grid(self.device_type, self.grid_rows, self.grid_cols)
+        _check_canvases_fit(
+            self.canvases, self.device_type, self.notes_wide, self.notes_tall, self.grid_rows, self.grid_cols
+        )
         return self
+
+    @field_validator("canvases")
+    @classmethod
+    def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
+        return _check_canvas_list(value)
+
+    @field_serializer("canvases")
+    def _canvases_dump(
+        self, value: list[Canvas] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_canvases(value, info)
 
 
 class PageUpdate(BaseModel):
@@ -239,6 +325,22 @@ class PageUpdate(BaseModel):
     # composite row config.
     grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
     grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
+    # Pixel canvases (see Page.canvases). ``null`` removes them all. Areas are
+    # checked against the page's grid when the update is applied. A size
+    # retarget that does not send canvases scales the existing areas to the
+    # new grid.
+    canvases: list[Canvas] | None = None
+
+    @field_validator("canvases")
+    @classmethod
+    def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
+        return _check_canvas_list(value)
+
+    @field_serializer("canvases")
+    def _canvases_dump(
+        self, value: list[Canvas] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_canvases(value, info)
 
 
 # ---------------------------------------------------------------------------
@@ -339,6 +441,13 @@ class PageImportPreview(BaseModel):
     transition_strategy: str | None = None
     transition_interval_ms: int | None = None
     transition_step_size: int | None = None
+    canvases: list[Canvas] | None = None
+
+    @field_serializer("canvases")
+    def _canvases_dump(
+        self, value: list[Canvas] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_canvases(value, info)
 
 
 class PagePreviewResponse(BaseModel):
@@ -364,6 +473,12 @@ class PagePreviewBatchSuccess(BaseModel):
     #: request's ``board_id`` when that board draws a rich character set (an
     #: LED output). Present ONLY then.
     cells: list[list[dict[str, Any]]] | None = None
+    #: The page's pixel canvases rasterised for the request's ``board_id``
+    #: when that board is a pixel matrix (``[]`` for a page without
+    #: canvases). Present ONLY then; draw them over ``cells``.
+    layers: list[CanvasLayerModel] | None = None
+    #: Problems drawing those canvases. Present exactly when ``layers`` is.
+    canvas_issues: list[CanvasIssueModel] | None = None
 
 
 class PagePreviewBatchError(BaseModel):
@@ -451,6 +566,11 @@ class PageSendResponse(BaseModel):
     paused: bool = False
     target: str
     board_id: str | None = None
+    #: The page's pixel canvases as rendered for the target board, when that
+    #: board is a pixel matrix (``[]`` for a page without canvases); else null.
+    layers: list[CanvasLayerModel] | None = None
+    #: Problems drawing those canvases; null exactly when ``layers`` is.
+    canvas_issues: list[CanvasIssueModel] | None = None
 
 
 class PageSendFailure(BaseModel):

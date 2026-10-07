@@ -3,6 +3,7 @@
 
 import type { DeviceModel } from "@fiestaboard/ui";
 
+import type { CanvasLayerJson } from "./canvas";
 import { fetchApi } from "./core";
 import type { GeneralConfig } from "./settings";
 import type { Code62Glyph, DeviceType } from "./shared";
@@ -41,6 +42,8 @@ export interface BoardCurrentMessageResponse {
    * icons `characters` cannot hold).
    */
   cells?: BoardTokenJson[][];
+  /** A pixel-matrix board only: the page's canvases on that frame, drawn over `cells`. */
+  layers?: CanvasLayerJson[];
   message: string | null;
   rows: number;
   cols: number;

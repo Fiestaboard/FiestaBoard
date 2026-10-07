@@ -1,0 +1,176 @@
+{
+ "about": "Bitmap-layer cases copied verbatim from FiestaUI's scripts/ci/tests/fixtures/led-golden.json at Fiestaboard/FiestaUI#343 commit a8a62517 (feat/led-bitmap-layers): the 2 layout cases and 2 transition cases that carry layers. Temporary: replace with the vendored tests/fixtures/fiestaui/led-golden.json once FiestaUI releases #343, and delete this file.",
+ "source": {
+  "repo": "Fiestaboard/FiestaUI",
+  "pr": 343,
+  "commit": "a8a62517",
+  "path": "scripts/ci/tests/fixtures/led-golden.json"
+ },
+ "layouts": [
+  {
+   "name": "bitmap layers over text, alpha and clipping",
+   "message": "HI {63}\nYO",
+   "spec": {
+    "width": 16,
+    "height": 11,
+    "font": "3x5"
+   },
+   "options": {
+    "layers": [
+     {
+      "x": -2,
+      "y": -1,
+      "width": 7,
+      "height": 5,
+      "rgba": "ADzcAAA83P8APNz/ADzc/wA83P8APNz/ADzc/yhQtP8oULQAKFC0/yhQtP8oULT/KFC0/yhQtP9QZIz/UGSM/1BkjP9QZIz/UGSM/1BkjP9QZIz/eHhk/3h4ZP94eGT/eHhk/3h4ZP94eGT/eHhk/6CMPP+gjDz/oIw8/6CMPP+gjDz/oIw8/6CMPP8="
+     },
+     {
+      "x": 13,
+      "y": 8,
+      "width": 5,
+      "height": 5,
+      "rgba": "Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/x7IPP8eyDz/Hsg8/w=="
+     }
+    ]
+   },
+   "text": "HI YO",
+   "width": 16,
+   "height": 11,
+   "frame": "KFC0KFC0KFC0KFC0KFC0////////AAAAAAAAAAAAAAAAAAAA60A060A060A0AAAAUGSMUGSMUGSMUGSMUGSM////AAAAAAAAAAAAAAAAAAAAAAAA60A060A060A0AAAAeHhkeHhkeHhkeHhkeHhk////AAAAAAAAAAAAAAAAAAAAAAAA60A060A060A0AAAAoIw8oIw8oIw8oIw8oIw8////AAAAAAAAAAAAAAAAAAAAAAAA60A060A060A0AAAA////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA60A060A060A0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAHsg8Hsg8Hsg8AAAA////AAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAHsg8Hsg8Hsg8AAAA////AAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAHsg8Hsg8Hsg8"
+  },
+  {
+   "name": "bitmap layer on a monochrome red panel",
+   "message": "HI {63}\nYO",
+   "spec": {
+    "width": 16,
+    "height": 11,
+    "font": "3x5"
+   },
+   "options": {
+    "monochrome": "#ff3b1f",
+    "layers": [
+     {
+      "x": 0,
+      "y": 9,
+      "width": 16,
+      "height": 2,
+      "rgba": "AAAA/xEREf8iIiL/MzMz/0RERP9VVVX/ZmZm/3d3d/+IiIgAmZmZ/6qqqv+7u7v/zMzM/93d3f/u7u7///////8AAP//EAD//yAA//8wAP//QAD//1AA//9gAP//cAD//4AA//+QAP//oAD//7AA///AAP//0AD//+AA///wAP8="
+     }
+    ]
+   },
+   "text": "HI YO",
+   "width": 16,
+   "height": 11,
+   "frame": "/zsfAAAA/zsfAAAA/zsf/zsf/zsfAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsfAAAA/zsfAAAA/zsfAAAAAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsfAAAA/zsf/zsf/zsfAAAAAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsfAAAA/zsfAAAA/zsfAAAAAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsfAAAA/zsfAAAA/zsfAAAA/zsf/zsf/zsfAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/zsfAAAA/zsfAAAAAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/zsfAAAA/zsfAAAA/zsfAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/zsfAAAAAAAA/zsfAAAA/zsfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsf/zsf/zsf/zsf/zsfAAAAAAAAAAAAAAAAAAAAAAAA/zsf/zsf/zsf/zsf/zsf/zsf/zsf/zsf/zsf/zsf"
+  }
+ ],
+ "transitions": [
+  {
+   "name": "flip with half-flaps, layers swapped half-way",
+   "from": "AB",
+   "to": "CD",
+   "spec": {
+    "width": 12,
+    "height": 5,
+    "font": "3x5"
+   },
+   "transition": {
+    "kind": "flip",
+    "stepMs": 80,
+    "scrambleSteps": 3,
+    "stagger": 1
+   },
+   "fps": 25,
+   "fromLayers": [
+    {
+     "x": 0,
+     "y": 3,
+     "width": 12,
+     "height": 2,
+     "rgba": "/wAA//8AEP//ACD//wAw//8AQP//AFD//wBg//8AcP//AID//wCQ//8AoP//ALD//wAA//8AEP//ACD//wAw//8AQP//AFD//wBg//8AcP//AID//wCQ//8AoP//ALD/"
+    }
+   ],
+   "toLayers": [
+    {
+     "x": 0,
+     "y": 3,
+     "width": 12,
+     "height": 2,
+     "rgba": "AAD/AAAQ//8AIP//ADD//wBA//8AUP//AGD//wBw//8AgP//AJD//wCg//8AsP//AAD/AAAQ//8AIP//ADD//wBA//8AUP//AGD//wBw//8AgP//AJD//wCg//8AsP//"
+    }
+   ],
+   "resolvedSpec": {
+    "kind": "flip",
+    "stepMs": 80,
+    "scrambleSteps": 3,
+    "stagger": 1
+   },
+   "durationMs": 400,
+   "frameCount": null,
+   "width": 12,
+   "height": 5,
+   "frames": [
+    "AAAA////AAAAAAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////////////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+    "AAAA////AAAAAAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////////////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+    "AAAA////AAAAAAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////////////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+    "AAAA////AAAAAAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+    "AAAA////AAAAAAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+    "AAAAAAAAAAAAAAAAAAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+    "AAAAAAAAAAAAAAAAAAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAAAAAAABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/AAAAABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/",
+    "////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/AAAAABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/",
+    "////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AAAA////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/",
+    "AAAA////////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////AAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////AAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/",
+    "AAAA////////AAAA////////AAAAAAAAAAAAAAAAAAAAAAAA////AAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////AAAAAAAAAAAA////AAAA////AAAAAAAAAAAAAAAAAAAA////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/AAAAABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/"
+   ]
+  },
+  {
+   "name": "fade between layers alone",
+   "from": "HI",
+   "to": "HI",
+   "spec": {
+    "width": 12,
+    "height": 5,
+    "font": "3x5"
+   },
+   "transition": {
+    "kind": "fade",
+    "durationMs": 200,
+    "maxFrames": 5
+   },
+   "fromLayers": [
+    {
+     "x": 0,
+     "y": 3,
+     "width": 12,
+     "height": 2,
+     "rgba": "/wAA//8AEP//ACD//wAw//8AQP//AFD//wBg//8AcP//AID//wCQ//8AoP//ALD//wAA//8AEP//ACD//wAw//8AQP//AFD//wBg//8AcP//AID//wCQ//8AoP//ALD/"
+    }
+   ],
+   "toLayers": [
+    {
+     "x": 0,
+     "y": 3,
+     "width": 12,
+     "height": 2,
+     "rgba": "AAD/AAAQ//8AIP//ADD//wBA//8AUP//AGD//wBw//8AgP//AJD//wCg//8AsP//AAD/AAAQ//8AIP//ADD//wBA//8AUP//AGD//wBw//8AgP//AJD//wCg//8AsP//"
+    }
+   ],
+   "resolvedSpec": {
+    "kind": "fade",
+    "durationMs": 200,
+    "maxFrames": 5
+   },
+   "durationMs": 200,
+   "frameCount": 5,
+   "width": 12,
+   "height": 5,
+   "frames": [
+    "////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw/wAA/wAQ/wAg/wAw/wBA/wBQ/wBg/wBw/wCA/wCQ/wCg/wCw",
+    "////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/0BAvwRMvwhYvwxkvxBwvxR8vxiIvxyUvyCgvySsvyi4vyzE/0BAvwRMvwhYvwxkvxBwvxR8vxiIvxyUvyCgvySsvyi4vyzE",
+    "////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/4CAgAiIgBCQgBiYgCCggCiogDCwgDi4gEDAgEjIgFDQgFjY/4CAgAiIgBCQgBiYgCCggCiogDCwgDi4gEDAgEjIgFDQgFjY",
+    "////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA/7+/QAzDQBjHQCTLQDDPQDzTQEjXQFTbQGDfQGzjQHjnQITr/7+/QAzDQBjHQCTLQDDPQDzTQEjXQFTbQGDfQGzjQHjnQITr",
+    "////AAAA////AAAA////////////AAAAAAAAAAAAAAAAAAAA////AAAA////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////////////AAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAA////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/////ABD/ACD/ADD/AED/AFD/AGD/AHD/AID/AJD/AKD/ALD/"
+   ]
+  }
+ ]
+}

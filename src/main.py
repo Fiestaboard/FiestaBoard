@@ -36,10 +36,10 @@ from .pages.service import (
     CONTEXT_FINGERPRINT_PREFIX,
     CONTEXT_RENDER_MEMO_PREFIX,
     get_page_service,
+    page_plugin_ids,
 )
 from .schedules.service import get_schedule_service
 from .settings.service import PRIMARY_RUNTIME_KEY, get_settings_service, page_transition
-from .templates.engine import extract_template_plugin_ids
 from .triggers.service import get_trigger_service
 
 # Configure logging
@@ -103,16 +103,31 @@ def _extended_kw(client) -> dict:
     return render_kw(client)
 
 
-def _project(client, content: str, rows: int, cols: int) -> tuple[list[list[int]], dict]:
+def _project(client, content: str, rows: int, cols: int, layers=()) -> tuple[list[list[int]], dict]:
     """*content* projected for *client*'s output (:mod:`src.outputs.cells`):
     the 0–71 grid, and the ``render`` keywords that carry its rich cells.
 
     A split-flap board gets the ``text_to_board_array`` grid (extended markup
     degraded to letters and fallback tiles) and no keywords; a rich output's
-    one parse yields both the grid and its cells.
+    one parse yields both the grid and its cells, which carry *layers* (a
+    pixel-matrix render's canvases, ``cells.layers``).
     """
-    frame = project_message(content, rows, cols, output_character_set(client))
+    frame = project_message(content, rows, cols, output_character_set(client), layers=layers)
     return frame.characters, ({"cells": frame.cells} if frame.cells is not None else {})
+
+
+def _result_layers(result) -> list:
+    """A render result's pixel-canvas layers (``[]`` for none, or a result that carries none)."""
+    layers = getattr(result, "layers", None)
+    return layers if isinstance(layers, list) else []
+
+
+def _content_key(result) -> str:
+    """The dedupe / in-flight key of a page render: its text, plus a digest of
+    its canvas layers when it has any (:meth:`DisplayResult.content_key`), so a
+    canvas change alone is a change and every render without layers keys
+    exactly as before."""
+    return result.content_key() if _result_layers(result) else result.formatted
 
 
 def _board_size_key(board: dict) -> str:
@@ -1550,7 +1565,9 @@ class DisplayService:
         if dump is None:
             return None
         try:
-            refs = extract_template_plugin_ids(template)
+            # The template's plugins and its pixel canvases' (a canvas
+            # ``source`` or shape field reads plugin data too).
+            refs = page_plugin_ids(page)
             if refs is None:
                 return None  # formula page: variable owners not statically known
 
@@ -2139,7 +2156,10 @@ class DisplayService:
             rt.last_geometry_mismatch = None
 
             # --- Normal send (content changed) ---
-            current_content = result.formatted
+            # The dedupe / in-flight key: the text, plus a digest of the
+            # page's canvas layers when it has any (a canvas change alone is
+            # a change).
+            current_content = _content_key(result)
             if current_content == rt.last_active_page_content and active_page_id == rt.last_active_page_id:
                 logger.debug("Board %s: content unchanged, skipping send", board_id or "(default)")
                 # Arm the render short-circuit (issue #1883): this render's
@@ -2174,7 +2194,7 @@ class DisplayService:
             # note_array) so a note-array page renders at its true size.
             dims = dimensions_of(page)
             client = rt.client
-            board_array, rich = _project(client, current_content, dims.rows, dims.cols)
+            board_array, rich = _project(client, result.formatted, dims.rows, dims.cols, _result_layers(result))
             device_type = page.device_type
             sink = self._error_sink()
 
@@ -2652,9 +2672,9 @@ class DisplayService:
 
         dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         client = rt.client
-        board_array, rich = _project(client, result.formatted, dims.rows, dims.cols)
+        board_array, rich = _project(client, result.formatted, dims.rows, dims.cols, _result_layers(result))
         sink = self._error_sink()
-        formatted = result.formatted
+        formatted = _content_key(result)
         page_ref = page.id
 
         def _after_silence_page_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:

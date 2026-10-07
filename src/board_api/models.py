@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from src.api_deprecation import FLAT_BOARD_FIELDS_NOTE
+from src.canvas.schemas import CanvasLayerModel
 
 
 class MessageRequest(BaseModel):
@@ -60,6 +61,11 @@ class BoardCurrentMessageResponse(BaseModel):
     #: hold). Additive and present ONLY then; every other board's response is
     #: exactly what it was.
     cells: list[list[dict[str, Any]]] | None = None
+    #: The page's pixel canvases on that frame (FiestaUI ``LedBitmapLayer``
+    #: JSON: ``{x, y, width, height, rgba}``, rgba base64), drawn over
+    #: ``cells``. Present ONLY for a pixel-matrix board (``[]`` when the frame
+    #: has none).
+    layers: list[CanvasLayerModel] | None = None
     #: ``characters`` rendered as the string form ``BoardDisplay`` takes.
     message: str | None = None
     rows: int
