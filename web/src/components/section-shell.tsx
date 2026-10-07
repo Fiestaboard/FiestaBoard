@@ -12,7 +12,6 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { createPortal } from "react-dom";
 
 import Link from "@/components/smart-link";
-import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -43,15 +42,6 @@ interface SectionShellProps {
   /** The route outlet. */
   children: React.ReactNode;
 }
-
-/**
- * Holds the new body back for one Reveal beat. FiestaUI's `Reveal` (the
- * header's action slot and the sub-header) runs `duration-base`; PageOutlet's
- * fade is the same token, so the body starts once the header has settled.
- * `both` fill keeps it at opacity 0 while it waits. Targets the outlet's inner
- * box, which is the element carrying `animate-page-outlet-enter`.
- */
-const DELAYED_ENTER = "[&>*]:[animation-delay:var(--motion-duration-base)]";
 
 /** The sub-header's action slot, for a detail page's own buttons. Null outside a shell. */
 const ActionSlot = createContext<HTMLElement | null | undefined>(undefined);
@@ -92,22 +82,6 @@ export function SectionShell({ icon, title, description, href, action, detail, f
   // A list opens items with links (matched by href) or with buttons that
   // navigate in a handler (a page tile), which say which item they open with
   // `data-section-item="<id>"`.
-  // Drilling in or back out grows or shrinks the sub-header; without a delay
-  // the new body fades in WHILE being pushed down, so it is seen half-faded
-  // and sliding. Only a body that replaces another under an open↔closed
-  // change waits: a deep link has no entrance (PageOutlet skips it), and
-  // between two items the header holds still. Settled per route, during
-  // render, so the remounted outlet has it on its first frame.
-  const reducedMotion = useReducedMotion();
-  const isOpen = detail != null;
-  const [route, setRoute] = useState({ path: pathname, open: isOpen, delayEnter: false });
-  if (route.path !== pathname) {
-    setRoute({ path: pathname, open: isOpen, delayEnter: route.open !== isOpen });
-  } else if (route.open !== isOpen) {
-    setRoute({ ...route, open: isOpen });
-  }
-  const delayEnter = route.delayEnter && !reducedMotion;
-
   const opened = useRef<{ path: string; id: string } | null>(null);
   useEffect(() => {
     if (detail) {
@@ -137,12 +111,7 @@ export function SectionShell({ icon, title, description, href, action, detail, f
           renderLink={({ href: to, children: label }) => <Link href={to}>{label}</Link>}
         />
         <ActionSlot value={slot}>
-          <PageOutlet
-            key={pathname}
-            fill={fill}
-            className={delayEnter ? DELAYED_ENTER : undefined}
-            data-enter-delay={delayEnter ? "" : undefined}
-          >
+          <PageOutlet key={pathname} fill={fill}>
             {children}
           </PageOutlet>
         </ActionSlot>

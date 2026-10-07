@@ -2,9 +2,9 @@
  * SectionShell: a section's card and header stay mounted while its routes
  * drill in and out; a breadcrumb + item heading expand beneath the header.
  */
-import { act, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { Monitor } from "lucide-react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { SectionAction, type SectionDetail, SectionShell } from "@/components/section-shell";
 
@@ -110,62 +110,5 @@ describe("SectionShell", () => {
     route.pathname = "/displays";
     rerender(shell(null, list));
     expect(document.activeElement).toBe(screen.getByTestId("tile"));
-  });
-});
-
-/**
- * Drilling in (or back out) grows or shrinks the sub-header for one Reveal
- * beat. The new body waits that beat before it fades in, so it is not seen
- * half-faded while the header is still pushing it down. Only then: a deep link
- * makes no entrance at all, and between two items the header holds still.
- */
-describe("SectionShell — body entrance timing", () => {
-  const outlet = () => document.querySelector<HTMLElement>("[data-slot=page-outlet]")!;
-  const BEDROOM: SectionDetail = { id: "bedroom", title: "Bedroom" };
-
-  afterEach(() => {
-    document.documentElement.classList.remove("reduce-motion");
-    route.pathname = "/displays";
-  });
-
-  it("does not delay the body on first render (a deep link)", () => {
-    route.pathname = "/displays/kitchen";
-    render(shell(KITCHEN));
-    expect(outlet()).not.toHaveAttribute("data-enter-delay");
-  });
-
-  it("delays the body by the header's beat when drilling into an item", () => {
-    route.pathname = "/displays";
-    const { rerender } = render(shell(null));
-    route.pathname = "/displays/kitchen";
-    rerender(shell(KITCHEN));
-    expect(outlet()).toHaveAttribute("data-enter-delay");
-  });
-
-  it("delays the body when going back from an item to the list", () => {
-    route.pathname = "/displays/kitchen";
-    const { rerender } = render(shell(KITCHEN));
-    route.pathname = "/displays";
-    rerender(shell(null));
-    expect(outlet()).toHaveAttribute("data-enter-delay");
-  });
-
-  it("does not delay the body when moving from one item to another", () => {
-    route.pathname = "/displays/kitchen";
-    const { rerender } = render(shell(KITCHEN));
-    route.pathname = "/displays/bedroom";
-    rerender(shell(BEDROOM));
-    expect(outlet()).not.toHaveAttribute("data-enter-delay");
-  });
-
-  it("does not delay the body when motion is reduced", async () => {
-    document.documentElement.classList.add("reduce-motion");
-    route.pathname = "/displays";
-    const { rerender } = render(shell(null));
-    // useReducedMotion reads the class in an effect; let it settle.
-    await act(async () => {});
-    route.pathname = "/displays/kitchen";
-    rerender(shell(KITCHEN));
-    expect(outlet()).not.toHaveAttribute("data-enter-delay");
   });
 });
