@@ -6,13 +6,13 @@ How to enable Slot Machine and use it on a page.
 
 **What it does**: Animates board updates by spinning each column through random characters like a slot-machine reel before locking on the target. Columns lock left-to-right with a configurable stagger.
 
-**Prerequisites**: The **Transition Plugins** beta must be enabled first (Settings → Advanced → Beta Features). Any board connection works — the spin is drawn by FiestaBoard and sent as regular board updates, not by the Local API's built-in transitions.
+**Prerequisites**: The **Transition Plugins** beta must be enabled first (Displays → (a display) → Transition). Any board connection works — the spin is drawn by FiestaBoard and sent as regular board updates, not by the Local API's built-in transitions.
 
 ## Quick Setup
 
-1. **Turn on the beta** — Settings → Advanced → Beta Features → **Transition Plugins**. That is the only switch; installed transition plugins have no separate enable step.
+1. **Turn on the beta** — Displays → (a display) → Transition → **Transition Plugins**. That is the only switch, and it covers the whole install; installed transition plugins have no separate enable step.
 2. **Tune the spin (optional)** — `spin_frames`, `column_stagger`, `frame_interval_ms`, and `seed` live in Slot Machine's settings on the Integrations page. The defaults give a six-frame spin with a one-frame cascade between columns.
-3. **Apply it** — In the page editor, pick **Slot Machine** from the **Transition** dropdown in the toolbar and save that page. To spin on every page instead, pick it under Settings → Behavior → Board Transitions. Whatever a page sets for itself overrides the global default.
+3. **Apply it** — In the page editor, pick **Slot Machine** from the **Transition** dropdown in the toolbar and save that page. To spin on everything sent to a display instead, pick it under Displays → (a display) → Transition. Whatever a page sets for itself overrides the display's transition.
 4. **View** — The next page transition will spin each column before locking on the new content.
 
 Transition plugins are deprecated (see [Transitions](https://fiestaboard.app/docs/features/transitions)): pages that use one keep working, and the Transition Lab preview page has been removed.
@@ -38,5 +38,5 @@ No environment variables required.
 - **All columns lock at the same time, no cascade** — Raise `column_stagger` (try 2-3).
 - **Cascade takes too long** — Lower `column_stagger` and/or `frame_interval_ms`.
 - **Want a preview that always plays the same way** — Set `seed` to any non-zero integer.
-- **The board snaps instead of spinning** — The **Transition Plugins** beta is off. Turn it on under Settings → Advanced → Beta Features; until then, pages saved with a plugin transition jump straight to the target.
-- **One page won't spin but the rest do** — That page has its own Transition set to something else. Open it in the page editor and choose Slot Machine, or "Use global default".
+- **The board snaps instead of spinning** — The **Transition Plugins** beta is off. Turn it on under Displays → (a display) → Transition; until then, pages saved with a plugin transition jump straight to the target.
+- **One page won't spin but the rest do** — That page has its own Transition set to something else. Open it in the page editor and choose Slot Machine, or "Use the display's transition".

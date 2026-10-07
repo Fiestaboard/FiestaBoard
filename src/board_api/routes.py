@@ -240,7 +240,8 @@ async def send_message(request: MessageRequest):
         raise HTTPException(status_code=503, detail=detail)
 
     settings_service = runtime.get_settings_service()
-    transition = settings_service.get_transition_settings()
+    # The target display's own transition (the first display when none is named).
+    transition = settings_service.get_transition_settings(board_id)
     # Size the grid to the board actually being written to, so a manual send
     # to a note array uses its real geometry instead of a default flagship
     # 22×6. With no board_id that is the active (first) board, unchanged.
@@ -336,7 +337,7 @@ async def send_welcome_message(request: WelcomeMessageRequest | None = None):
     custom_msg = (get_config_manager().get_general().get("welcome_message") or "").strip()
 
     settings_service = runtime.get_settings_service()
-    transition = settings_service.get_transition_settings()
+    transition = settings_service.get_transition_settings(board.get("id"))
 
     # Determine device type and array dimensions from configured boards
     # (defaults to flagship 6×22). Note arrays use notes_wide/notes_tall
@@ -403,7 +404,7 @@ async def _send_welcome_to(board: dict) -> SendResponse:
         raise HTTPException(status_code=503, detail=f"Board not configured: {reason or 'no usable connection'}")
 
     custom_msg = (get_config_manager().get_general().get("welcome_message") or "").strip()
-    transition = runtime.get_settings_service().get_transition_settings()
+    transition = runtime.get_settings_service().get_transition_settings(board_id)
     geometry = geometry_of(board)
     try:
         dims = resolve_dimensions(*geometry)

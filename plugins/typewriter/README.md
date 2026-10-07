@@ -18,7 +18,7 @@ None. Transition plugins don't expose template variables; they shape *how* a boa
 
 ## Example Templates
 
-Typewriter is never placed in a template. Turn on the **Transition Plugins** beta (Settings → Advanced → Beta Features), then pick Typewriter from the **Transition** dropdown in the page editor's toolbar to use it on one page, or from Settings → Behavior → Board Transitions to make it the default for every page. A page's own choice wins over the global default; "Use global default" clears it.
+Typewriter is never placed in a template. Turn on the **Transition Plugins** beta (Displays → (a display) → Transition), then pick Typewriter from the **Transition** dropdown in the page editor's toolbar to use it on one page, or in a display's Transition section (Displays → (a display) → Transition) to use it for everything sent to that display. A page's own choice wins over the display's; "Use the display's transition" clears it.
 
 Pages store the choice as `transition_strategy = "plugin:typewriter"`.
 

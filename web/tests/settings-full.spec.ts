@@ -143,8 +143,8 @@ test.describe("Settings – Full Coverage", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Silence Schedule lives under the Behavior tab
-    await page.getByRole("tab", { name: "Behavior", exact: true }).click();
+    // Silence Schedule lives under the Scheduling tab
+    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
 
     const silenceSection = page.getByText(/silence/i).first();
     await expect(silenceSection).toBeVisible({ timeout: 10_000 });
@@ -168,8 +168,8 @@ test.describe("Settings – Full Coverage", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Silence toggle lives under the Behavior tab
-    await page.getByRole("tab", { name: "Behavior", exact: true }).click();
+    // Silence toggle lives under the Scheduling tab
+    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
 
     const silenceToggle = page.locator("#silence-enabled");
     await expect(silenceToggle).toBeVisible({ timeout: 10_000 });

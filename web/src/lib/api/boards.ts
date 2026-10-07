@@ -307,10 +307,16 @@ export interface BoardInstance {
   /**
    * How this display changes its message (plan D21), from its device's menu:
    * a split-flap strategy (`"column"`...), `"plugin:<id>"`, an LED menu id
-   * (`"flip"`, `"fade"`...) or `"none"`. Absent/null follows the install's
-   * transition setting; a page's own override still wins.
+   * (`"flip"`, `"fade"`...) or `"none"`. Every display owns its transition
+   * (settings v6; there is no install-wide one). Absent only on an LED board
+   * migrated without a choice, where it means the device model's default.
+   * A page's own override still wins.
    */
   transition?: string | null;
+  /** Delay between animation steps in ms (0 = as fast as the board goes); absent = the device's default. */
+  transition_step_interval_ms?: number | null;
+  /** Columns or rows that move per step (≥ 1); absent = the device's default. */
+  transition_step_size?: number | null;
 }
 
 /**

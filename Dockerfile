@@ -93,7 +93,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gosu \
     network-manager \
     nginx \
-    openssl \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
@@ -151,10 +150,8 @@ RUN python -m compileall -q /app/src /app/plugins || true
 COPY --from=ui-builder /app/build/client /app/web/build/client
 COPY --from=ui-builder /app/public /app/web/public
 
-# Copy nginx configuration (default HTTP) and the alternate HTTPS template.
+# Copy nginx configuration.
 COPY nginx.conf /etc/nginx/nginx.conf
-COPY nginx.conf /app/nginx.http.conf
-COPY nginx.https.conf /app/nginx.https.conf
 
 # Copy "please wait" static page served by nginx while the API is starting up
 RUN mkdir -p /app/static

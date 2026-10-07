@@ -394,7 +394,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                 dims = resolve_dimensions(*geometry)
                 board_array, rich = project_for_output(client, rendered, dims.rows, dims.cols, flap=text_to_board_array)
 
-                transition_settings = settings_service.get_transition_settings()
+                transition_settings = settings_service.get_transition_settings(target_board.get("id"))
                 # Live editor sends are rapid-fire; a "plugin:<id>" system
                 # default would run a multi-second frame animation per edit.
                 # Fall back to an instant send for plugin strategies.

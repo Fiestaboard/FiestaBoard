@@ -2,9 +2,9 @@
  * Per-page transition override picker in the PageBuilder header.
  *
  * The backend has accepted `Page.transition_strategy` (a built-in strategy
- * name, `plugin:<id>`, or null = inherit the global default) for a while; these
+ * name, `plugin:<id>`, or null = inherit the display's transition) for a while; these
  * tests cover the UI that finally reads and writes it. The load-bearing detail
- * is the clear path: clearing back to "Use global default" must send an
+ * is the clear path: clearing back to "Use the display's transition" must send an
  * explicit `null`, because an omitted key leaves the previous override in place
  * on the server.
  */
@@ -111,7 +111,7 @@ describe("PageBuilder — per-page transition picker", () => {
     expect(captured.body?.transition_strategy).toBe("diagonal");
   });
 
-  it("sends an explicit null when clearing an existing override back to the global default", async () => {
+  it("sends an explicit null when clearing an existing override back to the display's transition", async () => {
     servePageWithTransition("column");
     const captured = captureUpdate();
     const user = userEvent.setup();
@@ -119,7 +119,7 @@ describe("PageBuilder — per-page transition picker", () => {
     render(<PageBuilder pageId="page-1" onClose={vi.fn()} />, { wrapper: TestWrapper });
 
     await openTransitionMenu(user);
-    await user.click(await screen.findByRole("menuitemradio", { name: "Use global default" }));
+    await user.click(await screen.findByRole("menuitemradio", { name: "Use the display's transition" }));
 
     await user.click(await screen.findByRole("button", { name: "Save Page" }));
 
@@ -140,7 +140,7 @@ describe("PageBuilder — per-page transition picker", () => {
 
     expect(await screen.findByRole("menuitemradio", { name: "Curtain", checked: true })).toBeInTheDocument();
     expect(
-      await screen.findByRole("menuitemradio", { name: "Use global default", checked: false }),
+      await screen.findByRole("menuitemradio", { name: "Use the display's transition", checked: false }),
     ).toBeInTheDocument();
   });
 
@@ -163,11 +163,8 @@ describe("PageBuilder — per-page transition picker", () => {
   it("offers installed transition plugins as plugin:<id> once the beta flag is on", async () => {
     servePageWithTransition(null);
     server.use(
-      http.get(`${API_BASE}/settings/beta`, () =>
-        HttpResponse.json({
-          settings: { https_enabled: false, transition_plugins_enabled: true },
-          https: { cert_present: false, cert_path: "", key_path: "", updater_available: false },
-        }),
+      http.get(`${API_BASE}/settings/plugins`, () =>
+        HttpResponse.json({ auto_update: true, transition_plugins_enabled: true, output_plugins_enabled: false }),
       ),
       // The plugin listing: the picker keeps the transition plugins and drops
       // every other kind.
@@ -215,7 +212,7 @@ describe("PageBuilder — per-page transition picker", () => {
 
     expect(await screen.findByRole("menuitemradio", { name: "typewriter", checked: true })).toBeInTheDocument();
     expect(
-      await screen.findByRole("menuitemradio", { name: "Use global default", checked: false }),
+      await screen.findByRole("menuitemradio", { name: "Use the display's transition", checked: false }),
     ).toBeInTheDocument();
   });
 });
