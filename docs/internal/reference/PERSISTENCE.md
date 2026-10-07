@@ -156,6 +156,53 @@ nginx over. `tests/test_settings_v5_https_removed.py`, the
 settings half of this; the two-boot timing is the v4 entrypoint's and is not
 tested here.
 
+### Settings v6: each display owns its transition
+
+Schema v6 (`_migrate_v5_to_v6`) removes the install-wide `transitions` block
+and the `beta` block:
+
+- Every board without a `transition` of its own gets the old block's
+  `strategy`. A null strategy becomes `"none"` on a split-flap board (a
+  Vestaboard or FiestaPanel, where null meant no transition); an output
+  plugin's board stays unset, because unset there means its device model's
+  default, which is what it ran. Every board without a speed of its own gets
+  the old `step_interval_ms` / `step_size` as `transition_step_interval_ms` /
+  `transition_step_size` (the speed was always install-wide, even for a
+  board with its own style); an interval above 5000 ms
+  (`MAX_TRANSITION_STEP_INTERVAL_MS`) is clamped. When there is no board to
+  copy onto (no `board` section, an empty `boards` list, or a devices-era
+  section) the transition is parked under `pending_board_transition`; the
+  board loader applies it to the boards it builds (after the first-boot
+  seed fills a fresh board's connection) and saves, and the save never
+  writes the key. The migration never reads config.json and cannot abort,
+  so the beta flags and the transition survive an unreadable config.json.
+- `beta.transition_plugins_enabled` and `beta.output_plugins_enabled` move to
+  `plugins`, and `beta` is deleted.
+
+It is idempotent (a re-run finds no block, and every split-flap board
+already has a transition) and logs its count: boards changed plus one per
+block removed. Stored speeds above the cap are clamped on load too
+(logged), and a board write is validated only on the fields it changes, so
+old data never blocks a write. It never reads the environment: every save wrote the
+`transitions` block, so a file without one is hand-made. The legacy
+`BOARD_TRANSITION_*` env values now only seed a new split-flap display
+(`default_board_transition`). The runtime reads only the board
+(`SettingsService.get_transition_settings(board_id)`); a page's own
+transition wins field by field (`page_transition`). `GET/PUT
+/settings/transitions` is a deprecated alias for the first board's, and
+`GET/PUT /settings/beta` for the two plugin flags, until v11 (both send a
+`Deprecation` header and a `Link` to their successor). A page strategy the
+board's driver cannot run (`driver_runs_strategy`, the rule its write path
+applies) falls through to the board's own transition and speed.
+
+**Rollback.** One step back, to a v5 build, restores
+`settings.json.v5_backup` with its `transitions` and `beta` blocks; changes
+made to a display's transition after the upgrade are in the set-aside file.
+`tests/test_settings_v6_per_display_transitions.py`, the
+`v10_beta_schema5_install_transition` upgrade fixture (and its wire golden)
+and `test_a_v6_upgrade_rolled_back_to_the_v5_build_runs_the_same_transition`
+pin this.
+
 ## 3. A failed write is never swallowed
 
 A store write that fails must surface. Silent partial success — the change

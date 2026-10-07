@@ -711,24 +711,21 @@ class TestLocation:
 
 
 # ---------------------------------------------------------------------------
-# Beta
+# Beta (gone in settings v6)
 # ---------------------------------------------------------------------------
 
 
 class TestBeta:
-    def test_get_reports_the_settings(self, client):
-        # CHANGED (settings v5): HTTPS (Beta) was removed, and with it the
-        # "https" cert/updater status block and "settings.https_enabled".
-        assert client.get("/settings/beta").json() == {
-            "settings": {"transition_plugins_enabled": False, "output_plugins_enabled": False}
-        }
+    def test_get_reads_the_plugin_flags(self, client):
+        # CHANGED (settings v6): a deprecated alias (until v11) for the two
+        # flags /settings/plugins now carries; it sends a Deprecation notice.
+        response = client.get("/settings/beta")
+        assert response.json() == {"settings": {"transition_plugins_enabled": False, "output_plugins_enabled": False}}
+        assert response.headers["Deprecation"] == "true"
 
     def test_put_returns_the_settings(self, client):
         response = client.put("/settings/beta", json={"transition_plugins_enabled": True})
         assert response.status_code == 200
-        # CHANGED (conventions, bare bodies): "status" dropped. CHANGED
-        # (settings v5): "https" and "restart_required" dropped with HTTPS
-        # (Beta) — no beta flag needs a restart any more.
         assert response.json() == {"settings": {"transition_plugins_enabled": True, "output_plugins_enabled": False}}
 
     def test_put_ignores_the_retired_https_flag(self, client):
@@ -746,21 +743,43 @@ class TestPluginSettings:
     def test_get_returns_the_plugin_settings(self, client):
         # CHANGED (conventions, bare bodies): the bare PluginSettings, was
         # {"settings": {...}}.
-        assert client.get("/settings/plugins").json() == {"auto_update": True}
+        # CHANGED (settings v6): carries the two flags /settings/beta had.
+        assert client.get("/settings/plugins").json() == {
+            "auto_update": True,
+            "transition_plugins_enabled": False,
+            "output_plugins_enabled": False,
+        }
 
     def test_put_returns_the_saved_plugin_settings(self, client):
         response = client.put("/settings/plugins", json={"auto_update": False})
         assert response.status_code == 200
         # CHANGED (conventions, bare bodies): the bare PluginSettings.
-        assert response.json() == {"auto_update": False}
-        assert client.get("/settings/plugins").json() == {"auto_update": False}
+        assert response.json() == {
+            "auto_update": False,
+            "transition_plugins_enabled": False,
+            "output_plugins_enabled": False,
+        }
+        assert client.get("/settings/plugins").json() == {
+            "auto_update": False,
+            "transition_plugins_enabled": False,
+            "output_plugins_enabled": False,
+        }
 
     def test_put_refuses_a_non_boolean_auto_update(self, client):
         response = client.put("/settings/plugins", json={"auto_update": "yes"})
         # CHANGED (conventions, StrictBool): was a 200 that reached
         # bool("yes") -> True and silently enabled background plugin updates.
         assert response.status_code == 422
-        assert client.get("/settings/plugins").json() == {"auto_update": True}
+        assert client.get("/settings/plugins").json()["auto_update"] is True
+
+    def test_put_toggles_a_plugin_flag(self, client):
+        response = client.put("/settings/plugins", json={"output_plugins_enabled": True})
+        assert response.status_code == 200
+        assert response.json() == {
+            "auto_update": True,
+            "transition_plugins_enabled": False,
+            "output_plugins_enabled": True,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -904,7 +923,7 @@ class TestAllSettings:
             "mqtt",
             "display",
             "location",
-            "beta",
+            # CHANGED (settings v6): "beta" dropped; its flags are in "plugins".
             "plugins",
             # Added when #1950 (schedule hold-on-re-enable) was ported onto
             # this trunk: the settings page reads `schedule.defer_on_reenable`
@@ -925,7 +944,11 @@ class TestAllSettings:
         assert body["mqtt"]["password"] == ""
         assert body["display"]["board_flap_speed"] == "standard"
         assert body["location"] == {"latitude": None, "longitude": None}
-        assert body["plugins"] == {"auto_update": True}
+        assert body["plugins"] == {
+            "auto_update": True,
+            "transition_plugins_enabled": False,
+            "output_plugins_enabled": False,
+        }
         assert body["status"] == {"running": False}
         assert body["silence_schedule"]["config"]["mode"] == "freeze"
 

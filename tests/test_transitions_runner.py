@@ -26,10 +26,10 @@ def _enable_transition_plugins_beta():
     from src.settings.service import get_settings_service
 
     settings = get_settings_service()
-    original = settings.get_beta_settings().transition_plugins_enabled
-    settings.update_beta_settings({"transition_plugins_enabled": True})
+    original = settings.get_plugin_settings().transition_plugins_enabled
+    settings.update_plugin_settings({"transition_plugins_enabled": True})
     yield
-    settings.update_beta_settings({"transition_plugins_enabled": original})
+    settings.update_plugin_settings({"transition_plugins_enabled": original})
 
 
 # ---------------------------------------------------------------------------

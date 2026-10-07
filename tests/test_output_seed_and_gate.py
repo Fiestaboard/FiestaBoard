@@ -458,7 +458,7 @@ class TestLoadPrecedence:
 def _beta_off() -> None:
     from src.settings.service import get_settings_service
 
-    get_settings_service().update_beta_settings({"output_plugins_enabled": False})
+    get_settings_service().update_plugin_settings({"output_plugins_enabled": False})
 
 
 class TestFirstPartyIsNotBetaGated:

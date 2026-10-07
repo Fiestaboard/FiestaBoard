@@ -636,7 +636,9 @@
       "createAction": "Skapa demosida",
       "recreateAction": "Skapa om demosidan",
       "requirementsWarning": "Konfigurera de obligatoriska inställningarna nedan innan du skapar en demosida."
-    }
+    },
+    "outputPluginsLabel": "Skärmar från tredje part (beta)",
+    "outputPluginsDescription": "Låt skärmar från Marketplace eller en git-URL styra dina tavlor. Skärmar som ingår i FiestaBoard fungerar alltid."
   },
   "settings": {
     "title": "Inställningar",
@@ -651,7 +653,7 @@
     "sectionSystem": "System",
     "sectionSystemDescription": "Uppdateringar, säkerhetskopior och systemkontroller",
     "sectionAdvanced": "Avancerat",
-    "sectionAdvancedDescription": "Diagnostik och experimentella funktioner",
+    "sectionAdvancedDescription": "Diagnostik",
     "sectionGeneral": "Allmänt",
     "sectionGeneralDescription": "Inställningar, språk, tillgänglighet",
     "sectionAccount": "Konto",
@@ -843,7 +845,7 @@
       "installFailed": "{name} kunde inte installeras",
       "offline": "FiestaBoard kunde inte ladda ned {name}. Kontrollera enhetens internetanslutning och försök igen.",
       "betaTitle": "{name} kräver betan för utdataplugins",
-      "betaBody": "Skärmar från pluginregistret kör sin egen kod på din FiestaBoard, så de är avstängda tills du slår på betan för utdataplugins. Du kan stänga av den igen under Inställningar → Avancerat → Betafunktioner.",
+      "betaBody": "Skärmar från pluginregistret kör sin egen kod på din FiestaBoard, så de är avstängda tills du slår på betan för utdataplugins. Du kan stänga av den igen på sidan Integrationer.",
       "enableBeta": "Slå på betan för utdataplugins",
       "enableBetaFailed": "Det gick inte att slå på betan. Försök igen.",
       "retry": "Försök igen",
@@ -1030,9 +1032,9 @@
     "transitionMenuTitle": "Övergång",
     "transitionPickerAriaLabel": "Sidövergång",
     "transitionPickerTooltip": "Övergång för den här sidan: {strategy}",
-    "transitionUseGlobalDefault": "Använd global standard",
     "transitionBuiltInGroup": "Inbyggda",
-    "transitionPluginsGroup": "Plugins (beta)"
+    "transitionPluginsGroup": "Plugins (beta)",
+    "transitionUseDisplayTransition": "Använd skärmens övergång"
   },
   "displaySettings": {
     "unnamedBoard": "Namnlös tavla",
@@ -1113,14 +1115,24 @@
     "transition": {
       "title": "Övergång",
       "description": "Hur den här skärmen byter från ett meddelande till nästa. En sidas egen övergång vinner fortfarande.",
-      "default": "Standard",
-      "defaultDescription": "Använd övergången som valts i Inställningar → Schemaläggning.",
       "cloudNote": "Den här tavlan använder moln-API:t, som ändrar hela tavlan på en gång. Övergångar kräver det lokala API:t.",
       "snapNote": "Den här skärmen kan bara ändra allt på en gång, så den byter direkt till varje nytt meddelande.",
       "deviceDefault": "Enhetens standard",
       "unavailable": "Inte tillgänglig på den här skärmen",
       "runsAs": "Körs som",
-      "previewLabel": "Förhandsvisning av {name}"
+      "previewLabel": "Förhandsvisning av {name}",
+      "stepIntervalLabel": "Stegintervall (ms)",
+      "stepIntervalPlaceholder": "Standard",
+      "stepIntervalDescription": "Fördröjning mellan varje animationssteg. Lämna tomt för tavlans standard.",
+      "stepSizeLabel": "Stegstorlek",
+      "stepSizePlaceholder": "Standard",
+      "stepSizeDescription": "Hur många rader eller kolumner som animeras samtidigt. Lämna tomt för tavlans standard.",
+      "pluginsLabel": "Övergångsplugins",
+      "pluginsBadge": "Beta",
+      "speedTitle": "Hastighet",
+      "pluginsDescription": "Bildruta-för-bildruta-animationer som skrivmaskin och upplösning (föråldrat). Gäller alla skärmar.",
+      "pluginsSavedToast": "Inställningen för övergångsplugins har sparats.",
+      "pluginsSaveFailedToast": "Kunde inte spara inställningen för övergångsplugins: {error}"
     },
     "add": {
       "title": "Lägg till en skärm",
@@ -1159,24 +1171,7 @@
     "lastChecked": "Senast kontrollerad: {time}"
   },
   "transitionSettings": {
-    "title": "Tavlans övergångar",
-    "description": "Välj hur tavlan animerar vid uppdatering till ett nytt meddelande. Övergångar styr animationsstilen för tecknen på din Vestaboard.",
-    "transitionStyle": "Övergångsstil",
-    "advancedOptions": "Avancerade alternativ",
-    "stepIntervalLabel": "Stegintervall (ms)",
-    "stepIntervalPlaceholder": "Standard",
-    "stepIntervalDescription": "Fördröjning mellan varje animationssteg. Lämna tomt för tavlans standard.",
-    "stepSizeLabel": "Stegstorlek",
-    "stepSizePlaceholder": "Standard",
-    "stepSizeDescription": "Hur många rader eller kolumner som animeras samtidigt. Lämna tomt för tavlans standard.",
-    "localApiNote": "Övergångar stöds bara via lokalt API. Om din tavla är konfigurerad att använda moln-API kommer övergångsinställningar inte att ha någon effekt. Enskilda sidor kan också åsidosätta denna standard i sidredigeraren.",
-    "pluginNote": "Pluginövergångar animeras av FiestaBoard och skickas som vanliga uppdateringar av tavlan, så de fungerar med alla typer av anslutningar.",
-    "builtInGroup": "Inbyggda",
-    "pluginsGroup": "Övergångsplugins",
-    "pluginsBetaBadge": "Beta",
     "unavailablePluginNote": "Det här övergångspluginet är inte tillgängligt just nu. Välj ett annat alternativ för att ändra övergången.",
-    "toastSaved": "Övergångsinställningar sparade",
-    "toastSaveFailed": "Kunde inte spara övergångsinställningar: {error}",
     "strategies": {
       "none": {
         "label": "Ingen",
@@ -1694,19 +1689,6 @@
     "valueLabel": "Värde",
     "insert": "Infoga",
     "searchAriaLabel": "Sök entiteter"
-  },
-  "betaSettings": {
-    "title": "Beta-funktioner",
-    "betaBadge": "Beta",
-    "description": "Experimentella funktioner som vi testar. Aktivera på egen risk — de kan ändras eller tas bort.",
-    "savedToast": "Beta-inställningar sparade.",
-    "saveFailedToast": "Kunde inte spara beta-inställningar: {error}",
-    "transitionsLabel": "Övergångsplugins",
-    "transitionsDescription": "Bildruta-för-bildruta-animationer — skrivmaskinseffekter, upplösningar, tysta ord-för-ord-uppdateringar och community-byggda övergångar.",
-    "transitionsWarning": "Plugin-SDK:t är experimentellt; API:er och beteende kan ändras före allmän tillgänglighet.",
-    "outputsLabel": "Utdataplugins",
-    "outputsDescription": "Låt utdataplugins installerade från marknadsplatsen eller en git-URL styra dina tavlor – LED-matriser, skyltar och andra skärmar utöver Vestaboard.",
-    "outputsWarning": "Kontraktet för utdataplugins är en beta och kan ändras före allmän tillgänglighet. Utdata som följer med FiestaBoard fungerar alltid."
   },
   "systemControls": {
     "title": "System",
@@ -2438,7 +2420,7 @@
     "geometryDetected": "Identifierade {rows} × {cols}",
     "applyGeometry": "Använd storlek",
     "actionInputDescription": "Den här åtgärden behöver några uppgifter först.",
-    "betaRequired": "Slå på utdatainsticksmoduler i Inställningar → Avancerat → Betafunktioner för att använda den här skärmen.",
+    "betaRequired": "Slå på Skärmar från tredje part (beta) på sidan Integrationer för att använda den här skärmen.",
     "boardNameLabel": "Tavlans namn",
     "boardNamePlaceholder": "Min tavla",
     "deviceModelLabel": "Enhetsmodell",

@@ -52,7 +52,6 @@ function allSettings(silenceOverrides: Record<string, unknown> = {}) {
     mqtt: { enabled: false, host: "", port: 1883 },
     display: { reduce_motion: false },
     location: { latitude: null, longitude: null },
-    beta: { transition_plugins_enabled: false },
     plugins: { auto_update_enabled: true },
     status: { running: true },
   };

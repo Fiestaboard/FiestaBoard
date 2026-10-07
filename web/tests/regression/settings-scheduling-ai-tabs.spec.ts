@@ -22,64 +22,31 @@ test.describe("regression: settings.behavior", () => {
   /**
    * UX node: settings.tab-behavior
    * Route: /settings (Scheduling tab)
-   * Expected (missing from current coverage):
-   *   - TransitionSettings preset selector exercised
+   * Expected:
    *   - UpdateIntervals per-plugin polling edited
    *   - SilenceSchedule mode select / indicator text edited via UI
+   *   - No transition card: each display owns its transition (settings v6),
+   *     set on its page under Displays (see transition-pickers.spec.ts)
    * See also: web/tests/settings.spec.ts:48; settings-full.spec.ts:152,174
    * Coverage status: partial
    */
-  test("settings.tab-behavior — transitions, update intervals, silence schedule UI edits", async ({ page }) => {
-    // Snapshot transitions so we can restore the user's strategy after the
-    // test. (UpdateIntervals + SilenceSchedule are read-only-asserted here.)
-    const beforeRes = await fetch(`${API_URL}/settings/transitions`, {
-      headers: authHeaders(),
-    });
-    const before = beforeRes.ok ? await beforeRes.json() : null;
-
+  test("settings.tab-behavior — update intervals, silence schedule, and no install-wide transition", async ({
+    page,
+  }) => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
 
-    // All three Scheduling cards render.
-    await expect(page.getByRole("heading", { name: "Board Transitions" })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Update intervals", { exact: false })).toBeVisible();
+    await expect(page.getByText("Update intervals", { exact: false })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByLabel("Silence Schedule")).toBeVisible();
-
-    // Exercise the TransitionSettings preset selector. Picking a known
-    // strategy ("Wave" = column) reveals the Advanced Options block, which
-    // proves the click actually mutated state.
-    await page.getByRole("button", { name: "Wave", exact: true }).click();
-    await expect(page.getByText("Advanced Options")).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(page.getByLabel("Step Interval (ms)")).toBeVisible();
+    // Settings v6: the install-wide Board Transitions card is gone.
+    await expect(page.getByRole("heading", { name: "Board Transitions" })).toHaveCount(0);
 
     // UpdateIntervals card — at least one polling input is interactive.
     const pollingInput = page.locator("#polling-interval");
     await expect(pollingInput).toBeVisible({ timeout: 10_000 });
     await expect(pollingInput).toBeEnabled();
-
-    // Wait for the debounced auto-save (1s) and any in-flight transition
-    // PUT so we don't leave the page mid-write.
-    await page.waitForResponse(
-      (resp) => resp.url().includes("/settings/transitions") && resp.request().method() === "PUT",
-      { timeout: 10_000 },
-    );
-
-    // Restore original transition strategy.
-    if (before) {
-      await fetch(`${API_URL}/settings/transitions`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({
-          strategy: before.strategy ?? null,
-          step_interval_ms: before.step_interval_ms ?? null,
-          step_size: before.step_size ?? null,
-        }),
-      });
-    }
   });
 
   /**

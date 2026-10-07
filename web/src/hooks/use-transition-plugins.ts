@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { api, type PluginInfo } from "@/lib/api";
 
 /**
- * The installed transition plugins, for the page and system transition pickers.
+ * The installed transition plugins, for the page and display transition pickers.
  *
  * Read from the plugin listing (`GET /plugins`), filtered to
  * `plugin_type === "transition"`; the Transition Lab's own

@@ -636,7 +636,9 @@
       "createAction": "创建演示页面",
       "recreateAction": "重新创建演示页面",
       "requirementsWarning": "创建演示页面前，请先配置下方的必填设置。"
-    }
+    },
+    "outputPluginsLabel": "第三方显示设备（测试版）",
+    "outputPluginsDescription": "允许来自 Marketplace 或 git URL 的显示设备驱动你的看板。FiestaBoard 自带的显示设备始终可用。"
   },
   "settings": {
     "title": "设置",
@@ -651,7 +653,7 @@
     "sectionSystem": "系统",
     "sectionSystemDescription": "更新、备份和系统控制",
     "sectionAdvanced": "高级",
-    "sectionAdvancedDescription": "诊断和实验性功能",
+    "sectionAdvancedDescription": "诊断",
     "sectionGeneral": "通用",
     "sectionGeneralDescription": "偏好设置、语言、辅助功能",
     "sectionAccount": "账户",
@@ -843,7 +845,7 @@
       "installFailed": "无法安装 {name}",
       "offline": "FiestaBoard 无法下载 {name}。请检查此设备的互联网连接，然后重试。",
       "betaTitle": "{name} 需要输出插件测试版",
-      "betaBody": "插件注册表中的显示设备会在你的 FiestaBoard 上运行自己的代码，因此在你开启输出插件测试版之前它们保持关闭。你可以在 设置 → 高级 → 测试版功能 中再次关闭。",
+      "betaBody": "插件注册表中的显示设备会在你的 FiestaBoard 上运行自己的代码，因此在你开启输出插件测试版之前它们保持关闭。你可以在集成页面中再次关闭。",
       "enableBeta": "开启输出插件测试版",
       "enableBetaFailed": "无法开启测试版。请重试。",
       "retry": "重试",
@@ -1030,9 +1032,9 @@
     "transitionMenuTitle": "过渡效果",
     "transitionPickerAriaLabel": "页面过渡效果",
     "transitionPickerTooltip": "此页面的过渡效果：{strategy}",
-    "transitionUseGlobalDefault": "使用全局默认设置",
     "transitionBuiltInGroup": "内置",
-    "transitionPluginsGroup": "插件（测试版）"
+    "transitionPluginsGroup": "插件（测试版）",
+    "transitionUseDisplayTransition": "使用显示设备的过渡效果"
   },
   "displaySettings": {
     "unnamedBoard": "未命名看板",
@@ -1113,14 +1115,24 @@
     "transition": {
       "title": "过渡效果",
       "description": "此显示设备从一条消息切换到下一条的方式。页面自己的过渡效果仍然优先。",
-      "default": "默认",
-      "defaultDescription": "使用在 设置 → 日程安排 中选择的过渡效果。",
       "cloudNote": "此看板使用云端 API，会一次性更新整个看板。过渡效果需要本地 API。",
       "snapNote": "此显示设备只能一次性全部更新，因此会直接切换到每条新消息。",
       "deviceDefault": "设备默认",
       "unavailable": "此显示设备不可用",
       "runsAs": "实际运行为",
-      "previewLabel": "{name} 预览"
+      "previewLabel": "{name} 预览",
+      "stepIntervalLabel": "步进间隔（毫秒）",
+      "stepIntervalPlaceholder": "默认",
+      "stepIntervalDescription": "每个动画步骤之间的延迟。留空使用看板默认值。",
+      "stepSizeLabel": "步进大小",
+      "stepSizePlaceholder": "默认",
+      "stepSizeDescription": "每次同时执行动画的行或列数。留空使用看板默认值。",
+      "pluginsLabel": "过渡插件",
+      "pluginsBadge": "Beta",
+      "speedTitle": "速度",
+      "pluginsDescription": "逐帧动画，例如打字机和溶解（已弃用）。适用于所有显示设备。",
+      "pluginsSavedToast": "过渡插件设置已保存。",
+      "pluginsSaveFailedToast": "无法保存过渡插件设置：{error}"
     },
     "add": {
       "title": "添加显示设备",
@@ -1159,24 +1171,7 @@
     "lastChecked": "上次检查：{time}"
   },
   "transitionSettings": {
-    "title": "看板过渡效果",
-    "description": "选择看板更新新消息时的动画方式。过渡效果控制 Vestaboard 上字符翻转的动画样式。",
-    "transitionStyle": "过渡样式",
-    "advancedOptions": "高级选项",
-    "stepIntervalLabel": "步进间隔（毫秒）",
-    "stepIntervalPlaceholder": "默认",
-    "stepIntervalDescription": "每个动画步骤之间的延迟。留空使用看板默认值。",
-    "stepSizeLabel": "步进大小",
-    "stepSizePlaceholder": "默认",
-    "stepSizeDescription": "每次同时执行动画的行或列数。留空使用看板默认值。",
-    "localApiNote": "过渡效果仅在本地 API 上支持。如果您的看板配置为使用云端 API，过渡效果设置将不会生效。单个页面也可以在页面编辑器中覆盖此默认设置。",
-    "pluginNote": "插件过渡效果由 FiestaBoard 生成动画，并作为普通的看板更新发送，因此适用于任何看板连接方式。",
-    "builtInGroup": "内置",
-    "pluginsGroup": "过渡插件",
-    "pluginsBetaBadge": "测试版",
     "unavailablePluginNote": "此过渡插件当前不可用。请选择其他选项进行更改。",
-    "toastSaved": "过渡效果设置已保存",
-    "toastSaveFailed": "保存过渡效果设置失败：{error}",
     "strategies": {
       "none": {
         "label": "无",
@@ -1694,19 +1689,6 @@
     "valueLabel": "值",
     "insert": "插入",
     "searchAriaLabel": "搜索实体"
-  },
-  "betaSettings": {
-    "title": "Beta 功能",
-    "betaBadge": "Beta",
-    "description": "我们正在测试的实验性功能。自行承担风险启用 — 它们可能会更改或被移除。",
-    "savedToast": "Beta 设置已保存。",
-    "saveFailedToast": "无法保存 beta 设置:{error}",
-    "transitionsLabel": "过渡插件",
-    "transitionsDescription": "逐帧看板动画 — 打字机效果、溶解、逐词静音更新以及社区制作的过渡效果。",
-    "transitionsWarning": "插件 SDK 处于实验阶段；API 和插件行为在正式发布前可能会变化。",
-    "outputsLabel": "输出插件",
-    "outputsDescription": "允许从插件市场或 git URL 安装的输出插件驱动你的看板——LED 点阵、招牌以及 Vestaboard 之外的其他显示设备。",
-    "outputsWarning": "输出插件规范仍处于测试阶段，正式发布前可能会变化。FiestaBoard 自带的输出始终可用。"
   },
   "systemControls": {
     "title": "系统",
@@ -2438,7 +2420,7 @@
     "geometryDetected": "检测到 {rows} × {cols}",
     "applyGeometry": "应用尺寸",
     "actionInputDescription": "此操作需要先提供一些信息。",
-    "betaRequired": "要使用此显示屏，请在“设置 → 高级 → 测试版功能”中开启输出插件。",
+    "betaRequired": "要使用此显示设备，请在集成页面开启“第三方显示设备（测试版）”。",
     "boardNameLabel": "看板名称",
     "boardNamePlaceholder": "我的看板",
     "deviceModelLabel": "设备型号",

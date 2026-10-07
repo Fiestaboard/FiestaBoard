@@ -213,9 +213,9 @@ FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit,
 
 ### Transition Plugins (Beta, Deprecated)
 
-> ⚠️ **Deprecated.** Enable in Settings → Beta. The transition plugin SDK will not reach general availability; see [Transitions](./docs/features/transitions.md).
+> ⚠️ **Deprecated.** Enable with the **Transition Plugins** switch in a display's Transition section (Displays → a display → Transition). The transition plugin SDK will not reach general availability; see [Transitions](./docs/features/transitions.md).
 
-Transition plugins drive **frame-by-frame board animations** that go beyond the built-in flip patterns offered by Vestaboard's Local API. They're picked per-page (or as the system default) and animate the change from one display to the next. Transition plugins are **deprecated**: existing pages keep working, and removal is being considered for v11.
+Transition plugins drive **frame-by-frame board animations** that go beyond the built-in flip patterns offered by Vestaboard's Local API. They're picked per page (or as a display's transition) and animate the change from one display to the next. Transition plugins are **deprecated**: existing pages keep working, and removal is being considered for v11.
 
 <!-- Sorted alphabetically -->
 | Plugin | What It Does |

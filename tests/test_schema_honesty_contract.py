@@ -432,7 +432,6 @@ class TestVocabulariesAreEnforcedNotJustDocumented:
 SEVEN_STRAGGLERS = [
     ("put", "/settings/mqtt"),
     ("put", "/settings/ai"),
-    ("put", "/settings/beta"),
     ("post", "/settings/temporary-override"),
     ("post", "/settings/board/{board_id}/pause"),
     ("post", "/settings/board/{board_id}/detect-size"),

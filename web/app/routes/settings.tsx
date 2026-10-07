@@ -28,7 +28,6 @@ import { AnimationSettings } from "@/components/settings/animation-settings";
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
 import { AutoUpdateIntervalCard } from "@/components/settings/auto-update-interval";
 import { BackupSettings } from "@/components/settings/backup-settings";
-import { BetaSettings } from "@/components/settings/beta-settings";
 import { DebugSettings } from "@/components/settings/debug-settings";
 import { InstanceNameCard } from "@/components/settings/instance-name";
 import { LanguageSettingsCard } from "@/components/settings/language-settings";
@@ -42,7 +41,6 @@ import { SilenceSchedule } from "@/components/settings/silence-schedule";
 import { SystemControls } from "@/components/settings/system-controls";
 import { SystemUpdate } from "@/components/settings/system-update";
 import { TimeAndDateCard } from "@/components/settings/time-and-date";
-import { TransitionSettings } from "@/components/settings/transition-settings";
 import { UpdateIntervals } from "@/components/settings/update-intervals";
 import { useWizard } from "@/components/wizard-provider";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
@@ -241,7 +239,6 @@ export default function SettingsPage() {
           )}
 
           <TabsContent value="scheduling" className="mt-0">
-            <TransitionSettings />
             <UpdateIntervals />
             <ScheduleBehavior />
             <SilenceSchedule />
@@ -276,7 +273,6 @@ export default function SettingsPage() {
 
           <TabsContent value="advanced" className="mt-0">
             <DebugSettings />
-            <BetaSettings />
           </TabsContent>
         </PageCard>
       </Tabs>

@@ -592,7 +592,9 @@
       "createAction": "Create Demo Page",
       "recreateAction": "Recreate Demo Page",
       "requirementsWarning": "Configure the required settings below before creating a demo page."
-    }
+    },
+    "outputPluginsLabel": "Third-party displays (beta)",
+    "outputPluginsDescription": "Let displays from the marketplace or a git URL drive your boards. Displays bundled with FiestaBoard always work."
   },
   "settings": {
     "title": "Settings",
@@ -607,7 +609,7 @@
     "sectionSystem": "System",
     "sectionSystemDescription": "Updates, backups, and system controls",
     "sectionAdvanced": "Advanced",
-    "sectionAdvancedDescription": "Diagnostics and experimental features",
+    "sectionAdvancedDescription": "Diagnostics",
     "sectionGeneral": "General",
     "sectionGeneralDescription": "Preferences, locale, accessibility",
     "sectionAccount": "Account",
@@ -799,7 +801,7 @@
       "installFailed": "{name} could not be installed",
       "offline": "FiestaBoard couldn't download {name}. Check this device's internet connection, then try again.",
       "betaTitle": "{name} needs the output plugins beta",
-      "betaBody": "Displays from the plugin registry run their own code on your FiestaBoard, so they stay off until you turn on the output plugins beta. You can turn it off again in Settings → Advanced → Beta Features.",
+      "betaBody": "Displays from the plugin registry run their own code on your FiestaBoard, so they stay off until you turn on the output plugins beta. You can turn it off again on the Integrations page.",
       "enableBeta": "Turn on the output plugins beta",
       "enableBetaFailed": "Couldn't turn on the beta. Try again.",
       "retry": "Try again",
@@ -986,9 +988,9 @@
     "transitionMenuTitle": "Transition",
     "transitionPickerAriaLabel": "Page transition",
     "transitionPickerTooltip": "Transition for this page: {strategy}",
-    "transitionUseGlobalDefault": "Use global default",
     "transitionBuiltInGroup": "Built-in",
-    "transitionPluginsGroup": "Plugins (beta)"
+    "transitionPluginsGroup": "Plugins (beta)",
+    "transitionUseDisplayTransition": "Use the display's transition"
   },
   "displaySettings": {
     "unnamedBoard": "Unnamed Board",
@@ -1069,14 +1071,24 @@
     "transition": {
       "title": "Transition",
       "description": "How this display changes from one message to the next. A page's own transition still wins.",
-      "default": "Default",
-      "defaultDescription": "Use the transition chosen in Settings → Scheduling.",
       "cloudNote": "This board uses the Cloud API, which changes the whole board at once. Transitions need the Local API.",
       "snapNote": "This display can only change all at once, so it snaps to each new message.",
       "deviceDefault": "Device default",
       "unavailable": "Not available on this display",
       "runsAs": "Runs as",
-      "previewLabel": "{name} preview"
+      "previewLabel": "{name} preview",
+      "stepIntervalLabel": "Step Interval (ms)",
+      "stepIntervalPlaceholder": "Default",
+      "stepIntervalDescription": "Delay between each animation step. Leave empty for the board default.",
+      "stepSizeLabel": "Step Size",
+      "stepSizePlaceholder": "Default",
+      "stepSizeDescription": "How many rows or columns animate at once. Leave empty for the board default.",
+      "pluginsLabel": "Transition Plugins",
+      "pluginsBadge": "Beta",
+      "speedTitle": "Speed",
+      "pluginsDescription": "Frame-by-frame animations such as typewriter and dissolve (deprecated). Applies to all displays.",
+      "pluginsSavedToast": "Transition plugins setting saved.",
+      "pluginsSaveFailedToast": "Couldn't save the transition plugins setting: {error}"
     },
     "add": {
       "title": "Add a display",
@@ -1115,24 +1127,7 @@
     "lastChecked": "Last checked: {time}"
   },
   "transitionSettings": {
-    "title": "Board Transitions",
-    "description": "Choose how the board animates when updating to a new message. Transitions control the flip animation style of the characters on your Vestaboard.",
-    "transitionStyle": "Transition Style",
-    "advancedOptions": "Advanced Options",
-    "stepIntervalLabel": "Step Interval (ms)",
-    "stepIntervalPlaceholder": "Default",
-    "stepIntervalDescription": "Delay between each animation step. Leave empty for the board default.",
-    "stepSizeLabel": "Step Size",
-    "stepSizePlaceholder": "Default",
-    "stepSizeDescription": "How many rows or columns animate at once. Leave empty for the board default.",
-    "localApiNote": "Transitions are supported on the Local API only. If your board is configured to use the Cloud API, transition settings will have no effect. Individual pages can also override this default in the page builder.",
-    "pluginNote": "Plugin transitions are animated by FiestaBoard and sent as regular board updates, so they work on any board connection.",
-    "builtInGroup": "Built-in",
-    "pluginsGroup": "Transition Plugins",
-    "pluginsBetaBadge": "Beta",
     "unavailablePluginNote": "This transition plugin is not currently available. Pick another option to change it.",
-    "toastSaved": "Transition settings saved",
-    "toastSaveFailed": "Failed to save transition settings: {error}",
     "strategies": {
       "none": {
         "label": "None",
@@ -1650,19 +1645,6 @@
     "valueLabel": "Value",
     "insert": "Insert",
     "searchAriaLabel": "Search entities"
-  },
-  "betaSettings": {
-    "title": "Beta Features",
-    "betaBadge": "Beta",
-    "description": "Experimental features we're testing. Enable at your own risk — these may change or be removed.",
-    "savedToast": "Beta settings saved.",
-    "saveFailedToast": "Couldn't save beta settings: {error}",
-    "transitionsLabel": "Transition Plugins",
-    "transitionsDescription": "Pluggable frame-by-frame board animations — typewriter reveals, dissolves, word-by-word quiet updates, and community-built transitions.",
-    "transitionsWarning": "The plugin SDK is experimental; APIs and plugin behavior may change before general availability.",
-    "outputsLabel": "Output Plugins",
-    "outputsDescription": "Let output plugins installed from the marketplace or a git URL drive your boards — LED matrices, signs and other displays beyond Vestaboard.",
-    "outputsWarning": "The output plugin contract is a beta; it may change before general availability. Outputs bundled with FiestaBoard always work."
   },
   "systemControls": {
     "title": "System",
@@ -2438,7 +2420,7 @@
     "geometryDetected": "Detected {rows} × {cols}",
     "applyGeometry": "Apply size",
     "actionInputDescription": "This action needs a few details first.",
-    "betaRequired": "Turn on Output Plugins in Settings → Advanced → Beta Features to use this display.",
+    "betaRequired": "Turn on Third-party displays (beta) on the Integrations page to use this display.",
     "boardNameLabel": "Board name",
     "boardNamePlaceholder": "My Board",
     "deviceModelLabel": "Device model",

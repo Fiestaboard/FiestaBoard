@@ -636,7 +636,9 @@
       "createAction": "Utwórz stronę demo",
       "recreateAction": "Utwórz stronę demo ponownie",
       "requirementsWarning": "Przed utworzeniem strony demo skonfiguruj wymagane ustawienia poniżej."
-    }
+    },
+    "outputPluginsLabel": "Wyświetlacze innych firm (beta)",
+    "outputPluginsDescription": "Pozwól wyświetlaczom z Marketplace lub z adresu URL git sterować Twoimi tablicami. Wyświetlacze dołączone do FiestaBoard działają zawsze."
   },
   "settings": {
     "title": "Ustawienia",
@@ -651,7 +653,7 @@
     "sectionSystem": "System",
     "sectionSystemDescription": "Aktualizacje, kopie zapasowe i sterowanie systemem",
     "sectionAdvanced": "Zaawansowane",
-    "sectionAdvancedDescription": "Diagnostyka i funkcje eksperymentalne",
+    "sectionAdvancedDescription": "Diagnostyka",
     "sectionGeneral": "Ogólne",
     "sectionGeneralDescription": "Preferencje, język, dostępność",
     "sectionAccount": "Konto",
@@ -843,7 +845,7 @@
       "installFailed": "Nie udało się zainstalować: {name}",
       "offline": "FiestaBoard nie mógł pobrać: {name}. Sprawdź połączenie tego urządzenia z internetem i spróbuj ponownie.",
       "betaTitle": "{name} wymaga bety wtyczek wyjściowych",
-      "betaBody": "Wyświetlacze z rejestru wtyczek uruchamiają własny kod na Twoim FiestaBoard, dlatego pozostają wyłączone, dopóki nie włączysz bety wtyczek wyjściowych. Możesz ją wyłączyć w Ustawienia → Zaawansowane → Funkcje beta.",
+      "betaBody": "Wyświetlacze z rejestru wtyczek uruchamiają własny kod na Twoim FiestaBoard, dlatego pozostają wyłączone, dopóki nie włączysz bety wtyczek wyjściowych. Możesz ją wyłączyć na stronie Integracje.",
       "enableBeta": "Włącz betę wtyczek wyjściowych",
       "enableBetaFailed": "Nie udało się włączyć bety. Spróbuj ponownie.",
       "retry": "Spróbuj ponownie",
@@ -1030,9 +1032,9 @@
     "transitionMenuTitle": "Przejście",
     "transitionPickerAriaLabel": "Przejście strony",
     "transitionPickerTooltip": "Przejście dla tej strony: {strategy}",
-    "transitionUseGlobalDefault": "Użyj domyślnego ustawienia globalnego",
     "transitionBuiltInGroup": "Wbudowane",
-    "transitionPluginsGroup": "Wtyczki (beta)"
+    "transitionPluginsGroup": "Wtyczki (beta)",
+    "transitionUseDisplayTransition": "Użyj przejścia wyświetlacza"
   },
   "displaySettings": {
     "unnamedBoard": "Tablica bez nazwy",
@@ -1113,14 +1115,24 @@
     "transition": {
       "title": "Przejście",
       "description": "Jak ten wyświetlacz zmienia jedną wiadomość na następną. Własne przejście strony nadal ma pierwszeństwo.",
-      "default": "Domyślne",
-      "defaultDescription": "Użyj przejścia wybranego w Ustawienia → Harmonogram.",
       "cloudNote": "Ta tablica używa API w chmurze, które zmienia całą tablicę naraz. Przejścia wymagają lokalnego API.",
       "snapNote": "Ten wyświetlacz może zmieniać wszystko tylko naraz, więc od razu przechodzi do każdej nowej wiadomości.",
       "deviceDefault": "Domyślne urządzenia",
       "unavailable": "Niedostępne na tym wyświetlaczu",
       "runsAs": "Działa jako",
-      "previewLabel": "Podgląd: {name}"
+      "previewLabel": "Podgląd: {name}",
+      "stepIntervalLabel": "Interwał kroków (ms)",
+      "stepIntervalPlaceholder": "Domyślny",
+      "stepIntervalDescription": "Opóźnienie między kolejnymi krokami animacji. Pozostaw puste, aby użyć domyślnej wartości tablicy.",
+      "stepSizeLabel": "Rozmiar kroku",
+      "stepSizePlaceholder": "Domyślny",
+      "stepSizeDescription": "Ile wierszy lub kolumn animuje się jednocześnie. Pozostaw puste, aby użyć domyślnej wartości tablicy.",
+      "pluginsLabel": "Wtyczki przejść",
+      "pluginsBadge": "Beta",
+      "speedTitle": "Szybkość",
+      "pluginsDescription": "Animacje klatka po klatce, takie jak maszyna do pisania i rozpuszczanie (przestarzałe). Dotyczy wszystkich wyświetlaczy.",
+      "pluginsSavedToast": "Zapisano ustawienie wtyczek przejść.",
+      "pluginsSaveFailedToast": "Nie udało się zapisać ustawienia wtyczek przejść: {error}"
     },
     "add": {
       "title": "Dodaj wyświetlacz",
@@ -1159,24 +1171,7 @@
     "lastChecked": "Ostatnie sprawdzenie: {time}"
   },
   "transitionSettings": {
-    "title": "Przejścia tablicy",
-    "description": "Wybierz sposób animacji tablicy podczas aktualizacji do nowej wiadomości. Przejścia kontrolują styl animacji przewracania znaków na Twoim Vestaboard.",
-    "transitionStyle": "Styl przejścia",
-    "advancedOptions": "Opcje zaawansowane",
-    "stepIntervalLabel": "Interwał kroków (ms)",
-    "stepIntervalPlaceholder": "Domyślny",
-    "stepIntervalDescription": "Opóźnienie między kolejnymi krokami animacji. Pozostaw puste, aby użyć domyślnej wartości tablicy.",
-    "stepSizeLabel": "Rozmiar kroku",
-    "stepSizePlaceholder": "Domyślny",
-    "stepSizeDescription": "Ile wierszy lub kolumn animuje się jednocześnie. Pozostaw puste, aby użyć domyślnej wartości tablicy.",
-    "localApiNote": "Przejścia są obsługiwane tylko przez Local API. Jeśli Twoja tablica jest skonfigurowana z Cloud API, ustawienia przejść nie będą miały efektu. Poszczególne strony mogą również nadpisać to domyślne ustawienie w edytorze stron.",
-    "pluginNote": "Przejścia wtyczek są animowane przez FiestaBoard i wysyłane jako zwykłe aktualizacje tablicy, więc działają przy każdym rodzaju połączenia.",
-    "builtInGroup": "Wbudowane",
-    "pluginsGroup": "Wtyczki przejść",
-    "pluginsBetaBadge": "Beta",
     "unavailablePluginNote": "Ta wtyczka przejścia jest obecnie niedostępna. Wybierz inną opcję, aby ją zmienić.",
-    "toastSaved": "Ustawienia przejść zapisane",
-    "toastSaveFailed": "Nie udało się zapisać ustawień przejść: {error}",
     "strategies": {
       "none": {
         "label": "Brak",
@@ -1694,19 +1689,6 @@
     "valueLabel": "Wartość",
     "insert": "Wstaw",
     "searchAriaLabel": "Szukaj encji"
-  },
-  "betaSettings": {
-    "title": "Funkcje beta",
-    "betaBadge": "Beta",
-    "description": "Eksperymentalne funkcje, które testujemy. Włącz na własne ryzyko — mogą się zmieniać lub zostać usunięte.",
-    "savedToast": "Ustawienia beta zapisane.",
-    "saveFailedToast": "Nie udało się zapisać ustawień beta: {error}",
-    "transitionsLabel": "Wtyczki przejść",
-    "transitionsDescription": "Animacje tablicy klatka po klatce — efekty maszyny do pisania, rozpuszczanie, ciche aktualizacje słowo po słowie i przejścia społeczności.",
-    "transitionsWarning": "SDK wtyczek jest eksperymentalne; API i zachowanie mogą się zmienić przed ogólną dostępnością.",
-    "outputsLabel": "Wtyczki wyjścia",
-    "outputsDescription": "Pozwól wtyczkom wyjścia zainstalowanym z marketplace lub z adresu git sterować Twoimi tablicami — matrycami LED, szyldami i innymi wyświetlaczami poza Vestaboard.",
-    "outputsWarning": "Kontrakt wtyczek wyjścia jest w wersji beta i może się zmienić przed ogólną dostępnością. Wyjścia dołączone do FiestaBoard działają zawsze."
   },
   "systemControls": {
     "title": "System",
@@ -2438,7 +2420,7 @@
     "geometryDetected": "Wykryto {rows} × {cols}",
     "applyGeometry": "Zastosuj rozmiar",
     "actionInputDescription": "Ta akcja wymaga najpierw kilku informacji.",
-    "betaRequired": "Włącz wtyczki wyjścia w Ustawienia → Zaawansowane → Funkcje beta, aby używać tego wyświetlacza.",
+    "betaRequired": "Włącz Wyświetlacze innych firm (beta) na stronie Integracje, aby używać tego wyświetlacza.",
     "boardNameLabel": "Nazwa tablicy",
     "boardNamePlaceholder": "Moja tablica",
     "deviceModelLabel": "Model urządzenia",

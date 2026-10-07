@@ -317,6 +317,26 @@ until it opts back in, by naming the fields it wants:
 carries only the fields you name, plus `id`, which is always included. Naming
 a field no entry has is an error that lists the valid ones.
 
+### 5. Transitions are per display, and the `beta` category is deprecated
+
+FiestaBoard 10 (settings schema v6) drops the install-wide transition: each
+display owns its own.
+
+- `update_board` takes `transition`, `transition_step_interval_ms` and
+  `transition_step_size` — the display's strategy (a built-in name,
+  `plugin:<id>`, or `null` for none) and its speed (interval 0–5000 ms,
+  step size 1 or more).
+- `update_setting("transitions", ...)` is a deprecated alias that reads and
+  sets the **first** board's transition. It is removed in v11; move to
+  `update_board`.
+- `transition_plugins_enabled` and `output_plugins_enabled` now belong to
+  the `plugins` category, next to `auto_update`. `update_setting("beta", ...)`
+  still sets those two flags as a deprecated alias, removed in v11.
+  `get_settings_summary()` has no `beta` block.
+
+A page's own `transition_strategy` / `transition_interval_ms` /
+`transition_step_size` still wins over the display's, field by field.
+
 ### Also new: tool annotations
 
 Every tool now carries the standard MCP annotations (`readOnlyHint`,
@@ -515,8 +535,9 @@ external client can do the same things a person can there:
 
 - `update_setting(category, values)` gained the categories `general`
   (`instance_name` — how you rename the install — `timezone`,
-  `time_format`, `date_format`, `welcome_message`), `beta`, `plugins`
-  (`auto_update`), `mqtt` (broker address and `external_url`; not the
+  `time_format`, `date_format`, `welcome_message`), `plugins`
+  (`auto_update`, `transition_plugins_enabled`, `output_plugins_enabled`;
+  these two flags were a separate `beta` category until settings v6), `mqtt` (broker address and `external_url`; not the
   username/password), `ai` (enabled, default provider, and each provider's
   non-secret fields; never `api_key`), `release_channel`, `auto_update`
   (interval) and `hdmi_kiosk`. `silence_schedule` and `active_page` accept

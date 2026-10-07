@@ -636,7 +636,9 @@
       "createAction": "Criar página de demonstração",
       "recreateAction": "Recriar página de demonstração",
       "requirementsWarning": "Configure as definições obrigatórias abaixo antes de criar uma página de demonstração."
-    }
+    },
+    "outputPluginsLabel": "Ecrãs de terceiros (beta)",
+    "outputPluginsDescription": "Permita que ecrãs do Marketplace ou de um URL git controlem os seus quadros. Os ecrãs incluídos no FiestaBoard funcionam sempre."
   },
   "settings": {
     "title": "Configurações",
@@ -651,7 +653,7 @@
     "sectionSystem": "Sistema",
     "sectionSystemDescription": "Atualizações, backups e controles do sistema",
     "sectionAdvanced": "Avançado",
-    "sectionAdvancedDescription": "Diagnósticos e recursos experimentais",
+    "sectionAdvancedDescription": "Diagnósticos",
     "sectionGeneral": "Geral",
     "sectionGeneralDescription": "Preferências, idioma, acessibilidade",
     "sectionAccount": "Conta",
@@ -843,7 +845,7 @@
       "installFailed": "Não foi possível instalar {name}",
       "offline": "O FiestaBoard não conseguiu transferir {name}. Verifique a ligação à Internet deste dispositivo e tente novamente.",
       "betaTitle": "{name} requer a beta de plugins de saída",
-      "betaBody": "Os ecrãs do registo de plugins executam o seu próprio código no seu FiestaBoard, por isso ficam desligados até ativar a beta de plugins de saída. Pode desativá-la em Configurações → Avançado → Recursos beta.",
+      "betaBody": "Os ecrãs do registo de plugins executam o seu próprio código no seu FiestaBoard, por isso ficam desligados até ativar a beta de plugins de saída. Pode desativá-la novamente na página Integrações.",
       "enableBeta": "Ativar a beta de plugins de saída",
       "enableBetaFailed": "Não foi possível ativar a beta. Tente novamente.",
       "retry": "Tentar novamente",
@@ -1030,9 +1032,9 @@
     "transitionMenuTitle": "Transição",
     "transitionPickerAriaLabel": "Transição da página",
     "transitionPickerTooltip": "Transição desta página: {strategy}",
-    "transitionUseGlobalDefault": "Usar o padrão global",
     "transitionBuiltInGroup": "Integradas",
-    "transitionPluginsGroup": "Plugins (beta)"
+    "transitionPluginsGroup": "Plugins (beta)",
+    "transitionUseDisplayTransition": "Usar a transição do ecrã"
   },
   "displaySettings": {
     "unnamedBoard": "Painel Sem Nome",
@@ -1113,14 +1115,24 @@
     "transition": {
       "title": "Transição",
       "description": "Como este ecrã muda de uma mensagem para a seguinte. A transição própria de uma página continua a ter prioridade.",
-      "default": "Predefinida",
-      "defaultDescription": "Usar a transição escolhida em Configurações → Agendamento.",
       "cloudNote": "Este painel usa a API na nuvem, que muda o painel inteiro de uma vez. As transições precisam da API local.",
       "snapNote": "Este ecrã só consegue mudar tudo de uma vez, por isso passa diretamente para cada nova mensagem.",
       "deviceDefault": "Predefinição do dispositivo",
       "unavailable": "Indisponível neste ecrã",
       "runsAs": "É executada como",
-      "previewLabel": "Pré-visualização de {name}"
+      "previewLabel": "Pré-visualização de {name}",
+      "stepIntervalLabel": "Intervalo entre Passos (ms)",
+      "stepIntervalPlaceholder": "Padrão",
+      "stepIntervalDescription": "Atraso entre cada passo da animação. Deixe vazio para usar o padrão do painel.",
+      "stepSizeLabel": "Tamanho do Passo",
+      "stepSizePlaceholder": "Padrão",
+      "stepSizeDescription": "Quantas linhas ou colunas são animadas de cada vez. Deixe vazio para usar o padrão do painel.",
+      "pluginsLabel": "Plugins de transição",
+      "pluginsBadge": "Beta",
+      "speedTitle": "Velocidade",
+      "pluginsDescription": "Animações quadro a quadro, como máquina de escrever e dissolver (obsoleto). Aplica-se a todos os ecrãs.",
+      "pluginsSavedToast": "Configuração dos plugins de transição guardada.",
+      "pluginsSaveFailedToast": "Não foi possível guardar a configuração dos plugins de transição: {error}"
     },
     "add": {
       "title": "Adicionar um ecrã",
@@ -1159,24 +1171,7 @@
     "lastChecked": "Última verificação: {time}"
   },
   "transitionSettings": {
-    "title": "Transições do Painel",
-    "description": "Escolha como o painel é animado ao atualizar para uma nova mensagem. As transições controlam o estilo de animação dos caracteres no seu Vestaboard.",
-    "transitionStyle": "Estilo de Transição",
-    "advancedOptions": "Opções Avançadas",
-    "stepIntervalLabel": "Intervalo entre Passos (ms)",
-    "stepIntervalPlaceholder": "Padrão",
-    "stepIntervalDescription": "Atraso entre cada passo da animação. Deixe vazio para usar o padrão do painel.",
-    "stepSizeLabel": "Tamanho do Passo",
-    "stepSizePlaceholder": "Padrão",
-    "stepSizeDescription": "Quantas linhas ou colunas são animadas de cada vez. Deixe vazio para usar o padrão do painel.",
-    "localApiNote": "As transições são suportadas apenas na API Local. Se o seu painel estiver configurado para usar a API na Nuvem, as configurações de transição não terão efeito. Páginas individuais também podem substituir este padrão no editor de páginas.",
-    "pluginNote": "As transições de plugin são animadas pelo FiestaBoard e enviadas como atualizações normais do painel, por isso funcionam em qualquer conexão do painel.",
-    "builtInGroup": "Integradas",
-    "pluginsGroup": "Plugins de transição",
-    "pluginsBetaBadge": "Beta",
     "unavailablePluginNote": "Este plugin de transição não está disponível no momento. Escolha outra opção para alterá-la.",
-    "toastSaved": "Configurações de transição salvas",
-    "toastSaveFailed": "Falha ao salvar configurações de transição: {error}",
     "strategies": {
       "none": {
         "label": "Nenhuma",
@@ -1694,19 +1689,6 @@
     "valueLabel": "Valor",
     "insert": "Inserir",
     "searchAriaLabel": "Pesquisar entidades"
-  },
-  "betaSettings": {
-    "title": "Funcionalidades Beta",
-    "betaBadge": "Beta",
-    "description": "Funcionalidades experimentais que estamos a testar. Ative por sua conta e risco — podem mudar ou ser removidas.",
-    "savedToast": "Definições beta guardadas.",
-    "saveFailedToast": "Falha ao guardar definições beta: {error}",
-    "transitionsLabel": "Plugins de transição",
-    "transitionsDescription": "Animações do quadro quadro a quadro — efeitos de máquina de escrever, dissoluções, atualizações silenciosas palavra por palavra e transições da comunidade.",
-    "transitionsWarning": "O SDK de plugins é experimental; as APIs e o comportamento podem mudar antes da disponibilidade geral.",
-    "outputsLabel": "Plugins de saída",
-    "outputsDescription": "Permite que plugins de saída instalados pelo marketplace ou por uma URL git controlem seus quadros — matrizes de LED, letreiros e outras telas além do Vestaboard.",
-    "outputsWarning": "O contrato dos plugins de saída está em beta e pode mudar antes da disponibilidade geral. As saídas incluídas no FiestaBoard sempre funcionam."
   },
   "systemControls": {
     "title": "Sistema",
@@ -2438,7 +2420,7 @@
     "geometryDetected": "Detectado {rows} × {cols}",
     "applyGeometry": "Aplicar tamanho",
     "actionInputDescription": "Esta ação precisa de algumas informações primeiro.",
-    "betaRequired": "Ative os plugins de saída em Configurações → Avançado → Recursos beta para usar esta tela.",
+    "betaRequired": "Ative Ecrãs de terceiros (beta) na página Integrações para usar este ecrã.",
     "boardNameLabel": "Nome do painel",
     "boardNamePlaceholder": "Meu painel",
     "deviceModelLabel": "Modelo do dispositivo",

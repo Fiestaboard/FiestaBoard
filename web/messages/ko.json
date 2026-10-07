@@ -636,7 +636,9 @@
       "createAction": "데모 페이지 만들기",
       "recreateAction": "데모 페이지 다시 만들기",
       "requirementsWarning": "데모 페이지를 만들기 전에 아래 필수 설정을 구성하세요."
-    }
+    },
+    "outputPluginsLabel": "서드파티 디스플레이 (베타)",
+    "outputPluginsDescription": "마켓플레이스나 git URL의 디스플레이가 보드를 구동하도록 허용합니다. FiestaBoard에 기본 포함된 디스플레이는 항상 작동합니다."
   },
   "settings": {
     "title": "설정",
@@ -651,7 +653,7 @@
     "sectionSystem": "시스템",
     "sectionSystemDescription": "업데이트, 백업 및 시스템 제어",
     "sectionAdvanced": "고급",
-    "sectionAdvancedDescription": "진단 및 실험적 기능",
+    "sectionAdvancedDescription": "진단",
     "sectionGeneral": "일반",
     "sectionGeneralDescription": "환경설정, 언어, 접근성",
     "sectionAccount": "계정",
@@ -843,7 +845,7 @@
       "installFailed": "{name}을(를) 설치하지 못했습니다",
       "offline": "FiestaBoard가 {name}을(를) 다운로드하지 못했습니다. 이 기기의 인터넷 연결을 확인한 뒤 다시 시도하세요.",
       "betaTitle": "{name}에는 출력 플러그인 베타가 필요합니다",
-      "betaBody": "플러그인 레지스트리의 디스플레이는 FiestaBoard에서 자체 코드를 실행하므로, 출력 플러그인 베타를 켤 때까지 꺼져 있습니다. 설정 → 고급 → 베타 기능에서 다시 끌 수 있습니다.",
+      "betaBody": "플러그인 레지스트리의 디스플레이는 FiestaBoard에서 자체 코드를 실행하므로, 출력 플러그인 베타를 켤 때까지 꺼져 있습니다. 연동 페이지에서 다시 끌 수 있습니다.",
       "enableBeta": "출력 플러그인 베타 켜기",
       "enableBetaFailed": "베타를 켜지 못했습니다. 다시 시도하세요.",
       "retry": "다시 시도",
@@ -1030,9 +1032,9 @@
     "transitionMenuTitle": "전환 효과",
     "transitionPickerAriaLabel": "페이지 전환 효과",
     "transitionPickerTooltip": "이 페이지의 전환 효과: {strategy}",
-    "transitionUseGlobalDefault": "전역 기본값 사용",
     "transitionBuiltInGroup": "기본 제공",
-    "transitionPluginsGroup": "플러그인 (베타)"
+    "transitionPluginsGroup": "플러그인 (베타)",
+    "transitionUseDisplayTransition": "디스플레이의 전환 효과 사용"
   },
   "displaySettings": {
     "unnamedBoard": "이름 없는 보드",
@@ -1113,14 +1115,24 @@
     "transition": {
       "title": "전환 효과",
       "description": "이 디스플레이가 한 메시지에서 다음 메시지로 바뀌는 방식입니다. 페이지 자체의 전환 효과가 여전히 우선합니다.",
-      "default": "기본값",
-      "defaultDescription": "설정 → 일정에서 선택한 전환 효과를 사용합니다.",
       "cloudNote": "이 보드는 클라우드 API를 사용하므로 보드 전체가 한 번에 바뀝니다. 전환 효과에는 로컬 API가 필요합니다.",
       "snapNote": "이 디스플레이는 한 번에 바뀔 수만 있어서 새 메시지로 바로 전환됩니다.",
       "deviceDefault": "기기 기본값",
       "unavailable": "이 디스플레이에서는 사용할 수 없음",
       "runsAs": "실행 방식",
-      "previewLabel": "{name} 미리보기"
+      "previewLabel": "{name} 미리보기",
+      "stepIntervalLabel": "단계 간격 (ms)",
+      "stepIntervalPlaceholder": "기본값",
+      "stepIntervalDescription": "각 애니메이션 단계 사이의 지연 시간입니다. 보드 기본값을 사용하려면 비워 두세요.",
+      "stepSizeLabel": "단계 크기",
+      "stepSizePlaceholder": "기본값",
+      "stepSizeDescription": "한 번에 애니메이션되는 행 또는 열의 수입니다. 보드 기본값을 사용하려면 비워 두세요.",
+      "pluginsLabel": "전환 플러그인",
+      "pluginsBadge": "베타",
+      "speedTitle": "속도",
+      "pluginsDescription": "타자기, 디졸브 같은 프레임 단위 애니메이션(지원 중단). 모든 디스플레이에 적용됩니다.",
+      "pluginsSavedToast": "전환 플러그인 설정을 저장했습니다.",
+      "pluginsSaveFailedToast": "전환 플러그인 설정을 저장하지 못했습니다: {error}"
     },
     "add": {
       "title": "디스플레이 추가",
@@ -1159,24 +1171,7 @@
     "lastChecked": "마지막 확인: {time}"
   },
   "transitionSettings": {
-    "title": "보드 전환 효과",
-    "description": "새 메시지로 업데이트할 때 보드 애니메이션 방식을 선택하세요. 전환 효과는 Vestaboard의 문자 플립 애니메이션 스타일을 제어합니다.",
-    "transitionStyle": "전환 스타일",
-    "advancedOptions": "고급 옵션",
-    "stepIntervalLabel": "단계 간격 (ms)",
-    "stepIntervalPlaceholder": "기본값",
-    "stepIntervalDescription": "각 애니메이션 단계 사이의 지연 시간입니다. 보드 기본값을 사용하려면 비워 두세요.",
-    "stepSizeLabel": "단계 크기",
-    "stepSizePlaceholder": "기본값",
-    "stepSizeDescription": "한 번에 애니메이션되는 행 또는 열의 수입니다. 보드 기본값을 사용하려면 비워 두세요.",
-    "localApiNote": "전환 효과는 로컬 API에서만 지원됩니다. 보드가 클라우드 API를 사용하도록 설정된 경우 전환 설정은 효과가 없습니다. 개별 페이지에서 페이지 빌더를 통해 이 기본값을 재정의할 수도 있습니다.",
-    "pluginNote": "플러그인 전환 효과는 FiestaBoard가 애니메이션을 만들어 일반 보드 업데이트로 전송하므로 어떤 보드 연결에서도 작동합니다.",
-    "builtInGroup": "기본 제공",
-    "pluginsGroup": "전환 플러그인",
-    "pluginsBetaBadge": "베타",
     "unavailablePluginNote": "이 전환 플러그인은 현재 사용할 수 없습니다. 변경하려면 다른 옵션을 선택하세요.",
-    "toastSaved": "전환 설정이 저장되었습니다",
-    "toastSaveFailed": "전환 설정 저장에 실패했습니다: {error}",
     "strategies": {
       "none": {
         "label": "없음",
@@ -1694,19 +1689,6 @@
     "valueLabel": "값",
     "insert": "삽입",
     "searchAriaLabel": "엔터티 검색"
-  },
-  "betaSettings": {
-    "title": "베타 기능",
-    "betaBadge": "베타",
-    "description": "테스트 중인 실험적 기능입니다. 본인 책임 하에 활성화하세요 — 변경되거나 제거될 수 있습니다.",
-    "savedToast": "베타 설정 저장됨.",
-    "saveFailedToast": "베타 설정 저장 실패: {error}",
-    "transitionsLabel": "전환 플러그인",
-    "transitionsDescription": "프레임 단위 보드 애니메이션 — 타자기 효과, 디졸브, 단어별 조용한 업데이트, 커뮤니티 제작 전환 효과.",
-    "transitionsWarning": "플러그인 SDK는 실험적입니다. 정식 출시 전에 API와 동작이 변경될 수 있습니다.",
-    "outputsLabel": "출력 플러그인",
-    "outputsDescription": "마켓플레이스나 git URL에서 설치한 출력 플러그인이 보드를 구동하도록 허용합니다. LED 매트릭스, 사인 등 Vestaboard 외의 디스플레이를 지원합니다.",
-    "outputsWarning": "출력 플러그인 규격은 베타이며 정식 출시 전에 변경될 수 있습니다. FiestaBoard에 포함된 출력은 항상 작동합니다."
   },
   "systemControls": {
     "title": "시스템",
@@ -2438,7 +2420,7 @@
     "geometryDetected": "{rows} × {cols} 감지됨",
     "applyGeometry": "크기 적용",
     "actionInputDescription": "이 작업에는 먼저 몇 가지 정보가 필요합니다.",
-    "betaRequired": "이 디스플레이를 사용하려면 설정 → 고급 → 베타 기능에서 출력 플러그인을 켜세요.",
+    "betaRequired": "이 디스플레이를 사용하려면 연동 페이지에서 서드파티 디스플레이 (베타)를 켜세요.",
     "boardNameLabel": "보드 이름",
     "boardNamePlaceholder": "내 보드",
     "deviceModelLabel": "기기 모델",

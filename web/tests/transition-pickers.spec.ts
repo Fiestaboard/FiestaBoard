@@ -8,10 +8,25 @@
  * rather than trusting the rendered state: the bug being guarded is
  * precisely "the control exists but nothing reaches the backend".
  *
- * Every test forces the transition-plugins beta on, since both pickers hide
- * their plugin groups when it is off, and restores the prior state after.
+ * Every display owns its transition (settings v6), so the "global" picker is
+ * now each display's Transition section on its page. Every test forces the
+ * transition-plugins beta on, since both pickers hide their plugin groups
+ * when it is off, and restores the prior state after.
  */
-import { API_URL, authHeaders, createPage, deletePage, expect, test, waitForApi } from "./helpers";
+import {
+  API_URL,
+  authHeaders,
+  configureBoard,
+  createPage,
+  deletePage,
+  type DisplayTransitionFields,
+  expect,
+  getDisplayTransition,
+  setDisplayTransition,
+  setTransitionPlugins,
+  test,
+  waitForApi,
+} from "./helpers";
 
 /** A bundled transition plugin, present in every install. */
 const PLUGIN_ID = "typewriter";
@@ -19,27 +34,20 @@ const PLUGIN_NAME = "Typewriter";
 /** A bundled *data* plugin, used as a positive control on Integrations. */
 const DATA_PLUGIN_NAME = "Date & Time";
 
-async function setBeta(enabled: boolean): Promise<void> {
-  const res = await fetch(`${API_URL}/settings/beta`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ transition_plugins_enabled: enabled }),
-  });
-  expect(res.ok, `failed to set beta flag to ${enabled}`).toBe(true);
-}
-
-async function getGlobalStrategy(): Promise<string | null> {
-  const res = await fetch(`${API_URL}/settings/transitions`, { headers: authHeaders() });
+async function firstBoardId(): Promise<string> {
+  const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
   expect(res.ok).toBe(true);
-  return (await res.json()).strategy ?? null;
+  return (await res.json()).boards[0].id;
 }
 
-async function setGlobalStrategy(strategy: string | null): Promise<void> {
-  await fetch(`${API_URL}/settings/transitions`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ strategy }),
-  });
+async function displayStrategy(): Promise<string | null> {
+  return (await getDisplayTransition()).transition ?? null;
+}
+
+async function pluginsEnabled(): Promise<boolean> {
+  const res = await fetch(`${API_URL}/settings/plugins`, { headers: authHeaders() });
+  expect(res.ok).toBe(true);
+  return (await res.json()).transition_plugins_enabled;
 }
 
 async function getPageStrategy(pageId: string): Promise<string | null> {
@@ -49,44 +57,72 @@ async function getPageStrategy(pageId: string): Promise<string | null> {
 }
 
 test.describe("transition pickers", () => {
-  let priorStrategy: string | null = null;
+  let priorTransition: DisplayTransitionFields = {};
 
   test.beforeEach(async () => {
     await waitForApi();
-    priorStrategy = await getGlobalStrategy();
-    await setBeta(true);
+    await configureBoard();
+    priorTransition = await getDisplayTransition();
+    await setTransitionPlugins(true);
   });
 
   test.afterEach(async () => {
-    await setGlobalStrategy(priorStrategy);
-    await setBeta(false);
+    await setDisplayTransition(priorTransition);
+    await setTransitionPlugins(false);
   });
 
-  test("global picker saves a transition plugin as plugin:<id>", async ({ page }) => {
-    await page.goto("/settings");
-    await page.getByRole("tab", { name: /scheduling/i }).click();
+  test("a display's picker saves a transition plugin as plugin:<id>", async ({ page }) => {
+    await page.goto(`/displays/${await firstBoardId()}`);
+    const section = page.getByTestId("display-transition");
 
-    const option = page.getByRole("button", { name: PLUGIN_NAME, exact: true });
-    await expect(option, "transition plugin missing from Board Transitions").toBeVisible();
+    const option = section.getByRole("radio", { name: new RegExp(PLUGIN_NAME) });
+    await expect(option, "transition plugin missing from the display's Transition").toBeVisible({ timeout: 15_000 });
     await option.click();
 
-    // The card auto-saves on a 1s debounce; poll the API rather than the DOM
-    // so this asserts the value actually reached the backend.
-    await expect.poll(getGlobalStrategy, { timeout: 10_000 }).toBe(`plugin:${PLUGIN_ID}`);
+    // Poll the API rather than the DOM so this asserts the value actually
+    // reached the display's board.
+    await expect.poll(displayStrategy, { timeout: 10_000 }).toBe(`plugin:${PLUGIN_ID}`);
   });
 
-  test("global picker hides plugin options when the beta is off", async ({ page }) => {
-    await setBeta(false);
-    await page.goto("/settings");
-    await page.getByRole("tab", { name: /scheduling/i }).click();
+  test("a display's picker hides plugin options when the beta is off", async ({ page }) => {
+    await setTransitionPlugins(false);
+    await page.goto(`/displays/${await firstBoardId()}`);
+    const section = page.getByTestId("display-transition");
 
-    // The built-in strategies must still be there -- only the plugin group
-    // goes. "Wave" is the display label for the `column` strategy.
-    await expect(page.getByRole("button", { name: /^wave$/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: PLUGIN_NAME, exact: true })).toHaveCount(0);
+    // The built-in strategies must still be there -- only the plugins go.
+    // "Wave" is the display label for the `column` strategy.
+    await expect(section.getByRole("radio", { name: /^wave/i })).toBeVisible({ timeout: 15_000 });
+    await expect(section.getByRole("radio", { name: new RegExp(PLUGIN_NAME) })).toHaveCount(0);
   });
 
-  test("page picker saves an override and clears it back to the global default", async ({ page }) => {
+  test("the display's transition plugins switch turns them on for every display", async ({ page }) => {
+    await setTransitionPlugins(false);
+    await page.goto(`/displays/${await firstBoardId()}`);
+    const plugins = page.getByTestId("display-transition-plugins");
+    await expect(plugins).toContainText(/all displays/i, { timeout: 15_000 });
+
+    await plugins.getByRole("switch", { name: "Transition Plugins" }).click();
+
+    await expect.poll(pluginsEnabled, { timeout: 10_000 }).toBe(true);
+    await expect(
+      page.getByTestId("display-transition").getByRole("radio", { name: new RegExp(PLUGIN_NAME) }),
+    ).toBeVisible();
+  });
+
+  test("a display's step interval saves with its board", async ({ page }) => {
+    await setDisplayTransition({ transition: "column", transition_step_interval_ms: null });
+    await page.goto(`/displays/${await firstBoardId()}`);
+
+    const interval = page.getByRole("spinbutton", { name: "Step Interval (ms)" });
+    await interval.fill("40");
+    await interval.press("Enter");
+
+    await expect
+      .poll(async () => (await getDisplayTransition()).transition_step_interval_ms, { timeout: 10_000 })
+      .toBe(40);
+  });
+
+  test("page picker saves an override and clears it back to the display's transition", async ({ page }) => {
     const pageId = await createPage("Transition Picker E2E", ["HELLO"]);
 
     try {
@@ -108,7 +144,7 @@ test.describe("transition pickers", () => {
       await expect(page.getByRole("menuitemradio", { name: PLUGIN_NAME })).toHaveAttribute("aria-checked", "true");
 
       // --- clear it: must persist as null, not stay sticky ---
-      await page.getByRole("menuitemradio", { name: /use global default/i }).click();
+      await page.getByRole("menuitemradio", { name: /use the display's transition/i }).click();
       await page.getByRole("button", { name: /save/i }).first().click();
 
       await expect.poll(() => getPageStrategy(pageId), { timeout: 10_000 }).toBeNull();

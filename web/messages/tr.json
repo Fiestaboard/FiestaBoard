@@ -636,7 +636,9 @@
       "createAction": "Demo Sayfası Oluştur",
       "recreateAction": "Demo Sayfasını Yeniden Oluştur",
       "requirementsWarning": "Demo sayfası oluşturmadan önce aşağıdaki zorunlu ayarları yapılandırın."
-    }
+    },
+    "outputPluginsLabel": "Üçüncü taraf ekranlar (beta)",
+    "outputPluginsDescription": "Marketplace'teki veya bir git URL'sindeki ekranların panolarınızı yönetmesine izin verin. FiestaBoard ile birlikte gelen ekranlar her zaman çalışır."
   },
   "settings": {
     "title": "Ayarlar",
@@ -651,7 +653,7 @@
     "sectionSystem": "Sistem",
     "sectionSystemDescription": "Güncellemeler, yedeklemeler ve sistem denetimleri",
     "sectionAdvanced": "Gelişmiş",
-    "sectionAdvancedDescription": "Tanılama ve deneysel özellikler",
+    "sectionAdvancedDescription": "Tanılama",
     "sectionGeneral": "Genel",
     "sectionGeneralDescription": "Tercihler, dil, erişilebilirlik",
     "sectionAccount": "Hesap",
@@ -843,7 +845,7 @@
       "installFailed": "{name} yüklenemedi",
       "offline": "FiestaBoard {name} öğesini indiremedi. Bu cihazın internet bağlantısını kontrol edip tekrar deneyin.",
       "betaTitle": "{name} için çıkış eklentileri betası gerekir",
-      "betaBody": "Eklenti kayıt defterindeki ekranlar FiestaBoard'unuzda kendi kodlarını çalıştırır; bu nedenle çıkış eklentileri betasını açana kadar kapalı kalırlar. Betayı Ayarlar → Gelişmiş → Beta Özellikler'den yeniden kapatabilirsiniz.",
+      "betaBody": "Eklenti kayıt defterindeki ekranlar FiestaBoard'unuzda kendi kodlarını çalıştırır; bu nedenle çıkış eklentileri betasını açana kadar kapalı kalırlar. Betayı Entegrasyonlar sayfasından yeniden kapatabilirsiniz.",
       "enableBeta": "Çıkış eklentileri betasını aç",
       "enableBetaFailed": "Beta açılamadı. Tekrar deneyin.",
       "retry": "Tekrar dene",
@@ -1030,9 +1032,9 @@
     "transitionMenuTitle": "Geçiş",
     "transitionPickerAriaLabel": "Sayfa geçişi",
     "transitionPickerTooltip": "Bu sayfanın geçişi: {strategy}",
-    "transitionUseGlobalDefault": "Genel varsayılanı kullan",
     "transitionBuiltInGroup": "Yerleşik",
-    "transitionPluginsGroup": "Eklentiler (beta)"
+    "transitionPluginsGroup": "Eklentiler (beta)",
+    "transitionUseDisplayTransition": "Ekranın geçişini kullan"
   },
   "displaySettings": {
     "unnamedBoard": "İsimsiz Pano",
@@ -1113,14 +1115,24 @@
     "transition": {
       "title": "Geçiş",
       "description": "Bu ekranın bir mesajdan diğerine nasıl geçtiği. Bir sayfanın kendi geçişi yine önceliklidir.",
-      "default": "Varsayılan",
-      "defaultDescription": "Ayarlar → Zamanlama bölümünde seçilen geçişi kullan.",
       "cloudNote": "Bu pano, tüm panoyu tek seferde değiştiren Bulut API'sini kullanıyor. Geçişler için Yerel API gerekir.",
       "snapNote": "Bu ekran yalnızca her şeyi tek seferde değiştirebilir, bu yüzden her yeni mesaja doğrudan geçer.",
       "deviceDefault": "Cihaz varsayılanı",
       "unavailable": "Bu ekranda kullanılamaz",
       "runsAs": "Şu şekilde çalışır",
-      "previewLabel": "{name} önizlemesi"
+      "previewLabel": "{name} önizlemesi",
+      "stepIntervalLabel": "Adım Aralığı (ms)",
+      "stepIntervalPlaceholder": "Varsayılan",
+      "stepIntervalDescription": "Her animasyon adımı arasındaki gecikme. Pano varsayılanı için boş bırakın.",
+      "stepSizeLabel": "Adım Boyutu",
+      "stepSizePlaceholder": "Varsayılan",
+      "stepSizeDescription": "Aynı anda kaç satır veya sütunun animasyon yapacağı. Pano varsayılanı için boş bırakın.",
+      "pluginsLabel": "Geçiş Eklentileri",
+      "pluginsBadge": "Beta",
+      "speedTitle": "Hız",
+      "pluginsDescription": "Daktilo ve çözülme gibi kare kare animasyonlar (kullanımdan kaldırıldı). Tüm ekranlara uygulanır.",
+      "pluginsSavedToast": "Geçiş eklentileri ayarı kaydedildi.",
+      "pluginsSaveFailedToast": "Geçiş eklentileri ayarı kaydedilemedi: {error}"
     },
     "add": {
       "title": "Ekran ekle",
@@ -1159,24 +1171,7 @@
     "lastChecked": "Son kontrol: {time}"
   },
   "transitionSettings": {
-    "title": "Pano Geçişleri",
-    "description": "Pano yeni bir mesaja güncellenirken nasıl animasyon yapacağını seçin. Geçişler, Vestaboard'unuzdaki karakterlerin çevirme animasyonu stilini kontrol eder.",
-    "transitionStyle": "Geçiş Stili",
-    "advancedOptions": "Gelişmiş Seçenekler",
-    "stepIntervalLabel": "Adım Aralığı (ms)",
-    "stepIntervalPlaceholder": "Varsayılan",
-    "stepIntervalDescription": "Her animasyon adımı arasındaki gecikme. Pano varsayılanı için boş bırakın.",
-    "stepSizeLabel": "Adım Boyutu",
-    "stepSizePlaceholder": "Varsayılan",
-    "stepSizeDescription": "Aynı anda kaç satır veya sütunun animasyon yapacağı. Pano varsayılanı için boş bırakın.",
-    "localApiNote": "Geçişler yalnızca Yerel API üzerinde desteklenir. Panonuz Bulut API kullanacak şekilde yapılandırılmışsa geçiş ayarlarının bir etkisi olmaz. Sayfa oluşturucuda her sayfa bu varsayılanı ayrıca geçersiz kılabilir.",
-    "pluginNote": "Eklenti geçişleri FiestaBoard tarafından canlandırılır ve normal pano güncellemeleri olarak gönderilir, bu yüzden her pano bağlantısında çalışır.",
-    "builtInGroup": "Yerleşik",
-    "pluginsGroup": "Geçiş Eklentileri",
-    "pluginsBetaBadge": "Beta",
     "unavailablePluginNote": "Bu geçiş eklentisi şu anda kullanılamıyor. Değiştirmek için başka bir seçenek seçin.",
-    "toastSaved": "Geçiş ayarları kaydedildi",
-    "toastSaveFailed": "Geçiş ayarları kaydedilemedi: {error}",
     "strategies": {
       "none": {
         "label": "Yok",
@@ -1694,19 +1689,6 @@
     "valueLabel": "Değer",
     "insert": "Ekle",
     "searchAriaLabel": "Varlıkları ara"
-  },
-  "betaSettings": {
-    "title": "Beta Özellikleri",
-    "betaBadge": "Beta",
-    "description": "Test ettiğimiz deneysel özellikler. Kendi sorumluluğunuzda etkinleştirin — değişebilir veya kaldırılabilir.",
-    "savedToast": "Beta ayarları kaydedildi.",
-    "saveFailedToast": "Beta ayarları kaydedilemedi: {error}",
-    "transitionsLabel": "Geçiş Eklentileri",
-    "transitionsDescription": "Kare kare pano animasyonları — daktilo efektleri, çözülmeler, kelime kelime sessiz güncellemeler ve topluluk yapımı geçişler.",
-    "transitionsWarning": "Eklenti SDK'sı deneyseldir; API'ler ve davranış genel kullanıma sunulmadan önce değişebilir.",
-    "outputsLabel": "Çıkış eklentileri",
-    "outputsDescription": "Pazar yerinden veya bir git URL'sinden kurulan çıkış eklentilerinin panolarınızı sürmesine izin verin — LED matrisler, tabelalar ve Vestaboard dışındaki diğer ekranlar.",
-    "outputsWarning": "Çıkış eklentisi sözleşmesi beta aşamasındadır ve genel kullanıma sunulmadan önce değişebilir. FiestaBoard ile gelen çıkışlar her zaman çalışır."
   },
   "systemControls": {
     "title": "Sistem",
@@ -2438,7 +2420,7 @@
     "geometryDetected": "{rows} × {cols} algılandı",
     "applyGeometry": "Boyutu uygula",
     "actionInputDescription": "Bu işlem önce birkaç bilgi gerektiriyor.",
-    "betaRequired": "Bu ekranı kullanmak için Ayarlar → Gelişmiş → Beta Özellikler bölümünden Çıkış Eklentilerini açın.",
+    "betaRequired": "Bu ekranı kullanmak için Entegrasyonlar sayfasında Üçüncü taraf ekranlar (beta) seçeneğini açın.",
     "boardNameLabel": "Pano adı",
     "boardNamePlaceholder": "Panom",
     "deviceModelLabel": "Cihaz modeli",

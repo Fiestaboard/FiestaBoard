@@ -13,8 +13,8 @@ output plugin that records what core hands it. Pinned here:
   plugin's ``device_key`` (shared across boards on one device), a newer
   write cancels the one in flight, a native transition reaches the plugin
   only when declared, and a ``sequence`` output gets ``write_sequence``;
-- a third-party output plugin builds nothing while ``beta.output_plugins``
-  is off — the board stays down, never a Vestaboard;
+- a third-party output plugin builds nothing while
+  ``plugins.output_plugins_enabled`` is off — the board stays down, never a Vestaboard;
 - the board's ``output_config`` masks declared secrets, nested ones too, and
   restores them when echoed back; legacy boards save unchanged.
 """
@@ -87,7 +87,7 @@ def third_party(tmp_path):
 def set_beta(on: bool) -> None:
     from src.settings.service import get_settings_service
 
-    get_settings_service().update_beta_settings({"output_plugins_enabled": on})
+    get_settings_service().update_plugin_settings({"output_plugins_enabled": on})
 
 
 # --- the loader ------------------------------------------------------------------------
@@ -285,11 +285,12 @@ class TestBetaGate:
         set_beta(False)
         assert isinstance(build_driver(board()), OutputPluginDriver)
 
-    def test_the_flag_is_not_written_until_turned_on(self):
-        from src.settings.service import BetaSettings
+    def test_the_flag_lives_with_the_plugin_settings(self):
+        """Settings v6 moved it out of ``beta`` into ``plugins``."""
+        from src.settings.service import PluginSettings
 
-        assert "output_plugins_enabled" not in BetaSettings().to_dict()
-        assert BetaSettings(output_plugins_enabled=True).to_dict()["output_plugins_enabled"] is True
+        assert PluginSettings().to_dict()["output_plugins_enabled"] is False
+        assert PluginSettings(output_plugins_enabled=True).to_dict()["output_plugins_enabled"] is True
 
 
 # --- output_config secrets ------------------------------------------------------------------

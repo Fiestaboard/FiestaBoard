@@ -1,16 +1,16 @@
 # Transition Plugin Development Guide
 
 > ⚠️ **Deprecated.** Transition plugins are deprecated (plan D22,
-> 2026-10-04). Existing ones keep running: a page or the system default
-> whose strategy is `plugin:<id>` still animates through `TransitionRunner`,
-> and installed transition plugins stay selectable behind the
-> ``beta.transition_plugins_enabled`` flag
-> (Settings → Advanced → Beta Features → Transition Plugins). The
+> 2026-10-04). Existing ones keep running: a page or a display whose
+> transition is `plugin:<id>` still animates through `TransitionRunner`,
+> and installed transition plugins stay selectable behind the install-wide
+> `plugins.transition_plugins_enabled` flag (the **Transition Plugins**
+> switch in a split-flap display's **Transition** section). The
 > Transition Lab page and its `/transitions/*` API are removed, the
 > Integrations page badges every transition plugin **Deprecated**, and
 > removal of the plugin kind is under consideration for v11 (see
 > [TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md)). Do not start a new transition
-> plugin; transition choice is moving to each display.
+> plugin; each display now owns its transition (settings schema v6).
 
 Transition plugins drive **frame-by-frame board animations** that change one display state into another. Unlike Vestaboard's built-in strategies (column wave, edges-to-center, etc.), which are Local API features the board performs on its own, a transition plugin emits a sequence of intermediate board grids and the runtime sends each one as a separate ordinary board update -- enabling typewriter reveals, slot-machine spins, dissolves, and anything else that needs custom per-frame control. An output that cannot show intermediate frames (a cloud Vestaboard, one message per 15 s) declares `animation: "none"`, and the transition snaps to its target there.
 
@@ -32,7 +32,7 @@ This is a different plugin type from the data plugins documented in [PLUGIN_DEVE
 3. Implement `generate_frames()` in `plugins/my_transition/__init__.py`.
 4. Add tests under `plugins/my_transition/tests/` aiming for >80% coverage.
 5. Run `python scripts/run_plugin_tests.py --plugin=my_transition` to verify.
-6. Turn on Settings → Advanced → Beta Features → **Transition Plugins**, pick your plugin from a page's **Transition** dropdown, and send that page to a Local API board.
+6. Open **Displays**, choose a Local API board, turn on **Transition Plugins** in its **Transition** section, then pick your plugin there or from a page's **Transition** dropdown, and send a page to that board.
 
 ## The Plugin Class
 
@@ -133,14 +133,14 @@ Choose conservatively. A transition with `max_frames: 5000` and `min_interval_ms
 
 ## Selecting a transition plugin
 
-Once your plugin is installed it is ready to use. Unlike data plugins, transition plugins are not gated on the Integrations page's enabled toggle — `PluginRegistry.get_transition_plugin()` never consults it, because a transition has no polling loop or background cost. Installing is opting in. (The `beta.transition_plugins_enabled` flag above still gates the feature as a whole; with it off, `BoardClient.render()` logs and snaps to the target grid.) Users select your plugin from:
+Once your plugin is installed it is ready to use. Unlike data plugins, transition plugins are not gated on the Integrations page's enabled toggle — `PluginRegistry.get_transition_plugin()` never consults it, because a transition has no polling loop or background cost. Installing is opting in. (The `plugins.transition_plugins_enabled` flag above still gates the feature as a whole; with it off, `BoardClient.render()` logs and snaps to the target grid.) Users select your plugin from:
 
 - The **Transition** dropdown in the page editor's toolbar, which sets that one page's transition
-- Settings → Scheduling → Board Transitions, which sets the default for every page
+- **Displays → (a display) → Transition**, which sets the transition for every update sent to that display
 
-A page's own transition wins over the global default; the dropdown's "Use global default" option clears the page-level override.
+A page's own transition wins over the display's, field by field; the dropdown's "Use the display's transition" option clears the page-level override. There is no install-wide default any more.
 
-Pages store the choice as `transition_strategy = "plugin:my_transition"`. The runtime parses the `plugin:` prefix and routes the send through `TransitionRunner`.
+Pages store the choice as `transition_strategy = "plugin:my_transition"`; a display stores it on its board as `transition = "plugin:my_transition"` (`GET`/`PUT /settings/board`). The runtime parses the `plugin:` prefix and routes the send through `TransitionRunner`.
 
 ## Visual testing
 

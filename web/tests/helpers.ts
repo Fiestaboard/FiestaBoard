@@ -741,6 +741,51 @@ export async function resetToSingleBoard() {
   });
 }
 
+/** A display's own transition (settings v6): its board's three transition fields. */
+export interface DisplayTransitionFields {
+  transition?: string | null;
+  transition_step_interval_ms?: number | null;
+  transition_step_size?: number | null;
+}
+
+async function storedBoards(): Promise<Record<string, unknown>[]> {
+  const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`GET /settings/board failed: ${res.status} ${await res.text()}`);
+  return (await res.json()).boards as Record<string, unknown>[];
+}
+
+/** The first display's transition fields (every display owns its transition since settings v6). */
+export async function getDisplayTransition(): Promise<DisplayTransitionFields> {
+  const [first] = await storedBoards();
+  return {
+    transition: (first?.transition as string | undefined) ?? null,
+    transition_step_interval_ms: (first?.transition_step_interval_ms as number | undefined) ?? null,
+    transition_step_size: (first?.transition_step_size as number | undefined) ?? null,
+  };
+}
+
+/** Save the first display's transition fields with its board, as the display page does. */
+export async function setDisplayTransition(fields: DisplayTransitionFields): Promise<void> {
+  const boards = await storedBoards();
+  boards[0] = { ...boards[0], ...fields };
+  const res = await fetch(`${API_URL}/settings/board`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ boards }),
+  });
+  if (!res.ok) throw new Error(`setDisplayTransition failed: ${res.status} ${await res.text()}`);
+}
+
+/** Turn transition plugins (beta, deprecated) on or off for every display: `plugins.transition_plugins_enabled`. */
+export async function setTransitionPlugins(enabled: boolean): Promise<void> {
+  const res = await fetch(`${API_URL}/settings/plugins`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ transition_plugins_enabled: enabled }),
+  });
+  if (!res.ok) throw new Error(`setTransitionPlugins failed: ${res.status} ${await res.text()}`);
+}
+
 /** Suppress the setup wizard by injecting localStorage before navigation. */
 export function suppressWizard(page: Page) {
   return page.addInitScript(() => {
