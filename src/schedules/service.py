@@ -175,9 +175,8 @@ class ScheduleService:
         if entry is not None:
             return entry.page_id
 
-        bid = board_id or DEFAULT_BOARD_ID
         time_str = current_time.strftime("%H:%M")
-        default_page_id = self.storage.get_default_page_id(board_id=bid)
+        default_page_id = self.get_default_page(board_id=board_id)
         if default_page_id:
             logger.debug(f"No schedule match for {current_day} {time_str}, using default: {default_page_id}")
         else:
@@ -296,13 +295,32 @@ class ScheduleService:
 
     # Default page management
 
+    # The primary board's default page has two names: its real board id (what
+    # ``PATCH /v1/boards/primary`` and the display loop use) and the legacy
+    # ``""`` slot (what an id-less ``GET /schedules`` reads). They are one
+    # setting, the same way ``list_schedules`` treats ``""`` rows as the
+    # primary's. Reads resolve an id-less request to the primary, so they find
+    # what a write to the primary stored. A write to the primary also empties
+    # the legacy slot: the primary's own entry now answers for it, and a stale
+    # legacy value would otherwise reappear (storage falls back to it) the
+    # moment that entry is cleared.
+
+    @staticmethod
+    def _primary_board_id() -> str | None:
+        return get_settings_service().get_primary_board_id() or None
+
     def get_default_page(self, board_id: str | None = None) -> str | None:
         """Get the default page ID for schedule gaps for the given board."""
-        return self.storage.get_default_page_id(board_id=board_id)
+        bid = board_id or self._primary_board_id() or DEFAULT_BOARD_ID
+        return self.storage.get_default_page_id(board_id=bid)
 
     def set_default_page(self, page_id: str | None, board_id: str | None = None) -> None:
         """Set the default page ID for schedule gaps for the given board."""
-        self.storage.set_default_page_id(page_id, board_id=board_id)
+        primary_id = self._primary_board_id()
+        bid = board_id or primary_id or DEFAULT_BOARD_ID
+        self.storage.set_default_page_id(page_id, board_id=bid)
+        if primary_id and bid == primary_id:
+            self.storage.set_default_page_id(None, board_id=DEFAULT_BOARD_ID)
 
     # Validation
 
