@@ -313,7 +313,16 @@ def test_concurrent_direct_send_characters_and_render_serialize():
     ``_last_characters`` writes and a double-posted note-array throttle
     window.  ``send_characters`` therefore takes ``_send_lock`` itself
     (re-entrant, so render → send_characters nesting stays safe).
+
+    Every write also preempts the one before it, so a write still waiting to
+    send when the next thread arrives is refused before its request
+    (``RequestCancelled``) rather than posted: latest wins. Each of the four
+    writes therefore either posts or is cancelled, never both and never
+    alongside another. Counting posts alone assumed no write was ever
+    preempted, which only held while the threads happened not to interleave
+    (CI hit ``assert 3 == 4`` with a cancelled write in the log).
     """
+    from src.outputs.http import RequestCancelled
     from tests.first_party_drivers import local_driver
 
     # A real driver (the Vestaboard plugin on the Local API), not a shell:
@@ -337,8 +346,18 @@ def test_concurrent_direct_send_characters_and_render_serialize():
         response.raise_for_status = Mock()
         return response
 
+    cancelled: list[str] = []
+    refuse = RequestCancelled.__init__
+
+    def _counted_refusal(self, url):
+        cancelled.append(url)
+        refuse(self, url)
+
     grid = [[0] * 22 for _ in range(6)]
-    with patch("requests.post", side_effect=_instrumented_post):
+    with (
+        patch("requests.post", side_effect=_instrumented_post),
+        patch.object(RequestCancelled, "__init__", _counted_refusal),
+    ):
         threads = [
             threading.Thread(target=client.send_characters, args=(grid,), kwargs={"force": True}),
             threading.Thread(target=client.render, args=(grid,), kwargs={"force": True}),
@@ -350,7 +369,8 @@ def test_concurrent_direct_send_characters_and_render_serialize():
         for t in threads:
             t.join()
 
-    assert len(posts) == 4
+    assert len(posts) + len(cancelled) == 4, (posts, cancelled)
+    assert posts, "at least the last write must reach the board"
     assert overlaps == [], overlaps
 
 
