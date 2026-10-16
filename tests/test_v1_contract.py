@@ -394,6 +394,31 @@ def test_patch_sets_the_schedule_gap_page(client, boards):
     assert response.json()["default_page_id"] == page_id
 
 
+def test_the_gap_page_set_on_the_primary_reads_back_without_a_board_id(client, boards):
+    """The single-board schedule screen saves through ``PATCH /v1/boards/primary``
+    and reads back through ``GET /schedules`` with no ``board_id``. The write
+    landed under the primary's real id while the read looked under the legacy
+    ``""`` slot, so the picker snapped back to "No default" after every save."""
+    page_id = _seed_page(client)
+
+    assert client.patch("/v1/boards/primary", json={"default_page_id": page_id}).status_code == 200
+
+    assert client.get("/schedules").json()["default_page_id"] == page_id
+    assert client.get("/schedules/default-page").json()["default_page_id"] == page_id
+
+
+def test_clearing_the_primarys_gap_page_does_not_resurrect_a_legacy_one(client, boards):
+    """A default saved by the id-less ``PUT /schedules/default-page`` lives in
+    the legacy slot. Clearing it through v1 must clear it, not reveal it."""
+    page_id = _seed_page(client)
+    assert client.put("/schedules/default-page", json={"page_id": page_id}).status_code == 200
+
+    response = client.patch("/v1/boards/primary", json={"default_page_id": None})
+
+    assert response.json()["default_page_id"] is None
+    assert client.get("/schedules").json()["default_page_id"] is None
+
+
 def test_patch_with_an_unknown_default_page_is_a_404(client, boards):
     response = client.patch("/v1/boards/primary", json={"default_page_id": "nope"})
 

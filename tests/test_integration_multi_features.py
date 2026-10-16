@@ -249,7 +249,11 @@ class TestScheduleModeIntegration:
 
         settings_service = SettingsService(settings_file=temp_files["settings"])
 
-        return {"page": page_service, "schedule": schedule_service, "settings": settings_service}
+        # The schedule service reads the primary board from settings (its
+        # default page is keyed by it), so it must see this test's settings
+        # for every call, not only the ones made inside a test's own patch.
+        with patch("src.schedules.service.get_settings_service", return_value=settings_service):
+            yield {"page": page_service, "schedule": schedule_service, "settings": settings_service}
 
     def test_manual_mode_uses_manual_active_page(self, services):
         """Test that manual mode uses the manual active page setting."""
