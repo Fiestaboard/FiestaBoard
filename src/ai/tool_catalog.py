@@ -278,17 +278,43 @@ def _compact_description(description: str) -> str:
     text is the only place parameters are explained (the JSON Schema has no
     per-property descriptions). Trailing paragraphs — return shapes, tips —
     are useful to a human reader but cost tokens on every turn.
+
+    Convention (#2036): anything the in-app chat model MUST know goes in the
+    first paragraph (or, for a parameter, in ``Args:``). A tool with no
+    ``Args:`` block loses every paragraph after the first; see
+    :func:`dropped_paragraphs` and the ratchet in
+    ``tests/ai/test_tool_catalog.py`` that guards it.
     """
     text = (description or "").strip()
     if not text:
         return ""
-    paragraphs = re.split(r"\n\s*\n", text)
+    paragraphs = _paragraphs(text)
     first = " ".join(line.strip() for line in paragraphs[0].splitlines())
     args_block = next((p for p in paragraphs[1:] if p.lstrip().startswith("Args:")), None)
     if args_block is None:
         return first
     args_lines = [line.strip() for line in args_block.splitlines()]
     return first + "\n" + "\n".join(args_lines)
+
+
+def _paragraphs(text: str) -> list[str]:
+    return re.split(r"\n\s*\n", text)
+
+
+def dropped_paragraphs(description: str) -> list[str]:
+    """The paragraphs of ``description`` that :func:`_compact_description` drops.
+
+    Everything after the first paragraph that is not the ``Args:`` block.
+    External MCP clients see these; in-app chat never does (#2036).
+    """
+    text = (description or "").strip()
+    if not text:
+        return []
+    rest = _paragraphs(text)[1:]
+    # Mirror _compact_description exactly: only the FIRST ``Args:`` block is
+    # rendered, so any later one is dropped too.
+    args_idx = next((i for i, p in enumerate(rest) if p.lstrip().startswith("Args:")), None)
+    return [p for i, p in enumerate(rest) if i != args_idx]
 
 
 def _signature_line(schema: dict[str, Any]) -> str:
