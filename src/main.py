@@ -193,6 +193,10 @@ class BoardRuntime:
         # Silence-mode state (global decision, per-board delivery).
         self.last_silence_mode_active: bool = False
         self.snoozing_message_sent: bool = False
+        # Text of the message queued during silence that the exit stage just
+        # delivered (issue #1944), until the next page pass adopts the page
+        # into the dedupe cache so the message persists like any manual send.
+        self.silence_queued_shown: str | None = None
 
         # Schedule-mode edge tracking for defer-on-reenable. ``None`` means
         # "no pass has decided this board's page yet", so the first pass after
@@ -1902,6 +1906,7 @@ class DisplayService:
                 queued = silence_queue.pop_message(board_id)
                 if queued is not None and silence_config.get("show_queued_on_exit"):
                     logger.info("Showing message queued during silence")
+                    rt.silence_queued_shown = queued
                     return self._send_trigger_content(queued, rt, wait=wait)
 
             # --- Stage: trigger input (PRIMARY only; suppressed during silence) ---
@@ -2168,6 +2173,27 @@ class DisplayService:
             # page's canvas layers when it has any (a canvas change alone is
             # a change).
             current_content = _content_key(result)
+            # Issue #1944: the exit stage just delivered the message queued
+            # during silence. Like any manual send (#1794) it stays up until
+            # the page's content actually changes, so adopt this render as
+            # the page the board "already shows" instead of painting it back
+            # over the message on the very next tick. Only when that delivery
+            # landed (or is still landing): a failed one leaves nothing to keep.
+            shown = rt.silence_queued_shown
+            if shown is not None:
+                if not wait and self._send_in_flight(rt, ("trigger", shown)):
+                    logger.debug("Board %s: queued silence message still in flight", board_id or "(default)")
+                    return False
+                rt.silence_queued_shown = None
+                if rt.last_active_page_content == shown and rt.last_active_page_id == "__trigger__":
+                    logger.info(
+                        "Board %s: keeping the message queued during silence until the page changes",
+                        board_id or "(default)",
+                    )
+                    rt.last_active_page_content = current_content
+                    rt.last_active_page_id = active_page_id
+                    rt.last_render = (fingerprint, current_content, active_page_id) if fingerprint else None
+                    return False
             if current_content == rt.last_active_page_content and active_page_id == rt.last_active_page_id:
                 logger.debug("Board %s: content unchanged, skipping send", board_id or "(default)")
                 # Arm the render short-circuit (issue #1883): this render's

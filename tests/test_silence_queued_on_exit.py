@@ -61,10 +61,11 @@ def test_show_queued_on_exit_resolves_per_board():
 
 
 class TestExitDelivery:
-    def _exit_tick(self, service, *, enabled):
+    def _exit_tick(self, service, *, enabled, ticks=1):
         service._last_silence_mode_active = True
         _, page_service, settings, config = _Dispatch()._patch_common(mode="freeze", silence_active=False)
         settings.get_primary_board_id.return_value = "b1"
+        settings.consume_temporary_override.return_value = None
         config.silence_config_for.return_value = {
             **config.silence_config_for.return_value,
             "show_queued_on_exit": enabled,
@@ -76,7 +77,8 @@ class TestExitDelivery:
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
-            return service.check_and_send_active_page()
+            results = [service.check_and_send_active_page() for _ in range(ticks)]
+        return results[0]
 
     def test_queued_message_is_shown_when_silence_ends(self, service):
         silence_queue.queue_message("b1", "GOOD MORNING")
@@ -90,3 +92,42 @@ class TestExitDelivery:
         self._exit_tick(service, enabled=False)
         for call in service.vb_client.render.call_args_list:
             assert "GOOD MORNING" not in _decode_board_text(call.args[0])
+
+    def test_queued_message_persists_past_the_next_tick(self, service):
+        # Like any manual send (#1794), the delivered message stays up until
+        # the page's content actually changes; the next engine tick must not
+        # paint the unchanged page straight back over it.
+        silence_queue.queue_message("b1", "GOOD MORNING")
+        self._exit_tick(service, enabled=True, ticks=3)
+        assert service.vb_client.render.call_count == 1
+        args, _ = service.vb_client.render.call_args
+        assert _decode_board_text(args[0]).strip() == "GOOD MORNING"
+
+    def test_page_returns_when_its_content_changes(self, service):
+        silence_queue.queue_message("b1", "GOOD MORNING")
+        self._exit_tick(service, enabled=True, ticks=2)
+        assert service.vb_client.render.call_count == 1
+        # A real content change after the adopt tick puts the page back.
+        _, page_service, settings, config = _Dispatch()._patch_common(mode="freeze", silence_active=False)
+        page_service.preview_page.return_value.formatted = "WEATHER\nRAIN"
+        settings.get_primary_board_id.return_value = "b1"
+        settings.consume_temporary_override.return_value = None
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
+            service.check_and_send_active_page()
+        args, _ = service.vb_client.render.call_args
+        assert "RAIN" in _decode_board_text(args[0])
+
+    def test_failed_delivery_does_not_hold_back_the_page(self, service):
+        silence_queue.queue_message("b1", "GOOD MORNING")
+        service.vb_client.render.return_value = (False, False)
+        self._exit_tick(service, enabled=True)
+        service.vb_client.render.return_value = (True, True)
+        self._exit_tick(service, enabled=False)
+        args, _ = service.vb_client.render.call_args
+        assert "WEATHER" in _decode_board_text(args[0])
