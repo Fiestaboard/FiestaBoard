@@ -61,9 +61,9 @@ This is where it gets fun. Click the **Variables** button in the editor toolbar.
 
 For example, if you enabled the Date & Time plugin, you'll see variables like:
 
-- `{date_time.datetime}` - Inserts the current date and time
-- `{date_time.date}` - Inserts just the date
-- `{date_time.time}` - Inserts just the time
+- `{{date_time.datetime}}` - Inserts the current date and time
+- `{{date_time.date}}` - Inserts just the date
+- `{{date_time.time}}` - Inserts just the time
 
 Click any variable to insert it into your page at the cursor position. When the page is displayed on your board, the variable is automatically replaced with live data.
 
@@ -77,10 +77,10 @@ Here's a page layout you could create using Date & Time and Star Trek Quotes:
 
 ```text
   GOOD MORNING
-  {date_time.date}
-  {date_time.time}
+  {{date_time.date}}
+  {{date_time.time}}
 
-  {star_trek_quotes.quote}
+  {{star_trek_quotes.quote}}
 ```
 
 ### Save your page
@@ -101,7 +101,7 @@ Some plugins fill the entire board with formatted content. These are great for "
 - **Sun Art** - An art pattern that changes throughout the day
 - **Surf Conditions** - Full surf report with wave height and conditions
 
-To use these, create a new page and insert just the plugin's main variable (e.g., `{visual_clock.display}` or `{sun_art.display}`). The plugin handles the entire layout.
+To use these, create a new page and insert just the plugin's main variable (e.g., `{{visual_clock.visual_clock}}` or `{{sun_art.sun_art}}`). The plugin handles the entire layout.
 
 ## 6. Set Up a Schedule (Optional)
 

@@ -23,6 +23,11 @@
 //      page. Code fences and inline code spans are exempt (MDX leaves
 //      those alone). Heuristics are conservative: only constructs that
 //      actually break `mdx` compilation are flagged.
+//   4. No single-brace template variables. The template engine only resolves
+//      {{source.field}} (src/templates/engine.py VAR_PATTERN); a docs example
+//      written as {source.field} renders as literal text on the board when a
+//      reader copies it. Checked everywhere, code included, since copyable
+//      examples usually live in code spans and fences (issue #2058).
 //
 // Frontmatter presence + required fields are enforced by the companion
 // script lint-docs-frontmatter.mjs; this script adds a structural check
@@ -231,6 +236,30 @@ function checkMdx(file, masked) {
 }
 
 // ---------------------------------------------------------------------------
+// 4. Template variables must use double braces.
+// ---------------------------------------------------------------------------
+
+// {plugin.field} or {plugin.field|filter} not wrapped in a second brace pair.
+// Colour tile markers like {66} have no dot and are not matched.
+const SINGLE_BRACE_VAR_RE = /(?<!\{)\{([a-z][a-z0-9_]*\.[a-z][a-z0-9_.]*(?:\|[^{}\n]*)?)\}(?!\})/g
+
+export function findSingleBraceVars(source) {
+  const hits = []
+  source.split('\n').forEach((text, i) => {
+    for (const match of text.matchAll(SINGLE_BRACE_VAR_RE)) {
+      hits.push({ line: i + 1, variable: match[1] })
+    }
+  })
+  return hits
+}
+
+function checkTemplateVars(file, source) {
+  for (const { line, variable } of findSingleBraceVars(source)) {
+    fail(file, line, `single-brace template variable {${variable}}; the engine only resolves {{${variable}}}`)
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 const tree = walk(DOCS_DIR)
 checkCategories(tree)
@@ -240,6 +269,7 @@ for (const file of tree.docs) {
   const masked = maskCode(maskFrontmatter(source))
   checkLinks(file, masked)
   checkMdx(file, masked)
+  checkTemplateVars(file, maskFrontmatter(source))
 }
 
 if (violations.length > 0) {
