@@ -53,6 +53,10 @@ A few things follow from this:
   hours say it should be asleep. See
   [Changing the board during silence](#changing-the-board-during-silence) for
   what happens to the send instead.
+- **The "Another app changed this board" notice waits too.** While a board is
+  silenced, FiestaBoard leaves it alone on purpose, so the notice and its
+  Restore and Save as page buttons are hidden until silence ends. See
+  [Saving what another app put on the board](/docs/features/page-editor#saving-what-another-app-put-on-the-board).
 - **The Home Assistant `silence_mode` sensor reports the primary board.** Like
   the other entities in that payload (active page, transition style), it
   describes the primary board rather than the install as a whole. The same is
