@@ -59,6 +59,12 @@ jobs:
               # tests fetch and verify them, so a bumped pin (a new Vestaboard
               # or FiestaPanel release) must rebuild and retest (plan D8/D9).
               - 'outputs.lock.json'
+              # Repo-root data the Python suite reads (test_plugin_previews,
+              # test_sync_plugin_previews, test_plugin_sources, ...). Without
+              # these a registry-only PR skipped Platform Tests and merged
+              # red (#2004). Guarded by tests/test_ci_path_filters.py.
+              - 'plugin-registry.json'
+              - 'plugin-previews.json'
             ui:
               - 'web/**'
               - 'Dockerfile'
