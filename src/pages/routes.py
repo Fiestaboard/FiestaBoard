@@ -550,6 +550,7 @@ async def send_page(
     target: str | None = None,
     board_id: str | None = None,
     payload: PageSendRequest | None = None,
+    force: bool = False,
 ):
     """
     Send a page to the configured target.
@@ -561,6 +562,10 @@ async def send_page(
         board_id: Optional board to send to (query param, or
             ``{"board_id": ...}`` in the JSON body). Omitted → primary
             board, legacy behavior (issue #1244).
+        force: Query param. ``true`` explicitly overrides the target board's
+            silence window for this one send (issue #1943). Defaults to
+            ``false``: during silence the board is left untouched. Pause is
+            never overridden.
     """
     if target is None and payload:
         target = payload.target
@@ -623,7 +628,7 @@ async def send_page(
         if send_to_board:
             # CRITICAL: Block ALL manual sends during silence mode to prevent
             # wake-ups — for the board this send targets (issue #1788).
-            if _silence_active(board_id):
+            if not force and _silence_active(board_id):
                 logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
                 sent_to_board = False
                 # Don't raise error, just skip sending
