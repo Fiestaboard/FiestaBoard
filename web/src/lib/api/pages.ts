@@ -35,6 +35,12 @@ export interface SetActivePageResponse {
   page_id: string | null;
   sent_to_board: boolean;
   paused: boolean;
+  /**
+   * True when the board's silence window held the immediate send (#1943).
+   * The selection is saved and the page appears when silence ends. Reported
+   * independently of `paused` (a silenced, paused board says both).
+   */
+  silenced: boolean;
   board_id: string | null;
   // Render/send failure reason when the page was persisted but never reached
   // the board (issue #1791). Null when the send succeeded or was skipped
@@ -225,12 +231,15 @@ export const pagesApi = {
         ? `/settings/active-page?board_id=${encodeURIComponent(boardId)}`
         : "/settings/active-page",
     ),
-  setActivePage: (pageId: string | null, boardId?: string) =>
+  // `overrideSilence` shows the page now even while the board is silenced
+  // (#1943). Only sent when set, so every other call's body is unchanged.
+  setActivePage: (pageId: string | null, boardId?: string, opts?: { overrideSilence?: boolean }) =>
     fetchApi<SetActivePageResponse>("/settings/active-page", {
       method: "PUT",
       body: JSON.stringify({
         page_id: pageId,
         ...(typeof boardId === "string" && boardId && { board_id: boardId }),
+        ...(opts?.overrideSilence === true && { override_silence: true }),
       }),
     }),
   // Pages CRUD lives on /v1 (issue #1930). `/v1/pages*` delegates to the very

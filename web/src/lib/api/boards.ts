@@ -484,7 +484,26 @@ export interface ConfigValidationResponse {
   missing_fields: string[];
 }
 
+/**
+ * `POST /v1/boards/{board}/message`. A silenced board whose schedule holds
+ * messages answers 202 with `held: true` (#1944): accepted, shown when
+ * silence ends. A 409 (silenced, not held; or paused) is an error to fetchApi.
+ */
+export interface BoardMessageResponse {
+  sent: boolean;
+  silenced: boolean;
+  held: boolean;
+  reason: string | null;
+  board_id: string;
+  text: string;
+}
+
 export const boardsApi = {
+  sendBoardMessage: (boardId: string | null | undefined, body: { lines: string[]; override_silence?: boolean }) =>
+    fetchApi<BoardMessageResponse>(`/v1/boards/${boardPathSegment(boardId)}/message`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   // Non-empty string only — see the getActivePage note (issue #1244).
   getBoardCurrentMessage: (boardId?: string) =>
     fetchApi<BoardCurrentMessageResponse>(

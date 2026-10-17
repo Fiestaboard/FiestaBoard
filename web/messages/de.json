@@ -903,7 +903,22 @@
     "collectionSizeWarning": "{count} von {total} Seiten in dieser Sammlung passen nicht zur Größe dieses Boards und werden übersprungen.",
     "turnOffLiveModeAriaLabel": "Live-Modus deaktivieren",
     "liveModeBadge": "Live-Modus",
-    "composeOneOff": "Nachricht verfassen"
+    "composeOneOff": "Nachricht verfassen",
+    "silenceManual": "„{pageName}“ wird angezeigt, wenn der Ruhemodus endet. Bis dahin bleibt die Tafel still.",
+    "silenceSchedule": "Dein Zeitplan läuft weiter, wenn der Ruhemodus endet. Bis dahin bleibt die Tafel still.",
+    "silenceNoPage": "Bis dahin bleibt die Tafel still.",
+    "silenceHeld": "Zurückgehaltene Nachricht: „{preview}“ – sie wird zuerst angezeigt.",
+    "showNow": "Jetzt anzeigen",
+    "discardHeld": "Nachricht verwerfen",
+    "selectPageSilence": "Die gewählte Seite wird gespeichert und angezeigt, wenn der Ruhemodus endet – die Tafel bleibt still.",
+    "toastSwitchHeld": "Gespeichert – „{pageName}“ wird um {time} angezeigt, wenn der Ruhemodus endet",
+    "toastSwitchHeldNoTime": "Gespeichert – „{pageName}“ wird angezeigt, wenn der Ruhemodus endet",
+    "toastSwitchPaused": "Gespeichert – „{pageName}“ wird angezeigt, wenn du die Tafel fortsetzt",
+    "toastShownNow": "„{pageName}“ wird jetzt angezeigt",
+    "toastHeldDiscarded": "Zurückgehaltene Nachricht verworfen",
+    "toastHeldDiscardFailed": "Die zurückgehaltene Nachricht konnte nicht verworfen werden",
+    "toastResendSilenced": "Nichts gesendet – die Tafel ist bis {time} im Ruhemodus",
+    "toastResendNotSent": "Nichts gesendet (Tafel pausiert oder Ausgabe nur auf die Oberfläche eingestellt)"
   },
   "forceSetDialog": {
     "title": "Board erzwingen",
@@ -915,7 +930,9 @@
     "confirm": "Erzwingen",
     "setting": "Stelle ein…",
     "toastSuccess": "Zeige „{pageName}\" für {minutes} Min.",
-    "toastError": "Übersteuerung konnte nicht gesetzt werden"
+    "toastError": "Übersteuerung konnte nicht gesetzt werden",
+    "silenceWarning": "Erzwingen zeigt diese Seite sofort an und weckt die Tafel.",
+    "confirmSilenced": "Trotzdem jetzt anzeigen"
   },
   "composeDialog": {
     "title": "Nachricht verfassen",
@@ -936,7 +953,17 @@
     "toastSent": "An die Tafel gesendet",
     "toastSendError": "Nachricht konnte nicht gesendet werden",
     "toastSaved": "„{pageName}“ gespeichert",
-    "toastSaveError": "Seite konnte nicht gespeichert werden"
+    "toastSaveError": "Seite konnte nicht gespeichert werden",
+    "silenceHold": "Halte sie zurück, dann erscheint sie um {time} – oder sende sie jetzt, dann wird die Tafel geweckt.",
+    "silenceNoHold": "Jetzt senden weckt die Tafel. Um Nachrichten bis zum Ende des Ruhemodus zurückzuhalten, aktiviere „Zurückgehaltene Nachrichten nach dem Ruhemodus anzeigen“ unter Einstellungen → Zeitplanung.",
+    "openSettings": "Einstellungen öffnen",
+    "hold": "Bis {time} zurückhalten",
+    "holdNoTime": "Bis zum Ende des Ruhemodus zurückhalten",
+    "holding": "Wird zurückgehalten…",
+    "sendNowAnyway": "Trotzdem jetzt senden",
+    "toastHeld": "Zurückgehalten – erscheint um {time}",
+    "toastHeldNoTime": "Zurückgehalten – erscheint, wenn der Ruhemodus endet",
+    "toastHoldError": "Die Nachricht konnte nicht zurückgehalten werden"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "App nicht erreichbar. Netzwerk prüfen oder prüfen, ob FiestaBoard läuft.",
@@ -1032,7 +1059,11 @@
     "transitionPickerTooltip": "Übergang für diese Seite: {strategy}",
     "transitionBuiltInGroup": "Integriert",
     "transitionPluginsGroup": "Plugins (Beta)",
-    "transitionUseDisplayTransition": "Übergang der Anzeige verwenden"
+    "transitionUseDisplayTransition": "Übergang der Anzeige verwenden",
+    "liveSilencePreviewOnly": "Die Live-Ausgabe zeigt nur eine Vorschau. Die Tafel bleibt still.",
+    "liveSendAnyway": "Trotzdem an die Tafel senden",
+    "liveSilenceOverriding": "Die Live-Ausgabe weckt die Tafel während des Ruhemodus.",
+    "liveStopOverriding": "Senden beenden"
   },
   "displaySettings": {
     "unnamedBoard": "Unbenanntes Board",
@@ -1371,7 +1402,9 @@
     "toastBoardReadIntervalUpdated": "Board-Leseintervall aktualisiert",
     "toastBoardReadIntervalFailed": "Aktualisierung des Board-Leseintervalls fehlgeschlagen: {error}",
     "updateIntervalsTitle": "Aktualisierungsintervalle",
-    "updateIntervalsDescription": "Wie oft das Board nach neuen Inhalten sucht und seinen aktuellen Zustand erneut liest"
+    "updateIntervalsDescription": "Wie oft das Board nach neuen Inhalten sucht und seinen aktuellen Zustand erneut liest",
+    "silenceShowHeldLabel": "Zurückgehaltene Nachrichten nach dem Ruhemodus anzeigen",
+    "silenceShowHeldHelp": "Eine Nachricht, die während des Ruhemodus an diese Tafel gesendet wird, wird zurückgehalten und angezeigt, sobald der Ruhemodus endet. Ist dies aus, wird sie stattdessen abgelehnt. Seitenwechsel werden immer gespeichert und brauchen das nicht."
   },
   "serviceControls": {
     "title": "Dienststeuerung",
@@ -2697,5 +2730,9 @@
     "serverError": "Die Canvas wurden nicht akzeptiert: {message}",
     "notPixelNotice": "Diese Seite enthält Pixel-Canvas. Diese Tafel kann sie nicht darstellen, daher bleiben ihre Bereiche leer. Zeige die Seite auf einer LED-Pixeltafel in der Vorschau an, um sie zu bearbeiten.",
     "markerTitle": "In dieser Zeile beginnt ein Canvas (nicht Teil des Textes)"
+  },
+  "silenceNotice": {
+    "untilTitle": "Im Ruhemodus bis {time}",
+    "untilTitleNoTime": "Die Tafel ist im Ruhemodus"
   }
 }

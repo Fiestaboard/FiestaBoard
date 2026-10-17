@@ -1,6 +1,6 @@
 import type { SilenceScheduleConfig } from "@/lib/api";
 
-/** The seven keys a per-board silence override may carry. */
+/** The keys a per-board silence override may carry (mirrors src/config.py `_SILENCE_KEYS`). */
 const SILENCE_KEYS = [
   "enabled",
   "start_time",
@@ -9,6 +9,7 @@ const SILENCE_KEYS = [
   "page_id",
   "indicator_text",
   "indicator_position",
+  "show_queued_on_exit",
 ] as const;
 
 type SilenceLayer = Partial<SilenceScheduleConfig> & { by_board?: Record<string, Partial<SilenceScheduleConfig>> };
