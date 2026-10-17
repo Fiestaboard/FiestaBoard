@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_is_paused
+from src.board_guards import _board_is_paused, _silence_active
 from src.board_send_executor import run_board_send
 from src.devices import geometry_of, resolve_dimensions
 from src.display_runtime import get_service
@@ -216,7 +216,7 @@ async def get_displays_raw_batch(request: DisplayRawBatchRequest):
 
 
 @router.post("/displays/{display_type}/send", response_model=DisplaySendResponse, responses=errors(400, 500, 503))
-async def send_display(display_type: str, target: str | None = None):
+async def send_display(display_type: str, target: str | None = None, force: bool = False):
     """
     Send a display to the configured target (ui, board, or both).
 
@@ -224,6 +224,11 @@ async def send_display(display_type: str, target: str | None = None):
         display_type: The display type to send
         target: Override output target (ui, board, both). If not provided,
                 uses the configured default.
+        force: ``true`` explicitly overrides the primary board's silence
+               window for this one send (issue #1943). Defaults to
+               ``false``: during silence the board is left untouched, the
+               same policy every other manual send applies. Pause is never
+               overridden.
 
     Returns:
         Result of the send operation.
@@ -258,8 +263,12 @@ async def send_display(display_type: str, target: str | None = None):
     sent_to_board = False
     paused = False
     if send_to_board:
+        # Respect the silence window unless the caller explicitly forces
+        # the send (issue #1943) — this path used to ignore silence entirely.
+        if not force and _silence_active():
+            logger.info("Silence mode is active - skipping display send to board (pass force=true to override)")
         # Skip when the (first) board is paused (issue #970).
-        if _board_is_paused():
+        elif _board_is_paused():
             logger.info("Board is paused - skipping display send to board")
             paused = True
         else:
