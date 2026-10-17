@@ -28,6 +28,7 @@ def _display_mocks():
     display_service.get_display.return_value = result
     ss = Mock()
     ss.should_send_to_board.return_value = True
+    ss.get_output_settings.return_value = Mock(target="board")
     ss.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=None, step_size=None)
     ss.get_board_settings.return_value = Mock(boards=[{"id": "b1", "device_type": "flagship"}])
     return service, display_service, ss
@@ -81,12 +82,15 @@ def _post_page(client, *, silenced, query=""):
     service = Mock()
     service.vb_client = Mock()
     service.vb_client.render.return_value = (True, True)
-    page = Mock(transition_strategy=None, transition_interval_ms=None, transition_step_size=None, device_type="flagship")
+    page = Mock(
+        transition_strategy=None, transition_interval_ms=None, transition_step_size=None, device_type="flagship"
+    )
     page_service = Mock()
     page_service.get_page.return_value = page
     page_service.preview_page.return_value = Mock(available=True, error=None, formatted="HI")
     ss = Mock()
     ss.should_send_to_board.return_value = True
+    ss.get_output_settings.return_value = Mock(target="board")
     ss.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=None, step_size=None)
     with (
         patch("src.pages.routes.get_service", return_value=service),
