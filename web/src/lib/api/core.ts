@@ -139,5 +139,7 @@ export async function fetchApi<T>(
     }
     throw new ApiError(detail, res.status);
   }
+  // 204 No Content (e.g. DELETE /board/external-frame) has no body to parse.
+  if (res.status === 204) return undefined as T;
   return res.json();
 }

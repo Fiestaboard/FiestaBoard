@@ -443,7 +443,7 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Board was changed by another app")).toBeInTheDocument();
+      expect(screen.getByText("Another app changed this board")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Restore/i })).toBeInTheDocument();
     });
   });
@@ -464,6 +464,9 @@ describe("ActivePageDisplay", () => {
           api_mode: "local",
         }),
       ),
+      http.post(`${API_BASE}/force-refresh`, () =>
+        HttpResponse.json({ message: "Display force-refreshed", sent: true }),
+      ),
     );
 
     const user = userEvent.setup();
@@ -480,6 +483,39 @@ describe("ActivePageDisplay", () => {
     });
 
     toastSpy.mockRestore();
+  });
+
+  it("does not hide the banner or claim success when force-refresh reports sent=false", async () => {
+    const successSpy = vi.spyOn((await import("sonner")).toast, "success");
+    const warningSpy = vi.spyOn((await import("sonner")).toast, "warning");
+    server.use(
+      http.get(`${API_BASE}/board/current-message`, () =>
+        HttpResponse.json({
+          characters: Array.from({ length: 6 }, () => Array(22).fill(1)),
+          message: "",
+          rows: 6,
+          cols: 22,
+          expected_characters: Array.from({ length: 6 }, () => Array(22).fill(2)),
+          cached_at: null,
+          api_mode: "local",
+        }),
+      ),
+      http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ message: "Nothing sent", sent: false })),
+    );
+
+    const user = userEvent.setup();
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: /Restore/i }));
+
+    await waitFor(() => {
+      expect(warningSpy).toHaveBeenCalledWith("Nothing was sent to the display");
+    });
+    expect(successSpy).not.toHaveBeenCalledWith("Board restored");
+    expect(screen.getByText("Another app changed this board")).toBeInTheDocument();
+
+    successSpy.mockRestore();
+    warningSpy.mockRestore();
   });
 
   it("saves the externally set board content as a new template page", async () => {
@@ -524,7 +560,9 @@ describe("ActivePageDisplay", () => {
     });
     expect(String(createdBody!.name)).toMatch(/^Saved from board /);
     await waitFor(() => {
-      expect(toastSpy).toHaveBeenCalledWith(expect.stringMatching(/^Saved ".*" as a page$/));
+      expect(toastSpy).toHaveBeenCalledWith(expect.stringMatching(/^Saved “Saved from board .*” as a page$/), {
+        action: expect.objectContaining({ label: "Open" }),
+      });
     });
 
     toastSpy.mockRestore();

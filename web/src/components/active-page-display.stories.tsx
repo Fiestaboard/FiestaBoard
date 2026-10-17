@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { expect, userEvent, waitFor, within } from "storybook/test";
@@ -440,4 +441,85 @@ export const PausedToast: Story = {
 /** Regression: not silenced — no alert, no sheet note, dialogs unchanged. */
 export const SilenceInactiveDefault: Story = {
   decorators: [silenced(createQueryClient("page-1", false, false, undefined, { active: false }))],
+};
+
+// ---------------------------------------------------------------------------
+// Another app wrote to the board (issue #1945): the out-of-sync banner in situ,
+// between the card header (unchanged) and the board.
+// ---------------------------------------------------------------------------
+
+const BOARD_ROWS = 6;
+const BOARD_COLS = 22;
+
+/** Text lines as board codes (A=1 … Z=26, space=0), padded to the flagship. */
+function boardRows(...lines: string[]): number[][] {
+  return Array.from({ length: BOARD_ROWS }, (_, r) => {
+    const text = lines[r] ?? "";
+    return Array.from({ length: BOARD_COLS }, (_, c) => {
+      const ch = text[c];
+      if (!ch || ch === " ") return 0;
+      const code = ch.charCodeAt(0) - 64;
+      return code >= 1 && code <= 26 ? code : 0;
+    });
+  });
+}
+
+const OWN_PAGE = boardRows("WEATHER", "SUNNY");
+const OTHER_APP = boardRows("HAPPY BIRTHDAY", "FROM THE APP");
+
+function boardMessage(rows: number[][]): string {
+  return rows.map((row) => row.map((c) => (c === 0 ? " " : String.fromCharCode(c + 64))).join("")).join("\n");
+}
+
+const withBoardState = (boardState: Record<string, unknown>) =>
+  function Decorator(Story: () => ReactNode) {
+    const client = createQueryClient("page-1", false);
+    client.setQueryData(["board-current-message"], {
+      rows: BOARD_ROWS,
+      cols: BOARD_COLS,
+      cached_at: new Date().toISOString(),
+      api_mode: "local",
+      ...boardState,
+    });
+    return (
+      <QueryClientProvider client={client}>
+        <div className="max-w-4xl">
+          <Story />
+        </div>
+      </QueryClientProvider>
+    );
+  };
+
+const OUT_OF_SYNC_STATE = {
+  characters: OTHER_APP,
+  message: boardMessage(OTHER_APP),
+  expected_characters: OWN_PAGE,
+};
+
+export const OutOfSync: Story = {
+  decorators: [withBoardState(OUT_OF_SYNC_STATE)],
+};
+
+export const OutOfSyncPhone: Story = {
+  globals: { viewport: { value: "phone390", isRotated: false } },
+  parameters: {
+    viewport: {
+      options: { phone390: { name: "Phone 390×844", styles: { width: "390px", height: "844px" }, type: "mobile" } },
+    },
+    testViewport: { width: 390, height: 844 },
+  },
+  decorators: [withBoardState(OUT_OF_SYNC_STATE)],
+};
+
+
+export const ExternalFrameKept: Story = {
+  decorators: [
+    withBoardState({
+      characters: OWN_PAGE,
+      message: boardMessage(OWN_PAGE),
+      expected_characters: OWN_PAGE,
+      external_characters: OTHER_APP,
+      external_detected_at: new Date().toISOString(),
+    }),
+  ],
 };
