@@ -165,6 +165,10 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
     else:
         state = read_board_state(board_id, want="board", service=service)
 
+    # Only a board holding a confirmed external frame has these keys (issue
+    # #1945; exclude_unset keeps every other response byte-identical).
+    external = _external_frame_fields(service, board_id)
+
     if state.characters is None:
         # Nothing on this board yet — return its geometry so the UI can
         # degrade gracefully (render the active page instead).
@@ -178,6 +182,7 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
             cached_at=None,
             api_mode=state.api_mode,
             board_id=board_id,
+            **external,
         )
 
     return BoardCurrentMessageResponse(
@@ -198,7 +203,60 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
         cached_at=datetime.fromtimestamp(state.polled_at, tz=UTC).isoformat() if state.polled_at is not None else None,
         api_mode=state.api_mode,
         board_id=board_id,
+        **external,
     )
+
+
+def _external_frame_fields(service, board_id: str | None) -> dict:
+    """``external_characters`` / ``external_detected_at`` for *board_id*, or nothing.
+
+    Read through ``DisplayService.external_frame`` (which applies the TTL),
+    never off the runtime. A service without the accessor, or one that
+    answers anything but a ``(grid, time)`` pair, holds no frame.
+    """
+    accessor = getattr(service, "external_frame", None)
+    if not callable(accessor):
+        return {}
+    held = accessor(board_id)
+    if not (isinstance(held, tuple) and len(held) == 2 and isinstance(held[0], list)):
+        return {}
+    characters, detected_at = held
+    if not isinstance(detected_at, (int, float)):
+        return {}
+    return {
+        "external_characters": characters,
+        "external_detected_at": datetime.fromtimestamp(detected_at, tz=UTC).isoformat(),
+    }
+
+
+@router.delete(
+    "/board/external-frame",
+    status_code=204,
+    response_class=Response,
+    responses=errors(404, 503),
+)
+async def dismiss_external_frame(board_id: str | None = None) -> Response:
+    """Forget the board's remembered external frame (issue #1945).
+
+    The board poll keeps the last frame it confirmed another app wrote, so
+    the web UI can offer "Save as page" even after FiestaBoard painted its
+    page back. This drops it: the user dismissed that offer, or restored
+    their page over it. Idempotent — a board holding no frame answers 204
+    too.
+
+    Args:
+        board_id: The board whose frame to forget; omitted means the primary
+            board. 404 when no such board is configured.
+    """
+    if board_id is not None:
+        _require_board(board_id)
+    service = runtime.get_service()
+    if service is None:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    rt = service.runtime_for(board_id)
+    if rt is not None:
+        rt.external_frame = None
+    return Response(status_code=204)
 
 
 # ---------------------------------------------------------------------------
