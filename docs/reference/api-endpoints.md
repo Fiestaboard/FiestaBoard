@@ -205,11 +205,11 @@ Rename a board, pause or resume it, turn its schedule on or off, or set the page
 
 **Put something on a board**
 
-The one way to write to a board. Send exactly one of `text` (word-wrapped for you), `lines` (one string per row), `characters` (a raw flap grid), `page_id` (render a saved page) or `fill` (one flap code everywhere; 0 blanks the board).
+The one way to write to a board. Send exactly one of `text` (word-wrapped for you), `lines` (one string per row), `characters` (a raw flap grid), `page_id` (render a saved page), `fill` (one flap code everywhere; 0 blanks the board), `plugin_id` (a plugin's live data, formatted the way the plugin displays itself) or `template` (one line per row with plugin variables like `{{weather.temperature}}` filled from live plugin data).
 
 Add `duration_minutes` to make it temporary — it reverts to your schedule, a chosen page, or a blank board when the time is up. `board` may be a board id or the literal `primary`.
 
-`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused or inside its silence window refuses the write with 409 rather than lying about it. A board made of several devices (a local note array) that takes the write on only some of them answers 502, and `detail.failed_regions` names the cells that did not update; sending again retries only those.
+`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused or inside its silence window refuses the write with 409 rather than lying about it. Send `if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board is paused, and `characters` is what it would have shown. Nothing is written. A board made of several devices (a local note array) that takes the write on only some of them answers 502, and `detail.failed_regions` names the cells that did not update; sending again retries only those.
 
 **Parameters**
 
@@ -226,11 +226,14 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 | `characters` | array of array of `integer` \| `null` | no | A raw flap grid, sized exactly to the board. Codes are 0-71. |
 | `page_id` | `string` \| `null` | no | Render a saved page (or collection) and send the result. |
 | `fill` | `integer` \| `null` | no | Fill the whole board with one flap code (0-71). 0 blanks it. (0–71) |
+| `plugin_id` | `string` \| `null` | no | Plugin content: fetch this plugin's live data, format it the way the plugin displays itself, and send the result (#2072). |
+| `template` | array of `string` \| `null` | no | Plugin content: one template line per board row, with plugin variables such as `{{weather.temperature}}` filled in from live plugin data before sending (#2072). |
 | `duration_minutes` | `integer` \| `null` | no | Show this for N minutes, then revert. Omit for a message that stays until something else replaces it. (1–480) |
 | `revert_mode` | `"schedule"` \| `"page"` \| `"blank"` \| `null` | no | What to show when a timed message expires. Requires duration_minutes. Defaults to "schedule". |
 | `revert_page_id` | `string` \| `null` | no | The page to revert to. Required when revert_mode is "page". |
 | `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the board's own transition animation for this one send. |
 | `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. (default `false`) |
+| `if_paused` | `"reject"` \| `"preview"` | no | What to do when the board is paused. "reject" (the default) answers 409. "preview" answers 200 with `sent: false`, a `reason`, and the grid that would have been shown, without writing anything. (default `"reject"`) |
 
 **Responses**
 
@@ -1487,8 +1490,9 @@ what every existing caller gets today.
 
 `POST /v1/boards/{board}/message` — the front door.
 
-Exactly one of `text`, `lines`, `characters`, `page_id` or
-`fill` says _what_ to show. Everything else says how long and how.
+Exactly one of `text`, `lines`, `characters`, `page_id`,
+`fill`, `plugin_id` or `template` says _what_ to show. Everything else says how
+long and how.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -1497,11 +1501,14 @@ Exactly one of `text`, `lines`, `characters`, `page_id` or
 | `characters` | array of array of `integer` \| `null` | no | A raw flap grid, sized exactly to the board. Codes are 0-71. |
 | `page_id` | `string` \| `null` | no | Render a saved page (or collection) and send the result. |
 | `fill` | `integer` \| `null` | no | Fill the whole board with one flap code (0-71). 0 blanks it. (0–71) |
+| `plugin_id` | `string` \| `null` | no | Plugin content: fetch this plugin's live data, format it the way the plugin displays itself, and send the result (#2072). |
+| `template` | array of `string` \| `null` | no | Plugin content: one template line per board row, with plugin variables such as `{{weather.temperature}}` filled in from live plugin data before sending (#2072). |
 | `duration_minutes` | `integer` \| `null` | no | Show this for N minutes, then revert. Omit for a message that stays until something else replaces it. (1–480) |
 | `revert_mode` | `"schedule"` \| `"page"` \| `"blank"` \| `null` | no | What to show when a timed message expires. Requires duration_minutes. Defaults to "schedule". |
 | `revert_page_id` | `string` \| `null` | no | The page to revert to. Required when revert_mode is "page". |
 | `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the board's own transition animation for this one send. |
 | `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. (default `false`) |
+| `if_paused` | `"reject"` \| `"preview"` | no | What to do when the board is paused. "reject" (the default) answers 409. "preview" answers 200 with `sent: false`, a `reason`, and the grid that would have been shown, without writing anything. (default `"reject"`) |
 
 ### `MessageResponse` {#schema-messageresponse}
 
