@@ -25,7 +25,7 @@ future change is most likely to unpick:
 
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -599,7 +599,7 @@ def test_supplying_two_content_fields_is_a_422(client, boards, board_client):
     response = client.post("/v1/boards/primary/message", json={"text": "a", "fill": 1})
 
     assert response.status_code == 422
-    assert "Supply exactly one of text, lines, characters, page_id or fill" in response.text
+    assert "Supply exactly one of text, lines, characters, page_id, fill, plugin_id or template" in response.text
 
 
 def test_supplying_no_content_field_is_a_422(client, boards, board_client):
@@ -1390,3 +1390,110 @@ def test_render_rejects_an_unknown_device_type(client):
     response = client.post("/v1/render", json={"template": ["HI"]}, params={"device_type": "billboard"})
 
     assert response.status_code == 422
+
+
+# ── #2072: plugin content form and the non-409 answer for a paused board ────
+
+
+def test_template_form_renders_plugin_variables_before_sending(client, boards, board_client):
+    engine = MagicMock()
+    engine.render_lines.return_value = "72F SUNNY"
+    with patch("src.templates.engine.get_template_engine", return_value=engine):
+        response = client.post("/v1/boards/primary/message", json={"template": ["{{weather.temperature}}"]})
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["sent"] is True
+    assert body["text"] == "72F SUNNY"
+    assert engine.render_lines.call_args.args[0] == ["{{weather.temperature}}"]
+    board_client.render.assert_called_once()
+
+
+def test_template_form_reports_a_bad_template_as_400(client, boards, board_client):
+    engine = MagicMock()
+    engine.render_lines.side_effect = ValueError("unknown plugin")
+    with patch("src.templates.engine.get_template_engine", return_value=engine):
+        response = client.post("/v1/boards/primary/message", json={"template": ["{{nope.x}}"]})
+
+    assert response.status_code == 400
+    assert "unknown plugin" in response.json()["detail"]
+    board_client.render.assert_not_called()
+
+
+def test_template_is_one_of_the_exclusive_content_forms(client, boards):
+    response = client.post("/v1/boards/primary/message", json={"template": ["A"], "text": "B"})
+
+    assert response.status_code == 422
+
+
+def test_paused_board_preview_answers_200_without_writing(client, boards, board_client):
+    from src.settings.service import get_settings_service
+
+    primary_id, _ = boards
+    get_settings_service().set_paused(True, board_id=primary_id)
+
+    response = client.post("/v1/boards/primary/message", json={"text": "Hello", "if_paused": "preview"})
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["sent"] is False
+    assert "paused" in body["reason"]
+    assert body["expires_at"] is None
+    assert body["text"].startswith("HELLO") or "Hello".upper() in body["text"].upper()
+    board_client.render.assert_not_called()
+
+
+def test_if_paused_preview_on_a_running_board_sends_normally(client, boards, board_client):
+    response = client.post("/v1/boards/primary/message", json={"text": "Hello", "if_paused": "preview"})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["sent"] is True
+    board_client.render.assert_called_once()
+
+
+def test_if_paused_rejects_unknown_values(client, boards):
+    response = client.post("/v1/boards/primary/message", json={"text": "Hello", "if_paused": "override"})
+
+    assert response.status_code == 422
+
+
+def _display_result(**kwargs):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(**{"available": True, "formatted": "", "error": None, **kwargs})
+
+
+def test_plugin_id_form_sends_the_plugins_formatted_display(client, boards, board_client):
+    service = MagicMock()
+    service.get_display.return_value = _display_result(formatted="WEATHER 72F")
+    with patch("src.displays.service.get_display_service", return_value=service):
+        response = client.post("/v1/boards/primary/message", json={"plugin_id": "weather"})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["sent"] is True
+    assert response.json()["text"] == "WEATHER 72F"
+    service.get_display.assert_called_once()
+    assert service.get_display.call_args.args[0] == "weather"
+    assert service.get_display.call_args.kwargs["board"] is not None
+    board_client.render.assert_called_once()
+
+
+def test_plugin_id_form_404s_an_unknown_plugin(client, boards, board_client):
+    service = MagicMock()
+    service.get_display.return_value = _display_result(available=False, error="Unknown display type: nope")
+    with patch("src.displays.service.get_display_service", return_value=service):
+        response = client.post("/v1/boards/primary/message", json={"plugin_id": "nope"})
+
+    assert response.status_code == 404
+    board_client.render.assert_not_called()
+
+
+def test_plugin_id_form_503s_when_the_plugin_has_no_data(client, boards, board_client):
+    service = MagicMock()
+    service.get_display.return_value = _display_result(available=False, error="API down")
+    with patch("src.displays.service.get_display_service", return_value=service):
+        response = client.post("/v1/boards/primary/message", json={"plugin_id": "weather"})
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "API down"
+    board_client.render.assert_not_called()
