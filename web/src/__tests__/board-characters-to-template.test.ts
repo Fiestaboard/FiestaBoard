@@ -15,7 +15,13 @@ describe("boardCharactersToTemplate", () => {
   });
 
   it("produces one line per row and trims trailing blanks", () => {
-    expect(boardCharactersToTemplate([[1, 0, 0], [0, 0, 0], [0, 2, 0]])).toEqual(["A", "", " B"]);
+    expect(
+      boardCharactersToTemplate([
+        [1, 0, 0],
+        [0, 0, 0],
+        [0, 2, 0],
+      ]),
+    ).toEqual(["A", "", " B"]);
   });
 
   it("renders undefined and out-of-range codes as blanks", () => {

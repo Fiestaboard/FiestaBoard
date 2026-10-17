@@ -39,13 +39,13 @@ import {
   ChevronRight,
   GalleryHorizontalEnd,
   Loader2,
-  Save,
   Moon,
   MoreVertical,
   Pause,
   PencilLine,
   Play,
   Radio,
+  Save,
   Timer,
   UploadCloud,
   X,
@@ -856,31 +856,31 @@ export function ActivePageDisplay() {
                   {t("updatedExternally")}
                 </Text>
                 <Flex align="center" gap="2" wrap className="shrink-0">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleResendToBoard}
-                  disabled={isSyncing}
-                  className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
-                >
-                  {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
-                  {t("resendToBoard")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => saveExternalAsPageMutation.mutate()}
-                  disabled={saveExternalAsPageMutation.isPending}
-                  className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
-                >
-                  {saveExternalAsPageMutation.isPending ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Save className="h-3 w-3" />
-                  )}
-                  {t("saveAsPage")}
-                </Button>
-              </Flex>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleResendToBoard}
+                    disabled={isSyncing}
+                    className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
+                  >
+                    {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
+                    {t("resendToBoard")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => saveExternalAsPageMutation.mutate()}
+                    disabled={saveExternalAsPageMutation.isPending}
+                    className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
+                  >
+                    {saveExternalAsPageMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Save className="h-3 w-3" />
+                    )}
+                    {t("saveAsPage")}
+                  </Button>
+                </Flex>
               </AlertDescription>
             </Alert>
           )}
