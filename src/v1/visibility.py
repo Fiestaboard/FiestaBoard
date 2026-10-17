@@ -5,7 +5,7 @@ Measured on ``next`` before this module existed: **231 published operations,
 outside ``web/src``. The published OpenAPI document was the browser's private
 RPC surface, and a newcomer was asked to find the front door inside it.
 
-``/v1`` is that front door — 31 operations over four nouns. This module is
+``/v1`` is that front door — 33 operations over five nouns. This module is
 what makes it findable, by taking everything else out of the published
 document:
 

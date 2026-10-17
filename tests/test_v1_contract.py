@@ -118,8 +118,8 @@ def _seed_page(client: TestClient, name: str = "Contract Page") -> str:
 # ── the surface itself ──────────────────────────────────────────────────────
 
 
-def test_v1_publishes_exactly_thirty_one_operations():
-    """The contract is 31 operations. A 32nd is a decision, not a side effect."""
+def test_v1_publishes_exactly_thirty_three_operations():
+    """The contract is 33 operations. A 34th is a decision, not a side effect."""
     from tests.test_route_inventory import build_route_inventory
 
     operations = [
@@ -137,6 +137,8 @@ def test_v1_publishes_exactly_thirty_one_operations():
             "POST /v1/boards/{board}/message",
             "DELETE /v1/boards/{board}/message",
             "PUT /v1/boards/{board}/active-page",
+            "GET /v1/install",
+            "PATCH /v1/install",
             "GET /v1/pages",
             "POST /v1/pages",
             "GET /v1/pages/{page_id}",
@@ -429,6 +431,72 @@ def test_patch_with_an_unknown_default_page_is_a_404(client, boards):
 def test_patch_rejects_a_coerced_boolean(client, boards):
     """StrictBool: "yes" must not silently stop the board (the #1887 hole)."""
     response = client.patch("/v1/boards/primary", json={"paused": "yes"})
+
+    assert response.status_code == 422
+
+
+def test_get_install_answers_the_board_less_reads(client, boards):
+    """GET /v1/install answers exactly what the board-less internal routes answer."""
+    page_id = _seed_page(client)
+    client.put("/schedules/default-page", json={"page_id": page_id})
+    client.put("/schedules/enabled", json={"enabled": True})
+
+    response = client.get("/v1/install")
+
+    assert response.status_code == 200
+    assert response.json() == {"schedule_enabled": True, "default_page_id": page_id}
+    assert client.get("/schedules/enabled").json() == {"enabled": True}
+    assert client.get("/schedules/default-page").json() == {"default_page_id": page_id}
+
+
+def test_get_install_works_on_an_install_with_no_boards(client):
+    response = client.get("/v1/install")
+
+    assert response.status_code == 200
+    assert set(response.json()) == {"schedule_enabled", "default_page_id"}
+
+
+def test_patch_install_writes_what_the_board_less_routes_read(client, boards):
+    page_id = _seed_page(client)
+
+    response = client.patch("/v1/install", json={"schedule_enabled": True, "default_page_id": page_id})
+
+    assert response.status_code == 200
+    assert response.json() == {"schedule_enabled": True, "default_page_id": page_id}
+    assert client.get("/schedules/enabled").json() == {"enabled": True}
+    assert client.get("/schedules/default-page").json() == {"default_page_id": page_id}
+
+
+def test_patch_install_applies_only_the_fields_sent(client, boards):
+    page_id = _seed_page(client)
+    client.patch("/v1/install", json={"default_page_id": page_id})
+
+    response = client.patch("/v1/install", json={"schedule_enabled": True})
+
+    assert response.status_code == 200
+    assert response.json() == {"schedule_enabled": True, "default_page_id": page_id}
+
+
+def test_patch_install_with_null_clears_the_default_page(client, boards):
+    page_id = _seed_page(client)
+    client.patch("/v1/install", json={"default_page_id": page_id})
+
+    response = client.patch("/v1/install", json={"default_page_id": None})
+
+    assert response.status_code == 200
+    assert response.json()["default_page_id"] is None
+    assert client.get("/schedules/default-page").json() == {"default_page_id": None}
+
+
+def test_patch_install_with_an_unknown_default_page_is_a_404(client, boards):
+    response = client.patch("/v1/install", json={"default_page_id": "nope"})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Page not found: nope"}
+
+
+def test_patch_install_rejects_a_coerced_boolean(client, boards):
+    response = client.patch("/v1/install", json={"schedule_enabled": "yes"})
 
     assert response.status_code == 422
 

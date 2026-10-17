@@ -141,8 +141,9 @@ SUPERSEDED_BY_V1: dict[str, str] = {
     "DELETE /pages/{page_id}": "/api/v1/pages/{page_id}",
     # Schedules — the five CRUD operations only. The four board-scoped
     # settings routes (enabled / default-page) are excluded: they accept a
-    # request with no board at all and answer for the install, and
-    # PATCH/GET /v1/boards/{board} has no board-less form.
+    # request with no board at all and answer for the install. Their
+    # board-less successor is GET/PATCH /v1/install (#2073); adding them
+    # to this cohort is #1941's decision, not a side effect of that.
     "GET /schedules": "/api/v1/schedules",
     "POST /schedules": "/api/v1/schedules",
     "GET /schedules/{schedule_id}": "/api/v1/schedules/{schedule_id}",

@@ -1957,6 +1957,22 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/v1/install",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_install",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/install",
+      "methods": [
+        "PATCH"
+      ],
+      "name": "update_install",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/v1/pages",
       "methods": [
         "GET"
