@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_is_paused, _silence_active
+from src.board_guards import _board_is_paused, silence_verdict
 from src.board_send_executor import run_board_send
 from src.devices import geometry_of, resolve_dimensions
 from src.display_runtime import get_service
@@ -216,7 +216,7 @@ async def get_displays_raw_batch(request: DisplayRawBatchRequest):
 
 
 @router.post("/displays/{display_type}/send", response_model=DisplaySendResponse, responses=errors(400, 500, 503))
-async def send_display(display_type: str, target: str | None = None, force: bool = False):
+async def send_display(display_type: str, target: str | None = None, override_silence: bool = False):
     """
     Send a display to the configured target (ui, board, or both).
 
@@ -224,11 +224,13 @@ async def send_display(display_type: str, target: str | None = None, force: bool
         display_type: The display type to send
         target: Override output target (ui, board, both). If not provided,
                 uses the configured default.
-        force: ``true`` explicitly overrides the primary board's silence
-               window for this one send (issue #1943). Defaults to
-               ``false``: during silence the board is left untouched, the
-               same policy every other manual send applies. Pause is never
-               overridden.
+        override_silence: ``true`` explicitly overrides the primary
+               board's silence window for this one send (issue #1943).
+               Defaults to ``false``: during silence the board is left
+               untouched (``silenced: true``), the same policy every other
+               manual send applies, and the display is held to show when
+               silence ends when the board's schedule holds sends
+               (``held: true``). Pause is never overridden.
 
     Returns:
         Result of the send operation.
@@ -262,16 +264,26 @@ async def send_display(display_type: str, target: str | None = None, force: bool
 
     sent_to_board = False
     paused = False
+    silenced = False
+    held = False
     if send_to_board:
-        # Respect the silence window unless the caller explicitly forces
-        # the send (issue #1943) — this path used to ignore silence entirely.
-        if not force and _silence_active():
-            logger.info("Silence mode is active - skipping display send to board (pass force=true to override)")
-        # Skip when the (first) board is paused (issue #970).
-        elif _board_is_paused():
+        # Respect the silence window unless the caller explicitly overrides
+        # it (issue #1943) — this path used to ignore silence entirely.
+        from src.silence_queue import HeldSend
+
+        verdict = silence_verdict(
+            None,
+            override_silence=override_silence,
+            hold=lambda resolved: HeldSend.display(display_type, board_id=resolved),
+            what="display send (pass override_silence=true to override)",
+        )
+        silenced, held = verdict.silenced, verdict.held
+        # Skip when the (first) board is paused (issue #970). Evaluated even
+        # when silence won, so both flags are reported truthfully.
+        if _board_is_paused():
             logger.info("Board is paused - skipping display send to board")
             paused = True
-        else:
+        if not silenced and not paused:
             # The first board's own transition choice, if it has one (D21).
             transition = settings_service.get_transition_settings(settings_service.get_primary_board_id())
             # Size to the first board's geometry (flagship, note, a note
@@ -297,11 +309,19 @@ async def send_display(display_type: str, target: str | None = None, force: bool
             sent_to_board = was_sent
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to send to board")
+            if was_sent and override_silence:
+                # A newer explicit write beats a message held during silence.
+                from src import silence_queue
+                from src.board_guards import resolve_board_id
+
+                silence_queue.discard(resolve_board_id(None))
 
     return DisplaySendResponse(
         display_type=display_type,
         message=result.formatted,
         sent_to_board=sent_to_board,
         paused=paused,
+        silenced=silenced,
+        held=held,
         target=target or settings_service.get_output_settings().target,
     )

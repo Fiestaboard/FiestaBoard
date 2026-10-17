@@ -190,6 +190,9 @@ class TemplateRenderLiveRequest(TemplateRenderRequest):
     """``POST /templates/render/live`` request body."""
 
     board_id: str | None = None
+    #: Send to the board even while it is silenced (issue #1943). Default
+    #: false: during silence the render is returned but the board is left alone.
+    override_silence: bool = False
 
 
 class TemplateRenderLiveResponse(TemplateRenderResponse):
@@ -202,4 +205,7 @@ class TemplateRenderLiveResponse(TemplateRenderResponse):
 
     sent_to_board: bool
     paused: bool = False
+    #: True when the board's silence window kept this render off the board
+    #: (issue #1943). Reported independently of ``paused``.
+    silenced: bool = False
     board_id: str | None = None

@@ -557,13 +557,16 @@ class PageSendResponse(BaseModel):
     """``POST /pages/{page_id}/send`` — what was rendered and where it went.
 
     ``sent_to_board`` is False for a UI-only target, a silenced board, or a
-    paused board (``paused`` tells those last two apart from the first).
+    paused board. ``silenced`` and ``paused`` say which (both can be true);
+    ``held`` says silence is holding the page to show when the window ends.
     """
 
     page_id: str
     message: str
     sent_to_board: bool
     paused: bool = False
+    silenced: bool = False
+    held: bool = False
     target: str
     board_id: str | None = None
     #: The page's pixel canvases as rendered for the target board, when that

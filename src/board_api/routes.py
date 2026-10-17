@@ -58,13 +58,20 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
 from src import display_runtime as runtime
 from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice, flat_board_fields_notice
 from src.api_errors import errors
 from src.board_chars import characters_to_message
-from src.board_guards import _board_dims, _require_board, _silence_active, primary_board_entry
+from src.board_guards import (
+    SILENCE_DETAIL,
+    SILENCE_OVERRIDE_HINT,
+    _board_dims,
+    _require_board,
+    primary_board_entry,
+    silence_verdict,
+)
 from src.board_guards import raise_if_paused as _raise_if_paused
 from src.board_guards import raise_if_throttled as _raise_if_throttled
 from src.board_send_executor import run_board_send
@@ -83,33 +90,17 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["board"])
 
-SILENCE_DETAIL = "Manual sends are blocked during silence mode to prevent waking the board."
 
-
-def _raise_if_silenced(board_id: str | None = None, text: str | None = None) -> None:
-    """The silence window refuses every manual send (issue #1788).
+def _raise_if_silenced(board_id: str | None = None) -> None:
+    """The silence window refuses a manual send that has no override (#1788).
 
     Silence is per board, so the guard resolves the window of the board it is
     about to touch. ``board_id`` omitted resolves the primary board, which is
-    what this path meant before it could target one.
+    what this path meant before it could target one. Routes that accept
+    ``override_silence`` decide through :func:`silence_verdict` themselves.
     """
-    if _silence_active(board_id):
-        logger.info("Silence mode is active - blocking manual send to prevent wake-up")
-        if text is not None:
-            _queue_if_enabled(board_id, text)
+    if silence_verdict(board_id, override_silence=False, what="manual send").silenced:
         raise HTTPException(status_code=409, detail=SILENCE_DETAIL)
-
-
-def _queue_if_enabled(board_id: str | None, text: str) -> None:
-    """Remember a blocked send for delivery when silence ends (issue #1944)."""
-    from src import silence_queue
-    from src.config import Config
-
-    if board_id is None:
-        board_id = runtime.get_settings_service().get_primary_board_id()
-    if Config.silence_config_for(board_id).get("show_queued_on_exit"):
-        silence_queue.queue_message(board_id, text)
-        logger.info("Queued blocked message for board %s until silence ends", board_id)
 
 
 def _primary_geometry(settings_service) -> Geometry:
@@ -225,11 +216,15 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
 @router.post(
     "/send-message",
     response_model=SendResponse,
-    responses=errors(404, 409, 429, 500, 503),
+    response_model_exclude_none=True,
+    responses={
+        202: {"model": SendResponse, "description": "Held: the board is silenced and will show this when it ends."},
+        **errors(404, 409, 429, 500, 503),
+    },
     deprecated=True,
     dependencies=[deprecation_notice(successor=V1_BOARD_MESSAGE_SUCCESSOR)],
 )
-async def send_message(request: MessageRequest):
+async def send_message(request: MessageRequest, response: Response):
     """Deprecated: use ``POST /v1/boards/{board}/message`` instead.
 
     Send a custom message to a board.
@@ -242,6 +237,11 @@ async def send_message(request: MessageRequest):
     The v1 successor takes the board in the path, so it cannot be forgotten,
     and reports whether flaps actually moved rather than only that the
     request was accepted.
+
+    A silenced board (#1943, #1944): ``override_silence`` writes anyway;
+    otherwise the message is held (202, ``held: true``) when the board's
+    silence schedule holds messages until silence ends, and refused (409)
+    when it does not.
     """
     service = runtime.get_service()
     if not service:
@@ -252,7 +252,18 @@ async def send_message(request: MessageRequest):
     board_id = request.board_id
     board = _require_board(board_id) if board_id is not None else None
 
-    _raise_if_silenced(board_id, request.text)
+    from src.silence_queue import HeldSend
+
+    verdict = silence_verdict(
+        board_id,
+        override_silence=request.override_silence,
+        hold=lambda resolved: HeldSend.text(request.text, board_id=resolved),
+    )
+    if verdict.held:
+        response.status_code = 202
+        return SendResponse(message="Held until silence ends", sent=False, held=True)
+    if verdict.silenced:
+        raise HTTPException(status_code=409, detail=SILENCE_DETAIL + SILENCE_OVERRIDE_HINT)
     _raise_if_paused(board_id)
 
     board_client = service.get_board_client(board_id) if board_id is not None else service.vb_client
@@ -313,6 +324,12 @@ async def send_message(request: MessageRequest):
     # is a pull — /force-refresh, MQTT Refresh Display, re-selecting a page,
     # or an actual content change (issue #1794).
     runtime._note_out_of_band_write(board_id)
+    if request.override_silence:
+        # A newer explicit write beats a message held during silence (#1944).
+        from src import silence_queue
+        from src.board_guards import resolve_board_id
+
+        silence_queue.discard(resolve_board_id(board_id))
     # The adaptive post-send refresh polls the PRIMARY board only (board-state
     # polling tracks one board by design, issue #1243), so a send aimed at a
     # secondary must not ask for one. Same rule the executor applies.
@@ -321,7 +338,12 @@ async def send_message(request: MessageRequest):
     return SendResponse(message="Message sent successfully", sent=True)
 
 
-@router.post("/send-welcome-message", response_model=SendResponse, responses=errors(404, 409, 429, 500, 503))
+@router.post(
+    "/send-welcome-message",
+    response_model=SendResponse,
+    response_model_exclude_none=True,
+    responses=errors(404, 409, 429, 500, 503),
+)
 async def send_welcome_message(request: WelcomeMessageRequest | None = None):
     """Send a colorful welcome message to the board.
 

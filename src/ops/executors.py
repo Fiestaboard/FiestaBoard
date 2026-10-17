@@ -617,7 +617,9 @@ def delete_page(page_id: str) -> dict[str, Any]:
         return err(f"Error deleting page '{page_id}': {exc}")
 
 
-async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
+async def set_active_page(
+    page_id: str, board_id: str | None = None, *, override_silence: bool = False
+) -> dict[str, Any]:
     """Set which page is currently shown on the display.
 
     Delegates to the REST handler rather than reimplementing it: selecting
@@ -628,13 +630,16 @@ async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str
     ``board_id`` targets that board's active-page slot (#1765); omitted is
     the legacy primary-board call, exactly as before — the REST handler
     already speaks per-board (#1244), so the parameter simply flows through.
+
+    During silence the page is saved and shown when the window ends;
+    ``override_silence`` shows it now anyway (issue #1943).
     """
     from fastapi import HTTPException
 
     from src.settings.models import SetActivePageRequest
     from src.settings.routes import set_active_page as _rest_set_active_page
 
-    body: dict[str, Any] = {"page_id": page_id}
+    body: dict[str, Any] = {"page_id": page_id, "override_silence": bool(override_silence)}
     if board_id is not None:
         body["board_id"] = board_id
     try:
@@ -647,8 +652,21 @@ async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str
     message = f"Active page set to '{page_id}'."
     if board_id is not None:
         message = f"Active page set to '{page_id}' on board '{board_id}'."
+    silenced = bool(response.get("silenced"))
+    silence_ends_at = None
+    if silenced:
+        from src import board_guards
+
+        silence_ends_at = board_guards.silence_window_end(board_id)
     if response.get("paused"):
         message += " The board is paused, so it will appear when you resume it."
+    elif silenced:
+        from src.board_guards import silence_ends_hhmm
+
+        message += (
+            f" The board is silenced until {silence_ends_hhmm(silence_ends_at)} UTC, so it will appear then. "
+            "Pass override_silence=true to show it now."
+        )
     elif not response.get("sent_to_board"):
         message += " It will appear on the board on the next display refresh."
     return ok(
@@ -657,6 +675,8 @@ async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str
         board_id=board_id,
         sent_to_board=bool(response.get("sent_to_board")),
         paused=bool(response.get("paused")),
+        silenced=silenced,
+        silence_ends_at=silence_ends_at,
         warnings=response.get("warnings", []),
     )
 
@@ -681,19 +701,27 @@ class _SendTarget:
         self.settings_service = settings_service
 
 
-def _resolve_send_target(board_id: str | None) -> tuple[_SendTarget | None, dict[str, Any] | None]:
+def _resolve_send_target(
+    board_id: str | None, *, override_silence: bool = False, hold: Any = None
+) -> tuple[_SendTarget | None, dict[str, Any] | None]:
     """``(target, refusal)`` — exactly one of the two is not ``None``.
 
     The refusal is already an executor envelope: an ``err`` for a missing
     collaborator, or a ``status: "blocked"`` result for the silence window
     (#1788) and a paused board (#970). Blocked is deliberately not an error —
     it is policy, and a model relaying it should not retry.
+
+    Silence is decided by :func:`src.board_guards.silence_verdict`:
+    ``override_silence`` writes anyway (pause still refuses), and ``hold``
+    (a :class:`~src.silence_queue.HeldSend`, or a factory taking the resolved
+    board id) is held until the window ends when the board's
+    ``show_queued_on_exit`` is on — the envelope then says ``held: true``.
     """
     # get_service is the DisplayService singleton accessor — api_server
     # owns it, but this is the same seam get_system_status and
     # set_active_page already use; no REST handler is called.
+    from src import board_guards
     from src.api_server import get_service
-    from src.config import Config
     from src.settings.service import get_settings_service
 
     service = get_service()
@@ -710,12 +738,26 @@ def _resolve_send_target(board_id: str | None) -> tuple[_SendTarget | None, dict
             return None, err(f"Board not found: {board_id}")
 
     # Silence gate (#1788): resolve the *target* board's window; omitted
-    # board_id resolves the primary, exactly like the REST handler.
-    if Config.is_silence_mode_active(board_id if board_id is not None else primary_id):
+    # board_id resolves the primary, exactly like the REST handler. An
+    # explicit override_silence writes anyway; a held send is accepted for
+    # delivery when the window ends (#1943, #1944).
+    verdict = board_guards.silence_verdict(
+        board_id if board_id is not None else primary_id, override_silence=override_silence, hold=hold
+    )
+    if verdict.silenced:
+        if verdict.held:
+            message = f"Held until silence ends at {verdict.ends_hhmm} UTC."
+        else:
+            message = (
+                f"The board is silenced until {verdict.ends_hhmm} UTC: the message was not sent. "
+                "Pass override_silence=true to send it anyway."
+            )
         return None, {
             "status": "blocked",
-            "message": "Manual sends blocked during silence mode to prevent wake-ups",
+            "message": message,
             "silence_mode": True,
+            "held": verdict.held,
+            "silence_ends_at": verdict.ends_at_utc,
             "board_id": board_id,
         }
 
@@ -899,6 +941,7 @@ def send_message(
     step_interval_ms: int | None = None,
     step_size: int | None = None,
     force: bool = False,
+    override_silence: bool = False,
 ) -> dict[str, Any]:
     """Send an ad-hoc text message straight to a board (issue #1765).
 
@@ -922,11 +965,21 @@ def send_message(
     ``force`` to bypass the client's unchanged-content dedupe. Every one of
     them defaults to the behavior this executor had before they existed —
     the stored transition settings, and no forcing.
+
+    During silence the message is held (shown when the window ends) when the
+    board's ``show_queued_on_exit`` is on, and refused otherwise;
+    ``override_silence`` sends it anyway and supersedes anything held
+    (#1943, #1944). ``force`` never overrides silence.
     """
     try:
         from src.displays.messages import render_message
+        from src.silence_queue import HeldSend
 
-        target, refusal = _resolve_send_target(board_id)
+        target, refusal = _resolve_send_target(
+            board_id,
+            override_silence=override_silence,
+            hold=lambda resolved: HeldSend.text(text, board_id=resolved),
+        )
         if refusal is not None:
             return refusal
         assert target is not None
@@ -946,15 +999,26 @@ def send_message(
             force=force,
             with_outcome=True,
         )
-        return _settle_send(
+        result = _settle_send(
             target,
             outcome,
             failure="Failed to send message to the board.",
             unchanged="Message unchanged, no update needed.",
             success="Message sent successfully.",
         )
+        _discard_held_after_override(target, result, override_silence)
+        return result
     except Exception as exc:
         return err(f"Error sending message: {exc}")
+
+
+def _discard_held_after_override(target: _SendTarget, result: dict[str, Any], override_silence: bool) -> None:
+    """A newer explicit write beats a message held during silence (#1944)."""
+    if not override_silence or result.get("status") != "success" or result.get("skipped"):
+        return
+    from src import silence_queue
+
+    silence_queue.discard(target.board_id if target.board_id is not None else target.primary_id)
 
 
 def send_characters(
@@ -966,6 +1030,8 @@ def send_characters(
     step_size: int | None = None,
     force: bool = False,
     cells: Any | None = None,
+    override_silence: bool = False,
+    hold: Any = None,
 ) -> dict[str, Any]:
     """Send an already-built flap grid to a board.
 
@@ -983,9 +1049,13 @@ def send_characters(
     ``cells`` are the grid's rich cells (:mod:`src.outputs.cells`), for a
     board whose output draws a rich character set; forwarded to ``render``
     only when given, so every other call keeps its exact shape.
+
+    ``override_silence`` and ``hold`` are :func:`send_message`'s silence
+    policy; the caller says what to hold (the grid, the lines it came from,
+    or the page it rendered), because only it knows.
     """
     try:
-        target, refusal = _resolve_send_target(board_id)
+        target, refusal = _resolve_send_target(board_id, override_silence=override_silence, hold=hold)
         if refusal is not None:
             return refusal
         assert target is not None
@@ -1002,13 +1072,15 @@ def send_characters(
             with_outcome=True,
             **({"cells": cells} if cells is not None else {}),
         )
-        return _settle_send(
+        result = _settle_send(
             target,
             outcome,
             failure="Failed to send characters to the board.",
             unchanged="Board content unchanged, no update needed.",
             success="Characters sent successfully.",
         )
+        _discard_held_after_override(target, result, override_silence)
+        return result
     except Exception as exc:
         return err(f"Error sending characters: {exc}")
 

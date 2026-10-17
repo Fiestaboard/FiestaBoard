@@ -9,7 +9,7 @@
       "result": {
         "status": 409,
         "body": {
-          "detail": "Manual sends are blocked during silence mode to prevent waking the board."
+          "detail": "Manual sends are blocked while the board is silenced. Send override_silence=true to write anyway, or turn on show_queued_on_exit to hold it until silence ends."
         }
       }
     }

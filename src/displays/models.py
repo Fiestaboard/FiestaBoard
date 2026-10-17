@@ -95,4 +95,6 @@ class DisplaySendResponse(BaseModel):
     message: str
     sent_to_board: bool
     paused: bool = Field(description="True when the send was skipped because the board is paused")
+    silenced: bool = Field(default=False, description="True when the board's silence window skipped the send")
+    held: bool = Field(default=False, description="True when silence is holding this display until it ends")
     target: str

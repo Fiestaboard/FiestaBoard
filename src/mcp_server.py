@@ -2298,21 +2298,25 @@ def _build_mcp_server() -> Any:
         return summary
 
     @_tool(destructive=False, idempotent=True)
-    async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
+    async def set_active_page(
+        page_id: str, board_id: str | None = None, override_silence: bool = False
+    ) -> dict[str, Any]:
         """Set which page is currently shown on the FiestaBoard display.
 
-        This immediately changes what's visible on the board.
+        This immediately changes what's visible on the board. If silenced,
+        it is saved and shown when silence ends (silenced: true).
 
         Args:
             page_id: The page or collection ID to display (from list_pages() or list_collections()).
             board_id: Board to target on a multi-board install (from the boards
                       list in get_settings_summary()). Omitted = the primary board.
+            override_silence: Show it now even while silenced. Only if the user explicitly asks.
         """
         # The executor delegates to the REST handler rather than
         # reimplementing it (#1559): selecting a page validates the ref,
         # enforces page<->board size compatibility, dismisses active plugin
         # triggers (#856), and renders to the board.
-        return await ops_executors.set_active_page(page_id, board_id=board_id)
+        return await ops_executors.set_active_page(page_id, board_id=board_id, override_silence=override_silence)
 
     @_tool(destructive=False, idempotent=True)
     def set_schedule_mode(enabled: bool, board_id: str | None = None) -> dict[str, Any]:
@@ -2532,7 +2536,7 @@ def _build_mcp_server() -> Any:
         }
 
     @_tool(destructive=False)
-    def send_message(text: str, board_id: str | None = None) -> dict[str, Any]:
+    def send_message(text: str, board_id: str | None = None, override_silence: bool = False) -> dict[str, Any]:
         """Send a one-off text message directly to a board.
 
         The text is word-wrapped to the board's width; real newlines are
@@ -2541,7 +2545,8 @@ def _build_mcp_server() -> Any:
         up until the active page next changes or the display refreshes.
 
         A paused board or active silence mode returns status "blocked"
-        (deliberate policy — relay it to the user, don't retry). A message
+        (deliberate policy — relay it to the user, don't retry); held: true
+        means it shows when silence ends. A message
         sent inside the board's minimum send interval is DROPPED by the
         board, not queued: that is an error whose text names the window
         (e.g. "at most one message every 15s") — wait it out, then retry.
@@ -2550,8 +2555,9 @@ def _build_mcp_server() -> Any:
             text: The message text to display.
             board_id: Board to target on a multi-board install (from the boards
                       list in get_settings_summary()). Omitted = the primary board.
+            override_silence: Show it now even while silenced. Only if the user explicitly asks.
         """
-        return ops_executors.send_message(text, board_id=board_id)
+        return ops_executors.send_message(text, board_id=board_id, override_silence=override_silence)
 
     # -----------------------------------------------------------------------
     # Board state tools — the Home page's controls

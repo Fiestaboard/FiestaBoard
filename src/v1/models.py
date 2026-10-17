@@ -239,7 +239,17 @@ class MessageRequest(BaseModel):
     )
     force: StrictBool = Field(
         default=False,
-        description="Send even when the board already shows this exact content, which is normally skipped.",
+        description=(
+            "Send even when the board already shows this exact content, which is normally skipped. "
+            "Does not override silence; that is `override_silence`."
+        ),
+    )
+    override_silence: StrictBool = Field(
+        default=False,
+        description=(
+            "Write even while the board is silenced. Default false: a silenced board answers 409, or 202 with "
+            "`held: true` when its silence schedule holds messages until silence ends. Never overrides pause."
+        ),
     )
     if_paused: IfPaused = Field(
         default="reject",
@@ -293,6 +303,14 @@ class MessageResponse(BaseModel):
         default=None,
         description="Why nothing was written, when sent is false. Null when sent is true.",
     )
+    silenced: bool = Field(
+        default=False,
+        description="True when the board's silence window kept this write off the board.",
+    )
+    held: bool = Field(
+        default=False,
+        description="True when the write is held and will be shown when silence ends (HTTP 202).",
+    )
 
 
 class FailedRegion(BaseModel):
@@ -334,6 +352,13 @@ class ActivePageRequest(BaseModel):
     page_id: str | None = Field(
         description="Page or collection to pin to this board. Send null to unpin and fall back to the schedule.",
     )
+    override_silence: StrictBool = Field(
+        default=False,
+        description=(
+            "Show the page now even while the board is silenced. Default false: the page is pinned and appears "
+            "when silence ends."
+        ),
+    )
 
 
 class ActivePageResponse(BaseModel):
@@ -342,6 +367,14 @@ class ActivePageResponse(BaseModel):
     board_id: str
     page_id: str | None = Field(description="What is now pinned. Null means nothing is.")
     sent: bool = Field(description="Whether the new page reached the board immediately.")
+    silenced: bool = Field(
+        default=False,
+        description="True when the board's silence window held the immediate send. The page shows when it ends.",
+    )
+    reason: str | None = Field(
+        default=None,
+        description="Why nothing was written although nothing failed (e.g. silence). Null when sent is true.",
+    )
     error: str | None = Field(
         default=None,
         description=(

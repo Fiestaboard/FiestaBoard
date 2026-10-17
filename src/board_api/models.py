@@ -22,6 +22,9 @@ class MessageRequest(BaseModel):
 
     text: str
     board_id: str | None = None
+    #: Write even while the board is silenced (issues #1943). Pause is never
+    #: overridden.
+    override_silence: bool = False
 
 
 class WelcomeMessageRequest(BaseModel):
@@ -47,6 +50,10 @@ class SendResponse(BaseModel):
 
     message: str
     sent: bool
+    #: True when silence held the message to show when the window ends
+    #: (#1944, HTTP 202). Present only then, so every other answer keeps its
+    #: exact pinned shape (tests/test_platform_contract.py).
+    held: bool | None = None
 
 
 class BoardCurrentMessageResponse(BaseModel):

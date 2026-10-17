@@ -1584,7 +1584,7 @@ class TestServiceLifecycle:
             response = client.post("/send-message", json={"text": "Hello"})
         # Phase 2 Task 8: a silence-window refusal is a 409, not a word at 200.
         assert response.status_code == 409
-        assert "silence mode" in response.json()["detail"]
+        assert "silenced" in response.json()["detail"]
 
     def test_send_message_no_board_client(self, client, mock_service, mock_settings_service):
         mock_service.vb_client = None
@@ -1968,7 +1968,7 @@ class TestWelcomeMessage:
         with patch("src.api_server.Config.is_silence_mode_active", return_value=True):
             response = client.post("/send-welcome-message")
         assert response.status_code == 409
-        assert "silence mode" in response.json()["detail"]
+        assert "silenced" in response.json()["detail"]
 
 
 # ============================================================
