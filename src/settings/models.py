@@ -671,6 +671,9 @@ class SilenceScheduleRequest(BaseModel):
     page_id: str | None = None  # Page id to display when mode == "page"
     indicator_text: str | None = None  # Custom text to display when mode == "indicator"
     indicator_position: str | None = None  # Position: center, top-left, top-right, bottom-left, bottom-right
+    # Issue #1944: when the window ends, show the last message that was
+    # blocked during it. Opt-in; omitted → off.
+    show_queued_on_exit: bool = False
     # Board to target (issue #1788). Omitted → the install-wide schedule.
     # Deliberately in the BODY, not the URL, so the endpoint path is unchanged.
     board_id: str | None = None

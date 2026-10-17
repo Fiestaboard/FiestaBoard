@@ -86,7 +86,7 @@ router = APIRouter(tags=["board"])
 SILENCE_DETAIL = "Manual sends are blocked during silence mode to prevent waking the board."
 
 
-def _raise_if_silenced(board_id: str | None = None) -> None:
+def _raise_if_silenced(board_id: str | None = None, text: str | None = None) -> None:
     """The silence window refuses every manual send (issue #1788).
 
     Silence is per board, so the guard resolves the window of the board it is
@@ -95,7 +95,21 @@ def _raise_if_silenced(board_id: str | None = None) -> None:
     """
     if _silence_active(board_id):
         logger.info("Silence mode is active - blocking manual send to prevent wake-up")
+        if text is not None:
+            _queue_if_enabled(board_id, text)
         raise HTTPException(status_code=409, detail=SILENCE_DETAIL)
+
+
+def _queue_if_enabled(board_id: str | None, text: str) -> None:
+    """Remember a blocked send for delivery when silence ends (issue #1944)."""
+    from src import silence_queue
+    from src.config import Config
+
+    if board_id is None:
+        board_id = runtime.get_settings_service().get_primary_board_id()
+    if Config.silence_config_for(board_id).get("show_queued_on_exit"):
+        silence_queue.queue_message(board_id, text)
+        logger.info("Queued blocked message for board %s until silence ends", board_id)
 
 
 def _primary_geometry(settings_service) -> Geometry:
@@ -238,7 +252,7 @@ async def send_message(request: MessageRequest):
     board_id = request.board_id
     board = _require_board(board_id) if board_id is not None else None
 
-    _raise_if_silenced(board_id)
+    _raise_if_silenced(board_id, request.text)
     _raise_if_paused(board_id)
 
     board_client = service.get_board_client(board_id) if board_id is not None else service.vb_client

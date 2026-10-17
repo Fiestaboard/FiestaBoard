@@ -20,6 +20,7 @@ _SILENCE_KEYS = (
     "page_id",
     "indicator_text",
     "indicator_position",
+    "show_queued_on_exit",
 )
 
 SILENCE_INDICATOR_POSITIONS = ("center", "top-left", "top-right", "bottom-left", "bottom-right")
@@ -79,6 +80,8 @@ def resolve_silence_schedule(feature: dict | None, board_id: str | None = None) 
         "page_id": page_id,
         "indicator_text": indicator_text,
         "indicator_position": position,
+        # Issue #1944: deliver the last send blocked during the window when it ends.
+        "show_queued_on_exit": layer.get("show_queued_on_exit") is True,
     }
 
 

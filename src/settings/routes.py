@@ -401,6 +401,7 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         "page_id": page_id,
         "indicator_text": indicator_text,
         "indicator_position": indicator_position,
+        "show_queued_on_exit": request.show_queued_on_exit,
     }
 
     if board_id is not None:
