@@ -121,6 +121,7 @@ class TestSilenceConfigResolution:
             "page_id": None,
             "indicator_text": "SNOOZING",
             "indicator_position": "center",
+            "show_queued_on_exit": False,
         }
 
     def test_malformed_by_board_is_ignored(self):
