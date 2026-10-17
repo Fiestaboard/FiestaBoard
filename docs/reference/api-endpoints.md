@@ -766,6 +766,51 @@ Removes the collection. Its member pages are untouched, but anything still refer
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
+### `GET /v1/install` {#get-v1-install}
+
+**Read the install's own settings**
+
+Settings that belong to the install rather than to one board: whether the schedule is on and the install-wide page shown when the schedule has a gap. A board's own values are on `GET /v1/boards/{board}`.
+
+**Responses**
+
+| Status | Body | Description |
+|--------|------|-------------|
+| `200` | [`InstallSettings`](#schema-installsettings) | Successful Response |
+
+**Errors**
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
+
+### `PATCH /v1/install` {#patch-v1-install}
+
+**Change the install's own settings**
+
+Turn the install's schedule on or off, or set the install-wide page shown when the schedule has a gap. Only the fields you send are applied; omit the rest. Send `default_page_id: null` to clear it. To change one board, use `PATCH /v1/boards/{board}`.
+
+**Request body** (required) — [`InstallUpdate`](#schema-installupdate)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schedule_enabled` | `boolean` \| `null` | no | Turn the install's schedule on or off. |
+| `default_page_id` | `string` \| `null` | no | Install-wide page shown when the schedule has a gap. Send null to clear it. |
+
+**Responses**
+
+| Status | Body | Description |
+|--------|------|-------------|
+| `200` | [`InstallSettings`](#schema-installsettings) | Successful Response |
+
+**Errors**
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
+| `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
+
 ### `GET /v1/variables` {#get-v1-variables}
 
 **List every name a template can use**
@@ -1440,6 +1485,24 @@ Warn-only: the backend never mutates or removes the reference.
 | `board_name` | `string` | yes | — |
 | `surface` | `"schedule"` \| `"active_page"` \| `"silence"` | yes | — |
 | `schedule_id` | `string` \| `null` | no | — |
+
+### `InstallSettings` {#schema-installsettings}
+
+`GET /v1/install` — the settings that belong to the install, not to any one board.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schedule_enabled` | `boolean` | yes | Whether the install follows its schedule. On an install with boards this is the primary board's value; on an install with no boards configured yet it is the install-wide flag. |
+| `default_page_id` | `string` \| `null` | no | The install-wide page shown when the schedule has a gap. A board's own `default_page_id` (`PATCH /v1/boards/{board}`) takes precedence over it for that board. |
+
+### `InstallUpdate` {#schema-installupdate}
+
+`PATCH /v1/install` — every field optional, only what you send is applied.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schedule_enabled` | `boolean` \| `null` | no | Turn the install's schedule on or off. |
+| `default_page_id` | `string` \| `null` | no | Install-wide page shown when the schedule has a gap. Send null to clear it. |
 
 ### `LineMetadata` {#schema-linemetadata}
 
@@ -2143,7 +2206,7 @@ truthy non-error result selects `page_id` as the active page.
 
 ## Where the rest of the API went
 
-This page documents the 33 operations the app publishes. The other
+This page documents the 35 operations the app publishes. The other
 ~200 paths the app serves are the web UI's private RPC channel: they still
 answer exactly as they always have, but they are undocumented on purpose,
 carry no compatibility promise, and may change in any release. They are

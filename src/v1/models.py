@@ -418,3 +418,34 @@ class RenderRequest(BaseModel):
         default=None,
         description="Per-line alignment and wrap options, one entry per line.",
     )
+
+
+class InstallSettings(BaseModel):
+    """``GET /v1/install`` — the settings that belong to the install, not to any one board."""
+
+    schedule_enabled: bool = Field(
+        description=(
+            "Whether the install follows its schedule. On an install with boards this is the primary board's "
+            "value; on an install with no boards configured yet it is the install-wide flag."
+        ),
+    )
+    default_page_id: str | None = Field(
+        default=None,
+        description=(
+            "The install-wide page shown when the schedule has a gap. A board's own ``default_page_id`` "
+            "(``PATCH /v1/boards/{board}``) takes precedence over it for that board."
+        ),
+    )
+
+
+class InstallUpdate(BaseModel):
+    """``PATCH /v1/install`` — every field optional, only what you send is applied."""
+
+    schedule_enabled: StrictBool | None = Field(
+        default=None,
+        description="Turn the install's schedule on or off.",
+    )
+    default_page_id: str | None = Field(
+        default=None,
+        description="Install-wide page shown when the schedule has a gap. Send null to clear it.",
+    )
