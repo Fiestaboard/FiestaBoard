@@ -47,7 +47,10 @@ test.describe("Integrations Page", () => {
       .getByText("Weather", { exact: false })
       .or(page.getByText("Date", { exact: false }))
       .or(page.getByText("Stocks", { exact: false }))
-      .or(page.getByText("Traffic", { exact: false }));
+      .or(page.getByText("Traffic", { exact: false }))
+      // "Date" also matches the header's hidden "Update available" span, which
+      // comes first in DOM order; only count text a user can actually see.
+      .filter({ visible: true });
 
     await expect(pluginLocator.first()).toBeVisible({ timeout: 10_000 });
   });
