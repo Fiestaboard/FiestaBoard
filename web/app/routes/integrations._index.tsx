@@ -1040,6 +1040,51 @@ function DeprecatedBadge({ label }: { label: string }) {
   );
 }
 
+type SortDir = "asc" | "desc";
+
+/** `aria-sort` for a sortable column header: only the active column gets a direction. */
+function ariaSortFor(active: boolean, dir: SortDir): "ascending" | "descending" | "none" {
+  if (!active) return "none";
+  return dir === "asc" ? "ascending" : "descending";
+}
+
+/**
+ * The clickable part of a sortable column header (#2003). A real `<button>` so
+ * it is focusable and activates with Enter / Space; the direction itself is
+ * announced through `aria-sort` on the enclosing `<th>`, so the chevron is
+ * decorative and hidden from assistive tech.
+ */
+function SortHeaderButton({
+  label,
+  active,
+  dir,
+  onSort,
+}: {
+  label: string;
+  active: boolean;
+  dir: SortDir;
+  onSort: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSort}
+      className="flex w-full items-center gap-1 rounded-sm text-left font-medium cursor-pointer select-none hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {label}
+      {active ? (
+        dir === "asc" ? (
+          <ChevronUp className="h-3 w-3" aria-hidden="true" />
+        ) : (
+          <ChevronDown className="h-3 w-3" aria-hidden="true" />
+        )
+      ) : (
+        <ChevronsUp className="h-3 w-3 opacity-30" aria-hidden="true" />
+      )}
+    </button>
+  );
+}
+
 function InstalledPluginRow({
   plugin,
   onToggle,
@@ -2598,24 +2643,18 @@ export default function IntegrationsPage() {
                             <TableHead
                               key={col}
                               className={cn(
-                                "px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors h-auto",
+                                "px-4 py-2.5 text-left font-medium text-muted-foreground text-xs h-auto",
                                 col === "category" && "hidden sm:table-cell",
                                 col === "status" && "hidden md:table-cell",
                               )}
-                              onClick={() => handleInstalledSort(col)}
+                              aria-sort={ariaSortFor(active, installedSort.dir)}
                             >
-                              <Flex align="center" gap="1">
-                                {labels[col]}
-                                {active ? (
-                                  installedSort.dir === "asc" ? (
-                                    <ChevronUp className="h-3 w-3" />
-                                  ) : (
-                                    <ChevronDown className="h-3 w-3" />
-                                  )
-                                ) : (
-                                  <ChevronsUp className="h-3 w-3 opacity-30" />
-                                )}
-                              </Flex>
+                              <SortHeaderButton
+                                label={labels[col]}
+                                active={active}
+                                dir={installedSort.dir}
+                                onSort={() => handleInstalledSort(col)}
+                              />
                             </TableHead>
                           );
                         })}
@@ -2713,21 +2752,15 @@ export default function IntegrationsPage() {
                         return (
                           <TableHead
                             key={col}
-                            className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors h-auto"
-                            onClick={() => handleMarketplaceSort(col)}
+                            className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs h-auto"
+                            aria-sort={ariaSortFor(active, marketplaceSort.dir)}
                           >
-                            <Flex align="center" gap="1">
-                              {labels[col]}
-                              {active ? (
-                                marketplaceSort.dir === "asc" ? (
-                                  <ChevronUp className="h-3 w-3" />
-                                ) : (
-                                  <ChevronDown className="h-3 w-3" />
-                                )
-                              ) : (
-                                <ChevronsUp className="h-3 w-3 opacity-30" />
-                              )}
-                            </Flex>
+                            <SortHeaderButton
+                              label={labels[col]}
+                              active={active}
+                              dir={marketplaceSort.dir}
+                              onSort={() => handleMarketplaceSort(col)}
+                            />
                           </TableHead>
                         );
                       })}
