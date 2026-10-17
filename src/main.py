@@ -1895,6 +1895,14 @@ class DisplayService:
                 # render is unconditionally pushed, otherwise "content
                 # unchanged, skipping send" leaves the indicator stuck.
                 rt.last_active_page_content = None
+                # Issue #1944: opt-in delivery of the last send blocked
+                # during the window ("show_queued_on_exit").
+                from src import silence_queue
+
+                queued = silence_queue.pop_message(board_id)
+                if queued is not None and silence_config.get("show_queued_on_exit"):
+                    logger.info("Showing message queued during silence")
+                    return self._send_trigger_content(queued, rt, wait=wait)
 
             # --- Stage: trigger input (PRIMARY only; suppressed during silence) ---
             # Triggers are a first-class engine input (#1850, per the #1767
