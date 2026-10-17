@@ -240,12 +240,30 @@ function checkMdx(file, masked) {
 // ---------------------------------------------------------------------------
 
 // {plugin.field} or {plugin.field|filter} not wrapped in a second brace pair.
-// Colour tile markers like {66} have no dot and are not matched.
-const SINGLE_BRACE_VAR_RE = /(?<!\{)\{([a-z][a-z0-9_]*\.[a-z][a-z0-9_.]*(?:\|[^{}\n]*)?)\}(?!\})/g
+// Colour tile markers like {66} have no dot and are not matched, and JS/shell
+// `${a.b}` interpolation is skipped. Python fences are exempt: there
+// `{self.url}` is f-string syntax, not a board template.
+const SINGLE_BRACE_VAR_RE = /(?<![{$])\{([a-z][a-z0-9_]*\.[a-z][a-z0-9_.]*(?:\|[^{}\n]*)?)\}(?!\})/g
+
+const EXEMPT_FENCE_LANGS = new Set(['python', 'py', 'python3', 'pycon'])
 
 export function findSingleBraceVars(source) {
   const hits = []
+  let fenceMarker = ''
+  let exemptFence = false
   source.split('\n').forEach((text, i) => {
+    const fence = text.match(/^\s*(```+|~~~+)\s*([^\s`]*)/)
+    if (fence) {
+      if (!fenceMarker) {
+        fenceMarker = fence[1][0]
+        exemptFence = EXEMPT_FENCE_LANGS.has(fence[2].toLowerCase())
+      } else if (fence[1][0] === fenceMarker) {
+        fenceMarker = ''
+        exemptFence = false
+      }
+      return
+    }
+    if (exemptFence) return
     for (const match of text.matchAll(SINGLE_BRACE_VAR_RE)) {
       hits.push({ line: i + 1, variable: match[1] })
     }
