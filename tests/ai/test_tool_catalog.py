@@ -391,6 +391,8 @@ def test_dropped_paragraphs_matches_what_the_renderer_omits():
     assert dropped_paragraphs(doc) == ["Returns a dict with notes_wide.", "Tip: call it twice."]
     assert dropped_paragraphs("One paragraph only.") == []
     assert dropped_paragraphs("") == []
+    # Only the first Args: block is rendered, so a second one counts as dropped.
+    assert dropped_paragraphs("Do it.\n\nArgs:\n    x: X.\n\nArgs:\n    y: Y.") == ["Args:\n    y: Y."]
 
 
 def test_an_argument_free_tool_loses_every_paragraph_after_the_first():

@@ -310,7 +310,11 @@ def dropped_paragraphs(description: str) -> list[str]:
     text = (description or "").strip()
     if not text:
         return []
-    return [p for p in _paragraphs(text)[1:] if not p.lstrip().startswith("Args:")]
+    rest = _paragraphs(text)[1:]
+    # Mirror _compact_description exactly: only the FIRST ``Args:`` block is
+    # rendered, so any later one is dropped too.
+    args_idx = next((i for i, p in enumerate(rest) if p.lstrip().startswith("Args:")), None)
+    return [p for i, p in enumerate(rest) if i != args_idx]
 
 
 def _signature_line(schema: dict[str, Any]) -> str:
