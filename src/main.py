@@ -99,6 +99,21 @@ BOARD_RETRY_MAX_BACKOFF = 900.0
 # an offer nobody dismisses does not linger for days.
 EXTERNAL_FRAME_TTL_SECONDS = 24 * 60 * 60
 
+# The poll loop ticks at the shortest read interval and reads each board only
+# once its own interval has passed since the poll last read it. A board due
+# every tick must be read every tick, so the comparison forgives this much of
+# the tick's own scheduling jitter.
+POLL_CADENCE_SLACK_SECONDS = 1.0
+
+
+def _board_read_interval_for(client, polling) -> int:
+    """A board's read interval: the cloud one when its driver's read-back
+    costs a network round trip (``read_back.cost == "network"``), else the
+    local one."""
+    read_back = getattr(client, "read_back", None) if client else None
+    networked = getattr(read_back, "cost", None) == "network"
+    return polling.board_read_interval_cloud if networked else polling.board_read_interval_local
+
 
 def _extended_kw(client) -> dict:
     """The render keywords for *client*'s board
@@ -220,11 +235,16 @@ class BoardRuntime:
         self.last_send_error: str | None = None
 
         # Board-state read cache (populated by the poll thread / adaptive
-        # refresh). Board-state polling stays primary-only (see
-        # ``_board_poll_loop``), but the cache lives on the runtime so a
-        # future per-board poll is a drop-in change.
+        # refresh). The one poll thread reads every readable hardware board,
+        # each at its own cadence (see ``_board_poll_loop``).
         self.polled_characters: list[list[int]] | None = None
         self.polled_at: float | None = None
+        # When the poll thread last read this board (``time.monotonic()``),
+        # the clock its per-board cadence runs on. Separate from
+        # ``polled_at``: a post-send refresh read must not push the next poll
+        # back, or two consecutive polls — what external-write detection
+        # needs — drift apart.
+        self.poll_attempted_at: float | None = None
 
         # The last frame the poll CONFIRMED another writer put on this board,
         # and when (``time.time()``) — issue #1945. Set in the same branch
@@ -1130,27 +1150,42 @@ class DisplayService:
             self.invalidate_board_content(board_id)
 
     # ------------------------------------------------------------------ #
-    # Board-state polling (primary board only; state lives on the runtime)
+    # Board-state polling (every readable hardware board; state lives on
+    # each board's runtime)
     # ------------------------------------------------------------------ #
 
     def _get_board_read_interval(self) -> int:
-        """Return the board-state read poll interval in seconds.
+        """Return the PRIMARY board's board-state read interval in seconds.
 
         The primary driver declares what a read-back costs
         (``read_back.cost``): a ``network`` read polls at the user's cloud
-        interval, anything else at the local one.
+        interval, anything else at the local one. Every other board follows
+        the same rule for its own driver (``_board_read_interval_for``).
         """
         polling = get_settings_service().get_polling_settings()
-        read_back = getattr(self.vb_client, "read_back", None) if self.vb_client else None
-        networked = getattr(read_back, "cost", None) == "network"
-        return polling.board_read_interval_cloud if networked else polling.board_read_interval_local
+        return _board_read_interval_for(self.vb_client, polling)
+
+    def _board_poll_tick(self, primary_interval: float) -> float:
+        """How long the poll loop sleeps between passes.
+
+        The shorter of the primary's interval and the two configured ones: a
+        cloud primary must not stretch the loop past the local interval, or a
+        local secondary would be read every 180 s. A local primary's cadence
+        is exactly what it was.
+        """
+        try:
+            polling = get_settings_service().get_polling_settings()
+            return min(primary_interval, polling.board_read_interval_local, polling.board_read_interval_cloud)
+        except Exception:
+            return primary_interval
 
     def _board_poll_loop(self) -> None:
-        """Background thread: periodically read the primary board's state and cache it.
+        """Background thread: periodically read every readable board's state and cache it.
 
-        Polling stays primary-only (single board-read thread — a thread per
+        ONE thread reads the boards sequentially, primary first (a thread per
         board would break the single-threaded send invariant the note-array
-        >=15s throttle relies on). The cache lives on the primary runtime.
+        >=15s throttle relies on); each board is read at its own cadence
+        (``_poll_all_boards_once``). Each board's cache lives on its runtime.
 
         This thread also hosts the failed-board recovery pass (#1827):
         ``initialize()`` is already idempotent w.r.t. this thread, so
@@ -1165,14 +1200,63 @@ class DisplayService:
             except Exception as e:  # a retry bug must never kill board polling
                 logger.error(f"Failed-board recovery pass crashed: {e}")
             try:
-                self._poll_board_state_once()
+                self._poll_all_boards_once()
             except Exception as e:
                 logger.debug(f"Board state poll failed: {e}")
-            time.sleep(interval)
+            time.sleep(self._board_poll_tick(interval))
 
-    def _poll_board_state_once(self) -> None:
-        """Read the primary board once, cache the result, and detect
-        external writes (issue #1946).
+    def _runtimes_in_poll_order(self) -> list[BoardRuntime]:
+        """Every runtime, the primary first, then ``settings.boards`` order."""
+        runtimes = self.runtimes
+        ordered: list[BoardRuntime] = []
+        primary = self._primary_runtime()
+        if primary is not None:
+            ordered.append(primary)
+        try:
+            boards = get_settings_service().get_board_settings().boards or []
+        except Exception:
+            boards = []
+        for board in boards:
+            board_id = board.get("id") if isinstance(board, dict) else getattr(board, "id", None)
+            rt = runtimes.get(board_id) if board_id is not None else None
+            if rt is not None and all(rt is not seen for seen in ordered):
+                ordered.append(rt)
+        for rt in runtimes.values():
+            if all(rt is not seen for seen in ordered):
+                ordered.append(rt)
+        return ordered
+
+    def _poll_all_boards_once(self) -> None:
+        """One poll pass: read each readable board whose own interval has passed.
+
+        A board is read when the poll has not read it yet, or when its
+        interval (``_board_read_interval_for`` its driver) has passed since
+        the poll last read it — so a cloud board is read every
+        ``board_read_interval_cloud`` even though the loop ticks at the local
+        interval. ``POLL_CADENCE_SLACK_SECONDS`` absorbs the tick's own
+        scheduling jitter, so a board due every tick is read every tick.
+        One board's failure never skips the rest.
+        """
+        polling = get_settings_service().get_polling_settings()
+        now = time.monotonic()
+        for rt in self._runtimes_in_poll_order():
+            last = rt.poll_attempted_at
+            if last is not None:
+                interval = _board_read_interval_for(rt.client, polling)
+                if now - last + POLL_CADENCE_SLACK_SECONDS < interval:
+                    continue
+            try:
+                self._poll_board_state_once(rt)
+            except Exception as e:
+                logger.debug("Board %s: state poll failed: %s", rt.board_id, e)
+
+    def _poll_board_state_once(self, rt: BoardRuntime | None = None) -> None:
+        """Read one board once (the primary when *rt* is omitted), cache the
+        result, and detect external writes (issue #1946).
+
+        Skipped, without a read: a board with no client, a virtual
+        (FiestaPanel) board — it always shows what FiestaBoard sent — a
+        driver whose read-back is unsupported, and a paused board.
 
         A fresh read that differs from what this process last wrote means
         someone else wrote the board (Vestaboard app, direct API call), so
@@ -1191,16 +1275,29 @@ class DisplayService:
         out-of-band message (issue #1831); the engine's own page sends
         clear it.
         """
-        rt = self._primary_runtime()
+        primary = self._primary_runtime()
+        if rt is None:
+            rt = primary
         if rt is None or rt.client is None:
+            return
+        client = rt.client
+        # Strict ``is True`` / ``is False`` (this file's convention): a Mock
+        # client's auto-attributes never count.
+        if getattr(client, "is_virtual", False) is True:
+            return
+        if getattr(getattr(client, "read_back", None), "supported", True) is False:
             return
         # A paused board is hands-off (issue #970) and may be unplugged:
         # reading it would only wait on the network and fail every cycle.
         # Strict ``is True`` — a Mock settings service never counts as paused.
+        # The primary is asked by its settings id: its runtime may be keyed
+        # under the legacy sentinel.
         settings = get_settings_service()
-        if settings.is_paused(board_id=settings.get_primary_board_id()) is True:
+        board_id = settings.get_primary_board_id() if rt is primary else rt.board_id
+        if settings.is_paused(board_id=board_id) is True:
             return
-        chars, external_write = rt.output.observe_read(rt.client.read_current_message)
+        rt.poll_attempted_at = time.monotonic()
+        chars, external_write = rt.output.observe_read(client.read_current_message)
         if not chars:
             return
         rt.polled_characters = chars
@@ -1215,7 +1312,7 @@ class DisplayService:
             held = rt.external_frame
             if held is None or held[0] != chars:
                 rt.external_frame = ([row[:] for row in chars], time.time())
-            logger.info("Board content changed externally; marking out-of-band")
+            logger.info("Board %s: content changed externally; marking out-of-band", rt.board_id)
 
     def _retry_failed_board_inits(self) -> None:
         """Low-frequency recovery pass for boards stuck in ``board_init_errors`` (#1827).
@@ -1336,22 +1433,29 @@ class DisplayService:
 
     def request_board_refresh(
         self,
+        board_id: str | None = None,
         initial_delay_seconds: float = 0.5,
         retry_interval_seconds: float = 1.0,
         max_total_seconds: float = 3.0,
     ) -> None:
-        """Adaptively poll the primary board after a send so the cached state
-        catches up quickly without waiting for the next full poll interval.
+        """Adaptively poll a board after a send so the cached state catches up
+        quickly without waiting for the next full poll interval.
+
+        ``board_id`` names the board just written; omitted means the primary.
+        Every board's poll cache is read by the web UI's out-of-sync banner,
+        so a board whose cache lags its own send would read as "changed by
+        another app" until the next poll (issue #1945).
 
         Strategy: sleep ``initial_delay_seconds``, read the board. If the read
         matches what we just sent, update the cache and stop. Otherwise sleep
         ``retry_interval_seconds`` and try again, until ``max_total_seconds``
         elapses. The latest successful read is always cached.
 
-        A subsequent call cancels any in-flight refresh so rapid sends don't
-        stack up threads.
+        A subsequent call for the same board cancels its in-flight refresh so
+        rapid sends don't stack up threads; other boards' refreshes are left
+        alone.
         """
-        rt = self._primary_runtime()
+        rt = self.runtime_for(board_id)
         # Cancel any in-flight refresh from a prior send.
         if rt is not None and rt.refresh_cancel is not None:
             rt.refresh_cancel.set()
@@ -1444,25 +1548,40 @@ class DisplayService:
             logger.error(f"Failed to initialize board client: {e}")
             return False
 
-        # Start background thread that reads the actual board state periodically.
-        # This must be idempotent: with a clientless primary ``vb_client`` stays
-        # None for the life of the process, so every startup gate that tests it
-        # re-enters initialize() -- ``get_service()``, ``run_service_background()``
-        # and ``run()`` -- and the backoff loop repeats that on each restart.
-        # Starting a thread per pass would leak them without bound.
-        if self._poll_thread is not None and self._poll_thread.is_alive():
-            logger.debug("Board state poll already running - reusing the existing thread")
-        else:
-            self._poll_thread = threading.Thread(target=self._board_poll_loop, daemon=True, name="board-state-poll")
-            self._poll_thread.start()
-            interval = self._get_board_read_interval()
-            logger.info(f"Board state poll started (interval={interval}s)")
+        self._ensure_board_poll_thread()
 
         # Log configuration summary
         summary = Config.get_summary()
         logger.info(f"Configuration: {summary}")
 
         return True
+
+    def _ensure_board_poll_thread(self) -> None:
+        """Start the background thread that reads the boards' state, once.
+
+        Idempotent: with a clientless primary ``vb_client`` stays None for
+        the life of the process, so every startup gate that tests it
+        re-enters initialize() -- ``get_service()``,
+        ``run_service_background()`` and ``run()`` -- and the backoff loop
+        repeats that on each restart. Starting a thread per pass would leak
+        them without bound.
+
+        ``run_service_background()`` calls it too, right before ``run()``: a
+        board added after startup (the setup wizard on a fresh install)
+        builds its client through the settings route, so ``vb_client`` is
+        already set and neither gate enters ``initialize()`` — which used to
+        leave board-state polling off until a restart (issue #1945).
+        """
+        if self._poll_thread is not None and self._poll_thread.is_alive():
+            logger.debug("Board state poll already running - reusing the existing thread")
+            return
+        self._poll_thread = threading.Thread(target=self._board_poll_loop, daemon=True, name="board-state-poll")
+        self._poll_thread.start()
+        try:
+            interval = self._get_board_read_interval()
+        except Exception:
+            interval = None
+        logger.info(f"Board state poll started (interval={interval}s)")
 
     @staticmethod
     def _get_first_board_id() -> str | None:
@@ -2324,11 +2443,13 @@ class DisplayService:
                     rt.showing_out_of_band = False
                     if was_sent:
                         logger.info(f"Board {board_id}: active page sent: {active_page_id}")
-                        # Board-state adaptive refresh is primary-only (see
-                        # _board_poll_loop). Secondary boards don't feed the
-                        # board-read cache the Active Display UI shows.
-                        if is_primary:
-                            self.request_board_refresh()
+                        # Every hardware board is polled now (issue #1945), so
+                        # each one's read cache must catch up with its own
+                        # send, or the out-of-sync banner would flash after
+                        # every page change on board 2. A virtual board shows
+                        # exactly what was sent; there is nothing to read back.
+                        if getattr(client, "is_virtual", False) is not True:
+                            self.request_board_refresh(board_id)
                     else:
                         logger.debug("Active page unchanged at board level")
                     return was_sent

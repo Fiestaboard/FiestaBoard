@@ -805,6 +805,11 @@ def run_service_background():
                 restart_delay = min(restart_delay * 2, max_restart_delay)
                 continue
 
+        # The board-state poll starts in initialize(), which is skipped when
+        # the client already exists — a board added after startup through the
+        # settings route. Without this, polling stayed off until a restart.
+        service._ensure_board_poll_thread()
+
         service.running = True
         _service_running = True
         mark_service_started()
