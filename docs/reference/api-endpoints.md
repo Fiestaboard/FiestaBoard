@@ -209,7 +209,9 @@ The one way to write to a board. Send exactly one of `text` (word-wrapped for yo
 
 Add `duration_minutes` to make it temporary — it reverts to your schedule, a chosen page, or a blank board when the time is up. `board` may be a board id or the literal `primary`.
 
-`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused or inside its silence window refuses the write with 409 rather than lying about it. Send `if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board is paused, and `characters` is what it would have shown. Nothing is written. A board made of several devices (a local note array) that takes the write on only some of them answers 502, and `detail.failed_regions` names the cells that did not update; sending again retries only those.
+`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused or inside its silence window refuses the write with 409 rather than lying about it. Send `if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board is paused, and `characters` is what it would have shown. Nothing is written.
+
+A silenced board is left alone. When its silence schedule holds messages (`show_queued_on_exit`) the write is accepted for later: 202, `sent: false`, `held: true`, and it shows when silence ends. Otherwise it is a 409. Send `override_silence: true` to write anyway. A board made of several devices (a local note array) that takes the write on only some of them answers 502, and `detail.failed_regions` names the cells that did not update; sending again retries only those.
 
 **Parameters**
 
@@ -232,7 +234,8 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 | `revert_mode` | `"schedule"` \| `"page"` \| `"blank"` \| `null` | no | What to show when a timed message expires. Requires duration_minutes. Defaults to "schedule". |
 | `revert_page_id` | `string` \| `null` | no | The page to revert to. Required when revert_mode is "page". |
 | `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the board's own transition animation for this one send. |
-| `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. (default `false`) |
+| `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. Does not override silence; that is `override_silence`. (default `false`) |
+| `override_silence` | `boolean` | no | Write even while the board is silenced. Default false: a silenced board answers 409, or 202 with `held: true` when its silence schedule holds messages until silence ends. Never overrides pause. (default `false`) |
 | `if_paused` | `"reject"` \| `"preview"` | no | What to do when the board is paused. "reject" (the default) answers 409. "preview" answers 200 with `sent: false`, a `reason`, and the grid that would have been shown, without writing anything. (default `"reject"`) |
 
 **Responses**
@@ -240,6 +243,7 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 | Status | Body | Description |
 |--------|------|-------------|
 | `200` | [`MessageResponse`](#schema-messageresponse) | Successful Response |
+| `202` | [`MessageResponse`](#schema-messageresponse) | Held: the board is silenced and will show this when it ends. |
 
 **Errors**
 
@@ -289,6 +293,8 @@ Sets the page (or collection) this board shows until something changes it — th
 
 The selection is stored whether or not the send succeeded, so check `sent` — and `error`, which names the render or send failure when it is false.
 
+While the board is silenced the page is pinned but not shown: `sent` is false, `silenced` is true and `reason` says when it will appear. Send `override_silence: true` to show it now anyway.
+
 **Parameters**
 
 | Name | In | Type | Required | Description |
@@ -300,6 +306,7 @@ The selection is stored whether or not the send succeeded, so check `sent` — a
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `page_id` | `string` \| `null` | yes | Page or collection to pin to this board. Send null to unpin and fall back to the schedule. |
+| `override_silence` | `boolean` | no | Show the page now even while the board is silenced. Default false: the page is pinned and appears when silence ends. (default `false`) |
 
 **Responses**
 
@@ -1127,18 +1134,25 @@ The v1 successor takes the board in the path, so it cannot be forgotten,
 and reports whether flaps actually moved rather than only that the
 request was accepted.
 
+A silenced board (#1943, #1944): `override_silence` writes anyway;
+otherwise the message is held (202, `held: true`) when the board's
+silence schedule holds messages until silence ends, and refused (409)
+when it does not.
+
 **Request body** (required) — [`MessageRequest (board_api)`](#schema-src-board-api-models-messagerequest)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `text` | `string` | yes | — |
 | `board_id` | `string` \| `null` | no | — |
+| `override_silence` | `boolean` | no | default `false` |
 
 **Responses**
 
 | Status | Body | Description |
 |--------|------|-------------|
 | `200` | [`SendResponse`](#schema-sendresponse) | Successful Response |
+| `202` | [`SendResponse`](#schema-sendresponse) | Held: the board is silenced and will show this when it ends. |
 
 **Errors**
 
@@ -1162,6 +1176,7 @@ Every model the operations above name, expanded once.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `page_id` | `string` \| `null` | yes | Page or collection to pin to this board. Send null to unpin and fall back to the schedule. |
+| `override_silence` | `boolean` | no | Show the page now even while the board is silenced. Default false: the page is pinned and appears when silence ends. (default `false`) |
 
 ### `ActivePageResponse` {#schema-activepageresponse}
 
@@ -1172,6 +1187,8 @@ The result of pinning a page to a board.
 | `board_id` | `string` | yes | — |
 | `page_id` | `string` \| `null` | yes | What is now pinned. Null means nothing is. |
 | `sent` | `boolean` | yes | Whether the new page reached the board immediately. |
+| `silenced` | `boolean` | no | True when the board's silence window held the immediate send. The page shows when it ends. (default `false`) |
+| `reason` | `string` \| `null` | no | Why nothing was written although nothing failed (e.g. silence). Null when sent is true. |
 | `error` | `string` \| `null` | no | Why the page did not reach the board, when `sent` is false. The selection is stored either way, so a 200 here is not on its own proof that anything was displayed (#1791). |
 | `warnings` | array of `string` | no | Non-fatal problems, e.g. collection members that do not fit this board. |
 
@@ -1548,6 +1565,7 @@ what every existing caller gets today.
 |-------|------|----------|-------------|
 | `text` | `string` | yes | — |
 | `board_id` | `string` \| `null` | no | — |
+| `override_silence` | `boolean` | no | default `false` |
 
 ### `MessageRequest (v1)` {#schema-src-v1-models-messagerequest}
 
@@ -1570,7 +1588,8 @@ long and how.
 | `revert_mode` | `"schedule"` \| `"page"` \| `"blank"` \| `null` | no | What to show when a timed message expires. Requires duration_minutes. Defaults to "schedule". |
 | `revert_page_id` | `string` \| `null` | no | The page to revert to. Required when revert_mode is "page". |
 | `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the board's own transition animation for this one send. |
-| `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. (default `false`) |
+| `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. Does not override silence; that is `override_silence`. (default `false`) |
+| `override_silence` | `boolean` | no | Write even while the board is silenced. Default false: a silenced board answers 409, or 202 with `held: true` when its silence schedule holds messages until silence ends. Never overrides pause. (default `false`) |
 | `if_paused` | `"reject"` \| `"preview"` | no | What to do when the board is paused. "reject" (the default) answers 409. "preview" answers 200 with `sent: false`, a `reason`, and the grid that would have been shown, without writing anything. (default `"reject"`) |
 
 ### `MessageResponse` {#schema-messageresponse}
@@ -1590,6 +1609,8 @@ loop rather than written on the spot. `reason` names which.
 | `text` | `string` | yes | `characters` decoded back to text, for logs and confirmations. |
 | `expires_at` | `string` \| `null` | no | When a timed message reverts (ISO 8601). Null for a message with no duration. |
 | `reason` | `string` \| `null` | no | Why nothing was written, when sent is false. Null when sent is true. |
+| `silenced` | `boolean` | no | True when the board's silence window kept this write off the board. (default `false`) |
+| `held` | `boolean` | no | True when the write is held and will be shown when silence ends (HTTP 202). (default `false`) |
 
 ### `OutputStatusSummary` {#schema-outputstatussummary}
 
@@ -2096,6 +2117,7 @@ a status code, not a flag.
 |-------|------|----------|-------------|
 | `message` | `string` | yes | — |
 | `sent` | `boolean` | yes | — |
+| `held` | `boolean` \| `null` | no | — |
 
 ### `StatusResponse` {#schema-statusresponse}
 

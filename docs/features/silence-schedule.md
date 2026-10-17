@@ -48,9 +48,11 @@ A few things follow from this:
 - **Single-board installs see no difference.** There is just the one board, so
   its schedule is the schedule.
 - **Manual sends respect the target board's window.** Sending a message or a
-  page from the Web UI, the API, or Home Assistant is blocked while *that*
-  board is silenced, so a 2 AM send cannot wake a board whose own quiet hours
-  say it should be asleep.
+  page from the Web UI, the API, or Home Assistant leaves *that* board alone
+  while it is silenced, so a 2 AM send cannot wake a board whose own quiet
+  hours say it should be asleep. See
+  [Changing the board during silence](#changing-the-board-during-silence) for
+  what happens to the send instead.
 - **The Home Assistant `silence_mode` sensor reports the primary board.** Like
   the other entities in that payload (active page, transition style), it
   describes the primary board rather than the install as a whole. The same is
@@ -76,10 +78,84 @@ Regardless of which mode you pick:
 - The web UI and API continue to function normally
 - Scheduled pages are skipped during that board's silence hours
 
-When the silence window ends:
+### When the silence window ends
 
-- The display service resumes normal operation
-- The currently scheduled (or default) page is sent to the board
+On the first update after the window ends, in this order:
+
+1. If the board is **holding a message** (see
+   [Show held messages when silence ends](#show-held-messages-when-silence-ends)),
+   that message is shown first. It stays up until the page's content next
+   changes, like any message you send by hand.
+2. Otherwise the board shows what it would show at that moment: the page you
+   picked (including one you picked *during* silence), or your schedule's
+   current page.
+
+A board that is paused when the window ends stays paused, and a held message
+for it is dropped rather than kept for whenever you resume it. The same goes
+for an install whose output is set to the web UI only.
+
+## Changing the board during silence
+
+A silenced board never changes because of something you did in the app, the
+API, Home Assistant or an AI assistant, unless you explicitly say **Show now**.
+
+- **Picking a page** (Home, Change Page) saves your choice and leaves the board
+  alone. Home shows a *Silenced until 7:00 AM* alert that says what happens
+  when silence ends, and the toast after you pick a page carries a **Show now**
+  button.
+- **Show now** is the explicit override: the alert on Home and the toast both
+  have it. It writes the page to the board right away.
+- **Force Set** and **Compose** deliberately beat silence. During silence both
+  dialogs say so, and their confirm buttons read **Show now anyway** and
+  **Send now anyway**, so waking the board is always a named choice.
+- **Live Output** in the page editor keeps previewing while the board is
+  silenced, but does not write to it. **Send to board anyway** turns writing on
+  until you stop it or turn Live Output off.
+- **Pause wins.** A paused board is never written, whatever you pass.
+
+### Over the API
+
+Every write surface takes the same flag, `override_silence` (default `false`):
+
+| Surface | Without the flag, during silence | With `override_silence: true` |
+| --- | --- | --- |
+| `PUT /v1/boards/{board}/active-page`, `PUT /settings/active-page` | The page is saved; `sent: false`, `silenced: true` and a `reason` that says when it will show | Saved and shown now |
+| `POST /v1/boards/{board}/message`, `POST /send-message` | `202` with `held: true` when the board holds messages, else `409` | Written now |
+| `POST /pages/{id}/send`, `POST /displays/{type}/send` (query param) | Not written; `silenced: true` (and `held: true` when held) | Written now |
+| `POST /templates/render/live` | Rendered but not written; `silenced: true` | Written now |
+| MCP `set_active_page`, `send_message` | The result says `silenced` / `held` and when silence ends | Written now |
+| MQTT `send_message` JSON payload, e.g. `{"message": "HI", "override_silence": true}` | Held or dropped | Written now |
+
+`force` on `POST /v1/boards/{board}/message` keeps its own meaning (write even
+when the board already shows that exact content); it does not override
+silence.
+
+## Show held messages when silence ends
+
+Turn on **Show held messages when silence ends** in **Settings → Scheduling →
+Silence Schedule** (per board, like the rest of the schedule; the API key is
+`show_queued_on_exit`). With it on, a message sent to the board during silence
+is **held** instead of refused, and shown the moment silence ends:
+
+- **What is held:** messages from Compose (**Hold until 7:00 AM**),
+  `POST /v1/boards/{board}/message`, `POST /send-message`, the MCP
+  `send_message` tool, Home Assistant's MQTT `send_message`, and page and
+  display sends. A page or plugin display is rendered fresh when it is shown,
+  so the morning gets the morning's data.
+- **Newest wins:** one held message per board; sending another replaces it.
+- **Text is word-wrapped** to the board when it is shown.
+- **It survives a restart** and is kept for at most 24 hours.
+- **You can see and discard it.** Home shows the held message under the
+  silence alert with a **Discard message** button
+  (`DELETE /silence-queue?board_id=…` over the API). `GET /silence-status`
+  reports it as `held`, and `holds_blocked_sends` says whether the option is
+  on.
+- **An explicit "show now" write wins.** Anything you write with
+  `override_silence` replaces the held message.
+
+With the option off, a message sent during silence is refused (`409`), as
+before. Page picks never need this option: they are always saved and shown when
+silence ends.
 
 :::tip
 The silence schedule uses your configured timezone (`TIMEZONE` in `.env`). Make sure this is set correctly for your location.
