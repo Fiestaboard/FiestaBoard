@@ -1331,7 +1331,11 @@ class ConfigManager:
     #: model call, so the floor is 1.
     _AI_TURN_CAP_MIN = 1
     _AI_TURN_CAP_MAX = 10_000
-    _warned_bad_turn_cap: set[str] = set()
+    #: Immutable on purpose: a class-level mutable ``set`` would be shared by
+    #: every ConfigManager in the process, so one instance's warning silenced
+    #: all later ones (an xdist ordering flake in the "logged once" test,
+    #: #2031). Each instance rebinds its own copy, like the bool flag above.
+    _warned_bad_turn_cap: frozenset[str] = frozenset()
 
     def _coerce_turn_cap(self, key: str, value: Any) -> int | None:
         """``value`` clamped into the cap bounds, or None when unset/unusable.
@@ -1346,7 +1350,7 @@ class ConfigManager:
         if isinstance(value, bool) or not isinstance(value, int):
             if key not in self._warned_bad_turn_cap:
                 logger.warning("ai_providers.%s %r is not an integer; ignoring it", key, value)
-                self._warned_bad_turn_cap.add(key)
+                self._warned_bad_turn_cap = self._warned_bad_turn_cap | {key}
             return None
         return max(self._AI_TURN_CAP_MIN, min(value, self._AI_TURN_CAP_MAX))
 

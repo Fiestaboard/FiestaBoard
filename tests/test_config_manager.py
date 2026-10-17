@@ -1651,6 +1651,26 @@ def test_get_ai_providers_ignores_a_hand_edited_non_integer_turn_cap(tmp_path, c
     assert len(warnings) == 1, "the coercion is logged once, not on every read"
 
 
+def test_the_turn_cap_warning_is_once_per_manager_not_once_per_process(tmp_path, caplog):
+    """A warning from one ConfigManager must not silence the next (#2031).
+
+    The "logged once" guard used to be a class-level ``set``, so whichever
+    test warned first on an xdist worker muted the warning for every later
+    test on that worker, and the once-only test failed depending on order.
+    """
+    from tests.conftest import _drop_all_singletons
+
+    for name in ("a", "b"):
+        path = tmp_path / f"{name}.json"
+        path.write_text(json.dumps({"ai_providers": {"max_model_calls": "lots"}}))
+        _drop_all_singletons()  # a fresh manager, as conftest gives each test
+        caplog.clear()
+        with caplog.at_level("WARNING", logger="src.config_manager"):
+            ConfigManager(config_path=str(path)).get_ai_providers()
+        warnings = [r for r in caplog.records if "max_model_calls" in r.getMessage()]
+        assert len(warnings) == 1, f"manager {name!r} should warn on its own"
+
+
 def test_a_boolean_turn_cap_is_rejected_rather_than_read_as_one(tmp_path):
     """True is an int in Python; read as a cap it would mean one model call."""
     cm = ConfigManager(config_path=str(tmp_path / "config.json"))
