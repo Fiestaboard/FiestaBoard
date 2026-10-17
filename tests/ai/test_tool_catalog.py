@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from src.ai.mcp_bridge import ToolDescriptor
-from src.ai.tool_catalog import RETIRED_OPS, ParsedToolCall, ToolCallValidationError, ToolCatalog
+from src.ai.tool_catalog import RETIRED_OPS, ParsedToolCall, ToolCallValidationError, ToolCatalog, dropped_paragraphs
 
 
 def _d(
@@ -379,3 +379,148 @@ def test_a_title_that_says_something_the_name_does_not_is_kept():
         source="chat",
     )
     assert "### ask_user — Ask the user" in ToolCatalog([descriptor]).render_addendum("global")
+
+
+# ---------------------------------------------------------------------------
+# Guidance below the first paragraph never reaches in-app chat (#2036)
+# ---------------------------------------------------------------------------
+
+
+def test_dropped_paragraphs_matches_what_the_renderer_omits():
+    doc = "Do the thing.\n\nReturns a dict with notes_wide.\n\nArgs:\n    x: The x.\n\nTip: call it twice."
+    assert dropped_paragraphs(doc) == ["Returns a dict with notes_wide.", "Tip: call it twice."]
+    assert dropped_paragraphs("One paragraph only.") == []
+    assert dropped_paragraphs("") == []
+
+
+def test_an_argument_free_tool_loses_every_paragraph_after_the_first():
+    """The sharp edge from #2035: no ``Args:`` block, so nothing below the
+    first paragraph survives — not even a line the model needs."""
+    doc = "List things.\n\nEach entry has notes_wide."
+    no_args = {"type": "object", "properties": {}}
+    text = ToolCatalog([_d("list_things", schema=no_args, description=doc)]).render_addendum("global")
+    assert "List things." in text
+    assert "notes_wide" not in text
+    assert dropped_paragraphs(doc) == ["Each entry has notes_wide."]
+
+
+#: Reviewed snapshot (#2036) of how many docstring paragraphs each real tool
+#: has that in-app chat never sees. These are return shapes, WARNING
+#: consequences and tips that external MCP clients still receive in full.
+#: A RATCHET: a count may go down (or a tool drop off) freely; it may not go
+#: up, and a tool not listed may not start dropping paragraphs, without
+#: someone deciding here that the new text is fine for chat to miss.
+REVIEWED_DROPPED_PARAGRAPHS: dict[str, int] = {
+    "add_board": 1,
+    "blank_board": 1,
+    "cancel_temporary_override": 2,
+    "check_for_update": 1,
+    "check_plugin_updates": 2,
+    "clear_board_cache": 1,
+    "configure_plugin": 5,
+    "create_collection": 1,
+    "create_page": 3,
+    "create_panel": 1,
+    "create_plugin_demo_page": 2,
+    "create_plugin_instance": 2,
+    "create_schedule": 1,
+    "delete_page": 1,
+    "delete_panel": 1,
+    "delete_plugin_instance": 1,
+    "detect_board_size": 2,
+    "disable_plugin": 1,
+    "disconnect_wifi": 1,
+    "enable_plugin": 1,
+    "export_backup": 1,
+    "export_page": 2,
+    "fill_board": 1,
+    "force_refresh": 2,
+    "forget_wifi_network": 1,
+    "get_active_page": 2,
+    "get_board_content": 2,
+    "get_current_display": 2,
+    "get_page": 1,
+    "get_plugin_data": 2,
+    "get_plugin_demo_page": 1,
+    "get_plugin_manifest": 1,
+    "get_settings_summary": 2,
+    "get_silence_status": 2,
+    "get_system_status": 2,
+    "get_template_variables": 2,
+    "get_temporary_override": 2,
+    "identify_tile": 1,
+    "import_page": 2,
+    "import_staff_pick": 2,
+    "install_plugin": 2,
+    "list_collections": 1,
+    "list_formula_functions": 2,
+    "list_installed_plugins": 1,
+    "list_pages": 1,
+    "list_panels": 1,
+    "list_pending_plugin_updates": 2,
+    "list_plugin_errors": 1,
+    "list_plugin_instances": 1,
+    "list_plugin_options": 2,
+    "list_registry_plugins": 2,
+    "list_schedules": 2,
+    "list_staff_picks": 1,
+    "list_transition_plugins": 2,
+    "pause_board": 1,
+    "preview_saved_page": 2,
+    "remove_board": 1,
+    "render_page_preview": 2,
+    "restart_system": 1,
+    "restore_board": 2,
+    "resume_board": 1,
+    "run_network_diagnostics": 1,
+    "send_message": 2,
+    "set_active_page": 1,
+    "set_default_page": 1,
+    "set_schedule_mode": 1,
+    "set_temporary_override": 1,
+    "show_board_debug_info": 1,
+    "shutdown_system": 1,
+    "test_ai_provider": 1,
+    "test_transition_live": 3,
+    "trigger_system_update": 1,
+    "uninstall_plugin": 1,
+    "update_all_plugins": 1,
+    "update_board": 1,
+    "update_collection": 1,
+    "update_page": 2,
+    "update_panel": 1,
+    "update_plugin": 1,
+    "update_schedule": 1,
+    "update_setting": 3,
+    "validate_schedules": 2,
+    "validate_template": 2,
+}
+
+
+def test_no_tool_hides_new_guidance_below_its_first_paragraph():
+    """Fails when a tool's docstring gains a paragraph the chat renderer drops.
+
+    Anything the in-app model must know goes in the FIRST paragraph (or the
+    ``Args:`` block, for a parameter). If the new paragraph really is only for
+    human readers and external MCP clients, bump that tool's count in
+    REVIEWED_DROPPED_PARAGRAPHS — deliberately, in the same change.
+    """
+    pytest.importorskip("mcp", reason="mcp package not installed")
+    import asyncio
+
+    from src.ai.chat_tools import ChatExtensionBackend
+    from src.ai.mcp_bridge import CompositeToolBackend, McpToolBackend
+
+    descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
+    grown = {}
+    for d in descriptors:
+        dropped = dropped_paragraphs(d.description)
+        if len(dropped) > REVIEWED_DROPPED_PARAGRAPHS.get(d.name, 0):
+            grown[d.name] = dropped
+    assert not grown, (
+        "These tools have docstring paragraphs that in-app chat never sees "
+        "(only the first paragraph and Args: are rendered). Move anything the "
+        "model must know into the first paragraph, or raise the tool's count in "
+        "REVIEWED_DROPPED_PARAGRAPHS if it is only for human/MCP readers:\n"
+        + "\n".join(f"- {name}: {paras[-1][:120]!r}" for name, paras in sorted(grown.items()))
+    )
