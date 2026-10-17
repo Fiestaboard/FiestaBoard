@@ -23,6 +23,11 @@
 //      page. Code fences and inline code spans are exempt (MDX leaves
 //      those alone). Heuristics are conservative: only constructs that
 //      actually break `mdx` compilation are flagged.
+//   4. No single-brace template variables. The template engine only resolves
+//      {{source.field}} (src/templates/engine.py VAR_PATTERN); a docs example
+//      written as {source.field} renders as literal text on the board when a
+//      reader copies it. Checked everywhere, code included, since copyable
+//      examples usually live in code spans and fences (issue #2058).
 //
 // Frontmatter presence + required fields are enforced by the companion
 // script lint-docs-frontmatter.mjs; this script adds a structural check
@@ -231,6 +236,48 @@ function checkMdx(file, masked) {
 }
 
 // ---------------------------------------------------------------------------
+// 4. Template variables must use double braces.
+// ---------------------------------------------------------------------------
+
+// {plugin.field} or {plugin.field|filter} not wrapped in a second brace pair.
+// Colour tile markers like {66} have no dot and are not matched, and JS/shell
+// `${a.b}` interpolation is skipped. Python fences are exempt: there
+// `{self.url}` is f-string syntax, not a board template.
+const SINGLE_BRACE_VAR_RE = /(?<![{$])\{([a-z][a-z0-9_]*\.[a-z][a-z0-9_.]*(?:\|[^{}\n]*)?)\}(?!\})/g
+
+const EXEMPT_FENCE_LANGS = new Set(['python', 'py', 'python3', 'pycon'])
+
+export function findSingleBraceVars(source) {
+  const hits = []
+  let fenceMarker = ''
+  let exemptFence = false
+  source.split('\n').forEach((text, i) => {
+    const fence = text.match(/^\s*(```+|~~~+)\s*([^\s`]*)/)
+    if (fence) {
+      if (!fenceMarker) {
+        fenceMarker = fence[1][0]
+        exemptFence = EXEMPT_FENCE_LANGS.has(fence[2].toLowerCase())
+      } else if (fence[1][0] === fenceMarker) {
+        fenceMarker = ''
+        exemptFence = false
+      }
+      return
+    }
+    if (exemptFence) return
+    for (const match of text.matchAll(SINGLE_BRACE_VAR_RE)) {
+      hits.push({ line: i + 1, variable: match[1] })
+    }
+  })
+  return hits
+}
+
+function checkTemplateVars(file, source) {
+  for (const { line, variable } of findSingleBraceVars(source)) {
+    fail(file, line, `single-brace template variable {${variable}}; the engine only resolves {{${variable}}}`)
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 const tree = walk(DOCS_DIR)
 checkCategories(tree)
@@ -240,6 +287,7 @@ for (const file of tree.docs) {
   const masked = maskCode(maskFrontmatter(source))
   checkLinks(file, masked)
   checkMdx(file, masked)
+  checkTemplateVars(file, maskFrontmatter(source))
 }
 
 if (violations.length > 0) {
