@@ -221,4 +221,52 @@ test.describe("Localization", () => {
       });
     }
   });
+
+  test("the out-of-sync banner and the saved page's name follow the app locale", async ({ page, baseURL }) => {
+    // Issue #1945: the banner's strings live in their own namespace,
+    // translated everywhere, and the auto page name uses the app locale.
+    const expected = Array.from({ length: 6 }, () => Array(22).fill(0));
+    const external = Array.from({ length: 6 }, () => Array(22).fill(0));
+    external[0][0] = 8;
+    external[0][1] = 9;
+    await page.route(/\/api\/board\/current-message/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          characters: external,
+          message: "",
+          rows: 6,
+          cols: 22,
+          expected_characters: expected,
+          cached_at: null,
+          api_mode: "local",
+        }),
+      });
+    });
+    await page.route(/\/api\/v1\/pages$/, async (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      const body = route.request().postDataJSON();
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ id: "saved-1", ...body }),
+      });
+    });
+
+    // The locale the app detects first (src/i18n/i18next.ts): its cookie.
+    // Set directly, so this test never skips for want of a visible selector.
+    await page.context().addCookies([{ name: "NEXT_LOCALE", value: "de", url: new URL(baseURL!).origin }]);
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("lang", "de", { timeout: 15_000 });
+
+    const banner = page.getByTestId("board-out-of-sync");
+    await expect(banner).toContainText("Eine andere App hat dieses Board geändert", { timeout: 10_000 });
+    await expect(banner.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+
+    const created = page.waitForRequest((r) => r.url().includes("/api/v1/pages") && r.method() === "POST");
+    await banner.getByRole("button", { name: "Als Seite speichern" }).click();
+    const { name } = (await created).postDataJSON() as { name: string };
+    expect(name).toMatch(/^Vom Board gespeichert /);
+  });
 });
