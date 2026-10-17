@@ -221,7 +221,9 @@ async def _run_chat_turn(
     protocol = get_protocol(provider.get("protocol"))
 
     try:
-        catalog = ToolCatalog(await backend.list_tools())
+        # Narrowed to the surface so the parser accepts exactly what the
+        # addendum teaches (#2036).
+        catalog = ToolCatalog(await backend.list_tools()).for_surface(surface)
     except ToolBackendUnavailable as exc:
         logger.error("AI chat has no tool backend: %s", exc)
         yield {"event": "error", "data": {"message": "AI chat needs the MCP server, which failed to initialise."}}
