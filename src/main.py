@@ -94,6 +94,12 @@ SEND_WAIT_TIMEOUT = 240.0
 BOARD_RETRY_INITIAL_BACKOFF = 60.0
 BOARD_RETRY_MAX_BACKOFF = 900.0
 
+# How long the last confirmed external frame (``BoardRuntime.external_frame``)
+# stays on offer to be saved as a page (issue #1945). A safety net on top of
+# the explicit clears (DELETE /board/external-frame, a successful Restore), so
+# an offer nobody dismisses does not linger for days.
+EXTERNAL_FRAME_TTL_SECONDS = 24 * 60 * 60
+
 
 def _extended_kw(client) -> dict:
     """The render keywords for *client*'s board
@@ -220,6 +226,17 @@ class BoardRuntime:
         # future per-board poll is a drop-in change.
         self.polled_characters: list[list[int]] | None = None
         self.polled_at: float | None = None
+
+        # The last frame the poll CONFIRMED another writer put on this board,
+        # and when (``time.time()``) — issue #1945. Set in the same branch
+        # that raises ``showing_out_of_band``, but it is the one drift field
+        # the engine's own sends must NOT clear: it exists so the web UI can
+        # still offer "Save as page" after FiestaBoard has painted its page
+        # back. Replaced by a newer confirmed external write; cleared only by
+        # DELETE /board/external-frame (which a successful Restore calls).
+        # Read it through ``DisplayService.external_frame``, which applies
+        # ``EXTERNAL_FRAME_TTL_SECONDS``.
+        self.external_frame: tuple[list[list[int]], float] | None = None
 
         # Adaptive post-send refresh thread + its cancel event.
         self.refresh_thread: threading.Thread | None = None
@@ -459,6 +476,26 @@ class DisplayService:
         if board_id == get_settings_service().get_primary_board_id():
             return self._primary_runtime()
         return None
+
+    def external_frame(self, board_id: str | None = None) -> tuple[list[list[int]], float] | None:
+        """The last confirmed external frame on *board_id*, and when it was confirmed.
+
+        ``None`` means the primary board. Returns None when the board has no
+        runtime, holds no frame, or holds one older than
+        ``EXTERNAL_FRAME_TTL_SECONDS`` — which is dropped then, not kept
+        around (issue #1945). Routes read the frame here, never off the
+        runtime field.
+        """
+        rt = self.runtime_for(board_id)
+        if rt is None:
+            return None
+        held = rt.external_frame
+        if held is None:
+            return None
+        if time.time() - held[1] > EXTERNAL_FRAME_TTL_SECONDS:
+            rt.external_frame = None
+            return None
+        return held
 
     def get_last_send_error(self, board_id=None) -> str | None:
         """Failure reason for a board's most recent active-page send attempt.
@@ -1176,6 +1213,13 @@ class DisplayService:
         logger.debug("Board state poll succeeded")
         if external_write:
             rt.showing_out_of_band = True
+            # Remember what the other app wrote (issue #1945): a copy, so the
+            # poll cache moving on never edits the frame on offer. The judge
+            # re-confirms a write that stays up every other poll; that is the
+            # same write, so it keeps the time it was first confirmed.
+            held = rt.external_frame
+            if held is None or held[0] != chars:
+                rt.external_frame = ([row[:] for row in chars], time.time())
             logger.info("Board content changed externally; marking out-of-band")
 
     def _poll_output_devices(self) -> None:
