@@ -38,21 +38,19 @@ import {
   CalendarOff,
   ChevronRight,
   GalleryHorizontalEnd,
-  Loader2,
   Moon,
   MoreVertical,
   Pause,
   PencilLine,
   Play,
   Radio,
-  Save,
   Timer,
-  UploadCloud,
   X,
 } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { BoardOutOfSyncBanner } from "@/components/board-out-of-sync-banner";
 import { ComposePageDialog } from "@/components/compose-page-dialog";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DevicePreview } from "@/components/device-preview";
@@ -79,9 +77,9 @@ import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useSilence } from "@/hooks/use-silence";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { BoardCurrentMessageResponse, Collection, DeviceType, SetActivePageResponse } from "@/lib/api";
+import type { Collection, DeviceType, SetActivePageResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
-import { boardCharactersToTemplate } from "@/lib/board-characters-to-template";
+import type { BoardGeometry } from "@/lib/board-characters-to-template";
 import { classifyDimensions, pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { resolveBoardModel } from "@/lib/device-preview";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
@@ -110,8 +108,6 @@ export function ActivePageDisplay() {
   const [shouldPreRender, setShouldPreRender] = useState(false);
   // Show content after animation completes
   const [showSheetContent, setShowSheetContent] = useState(false);
-  // Resend-to-board loading state
-  const [isSyncing, setIsSyncing] = useState(false);
   // Force-set dialog state
   const [forceSetDialogOpen, setForceSetDialogOpen] = useState(false);
   const [forceSetPageId, setForceSetPageId] = useState<string | null>(null);
@@ -262,37 +258,6 @@ export function ActivePageDisplay() {
       toast.error("Failed to disable schedule mode");
     },
   });
-
-  const handleResendToBoard = useCallback(async () => {
-    setIsSyncing(true);
-    try {
-      const { sent } = await api.forceRefresh();
-      if (sent === false) {
-        // Nothing reached the board (paused or UI-only): leave the
-        // out-of-sync banner up — it is still true — and say why (#1945).
-        toast.info(t("toastResendNotSent"));
-        return;
-      }
-      // Optimistically mark as in-sync so the alert disappears immediately.
-      // The backend schedules a ~3 s deferred board read after each send;
-      // we update the cache now and do a real refetch after 4 s to confirm.
-      queryClient.setQueryData(
-        queryKeys.boardCurrentMessage(scopedBoardId),
-        (old: BoardCurrentMessageResponse | undefined) => {
-          if (!old) return old;
-          return { ...old, characters: old.expected_characters ?? old.characters };
-        },
-      );
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.boardCurrentMessage() });
-      }, 4000);
-      toast.success(t("toastResendSuccess"));
-    } catch {
-      toast.error(t("toastResendFailed"));
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [queryClient, scopedBoardId, t]);
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
@@ -599,13 +564,7 @@ export function ActivePageDisplay() {
   // generally no Note multiple and classifyDimensions() cannot name it (it
   // throws for 12×29). Its family comes from the board itself; the grid from
   // the live state when there is one, else the board's stored grid.
-  const activeGeometry = useMemo((): {
-    deviceType: DeviceType;
-    notesWide: number;
-    notesTall: number;
-    gridRows?: number;
-    gridCols?: number;
-  } => {
+  const activeGeometry = useMemo((): BoardGeometry => {
     if (currentBoard?.device_type === "panel") {
       return {
         deviceType: "panel",
@@ -647,43 +606,6 @@ export function ActivePageDisplay() {
     !liveMessageForBoard && boardState?.message != null ? (boardState.cells as BoardCellGrid | undefined) : undefined;
   // A pixel board's canvases on that same frame (drawn over the cells).
   const displayLayers = displayCells ? boardState?.layers : undefined;
-
-  // Issue #1945: keep what another app put on the board by saving it as a
-  // new template page, instead of only being able to restore over it.
-  const saveExternalAsPageMutation = useMutation({
-    mutationFn: () => {
-      const characters = boardState?.characters;
-      if (!characters) throw new Error("No board content to save");
-      return api.createPage({
-        name: t("externalPageName", { date: new Date().toLocaleString() }),
-        type: "template",
-        device_type: activeGeometry.deviceType,
-        template: boardCharactersToTemplate(characters),
-        ...(activeGeometry.deviceType === "note_array" && {
-          notes_wide: activeGeometry.notesWide,
-          notes_tall: activeGeometry.notesTall,
-        }),
-        ...(activeGeometry.deviceType === "panel" && {
-          grid_rows: activeGeometry.gridRows ?? characters.length,
-          grid_cols: activeGeometry.gridCols ?? characters[0]?.length,
-        }),
-      });
-    },
-    onSuccess: (page) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.pages });
-      toast.success(t("toastSaveAsPageSuccess", { pageName: page.name }));
-    },
-    onError: () => {
-      toast.error(t("toastSaveAsPageFailed"));
-    },
-  });
-
-  // Out-of-sync: the board was updated externally if its current state differs
-  // from what FiestaBoard last sent.
-  const isOutOfSync = useMemo(() => {
-    if (!boardState?.expected_characters || !boardState?.characters) return false;
-    return JSON.stringify(boardState.characters) !== JSON.stringify(boardState.expected_characters);
-  }, [boardState]);
 
   return (
     <>
@@ -964,43 +886,17 @@ export function ActivePageDisplay() {
             </Alert>
           )}
 
-          {/* Out-of-sync warning: board was changed by another app */}
-          {isOutOfSync && !liveMessageForBoard && !silence.active && (
-            <Alert variant="default" className="border-warning/50 bg-warning/10">
-              <AlertTriangle className="h-4 w-4 text-warning" />
-              <AlertDescription className="flex items-center justify-between gap-3">
-                <Text as="span" size="sm">
-                  {t("updatedExternally")}
-                </Text>
-                <Flex align="center" gap="2" wrap className="shrink-0">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleResendToBoard}
-                    disabled={isSyncing}
-                    className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
-                  >
-                    {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
-                    {t("resendToBoard")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => saveExternalAsPageMutation.mutate()}
-                    disabled={saveExternalAsPageMutation.isPending}
-                    className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
-                  >
-                    {saveExternalAsPageMutation.isPending ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Save className="h-3 w-3" />
-                    )}
-                    {t("saveAsPage")}
-                  </Button>
-                </Flex>
-              </AlertDescription>
-            </Alert>
-          )}
+          {/* Another app wrote to the board (issue #1945): Restore or keep it.
+              The same banner a display's own page shows. Live Mode drives the
+              primary, so it suppresses the banner there. */}
+          <BoardOutOfSyncBanner
+            boardId={scopedBoardId}
+            geometry={activeGeometry}
+            paused={isTargetPaused}
+            suppressed={!!liveMessageForBoard}
+            multiBoard={isMultiBoard}
+            isPrimary={isPrimaryBoard}
+          />
 
           {/* Board Frame — contain: layout style paint isolates the tile grid from
               any layout changes in ancestor elements (e.g. sidebar padding snap).

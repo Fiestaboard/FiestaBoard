@@ -137,6 +137,10 @@ test.describe("Settings – Full Coverage", () => {
 
     const stopRes = await fetch(`${API_URL}/stop`, { method: "POST" });
     expect([200, 400, 500]).toContain(stopRes.status);
+
+    // Leave the display loop running for later specs on this backend: a
+    // stopped loop also stops the board-state poll.
+    await fetch(`${API_URL}/start`, { method: "POST" });
   });
 
   test("silence schedule section is visible in settings", async ({ page }) => {

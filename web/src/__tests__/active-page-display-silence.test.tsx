@@ -327,7 +327,8 @@ describe("ActivePageDisplay - silence alert (#1943, #1944)", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => expect(screen.getByTestId("silence-alert")).toBeInTheDocument());
-    expect(screen.queryByText("Board was changed by another app")).not.toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByTestId("board-out-of-sync")).not.toBeInTheDocument();
   });
 
   it("shows nothing when the board is not silenced", async () => {
@@ -447,45 +448,5 @@ describe("ActivePageDisplay - picking a page during silence (#1943)", () => {
     await waitFor(() =>
       expect(info).toHaveBeenCalledWith("Saved — “Custom Template” will show when you resume the board"),
     );
-  });
-});
-
-describe("ActivePageDisplay - Restore tells the truth (#1945)", () => {
-  afterEach(() => {
-    server.resetHandlers();
-    vi.restoreAllMocks();
-  });
-
-  function serveOutOfSyncBoard() {
-    const blank = Array.from({ length: 6 }, () => Array(22).fill(0));
-    const changed = blank.map((row, i) => (i === 0 ? [8, 9, ...row.slice(2)] : row));
-    server.use(
-      http.get(`${API_BASE}/board/current-message`, () =>
-        HttpResponse.json({
-          characters: changed,
-          message: "HI",
-          rows: 6,
-          cols: 22,
-          expected_characters: blank,
-          cached_at: null,
-          api_mode: "local",
-        }),
-      ),
-    );
-  }
-
-  it("a Restore that sends nothing says so and keeps the banner", async () => {
-    serveOutOfSyncBoard();
-    server.use(http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ message: "skipped", sent: false })));
-    const info = vi.spyOn((await import("sonner")).toast, "info");
-    const success = vi.spyOn((await import("sonner")).toast, "success");
-    const user = userEvent.setup();
-    render(<ActivePageDisplay />, { wrapper: TestWrapper });
-
-    await user.click(await screen.findByRole("button", { name: "Restore" }));
-
-    await waitFor(() => expect(info).toHaveBeenCalledWith("Nothing was sent (board paused or output set to UI only)"));
-    expect(success).not.toHaveBeenCalledWith("Board restored");
-    expect(screen.getByText("Board was changed by another app")).toBeInTheDocument();
   });
 });
