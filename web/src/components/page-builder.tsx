@@ -1890,10 +1890,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           writeLiveOutputMessage(null);
         }
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
+        if (
+          controller.signal.aborted ||
+          liveAbortRef.current !== controller ||
+          (error instanceof DOMException && error.name === "AbortError")
+        ) {
           return;
         }
         console.error("[LiveFastPath] Error:", error);
+        toast.error(t("toastLiveSendFailed"));
       }
     }, 100);
 
@@ -1920,6 +1925,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     queryClient,
     // Choosing "Send to board anyway" re-sends the current preview at once.
     liveOverrideSilence,
+    t,
   ]);
 
   // Draw mode: a committed stroke is applied straight to the editor's live

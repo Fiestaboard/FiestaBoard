@@ -194,6 +194,56 @@ describe("PageBuilder — pixel canvases", () => {
 
     afterEach(() => vi.useRealTimers());
 
+    it("shows one failure notification for the current live send", async () => {
+      const { toast } = await import("sonner");
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        vi.mocked(api.renderTemplateLive).mockRejectedValue(new Error("connection failed"));
+        const user = userEvent.setup();
+        renderExisting();
+        await screen.findByTestId("canvas-editor-sky", {}, { timeout: 5000 });
+        await user.click(screen.getByRole("switch", { name: /live/i }));
+        await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to send to board"));
+        expect(toast.error).toHaveBeenCalledTimes(1);
+        expect(api.renderTemplateLive).toHaveBeenCalledTimes(1);
+      } finally {
+        errorLog.mockRestore();
+      }
+    });
+
+    it.each(["aborted", "superseded"])("keeps a %s live request failure quiet", async (caseName) => {
+      const { toast } = await import("sonner");
+      let rejectFirst!: (error: Error) => void;
+      vi.mocked(api.renderTemplateLive)
+        .mockImplementationOnce(
+          () =>
+            new Promise((_resolve, reject) => {
+              rejectFirst = reject;
+            }),
+        )
+        .mockImplementation(() => new Promise(() => {}));
+      const user = userEvent.setup();
+      renderExisting();
+      await screen.findByTestId("canvas-editor-sky", {}, { timeout: 5000 });
+      const toggle = screen.getByRole("switch", { name: /live/i });
+      await user.click(toggle);
+      await waitFor(() => expect(api.renderTemplateLive).toHaveBeenCalledTimes(1));
+      const signal = vi.mocked(api.renderTemplateLive).mock.calls[0][6];
+      if (caseName === "aborted") {
+        await user.click(toggle);
+      } else {
+        await user.click(screen.getByRole("button", { name: "Add canvas" }));
+        await waitFor(() => expect(api.renderTemplateLive).toHaveBeenCalledTimes(2));
+      }
+      expect(signal?.aborted).toBe(true);
+      await act(async () =>
+        rejectFirst(
+          caseName === "aborted" ? new DOMException("cancelled", "AbortError") : new Error("old connection failed"),
+        ),
+      );
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
     it("clears a removed canvas before the first live response resolves", async () => {
       vi.mocked(api.getPage).mockResolvedValue({ ...PIXOO_PAGE, template: Array(10).fill(""), canvases: [SKY] });
       let resolveFirst!: (value: Awaited<ReturnType<typeof api.renderTemplateLive>>) => void;
