@@ -856,6 +856,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const liveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const liveOutputEnabledRef = useRef(false);
   const liveAbortRef = useRef<AbortController | null>(null);
+  const liveCanvasAttemptedRef = useRef(false);
   const liveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const LIVE_OUTPUT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -914,6 +915,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     };
   }, [
     liveOutputEnabled,
+    canvases,
     debouncedTemplateLines,
     debouncedLineAlignments,
     debouncedLineWrapEnabled,
@@ -1788,66 +1790,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     previewBoardId,
   ]);
 
-  // Live output mutation - sends rendered preview to the board
+  // Track request status for the sending indicator; the fast path below is
+  // the only trigger, so enabling Live on an existing preview sends once.
   const liveSendMutation = useMutation({
-    mutationFn: async (_rendered: string) => {
-      const { cleanedLines, metadata } = processLinesWithPrefixes(
-        debouncedTemplateLines,
-        debouncedLineAlignments,
-        debouncedLineWrapEnabled,
-      );
-      return api.renderTemplateLive(
-        cleanedLines,
-        selectedBoardId || undefined,
-        metadata,
-        deviceType,
-        notesWide,
-        notesTall,
-        undefined,
-        panelGrid,
-        { overrideSilence: liveOverrideSilenceRef.current },
-      );
-    },
-    onSuccess: (data) => {
-      setLiveSilenced(data.silenced === true);
-      if (data.sent_to_board) {
-        lastLiveSentPreview.current = preview;
-        // Broadcast to the Home page so its virtual board reflects the live content.
-        queryClient.setQueryData(["liveOutputMessage"], data.rendered);
-        writeLiveOutputMessage(data.rendered);
-      }
-    },
-    onError: (error: Error) => {
-      console.error("[LiveOutput] Send failed:", error.message);
-      toast.error(t("toastLiveSendFailed"));
-    },
+    mutationFn: (args: Parameters<typeof api.renderTemplateLive>) => api.renderTemplateLive(...args),
   });
-
-  // Same react-query identity-churn concern as previewMutationRef above.
   const liveSendMutationRef = useRef(liveSendMutation);
   liveSendMutationRef.current = liveSendMutation;
-
-  // Legacy live send path — only used as fallback when fast path hasn't handled the update.
-  // The fast path sets lastLiveSentPreview to match preview, so this is effectively a no-op
-  // when live mode is active. Kept for safety if the fast path request fails.
-  useEffect(() => {
-    if (!liveOutputEnabled || !preview || preview === lastLiveSentPreview.current) {
-      return;
-    }
-
-    const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-    if (!hasContent) return;
-
-    if (!liveSendMutationRef.current.isPending) {
-      liveSendMutationRef.current.mutate(preview);
-    }
-  }, [preview, liveOutputEnabled, debouncedTemplateLines]);
 
   // Live edit fast path: single 100ms debounce → single API call → preview + board update.
   // Bypasses the normal double-debounce (150ms + 200ms) and double API call chain.
   // Uses IMMEDIATE state (not debounced) and AbortController to cancel stale requests.
   useEffect(() => {
     if (!liveOutputEnabled) {
+      liveCanvasAttemptedRef.current = false;
       if (liveDebounceRef.current) {
         clearTimeout(liveDebounceRef.current);
         liveDebounceRef.current = null;
@@ -1859,7 +1815,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       return;
     }
 
-    const hasContent = templateLines.some((line) => line.trim().length > 0);
+    // A cancelled fetch may already have written its canvas to the board.
+    // Clear removed layers locally while the replacement request is pending.
+    if (canvases.length === 0) {
+      setPreviewLayers([]);
+      setCanvasIssues([]);
+      setCanvasError(null);
+    }
+
+    const hasContent =
+      templateLines.some((line) => line.trim().length > 0) ||
+      canvases.length > 0 ||
+      lastLiveSentPreview.current !== null ||
+      liveCanvasAttemptedRef.current;
     if (!hasContent) {
       if (liveAbortRef.current) {
         liveAbortRef.current.abort();
@@ -1885,7 +1853,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       try {
         const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
 
-        const data = await api.renderTemplateLive(
+        if (canvases.length > 0) liveCanvasAttemptedRef.current = true;
+        const data = await liveSendMutationRef.current.mutateAsync([
           cleanedLines,
           selectedBoardId || undefined,
           metadata,
@@ -1894,18 +1863,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           notesTall,
           controller.signal,
           panelGrid,
-          { overrideSilence: liveOverrideSilence },
-        );
+          { overrideSilence: liveOverrideSilence, canvases },
+        ]);
 
         if (controller.signal.aborted) return;
 
+        setPreviewLayers(data.layers ?? null);
+        setCanvasIssues(data.canvas_issues ?? []);
+        setCanvasError(null);
         setPreview(data.rendered);
         if (data.rendered) {
           setLastPreview(data.rendered);
         }
-        // The "last attempted" marker the mutation-path effect compares
-        // against. It stays unconditional: gating it on sent_to_board would
-        // make that effect re-send every silenced keystroke (#1943).
+        // Remember the rendered content even during silence, so deleting
+        // the final content can still render an explicitly empty page.
         lastLiveSentPreview.current = data.rendered;
         setLiveSilenced(data.silenced === true);
         if (data.sent_to_board) {
@@ -1919,10 +1890,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           writeLiveOutputMessage(null);
         }
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
+        if (
+          controller.signal.aborted ||
+          liveAbortRef.current !== controller ||
+          (error instanceof DOMException && error.name === "AbortError")
+        ) {
           return;
         }
         console.error("[LiveFastPath] Error:", error);
+        toast.error(t("toastLiveSendFailed"));
       }
     }, 100);
 
@@ -1937,6 +1913,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     };
   }, [
     liveOutputEnabled,
+    canvases,
     templateLines,
     lineAlignments,
     lineWrapEnabled,
@@ -1948,6 +1925,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     queryClient,
     // Choosing "Send to board anyway" re-sends the current preview at once.
     liveOverrideSilence,
+    t,
   ]);
 
   // Draw mode: a committed stroke is applied straight to the editor's live

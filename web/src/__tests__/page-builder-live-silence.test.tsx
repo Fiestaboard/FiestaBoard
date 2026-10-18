@@ -103,8 +103,8 @@ function serveSilencedBoard() {
       const body = (await request.json()) as Record<string, unknown>;
       bodies.push(body);
       const overriding = body.override_silence === true;
-      // Deliberately not the editor's own preview text: the live render
-      // replaces the preview, which is what re-arms the mutation-path effect.
+      // Deliberately not the editor's own preview text: replacing the preview
+      // must not trigger a second send of the same template.
       return HttpResponse.json({
         rendered: "HI THERE LIVE",
         lines: ["HI THERE LIVE", "", "", "", "", ""],
@@ -154,6 +154,8 @@ describe("PageBuilder Live Output during silence", () => {
     const { toast } = await import("sonner");
     const user = userEvent.setup();
     render(<PageBuilder pageId="page-1" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+    // Enable Live after its ordinary preview is visible, as on an already-open editor.
+    await screen.findByLabelText(/HI THERE/);
     await turnLiveOn(user);
 
     await waitFor(() => expect(bodies.length).toBeGreaterThanOrEqual(1));
@@ -165,9 +167,8 @@ describe("PageBuilder Live Output during silence", () => {
     expect(toast.info).not.toHaveBeenCalledWith(expect.stringContaining("silenc"));
     expect(toast.error).not.toHaveBeenCalled();
 
-    // The "last attempted" marker stays unconditional: once the live render
-    // has replaced the preview, the mutation path must not re-send that same,
-    // silenced preview. One live render, and nothing after it.
+    // Enabling Live on an existing preview and replacing it with the live
+    // response is one edit, not two competing send triggers.
     await new Promise((resolve) => setTimeout(resolve, 1200));
     expect(bodies).toHaveLength(1);
   });

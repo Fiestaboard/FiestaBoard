@@ -125,6 +125,8 @@ export interface TemplateRenderResponse {
 }
 
 export interface TemplateRenderLiveResponse {
+  layers?: CanvasLayerJson[];
+  canvas_issues?: CanvasIssue[];
   rendered: string;
   lines: string[];
   line_count: number;
@@ -202,7 +204,7 @@ export const templatesApi = {
     signal?: AbortSignal,
     grid?: GridSize | null,
     // `overrideSilence` writes to the board even while it is silenced (#1943).
-    opts?: { overrideSilence?: boolean },
+    opts?: { overrideSilence?: boolean; canvases?: Canvas[] },
   ) =>
     fetchApi<TemplateRenderLiveResponse>("/templates/render/live", {
       method: "POST",
@@ -215,6 +217,7 @@ export const templatesApi = {
         ...(notesTall != null && { notes_tall: notesTall }),
         ...gridFields(grid),
         ...(opts?.overrideSilence === true && { override_silence: true }),
+        ...(opts?.canvases != null && { canvases: opts.canvases }),
       }),
       signal,
     }),
