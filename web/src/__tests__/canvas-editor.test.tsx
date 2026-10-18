@@ -6,13 +6,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CanvasDrawTab } from "@/components/canvas-editor/canvas-draw-tab";
 import { CanvasShapesEditor } from "@/components/canvas-editor/canvas-shapes-editor";
 import { CanvasSourcePicker } from "@/components/canvas-editor/canvas-source-picker";
-import { CanvasesPanel } from "@/components/canvas-editor/canvases-panel";
+import { CanvasesPanel, type CanvasesPanelHandle } from "@/components/canvas-editor/canvases-panel";
 import type { Canvas, CanvasContent, CanvasShape, TemplateVariables } from "@/lib/api";
 import { api } from "@/lib/api";
 import { makeCanvas } from "@/lib/canvas-editing";
@@ -46,19 +46,24 @@ const PIXOO = { width: 64, height: 64, font: "3x5" as const };
 /** The panel with its canvases held in state, as the page editor holds them. */
 function Panel({ initial = [], spy }: { initial?: Canvas[]; spy: (c: Canvas[]) => void }) {
   const [canvases, setCanvases] = useState<Canvas[]>(initial);
+  const panelRef = useRef<CanvasesPanelHandle>(null);
   return wrap(
-    <CanvasesPanel
-      canvases={canvases}
-      onChange={(next) => {
-        spy(next);
-        setCanvases(next);
-      }}
-      gridRows={10}
-      gridCols={16}
-      board={PIXOO}
-      issues={[]}
-      error={null}
-    />,
+    <>
+      <button onClick={() => panelRef.current?.activateCanvas("sea")}>Open sea settings</button>
+      <CanvasesPanel
+        ref={panelRef}
+        canvases={canvases}
+        onChange={(next) => {
+          spy(next);
+          setCanvases(next);
+        }}
+        gridRows={10}
+        gridCols={16}
+        board={PIXOO}
+        issues={[]}
+        error={null}
+      />
+    </>,
   );
 }
 
@@ -68,6 +73,34 @@ beforeEach(() => {
 });
 
 describe("CanvasesPanel", () => {
+  it("activates another canvas, scrolls and focuses its settings without changing content", async () => {
+    const user = userEvent.setup();
+    const spy = vi.fn();
+    render(
+      <Panel
+        spy={spy}
+        initial={[
+          makeCanvas("sky", { row: 1, col: 1, rows: 1, cols: 1 }),
+          makeCanvas("sea", { row: 2, col: 1, rows: 1, cols: 1 }),
+        ]}
+      />,
+    );
+    const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
+    scroll.mockClear();
+    await user.click(screen.getByRole("button", { name: "Open sea settings" }));
+    expect(screen.getByLabelText("Canvas ID")).toHaveValue("sea");
+    expect(screen.getByLabelText("Canvas ID")).toHaveFocus();
+    expect(scroll).toHaveBeenCalledWith({ block: "nearest" });
+    expect(scroll.mock.contexts.at(-1)).toBe(screen.getByLabelText("Canvas ID"));
+    expect(spy).not.toHaveBeenCalled();
+    scroll.mockClear();
+    await user.click(screen.getByRole("button", { name: "Open sea settings" }));
+    expect(screen.getByLabelText("Canvas ID")).toHaveFocus();
+    expect(scroll).toHaveBeenCalledWith({ block: "nearest" });
+    expect(scroll.mock.contexts.at(-1)).toBe(screen.getByLabelText("Canvas ID"));
+    expect(spy).not.toHaveBeenCalled();
+  });
+
   it("adds a canvas over the top-left half of the grid", async () => {
     const user = userEvent.setup();
     const spy = vi.fn();
