@@ -1,6 +1,6 @@
 import { Button } from "@fiestaboard/ui";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, within } from "storybook/test";
+import { expect, waitFor, within } from "storybook/test";
 
 import { SilenceNotice } from "./silence-notice";
 
@@ -57,8 +57,8 @@ export const InfoWithActions: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Show now" })).toBeVisible();
-    await expect(canvas.getByRole("button", { name: "Discard message" })).toBeVisible();
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Show now" })).toBeVisible());
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Discard message" })).toBeVisible());
   },
 };
 

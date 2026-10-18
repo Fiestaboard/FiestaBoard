@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { Toaster } from "@/components/ui/sonner";
 import i18n from "@/i18n/i18next";
@@ -337,8 +337,8 @@ export const SilencedManualHeld: Story = {
   decorators: [silenced(createQueryClient("page-1", false, true, undefined, HELD))],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByTestId("silence-show-now")).toBeVisible();
-    await expect(canvas.getByTestId("silence-discard-held")).toBeVisible();
+    await waitFor(() => expect(canvas.getByTestId("silence-show-now")).toBeVisible());
+    await waitFor(() => expect(canvas.getByTestId("silence-discard-held")).toBeVisible());
     await expect(canvas.getByTestId("silence-held")).toHaveTextContent("GOOD MORNING EVERYONE HAVE A…");
   },
 };

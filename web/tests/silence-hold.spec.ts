@@ -102,7 +102,10 @@ test.describe("Silence holds manual page changes", () => {
     await resetMockBoard();
     const quietCount = await messageCount();
 
-    await page.getByRole("button", { name: /Change Page/i }).first().click();
+    await page
+      .getByRole("button", { name: /Change Page/i })
+      .first()
+      .click();
     await expect(page.getByTestId("select-page-silence")).toBeVisible();
     await page.getByText("Picked At Night").first().click();
 
