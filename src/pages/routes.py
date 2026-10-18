@@ -23,12 +23,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_dims, _board_is_paused, _find_board, _require_board, _silence_active
+from src.board_guards import _board_dims, _board_is_paused, _find_board, _require_board, silence_verdict
 from src.canvas.schemas import issues_json, layers_json
 from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service
@@ -550,7 +551,10 @@ async def send_page(
     target: str | None = None,
     board_id: str | None = None,
     payload: PageSendRequest | None = None,
-    force: bool = False,
+    override_silence: bool = False,
+    force: Annotated[
+        bool, Query(deprecated=True, description="Deprecated alias of override_silence (shipped in v10.0.0-beta.26).")
+    ] = False,
 ):
     """
     Send a page to the configured target.
@@ -562,15 +566,18 @@ async def send_page(
         board_id: Optional board to send to (query param, or
             ``{"board_id": ...}`` in the JSON body). Omitted → primary
             board, legacy behavior (issue #1244).
-        force: Query param. ``true`` explicitly overrides the target board's
-            silence window for this one send (issue #1943). Defaults to
-            ``false``: during silence the board is left untouched. Pause is
-            never overridden.
+        override_silence: Query param. ``true`` explicitly overrides the
+            target board's silence window for this one send (issue #1943).
+            Defaults to ``false``: during silence the board is left untouched
+            (``silenced: true``), and the page is held to show when silence
+            ends when the board's schedule holds sends (``held: true``).
+            Pause is never overridden.
     """
     if target is None and payload:
         target = payload.target
     if board_id is None and payload:
         board_id = payload.board_id
+    override_silence = override_silence or force
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
 
@@ -625,18 +632,28 @@ async def send_page(
 
         sent_to_board = False
         paused = False
+        silenced = False
+        held = False
         if send_to_board:
             # CRITICAL: Block ALL manual sends during silence mode to prevent
-            # wake-ups — for the board this send targets (issue #1788).
-            if not force and _silence_active(board_id):
-                logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
-                sent_to_board = False
-                # Don't raise error, just skip sending
-            elif _board_is_paused(board_id):
-                # Block when the target (or first) board is paused (issue #970).
+            # wake-ups — for the board this send targets (issue #1788) —
+            # unless the caller explicitly overrides it (#1943). The page is
+            # held as an intent when the board's schedule holds sends (#1944).
+            from src.silence_queue import HeldSend
+
+            verdict = silence_verdict(
+                board_id,
+                override_silence=override_silence,
+                hold=lambda resolved: HeldSend.page(page_id, board_id=resolved),
+                what="page send (pass override_silence=true to override)",
+            )
+            silenced, held = verdict.silenced, verdict.held
+            # Pause is evaluated (and reported) even when silence won: both
+            # flags tell the truth. It is never overridden (issue #970).
+            if _board_is_paused(board_id):
                 logger.info("Board is paused - blocking manual page send")
                 paused = True
-            else:
+            if not silenced and not paused:
                 # The page's own transition where it sets one, else the target display's.
                 resolved = page_transition(
                     settings_service.get_transition_settings(board.get("id") if board is not None else None),
@@ -679,6 +696,12 @@ async def send_page(
                     # no rule saw a routine 500 that no route declared.
                     logger.error(f"Failed to send page {page_id} to board (offline or unreachable)")
                     raise HTTPException(status_code=500, detail="Failed to send to board")
+                if was_sent and override_silence:
+                    # A newer explicit write beats a message held during silence.
+                    from src import silence_queue
+                    from src.board_guards import resolve_board_id
+
+                    silence_queue.discard(resolve_board_id(board_id))
                 if was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
                     # Adaptive post-send refresh polls the primary board only.
                     service.request_board_refresh()
@@ -688,6 +711,8 @@ async def send_page(
             message=result.formatted,
             sent_to_board=sent_to_board,
             paused=paused,
+            silenced=silenced,
+            held=held,
             target=target or settings_service.get_output_settings().target,
             board_id=board_id,
             layers=layers_json(result.layers) if pixel_board else None,

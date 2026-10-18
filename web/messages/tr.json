@@ -903,7 +903,21 @@
     "collectionSizeWarning": "Bu koleksiyondaki {total} sayfadan {count} tanesi bu panonun boyutuna uymuyor ve atlanacak.",
     "turnOffLiveModeAriaLabel": "Canlı Modu kapat",
     "liveModeBadge": "Canlı Mod",
-    "composeOneOff": "Mesaj yaz"
+    "composeOneOff": "Mesaj yaz",
+    "silenceManual": "Sessizlik bittiğinde “{pageName}” gösterilecek. O zamana kadar pano sessiz kalır.",
+    "silenceSchedule": "Sessizlik bittiğinde zamanlamanız devam eder. O zamana kadar pano sessiz kalır.",
+    "silenceNoPage": "O zamana kadar pano sessiz kalır.",
+    "silenceHeld": "Bekletilen mesaj: “{preview}” — önce bu gösterilecek.",
+    "showNow": "Şimdi göster",
+    "discardHeld": "Mesajı at",
+    "selectPageSilence": "seçtiğiniz sayfa kaydedilir ve o zaman gösterilir. Pano sessiz kalır.",
+    "toastSwitchHeld": "“{pageName}” {time} saatinde gösterilecek",
+    "toastSwitchHeldNoTime": "Sessizlik bittiğinde “{pageName}” gösterilecek",
+    "toastSwitchPaused": "Kaydedildi — panoyu devam ettirdiğinizde “{pageName}” gösterilecek",
+    "toastShownNow": "“{pageName}” şimdi gösteriliyor",
+    "toastHeldDiscarded": "Bekletilen mesaj atıldı",
+    "toastHeldDiscardFailed": "Bekletilen mesaj atılamadı",
+    "toastResendNotSent": "Hiçbir şey gönderilmedi (pano duraklatıldı veya çıkış yalnızca arayüze ayarlı)"
   },
   "forceSetDialog": {
     "title": "Board'u Zorla Ayarla",
@@ -915,7 +929,9 @@
     "confirm": "Zorla Ayarla",
     "setting": "Ayarlanıyor…",
     "toastSuccess": "\"{pageName}\" {minutes} dk gösteriliyor",
-    "toastError": "Geçersiz kılma ayarlanamadı"
+    "toastError": "Geçersiz kılma ayarlanamadı",
+    "silenceWarning": "Zorla Ayarla bu sayfayı hemen gösterir ve panoyu uyandırır.",
+    "confirmSilenced": "Yine de şimdi göster"
   },
   "composeDialog": {
     "title": "Mesaj yaz",
@@ -936,7 +952,17 @@
     "toastSent": "Panoya gönderildi",
     "toastSendError": "Mesaj gönderilemedi",
     "toastSaved": "\"{pageName}\" kaydedildi",
-    "toastSaveError": "Sayfa kaydedilemedi"
+    "toastSaveError": "Sayfa kaydedilemedi",
+    "silenceHold": "Bekletin, {time} saatinde gösterilsin ya da şimdi gönderin, pano uyansın.",
+    "silenceNoHold": "Şimdi göndermek panoyu uyandırır. Mesajları sessizlik bitene kadar bekletmek için Ayarlar → Zamanlama bölümünde “Sessizlik bittiğinde bekletilen mesajları göster” seçeneğini açın.",
+    "openSettings": "Ayarları aç",
+    "hold": "{time} saatine kadar beklet",
+    "holdNoTime": "Sessizlik bitene kadar beklet",
+    "holding": "Bekletiliyor…",
+    "sendNowAnyway": "Yine de şimdi gönder",
+    "toastHeld": "Bekletildi — {time} saatinde gösterilecek",
+    "toastHeldNoTime": "Bekletildi — sessizlik bittiğinde gösterilecek",
+    "toastHoldError": "Mesaj bekletilemedi"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Uygulamaya ulaşılamıyor. Ağınızı veya FiestaBoard'un çalışıp çalışmadığını kontrol edin.",
@@ -1032,7 +1058,11 @@
     "transitionPickerTooltip": "Bu sayfanın geçişi: {strategy}",
     "transitionBuiltInGroup": "Yerleşik",
     "transitionPluginsGroup": "Eklentiler (beta)",
-    "transitionUseDisplayTransition": "Ekranın geçişini kullan"
+    "transitionUseDisplayTransition": "Ekranın geçişini kullan",
+    "liveSilencePreviewOnly": "Canlı çıkış yalnızca önizleme yapıyor. Pano sessiz kalır.",
+    "liveSendAnyway": "Yine de panoya gönder",
+    "liveSilenceOverriding": "Canlı çıkış sessizlik sırasında panoyu uyandırıyor.",
+    "liveStopOverriding": "Göndermeyi durdur"
   },
   "displaySettings": {
     "unnamedBoard": "İsimsiz Pano",
@@ -1371,7 +1401,9 @@
     "toastBoardReadIntervalUpdated": "Board okuma aralığı güncellendi",
     "toastBoardReadIntervalFailed": "Board okuma aralığı güncellenemedi: {error}",
     "updateIntervalsTitle": "Güncelleme Aralıkları",
-    "updateIntervalsDescription": "Panonun yeni içerik için ne sıklıkla sorgulama yaptığı ve mevcut durumunu yeniden okuduğu"
+    "updateIntervalsDescription": "Panonun yeni içerik için ne sıklıkla sorgulama yaptığı ve mevcut durumunu yeniden okuduğu",
+    "silenceShowHeldLabel": "Sessizlik bittiğinde bekletilen mesajları göster",
+    "silenceShowHeldHelp": "Sessizlik sırasında bu panoya gönderilen bir mesaj bekletilir ve sessizlik biter bitmez gösterilir. Kapalıyken bunun yerine reddedilir. Sayfa değişiklikleri her zaman korunur ve buna ihtiyaç duymaz."
   },
   "serviceControls": {
     "title": "Hizmet Kontrolü",
@@ -2697,5 +2729,9 @@
     "serverError": "Tuvaller kabul edilmedi: {message}",
     "notPixelNotice": "Bu sayfada piksel tuvalleri var. Bu pano bunları çizemez, bu yüzden alanları boş kalır. Düzenlemek için sayfayı LED piksel panosunda önizleyin.",
     "markerTitle": "Bir tuval bu satırda başlıyor (metnin parçası değil)"
+  },
+  "silenceNotice": {
+    "untilTitle": "{time} saatine kadar sessiz",
+    "untilTitleNoTime": "Pano sessizde"
   }
 }

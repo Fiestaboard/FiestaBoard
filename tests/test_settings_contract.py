@@ -306,11 +306,13 @@ class TestActivePage:
         # CHANGED (conventions): "status" dropped, and "warnings" is now
         # always present — it used to be omitted whenever the list was empty,
         # so "no warnings" and "this build does not report warnings" were the
-        # same payload.
+        # same payload. CHANGED (#1943): "silenced" reports a send held by the
+        # board's silence window, independently of "paused".
         assert response.json() == {
             "page_id": None,
             "sent_to_board": False,
             "paused": False,
+            "silenced": False,
             "board_id": None,
             "error": None,
             "warnings": [],

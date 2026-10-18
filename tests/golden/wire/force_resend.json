@@ -41,7 +41,9 @@
           ],
           "text": "AGAIN",
           "expires_at": null,
-          "reason": null
+          "reason": null,
+          "silenced": false,
+          "held": false
         }
       }
     },
@@ -83,7 +85,9 @@
           ],
           "text": "AGAIN",
           "expires_at": null,
-          "reason": null
+          "reason": null,
+          "silenced": false,
+          "held": false
         }
       }
     }

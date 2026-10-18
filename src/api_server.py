@@ -48,6 +48,7 @@ from .board_guards import (  # noqa: E402, F401  (patch seams, see above)
     _board_dims,
     _board_is_paused,
     _require_board,
+    silence_verdict,
 )
 from .collections.models import is_collection_id  # noqa: E402, F401  (patch seam)
 

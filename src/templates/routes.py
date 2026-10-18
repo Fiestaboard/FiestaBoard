@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_is_paused, _find_board, _require_board
+from src.board_guards import _board_is_paused, _find_board, _require_board, silence_verdict
 from src.board_send_executor import run_board_preview
 from src.devices import geometry_of, resolve_dimensions
 from src.display_runtime import live_driver
@@ -367,7 +367,12 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     - template: Template string or list of lines to render
     - board_id: Optional board ID to target (defaults to first configured board)
 
-    Returns the rendered result plus whether it was sent to the board.
+    - override_silence: Send even while the board is silenced (default false)
+
+    Returns the rendered result plus whether it was sent to the board. During
+    silence the render is still returned (the editor preview keeps working)
+    but nothing is written unless override_silence is true (issue #1943);
+    ``silenced`` says so. Live output is never held for later.
     """
     template = request.template
     board_id = request.board_id
@@ -444,13 +449,18 @@ async def render_template_live(request: TemplateRenderLiveRequest):
 
     sent_to_board = False
     paused = False
+    silenced = False
     if target_board:
-        # Block when the target board is paused (issue #970). Render is still
-        # returned to the caller so the live editor preview keeps updating.
+        # Silence first (issue #1943), then pause (issue #970) — each reported
+        # on its own. The render is still returned to the caller so the live
+        # editor preview keeps updating; only the board write is skipped.
+        silenced = silence_verdict(
+            target_board.get("id"), override_silence=request.override_silence, what="live template send"
+        ).silenced
         if _board_is_paused(board_id=target_board.get("id")):
             logger.info("Board %s is paused - skipping live template send", target_board.get("id"))
             paused = True
-        else:
+        if not silenced and not paused:
             # The board's LIVE driver: a live edit is a write of the board's
             # runtime — it preempts a running transition, shares the engine's
             # send lock and floor, and lands in the frame cache, so the engine
@@ -484,6 +494,11 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                         **rich,
                     )
                     sent_to_board = was_sent
+                    if was_sent and request.override_silence:
+                        # A newer explicit write beats a message held during silence.
+                        from src import silence_queue
+
+                        silence_queue.discard(target_board.get("id"))
                 except Exception as e:
                     logger.error(f"Live send to board failed: {e}", exc_info=True)
 
@@ -494,5 +509,6 @@ async def render_template_live(request: TemplateRenderLiveRequest):
         line_count=len(lines),
         sent_to_board=sent_to_board,
         paused=paused,
+        silenced=silenced,
         board_id=target_board.get("id") if target_board else None,
     )

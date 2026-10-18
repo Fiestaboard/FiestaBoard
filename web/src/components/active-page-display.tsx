@@ -59,6 +59,7 @@ import { DevicePreview } from "@/components/device-preview";
 import { ForceSetDialog } from "@/components/force-set-dialog";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import { SilenceNotice } from "@/components/silence-notice";
 import Link from "@/components/smart-link";
 import {
   collectionPollMs,
@@ -75,9 +76,10 @@ import {
   useSetActivePage,
 } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useSilence } from "@/hooks/use-silence";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { BoardCurrentMessageResponse, Collection, DeviceType, SilenceStatus } from "@/lib/api";
+import type { BoardCurrentMessageResponse, Collection, DeviceType, SetActivePageResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { boardCharactersToTemplate } from "@/lib/board-characters-to-template";
 import { classifyDimensions, pagesCompatibleWithBoard } from "@/lib/board-dimensions";
@@ -184,11 +186,12 @@ export function ActivePageDisplay() {
   // Fetch manual active page setting for the selected board
   const { data: activePageData, isLoading: isLoadingActivePage } = useActivePage(scopedBoardId);
 
-  // Fetch silence mode status to show snoozing indicator
-  const { data: silenceStatus } = useQuery<SilenceStatus>({
-    queryKey: queryKeys.silenceStatus(scopedBoardId),
-    queryFn: () => api.getSilenceStatus(scopedBoardId),
-  });
+  // Silence for the selected board (the indicator, the Home alert, the page
+  // pick toasts) and for the PRIMARY board, which Force Set and Compose write
+  // to — the temporary-override store is primary-only (#1943).
+  const silence = useSilence(scopedBoardId);
+  const silenceStatus = silence.status;
+  const primarySilence = useSilence(undefined);
 
   // Fetch live board state so the Home display reflects what was last sent
   // via Live Output in the page editor. The query is seeded from localStorage
@@ -263,7 +266,13 @@ export function ActivePageDisplay() {
   const handleResendToBoard = useCallback(async () => {
     setIsSyncing(true);
     try {
-      await api.forceRefresh();
+      const { sent } = await api.forceRefresh();
+      if (sent === false) {
+        // Nothing reached the board (paused or UI-only): leave the
+        // out-of-sync banner up — it is still true — and say why (#1945).
+        toast.info(t("toastResendNotSent"));
+        return;
+      }
       // Optimistically mark as in-sync so the alert disappears immediately.
       // The backend schedules a ~3 s deferred board read after each send;
       // we update the cache now and do a real refetch after 4 s to confirm.
@@ -322,6 +331,43 @@ export function ActivePageDisplay() {
 
   // Set active page mutation — targets the selected board only
   const setActivePageMutation = useSetActivePage(scopedBoardId);
+
+  // "Show now" (#1943): the one explicit way to wake a silenced board with
+  // the page you picked. Pause still wins, and the toast says so.
+  const showPageNow = useCallback(
+    (pageId: string, pageName: string) => {
+      setActivePageMutation.mutate(
+        { pageId, overrideSilence: true },
+        {
+          onSuccess: (result: SetActivePageResponse) => {
+            if (result.error) {
+              toast.error(t("toastSwitchNotSent"));
+            } else if (result.paused) {
+              toast.info(t("toastSwitchPaused", { pageName }));
+            } else {
+              toast.success(t("toastShownNow", { pageName }));
+            }
+          },
+          onError: () => {
+            toast.error(t("toastSwitchFailed"));
+          },
+        },
+      );
+    },
+    [setActivePageMutation, t],
+  );
+
+  // Discard the message held until silence ends (#1944).
+  const discardHeldMutation = useMutation({
+    mutationFn: () => api.discardHeldSend(scopedBoardId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.silenceStatus() });
+      toast.success(t("toastHeldDiscarded"));
+    },
+    onError: () => {
+      toast.error(t("toastHeldDiscardFailed"));
+    },
+  });
 
   // currentBoard (destructured above from useCurrentBoard()) is also used to
   // filter the page picker to size-compatible pages and to warn about
@@ -432,6 +478,10 @@ export function ActivePageDisplay() {
 
       // Manual mode (or after the user chose to disable schedule): switch immediately.
       setOpenSheetAsManual(false);
+      const pickedName =
+        pages.find((p) => p.id === pageId)?.name ??
+        collectionsData?.collections?.find((c: Collection) => c.id === pageId)?.name ??
+        pageId;
       setActivePageMutation.mutate(pageId, {
         onSuccess: (result) => {
           setIsSheetOpen(false);
@@ -441,6 +491,24 @@ export function ActivePageDisplay() {
           // contract page-builder consumes (issue #1791).
           if (result.error) {
             toast.error(t("toastSwitchNotSent"));
+            return;
+          }
+          if (result.paused) {
+            toast.info(t("toastSwitchPaused", { pageName: pickedName }));
+            return;
+          }
+          if (result.silenced) {
+            // Saved, not shown (#1943): say when it will be, and offer the
+            // explicit override right in the toast.
+            toast.info(
+              silence.until
+                ? t("toastSwitchHeld", { pageName: pickedName, time: silence.until })
+                : t("toastSwitchHeldNoTime", { pageName: pickedName }),
+              {
+                duration: 8000,
+                action: { label: t("showNow"), onClick: () => showPageNow(pageId, pickedName) },
+              },
+            );
             return;
           }
           startTransition(() => {
@@ -462,6 +530,8 @@ export function ActivePageDisplay() {
       collectionsData,
       pages,
       t,
+      silence.until,
+      showPageNow,
     ],
   );
 
@@ -830,6 +900,53 @@ export function ActivePageDisplay() {
         </Stack>
 
         <Box className="space-y-4">
+          {/* Silence (#1943): what is on hold and what happens when it ends. */}
+          {silence.active && (
+            <SilenceNotice
+              until={silence.until}
+              data-testid="silence-alert"
+              description={
+                <>
+                  <Text as="span" size="sm" className="block">
+                    {scheduleEnabled
+                      ? t("silenceSchedule")
+                      : activeCollection || activePage
+                        ? t("silenceManual", { pageName: activeCollection?.name ?? activePage?.name ?? "" })
+                        : t("silenceNoPage")}
+                  </Text>
+                  {silence.held && (
+                    <Text as="span" size="sm" className="mt-1 block" data-testid="silence-held">
+                      {t("silenceHeld", { preview: silence.held.preview })}
+                    </Text>
+                  )}
+                </>
+              }
+            >
+              {!scheduleEnabled && activePage && !activeCollection ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => showPageNow(activePage.id, activePage.name)}
+                  disabled={setActivePageMutation.isPending}
+                  data-testid="silence-show-now"
+                >
+                  {t("showNow")}
+                </Button>
+              ) : null}
+              {silence.held ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => discardHeldMutation.mutate()}
+                  disabled={discardHeldMutation.isPending}
+                  data-testid="silence-discard-held"
+                >
+                  {t("discardHeld")}
+                </Button>
+              ) : null}
+            </SilenceNotice>
+          )}
+
           {/* Schedule gap warning */}
           {scheduleEnabled && !activePageId && (
             <Alert variant="default" className="border-warning/50 bg-warning/10">
@@ -848,7 +965,7 @@ export function ActivePageDisplay() {
           )}
 
           {/* Out-of-sync warning: board was changed by another app */}
-          {isOutOfSync && !liveMessageForBoard && (
+          {isOutOfSync && !liveMessageForBoard && !silence.active && (
             <Alert variant="default" className="border-warning/50 bg-warning/10">
               <AlertTriangle className="h-4 w-4 text-warning" />
               <AlertDescription className="flex items-center justify-between gap-3">
@@ -949,6 +1066,16 @@ export function ActivePageDisplay() {
           <SheetHeader>
             <SheetTitle>{t("selectPageTitle")}</SheetTitle>
             <SheetDescription>{t("selectPageDescription")}</SheetDescription>
+            {/* Picking during silence saves the page; it does not wake the
+                board (#1943). Said before the tap, not only after it. */}
+            <SilenceNotice
+              compact
+              active={silence.active}
+              until={silence.until}
+              description={t("selectPageSilence")}
+              className="mt-2"
+              data-testid="select-page-silence"
+            />
             {/* The one-off escape hatch (issue #1787). It lives in the sheet
                 header rather than the change-mode dialog because the sheet is
                 reachable in both schedule and manual mode, while the dialog
@@ -1021,6 +1148,8 @@ export function ActivePageDisplay() {
           composeTargetBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
         )}
         targetBoardName={composeTargetsAnotherBoard ? composeTargetBoard?.name : undefined}
+        targetBoardId={composeTargetBoard?.id}
+        silence={primarySilence.active ? { until: primarySilence.until, holds: primarySilence.holds } : null}
       />
 
       {/* Force Set dialog — opened when user picks a page while in schedule mode */}
@@ -1029,6 +1158,8 @@ export function ActivePageDisplay() {
         onOpenChange={setForceSetDialogOpen}
         pageId={forceSetPageId}
         pageName={pages.find((p) => p.id === forceSetPageId)?.name ?? ""}
+        silenced={primarySilence.active}
+        silencedUntil={primarySilence.until}
       />
 
       {/* Schedule mode choice dialog — shown before page selector when schedule is active */}

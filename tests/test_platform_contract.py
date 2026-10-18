@@ -75,7 +75,9 @@ PAUSED = "src.display_runtime._board_is_paused"
 #: binds its own settings service — stubbing only the display_runtime one
 #: leaves a paused board reading as running.
 GUARD_SETTINGS_SERVICE = "src.board_guards.get_settings_service"
-SILENCE_ACTIVE = "src.board_api.routes._silence_active"
+#: Every send surface decides silence through ``silence_verdict`` (#1943),
+#: which reads this.
+SILENCE_ACTIVE = "src.board_guards._silence_active"
 REQUIRE_BOARD = "src.service_api.routes._require_board"
 BOARD_REQUIRE_BOARD = "src.board_api.routes._require_board"
 PRIMARY_BOARD_ENTRY = "src.display_runtime._primary_board_entry"
@@ -351,6 +353,7 @@ SILENCE_OFF = {
     "page_id": None,
     "indicator_text": None,
     "indicator_position": None,
+    "show_queued_on_exit": False,
 }
 
 
@@ -372,6 +375,10 @@ def test_silence_status_reports_the_window_and_the_board_it_describes(client):
     assert body["indicator_position"] is None
     # Omitted board_id means "the board you drive by default" (#1788).
     assert body["board_id"] == "b1"
+    # #1943/#1944: when silence ends, whether sends are held, and what is.
+    assert body["ends_at_utc"] is None
+    assert body["holds_blocked_sends"] is False
+    assert body["held"] is None
     # Disabled: there is no next transition to count down to.
     assert body["seconds_until_next_change"] is None
     assert body["current_time_utc"].endswith("+00:00")
@@ -572,7 +579,10 @@ def test_send_message_refuses_during_silence_mode(client, wired):
         resp = client.post("/send-message", json={"text": "HELLO"})
     # Re-pinned: a refusal is a status code, not a word at 200.
     assert resp.status_code == 409
-    assert resp.json()["detail"] == "Manual sends are blocked during silence mode to prevent waking the board."
+    assert resp.json()["detail"] == (
+        "Manual sends are blocked while the board is silenced. Send override_silence=true to write anyway, "
+        "or turn on show_queued_on_exit to hold it until silence ends."
+    )
     assert wired.call_count == 0
 
 
@@ -627,7 +637,7 @@ def test_welcome_message_refuses_during_silence_mode(client, welcome_wired):
     with patch(SILENCE_ACTIVE, return_value=True):
         resp = client.post("/send-welcome-message")
     assert resp.status_code == 409
-    assert resp.json()["detail"] == "Manual sends are blocked during silence mode to prevent waking the board."
+    assert resp.json()["detail"] == "Manual sends are blocked while the board is silenced."
     assert welcome_wired.call_count == 0
 
 

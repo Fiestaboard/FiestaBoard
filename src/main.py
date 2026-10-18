@@ -1833,6 +1833,10 @@ class DisplayService:
             # paused (guards against Mock returns from older fixtures).
             if settings_service.is_paused(board_id=board_id) is True:
                 logger.debug("Board %s is paused - skipping update", board_id or "(default)")
+                if exiting_silence_mode:
+                    # A message held for this window would otherwise wait for
+                    # a resume that may be days away (issue #1944).
+                    self._discard_held_send(board_id, "board is paused")
                 rt.last_silence_mode_active = silence_mode_active
                 return False
 
@@ -1881,6 +1885,8 @@ class DisplayService:
                     "Output target is UI only - skipping board %s update",
                     board_id or "(default)",
                 )
+                if exiting_silence_mode:
+                    self._discard_held_send(board_id, "output target is UI only")
                 return False
 
             if silence_mode_active and rt.snoozing_message_sent:
@@ -1899,15 +1905,18 @@ class DisplayService:
                 # render is unconditionally pushed, otherwise "content
                 # unchanged, skipping send" leaves the indicator stuck.
                 rt.last_active_page_content = None
-                # Issue #1944: opt-in delivery of the last send blocked
-                # during the window ("show_queued_on_exit").
+
+            # Issue #1944: opt-in delivery of the send held during the window
+            # ("show_queued_on_exit"). Checked on every tick outside silence,
+            # not only on the exit edge: the entry is discarded only once its
+            # send succeeds, so a board that is offline at 7:00 gets it on a
+            # later tick (up to the store's 24h TTL).
+            if not silence_mode_active and silence_config.get("show_queued_on_exit"):
                 from src import silence_queue
 
-                queued = silence_queue.pop_message(board_id)
-                if queued is not None and silence_config.get("show_queued_on_exit"):
-                    logger.info("Showing message queued during silence")
-                    rt.silence_queued_shown = queued
-                    return self._send_trigger_content(queued, rt, wait=wait)
+                held = silence_queue.peek(board_id)
+                if held is not None:
+                    return self._deliver_held_send(held, rt, wait=wait)
 
             # --- Stage: trigger input (PRIMARY only; suppressed during silence) ---
             # Triggers are a first-class engine input (#1850, per the #1767
@@ -2799,10 +2808,90 @@ class DisplayService:
             logger.error(f"Error checking triggers: {e}")
             return None
 
-    def _send_trigger_content(self, content: str, rt: BoardRuntime | None = None, *, wait: bool = True) -> bool:
+    @staticmethod
+    def _discard_held_send(board_id, why: str) -> None:
+        """Drop the send held during silence for *board_id*, saying why (#1944)."""
+        from src import silence_queue
+
+        if silence_queue.discard(board_id):
+            logger.info("Discarding message held during silence: board %s %s", board_id, why)
+
+    def _held_send_content(self, held, rt: BoardRuntime) -> str | None:
+        """The board text a held send paints now, or ``None`` when it cannot render.
+
+        A held page or display is an intent: it is rendered fresh here, so the
+        morning shows the morning's data. Text is word-wrapped to this
+        board's geometry and character set (it used to be painted unwrapped,
+        so everything past the first row was cut off).
+        """
+        from .board_chars import characters_to_message
+        from .outputs.cells import charset_extended_markup
+        from .text_to_board import wrap_message_text
+
+        if held.kind == "text":
+            dims = resolve_dimensions(*self._runtime_geometry(rt))
+            return wrap_message_text(
+                str(held.payload),
+                rows=dims.rows,
+                cols=dims.cols,
+                extended_markup=charset_extended_markup(output_character_set(rt.client)),
+            )
+        if held.kind == "lines":
+            return "\n".join(str(line) for line in held.payload)
+        if held.kind == "grid":
+            characters = (held.payload or {}).get("characters") if isinstance(held.payload, dict) else None
+            return characters_to_message(characters) if characters else None
+        if held.kind == "page":
+            result = get_page_service().preview_page(str(held.payload), force_refresh=True)
+            return result.formatted if result is not None and result.available else None
+        if held.kind == "display":
+            from .displays.service import get_display_service
+
+            result = get_display_service().get_display(str(held.payload))
+            return result.formatted if result is not None and result.available else None
+        return None
+
+    def _deliver_held_send(self, held, rt: BoardRuntime, *, wait: bool = True) -> bool:
+        """Paint the send held during silence; forget it only once it lands."""
+        from src import silence_queue
+
+        board_id = held.board_id
+        try:
+            content = self._held_send_content(held, rt)
+        except Exception as e:
+            logger.warning("Could not render the %s held during silence for board %s: %s", held.kind, board_id, e)
+            content = None
+        if content is None:
+            logger.warning(
+                "Discarding message held during silence: board %s's %s %r can no longer be rendered",
+                board_id,
+                held.kind,
+                held.payload,
+            )
+            silence_queue.discard(board_id)
+            return False
+        if content == rt.last_active_page_content:
+            # Already on the board: nothing left to deliver.
+            silence_queue.discard(board_id)
+            return False
+        logger.info("Showing message held during silence on board %s", board_id)
+        # The adoption block in the page pass matches on this exact string.
+        rt.silence_queued_shown = content
+        return self._send_trigger_content(content, rt, wait=wait, on_success=lambda: silence_queue.discard(board_id))
+
+    def _send_trigger_content(
+        self,
+        content: str,
+        rt: BoardRuntime | None = None,
+        *,
+        wait: bool = True,
+        on_success=None,
+    ) -> bool:
         """Send trigger content to the board (primary board).
 
-        Returns True if the content was sent successfully.
+        Returns True if the content was sent successfully. ``on_success``
+        runs once the send reports success (the held-send delivery uses it
+        to forget the entry only when it actually landed).
         """
         rt = rt if rt is not None else self._ensure_primary_runtime()
         if rt is None or rt.client is None:
@@ -2839,6 +2928,8 @@ class DisplayService:
                 rt.last_active_page_id = "__trigger__"
                 # Engine-owned write (issue #1831).
                 rt.showing_out_of_band = False
+                if on_success is not None:
+                    on_success()
                 if was_sent:
                     logger.info("Triggered message sent to board")
                 return was_sent

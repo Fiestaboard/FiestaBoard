@@ -252,7 +252,7 @@ async def test_a_slow_page_send_does_not_block_the_event_loop():
             patch("src.pages.routes.get_settings_service", return_value=settings),
             patch("src.pages.routes.get_page_service", return_value=page_service),
             patch("src.pages.routes.get_service", return_value=service),
-            patch("src.pages.routes._silence_active", return_value=False),
+            patch("src.board_guards._silence_active", return_value=False),
             patch("src.pages.routes._board_is_paused", return_value=False),
         ):
             return await ac.post("/pages/p1/send?target=board")

@@ -1,6 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { toast } from "sonner";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
+import { Toaster } from "@/components/ui/sonner";
+import i18n from "@/i18n/i18next";
 import type { Collection, CollectionsResponse, Page, PagesResponse, SilenceStatus } from "@/lib/api";
 
 import { ActivePageDisplay } from "./active-page-display";
@@ -64,6 +69,7 @@ const createQueryClient = (
   scheduleEnabled: boolean = false,
   silenceActive: boolean = false,
   collections?: Collection[],
+  silence: Partial<SilenceStatus> = {},
 ) => {
   const client = new QueryClient({
     defaultOptions: {
@@ -118,6 +124,7 @@ const createQueryClient = (
     end_time_utc: "2024-01-01T08:00:00Z",
     current_time_utc: "2024-01-01T04:00:00Z",
     next_change_utc: "2024-01-01T08:00:00Z",
+    ...silence,
   } as SilenceStatus);
 
   client.setQueryData(["boardSettings"], {
@@ -273,4 +280,164 @@ export const CollectionActiveScheduled: Story = {
       </QueryClientProvider>
     ),
   ],
+};
+
+// ---------------------------------------------------------------------------
+// Silence (#1943, #1944): hold by default, one explicit "Show now"
+// ---------------------------------------------------------------------------
+
+/** When silence ends, as the stories quote it: seven hours after the story loads. */
+const ENDS_AT = new Date(Date.now() + 7 * 3600 * 1000).toISOString();
+const SILENCED: Partial<SilenceStatus> = {
+  active: true,
+  mode: "freeze",
+  ends_at_utc: ENDS_AT,
+  seconds_until_next_change: 7 * 3600,
+  holds_blocked_sends: false,
+  held: null,
+};
+const HELD: Partial<SilenceStatus> = {
+  ...SILENCED,
+  holds_blocked_sends: true,
+  held: { kind: "text", preview: "GOOD MORNING EVERYONE HAVE A…", queued_at: new Date().toISOString() },
+};
+const endsAtLabel = () => new Date(ENDS_AT).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+const PHONE = { viewport: { value: "phone375", isRotated: false } };
+
+function silenced(client: QueryClient, opts: { schedule?: boolean } = {}) {
+  if (opts.schedule) {
+    client.setQueryData(["schedules", "active"], {
+      page_id: "page-1",
+      source: "schedule",
+      schedule_enabled: true,
+      temporary_override: null,
+    });
+  }
+  return (Story: () => React.ReactElement) => (
+    <QueryClientProvider client={client}>
+      <div className="max-w-4xl">
+        <Story />
+      </div>
+    </QueryClientProvider>
+  );
+}
+
+/** Manual mode, "Weather Dashboard" active, nothing held: the alert and Show now. */
+export const SilencedManual: Story = {
+  decorators: [silenced(createQueryClient("page-1", false, true, undefined, SILENCED))],
+};
+
+export const SilencedManualPhone: Story = {
+  ...SilencedManual,
+  globals: PHONE,
+};
+
+/** A message is held: it shows first, and can be discarded. */
+export const SilencedManualHeld: Story = {
+  decorators: [silenced(createQueryClient("page-1", false, true, undefined, HELD))],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByTestId("silence-show-now")).toBeVisible());
+    await waitFor(() => expect(canvas.getByTestId("silence-discard-held")).toBeVisible());
+    await expect(canvas.getByTestId("silence-held")).toHaveTextContent("GOOD MORNING EVERYONE HAVE A…");
+  },
+};
+
+export const SilencedManualHeldPhone: Story = {
+  ...SilencedManualHeld,
+  globals: PHONE,
+};
+
+/** Schedule mode: the schedule resumes when silence ends; no Show now. */
+export const SilencedSchedule: Story = {
+  decorators: [silenced(createQueryClient("page-1", true, true, undefined, SILENCED), { schedule: true })],
+};
+
+/**
+ * Silence "page" mode: the header names the silence page on the board
+ * (#1637); the alert still names the page that shows when silence ends.
+ */
+export const SilencedPageMode: Story = {
+  decorators: [
+    silenced(createQueryClient("page-1", false, true, undefined, { ...SILENCED, mode: "page", page_id: "page-2" })),
+  ],
+};
+
+/** A collection is active: the alert names it, with no Show now. */
+export const SilencedCollection: Story = {
+  decorators: [silenced(createQueryClient("collection:abc-123", false, true, mockCollections, SILENCED))],
+};
+
+/** The Change Page sheet during silence: the note under its description. */
+export const SilencedSheetOpen: Story = {
+  decorators: [silenced(createQueryClient("page-1", false, true, undefined, SILENCED))],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const [changePage] = await canvas.findAllByRole("button", { name: /change page/i });
+    await userEvent.click(changePage);
+    await expect(await within(document.body).findByTestId("select-page-silence")).toBeVisible();
+  },
+};
+
+export const SilencedSheetOpenPhone: Story = {
+  ...SilencedSheetOpen,
+  globals: PHONE,
+};
+
+/** Shows a toast exactly as the Home page raises it, over the silenced Home. */
+function withToast(raise: () => void) {
+  return (Story: () => React.ReactElement) => {
+    function Raise() {
+      useEffect(() => {
+        const id = setTimeout(raise, 50);
+        return () => clearTimeout(id);
+      }, []);
+      return null;
+    }
+    return (
+      <>
+        <Story />
+        <Toaster />
+        <Raise />
+      </>
+    );
+  };
+}
+
+/** A page picked during silence: saved, with Show now in the toast. */
+export const HeldPageToast: Story = {
+  decorators: [
+    withToast(() =>
+      toast.info(i18n.t("activeDisplay.toastSwitchHeld", { pageName: "Transit Times", time: endsAtLabel() }), {
+        duration: Infinity,
+        action: { label: i18n.t("activeDisplay.showNow"), onClick: () => {} },
+      }),
+    ),
+    silenced(createQueryClient("page-2", false, true, undefined, SILENCED)),
+  ],
+};
+
+/** Show now landed. */
+export const ShownNowToast: Story = {
+  decorators: [
+    withToast(() =>
+      toast.success(i18n.t("activeDisplay.toastShownNow", { pageName: "Transit Times" }), { duration: Infinity }),
+    ),
+    silenced(createQueryClient("page-2", false, true, undefined, SILENCED)),
+  ],
+};
+
+/** A pick on a paused board. */
+export const PausedToast: Story = {
+  decorators: [
+    withToast(() =>
+      toast.info(i18n.t("activeDisplay.toastSwitchPaused", { pageName: "Transit Times" }), { duration: Infinity }),
+    ),
+    silenced(createQueryClient("page-2", false, true, undefined, SILENCED)),
+  ],
+};
+
+/** Regression: not silenced — no alert, no sheet note, dialogs unchanged. */
+export const SilenceInactiveDefault: Story = {
+  decorators: [silenced(createQueryClient("page-1", false, false, undefined, { active: false }))],
 };

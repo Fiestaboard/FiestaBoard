@@ -159,10 +159,12 @@ describe("ComposePageDialog", () => {
 
   it("saving is optional — sending never creates a page", async () => {
     let pageCreated = false;
+    let sent = false;
     server.use(
-      http.post(`${API_BASE}/settings/temporary-override`, () =>
-        HttpResponse.json({ active: true, template: ["HI"], device_type: "flagship" }),
-      ),
+      http.post(`${API_BASE}/settings/temporary-override`, () => {
+        sent = true;
+        return HttpResponse.json({ active: true, template: ["HI"], device_type: "flagship" });
+      }),
       http.post(`${API_BASE}/v1/pages`, () => {
         pageCreated = true;
         return HttpResponse.json({ id: "p", name: "x" }, { status: 201 });
@@ -174,6 +176,10 @@ describe("ComposePageDialog", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: /send to board/i }));
 
+    // Wait for the send itself to land: the button is enabled again before
+    // the request even starts, and a request still in flight when this test
+    // ends is answered by the NEXT test's handlers.
+    await waitFor(() => expect(sent).toBe(true));
     await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
     expect(pageCreated).toBe(false);
   });

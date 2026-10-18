@@ -708,7 +708,10 @@ def test_the_silence_window_refuses_the_write(client, boards, board_client):
         response = client.post("/v1/boards/primary/message", json={"text": "Hello"})
 
     assert response.status_code == 409
-    assert response.json() == {"detail": "Manual sends blocked during silence mode to prevent wake-ups"}
+    assert response.json() == {
+        "detail": "Manual sends are blocked while the board is silenced. Send override_silence=true to write "
+        "anyway, or turn on show_queued_on_exit to hold it until silence ends."
+    }
     board_client.render.assert_not_called()
 
 
@@ -893,10 +896,15 @@ def test_pinning_a_page_sets_it_and_reports_delivery(client, boards, board_clien
     # so a 200 that never reached the board is detectable. Null here because
     # this send worked; test_pinning_a_page_that_did_not_reach_the_board_says_why
     # is the case that made it necessary.
+    # RE-PINNED (#1943): gained ``silenced`` and ``reason`` — a silenced board
+    # pins the page without writing it, and ``reason`` says when it will show
+    # (tests/test_silence_active_page.py). False/null here: not silenced.
     assert response.json() == {
         "board_id": primary_id,
         "page_id": page_id,
         "sent": True,
+        "silenced": False,
+        "reason": None,
         "error": None,
         "warnings": [],
     }

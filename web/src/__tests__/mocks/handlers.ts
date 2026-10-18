@@ -660,6 +660,7 @@ export const handlers = [
       line_count: template ? template.split("\n").length : 1,
       sent_to_board: true,
       paused: false,
+      silenced: false,
       board_id: body.board_id || "default",
     });
   }),

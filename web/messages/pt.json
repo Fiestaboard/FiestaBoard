@@ -903,7 +903,21 @@
     "collectionSizeWarning": "{count} de {total} páginas desta coleção não se ajustam ao tamanho deste quadro e serão ignoradas.",
     "turnOffLiveModeAriaLabel": "Desativar o modo ao vivo",
     "liveModeBadge": "Modo ao vivo",
-    "composeOneOff": "Escrever uma mensagem"
+    "composeOneOff": "Escrever uma mensagem",
+    "silenceManual": "“{pageName}” será exibida quando o silêncio terminar. Até lá, o quadro fica em silêncio.",
+    "silenceSchedule": "Sua programação é retomada quando o silêncio terminar. Até lá, o quadro fica em silêncio.",
+    "silenceNoPage": "Até lá, o quadro fica em silêncio.",
+    "silenceHeld": "Mensagem retida: “{preview}” — ela aparece primeiro.",
+    "showNow": "Mostrar agora",
+    "discardHeld": "Descartar mensagem",
+    "selectPageSilence": "a página escolhida é salva e exibida nesse momento. O quadro fica em silêncio.",
+    "toastSwitchHeld": "“{pageName}” será exibida às {time}",
+    "toastSwitchHeldNoTime": "“{pageName}” será exibida quando o silêncio terminar",
+    "toastSwitchPaused": "Salvo — “{pageName}” será exibida quando você retomar o quadro",
+    "toastShownNow": "Mostrando “{pageName}” agora",
+    "toastHeldDiscarded": "Mensagem retida descartada",
+    "toastHeldDiscardFailed": "Não foi possível descartar a mensagem retida",
+    "toastResendNotSent": "Nada foi enviado (quadro pausado ou saída definida só para a interface)"
   },
   "forceSetDialog": {
     "title": "Forçar board",
@@ -915,7 +929,9 @@
     "confirm": "Forçar",
     "setting": "A definir…",
     "toastSuccess": "A mostrar «{pageName}» durante {minutes} min",
-    "toastError": "Falha ao definir substituição"
+    "toastError": "Falha ao definir substituição",
+    "silenceWarning": "Forçar mostra esta página na hora e acorda o quadro.",
+    "confirmSilenced": "Mostrar agora mesmo assim"
   },
   "composeDialog": {
     "title": "Escrever uma mensagem",
@@ -936,7 +952,17 @@
     "toastSent": "Enviado para o quadro",
     "toastSendError": "Falha ao enviar a mensagem",
     "toastSaved": "Página \"{pageName}\" salva",
-    "toastSaveError": "Falha ao salvar a página"
+    "toastSaveError": "Falha ao salvar a página",
+    "silenceHold": "Retenha e ela aparece às {time}, ou envie agora e o quadro acorda.",
+    "silenceNoHold": "Enviar agora acorda o quadro. Para reter mensagens até o silêncio terminar, ative “Mostrar mensagens retidas quando o silêncio terminar” em Configurações → Programação.",
+    "openSettings": "Abrir configurações",
+    "hold": "Reter até {time}",
+    "holdNoTime": "Reter até o silêncio terminar",
+    "holding": "Retendo…",
+    "sendNowAnyway": "Enviar agora mesmo assim",
+    "toastHeld": "Retida — aparece às {time}",
+    "toastHeldNoTime": "Retida — aparece quando o silêncio terminar",
+    "toastHoldError": "Não foi possível reter a mensagem"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Não é possível alcançar o aplicativo. Verifique sua rede ou se o FiestaBoard está em execução.",
@@ -1032,7 +1058,11 @@
     "transitionPickerTooltip": "Transição desta página: {strategy}",
     "transitionBuiltInGroup": "Integradas",
     "transitionPluginsGroup": "Plugins (beta)",
-    "transitionUseDisplayTransition": "Usar a transição do ecrã"
+    "transitionUseDisplayTransition": "Usar a transição do ecrã",
+    "liveSilencePreviewOnly": "A saída ao vivo está só pré-visualizando. O quadro fica em silêncio.",
+    "liveSendAnyway": "Enviar ao quadro mesmo assim",
+    "liveSilenceOverriding": "A saída ao vivo está acordando o quadro durante o silêncio.",
+    "liveStopOverriding": "Parar de enviar"
   },
   "displaySettings": {
     "unnamedBoard": "Painel Sem Nome",
@@ -1371,7 +1401,9 @@
     "toastBoardReadIntervalUpdated": "Intervalo de leitura do board atualizado",
     "toastBoardReadIntervalFailed": "Falha ao atualizar intervalo de leitura do board: {error}",
     "updateIntervalsTitle": "Intervalos de atualização",
-    "updateIntervalsDescription": "Com que frequência o quadro busca novo conteúdo e relê seu estado atual"
+    "updateIntervalsDescription": "Com que frequência o quadro busca novo conteúdo e relê seu estado atual",
+    "silenceShowHeldLabel": "Mostrar mensagens retidas quando o silêncio terminar",
+    "silenceShowHeldHelp": "Uma mensagem enviada a este quadro durante o silêncio é retida e exibida no momento em que o silêncio termina. Desativado, ela é recusada. Mudanças de página são sempre mantidas e não precisam disso."
   },
   "serviceControls": {
     "title": "Controle do Serviço",
@@ -2697,5 +2729,9 @@
     "serverError": "As telas não foram aceitas: {message}",
     "notPixelNotice": "Esta página tem telas de pixels. Este quadro não consegue desenhá-las, então suas áreas ficam em branco. Visualize a página em um quadro LED de pixels para editá-las.",
     "markerTitle": "Uma tela começa nesta linha (não faz parte do texto)"
+  },
+  "silenceNotice": {
+    "untilTitle": "Em silêncio até {time}",
+    "untilTitleNoTime": "O quadro está em silêncio"
   }
 }

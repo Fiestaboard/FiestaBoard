@@ -903,7 +903,21 @@
     "collectionSizeWarning": "此合集中的 {total} 个页面中有 {count} 个不适合此板的尺寸，将被跳过。",
     "turnOffLiveModeAriaLabel": "关闭实时模式",
     "liveModeBadge": "实时模式",
-    "composeOneOff": "撰写消息"
+    "composeOneOff": "撰写消息",
+    "silenceManual": "静默结束后将显示“{pageName}”。在此之前看板保持安静。",
+    "silenceSchedule": "静默结束后将恢复你的时间表。在此之前看板保持安静。",
+    "silenceNoPage": "在此之前看板保持安静。",
+    "silenceHeld": "暂存的消息：“{preview}”——将首先显示。",
+    "showNow": "立即显示",
+    "discardHeld": "丢弃消息",
+    "selectPageSilence": "你选择的页面会被保存，并在那时显示。看板保持安静。",
+    "toastSwitchHeld": "“{pageName}”将于 {time} 显示",
+    "toastSwitchHeldNoTime": "静默结束后将显示“{pageName}”",
+    "toastSwitchPaused": "已保存——恢复看板后将显示“{pageName}”",
+    "toastShownNow": "正在显示“{pageName}”",
+    "toastHeldDiscarded": "已丢弃暂存的消息",
+    "toastHeldDiscardFailed": "无法丢弃暂存的消息",
+    "toastResendNotSent": "未发送任何内容（看板已暂停，或输出仅设置为界面）"
   },
   "forceSetDialog": {
     "title": "强制设置 Board",
@@ -915,7 +929,9 @@
     "confirm": "强制设置",
     "setting": "设置中…",
     "toastSuccess": "显示 \"{pageName}\" 共 {minutes} 分钟",
-    "toastError": "设置覆盖失败"
+    "toastError": "设置覆盖失败",
+    "silenceWarning": "强制设置会立即显示此页面并唤醒看板。",
+    "confirmSilenced": "仍然立即显示"
   },
   "composeDialog": {
     "title": "撰写消息",
@@ -936,7 +952,17 @@
     "toastSent": "已发送到看板",
     "toastSendError": "消息发送失败",
     "toastSaved": "已保存“{pageName}”",
-    "toastSaveError": "页面保存失败"
+    "toastSaveError": "页面保存失败",
+    "silenceHold": "暂存后将在 {time} 显示；现在发送则会唤醒看板。",
+    "silenceNoHold": "现在发送会唤醒看板。若要在静默结束前暂存消息，请在 设置 → 日程 中开启“静默结束时显示暂存的消息”。",
+    "openSettings": "打开设置",
+    "hold": "暂存至 {time}",
+    "holdNoTime": "暂存至静默结束",
+    "holding": "正在暂存…",
+    "sendNowAnyway": "仍然立即发送",
+    "toastHeld": "已暂存——将在 {time} 显示",
+    "toastHeldNoTime": "已暂存——静默结束后显示",
+    "toastHoldError": "无法暂存消息"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "无法连接应用。请检查网络或 FiestaBoard 是否在运行。",
@@ -1032,7 +1058,11 @@
     "transitionPickerTooltip": "此页面的过渡效果：{strategy}",
     "transitionBuiltInGroup": "内置",
     "transitionPluginsGroup": "插件（测试版）",
-    "transitionUseDisplayTransition": "使用显示设备的过渡效果"
+    "transitionUseDisplayTransition": "使用显示设备的过渡效果",
+    "liveSilencePreviewOnly": "实时输出仅在预览。看板保持安静。",
+    "liveSendAnyway": "仍然发送到看板",
+    "liveSilenceOverriding": "实时输出正在静默期间唤醒看板。",
+    "liveStopOverriding": "停止发送"
   },
   "displaySettings": {
     "unnamedBoard": "未命名看板",
@@ -1371,7 +1401,9 @@
     "toastBoardReadIntervalUpdated": "Board 读取间隔已更新",
     "toastBoardReadIntervalFailed": "更新 board 读取间隔失败:{error}",
     "updateIntervalsTitle": "更新间隔",
-    "updateIntervalsDescription": "看板查询新内容和重新读取当前状态的频率"
+    "updateIntervalsDescription": "看板查询新内容和重新读取当前状态的频率",
+    "silenceShowHeldLabel": "静默结束时显示暂存的消息",
+    "silenceShowHeldHelp": "静默期间发送到此看板的消息会被暂存，并在静默结束的那一刻显示。关闭时则会被拒绝。页面更改始终会被保存，不需要此选项。"
   },
   "serviceControls": {
     "title": "服务控制",
@@ -2697,5 +2729,9 @@
     "serverError": "画布未被接受：{message}",
     "notPixelNotice": "此页面包含像素画布。该看板无法绘制它们，因此其区域保持空白。请在 LED 像素看板上预览页面以进行编辑。",
     "markerTitle": "画布从此行开始（不属于文字）"
+  },
+  "silenceNotice": {
+    "untilTitle": "静默至 {time}",
+    "untilTitleNoTime": "看板处于静默中"
   }
 }

@@ -44,6 +44,8 @@ SILENCE_SCHEDULE_KEYS = (
     "page_id",
     "indicator_text",
     "indicator_position",
+    # Issue #1944. Missing from this list, a board-scoped write dropped it.
+    "show_queued_on_exit",
 )
 
 # Mapping from legacy feature keys to plugin IDs.
@@ -437,6 +439,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "indicator_position": "center",
             # Page id to display when mode == "page" (variables are frozen at silence-start)
             "page_id": None,
+            # Issue #1944: hold a send refused during the window and show it
+            # when the window ends. MUST stay in DEFAULT_CONFIG for the same
+            # reason as by_board below: set_feature() drops unknown keys, and
+            # did drop this one until it was listed here.
+            "show_queued_on_exit": False,
             # Per-board overrides (issue #1788): board_id -> partial dict of the
             # seven keys above. A board with no entry inherits the values above,
             # which act as the install-wide default. MUST stay in DEFAULT_CONFIG:

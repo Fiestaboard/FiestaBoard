@@ -682,11 +682,13 @@
       "shape": {
         "board_id": "null",
         "canvas_issues": "null",
+        "held": "bool",
         "layers": "null",
         "message": "str",
         "page_id": "str",
         "paused": "bool",
         "sent_to_board": "bool",
+        "silenced": "bool",
         "target": "str"
       }
     }

@@ -106,6 +106,17 @@ class RefreshResponse(BaseModel):
     sent: bool
 
 
+class HeldSendSummary(BaseModel):
+    """What a board is holding until silence ends (issue #1944)."""
+
+    #: ``text`` | ``lines`` | ``grid`` | ``page`` | ``display``.
+    kind: str
+    #: A short human preview (at most 40 characters).
+    preview: str
+    #: ISO-8601 instant it was held.
+    queued_at: str
+
+
 class SilenceStatusResponse(BaseModel):
     """``GET /silence-status`` — the resolved silence window for one board."""
 
@@ -124,3 +135,19 @@ class SilenceStatusResponse(BaseModel):
     indicator_position: str | None = None
     #: The board this window describes. Null only when no board is configured.
     board_id: str | None = None
+    #: ISO-8601 instant of the next change (now + ``seconds_until_next_change``)
+    #: — while ``active``, when silence ends. Null when silence is disabled.
+    #: The UI formats it in the viewer's local time (issue #1943).
+    ends_at_utc: str | None = None
+    #: The board's resolved ``show_queued_on_exit``: a send refused during
+    #: silence is held and shown when it ends (issue #1944).
+    holds_blocked_sends: bool = False
+    #: The send held for this board, if any.
+    held: HeldSendSummary | None = None
+
+
+class SilenceQueueDiscardResponse(BaseModel):
+    """``DELETE /silence-queue`` — whether a held send was discarded."""
+
+    board_id: str
+    discarded: bool

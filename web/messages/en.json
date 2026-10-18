@@ -859,7 +859,21 @@
     "collectionSizeWarning": "{count} of {total} pages in this collection don't fit this board's size and will be skipped.",
     "turnOffLiveModeAriaLabel": "Turn off Live Mode",
     "liveModeBadge": "Live Mode",
-    "composeOneOff": "Compose a message"
+    "composeOneOff": "Compose a message",
+    "silenceManual": "“{pageName}” will show when silence ends. The board stays quiet until then.",
+    "silenceSchedule": "Your schedule resumes when silence ends. The board stays quiet until then.",
+    "silenceNoPage": "The board stays quiet until then.",
+    "silenceHeld": "Held message: “{preview}” — it shows first.",
+    "showNow": "Show now",
+    "discardHeld": "Discard message",
+    "selectPageSilence": "the page you pick is saved and shows then. The board stays quiet.",
+    "toastSwitchHeld": "“{pageName}” will show at {time}",
+    "toastSwitchHeldNoTime": "“{pageName}” will show when silence ends",
+    "toastSwitchPaused": "Saved — “{pageName}” will show when you resume the board",
+    "toastShownNow": "Showing “{pageName}” now",
+    "toastHeldDiscarded": "Held message discarded",
+    "toastHeldDiscardFailed": "Could not discard the held message",
+    "toastResendNotSent": "Nothing was sent (board paused or output set to UI only)"
   },
   "forceSetDialog": {
     "title": "Force Set Board",
@@ -871,7 +885,9 @@
     "confirm": "Force Set",
     "setting": "Setting…",
     "toastSuccess": "Showing \"{pageName}\" for {minutes} min",
-    "toastError": "Failed to set override"
+    "toastError": "Failed to set override",
+    "silenceWarning": "Force Set shows this page right away and wakes the board.",
+    "confirmSilenced": "Show now anyway"
   },
   "composeDialog": {
     "title": "Compose a message",
@@ -892,7 +908,17 @@
     "toastSent": "Sent to the board",
     "toastSendError": "Failed to send the message",
     "toastSaved": "Saved \"{pageName}\"",
-    "toastSaveError": "Failed to save the page"
+    "toastSaveError": "Failed to save the page",
+    "silenceHold": "Hold it and it shows at {time}, or send it now and the board wakes.",
+    "silenceNoHold": "Sending now wakes the board. To hold messages until silence ends, turn on “Show held messages when silence ends” in Settings → Scheduling.",
+    "openSettings": "Open Settings",
+    "hold": "Hold until {time}",
+    "holdNoTime": "Hold until silence ends",
+    "holding": "Holding…",
+    "sendNowAnyway": "Send now anyway",
+    "toastHeld": "Held — it shows at {time}",
+    "toastHeldNoTime": "Held — it shows when silence ends",
+    "toastHoldError": "Could not hold the message"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Cannot reach the app. Check your network or that FiestaBoard is running.",
@@ -988,7 +1014,11 @@
     "transitionPickerTooltip": "Transition for this page: {strategy}",
     "transitionBuiltInGroup": "Built-in",
     "transitionPluginsGroup": "Plugins (beta)",
-    "transitionUseDisplayTransition": "Use the display's transition"
+    "transitionUseDisplayTransition": "Use the display's transition",
+    "liveSilencePreviewOnly": "Live Output is previewing only. The board stays quiet.",
+    "liveSendAnyway": "Send to board anyway",
+    "liveSilenceOverriding": "Live Output is waking the board during silence.",
+    "liveStopOverriding": "Stop sending"
   },
   "displaySettings": {
     "unnamedBoard": "Unnamed Board",
@@ -1327,7 +1357,9 @@
     "reduceMotionLabel": "Reduce Motion",
     "reduceMotionDescription": "Disable animations and transitions in the interface",
     "toastDisplaySaved": "Display settings saved",
-    "toastDisplaySaveFailed": "Failed to save display settings: {error}"
+    "toastDisplaySaveFailed": "Failed to save display settings: {error}",
+    "silenceShowHeldLabel": "Show held messages when silence ends",
+    "silenceShowHeldHelp": "A message sent to this board during silence is held and shown the moment silence ends. When off, it is refused instead. Page changes are always kept and never need this."
   },
   "serviceControls": {
     "title": "Service Control",
@@ -2697,5 +2729,9 @@
     "serverError": "The canvases were not accepted: {message}",
     "notPixelNotice": "This page has pixel canvases. This board can't draw them, so their areas stay blank. Preview the page on an LED pixel board to edit them.",
     "markerTitle": "A canvas starts on this row (not part of the text)"
+  },
+  "silenceNotice": {
+    "untilTitle": "Silenced until {time}",
+    "untilTitleNoTime": "The board is silenced"
   }
 }

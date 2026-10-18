@@ -89,7 +89,9 @@
           ],
           "text": "HELLO TILES",
           "expires_at": null,
-          "reason": null
+          "reason": null,
+          "silenced": false,
+          "held": false
         }
       }
     }
