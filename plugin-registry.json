@@ -603,7 +603,7 @@
       "id": "wow",
       "name": "World of Warcraft",
       "description": "Track a Retail character\u2019s item level, Mythic+ score, weekly keys, and raid progress with Raider.IO.",
-      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--world-of-warcraft",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--wow",
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=9.0.0",
       "icon": "swords",
