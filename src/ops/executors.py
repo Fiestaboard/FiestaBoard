@@ -46,6 +46,7 @@ from typing import Any
 
 from src.outputs.breaker import write_failure_reason
 from src.plugins.errors import PluginError
+from src.request_trace import trace_phase
 from src.send_outcome import SendOutcome
 
 from .results import err, ok, plugin_detail, rest_detail, serialize
@@ -892,7 +893,9 @@ def _settle_send(
         if unchanged is None:
             return err(failure)
         return ok(unchanged, skipped=True, board_id=target.board_id)
+    trace_phase("after_send_started")
     _after_send(target)
+    trace_phase("after_send_returned")
     return ok(success, board_id=target.board_id, **fields)
 
 
@@ -1003,6 +1006,7 @@ def send_message(
         resolved_strategy, resolved_interval, resolved_step = _transition_for(
             target, strategy, step_interval_ms, step_size
         )
+        trace_phase("render_started")
         outcome = render_message(
             target.client,
             text,
@@ -1014,6 +1018,7 @@ def send_message(
             force=force,
             with_outcome=True,
         )
+        trace_phase("render_returned")
         result = _settle_send(
             target,
             outcome,
@@ -1078,6 +1083,7 @@ def send_characters(
         resolved_strategy, resolved_interval, resolved_step = _transition_for(
             target, strategy, step_interval_ms, step_size
         )
+        trace_phase("render_started")
         outcome = target.client.render(
             characters,
             strategy=resolved_strategy,
@@ -1087,6 +1093,7 @@ def send_characters(
             with_outcome=True,
             **({"cells": cells} if cells is not None else {}),
         )
+        trace_phase("render_returned")
         result = _settle_send(
             target,
             outcome,

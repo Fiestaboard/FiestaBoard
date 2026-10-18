@@ -110,6 +110,7 @@ from .pages.service import (  # noqa: E402, F401  (patch seam)
     get_page_service,
 )
 from .panels.service import get_panel_service  # noqa: E402, F401  (patch seam, see above)
+from .request_trace import RequestTraceMiddleware  # noqa: E402
 from .settings.service import get_settings_service  # noqa: E402, F401  (patch seam)
 from .text_to_board import text_to_board_array  # noqa: E402, F401  (patch seam)
 from .time_service import reset_time_service  # noqa: E402
@@ -758,6 +759,7 @@ app.mount("/mcp", _mcp_mount)
 # /panel/ (singular) is the FiestaPanel viewer surface: read-only endpoints a
 # TV browser must reach with no session cookie. The /panels CRUD surface
 # (plural) stays behind auth like everything else.
+app.add_middleware(RequestTraceMiddleware)
 app.add_middleware(AuthMiddleware, extra_public_paths=("/panel/",))
 app.include_router(auth_router)
 if is_auth_enabled():
