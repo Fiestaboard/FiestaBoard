@@ -1036,6 +1036,7 @@
     "previewAsBlack": "Vista previa como tablero negro",
     "previewAsWhite": "Vista previa como tablero blanco",
     "liveOutput": "Salida en vivo",
+    "livePausedNotice": "Esta pantalla está en pausa. La salida en vivo solo actualiza la vista previa hasta que reanudes la pantalla.",
     "liveOutputAriaLabel": "Alternar salida en vivo al tablero",
     "selectBoardAriaLabel": "Seleccionar tablero para salida en vivo",
     "deviceTypeSwitcherAriaLabel": "Cambiar el tamaño del tablero",

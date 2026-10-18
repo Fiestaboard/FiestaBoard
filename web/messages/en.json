@@ -992,6 +992,7 @@
     "previewAsBlack": "Preview as black board",
     "previewAsWhite": "Preview as white board",
     "liveOutput": "Live Output",
+    "livePausedNotice": "This display is paused. Live Output updates the preview only until you resume the display.",
     "liveOutputAriaLabel": "Toggle live output to board",
     "selectBoardAriaLabel": "Select board for live output",
     "deviceTypeSwitcherAriaLabel": "Change board size",

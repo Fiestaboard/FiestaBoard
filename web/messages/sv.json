@@ -1036,6 +1036,7 @@
     "previewAsBlack": "Förhandsvisning som svart tavla",
     "previewAsWhite": "Förhandsvisning som vit tavla",
     "liveOutput": "Liveutmatning",
+    "livePausedNotice": "Den här skärmen är pausad. Live-utdata uppdaterar bara förhandsvisningen tills du återupptar skärmen.",
     "liveOutputAriaLabel": "Växla liveutmatning till tavlan",
     "selectBoardAriaLabel": "Välj tavla för liveutmatning",
     "deviceTypeSwitcherAriaLabel": "Ändra tavlans storlek",

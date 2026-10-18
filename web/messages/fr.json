@@ -1036,6 +1036,7 @@
     "previewAsBlack": "Aperçu avec tableau noir",
     "previewAsWhite": "Aperçu avec tableau blanc",
     "liveOutput": "Sortie en direct",
+    "livePausedNotice": "Cet écran est en pause. La sortie en direct met uniquement à jour l’aperçu jusqu’à la reprise de l’écran.",
     "liveOutputAriaLabel": "Activer/désactiver la sortie en direct vers le tableau",
     "selectBoardAriaLabel": "Sélectionner le tableau pour la sortie en direct",
     "deviceTypeSwitcherAriaLabel": "Changer la taille du tableau",

@@ -1036,6 +1036,7 @@
     "previewAsBlack": "Pré-visualizar como painel preto",
     "previewAsWhite": "Pré-visualizar como painel branco",
     "liveOutput": "Saída ao Vivo",
+    "livePausedNotice": "Este ecrã está em pausa. A saída em direto atualiza apenas a pré-visualização até retomares o ecrã.",
     "liveOutputAriaLabel": "Alternar saída ao vivo para o painel",
     "selectBoardAriaLabel": "Selecionar painel para saída ao vivo",
     "deviceTypeSwitcherAriaLabel": "Alterar o tamanho do quadro",
