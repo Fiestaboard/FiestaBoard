@@ -2731,6 +2731,7 @@
     "jsonLabel": "JSON des formes",
     "jsonInvalid": "JSON non valide : {message}",
     "jsonNotList": "Le JSON des formes doit être une liste.",
+    "jsonInvalidShape": "Chaque entrée doit être un objet de forme avec un type pris en charge.",
     "sourceHint": "Une variable de plugin qui dessine ce canevas. Lorsqu'elle fournit un dessin, celui-ci remplace celui du canevas.",
     "sourceVariable": "Variable de canevas du plugin",
     "sourceNone": "Aucune",

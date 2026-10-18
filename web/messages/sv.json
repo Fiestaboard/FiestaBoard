@@ -2731,6 +2731,7 @@
     "jsonLabel": "Form-JSON",
     "jsonInvalid": "Ogiltig JSON: {message}",
     "jsonNotList": "Form-JSON måste vara en lista.",
+    "jsonInvalidShape": "Varje post måste vara ett formobjekt med en typ som stöds.",
     "sourceHint": "En pluginvariabel som ritar den här ytan. När den ger en teckning ersätter den ytans egen.",
     "sourceVariable": "Pluginens ytvariabel",
     "sourceNone": "Ingen",

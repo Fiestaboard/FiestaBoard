@@ -2731,6 +2731,7 @@
     "jsonLabel": "Shapes JSON",
     "jsonInvalid": "Not valid JSON: {message}",
     "jsonNotList": "Shapes JSON must be a list.",
+    "jsonInvalidShape": "Each entry must be a shape object with a supported type.",
     "sourceHint": "A plugin variable that draws this canvas. When it yields a drawing, that drawing replaces the canvas's own.",
     "sourceVariable": "Plugin canvas variable",
     "sourceNone": "None",

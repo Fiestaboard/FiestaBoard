@@ -2731,6 +2731,7 @@
     "jsonLabel": "JSON de formas",
     "jsonInvalid": "JSON no válido: {message}",
     "jsonNotList": "El JSON de formas debe ser una lista.",
+    "jsonInvalidShape": "Cada entrada debe ser un objeto de forma con un tipo compatible.",
     "sourceHint": "Una variable de plugin que dibuja este lienzo. Cuando devuelve un dibujo, este sustituye al del propio lienzo.",
     "sourceVariable": "Variable de lienzo del plugin",
     "sourceNone": "Ninguna",

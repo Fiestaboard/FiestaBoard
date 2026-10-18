@@ -2731,6 +2731,7 @@
     "jsonLabel": "Vormen-JSON",
     "jsonInvalid": "Geen geldige JSON: {message}",
     "jsonNotList": "De vormen-JSON moet een lijst zijn.",
+    "jsonInvalidShape": "Elk item moet een vormobject met een ondersteund type zijn.",
     "sourceHint": "Een pluginvariabele die dit canvas tekent. Als die een tekening oplevert, vervangt die de eigen tekening van het canvas.",
     "sourceVariable": "Plugin-canvasvariabele",
     "sourceNone": "Geen",

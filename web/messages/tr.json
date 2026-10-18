@@ -2731,6 +2731,7 @@
     "jsonLabel": "Şekil JSON'u",
     "jsonInvalid": "Geçerli JSON değil: {message}",
     "jsonNotList": "Şekil JSON'u bir liste olmalıdır.",
+    "jsonInvalidShape": "Her öğe, desteklenen bir türe sahip bir şekil nesnesi olmalıdır.",
     "sourceHint": "Bu tuvali çizen bir eklenti değişkeni. Bir çizim döndürdüğünde, tuvalin kendi çiziminin yerine geçer.",
     "sourceVariable": "Eklenti tuval değişkeni",
     "sourceNone": "Yok",

@@ -2731,6 +2731,7 @@
     "jsonLabel": "形状 JSON",
     "jsonInvalid": "不是有效的 JSON：{message}",
     "jsonNotList": "形状 JSON 必须是列表。",
+    "jsonInvalidShape": "每个条目都必须是具有受支持类型的形状对象。",
     "sourceHint": "用于绘制此画布的插件变量。当它返回绘图时，该绘图会替换画布自身的内容。",
     "sourceVariable": "插件画布变量",
     "sourceNone": "无",

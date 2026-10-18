@@ -2731,6 +2731,7 @@
     "jsonLabel": "Formen-JSON",
     "jsonInvalid": "Kein gültiges JSON: {message}",
     "jsonNotList": "Das Formen-JSON muss eine Liste sein.",
+    "jsonInvalidShape": "Jeder Eintrag muss ein Formobjekt mit einem unterstützten Typ sein.",
     "sourceHint": "Eine Plugin-Variable, die dieses Canvas zeichnet. Liefert sie eine Zeichnung, ersetzt diese die eigene des Canvas.",
     "sourceVariable": "Plugin-Canvas-Variable",
     "sourceNone": "Keine",

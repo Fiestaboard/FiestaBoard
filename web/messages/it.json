@@ -2731,6 +2731,7 @@
     "jsonLabel": "JSON delle forme",
     "jsonInvalid": "JSON non valido: {message}",
     "jsonNotList": "Il JSON delle forme deve essere un elenco.",
+    "jsonInvalidShape": "Ogni elemento deve essere un oggetto forma con un tipo supportato.",
     "sourceHint": "Una variabile del plugin che disegna questa tela. Quando restituisce un disegno, questo sostituisce quello della tela.",
     "sourceVariable": "Variabile tela del plugin",
     "sourceNone": "Nessuna",

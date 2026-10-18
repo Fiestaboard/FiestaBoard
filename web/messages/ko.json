@@ -2731,6 +2731,7 @@
     "jsonLabel": "도형 JSON",
     "jsonInvalid": "올바른 JSON이 아닙니다: {message}",
     "jsonNotList": "도형 JSON은 목록이어야 합니다.",
+    "jsonInvalidShape": "각 항목은 지원되는 유형의 도형 객체여야 합니다.",
     "sourceHint": "이 캔버스를 그리는 플러그인 변수입니다. 그림을 반환하면 캔버스 자체의 그림을 대체합니다.",
     "sourceVariable": "플러그인 캔버스 변수",
     "sourceNone": "없음",

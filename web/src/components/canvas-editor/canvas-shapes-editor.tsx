@@ -7,6 +7,7 @@
 // panel (design PIXEL_CANVAS.md §1, §5).
 
 import {
+  Box,
   Button,
   Card,
   CardContent,
@@ -118,7 +119,7 @@ export function defaultShape(type: ShapeType): CanvasShape {
   }
 }
 
-/** A field's text as typed -> its JSON value: numbers stay numbers, everything else stays text. */
+/** Coerce only numeric fields and literal conditions; preserve text and expressions. */
 export function parseFieldValue(name: string, raw: string): unknown {
   const text = raw.trim();
   if (text === "") return undefined;
@@ -129,7 +130,11 @@ export function parseFieldValue(name: string, raw: string): unknown {
       return text;
     }
   }
-  if (/^-?\d+(\.\d+)?$/.test(text)) return Number(text);
+  if (name === "if" && (text === "true" || text === "false")) return text === "true";
+  const numeric = Object.values(SHAPE_FIELDS).some((fields) =>
+    fields.some((field) => field.name === name && field.kind === "num"),
+  );
+  if (numeric && /^-?\d+(\.\d+)?$/.test(text)) return Number(text);
   return raw;
 }
 
@@ -148,6 +153,7 @@ export function CanvasShapesEditor({ shapes, onChange }: CanvasShapesEditorProps
   const t = useTranslations("canvasEditor");
   const [newType, setNewType] = useState<ShapeType>("rect");
   const [jsonMode, setJsonMode] = useState(false);
+  const [jsonInvalid, setJsonInvalid] = useState(false);
   const jsonSwitchId = useId();
   const typeId = useId();
 
@@ -178,7 +184,12 @@ export function CanvasShapesEditor({ shapes, onChange }: CanvasShapesEditorProps
               ))}
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" onClick={() => onChange([...shapes, defaultShape(newType)])}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={jsonMode && jsonInvalid}
+            onClick={() => onChange([...shapes, defaultShape(newType)])}
+          >
             <Plus aria-hidden="true" />
             {t("addShape")}
           </Button>
@@ -194,27 +205,29 @@ export function CanvasShapesEditor({ shapes, onChange }: CanvasShapesEditorProps
         {t("fieldHint", { example: "{{weather.temperature}}" })}
       </Text>
 
-      {jsonMode ? (
-        <ShapesJsonEditor shapes={shapes} onChange={onChange} />
-      ) : shapes.length === 0 ? (
-        <Text size="sm" tone="muted">
-          {t("shapesEmpty")}
-        </Text>
-      ) : (
-        <Stack gap="2" role="list" aria-label={t("shapesListLabel")}>
-          {shapes.map((shape, index) => (
-            <ShapeCard
-              key={index}
-              shape={shape}
-              index={index}
-              count={shapes.length}
-              onChange={(s) => update(index, s)}
-              onMove={(by) => move(index, by)}
-              onDelete={() => onChange(shapes.filter((_, i) => i !== index))}
-            />
-          ))}
-        </Stack>
-      )}
+      <Box hidden={!jsonMode}>
+        <ShapesJsonEditor shapes={shapes} onChange={onChange} onInvalidChange={setJsonInvalid} />
+      </Box>
+      {!jsonMode &&
+        (shapes.length === 0 ? (
+          <Text size="sm" tone="muted">
+            {t("shapesEmpty")}
+          </Text>
+        ) : (
+          <Stack gap="2" role="list" aria-label={t("shapesListLabel")}>
+            {shapes.map((shape, index) => (
+              <ShapeCard
+                key={index}
+                shape={shape}
+                index={index}
+                count={shapes.length}
+                onChange={(s) => update(index, s)}
+                onMove={(by) => move(index, by)}
+                onDelete={() => onChange(shapes.filter((_, i) => i !== index))}
+              />
+            ))}
+          </Stack>
+        ))}
     </Stack>
   );
 }
@@ -341,11 +354,25 @@ function ShapeField({
   );
 }
 
-function ShapesJsonEditor({ shapes, onChange }: { shapes: CanvasShape[]; onChange: (s: CanvasShape[]) => void }) {
+function ShapesJsonEditor({
+  shapes,
+  onChange,
+  onInvalidChange,
+}: {
+  shapes: CanvasShape[];
+  onChange: (s: CanvasShape[]) => void;
+  onInvalidChange: (invalid: boolean) => void;
+}) {
   const t = useTranslations("canvasEditor");
   const id = useId();
   const [text, setText] = useState(() => JSON.stringify(shapes, null, 2));
   const [error, setError] = useState<string | null>(null);
+  const [seen, setSeen] = useState(shapes);
+  if (seen !== shapes) {
+    setSeen(shapes);
+    // Keep incomplete drafts intact; additions are disabled until repaired.
+    if (!error) setText(JSON.stringify(shapes, null, 2));
+  }
   return (
     <Stack gap="1">
       <Label htmlFor={id} className="text-xs">
@@ -364,12 +391,30 @@ function ShapesJsonEditor({ shapes, onChange }: { shapes: CanvasShape[]; onChang
             const parsed: unknown = JSON.parse(e.target.value);
             if (!Array.isArray(parsed)) {
               setError(t("jsonNotList"));
+              onInvalidChange(true);
+              return;
+            }
+            if (
+              parsed.some(
+                (shape) =>
+                  !shape ||
+                  typeof shape !== "object" ||
+                  Array.isArray(shape) ||
+                  typeof shape.type !== "string" ||
+                  !Object.hasOwn(SHAPE_FIELDS, shape.type),
+              )
+            ) {
+              setError(t("jsonInvalidShape"));
+              onInvalidChange(true);
               return;
             }
             setError(null);
+            onInvalidChange(false);
+            setSeen(parsed as CanvasShape[]);
             onChange(parsed as CanvasShape[]);
           } catch (err) {
             setError(t("jsonInvalid", { message: (err as Error).message }));
+            onInvalidChange(true);
           }
         }}
       />

@@ -2731,6 +2731,7 @@
     "jsonLabel": "JSON das formas",
     "jsonInvalid": "JSON inválido: {message}",
     "jsonNotList": "O JSON das formas deve ser uma lista.",
+    "jsonInvalidShape": "Cada entrada deve ser um objeto de forma com um tipo compatível.",
     "sourceHint": "Uma variável de plugin que desenha esta tela. Quando ela retorna um desenho, ele substitui o da própria tela.",
     "sourceVariable": "Variável de tela do plugin",
     "sourceNone": "Nenhuma",
