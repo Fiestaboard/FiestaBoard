@@ -1902,7 +1902,7 @@ class DisplayService:
                 self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
                 logger.error(f"Board {board_id}: update failed: {e}")
 
-    def _schedule_defer_active(self, rt: BoardRuntime, now, board_id) -> bool:
+    def _schedule_defer_active(self, rt: BoardRuntime, now, board_id, *, update_state: bool = True) -> bool:
         """Whether this board should hold its manual page instead of following the schedule.
 
         Turning schedule mode back on normally repaints the board at once: the
@@ -1914,6 +1914,10 @@ class DisplayService:
 
         Schedule gaps count as a window of their own (``_SCHEDULE_GAP_KEY``), so
         the toggle never repaints the board on its own.
+
+        Cadence lookups use ``update_state=False``: only a source-resolving
+        engine pass may consume the re-enable edge or end a deferral. An
+        override can own the display across several schedule windows.
         """
         settings_service = get_settings_service()
         arming = rt.last_schedule_enabled is False and rt.schedule_defer_key is None
@@ -1929,21 +1933,23 @@ class DisplayService:
         key = entry.id if entry is not None else _SCHEDULE_GAP_KEY
 
         if arming:
-            rt.schedule_defer_key = key
-            logger.info(
-                "Board %s: schedule re-enabled - holding the current page until its next window",
-                board_id or "(default)",
-            )
+            if update_state:
+                rt.schedule_defer_key = key
+                logger.info(
+                    "Board %s: schedule re-enabled - holding the current page until its next window",
+                    board_id or "(default)",
+                )
             return True
 
         if rt.schedule_defer_key == key:
             return True
 
-        rt.schedule_defer_key = None
-        logger.info(
-            "Board %s: schedule reached its next window - following the schedule again",
-            board_id or "(default)",
-        )
+        if update_state:
+            rt.schedule_defer_key = None
+            logger.info(
+                "Board %s: schedule reached its next window - following the schedule again",
+                board_id or "(default)",
+            )
         return False
 
     def check_and_send_for_board(
@@ -3171,7 +3177,7 @@ class DisplayService:
             ts = get_time_service()
             now = ts.get_current_time()
             rt = self.runtime_for(board_id)
-            if rt is not None and self._schedule_defer_active(rt, now, board_id):
+            if rt is not None and self._schedule_defer_active(rt, now, board_id, update_state=False):
                 return settings_service.get_active_page_id(board_id=board_id)
             return get_schedule_service().get_active_page_id(now.time(), now.strftime("%A").lower(), board_id=board_id)
         return settings_service.get_active_page_id(board_id=board_id)
