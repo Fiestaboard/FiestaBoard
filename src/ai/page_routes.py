@@ -253,7 +253,8 @@ class AIChatRequest(BaseModel):
     board_id: str | None = Field(
         default=None,
         description="The board the chat is for. The prompt then teaches what that board draws (an LED board's "
-        "lowercase, colours and icons; a pixel board's canvases) and actual geometry. Unknown IDs are rejected.",
+        "lowercase, colours and icons; a pixel board's canvases) and actual geometry. TV chat rejects unknown IDs; "
+        "ordinary web chat retains its default display rules for unknown IDs.",
     )
 
 
@@ -661,7 +662,7 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
     # client's, which would let a caller raise its own ceiling.
     limits = TurnLimits.from_providers_block(providers_block)
 
-    target_board = _chat_board_context(request.board_id)
+    target_board = _chat_board_context(request.board_id, strict=request.interaction_mode == "tv")
     if request.interaction_mode == "tv" and target_board is None:
         raise HTTPException(status_code=400, detail="Select a TV panel before chatting with FiestaBot.")
     backend = _tool_backend()
@@ -714,7 +715,7 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
     )
 
 
-def _chat_board_context(board_id: str | None) -> dict[str, Any] | None:
+def _chat_board_context(board_id: str | None, *, strict: bool = True) -> dict[str, Any] | None:
     """Resolve identity/geometry without putting connection secrets in a prompt."""
     if board_id is None:
         return None
@@ -723,10 +724,14 @@ def _chat_board_context(board_id: str | None) -> dict[str, Any] | None:
 
     board = _find_board(board_id)
     if board is None:
+        if not strict:
+            return None  # Preserve ordinary web chat's unknown-board fallback.
         raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
     try:
         resolve_dimensions(*geometry_of(board))
     except ValueError as exc:
+        if not strict:
+            return None
         raise HTTPException(status_code=400, detail=f"Board geometry is unavailable: {board_id}") from exc
     return {
         key: board[key]

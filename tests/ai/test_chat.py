@@ -843,7 +843,8 @@ def test_chat_endpoint_rejects_invalid_device_type(reset_throttle):
     assert "device_type" in r.text
 
 
-def test_the_chat_board_id_reaches_the_turn_as_that_boards_display(reset_throttle, monkeypatch):
+@pytest.mark.parametrize("interaction_mode", [None, "tv"])
+def test_the_chat_board_id_reaches_the_turn_as_that_boards_display(reset_throttle, monkeypatch, interaction_mode):
     """``board_id`` names the board the chat is for; the turn is taught its display."""
     from fastapi.testclient import TestClient
 
@@ -870,8 +871,22 @@ def test_the_chat_board_id_reaches_the_turn_as_that_boards_display(reset_throttl
     monkeypatch.setattr("src.ai.agent.run_chat_turn", fake_turn)
     client = TestClient(app)
     body = {"messages": [{"role": "user", "content": "hi"}], "board_id": "pixoo-1"}
+    if interaction_mode is not None:
+        body["interaction_mode"] = interaction_mode
     assert client.post("/pages/ai/chat", json=body).status_code == 200
     assert seen["display"] is not None and seen["display"].supports("pixels")
+    assert seen["target_board"] == {"id": "pixoo-1", "device_type": "panel", "grid_rows": 10, "grid_cols": 16}
+    assert seen["interaction_mode"] == interaction_mode
     seen.clear()
-    assert client.post("/pages/ai/chat", json={**body, "board_id": "gone"}).status_code == 200
-    assert seen["display"] is None
+    response = client.post("/pages/ai/chat", json={**body, "board_id": "gone"})
+    if interaction_mode == "tv":
+        # TV actions must not fall back to flagship geometry or the primary
+        # board when the explicitly selected panel has disappeared.
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Board not found: gone"}
+        assert seen == {}  # Rejected before the agent loop starts.
+    else:
+        # Ordinary web chat retains its existing unknown-board fallback.
+        assert response.status_code == 200
+        assert seen["display"] is None
+        assert seen["target_board"] is None
