@@ -128,3 +128,14 @@ def test_the_driver_says_its_last_write_was_preempted_and_the_next_one_clears_it
 
     assert preempted is True
     assert driver.last_send_preempted is False
+
+
+def test_superseded_outcome_survives_the_replacement_write():
+    plugin, driver, first, second = _preempted_then_resent()
+
+    assert first.superseded
+    assert not first.was_sent
+    assert not second.superseded
+    assert second.was_sent
+    assert driver.last_send_preempted is False
+    assert plugin.landed == [PAGE]
