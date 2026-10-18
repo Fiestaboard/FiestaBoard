@@ -2670,6 +2670,13 @@ class SettingsService:
         return self._wizard
 
     # Temporary override
+    def peek_temporary_override(self) -> TemporaryOverride | None:
+        """Read saved override references without expiring or mutating them.
+
+        Deletion checks must also protect a pending revert page after expiry.
+        """
+        return self._temporary_override
+
     @_locked
     def get_temporary_override(self) -> TemporaryOverride | None:
         """Return the active temporary override, or None if absent or expired.

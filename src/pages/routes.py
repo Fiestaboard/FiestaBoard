@@ -269,7 +269,7 @@ async def update_page(page_id: str, page_data: PageUpdate):
 @router.delete(
     "/pages/{page_id}",
     response_model=PageDeleteResponse,
-    responses=errors(404),
+    responses=errors(404, 409),
     dependencies=[superseded_by_v1("DELETE /pages/{page_id}")],
 )
 async def delete_page(page_id: str):
@@ -283,7 +283,12 @@ async def delete_page(page_id: str):
     """
     page_service = get_page_service()
 
-    result = page_service.delete_page(page_id)
+    from src.content_references import ContentInUseError
+
+    try:
+        result = page_service.delete_page(page_id)
+    except ContentInUseError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     if not result.deleted:
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")

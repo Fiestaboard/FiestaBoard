@@ -156,13 +156,18 @@ async def update_collection(collection_id: str, data: CollectionUpdate):
 @router.delete(
     "/collections/{collection_id}",
     response_model=CollectionDeleteResponse,
-    responses=errors(404),
+    responses=errors(404, 409),
     dependencies=[superseded_by_v1("DELETE /collections/{collection_id}")],
 )
 async def delete_collection(collection_id: str):
     """Delete a collection."""
     collection_service = get_collection_service()
-    deleted = collection_service.delete_collection(collection_id)
+    from src.content_references import ContentInUseError
+
+    try:
+        deleted = collection_service.delete_collection(collection_id)
+    except ContentInUseError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
     return CollectionDeleteResponse(id=collection_id)
