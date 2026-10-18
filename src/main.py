@@ -271,7 +271,7 @@ class BoardRuntime:
 
         # Collection cadence gate for the run loop: monotonic-ish epoch time
         # of the next collection-boundary check for this board. 0.0 means
-        # "check immediately". Only the primary runtime is consulted today.
+        # "check immediately".
         self.next_collection_check: float = 0.0
 
         # Render short-circuit memo (issue #1883): the triple
@@ -3160,18 +3160,21 @@ class DisplayService:
             sink=sink,
         )
 
-    def _get_active_ref_id(self) -> str | None:
+    def _get_active_ref_id(self, board_id: str | None = None) -> str | None:
         """Return the raw active-page/collection reference (before collection resolution)."""
         settings_service = get_settings_service()
-        if settings_service.is_schedule_enabled():
+        if board_id is None:
+            board_id = self._get_first_board_id()
+        if settings_service.is_schedule_enabled(board_id=board_id):
             from .time_service import get_time_service
 
             ts = get_time_service()
             now = ts.get_current_time()
-            # Pass the first board's ID so schedules scoped to that board are found
-            board_id = self._get_first_board_id()
+            rt = self.runtime_for(board_id)
+            if rt is not None and self._schedule_defer_active(rt, now, board_id):
+                return settings_service.get_active_page_id(board_id=board_id)
             return get_schedule_service().get_active_page_id(now.time(), now.strftime("%A").lower(), board_id=board_id)
-        return settings_service.get_active_page_id()
+        return settings_service.get_active_page_id(board_id=board_id)
 
     def run(self):
         """Run the main service loop."""
@@ -3216,22 +3219,28 @@ class DisplayService:
 
                 # When a collection is active, poll at its mode-specific cadence:
                 # time-mode aligns with the next page boundary; variable-mode uses
-                # the configured poll_seconds. The gate lives on the primary
-                # runtime (issue #1243) so a runtime rebuild resets it cleanly.
+                # the configured poll_seconds. Each board owns its gate so a
+                # secondary collection never depends on the primary selection.
                 now = time.time()
-                primary_rt = self._ensure_primary_runtime()
-                if now >= primary_rt.next_collection_check:
-                    ref_id = self._get_active_ref_id()
+                self._ensure_primary_runtime()
+                collection_due = False
+                for rt in list(self.runtimes.values()):
+                    if now < rt.next_collection_check:
+                        continue
+                    rt.next_collection_check = now + polling_interval
+                    board_id = self._get_first_board_id() if rt is self._primary_runtime() else rt.board_id
+                    if settings_service.is_paused(board_id=board_id) is True:
+                        continue
+                    ref_id = self._get_active_ref_id(board_id)
                     if ref_id and is_collection_id(ref_id):
                         collection_service = get_collection_service()
                         secs = collection_service.seconds_until_next_check(ref_id, now)
                         if secs is not None:
-                            engine_pass()
-                            primary_rt.next_collection_check = now + max(1, secs)
-                        else:
-                            primary_rt.next_collection_check = now + polling_interval
-                    else:
-                        primary_rt.next_collection_check = now + polling_interval
+                            collection_due = True
+                            rt.next_collection_check = now + max(1, secs)
+                # Coalesce coincident boundaries into one shared-context pass.
+                if collection_due:
+                    engine_pass()
                 time.sleep(1)
                 # A page change woke the engine: its pass runs on this step.
                 if self.take_wake():
