@@ -419,15 +419,22 @@ def _builder(loaded: FirstPartyOutput) -> Callable[[dict], OutputDriver | None]:
         if config is None:
             return None
         instance = plugin_class(board.get("id"), config)
-        # Core's choice, not the plugin's: the requests these outputs always made.
-        instance._http = OutputHttp.for_first_party()
-        instance.bind_manifest(output_manifest)
-        # Only an output whose markup follows its set needs the set resolved
-        # (a FiestaPanel's would read the panel store for its render style).
-        character_set = board_character_set(board) if plugin_class.markup_follows_charset else None
-        instance.bind_board(character_set=character_set, geometry=_board_grid(board))
-        instance.open()
-        return OutputPluginDriver(instance, character_set=character_set, first_party=True)
+        try:
+            # Core's choice, not the plugin's: the requests these outputs always made.
+            instance._http = OutputHttp.for_first_party()
+            instance.bind_manifest(output_manifest)
+            # Only an output whose markup follows its set needs the set resolved
+            # (a FiestaPanel's would read the panel store for its render style).
+            character_set = board_character_set(board) if plugin_class.markup_follows_charset else None
+            instance.bind_board(character_set=character_set, geometry=_board_grid(board))
+            instance.open()
+            return OutputPluginDriver(instance, character_set=character_set, first_party=True)
+        except BaseException:
+            try:
+                instance.close()
+            except BaseException as cleanup_error:
+                logger.debug("Closing a failed first-party output instance failed: %s", type(cleanup_error).__name__)
+            raise
 
     return build
 

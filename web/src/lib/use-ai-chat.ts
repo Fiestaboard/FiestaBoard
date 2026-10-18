@@ -313,7 +313,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
               const display: ToolCallDisplay = {
                 ...call,
                 phase: "running",
-                appliedSnapshot: computeAppliedSnapshot(call, runningSnapshot),
+                appliedSnapshot: computeAppliedSnapshot(call, runningSnapshot, ctx.boardId),
                 deviceType: deviceTypeForCall(call, ctx.deviceType),
                 previewGrid: gridForCall(call),
               };
@@ -914,14 +914,24 @@ function answerResult(answer: ElicitationAnswer): unknown {
 export function computeAppliedSnapshot(
   call: Pick<ToolCall, "name" | "args">,
   base: CurrentPageSnapshot | undefined,
+  boardId?: string,
 ): CurrentPageSnapshot | undefined {
   if (call.name === "create_page") {
     const a = call.args as unknown as CreatePageArgs;
     if (!Array.isArray(a.template_lines)) return undefined;
     return {
+      ...(boardId ? { board_id: boardId } : {}),
       name: a.name ?? "",
+      device_type: a.device_type,
+      notes_wide: a.notes_wide,
+      notes_tall: a.notes_tall,
+      grid_rows: a.grid_rows,
+      grid_cols: a.grid_cols,
+      duration_seconds: a.duration_seconds,
+      transition_strategy: a.transition_strategy,
+      canvases: a.canvases ?? [],
       template: a.template_lines,
-      line_metadata: a.template_lines.map(() => ({ alignment: "left", wrap: false })),
+      line_metadata: a.template_lines.map((_, i) => a.line_metadata?.[i] ?? { alignment: "left", wrap: false }),
     };
   }
   if (call.name === "update_page") {
@@ -932,10 +942,20 @@ export function computeAppliedSnapshot(
     const template = a.template_lines ?? target?.template;
     if (!template) return undefined;
     return {
-      ...(target?.id ? { id: target.id } : {}),
+      ...target,
+      id: a.page_id,
+      ...(boardId && !target?.board_id ? { board_id: boardId } : {}),
       name: a.name ?? target?.name ?? "",
+      device_type: a.device_type ?? target?.device_type,
+      notes_wide: a.notes_wide ?? target?.notes_wide,
+      notes_tall: a.notes_tall ?? target?.notes_tall,
+      grid_rows: a.grid_rows ?? target?.grid_rows,
+      grid_cols: a.grid_cols ?? target?.grid_cols,
+      duration_seconds: a.duration_seconds ?? target?.duration_seconds,
+      transition_strategy: a.transition_strategy === undefined ? target?.transition_strategy : a.transition_strategy,
+      canvases: a.canvases === undefined ? target?.canvases : (a.canvases ?? []),
       template,
-      line_metadata: template.map((_, i) => target?.line_metadata?.[i] ?? { alignment: "left", wrap: false }),
+      line_metadata: template.map((_, i) => a.line_metadata?.[i] ?? target?.line_metadata?.[i] ?? { alignment: "left", wrap: false }),
     };
   }
   return undefined;

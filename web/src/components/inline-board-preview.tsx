@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DevicePreview } from "@/components/device-preview";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import { useBoardSettings } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot } from "@/lib/ai-chat-types";
 import { api, type DeviceType, type GridSize } from "@/lib/api";
@@ -44,22 +45,28 @@ export interface InlineBoardPreviewProps {
  * 3. While the render call is in flight, show a skeleton-sized placeholder
  *    so the card height doesn't jump.
  *
- * TanStack Query caches by template+metadata+deviceType, so identical
- * snapshots dedupe across multiple tool calls in the same session.
+ * TanStack Query caches the complete draft and effective board context,
+ * including artwork and geometry, so only equivalent previews dedupe.
  */
 export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", className }: InlineBoardPreviewProps) {
   const t = useTranslations("aiChatPanel");
-  const panelGrid = deviceType === "panel" ? (grid ?? null) : null;
+  deviceType = snapshot.device_type ?? deviceType;
+  const panelGrid = deviceType === "panel"
+    ? (snapshot.grid_rows && snapshot.grid_cols ? { rows: snapshot.grid_rows, cols: snapshot.grid_cols } : grid ?? null)
+    : null;
   // The board in context draws the preview when the page fits it (an LED
   // board as its LED matrix); a page of another size never borrows a model.
   const { currentBoard } = useCurrentBoard();
   const fitsCurrentBoard =
     !!currentBoard &&
     pagesCompatibleWithBoard(
-      { device_type: deviceType, grid_rows: panelGrid?.rows ?? null, grid_cols: panelGrid?.cols ?? null },
+      { device_type: deviceType, grid_rows: panelGrid?.rows ?? null, grid_cols: panelGrid?.cols ?? null, notes_wide: snapshot.notes_wide, notes_tall: snapshot.notes_tall },
       currentBoard,
     );
-  const model = fitsCurrentBoard ? resolveBoardModel(currentBoard) : null;
+  const boardId = snapshot.board_id ?? (fitsCurrentBoard ? currentBoard?.id : undefined);
+  const { data: settings } = useBoardSettings({ enabled: !!boardId });
+  const board = settings?.boards.find((candidate) => candidate.id === boardId) ?? (fitsCurrentBoard ? currentBoard : null);
+  const model = board ? resolveBoardModel(board) : null;
   const { data, isLoading, isError } = useQuery({
     queryKey: [
       "inline-preview-render",
@@ -68,9 +75,14 @@ export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", cl
       panelGrid?.cols,
       snapshot.template,
       snapshot.line_metadata,
+      snapshot.notes_wide,
+      snapshot.notes_tall,
+      snapshot.canvases,
+      boardId,
+      board,
     ],
     queryFn: () =>
-      api.renderTemplate(snapshot.template, snapshot.line_metadata, deviceType, undefined, undefined, panelGrid),
+      api.renderTemplate(snapshot.template, snapshot.line_metadata, deviceType, snapshot.notes_wide, snapshot.notes_tall, panelGrid, boardId, snapshot.canvases),
     // Renders are deterministic for a given input — keep them
     // around so quickly switching tool-call cards is instant.
     staleTime: 5 * 60 * 1000,
@@ -96,13 +108,17 @@ export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", cl
     <Box className={className}>
       <DevicePreview
         model={model}
-        ledLayout={fitsCurrentBoard ? currentBoard?.led_layout : null}
+        ledLayout={board?.led_layout}
+        cells={isLoading ? undefined : data?.cells}
+        layers={isLoading ? undefined : data?.layers}
         message={isLoading ? null : (data?.rendered ?? "")}
         size={size}
       >
         <ScaledBoardDisplay
           message={isLoading ? null : (data?.rendered ?? "")}
           deviceType={deviceType}
+          notesWide={snapshot.notes_wide}
+          notesTall={snapshot.notes_tall}
           gridRows={panelGrid?.rows}
           gridCols={panelGrid?.cols}
           size={size}

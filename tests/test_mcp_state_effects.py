@@ -67,6 +67,12 @@ from src.schedules.storage import ScheduleStorage
 #: the fixtures below and pins the same rule: every assertion is on state
 #: read back, or on the call that crossed a patched hardware/sidecar boundary.
 COVERED = {
+    # Generic output-plugin tools — tests/test_mcp_display_tools.py
+    "list_display_outputs",
+    "get_display_info",
+    "create_display",
+    "configure_display",
+    "run_display_action",
     "list_pages",
     "get_page",
     "create_page",

@@ -467,12 +467,13 @@ class BoardPauseResponse(BaseModel):
 class DetectBoardSizeResponse(BaseModel):
     """A board's device type and grid, classified from its live layout."""
 
-    device_type: HardwareDeviceType
+    device_type: DeviceType
     rows: int
     cols: int
     notes_wide: int | None = None
     notes_tall: int | None = None
     matched_preset: str | None = None
+    source: Literal["detected", "configured"] = "detected"
 
 
 class BoardIdentifyRequest(BaseModel):

@@ -593,3 +593,75 @@ def test_no_tool_hides_new_guidance_below_its_first_paragraph():
         "REVIEWED_DROPPED_PARAGRAPHS if it is only for human/MCP readers:\n"
         + "\n".join(f"- {name}: {paras[-1][:120]!r}" for name, paras in sorted(grown.items()))
     )
+
+
+def test_editor_keeps_display_discovery_and_omits_display_management():
+    discovery = {"list_display_outputs", "get_display_info"}
+    management = {"create_display", "configure_display", "run_display_action"}
+    catalog = ToolCatalog([_d(name) for name in sorted(discovery | management)])
+    assert set(catalog.for_surface("global").names) == discovery | management
+    assert set(catalog.for_surface("editor").names) == discovery
+    for name in management:
+        with pytest.raises(ToolCallValidationError):
+            catalog.for_surface("editor").validate({"op": name})
+
+
+def test_tv_can_discover_its_display_without_managing_display_settings():
+    catalog = ToolCatalog(
+        [
+            _d(name, schema={"type": "object", "properties": {}})
+            for name in ("get_display_info", "create_display", "configure_display", "run_display_action")
+        ]
+    ).for_tv("living-room")
+    assert catalog.validate({"op": "get_display_info"}).args == {"board_id": "living-room"}
+    for name in ("create_display", "configure_display", "run_display_action"):
+        with pytest.raises(ToolCallValidationError):
+            catalog.validate({"op": name})
+
+
+def test_typed_canvas_signature_names_the_model_without_expanding_its_schema():
+    schema = {
+        "type": "object",
+        "properties": {
+            "canvases": {
+                "anyOf": [{"type": "array", "items": {"$ref": "#/$defs/Canvas"}}, {"type": "null"}],
+                "default": None,
+            }
+        },
+        "$defs": {
+            "Canvas": {"type": "object", "properties": {"area": {"type": "object"}, "content": {"type": "object"}}}
+        },
+    }
+    rendered = ToolCatalog([_d("create_page", schema=schema)]).render_addendum("editor")
+    assert "canvases?: array of Canvas" in rendered
+    assert '"properties"' not in rendered
+
+
+@pytest.mark.parametrize("surface", ["editor", "global"])
+def test_the_catalog_directs_authors_to_effective_display_facts(catalog, surface):
+    rendered = catalog.render_addendum(surface)
+    assert "get_display_info" in rendered
+    assert "character set" in rendered
+    assert "canvas" in rendered.lower()
+
+
+def test_editor_create_workflow_preserves_complete_unsaved_draft(catalog):
+    intro = catalog.render_addendum("editor").split("AVAILABLE TOOLS")[0]
+    for field in ("geometry", "canvases", "formatting", "duration", "transition"):
+        assert field in intro
+
+
+@pytest.mark.parametrize("surface", ["editor", "global"])
+def test_real_catalog_preserves_the_display_tools_for_each_surface(surface):
+    text = _real_server_addendum(surface)
+    for name in ("list_display_outputs", "get_display_info"):
+        assert f"### {name}" in text
+    for name in ("create_display", "configure_display", "run_display_action"):
+        assert (f"### {name}" in text) == (surface == "global")
+
+
+def test_real_canvas_tools_publish_a_named_canvas_argument():
+    text = _real_server_addendum("editor")
+    for name in ("create_page", "update_page", "render_page_preview", "validate_template"):
+        section = text.split(f"### {name}\n", 1)[1].split("### ", 1)[0]
+        assert "canvases?: array of Canvas" in section

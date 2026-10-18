@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import threading
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -97,6 +98,55 @@ class TestLoading:
 
     def test_a_board_with_no_usable_connection_builds_no_driver(self):
         assert output_registry().get(VESTABOARD).build({"api_mode": "cloud", "cloud_key": ""}) is None
+
+    @pytest.mark.parametrize("stage", ["bind_manifest", "bind_board", "open", "adapter"])
+    @pytest.mark.parametrize("close_fails", [False, True], ids=["normal-close", "failed-close"])
+    def test_failed_construction_closes_first_party_instance(self, monkeypatch, stage, close_fails):
+        from src.outputs.first_party import _builder
+
+        instances = []
+
+        class LifecycleProbe(OutputPluginBase):
+            def __init__(self, board_id, config):
+                super().__init__(board_id, config)
+                self.closed = False
+                instances.append(self)
+
+            @classmethod
+            def config_from_board(cls, board):
+                return {}
+
+            def bind_manifest(self, manifest):
+                if stage == "bind_manifest":
+                    raise RuntimeError("construction failed")
+                super().bind_manifest(manifest)
+
+            def bind_board(self, **kwargs):
+                if stage == "bind_board":
+                    raise RuntimeError("construction failed")
+                super().bind_board(**kwargs)
+
+            def open(self):
+                if stage == "open":
+                    raise RuntimeError("construction failed")
+
+            def close(self):
+                self.closed = True
+                if close_fails:
+                    raise OSError("cleanup failed")
+
+            def write(self, frame, *, native, cancel):
+                return WriteResult(True, True)
+
+        def fail_adapter(*args, **kwargs):
+            raise RuntimeError("construction failed")
+
+        if stage == "adapter":
+            monkeypatch.setattr("src.outputs.plugin_driver.OutputPluginDriver", fail_adapter)
+        loaded = replace(load_first_party(VESTABOARD), plugin_class=LifecycleProbe)
+        with pytest.raises(RuntimeError, match="construction failed"):
+            _builder(loaded)({"id": "failed-board"})
+        assert instances[-1].closed
 
 
 # --- the driver's first-party mode --------------------------------------------------------

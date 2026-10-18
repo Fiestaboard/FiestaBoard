@@ -183,6 +183,10 @@ def strip_hidden(
         items = schema_out.get("items")
         if isinstance(items, Mapping):
             stripped = [strip_hidden(v, items, context) for v in values]
+            # Each object can select different conditional fields. Draft 7
+            # tuple validation preserves the schema for each actual item.
+            if stripped:
+                schema_out["items"] = [s for _, s in stripped]
             return [v for v, _ in stripped], schema_out
         return list(values), schema_out
     if not isinstance(values, Mapping):
@@ -202,7 +206,10 @@ def strip_hidden(
         if key in hidden:
             continue
         prop = properties.get(key)
-        out[key] = strip_hidden(value, prop, context)[0] if isinstance(prop, Mapping) else value
+        if isinstance(prop, Mapping):
+            out[key], properties[key] = strip_hidden(value, prop, context)
+        else:
+            out[key] = value
     required = schema_out.get("required")
     if isinstance(required, list):
         schema_out["required"] = [name for name in required if name not in hidden]

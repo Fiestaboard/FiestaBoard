@@ -10,8 +10,8 @@ board's resolved character set:
   split-flap flip (plan Task 12, :data:`~src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP`)
   parses extended markup and draws its degradation: a span's letters, an
   icon's fallback tile. No rich cells: the board cannot draw more.
-- **A rich set** (one with colour spans, block spans or icons — the LED
-  sets): the message is parsed ONCE with extended markup and case kept.
+- **A rich or custom set** (including a monochrome custom alphabet): the
+  message is parsed ONCE with extended markup and case kept.
   From that one parse come both the 0–71 flap projection (what transitions,
   the last-frame store's ``characters`` and every int-grid consumer read)
   and the :data:`RichCellFrame`: each token passed through the set's
@@ -45,7 +45,14 @@ from dataclasses import replace
 from typing import Any, NamedTuple
 
 from src.board_chars import characters_to_message
-from src.led.charsets import CharacterSet, CharsetLookup, charset_fallback, has_extended_markup
+from src.led.charsets import (
+    BUILTIN_CHARACTER_SETS,
+    CharacterSet,
+    CharsetLookup,
+    charset_fallback,
+    has_extended_markup,
+    resolve_character_set,
+)
 from src.markup import BoardToken, parse_line, rich_tokens_equal
 from src.text_to_board import COLOR_CODES, SPLIT_FLAP_EXTENDED_MARKUP, text_to_board_array
 
@@ -57,6 +64,7 @@ __all__ = [
     "cells_from_codes",
     "cells_to_json",
     "charset_extended_markup",
+    "charset_uses_cells",
     "extended_markup_kw",
     "frame_layers",
     "output_character_set",
@@ -110,7 +118,7 @@ class ProjectedFrame(NamedTuple):
 
     #: The 0–71 grid (the split-flap projection every output has).
     characters: list[list[int]]
-    #: The rich cells, for an output whose set is rich; else ``None``.
+    #: The projected cells, for a rich or custom alphabet; else ``None``.
     cells: RichCellFrame | None
 
 
@@ -130,7 +138,8 @@ def charset_extended_markup(charset: str | CharacterSet | None) -> bool:
     while :data:`~src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP` is on.
 
     Not the same question as :func:`~src.led.charsets.has_extended_markup`,
-    which asks whether the set is *rich* (so the board gets rich cells)."""
+    which asks whether the set draws colors or icons, or
+    :func:`charset_uses_cells`, which controls alphabet projection."""
     return SPLIT_FLAP_EXTENDED_MARKUP or has_extended_markup(charset)
 
 
@@ -138,6 +147,24 @@ def output_extended_markup(client: Any) -> bool:
     """Whether the board behind *client* speaks extended markup
     (:func:`charset_extended_markup` of its resolved set)."""
     return charset_extended_markup(output_character_set(client))
+
+
+def charset_uses_cells(charset: str | CharacterSet | None) -> bool:
+    """Whether projection must retain the declared alphabet as cells.
+
+    The built-in flap alphabets keep their legacy integer projection. Custom
+    alphabets need fallback and case projection even when they draw no colors
+    or icons; markup support is independent of the delivery representation.
+    """
+    if charset is None:
+        return False
+    resolved = resolve_character_set(charset)
+    legacy = (
+        BUILTIN_CHARACTER_SETS.get(resolved.get("id"))
+        if resolved.get("id") in ("vestaboard_v1", "vestaboard_v2")
+        else None
+    )
+    return legacy is None or resolved != legacy
 
 
 def extended_markup_kw(client: Any) -> dict[str, Any]:
@@ -173,7 +200,7 @@ def project_for_output(
     split-flap board gets none.
     """
     charset = output_character_set(client)
-    if not has_extended_markup(charset):
+    if not charset_uses_cells(charset):
         return (flap or text_to_board_array)(message, rows=rows, cols=cols), {}
     frame = project_message(message, rows, cols, charset, layers=layers)
     return frame.characters, {"cells": frame.cells}
@@ -190,12 +217,11 @@ def project_message(
 ) -> ProjectedFrame:
     """*message* as a ``rows`` x ``cols`` board drawn with *charset*.
 
-    A set that is not rich (or none) gets the split-flap grid (parsed with
-    :func:`charset_extended_markup`) and no cells. A rich set gets one
-    extended-markup parse, projected twice (see module docstring), and its
-    cells carry *layers* (:class:`RichCells`).
+    A built-in flap set (or none) gets the split-flap grid and no cells. A
+    rich or custom set gets one extended-markup parse, projected twice (see
+    module docstring), and its cells carry *layers* (:class:`RichCells`).
     """
-    if not has_extended_markup(charset):
+    if not charset_uses_cells(charset):
         grid = text_to_board_array(message, rows=rows, cols=cols, extended_markup=charset_extended_markup(charset))
         return ProjectedFrame(grid, None)
     look = CharsetLookup(charset)

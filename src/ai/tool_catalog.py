@@ -54,6 +54,7 @@ TV_TOOLS = frozenset(
         "get_plugin_data",
         "get_plugin_demo_page",
         "list_panels",
+        "get_display_info",
         "get_current_display",
         "get_active_page",
         "get_board_content",
@@ -81,6 +82,7 @@ TV_BOARD_TOOLS = frozenset(
     {
         "render_page_preview",
         "preview_saved_page",
+        "get_display_info",
         "get_current_display",
         "get_active_page",
         "get_board_content",
@@ -139,6 +141,9 @@ _SURFACE_OMITTED_TOOLS: dict[ChatSurface, frozenset[str]] = {
             "disconnect_wifi",
             "forget_wifi_network",
             "run_network_diagnostics",
+            "create_display",
+            "configure_display",
+            "run_display_action",
         }
     ),
 }
@@ -279,7 +284,8 @@ _EDITOR_SURFACE_INTRO = (
     "editing one page, sent above as `current_page`. If it has an `id`, the\n"
     "page is saved: call update_page with that id to change it. If it has\n"
     "no `id`, it is an unsaved draft: call create_page with the whole\n"
-    "template (their draft plus your change) — the app opens the saved page\n"
+    "draft plus your change: template, geometry, canvases, formatting, duration\n"
+    "and transition settings. The app opens the saved page\n"
     "and drops the draft. Only make a second page when they clearly ask\n"
     "for a new one.\n"
 )
@@ -295,7 +301,7 @@ _GLOBAL_SURFACE_INTRO = (
 _HOW_TO_CALL = (
     "\nTo act, emit a fenced JSON block with the language tag `fiestaboard`:\n\n"
     "```fiestaboard\n"
-    '{"op": "create_page", "args": {"name": "Morning", "template_lines": ["HELLO"]}}\n'
+    '{"op": "create_page", "args": {"name": "Morning", "template_lines": [""]}}\n'
     "```\n"
 )
 
@@ -336,6 +342,8 @@ _RULES_TAIL = (
     # A FiestaPanel's grid is auto-fit from a TV's diagonal, so the model
     # cannot know it — and the flagship default silently authors a page that
     # renders one Note wide on the panel.
+    "- Read get_display_info for the target board's actual geometry, character set,\n"
+    "  markup and canvas support before authoring; follow those capabilities.\n"
     "- A page is authored for one board shape. For a FiestaPanel, take that\n"
     "  shape from list_panels first — never the flagship default.\n"
     "- Use ask_user when a request is ambiguous instead of guessing.\n"
@@ -345,15 +353,15 @@ _RULES_TAIL = (
 
 def _render_tool(d: ToolDescriptor, skip_destructive_pause: bool = False) -> str:
     if d.read_only:
-        marker = "[read-only: runs immediately]"
+        marker = "[read-only]"
     elif d.requires_approval and d.name in SYSTEM_GATED:
-        marker = "[DESTRUCTIVE, SYSTEM: the user must approve before it runs, in every mode]"
+        marker = "[DESTRUCTIVE, SYSTEM: user must approve]"
     elif d.requires_approval and skip_destructive_pause:
-        marker = "[DESTRUCTIVE: runs immediately — the user chose not to be asked; they see it happen]"
+        marker = "[DESTRUCTIVE: runs immediately]"
     elif d.requires_approval:
-        marker = "[DESTRUCTIVE: the user must approve before it runs]"
+        marker = "[DESTRUCTIVE: user must approve]"
     else:
-        marker = "[writes: runs immediately; the user sees it happen]"
+        marker = "[writes: runs immediately]"
     description = _compact_description(d.description)
     signature = _signature_line(d.input_schema)
     lines = [f"### {d.name}" if _title_restates_the_name(d) else f"### {d.name} — {d.title}", marker]
@@ -441,6 +449,11 @@ def _signature_line(schema: dict[str, Any]) -> str:
 
 
 def _type_name(spec: dict[str, Any]) -> str:
+    ref = spec.get("$ref")
+    if isinstance(ref, str) and ref.startswith("#/$defs/"):
+        # Name structured arguments without repeating their large definitions
+        # on every turn. Pixel displays learn Canvas from the shared reference.
+        return ref.rsplit("/", 1)[-1].replace("~1", "/").replace("~0", "~")
     if "enum" in spec:
         return " | ".join(json.dumps(v) for v in spec["enum"])
     type_ = spec.get("type")

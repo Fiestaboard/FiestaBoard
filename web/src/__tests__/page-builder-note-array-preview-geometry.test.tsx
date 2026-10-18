@@ -9,14 +9,15 @@
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { createRef, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PageBuilder } from "@/components/page-builder";
+import { PageBuilder, type PageBuilderHandle } from "@/components/page-builder";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
 import type { BoardSettings, Page } from "@/lib/api";
 import { api } from "@/lib/api";
+import { getDraftKey } from "@/lib/page-draft";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
@@ -126,5 +127,33 @@ describe("PageBuilder note-array preview geometry", () => {
       },
       { timeout: 5000 },
     );
+  });
+
+it("exposes complete draft artwork and geometry to chat and saves the same artwork", async () => {
+  const canvases = [{ id: "sky", area: { row: 1, col: 1, rows: 1, cols: 2 }, content: { background: "#ff0000" } }];
+  vi.mocked(api.getPage).mockResolvedValue({ ...wideArrayPage, canvases });
+  const update = vi.spyOn(api, "updatePage").mockResolvedValue({ page: { ...wideArrayPage, canvases }, incompatible_references: [] });
+  const ref = createRef<PageBuilderHandle>();
+  render(<PageBuilder ref={ref} pageId="page-1" onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+  await waitFor(() => expect(ref.current?.getCurrentPage()).toMatchObject({
+    id: "page-1", device_type: "note_array", notes_wide: 2, notes_tall: 1, canvases,
+  }));
+  await ref.current?.save();
+  expect(update).toHaveBeenCalledWith("page-1", expect.objectContaining({ canvases, notes_wide: 2, notes_tall: 1 }));
+  update.mockRestore();
+});
+
+
+  it("includes a canvas-only unsaved draft in chat and creation", async () => {
+    const canvases = [{ id: "sky", area: { row: 1, col: 1, rows: 1, cols: 2 }, content: { background: "#ff0000" } }];
+    localStorage.setItem(getDraftKey(), JSON.stringify({ name: "", templateLines: Array(6).fill(""), lineAlignments: Array(6).fill("left"), canvases, timestamp: Date.now() }));
+    const create = vi.spyOn(api, "createPage").mockResolvedValue({ ...wideArrayPage, id: "new", canvases });
+    const ref = createRef<PageBuilderHandle>();
+    render(<PageBuilder ref={ref} onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+    await waitFor(() => expect(ref.current?.getCurrentPage()).toMatchObject({ name: "", canvases }));
+    expect(ref.current?.getCurrentPage()?.id).toBeUndefined();
+    await ref.current?.save();
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ canvases }));
+    create.mockRestore();
   });
 });

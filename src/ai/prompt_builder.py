@@ -14,8 +14,9 @@ import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from src.devices import DeviceType, geometry_of, get_dimensions, resolve_dimensions
-from src.ops.teaching import TEMPLATE_FILTERS, construct_lines, dimensions_phrase
+from src.devices import DeviceType, geometry_of, resolve_dimensions
+from src.ops.teaching import TEMPLATE_FILTERS, construct_lines
+from src.templates.canvas_reference import CANVAS_RULES as CANVAS_RULES
 from src.templates.expressions import function_signatures
 
 if TYPE_CHECKING:
@@ -233,6 +234,14 @@ def _format_variables(
             max_len = meta.get("max_length")
             item_fields = [str(f) for f in (meta.get("item_fields") or [])]
 
+            variable_format = meta.get("format")
+            if variable_format == "canvas":
+                lines.append(
+                    f"  {plugin_id}.{var_name} (format: canvas) — {desc} "
+                    f'— use as canvas source: "{{{{{plugin_id}.{var_name}}}}}"; not printable template text.'
+                )
+                continue
+
             if meta.get("type") == "array" or item_fields:
                 # An array is not a printable variable — teach it as the thing
                 # the array functions consume, with the fields an item has.
@@ -253,6 +262,8 @@ def _format_variables(
             if desc:
                 parts.append(f"— {desc}")
             extras: list[str] = []
+            if variable_format:
+                extras.append(f"format: {variable_format}")
             if example:
                 extras.append(f"example: {example}")
             if max_len:
@@ -415,38 +426,6 @@ def _format_available_collections(collections: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-#: What a pixel board's chat learns about canvases (design PIXEL_CANVAS.md §1).
-#: Chat mode only: the generate mode's output schema has no ``canvases``.
-CANVAS_RULES = (
-    "PIXEL CANVASES (this board draws them)\n"
-    "- A page may carry up to 8 `canvases` (create_page / update_page arg):\n"
-    "  drawings over a block of character cells, in any RGB colour. One:\n"
-    '  {"id": "sky", "area": {"row": 1, "col": 1, "rows": 3, "cols": 8},\n'
-    '   "bleed": ["top", "left"], "scale": 1, "text": "flow",\n'
-    '   "content": {"size": [32, 16], "background": "#001830",\n'
-    '     "palette": {"y": "#ffcc00"}, "shapes": [...], "pixels": ["..yy..", ...]}}\n'
-    "- area: 1-based cells; may run past the grid edge (clipped), must\n"
-    "  start inside. bleed: sides touching the grid edge reach the panel\n"
-    "  border (top/left/right/bottom/all). scale: 1-8 pixels per canvas pixel.\n"
-    '  "text": "hide" blanks the cells under it; "flow" wraps text (lines\n'
-    "  with wrap on) around it.\n"
-    "- content: size = drawing space (scaled to fit; default the canvas\n"
-    "  size). Colours: #rgb, #rrggbb, a colour name, a palette key, none.\n"
-    '  pixels: rows of palette keys, "." transparent; drawn last.\n'
-    '- shapes, drawn in order, each with "type": rect {x,y,w,h,fill,stroke},\n'
-    "  circle {cx,cy,r}, ellipse {cx,cy,rx,ry}, line {x1,y1,x2,y2,stroke,width},\n"
-    "  polygon {points: [[x,y],...]}, text {x,y,text,color,font: 3x5|5x7},\n"
-    "  gradient {from,to,angle; x,y,w,h optional}.\n"
-    '- Any field may be a {{...}} expression: "h": "{{= weather.temperature / 4 }}".\n'
-    '  "if": "{{...}}" skips a falsy shape; "foreach": "{{plugin.list}}",\n'
-    '  "as": "p" repeats it per item (p.field, p.index).\n'
-    '- "source": "{{generative_ai_art.canvas}}" draws a plugin variable of\n'
-    "  format canvas (a content object) instead of content.\n"
-    "- Check with render_page_preview(board_id=..., canvases=...):\n"
-    "  canvas_issues name each problem.\n"
-)
-
-
 def build_prompt(
     user_prompt: str,
     device_type: DeviceType,
@@ -491,7 +470,8 @@ def build_prompt(
             LED board's own brief (:meth:`DisplayProfile.ai_brief`:
             lowercase, colours, hex, icons) replaces the Vestaboard
             character rules; a pixel board's chat also learns canvases.
-            ``None`` or a split-flap board: the Vestaboard rules.
+            ``None``: the legacy Vestaboard rules. Every resolved profile,
+            including custom split-flap displays, supplies its own rules.
         target_board: Server-resolved board identity and geometry for chat.
             Overrides the legacy request device_type; never includes credentials.
         interaction_mode: "tv" asks for concise, remote-friendly questions.
@@ -522,7 +502,13 @@ def build_prompt(
             "A paused or failed send is not a successful display; report the tool's actual result.\n"
         )
     else:
-        dims = get_dimensions(device_type)
+        geometry = geometry_of({**(current_page or {}), "device_type": device_type})
+        if display is not None and display.rows and display.cols and not current_page:
+            # A resolved display is authoritative even for legacy callers
+            # still sending flagship as the request default.
+            dims = resolve_dimensions("panel", grid_rows=display.rows, grid_cols=display.cols)
+        else:
+            dims = resolve_dimensions(*geometry)
     rows, cols = dims.rows, dims.cols
     if mode == "chat" and interaction_mode == "tv":
         target_rules += (
@@ -538,6 +524,25 @@ def build_prompt(
     demos = plugin_demos or []
 
     exemplars = _select_exemplars(device_type, demos)
+    if display is not None:
+        exemplars = [
+            ex
+            for ex in exemplars
+            if ex.get("device_type") == device_type
+            and len(ex.get("template", [])) == rows
+            and not display.check("\n".join(ex.get("template", [])))
+        ]
+        if not exemplars:
+            text = "HELLO" if all(ch in display.chars for ch in "HELLO") else display.chars.strip()[:5]
+            exemplars = [
+                {
+                    "name": "Static display example",
+                    "device_type": device_type,
+                    "template": [text[:cols]] + [""] * (rows - 1),
+                    "line_metadata": [{"alignment": "left", "wrap": False} for _ in range(rows)],
+                    "duration_seconds": 300,
+                }
+            ]
 
     char_rules = (
         "CHARACTER SET\n"
@@ -564,18 +569,29 @@ def build_prompt(
         "  the Vestaboard character set.\n"
     )
 
-    led = display is not None and display.technology != "split_flap"
-    if led:
-        char_rules = (
-            "CHARACTER SET\n"
-            + display.ai_brief()
-            + "\n- In templates `{{red}}`, `{{red:HOT}}` and `{{icon:sun}}` work too.\n"
-        )
+    if display is not None:
+        char_rules = "CHARACTER SET\n" + display.ai_brief() + "\n"
+        forms = []
+        if display.tiles:
+            forms.append("`{{red}}`")
+        if display.color_spans:
+            forms.append("`{{red:HOT}}`")
+        if display.icons:
+            forms.append("`{{icon:" + display.icons[0] + "}}`")
+        if forms:
+            char_rules += "- Template forms: " + ", ".join(forms) + ".\n"
     canvas_rules = "\n" + CANVAS_RULES if mode == "chat" and display is not None and display.supports("pixels") else ""
-    audience = "the user's board (see CHARACTER SET)" if led else "a Vestaboard split-flap display"
+    audience = "the user's board (see CHARACTER SET)" if display is not None else "a Vestaboard split-flap display"
 
+    tile_examples = display is None or display.tiles
+    fill_kind = "char or color" if tile_examples else "supported character"
+    fill_example = (
+        "`Title{{filled:.}}99` or `{{filled:red}}`"
+        if tile_examples
+        else "`{{filled:X}}` with X from the supported charset"
+    )
     layout_rules = (
-        f"DEVICE: {device_type} ({f'{cols} columns x {rows} rows' if target_board is not None else dimensions_phrase(device_type)}).\n"
+        f"DEVICE: {device_type} ({cols} columns x {rows} rows).\n"
         f"- Output exactly {rows} entries in `template` (use empty\n"
         f"  strings to leave a row blank).\n"
         f"- Each line's rendered width must be <= {cols} columns. If a\n"
@@ -594,8 +610,8 @@ def build_prompt(
         f"  Prefer setting `alignment` over manually padding with spaces.\n"
         f"  Use `{{{{fill_space}}}}` for left/right edges on the SAME\n"
         f"  line (e.g. `Left{{{{fill_space}}}}Right`); use\n"
-        f"  `{{{{filled:X}}}}` to fill with a repeated char or color\n"
-        f"  (e.g. `Title{{{{filled:.}}}}99` or `{{{{filled:red}}}}`).\n"
+        f"  `{{{{filled:X}}}}` to fill with a repeated {fill_kind}\n"
+        f"  (e.g. {fill_example}).\n"
         f"- Variable substitutions ({{{{plugin.field}}}}) expand at\n"
         f"  render time; their character widths are listed below so you\n"
         f"  can budget for them.\n"
@@ -624,6 +640,14 @@ def build_prompt(
         "      extra characters: `{{filled:blue}}` not `{{filled:blue.}}`.\n"
     )
 
+    if display is not None and not display.tiles:
+        template_syntax = (
+            "TEMPLATE SYNTAX\n"
+            "- Use {{plugin.field}}, {{fill_space}}, {{filled:X}} for a supported text character X.\n"
+            "- Filters:\n" + _format_filters(indent="    ") + "\n"
+            "- Color tile constructs and plugin color suffixes are unsupported on this display.\n"
+        )
+
     expression_syntax = (
         "EXPRESSIONS / FORMULAS\n"
         "- Inline formula syntax: `{{= expression }}`. The expression is\n"
@@ -650,8 +674,8 @@ def build_prompt(
         '    `{{= ROUND(weather.temperature) & "F" }}`\n'
         '    `{{= IFERROR(weather.temperature, "--") }}`\n'
         "    `{{= UPPER(LEFT(weather.condition, 6)) }}`\n"
-        '    `{{= COLOR(IF(weather.temperature > 80, "red", "blue")) }}`\n'
-        "- ARRAYS. When a plugin exposes an array, do NOT write one line\n"
+        + ('    `{{= COLOR(IF(weather.temperature > 80, "red", "blue")) }}`\n' if tile_examples else "")
+        + "- ARRAYS. When a plugin exposes an array, do NOT write one line\n"
         "  per possible item guarded by `IF`. Use the array functions:\n"
         "    `{{= COUNT(mlb.games) }}` — how many items there are\n"
         '    `{{= AT(mlb.games, 0, "team1") }}` — one item, blank if absent\n'

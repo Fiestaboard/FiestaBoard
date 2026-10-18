@@ -396,6 +396,78 @@ class OutputConformanceSuite:
     def _write(self, plugin: OutputPluginBase, frame: CellFrame, cancel: CancelToken | None = None) -> Any:
         return plugin.write(frame, native=None, cancel=cancel or CancelToken())
 
+    def _write_paths(self, plugin: OutputPluginBase) -> list[tuple[str, Callable[..., Any]]]:
+        """The delivery methods core can select for this plugin and model."""
+        from src.board_chars import characters_to_message
+
+        from .cells import cells_from_codes, project_message
+        from .plugin_driver import OutputPluginDriver
+        from .transitions import NativeTransition
+
+        driver = OutputPluginDriver(plugin, character_set=plugin.character_set)
+        paths = [("write", lambda frame, token: self._write(plugin, frame, token))]
+
+        def rich(frame):
+            rows, cols = self._shape()
+            # Exercise colors, case, icons and charset fallback as a real send
+            # does, rather than passing the writer a bare integer test frame.
+            message = "{red:a}{black/white:A}{icon:sun}" + characters_to_message(frame)
+            layers = ()
+            model = plugin.device_model or {}
+            if model.get("geometry", {}).get("kind") == "pixels":
+                from src.canvas.layer import CanvasLayer
+
+                layers = (CanvasLayer(0, 0, 1, 1, bytes([255, 0, 0, 255])),)
+            projected = project_message(message, rows, cols, plugin.character_set, layers=layers)
+            return projected.cells if projected.cells is not None else cells_from_codes(projected.characters)
+
+        if driver.takes_cells:
+            paths.append(
+                ("write_cells", lambda frame, token: plugin.write_cells(rich(frame), native=None, cancel=token))
+            )
+        for strategy in sorted(plugin.capabilities().native_transitions):
+            native = NativeTransition.of(strategy, None, None)
+            paths.append(
+                (
+                    f"write(native:{strategy})",
+                    lambda frame, token, native=native: plugin.write(frame, native=native, cancel=token),
+                )
+            )
+            if driver.takes_cells:
+                paths.append(
+                    (
+                        f"write_cells(native:{strategy})",
+                        lambda frame, token, native=native: plugin.write_cells(
+                            rich(frame), native=native, cancel=token
+                        ),
+                    )
+                )
+        if driver.takes_transitions:
+            from src.led.transition_registry import transitions_for_model
+
+            for available in transitions_for_model(plugin.device_model):
+                transition = driver.resolve_transition(available.id)
+                if available.available and transition.spec != "none":
+                    paths.append(
+                        (
+                            f"write_transition({available.id})",
+                            lambda frame, token, transition=transition: plugin.write_transition(
+                                rich(self._frame(0)), rich(frame), transition, cancel=token
+                            ),
+                        )
+                    )
+        if plugin.capabilities().animation == "sequence":
+            count = min(plugin.capabilities().max_frames or 4, 4)
+            paths.append(
+                (
+                    "write_sequence",
+                    lambda frame, token: plugin.write_sequence(
+                        [*self._sequence_frames(count - 1), TimedFrame(frame, 100)], cancel=token
+                    ),
+                )
+            )
+        return paths
+
     # --- rules -------------------------------------------------------------------------------
 
     def check_manifest(self) -> list[Violation]:
@@ -588,46 +660,53 @@ class OutputConformanceSuite:
                 )
         return violations
 
-    def _guarded_write(self, plugin: OutputPluginBase, frame: CellFrame, where: str) -> tuple[Any, list[Violation]]:
+    def _guarded_write(self, call: Callable[[], Any], where: str) -> tuple[Any, list[Violation]]:
         try:
-            return self._write(plugin, frame), []
+            return call(), []
         except Exception as exc:
             return None, [Violation("write_result", f"{where} raised {exc!r}; report a failed write instead")]
 
     def check_write_result(self) -> list[Violation]:
         violations: list[Violation] = []
         plugin = self._plugin()
+        for name, write in self._write_paths(plugin):
+            violations += self._check_write_path(name, write, plugin.capabilities().delivery == "pull")
+        return violations
+
+    def _check_write_path(self, name: str, write: Callable[..., Any], pull: bool) -> list[Violation]:
+        violations: list[Violation] = []
+
+        def check(code: int, where: str):
+            label = f"{name}: {where}"
+            result, raised = self._guarded_write(lambda: write(self._frame(code), CancelToken()), label)
+            violations.extend(raised)
+            if result is not None:
+                violations.extend(self._well_formed(result, label))
+            return result
 
         self.transport.reset()
-        result, raised = self._guarded_write(plugin, self._frame(1), "a healthy write")
-        violations += raised
-        if result is not None:
-            violations += self._well_formed(result, "a healthy write")
-            if isinstance(result, WriteResult) and not (result.success and result.was_sent and not result.partial):
-                violations.append(Violation("write_result", f"a healthy device's write answered {result!r}"))
+        result = check(1, "a healthy write")
+        if isinstance(result, WriteResult) and not (result.success and result.was_sent and not result.partial):
+            violations.append(Violation("write_result", f"a healthy device's {name} answered {result!r}"))
 
-        if not self.transport.requests and plugin.capabilities().delivery == "pull":
+        if not self.transport.requests and pull:
             # A pull output's write reaches no device (its viewer fetches the
             # frame from core): there is no device to fail.
             return violations + self._skip("write_result", "a pull output writes no device to fail")
 
         self.transport.reset(fail=lambda index: True)
-        result, raised = self._guarded_write(plugin, self._frame(2), "a write to a failing device")
-        violations += raised
-        if result is not None:
-            violations += self._well_formed(result, "a write to a failing device")
-            if isinstance(result, WriteResult) and (result.success or result.partial or result.was_sent):
-                violations.append(Violation("write_result", f"a write that reached nothing answered {result!r}"))
+        result = check(2, "a write to a failing device")
+        if isinstance(result, WriteResult) and (result.success or result.partial or result.was_sent):
+            violations.append(Violation("write_result", f"{name} that reached nothing answered {result!r}"))
 
         for code, where, reset in (
             (3, "a write whose first board request failed", {"fail_board": lambda index: index == 0}),
             (4, "a write whose setup requests failed", {"fail_setup": True}),
         ):
             self.transport.reset(**reset)
-            result, raised = self._guarded_write(plugin, self._frame(code), where)
-            violations += raised
-            if result is not None and isinstance(result, WriteResult):
-                violations += self._well_formed(result, where) + self._board_accounting(result)
+            result = check(code, where)
+            if isinstance(result, WriteResult):
+                violations += self._board_accounting(result)
         return violations
 
     def _board_accounting(self, result: WriteResult) -> list[Violation]:
@@ -663,10 +742,10 @@ class OutputConformanceSuite:
         plugin = self._plugin()
         self.transport.reset()
         attempts: list[str] = []
-        calls: list[Callable[[], Any]] = [lambda: self._write(plugin, self._frame(1)), plugin.check_connection]
-        if plugin.capabilities().animation == "sequence":
-            frames = self._sequence_frames(min(plugin.capabilities().max_frames or 4, 4))
-            calls.append(lambda: plugin.write_sequence(frames, cancel=CancelToken()))
+        calls: list[Callable[[], Any]] = [
+            lambda write=write: write(self._frame(1), CancelToken()) for _, write in self._write_paths(plugin)
+        ]
+        calls.append(plugin.check_connection)
         with _no_network(attempts, "a write"):
             for call in calls:
                 # Other rules judge errors; this one judges traffic.
@@ -736,12 +815,9 @@ class OutputConformanceSuite:
 
     def check_cancel(self) -> list[Violation]:
         plugin = self._plugin()
-        violations = self._cancel_run(lambda token: self._write(plugin, self._frame(5), token), "write()")
-        if plugin.capabilities().animation == "sequence":
-            frames = self._sequence_frames(min(plugin.capabilities().max_frames or 8, 8))
-            violations += self._cancel_run(
-                lambda token: plugin.write_sequence(frames, cancel=token), "write_sequence()"
-            )
+        violations: list[Violation] = []
+        for name, write in self._write_paths(plugin):
+            violations += self._cancel_run(lambda token, write=write: write(self._frame(5), token), f"{name}()")
         return violations
 
     def check_sequence(self) -> list[Violation]:

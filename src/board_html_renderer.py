@@ -19,8 +19,13 @@ to embed in a sandboxed iframe.
 from __future__ import annotations
 
 import html
+import re
+from dataclasses import replace
+from typing import Any
 
 from .devices import resolve_dimensions as _resolve_dimensions
+from .led.fonts import LED_FONTS
+from .markup import BOARD_ICONS, BoardToken, parse_line
 
 # ---------------------------------------------------------------------------
 # Constants — mirrored from web/src/lib/board-colors.ts and
@@ -61,46 +66,11 @@ ALL_COLOR_CODES: dict[str, str] = {**COLOR_CODE_MAP, **NAMED_COLORS}
 # ---------------------------------------------------------------------------
 
 
-class _CharToken:
-    __slots__ = ("value",)
-
-    def __init__(self, value: str) -> None:
-        self.value = value
-
-
-class _ColorToken:
-    __slots__ = ("hex",)
-
-    def __init__(self, hex_value: str) -> None:
-        self.hex = hex_value
-
-
-def _parse_line(line: str) -> list[object]:
-    """Parse a rendered line into a flat list of character/colour tokens.
-
-    Matches the web UI's ``parseLine`` semantics: ``{63}`` / ``{red}`` style
-    single-bracket tokens become colour tiles, ``{/...}`` end tags are
-    dropped, anything else becomes an uppercase character tile.
-    """
-    tokens: list[object] = []
-    i = 0
-    n = len(line)
-    while i < n:
-        if line[i] == "{":
-            close = line.find("}", i)
-            if close != -1:
-                content = line[i + 1 : close]
-                if content.startswith("/"):
-                    i = close + 1
-                    continue
-                hex_value = ALL_COLOR_CODES.get(content) or ALL_COLOR_CODES.get(content.lower())
-                if hex_value is not None:
-                    tokens.append(_ColorToken(hex_value))
-                    i = close + 1
-                    continue
-        tokens.append(_CharToken(line[i].upper()))
-        i += 1
-    return tokens
+def _css_color(value: str | None) -> str | None:
+    """Only the shared grammar's palette and hex colors enter inline CSS."""
+    if value is None:
+        return None
+    return ALL_COLOR_CODES.get(value.lower()) or (value if re.fullmatch(r"#[0-9a-fA-F]{6}", value) else None)
 
 
 def _resolve_code62_glyph(device_type: str, code62_glyph: str | None) -> str:
@@ -119,7 +89,7 @@ def _resolve_code62_glyph(device_type: str, code62_glyph: str | None) -> str:
     return code62_glyph if code62_glyph in ("degree", "heart") else "degree"
 
 
-def _grid(formatted: str, rows: int, cols: int, code62_glyph: str) -> list[list[object]]:
+def _grid(formatted: str, rows: int, cols: int, code62_glyph: str) -> list[list[BoardToken]]:
     """Convert a rendered string into a fixed (rows x cols) token grid.
 
     Lines shorter than ``cols`` are right-padded with blank character
@@ -130,20 +100,20 @@ def _grid(formatted: str, rows: int, cols: int, code62_glyph: str) -> list[list[
     ``code62_glyph`` is already resolved (see :func:`_resolve_code62_glyph`).
     """
     lines = formatted.split("\n") if formatted else []
-    grid: list[list[object]] = []
+    grid: list[list[BoardToken]] = []
     for r in range(rows):
         line = lines[r] if r < len(lines) else ""
-        parsed = _parse_line(line)
-        row: list[object] = []
+        parsed = parse_line(line, cols, extended_markup=True)
+        row: list[BoardToken] = []
         for c in range(cols):
             if c < len(parsed):
                 tok = parsed[c]
-                if code62_glyph == "heart" and isinstance(tok, _CharToken) and tok.value == "°":
-                    row.append(_CharToken("♥"))
+                if code62_glyph == "heart" and tok.type == "char" and tok.value == "°":
+                    row.append(replace(tok, value="♥"))
                 else:
                     row.append(tok)
             else:
-                row.append(_CharToken(" "))
+                row.append(BoardToken("char", value=" "))
         grid.append(row)
     return grid
 
@@ -243,19 +213,88 @@ html, body {
 """
 
 
-def _tile_html(token: object, row: int, col: int, is_note: bool) -> str:
+def _tile_html(token: BoardToken, row: int, col: int, is_note: bool) -> str:
     """Emit the HTML for a single tile."""
     note_cls = " note" if is_note else ""
-    style = f'style="--r:{row};--c:{col};"'
-    if isinstance(token, _ColorToken):
-        return f'<div class="tile{note_cls}" {style}><div class="swatch" style="background:{token.hex};"></div></div>'
+    background = _css_color(token.background)
+    tile_css = f"--r:{row};--c:{col};" + (f"background:{background};" if background else "")
+    style = f'style="{tile_css}"'
+    if token.icon is not None and token.icon in LED_FONTS["5x7"].icons:
+        icon = BOARD_ICONS[token.icon]
+        bitmap = LED_FONTS["5x7"].icons[token.icon]
+        pixels = "".join(
+            f'<rect x="{x}" y="{y}" width="1" height="1"/>'
+            for y, bits in enumerate(bitmap)
+            for x, bit in enumerate(bits)
+            if bit == "#"
+        )
+        glyph = (
+            f'<svg viewBox="0 0 5 7" width="20" height="28" role="img" '
+            f'aria-label="{html.escape(icon.label, quote=True)}" fill="{html.escape(icon.color, quote=True)}">'
+            f"{pixels}</svg>"
+        )
+        return f'<div class="tile{note_cls}" {style}>{glyph}</div>'
+    if token.type == "color":
+        color = _css_color(token.code) or COLOR_CODE_MAP["70"]
+        return f'<div class="tile{note_cls}" {style}><div class="swatch" style="background:{color};"></div></div>'
     # Character token
-    ch = token.value if isinstance(token, _CharToken) else " "
+    ch = token.value
     if ch == " ":
         return f'<div class="tile{note_cls}" {style}></div>'
     is_heart = ch == "♥"
     char_cls = " heart" if is_heart else ""
-    return f'<div class="tile{note_cls}" {style}><span class="char{char_cls}">{html.escape(ch)}</span></div>'
+    foreground = _css_color(token.color)
+    color_style = f' style="color:{foreground};"' if foreground else ""
+    return (
+        f'<div class="tile{note_cls}" {style}><span class="char{char_cls}"{color_style}>{html.escape(ch)}</span></div>'
+    )
+
+
+def _pixel_html(formatted: str, display: Any, *, cells: Any = None, layers: Any = ()) -> str:
+    """Draw a pixel display through the same projection and rasterizer as sends."""
+    from .led.matrix import LedLayoutOptions, LedMatrixSpec, grid_layout, layout_message, rasterize
+    from .outputs.cells import frame_layers, project_message
+
+    if cells is None:
+        grid = grid_layout(display.width, display.height, display.font or "5x7")
+        cells = project_message(
+            formatted, display.rows or grid.rows, display.cols or grid.cols, display.character_set
+        ).cells
+    layout = layout_message(
+        cells if cells is not None else formatted,
+        LedMatrixSpec(display.width, display.height, display.font or "5x7"),
+        LedLayoutOptions(
+            charset=display.character_set,
+            letter_case="mixed" if display.mixed_case else "upper",
+            monochrome=display.monochrome,
+            tile_gap=display.tile_gap,
+            block_padding=display.block_padding,
+        ),
+        layers=layers or frame_layers(cells),
+    )
+    frame = rasterize(layout)
+    parts = [
+        f'<svg class="pixels" viewBox="0 0 {frame.width} {frame.height}" '
+        f'width="{frame.width * 6}" height="{frame.height * 6}" '
+        f'role="img" aria-label="{html.escape(layout.text, quote=True)}" style="image-rendering:pixelated">',
+        f'<rect width="{frame.width}" height="{frame.height}" fill="#000000"/>',
+    ]
+    for y in range(frame.height):
+        x = 0
+        while x < frame.width:
+            index = (y * frame.width + x) * 3
+            color = frame.pixels[index : index + 3]
+            end = x + 1
+            while (
+                end < frame.width
+                and frame.pixels[(y * frame.width + end) * 3 : (y * frame.width + end) * 3 + 3] == color
+            ):
+                end += 1
+            if color != b"\0\0\0":
+                parts.append(f'<rect x="{x}" y="{y}" width="{end - x}" height="1" fill="#{color.hex()}"/>')
+            x = end
+    parts.append("</svg>")
+    return "".join(parts)
 
 
 def render_board_html(
@@ -264,8 +303,13 @@ def render_board_html(
     device_type: str = "flagship",
     notes_wide: int = 1,
     notes_tall: int = 1,
+    grid_rows: int | None = None,
+    grid_cols: int | None = None,
     page_name: str | None = None,
     code62_glyph: str | None = None,
+    display: Any = None,
+    cells: Any = None,
+    layers: Any = (),
 ) -> str:
     """Render a board preview as a self-contained HTML document.
 
@@ -277,30 +321,54 @@ def render_board_html(
             ``"note_array"`` (dimensions computed from notes_wide/notes_tall).
         notes_wide: Number of Notes wide (only used for ``"note_array"``).
         notes_tall: Number of Notes tall (only used for ``"note_array"``).
+        grid_rows: Saved panel grid height.
+        grid_cols: Saved panel grid width.
         page_name: Optional label rendered above the board.
         code62_glyph: ``"degree"`` or ``"heart"`` — which flap this board
             physically carries for character code 62 (issue #1657). Flagship
             only; Note and note-array always draw the heart. ``None`` means
             ``"degree"``, the glyph every Flagship had before Vestaboard
             changed it, so a caller that does not pass it renders as before.
+        display: Optional effective profile. Pixel displays use the shared
+            LED renderer with their charset, layout options and canvas layers.
+        cells: Optional already-projected cells for a pixel display.
+        layers: Rasterized canvas layers to draw over the pixel cells.
 
     Returns:
         A standalone HTML document string (``<!DOCTYPE html>...``).
     """
     try:
-        _dims = _resolve_dimensions(device_type, notes_wide=notes_wide, notes_tall=notes_tall)
+        _dims = _resolve_dimensions(
+            device_type, notes_wide=notes_wide, notes_tall=notes_tall, grid_rows=grid_rows, grid_cols=grid_cols
+        )
         rows, cols = _dims.rows, _dims.cols
     except ValueError:
         # Unknown/corrupt device_type — fall back to flagship 6×22 rather than crash.
         rows, cols = 6, 22
+    if display is not None:
+        rows, cols = display.rows or rows, display.cols or cols
     is_note = device_type == "note"
-    grid = _grid(formatted or "", rows, cols, _resolve_code62_glyph(device_type, code62_glyph))
+    glyph = _resolve_code62_glyph(device_type, code62_glyph)
+    if cells is not None or display is not None:
+        from .outputs.cells import cells_from_codes, project_message
+
+        if cells is None:
+            projected = project_message(formatted or "", rows, cols, display.character_set)
+            cells = projected.cells if projected.cells is not None else cells_from_codes(projected.characters)
+        grid = [
+            [replace(token, value="♥") if glyph == "heart" and token.value == "°" else token for token in row]
+            for row in cells
+        ]
+    else:
+        grid = _grid(formatted or "", rows, cols, glyph)
 
     row_html_parts: list[str] = []
     for r, row in enumerate(grid):
         tiles = "".join(_tile_html(tok, r, c, is_note) for c, tok in enumerate(row))
         row_html_parts.append(f'<div class="row">{tiles}</div>')
     board_html = "".join(row_html_parts)
+    if display is not None and display.supports("pixels"):
+        board_html = _pixel_html(formatted or "", display, cells=cells, layers=layers)
 
     label_html = ""
     if page_name:
@@ -352,7 +420,7 @@ def _code62_glyph_for_device(device_type: str) -> str | None:
     return glyphs.pop() if len(glyphs) == 1 else None
 
 
-def render_page_preview_html(page: object, code62_glyph: str | None = None) -> str:
+def render_page_preview_html(page: object, code62_glyph: str | None = None, *, display: Any = None) -> str:
     """Render an HTML preview for a Page model.
 
     Uses ``PageService.preview_page`` (which is cached) when available so
@@ -377,19 +445,24 @@ def render_page_preview_html(page: object, code62_glyph: str | None = None) -> s
     page_name = getattr(page, "name", None)
 
     formatted: str = ""
+    layers: Any = ()
+    preview_available = False
     if page_id:
         try:
             from .pages.service import get_page_service
 
             svc = get_page_service()
-            result = svc.preview_page(page_id)
-            if result is not None and getattr(result, "formatted", None):
+            result = svc.preview_page(page_id, **({"display": display} if display is not None else {}))
+            if result is not None and isinstance(getattr(result, "formatted", None), str):
                 formatted = result.formatted
+                preview_available = True
+            if result is not None:
+                layers = getattr(result, "layers", None) or ()
         except Exception:
             # Fall through to template fallback below.
             formatted = ""
 
-    if not formatted:
+    if not preview_available:
         template = getattr(page, "template", None)
         if template:
             formatted = "\n".join(template)
@@ -399,6 +472,10 @@ def render_page_preview_html(page: object, code62_glyph: str | None = None) -> s
         device_type=device_type,
         notes_wide=notes_wide,
         notes_tall=notes_tall,
+        grid_rows=getattr(page, "grid_rows", None),
+        grid_cols=getattr(page, "grid_cols", None),
         page_name=page_name,
         code62_glyph=code62_glyph if code62_glyph is not None else _code62_glyph_for_device(device_type),
+        display=display,
+        layers=layers,
     )

@@ -1292,15 +1292,15 @@ async def _legacy_board_action(board_id: str, action: str, inputs: dict):
     from src.devices import BoardInstance
     from src.outputs.actions import execute_action
     from src.outputs.hooks import OutputActionError
-    from src.outputs.registry import VESTABOARD, output_registry
+    from src.outputs.registry import output_registry, resolve_output_id
 
     boards = get_settings_service().get_board_settings().boards or []
     stored = next((b for b in boards if b.get("id") == board_id), None)
     if stored is None:
         raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
-    definition = output_registry().get(VESTABOARD)
+    definition = output_registry().get(resolve_output_id(stored))
     if definition is None:
-        raise HTTPException(status_code=503, detail="The Vestaboard output is not installed.")
+        raise HTTPException(status_code=503, detail="The board's output is not installed.")
     try:
         return await execute_action(
             definition,
@@ -1335,6 +1335,23 @@ async def detect_board_size(board_id: str):
     note array, whose size its tile assignments define), 422 (board returned
     no layout, or an unclassifiable grid).
     """
+    from src.devices import dimensions_of
+    from src.outputs.registry import output_registry, resolve_output_id
+
+    board = _require_board(board_id)
+    definition = output_registry().get(resolve_output_id(board))
+    if definition is None:
+        raise HTTPException(status_code=503, detail="The board's output is not installed.")
+    if not any(action.id == "detect_geometry" for action in definition.actions):
+        dims = dimensions_of(board)
+        return {
+            "device_type": board["device_type"],
+            "rows": dims.rows,
+            "cols": dims.cols,
+            "notes_wide": board.get("notes_wide"),
+            "notes_tall": board.get("notes_tall"),
+            "source": "configured",
+        }
     outcome = await _legacy_board_action(board_id, "detect_geometry", {})
     if outcome.geometry is not None:
         return dict(outcome.geometry)

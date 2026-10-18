@@ -448,6 +448,8 @@ class PluginService:
         registry = self.registry
         if not registry.get_plugin(plugin_id):
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
+        if getattr(registry.get_manifest(plugin_id), "plugin_type", None) == "output":
+            raise PluginOperationRejected("Output settings belong to a board; use configure_display instead.")
 
         # Resolve the "***" placeholders before anything sees the payload.
         # Config goes out masked, so any client that echoes back what it read
@@ -502,6 +504,10 @@ class PluginService:
         registry = self.registry
         if not registry.get_plugin(plugin_id):
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
+        if getattr(registry.get_manifest(plugin_id), "plugin_type", None) == "output":
+            raise PluginOperationRejected(
+                "Output plugins are used by their boards; enable or resume the board instead."
+            )
 
         if not registry.enable_plugin(plugin_id):
             raise PluginOperationRejected(f"Failed to enable plugin: {plugin_id}")
@@ -516,6 +522,10 @@ class PluginService:
         registry = self.registry
         if not registry.get_plugin(plugin_id):
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
+        if getattr(registry.get_manifest(plugin_id), "plugin_type", None) == "output":
+            raise PluginOperationRejected(
+                "Output plugins are used by their boards; disable or pause the board instead."
+            )
 
         if not registry.disable_plugin(plugin_id):
             raise PluginOperationRejected(f"Failed to disable plugin: {plugin_id}")

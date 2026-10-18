@@ -96,15 +96,24 @@ def _builder(plugin_class: type[OutputPluginBase], manifest: PluginManifest):
         from .plugin_driver import OutputPluginDriver
 
         instance = plugin_class(board.get("id"), dict(board.get("output_config") or {}))
-        instance.bind_manifest(output_manifest)
-        character_set = board_character_set(board)
-        instance.bind_board(
-            device_model=board_device_model(board),
-            character_set=character_set,
-            geometry=_board_grid(board),
-        )
-        instance.open()
-        return OutputPluginDriver(instance, character_set=character_set)
+        try:
+            instance.bind_manifest(output_manifest)
+            character_set = board_character_set(board)
+            instance.bind_board(
+                device_model=board_device_model(board),
+                character_set=character_set,
+                geometry=_board_grid(board),
+            )
+            instance.open()
+            return OutputPluginDriver(instance, character_set=character_set)
+        except BaseException:
+            # Ownership starts at construction, including partially bound or
+            # opened instances. A cleanup failure must not hide the cause.
+            try:
+                instance.close()
+            except BaseException as cleanup_error:
+                logger.debug("Closing a failed output instance failed: %s", type(cleanup_error).__name__)
+            raise
 
     return build
 
@@ -123,7 +132,7 @@ def register_output_plugin(plugin_class: type[OutputPluginBase], manifest: Plugi
         OutputDefinition(
             id=manifest.id,
             name=manifest.name,
-            capabilities=manifest.output.capabilities,
+            capabilities=plugin_class.declared_capabilities(manifest.output),
             build=_builder(plugin_class, manifest),
             hooks=OutputHooks(discover=plugin_class.discover),
             plugin=True,

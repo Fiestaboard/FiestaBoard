@@ -170,6 +170,10 @@ class OutputActionDescriptor(BaseModel):
 
 
 class OutputDeviceModel(BaseModel):
+    # FiestaUI device models use an open vocabulary; retaining every safe
+    # declaration lets clients understand plugin-defined geometry and color.
+    model_config = ConfigDict(extra="allow")
+
     id: str
     label: str
     #: The LED face (text size) a new board on this model is created in --
@@ -187,6 +191,10 @@ class OutputCapabilitiesSummary(BaseModel):
     animation: str
     native_transitions: list[str]
     charset: str | None = None
+    min_interval_ms: int = 0
+    read_back: dict[str, Any] | None = None
+    write_timeout_ms: int | None = None
+    max_frames: int | None = None
 
 
 class OutputSummary(BaseModel):
@@ -208,6 +216,9 @@ class OutputSummary(BaseModel):
     output_api: int | None = Field(description="The contract major an output plugin targets; null for a built-in.")
     capabilities: OutputCapabilitiesSummary
     device_models: list[OutputDeviceModel]
+    character_set: dict[str, Any] | None = Field(
+        default=None, description="Full materialized character set declared by the output, when overridden."
+    )
     settings_schema: dict[str, Any] = Field(
         description="JSON Schema of output_config, with its ui:sections / ui:visible_when / ui:widget annotations."
     )
