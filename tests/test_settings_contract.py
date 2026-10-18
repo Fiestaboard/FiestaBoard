@@ -988,9 +988,14 @@ def test_silence_rejects_invalid_times_without_writing(client, board_scoped, ena
 
 @pytest.mark.parametrize("start,end", [("00:00+00:00", "23:59+00:00"), ("20:00-08:00", "14:30+05:30")])
 def test_silence_preserves_valid_offset_times(client, start, end):
-    response = client.put("/settings/silence-schedule", json={
-        "enabled": False, "start_time": start, "end_time": end,
-    })
+    response = client.put(
+        "/settings/silence-schedule",
+        json={
+            "enabled": False,
+            "start_time": start,
+            "end_time": end,
+        },
+    )
     assert response.status_code == 200
     assert response.json()["config"]["start_time"] == start
     assert response.json()["config"]["end_time"] == end
