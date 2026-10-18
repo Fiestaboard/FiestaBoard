@@ -371,6 +371,19 @@ def test_ask_mode_teaches_the_model_that_destructive_tools_pause():
     assert "must approve" in system.split("### delete_page")[1].split("### ")[0]
 
 
+def test_an_editor_turn_neither_teaches_nor_runs_the_system_tier():
+    """#2036: the editor surface leaves the system tier out of the addendum,
+    so its parser must not accept a call to it either — the model gets the
+    unknown-tool correction instead of an approval card."""
+    provider = ScriptedProvider(_sse("Restarting. " + _block("restart_system", {})), _sse("I can't from here."))
+    backend = FakeBackend()
+    events = _run_turn(provider, backend, USER, surface="editor")
+    assert "### restart_system" not in provider.messages_of(0)[0]["content"]
+    assert backend.calls == []
+    assert _only(events, "tool_call") == []
+    assert "Unknown tool 'restart_system'" in provider.messages_of(1)[-1]["content"]
+
+
 def test_the_conversation_flag_teaches_the_model_the_same_as_auto_mode():
     provider = ScriptedProvider(_sse("Hi."))
     _run_turn(provider, FakeBackend(), USER, approval_mode="ask", auto_approve_destructive=True)

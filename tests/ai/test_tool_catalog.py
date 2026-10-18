@@ -137,6 +137,18 @@ def test_addendum_renders_required_args_starred_and_typed(catalog):
     assert "duration_seconds?: integer = 300" in text
 
 
+def test_a_null_default_is_not_printed_after_an_optional_arg():
+    """``?`` already says the arg may be omitted, and omitting it is what a
+    null default means. 133 real args printed `` = null`` — ~930 B of the
+    addendum on every surface (#2036) — and told the model nothing."""
+    schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string", "default": None}, "enabled": {"type": "boolean", "default": False}},
+    }
+    text = ToolCatalog([_d("update_thing", schema=schema)]).render_addendum("global")
+    assert "Args: name?: string, enabled?: boolean = false\n" in text
+
+
 def test_addendum_keeps_the_first_paragraph_and_the_args_block_only(catalog):
     text = catalog.render_addendum("global")
     assert "Create a page." in text
@@ -169,6 +181,47 @@ def test_editor_and_global_surfaces_differ_only_in_the_surface_intro(catalog):
     assert editor.split("### ")[1:] == global_.split("### ")[1:]
     assert "update_page" in editor.split("### ")[0]
     assert "create_page" in global_.split("### ")[0]
+
+
+def test_the_editor_surface_does_not_teach_the_system_tier():
+    """#2036: the editor chat edits one page, and the system/hardware tools
+    (restart, update, Wi-Fi, backups) were ~1.6 kB of its addendum it never
+    needs. The global drawer, open on every screen, still teaches them."""
+    catalog = ToolCatalog([_d("create_page"), _d("restart_system", destructive=True), _d("disconnect_wifi")])
+    editor = catalog.render_addendum("editor")
+    global_ = catalog.render_addendum("global")
+    assert "### create_page" in editor
+    assert "### restart_system" not in editor
+    assert "### disconnect_wifi" not in editor
+    assert "### restart_system" in global_
+    assert "### disconnect_wifi" in global_
+
+
+def test_a_surface_catalog_rejects_a_tool_that_surface_does_not_teach():
+    """What the model is taught and what the parser accepts stay the same
+    set: the editor surface refuses a system call it was never shown."""
+    catalog = ToolCatalog([_d("create_page"), _d("restart_system", destructive=True)])
+    with pytest.raises(ToolCallValidationError, match="restart_system"):
+        catalog.for_surface("editor").validate({"op": "restart_system", "args": {"x": "1"}})
+    assert catalog.for_surface("global").validate({"op": "restart_system", "args": {"x": "1"}}).name == (
+        "restart_system"
+    )
+
+
+def test_every_tool_a_surface_omits_is_one_the_real_server_publishes():
+    """A renamed tool would silently slip back onto the surface it was left
+    off, and its bytes back into that surface's budget."""
+    pytest.importorskip("mcp", reason="mcp package not installed")
+    import asyncio
+
+    from src.ai.chat_tools import ChatExtensionBackend
+    from src.ai.mcp_bridge import CompositeToolBackend, McpToolBackend
+    from src.ai.tool_catalog import _SURFACE_OMITTED_TOOLS
+
+    descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
+    published = {d.name for d in descriptors}
+    for surface, omitted in _SURFACE_OMITTED_TOOLS.items():
+        assert omitted <= published, f"{surface} omits tools the server does not publish: {sorted(omitted - published)}"
 
 
 def _with_system_tier(catalog_descriptors):
@@ -231,16 +284,27 @@ def test_addendum_in_ask_mode_still_marks_the_system_tier_as_gated():
 #: this change, 38,137 B of addendum was ~9,032 cl100k tokens.
 ADDENDUM_BYTE_BUDGET = 41_000
 
+#: How close to the budget a surface may get before this test fails (#2036).
+#: The budget was found one sentence at a time twice (125 B of headroom before
+#: #2043, 271 B before this change), each time by whoever added the next
+#: sentence. Failing a kilobyte early (~240 cl100k tokens) leaves room to make
+#: the call on purpose: render fewer tools on that surface
+#: (``_SURFACE_OMITTED_TOOLS``), trim, or raise the budget against a measured
+#: token cost.
+ADDENDUM_HEADROOM_MARGIN = 1_000
+
 
 @pytest.mark.parametrize("surface", ["editor", "global"])
 @pytest.mark.parametrize("skip_destructive_pause", [False, True])
 def test_addendum_for_the_real_server_stays_under_the_size_budget(surface, skip_destructive_pause):
-    """Every surface/mode combination, not just the cheapest one.
+    """Every surface/mode combination, not just the cheapest one, with
+    ADDENDUM_HEADROOM_MARGIN to spare.
 
-    ``editor`` renders more than ``global`` and ``auto`` more than ``ask``, so
-    checking only ``global``/``ask`` measures 302 B less than the largest thing
-    actually shipped. Sizes at the time of writing: editor/auto 38,452 ·
-    editor/ask 38,286 · global/auto 38,316 · global/ask 38,150.
+    ``auto`` renders more than ``ask``. Before #2036 the editor rendered every
+    tool and was the largest; it now leaves the system tier out, so ``global``
+    is. Sizes at the time of writing: global/auto 39,662 · global/ask 39,496
+    · editor/auto 38,154 · editor/ask 38,058 (#2036 measured editor/auto at
+    40,729 before the change: 271 B of headroom).
     """
     pytest.importorskip("mcp", reason="mcp package not installed")
     import asyncio
@@ -251,12 +315,15 @@ def test_addendum_for_the_real_server_stays_under_the_size_budget(surface, skip_
     descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
     text = ToolCatalog(descriptors).render_addendum(surface, skip_destructive_pause=skip_destructive_pause)
     size = len(text.encode())
-    assert size < ADDENDUM_BYTE_BUDGET, (
-        f"{surface}/{'auto' if skip_destructive_pause else 'ask'} addendum is {size} bytes, "
-        f"over the {ADDENDUM_BYTE_BUDGET} budget; trim descriptions"
+    assert size + ADDENDUM_HEADROOM_MARGIN <= ADDENDUM_BYTE_BUDGET, (
+        f"{surface}/{'auto' if skip_destructive_pause else 'ask'} addendum is {size} bytes: "
+        f"{ADDENDUM_BYTE_BUDGET - size} B of headroom under the {ADDENDUM_BYTE_BUDGET} budget, "
+        f"less than the {ADDENDUM_HEADROOM_MARGIN} B margin. Decide, don't squeeze: leave tools "
+        "this surface does not need out of it (_SURFACE_OMITTED_TOOLS), trim descriptions, "
+        "or raise the budget against a measured token cost."
     )
     # A ratchet, not a target: it catches a backend that silently stops
-    # publishing tools. 86 today.
+    # publishing tools. 83 today.
     assert len(descriptors) >= 80
 
 
