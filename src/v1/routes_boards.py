@@ -32,6 +32,7 @@ from src.outputs.board_profile import board_profile
 from src.outputs.cells import project_for_output
 from src.outputs.display_profile import board_layers_json, render_kw
 from src.outputs.registry import resolve_output_id
+from src.request_trace import trace_phase
 from src.text_to_board import text_to_board_array, wrap_message_text
 
 from .boards import board_dimensions, resolve_board, resolve_board_id
@@ -431,8 +432,11 @@ async def send_to_board(board: str, request: MessageRequest, response: Response)
     if board_client is None:
         raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
 
+    trace_phase("prepare_started")
     dims = board_dimensions(entry)
     characters, text, template_lines, rich = _grid_for(request, dims.rows, dims.cols, board_client, entry)
+
+    trace_phase("prepare_returned")
 
     # A timed message is validated up front (its 400s must precede any
     # write) but ARMED only after the write is in. It used to be armed and

@@ -27,6 +27,7 @@ from src.devices import (
 from src.displays.service import DisplayResult, get_display_service
 from src.led.matrix import DEFAULT_LED_FONT, grid_layout
 from src.plugins.manifest import DemoPageSchema
+from src.request_trace import trace_phase
 from src.settings.service import get_settings_service
 from src.templates.engine import extract_template_plugin_ids, get_template_engine
 from src.text_to_board import SPLIT_FLAP_EXTENDED_MARKUP
@@ -228,6 +229,7 @@ class PageService:
                 the page config invalid (e.g. a composite row that no longer
                 fits the new geometry)
         """
+        trace_phase("page_update_started")
         updates = data.model_dump(exclude_unset=True)
         self._scale_canvases_on_retarget(page_id, updates)
 
@@ -251,13 +253,18 @@ class PageService:
                 if errors:
                     raise ValueError(f"Cannot retarget page: {'; '.join(errors)}")
 
+        trace_phase("storage_started")
         updated_page = self.storage.update(page_id, updates)
+        trace_phase("storage_returned")
 
         # Invalidate preview cache for this page
         if updated_page:
+            trace_phase("cache_invalidation_started")
             self._invalidate_cache(page_id)
+            trace_phase("cache_invalidation_returned")
             logger.debug(f"Invalidated preview cache for page {page_id}")
 
+        trace_phase("page_update_returned")
         return updated_page
 
     def _scale_canvases_on_retarget(self, page_id: str, updates: dict) -> None:

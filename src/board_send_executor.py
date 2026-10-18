@@ -33,11 +33,12 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
-import functools
 import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, TypeVar
+
+from src.request_trace import trace_phase
 
 T = TypeVar("T")
 
@@ -86,7 +87,21 @@ class _BoundedPool:
         """
         loop = asyncio.get_running_loop()
         ctx = contextvars.copy_context()
-        return await loop.run_in_executor(self._get(), functools.partial(ctx.run, func, *args, **kwargs))
+
+        def work() -> T:
+            trace_phase("worker_started")
+            try:
+                result = func(*args, **kwargs)
+            except BaseException:
+                trace_phase("worker_failed")
+                raise
+            trace_phase("worker_returned")
+            return result
+
+        trace_phase("worker_queued")
+        result = await loop.run_in_executor(self._get(), ctx.run, work)
+        trace_phase("await_returned")
+        return result
 
 
 # Concurrency ceiling for board sends. Sends are already serialized per board
