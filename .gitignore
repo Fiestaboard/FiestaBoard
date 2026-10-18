@@ -129,3 +129,6 @@ web/screenshots-output/
 # Supervisor runtime PID file (created when supervisord runs locally).
 supervisord.pid
 .pytest-data/
+
+# Standalone browser layout regression cache.
+web/.vite-layout/
