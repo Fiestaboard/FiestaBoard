@@ -112,11 +112,13 @@ async def update_page(page_id: str, request: PageUpdate) -> PageUpdateResponse:
 @router.delete(
     "/pages/{page_id}",
     response_model=PageDeleteResponse,
-    responses=errors(404),
+    responses=errors(404, 409),
     summary="Delete a page",
     description=(
-        "Removes the page. If it was the last page, or was the one a board was showing, the response says what was "
-        "put in its place so nothing is left pointing at a page that no longer exists."
+        "Removes the page and replaces active selections on every board with a compatible page, creating a welcome "
+        "page when needed. Returns 409 with references to change first if a collection, schedule, schedule default, "
+        "silence setting, or temporary override still uses the page. A refused deletion changes nothing. "
+        "The response reports whether any selection changed; its single replacement id prefers the primary board."
     ),
 )
 async def delete_page(page_id: str) -> PageDeleteResponse:
@@ -268,11 +270,12 @@ async def update_collection(collection_id: str, request: CollectionUpdate) -> Co
 @router.delete(
     "/collections/{collection_id}",
     response_model=CollectionDeleteResponse,
-    responses=errors(404),
+    responses=errors(404, 409),
     summary="Delete a collection",
     description=(
-        "Removes the collection. Its member pages are untouched, but anything still referring to the "
-        "collection id — a schedule rule, a board's pinned selection — will stop resolving."
+        "Removes an unreferenced collection, leaving its member pages untouched. Returns 409 with references "
+        "to change first if a board selection, schedule, schedule default, silence setting, or temporary override "
+        "still uses it. A refused deletion changes nothing."
     ),
 )
 async def delete_collection(collection_id: str) -> CollectionDeleteResponse:

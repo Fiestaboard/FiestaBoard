@@ -9,12 +9,13 @@ from src.outputs.plugin_driver import OutputPluginDriver
 from src.pages.models import Page
 from src.pages.service import get_page_service
 from src.settings.service import get_settings_service
+from tests.canvas.test_canvas_api import PLUGIN_ID, output_plugin  # noqa: F401
 from tests.canvas.test_output_layers import LED_3X5, Sign
 from tests.test_v1_contract import client  # noqa: F401
 
 
 @pytest.mark.parametrize("endpoint", ["message", "active-page"])
-def test_page_send_preserves_canvas_layers_and_canvas_only_changes(client, endpoint):  # noqa: F811
+def test_page_send_preserves_canvas_layers_and_canvas_only_changes(client, endpoint, output_plugin):  # noqa: F811
     settings = get_settings_service()
     settings.set_boards(
         [
@@ -25,7 +26,7 @@ def test_page_send_preserves_canvas_layers_and_canvas_only_changes(client, endpo
                 "grid_rows": 10,
                 "grid_cols": 16,
                 "device_model": "divoom_pixoo64",
-                "output": "divoom_pixoo",
+                "output": PLUGIN_ID,
                 "output_config": {"font": "3x5", "host": "192.0.2.50"},
             }
         ]

@@ -319,8 +319,8 @@ def test_backup_import_restores_every_data_file_byte_for_byte(client, isolated_d
     from src.backup.service import DATA_FILES
 
     page = _create_page(client)
-    _create_schedule(client, page["id"])
-    _create_collection(client, page["id"])
+    schedule = _create_schedule(client, page["id"])
+    collection = _create_collection(client, page["id"])
     _create_panel(client)
     assert client.put("/settings/display", json={"reduce_motion": True}).status_code == 200
     assert client.put("/settings/ai", json={"enabled": True, "providers": [_AI_PROVIDER]}).status_code == 200
@@ -328,7 +328,10 @@ def test_backup_import_restores_every_data_file_byte_for_byte(client, isolated_d
     before = {name: json.loads((isolated_data_dir / name).read_text()) for name in DATA_FILES}
     backup = client.get("/backup/export").json()
 
-    # Mutate every store so a no-op import cannot pass.
+    # Remove saved dependencies before deleting their page, then restore all
+    # three stores together. Referenced content deletion is refused with 409.
+    assert client.delete(f"/schedules/{schedule['id']}").status_code == 200
+    assert client.delete(f"/collections/{collection['id']}").status_code == 200
     assert client.delete(f"/pages/{page['id']}").status_code == 200
     assert client.put("/settings/display", json={"reduce_motion": False}).status_code == 200
     after_mutation = {name: json.loads((isolated_data_dir / name).read_text()) for name in DATA_FILES}

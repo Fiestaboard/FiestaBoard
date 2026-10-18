@@ -290,7 +290,7 @@ class PageService:
     def delete_page(self, page_id: str) -> DeleteResult:
         """Delete a page.
 
-        If this is the last page, a default welcome page is created first
+        If this is the last page, a default welcome page is created
         to ensure there is always at least one page.
 
         If the deleted page is the active display page, the active page will
@@ -307,56 +307,59 @@ class PageService:
         if existing_page is None:
             return DeleteResult(deleted=False)
 
-        # Check if this page is the active display page
+        from src.content_references import check_content_references
+
+        check_content_references(page_id, replace_active=True)
         settings_service = get_settings_service()
-        is_active_page = settings_service.get_active_page_id() == page_id
+        boards = settings_service.get_board_settings().boards
+        active_boards = [b for b in boards if settings_service.get_active_page_id(b["id"]) == page_id]
+        legacy_active = settings_service.get_active_page_id() == page_id
+        was_last = self.storage.count() == 1
 
-        # Check if this is the last page
-        if self.storage.count() == 1:
-            # Delete the original FIRST (persisting that deletion), then create
-            # the default. If creating the default fails after a successful
-            # delete, the user is briefly left with zero pages — a recoverable
-            # state — rather than an orphaned "Welcome" page committed to disk
-            # alongside an original that was never deleted (issue #1314). The
-            # previous create-then-delete order could leave two pages on disk
-            # if the delete's save raised after the default was already saved.
-            self.storage.delete(page_id)
-            self._invalidate_cache(page_id)
-
-            # Create the replacement default. Match the deleted page's
-            # device_type so a note (3x15) board doesn't end up with a
-            # flagship (6x22) welcome page (issue #1307).
-            default_page = self._create_default_page(device_type=existing_page.device_type)
-            logger.info(f"Created default page {default_page.id} after deleting last page {page_id}")
-
-            # If deleted page was active, set the new default as active
-            if is_active_page:
-                settings_service.set_active_page_id(default_page.id)
-                logger.info(f"Active page updated to new default: {default_page.id}")
-
-            return DeleteResult(
-                deleted=True,
-                default_page_created=True,
-                new_page_id=default_page.id,
-                active_page_updated=is_active_page,
-                new_active_page_id=default_page.id if is_active_page else None,
-            )
-
-        # Normal deletion
+        # Persist deletion first: a failed delete must not create an orphan Welcome.
         self.storage.delete(page_id)
-
         self._invalidate_cache(page_id)
-
-        # If deleted page was active, set another page as active
+        default_page = self._create_replacement_page(existing_page) if was_last else None
         new_active_id = None
-        if is_active_page:
-            remaining_pages = self.storage.list_all()
-            if remaining_pages:
-                new_active_id = remaining_pages[0].id
-                settings_service.set_active_page_id(new_active_id)
-                logger.info(f"Active page updated to: {new_active_id}")
+        for board in active_boards:
+            replacement = next((p for p in self.storage.list_all() if pages_compatible_with_board(p, board)), None)
+            if replacement is None:
+                replacement = self._create_replacement_page(board)
+                default_page = default_page or replacement
+            settings_service.set_active_page_id(replacement.id, board["id"])
+            if new_active_id is None or board["id"] == settings_service.get_primary_board_id():
+                new_active_id = replacement.id
+        if legacy_active and not boards:
+            replacement = next(
+                (p for p in self.storage.list_all() if pages_compatible_with_board(p, existing_page)), None
+            )
+            if replacement is None:
+                replacement = self._create_replacement_page(existing_page)
+                default_page = default_page or replacement
+            settings_service.set_active_page_id(replacement.id)
+            new_active_id = replacement.id
+        return DeleteResult(
+            deleted=True,
+            default_page_created=default_page is not None,
+            new_page_id=default_page.id if default_page else None,
+            active_page_updated=bool(active_boards) or legacy_active,
+            new_active_page_id=new_active_id,
+        )
 
-        return DeleteResult(deleted=True, active_page_updated=is_active_page, new_active_page_id=new_active_id)
+    def _create_replacement_page(self, geometry_source: Any) -> Page:
+        """A welcome page retaining the exact geometry of a page or board."""
+        geometry = geometry_of(geometry_source)
+        if geometry.device_type in DEFAULT_PAGE_TEMPLATES:
+            return self._create_default_page(device_type=geometry.device_type)
+        return self.storage.create(
+            Page(
+                name="Welcome",
+                type="template",
+                template=["Welcome"],
+                **geometry._asdict(),
+                created_at=datetime.now(UTC),
+            )
+        )
 
     def _create_default_page(self, device_type: str | None = None) -> Page:
         """Create and save a default welcome page.

@@ -457,7 +457,7 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 
 **Delete a page**
 
-Removes the page. If it was the last page, or was the one a board was showing, the response says what was put in its place so nothing is left pointing at a page that no longer exists.
+Removes the page and replaces active selections on every board with a compatible page, creating a welcome page when needed. Returns 409 with references to change first if a collection, schedule, schedule default, silence setting, or temporary override still uses the page. A refused deletion changes nothing. The response reports whether any selection changed; its single replacement id prefers the primary board.
 
 **Parameters**
 
@@ -476,6 +476,7 @@ Removes the page. If it was the last page, or was the one a board was showing, t
 | Status | Body | Meaning |
 |--------|------|---------|
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `409` | [`ErrorResponse`](#schema-errorresponse) | Conflict — duplicate id, or a resource pinned by the environment. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `GET /v1/schedules` {#get-v1-schedules}
@@ -755,7 +756,7 @@ Applies only the fields you send. Every page id in `page_ids` must exist, and a 
 
 **Delete a collection**
 
-Removes the collection. Its member pages are untouched, but anything still referring to the collection id — a schedule rule, a board's pinned selection — will stop resolving.
+Removes an unreferenced collection, leaving its member pages untouched. Returns 409 with references to change first if a board selection, schedule, schedule default, silence setting, or temporary override still uses it. A refused deletion changes nothing.
 
 **Parameters**
 
@@ -774,6 +775,7 @@ Removes the collection. Its member pages are untouched, but anything still refer
 | Status | Body | Meaning |
 |--------|------|---------|
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `409` | [`ErrorResponse`](#schema-errorresponse) | Conflict — duplicate id, or a resource pinned by the environment. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `GET /v1/install` {#get-v1-install}
