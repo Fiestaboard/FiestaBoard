@@ -327,6 +327,12 @@ async def preview_page_import(body: PageImportRequest):
         page_data = decode_page(body.share_string)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
+    try:
+        page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Invalid share string — {e}") from e
+
+    _reject_plugin_strategy_when_beta_off(page_create.transition_strategy)
     return page_data
 
 
