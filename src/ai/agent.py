@@ -200,6 +200,8 @@ async def _run_chat_turn(
     approval_mode: AiApprovalMode = "ask",
     auto_approve_destructive: bool = False,
     display: Any = None,
+    target_board: dict[str, Any] | None = None,
+    interaction_mode: str | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """Run one user turn to completion or to a pause. Yields stream events.
 
@@ -224,6 +226,11 @@ async def _run_chat_turn(
         # Narrowed to the surface so the parser accepts exactly what the
         # addendum teaches (#2036).
         catalog = ToolCatalog(await backend.list_tools()).for_surface(surface)
+        if interaction_mode == "tv":
+            if not target_board:
+                yield {"event": "error", "data": {"message": "Select a TV panel before chatting with FiestaBot."}}
+                return
+            catalog = catalog.for_tv(target_board["id"])
     except ToolBackendUnavailable as exc:
         logger.error("AI chat has no tool backend: %s", exc)
         yield {"event": "error", "data": {"message": "AI chat needs the MCP server, which failed to initialise."}}
@@ -250,6 +257,15 @@ async def _run_chat_turn(
             yield {"event": "error", "data": {"message": f"No tool call {wanted!r} is awaiting a decision."}}
             return
         decision = resume.get("decision")
+        if interaction_mode == "tv" and decision == "approve":
+            # A client transcript is not authority to bypass the TV catalog.
+            # Apply the same validation and board binding as fresh calls.
+            try:
+                validated = catalog.validate({"op": pending["name"], "args": pending.get("args") or {}})
+            except ValueError as exc:
+                yield {"event": "error", "data": {"message": str(exc)}}
+                return
+            pending["args"] = validated.args
         if decision == "approve":
             yield {
                 "event": "status",
@@ -295,6 +311,8 @@ async def _run_chat_turn(
         registry_plugins=registry_plugins,
         mode="chat",
         display=display,
+        target_board=target_board,
+        interaction_mode=interaction_mode,
     )
     system_message = {
         "role": "system",

@@ -192,6 +192,10 @@ class PanelStorage:
                 # for a panel that leaves the default).
                 if panel_data.get("render_style") == "split_flap":
                     del panel_data["render_style"]
+                if panel_data.get("matrix_sizing") is None:
+                    panel_data.pop("matrix_sizing", None)
+                if panel_data.get("matrix_pitch_mm") == 6.0:
+                    panel_data.pop("matrix_pitch_mm", None)
                 for key in ("created_at", "updated_at"):
                     if isinstance(panel_data.get(key), datetime):
                         panel_data[key] = panel_data[key].isoformat()
@@ -285,7 +289,8 @@ class PanelStorage:
 
             panel_dict = self._panels[panel_id].model_dump()
             for key, value in updates.items():
-                if key in panel_dict and value is not None:
+                # Null explicitly clears the optional shared presentation.
+                if key in panel_dict and (value is not None or key == "matrix_sizing"):
                     panel_dict[key] = value
 
             panel_dict["updated_at"] = datetime.now(UTC)

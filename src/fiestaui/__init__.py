@@ -92,3 +92,20 @@ def fiestapanel_device_models() -> Mapping[str, Mapping[str, Any]]:
         for model in models
         if model.get("family") == "fiestapanel" and model["id"].startswith("fiestapanel_")
     }
+
+
+def fiestapanel_model(render_style: str, rows: int | None = None, cols: int | None = None) -> dict[str, Any]:
+    """Panel model with enough pixels for its entire character grid.
+
+    Keep the original minimum face for existing panels. Each 5x7 glyph
+    occupies a 6x8 cell including its gutter; never clip a resized board.
+    The cached vendored document remains unchanged.
+    """
+    model = dict(fiestapanel_device_models()[render_style])
+    if render_style == "led_matrix" and rows and cols:
+        model["geometry"] = {
+            "kind": "pixels",
+            "width": max(model["geometry"]["width"], cols * 6),
+            "height": max(model["geometry"]["height"], rows * 8),
+        }
+    return model

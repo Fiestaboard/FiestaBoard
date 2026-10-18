@@ -35,7 +35,7 @@ import logging
 from collections.abc import Mapping
 from typing import Any, NamedTuple
 
-from src.fiestaui import builtin_device_models, fiestapanel_device_models
+from src.fiestaui import builtin_device_models, fiestapanel_device_models, fiestapanel_model
 from src.led.charsets import BUILTIN_CHARACTER_SETS, materialize_character_set
 from src.led.matrix import LedLayoutChoice, layout_policy_for_model, led_layout_options_for_model, model_with_led_font
 
@@ -144,7 +144,10 @@ def board_model_spec(board: Mapping[str, Any]) -> dict | None:
     if output_id == VESTABOARD:
         return None
     if output_id == FIESTAPANEL:
-        return dict(fiestapanel_device_models()[_panel_render_style(board)])
+        from src.devices import dimensions_of
+
+        dims = dimensions_of(dict(board))
+        return fiestapanel_model(_panel_render_style(board), dims.rows, dims.cols)
     model = board_device_model(board)
     if model is None:
         return None

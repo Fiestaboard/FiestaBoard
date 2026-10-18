@@ -2394,7 +2394,18 @@
     "displaySizeOptionLed": "{name} ({model} · {cols}×{rows} LED)",
     "panelGridOption": "패널 · {cols}×{rows}",
     "fitsPanel": "{name}에 맞음",
-    "fitsPanelAndMore": "{name} 외 {count}개에 맞음"
+    "fitsPanelAndMore": "{name} 외 {count}개에 맞음",
+    "matrixSizing": "매트릭스 크기",
+    "matrixSizing_viewer_default": "뷰어 기본값",
+    "matrixSizingHelp_viewer_default": "각 뷰어의 기존 크기 설정을 유지합니다. 미리보기에는 브라우저에 맞춘 크기가 표시됩니다.",
+    "matrixSizing_fill_tv": "TV 화면 채우기",
+    "matrixSizing_fit_panel": "패널 맞추기",
+    "matrixSizing_true_size": "LED 실제 크기",
+    "matrixSizingHelp_fill_tv": "전체 메시지 주위에 꺼진 LED를 배치해 화면을 채웁니다. LED의 모양은 유지됩니다.",
+    "matrixSizingHelp_fit_panel": "원래 매트릭스를 늘이거나 자르지 않고 화면에 맞춥니다.",
+    "matrixSizingHelp_true_size": "위의 화면 크기와 아래의 LED 간격을 사용합니다. 화면보다 큰 패널은 전체 메시지가 보이도록 축소됩니다.",
+    "matrixPitch": "LED 간격(mm)",
+    "matrixPitchHelp": "LED 중심 사이의 거리이며 1~20mm로 설정할 수 있습니다. Apple TV는 항상 16:9 화면을 사용합니다."
   },
   "releaseChannel": {
     "title": "Release channel",

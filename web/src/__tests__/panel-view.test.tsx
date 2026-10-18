@@ -158,6 +158,25 @@ describe("PanelView", () => {
     expect(screen.queryByTestId("char-tile-0-0")).not.toBeInTheDocument();
   });
 
+  it.each(["fill_tv", "fit_panel", "true_size"] as const)("applies shared matrix sizing %s", async (sizing) => {
+    mockPanel(
+      {
+        ...CONFIG,
+        render_style: "led_matrix",
+        device_model_spec: FIESTAPANEL_LED_MATRIX,
+        matrix_sizing: sizing,
+        matrix_pitch_mm: 5,
+      },
+      FRAME,
+    );
+    const { container } = render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    const matrix = await screen.findByTestId("panel-matrix");
+    expect(matrix).toHaveAttribute("data-sizing", sizing);
+    expect(container.querySelector('[data-slot="led-matrix-display"]')).toHaveAttribute("data-matrix-width", "192");
+    expect(container.querySelector('[data-slot="led-matrix-display"]')).toHaveAttribute("data-bezel", "false");
+    expect(matrix.querySelector("pattern") !== null).toBe(sizing === "fill_tv");
+  });
+
   it("draws the frame's rich cells when the frame has them", async () => {
     const cells = [[..."CELLS"].map((value) => ({ type: "char" as const, value }))];
     mockPanel(CONFIG, { ...FRAME, message: "IGNORED", cells });

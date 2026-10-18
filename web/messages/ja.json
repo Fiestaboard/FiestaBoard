@@ -2394,7 +2394,18 @@
     "displaySizeOptionLed": "{name} ({model} · {cols}×{rows} LED)",
     "panelGridOption": "パネル · {cols}×{rows}",
     "fitsPanel": "{name} に適合",
-    "fitsPanelAndMore": "{name} ほか{count}件に適合"
+    "fitsPanelAndMore": "{name} ほか{count}件に適合",
+    "matrixSizing": "マトリクスのサイズ",
+    "matrixSizing_viewer_default": "ビューアーの既定値",
+    "matrixSizingHelp_viewer_default": "各ビューアーの現在のサイズ設定を維持します。プレビューにはブラウザーでの表示サイズが反映されます。",
+    "matrixSizing_fill_tv": "テレビ全体に表示",
+    "matrixSizing_fit_panel": "パネルを画面に合わせる",
+    "matrixSizing_true_size": "LEDの実寸",
+    "matrixSizingHelp_fill_tv": "メッセージ全体の周囲に消灯したLEDを配置して画面を埋めます。LEDの形状は維持されます。",
+    "matrixSizingHelp_fit_panel": "元のマトリクスを引き伸ばしたり切り取ったりせずに画面に収めます。",
+    "matrixSizingHelp_true_size": "上記の画面サイズと下記のLED間隔を使用します。画面より大きなパネルは、メッセージ全体が見えるように縮小されます。",
+    "matrixPitch": "LEDの間隔（mm）",
+    "matrixPitchHelp": "LEDの中心間の距離です。1〜20 mmで指定します。Apple TVでは常に16:9の画面を使用します。"
   },
   "releaseChannel": {
     "title": "Release channel",

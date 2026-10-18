@@ -2394,7 +2394,18 @@
     "displaySizeOptionLed": "{name} ({model} · {cols}×{rows} LED)",
     "panelGridOption": "Panel · {cols}×{rows}",
     "fitsPanel": "{name} ile uyumlu",
-    "fitsPanelAndMore": "{name} +{count} panel ile uyumlu"
+    "fitsPanelAndMore": "{name} +{count} panel ile uyumlu",
+    "matrixSizing": "Matris boyutu",
+    "matrixSizing_viewer_default": "Görüntüleyici varsayılanı",
+    "matrixSizingHelp_viewer_default": "Her görüntüleyicinin mevcut boyut tercihini korur. Önizleme, tarayıcıdaki sığdırma biçimini gösterir.",
+    "matrixSizing_fill_tv": "TV ekranını doldur",
+    "matrixSizing_fit_panel": "Paneli sığdır",
+    "matrixSizing_true_size": "Gerçek LED boyutu",
+    "matrixSizingHelp_fill_tv": "Mesajın tamamının çevresindeki ekran alanını sönük LED’lerle doldurur. LED’ler şekillerini korur.",
+    "matrixSizingHelp_fit_panel": "Orijinal matrisi esnetmeden veya kırpmadan ekrana sığdırır.",
+    "matrixSizingHelp_true_size": "Yukarıdaki ekran boyutunu ve aşağıdaki LED aralığını kullanır. Ekrandan büyük paneller, mesajın tamamı görünür kalacak şekilde küçültülür.",
+    "matrixPitch": "LED aralığı (mm)",
+    "matrixPitchHelp": "LED merkezleri arasındaki mesafe, 1 ile 20 mm arasındadır. Apple TV her zaman 16:9 ekran kullanır."
   },
   "releaseChannel": {
     "title": "Release channel",

@@ -23,6 +23,7 @@ read as an external write until the next poll.
 
 from __future__ import annotations
 
+import threading
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -168,7 +169,8 @@ class TestPollEveryBoard:
 
         assert b1.read_current_message.call_count == 4
 
-    def test_poll_loop_sleeps_the_local_interval_when_cloud_is_longer(self, monkeypatch):
+    @pytest.mark.parametrize("concurrent_sleep", [False, True])
+    def test_poll_loop_sleeps_the_local_interval_when_cloud_is_longer(self, monkeypatch, concurrent_sleep):
         """A cloud primary must not stretch the loop past the local tick, or a
         local secondary would be read every 180 s."""
         b1, b2 = _client(cost="network"), _client()
@@ -176,13 +178,36 @@ class TestPollEveryBoard:
         b2.read_current_message.return_value = SENT["b2"]
         svc = _service({"b1": b1, "b2": b2})
         slept = []
+        test_thread = threading.current_thread()
+        real_time = main_module.time
 
         def _sleep(seconds):
-            slept.append(seconds)
-            svc.running = False
+            if threading.current_thread() is not test_thread:
+                real_time.sleep(seconds)
+            else:
+                slept.append(seconds)
+                svc.running = False
 
-        monkeypatch.setattr(main_module.time, "sleep", _sleep)
+        # Keep stdlib time.sleep intact, and leave other services' poll threads
+        # alone even when they resolve src.main.time during this test.
+        monkeypatch.setattr(
+            main_module,
+            "time",
+            SimpleNamespace(**(vars(real_time) | {"sleep": _sleep})),
+        )
         monkeypatch.setattr(svc, "_retry_failed_board_inits", lambda: None)
+        if concurrent_sleep:
+
+            def _read_cloud():
+                # A background poll from another service can sleep during this
+                # pass. It must neither stop this loop nor enter its capture.
+                other = threading.Thread(target=lambda: main_module.time.sleep(0))
+                other.start()
+                other.join(timeout=2)
+                assert not other.is_alive()
+                return SENT["b1"]
+
+            b1.read_current_message.side_effect = _read_cloud
         with patch("src.main.get_settings_service", return_value=_settings(["b1", "b2"])):
             svc.running = True
             svc._board_poll_loop()

@@ -14,7 +14,7 @@ import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from src.devices import DeviceType, get_dimensions
+from src.devices import DeviceType, geometry_of, get_dimensions, resolve_dimensions
 from src.ops.teaching import TEMPLATE_FILTERS, construct_lines, dimensions_phrase
 from src.templates.expressions import function_signatures
 
@@ -460,6 +460,8 @@ def build_prompt(
     registry_plugins: list[dict[str, Any]] | None = None,
     mode: PromptMode = "generate",
     display: DisplayProfile | None = None,
+    target_board: dict[str, Any] | None = None,
+    interaction_mode: str | None = None,
 ) -> PromptContext:
     """Build the system + user messages for the LLM.
 
@@ -490,13 +492,48 @@ def build_prompt(
             lowercase, colours, hex, icons) replaces the Vestaboard
             character rules; a pixel board's chat also learns canvases.
             ``None`` or a split-flap board: the Vestaboard rules.
+        target_board: Server-resolved board identity and geometry for chat.
+            Overrides the legacy request device_type; never includes credentials.
+        interaction_mode: "tv" asks for concise, remote-friendly questions.
 
     Returns:
         A ``PromptContext`` with the rendered system prompt and the
         captured inputs.
     """
-    dims = get_dimensions(device_type)
+    # A chat's board comes from server settings, never arbitrary client
+    # geometry. Keep the legacy generate/request vocabulary unchanged.
+    target_rules = ""
+    if mode == "chat" and target_board is not None:
+        geometry = geometry_of(target_board)
+        device_type = geometry.device_type
+        dims = resolve_dimensions(*geometry)
+        target = {"board_id": target_board["id"], "device_type": device_type}
+        if device_type == "panel":
+            target.update(grid_rows=dims.rows, grid_cols=dims.cols)
+        elif device_type == "note_array":
+            target.update(notes_wide=geometry.notes_wide, notes_tall=geometry.notes_tall)
+        target_rules = (
+            "\nCURRENT TARGET BOARD\n"
+            + json.dumps(target)
+            + "\nUse this board_id explicitly for board actions unless the user selects another board.\n"
+            "Create pages using this device_type and geometry. Reuse current_page when editing it.\n"
+            "Do not disable schedules unless the user explicitly asks for a fixed page or to disable them.\n"
+            "Creating a page does not display it: the client offers an explicit Show page action.\n"
+            "A paused or failed send is not a successful display; report the tool's actual result.\n"
+        )
+    else:
+        dims = get_dimensions(device_type)
     rows, cols = dims.rows, dims.cols
+    if mode == "chat" and interaction_mode == "tv":
+        target_rules += (
+            "\nTV INTERACTION\n"
+            "Keep replies concise and readable from across a room. Avoid unnecessary questions.\n"
+            "When clarification is needed, use ask_user with 2–4 short, mutually distinct choices.\n"
+            "Set allow_free_text=true so the user can answer with the native keyboard or dictation.\n"
+            "Do not assume voice input is available; choices and typed answers must both work.\n"
+            "A current_page containing only an id/name identifies a saved page, not an empty template.\n"
+            "Call get_page with that id before editing when its template is missing; preserve existing content.\n"
+        )
     vars_dict = variables or {}
     demos = plugin_demos or []
 
@@ -538,7 +575,7 @@ def build_prompt(
     audience = "the user's board (see CHARACTER SET)" if led else "a Vestaboard split-flap display"
 
     layout_rules = (
-        f"DEVICE: {device_type} ({dimensions_phrase(device_type)}).\n"
+        f"DEVICE: {device_type} ({f'{cols} columns x {rows} rows' if target_board is not None else dimensions_phrase(device_type)}).\n"
         f"- Output exactly {rows} entries in `template` (use empty\n"
         f"  strings to leave a row blank).\n"
         f"- Each line's rendered width must be <= {cols} columns. If a\n"
@@ -749,6 +786,7 @@ def build_prompt(
         + scope_rules
         + "\n"
         + layout_rules
+        + target_rules
         + "\n"
         + char_rules
         + canvas_rules

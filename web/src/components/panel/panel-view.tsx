@@ -190,6 +190,8 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
         code62Glyph={(config.data.code62_glyph ?? "degree") as Code62Glyph}
         diagonalInches={config.data.screen_diagonal_inches}
         calibration={config.data.calibration_scale}
+        matrixSizing={config.data.matrix_sizing}
+        matrixPitch={config.data.matrix_pitch_mm}
       />
     );
   } else {

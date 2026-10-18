@@ -1,8 +1,16 @@
 "use client";
 
-import { type BoardCellGrid, type DeviceModel, DisplayPreview, type TvFrameOptions } from "@fiestaboard/ui";
+import {
+  type BoardCellGrid,
+  Box,
+  type DeviceModel,
+  DisplayPreview,
+  TvFrame,
+  type TvFrameOptions,
+} from "@fiestaboard/ui";
 import { useCallback, useEffect, useState } from "react";
 
+import { PanelMatrix } from "@/components/panel/panel-matrix";
 import { usePanelConfig, usePanelFrame } from "@/hooks/use-panel";
 import { useTranslations } from "@/i18n/translations";
 import type { PanelPublicConfig } from "@/lib/api";
@@ -19,8 +27,7 @@ const DIM_TICK_MS = 30_000;
  * what its viewer would be doing: `screen_diagonal_inches` → `diagonalInches`,
  * `screen_aspect_w` / `_h` → `aspect` (16:9 for a panel stored before the
  * aspect existed), the auto-dim window → `dimmed` at the viewer's overlay
- * level, a failed frame fetch → `offline`. `calibration_scale` is a
- * physical-size nudge for the real TV and never reaches the frame.
+ * level, a failed frame fetch → `offline`. `calibration_scale` reaches the matrix content, not the frame.
  */
 export function panelTvOptions(
   config: Pick<PanelPublicConfig, "screen_diagonal_inches" | "screen_aspect_w" | "screen_aspect_h">,
@@ -77,6 +84,28 @@ export function PanelTvPreview({ panelId, frameIntervalMs }: PanelTvPreviewProps
   const dimActive = !!autoDim?.enabled && isInDimWindow(minutesNow, autoDim.start, autoDim.end);
   const offline = frame.isError;
   const led = typeof model !== "string" && isLedModel(model);
+
+  if (led && typeof model !== "string" && data.matrix_sizing) {
+    return (
+      <TvFrame
+        className="panel-matrix-tv"
+        {...panelTvOptions(data, { dimActive, offline })}
+        offlineLabel={t("offline")}
+      >
+        <Box style={{ width: "100%", height: "100%" }}>
+          <PanelMatrix
+            model={model}
+            message={frame.data?.message ?? null}
+            cells={frame.data?.cells as BoardCellGrid | undefined}
+            sizing={data.matrix_sizing}
+            diagonal={data.screen_diagonal_inches}
+            spacing={data.matrix_pitch_mm}
+            calibration={data.calibration_scale}
+          />
+        </Box>
+      </TvFrame>
+    );
+  }
 
   return (
     <DisplayPreview

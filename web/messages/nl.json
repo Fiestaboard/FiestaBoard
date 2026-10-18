@@ -2394,7 +2394,18 @@
     "displaySizeOptionLed": "{name} ({model} · {cols}×{rows} LED)",
     "panelGridOption": "Paneel · {cols}×{rows}",
     "fitsPanel": "Past op {name}",
-    "fitsPanelAndMore": "Past op {name} +{count} meer"
+    "fitsPanelAndMore": "Past op {name} +{count} meer",
+    "matrixSizing": "Matrixformaat",
+    "matrixSizing_viewer_default": "Standaard van de viewer",
+    "matrixSizingHelp_viewer_default": "Behoudt de huidige formaatvoorkeur van elke viewer. Het voorbeeld toont de aanpassing in de browser.",
+    "matrixSizing_fill_tv": "Tv vullen",
+    "matrixSizing_fit_panel": "Paneel passend maken",
+    "matrixSizing_true_size": "Werkelijke ledgrootte",
+    "matrixSizingHelp_fill_tv": "Vult het scherm met onverlichte leds rond het volledige bericht. De leds behouden hun vorm.",
+    "matrixSizingHelp_fit_panel": "Past de oorspronkelijke matrix op het scherm zonder uitrekken of bijsnijden.",
+    "matrixSizingHelp_true_size": "Gebruikt het schermformaat hierboven en de ledafstand hieronder. Panelen die groter zijn dan het scherm worden verkleind zodat het volledige bericht zichtbaar blijft.",
+    "matrixPitch": "Ledafstand (mm)",
+    "matrixPitchHelp": "Afstand tussen de middelpunten van de leds, van 1 tot 20 mm. Apple TV gebruikt altijd een scherm van 16:9."
   },
   "releaseChannel": {
     "title": "Release channel",

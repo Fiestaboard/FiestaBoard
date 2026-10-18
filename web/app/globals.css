@@ -349,3 +349,13 @@
 :root {
   --z-spotlight: 138;
 }
+
+/* A matrix preview supplies the whole TV screen, including its margins.
+   Override TvFrame's board-fit transform so Fill TV and physical pitch match
+   the full-screen viewer. The frame still owns dimming and offline state. */
+.panel-matrix-tv [data-slot="tv-frame-board"] {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100%;
+  transform: none !important;
+}
