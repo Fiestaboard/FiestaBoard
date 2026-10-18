@@ -56,8 +56,6 @@ if (!i18n.isInitialized) {
       // Keep the bundled `en` and fetch every other locale through the backend.
       partialBundledLanguages: true,
       supportedLngs: [...locales],
-      // Every locale is a bare language code; never ask the backend for "en-US".
-      load: "languageOnly",
       fallbackLng: defaultLocale,
       // We do our own ICU plural / placeholder interpolation in
       // `@/i18n/translations` because the existing message strings use
