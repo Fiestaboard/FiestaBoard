@@ -196,6 +196,7 @@ export function PixelPad({ grid, tool, color, zoom, showGrid, onChange, onPick }
   const width = grid[0]?.length ?? 0;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const paintingRef = useRef(false);
+  const lastCellRef = useRef<{ x: number; y: number } | null>(null);
   // The grid as of the last paint of the current stroke, so a drag paints on
   // its own result before the parent re-renders.
   const strokeGridRef = useRef<PixelGrid>(grid);
@@ -243,7 +244,10 @@ export function PixelPad({ grid, tool, color, zoom, showGrid, onChange, onPick }
 
   const apply = useCallback(
     (x: number, y: number, continuing: boolean) => {
-      if (x < 0 || y < 0 || x >= width || y >= height) return;
+      if (x < 0 || y < 0 || x >= width || y >= height) {
+        lastCellRef.current = null;
+        return;
+      }
       const base = continuing ? strokeGridRef.current : grid;
       if (tool === "picker") {
         onPick(base[y][x]);
@@ -257,13 +261,45 @@ export function PixelPad({ grid, tool, color, zoom, showGrid, onChange, onPick }
         return;
       }
       const paint: PixelColor = tool === "eraser" ? null : color;
-      if (base[y][x] === paint) return;
-      const next = base.map((row, ry) => (ry === y ? row.map((c, rx) => (rx === x ? paint : c)) : row));
+      const from = continuing ? (lastCellRef.current ?? { x, y }) : { x, y };
+      lastCellRef.current = { x, y };
+      const next = base.map((row) => [...row]);
+      let changed = false;
+      let cx = from.x;
+      let cy = from.y;
+      const dx = Math.abs(x - cx);
+      const dy = -Math.abs(y - cy);
+      const sx = cx < x ? 1 : -1;
+      const sy = cy < y ? 1 : -1;
+      let error = dx + dy;
+      // Bresenham visits each pixel between sparse pointer samples.
+      for (;;) {
+        if (next[cy][cx] !== paint) {
+          next[cy][cx] = paint;
+          changed = true;
+        }
+        if (cx === x && cy === y) break;
+        const twiceError = 2 * error;
+        if (twiceError >= dy) {
+          error += dy;
+          cx += sx;
+        }
+        if (twiceError <= dx) {
+          error += dx;
+          cy += sy;
+        }
+      }
+      if (!changed) return;
       strokeGridRef.current = next;
       onChange(next);
     },
     [color, grid, height, onChange, onPick, tool, width],
   );
+
+  const endStroke = () => {
+    paintingRef.current = false;
+    lastCellRef.current = null;
+  };
 
   const cellAt = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -306,7 +342,7 @@ export function PixelPad({ grid, tool, color, zoom, showGrid, onChange, onPick }
           style={{ width: width * zoom, height: height * zoom, imageRendering: "pixelated", touchAction: "none" }}
           className="block cursor-crosshair focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onPointerDown={(e) => {
-            paintingRef.current = true;
+            paintingRef.current = tool === "brush" || tool === "eraser";
             e.currentTarget.setPointerCapture?.(e.pointerId);
             const { x, y } = cellAt(e);
             apply(x, y, false);
@@ -316,12 +352,10 @@ export function PixelPad({ grid, tool, color, zoom, showGrid, onChange, onPick }
             const { x, y } = cellAt(e);
             apply(x, y, true);
           }}
-          onPointerUp={() => {
-            paintingRef.current = false;
-          }}
-          onPointerLeave={() => {
-            paintingRef.current = false;
-          }}
+          onPointerUp={endStroke}
+          onPointerCancel={endStroke}
+          onLostPointerCapture={endStroke}
+          onPointerLeave={endStroke}
           onKeyDown={onKeyDown}
           onFocus={() => setCursor((c) => c ?? { x: 0, y: 0 })}
           onBlur={() => setCursor(null)}
