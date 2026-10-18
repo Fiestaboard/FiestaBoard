@@ -464,19 +464,14 @@ jobs:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   a11y-tests:
-    name: Accessibility Tests (${{ matrix.theme }})
+    name: Accessibility Tests (dark and light)
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 15
+    timeout-minutes: 25
 
-    # Run both themes in parallel — each spawns chromium and walks every
-    # story, so cutting them apart roughly halves wall-clock (~4m → ~2m).
-    strategy:
-      fail-fast: false
-      matrix:
-        theme: [dark, light]
-
+    # Build and serve Storybook once. Both themes remain mandatory and the
+    # light suite still runs if dark fails, preserving matrix fail-fast: false.
     steps:
     - uses: actions/checkout@v7
 
@@ -516,6 +511,7 @@ jobs:
       run: npm run build-storybook -- --quiet
 
     - name: Start Storybook static server
+      id: storybook_server
       working-directory: web
       run: |
         # `http-server` is a devDependency, so the `npm ci` step above has
@@ -540,15 +536,19 @@ jobs:
         cat /tmp/storybook-server.log
         exit 1
 
-    - name: Run Storybook a11y tests
+    - name: Run Storybook a11y tests (dark)
+      id: dark_tests
+      if: ${{ !cancelled() && steps.storybook_server.outcome == 'success' }}
       working-directory: web
       timeout-minutes: 8
-      run: |
-        URL="http://localhost:6006"
-        if [ "${{ matrix.theme }}" = "light" ]; then
-          URL="${URL}?globals=theme:light"
-        fi
-        npm run test-storybook:ci -- --url "$URL"
+      run: npm run test-storybook:ci -- --url "http://localhost:6006"
+
+    - name: Run Storybook a11y tests (light)
+      id: light_tests
+      if: ${{ !cancelled() && steps.storybook_server.outcome == 'success' }}
+      working-directory: web
+      timeout-minutes: 8
+      run: npm run test-storybook:ci -- --url "http://localhost:6006?globals=theme:light"
 
   build-test-image:
     name: Build Test Image
