@@ -58,7 +58,11 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      // Playwright 1.64 started forwarding the descriptor's 1920x1080 `screen`,
+      // so window.screen no longer matches the 1280x720 viewport. The panel
+      // viewer sizes a full-screen TV from window.screen, which pushed the
+      // board 320px off the left edge. Keep screen == viewport as before.
+      use: { ...devices["Desktop Chrome"], screen: undefined },
     },
   ],
 });
