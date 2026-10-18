@@ -2621,6 +2621,30 @@
           ]
         }
       ]
+    },
+    "wow": {
+      "teaser": "WOW M+ 2457",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "EXAMPLE",
+            "RESTORATION DRUID",
+            "ILVL 251  M+ 2457",
+            "WEEK +10",
+            "3/8 H",
+            "RAIDER.IO"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "EXAMPLE",
+            "ILVL 251",
+            "M+ 2457"
+          ]
+        }
+      ]
     }
   }
 }
