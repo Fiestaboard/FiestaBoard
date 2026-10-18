@@ -5,7 +5,7 @@ and validation (overlap and gap detection).
 """
 
 import logging
-from datetime import date, time
+from datetime import date, time, timedelta
 
 from src.settings.service import get_settings_service
 
@@ -226,14 +226,24 @@ class ScheduleService:
             "weekly": [],
         }
         for schedule in schedules:
-            effective_schedule = self._resolve_effective_times(schedule, today, location)
-            if not effective_schedule.applies_to_date(today):
-                continue
-            if effective_schedule.recurrence_type == "weekly" and not effective_schedule.applies_to_day(current_day):
-                continue
-            if not effective_schedule.applies_to_time(time_str):
-                continue
-            tiers[schedule.recurrence_type].append(effective_schedule)
+            # A window is owned by the date/day on which it starts. Consider
+            # yesterday only for the portion of a window that crosses midnight.
+            for days_ago in (0, 1):
+                start_date = today - timedelta(days=days_ago)
+                effective_schedule = self._resolve_effective_times(schedule, start_date, location)
+                start = effective_schedule.start_time
+                end = effective_schedule.end_time
+                wraps = end is not None and end <= start
+                if days_ago:
+                    matches_time = wraps and time_str < end
+                else:
+                    matches_time = time_str >= start and (end is None or wraps or time_str < end)
+                if not matches_time or not effective_schedule.applies_to_date(start_date):
+                    continue
+                start_day = VALID_DAYS[(VALID_DAYS.index(current_day.lower()) - days_ago) % 7]
+                if schedule.recurrence_type == "weekly" and not schedule.applies_to_day(start_day):
+                    continue
+                tiers[schedule.recurrence_type].append(effective_schedule)
 
         for tier_name in ("one_off_date", "annual_date", "weekly"):
             tier_matches = tiers[tier_name]
@@ -284,6 +294,21 @@ class ScheduleService:
             target_date=target_date,
             timezone_str=tz,
         )
+
+        if resolved_end is not None and resolved_end <= resolved_start and schedule.end_type != "fixed":
+            # An overnight sun endpoint occurs on the next calendar date.
+            _, resolved_end = resolve_schedule_sun_times(
+                start_type=schedule.start_type,
+                start_sun_offset=schedule.start_sun_offset,
+                start_time_fallback=schedule.start_time,
+                end_type=schedule.end_type,
+                end_sun_offset=schedule.end_sun_offset,
+                end_time_fallback=schedule.end_time,
+                latitude=lat,
+                longitude=lon,
+                target_date=target_date + timedelta(days=1),
+                timezone_str=tz,
+            )
 
         # Build a copy with resolved times (model_copy available in Pydantic v2)
         return schedule.model_copy(
@@ -370,18 +395,14 @@ class ScheduleService:
         # Check each pair of schedules
         for i, schedule1 in enumerate(schedules):
             for schedule2 in schedules[i + 1 :]:
-                # Get days each schedule applies to
-                days1 = set(schedule1.get_days())
-                days2 = set(schedule2.get_days())
-
-                # Check if days overlap
-                common_days = days1 & days2
-                if not common_days:
-                    continue  # No day overlap
-
-                if self._times_overlap(
-                    schedule1.start_time, schedule1.end_time, schedule2.start_time, schedule2.end_time
-                ):
+                intervals1 = self._daily_intervals(schedule1)
+                intervals2 = self._daily_intervals(schedule2)
+                common_days = {
+                    day
+                    for day in VALID_DAYS
+                    if any(a < d and c < b for a, b in intervals1[day] for c, d in intervals2[day])
+                }
+                if common_days:
                     # Build description
                     days_str = ", ".join(sorted(common_days))
                     end1_str = schedule1.end_time or "open"
@@ -442,6 +463,20 @@ class ScheduleService:
         # Overlap if range2 intersects [s1, 1440) or [0, e1)
         return s2 < e1 or e2 > s1
 
+    def _daily_intervals(self, schedule: ScheduleEntry) -> dict[str, list[tuple[int, int]]]:
+        """Split weekly windows onto the calendar days they actually cover."""
+        intervals = {day: [] for day in VALID_DAYS}
+        start = self._time_to_minutes(schedule.start_time)
+        end = self._time_to_minutes(schedule.end_time) if schedule.end_time is not None else 1440
+        for day in schedule.get_days():
+            if end <= start:
+                intervals[day].append((start, 1440))
+                next_day = VALID_DAYS[(VALID_DAYS.index(day) + 1) % 7]
+                intervals[next_day].append((0, end))
+            else:
+                intervals[day].append((start, end))
+        return intervals
+
     def _detect_gaps(self, schedules: list[ScheduleEntry]) -> list[Gap]:
         """Detect gaps in schedule coverage.
 
@@ -459,35 +494,13 @@ class ScheduleService:
         TOTAL_MINUTES = 24 * 60  # 1440 minutes in a day
         gaps = []
 
-        # Check each day of the week
+        intervals = [self._daily_intervals(schedule) for schedule in schedules]
         for day in VALID_DAYS:
-            day_schedules = [s for s in schedules if s.applies_to_day(day)]
-
-            if not day_schedules:
-                # Entire day is a gap
-                gaps.append(Gap(start_time="00:00", end_time="23:59", days=[day]))
-                continue
-
-            # Build a coverage bitmap for the day (True = covered)
             covered = [False] * TOTAL_MINUTES
-            for sched in day_schedules:
-                s = self._time_to_minutes(sched.start_time)
-                if sched.end_time is None:
-                    # Open-ended: covers from start to end of day
-                    for m in range(s, TOTAL_MINUTES):
-                        covered[m] = True
-                else:
-                    e = self._time_to_minutes(sched.end_time)
-                    if e <= s:
-                        # Wraparound: covers [s, 1440) and [0, e)
-                        for m in range(s, TOTAL_MINUTES):
-                            covered[m] = True
-                        for m in range(e):
-                            covered[m] = True
-                    else:
-                        # Normal: covers [s, e)
-                        for m in range(s, e):
-                            covered[m] = True
+            for schedule_intervals in intervals:
+                for start, end in schedule_intervals[day]:
+                    for minute in range(start, end):
+                        covered[minute] = True
 
             # Find uncovered ranges
             gap_start = None
