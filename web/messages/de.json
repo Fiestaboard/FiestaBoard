@@ -904,20 +904,20 @@
     "turnOffLiveModeAriaLabel": "Live-Modus deaktivieren",
     "liveModeBadge": "Live-Modus",
     "composeOneOff": "Nachricht verfassen",
-    "silenceManual": "„{pageName}“ wird angezeigt, wenn der Ruhemodus endet. Bis dahin bleibt die Tafel still.",
-    "silenceSchedule": "Dein Zeitplan läuft weiter, wenn der Ruhemodus endet. Bis dahin bleibt die Tafel still.",
-    "silenceNoPage": "Bis dahin bleibt die Tafel still.",
+    "silenceManual": "„{pageName}“ wird angezeigt, wenn der Ruhemodus endet. Bis dahin bleibt das Board still.",
+    "silenceSchedule": "Dein Zeitplan läuft weiter, wenn der Ruhemodus endet. Bis dahin bleibt das Board still.",
+    "silenceNoPage": "Bis dahin bleibt das Board still.",
     "silenceHeld": "Zurückgehaltene Nachricht: „{preview}“ – sie wird zuerst angezeigt.",
     "showNow": "Jetzt anzeigen",
     "discardHeld": "Nachricht verwerfen",
-    "selectPageSilence": "die gewählte Seite wird gespeichert und dann angezeigt. Die Tafel bleibt still.",
+    "selectPageSilence": "die gewählte Seite wird gespeichert und dann angezeigt. Das Board bleibt still.",
     "toastSwitchHeld": "„{pageName}“ wird um {time} angezeigt",
     "toastSwitchHeldNoTime": "„{pageName}“ wird angezeigt, wenn der Ruhemodus endet",
-    "toastSwitchPaused": "Gespeichert – „{pageName}“ wird angezeigt, wenn du die Tafel fortsetzt",
+    "toastSwitchPaused": "Gespeichert – „{pageName}“ wird angezeigt, wenn du das Board fortsetzt",
     "toastShownNow": "„{pageName}“ wird jetzt angezeigt",
     "toastHeldDiscarded": "Zurückgehaltene Nachricht verworfen",
     "toastHeldDiscardFailed": "Die zurückgehaltene Nachricht konnte nicht verworfen werden",
-    "toastResendNotSent": "Nichts gesendet (Tafel pausiert oder Ausgabe nur auf die Oberfläche eingestellt)"
+    "toastResendNotSent": "Nichts gesendet (Board pausiert oder Ausgabe nur auf die Oberfläche eingestellt)"
   },
   "forceSetDialog": {
     "title": "Board erzwingen",
@@ -930,7 +930,7 @@
     "setting": "Stelle ein…",
     "toastSuccess": "Zeige „{pageName}\" für {minutes} Min.",
     "toastError": "Übersteuerung konnte nicht gesetzt werden",
-    "silenceWarning": "Erzwingen zeigt diese Seite sofort an und weckt die Tafel.",
+    "silenceWarning": "Erzwingen zeigt diese Seite sofort an und weckt das Board.",
     "confirmSilenced": "Trotzdem jetzt anzeigen"
   },
   "composeDialog": {
@@ -953,8 +953,8 @@
     "toastSendError": "Nachricht konnte nicht gesendet werden",
     "toastSaved": "„{pageName}“ gespeichert",
     "toastSaveError": "Seite konnte nicht gespeichert werden",
-    "silenceHold": "Halte sie zurück, dann erscheint sie um {time} – oder sende sie jetzt, dann wird die Tafel geweckt.",
-    "silenceNoHold": "Jetzt senden weckt die Tafel. Um Nachrichten bis zum Ende des Ruhemodus zurückzuhalten, aktiviere „Zurückgehaltene Nachrichten nach dem Ruhemodus anzeigen“ unter Einstellungen → Zeitplanung.",
+    "silenceHold": "Halte sie zurück, dann erscheint sie um {time} – oder sende sie jetzt, dann wird das Board geweckt.",
+    "silenceNoHold": "Jetzt senden weckt das Board. Um Nachrichten bis zum Ende des Ruhemodus zurückzuhalten, aktiviere „Zurückgehaltene Nachrichten nach dem Ruhemodus anzeigen“ unter Einstellungen → Zeitplanung.",
     "openSettings": "Einstellungen öffnen",
     "hold": "Bis {time} zurückhalten",
     "holdNoTime": "Bis zum Ende des Ruhemodus zurückhalten",
@@ -1059,9 +1059,9 @@
     "transitionBuiltInGroup": "Integriert",
     "transitionPluginsGroup": "Plugins (Beta)",
     "transitionUseDisplayTransition": "Übergang der Anzeige verwenden",
-    "liveSilencePreviewOnly": "Die Live-Ausgabe zeigt nur eine Vorschau. Die Tafel bleibt still.",
-    "liveSendAnyway": "Trotzdem an die Tafel senden",
-    "liveSilenceOverriding": "Die Live-Ausgabe weckt die Tafel während des Ruhemodus.",
+    "liveSilencePreviewOnly": "Die Live-Ausgabe zeigt nur eine Vorschau. Das Board bleibt still.",
+    "liveSendAnyway": "Trotzdem an das Board senden",
+    "liveSilenceOverriding": "Die Live-Ausgabe weckt das Board während des Ruhemodus.",
     "liveStopOverriding": "Senden beenden"
   },
   "displaySettings": {
@@ -1403,7 +1403,7 @@
     "updateIntervalsTitle": "Aktualisierungsintervalle",
     "updateIntervalsDescription": "Wie oft das Board nach neuen Inhalten sucht und seinen aktuellen Zustand erneut liest",
     "silenceShowHeldLabel": "Zurückgehaltene Nachrichten nach dem Ruhemodus anzeigen",
-    "silenceShowHeldHelp": "Eine Nachricht, die während des Ruhemodus an diese Tafel gesendet wird, wird zurückgehalten und angezeigt, sobald der Ruhemodus endet. Ist dies aus, wird sie stattdessen abgelehnt. Seitenwechsel werden immer gespeichert und brauchen das nicht."
+    "silenceShowHeldHelp": "Eine Nachricht, die während des Ruhemodus an dieses Board gesendet wird, wird zurückgehalten und angezeigt, sobald der Ruhemodus endet. Ist dies aus, wird sie stattdessen abgelehnt. Seitenwechsel werden immer gespeichert und brauchen das nicht."
   },
   "serviceControls": {
     "title": "Dienststeuerung",
@@ -2732,6 +2732,6 @@
   },
   "silenceNotice": {
     "untilTitle": "Im Ruhemodus bis {time}",
-    "untilTitleNoTime": "Die Tafel ist im Ruhemodus"
+    "untilTitleNoTime": "Das Board ist im Ruhemodus"
   }
 }
