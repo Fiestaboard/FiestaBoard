@@ -2647,6 +2647,10 @@
     }
   },
   "canvasEditor": {
+    "richRegionName": "Tela: {id}",
+    "richRegionHide": "Tela: {id}, righe {row}–{lastRow}, colonne {col}–{lastCol}. Il testo in quest’area è nascosto sul display.",
+    "richRegionFlow": "Tela: {id}, righe {row}–{lastRow}, colonne {col}–{lastCol}. Il testo scorre attorno a quest’area sul display.",
+    "richRegionHint": "Le aree ombreggiate appartengono alle tele. Usa l’anteprima per controllare la disposizione finale del testo.",
     "title": "Tele di pixel",
     "description": "Disegna qualsiasi pixel in qualsiasi colore su un'area della lavagna. Il testo sotto una tela viene nascosto o scorre attorno ad essa.",
     "add": "Aggiungi tela",

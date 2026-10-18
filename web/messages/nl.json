@@ -2647,6 +2647,10 @@
     }
   },
   "canvasEditor": {
+    "richRegionName": "Canvas: {id}",
+    "richRegionHide": "Canvas: {id}, rijen {row}–{lastRow}, kolommen {col}–{lastCol}. Tekst in dit gebied wordt op het scherm verborgen.",
+    "richRegionFlow": "Canvas: {id}, rijen {row}–{lastRow}, kolommen {col}–{lastCol}. Tekst loopt op het scherm om dit gebied heen.",
+    "richRegionHint": "Gearceerde gebieden horen bij canvassen. Gebruik het voorbeeld om de uiteindelijke tekstindeling te controleren.",
     "title": "Pixelcanvassen",
     "description": "Teken elke pixel in elke kleur over een gebied van het bord. Tekst onder een canvas wordt verborgen of loopt eromheen.",
     "add": "Canvas toevoegen",

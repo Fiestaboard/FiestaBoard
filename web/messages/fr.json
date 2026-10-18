@@ -2647,6 +2647,10 @@
     }
   },
   "canvasEditor": {
+    "richRegionName": "Canevas : {id}",
+    "richRegionHide": "Canevas : {id}, lignes {row}–{lastRow}, colonnes {col}–{lastCol}. Le texte de cette zone est masqué sur l’écran.",
+    "richRegionFlow": "Canevas : {id}, lignes {row}–{lastRow}, colonnes {col}–{lastCol}. Le texte entoure cette zone sur l’écran.",
+    "richRegionHint": "Les zones ombrées appartiennent aux canevas. Utilisez l’aperçu pour vérifier la disposition finale du texte.",
     "title": "Canevas de pixels",
     "description": "Dessinez n'importe quel pixel dans n'importe quelle couleur sur une zone du tableau. Le texte sous un canevas est masqué ou l'entoure.",
     "add": "Ajouter un canevas",

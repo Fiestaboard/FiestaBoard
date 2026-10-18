@@ -2647,6 +2647,10 @@
     }
   },
   "canvasEditor": {
+    "richRegionName": "画布：{id}",
+    "richRegionHide": "画布：{id}，第 {row}–{lastRow} 行，第 {col}–{lastCol} 列。此区域的文字在显示屏上会被隐藏。",
+    "richRegionFlow": "画布：{id}，第 {row}–{lastRow} 行，第 {col}–{lastCol} 列。在显示屏上，文字会环绕此区域排列。",
+    "richRegionHint": "阴影区域属于画布。请使用预览检查最终的文字布局。",
     "title": "像素画布",
     "description": "在看板的某个区域内以任意颜色绘制任意像素。画布下方的文字会被隐藏，或环绕画布排列。",
     "add": "添加画布",
