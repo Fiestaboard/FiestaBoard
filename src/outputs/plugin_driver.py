@@ -214,6 +214,11 @@ class OutputPluginDriver:
         ``"constructor"``) is never looked up, and falls back to the default
         with FiestaUI's ``Unknown transition`` reason.
         """
+        # The message API also accepts "instant" for a write without animation.
+        # Normalize only in the LED resolver; native device strategies retain
+        # their own routing and wire representation.
+        if strategy == "instant":
+            strategy = "none"
         choice = None
         if isinstance(strategy, str) and not (
             strategy in NATIVE_STRATEGIES or strategy.startswith(TRANSITION_PLUGIN_PREFIX)
