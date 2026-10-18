@@ -1,14 +1,14 @@
 name: 'Setup web E2E'
 description: >-
   Install npm deps and Playwright browsers for the web E2E jobs, with
-  npm + Playwright browser caching and parallel install. Use in any job
+  npm + Playwright browser caching and locked dependencies. Use in any job
   that runs Playwright against the FiestaBoard backend.
 
 inputs:
   node-version:
     description: 'Node.js version to install'
     required: false
-    default: '20'
+    default: '24'
 
 runs:
   using: 'composite'
@@ -18,10 +18,7 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
         cache: 'npm'
-        # package-lock.json is regenerated on the first CI build after the
-        # Next.js → RR7 migration; fall back to package.json for cache
-        # keying until the regenerated lockfile is committed.
-        cache-dependency-path: web/package.json
+        cache-dependency-path: web/package-lock.json
 
     - name: Cache Playwright browsers
       uses: actions/cache@v5
@@ -31,28 +28,14 @@ runs:
         restore-keys: |
           playwright-${{ runner.os }}-
 
-    - name: Install deps (parallel npm + Playwright)
+    - name: Install locked UI dependencies
       shell: bash
-      run: |
-        # `npm ci` once a fresh lockfile is committed post-migration;
-        # `npm install` covers the gap when it isn't. Runs in the
-        # background while we install Playwright's system deps; both
-        # are I/O-bound so overlapping them saves ~30s.
-        (cd web && \
-         if [ -f package-lock.json ]; then \
-           npm ci --legacy-peer-deps --no-audit; \
-         else \
-           npm install --legacy-peer-deps --no-audit; \
-         fi && \
-         echo "✅ npm install complete") &
-        NPM_PID=$!
+      working-directory: web
+      run: npm ci --legacy-peer-deps --no-audit
 
-        cd web
-        npx playwright install-deps chromium > /dev/null
-        echo "✅ Playwright system deps installed"
-
-        wait $NPM_PID || { echo "❌ npm ci failed"; exit 1; }
-
-        # No-op when the Playwright browser cache hit.
-        npx playwright install chromium
-        echo "✅ Playwright browsers installed"
+    - name: Install locked Playwright browsers and system dependencies
+      shell: bash
+      working-directory: web
+      # npm must finish first: concurrent npx can download a different CLI
+      # before the locked Playwright package exists in node_modules.
+      run: npx --no-install playwright install --with-deps chromium
