@@ -5,6 +5,7 @@ and validation (overlap and gap detection).
 """
 
 import logging
+from dataclasses import dataclass
 from datetime import date, time, timedelta
 
 from src.settings.service import get_settings_service
@@ -27,6 +28,14 @@ from .sun_times import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _ResolvedWindow:
+    """Resolved clock times plus the endpoint's date relative to the start."""
+
+    schedule: ScheduleEntry
+    end_day_offset: int
 
 
 class ScheduleService:
@@ -220,7 +229,7 @@ class ScheduleService:
         location = self._get_location()
         today = get_today_in_timezone(location[2])
 
-        tiers: dict[str, list[ScheduleEntry]] = {
+        tiers: dict[str, list[tuple[int, ScheduleEntry]]] = {
             "one_off_date": [],
             "annual_date": [],
             "weekly": [],
@@ -230,30 +239,32 @@ class ScheduleService:
             # yesterday only for the portion of a window that crosses midnight.
             for days_ago in (0, 1):
                 start_date = today - timedelta(days=days_ago)
-                effective_schedule = self._resolve_effective_times(schedule, start_date, location)
-                start = effective_schedule.start_time
-                end = effective_schedule.end_time
-                wraps = end is not None and end <= start
-                if days_ago:
-                    matches_time = wraps and time_str < end
-                else:
-                    matches_time = time_str >= start and (end is None or wraps or time_str < end)
+                window = self._resolve_effective_times(schedule, start_date, location)
+                effective_schedule = window.schedule
+                start = self._time_to_minutes(effective_schedule.start_time)
+                end = (
+                    self._time_to_minutes(effective_schedule.end_time) + 1440 * window.end_day_offset
+                    if effective_schedule.end_time is not None
+                    else 1440
+                )
+                current = self._time_to_minutes(time_str) + 1440 * days_ago
+                matches_time = start <= current < end
                 if not matches_time or not effective_schedule.applies_to_date(start_date):
                     continue
                 start_day = VALID_DAYS[(VALID_DAYS.index(current_day.lower()) - days_ago) % 7]
                 if schedule.recurrence_type == "weekly" and not schedule.applies_to_day(start_day):
                     continue
-                tiers[schedule.recurrence_type].append(effective_schedule)
+                tiers[schedule.recurrence_type].append((current - start, effective_schedule))
 
         for tier_name in ("one_off_date", "annual_date", "weekly"):
             tier_matches = tiers[tier_name]
             if tier_matches:
-                tier_matches.sort(key=lambda s: (s.minutes_since_start(time_str), -s.created_at.timestamp()))
+                tier_matches.sort(key=lambda match: (match[0], -match[1].created_at.timestamp()))
+                winner = tier_matches[0][1]
                 logger.debug(
-                    f"Active schedule: {tier_matches[0].id} ({tier_name}) "
-                    f"for {today.isoformat()} {time_str} (board={bid})"
+                    f"Active schedule: {winner.id} ({tier_name}) for {today.isoformat()} {time_str} (board={bid})"
                 )
-                return tier_matches[0]
+                return winner
 
         return None
 
@@ -272,14 +283,12 @@ class ScheduleService:
         schedule: ScheduleEntry,
         target_date: date,
         location: tuple[float | None, float | None, str],
-    ) -> ScheduleEntry:
-        """Return a schedule with sun-based times resolved for the given date.
-
-        If the schedule uses only fixed times, returns it unchanged.
-        Otherwise creates a shallow copy with resolved start/end times.
-        """
+    ) -> _ResolvedWindow:
+        """Resolve an occurrence without losing the endpoint's calendar date."""
         if schedule.start_type == "fixed" and schedule.end_type == "fixed":
-            return schedule
+            return _ResolvedWindow(
+                schedule, int(schedule.end_time is not None and schedule.end_time <= schedule.start_time)
+            )
 
         lat, lon, tz = location
         resolved_start, resolved_end = resolve_schedule_sun_times(
@@ -295,7 +304,8 @@ class ScheduleService:
             timezone_str=tz,
         )
 
-        if resolved_end is not None and resolved_end <= resolved_start and schedule.end_type != "fixed":
+        end_day_offset = int(resolved_end is not None and resolved_end <= resolved_start)
+        if end_day_offset and schedule.end_type != "fixed":
             # An overnight sun endpoint occurs on the next calendar date.
             _, resolved_end = resolve_schedule_sun_times(
                 start_type=schedule.start_type,
@@ -311,11 +321,9 @@ class ScheduleService:
             )
 
         # Build a copy with resolved times (model_copy available in Pydantic v2)
-        return schedule.model_copy(
-            update={
-                "start_time": resolved_start,
-                "end_time": resolved_end,
-            }
+        return _ResolvedWindow(
+            schedule.model_copy(update={"start_time": resolved_start, "end_time": resolved_end}),
+            end_day_offset,
         )
 
     # Default page management
@@ -377,7 +385,7 @@ class ScheduleService:
 
         return ScheduleValidationResult(valid=len(overlaps) == 0, overlaps=overlaps, gaps=gaps)
 
-    def _detect_overlaps(self, schedules: list[ScheduleEntry]) -> list[Overlap]:
+    def _detect_overlaps(self, schedules: list[_ResolvedWindow]) -> list[Overlap]:
         """Detect overlapping schedules.
 
         Two schedules overlap if they have:
@@ -393,10 +401,11 @@ class ScheduleService:
         overlaps = []
 
         # Check each pair of schedules
-        for i, schedule1 in enumerate(schedules):
-            for schedule2 in schedules[i + 1 :]:
-                intervals1 = self._daily_intervals(schedule1)
-                intervals2 = self._daily_intervals(schedule2)
+        for i, window1 in enumerate(schedules):
+            for window2 in schedules[i + 1 :]:
+                schedule1, schedule2 = window1.schedule, window2.schedule
+                intervals1 = self._daily_intervals(window1)
+                intervals2 = self._daily_intervals(window2)
                 common_days = {
                     day
                     for day in VALID_DAYS
@@ -463,13 +472,14 @@ class ScheduleService:
         # Overlap if range2 intersects [s1, 1440) or [0, e1)
         return s2 < e1 or e2 > s1
 
-    def _daily_intervals(self, schedule: ScheduleEntry) -> dict[str, list[tuple[int, int]]]:
+    def _daily_intervals(self, window: _ResolvedWindow) -> dict[str, list[tuple[int, int]]]:
         """Split weekly windows onto the calendar days they actually cover."""
+        schedule = window.schedule
         intervals = {day: [] for day in VALID_DAYS}
         start = self._time_to_minutes(schedule.start_time)
         end = self._time_to_minutes(schedule.end_time) if schedule.end_time is not None else 1440
         for day in schedule.get_days():
-            if end <= start:
+            if window.end_day_offset:
                 intervals[day].append((start, 1440))
                 next_day = VALID_DAYS[(VALID_DAYS.index(day) + 1) % 7]
                 intervals[next_day].append((0, end))
@@ -477,7 +487,7 @@ class ScheduleService:
                 intervals[day].append((start, end))
         return intervals
 
-    def _detect_gaps(self, schedules: list[ScheduleEntry]) -> list[Gap]:
+    def _detect_gaps(self, schedules: list[_ResolvedWindow]) -> list[Gap]:
         """Detect gaps in schedule coverage.
 
         For each day of the week, find time periods with no scheduled page.

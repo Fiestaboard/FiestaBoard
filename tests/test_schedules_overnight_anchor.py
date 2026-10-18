@@ -79,3 +79,57 @@ def test_sunrise_end_is_resolved_on_following_date(service, monkeypatch):
     monkeypatch.setattr("src.schedules.service.resolve_schedule_sun_times", sun_times)
     add(service, day_pattern="custom", custom_days=["monday"], end_type="sunrise")
     assert service.get_active_schedule_entry(time(1, 30), "tuesday") is not None
+
+
+@pytest.fixture
+def sunrise_crossing(service, monkeypatch):
+    def sun_times(**kwargs):
+        return "06:00", "05:59" if kwargs["target_date"] == date(2026, 6, 15) else "06:01"
+
+    monkeypatch.setattr("src.schedules.service.resolve_schedule_sun_times", sun_times)
+    entry = ScheduleEntry(
+        page_id="night",
+        start_time="06:00",
+        end_time="05:59",
+        end_type="sunrise",
+        day_pattern="custom",
+        custom_days=["monday"],
+    )
+    service.storage.create(entry)
+    return entry
+
+
+@pytest.mark.parametrize(
+    "today,clock,want",
+    [
+        (date(2026, 6, 15), time(12), True),
+        (date(2026, 6, 16), time(1), True),
+        (date(2026, 6, 16), time(6), True),
+        (date(2026, 6, 16), time(6, 1), False),
+    ],
+)
+def test_next_day_sun_end_keeps_date_when_clock_crosses_start(
+    service, monkeypatch, sunrise_crossing, today, clock, want
+):
+    monkeypatch.setattr("src.schedules.service.get_today_in_timezone", lambda tz: today)
+    assert (service.get_active_schedule_entry(clock, today.strftime("%A").lower()) is not None) is want
+
+
+def test_newer_window_beats_previous_day_sun_window(service, monkeypatch, sunrise_crossing):
+    monkeypatch.setattr("src.schedules.service.get_today_in_timezone", lambda tz: date(2026, 6, 16))
+    recent = ScheduleEntry(
+        page_id="recent", start_time="05:00", end_time="07:00", day_pattern="custom", custom_days=["tuesday"]
+    )
+    service.storage.create(recent)
+    assert service.get_active_schedule_entry(time(6), "tuesday").id == recent.id
+
+
+def test_validation_keeps_next_day_sun_end_date(service, monkeypatch, sunrise_crossing):
+    monkeypatch.setattr("src.schedules.service.get_today_in_timezone", lambda tz: date(2026, 6, 15))
+    morning = ScheduleEntry(
+        page_id="morning", start_time="01:00", end_time="02:00", day_pattern="custom", custom_days=["tuesday"]
+    )
+    service.storage.create(morning)
+    result = service.validate_schedules()
+    assert result.valid is False
+    assert [(g.start_time, g.end_time) for g in result.gaps if "tuesday" in g.days] == [("06:01", "23:59")]
