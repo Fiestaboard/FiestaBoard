@@ -186,7 +186,9 @@ describe("BoardOutOfSyncBanner", () => {
       expect(alert).toHaveAttribute("data-face", "out-of-sync");
       expect(within(alert).getByText("Another app changed this board")).toBeInTheDocument();
       expect(
-        within(alert).getByText("FiestaBoard will replace it the next time your page updates. Save it as a page to keep it."),
+        within(alert).getByText(
+          "FiestaBoard will replace it the next time your page updates. Save it as a page to keep it.",
+        ),
       ).toBeInTheDocument();
       expect(within(alert).getByRole("button", { name: "Restore" })).toBeEnabled();
       expect(within(alert).getByRole("button", { name: "Save as page" })).toBeEnabled();

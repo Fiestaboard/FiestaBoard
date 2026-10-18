@@ -30,6 +30,7 @@ import {
   mockBoardGrid,
   resetMockBoard,
   setActivePage,
+  setScheduleEnabled,
   suppressWizard,
   test,
 } from "./helpers";
@@ -130,6 +131,9 @@ const banner = (page: Page) => page.getByTestId("board-out-of-sync");
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
+  // Manual mode: only the active page is ever painted, so nothing but the
+  // test's own sends can paint over what "another app" wrote.
+  await setScheduleEnabled(false);
   await deleteAllPages();
   await suppressWizard(page);
 });
