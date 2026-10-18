@@ -409,8 +409,14 @@ export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete
     [intervalSeconds],
   );
 
+  const hasUnsavedRule = selectionMode === "variable" && (editingRuleDirty || newRuleIndex !== null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (hasUnsavedRule) {
+      toast.error(t("variableSaveOrCancelRule"));
+      return;
+    }
     if (!name.trim() || selectedPageIds.length === 0) return;
     if (resolvedIntervalSeconds === null) {
       toast.error(t("customDurationError"));
@@ -452,6 +458,7 @@ export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete
     name.trim().length > 0 &&
     selectedPageIds.length >= 1 &&
     !customIntervalInvalid &&
+    !hasUnsavedRule &&
     (selectionMode !== "variable" ||
       (defaultPageId.length > 0 && rules.every((r) => r.expression.trim().length > 0 && r.page_id.length > 0)));
 
@@ -750,6 +757,11 @@ export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            {hasUnsavedRule && (
+              <Text role="status" size="sm" tone="muted">
+                {t("variableSaveOrCancelRule")}
+              </Text>
+            )}
           </Stack>
 
           <Stack gap="2">
