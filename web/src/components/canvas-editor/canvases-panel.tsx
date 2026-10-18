@@ -357,8 +357,14 @@ function CanvasEditor({ canvas, canvases, gridRows, gridCols, board, onChange, o
           <TabsTrigger value="shapes">{t("tabShapes")}</TabsTrigger>
           <TabsTrigger value="source">{t("tabSource")}</TabsTrigger>
         </TabsList>
-        <TabsContent value="draw" className="pt-3">
-          <CanvasDrawTab content={canvas.content} width={padWidth} height={padHeight} onContentChange={setContent} />
+        <TabsContent value="draw" className="pt-3" keepMounted>
+          <CanvasDrawTab
+            key={canvas.id}
+            content={canvas.content}
+            width={padWidth}
+            height={padHeight}
+            onContentChange={setContent}
+          />
         </TabsContent>
         <TabsContent value="shapes" className="pt-3">
           <CanvasShapesEditor
