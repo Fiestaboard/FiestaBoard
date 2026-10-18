@@ -1805,7 +1805,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         notesTall,
         undefined,
         panelGrid,
-        { overrideSilence: liveOverrideSilenceRef.current },
+        { overrideSilence: liveOverrideSilenceRef.current, canvases },
       );
     },
     onSuccess: (data) => {
@@ -1859,7 +1859,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       return;
     }
 
-    const hasContent = templateLines.some((line) => line.trim().length > 0);
+    const hasContent =
+      templateLines.some((line) => line.trim().length > 0) ||
+      canvases.length > 0 ||
+      lastLiveSentPreview.current !== null;
     if (!hasContent) {
       if (liveAbortRef.current) {
         liveAbortRef.current.abort();
@@ -1894,11 +1897,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           notesTall,
           controller.signal,
           panelGrid,
-          { overrideSilence: liveOverrideSilence },
+          { overrideSilence: liveOverrideSilence, canvases },
         );
 
         if (controller.signal.aborted) return;
 
+        setPreviewLayers(data.layers ?? null);
+        setCanvasIssues(data.canvas_issues ?? []);
+        setCanvasError(null);
         setPreview(data.rendered);
         if (data.rendered) {
           setLastPreview(data.rendered);
@@ -1937,6 +1943,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     };
   }, [
     liveOutputEnabled,
+    canvases,
     templateLines,
     lineAlignments,
     lineWrapEnabled,

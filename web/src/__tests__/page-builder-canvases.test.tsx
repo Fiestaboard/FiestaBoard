@@ -192,6 +192,36 @@ describe("PageBuilder — pixel canvases", () => {
       vi.mocked(api.getPage).mockResolvedValue({ ...PIXOO_PAGE, canvases: [SKY] });
     });
 
+    it.each([false, true])("sends live canvas edits and removal with blank text=%s", async (blank) => {
+      vi.mocked(api.getPage).mockResolvedValue({
+        ...PIXOO_PAGE,
+        template: blank ? Array(10).fill("") : PIXOO_PAGE.template,
+        canvases: [SKY],
+      });
+      const liveLayer = { ...LAYER, rgba: "BBBB" };
+      vi.mocked(api.renderTemplateLive).mockImplementation(async (...args) => ({
+        rendered: "live",
+        lines: ["live"],
+        line_count: 1,
+        sent_to_board: true,
+        paused: false,
+        silenced: false,
+        board_id: "pixoo-1",
+        layers: args[8]?.canvases?.length ? [liveLayer] : [],
+        canvas_issues: [],
+      }));
+      const user = userEvent.setup();
+      renderExisting();
+      await screen.findByTestId("canvas-editor-sky", {}, { timeout: 5000 });
+      await user.click(screen.getByRole("switch", { name: /live/i }));
+      await waitFor(() => expect(vi.mocked(api.renderTemplateLive).mock.calls.at(-1)?.[8]?.canvases).toEqual([SKY]));
+      await waitFor(() => expect(displayPreviewLayers.at(-1)).toEqual([liveLayer]));
+      await user.click(screen.getByRole("button", { name: "Delete canvas sky" }));
+      await waitFor(() => expect(vi.mocked(api.renderTemplateLive).mock.calls.at(-1)?.[8]?.canvases).toEqual([]));
+      await waitFor(() => expect(devicePreviewProps.at(-1)?.layers).toEqual([]));
+      expect(displayPreviewLayers.at(-1)).toBeUndefined();
+    });
+
     it("shows the canvas panel with the page's canvases", async () => {
       renderExisting();
       expect(await screen.findByTestId("canvases-panel", {}, { timeout: 5000 })).toBeInTheDocument();
