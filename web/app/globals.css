@@ -60,6 +60,25 @@
   animation-delay: 0.9s;
 }
 
+/* The sparkle lives in the AI drawer, which is mounted on every route and only
+   slid off-screen when closed. `background-position` and SVG transforms cannot
+   run on the compositor, so a running sparkle forces a full main-thread frame
+   (style, paint, layerize) 60 times a second for the whole page — cheap on an
+   empty page, ~15-20% of the main thread on pages full of board tiles
+   (/displays, /pages, home). Stop it whenever nobody can see it. */
+[data-ai-drawer="closed"] .ai-sparkle-icon,
+[data-ai-drawer="closed"] .sparkle-cross,
+[data-ai-drawer="closed"] .sparkle-circ {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-sparkle-icon,
+  .sparkle-cross,
+  .sparkle-circ {
+    animation: none;
+  }
+}
+
 /* Interactive card hover feedback */
 @layer utilities {
   .card-interactive {
