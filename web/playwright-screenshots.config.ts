@@ -32,11 +32,11 @@ export default defineConfig({
   projects: [
     {
       name: "screenshots-dark",
-      use: { ...devices["Desktop Chrome"], colorScheme: "dark" },
+      use: { ...devices["Desktop Chrome"], screen: undefined, colorScheme: "dark" },
     },
     {
       name: "screenshots-light",
-      use: { ...devices["Desktop Chrome"], colorScheme: "light" },
+      use: { ...devices["Desktop Chrome"], screen: undefined, colorScheme: "light" },
     },
   ],
 });

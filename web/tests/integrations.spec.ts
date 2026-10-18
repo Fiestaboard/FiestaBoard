@@ -49,9 +49,12 @@ test.describe("Integrations Page", () => {
     const installed = page.getByRole("tabpanel", { name: /installed/i });
     const pluginLocator = installed
       .getByText("Weather", { exact: false })
-      .or(installed.getByText("Date", { exact: false }))
-      .or(installed.getByText("Stocks", { exact: false }))
-      .or(installed.getByText("Traffic", { exact: false }));
+      .or(page.getByText("Date", { exact: false }))
+      .or(page.getByText("Stocks", { exact: false }))
+      .or(page.getByText("Traffic", { exact: false }))
+      // "Date" also matches the header's hidden "Update available" span, which
+      // comes first in DOM order; only count text a user can actually see.
+      .filter({ visible: true });
 
     await expect(pluginLocator.first()).toBeVisible({ timeout: 10_000 });
   });
