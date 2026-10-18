@@ -245,7 +245,7 @@ that display's own page under **Displays**:
   rename or edit the page right away, and a second tap cannot save it twice.
 - **Restore** sends your pages to the board again, over what the other app
   wrote. On a display that is not your first one, the notice says that Restore
-  resends pages to every display, because it does.
+  sends pages to every display again, because it does.
 
 Restore does not send anything while the display is paused or while silence
 mode is on for it. The notice says so before you tap it, and if you tap it

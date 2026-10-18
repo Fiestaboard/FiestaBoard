@@ -21,6 +21,7 @@ import {
   mockBoardGrid,
   resetMockBoard,
   resetToSingleBoard,
+  setScheduleEnabled,
   suppressWizard,
   test,
 } from "./helpers";
@@ -76,6 +77,8 @@ const banner = (page: Page) => page.getByTestId("board-out-of-sync");
 
 test.beforeEach(async ({ page }) => {
   await suppressWizard(page);
+  // Manual mode: a schedule left on by another spec would repaint the board.
+  await setScheduleEnabled(false);
   await deleteAllPages();
 });
 
