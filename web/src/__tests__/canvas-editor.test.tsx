@@ -199,6 +199,47 @@ describe("CanvasDrawTab (pixel pad)", () => {
     expect(content.pixels).toEqual([`..${key}${key}`, "...."]);
   });
 
+  it.each([
+    { background: "a" },
+    { shapes: [{ type: "rect" as const, x: 0, y: 0, w: 2, h: 2, fill: "a" }] },
+    { shapes: [{ type: "text" as const, x: 0, y: 0, text: "Hi", color: "{{weather.color}}" }] },
+  ])("preserves non-pixel palette references when painting and clearing: %j", (layer) => {
+    const spy = vi.fn();
+    render(<Draw spy={spy} initial={{ ...layer, palette: { a: "#00ff00" }, pixels: [] }} />);
+    fireEvent.keyDown(screen.getByTestId("pixel-pad"), { key: " " });
+    const painted: CanvasContent = spy.mock.calls.at(-1)![0];
+    expect(painted.palette!.a).toBe("#00ff00");
+    expect(painted.palette![painted.pixels![0][0]]).toBe("#ff0000");
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(spy.mock.calls.at(-1)![0]).toMatchObject({ ...layer, palette: { a: "#00ff00" }, pixels: [] });
+  });
+
+  it("clears pixels while retaining expression-valued shape colors", () => {
+    const spy = vi.fn();
+    render(
+      <Draw
+        spy={spy}
+        initial={{ background: "a", palette: { a: "{{weather.color}}", b: "#ff0000" }, pixels: ["b..."] }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(spy.mock.calls.at(-1)![0]).toMatchObject({ palette: { a: "{{weather.color}}" }, pixels: [] });
+  });
+
+  it("refuses painting when expression-referenced palette keys are exhausted", () => {
+    const palette = Object.fromEntries(
+      [..."abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"].map((key, i) => [
+        key,
+        `#0000${i.toString(16).padStart(2, "0")}`,
+      ]),
+    );
+    const spy = vi.fn();
+    render(<Draw spy={spy} initial={{ background: "{{weather.color}}", palette }} />);
+    fireEvent.keyDown(screen.getByTestId("pixel-pad"), { key: " " });
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
   it("erases, fills and picks colours", async () => {
     const user = userEvent.setup();
     const spy = vi.fn();

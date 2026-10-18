@@ -153,11 +153,12 @@ export function decodePixels(
 /**
  * A colour grid as `pixels` rows + a `palette`: one key per colour (an
  * existing key is kept for the colour it already meant), `.` transparent,
- * unused keys dropped. Throws past {@link MAX_PALETTE_COLORS} colours.
+ * unused keys dropped unless referenced by another layer. Throws past {@link MAX_PALETTE_COLORS} colours.
  */
 export function encodePixels(
   grid: PixelGrid,
   previous: Record<string, string> = {},
+  references: readonly string[] = [],
 ): { palette: Record<string, string>; pixels: string[] } {
   const keyOf = new Map<string, string>();
   for (const [key, value] of Object.entries(previous)) {
@@ -165,7 +166,10 @@ export function encodePixels(
     if (hex && !keyOf.has(hex)) keyOf.set(hex, key);
   }
   const used = new Map<string, string>();
-  const usedKeys = new Set<string>();
+  // Expressions can resolve to any palette key at render time.
+  const dynamic = references.some((value) => value.includes("{{"));
+  const palette = Object.fromEntries(Object.entries(previous).filter(([key]) => dynamic || references.includes(key)));
+  const usedKeys = new Set(Object.keys(palette));
   const colors = new Set<string>();
   for (const row of grid) for (const c of row) if (c) colors.add(c);
   if (colors.size > MAX_PALETTE_COLORS) {
@@ -173,7 +177,7 @@ export function encodePixels(
   }
   for (const color of colors) {
     const kept = keyOf.get(color);
-    if (kept && !usedKeys.has(kept)) {
+    if (kept) {
       used.set(color, kept);
       usedKeys.add(kept);
     }
@@ -181,14 +185,14 @@ export function encodePixels(
   const free = [...PALETTE_KEYS].filter((k) => !usedKeys.has(k));
   for (const color of colors) {
     if (used.has(color)) continue;
-    const key = free.shift()!;
+    const key = free.shift();
+    if (!key) throw new Error(`A canvas draws at most ${MAX_PALETTE_COLORS} colours`);
     used.set(color, key);
     usedKeys.add(key);
   }
-  if (colors.size === 0) return { palette: {}, pixels: [] };
+  if (colors.size === 0) return { palette, pixels: [] };
   const pixels = grid.map((row) => row.map((c) => (c ? used.get(c)! : ".")).join(""));
-  const palette: Record<string, string> = {};
-  for (const [color, key] of used) palette[key] = color;
+  for (const [color, key] of used) palette[key] ??= color;
   return { palette, pixels };
 }
 
