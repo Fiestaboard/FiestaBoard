@@ -38,7 +38,6 @@ vi.mock("@/lib/api", async () => {
     api: {
       ...(actual as { api: object }).api,
       renderTemplate: vi.fn(),
-      renderTemplateLive: vi.fn(),
       getTemplateVariables: vi.fn(),
       getBoardSettings: vi.fn(),
       getPage: vi.fn(),
@@ -385,5 +384,121 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
       expect(screen.getByLabelText("Change board size")).toHaveTextContent("Flagship");
       expect(lastRenderBoardId()).toBe("flag-1");
     });
+  });
+});
+
+// Live output must send to the display the editor chose, including when the
+// settings and sidebar selection arrive after the editor's first render.
+describe("PageBuilder live output target", () => {
+  let liveBodies: Record<string, unknown>[] = [];
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    servePanels();
+    vi.mocked(api.getTemplateVariables).mockResolvedValue({
+      variables: {},
+      max_lengths: {},
+      colors: {},
+      symbols: [],
+      filters: [],
+      formatting: {},
+      syntax_examples: {},
+    });
+    vi.mocked(api.renderTemplate).mockResolvedValue({ rendered: "Hello there", lines: ["Hello there"], line_count: 1 });
+    liveBodies = [];
+    server.use(
+      http.post("/api/templates/render/live", async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        liveBodies.push(body);
+        return HttpResponse.json({
+          rendered: "Hello there",
+          lines: ["Hello there"],
+          line_count: 1,
+          sent_to_board: true,
+          paused: false,
+          silenced: false,
+          board_id: body.board_id,
+        });
+      }),
+    );
+    vi.mocked(api.getBoardSettings).mockResolvedValue(settings([FLAGSHIP, PIXOO]));
+    vi.mocked(api.getPage).mockResolvedValue(PIXOO_PAGE);
+  });
+
+  async function startLive(user: ReturnType<typeof userEvent.setup>, boardId: string) {
+    await user.click(await screen.findByRole("switch", { name: /toggle live output to board/i }));
+    await waitFor(() => expect(liveBodies.length).toBeGreaterThan(0));
+    expect(liveBodies.map((body) => body.board_id)).toEqual(expect.arrayContaining([boardId]));
+    expect(liveBodies.every((body) => body.board_id === boardId)).toBe(true);
+  }
+
+  it.each(["new", "existing"])("sends a %s Pixoo page to the selected Pixoo, not the primary board", async (kind) => {
+    localStorage.setItem(CURRENT_BOARD_KEY, PIXOO.id);
+    const user = userEvent.setup();
+    if (kind === "new") renderNew();
+    else renderExisting();
+
+    await expectTarget(PIXOO_OPTION);
+    if (kind === "new") {
+      const editor = await screen.findByRole("textbox", { name: "Template editor" });
+      await user.click(editor);
+      await user.type(editor, "Hello");
+    }
+    await startLive(user, PIXOO.id);
+    expect(screen.getByRole("combobox", { name: "Select board for live output" })).toHaveTextContent("Pixoo");
+  });
+
+  it("uses the selected compatible board when settings arrive asynchronously", async () => {
+    let resolveSettings!: (value: BoardSettings) => void;
+    vi.mocked(api.getBoardSettings).mockReturnValue(
+      new Promise((resolve) => {
+        resolveSettings = resolve;
+      }),
+    );
+    localStorage.setItem(CURRENT_BOARD_KEY, PIXOO.id);
+    const user = userEvent.setup();
+    renderExisting();
+    await screen.findByRole("textbox", { name: "Template editor" });
+    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    expect(toggle).toBeDisabled();
+    await user.click(toggle);
+    expect(liveBodies).toHaveLength(0);
+    resolveSettings(settings([FLAGSHIP, PIXOO]));
+
+    await expectTarget(PIXOO_OPTION);
+    await startLive(user, PIXOO.id);
+  });
+
+  it("falls back to a compatible display when the sidebar board does not fit", async () => {
+    localStorage.setItem(CURRENT_BOARD_KEY, FLAGSHIP.id);
+    const user = userEvent.setup();
+    renderExisting();
+    await expectTarget(PIXOO_OPTION);
+    await startLive(user, PIXOO.id);
+  });
+
+  it("keeps an explicit live target when the page target changes", async () => {
+    const user = userEvent.setup();
+    renderExisting();
+    await expectTarget(PIXOO_OPTION);
+    await user.click(screen.getByRole("combobox", { name: "Select board for live output" }));
+    await user.click(await screen.findByRole("option", { name: "Hall" }));
+    await openSizePicker(user);
+    await user.click(await screen.findByRole("option", { name: "Flagship" }));
+    await openSizePicker(user);
+    await user.click(await screen.findByRole("option", { name: PIXOO_OPTION }));
+    await startLive(user, FLAGSHIP.id);
+    expect(screen.getByRole("combobox", { name: "Select board for live output" })).toHaveTextContent("Hall");
+  });
+  it("does not silently retarget an active live session when the preview target changes", async () => {
+    const user = userEvent.setup();
+    renderExisting();
+    await expectTarget(PIXOO_OPTION);
+    await startLive(user, PIXOO.id);
+    await openSizePicker(user);
+    await user.click(await screen.findByRole("option", { name: "Flagship" }));
+    await expectTarget("Flagship");
+    expect(screen.getByRole("combobox", { name: "Select board for live output" })).toHaveTextContent("Pixoo");
+    expect(liveBodies.every((body) => body.board_id === PIXOO.id)).toBe(true);
   });
 });
