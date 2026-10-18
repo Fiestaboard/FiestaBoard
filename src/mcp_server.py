@@ -2375,7 +2375,8 @@ def _build_mcp_server() -> Any:
                 - location: latitude (float), longitude (float) — used by
                   sunrise/sunset schedules and location-aware plugins.
                 - silence_schedule: enabled (bool), start_time and end_time
-                  ("HH:MM"), mode ("freeze" | "page" | "indicator"), page_id,
+                  ("HH:MM±HH:MM", e.g. "22:00+00:00"),
+                  mode ("freeze" | "page" | "indicator"), page_id,
                   indicator_text, indicator_position, board_id (optional —
                   writes that board's own override instead of the
                   install-wide schedule; boards without an override follow
