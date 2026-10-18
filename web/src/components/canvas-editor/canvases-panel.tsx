@@ -28,7 +28,7 @@ import {
   ToggleGroup,
 } from "@fiestaboard/ui";
 import { Plus, Trash2 } from "lucide-react";
-import { useId, useState } from "react";
+import { forwardRef, type RefObject, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 
 import { CanvasAreaPicker } from "@/components/canvas-editor/canvas-area-picker";
 import { CanvasDrawTab } from "@/components/canvas-editor/canvas-draw-tab";
@@ -63,10 +63,38 @@ interface CanvasesPanelProps {
   error: string | null;
 }
 
-export function CanvasesPanel({ canvases, onChange, gridRows, gridCols, board, issues, error }: CanvasesPanelProps) {
+export interface CanvasesPanelHandle {
+  /** Select an existing canvas and bring its settings into keyboard focus. */
+  activateCanvas: (id: string) => void;
+}
+
+export const CanvasesPanel = forwardRef<CanvasesPanelHandle, CanvasesPanelProps>(function CanvasesPanel(
+  { canvases, onChange, gridRows, gridCols, board, issues, error },
+  ref,
+) {
   const t = useTranslations("canvasEditor");
   const [activeId, setActiveId] = useState<string | null>(canvases[0]?.id ?? null);
   const active = canvases.find((c) => c.id === activeId) ?? canvases[0] ?? null;
+  const idInputRef = useRef<HTMLInputElement>(null);
+  const [activation, setActivation] = useState(0);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      activateCanvas(id) {
+        if (!canvases.some((canvas) => canvas.id === id)) return;
+        setActiveId(id);
+        setActivation((previous) => previous + 1);
+      },
+    }),
+    [canvases],
+  );
+
+  useEffect(() => {
+    if (activation === 0) return;
+    idInputRef.current?.scrollIntoView({ block: "nearest" });
+    idInputRef.current?.focus({ preventScroll: true });
+  }, [activation]);
 
   const add = () => {
     const id = nextCanvasId(canvases);
@@ -151,6 +179,7 @@ export function CanvasesPanel({ canvases, onChange, gridRows, gridCols, board, i
           {active && (
             <CanvasEditor
               key={canvases.indexOf(active)}
+              idInputRef={idInputRef}
               canvas={active}
               canvases={canvases}
               gridRows={gridRows}
@@ -167,9 +196,10 @@ export function CanvasesPanel({ canvases, onChange, gridRows, gridCols, board, i
       )}
     </Stack>
   );
-}
+});
 
 interface CanvasEditorProps {
+  idInputRef: RefObject<HTMLInputElement | null>;
   canvas: Canvas;
   canvases: Canvas[];
   gridRows: number;
@@ -179,7 +209,16 @@ interface CanvasEditorProps {
   onDelete: () => void;
 }
 
-function CanvasEditor({ canvas, canvases, gridRows, gridCols, board, onChange, onDelete }: CanvasEditorProps) {
+function CanvasEditor({
+  idInputRef,
+  canvas,
+  canvases,
+  gridRows,
+  gridCols,
+  board,
+  onChange,
+  onDelete,
+}: CanvasEditorProps) {
   const t = useTranslations("canvasEditor");
   const idFieldId = useId();
   const scaleId = useId();
@@ -221,6 +260,7 @@ function CanvasEditor({ canvas, canvases, gridRows, gridCols, board, onChange, o
             {t("idLabel")}
           </Label>
           <Input
+            ref={idInputRef}
             id={idFieldId}
             value={idDraft}
             aria-invalid={idValid ? undefined : true}

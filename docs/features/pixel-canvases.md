@@ -36,8 +36,16 @@ The **Rich** editor shows each canvas as a shaded, outlined rectangle labeled
 with its name. The rectangle follows the area set in the canvas controls, so
 blank cells reserved for an image are visible beside your text. These guides
 are not template content: copying, saving, and undoing text edits do not add
-canvas labels to your page. You can still edit text beneath a guide; **Hide**
-suppresses it on the display and **Flow around** moves it around the canvas.
+canvas labels to your page. Click a canvas guide to select that canvas and
+scroll to its existing settings; keyboard users can Tab to a guide and press
+Enter or Space. Focus moves to the canvas ID field. Moving, resizing, or
+renaming a canvas keeps its guide and settings in sync.
+
+Canvas areas are protected in the Rich editor: the caret skips their cells,
+and edits that would change text inside them are rejected with an explanation.
+Existing text is preserved. Move or remove the canvas in its settings to edit
+that area, or use the plain-text view. **Hide** suppresses the covered text on
+the display and **Flow around** moves it around the canvas.
 Use **Preview** to check the final layout, particularly for variable values,
 alignment, and flowing text.
 

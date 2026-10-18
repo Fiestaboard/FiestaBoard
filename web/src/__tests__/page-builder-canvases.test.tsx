@@ -5,14 +5,14 @@
  * them says why their areas are blank.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import type { ReactNode } from "react";
+import { createRef, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CurrentBoardProvider } from "@/components/current-board-context";
-import { PageBuilder } from "@/components/page-builder";
+import { PageBuilder, type PageBuilderHandle } from "@/components/page-builder";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
 import type { BoardInstance, BoardSettings, Page } from "@/lib/api";
@@ -194,22 +194,73 @@ describe("PageBuilder — pixel canvases", () => {
 
     afterEach(() => vi.useRealTimers());
 
+    it.each(["click", "Enter", "Space"])(
+      "opens the selected canvas settings with %s without dirtying the page",
+      async (activation) => {
+        vi.mocked(api.getPage).mockResolvedValue({
+          ...PIXOO_PAGE,
+          canvases: [SKY, { ...SKY, id: "sea", area: { row: 4, col: 1, rows: 2, cols: 4 } }],
+        });
+        const onClose = vi.fn();
+        const ref = createRef<PageBuilderHandle>();
+        const user = userEvent.setup();
+        render(<PageBuilder ref={ref} pageId="page-1" onClose={onClose} onSave={vi.fn()} />, { wrapper: TestWrapper });
+        const guide = await screen.findByRole("button", { name: /Edit canvas sea.*rows 4–5/ }, { timeout: 5000 });
+        const editor = screen.getByRole("textbox", { name: "Template editor" });
+        const before = editor.textContent;
+        const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
+        scroll.mockClear();
+        if (activation === "click") await user.click(guide);
+        else {
+          guide.focus();
+          await user.keyboard(activation === "Enter" ? "{Enter}" : " ");
+        }
+        expect(screen.getByLabelText("Canvas ID")).toHaveValue("sea");
+        expect(screen.getByLabelText("Canvas ID")).toHaveFocus();
+        expect(scroll).toHaveBeenCalledWith({ block: "nearest" });
+        expect(editor.textContent).toBe(before);
+        expect(ref.current?.hasUnsavedChanges()).toBe(false);
+      },
+    );
+
+    it("keeps the activated canvas selected through move, resize, rename, add and delete", async () => {
+      vi.mocked(api.getPage).mockResolvedValue({
+        ...PIXOO_PAGE,
+        canvases: [SKY, { ...SKY, id: "sea", area: { row: 4, col: 1, rows: 2, cols: 4 } }],
+      });
+      const user = userEvent.setup();
+      renderExisting();
+      await user.click(await screen.findByRole("button", { name: /Edit canvas sea.*rows 4–5/ }, { timeout: 5000 }));
+      fireEvent.change(screen.getByLabelText("Row", { exact: true }), { target: { value: "5" } });
+      fireEvent.change(screen.getByLabelText("Columns", { exact: true }), { target: { value: "6" } });
+      expect(screen.getByRole("button", { name: /Edit canvas sea.*rows 5–6.*columns 1–6/ })).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText("Canvas ID"), { target: { value: "ocean" } });
+      expect(screen.getByTestId("canvas-editor-ocean")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Edit canvas ocean.*rows 5–6/ })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Add canvas" }));
+      expect(screen.getByLabelText("Canvas ID")).toHaveValue("canvas1");
+      await user.click(screen.getByRole("button", { name: /Edit canvas ocean.*rows 5–6/ }));
+      await user.click(screen.getByRole("button", { name: "Delete canvas ocean" }));
+      expect(screen.getByLabelText("Canvas ID")).toHaveValue("sky");
+      expect(screen.queryByRole("button", { name: /Edit canvas ocean.*rows/ })).not.toBeInTheDocument();
+    });
+
     it("shows canvas bounds in the rich editor and follows the existing area controls", async () => {
       const user = userEvent.setup();
       renderExisting();
       expect(
-        await screen.findByRole("img", { name: /Canvas: sky.*rows 1–2.*columns 1–4/ }, { timeout: 5000 }),
+        await screen.findByRole("button", { name: /Edit canvas sky.*rows 1–2.*columns 1–4/ }, { timeout: 5000 }),
       ).toBeInTheDocument();
       const row = screen.getByLabelText("Row", { exact: true });
       await user.click(row);
       await user.keyboard("{Control>}a{/Control}3");
-      expect(await screen.findByRole("img", { name: /Canvas: sky.*rows 3–4/ })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: /Edit canvas sky.*rows 3–4/ })).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Plain Text" }));
-      expect(screen.queryByRole("img", { name: /Canvas: sky/ })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Edit canvas sky.*rows/ })).toBeNull();
       await user.click(screen.getByRole("button", { name: "Rich Editor" }));
-      expect(await screen.findByRole("img", { name: /Canvas: sky.*rows 3–4/ })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: /Edit canvas sky.*rows 3–4/ })).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Delete canvas sky" }));
-      expect(screen.queryByRole("img", { name: /Canvas: sky/ })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Edit canvas sky.*rows/ })).toBeNull();
     });
 
     it("shows one failure notification for the current live send", async () => {
