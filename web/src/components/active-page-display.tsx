@@ -91,7 +91,7 @@ export function ActivePageDisplay() {
 
   // Current board selection (issue #1247). Queries are board-scoped only in
   // multi-board installs so single-board behavior is completely unchanged.
-  const { currentBoardId, currentBoard, boards, isLoading: isLoadingBoards } = useCurrentBoard();
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
   const isMultiBoard = boards.length > 1;
   const scopedBoardId = isMultiBoard && currentBoardId ? currentBoardId : undefined;
   // Live board polling (and Live Output) only track the primary board.
@@ -180,7 +180,7 @@ export function ActivePageDisplay() {
     overrideActive && temporaryOverride?.remaining_seconds ? Math.floor(temporaryOverride.remaining_seconds / 60) : 0;
 
   // Fetch manual active page setting for the selected board
-  const { data: activePageData, isLoading: isLoadingActivePage } = useActivePage(scopedBoardId);
+  const { data: activePageData } = useActivePage(scopedBoardId);
 
   // Silence for the selected board (the indicator, the Home alert, the page
   // pick toasts) and for the PRIMARY board, which Force Set and Compose write
@@ -350,57 +350,10 @@ export function ActivePageDisplay() {
   // This makes clicking feel more responsive
   const deferredActivePageId = useDeferredValue(activePageId);
 
-  // Fetch all pages for default page selection and sheet display
-  const { data: pagesData, isLoading: isLoadingPages } = usePages();
-
-  // Default to the first page if no active page is set (only in manual mode)
+  // Viewing an unpinned board must not persist a page selection. Pages are
+  // loaded for the selector; only an explicit user choice changes the pin.
+  const { data: pagesData } = usePages();
   const pages = useMemo(() => pagesData?.pages || [], [pagesData]);
-  // One attempt per board: without this, a failing auto-select re-fires on
-  // every render (the mutation object's identity changes) — with an
-  // incompatible page that meant an endless 400 retry loop and a stream of
-  // "Failed to set default page" toasts.
-  const autoDefaultAttemptedForRef = useRef<string | null>(null);
-  useEffect(() => {
-    // Only auto-select a page in manual mode, not in schedule mode.
-    // In schedule mode, null activePageId means a gap with no default (intentional)
-    if (scheduleEnabled || isLoadingActivePage || isLoadingPages || activePageId || pages.length === 0) return;
-    // Until the board list lands there is no current board to check pages
-    // against, and pages[0] would be sent with no board_id. The flag comes
-    // from the board context, not this component's own useBoardSettings():
-    // the two observers can update in different renders, and only the
-    // context's flag is in step with `currentBoard`.
-    if (isLoadingBoards) return;
-    const attemptKey = scopedBoardId ?? "";
-    if (autoDefaultAttemptedForRef.current === attemptKey) return;
-
-    // Only a page that actually fits the selected board can be auto-set —
-    // pages[0] on e.g. a FiestaPanel's auto-fit note-array board was the
-    // flagship Welcome page, which the backend rightly refuses (issue
-    // #1249 size compatibility). No fitting page → leave the board idle.
-    const defaultPage = currentBoard ? pages.find((p) => pagesCompatibleWithBoard(p, currentBoard)) : pages[0];
-    if (!defaultPage) return;
-
-    autoDefaultAttemptedForRef.current = attemptKey;
-    setActivePageMutation.mutate(defaultPage.id, {
-      onSuccess: (_result) => {
-        toast.success(t("toastSetActivePage", { pageName: defaultPage.name }));
-      },
-      onError: () => {
-        toast.error(t("toastSetDefaultFailed"));
-      },
-    });
-  }, [
-    scheduleEnabled,
-    isLoadingActivePage,
-    isLoadingPages,
-    isLoadingBoards,
-    activePageId,
-    pages,
-    currentBoard,
-    scopedBoardId,
-    setActivePageMutation,
-    t,
-  ]);
 
   // Handle page selection with debouncing and optimistic updates
   const handleSelectPage = useCallback(
