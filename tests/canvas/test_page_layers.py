@@ -118,7 +118,7 @@ def test_canvas_expressions_count_toward_the_plugins_a_page_fetches():
     page = _page([_canvas(source="{{Art.canvas}}")], template=["{{weather.temp}}"])
     assert page_plugin_ids(page) == {"weather", "art"}
     formula = _page([_canvas(RED | {"shapes": [{"type": "rect", "x": "{{= 1 + 1 }}", "y": 0, "w": 1, "h": 1}]})])
-    assert page_plugin_ids(formula) is None
+    assert page_plugin_ids(formula) == set()
 
 
 # --- "format": "canvas" plugin variables -----------------------------------------
@@ -149,3 +149,72 @@ def test_an_oversized_area_is_clamped_to_the_board_at_render(service):
     assert (layer.x, layer.y, layer.w) == (0, 2, 63)  # the whole 16-column grid, trailing gutter excluded
     flap = service.render_page(_page([whole], device_type="flagship"), context={})
     assert flap.formatted == "\n".join([" " * 22] * 6)
+
+
+@pytest.mark.parametrize(
+    ("expression", "fetches"),
+    [
+        ("{{1+1}}", 0),
+        ("{{= 1 + 1 }}", 0),
+        ("{{-(2 - 4)}}", 0),
+        ("{{unrelated.x}}", 1),
+        ("{{unrelated.x + 0}}", 1),
+        ("{{IF(true, unrelated.x, 99)}}", 1),
+    ],
+)
+def test_canvas_fetches_only_required_plugins(service, monkeypatch, expression, fetches):
+    # Exercise the real context builder and registry: a broad demand set would
+    # run this enabled plugin even though neither the page nor canvas needs it.
+    from src.plugins.base import PluginBase, PluginResult
+    from src.plugins.registry import PluginRegistry
+
+    class Probe(PluginBase):
+        def __init__(self):
+            super().__init__({"id": "unrelated", "name": "Probe", "version": "1.0.0"})
+            self._enabled = True
+            self.fetches = 0
+
+        @property
+        def plugin_id(self):
+            return "unrelated"
+
+        def fetch_data(self):
+            self.fetches += 1
+            return PluginResult(available=True, data={"x": 2})
+
+    probe = Probe()
+    registry = PluginRegistry()
+    registry._plugins["unrelated"] = probe
+    registry._enabled["unrelated"] = True
+    engine = TemplateEngine()
+    engine._plugin_registry = registry
+    monkeypatch.setattr("src.pages.service.get_template_engine", lambda: engine)
+
+    def render(x):
+        shape = {"type": "rect", "x": x, "y": 0, "w": 1, "h": 1, "fill": "#ff0000"}
+        return service.render_page(_page([_canvas({"shapes": [shape]})]), display=PIXOO)
+
+    literal = render(2)
+    assert probe.fetches == 0
+    computed = render(expression)
+    assert computed.canvas_issues == []
+    assert computed.layers[0].rgba == literal.layers[0].rgba
+    assert probe.fetches == fetches
+
+
+@pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        ("{{Weather:home.temp + other.offset}}", {"weather:home", "other"}),
+        ("{{weather.temp > 2 AND other.ready}}", {"weather", "other"}),
+        ('{{"weather.fake"}}', set()),
+        ("{{true}}", set()),
+        ("{{item.x + index}}", {"item", "index"}),
+        ("{{IF(weather.ready, 2, 3)}}", None),
+        ("{{weather.temp + }}", None),
+        ("{{weather[selector.key]}}", None),
+    ],
+)
+def test_canvas_expression_dependencies_are_conservative(expression, expected):
+    canvas = _canvas({"shapes": [{"type": "rect", "x": expression, "y": 0, "w": 1, "h": 1}]})
+    assert page_plugin_ids(_page([canvas])) == expected
