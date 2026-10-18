@@ -68,6 +68,8 @@ export type PanelBackdrop = "wall" | "dark" | "none";
  * setting existed, and the default) or an LED matrix. Each style is one device
  * model FiestaBoard declares, `fiestapanel_split_flap` / `fiestapanel_led_matrix`.
  */
+export type MatrixSizing = "fill_tv" | "fit_panel" | "true_size";
+
 export type PanelRenderStyle = "split_flap" | "led_matrix";
 
 export interface Panel {
@@ -90,6 +92,9 @@ export interface Panel {
   auto_dim: PanelAutoDim;
   /** Absent on a payload from a server that predates it: read as `split_flap`. */
   render_style?: PanelRenderStyle;
+  /** Unset preserves each viewer's existing sizing preference. */
+  matrix_sizing?: MatrixSizing | null;
+  matrix_pitch_mm?: number;
   created_at: string;
   updated_at: string;
   // Attached by the API from the panel's virtual board (null/true when the
@@ -127,6 +132,9 @@ export interface PanelUpdateRequest {
   backdrop?: PanelBackdrop;
   auto_dim?: PanelAutoDim;
   render_style?: PanelRenderStyle;
+  /** Unset preserves each viewer's existing sizing preference. */
+  matrix_sizing?: MatrixSizing | null;
+  matrix_pitch_mm?: number;
 }
 
 /**

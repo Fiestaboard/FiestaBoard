@@ -230,3 +230,55 @@ def test_an_unreadable_panel_store_falls_back_to_split_flap():
     broken = SimpleNamespace(get_panel_by_board_id=lambda _id: (_ for _ in ()).throw(OSError("disk")))
     with patch("src.panels.service.get_panel_service", return_value=broken):
         assert board_profile(_panel_board())[0] == "fiestapanel_split_flap"
+
+
+@pytest.mark.parametrize("mode", ["fill_tv", "fit_panel", "true_size"])
+def test_matrix_sizing_persists_and_reaches_public_viewer(client, panels, mode):
+    panel = panels.storage.create(Panel(name="Matrix TV", board_id="vb-panel", render_style="led_matrix"))
+    with (
+        patch("src.panels.routes.get_panel_service", return_value=panels),
+        patch("src.panels.routes._find_board", return_value=_panel_board()),
+        patch("src.panels.routes.reinitialize_board_clients") as rebuild,
+    ):
+        response = client.patch(f"/panels/{panel.id}", json={"matrix_sizing": mode, "matrix_pitch_mm": 5})
+        assert response.status_code == 200
+        data = client.get(f"/panel/{panel.id}").json()
+        assert data["matrix_sizing"] == mode
+        assert data["matrix_pitch_mm"] == 5
+        assert (data["rows"], data["cols"]) == (12, 29)
+        rebuild.assert_not_called()
+    saved = PanelStorage(storage_file=panels.storage.storage_file).get(panel.id)
+    assert saved.matrix_sizing == mode
+    assert saved.matrix_pitch_mm == 5
+
+
+@pytest.mark.parametrize("fields", [{"matrix_sizing": "stretch"}, {"matrix_pitch_mm": 0}, {"matrix_pitch_mm": 21}])
+def test_invalid_matrix_sizing_is_rejected(client, panels, fields):
+    panel = panels.storage.create(Panel(name="Matrix TV", board_id="vb-panel"))
+    with patch("src.panels.routes.get_panel_service", return_value=panels):
+        assert client.patch(f"/panels/{panel.id}", json=fields).status_code == 422
+
+
+def test_null_matrix_sizing_restores_viewer_default(client, panels):
+    panel = panels.storage.create(Panel(name="Matrix", board_id="vb-panel", matrix_sizing="true_size"))
+    with patch("src.panels.routes.get_panel_service", return_value=panels):
+        response = client.patch(f"/panels/{panel.id}", json={"matrix_sizing": None})
+    assert response.status_code == 200
+    assert response.json()["matrix_sizing"] is None
+    assert PanelStorage(storage_file=panels.storage.storage_file).get(panel.id).matrix_sizing is None
+
+
+def test_resized_matrix_contains_the_complete_board_in_every_public_model(client, panels):
+    from src.outputs.board_profile import board_model_spec
+
+    panel = panels.storage.create(Panel(name="Large TV", board_id="vb-panel", render_style="led_matrix"))
+    board = {**_panel_board(), "grid_rows": 16, "grid_cols": 40}
+    with (
+        patch("src.panels.routes.get_panel_service", return_value=panels),
+        patch("src.panels.routes._find_board", return_value=board),
+    ):
+        config = client.get(f"/panel/{panel.id}").json()
+    expected = {"kind": "pixels", "width": 240, "height": 128}
+    assert config["device_model_spec"]["geometry"] == expected
+    assert board_model_spec(board)["geometry"] == expected
+    assert board_model_spec(_panel_board())["geometry"] == {"kind": "pixels", "width": 192, "height": 96}

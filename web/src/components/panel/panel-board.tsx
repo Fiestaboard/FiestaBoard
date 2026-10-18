@@ -11,7 +11,9 @@ import {
 } from "@fiestaboard/ui";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { PanelMatrix } from "@/components/panel/panel-matrix";
 import { useTranslations } from "@/i18n/translations";
+import type { MatrixSizing } from "@/lib/api";
 import { isLedModel, ledLetterCase } from "@/lib/device-preview";
 import { NOTE_COL_PITCH_IN, PANEL_PHYSICAL_WIDTH_IN, panelAutofitScale } from "@/lib/panel-scale";
 
@@ -34,6 +36,8 @@ interface PanelBoardProps {
   code62Glyph: Code62Glyph;
   diagonalInches: number;
   calibration: number;
+  matrixSizing?: MatrixSizing | null;
+  matrixPitch?: number;
 }
 
 /** How long to keep the board hidden while waiting for a first measurement. */
@@ -83,6 +87,8 @@ export function PanelBoard({
   code62Glyph,
   diagonalInches,
   calibration,
+  matrixSizing,
+  matrixPitch,
 }: PanelBoardProps) {
   const t = useTranslations("boardDisplay");
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -138,13 +144,30 @@ export function PanelBoard({
     const observer = new ResizeObserver(measure);
     observer.observe(board);
     return () => observer.disconnect();
-  }, [led, diagonalInches, deviceType, calibration, rows, cols]);
+  }, [led, diagonalInches, deviceType, calibration, rows, cols, matrixSizing]);
 
   useEffect(() => {
     if (measured) return;
     const timer = setTimeout(() => setMeasureTimedOut(true), MEASURE_GRACE_MS);
     return () => clearTimeout(timer);
   }, [measured]);
+
+  if (led && model && matrixSizing) {
+    return (
+      <Box className="absolute inset-0">
+        <PanelMatrix
+          model={model}
+          message={message}
+          cells={cells}
+          sizing={matrixSizing}
+          diagonal={diagonalInches}
+          spacing={matrixPitch}
+          calibration={calibration}
+          physicalScreen
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

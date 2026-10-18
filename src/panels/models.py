@@ -25,6 +25,7 @@ BackdropStyle = Literal["wall", "dark", "none"]
 # is one FiestaUI device model FiestaBoard declares for its own display,
 # ``fiestapanel_<style>`` (src.fiestaui.fiestapanel_device_models).
 RenderStyle = Literal["split_flap", "led_matrix"]
+MatrixSizing = Literal["fill_tv", "fit_panel", "true_size"]
 
 
 def _generate_panel_id() -> str:
@@ -75,6 +76,9 @@ class Panel(BaseModel):
     # Additive: a panel stored before it existed loads as split_flap, and a
     # viewer that predates it ignores the key.
     render_style: RenderStyle = "split_flap"
+    # None preserves legacy viewers and the native TV's local preference.
+    matrix_sizing: MatrixSizing | None = None
+    matrix_pitch_mm: float = Field(default=6.0, ge=1.0, le=20.0, allow_inf_nan=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -105,6 +109,8 @@ class PanelUpdate(BaseModel):
     backdrop: BackdropStyle | None = None
     auto_dim: AutoDim | None = None
     render_style: RenderStyle | None = None
+    matrix_sizing: MatrixSizing | None = None
+    matrix_pitch_mm: float | None = Field(default=None, ge=1.0, le=20.0, allow_inf_nan=False)
 
 
 # ---------------------------------------------------------------------------

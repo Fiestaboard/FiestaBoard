@@ -33,13 +33,21 @@ import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { PanelMatrixEditorPreview } from "@/components/panel/panel-matrix-editor-preview";
 import { PanelTvPreview } from "@/components/panel/panel-tv-preview";
 import { TvPreview } from "@/components/panel/tv-preview";
 import { TimePicker } from "@/components/ui/time-picker";
 import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import { api, type HdmiKioskStatus, type Panel, type PanelRenderStyle } from "@/lib/api";
+import {
+  api,
+  type HdmiKioskStatus,
+  type MatrixSizing,
+  type Panel,
+  type PanelRenderStyle,
+  type PanelUpdateRequest,
+} from "@/lib/api";
 import { appUrl } from "@/lib/base-path";
 
 /** TV-diagonal presets offered as one-tap chips (inches) — never translated. */
@@ -80,6 +88,7 @@ function panelViewerUrl(panel: Pick<Panel, "id" | "short_code">): string {
 interface EditorState {
   mode: "create" | "edit";
   panelId?: string;
+  original?: Panel;
   name: string;
   diagonal: number;
   aspectW: number;
@@ -90,6 +99,8 @@ interface EditorState {
   autoDimEnd: string;
   calibration: number;
   renderStyle: PanelRenderStyle;
+  matrixSizing: MatrixSizing | null;
+  matrixPitch: number;
 }
 
 /** Calibration bounds — mirror the backend's Panel.calibration_scale. */
@@ -110,12 +121,15 @@ const NEW_PANEL: EditorState = {
   autoDimEnd: "07:00",
   calibration: 1,
   renderStyle: "split_flap",
+  matrixSizing: "fill_tv",
+  matrixPitch: 6,
 };
 
 function editorFromPanel(panel: Panel): EditorState {
   return {
     mode: "edit",
     panelId: panel.id,
+    original: panel,
     name: panel.name,
     diagonal: panel.screen_diagonal_inches,
     aspectW: panel.screen_aspect_w ?? 16,
@@ -127,6 +141,8 @@ function editorFromPanel(panel: Panel): EditorState {
     calibration: panel.calibration_scale,
     // A server that predates the setting sends none: every panel was split-flap.
     renderStyle: panel.render_style ?? "split_flap",
+    matrixSizing: panel.matrix_sizing ?? null,
+    matrixPitch: panel.matrix_pitch_mm ?? 6,
   };
 }
 
@@ -199,8 +215,8 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
   });
 
   const updateMutation = useMutation({
-    mutationFn: (state: EditorState) =>
-      api.updatePanel(state.panelId ?? "", {
+    mutationFn: (state: EditorState) => {
+      const values: PanelUpdateRequest = {
         name: state.name,
         screen_diagonal_inches: state.diagonal,
         screen_aspect_w: state.aspectW,
@@ -209,7 +225,28 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
         auto_dim: { enabled: state.autoDimEnabled, start: state.autoDimStart, end: state.autoDimEnd },
         calibration_scale: state.calibration,
         render_style: state.renderStyle,
-      }),
+        ...(state.renderStyle === "led_matrix"
+          ? { matrix_sizing: state.matrixSizing, matrix_pitch_mm: state.matrixPitch }
+          : {}),
+      };
+      const original = state.original;
+      const baseline = original
+        ? {
+            ...original,
+            screen_aspect_w: original.screen_aspect_w ?? 16,
+            screen_aspect_h: original.screen_aspect_h ?? 9,
+            render_style: original.render_style ?? "split_flap",
+            matrix_sizing: original.matrix_sizing ?? null,
+            matrix_pitch_mm: original.matrix_pitch_mm ?? 6,
+          }
+        : {};
+      const changes = Object.fromEntries(
+        Object.entries(values).filter(
+          ([key, value]) => JSON.stringify(value) !== JSON.stringify(baseline[key as keyof typeof baseline]),
+        ),
+      ) as PanelUpdateRequest;
+      return api.updatePanel(state.panelId ?? "", changes);
+    },
     onSuccess: (result) => {
       invalidate();
       setEditor(null);
@@ -485,9 +522,20 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
                   {editor.aspectW >= ASPECT_MIN &&
                     editor.aspectH >= ASPECT_MIN &&
                     editor.diagonal >= DIAGONAL_MIN &&
-                    editor.diagonal <= DIAGONAL_MAX && (
+                    editor.diagonal <= DIAGONAL_MAX &&
+                    (editor.renderStyle === "led_matrix" && editor.panelId ? (
+                      <PanelMatrixEditorPreview
+                        panelId={editor.panelId}
+                        diagonal={editor.diagonal}
+                        aspectW={editor.aspectW}
+                        aspectH={editor.aspectH}
+                        sizing={editor.matrixSizing}
+                        spacing={editor.matrixPitch}
+                        calibration={editor.calibration}
+                      />
+                    ) : (
                       <TvPreview diagonalInches={editor.diagonal} aspectW={editor.aspectW} aspectH={editor.aspectH} />
-                    )}
+                    ))}
                   <Text size="xs" tone="muted">
                     {t("autoFitHint")}
                   </Text>
@@ -504,7 +552,16 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
                             size="sm"
                             aria-pressed={editor.renderStyle === style.value}
                             variant={editor.renderStyle === style.value ? "default" : "outline"}
-                            onClick={() => setEditor({ ...editor, renderStyle: style.value })}
+                            onClick={() =>
+                              setEditor({
+                                ...editor,
+                                renderStyle: style.value,
+                                matrixSizing:
+                                  style.value === "led_matrix" && editor.renderStyle !== "led_matrix"
+                                    ? (editor.matrixSizing ?? "fill_tv")
+                                    : editor.matrixSizing,
+                              })
+                            }
                           >
                             {t(style.labelKey)}
                           </Button>
@@ -514,6 +571,72 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
                         {t("renderStyleHelp")}
                       </Text>
                     </Stack>
+                    {editor.renderStyle === "led_matrix" && (
+                      <Stack gap="2">
+                        <Label id="panel-matrix-sizing-label">{t("matrixSizing")}</Label>
+                        <Flex gap="2" wrap role="group" aria-labelledby="panel-matrix-sizing-label">
+                          <Button
+                            type="button"
+                            size="sm"
+                            aria-pressed={editor.matrixSizing === null}
+                            variant={editor.matrixSizing === null ? "default" : "outline"}
+                            onClick={() =>
+                              setEditor({
+                                ...editor,
+                                matrixSizing: null,
+                                matrixPitch: editor.original?.matrix_pitch_mm ?? 6,
+                              })
+                            }
+                          >
+                            {t("matrixSizing_viewer_default")}
+                          </Button>
+                          {(["fill_tv", "fit_panel", "true_size"] as const).map((mode) => (
+                            <Button
+                              key={mode}
+                              type="button"
+                              size="sm"
+                              aria-pressed={editor.matrixSizing === mode}
+                              variant={editor.matrixSizing === mode ? "default" : "outline"}
+                              onClick={() =>
+                                setEditor({
+                                  ...editor,
+                                  matrixSizing: mode,
+                                  matrixPitch:
+                                    Number.isFinite(editor.matrixPitch) &&
+                                    editor.matrixPitch >= 1 &&
+                                    editor.matrixPitch <= 20
+                                      ? editor.matrixPitch
+                                      : 6,
+                                })
+                              }
+                            >
+                              {t(`matrixSizing_${mode}`)}
+                            </Button>
+                          ))}
+                        </Flex>
+                        <Text size="xs" tone="muted">
+                          {t(`matrixSizingHelp_${editor.matrixSizing ?? "viewer_default"}`)}
+                        </Text>
+                        {editor.matrixSizing === "true_size" && (
+                          <>
+                            <Label htmlFor="panel-matrix-pitch">{t("matrixPitch")}</Label>
+                            <Input
+                              id="panel-matrix-pitch"
+                              type="number"
+                              min={1}
+                              max={20}
+                              step={0.5}
+                              value={editor.matrixPitch}
+                              aria-invalid={editor.matrixPitch < 1 || editor.matrixPitch > 20}
+                              onChange={(event) => setEditor({ ...editor, matrixPitch: Number(event.target.value) })}
+                            />
+                            <Text size="xs" tone="muted">
+                              {t("matrixPitchHelp")}
+                            </Text>
+                          </>
+                        )}
+                      </Stack>
+                    )}
                     <Flex gap="3" align="center">
                       <Switch
                         id="panel-animations"
@@ -589,6 +712,8 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
                   disabled={
                     saving ||
                     !editor.name.trim() ||
+                    (editor.renderStyle === "led_matrix" &&
+                      (!Number.isFinite(editor.matrixPitch) || editor.matrixPitch < 1 || editor.matrixPitch > 20)) ||
                     editor.diagonal < DIAGONAL_MIN ||
                     editor.diagonal > DIAGONAL_MAX ||
                     editor.aspectW < ASPECT_MIN ||

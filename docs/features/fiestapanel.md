@@ -47,9 +47,15 @@ Edit a panel any time — changes reach the TV within about 10 seconds, no reloa
 |---|---|
 | **TV size** | Drives everything: the flap scale (pixels-per-inch from your diagonal) and the auto-fit grid (as many real-size flaps — columns and rows — as fit a screen of that size and aspect ratio). Changing it re-fits the board's dimensions. |
 | **Render style** | **Split-flap** (the default) draws life-size flaps. **LED matrix** draws the board as the dots of an LED sign. Each panel's page in Displays shows what its TV is showing now, in the chosen style. |
+| **Matrix size** | For LED panels: **Fill TV** adds unlit LEDs around the full message; **Fit panel** fits the original matrix; **True LED size** uses your TV diagonal and LED spacing. Oversized matrices scale down to keep the message visible. |
+| **LED spacing** | Distance between LED centers (1–20 mm), available with True LED size. Apple TV uses a fixed 16:9 screen. |
 | **Flip animation** | Off by default — characters update in place instantly. Turn it on for the full mechanical spin on every change. |
 | **Auto-dim** | Fades the panel down during a nightly window (e.g. 22:00–07:00), using the TV's own clock. |
 | **Size calibration** | ±15% fine-tune for TVs whose browsers misreport their resolution or overscan the picture. |
+
+Matrix sizing is saved per panel and reaches browser and Apple TV viewers on their next configuration refresh. **Viewer default** preserves each viewer’s existing preference; editing unrelated settings keeps that choice. The settings dialog previews matrix size and LED spacing before saving. True LED size includes Size calibration and uses the actual display’s pixel density, including when a browser window occupies only part of its screen.
+
+Changing matrix size mode or LED spacing does not resize the source content grid. Changing TV size or aspect ratio re-fits that grid, and the LED face grows beyond its original 192 × 96 pixels when needed to show every character. Apple TV’s physical screen stays 16:9; the configured aspect ratio determines the source grid and browser preview.
 
 ## FiestaPi HDMI Output
 

@@ -128,3 +128,16 @@ describe("PanelTvPreview", () => {
     });
   });
 });
+
+it("uses the shared matrix sizing inside the TV preview", async () => {
+  mockPanel({
+    ...CONFIG,
+    render_style: "led_matrix",
+    device_model_spec: FIESTAPANEL_LED_MATRIX,
+    matrix_sizing: "true_size",
+    matrix_pitch_mm: 5,
+  });
+  const { container } = render(<PanelTvPreview panelId="p1" />, { wrapper: Wrapper });
+  expect(await screen.findByTestId("panel-matrix")).toHaveAttribute("data-sizing", "true_size");
+  expect(container.querySelector('[data-slot="tv-frame"]')).toBeInTheDocument();
+});

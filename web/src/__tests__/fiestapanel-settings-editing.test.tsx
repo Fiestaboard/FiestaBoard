@@ -7,7 +7,7 @@
  * <Toaster/> mounted in unit tests).
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -106,6 +106,78 @@ describe("FiestaPanelSettings — edit dialog", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(body).not.toBeNull());
     expect(body!.render_style).toBe("led_matrix");
+  });
+
+  it("shows sizing only for matrices and saves physical LED spacing", async () => {
+    mockList();
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.patch("/api/panels/abc123def456", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...PANEL, ...body });
+      }),
+    );
+    const user = userEvent.setup();
+    await openEditDialog(user);
+    expect(screen.queryByRole("button", { name: "True LED size" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "LED matrix" }));
+    expect(screen.getByRole("button", { name: "Fill TV" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "True LED size" }));
+    fireEvent.change(screen.getByLabelText("LED spacing (mm)"), { target: { value: "0" } });
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("LED spacing (mm)"), { target: { value: "5" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ matrix_sizing: "true_size", matrix_pitch_mm: 5 });
+  });
+
+  it("allows saving after leaving an invalid hidden physical spacing", async () => {
+    mockList([{ ...PANEL, render_style: "led_matrix", matrix_sizing: "true_size", matrix_pitch_mm: 4 }]);
+    const user = userEvent.setup();
+    await openEditDialog(user);
+    fireEvent.change(screen.getByLabelText("LED spacing (mm)"), { target: { value: "" } });
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Fill TV" }));
+    expect(screen.queryByLabelText("LED spacing (mm)")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  it("restores a matrix panel's saved sizing", async () => {
+    mockList([{ ...PANEL, render_style: "led_matrix", matrix_sizing: "true_size", matrix_pitch_mm: 4 }]);
+    await openEditDialog(userEvent.setup());
+    expect(screen.getByRole("button", { name: "True LED size" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("LED spacing (mm)")).toHaveValue(4);
+  });
+
+  it("renames a legacy matrix without changing viewer defaults or other settings", async () => {
+    mockList([{ ...PANEL, render_style: "led_matrix", matrix_sizing: null }]);
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.patch("/api/panels/abc123def456", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...PANEL, ...body });
+      }),
+    );
+    const user = userEvent.setup();
+    await openEditDialog(user);
+    fireEvent.change(screen.getByLabelText("Panel name"), { target: { value: "Renamed" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(body).toEqual({ name: "Renamed" }));
+  });
+
+  it("previews matrix sizing, spacing, and resized geometry before saving", async () => {
+    mockList([{ ...PANEL, render_style: "led_matrix", matrix_sizing: "fit_panel" }]);
+    const user = userEvent.setup();
+    const dialog = await openEditDialog(user);
+    expect(within(dialog).getByTestId("panel-matrix")).toHaveAttribute("data-sizing", "fit_panel");
+    await user.click(screen.getByRole("button", { name: "True LED size" }));
+    fireEvent.change(screen.getByLabelText("LED spacing (mm)"), { target: { value: "5" } });
+    await user.click(screen.getByRole("button", { name: '75"' }));
+    expect(within(dialog).getByTestId("panel-matrix")).toHaveAttribute("data-sizing", "true_size");
+    const matrix = dialog.querySelector('[data-slot="led-matrix-display"]');
+    expect(matrix).toHaveAttribute("data-matrix-width", "240");
+    expect(matrix).toHaveAttribute("data-matrix-height", "128");
+    expect(within(dialog).queryByTestId("tv-preview-grid")).not.toBeInTheDocument();
   });
 
   it("shows each panel's live board on its TV", async () => {
@@ -208,7 +280,7 @@ describe("FiestaPanelSettings — edit dialog", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(patchBody).not.toBeNull());
     expect(patchBody!.screen_aspect_w).toBe(21);
-    expect(patchBody!.screen_aspect_h).toBe(9);
+    expect(patchBody).not.toHaveProperty("screen_aspect_h");
   });
 
   it("accepts a 3 inch pocket screen but not less", async () => {
