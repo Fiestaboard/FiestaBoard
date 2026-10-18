@@ -960,6 +960,10 @@
     "compactActive": "Active"
   },
   "pageBuilder": {
+    "discardChangesTitle": "Discard unsaved changes?",
+    "discardChangesDescription": "Your changes to this page have not been saved. Leaving will discard them.",
+    "keepEditing": "Keep editing",
+    "discardAndLeave": "Discard and leave",
     "editPage": "Edit Page",
     "createPage": "Create Page",
     "backToPages": "Back to Pages",

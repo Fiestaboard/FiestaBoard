@@ -1004,6 +1004,10 @@
     "compactActive": "Aktywny"
   },
   "pageBuilder": {
+    "discardChangesTitle": "Odrzucić niezapisane zmiany?",
+    "discardChangesDescription": "Zmiany na tej stronie nie zostały zapisane. Opuszczenie strony spowoduje ich utratę.",
+    "keepEditing": "Kontynuuj edycję",
+    "discardAndLeave": "Odrzuć i opuść",
     "editPage": "Edytuj stronę",
     "createPage": "Utwórz stronę",
     "backToPages": "Wróć do stron",

@@ -1004,6 +1004,10 @@
     "compactActive": "Aktif"
   },
   "pageBuilder": {
+    "discardChangesTitle": "Kaydedilmemiş değişiklikler silinsin mi?",
+    "discardChangesDescription": "Bu sayfadaki değişiklikleriniz kaydedilmedi. Ayrılırsanız değişiklikler kaybolacak.",
+    "keepEditing": "Düzenlemeye devam et",
+    "discardAndLeave": "Sil ve ayrıl",
     "editPage": "Sayfayı Düzenle",
     "createPage": "Sayfa Oluştur",
     "backToPages": "Sayfalara Dön",

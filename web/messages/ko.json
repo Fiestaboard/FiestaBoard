@@ -1004,6 +1004,10 @@
     "compactActive": "활성"
   },
   "pageBuilder": {
+    "discardChangesTitle": "저장하지 않은 변경 사항을 버릴까요?",
+    "discardChangesDescription": "이 페이지의 변경 사항이 저장되지 않았습니다. 페이지를 나가면 변경 사항이 사라집니다.",
+    "keepEditing": "계속 편집",
+    "discardAndLeave": "버리고 나가기",
     "editPage": "페이지 편집",
     "createPage": "페이지 생성",
     "backToPages": "페이지로 돌아가기",

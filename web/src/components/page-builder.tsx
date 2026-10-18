@@ -475,6 +475,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Snapshot of the page state as loaded from the server, used to detect unsaved changes.
   const [savedSnapshot, setSavedSnapshot] = useState<{
     name: string;
+    deviceType: DeviceType;
+    geometry: string;
     templateLines: string[];
     lineAlignments: LineAlignment[];
     lineWrapEnabled: boolean[];
@@ -539,16 +541,31 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, [panelGrid]);
 
   const hasUnsavedChanges = useMemo(() => {
-    if (!savedSnapshot) return true;
+    if (!savedSnapshot) return !pageId;
     return (
       name !== savedSnapshot.name ||
+      deviceType !== savedSnapshot.deviceType ||
+      JSON.stringify(geometryFields(deviceType, notesWide, notesTall, panelGrid)) !== savedSnapshot.geometry ||
       JSON.stringify(templateLines) !== JSON.stringify(savedSnapshot.templateLines) ||
       JSON.stringify(lineAlignments) !== JSON.stringify(savedSnapshot.lineAlignments) ||
       JSON.stringify(lineWrapEnabled) !== JSON.stringify(savedSnapshot.lineWrapEnabled) ||
       transitionStrategy !== savedSnapshot.transitionStrategy ||
       JSON.stringify(canvases) !== JSON.stringify(savedSnapshot.canvases)
     );
-  }, [savedSnapshot, name, templateLines, lineAlignments, lineWrapEnabled, transitionStrategy, canvases]);
+  }, [
+    savedSnapshot,
+    pageId,
+    name,
+    deviceType,
+    notesWide,
+    notesTall,
+    panelGrid,
+    templateLines,
+    lineAlignments,
+    lineWrapEnabled,
+    transitionStrategy,
+    canvases,
+  ]);
 
   const pushUndoSnapshot = useCallback(() => {
     const snap: PageSnapshot = {
@@ -1175,6 +1192,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setDebouncedCanvases(savedCanvases);
       setSavedSnapshot({
         name: pageName,
+        deviceType: existingPage.device_type ?? "flagship",
+        geometry: JSON.stringify(
+          geometryFields(
+            existingPage.device_type ?? "flagship",
+            existingPage.notes_wide ?? 1,
+            existingPage.notes_tall ?? 1,
+            existingPage.grid_rows && existingPage.grid_cols
+              ? { rows: existingPage.grid_rows, cols: existingPage.grid_cols }
+              : null,
+          ),
+        ),
         templateLines: contents,
         lineAlignments: alignments,
         lineWrapEnabled: wrapStates,
@@ -1516,6 +1544,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         toast.warning(t("retargetIncompatibleWarning", { list }), { duration: 10000 });
       }
 
+      // Navigation runs synchronously, before a dirty-state effect can update.
+      hasUnsavedChangesRef.current = false;
       onSave?.();
       onClose();
     },
@@ -1558,6 +1588,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       } else {
         toast.success(t("toastPageDeleted"));
       }
+      hasUnsavedChangesRef.current = false;
       onClose();
     },
     onError: () => {

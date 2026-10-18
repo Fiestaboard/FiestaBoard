@@ -1004,6 +1004,10 @@
     "compactActive": "Aktiv"
   },
   "pageBuilder": {
+    "discardChangesTitle": "Ungespeicherte Änderungen verwerfen?",
+    "discardChangesDescription": "Deine Änderungen an dieser Seite wurden nicht gespeichert. Beim Verlassen gehen sie verloren.",
+    "keepEditing": "Weiter bearbeiten",
+    "discardAndLeave": "Verwerfen und verlassen",
     "editPage": "Seite bearbeiten",
     "createPage": "Seite erstellen",
     "backToPages": "Zurück zu Seiten",

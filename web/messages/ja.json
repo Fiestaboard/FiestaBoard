@@ -1004,6 +1004,10 @@
     "compactActive": "アクティブ"
   },
   "pageBuilder": {
+    "discardChangesTitle": "未保存の変更を破棄しますか？",
+    "discardChangesDescription": "このページの変更は保存されていません。ページを離れると変更は失われます。",
+    "keepEditing": "編集を続ける",
+    "discardAndLeave": "破棄して移動",
     "editPage": "ページを編集",
     "createPage": "ページを作成",
     "backToPages": "ページ一覧に戻る",

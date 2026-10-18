@@ -1004,6 +1004,10 @@
     "compactActive": "Ativo"
   },
   "pageBuilder": {
+    "discardChangesTitle": "Descartar alterações não guardadas?",
+    "discardChangesDescription": "As alterações nesta página não foram guardadas. Ao sair, serão perdidas.",
+    "keepEditing": "Continuar a editar",
+    "discardAndLeave": "Descartar e sair",
     "editPage": "Editar Página",
     "createPage": "Criar Página",
     "backToPages": "Voltar para Páginas",

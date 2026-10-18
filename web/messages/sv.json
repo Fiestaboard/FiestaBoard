@@ -1004,6 +1004,10 @@
     "compactActive": "Aktivt"
   },
   "pageBuilder": {
+    "discardChangesTitle": "Kasta osparade ändringar?",
+    "discardChangesDescription": "Dina ändringar på den här sidan har inte sparats. Om du lämnar sidan försvinner de.",
+    "keepEditing": "Fortsätt redigera",
+    "discardAndLeave": "Kasta och lämna",
     "editPage": "Redigera sida",
     "createPage": "Skapa sida",
     "backToPages": "Tillbaka till sidor",

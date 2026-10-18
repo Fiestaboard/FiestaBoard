@@ -1004,6 +1004,10 @@
     "compactActive": "Активен"
   },
   "pageBuilder": {
+    "discardChangesTitle": "Отменить несохранённые изменения?",
+    "discardChangesDescription": "Изменения этой страницы не сохранены. При выходе они будут потеряны.",
+    "keepEditing": "Продолжить редактирование",
+    "discardAndLeave": "Отменить и выйти",
     "editPage": "Редактировать страницу",
     "createPage": "Создать страницу",
     "backToPages": "Назад к страницам",
