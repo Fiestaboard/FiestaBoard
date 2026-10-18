@@ -1094,3 +1094,34 @@ class TestSettingsRefusesAFutureSchema:
         from src.settings.service import SettingsService
 
         SettingsService(settings_file=path)  # must not raise
+
+
+class TestUpdateBoardOutputConfig:
+    """An output saves what it found out by itself (DevicePoll.config): a moved device's address."""
+
+    def test_merges_updates_into_the_boards_output_config_and_saves(self, settings_service, settings_file):
+        settings_service.set_boards([{"device_type": "flagship", "name": "Pixoo"}])
+        board_id = settings_service._board.boards[0]["id"]
+        settings_service._board.boards[0]["output_config"] = {"host": "192.0.2.24", "mac": "aabbccddeeff"}
+
+        assert settings_service.update_board_output_config(board_id, {"host": "192.0.2.23"}) is True
+
+        reloaded = SettingsService(settings_file=settings_file)
+        assert reloaded.get_board_settings().boards[0]["output_config"] == {
+            "host": "192.0.2.23",
+            "mac": "aabbccddeeff",
+        }
+
+    def test_no_change_saves_nothing(self, settings_service):
+        settings_service.set_boards([{"device_type": "flagship"}])
+        board_id = settings_service._board.boards[0]["id"]
+        settings_service._board.boards[0]["output_config"] = {"host": "192.0.2.23"}
+
+        with patch.object(settings_service, "_save_to_file") as save:
+            assert settings_service.update_board_output_config(board_id, {"host": "192.0.2.23"}) is False
+        save.assert_not_called()
+
+    def test_unknown_board_is_a_no_op(self, settings_service):
+        settings_service.set_boards([{"device_type": "flagship"}])
+
+        assert settings_service.update_board_output_config("no-such-board", {"host": "192.0.2.23"}) is False

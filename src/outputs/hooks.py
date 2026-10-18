@@ -126,6 +126,22 @@ class ReadBack:
 
 
 @dataclass(frozen=True)
+class DevicePoll:
+    """What an output learned when core polled its device (``poll_device``).
+
+    ``restarted``: the device lost what core last sent — it rebooted or was
+    power-cycled — so core forgets what the board shows and re-sends the
+    board's content on the next pass, unchanged or not. ``config``: settings
+    the output found out for itself (a device that moved to a new address
+    under DHCP), merged into the board's ``output_config`` and saved. A
+    changed address counts as a restart too: what the board shows is unknown.
+    """
+
+    restarted: bool = False
+    config: Mapping[str, Any] | None = None
+
+
+@dataclass(frozen=True)
 class OutputDiagnostics:
     """An output's section of ``GET /debug/network-diagnostics``.
 

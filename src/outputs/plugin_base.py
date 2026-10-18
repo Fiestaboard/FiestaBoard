@@ -143,6 +143,7 @@ from .hooks import (
     ActionField,
     ActionOutcome,
     ConnectionCheck,
+    DevicePoll,
     OutputActionError,
     OutputStatus,
     call_discover,
@@ -495,6 +496,22 @@ class OutputPluginBase(ABC):
 
     def cache_cleared(self) -> None:  # noqa: B027 - optional hook
         """Core forgot what the board shows; its next write goes through."""
+
+    def poll_device(self) -> DevicePoll | None:
+        """Look at the device between writes: did it restart, or move?
+
+        Core calls this from its board-state poll (every
+        ``board_read_interval_local`` seconds) while no write is running on
+        the board, and never on a paused board. Return a
+        :class:`~src.outputs.hooks.DevicePoll` when there is news, ``None``
+        when there is none. Keep it cheap — one request — and never raise
+        for an unreachable device: that is a failed write's business.
+
+        An output with read-back (``read_back.supported``) needs none of
+        this; it is for devices that cannot say what they show but can say
+        they rebooted. Default: nothing to report.
+        """
+        return None
 
     def check_connection(self) -> ConnectionCheck:
         """Probe the device once: success, or a failure class with guidance."""
