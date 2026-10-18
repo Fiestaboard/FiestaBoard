@@ -79,6 +79,9 @@ test.beforeEach(async ({ page }) => {
   await suppressWizard(page);
   // Manual mode: a schedule left on by another spec would repaint the board.
   await setScheduleEnabled(false);
+  // A spec earlier on this backend may have stopped the display loop, which
+  // also stops the board-state poll.
+  await fetch(`${API_URL}/start`, { method: "POST", headers: authHeaders() });
   await deleteAllPages();
 });
 

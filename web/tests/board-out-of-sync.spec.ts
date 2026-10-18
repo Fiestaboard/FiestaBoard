@@ -135,6 +135,9 @@ test.beforeEach(async ({ page }) => {
   // Manual mode: only the active page is ever painted, so nothing but the
   // test's own sends can paint over what "another app" wrote.
   await setScheduleEnabled(false);
+  // A spec earlier on this backend may have stopped the display loop, which
+  // also stops the board-state poll these tests depend on.
+  await fetch(`${API_URL}/start`, { method: "POST", headers: authHeaders() });
   await deleteAllPages();
   await suppressWizard(page);
 });

@@ -333,3 +333,44 @@ class TestPollThreadStartsWithTheEngine:
             release.set()
             if svc._poll_thread is not None:
                 svc._poll_thread.join(timeout=5)
+
+    def test_a_restart_after_stop_starts_a_poll_loop_that_sees_the_engine_running(self):
+        """``POST /stop`` clears ``running``, which ends the poll loop. On
+        ``POST /start`` the background loop must set ``running`` before it
+        starts the poll thread: started first, the loop's ``while
+        self.running`` can read the stale False and exit at once, leaving the
+        board unpolled until a restart."""
+        import threading
+
+        import src.api_server as api
+
+        svc = DisplayService()
+        svc.vb_client = _client()
+        svc.running = False  # what POST /stop leaves behind
+        seen = []
+        entered = threading.Event()
+
+        def _record(self):
+            seen.append(self.running)
+            entered.set()
+
+        def _run():
+            api._shutting_down = True
+
+        api._shutting_down = False
+        try:
+            with (
+                patch("src.api_server.get_service", return_value=svc),
+                patch.object(DisplayService, "_board_poll_loop", _record),
+                patch.object(svc, "initialize"),
+                patch.object(svc, "run", side_effect=_run),
+            ):
+                api.run_service_background()
+            assert entered.wait(5)
+            assert seen == [True]
+        finally:
+            api._shutting_down = False
+            api._service_running = False
+            svc.running = False
+            if svc._poll_thread is not None:
+                svc._poll_thread.join(timeout=5)
