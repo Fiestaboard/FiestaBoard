@@ -79,6 +79,44 @@ describe("CanvasesPanel", () => {
     expect(screen.getByTestId("canvas-editor-canvas1")).toBeInTheDocument();
   });
 
+  it("keeps the chosen brush colour when returning from Shapes and Source", async () => {
+    const user = userEvent.setup();
+    const spy = vi.fn();
+    render(<Panel spy={spy} initial={[makeCanvas("sky", { row: 1, col: 1, rows: 2, cols: 2 })]} />);
+    fireEvent.change(screen.getByLabelText("Hex colour"), { target: { value: "#12ab34" } });
+    fireEvent.keyDown(screen.getByTestId("pixel-pad"), { key: " " });
+
+    for (const [index, tab] of ["Shapes", "Source"].entries()) {
+      await user.click(screen.getByRole("tab", { name: tab }));
+      await waitFor(() => expect(screen.queryByRole("application")).not.toBeInTheDocument());
+      await user.click(screen.getByRole("tab", { name: "Draw" }));
+      expect(screen.getByLabelText("Hex colour")).toHaveValue("#12ab34");
+      const pad = screen.getByTestId("pixel-pad");
+      fireEvent.keyDown(pad, { key: "ArrowRight" });
+      fireEvent.keyDown(pad, { key: " " });
+      const content: CanvasContent = spy.mock.calls.at(-1)![0][0].content;
+      expect(content.palette![content.pixels![0][0]]).toBe("#12ab34");
+      expect(content.palette![content.pixels![0][index + 1]]).toBe("#12ab34");
+    }
+  });
+
+  it("does not carry a deleted canvas's brush into the next canvas", async () => {
+    const user = userEvent.setup();
+    render(
+      <Panel
+        spy={vi.fn()}
+        initial={[
+          makeCanvas("sky", { row: 1, col: 1, rows: 1, cols: 1 }),
+          makeCanvas("sea", { row: 2, col: 1, rows: 1, cols: 1 }),
+        ]}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Hex colour"), { target: { value: "#12ab34" } });
+    await user.click(screen.getByRole("button", { name: "Delete canvas sky" }));
+    expect(screen.getByTestId("canvas-editor-sea")).toBeInTheDocument();
+    expect(screen.getByLabelText("Hex colour")).toHaveValue("#ff0000");
+  });
+
   it("edits the area from the row / column fields", async () => {
     const spy = vi.fn();
     render(<Panel spy={spy} initial={[makeCanvas("sky", { row: 1, col: 1, rows: 2, cols: 2 })]} />);
