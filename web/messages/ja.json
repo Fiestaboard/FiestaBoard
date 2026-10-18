@@ -908,8 +908,7 @@
     "toastSwitchPaused": "保存しました — ボードを再開すると「{pageName}」が表示されます",
     "toastShownNow": "「{pageName}」を今すぐ表示しています",
     "toastHeldDiscarded": "保留中のメッセージを破棄しました",
-    "toastHeldDiscardFailed": "保留中のメッセージを破棄できませんでした",
-    "toastResendNotSent": "送信されませんでした(ボードが一時停止中か、出力先が UI のみに設定されています)"
+    "toastHeldDiscardFailed": "保留中のメッセージを破棄できませんでした"
   },
   "boardOutOfSync": {
     "title": "別のアプリがこのボードを変更しました",
@@ -919,7 +918,6 @@
     "savedAs": "「{pageName}」として保存しました",
     "openPage": "ページを開く",
     "dismiss": "閉じる",
-    "holdSilence": "サイレントモードが {time} まで有効なため、それまで「復元」は何も送信しません。",
     "holdPaused": "このディスプレイは一時停止中のため、再開するまで「復元」は何も送信しません。",
     "restoreAllDisplays": "「復元」はすべてのディスプレイにページを再送信します。",
     "keptTitle": "{time} に別のアプリがこのボードに書き込みました",
@@ -928,7 +926,6 @@
     "toastRestored": "ボードを復元しました",
     "toastRestoredAll": "すべてのディスプレイにページを再送信しました",
     "toastRestoreFailed": "ボードの復元に失敗しました",
-    "toastNotSentSilence": "何も送信されませんでした: サイレントモードが {time} まで有効です",
     "toastNotSentPaused": "何も送信されませんでした: このディスプレイは一時停止中です",
     "toastNotSent": "ディスプレイには何も送信されませんでした",
     "toastSaved": "「{pageName}」をページとして保存しました",

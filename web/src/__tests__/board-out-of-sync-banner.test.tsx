@@ -77,9 +77,11 @@ function serveBoard(body: BoardCurrentMessageResponse | (() => BoardCurrentMessa
 }
 
 function serveSilence(status: Partial<SilenceStatus>) {
+  const seen = { count: 0 };
   server.use(
-    http.get(`${API}/silence-status`, () =>
-      HttpResponse.json({
+    http.get(`${API}/silence-status`, () => {
+      seen.count += 1;
+      return HttpResponse.json({
         enabled: true,
         active: false,
         start_time_utc: "22:00+00:00",
@@ -87,9 +89,10 @@ function serveSilence(status: Partial<SilenceStatus>) {
         current_time_utc: "23:00+00:00",
         next_change_utc: "07:00+00:00",
         ...status,
-      }),
-    ),
+      });
+    }),
   );
+  return seen;
 }
 
 function serveForceRefresh(sent: boolean) {
@@ -239,16 +242,14 @@ describe("BoardOutOfSyncBanner", () => {
       expect(screen.getByRole("button", { name: "Restore" })).toBeEnabled();
     });
 
-    it("says silence holds Restore until the window ends", async () => {
+    it("hides itself while the board is silenced, since Restore cannot send", async () => {
       serveBoard(boardState({ characters: hiRed() }));
-      serveSilence({ active: true, end_time_utc: "07:00+00:00" });
+      const silence = serveSilence({ active: true });
       renderBanner();
 
-      const time = shortTimeOfUtc(7, 0);
-      expect(
-        await screen.findByText(`Silence mode is on until ${time}, so Restore won't send anything until then.`),
-      ).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Restore" })).toBeEnabled();
+      await waitFor(() => expect(silence.count).toBeGreaterThan(0));
+      await act(() => new Promise((r) => setTimeout(r, 50)));
+      expect(screen.queryByTestId("board-out-of-sync")).toBeNull();
     });
 
     it("says Restore resends every display on a secondary board", async () => {
@@ -268,13 +269,11 @@ describe("BoardOutOfSyncBanner", () => {
 
     it("shows one hold line at a time, pause first", async () => {
       serveBoard(boardState({ characters: hiRed() }));
-      serveSilence({ active: true });
       renderBanner({ paused: true, boardId: "b2", multiBoard: true, isPrimary: false });
 
       await screen.findByText(/This display is paused/);
       await act(() => new Promise((r) => setTimeout(r, 50)));
       expect(screen.getAllByTestId("board-out-of-sync-hold")).toHaveLength(1);
-      expect(screen.queryByText(/Silence mode is on until/)).toBeNull();
       expect(screen.queryByText("Restore resends pages to every display.")).toBeNull();
     });
   });
@@ -358,23 +357,6 @@ describe("BoardOutOfSyncBanner", () => {
       expect(cached?.characters).toEqual(hiRed());
       expect(banner()).toBeInTheDocument();
       expect(dismissed).toHaveLength(0);
-    });
-
-    it("names silence as the reason nothing was sent", async () => {
-      const warning = vi.spyOn(toast, "warning");
-      serveBoard(boardState({ characters: hiRed() }));
-      serveSilence({ active: true, end_time_utc: "07:00+00:00" });
-      serveForceRefresh(false);
-      const user = userEvent.setup();
-      renderBanner();
-
-      await screen.findByText(/Silence mode is on until/);
-      await user.click(screen.getByRole("button", { name: "Restore" }));
-
-      await waitFor(() =>
-        expect(warning).toHaveBeenCalledWith(`Nothing was sent: silence mode is on until ${shortTimeOfUtc(7, 0)}`),
-      );
-      expect(banner()).toBeInTheDocument();
     });
 
     it("names pause as the reason nothing was sent", async () => {

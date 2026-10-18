@@ -908,8 +908,7 @@
     "toastSwitchPaused": "Kaydedildi — panoyu devam ettirdiğinizde “{pageName}” gösterilecek",
     "toastShownNow": "“{pageName}” şimdi gösteriliyor",
     "toastHeldDiscarded": "Bekletilen mesaj atıldı",
-    "toastHeldDiscardFailed": "Bekletilen mesaj atılamadı",
-    "toastResendNotSent": "Hiçbir şey gönderilmedi (pano duraklatıldı veya çıkış yalnızca arayüze ayarlı)"
+    "toastHeldDiscardFailed": "Bekletilen mesaj atılamadı"
   },
   "boardOutOfSync": {
     "title": "Başka bir uygulama bu board’u değiştirdi",
@@ -919,7 +918,6 @@
     "savedAs": "\"{pageName}\" olarak kaydedildi",
     "openPage": "Sayfayı aç",
     "dismiss": "Kapat",
-    "holdSilence": "Sessiz mod {time} saatine kadar açık, bu yüzden Geri Yükle o zamana kadar hiçbir şey göndermez.",
     "holdPaused": "Bu ekran duraklatıldı, bu yüzden siz sürdürene kadar Geri Yükle hiçbir şey göndermez.",
     "restoreAllDisplays": "Geri Yükle, sayfaları tüm ekranlara yeniden gönderir.",
     "keptTitle": "Başka bir uygulama {time} saatinde bu board’a yazdı",
@@ -928,7 +926,6 @@
     "toastRestored": "Board geri yüklendi",
     "toastRestoredAll": "Sayfalar tüm ekranlara yeniden gönderildi",
     "toastRestoreFailed": "Board geri yüklenemedi",
-    "toastNotSentSilence": "Hiçbir şey gönderilmedi: sessiz mod {time} saatine kadar açık",
     "toastNotSentPaused": "Hiçbir şey gönderilmedi: bu ekran duraklatıldı",
     "toastNotSent": "Ekrana hiçbir şey gönderilmedi",
     "toastSaved": "\"{pageName}\" sayfa olarak kaydedildi",

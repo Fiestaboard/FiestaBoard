@@ -908,8 +908,7 @@
     "toastSwitchPaused": "Zapisano — „{pageName}” pojawi się po wznowieniu tablicy",
     "toastShownNow": "Wyświetlanie „{pageName}” teraz",
     "toastHeldDiscarded": "Wstrzymana wiadomość odrzucona",
-    "toastHeldDiscardFailed": "Nie udało się odrzucić wstrzymanej wiadomości",
-    "toastResendNotSent": "Nic nie wysłano (tablica wstrzymana lub wyjście ustawione tylko na interfejs)"
+    "toastHeldDiscardFailed": "Nie udało się odrzucić wstrzymanej wiadomości"
   },
   "boardOutOfSync": {
     "title": "Inna aplikacja zmieniła ten board",
@@ -919,7 +918,6 @@
     "savedAs": "Zapisano jako „{pageName}”",
     "openPage": "Otwórz stronę",
     "dismiss": "Zamknij",
-    "holdSilence": "Tryb ciszy jest aktywny do {time}, więc do tego czasu Przywróć niczego nie wyśle.",
     "holdPaused": "Ten wyświetlacz jest wstrzymany, więc Przywróć niczego nie wyśle, dopóki go nie wznowisz.",
     "restoreAllDisplays": "Przywróć wysyła strony ponownie na wszystkie wyświetlacze.",
     "keptTitle": "Inna aplikacja zapisała na tym boardzie o {time}",
@@ -928,7 +926,6 @@
     "toastRestored": "Board przywrócony",
     "toastRestoredAll": "Strony wysłano ponownie na wszystkie wyświetlacze",
     "toastRestoreFailed": "Nie udało się przywrócić boarda",
-    "toastNotSentSilence": "Nic nie wysłano: tryb ciszy jest aktywny do {time}",
     "toastNotSentPaused": "Nic nie wysłano: ten wyświetlacz jest wstrzymany",
     "toastNotSent": "Nic nie wysłano na wyświetlacz",
     "toastSaved": "Zapisano „{pageName}” jako stronę",

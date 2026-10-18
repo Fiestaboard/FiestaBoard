@@ -908,8 +908,7 @@
     "toastSwitchPaused": "已保存——恢复看板后将显示“{pageName}”",
     "toastShownNow": "正在显示“{pageName}”",
     "toastHeldDiscarded": "已丢弃暂存的消息",
-    "toastHeldDiscardFailed": "无法丢弃暂存的消息",
-    "toastResendNotSent": "未发送任何内容（看板已暂停，或输出仅设置为界面）"
+    "toastHeldDiscardFailed": "无法丢弃暂存的消息"
   },
   "boardOutOfSync": {
     "title": "另一个应用更改了此 board",
@@ -919,7 +918,6 @@
     "savedAs": "已保存为“{pageName}”",
     "openPage": "打开页面",
     "dismiss": "关闭",
-    "holdSilence": "静默模式将持续到 {time}，在此之前“恢复”不会发送任何内容。",
     "holdPaused": "此显示设备已暂停，在您恢复之前“恢复”不会发送任何内容。",
     "restoreAllDisplays": "“恢复”会将页面重新发送到所有显示设备。",
     "keptTitle": "另一个应用在 {time} 向此 board 写入了内容",
@@ -928,7 +926,6 @@
     "toastRestored": "Board 已恢复",
     "toastRestoredAll": "已将页面重新发送到所有显示设备",
     "toastRestoreFailed": "恢复 board 失败",
-    "toastNotSentSilence": "未发送任何内容：静默模式将持续到 {time}",
     "toastNotSentPaused": "未发送任何内容：此显示设备已暂停",
     "toastNotSent": "未向显示设备发送任何内容",
     "toastSaved": "已将“{pageName}”保存为页面",

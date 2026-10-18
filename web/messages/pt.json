@@ -908,8 +908,7 @@
     "toastSwitchPaused": "Salvo — “{pageName}” será exibida quando você retomar o quadro",
     "toastShownNow": "Mostrando “{pageName}” agora",
     "toastHeldDiscarded": "Mensagem retida descartada",
-    "toastHeldDiscardFailed": "Não foi possível descartar a mensagem retida",
-    "toastResendNotSent": "Nada foi enviado (quadro pausado ou saída definida só para a interface)"
+    "toastHeldDiscardFailed": "Não foi possível descartar a mensagem retida"
   },
   "boardOutOfSync": {
     "title": "Outra aplicação alterou este board",
@@ -919,7 +918,6 @@
     "savedAs": "Salvo como \"{pageName}\"",
     "openPage": "Abrir página",
     "dismiss": "Dispensar",
-    "holdSilence": "O modo silêncio está ativo até {time}, então Restaurar não enviará nada até lá.",
     "holdPaused": "Esta exibição está pausada, então Restaurar não enviará nada até você retomá-la.",
     "restoreAllDisplays": "Restaurar reenvia as páginas para todas as exibições.",
     "keptTitle": "Outra aplicação escreveu neste board às {time}",
@@ -928,7 +926,6 @@
     "toastRestored": "Board restaurado",
     "toastRestoredAll": "Páginas reenviadas para todas as exibições",
     "toastRestoreFailed": "Falha ao restaurar board",
-    "toastNotSentSilence": "Nada foi enviado: o modo silêncio está ativo até {time}",
     "toastNotSentPaused": "Nada foi enviado: esta exibição está pausada",
     "toastNotSent": "Nada foi enviado para a exibição",
     "toastSaved": "\"{pageName}\" salvo como página",

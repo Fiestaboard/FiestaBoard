@@ -908,8 +908,7 @@
     "toastSwitchPaused": "Sparat – ”{pageName}” visas när du återupptar tavlan",
     "toastShownNow": "Visar ”{pageName}” nu",
     "toastHeldDiscarded": "Väntande meddelande slängt",
-    "toastHeldDiscardFailed": "Det gick inte att slänga det väntande meddelandet",
-    "toastResendNotSent": "Inget skickades (tavlan pausad eller utdata inställd på endast gränssnittet)"
+    "toastHeldDiscardFailed": "Det gick inte att slänga det väntande meddelandet"
   },
   "boardOutOfSync": {
     "title": "En annan app ändrade den här boarden",
@@ -919,7 +918,6 @@
     "savedAs": "Sparad som \"{pageName}\"",
     "openPage": "Öppna sida",
     "dismiss": "Stäng",
-    "holdSilence": "Tyst läge är på till {time}, så Återställ skickar inget förrän dess.",
     "holdPaused": "Den här skärmen är pausad, så Återställ skickar inget förrän du återupptar den.",
     "restoreAllDisplays": "Återställ skickar om sidorna till alla skärmar.",
     "keptTitle": "En annan app skrev till den här boarden kl. {time}",
@@ -928,7 +926,6 @@
     "toastRestored": "Board återställd",
     "toastRestoredAll": "Sidorna skickades om till alla skärmar",
     "toastRestoreFailed": "Misslyckades återställa board",
-    "toastNotSentSilence": "Inget skickades: tyst läge är på till {time}",
     "toastNotSentPaused": "Inget skickades: den här skärmen är pausad",
     "toastNotSent": "Inget skickades till skärmen",
     "toastSaved": "\"{pageName}\" sparad som sida",
