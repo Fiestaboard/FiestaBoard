@@ -29,8 +29,8 @@ from src.board_state import read_board_state
 from src.devices import geometry_of
 from src.ops import executors
 from src.outputs.board_profile import board_profile
-from src.outputs.cells import extended_markup_kw, project_for_output
-from src.outputs.display_profile import board_layers_json
+from src.outputs.cells import project_for_output
+from src.outputs.display_profile import board_layers_json, render_kw
 from src.outputs.registry import resolve_output_id
 from src.text_to_board import text_to_board_array, wrap_message_text
 
@@ -333,12 +333,14 @@ def _grid_for(
     from src.pages.service import get_page_service
 
     page_service = get_page_service()
-    result = page_service.preview_page(request.page_id, force_refresh=True, **extended_markup_kw(client))
+    result = page_service.preview_page(request.page_id, force_refresh=True, **render_kw(client))
     if result is None:
         raise HTTPException(status_code=404, detail=f"Page not found: {request.page_id}")
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
-    grid, rich = project_for_output(client, result.formatted, rows, cols, flap=text_to_board_array)
+    grid, rich = project_for_output(
+        client, result.formatted, rows, cols, flap=text_to_board_array, layers=result.layers
+    )
     return grid, result.formatted, result.formatted.split("\n"), rich
 
 

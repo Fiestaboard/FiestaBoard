@@ -42,7 +42,8 @@ from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
 from src.devices import classify_dimensions, geometry_of
 from src.display_runtime import reinitialize_board_clients, release_board_frames
-from src.outputs.cells import extended_markup_kw, project_for_output
+from src.outputs.cells import project_for_output
+from src.outputs.display_profile import render_kw
 from src.outputs.transitions import driver_runs_strategy
 
 from .models import (
@@ -724,9 +725,7 @@ async def set_active_page(request: SetActivePageRequest):
                 logger.info("Board is paused - skipping immediate active-page send")
                 paused = True
             if not silenced and not paused:
-                result = page_service.preview_page(
-                    render_page_id, force_refresh=True, **extended_markup_kw(send_client)
-                )
+                result = page_service.preview_page(render_page_id, force_refresh=True, **render_kw(send_client))
                 if result and result.available:
                     resolved = page_transition(
                         settings_service.get_transition_settings(board_id or settings_service.get_primary_board_id()),
@@ -746,7 +745,12 @@ async def set_active_page(request: SetActivePageRequest):
                     else:
                         dims = resolve_dimensions(*geometry_of(page))
                     board_array, rich = project_for_output(
-                        send_client, result.formatted, dims.rows, dims.cols, flap=text_to_board_array
+                        send_client,
+                        result.formatted,
+                        dims.rows,
+                        dims.cols,
+                        flap=text_to_board_array,
+                        layers=result.layers,
                     )
                     # render() serializes concurrent senders via the client's
                     # per-board send lock, so worker threads can't interleave.
