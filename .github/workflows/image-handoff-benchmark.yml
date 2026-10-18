@@ -1,0 +1,88 @@
+name: 'CI experiment: image handoff'
+on:
+  push:
+    branches: [codex/ci-image-handoff-benchmark]
+permissions:
+  contents: read
+jobs:
+  producer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      image_id: ${{ steps.build.outputs.imageid }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and export test image
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          target: runtime
+          push: false
+          tags: fiestaboard:ci
+          outputs: type=docker,dest=${{ runner.temp }}/fiestaboard-test-image.tar
+          build-args: VERSION=dev
+          cache-from: |
+            type=gha,scope=build-linux/amd64
+            type=gha,scope=build-test
+          cache-to: type=gha,mode=max,scope=ci-handoff-benchmark
+      - name: Share test image
+        uses: actions/upload-artifact@v7
+        with:
+          name: fiestaboard-test-image
+          path: ${{ runner.temp }}/fiestaboard-test-image.tar
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+  consumer:
+    name: '${{ matrix.method }} replica ${{ matrix.replica }}'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: producer
+    strategy:
+      fail-fast: false
+      matrix:
+        method: [cache, artifact]
+        replica: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Docker Buildx
+        if: matrix.method == 'cache'
+        uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build test image
+        if: matrix.method == 'cache'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          target: runtime
+          load: true
+          tags: fiestaboard:ci
+          build-args: VERSION=dev
+          cache-from: type=gha,scope=ci-handoff-benchmark
+      - name: Download test image
+        if: matrix.method == 'artifact'
+        uses: actions/download-artifact@v8
+        with:
+          name: fiestaboard-test-image
+          path: ${{ runner.temp }}/ci-image
+      - name: Load test image
+        if: matrix.method == 'artifact'
+        run: docker load --input "$RUNNER_TEMP/ci-image/fiestaboard-test-image.tar"
+      - name: Verify producer identity
+        env:
+          EXPECTED_IMAGE_ID: ${{ needs.producer.outputs.image_id }}
+        run: |
+          ACTUAL_IMAGE_ID=$(docker image inspect --format='{{.Id}}' fiestaboard:ci)
+          test -n "$EXPECTED_IMAGE_ID"
+          test "$ACTUAL_IMAGE_ID" = "$EXPECTED_IMAGE_ID"
