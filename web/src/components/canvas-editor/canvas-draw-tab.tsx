@@ -52,7 +52,10 @@ export function CanvasDrawTab({ content, width, height, onContentChange }: Canva
     (next: PixelGrid) => {
       if (next === grid) return;
       try {
-        const { palette, pixels } = encodePixels(next, content?.palette ?? {});
+        const references = [content?.background, ...(content?.shapes ?? []).flatMap(Object.values)].filter(
+          (value): value is string => typeof value === "string",
+        );
+        const { palette, pixels } = encodePixels(next, content?.palette ?? {}, references);
         setError(null);
         onContentChange({ ...(content ?? {}), size: content?.size ?? [width, height], palette, pixels });
       } catch {
