@@ -29,6 +29,7 @@ from .outputs.breaker import write_failure_reason
 from .outputs.cells import output_character_set, project_message
 from .outputs.display_profile import render_kw
 from .outputs.factory import build_driver
+from .outputs.hooks import DevicePoll
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
 from .pages.models import LineMetadata, Page
@@ -1128,6 +1129,10 @@ class DisplayService:
             except Exception as e:  # a retry bug must never kill board polling
                 logger.error(f"Failed-board recovery pass crashed: {e}")
             try:
+                self._poll_output_devices()
+            except Exception as e:  # nor must an output device poll
+                logger.error(f"Output device poll crashed: {e}")
+            try:
                 self._poll_board_state_once()
             except Exception as e:
                 logger.debug(f"Board state poll failed: {e}")
@@ -1172,6 +1177,43 @@ class DisplayService:
         if external_write:
             rt.showing_out_of_band = True
             logger.info("Board content changed externally; marking out-of-band")
+
+    def _poll_output_devices(self) -> None:
+        """Ask every board's output whether its device restarted or moved.
+
+        A device that cannot read back what it shows (a Divoom Pixoo) loses
+        FiestaBoard's frame when it reboots and falls back to its own face,
+        while both dedupe layers still believe the page is up — so an
+        unchanged page is never sent again. An output that can tell it
+        restarted says so (``poll_device``) and the board's content is
+        re-sent on the next pass. One that found its device at a new address
+        (DHCP) reports the new settings, which are saved: a moved device is
+        a restart too, since what it shows is unknown.
+
+        Every board, not only the primary; never a paused board (hands-off,
+        maybe unplugged — the same rule as the read-back poll).
+        """
+        settings = get_settings_service()
+        for key, rt in list(self.runtimes.items()):
+            poll = getattr(rt.client, "poll_device", None)
+            if not callable(poll):
+                continue
+            board_id = rt.board_id or key
+            if settings.is_paused(board_id=board_id) is True:
+                continue
+            news = poll()
+            if not isinstance(news, DevicePoll):
+                continue
+            moved = bool(news.config)
+            if moved:
+                settings.update_board_output_config(board_id, news.config)
+            if news.restarted or moved:
+                logger.info(
+                    "Board %s: its device %s; re-sending the board's content",
+                    board_id,
+                    "moved to new settings" if moved else "restarted",
+                )
+                self.invalidate_board_content(key)
 
     def _retry_failed_board_inits(self) -> None:
         """Low-frequency recovery pass for boards stuck in ``board_init_errors`` (#1827).

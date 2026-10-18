@@ -10,11 +10,11 @@ import logging
 import os
 import shutil
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, Optional, TypeVar, get_args
+from typing import Any, Literal, Optional, TypeVar, get_args
 
 from pydantic import BaseModel, ValidationError
 
@@ -2445,6 +2445,28 @@ class SettingsService:
             return False
         if self._board.boards:
             return bool(self._board.boards[0].get("paused", False))
+        return False
+
+    @_locked
+    def update_board_output_config(self, board_id: str, updates: Mapping[str, Any]) -> bool:
+        """Merge *updates* into one board's ``output_config`` and save.
+
+        For settings an output found out by itself (``DevicePoll.config``: a
+        device's new DHCP address), not for user edits — those go through
+        :meth:`set_boards` and its validation. Returns False, saving nothing,
+        when the board is gone or nothing changed.
+        """
+        for b in self._board.boards:
+            if b.get("id") != board_id:
+                continue
+            current = dict(b.get("output_config") or {})
+            merged = {**current, **dict(updates)}
+            if merged == current:
+                return False
+            b["output_config"] = merged
+            self._save_to_file()
+            logger.info(f"Board {board_id}: output settings updated by its output: {sorted(updates)}")
+            return True
         return False
 
     @_locked
