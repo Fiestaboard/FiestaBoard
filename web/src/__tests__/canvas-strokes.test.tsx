@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
-import { type PadTool,PixelPad } from "@/components/canvas-editor/canvas-draw-tab";
+import { type PadTool, PixelPad } from "@/components/canvas-editor/canvas-draw-tab";
 import type { PixelGrid } from "@/lib/canvas-editing";
 
 function Pad({ tool = "brush", initial }: { tool?: PadTool; initial?: PixelGrid }) {
