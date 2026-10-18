@@ -806,14 +806,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Live output mode state
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
-  const [selectedBoardId, setSelectedBoardId] = useState<string>("");
+  const [chosenLiveBoardId, setChosenLiveBoardId] = useState<string>("");
   // The board this page is previewed as: the live-output target, else the
   // board in context, when the page fits it; else any board it fits. Its
   // model draws the preview (an LED board as an LED matrix) and its
   // character set is what the render is checked against.
   const previewBoard = useMemo(
     () =>
-      boardForShape(boardSettings?.boards, [targetBoardId, selectedBoardId, currentBoardId], {
+      boardForShape(boardSettings?.boards, [targetBoardId, chosenLiveBoardId, currentBoardId], {
         device_type: deviceType,
         notes_wide: notesWide,
         notes_tall: notesTall,
@@ -823,7 +823,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     [
       boardSettings?.boards,
       targetBoardId,
-      selectedBoardId,
+      chosenLiveBoardId,
       currentBoardId,
       deviceType,
       notesWide,
@@ -832,6 +832,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     ],
   );
   const previewBoardId = previewBoard?.id ?? null;
+  // Follow the compatible preview until the user chooses a live target or
+  // starts sending. Deriving this during render also handles late settings
+  // and sidebar context without first selecting the primary board.
+  const selectedBoardId = chosenLiveBoardId || previewBoardId || "";
   const previewModel = useMemo(() => resolveBoardModel(previewBoard), [previewBoard]);
   // An LED target's character set: the rich editor then reads and offers that
   // set's extended markup and keeps its case. null for a split-flap target.
@@ -1946,13 +1950,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     liveOverrideSilence,
   ]);
 
-  // Initialize selected board to first board when settings load
-  useEffect(() => {
-    if (boardSettings?.boards?.length && !selectedBoardId) {
-      setSelectedBoardId(boardSettings.boards[0].id);
-    }
-  }, [boardSettings?.boards, selectedBoardId]);
-
   // Draw mode: a committed stroke is applied straight to the editor's live
   // ProseMirror doc (one undo step), which fires onChange -> setTemplateLines
   // on its own — no separate setTemplateLines call needed here. Painted rows
@@ -2792,7 +2789,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <Switch
                         id="live-output-toggle"
                         checked={liveOutputEnabled}
-                        onCheckedChange={setLiveOutputEnabled}
+                        disabled={!selectedBoardId}
+                        onCheckedChange={(enabled) => {
+                          // Starting live output commits the displayed target;
+                          // later preview/context changes must not redirect it.
+                          if (enabled) setChosenLiveBoardId(selectedBoardId);
+                          setLiveOutputEnabled(enabled);
+                        }}
                         aria-label={t("liveOutputAriaLabel")}
                       />
                       <label
@@ -2812,7 +2815,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Flex>
 
                     {boardSettings?.boards && boardSettings.boards.length > 1 && (
-                      <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
+                      <Select value={selectedBoardId} onValueChange={setChosenLiveBoardId}>
                         <SelectTrigger className="h-7 w-[140px] text-xs" aria-label={t("selectBoardAriaLabel")}>
                           <SelectValue placeholder={t("selectBoardPlaceholder")} />
                         </SelectTrigger>
