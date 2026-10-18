@@ -600,6 +600,17 @@
       "added": "2026-07-18"
     },
     {
+      "id": "wow",
+      "name": "World of Warcraft",
+      "description": "Track a Retail character\u2019s item level, Mythic+ score, weekly keys, and raid progress with Raider.IO.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--wow",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.0.0",
+      "icon": "swords",
+      "category": "data",
+      "added": "2026-10-18"
+    },
+    {
       "id": "wsdot",
       "name": "WSDOT",
       "description": "Washington State Ferries: schedules, vessel names, car spots, and alerts",

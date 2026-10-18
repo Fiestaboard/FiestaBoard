@@ -208,6 +208,7 @@ FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit,
 | [Wildfire Monitor](https://github.com/Fiestaboard/fiestaboard-plugin--wildfire) | Active wildfires from NIFC | No |
 | [Word Clock](https://github.com/Fiestaboard/fiestaboard-plugin--word-clock) | Time spelled out in words, QLOCKTWO style | No |
 | [Word of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--word-of-day) | Word, pronunciation, and definition | No |
+| [World of Warcraft](https://github.com/Fiestaboard/fiestaboard-plugin--wow) | Retail character gear, Mythic+ scores, weekly keys, and raid progress from Raider.IO | No |
 | [WSDOT Ferries](https://github.com/Fiestaboard/fiestaboard-plugin--wsdot) | WA State ferry schedules and alerts | Yes (free) |
 | [YouTube Stats](https://github.com/Fiestaboard/fiestaboard-plugin--youtube-stats) | Show a YouTube channel's subscribers, total views and video count. Uses your own free YouTube Data API key; no sign-in needed | Yes (free) |
 
