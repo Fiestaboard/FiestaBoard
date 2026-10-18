@@ -219,7 +219,7 @@ class TestServicePollOutputDevices:
 
         with (
             patch.object(svc, "_poll_output_devices") as poll_devices,
-            patch.object(svc, "_poll_board_state_once", side_effect=one_pass),
+            patch.object(svc, "_poll_all_boards_once", side_effect=one_pass),
             patch.object(svc, "_get_board_read_interval", return_value=0),
         ):
             svc._board_poll_loop()
