@@ -42,6 +42,69 @@ async function editRule() {
 }
 
 describe("Collection rule drafts", () => {
+  it("allows Update after removing a fresh draft while another rule is being edited", async () => {
+    const { onSubmit } = renderForm();
+    await userEvent.click(screen.getByRole("button", { name: "Add Rule" }));
+    await userEvent.click(screen.getByRole("button", { name: "Edit rule 1" }));
+    await userEvent.click(screen.getByRole("button", { name: "Remove rule" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel edit" }));
+    expect(screen.getByRole("button", { name: "Update Collection" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Update Collection" }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variable: expect.objectContaining({ rules: [{ expression: "1 == 1", page_id: "page-1" }] }),
+      }),
+    );
+  });
+
+  it("cancels the fresh draft after removing an earlier rule", async () => {
+    const { onSubmit } = renderForm();
+    await userEvent.click(screen.getByRole("button", { name: "Add Rule" }));
+    await userEvent.click(screen.getByRole("button", { name: "Remove rule" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel edit" }));
+    expect(screen.getByRole("button", { name: "Update Collection" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Update Collection" }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ variable: expect.objectContaining({ rules: [] }) }),
+    );
+  });
+
+  it("keeps fresh draft and editor identity when a collapsed draft is reordered", async () => {
+    const { onSubmit, form } = renderForm();
+    await userEvent.click(screen.getByRole("button", { name: "Add Rule" }));
+    await userEvent.click(screen.getByRole("button", { name: "Edit rule 1" }));
+    const rows = form.querySelectorAll("[draggable]");
+    const draftRow = screen.getByRole("button", { name: "Edit rule 2" }).closest("[draggable]")!;
+    const editorRow = screen.getByRole("textbox", { name: "Expression for rule 1" }).closest("[draggable]")!;
+    fireEvent.dragStart(draftRow);
+    fireEvent.dragOver(editorRow);
+    fireEvent.dragEnd(rows[rows.length - 1]);
+    expect(screen.getByRole("textbox", { name: "Expression for rule 2" })).toHaveValue("1 == 1");
+    await userEvent.click(screen.getByRole("button", { name: "Cancel edit" }));
+    await userEvent.click(screen.getByRole("button", { name: "Edit rule 1" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel edit" }));
+    expect(screen.getByRole("button", { name: "Update Collection" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Update Collection" }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variable: expect.objectContaining({ rules: [{ expression: "1 == 1", page_id: "page-1" }] }),
+      }),
+    );
+  });
+
+  it("preserves unsaved expression edits when another rule is dragged across the editor", async () => {
+    renderForm();
+    await userEvent.click(screen.getByRole("button", { name: "Add Rule" }));
+    await editRule();
+    const draftRow = screen.getByRole("button", { name: "Edit rule 2" }).closest("[draggable]")!;
+    const editorRow = screen.getByRole("textbox", { name: "Expression for rule 1" }).closest("[draggable]")!;
+    fireEvent.dragStart(draftRow);
+    fireEvent.dragOver(editorRow);
+    fireEvent.dragEnd(draftRow);
+    expect(screen.getByRole("textbox", { name: /Expression for rule/ })).toHaveValue("2 == 2");
+    expect(screen.getByRole("button", { name: "Update Collection" })).toBeDisabled();
+  });
+
   it("blocks outer Update while an existing rule has unsaved edits and explains how to proceed", async () => {
     renderForm();
     await editRule();

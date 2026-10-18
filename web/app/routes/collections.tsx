@@ -309,6 +309,9 @@ export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete
   const handleRemoveRule = useCallback(
     (index: number) => {
       setRules((prev) => prev.filter((_, i) => i !== index));
+      setNewRuleIndex((current) =>
+        current === null || current < index ? current : current === index ? null : current - 1,
+      );
       // If we removed the rule currently being edited, exit edit mode.
       if (editingRuleIndex === index) {
         setEditingRuleIndex(null);
@@ -367,16 +370,28 @@ export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete
   const handleRuleDragOver = useCallback(
     (e: React.DragEvent, targetIndex: number) => {
       e.preventDefault();
-      if (ruleDragIndex === null || ruleDragIndex === targetIndex) return;
+      // Rows are keyed by position, so moving a dirty editor would reset its
+      // local draft. Finish that edit before allowing a reorder.
+      if (editingRuleDirty || ruleDragIndex === null || ruleDragIndex === targetIndex) return;
       setRules((prev) => {
         const next = [...prev];
         const [moved] = next.splice(ruleDragIndex, 1);
         next.splice(targetIndex, 0, moved);
         return next;
       });
+      // Track the same rules after moving one row across the others.
+      const movedIndex = (index: number | null) => {
+        if (index === null) return null;
+        if (index === ruleDragIndex) return targetIndex;
+        if (ruleDragIndex < index && index <= targetIndex) return index - 1;
+        if (targetIndex <= index && index < ruleDragIndex) return index + 1;
+        return index;
+      };
+      setNewRuleIndex(movedIndex);
+      setEditingRuleIndex(movedIndex);
       setRuleDragIndex(targetIndex);
     },
-    [ruleDragIndex],
+    [ruleDragIndex, editingRuleDirty],
   );
 
   const handleRuleDragEnd = useCallback(() => setRuleDragIndex(null), []);
