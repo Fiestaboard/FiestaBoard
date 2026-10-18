@@ -29,6 +29,8 @@ jobs:
     name: Detect Changed Paths
     runs-on: ubuntu-latest
     outputs:
+      image_formats_result: ${{ steps.image_formats.outcome }}
+      structure_result: ${{ steps.structure.outcome }}
       api: ${{ steps.filter.outputs.api }}
       ui: ${{ steps.filter.outputs.ui }}
       plugins: ${{ steps.filter.outputs.plugins }}
@@ -117,6 +119,44 @@ jobs:
               - 'scripts/lint-docs-contract.mjs'
               - 'package.json'
               - 'package-lock.json'
+
+      # Keep failures visible without suppressing unrelated test jobs. The
+      # CI Success gate checks the raw outcomes, including missing outputs.
+      - name: Reject ICNS/HEIF/JXL content
+        id: image_formats
+        timeout-minutes: 5
+        continue-on-error: true
+        run: python3 scripts/check_image_formats.py
+
+      - name: Verify package and plugin structure
+        id: structure
+        timeout-minutes: 5
+        continue-on-error: true
+        if: >-
+          steps.filter.outputs.api == 'true'
+          || steps.filter.outputs.ui == 'true'
+          || steps.filter.outputs.shared == 'true'
+        run: |
+          echo "Checking package structure..."
+          test -d src || (echo "❌ src directory missing" && exit 1)
+          test -f src/__init__.py || (echo "❌ src/__init__.py missing" && exit 1)
+          test -f src/main.py || (echo "❌ src/main.py missing" && exit 1)
+          test -f src/config.py || (echo "❌ src/config.py missing" && exit 1)
+          echo "✅ Package structure is valid"
+
+          echo "Checking plugin structure..."
+          test -d plugins || (echo "❌ plugins directory missing" && exit 1)
+          # Verify each plugin has required files
+          for plugin in plugins/*/; do
+            plugin_name=$(basename "$plugin")
+            if [ "$plugin_name" != "_template" ] && [ "$plugin_name" != "_template_transition" ] && [ -d "$plugin" ]; then
+              echo "Checking plugin: $plugin_name"
+              test -f "$plugin/__init__.py" || (echo "❌ $plugin_name/__init__.py missing" && exit 1)
+              test -f "$plugin/manifest.json" || (echo "❌ $plugin_name/manifest.json missing" && exit 1)
+              echo "  ✅ $plugin_name structure valid"
+            fi
+          done
+          echo "✅ All plugin structures valid"
 
   dependency-review:
     name: Dependency Review
@@ -1156,41 +1196,6 @@ jobs:
             web/playwright-ingress-report.json
           retention-days: 7
 
-  build:
-    name: Build Verification
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 5
-    
-    steps:
-    - uses: actions/checkout@v7
-    
-    - name: Verify package structure
-      run: |
-        echo "Checking package structure..."
-        test -d src || (echo "❌ src directory missing" && exit 1)
-        test -f src/__init__.py || (echo "❌ src/__init__.py missing" && exit 1)
-        test -f src/main.py || (echo "❌ src/main.py missing" && exit 1)
-        test -f src/config.py || (echo "❌ src/config.py missing" && exit 1)
-        echo "✅ Package structure is valid"
-    
-    - name: Verify plugin structure
-      run: |
-        echo "Checking plugin structure..."
-        test -d plugins || (echo "❌ plugins directory missing" && exit 1)
-        # Verify each plugin has required files
-        for plugin in plugins/*/; do
-          plugin_name=$(basename "$plugin")
-          if [ "$plugin_name" != "_template" ] && [ "$plugin_name" != "_template_transition" ] && [ -d "$plugin" ]; then
-            echo "Checking plugin: $plugin_name"
-            test -f "$plugin/__init__.py" || (echo "❌ $plugin_name/__init__.py missing" && exit 1)
-            test -f "$plugin/manifest.json" || (echo "❌ $plugin_name/manifest.json missing" && exit 1)
-            echo "  ✅ $plugin_name structure valid"
-          fi
-        done
-        echo "✅ All plugin structures valid"
-
   # Docs quality gate: spell-check, markdown-lint, frontmatter-lint, the docs
   # contract check over all repository markdown (config: cspell.json,
   # .markdownlint-cli2.jsonc), and the generated API reference's staleness
@@ -1283,79 +1288,14 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # `@docusaurus/mdx-loader` sizes every Markdown-referenced image with
-  # `image-size`, whose ICNS/JXL/HEIF parsers have two high-severity
-  # infinite-loop advisories and no patched version — the project was
-  # archived with the affected 2.0.2 as its final release. A crafted image
-  # would hang the docs build rather than fail it, so those formats are
-  # refused at the gate instead. See issue #1578.
-  #
-  # Deliberately unconditional: an image can be added under any path filter
-  # (docs/, plugins/*/docs/), and the check is a few seconds.
-  check-image-formats:
-    name: Check Image Formats
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Reject ICNS/HEIF/JXL content
-      run: python3 scripts/check_image_formats.py
-
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, test-ui, a11y-tests, build-test-image, e2e-tests, specialized-e2e-tests, build, lint-markdown, link-check, check-image-formats]
+    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, test-ui, a11y-tests, build-test-image, e2e-tests, specialized-e2e-tests, lint-markdown, link-check]
     if: always()
     steps:
-      - name: Check all jobs passed or were skipped
-        # Names line up positionally with `needs:` above. If you add/remove
-        # a needs entry, update this list too — keeping them in sync is
-        # what lets the summary tell the reviewer which job failed.
+      - uses: actions/checkout@v7
+      - name: Check all jobs and preflight outcomes
         env:
-          NAMES: |
-            detect-changes
-            dependency-review
-            test-platform
-            test-plugins
-            lint-web
-            test-ui
-            a11y-tests
-            build-test-image
-            e2e-tests
-            specialized-e2e-tests
-            build
-            lint-markdown
-            link-check
-            check-image-formats
-          RESULTS: ${{ toJSON(needs.*.result) }}
-        run: |
-          python3 - <<'PY'
-          import json, os, sys
-          names = [n for n in os.environ["NAMES"].split() if n]
-          results = json.loads(os.environ["RESULTS"])
-          if len(names) != len(results):
-              print(f"::error::ci-success: name/result length mismatch "
-                    f"({len(names)} names vs {len(results)} results) — "
-                    f"update the NAMES list to match needs:", file=sys.stderr)
-              sys.exit(1)
-
-          rows = list(zip(names, results))
-          failed = [n for n, r in rows if r in ("failure", "cancelled")]
-
-          summary = os.environ.get("GITHUB_STEP_SUMMARY")
-          if summary:
-              with open(summary, "a") as fh:
-                  fh.write("## CI job results\n\n")
-                  fh.write("| Job | Result |\n|---|---|\n")
-                  icon = {"success": "✅", "skipped": "⏭️",
-                          "failure": "❌", "cancelled": "🚫"}
-                  for n, r in rows:
-                      fh.write(f"| {n} | {icon.get(r, '❓')} {r} |\n")
-
-          if failed:
-              print(f"::error::Failed/cancelled jobs: {', '.join(failed)}")
-              sys.exit(1)
-          print("All CI jobs passed or were skipped.")
-          PY
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: python3 scripts/ci/check_results.py <<< "$CI_NEEDS"
