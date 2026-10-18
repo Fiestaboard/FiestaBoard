@@ -609,12 +609,11 @@ jobs:
           || needs.detect-changes.outputs.plugins == 'true'
           || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 10
+    outputs:
+      image_id: ${{ steps.build.outputs.imageid }}
 
-    # Builds the test Docker image once and warms the `build-test` GHA
-    # cache scope. The downstream E2E jobs (general and specialized)
-    # each `needs:` this job and pull from the warm cache via
-    # `cache-from`, skipping the work of computing layers themselves.
-    # Net effect: one cold build per PR instead of several.
+    # Export the production image once. Consumers load this run's immutable
+    # artifact and verify its image ID instead of reconstructing cached layers.
     steps:
       - uses: actions/checkout@v7
 
@@ -635,7 +634,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build test image (warms cache for E2E jobs)
+      - name: Build and export test image
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -644,14 +644,23 @@ jobs:
           # reorder can't silently switch what gets tested (issue #1377).
           target: runtime
           push: false
-          # `load: false` — this job doesn't run the image, it only
-          # populates the GHA cache so the E2E jobs can pull warm layers.
+          tags: fiestaboard:ci
+          outputs: type=docker,dest=${{ runner.temp }}/fiestaboard-test-image.tar
           build-args: |
             VERSION=dev
           cache-from: |
             type=gha,scope=build-linux/amd64
             type=gha,scope=build-test
           cache-to: type=gha,mode=max,scope=build-test
+
+      - name: Share test image
+        uses: actions/upload-artifact@v7
+        with:
+          name: fiestaboard-test-image
+          path: ${{ runner.temp }}/fiestaboard-test-image.tar
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
 
   e2e-tests:
     name: E2E Tests
@@ -681,10 +690,7 @@ jobs:
       - name: Set up web E2E environment
         uses: ./.github/actions/setup-web-e2e
 
-      # ── Build Docker image ─────────────────────────────────────────
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
+      # ── Load Docker image ─────────────────────────────────────────
       - name: Log in to Docker Hub
         # Skip on fork PRs and Dependabot PRs (neither has access to the
         # DOCKERHUB_* secrets — forks by policy, Dependabot because it uses
@@ -699,23 +705,24 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build test image
-        uses: docker/build-push-action@v7
+      - name: Download test image
+        uses: actions/download-artifact@v8
         with:
-          context: .
-          file: ./Dockerfile
-          target: runtime
-          push: false
-          load: true
-          tags: fiestaboard:e2e
-          build-args: |
-            VERSION=dev
-          # Cache is warmed by the `build-test-image` job; we only read.
-          cache-from: |
-            type=gha,scope=build-linux/amd64
-            type=gha,scope=build-test
+          name: fiestaboard-test-image
+          path: ${{ runner.temp }}/ci-image
 
-      # ── Start containers ──────────────────────────────────────────
+      - name: Load and verify test image
+        id: image
+        env:
+          EXPECTED_IMAGE_ID: ${{ needs.build-test-image.outputs.image_id }}
+        run: |
+          docker load --input "$RUNNER_TEMP/ci-image/fiestaboard-test-image.tar"
+          ACTUAL_IMAGE_ID=$(docker image inspect --format='{{.Id}}' fiestaboard:ci)
+          if [ -z "$EXPECTED_IMAGE_ID" ] || [ "$ACTUAL_IMAGE_ID" != "$EXPECTED_IMAGE_ID" ]; then
+            echo "::error::Loaded image does not match the producer's image ID"
+            exit 1
+          fi
+
       - name: Start 4 mock board + mock cloud + FiestaBoard containers
         run: |
           WORKER_COUNT=4
@@ -748,7 +755,7 @@ jobs:
               -e PRODUCTION=false \
               -e FIESTABOARD_AUTH_ENABLED=false \
               -e VESTABOARD_CLOUD_API_URL=http://$CLOUD_IP:9200/ \
-              fiestaboard:e2e
+              fiestaboard:ci
           done
 
           for i in $(seq 0 $((WORKER_COUNT - 1))); do
@@ -862,9 +869,6 @@ jobs:
       - name: Set up web E2E environment
         uses: ./.github/actions/setup-web-e2e
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
       - name: Log in to Docker Hub
         # Skip on fork PRs and Dependabot PRs (neither has access to the
         # DOCKERHUB_* secrets — forks by policy, Dependabot because it uses
@@ -879,22 +883,23 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build test image
-        id: image
-        uses: docker/build-push-action@v7
+      - name: Download test image
+        uses: actions/download-artifact@v8
         with:
-          context: .
-          file: ./Dockerfile
-          target: runtime
-          push: false
-          load: true
-          tags: fiestaboard:specialized-e2e
-          build-args: |
-            VERSION=dev
-          # Reuse the cache the main e2e job warms up.
-          cache-from: |
-            type=gha,scope=build-linux/amd64
-            type=gha,scope=build-test
+          name: fiestaboard-test-image
+          path: ${{ runner.temp }}/ci-image
+
+      - name: Load and verify test image
+        id: image
+        env:
+          EXPECTED_IMAGE_ID: ${{ needs.build-test-image.outputs.image_id }}
+        run: |
+          docker load --input "$RUNNER_TEMP/ci-image/fiestaboard-test-image.tar"
+          ACTUAL_IMAGE_ID=$(docker image inspect --format='{{.Id}}' fiestaboard:ci)
+          if [ -z "$EXPECTED_IMAGE_ID" ] || [ "$ACTUAL_IMAGE_ID" != "$EXPECTED_IMAGE_ID" ]; then
+            echo "::error::Loaded image does not match the producer's image ID"
+            exit 1
+          fi
 
       - name: Start mock LLM + FiestaBoard containers
         id: ai_start
@@ -912,7 +917,7 @@ jobs:
           docker run -d --name fiestaboard-ai \
             -e PRODUCTION=false \
             -e FIESTABOARD_AUTH_ENABLED=false \
-            fiestaboard:specialized-e2e
+            fiestaboard:ci
 
           FB_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard-ai)
           echo "FiestaBoard IP: $FB_IP"
@@ -1035,7 +1040,7 @@ jobs:
           docker run -d --name fiestaboard-auth \
             -e PRODUCTION=false \
             -e FIESTABOARD_AUTH_ENABLED=true \
-            fiestaboard:specialized-e2e
+            fiestaboard:ci
 
           FB_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard-auth)
           echo "BASE_URL=http://$FB_IP:3000" >> $GITHUB_ENV
@@ -1128,7 +1133,7 @@ jobs:
             -e FIESTABOARD_AUTH_ENABLED=false \
             -e FIESTABOARD_INGRESS_PATH_REWRITE=true \
             -e FIESTABOARD_X_FRAME_OPTIONS=OFF \
-            fiestaboard:specialized-e2e
+            fiestaboard:ci
 
           docker run -d --name ha-ingress-proxy --network ingress-net \
             -v ${{ github.workspace }}/infra/ha-ingress-proxy.conf:/etc/nginx/conf.d/default.conf:ro \
