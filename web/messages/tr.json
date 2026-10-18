@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "Başka bir uygulama bu board’u değiştirdi",
-    "detail": "Sayfanız bir sonraki güncellendiğinde FiestaBoard bunun üzerine yazacak. Saklamak için kaydedin.",
+    "detail": "Sayfanız bir sonraki güncellendiğinde FiestaBoard bunun üzerine yazacak. Saklamak için sayfa olarak kaydedin.",
     "restore": "Geri Yükle",
     "saveAsPage": "Sayfa olarak kaydet",
     "savedAs": "\"{pageName}\" olarak kaydedildi",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "Geri Yükle, sayfaları tüm ekranlara yeniden gönderir.",
     "keptTitle": "Başka bir uygulama {time} saatinde bu board’a yazdı",
     "keptDetail": "FiestaBoard o zamandan beri sayfanızı geri koydu. Diğer uygulamanın yazdığını yine de kaydedebilirsiniz.",
-    "externalPageName": "Board’dan kaydedildi {date}",
+    "externalPageName": "Board’dan {date}",
     "toastRestored": "Board geri yüklendi",
     "toastRestoredAll": "Sayfalar tüm ekranlara yeniden gönderildi",
     "toastRestoreFailed": "Board geri yüklenemedi",

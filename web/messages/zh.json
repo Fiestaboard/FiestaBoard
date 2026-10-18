@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "另一个应用更改了此 board",
-    "detail": "下次页面更新时，FiestaBoard 会将其覆盖。保存后即可保留。",
+    "detail": "下次页面更新时，FiestaBoard 会将其覆盖。将其保存为页面即可保留。",
     "restore": "恢复",
     "saveAsPage": "保存为页面",
     "savedAs": "已保存为“{pageName}”",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "“恢复”会将页面重新发送到所有显示设备。",
     "keptTitle": "另一个应用在 {time} 向此 board 写入了内容",
     "keptDetail": "FiestaBoard 之后已放回您的页面。您仍然可以保存另一个应用写入的内容。",
-    "externalPageName": "从 board 保存 {date}",
+    "externalPageName": "来自 Board {date}",
     "toastRestored": "Board 已恢复",
     "toastRestoredAll": "已将页面重新发送到所有显示设备",
     "toastRestoreFailed": "恢复 board 失败",

@@ -186,7 +186,7 @@ describe("BoardOutOfSyncBanner", () => {
       expect(alert).toHaveAttribute("data-face", "out-of-sync");
       expect(within(alert).getByText("Another app changed this board")).toBeInTheDocument();
       expect(
-        within(alert).getByText("FiestaBoard will replace it the next time your page updates. Save it to keep it."),
+        within(alert).getByText("FiestaBoard will replace it the next time your page updates. Save it as a page to keep it."),
       ).toBeInTheDocument();
       expect(within(alert).getByRole("button", { name: "Restore" })).toBeEnabled();
       expect(within(alert).getByRole("button", { name: "Save as page" })).toBeEnabled();
@@ -418,7 +418,7 @@ describe("BoardOutOfSyncBanner", () => {
         notes_tall: 2,
         template: ["HI{{red}}", "", "", "", "", ""],
       });
-      expect(String(created[0].name)).toMatch(/^Saved from board /);
+      expect(String(created[0].name)).toMatch(/^From board /);
     });
 
     it("turns the button into a Saved as note with an Open page link", async () => {

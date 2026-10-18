@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "Eine andere App hat dieses Board geändert",
-    "detail": "FiestaBoard überschreibt es, sobald sich deine Seite das nächste Mal aktualisiert. Speichere es, um es zu behalten.",
+    "detail": "FiestaBoard überschreibt es, sobald sich deine Seite das nächste Mal aktualisiert. Speichere es als Seite, um es zu behalten.",
     "restore": "Wiederherstellen",
     "saveAsPage": "Als Seite speichern",
     "savedAs": "Gespeichert als „{pageName}“",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "„Wiederherstellen“ sendet die Seiten erneut an alle Anzeigen.",
     "keptTitle": "Eine andere App hat um {time} auf dieses Board geschrieben",
     "keptDetail": "FiestaBoard hat deine Seite inzwischen wiederhergestellt. Du kannst trotzdem speichern, was die andere App geschrieben hat.",
-    "externalPageName": "Vom Board gespeichert {date}",
+    "externalPageName": "Vom Board {date}",
     "toastRestored": "Board wiederhergestellt",
     "toastRestoredAll": "Seiten an alle Anzeigen erneut gesendet",
     "toastRestoreFailed": "Board konnte nicht wiederhergestellt werden",

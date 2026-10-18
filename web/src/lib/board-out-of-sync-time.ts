@@ -42,5 +42,6 @@ export function formatDetectedAt(iso: string | null | undefined, locale: string,
   const options: Intl.DateTimeFormatOptions = sameLocalDay(at, now)
     ? { timeStyle: "short" }
     : { dateStyle: "medium", timeStyle: "short" };
-  return new Intl.DateTimeFormat(locale, options).format(at);
+  // Non-breaking spaces keep "12:16 AM" from wrapping onto two lines.
+  return new Intl.DateTimeFormat(locale, options).format(at).replace(/ /g, "\u00a0");
 }

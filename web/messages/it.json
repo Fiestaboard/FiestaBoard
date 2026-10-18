@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "Un’altra app ha modificato questo board",
-    "detail": "FiestaBoard lo sostituirà al prossimo aggiornamento della tua pagina. Salvalo per conservarlo.",
+    "detail": "FiestaBoard lo sostituirà al prossimo aggiornamento della tua pagina. Salvalo come pagina per conservarlo.",
     "restore": "Ripristina",
     "saveAsPage": "Salva come pagina",
     "savedAs": "Salvato come \"{pageName}\"",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "Ripristina reinvia le pagine a tutti i display.",
     "keptTitle": "Un’altra app ha scritto su questo board alle {time}",
     "keptDetail": "FiestaBoard ha già rimesso la tua pagina. Puoi ancora salvare ciò che ha scritto l’altra app.",
-    "externalPageName": "Salvato dal board {date}",
+    "externalPageName": "Dal board {date}",
     "toastRestored": "Board ripristinato",
     "toastRestoredAll": "Pagine reinviate a tutti i display",
     "toastRestoreFailed": "Impossibile ripristinare il board",

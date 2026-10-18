@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "다른 앱에서 이 보드를 변경했습니다",
-    "detail": "다음에 페이지가 업데이트되면 FiestaBoard가 덮어씁니다. 남겨 두려면 저장하세요.",
+    "detail": "다음에 페이지가 업데이트되면 FiestaBoard가 덮어씁니다. 남겨 두려면 페이지로 저장하세요.",
     "restore": "복원",
     "saveAsPage": "페이지로 저장",
     "savedAs": "\"{pageName}\"(으)로 저장됨",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "복원은 모든 디스플레이에 페이지를 다시 보냅니다.",
     "keptTitle": "{time}에 다른 앱이 이 보드에 썼습니다",
     "keptDetail": "FiestaBoard가 그 후 페이지를 되돌렸습니다. 다른 앱이 쓴 내용은 지금도 저장할 수 있습니다.",
-    "externalPageName": "보드에서 저장 {date}",
+    "externalPageName": "보드에서 {date}",
     "toastRestored": "보드 복원됨",
     "toastRestoredAll": "모든 디스플레이에 페이지를 다시 보냈습니다",
     "toastRestoreFailed": "보드 복원 실패",

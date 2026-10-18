@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "En annan app ändrade den här boarden",
-    "detail": "FiestaBoard ersätter det nästa gång din sida uppdateras. Spara det för att behålla det.",
+    "detail": "FiestaBoard ersätter det nästa gång din sida uppdateras. Spara det som en sida för att behålla det.",
     "restore": "Återställ",
     "saveAsPage": "Spara som sida",
     "savedAs": "Sparad som \"{pageName}\"",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "Återställ skickar om sidorna till alla skärmar.",
     "keptTitle": "En annan app skrev till den här boarden kl. {time}",
     "keptDetail": "FiestaBoard har sedan dess satt tillbaka din sida. Du kan fortfarande spara det den andra appen skrev.",
-    "externalPageName": "Sparad från board {date}",
+    "externalPageName": "Från board {date}",
     "toastRestored": "Board återställd",
     "toastRestoredAll": "Sidorna skickades om till alla skärmar",
     "toastRestoreFailed": "Misslyckades återställa board",

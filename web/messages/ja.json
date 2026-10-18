@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "別のアプリがこのボードを変更しました",
-    "detail": "次にページが更新されると、FiestaBoard が上書きします。残しておくには保存してください。",
+    "detail": "次にページが更新されると、FiestaBoard が上書きします。残しておくにはページとして保存してください。",
     "restore": "復元",
     "saveAsPage": "ページとして保存",
     "savedAs": "「{pageName}」として保存しました",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "「復元」はすべてのディスプレイにページを再送信します。",
     "keptTitle": "{time} に別のアプリがこのボードに書き込みました",
     "keptDetail": "FiestaBoard はその後ページを元に戻しました。別のアプリが書いた内容は今からでも保存できます。",
-    "externalPageName": "ボードから保存 {date}",
+    "externalPageName": "ボードから {date}",
     "toastRestored": "ボードを復元しました",
     "toastRestoredAll": "すべてのディスプレイにページを再送信しました",
     "toastRestoreFailed": "ボードの復元に失敗しました",

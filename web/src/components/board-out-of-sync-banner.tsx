@@ -163,11 +163,11 @@ export function BoardOutOfSyncBanner({
         )}
         {saved ? (
           <Flex align="center" gap="1.5" wrap>
-            <Text as="span" size="sm" className="inline-flex items-center gap-1.5">
+            <Text as="span" size="sm" className="inline-flex min-w-0 items-center gap-1.5">
               <Check className="h-3.5 w-3.5 text-success shrink-0" aria-hidden="true" />
-              {t("savedAs", { pageName: saved.name })}
+              <Text as="span" size="sm" className="truncate max-w-[32ch]">{t("savedAs", { pageName: saved.name })}</Text>
             </Text>
-            <Button asChild size="sm" variant="link" className="h-auto px-1">
+            <Button asChild size="sm" variant="link" className="h-auto px-0 whitespace-nowrap">
               <Link href={`/pages/edit/${saved.id}`}>{t("openPage")}</Link>
             </Button>
           </Flex>

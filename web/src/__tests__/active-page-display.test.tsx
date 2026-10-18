@@ -558,9 +558,9 @@ describe("ActivePageDisplay", () => {
       type: "template",
       template: ["HI{{red}}", "", "", "", "", ""],
     });
-    expect(String(createdBody!.name)).toMatch(/^Saved from board /);
+    expect(String(createdBody!.name)).toMatch(/^From board /);
     await waitFor(() => {
-      expect(toastSpy).toHaveBeenCalledWith(expect.stringMatching(/^Saved “Saved from board .*” as a page$/), {
+      expect(toastSpy).toHaveBeenCalledWith(expect.stringMatching(/^Saved “From board .*” as a page$/), {
         action: expect.objectContaining({ label: "Open" }),
       });
     });
