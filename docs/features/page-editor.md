@@ -227,6 +227,51 @@ The editor reflects the target device's layout so you can see exactly how your c
 Pages that are referenced in schedules should be updated or removed from the schedule before deleting.
 :::
 
+### Saving what another app put on the board
+
+FiestaBoard reads your board back on a timer (every 30 seconds for a board on
+your network, every 3 minutes for a cloud board). When the board shows
+something FiestaBoard did not send, for example a message from the Vestaboard
+app or a script, a notice appears above the board preview on **Home** and on
+that display's own page under **Displays**:
+
+> **Another app changed this board**
+> FiestaBoard will replace it the next time your page updates. Save it to keep it.
+
+- **Save as page** saves exactly what is on the board as a new template page,
+  sized for that display. The page is named after the date and time, for
+  example "Saved from board Oct 17, 2026, 11:42 PM", in your app language. The
+  button then reads **Saved as "…"** with an **Open page** link, so you can
+  rename or edit the page right away, and a second tap cannot save it twice.
+- **Restore** sends your pages to the board again, over what the other app
+  wrote. On a display that is not your first one, the notice says that Restore
+  sends pages to every display again, because it does.
+
+Restore does not send anything while the display is paused. The notice says
+so before you tap it, and if you tap it anyway, FiestaBoard tells you that
+nothing was sent and why, instead of reporting success. While silence mode is
+on for a display, the notice is hidden: FiestaBoard is leaving that board alone
+on purpose, and the notice comes back when silence ends if the other app's
+content is still there.
+
+After FiestaBoard has put your page back, the other app's content is no
+longer on the board, but you can still keep it. A quieter notice stays:
+
+> **Another app wrote to this board at 11:42 PM**
+> FiestaBoard has since put your page back. You can still save what the other app wrote.
+
+Use **Save as page** to keep it, or **Dismiss** to forget it. The notice stays
+until you save or dismiss it, or for 24 hours at most. Restoring your page
+from the first notice also dismisses it.
+
+:::note
+FiestaBoard confirms another app's write on its second board read in a row,
+so a write that FiestaBoard paints over within about one minute (about six
+minutes for a cloud board) is not kept. Paused displays and FiestaPanel TV
+displays are not read back: a FiestaPanel always shows exactly what
+FiestaBoard sent.
+:::
+
 ## Next Steps
 
 - [Transitions](/docs/features/transitions) - Choose how the board animates into this page

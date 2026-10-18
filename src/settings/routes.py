@@ -768,9 +768,11 @@ async def set_active_page(request: SetActivePageRequest):
                     if not success:
                         send_error = f"Failed to send page to board: {page_id}"
                         logger.warning(f"Failed to send active page to board: {page_id}")
-                    elif was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
-                        # Adaptive post-send refresh polls the primary board only.
-                        service.request_board_refresh()
+                    elif was_sent and getattr(send_client, "is_virtual", False) is not True:
+                        # Every hardware board's state is polled (issue #1945):
+                        # catch THIS board's read cache up with its own send,
+                        # or its out-of-sync banner flashes until the next poll.
+                        service.request_board_refresh(board_id)
                 else:
                     # A network/plugin failure surfaces here as an unavailable
                     # render — report it instead of skipping silently (#1791).
