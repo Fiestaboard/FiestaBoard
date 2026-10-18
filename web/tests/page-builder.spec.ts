@@ -163,13 +163,9 @@ test.describe("Page Builder", () => {
   });
 
   test("shows empty state when no pages exist", async ({ page }) => {
-    // Delete all user-created pages (retry once in case of timing)
-    await deleteAllPages();
-    const check = await fetch(`${API_URL}/pages`);
-    const checkData = await check.json();
-    if (checkData.total > 0) {
-      await deleteAllPages();
-    }
+    // Earlier specs on this backend may leave scheduled pages. Unlink all
+    // boards first; a rejected delete is a setup error, not a timing retry.
+    await deleteAllPages({ strict: true, deleteSchedules: true });
 
     await page.goto("/pages");
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
