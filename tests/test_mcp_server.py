@@ -279,7 +279,7 @@ def api_stack(mock_page_service):
     service = MagicMock()
     service.vb_client = client
 
-    preview = SimpleNamespace(available=True, formatted="HELLO")
+    preview = SimpleNamespace(available=True, formatted="HELLO", layers=[])
     mock_page_service.preview_page.return_value = preview
 
     with (
