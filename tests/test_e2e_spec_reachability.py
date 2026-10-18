@@ -113,7 +113,12 @@ def _admits_merge_group(condition: Any) -> bool:
     """
     if condition is None:
         return True
-    return "merge_group" in str(condition)
+    text = str(condition).removeprefix("${{").removesuffix("}}").strip()
+    # A per-suite readiness condition does not restrict the triggering event.
+    # Recognize only this known form; unknown expressions stay conservative.
+    if re.fullmatch(r"!cancelled\(\)\s*&&\s*steps\.[\w-]+\.outcome\s*==\s*'success'", text):
+        return True
+    return "merge_group" in text
 
 
 def _spec_args(command: str) -> tuple[str, ...]:
@@ -209,7 +214,7 @@ def test_parsers_found_something():
     assert gates, f"No `if (!process.env.X) ciIgnore.push(...)` gates parsed from {PLAYWRIGHT_CONFIG}"
     assert base or always, f"No testIgnore globs parsed from {PLAYWRIGHT_CONFIG}"
     assert len(all_specs()) > 40, "Spec discovery found suspiciously few files"
-    assert len(collect_invocations()) >= 4, "Found fewer `playwright test` workflow steps than the four E2E jobs"
+    assert len(collect_invocations()) >= 4, "Found fewer `playwright test` workflow steps than the required E2E suites"
 
 
 def test_every_spec_is_run_by_some_workflow():
@@ -262,3 +267,12 @@ def test_every_spec_is_gated_on_the_merge_queue():
         + "\n  ".join(gaps)
         + "\n\nAdd `merge_group` to the owning workflow's `on:` and to the job's `if:`."
     )
+
+
+def test_readiness_guards_do_not_hide_merge_queue_tests():
+    assert _admits_merge_group("${{ !cancelled() && steps.ai_ready_2.outcome == 'success' }}")
+    assert not _admits_merge_group("github.event_name == 'pull_request'")
+    assert not _admits_merge_group(
+        "!cancelled() && steps.ai_ready_2.outcome == 'success' && github.event_name == 'pull_request'"
+    )
+    assert not _admits_merge_group("env.UNKNOWN_GATE == '1'")

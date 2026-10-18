@@ -43,7 +43,9 @@ export default defineConfig({
   // `github` annotates the diff; the JSON report is what makes retried-and-
   // passed tests visible. Without it a flake reports "1 flaky", the job goes
   // green, and nothing durable records which test it was.
-  reporter: process.env.CI ? [["github"], ["json", { outputFile: "playwright-report.json" }]] : [["list"]],
+  reporter: process.env.CI
+    ? [["github"], ["json", { outputFile: process.env.PLAYWRIGHT_JSON_OUTPUT_FILE || "playwright-report.json" }]]
+    : [["list"]],
   timeout: 30_000,
   globalSetup: "./tests/global-setup.ts",
 
