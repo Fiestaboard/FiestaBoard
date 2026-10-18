@@ -24,7 +24,7 @@ full dump, so an unset optional field never overwrites stored state with
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
@@ -666,12 +666,23 @@ class PluginSettingsUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+# Runtime silence evaluation consumes HH:MM with an explicit UTC offset.
+# Bare HH:MM values are accepted only by the legacy config migration.
+SilenceTime = Annotated[
+    str,
+    Field(
+        pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9][+-]([01][0-9]|2[0-3]):[0-5][0-9]$",
+        description="Time in HH:MM±HH:MM format, for example 04:00+00:00 or 20:00-08:00",
+    ),
+]
+
+
 class SilenceScheduleRequest(BaseModel):
     """Update the silence ("snooze") window, install-wide or for one board."""
 
     enabled: bool
-    start_time: str
-    end_time: str
+    start_time: SilenceTime
+    end_time: SilenceTime
     # An unknown mode used to be coerced to "freeze" and answered 200, so a
     # client asking for "indicater" got a frozen board and no signal.
     mode: SilenceMode | None = None  # omitted → "freeze"
