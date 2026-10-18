@@ -22,6 +22,7 @@ import {
   type CharacterSet,
   type ColorPickerLabels,
   type LineAlignment,
+  type TemplateCanvasRegion,
   TemplateEditor,
   type TemplateEditorHandle,
   type TemplateEditorLabels,
@@ -78,6 +79,7 @@ const TOOLBAR_STRING_KEYS = [
 ] as const satisfies readonly (keyof TemplateEditorToolbarLabels)[];
 
 export interface CharsetTemplateEditorProps {
+  canvasRegions?: readonly TemplateCanvasRegion[];
   /** The target board's character set (resolved; an output plugin's own set included). */
   charset: CharacterSet;
   value: string;
@@ -98,6 +100,7 @@ export interface CharsetTemplateEditorProps {
 export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTemplateEditorProps>(
   function CharsetTemplateEditor(
     {
+      canvasRegions,
       charset,
       value,
       onChange,
@@ -116,6 +119,7 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
     ref,
   ) {
     const t = useTranslations("templateEditor");
+    const tCanvas = useTranslations("canvasEditor");
     const { data: templateVars, isLoading } = useQuery({
       queryKey: ["template-variables"],
       queryFn: api.getTemplateVariables,
@@ -175,6 +179,19 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
     return (
       <TemplateEditor
         ref={ref}
+        canvasRegions={canvasRegions}
+        canvasLabels={{
+          name: (id) => tCanvas("richRegionName", { id }),
+          description: ({ id, area, text }) =>
+            tCanvas(text === "flow" ? "richRegionFlow" : "richRegionHide", {
+              id,
+              row: area.row,
+              lastRow: area.row + area.rows - 1,
+              col: area.col,
+              lastCol: area.col + area.cols - 1,
+            }),
+          hint: tCanvas("richRegionHint"),
+        }}
         charset={charset}
         value={value}
         onChange={onChange}

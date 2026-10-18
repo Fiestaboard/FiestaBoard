@@ -2647,6 +2647,10 @@
     }
   },
   "canvasEditor": {
+    "richRegionName": "Tela: {id}",
+    "richRegionHide": "Tela: {id}, linhas {row}–{lastRow}, colunas {col}–{lastCol}. O texto nesta área fica oculto no visor.",
+    "richRegionFlow": "Tela: {id}, linhas {row}–{lastRow}, colunas {col}–{lastCol}. O texto flui ao redor desta área no visor.",
+    "richRegionHint": "As áreas sombreadas pertencem às telas. Use a prévia para conferir a disposição final do texto.",
     "title": "Telas de pixels",
     "description": "Desenhe qualquer pixel em qualquer cor sobre uma área do quadro. O texto sob uma tela fica oculto ou flui ao redor dela.",
     "add": "Adicionar tela",

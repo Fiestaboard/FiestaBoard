@@ -32,6 +32,15 @@ The canvas tools appear in the page builder when the page is being edited for an
 
 To remove a canvas, select **Delete** on it. The plain-text template view shows a read-only `{canvas:<id>}` marker on the canvas's first row so you can see where it sits; the marker is not part of the template text.
 
+The **Rich** editor shows each canvas as a shaded, outlined rectangle labeled
+with its name. The rectangle follows the area set in the canvas controls, so
+blank cells reserved for an image are visible beside your text. These guides
+are not template content: copying, saving, and undoing text edits do not add
+canvas labels to your page. You can still edit text beneath a guide; **Hide**
+suppresses it on the display and **Flow around** moves it around the canvas.
+Use **Preview** to check the final layout, particularly for variable values,
+alignment, and flowing text.
+
 ### Draw
 
 The **Draw** tab is a pixel pad at the canvas's real pixel size, with zoom.

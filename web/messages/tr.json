@@ -2647,6 +2647,10 @@
     }
   },
   "canvasEditor": {
+    "richRegionName": "Tuval: {id}",
+    "richRegionHide": "Tuval: {id}, satırlar {row}–{lastRow}, sütunlar {col}–{lastCol}. Bu alandaki metin ekranda gizlenir.",
+    "richRegionFlow": "Tuval: {id}, satırlar {row}–{lastRow}, sütunlar {col}–{lastCol}. Metin ekranda bu alanın etrafından akar.",
+    "richRegionHint": "Gölgeli alanlar tuvallere aittir. Metnin son düzenini kontrol etmek için önizlemeyi kullanın.",
     "title": "Piksel tuvalleri",
     "description": "Panonun bir alanına istediğiniz pikseli istediğiniz renkte çizin. Tuvalin altındaki metin gizlenir veya tuvalin etrafından akar.",
     "add": "Tuval ekle",

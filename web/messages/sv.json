@@ -2647,6 +2647,10 @@
     }
   },
   "canvasEditor": {
+    "richRegionName": "Yta: {id}",
+    "richRegionHide": "Yta: {id}, rader {row}–{lastRow}, kolumner {col}–{lastCol}. Text i det här området döljs på skärmen.",
+    "richRegionFlow": "Yta: {id}, rader {row}–{lastRow}, kolumner {col}–{lastCol}. Text flödar runt det här området på skärmen.",
+    "richRegionHint": "Skuggade områden tillhör pixelytor. Använd förhandsvisningen för att kontrollera textens slutliga placering.",
     "title": "Pixelytor",
     "description": "Rita valfri pixel i valfri färg över ett område av tavlan. Text under en yta döljs eller flödar runt den.",
     "add": "Lägg till yta",

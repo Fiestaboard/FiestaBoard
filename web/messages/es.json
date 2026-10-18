@@ -2647,6 +2647,10 @@
     }
   },
   "canvasEditor": {
+    "richRegionName": "Lienzo: {id}",
+    "richRegionHide": "Lienzo: {id}, filas {row}–{lastRow}, columnas {col}–{lastCol}. El texto de esta área se oculta en la pantalla.",
+    "richRegionFlow": "Lienzo: {id}, filas {row}–{lastRow}, columnas {col}–{lastCol}. El texto fluye alrededor de esta área en la pantalla.",
+    "richRegionHint": "Las áreas sombreadas pertenecen a los lienzos. Usa la vista previa para comprobar la disposición final del texto.",
     "title": "Lienzos de píxeles",
     "description": "Dibuja cualquier píxel en cualquier color sobre un área del tablero. El texto bajo un lienzo se oculta o fluye a su alrededor.",
     "add": "Añadir lienzo",

@@ -2647,6 +2647,10 @@
     }
   },
   "canvasEditor": {
+    "richRegionName": "캔버스: {id}",
+    "richRegionHide": "캔버스: {id}, {row}–{lastRow}행, {col}–{lastCol}열. 이 영역의 텍스트는 디스플레이에서 숨겨집니다.",
+    "richRegionFlow": "캔버스: {id}, {row}–{lastRow}행, {col}–{lastCol}열. 디스플레이에서 텍스트가 이 영역을 피해 흐릅니다.",
+    "richRegionHint": "음영 영역은 캔버스에 할당되어 있습니다. 미리보기에서 최종 텍스트 배치를 확인하세요.",
     "title": "픽셀 캔버스",
     "description": "보드의 한 영역에 원하는 픽셀을 원하는 색으로 그리세요. 캔버스 아래의 텍스트는 숨겨지거나 캔버스를 피해 흐릅니다.",
     "add": "캔버스 추가",

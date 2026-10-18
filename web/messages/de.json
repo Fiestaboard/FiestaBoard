@@ -2647,6 +2647,10 @@
     }
   },
   "canvasEditor": {
+    "richRegionName": "Canvas: {id}",
+    "richRegionHide": "Canvas: {id}, Zeilen {row}–{lastRow}, Spalten {col}–{lastCol}. Text in diesem Bereich wird auf der Anzeige ausgeblendet.",
+    "richRegionFlow": "Canvas: {id}, Zeilen {row}–{lastRow}, Spalten {col}–{lastCol}. Text fließt auf der Anzeige um diesen Bereich herum.",
+    "richRegionHint": "Schattierte Bereiche gehören zu Canvassen. Prüfe das endgültige Textlayout in der Vorschau.",
     "title": "Pixel-Canvas",
     "description": "Zeichne jeden Pixel in jeder Farbe auf einem Bereich der Tafel. Text unter einem Canvas wird ausgeblendet oder fließt darum herum.",
     "add": "Canvas hinzufügen",

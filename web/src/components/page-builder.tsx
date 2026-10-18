@@ -2434,6 +2434,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         // editor reads, offers and keeps (spans, icons, case).
                         // No draw mode — it paints flap tiles.
                         <CharsetTemplateEditor
+                          canvasRegions={pixelBoard ? canvases : undefined}
                           charset={editorCharset}
                           value={templateLines.join("\n")}
                           onChange={handleRichEditorChange}

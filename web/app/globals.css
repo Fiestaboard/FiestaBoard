@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "@fiestaboard/ui/fonts.css";
 @import "@fiestaboard/ui/theme.css";
+@import "@fiestaboard/ui/editor.css";
 @source "../node_modules/@fiestaboard/ui/dist";
 
 /* AI sparkle icon — big star gets the sweeping gradient, small elements pulse independently */
