@@ -39,8 +39,11 @@
             "                      "
           ],
           "line_count": 6,
+          "layers": null,
+          "canvas_issues": null,
           "sent_to_board": true,
           "paused": false,
+          "silenced": false,
           "board_id": "wire-local"
         }
       }

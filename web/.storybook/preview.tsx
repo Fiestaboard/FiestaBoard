@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { I18nextProvider, useTranslation } from "react-i18next";
 import { MemoryRouter } from "react-router";
+import { MINIMAL_VIEWPORTS } from "storybook/viewport";
 
 import { ThemeProvider, useTheme } from "../src/hooks/use-theme";
 import { type Locale, localeNames, locales } from "../src/i18n/config";
@@ -66,6 +67,15 @@ const preview: Preview = {
     locale: "en",
   },
   parameters: {
+    // The built-in sizes plus the 375 px phone the mobile variants of the
+    // silence stories (#1943) are reviewed at. A story opts in with
+    // `globals: { viewport: { value: "phone375" } }`.
+    viewport: {
+      options: {
+        ...MINIMAL_VIEWPORTS,
+        phone375: { name: "Phone (375px)", styles: { width: "375px", height: "812px" }, type: "mobile" },
+      },
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,

@@ -180,6 +180,10 @@ def _drop_all_singletons() -> None:
     reset_conversation_service()
     # Holds a TokenStore bound to the data dir it was built against.
     reset_oauth_service()
+    # The held-send store (#1944) caches what it loaded from the data dir.
+    import src.silence_queue as silence_queue_module
+
+    silence_queue_module._reset_for_tests()
 
     # The DisplayService singleton. The comment that used to sit here named
     # `src.api_server._service`, an attribute that has not existed since the

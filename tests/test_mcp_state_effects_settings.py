@@ -411,7 +411,7 @@ def test_update_setting_silence_schedule_with_board_id_writes_that_boards_overri
             mcp,
             "update_setting",
             category="silence_schedule",
-            values={"enabled": True, "start_time": "22:00", "end_time": "07:00", "board_id": "board-note"},
+            values={"enabled": True, "start_time": "22:00+00:00", "end_time": "07:00+00:00", "board_id": "board-note"},
         ),
         "silence_schedule",
     )

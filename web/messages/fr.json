@@ -285,6 +285,7 @@
     "variableExpressionAriaLabel": "Expression for rule {index}",
     "variableRuleSummaryArrow": "→ {target}",
     "variableDiscardTitle": "Discard unsaved changes?",
+    "variableSaveOrCancelRule": "Enregistrez ou annulez la modification de la règle avant d’enregistrer cette collection.",
     "variableDiscardDescription": "You have unsaved changes to this rule. Switching will lose them.",
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
@@ -881,14 +882,6 @@
     "toastSwitchSuccess": "Page active changée",
     "toastSwitchFailed": "Échec du changement de page",
     "toastSwitchNotSent": "Page changée, mais l'envoi vers le tableau a échoué",
-    "updatedExternally": "Le board a été modifié par une autre application",
-    "resendToBoard": "Restaurer",
-    "toastResendSuccess": "Board restauré",
-    "toastResendFailed": "Échec de la restauration du board",
-    "saveAsPage": "Save as page",
-    "externalPageName": "Saved from board {date}",
-    "toastSaveAsPageSuccess": "Saved \"{pageName}\" as a page",
-    "toastSaveAsPageFailed": "Failed to save board as a page",
     "overrideBadge": "Remplacement : {minutes} min restantes",
     "overrideBadgeLessThan1m": "Remplacement : <1 min restante",
     "cancelOverride": "Annuler le remplacement",
@@ -903,7 +896,42 @@
     "collectionSizeWarning": "{count} des {total} pages de cette collection ne correspondent pas à la taille de ce tableau et seront ignorées.",
     "turnOffLiveModeAriaLabel": "Désactiver le mode direct",
     "liveModeBadge": "Mode direct",
-    "composeOneOff": "Rédiger un message"
+    "composeOneOff": "Rédiger un message",
+    "silenceManual": "« {pageName} » s'affichera à la fin du silence. D'ici là, le tableau reste silencieux.",
+    "silenceSchedule": "Votre planning reprend à la fin du silence. D'ici là, le tableau reste silencieux.",
+    "silenceNoPage": "D'ici là, le tableau reste silencieux.",
+    "silenceHeld": "Message en attente : « {preview} » — il s'affichera en premier.",
+    "showNow": "Afficher maintenant",
+    "discardHeld": "Supprimer le message",
+    "selectPageSilence": "la page choisie est enregistrée et s'affichera à ce moment-là. Le tableau reste silencieux.",
+    "toastSwitchHeld": "« {pageName} » s'affichera à {time}",
+    "toastSwitchHeldNoTime": "« {pageName} » s'affichera à la fin du silence",
+    "toastSwitchPaused": "Enregistré — « {pageName} » s'affichera quand vous reprendrez le tableau",
+    "toastShownNow": "Affichage de « {pageName} » maintenant",
+    "toastHeldDiscarded": "Message en attente supprimé",
+    "toastHeldDiscardFailed": "Impossible de supprimer le message en attente"
+  },
+  "boardOutOfSync": {
+    "title": "Une autre application a modifié ce board",
+    "detail": "FiestaBoard le remplacera à la prochaine mise à jour de votre page. Enregistrez-le comme page pour le conserver.",
+    "restore": "Restaurer",
+    "saveAsPage": "Enregistrer comme page",
+    "savedAs": "Enregistré sous « {pageName} »",
+    "openPage": "Ouvrir la page",
+    "dismiss": "Ignorer",
+    "holdPaused": "Cet affichage est en pause : Restaurer n’enverra rien tant que vous ne le reprenez pas.",
+    "restoreAllDisplays": "Restaurer renvoie les pages à tous les affichages.",
+    "keptTitle": "Une autre application a écrit sur ce board à {time}",
+    "keptDetail": "FiestaBoard a depuis remis votre page. Vous pouvez encore enregistrer ce que l’autre application a écrit.",
+    "externalPageName": "Depuis le board {date}",
+    "toastRestored": "Board restauré",
+    "toastRestoredAll": "Pages renvoyées à tous les affichages",
+    "toastRestoreFailed": "Échec de la restauration du board",
+    "toastNotSentPaused": "Rien n’a été envoyé : cet affichage est en pause",
+    "toastNotSent": "Rien n’a été envoyé à l’affichage",
+    "toastSaved": "« {pageName} » enregistré comme page",
+    "toastSaveFailed": "Échec de l’enregistrement du board comme page",
+    "toastOpen": "Ouvrir"
   },
   "forceSetDialog": {
     "title": "Forcer l'affichage",
@@ -915,7 +943,9 @@
     "confirm": "Forcer",
     "setting": "Application…",
     "toastSuccess": "Affichage de « {pageName} » pendant {minutes} min",
-    "toastError": "Échec du remplacement"
+    "toastError": "Échec du remplacement",
+    "silenceWarning": "Forcer affiche cette page immédiatement et réveille le tableau.",
+    "confirmSilenced": "Afficher maintenant quand même"
   },
   "composeDialog": {
     "title": "Rédiger un message",
@@ -936,7 +966,17 @@
     "toastSent": "Envoyé au tableau",
     "toastSendError": "Échec de l’envoi du message",
     "toastSaved": "« {pageName} » enregistré",
-    "toastSaveError": "Échec de l’enregistrement de la page"
+    "toastSaveError": "Échec de l’enregistrement de la page",
+    "silenceHold": "Mettez-le en attente et il s'affichera à {time}, ou envoyez-le maintenant et le tableau se réveillera.",
+    "silenceNoHold": "Envoyer maintenant réveille le tableau. Pour mettre les messages en attente jusqu'à la fin du silence, activez « Afficher les messages en attente à la fin du silence » dans Réglages → Planification.",
+    "openSettings": "Ouvrir les réglages",
+    "hold": "Mettre en attente jusqu'à {time}",
+    "holdNoTime": "Mettre en attente jusqu'à la fin du silence",
+    "holding": "Mise en attente…",
+    "sendNowAnyway": "Envoyer maintenant quand même",
+    "toastHeld": "En attente — il s'affichera à {time}",
+    "toastHeldNoTime": "En attente — il s'affichera à la fin du silence",
+    "toastHoldError": "Impossible de mettre le message en attente"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Application inaccessible. Vérifiez votre réseau ou que FiestaBoard est en cours d'exécution.",
@@ -1032,7 +1072,11 @@
     "transitionPickerTooltip": "Transition de cette page : {strategy}",
     "transitionBuiltInGroup": "Intégrées",
     "transitionPluginsGroup": "Plugins (bêta)",
-    "transitionUseDisplayTransition": "Utiliser la transition de l'écran"
+    "transitionUseDisplayTransition": "Utiliser la transition de l'écran",
+    "liveSilencePreviewOnly": "La sortie en direct n'affiche qu'un aperçu. Le tableau reste silencieux.",
+    "liveSendAnyway": "Envoyer au tableau quand même",
+    "liveSilenceOverriding": "La sortie en direct réveille le tableau pendant le silence.",
+    "liveStopOverriding": "Arrêter l'envoi"
   },
   "displaySettings": {
     "unnamedBoard": "Tableau sans nom",
@@ -1371,7 +1415,9 @@
     "toastBoardReadIntervalUpdated": "Intervalle de lecture mis à jour",
     "toastBoardReadIntervalFailed": "Échec de la mise à jour de l'intervalle de lecture : {error}",
     "updateIntervalsTitle": "Intervalles de mise à jour",
-    "updateIntervalsDescription": "À quelle fréquence le tableau récupère le nouveau contenu et relit son état actuel"
+    "updateIntervalsDescription": "À quelle fréquence le tableau récupère le nouveau contenu et relit son état actuel",
+    "silenceShowHeldLabel": "Afficher les messages en attente à la fin du silence",
+    "silenceShowHeldHelp": "Un message envoyé à ce tableau pendant le silence est mis en attente et affiché dès la fin du silence. Désactivé, il est refusé. Les changements de page sont toujours conservés et n'en ont pas besoin."
   },
   "serviceControls": {
     "title": "Contrôle du service",
@@ -2686,6 +2732,8 @@
     "jsonLabel": "JSON des formes",
     "jsonInvalid": "JSON non valide : {message}",
     "jsonNotList": "Le JSON des formes doit être une liste.",
+    "jsonInvalidShape": "Chaque entrée doit être un objet de forme avec un type pris en charge.",
+    "jsonRepairBeforeEditing": "Corrigez le brouillon JSON avant de modifier les formes. Activez Modifier en JSON pour continuer.",
     "sourceHint": "Une variable de plugin qui dessine ce canevas. Lorsqu'elle fournit un dessin, celui-ci remplace celui du canevas.",
     "sourceVariable": "Variable de canevas du plugin",
     "sourceNone": "Aucune",
@@ -2697,5 +2745,9 @@
     "serverError": "Les canevas n'ont pas été acceptés : {message}",
     "notPixelNotice": "Cette page contient des canevas de pixels. Ce tableau ne peut pas les dessiner, leurs zones restent donc vides. Prévisualisez la page sur un tableau LED à pixels pour les modifier.",
     "markerTitle": "Un canevas commence sur cette ligne (ne fait pas partie du texte)"
+  },
+  "silenceNotice": {
+    "untilTitle": "En silence jusqu'à {time}",
+    "untilTitleNoTime": "Le tableau est en silence"
   }
 }

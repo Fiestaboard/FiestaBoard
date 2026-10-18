@@ -285,6 +285,7 @@
     "variableExpressionAriaLabel": "Expression for rule {index}",
     "variableRuleSummaryArrow": "→ {target}",
     "variableDiscardTitle": "Discard unsaved changes?",
+    "variableSaveOrCancelRule": "このコレクションを保存する前に、ルールの編集を保存またはキャンセルしてください。",
     "variableDiscardDescription": "You have unsaved changes to this rule. Switching will lose them.",
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
@@ -881,14 +882,6 @@
     "toastSwitchSuccess": "アクティブページに切り替えました",
     "toastSwitchFailed": "ページの切り替えに失敗しました",
     "toastSwitchNotSent": "ページを切り替えましたが、ボードへの送信に失敗しました",
-    "updatedExternally": "ボードが別のアプリで変更されました",
-    "resendToBoard": "復元",
-    "toastResendSuccess": "ボードを復元しました",
-    "toastResendFailed": "ボードの復元に失敗しました",
-    "saveAsPage": "Save as page",
-    "externalPageName": "Saved from board {date}",
-    "toastSaveAsPageSuccess": "Saved \"{pageName}\" as a page",
-    "toastSaveAsPageFailed": "Failed to save board as a page",
     "overrideBadge": "オーバーライド: 残り {minutes}分",
     "overrideBadgeLessThan1m": "オーバーライド: 残り 1 分未満",
     "cancelOverride": "オーバーライドをキャンセル",
@@ -903,7 +896,42 @@
     "collectionSizeWarning": "このコレクションの{total}ページ中{count}ページがこのボードのサイズに合わないため、スキップされます。",
     "turnOffLiveModeAriaLabel": "ライブモードをオフにする",
     "liveModeBadge": "ライブモード",
-    "composeOneOff": "メッセージを作成"
+    "composeOneOff": "メッセージを作成",
+    "silenceManual": "サイレント終了時に「{pageName}」が表示されます。それまでボードは静かなままです。",
+    "silenceSchedule": "サイレント終了時にスケジュールが再開します。それまでボードは静かなままです。",
+    "silenceNoPage": "それまでボードは静かなままです。",
+    "silenceHeld": "保留中のメッセージ:「{preview}」— 最初に表示されます。",
+    "showNow": "今すぐ表示",
+    "discardHeld": "メッセージを破棄",
+    "selectPageSilence": "選んだページは保存され、そのときに表示されます。ボードは静かなままです。",
+    "toastSwitchHeld": "{time} に「{pageName}」が表示されます",
+    "toastSwitchHeldNoTime": "サイレント終了時に「{pageName}」が表示されます",
+    "toastSwitchPaused": "保存しました — ボードを再開すると「{pageName}」が表示されます",
+    "toastShownNow": "「{pageName}」を今すぐ表示しています",
+    "toastHeldDiscarded": "保留中のメッセージを破棄しました",
+    "toastHeldDiscardFailed": "保留中のメッセージを破棄できませんでした"
+  },
+  "boardOutOfSync": {
+    "title": "別のアプリがこのボードを変更しました",
+    "detail": "次にページが更新されると、FiestaBoard が上書きします。残しておくにはページとして保存してください。",
+    "restore": "復元",
+    "saveAsPage": "ページとして保存",
+    "savedAs": "「{pageName}」として保存しました",
+    "openPage": "ページを開く",
+    "dismiss": "閉じる",
+    "holdPaused": "このディスプレイは一時停止中のため、再開するまで「復元」は何も送信しません。",
+    "restoreAllDisplays": "「復元」はすべてのディスプレイにページを再送信します。",
+    "keptTitle": "{time} に別のアプリがこのボードに書き込みました",
+    "keptDetail": "FiestaBoard はその後ページを元に戻しました。別のアプリが書いた内容は今からでも保存できます。",
+    "externalPageName": "ボードから {date}",
+    "toastRestored": "ボードを復元しました",
+    "toastRestoredAll": "すべてのディスプレイにページを再送信しました",
+    "toastRestoreFailed": "ボードの復元に失敗しました",
+    "toastNotSentPaused": "何も送信されませんでした: このディスプレイは一時停止中です",
+    "toastNotSent": "ディスプレイには何も送信されませんでした",
+    "toastSaved": "「{pageName}」をページとして保存しました",
+    "toastSaveFailed": "ボードをページとして保存できませんでした",
+    "toastOpen": "開く"
   },
   "forceSetDialog": {
     "title": "ボードを強制設定",
@@ -915,7 +943,9 @@
     "confirm": "強制設定",
     "setting": "設定中…",
     "toastSuccess": "「{pageName}」を {minutes} 分間表示しています",
-    "toastError": "オーバーライドの設定に失敗"
+    "toastError": "オーバーライドの設定に失敗",
+    "silenceWarning": "強制設定はこのページをすぐに表示し、ボードを起こします。",
+    "confirmSilenced": "それでも今すぐ表示"
   },
   "composeDialog": {
     "title": "メッセージを作成",
@@ -936,7 +966,17 @@
     "toastSent": "ボードに送信しました",
     "toastSendError": "メッセージを送信できませんでした",
     "toastSaved": "「{pageName}」を保存しました",
-    "toastSaveError": "ページを保存できませんでした"
+    "toastSaveError": "ページを保存できませんでした",
+    "silenceHold": "保留すると {time} に表示されます。今すぐ送信するとボードが起きます。",
+    "silenceNoHold": "今すぐ送信するとボードが起きます。サイレント終了までメッセージを保留するには、設定 → スケジュールで「サイレント終了時に保留中のメッセージを表示」をオンにしてください。",
+    "openSettings": "設定を開く",
+    "hold": "{time} まで保留",
+    "holdNoTime": "サイレント終了まで保留",
+    "holding": "保留中…",
+    "sendNowAnyway": "それでも今すぐ送信",
+    "toastHeld": "保留しました — {time} に表示されます",
+    "toastHeldNoTime": "保留しました — サイレント終了時に表示されます",
+    "toastHoldError": "メッセージを保留できませんでした"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "アプリに接続できません。ネットワークまたは FiestaBoard の起動を確認してください。",
@@ -1032,7 +1072,11 @@
     "transitionPickerTooltip": "このページのトランジション: {strategy}",
     "transitionBuiltInGroup": "組み込み",
     "transitionPluginsGroup": "プラグイン (ベータ)",
-    "transitionUseDisplayTransition": "ディスプレイのトランジションを使用"
+    "transitionUseDisplayTransition": "ディスプレイのトランジションを使用",
+    "liveSilencePreviewOnly": "ライブ出力はプレビューのみです。ボードは静かなままです。",
+    "liveSendAnyway": "それでもボードに送信",
+    "liveSilenceOverriding": "ライブ出力がサイレント中のボードを起こしています。",
+    "liveStopOverriding": "送信を停止"
   },
   "displaySettings": {
     "unnamedBoard": "名前未設定のボード",
@@ -1371,7 +1415,9 @@
     "toastBoardReadIntervalUpdated": "ボード読み取り間隔を更新しました",
     "toastBoardReadIntervalFailed": "ボード読み取り間隔の更新に失敗: {error}",
     "updateIntervalsTitle": "更新間隔",
-    "updateIntervalsDescription": "ボードが新しいコンテンツを取得し、現在の状態を再読み込みする頻度"
+    "updateIntervalsDescription": "ボードが新しいコンテンツを取得し、現在の状態を再読み込みする頻度",
+    "silenceShowHeldLabel": "サイレント終了時に保留中のメッセージを表示",
+    "silenceShowHeldHelp": "サイレント中にこのボードへ送られたメッセージは保留され、サイレントが終わった瞬間に表示されます。オフの場合は拒否されます。ページの変更は常に保存されるため、この設定は不要です。"
   },
   "serviceControls": {
     "title": "サービス制御",
@@ -2686,6 +2732,8 @@
     "jsonLabel": "図形JSON",
     "jsonInvalid": "無効なJSONです：{message}",
     "jsonNotList": "図形JSONはリストである必要があります。",
+    "jsonInvalidShape": "各項目は、対応する種類の図形オブジェクトである必要があります。",
+    "jsonRepairBeforeEditing": "図形を編集する前にJSONの下書きを修正してください。続行するにはJSON編集を有効にしてください。",
     "sourceHint": "このキャンバスを描画するプラグイン変数です。描画が返されると、キャンバス自身の描画に置き換わります。",
     "sourceVariable": "プラグインのキャンバス変数",
     "sourceNone": "なし",
@@ -2697,5 +2745,9 @@
     "serverError": "キャンバスが受け付けられませんでした：{message}",
     "notPixelNotice": "このページにはピクセルキャンバスがあります。このボードでは描画できないため、その領域は空白のままです。編集するには、LEDピクセルボードでページをプレビューしてください。",
     "markerTitle": "この行からキャンバスが始まります（テキストの一部ではありません）"
+  },
+  "silenceNotice": {
+    "untilTitle": "{time} までサイレント中",
+    "untilTitleNoTime": "ボードはサイレント中です"
   }
 }

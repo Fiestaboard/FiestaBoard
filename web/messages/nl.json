@@ -285,6 +285,7 @@
     "variableExpressionAriaLabel": "Expression for rule {index}",
     "variableRuleSummaryArrow": "→ {target}",
     "variableDiscardTitle": "Discard unsaved changes?",
+    "variableSaveOrCancelRule": "Sla de regelwijziging op of annuleer deze voordat je deze verzameling opslaat.",
     "variableDiscardDescription": "You have unsaved changes to this rule. Switching will lose them.",
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
@@ -881,14 +882,6 @@
     "toastSwitchSuccess": "Gewisseld naar actieve pagina",
     "toastSwitchFailed": "Pagina wisselen mislukt",
     "toastSwitchNotSent": "Pagina gewisseld, maar verzenden naar bord mislukt",
-    "updatedExternally": "Board is gewijzigd door een andere app",
-    "resendToBoard": "Herstellen",
-    "toastResendSuccess": "Board hersteld",
-    "toastResendFailed": "Herstellen van board mislukt",
-    "saveAsPage": "Save as page",
-    "externalPageName": "Saved from board {date}",
-    "toastSaveAsPageSuccess": "Saved \"{pageName}\" as a page",
-    "toastSaveAsPageFailed": "Failed to save board as a page",
     "overrideBadge": "Override: {minutes}m resterend",
     "overrideBadgeLessThan1m": "Override: <1m resterend",
     "cancelOverride": "Override annuleren",
@@ -903,7 +896,42 @@
     "collectionSizeWarning": "{count} van de {total} pagina's in deze collectie passen niet bij het formaat van dit bord en worden overgeslagen.",
     "turnOffLiveModeAriaLabel": "Live-modus uitschakelen",
     "liveModeBadge": "Live-modus",
-    "composeOneOff": "Bericht opstellen"
+    "composeOneOff": "Bericht opstellen",
+    "silenceManual": "“{pageName}” wordt getoond als de stilte voorbij is. Tot dan blijft het bord stil.",
+    "silenceSchedule": "Je schema gaat verder als de stilte voorbij is. Tot dan blijft het bord stil.",
+    "silenceNoPage": "Tot dan blijft het bord stil.",
+    "silenceHeld": "Vastgehouden bericht: “{preview}” — dit wordt eerst getoond.",
+    "showNow": "Nu tonen",
+    "discardHeld": "Bericht verwijderen",
+    "selectPageSilence": "de pagina die je kiest wordt opgeslagen en dan getoond. Het bord blijft stil.",
+    "toastSwitchHeld": "“{pageName}” wordt om {time} getoond",
+    "toastSwitchHeldNoTime": "“{pageName}” wordt getoond als de stilte voorbij is",
+    "toastSwitchPaused": "Opgeslagen — “{pageName}” wordt getoond als je het bord hervat",
+    "toastShownNow": "“{pageName}” wordt nu getoond",
+    "toastHeldDiscarded": "Vastgehouden bericht verwijderd",
+    "toastHeldDiscardFailed": "Kon het vastgehouden bericht niet verwijderen"
+  },
+  "boardOutOfSync": {
+    "title": "Een andere app heeft dit board gewijzigd",
+    "detail": "FiestaBoard overschrijft het zodra je pagina de volgende keer wordt bijgewerkt. Sla het op als pagina om het te bewaren.",
+    "restore": "Herstellen",
+    "saveAsPage": "Opslaan als pagina",
+    "savedAs": "Opgeslagen als \"{pageName}\"",
+    "openPage": "Pagina openen",
+    "dismiss": "Sluiten",
+    "holdPaused": "Dit scherm is gepauzeerd, dus Herstellen verstuurt niets totdat je het hervat.",
+    "restoreAllDisplays": "Herstellen stuurt de pagina’s opnieuw naar alle schermen.",
+    "keptTitle": "Een andere app heeft om {time} naar dit board geschreven",
+    "keptDetail": "FiestaBoard heeft je pagina inmiddels teruggezet. Je kunt nog steeds opslaan wat de andere app schreef.",
+    "externalPageName": "Van het board {date}",
+    "toastRestored": "Board hersteld",
+    "toastRestoredAll": "Pagina’s opnieuw naar alle schermen gestuurd",
+    "toastRestoreFailed": "Herstellen van board mislukt",
+    "toastNotSentPaused": "Niets verstuurd: dit scherm is gepauzeerd",
+    "toastNotSent": "Er is niets naar het scherm verstuurd",
+    "toastSaved": "\"{pageName}\" opgeslagen als pagina",
+    "toastSaveFailed": "Board opslaan als pagina mislukt",
+    "toastOpen": "Openen"
   },
   "forceSetDialog": {
     "title": "Board forceren",
@@ -915,7 +943,9 @@
     "confirm": "Forceren",
     "setting": "Instellen…",
     "toastSuccess": "\"{pageName}\" wordt {minutes} min getoond",
-    "toastError": "Override instellen mislukt"
+    "toastError": "Override instellen mislukt",
+    "silenceWarning": "Forceren toont deze pagina meteen en maakt het bord wakker.",
+    "confirmSilenced": "Toch nu tonen"
   },
   "composeDialog": {
     "title": "Bericht opstellen",
@@ -936,7 +966,17 @@
     "toastSent": "Naar het bord gestuurd",
     "toastSendError": "Bericht verzenden mislukt",
     "toastSaved": "\"{pageName}\" opgeslagen",
-    "toastSaveError": "Pagina opslaan mislukt"
+    "toastSaveError": "Pagina opslaan mislukt",
+    "silenceHold": "Houd het vast en het verschijnt om {time}, of stuur het nu en het bord wordt wakker.",
+    "silenceNoHold": "Nu sturen maakt het bord wakker. Om berichten vast te houden tot de stilte voorbij is, zet je “Vastgehouden berichten tonen als de stilte eindigt” aan in Instellingen → Planning.",
+    "openSettings": "Instellingen openen",
+    "hold": "Vasthouden tot {time}",
+    "holdNoTime": "Vasthouden tot de stilte voorbij is",
+    "holding": "Vasthouden…",
+    "sendNowAnyway": "Toch nu sturen",
+    "toastHeld": "Vastgehouden — verschijnt om {time}",
+    "toastHeldNoTime": "Vastgehouden — verschijnt als de stilte voorbij is",
+    "toastHoldError": "Kon het bericht niet vasthouden"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Kan de app niet bereiken. Controleer je netwerk of of FiestaBoard draait.",
@@ -1032,7 +1072,11 @@
     "transitionPickerTooltip": "Overgang voor deze pagina: {strategy}",
     "transitionBuiltInGroup": "Ingebouwd",
     "transitionPluginsGroup": "Plugins (bèta)",
-    "transitionUseDisplayTransition": "Overgang van het scherm gebruiken"
+    "transitionUseDisplayTransition": "Overgang van het scherm gebruiken",
+    "liveSilencePreviewOnly": "Live-uitvoer toont alleen een voorbeeld. Het bord blijft stil.",
+    "liveSendAnyway": "Toch naar bord sturen",
+    "liveSilenceOverriding": "Live-uitvoer maakt het bord wakker tijdens de stilte.",
+    "liveStopOverriding": "Stoppen met sturen"
   },
   "displaySettings": {
     "unnamedBoard": "Naamloos bord",
@@ -1371,7 +1415,9 @@
     "toastBoardReadIntervalUpdated": "Board-uitleesinterval bijgewerkt",
     "toastBoardReadIntervalFailed": "Bijwerken van board-uitleesinterval mislukt: {error}",
     "updateIntervalsTitle": "Update-intervallen",
-    "updateIntervalsDescription": "Hoe vaak het bord nieuwe inhoud ophaalt en zijn huidige status opnieuw leest"
+    "updateIntervalsDescription": "Hoe vaak het bord nieuwe inhoud ophaalt en zijn huidige status opnieuw leest",
+    "silenceShowHeldLabel": "Vastgehouden berichten tonen als de stilte eindigt",
+    "silenceShowHeldHelp": "Een bericht dat tijdens de stilte naar dit bord wordt gestuurd, wordt vastgehouden en getoond zodra de stilte eindigt. Staat dit uit, dan wordt het geweigerd. Paginawijzigingen blijven altijd bewaard en hebben dit niet nodig."
   },
   "serviceControls": {
     "title": "Servicebeheer",
@@ -2686,6 +2732,8 @@
     "jsonLabel": "Vormen-JSON",
     "jsonInvalid": "Geen geldige JSON: {message}",
     "jsonNotList": "De vormen-JSON moet een lijst zijn.",
+    "jsonInvalidShape": "Elk item moet een vormobject met een ondersteund type zijn.",
+    "jsonRepairBeforeEditing": "Herstel het JSON-concept voordat je vormen bewerkt. Schakel Bewerken als JSON in om door te gaan.",
     "sourceHint": "Een pluginvariabele die dit canvas tekent. Als die een tekening oplevert, vervangt die de eigen tekening van het canvas.",
     "sourceVariable": "Plugin-canvasvariabele",
     "sourceNone": "Geen",
@@ -2697,5 +2745,9 @@
     "serverError": "De canvassen zijn niet geaccepteerd: {message}",
     "notPixelNotice": "Deze pagina bevat pixelcanvassen. Dit bord kan ze niet tekenen, dus hun gebieden blijven leeg. Bekijk een voorbeeld van de pagina op een LED-pixelbord om ze te bewerken.",
     "markerTitle": "Op deze rij begint een canvas (geen onderdeel van de tekst)"
+  },
+  "silenceNotice": {
+    "untilTitle": "Stil tot {time}",
+    "untilTitleNoTime": "Het bord is stil"
   }
 }

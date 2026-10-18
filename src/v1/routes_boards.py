@@ -20,7 +20,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 
 from src import display_runtime as runtime
 from src.api_errors import errors
@@ -29,8 +29,8 @@ from src.board_state import read_board_state
 from src.devices import geometry_of
 from src.ops import executors
 from src.outputs.board_profile import board_profile
-from src.outputs.cells import extended_markup_kw, project_for_output
-from src.outputs.display_profile import board_layers_json
+from src.outputs.cells import project_for_output
+from src.outputs.display_profile import board_layers_json, render_kw
 from src.outputs.registry import resolve_output_id
 from src.text_to_board import text_to_board_array, wrap_message_text
 
@@ -50,9 +50,14 @@ from .router import router
 
 logger = logging.getLogger(__name__)
 
+HELD_REASON = "Held: the board is silenced until {time} UTC; this will show when silence ends."
 UI_ONLY_REASON = "The install's output target is UI only, so nothing was written to the board."
 UNCHANGED_REASON = "The board already shows this exact content. Send force=true to write it anyway."
 PAUSED_PREVIEW_REASON = "The board is paused, so nothing was written. This is what it would have shown."
+SILENCED_PIN_REASON = (
+    "The board is silenced until {time} UTC, so nothing was written. The page is pinned and will show when "
+    "silence ends. Send override_silence=true to show it now."
+)
 
 
 def _settings_service():
@@ -328,12 +333,14 @@ def _grid_for(
     from src.pages.service import get_page_service
 
     page_service = get_page_service()
-    result = page_service.preview_page(request.page_id, force_refresh=True, **extended_markup_kw(client))
+    result = page_service.preview_page(request.page_id, force_refresh=True, **render_kw(client))
     if result is None:
         raise HTTPException(status_code=404, detail=f"Page not found: {request.page_id}")
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
-    grid, rich = project_for_output(client, result.formatted, rows, cols, flap=text_to_board_array)
+    grid, rich = project_for_output(
+        client, result.formatted, rows, cols, flap=text_to_board_array, layers=result.layers
+    )
     return grid, result.formatted, result.formatted.split("\n"), rich
 
 
@@ -346,6 +353,7 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
     ``retry_after_seconds`` (#1931) and is the 429 + ``Retry-After`` the
     other manual senders answer — this route used to derive that itself from
     the client after a ``skipped`` result, before the executor gated it.
+    A write superseded by a newer one is a 409: its content never landed.
     A write that reached only part of the board (``partial``, a local note
     array with a failed tile) is a 502 whose structured detail names the
     cells that did not update — it used to be a bare 500 indistinguishable
@@ -354,7 +362,13 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
     before it is ever called, so they cannot arrive here.
     """
     if result.get("status") == "blocked":
+        if result.get("silence_mode"):
+            from src.board_guards import SILENCE_DETAIL, SILENCE_OVERRIDE_HINT
+
+            raise HTTPException(status_code=409, detail=SILENCE_DETAIL + SILENCE_OVERRIDE_HINT)
         raise HTTPException(status_code=409, detail=str(result.get("message")))
+    if result.get("status") == "error" and result.get("superseded"):
+        raise HTTPException(status_code=409, detail=str(result["error"]))
     if result.get("status") == "error" and result.get("partial"):
         raise HTTPException(
             status_code=502,
@@ -375,7 +389,10 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
 @router.post(
     "/boards/{board}/message",
     response_model=MessageResponse,
-    responses=errors(400, 404, 409, 429, 500, 502, 503, models={502: PartialWriteError}),
+    responses={
+        202: {"model": MessageResponse, "description": "Held: the board is silenced and will show this when it ends."},
+        **errors(400, 404, 409, 429, 500, 502, 503, models={502: PartialWriteError}),
+    },
     summary="Put something on a board",
     description=(
         "The one way to write to a board. Send exactly one of `text` (word-wrapped for you), `lines` (one string "
@@ -389,12 +406,16 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
         "install's output target is UI-only and when the board already showed this exact content. A board that is "
         "paused or inside its silence window refuses the write with 409 rather than lying about it. Send "
         '`if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board '
-        "is paused, and `characters` is what it would have shown. Nothing is written. A board made "
+        "is paused, and `characters` is what it would have shown. Nothing is written.\n\n"
+        "A write superseded by a newer write returns 409: its content did not reach the board. "
+        "A silenced board is left alone. When its silence schedule holds messages (`show_queued_on_exit`) the "
+        "write is accepted for later: 202, `sent: false`, `held: true`, and it shows when silence ends. "
+        "Otherwise it is a 409. Send `override_silence: true` to write anyway. A board made "
         "of several devices (a local note array) that takes the write on only some of them answers 502, and "
         "`detail.failed_regions` names the cells that did not update; sending again retries only those."
     ),
 )
-async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
+async def send_to_board(board: str, request: MessageRequest, response: Response) -> MessageResponse:
     board_id, entry = resolve_board(board)
     settings_service = _settings_service()
 
@@ -453,6 +474,7 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
         "step_interval_ms": transition.interval_ms if transition else None,
         "step_size": transition.step_size if transition else None,
         "force": request.force,
+        "override_silence": request.override_silence,
     }
 
     from src.board_send_executor import run_board_send
@@ -460,7 +482,23 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
     if request.text is not None:
         result = await run_board_send(executors.send_message, request.text, board_id, **send_kwargs)
     else:
-        result = await run_board_send(executors.send_characters, characters, board_id, **send_kwargs, **rich)
+        hold = _held_intent(request, board_id, characters, template_lines)
+        result = await run_board_send(executors.send_characters, characters, board_id, **send_kwargs, **rich, hold=hold)
+
+    if result.get("status") == "blocked" and result.get("held"):
+        from src.board_guards import silence_ends_hhmm
+
+        response.status_code = 202
+        return MessageResponse(
+            sent=False,
+            board_id=board_id,
+            characters=characters,
+            text=text,
+            expires_at=None,
+            reason=HELD_REASON.format(time=silence_ends_hhmm(result.get("silence_ends_at"))),
+            silenced=True,
+            held=True,
+        )
 
     _raise_for_executor(result)
 
@@ -485,6 +523,31 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
         expires_at=expires_at,
         reason=None,
     )
+
+
+def _held_intent(
+    request: MessageRequest,
+    board_id: str,
+    characters: list[list[int]],
+    template_lines: list[str] | None,
+):
+    """What to hold for a non-text write silence refuses (#1944).
+
+    An *intent*, not the frame: a page or plugin is rendered again when
+    silence ends, so the morning shows the morning's data.
+    """
+    from src.silence_queue import HeldSend
+
+    if request.page_id is not None:
+        return HeldSend.page(request.page_id, board_id=board_id)
+    if request.plugin_id is not None:
+        return HeldSend.display(request.plugin_id, board_id=board_id)
+    if request.lines is not None:
+        return HeldSend.lines(list(request.lines), board_id=board_id)
+    if request.template is not None and template_lines is not None:
+        return HeldSend.lines(template_lines, board_id=board_id)
+    # The raw-grid forms (characters, fill) carry no rich cells.
+    return HeldSend.grid(characters, board_id=board_id)
 
 
 def _check_timed_request(board_id: str, template_lines: list[str] | None) -> None:
@@ -600,7 +663,9 @@ async def clear_board_message(board: str) -> MessageResponse:
         "schedule falls back from. The page is rendered and sent immediately. Send `null` to unpin, after which "
         "the board follows its schedule again. Pinning a page whose size does not match the board is rejected.\n\n"
         "The selection is stored whether or not the send succeeded, so check `sent` — and `error`, which names "
-        "the render or send failure when it is false."
+        "the render or send failure when it is false.\n\n"
+        "While the board is silenced the page is pinned but not shown: `sent` is false, `silenced` is true and "
+        "`reason` says when it will appear. Send `override_silence: true` to show it now anyway."
     ),
 )
 async def set_board_active_page(board: str, request: ActivePageRequest) -> ActivePageResponse:
@@ -608,11 +673,23 @@ async def set_board_active_page(board: str, request: ActivePageRequest) -> Activ
     from src.settings.routes import set_active_page
 
     board_id = resolve_board_id(board)
-    response = await set_active_page(SetActivePageRequest(page_id=request.page_id, board_id=board_id))
+    response = await set_active_page(
+        SetActivePageRequest(page_id=request.page_id, board_id=board_id, override_silence=request.override_silence)
+    )
+    silenced = bool(response.get("silenced"))
+    reason = None
+    if silenced:
+        from src import board_guards
+
+        reason = SILENCED_PIN_REASON.format(
+            time=board_guards.silence_ends_hhmm(board_guards.silence_window_end(board_id))
+        )
     return ActivePageResponse(
         board_id=board_id,
         page_id=response.get("page_id"),
         sent=bool(response.get("sent_to_board")),
+        silenced=silenced,
+        reason=reason,
         # #1791 added this to the internal response precisely so a 200 that
         # never reached the board is detectable. Dropping it made every v1
         # pin look like a success.

@@ -13,8 +13,9 @@
 import { Alert, AlertDescription, Box, Button, Stack } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Cpu, Grid3x3, LayoutGrid, Lightbulb, type LucideIcon, Monitor, MonitorSmartphone, Tv } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import { asJSONSchema } from "@/components/plugin-settings";
 import { useTranslations } from "@/i18n/translations";
 import type { ActionGeometry, BoardInstance } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -154,7 +155,23 @@ export function OutputBoardSettings({
   useEffect(() => {
     latest.current = values;
   }, [values]);
-  const output = outputs?.find((o) => o.id === (board.output ?? "vestaboard"));
+  const output = useMemo(() => {
+    const declared = outputs?.find((o) => o.id === (board.output ?? "vestaboard"));
+    const font = board.led_layout?.font;
+    if (!declared || !font) return declared;
+    const schema = asJSONSchema(declared.settings_schema);
+    if (!schema.properties.font) return declared;
+    // Legacy boards can resolve a font without storing output_config.font.
+    // Use it only as the form's fallback: adding it to values would make an
+    // untouched field dirty and persist it when another setting is saved.
+    return {
+      ...declared,
+      settings_schema: {
+        ...declared.settings_schema,
+        properties: { ...schema.properties, font: { ...schema.properties.font, default: font } },
+      },
+    };
+  }, [outputs, board.output, board.led_layout?.font]);
   const saves = autosave ?? output?.builtin ?? false;
 
   // The stored settings changed (a save came back, or another client saved):

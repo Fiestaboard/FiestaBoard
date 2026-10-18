@@ -458,22 +458,29 @@ class CommandHandler:
             board_id, board = self._resolve_board(board_ref)
             if board_id is None:
                 return
-        from src.config import Config
-
         # Silence is per board (issue #1788): resolve the window of the board
         # this message targets, falling back to the primary board for a plain
         # -string payload. Without this a Home Assistant send at 2am woke a
         # board whose own override said it should be quiet.
-        from src.settings.service import get_settings_service
+        #
+        # A JSON payload may say ``"override_silence": true`` to write anyway
+        # (#1943). Otherwise the message is held and shown when silence ends
+        # when the board's schedule holds messages, and dropped when it does
+        # not (#1944) — a bare string has nowhere to carry the flag.
+        from src.board_guards import resolve_board_id, silence_verdict
+        from src.silence_queue import HeldSend
 
-        silence_board_id = board_id
-        if silence_board_id is None:
-            try:
-                silence_board_id = get_settings_service().get_primary_board_id()
-            except Exception:  # pragma: no cover - defensive
-                silence_board_id = None
-        if Config.is_silence_mode_active(silence_board_id):
-            logger.info("MQTT send_message blocked by silence mode")
+        data = self._json_object(payload)
+        override_silence = bool(data and data.get("override_silence") is True)
+        silence_board_id = resolve_board_id(board_id)
+        held_text = message if data is not None else message.replace("\\n", "\n")
+        verdict = silence_verdict(
+            silence_board_id,
+            override_silence=override_silence,
+            hold=(HeldSend.text(held_text, board_id=silence_board_id) if silence_board_id else None),
+            what="MQTT send_message",
+        )
+        if verdict.silenced:
             return
         from src.api_server import get_service
         from src.outputs.cells import project_for_output
@@ -531,6 +538,11 @@ class CommandHandler:
             # The board now shows out-of-band content (issue #1831); the
             # trailing gather_and_publish in handle() reports it to HA.
             self._mark_out_of_band(board_id)
+            if override_silence:
+                # A newer explicit write beats a message held during silence.
+                from src import silence_queue
+
+                silence_queue.discard(silence_board_id)
         self._mark_display_updated()
         self._publish_event("display_updated", "message_sent")
 

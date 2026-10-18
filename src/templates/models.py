@@ -125,8 +125,7 @@ class TemplateRenderRequest(BaseModel):
     grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
     grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
     line_metadata: list[dict[str, Any]] | None = None
-    #: The page's pixel canvases (``POST /templates/render`` only; the live
-    #: render ignores them). Their cells are blanked (or text flows around a
+    #: The page's pixel canvases for preview and live rendering. Their cells are blanked (or text flows around a
     #: ``flow`` canvas) on every board; for a pixel-matrix ``board_id`` the
     #: response also carries their ``layers`` and ``canvas_issues``.
     canvases: list[Canvas] | None = None
@@ -190,6 +189,9 @@ class TemplateRenderLiveRequest(TemplateRenderRequest):
     """``POST /templates/render/live`` request body."""
 
     board_id: str | None = None
+    #: Send to the board even while it is silenced (issue #1943). Default
+    #: false: during silence the render is returned but the board is left alone.
+    override_silence: bool = False
 
 
 class TemplateRenderLiveResponse(TemplateRenderResponse):
@@ -200,6 +202,11 @@ class TemplateRenderLiveResponse(TemplateRenderResponse):
     is paused" apart from "nothing was sent because there is no board".
     """
 
+    layers: list[CanvasLayerModel] | None = None
+    canvas_issues: list[CanvasIssueModel] | None = None
     sent_to_board: bool
     paused: bool = False
+    #: True when the board's silence window kept this render off the board
+    #: (issue #1943). Reported independently of ``paused``.
+    silenced: bool = False
     board_id: str | None = None

@@ -309,6 +309,9 @@ export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete
   const handleRemoveRule = useCallback(
     (index: number) => {
       setRules((prev) => prev.filter((_, i) => i !== index));
+      setNewRuleIndex((current) =>
+        current === null || current < index ? current : current === index ? null : current - 1,
+      );
       // If we removed the rule currently being edited, exit edit mode.
       if (editingRuleIndex === index) {
         setEditingRuleIndex(null);
@@ -367,16 +370,28 @@ export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete
   const handleRuleDragOver = useCallback(
     (e: React.DragEvent, targetIndex: number) => {
       e.preventDefault();
-      if (ruleDragIndex === null || ruleDragIndex === targetIndex) return;
+      // Rows are keyed by position, so moving a dirty editor would reset its
+      // local draft. Finish that edit before allowing a reorder.
+      if (editingRuleDirty || ruleDragIndex === null || ruleDragIndex === targetIndex) return;
       setRules((prev) => {
         const next = [...prev];
         const [moved] = next.splice(ruleDragIndex, 1);
         next.splice(targetIndex, 0, moved);
         return next;
       });
+      // Track the same rules after moving one row across the others.
+      const movedIndex = (index: number | null) => {
+        if (index === null) return null;
+        if (index === ruleDragIndex) return targetIndex;
+        if (ruleDragIndex < index && index <= targetIndex) return index - 1;
+        if (targetIndex <= index && index < ruleDragIndex) return index + 1;
+        return index;
+      };
+      setNewRuleIndex(movedIndex);
+      setEditingRuleIndex(movedIndex);
       setRuleDragIndex(targetIndex);
     },
-    [ruleDragIndex],
+    [ruleDragIndex, editingRuleDirty],
   );
 
   const handleRuleDragEnd = useCallback(() => setRuleDragIndex(null), []);
@@ -409,8 +424,14 @@ export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete
     [intervalSeconds],
   );
 
+  const hasUnsavedRule = selectionMode === "variable" && (editingRuleDirty || newRuleIndex !== null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (hasUnsavedRule) {
+      toast.error(t("variableSaveOrCancelRule"));
+      return;
+    }
     if (!name.trim() || selectedPageIds.length === 0) return;
     if (resolvedIntervalSeconds === null) {
       toast.error(t("customDurationError"));
@@ -452,6 +473,7 @@ export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete
     name.trim().length > 0 &&
     selectedPageIds.length >= 1 &&
     !customIntervalInvalid &&
+    !hasUnsavedRule &&
     (selectionMode !== "variable" ||
       (defaultPageId.length > 0 && rules.every((r) => r.expression.trim().length > 0 && r.page_id.length > 0)));
 
@@ -750,6 +772,11 @@ export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            {hasUnsavedRule && (
+              <Text role="status" size="sm" tone="muted">
+                {t("variableSaveOrCancelRule")}
+              </Text>
+            )}
           </Stack>
 
           <Stack gap="2">

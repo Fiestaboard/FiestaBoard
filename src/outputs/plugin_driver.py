@@ -66,7 +66,7 @@ from src.led.transition_registry import ResolvedLedTransition, is_led_transition
 from src.send_outcome import WriteResult
 
 from .breaker import DEFAULT_WRITE_TIMEOUT_MS, output_breakers
-from .hooks import ConnectionCheck, ReadBack
+from .hooks import ConnectionCheck, DevicePoll, ReadBack
 from .plugin_base import CancelToken, OutputPluginBase, TimedFrame
 from .runtime import OutputRuntime
 from .transitions import NATIVE_STRATEGIES, TRANSITION_PLUGIN_PREFIX, NativeTransition, transition_plugins_enabled
@@ -214,6 +214,11 @@ class OutputPluginDriver:
         ``"constructor"``) is never looked up, and falls back to the default
         with FiestaUI's ``Unknown transition`` reason.
         """
+        # The message API also accepts "instant" for a write without animation.
+        # Normalize only in the LED resolver; native device strategies retain
+        # their own routing and wire representation.
+        if strategy == "instant":
+            strategy = "none"
         choice = None
         if isinstance(strategy, str) and not (
             strategy in NATIVE_STRATEGIES or strategy.startswith(TRANSITION_PLUGIN_PREFIX)
@@ -360,7 +365,7 @@ class OutputPluginDriver:
             return WriteResult(False, False)
         if result.throttled:
             return self._device_throttled(admission, result.retry_after_seconds)
-        if result.success and not result.was_sent and token.is_set():
+        if result.success and not result.was_sent and (token.is_set() or result.superseded):
             # Preempted: the plugin stopped mid-write and nothing landed. The
             # newer write that cancelled it owns the board, so it gets the
             # floor slot back and the last-frame store never claims this
@@ -368,7 +373,7 @@ class OutputPluginDriver:
             # never reached the device, and the board stays dark.
             self._output_runtime.release_send(admission)
             self._last_send_preempted = True
-            return WriteResult(True, False)
+            return WriteResult(True, False, superseded=True)
         if result.success:
             # Landed — or the device already showed it (a fan-out whose every
             # part was unchanged): either way it is what the board shows.
@@ -665,6 +670,36 @@ class OutputPluginDriver:
             return ConnectionCheck(
                 success=False, message="The output's connection check failed.", failure="unreachable", error=str(exc)
             )
+
+    def poll_device(self) -> DevicePoll | None:
+        """The plugin's :meth:`~OutputPluginBase.poll_device`, between writes.
+
+        ``None`` without asking while a write holds the board's send lock
+        (the device is busy with core's own frame; the next poll looks), for
+        a plugin that does not override the hook, and for one that raises
+        (logged) or answers something other than a ``DevicePoll``. News
+        from the device closes its circuit breaker: the device answered.
+        """
+        if type(self.plugin).poll_device is OutputPluginBase.poll_device:
+            return None
+        lock = self._output_runtime.send_lock
+        if not lock.acquire(blocking=False):
+            return None
+        try:
+            news = self.plugin.poll_device()
+        except Exception:
+            logger.exception("Output plugin %s: poll_device failed", self.connection_label)
+            return None
+        finally:
+            lock.release()
+        if not isinstance(news, DevicePoll):
+            return None
+        if (news.restarted or news.config) and not self.first_party:
+            # The device just answered: writes refused while it was booting
+            # (or while core aimed at its old address) must not hold the
+            # re-send back for the rest of a cool-down.
+            output_breakers().record_success(self._breaker_key())
+        return news
 
     def test_connection(self) -> bool:
         try:

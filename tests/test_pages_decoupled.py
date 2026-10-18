@@ -35,7 +35,7 @@ Was                                          Now
 ``api_server._require_board``                ``src.board_guards`` (new)
 ``api_server._board_dims``                   ``src.board_guards``
 ``api_server._board_is_paused``              ``src.board_guards``
-``api_server._silence_active``               ``src.board_guards``
+``api_server._silence_active``               ``src.board_guards`` (``silence_verdict``)
 ``api_server._reject_plugin_...beta_off``    ``src.pages.routes`` (sole caller)
 ===========================================  ==================================
 """
@@ -54,6 +54,7 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import src.pages.routes as routes
+from src.board_guards import SilenceVerdict
 from src.pages.models import (
     Page,
     PageCacheClearRequest,
@@ -131,7 +132,7 @@ with (
     patch("src.pages.routes.get_schedule_service", return_value=schedule_service),
     patch("src.pages.routes.get_service", return_value=display_service),
     patch("src.pages.routes._require_board", return_value=BOARD) as require_board,
-    patch("src.pages.routes._silence_active", return_value=False) as silence_active,
+    patch("src.pages.routes.silence_verdict", return_value=SilenceVerdict(silenced=False)) as silence_verdict,
     patch("src.pages.routes._board_is_paused", return_value=False) as board_is_paused,
 ):
     # 1. GET /pages
@@ -213,7 +214,9 @@ settings_service.get_active_page_id.assert_called()
 settings_service.get_transition_settings.assert_called_once()
 schedule_service.get_active_page_id.assert_not_called()  # schedule mode is off
 require_board.assert_called_once_with("board-1")
-silence_active.assert_called_once_with("board-1")
+silence_verdict.assert_called_once()
+assert silence_verdict.call_args.args == ("board-1",), silence_verdict.call_args
+assert silence_verdict.call_args.kwargs["override_silence"] is False, silence_verdict.call_args
 board_is_paused.assert_called_once_with("board-1")
 board_client.render.assert_called_once()
 

@@ -285,6 +285,7 @@
     "variableExpressionAriaLabel": "Expression for rule {index}",
     "variableRuleSummaryArrow": "→ {target}",
     "variableDiscardTitle": "Discard unsaved changes?",
+    "variableSaveOrCancelRule": "保存此集合前，请先保存或取消规则编辑。",
     "variableDiscardDescription": "You have unsaved changes to this rule. Switching will lose them.",
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
@@ -881,14 +882,6 @@
     "toastSwitchSuccess": "已切换到活跃页面",
     "toastSwitchFailed": "切换页面失败",
     "toastSwitchNotSent": "页面已切换，但发送到看板失败",
-    "updatedExternally": "Board 已被另一个应用更改",
-    "resendToBoard": "恢复",
-    "toastResendSuccess": "Board 已恢复",
-    "toastResendFailed": "恢复 board 失败",
-    "saveAsPage": "Save as page",
-    "externalPageName": "Saved from board {date}",
-    "toastSaveAsPageSuccess": "Saved \"{pageName}\" as a page",
-    "toastSaveAsPageFailed": "Failed to save board as a page",
     "overrideBadge": "覆盖:剩余 {minutes} 分钟",
     "overrideBadgeLessThan1m": "覆盖:剩余 <1 分钟",
     "cancelOverride": "取消覆盖",
@@ -903,7 +896,42 @@
     "collectionSizeWarning": "此合集中的 {total} 个页面中有 {count} 个不适合此板的尺寸，将被跳过。",
     "turnOffLiveModeAriaLabel": "关闭实时模式",
     "liveModeBadge": "实时模式",
-    "composeOneOff": "撰写消息"
+    "composeOneOff": "撰写消息",
+    "silenceManual": "静默结束后将显示“{pageName}”。在此之前看板保持安静。",
+    "silenceSchedule": "静默结束后将恢复你的时间表。在此之前看板保持安静。",
+    "silenceNoPage": "在此之前看板保持安静。",
+    "silenceHeld": "暂存的消息：“{preview}”——将首先显示。",
+    "showNow": "立即显示",
+    "discardHeld": "丢弃消息",
+    "selectPageSilence": "你选择的页面会被保存，并在那时显示。看板保持安静。",
+    "toastSwitchHeld": "“{pageName}”将于 {time} 显示",
+    "toastSwitchHeldNoTime": "静默结束后将显示“{pageName}”",
+    "toastSwitchPaused": "已保存——恢复看板后将显示“{pageName}”",
+    "toastShownNow": "正在显示“{pageName}”",
+    "toastHeldDiscarded": "已丢弃暂存的消息",
+    "toastHeldDiscardFailed": "无法丢弃暂存的消息"
+  },
+  "boardOutOfSync": {
+    "title": "另一个应用更改了此 board",
+    "detail": "下次页面更新时，FiestaBoard 会将其覆盖。将其保存为页面即可保留。",
+    "restore": "恢复",
+    "saveAsPage": "保存为页面",
+    "savedAs": "已保存为“{pageName}”",
+    "openPage": "打开页面",
+    "dismiss": "关闭",
+    "holdPaused": "此显示设备已暂停，在您恢复之前“恢复”不会发送任何内容。",
+    "restoreAllDisplays": "“恢复”会将页面重新发送到所有显示设备。",
+    "keptTitle": "另一个应用在 {time} 向此 board 写入了内容",
+    "keptDetail": "FiestaBoard 之后已放回您的页面。您仍然可以保存另一个应用写入的内容。",
+    "externalPageName": "来自 Board {date}",
+    "toastRestored": "Board 已恢复",
+    "toastRestoredAll": "已将页面重新发送到所有显示设备",
+    "toastRestoreFailed": "恢复 board 失败",
+    "toastNotSentPaused": "未发送任何内容：此显示设备已暂停",
+    "toastNotSent": "未向显示设备发送任何内容",
+    "toastSaved": "已将“{pageName}”保存为页面",
+    "toastSaveFailed": "无法将 board 保存为页面",
+    "toastOpen": "打开"
   },
   "forceSetDialog": {
     "title": "强制设置 Board",
@@ -915,7 +943,9 @@
     "confirm": "强制设置",
     "setting": "设置中…",
     "toastSuccess": "显示 \"{pageName}\" 共 {minutes} 分钟",
-    "toastError": "设置覆盖失败"
+    "toastError": "设置覆盖失败",
+    "silenceWarning": "强制设置会立即显示此页面并唤醒看板。",
+    "confirmSilenced": "仍然立即显示"
   },
   "composeDialog": {
     "title": "撰写消息",
@@ -936,7 +966,17 @@
     "toastSent": "已发送到看板",
     "toastSendError": "消息发送失败",
     "toastSaved": "已保存“{pageName}”",
-    "toastSaveError": "页面保存失败"
+    "toastSaveError": "页面保存失败",
+    "silenceHold": "暂存后将在 {time} 显示；现在发送则会唤醒看板。",
+    "silenceNoHold": "现在发送会唤醒看板。若要在静默结束前暂存消息，请在 设置 → 日程 中开启“静默结束时显示暂存的消息”。",
+    "openSettings": "打开设置",
+    "hold": "暂存至 {time}",
+    "holdNoTime": "暂存至静默结束",
+    "holding": "正在暂存…",
+    "sendNowAnyway": "仍然立即发送",
+    "toastHeld": "已暂存——将在 {time} 显示",
+    "toastHeldNoTime": "已暂存——静默结束后显示",
+    "toastHoldError": "无法暂存消息"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "无法连接应用。请检查网络或 FiestaBoard 是否在运行。",
@@ -1032,7 +1072,11 @@
     "transitionPickerTooltip": "此页面的过渡效果：{strategy}",
     "transitionBuiltInGroup": "内置",
     "transitionPluginsGroup": "插件（测试版）",
-    "transitionUseDisplayTransition": "使用显示设备的过渡效果"
+    "transitionUseDisplayTransition": "使用显示设备的过渡效果",
+    "liveSilencePreviewOnly": "实时输出仅在预览。看板保持安静。",
+    "liveSendAnyway": "仍然发送到看板",
+    "liveSilenceOverriding": "实时输出正在静默期间唤醒看板。",
+    "liveStopOverriding": "停止发送"
   },
   "displaySettings": {
     "unnamedBoard": "未命名看板",
@@ -1371,7 +1415,9 @@
     "toastBoardReadIntervalUpdated": "Board 读取间隔已更新",
     "toastBoardReadIntervalFailed": "更新 board 读取间隔失败:{error}",
     "updateIntervalsTitle": "更新间隔",
-    "updateIntervalsDescription": "看板查询新内容和重新读取当前状态的频率"
+    "updateIntervalsDescription": "看板查询新内容和重新读取当前状态的频率",
+    "silenceShowHeldLabel": "静默结束时显示暂存的消息",
+    "silenceShowHeldHelp": "静默期间发送到此看板的消息会被暂存，并在静默结束的那一刻显示。关闭时则会被拒绝。页面更改始终会被保存，不需要此选项。"
   },
   "serviceControls": {
     "title": "服务控制",
@@ -2686,6 +2732,8 @@
     "jsonLabel": "形状 JSON",
     "jsonInvalid": "不是有效的 JSON：{message}",
     "jsonNotList": "形状 JSON 必须是列表。",
+    "jsonInvalidShape": "每个条目都必须是具有受支持类型的形状对象。",
+    "jsonRepairBeforeEditing": "编辑形状前请修复 JSON 草稿。启用 JSON 编辑以继续。",
     "sourceHint": "用于绘制此画布的插件变量。当它返回绘图时，该绘图会替换画布自身的内容。",
     "sourceVariable": "插件画布变量",
     "sourceNone": "无",
@@ -2697,5 +2745,9 @@
     "serverError": "画布未被接受：{message}",
     "notPixelNotice": "此页面包含像素画布。该看板无法绘制它们，因此其区域保持空白。请在 LED 像素看板上预览页面以进行编辑。",
     "markerTitle": "画布从此行开始（不属于文字）"
+  },
+  "silenceNotice": {
+    "untilTitle": "静默至 {time}",
+    "untilTitleNoTime": "看板处于静默中"
   }
 }

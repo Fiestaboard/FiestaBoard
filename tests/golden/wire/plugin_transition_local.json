@@ -72,7 +72,8 @@
         "retry_after_seconds": null,
         "floor_seconds": null,
         "partial": false,
-        "failed_regions": []
+        "failed_regions": [],
+        "superseded": false
       }
     }
   ]

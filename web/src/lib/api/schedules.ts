@@ -19,6 +19,21 @@ export interface SilenceStatus {
   indicator_position?: string;
   /** Echo of the requested board (issue #1788); null when unscoped. */
   board_id?: string | null;
+  /**
+   * ISO-8601 instant of the next change (#1943) — while `active`, when
+   * silence ends. Format it in the viewer's local time.
+   */
+  ends_at_utc?: string | null;
+  /** The board's `show_queued_on_exit`: sends during silence are held (#1944). */
+  holds_blocked_sends?: boolean;
+  /** The send this board is holding until silence ends, if any (#1944). */
+  held?: HeldSendSummary | null;
+}
+
+export interface HeldSendSummary {
+  kind: string;
+  preview: string;
+  queued_at: string;
 }
 
 // Schedule types
@@ -208,6 +223,8 @@ export interface SilenceScheduleConfig {
   page_id: string | null;
   indicator_text: string | null;
   indicator_position: string | null;
+  /** Hold sends refused during silence and show them when it ends (#1944). */
+  show_queued_on_exit?: boolean;
   /**
    * Per-board overrides (issue #1788): board_id -> partial override. The keys
    * above are the install-wide default every board without an entry resolves
@@ -304,6 +321,16 @@ export const schedulesApi = {
         : "/silence-status",
     ),
 
+  // Discard the send a board is holding until silence ends (#1944).
+  // Omitted board → the primary board.
+  discardHeldSend: (boardId?: string) =>
+    fetchApi<{ board_id: string; discarded: boolean }>(
+      typeof boardId === "string" && boardId
+        ? `/silence-queue?board_id=${encodeURIComponent(boardId)}`
+        : "/silence-queue",
+      { method: "DELETE" },
+    ),
+
   // Silence schedule (system feature, not a plugin).
   // board_id targets one board (issue #1788); omitted writes the install-wide
   // layer. It goes in the BODY, mirroring PUT /settings/active-page.
@@ -315,6 +342,7 @@ export const schedulesApi = {
     page_id?: string | null;
     indicator_text?: string | null;
     indicator_position?: string | null;
+    show_queued_on_exit?: boolean;
     board_id?: string;
   }) =>
     fetchApi<{ config: Record<string, unknown>; board_id: string | null }>("/settings/silence-schedule", {

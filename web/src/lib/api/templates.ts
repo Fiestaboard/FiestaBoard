@@ -125,12 +125,19 @@ export interface TemplateRenderResponse {
 }
 
 export interface TemplateRenderLiveResponse {
+  layers?: CanvasLayerJson[];
+  canvas_issues?: CanvasIssue[];
   rendered: string;
   lines: string[];
   line_count: number;
   sent_to_board: boolean;
   /** True when the send was skipped because the target board is paused. */
   paused: boolean;
+  /**
+   * True when the board's silence window kept this render off the board
+   * (#1943). The render is still returned so the preview keeps updating.
+   */
+  silenced: boolean;
   board_id: string | null;
 }
 
@@ -196,6 +203,8 @@ export const templatesApi = {
     notesTall?: number,
     signal?: AbortSignal,
     grid?: GridSize | null,
+    // `overrideSilence` writes to the board even while it is silenced (#1943).
+    opts?: { overrideSilence?: boolean; canvases?: Canvas[] },
   ) =>
     fetchApi<TemplateRenderLiveResponse>("/templates/render/live", {
       method: "POST",
@@ -207,6 +216,8 @@ export const templatesApi = {
         ...(notesWide != null && { notes_wide: notesWide }),
         ...(notesTall != null && { notes_tall: notesTall }),
         ...gridFields(grid),
+        ...(opts?.overrideSilence === true && { override_silence: true }),
+        ...(opts?.canvases != null && { canvases: opts.canvases }),
       }),
       signal,
     }),

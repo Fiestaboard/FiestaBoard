@@ -51,6 +51,15 @@ export interface BoardCurrentMessageResponse {
   cached_at: string | null;
   api_mode: "local" | "cloud";
   board_id?: string | null;
+  /**
+   * The last frame the board poll CONFIRMED another app put on this board,
+   * kept after FiestaBoard repaints so it can still be saved (issue #1945).
+   * Present only while the backend holds one (cleared by
+   * `dismissExternalFrame`, a successful Restore, or after 24 h).
+   */
+  external_characters?: number[][] | null;
+  /** ISO 8601 UTC time of the poll that confirmed `external_characters`. */
+  external_detected_at?: string | null;
 }
 
 // ---- FiestaPanel (mirrors src/panels/models.py) ----
@@ -492,13 +501,40 @@ export interface ConfigValidationResponse {
   missing_fields: string[];
 }
 
+/**
+ * `POST /v1/boards/{board}/message`. A silenced board whose schedule holds
+ * messages answers 202 with `held: true` (#1944): accepted, shown when
+ * silence ends. A 409 (silenced, not held; or paused) is an error to fetchApi.
+ */
+export interface BoardMessageResponse {
+  sent: boolean;
+  silenced: boolean;
+  held: boolean;
+  reason: string | null;
+  board_id: string;
+  text: string;
+}
+
 export const boardsApi = {
+  sendBoardMessage: (boardId: string | null | undefined, body: { lines: string[]; override_silence?: boolean }) =>
+    fetchApi<BoardMessageResponse>(`/v1/boards/${boardPathSegment(boardId)}/message`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   // Non-empty string only — see the getActivePage note (issue #1244).
   getBoardCurrentMessage: (boardId?: string) =>
     fetchApi<BoardCurrentMessageResponse>(
       typeof boardId === "string" && boardId
         ? `/board/current-message?board_id=${encodeURIComponent(boardId)}`
         : "/board/current-message",
+    ),
+  /** Forget the board's remembered external frame (issue #1945). Omitted board → the primary. */
+  dismissExternalFrame: (boardId?: string) =>
+    fetchApi<void>(
+      typeof boardId === "string" && boardId
+        ? `/board/external-frame?board_id=${encodeURIComponent(boardId)}`
+        : "/board/external-frame",
+      { method: "DELETE" },
     ),
   // Configuration endpoints
   getFullConfig: () => fetchApi<FullConfig>("/config/full"),

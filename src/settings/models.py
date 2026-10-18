@@ -24,7 +24,7 @@ full dump, so an unset optional field never overwrites stored state with
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
@@ -240,6 +240,10 @@ class SetActivePageRequest(BaseModel):
 
     page_id: str | None = None
     board_id: str | None = None
+    #: Show the page now even while the board is silenced (issue #1943).
+    #: Default false: during silence the selection is saved and the page
+    #: appears when silence ends.
+    override_silence: bool = False
 
 
 class SetActivePageResponse(BaseModel):
@@ -254,6 +258,9 @@ class SetActivePageResponse(BaseModel):
     page_id: str | None = None
     sent_to_board: bool
     paused: bool
+    #: True when the board's silence window held the immediate send (#1943).
+    #: Reported independently of ``paused``: a silenced, paused board says both.
+    silenced: bool = False
     board_id: str | None = None
     error: str | None = None
     warnings: list[str] = Field(default_factory=list)
@@ -662,12 +669,23 @@ class PluginSettingsUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+# Runtime silence evaluation consumes HH:MM with an explicit UTC offset.
+# Bare HH:MM values are accepted only by the legacy config migration.
+SilenceTime = Annotated[
+    str,
+    Field(
+        pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9][+-]([01][0-9]|2[0-3]):[0-5][0-9]$",
+        description="Time in HH:MM±HH:MM format, for example 04:00+00:00 or 20:00-08:00",
+    ),
+]
+
+
 class SilenceScheduleRequest(BaseModel):
     """Update the silence ("snooze") window, install-wide or for one board."""
 
     enabled: bool
-    start_time: str
-    end_time: str
+    start_time: SilenceTime
+    end_time: SilenceTime
     # An unknown mode used to be coerced to "freeze" and answered 200, so a
     # client asking for "indicater" got a frozen board and no signal.
     mode: SilenceMode | None = None  # omitted → "freeze"
@@ -675,8 +693,9 @@ class SilenceScheduleRequest(BaseModel):
     indicator_text: str | None = None  # Custom text to display when mode == "indicator"
     indicator_position: str | None = None  # Position: center, top-left, top-right, bottom-left, bottom-right
     # Issue #1944: when the window ends, show the last message that was
-    # blocked during it. Opt-in; omitted → off.
-    show_queued_on_exit: bool = False
+    # blocked during it. Opt-in. Omitted (None) → keep the stored value, so a
+    # client that does not know the key never turns it off by saving.
+    show_queued_on_exit: bool | None = None
     # Board to target (issue #1788). Omitted → the install-wide schedule.
     # Deliberately in the BODY, not the URL, so the endpoint path is unchanged.
     board_id: str | None = None

@@ -64,6 +64,9 @@ class WriteResult(NamedTuple):
     #: The cells that did not update (a failed tile's rectangle), when the
     #: driver can say. Empty for a whole-board verdict.
     failed_regions: tuple[FrameRegion, ...] = ()
+    #: A newer write cancelled this one before its content landed. This is
+    #: neither unchanged content nor a failure of the device.
+    superseded: bool = False
 
     @classmethod
     def of(cls, result: Any) -> WriteResult:

@@ -42,7 +42,8 @@ from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
 from src.devices import classify_dimensions, geometry_of
 from src.display_runtime import reinitialize_board_clients, release_board_frames
-from src.outputs.cells import extended_markup_kw, project_for_output
+from src.outputs.cells import project_for_output
+from src.outputs.display_profile import render_kw
 from src.outputs.transitions import driver_runs_strategy
 
 from .models import (
@@ -144,6 +145,7 @@ get_service = _seam("get_service")
 # Helpers whose only home is ``api_server`` today.
 _require_board = _seam("_require_board")
 _board_is_paused = _seam("_board_is_paused")
+silence_verdict = _seam("silence_verdict")
 _board_dims = _seam("_board_dims")
 _apply_mqtt_config = _seam("_apply_mqtt_config")
 
@@ -393,6 +395,25 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         if not compat.ok:
             raise HTTPException(status_code=400, detail=compat.error)
 
+    # Omitted show_queued_on_exit keeps the effective stored value (#1944):
+    # the board's own entry, else the install-wide value it resolves to. An
+    # install-wide write reads the single board's resolved value BEFORE the
+    # prune below drops the board layer that holds it.
+    show_queued_on_exit = request.show_queued_on_exit
+    if show_queued_on_exit is None:
+        from src.config import resolve_silence_schedule
+
+        carry_board = board_id
+        if carry_board is None:
+            try:
+                stored_boards = get_settings_service().get_board_settings().boards or []
+            except Exception:  # pragma: no cover - defensive
+                stored_boards = []
+            if len(stored_boards) == 1 and isinstance(stored_boards[0], dict):
+                carry_board = stored_boards[0].get("id")
+        feature = config_manager.get_feature("silence_schedule")
+        show_queued_on_exit = resolve_silence_schedule(feature, carry_board)["show_queued_on_exit"]
+
     updated = {
         "enabled": request.enabled,
         "start_time": request.start_time,
@@ -401,7 +422,7 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         "page_id": page_id,
         "indicator_text": indicator_text,
         "indicator_position": indicator_position,
-        "show_queued_on_exit": request.show_queued_on_exit,
+        "show_queued_on_exit": show_queued_on_exit,
     }
 
     if board_id is not None:
@@ -432,7 +453,7 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
 
     logger.info(
         "Silence schedule updated for board=%s: enabled=%s, start=%s, end=%s, mode=%s, page_id=%s, "
-        "indicator_text=%s, indicator_position=%s",
+        "indicator_text=%s, indicator_position=%s, show_queued_on_exit=%s",
         board_id or "(install-wide)",
         request.enabled,
         request.start_time,
@@ -441,6 +462,7 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         page_id,
         indicator_text,
         indicator_position,
+        show_queued_on_exit,
     )
 
     if board_id is not None:
@@ -601,12 +623,18 @@ async def set_active_page(request: SetActivePageRequest):
     - board_id: Optional board to target. Omitted → primary board,
       legacy behavior (issue #1244).
 
+    - override_silence: Show the page now even while the board is silenced
+      (issue #1943). Default false.
+
     When a page is set, it will be immediately rendered and sent to the board.
+    During silence the immediate send is held unless override_silence is
+    true; the page appears when silence ends.
 
     Response: ``sent_to_board`` reports whether content actually reached the
     board, and ``error`` carries the render/send failure reason (null when the
-    send succeeded or was skipped benignly — paused board, UI-only output,
-    unchanged content). The page selection itself is persisted either way.
+    send succeeded or was skipped benignly — silenced or paused board, UI-only
+    output, unchanged content). ``silenced`` and ``paused`` are reported
+    independently. The page selection itself is persisted either way.
     """
     settings_service = get_settings_service()
     page_service = get_page_service()
@@ -651,7 +679,7 @@ async def set_active_page(request: SetActivePageRequest):
     # unit so the event loop keeps serving requests (#1826). The settings
     # write itself is not internally locked yet — per-store locking is
     # Track A2's job (#1848).
-    def _work() -> tuple[bool, bool, str | None]:
+    def _work() -> tuple[bool, bool, bool, str | None]:
         # Dismiss any active plugin triggers so the user's explicit page change
         # actually sticks. Without this, a plugin re-emitting the same trigger
         # every display loop tick (e.g. calendar_sub during a countdown window)
@@ -680,18 +708,24 @@ async def set_active_page(request: SetActivePageRequest):
         # must be reported, not silently swallowed (issue #1791).
         sent_to_board = False
         paused = False
+        silenced = False
         send_error: str | None = None
         if render_page_id and page and send_client and settings_service.should_send_to_board():
+            # Silence holds the immediate send unless the caller explicitly
+            # overrides it (issue #1943). The selection is persisted above, and
+            # the engine repaints the saved page when the window ends.
+            silenced = silence_verdict(
+                board_id, override_silence=request.override_silence, what="active-page send"
+            ).silenced
             # Skip immediate send when the board is paused (issue #970). The
             # active-page selection is still persisted so it takes effect when
-            # the user later resumes the board.
+            # the user later resumes the board. Evaluated separately from
+            # silence (not an elif) so both flags are reported truthfully.
             if _board_is_paused(board_id):
                 logger.info("Board is paused - skipping immediate active-page send")
                 paused = True
-            else:
-                result = page_service.preview_page(
-                    render_page_id, force_refresh=True, **extended_markup_kw(send_client)
-                )
+            if not silenced and not paused:
+                result = page_service.preview_page(render_page_id, force_refresh=True, **render_kw(send_client))
                 if result and result.available:
                     resolved = page_transition(
                         settings_service.get_transition_settings(board_id or settings_service.get_primary_board_id()),
@@ -711,7 +745,12 @@ async def set_active_page(request: SetActivePageRequest):
                     else:
                         dims = resolve_dimensions(*geometry_of(page))
                     board_array, rich = project_for_output(
-                        send_client, result.formatted, dims.rows, dims.cols, flap=text_to_board_array
+                        send_client,
+                        result.formatted,
+                        dims.rows,
+                        dims.cols,
+                        flap=text_to_board_array,
+                        layers=result.layers,
                     )
                     # render() serializes concurrent senders via the client's
                     # per-board send lock, so worker threads can't interleave.
@@ -724,21 +763,29 @@ async def set_active_page(request: SetActivePageRequest):
                         **rich,
                     )
                     sent_to_board = was_sent
+                    if was_sent and request.override_silence:
+                        # A newer explicit write beats a message held during
+                        # silence (issue #1944).
+                        from src import silence_queue
+
+                        silence_queue.discard(board_id or settings_service.get_primary_board_id())
                     if not success:
                         send_error = f"Failed to send page to board: {page_id}"
                         logger.warning(f"Failed to send active page to board: {page_id}")
-                    elif was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
-                        # Adaptive post-send refresh polls the primary board only.
-                        service.request_board_refresh()
+                    elif was_sent and getattr(send_client, "is_virtual", False) is not True:
+                        # Every hardware board's state is polled (issue #1945):
+                        # catch THIS board's read cache up with its own send,
+                        # or its out-of-sync banner flashes until the next poll.
+                        service.request_board_refresh(board_id)
                 else:
                     # A network/plugin failure surfaces here as an unavailable
                     # render — report it instead of skipping silently (#1791).
                     render_error = getattr(result, "error", None) if result else None
                     send_error = render_error or f"Failed to render page: {render_page_id}"
                     logger.warning(f"Active page set but render unavailable, not sent: {render_page_id}")
-        return sent_to_board, paused, send_error
+        return sent_to_board, paused, silenced, send_error
 
-    sent_to_board, paused, send_error = await run_board_send(_work)
+    sent_to_board, paused, silenced, send_error = await run_board_send(_work)
     # The engine catches every board up now (it records what the board shows,
     # and sends where the immediate send above could not), not a poll tick later.
     if service is not None:
@@ -753,6 +800,7 @@ async def set_active_page(request: SetActivePageRequest):
         "page_id": page_id,
         "sent_to_board": sent_to_board,
         "paused": paused,
+        "silenced": silenced,
         "board_id": board_id,
         "error": send_error,
         "warnings": compat_warnings,

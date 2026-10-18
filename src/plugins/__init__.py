@@ -56,7 +56,7 @@ from src.outputs.author_kit import (
     validate_board_host_is_local_network,
 )
 from src.outputs.cells import cells_from_codes
-from src.outputs.hooks import ActionContext, OutputActionError, OutputStatus, ReadBack
+from src.outputs.hooks import ActionContext, DevicePoll, OutputActionError, OutputStatus, ReadBack
 from src.outputs.http import OutputHttp, RequestCancelled
 from src.outputs.plugin_base import (
     ActionField,
@@ -100,6 +100,7 @@ __all__ = [
     "CellFrame",
     "ConnectionCheck",
     "DemoPageSchema",
+    "DevicePoll",
     "DiagnosticCheck",
     "FrameRegion",
     "LedLayout",

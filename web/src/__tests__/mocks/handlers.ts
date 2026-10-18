@@ -444,6 +444,9 @@ export const handlers = [
     });
   }),
 
+  // Forget the board's remembered external frame (issue #1945): 204, no body.
+  http.delete(`${API_BASE}/board/external-frame`, () => new HttpResponse(null, { status: 204 })),
+
   http.get(`${API_BASE}/v1/pages/:id`, ({ params }) => {
     const { id } = params;
     if (id === "page-1") {
@@ -660,6 +663,7 @@ export const handlers = [
       line_count: template ? template.split("\n").length : 1,
       sent_to_board: true,
       paused: false,
+      silenced: false,
       board_id: body.board_id || "default",
     });
   }),

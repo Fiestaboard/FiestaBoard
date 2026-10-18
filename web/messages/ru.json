@@ -285,6 +285,7 @@
     "variableExpressionAriaLabel": "Expression for rule {index}",
     "variableRuleSummaryArrow": "→ {target}",
     "variableDiscardTitle": "Discard unsaved changes?",
+    "variableSaveOrCancelRule": "Сохраните или отмените изменение правила перед сохранением этой коллекции.",
     "variableDiscardDescription": "You have unsaved changes to this rule. Switching will lose them.",
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
@@ -881,14 +882,6 @@
     "toastSwitchSuccess": "Переключено на активную страницу",
     "toastSwitchFailed": "Не удалось переключить страницу",
     "toastSwitchNotSent": "Страница переключена, но не удалось отправить на доску",
-    "updatedExternally": "Board был изменён другим приложением",
-    "resendToBoard": "Восстановить",
-    "toastResendSuccess": "Board восстановлен",
-    "toastResendFailed": "Не удалось восстановить board",
-    "saveAsPage": "Save as page",
-    "externalPageName": "Saved from board {date}",
-    "toastSaveAsPageSuccess": "Saved \"{pageName}\" as a page",
-    "toastSaveAsPageFailed": "Failed to save board as a page",
     "overrideBadge": "Переопределение: осталось {minutes} мин",
     "overrideBadgeLessThan1m": "Переопределение: осталось <1 мин",
     "cancelOverride": "Отменить переопределение",
@@ -903,7 +896,42 @@
     "collectionSizeWarning": "{count} из {total} страниц в этой коллекции не подходят под размер этой доски и будут пропущены.",
     "turnOffLiveModeAriaLabel": "Отключить живой режим",
     "liveModeBadge": "Живой режим",
-    "composeOneOff": "Написать сообщение"
+    "composeOneOff": "Написать сообщение",
+    "silenceManual": "«{pageName}» появится, когда закончится тишина. До тех пор табло остаётся тихим.",
+    "silenceSchedule": "Расписание продолжится, когда закончится тишина. До тех пор табло остаётся тихим.",
+    "silenceNoPage": "До тех пор табло остаётся тихим.",
+    "silenceHeld": "Отложенное сообщение: «{preview}» — оно появится первым.",
+    "showNow": "Показать сейчас",
+    "discardHeld": "Удалить сообщение",
+    "selectPageSilence": "выбранная страница сохраняется и появится тогда. Табло остаётся тихим.",
+    "toastSwitchHeld": "«{pageName}» появится в {time}",
+    "toastSwitchHeldNoTime": "«{pageName}» появится, когда закончится тишина",
+    "toastSwitchPaused": "Сохранено — «{pageName}» появится, когда вы возобновите табло",
+    "toastShownNow": "Сейчас показывается «{pageName}»",
+    "toastHeldDiscarded": "Отложенное сообщение удалено",
+    "toastHeldDiscardFailed": "Не удалось удалить отложенное сообщение"
+  },
+  "boardOutOfSync": {
+    "title": "Другое приложение изменило этот board",
+    "detail": "FiestaBoard перезапишет его при следующем обновлении вашей страницы. Сохраните его как страницу, чтобы не потерять.",
+    "restore": "Восстановить",
+    "saveAsPage": "Сохранить как страницу",
+    "savedAs": "Сохранено как «{pageName}»",
+    "openPage": "Открыть страницу",
+    "dismiss": "Скрыть",
+    "holdPaused": "Этот дисплей приостановлен, поэтому «Восстановить» ничего не отправит, пока вы его не возобновите.",
+    "restoreAllDisplays": "«Восстановить» повторно отправляет страницы на все дисплеи.",
+    "keptTitle": "Другое приложение записало на этот board в {time}",
+    "keptDetail": "FiestaBoard уже вернул вашу страницу. Вы всё ещё можете сохранить то, что записало другое приложение.",
+    "externalPageName": "С board {date}",
+    "toastRestored": "Board восстановлен",
+    "toastRestoredAll": "Страницы повторно отправлены на все дисплеи",
+    "toastRestoreFailed": "Не удалось восстановить board",
+    "toastNotSentPaused": "Ничего не отправлено: этот дисплей приостановлен",
+    "toastNotSent": "На дисплей ничего не отправлено",
+    "toastSaved": "«{pageName}» сохранено как страница",
+    "toastSaveFailed": "Не удалось сохранить board как страницу",
+    "toastOpen": "Открыть"
   },
   "forceSetDialog": {
     "title": "Принудительно установить board",
@@ -915,7 +943,9 @@
     "confirm": "Принудительно",
     "setting": "Настройка…",
     "toastSuccess": "Показ «{pageName}» в течение {minutes} мин",
-    "toastError": "Не удалось задать переопределение"
+    "toastError": "Не удалось задать переопределение",
+    "silenceWarning": "Принудительная установка сразу показывает эту страницу и будит табло.",
+    "confirmSilenced": "Всё равно показать сейчас"
   },
   "composeDialog": {
     "title": "Написать сообщение",
@@ -936,7 +966,17 @@
     "toastSent": "Отправлено на табло",
     "toastSendError": "Не удалось отправить сообщение",
     "toastSaved": "Страница «{pageName}» сохранена",
-    "toastSaveError": "Не удалось сохранить страницу"
+    "toastSaveError": "Не удалось сохранить страницу",
+    "silenceHold": "Отложите его, и оно появится в {time}, или отправьте сейчас, и табло проснётся.",
+    "silenceNoHold": "Отправка сейчас разбудит табло. Чтобы откладывать сообщения до конца тишины, включите «Показывать отложенные сообщения после тишины» в разделе Настройки → Расписание.",
+    "openSettings": "Открыть настройки",
+    "hold": "Отложить до {time}",
+    "holdNoTime": "Отложить до конца тишины",
+    "holding": "Откладываем…",
+    "sendNowAnyway": "Всё равно отправить сейчас",
+    "toastHeld": "Отложено — появится в {time}",
+    "toastHeldNoTime": "Отложено — появится, когда закончится тишина",
+    "toastHoldError": "Не удалось отложить сообщение"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Не удаётся подключиться к приложению. Проверьте сеть или запущен ли FiestaBoard.",
@@ -1032,7 +1072,11 @@
     "transitionPickerTooltip": "Переход для этой страницы: {strategy}",
     "transitionBuiltInGroup": "Встроенные",
     "transitionPluginsGroup": "Плагины (бета)",
-    "transitionUseDisplayTransition": "Использовать переход дисплея"
+    "transitionUseDisplayTransition": "Использовать переход дисплея",
+    "liveSilencePreviewOnly": "Живой вывод только показывает предпросмотр. Табло остаётся тихим.",
+    "liveSendAnyway": "Всё равно отправить на табло",
+    "liveSilenceOverriding": "Живой вывод будит табло во время тишины.",
+    "liveStopOverriding": "Прекратить отправку"
   },
   "displaySettings": {
     "unnamedBoard": "Доска без названия",
@@ -1371,7 +1415,9 @@
     "toastBoardReadIntervalUpdated": "Интервал чтения board обновлён",
     "toastBoardReadIntervalFailed": "Не удалось обновить интервал чтения board: {error}",
     "updateIntervalsTitle": "Интервалы обновления",
-    "updateIntervalsDescription": "Как часто табло запрашивает новый контент и перечитывает свое текущее состояние"
+    "updateIntervalsDescription": "Как часто табло запрашивает новый контент и перечитывает свое текущее состояние",
+    "silenceShowHeldLabel": "Показывать отложенные сообщения после тишины",
+    "silenceShowHeldHelp": "Сообщение, отправленное на это табло во время тишины, откладывается и показывается сразу, как только тишина закончится. Если выключено, оно отклоняется. Смена страницы сохраняется всегда, и эта настройка для неё не нужна."
   },
   "serviceControls": {
     "title": "Управление сервисом",
@@ -2686,6 +2732,8 @@
     "jsonLabel": "JSON фигур",
     "jsonInvalid": "Недопустимый JSON: {message}",
     "jsonNotList": "JSON фигур должен быть списком.",
+    "jsonInvalidShape": "Каждый элемент должен быть объектом фигуры поддерживаемого типа.",
+    "jsonRepairBeforeEditing": "Исправьте черновик JSON перед редактированием фигур. Включите редактирование JSON, чтобы продолжить.",
     "sourceHint": "Переменная плагина, которая рисует этот холст. Если она возвращает рисунок, он заменяет собственный рисунок холста.",
     "sourceVariable": "Переменная холста плагина",
     "sourceNone": "Нет",
@@ -2697,5 +2745,9 @@
     "serverError": "Холсты не приняты: {message}",
     "notPixelNotice": "На этой странице есть пиксельные холсты. Это табло не может их рисовать, поэтому их области остаются пустыми. Чтобы редактировать их, откройте предпросмотр страницы на светодиодном пиксельном табло.",
     "markerTitle": "В этой строке начинается холст (не часть текста)"
+  },
+  "silenceNotice": {
+    "untilTitle": "Тишина до {time}",
+    "untilTitleNoTime": "Табло в режиме тишины"
   }
 }

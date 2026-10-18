@@ -29,6 +29,7 @@ from .outputs.breaker import write_failure_reason
 from .outputs.cells import output_character_set, project_message
 from .outputs.display_profile import render_kw
 from .outputs.factory import build_driver
+from .outputs.hooks import DevicePoll
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
 from .pages.models import LineMetadata, Page
@@ -92,6 +93,27 @@ SEND_WAIT_TIMEOUT = 240.0
 # iteration at or after each deadline.
 BOARD_RETRY_INITIAL_BACKOFF = 60.0
 BOARD_RETRY_MAX_BACKOFF = 900.0
+
+# How long the last confirmed external frame (``BoardRuntime.external_frame``)
+# stays on offer to be saved as a page (issue #1945). A safety net on top of
+# the explicit clears (DELETE /board/external-frame, a successful Restore), so
+# an offer nobody dismisses does not linger for days.
+EXTERNAL_FRAME_TTL_SECONDS = 24 * 60 * 60
+
+# The poll loop ticks at the shortest read interval and reads each board only
+# once its own interval has passed since the poll last read it. A board due
+# every tick must be read every tick, so the comparison forgives this much of
+# the tick's own scheduling jitter.
+POLL_CADENCE_SLACK_SECONDS = 1.0
+
+
+def _board_read_interval_for(client, polling) -> int:
+    """A board's read interval: the cloud one when its driver's read-back
+    costs a network round trip (``read_back.cost == "network"``), else the
+    local one."""
+    read_back = getattr(client, "read_back", None) if client else None
+    networked = getattr(read_back, "cost", None) == "network"
+    return polling.board_read_interval_cloud if networked else polling.board_read_interval_local
 
 
 def _extended_kw(client) -> dict:
@@ -214,11 +236,27 @@ class BoardRuntime:
         self.last_send_error: str | None = None
 
         # Board-state read cache (populated by the poll thread / adaptive
-        # refresh). Board-state polling stays primary-only (see
-        # ``_board_poll_loop``), but the cache lives on the runtime so a
-        # future per-board poll is a drop-in change.
+        # refresh). The one poll thread reads every readable hardware board,
+        # each at its own cadence (see ``_board_poll_loop``).
         self.polled_characters: list[list[int]] | None = None
         self.polled_at: float | None = None
+        # When the poll thread last read this board (``time.monotonic()``),
+        # the clock its per-board cadence runs on. Separate from
+        # ``polled_at``: a post-send refresh read must not push the next poll
+        # back, or two consecutive polls — what external-write detection
+        # needs — drift apart.
+        self.poll_attempted_at: float | None = None
+
+        # The last frame the poll CONFIRMED another writer put on this board,
+        # and when (``time.time()``) — issue #1945. Set in the same branch
+        # that raises ``showing_out_of_band``, but it is the one drift field
+        # the engine's own sends must NOT clear: it exists so the web UI can
+        # still offer "Save as page" after FiestaBoard has painted its page
+        # back. Replaced by a newer confirmed external write; cleared only by
+        # DELETE /board/external-frame (which a successful Restore calls).
+        # Read it through ``DisplayService.external_frame``, which applies
+        # ``EXTERNAL_FRAME_TTL_SECONDS``.
+        self.external_frame: tuple[list[list[int]], float] | None = None
 
         # Adaptive post-send refresh thread + its cancel event.
         self.refresh_thread: threading.Thread | None = None
@@ -233,7 +271,7 @@ class BoardRuntime:
 
         # Collection cadence gate for the run loop: monotonic-ish epoch time
         # of the next collection-boundary check for this board. 0.0 means
-        # "check immediately". Only the primary runtime is consulted today.
+        # "check immediately".
         self.next_collection_check: float = 0.0
 
         # Render short-circuit memo (issue #1883): the triple
@@ -458,6 +496,26 @@ class DisplayService:
         if board_id == get_settings_service().get_primary_board_id():
             return self._primary_runtime()
         return None
+
+    def external_frame(self, board_id: str | None = None) -> tuple[list[list[int]], float] | None:
+        """The last confirmed external frame on *board_id*, and when it was confirmed.
+
+        ``None`` means the primary board. Returns None when the board has no
+        runtime, holds no frame, or holds one older than
+        ``EXTERNAL_FRAME_TTL_SECONDS`` — which is dropped then, not kept
+        around (issue #1945). Routes read the frame here, never off the
+        runtime field.
+        """
+        rt = self.runtime_for(board_id)
+        if rt is None:
+            return None
+        held = rt.external_frame
+        if held is None:
+            return None
+        if time.time() - held[1] > EXTERNAL_FRAME_TTL_SECONDS:
+            rt.external_frame = None
+            return None
+        return held
 
     def get_last_send_error(self, board_id=None) -> str | None:
         """Failure reason for a board's most recent active-page send attempt.
@@ -1093,27 +1151,42 @@ class DisplayService:
             self.invalidate_board_content(board_id)
 
     # ------------------------------------------------------------------ #
-    # Board-state polling (primary board only; state lives on the runtime)
+    # Board-state polling (every readable hardware board; state lives on
+    # each board's runtime)
     # ------------------------------------------------------------------ #
 
     def _get_board_read_interval(self) -> int:
-        """Return the board-state read poll interval in seconds.
+        """Return the PRIMARY board's board-state read interval in seconds.
 
         The primary driver declares what a read-back costs
         (``read_back.cost``): a ``network`` read polls at the user's cloud
-        interval, anything else at the local one.
+        interval, anything else at the local one. Every other board follows
+        the same rule for its own driver (``_board_read_interval_for``).
         """
         polling = get_settings_service().get_polling_settings()
-        read_back = getattr(self.vb_client, "read_back", None) if self.vb_client else None
-        networked = getattr(read_back, "cost", None) == "network"
-        return polling.board_read_interval_cloud if networked else polling.board_read_interval_local
+        return _board_read_interval_for(self.vb_client, polling)
+
+    def _board_poll_tick(self, primary_interval: float) -> float:
+        """How long the poll loop sleeps between passes.
+
+        The shorter of the primary's interval and the two configured ones: a
+        cloud primary must not stretch the loop past the local interval, or a
+        local secondary would be read every 180 s. A local primary's cadence
+        is exactly what it was.
+        """
+        try:
+            polling = get_settings_service().get_polling_settings()
+            return min(primary_interval, polling.board_read_interval_local, polling.board_read_interval_cloud)
+        except Exception:
+            return primary_interval
 
     def _board_poll_loop(self) -> None:
-        """Background thread: periodically read the primary board's state and cache it.
+        """Background thread: periodically read every readable board's state and cache it.
 
-        Polling stays primary-only (single board-read thread — a thread per
+        ONE thread reads the boards sequentially, primary first (a thread per
         board would break the single-threaded send invariant the note-array
-        >=15s throttle relies on). The cache lives on the primary runtime.
+        >=15s throttle relies on); each board is read at its own cadence
+        (``_poll_all_boards_once``). Each board's cache lives on its runtime.
 
         This thread also hosts the failed-board recovery pass (#1827):
         ``initialize()`` is already idempotent w.r.t. this thread, so
@@ -1128,14 +1201,67 @@ class DisplayService:
             except Exception as e:  # a retry bug must never kill board polling
                 logger.error(f"Failed-board recovery pass crashed: {e}")
             try:
-                self._poll_board_state_once()
+                self._poll_output_devices()
+            except Exception as e:  # nor must an output device poll
+                logger.error(f"Output device poll crashed: {e}")
+            try:
+                self._poll_all_boards_once()
             except Exception as e:
                 logger.debug(f"Board state poll failed: {e}")
-            time.sleep(interval)
+            time.sleep(self._board_poll_tick(interval))
 
-    def _poll_board_state_once(self) -> None:
-        """Read the primary board once, cache the result, and detect
-        external writes (issue #1946).
+    def _runtimes_in_poll_order(self) -> list[BoardRuntime]:
+        """Every runtime, the primary first, then ``settings.boards`` order."""
+        runtimes = self.runtimes
+        ordered: list[BoardRuntime] = []
+        primary = self._primary_runtime()
+        if primary is not None:
+            ordered.append(primary)
+        try:
+            boards = get_settings_service().get_board_settings().boards or []
+        except Exception:
+            boards = []
+        for board in boards:
+            board_id = board.get("id") if isinstance(board, dict) else getattr(board, "id", None)
+            rt = runtimes.get(board_id) if board_id is not None else None
+            if rt is not None and all(rt is not seen for seen in ordered):
+                ordered.append(rt)
+        for rt in runtimes.values():
+            if all(rt is not seen for seen in ordered):
+                ordered.append(rt)
+        return ordered
+
+    def _poll_all_boards_once(self) -> None:
+        """One poll pass: read each readable board whose own interval has passed.
+
+        A board is read when the poll has not read it yet, or when its
+        interval (``_board_read_interval_for`` its driver) has passed since
+        the poll last read it — so a cloud board is read every
+        ``board_read_interval_cloud`` even though the loop ticks at the local
+        interval. ``POLL_CADENCE_SLACK_SECONDS`` absorbs the tick's own
+        scheduling jitter, so a board due every tick is read every tick.
+        One board's failure never skips the rest.
+        """
+        polling = get_settings_service().get_polling_settings()
+        now = time.monotonic()
+        for rt in self._runtimes_in_poll_order():
+            last = rt.poll_attempted_at
+            if last is not None:
+                interval = _board_read_interval_for(rt.client, polling)
+                if now - last + POLL_CADENCE_SLACK_SECONDS < interval:
+                    continue
+            try:
+                self._poll_board_state_once(rt)
+            except Exception as e:
+                logger.debug("Board %s: state poll failed: %s", rt.board_id, e)
+
+    def _poll_board_state_once(self, rt: BoardRuntime | None = None) -> None:
+        """Read one board once (the primary when *rt* is omitted), cache the
+        result, and detect external writes (issue #1946).
+
+        Skipped, without a read: a board with no client, a virtual
+        (FiestaPanel) board — it always shows what FiestaBoard sent — a
+        driver whose read-back is unsupported, and a paused board.
 
         A fresh read that differs from what this process last wrote means
         someone else wrote the board (Vestaboard app, direct API call), so
@@ -1154,16 +1280,29 @@ class DisplayService:
         out-of-band message (issue #1831); the engine's own page sends
         clear it.
         """
-        rt = self._primary_runtime()
+        primary = self._primary_runtime()
+        if rt is None:
+            rt = primary
         if rt is None or rt.client is None:
+            return
+        client = rt.client
+        # Strict ``is True`` / ``is False`` (this file's convention): a Mock
+        # client's auto-attributes never count.
+        if getattr(client, "is_virtual", False) is True:
+            return
+        if getattr(getattr(client, "read_back", None), "supported", True) is False:
             return
         # A paused board is hands-off (issue #970) and may be unplugged:
         # reading it would only wait on the network and fail every cycle.
         # Strict ``is True`` — a Mock settings service never counts as paused.
+        # The primary is asked by its settings id: its runtime may be keyed
+        # under the legacy sentinel.
         settings = get_settings_service()
-        if settings.is_paused(board_id=settings.get_primary_board_id()) is True:
+        board_id = settings.get_primary_board_id() if rt is primary else rt.board_id
+        if settings.is_paused(board_id=board_id) is True:
             return
-        chars, external_write = rt.output.observe_read(rt.client.read_current_message)
+        rt.poll_attempted_at = time.monotonic()
+        chars, external_write = rt.output.observe_read(client.read_current_message)
         if not chars:
             return
         rt.polled_characters = chars
@@ -1171,7 +1310,51 @@ class DisplayService:
         logger.debug("Board state poll succeeded")
         if external_write:
             rt.showing_out_of_band = True
-            logger.info("Board content changed externally; marking out-of-band")
+            # Remember what the other app wrote (issue #1945): a copy, so the
+            # poll cache moving on never edits the frame on offer. The judge
+            # re-confirms a write that stays up every other poll; that is the
+            # same write, so it keeps the time it was first confirmed.
+            held = rt.external_frame
+            if held is None or held[0] != chars:
+                rt.external_frame = ([row[:] for row in chars], time.time())
+            logger.info("Board %s: content changed externally; marking out-of-band", rt.board_id)
+
+    def _poll_output_devices(self) -> None:
+        """Ask every board's output whether its device restarted or moved.
+
+        A device that cannot read back what it shows (a Divoom Pixoo) loses
+        FiestaBoard's frame when it reboots and falls back to its own face,
+        while both dedupe layers still believe the page is up — so an
+        unchanged page is never sent again. An output that can tell it
+        restarted says so (``poll_device``) and the board's content is
+        re-sent on the next pass. One that found its device at a new address
+        (DHCP) reports the new settings, which are saved: a moved device is
+        a restart too, since what it shows is unknown.
+
+        Every board, not only the primary; never a paused board (hands-off,
+        maybe unplugged — the same rule as the read-back poll).
+        """
+        settings = get_settings_service()
+        for key, rt in list(self.runtimes.items()):
+            poll = getattr(rt.client, "poll_device", None)
+            if not callable(poll):
+                continue
+            board_id = rt.board_id or key
+            if settings.is_paused(board_id=board_id) is True:
+                continue
+            news = poll()
+            if not isinstance(news, DevicePoll):
+                continue
+            moved = bool(news.config)
+            if moved:
+                settings.update_board_output_config(board_id, news.config)
+            if news.restarted or moved:
+                logger.info(
+                    "Board %s: its device %s; re-sending the board's content",
+                    board_id,
+                    "moved to new settings" if moved else "restarted",
+                )
+                self.invalidate_board_content(key)
 
     def _retry_failed_board_inits(self) -> None:
         """Low-frequency recovery pass for boards stuck in ``board_init_errors`` (#1827).
@@ -1292,22 +1475,29 @@ class DisplayService:
 
     def request_board_refresh(
         self,
+        board_id: str | None = None,
         initial_delay_seconds: float = 0.5,
         retry_interval_seconds: float = 1.0,
         max_total_seconds: float = 3.0,
     ) -> None:
-        """Adaptively poll the primary board after a send so the cached state
-        catches up quickly without waiting for the next full poll interval.
+        """Adaptively poll a board after a send so the cached state catches up
+        quickly without waiting for the next full poll interval.
+
+        ``board_id`` names the board just written; omitted means the primary.
+        Every board's poll cache is read by the web UI's out-of-sync banner,
+        so a board whose cache lags its own send would read as "changed by
+        another app" until the next poll (issue #1945).
 
         Strategy: sleep ``initial_delay_seconds``, read the board. If the read
         matches what we just sent, update the cache and stop. Otherwise sleep
         ``retry_interval_seconds`` and try again, until ``max_total_seconds``
         elapses. The latest successful read is always cached.
 
-        A subsequent call cancels any in-flight refresh so rapid sends don't
-        stack up threads.
+        A subsequent call for the same board cancels its in-flight refresh so
+        rapid sends don't stack up threads; other boards' refreshes are left
+        alone.
         """
-        rt = self._primary_runtime()
+        rt = self.runtime_for(board_id)
         # Cancel any in-flight refresh from a prior send.
         if rt is not None and rt.refresh_cancel is not None:
             rt.refresh_cancel.set()
@@ -1400,25 +1590,40 @@ class DisplayService:
             logger.error(f"Failed to initialize board client: {e}")
             return False
 
-        # Start background thread that reads the actual board state periodically.
-        # This must be idempotent: with a clientless primary ``vb_client`` stays
-        # None for the life of the process, so every startup gate that tests it
-        # re-enters initialize() -- ``get_service()``, ``run_service_background()``
-        # and ``run()`` -- and the backoff loop repeats that on each restart.
-        # Starting a thread per pass would leak them without bound.
-        if self._poll_thread is not None and self._poll_thread.is_alive():
-            logger.debug("Board state poll already running - reusing the existing thread")
-        else:
-            self._poll_thread = threading.Thread(target=self._board_poll_loop, daemon=True, name="board-state-poll")
-            self._poll_thread.start()
-            interval = self._get_board_read_interval()
-            logger.info(f"Board state poll started (interval={interval}s)")
+        self._ensure_board_poll_thread()
 
         # Log configuration summary
         summary = Config.get_summary()
         logger.info(f"Configuration: {summary}")
 
         return True
+
+    def _ensure_board_poll_thread(self) -> None:
+        """Start the background thread that reads the boards' state, once.
+
+        Idempotent: with a clientless primary ``vb_client`` stays None for
+        the life of the process, so every startup gate that tests it
+        re-enters initialize() -- ``get_service()``,
+        ``run_service_background()`` and ``run()`` -- and the backoff loop
+        repeats that on each restart. Starting a thread per pass would leak
+        them without bound.
+
+        ``run_service_background()`` calls it too, right before ``run()``: a
+        board added after startup (the setup wizard on a fresh install)
+        builds its client through the settings route, so ``vb_client`` is
+        already set and neither gate enters ``initialize()`` — which used to
+        leave board-state polling off until a restart (issue #1945).
+        """
+        if self._poll_thread is not None and self._poll_thread.is_alive():
+            logger.debug("Board state poll already running - reusing the existing thread")
+            return
+        self._poll_thread = threading.Thread(target=self._board_poll_loop, daemon=True, name="board-state-poll")
+        self._poll_thread.start()
+        try:
+            interval = self._get_board_read_interval()
+        except Exception:
+            interval = None
+        logger.info(f"Board state poll started (interval={interval}s)")
 
     @staticmethod
     def _get_first_board_id() -> str | None:
@@ -1697,7 +1902,7 @@ class DisplayService:
                 self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
                 logger.error(f"Board {board_id}: update failed: {e}")
 
-    def _schedule_defer_active(self, rt: BoardRuntime, now, board_id) -> bool:
+    def _schedule_defer_active(self, rt: BoardRuntime, now, board_id, *, update_state: bool = True) -> bool:
         """Whether this board should hold its manual page instead of following the schedule.
 
         Turning schedule mode back on normally repaints the board at once: the
@@ -1709,6 +1914,10 @@ class DisplayService:
 
         Schedule gaps count as a window of their own (``_SCHEDULE_GAP_KEY``), so
         the toggle never repaints the board on its own.
+
+        Cadence lookups use ``update_state=False``: only a source-resolving
+        engine pass may consume the re-enable edge or end a deferral. An
+        override can own the display across several schedule windows.
         """
         settings_service = get_settings_service()
         arming = rt.last_schedule_enabled is False and rt.schedule_defer_key is None
@@ -1724,21 +1933,23 @@ class DisplayService:
         key = entry.id if entry is not None else _SCHEDULE_GAP_KEY
 
         if arming:
-            rt.schedule_defer_key = key
-            logger.info(
-                "Board %s: schedule re-enabled - holding the current page until its next window",
-                board_id or "(default)",
-            )
+            if update_state:
+                rt.schedule_defer_key = key
+                logger.info(
+                    "Board %s: schedule re-enabled - holding the current page until its next window",
+                    board_id or "(default)",
+                )
             return True
 
         if rt.schedule_defer_key == key:
             return True
 
-        rt.schedule_defer_key = None
-        logger.info(
-            "Board %s: schedule reached its next window - following the schedule again",
-            board_id or "(default)",
-        )
+        if update_state:
+            rt.schedule_defer_key = None
+            logger.info(
+                "Board %s: schedule reached its next window - following the schedule again",
+                board_id or "(default)",
+            )
         return False
 
     def check_and_send_for_board(
@@ -1833,6 +2044,10 @@ class DisplayService:
             # paused (guards against Mock returns from older fixtures).
             if settings_service.is_paused(board_id=board_id) is True:
                 logger.debug("Board %s is paused - skipping update", board_id or "(default)")
+                if exiting_silence_mode:
+                    # A message held for this window would otherwise wait for
+                    # a resume that may be days away (issue #1944).
+                    self._discard_held_send(board_id, "board is paused")
                 rt.last_silence_mode_active = silence_mode_active
                 return False
 
@@ -1881,6 +2096,8 @@ class DisplayService:
                     "Output target is UI only - skipping board %s update",
                     board_id or "(default)",
                 )
+                if exiting_silence_mode:
+                    self._discard_held_send(board_id, "output target is UI only")
                 return False
 
             if silence_mode_active and rt.snoozing_message_sent:
@@ -1899,15 +2116,18 @@ class DisplayService:
                 # render is unconditionally pushed, otherwise "content
                 # unchanged, skipping send" leaves the indicator stuck.
                 rt.last_active_page_content = None
-                # Issue #1944: opt-in delivery of the last send blocked
-                # during the window ("show_queued_on_exit").
+
+            # Issue #1944: opt-in delivery of the send held during the window
+            # ("show_queued_on_exit"). Checked on every tick outside silence,
+            # not only on the exit edge: the entry is discarded only once its
+            # send succeeds, so a board that is offline at 7:00 gets it on a
+            # later tick (up to the store's 24h TTL).
+            if not silence_mode_active and silence_config.get("show_queued_on_exit"):
                 from src import silence_queue
 
-                queued = silence_queue.pop_message(board_id)
-                if queued is not None and silence_config.get("show_queued_on_exit"):
-                    logger.info("Showing message queued during silence")
-                    rt.silence_queued_shown = queued
-                    return self._send_trigger_content(queued, rt, wait=wait)
+                held = silence_queue.peek(board_id)
+                if held is not None:
+                    return self._deliver_held_send(held, rt, wait=wait)
 
             # --- Stage: trigger input (PRIMARY only; suppressed during silence) ---
             # Triggers are a first-class engine input (#1850, per the #1767
@@ -2271,11 +2491,13 @@ class DisplayService:
                     rt.showing_out_of_band = False
                     if was_sent:
                         logger.info(f"Board {board_id}: active page sent: {active_page_id}")
-                        # Board-state adaptive refresh is primary-only (see
-                        # _board_poll_loop). Secondary boards don't feed the
-                        # board-read cache the Active Display UI shows.
-                        if is_primary:
-                            self.request_board_refresh()
+                        # Every hardware board is polled now (issue #1945), so
+                        # each one's read cache must catch up with its own
+                        # send, or the out-of-sync banner would flash after
+                        # every page change on board 2. A virtual board shows
+                        # exactly what was sent; there is nothing to read back.
+                        if getattr(client, "is_virtual", False) is not True:
+                            self.request_board_refresh(board_id)
                     else:
                         logger.debug("Active page unchanged at board level")
                     return was_sent
@@ -2799,10 +3021,90 @@ class DisplayService:
             logger.error(f"Error checking triggers: {e}")
             return None
 
-    def _send_trigger_content(self, content: str, rt: BoardRuntime | None = None, *, wait: bool = True) -> bool:
+    @staticmethod
+    def _discard_held_send(board_id, why: str) -> None:
+        """Drop the send held during silence for *board_id*, saying why (#1944)."""
+        from src import silence_queue
+
+        if silence_queue.discard(board_id):
+            logger.info("Discarding message held during silence: board %s %s", board_id, why)
+
+    def _held_send_content(self, held, rt: BoardRuntime) -> str | None:
+        """The board text a held send paints now, or ``None`` when it cannot render.
+
+        A held page or display is an intent: it is rendered fresh here, so the
+        morning shows the morning's data. Text is word-wrapped to this
+        board's geometry and character set (it used to be painted unwrapped,
+        so everything past the first row was cut off).
+        """
+        from .board_chars import characters_to_message
+        from .outputs.cells import charset_extended_markup
+        from .text_to_board import wrap_message_text
+
+        if held.kind == "text":
+            dims = resolve_dimensions(*self._runtime_geometry(rt))
+            return wrap_message_text(
+                str(held.payload),
+                rows=dims.rows,
+                cols=dims.cols,
+                extended_markup=charset_extended_markup(output_character_set(rt.client)),
+            )
+        if held.kind == "lines":
+            return "\n".join(str(line) for line in held.payload)
+        if held.kind == "grid":
+            characters = (held.payload or {}).get("characters") if isinstance(held.payload, dict) else None
+            return characters_to_message(characters) if characters else None
+        if held.kind == "page":
+            result = get_page_service().preview_page(str(held.payload), force_refresh=True)
+            return result.formatted if result is not None and result.available else None
+        if held.kind == "display":
+            from .displays.service import get_display_service
+
+            result = get_display_service().get_display(str(held.payload))
+            return result.formatted if result is not None and result.available else None
+        return None
+
+    def _deliver_held_send(self, held, rt: BoardRuntime, *, wait: bool = True) -> bool:
+        """Paint the send held during silence; forget it only once it lands."""
+        from src import silence_queue
+
+        board_id = held.board_id
+        try:
+            content = self._held_send_content(held, rt)
+        except Exception as e:
+            logger.warning("Could not render the %s held during silence for board %s: %s", held.kind, board_id, e)
+            content = None
+        if content is None:
+            logger.warning(
+                "Discarding message held during silence: board %s's %s %r can no longer be rendered",
+                board_id,
+                held.kind,
+                held.payload,
+            )
+            silence_queue.discard(board_id)
+            return False
+        if content == rt.last_active_page_content:
+            # Already on the board: nothing left to deliver.
+            silence_queue.discard(board_id)
+            return False
+        logger.info("Showing message held during silence on board %s", board_id)
+        # The adoption block in the page pass matches on this exact string.
+        rt.silence_queued_shown = content
+        return self._send_trigger_content(content, rt, wait=wait, on_success=lambda: silence_queue.discard(board_id))
+
+    def _send_trigger_content(
+        self,
+        content: str,
+        rt: BoardRuntime | None = None,
+        *,
+        wait: bool = True,
+        on_success=None,
+    ) -> bool:
         """Send trigger content to the board (primary board).
 
-        Returns True if the content was sent successfully.
+        Returns True if the content was sent successfully. ``on_success``
+        runs once the send reports success (the held-send delivery uses it
+        to forget the entry only when it actually landed).
         """
         rt = rt if rt is not None else self._ensure_primary_runtime()
         if rt is None or rt.client is None:
@@ -2839,6 +3141,8 @@ class DisplayService:
                 rt.last_active_page_id = "__trigger__"
                 # Engine-owned write (issue #1831).
                 rt.showing_out_of_band = False
+                if on_success is not None:
+                    on_success()
                 if was_sent:
                     logger.info("Triggered message sent to board")
                 return was_sent
@@ -2862,18 +3166,21 @@ class DisplayService:
             sink=sink,
         )
 
-    def _get_active_ref_id(self) -> str | None:
+    def _get_active_ref_id(self, board_id: str | None = None) -> str | None:
         """Return the raw active-page/collection reference (before collection resolution)."""
         settings_service = get_settings_service()
-        if settings_service.is_schedule_enabled():
+        if board_id is None:
+            board_id = self._get_first_board_id()
+        if settings_service.is_schedule_enabled(board_id=board_id):
             from .time_service import get_time_service
 
             ts = get_time_service()
             now = ts.get_current_time()
-            # Pass the first board's ID so schedules scoped to that board are found
-            board_id = self._get_first_board_id()
+            rt = self.runtime_for(board_id)
+            if rt is not None and self._schedule_defer_active(rt, now, board_id, update_state=False):
+                return settings_service.get_active_page_id(board_id=board_id)
             return get_schedule_service().get_active_page_id(now.time(), now.strftime("%A").lower(), board_id=board_id)
-        return settings_service.get_active_page_id()
+        return settings_service.get_active_page_id(board_id=board_id)
 
     def run(self):
         """Run the main service loop."""
@@ -2918,22 +3225,28 @@ class DisplayService:
 
                 # When a collection is active, poll at its mode-specific cadence:
                 # time-mode aligns with the next page boundary; variable-mode uses
-                # the configured poll_seconds. The gate lives on the primary
-                # runtime (issue #1243) so a runtime rebuild resets it cleanly.
+                # the configured poll_seconds. Each board owns its gate so a
+                # secondary collection never depends on the primary selection.
                 now = time.time()
-                primary_rt = self._ensure_primary_runtime()
-                if now >= primary_rt.next_collection_check:
-                    ref_id = self._get_active_ref_id()
+                self._ensure_primary_runtime()
+                collection_due = False
+                for rt in list(self.runtimes.values()):
+                    if now < rt.next_collection_check:
+                        continue
+                    rt.next_collection_check = now + polling_interval
+                    board_id = self._get_first_board_id() if rt is self._primary_runtime() else rt.board_id
+                    if settings_service.is_paused(board_id=board_id) is True:
+                        continue
+                    ref_id = self._get_active_ref_id(board_id)
                     if ref_id and is_collection_id(ref_id):
                         collection_service = get_collection_service()
                         secs = collection_service.seconds_until_next_check(ref_id, now)
                         if secs is not None:
-                            engine_pass()
-                            primary_rt.next_collection_check = now + max(1, secs)
-                        else:
-                            primary_rt.next_collection_check = now + polling_interval
-                    else:
-                        primary_rt.next_collection_check = now + polling_interval
+                            collection_due = True
+                            rt.next_collection_check = now + max(1, secs)
+                # Coalesce coincident boundaries into one shared-context pass.
+                if collection_due:
+                    engine_pass()
                 time.sleep(1)
                 # A page change woke the engine: its pass runs on this step.
                 if self.take_wake():

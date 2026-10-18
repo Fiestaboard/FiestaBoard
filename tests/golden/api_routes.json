@@ -210,6 +210,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/board/external-frame",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "dismiss_external_frame",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/boards/{board_id}/actions/{action}",
       "methods": [
         "POST"
@@ -1602,6 +1610,14 @@
         "PUT"
       ],
       "name": "set_wizard_state",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/silence-queue",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "discard_held_send",
       "kind": "APIRoute"
     },
     {

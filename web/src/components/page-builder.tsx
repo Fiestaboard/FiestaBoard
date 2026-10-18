@@ -70,6 +70,7 @@ import { useCurrentBoard } from "@/components/current-board-context";
 import { DevicePreview } from "@/components/device-preview";
 import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
+import { LiveOutputSilenceStrip } from "@/components/live-output-silence-strip";
 import { PanelFitNote } from "@/components/panel-fit-note";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
@@ -91,8 +92,10 @@ import {
   resolveCode62Glyph,
   useBoardSettings,
 } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useDisplayTargets } from "@/hooks/use-panel-targets";
 import { usePluginSettings } from "@/hooks/use-plugin-settings";
+import { useSilence } from "@/hooks/use-silence";
 import { useTransitionPlugins } from "@/hooks/use-transition-plugins";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
@@ -803,14 +806,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Live output mode state
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
-  const [selectedBoardId, setSelectedBoardId] = useState<string>("");
+  const [chosenLiveBoardId, setChosenLiveBoardId] = useState<string>("");
   // The board this page is previewed as: the live-output target, else the
   // board in context, when the page fits it; else any board it fits. Its
   // model draws the preview (an LED board as an LED matrix) and its
   // character set is what the render is checked against.
   const previewBoard = useMemo(
     () =>
-      boardForShape(boardSettings?.boards, [targetBoardId, selectedBoardId, currentBoardId], {
+      boardForShape(boardSettings?.boards, [targetBoardId, chosenLiveBoardId, currentBoardId], {
         device_type: deviceType,
         notes_wide: notesWide,
         notes_tall: notesTall,
@@ -820,7 +823,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     [
       boardSettings?.boards,
       targetBoardId,
-      selectedBoardId,
+      chosenLiveBoardId,
       currentBoardId,
       deviceType,
       notesWide,
@@ -829,6 +832,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     ],
   );
   const previewBoardId = previewBoard?.id ?? null;
+  // Follow the compatible preview until the user chooses a live target or
+  // starts sending. Deriving this during render also handles late settings
+  // and sidebar context without first selecting the primary board.
+  const selectedBoardId = chosenLiveBoardId || previewBoardId || "";
   const previewModel = useMemo(() => resolveBoardModel(previewBoard), [previewBoard]);
   // An LED target's character set: the rich editor then reads and offers that
   // set's extended markup and keeps its case. null for a split-flap target.
@@ -849,15 +856,36 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const liveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const liveOutputEnabledRef = useRef(false);
   const liveAbortRef = useRef<AbortController | null>(null);
+  const liveCanvasAttemptedRef = useRef(false);
   const liveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const LIVE_OUTPUT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
+  // Silence (#1943): live renders leave a silenced board alone unless the
+  // user explicitly chose "Send to board anyway" for this Live Output session.
+  const liveSilence = useSilence(selectedBoardId || undefined);
+  const [liveOverrideSilence, setLiveOverrideSilence] = useState(false);
+  // The last live render came back `silenced: true` (the board was left alone).
+  const [liveSilenced, setLiveSilenced] = useState(false);
+  const liveOverrideSilenceRef = useRef(false);
+  liveOverrideSilenceRef.current = liveOverrideSilence;
+  const liveSilenceActiveRef = useRef(false);
+  liveSilenceActiveRef.current = liveSilence.active;
+
   const disableLiveOutput = useCallback(() => {
     setLiveOutputEnabled(false);
+    setLiveOverrideSilence(false);
     lastLiveSentPreview.current = null;
     toast.info(t("toastLiveOutputOff"));
   }, [t]);
+
+  // Turning Live Output off — from any path: the switch, the timeout, another
+  // tab's kill switch — ends the override too, so the next session starts
+  // honouring silence again. A render-phase reset (react-hooks/set-state-in-effect).
+  if (useDepsChanged([liveOutputEnabled]) && !liveOutputEnabled) {
+    setLiveOverrideSilence(false);
+    setLiveSilenced(false);
+  }
 
   // Debounced state (for expensive operations)
   const [debouncedTemplateLines, setDebouncedTemplateLines] = useState<string[]>(emptyLines());
@@ -887,6 +915,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     };
   }, [
     liveOutputEnabled,
+    canvases,
     debouncedTemplateLines,
     debouncedLineAlignments,
     debouncedLineWrapEnabled,
@@ -909,7 +938,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (!liveOutputEnabledRef.current && liveOutputEnabled) {
       // Live output just enabled — prime the Home page cache with the current
       // page preview so there is no gap between enabling and first live render.
-      if (lastPreviewRef.current) {
+      // Not while the board is silenced: Home's Live Mode badge must never
+      // claim a frame the board does not show (#1943).
+      if (lastPreviewRef.current && (!liveSilenceActiveRef.current || liveOverrideSilenceRef.current)) {
         queryClient.setQueryData(["liveOutputMessage"], lastPreviewRef.current);
         writeLiveOutputMessage(lastPreviewRef.current);
       }
@@ -1759,64 +1790,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     previewBoardId,
   ]);
 
-  // Live output mutation - sends rendered preview to the board
+  // Track request status for the sending indicator; the fast path below is
+  // the only trigger, so enabling Live on an existing preview sends once.
   const liveSendMutation = useMutation({
-    mutationFn: async (_rendered: string) => {
-      const { cleanedLines, metadata } = processLinesWithPrefixes(
-        debouncedTemplateLines,
-        debouncedLineAlignments,
-        debouncedLineWrapEnabled,
-      );
-      return api.renderTemplateLive(
-        cleanedLines,
-        selectedBoardId || undefined,
-        metadata,
-        deviceType,
-        notesWide,
-        notesTall,
-        undefined,
-        panelGrid,
-      );
-    },
-    onSuccess: (data) => {
-      if (data.sent_to_board) {
-        lastLiveSentPreview.current = preview;
-        // Broadcast to the Home page so its virtual board reflects the live content.
-        queryClient.setQueryData(["liveOutputMessage"], data.rendered);
-        writeLiveOutputMessage(data.rendered);
-      }
-    },
-    onError: (error: Error) => {
-      console.error("[LiveOutput] Send failed:", error.message);
-      toast.error(t("toastLiveSendFailed"));
-    },
+    mutationFn: (args: Parameters<typeof api.renderTemplateLive>) => api.renderTemplateLive(...args),
   });
-
-  // Same react-query identity-churn concern as previewMutationRef above.
   const liveSendMutationRef = useRef(liveSendMutation);
   liveSendMutationRef.current = liveSendMutation;
-
-  // Legacy live send path — only used as fallback when fast path hasn't handled the update.
-  // The fast path sets lastLiveSentPreview to match preview, so this is effectively a no-op
-  // when live mode is active. Kept for safety if the fast path request fails.
-  useEffect(() => {
-    if (!liveOutputEnabled || !preview || preview === lastLiveSentPreview.current) {
-      return;
-    }
-
-    const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-    if (!hasContent) return;
-
-    if (!liveSendMutationRef.current.isPending) {
-      liveSendMutationRef.current.mutate(preview);
-    }
-  }, [preview, liveOutputEnabled, debouncedTemplateLines]);
 
   // Live edit fast path: single 100ms debounce → single API call → preview + board update.
   // Bypasses the normal double-debounce (150ms + 200ms) and double API call chain.
   // Uses IMMEDIATE state (not debounced) and AbortController to cancel stale requests.
   useEffect(() => {
     if (!liveOutputEnabled) {
+      liveCanvasAttemptedRef.current = false;
       if (liveDebounceRef.current) {
         clearTimeout(liveDebounceRef.current);
         liveDebounceRef.current = null;
@@ -1828,7 +1815,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       return;
     }
 
-    const hasContent = templateLines.some((line) => line.trim().length > 0);
+    // A cancelled fetch may already have written its canvas to the board.
+    // Clear removed layers locally while the replacement request is pending.
+    if (canvases.length === 0) {
+      setPreviewLayers([]);
+      setCanvasIssues([]);
+      setCanvasError(null);
+    }
+
+    const hasContent =
+      templateLines.some((line) => line.trim().length > 0) ||
+      canvases.length > 0 ||
+      lastLiveSentPreview.current !== null ||
+      liveCanvasAttemptedRef.current;
     if (!hasContent) {
       if (liveAbortRef.current) {
         liveAbortRef.current.abort();
@@ -1854,7 +1853,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       try {
         const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
 
-        const data = await api.renderTemplateLive(
+        if (canvases.length > 0) liveCanvasAttemptedRef.current = true;
+        const data = await liveSendMutationRef.current.mutateAsync([
           cleanedLines,
           selectedBoardId || undefined,
           metadata,
@@ -1863,23 +1863,42 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           notesTall,
           controller.signal,
           panelGrid,
-        );
+          { overrideSilence: liveOverrideSilence, canvases },
+        ]);
 
         if (controller.signal.aborted) return;
 
+        setPreviewLayers(data.layers ?? null);
+        setCanvasIssues(data.canvas_issues ?? []);
+        setCanvasError(null);
         setPreview(data.rendered);
         if (data.rendered) {
           setLastPreview(data.rendered);
         }
+        // Remember the rendered content even during silence, so deleting
+        // the final content can still render an explicitly empty page.
         lastLiveSentPreview.current = data.rendered;
-        // Broadcast to the Home page (same tab and other tabs) so navigating there shows this content.
-        queryClient.setQueryData(["liveOutputMessage"], data.rendered);
-        writeLiveOutputMessage(data.rendered);
+        setLiveSilenced(data.silenced === true);
+        if (data.sent_to_board) {
+          // Broadcast to the Home page (same tab and other tabs) so navigating
+          // there shows this content — only a frame the board really shows.
+          queryClient.setQueryData(["liveOutputMessage"], data.rendered);
+          writeLiveOutputMessage(data.rendered);
+        } else if (data.silenced && queryClient.getQueryData(["liveOutputMessage"]) != null) {
+          // A frame primed before silence was known: take the claim back.
+          queryClient.setQueryData(["liveOutputMessage"], null);
+          writeLiveOutputMessage(null);
+        }
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
+        if (
+          controller.signal.aborted ||
+          liveAbortRef.current !== controller ||
+          (error instanceof DOMException && error.name === "AbortError")
+        ) {
           return;
         }
         console.error("[LiveFastPath] Error:", error);
+        toast.error(t("toastLiveSendFailed"));
       }
     }, 100);
 
@@ -1894,6 +1913,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     };
   }, [
     liveOutputEnabled,
+    canvases,
     templateLines,
     lineAlignments,
     lineWrapEnabled,
@@ -1903,14 +1923,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     notesTall,
     panelGrid,
     queryClient,
+    // Choosing "Send to board anyway" re-sends the current preview at once.
+    liveOverrideSilence,
+    t,
   ]);
-
-  // Initialize selected board to first board when settings load
-  useEffect(() => {
-    if (boardSettings?.boards?.length && !selectedBoardId) {
-      setSelectedBoardId(boardSettings.boards[0].id);
-    }
-  }, [boardSettings?.boards, selectedBoardId]);
 
   // Draw mode: a committed stroke is applied straight to the editor's live
   // ProseMirror doc (one undo step), which fires onChange -> setTemplateLines
@@ -2751,7 +2767,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <Switch
                         id="live-output-toggle"
                         checked={liveOutputEnabled}
-                        onCheckedChange={setLiveOutputEnabled}
+                        disabled={!selectedBoardId}
+                        onCheckedChange={(enabled) => {
+                          // Starting live output commits the displayed target;
+                          // later preview/context changes must not redirect it.
+                          if (enabled) setChosenLiveBoardId(selectedBoardId);
+                          setLiveOutputEnabled(enabled);
+                        }}
                         aria-label={t("liveOutputAriaLabel")}
                       />
                       <label
@@ -2771,7 +2793,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Flex>
 
                     {boardSettings?.boards && boardSettings.boards.length > 1 && (
-                      <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
+                      <Select value={selectedBoardId} onValueChange={setChosenLiveBoardId}>
                         <SelectTrigger className="h-7 w-[140px] text-xs" aria-label={t("selectBoardAriaLabel")}>
                           <SelectValue placeholder={t("selectBoardPlaceholder")} />
                         </SelectTrigger>
@@ -2785,6 +2807,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       </Select>
                     )}
                   </Flex>
+                  <LiveOutputSilenceStrip
+                    liveOutputEnabled={liveOutputEnabled}
+                    lastSilenced={liveSilenced}
+                    silenceActive={liveSilence.active}
+                    overriding={liveOverrideSilence}
+                    until={liveSilence.until}
+                    onSendAnyway={() => setLiveOverrideSilence(true)}
+                    onStopOverriding={() => setLiveOverrideSilence(false)}
+                  />
                 </Box>
 
                 {/* Pixel canvases: edited for an LED pixel board; on any other

@@ -48,6 +48,7 @@ from .board_guards import (  # noqa: E402, F401  (patch seams, see above)
     _board_dims,
     _board_is_paused,
     _require_board,
+    silence_verdict,
 )
 from .collections.models import is_collection_id  # noqa: E402, F401  (patch seam)
 
@@ -804,7 +805,15 @@ def run_service_background():
                 restart_delay = min(restart_delay * 2, max_restart_delay)
                 continue
 
+        # Set before the poll thread starts: its loop runs ``while
+        # self.running``, and after POST /stop the flag is still False.
         service.running = True
+        # The board-state poll starts in initialize(), which is skipped when
+        # the client already exists — a board added after startup through the
+        # settings route, or a restart after POST /stop, which also ended the
+        # poll loop. Without this, polling stayed off until a restart.
+        service._ensure_board_poll_thread()
+
         _service_running = True
         mark_service_started()
         restart_delay = 2  # Reset backoff on successful start

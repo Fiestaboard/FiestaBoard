@@ -85,6 +85,11 @@ class CollectionService:
         return self.storage.update(collection_id, updates)
 
     def delete_collection(self, collection_id: str) -> bool:
+        from src.content_references import check_content_references
+
+        if not self.storage.exists(collection_id):
+            return False
+        check_content_references(collection_id)
         return self.storage.delete(collection_id)
 
     def exists(self, collection_id: str) -> bool:

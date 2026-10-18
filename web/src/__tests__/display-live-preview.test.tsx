@@ -53,14 +53,19 @@ function serveBoardState(respond: (n: number) => Promise<Response> | Response) {
   return calls;
 }
 
-function renderPreview(board: BoardInstance) {
+function renderPreview(board: BoardInstance, size?: "sm" | "md") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
+  const { container } = render(
     <QueryClientProvider client={client}>
-      <DisplayLivePreview board={board} />
+      <DisplayLivePreview board={board} size={size} />
     </QueryClientProvider>,
   );
-  return client;
+  return { client, container };
+}
+
+/** Animated tiles carry `data-current-char`; the static path draws plain divs. */
+function animatedTileCount(container: HTMLElement) {
+  return container.querySelectorAll("[data-current-char]").length;
 }
 
 afterEach(() => {
@@ -77,7 +82,7 @@ describe("DisplayLivePreview", () => {
             release = () => resolve(HttpResponse.json({ detail: "unreachable" }, { status: 503 }));
           }),
     );
-    const client = renderPreview(BOARD);
+    const { client } = renderPreview(BOARD);
 
     // The first read fails: the preview settles on a static board.
     await waitFor(() => expect(calls.count).toBe(1));
@@ -131,5 +136,33 @@ describe("DisplayLivePreview", () => {
 
     await act(() => vi.advanceTimersByTimeAsync(95_000));
     expect(calls.count).toBeGreaterThan(1);
+  });
+
+  // The /displays list draws one thumbnail per display. Animated tiles (one
+  // set of effects per tile, then the loading drum and a walk to the target
+  // on every one) were ~2/3 of the page's load-time main-thread work.
+  it("draws a list thumbnail with static tiles, even while its first read is pending", async () => {
+    let release: () => void = () => {};
+    const calls = serveBoardState(
+      () =>
+        new Promise<Response>((resolve) => {
+          release = () => resolve(HttpResponse.json(FRAME));
+        }),
+    );
+    const { container } = renderPreview(BOARD);
+
+    await waitFor(() => expect(calls.count).toBe(1));
+
+    // The grid is drawn (6x22 flagship tiles), just not as animated tiles.
+    expect(container.querySelectorAll("div").length).toBeGreaterThan(6 * 22);
+    expect(animatedTileCount(container)).toBe(0);
+    release();
+  });
+
+  it("keeps the animated board for the detail-page preview", async () => {
+    serveBoardState(() => HttpResponse.json(FRAME));
+    const { container } = renderPreview(BOARD, "md");
+
+    await waitFor(() => expect(animatedTileCount(container)).toBeGreaterThan(0));
   });
 });

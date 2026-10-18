@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_is_paused, _find_board, _require_board
+from src.board_guards import _board_is_paused, _find_board, _require_board, silence_verdict
 from src.board_send_executor import run_board_preview
 from src.devices import geometry_of, resolve_dimensions
 from src.display_runtime import live_driver
@@ -271,9 +271,27 @@ async def render_template_with_canvases(request: TemplateRenderRequest, check: _
     target board, the canvases' ``layers`` and ``canvas_issues``. An area
     that starts outside the grid is a 422, as it is on a page save.
     """
+    from src.pages.service import draws_pixels
+
+    result = await _render_canvas_page(request, geometry, check.display, check.render_kw)
+    rendered = result.formatted
+    lines = rendered.split("\n")
+    extra: dict = {}
+    if draws_pixels(check.display):
+        extra = {
+            "layers": [layer.to_json() for layer in result.layers or ()],
+            "canvas_issues": [issue.to_json() for issue in result.canvas_issues or ()],
+        }
+    return TemplateRenderCheckedResponse(
+        rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered), **extra
+    )
+
+
+async def _render_canvas_page(request, geometry, display, render_kw):
+    """Render an unsaved page through the same canvas layout as saved pages."""
     from src.devices import DEFAULT_DEVICE_TYPE
     from src.pages.models import Page
-    from src.pages.service import draws_pixels, get_page_service
+    from src.pages.service import get_page_service
 
     device_type, notes_wide, notes_tall, grid_rows, grid_cols = geometry
     template = request.template if isinstance(request.template, list) else request.template.split("\n")
@@ -293,20 +311,10 @@ async def render_template_with_canvases(request: TemplateRenderRequest, check: _
     except ValueError as e:  # pydantic ValidationError included
         raise HTTPException(status_code=422, detail=str(e)) from e
 
-    result = await asyncio.to_thread(get_page_service().render_page, page, display=check.display, **check.render_kw)
+    result = await asyncio.to_thread(get_page_service().render_page, page, display=display, **render_kw)
     if not result.available:
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {result.error}")
-    rendered = result.formatted
-    lines = rendered.split("\n")
-    extra: dict = {}
-    if draws_pixels(check.display):
-        extra = {
-            "layers": [layer.to_json() for layer in result.layers or ()],
-            "canvas_issues": [issue.to_json() for issue in result.canvas_issues or ()],
-        }
-    return TemplateRenderCheckedResponse(
-        rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered), **extra
-    )
+    return result
 
 
 def _render_geometry(request, board: dict | None) -> tuple:
@@ -367,7 +375,12 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     - template: Template string or list of lines to render
     - board_id: Optional board ID to target (defaults to first configured board)
 
-    Returns the rendered result plus whether it was sent to the board.
+    - override_silence: Send even while the board is silenced (default false)
+
+    Returns the rendered result plus whether it was sent to the board. During
+    silence the render is still returned (the editor preview keeps working)
+    but nothing is written unless override_silence is true (issue #1943);
+    ``silenced`` says so. Live output is never held for later.
     """
     template = request.template
     board_id = request.board_id
@@ -403,7 +416,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
         blank = not template or all(not line.strip() for line in template)
     else:
         blank = not template.strip()
-    if blank:
+    if blank and request.canvases is None:
         return TemplateRenderLiveResponse(
             rendered="\n".join([""] * num_rows),
             lines=[""] * num_rows,
@@ -421,36 +434,58 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     if display is None and target_board is not None:
         display = display_profile_for_board(target_board)
 
-    # Render the template
-    try:
-        if isinstance(template, list):
-            rendered = await asyncio.to_thread(
-                template_engine.render_lines,
-                template,
-                line_metadata=line_metadata,
-                device_type=device_type,
-                notes_wide=notes_wide,
-                notes_tall=notes_tall,
-                grid_rows=grid_rows,
-                grid_cols=grid_cols,
-                **render_kw,
-                **({"display": display} if display is not None else {}),
-            )
-        else:
-            rendered = await asyncio.to_thread(template_engine.render, template, **render_kw)
-    except Exception as e:
-        logger.error(f"Template rendering error: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
+    # Explicit [] also renders/sends an empty page to clear removed canvases.
+    layers = ()
+    canvas_extra = {}
+    if request.canvases is not None:
+        from src.pages.service import draws_pixels
 
+        result = await _render_canvas_page(
+            request, (device_type, notes_wide, notes_tall, grid_rows, grid_cols), display, render_kw
+        )
+        rendered = result.formatted
+        layers = result.layers or ()
+        if draws_pixels(display):
+            canvas_extra = {
+                "layers": [layer.to_json() for layer in layers],
+                "canvas_issues": [issue.to_json() for issue in result.canvas_issues or ()],
+            }
+
+    else:
+        # Preserve the text-only render path for callers without canvases.
+        try:
+            if isinstance(template, list):
+                rendered = await asyncio.to_thread(
+                    template_engine.render_lines,
+                    template,
+                    line_metadata=line_metadata,
+                    device_type=device_type,
+                    notes_wide=notes_wide,
+                    notes_tall=notes_tall,
+                    grid_rows=grid_rows,
+                    grid_cols=grid_cols,
+                    **render_kw,
+                    **({"display": display} if display is not None else {}),
+                )
+            else:
+                rendered = await asyncio.to_thread(template_engine.render, template, **render_kw)
+        except Exception as e:
+            logger.error(f"Template rendering error: {e}", exc_info=True)
+            raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
     sent_to_board = False
     paused = False
+    silenced = False
     if target_board:
-        # Block when the target board is paused (issue #970). Render is still
-        # returned to the caller so the live editor preview keeps updating.
+        # Silence first (issue #1943), then pause (issue #970) — each reported
+        # on its own. The render is still returned to the caller so the live
+        # editor preview keeps updating; only the board write is skipped.
+        silenced = silence_verdict(
+            target_board.get("id"), override_silence=request.override_silence, what="live template send"
+        ).silenced
         if _board_is_paused(board_id=target_board.get("id")):
             logger.info("Board %s is paused - skipping live template send", target_board.get("id"))
             paused = True
-        else:
+        if not silenced and not paused:
             # The board's LIVE driver: a live edit is a write of the board's
             # runtime — it preempts a running transition, shares the engine's
             # send lock and floor, and lands in the frame cache, so the engine
@@ -459,7 +494,9 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                 geometry = geometry_of(target_board)
                 device_type = geometry.device_type
                 dims = resolve_dimensions(*geometry)
-                board_array, rich = project_for_output(client, rendered, dims.rows, dims.cols, flap=text_to_board_array)
+                board_array, rich = project_for_output(
+                    client, rendered, dims.rows, dims.cols, flap=text_to_board_array, layers=layers
+                )
 
                 transition_settings = settings_service.get_transition_settings(target_board.get("id"))
                 # Live editor sends are rapid-fire; a "plugin:<id>" system
@@ -484,6 +521,11 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                         **rich,
                     )
                     sent_to_board = was_sent
+                    if was_sent and request.override_silence:
+                        # A newer explicit write beats a message held during silence.
+                        from src import silence_queue
+
+                        silence_queue.discard(target_board.get("id"))
                 except Exception as e:
                     logger.error(f"Live send to board failed: {e}", exc_info=True)
 
@@ -494,5 +536,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
         line_count=len(lines),
         sent_to_board=sent_to_board,
         paused=paused,
+        silenced=silenced,
         board_id=target_board.get("id") if target_board else None,
+        **canvas_extra,
     )

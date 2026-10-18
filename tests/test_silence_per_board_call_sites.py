@@ -85,7 +85,7 @@ class TestApiSendGuards:
         # Phase 2 Task 8: the refusal is a 409, matching the /pages and /debug
         # senders, instead of a 200 carrying the word "blocked".
         assert response.status_code == 409, response.text
-        assert "silence mode" in response.json()["detail"]
+        assert "silenced" in response.json()["detail"]
         service.vb_client.render.assert_not_called()
 
     def test_send_welcome_message_respects_the_primary_boards_window(self, client):
@@ -100,7 +100,7 @@ class TestApiSendGuards:
             response = client.post("/send-welcome-message")
 
         assert response.status_code == 409, response.text
-        assert "silence mode" in response.json()["detail"]
+        assert "silenced" in response.json()["detail"]
         post.assert_not_called()
 
     def test_page_send_respects_the_target_boards_window(self, client):

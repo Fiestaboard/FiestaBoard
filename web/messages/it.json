@@ -285,6 +285,7 @@
     "variableExpressionAriaLabel": "Expression for rule {index}",
     "variableRuleSummaryArrow": "→ {target}",
     "variableDiscardTitle": "Discard unsaved changes?",
+    "variableSaveOrCancelRule": "Salva o annulla la modifica della regola prima di salvare questa raccolta.",
     "variableDiscardDescription": "You have unsaved changes to this rule. Switching will lose them.",
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
@@ -881,14 +882,6 @@
     "toastSwitchSuccess": "Passato alla pagina attiva",
     "toastSwitchFailed": "Impossibile cambiare pagina",
     "toastSwitchNotSent": "Pagina cambiata, ma invio alla bacheca non riuscito",
-    "updatedExternally": "Il board è stato modificato da un'altra app",
-    "resendToBoard": "Ripristina",
-    "toastResendSuccess": "Board ripristinato",
-    "toastResendFailed": "Impossibile ripristinare il board",
-    "saveAsPage": "Save as page",
-    "externalPageName": "Saved from board {date}",
-    "toastSaveAsPageSuccess": "Saved \"{pageName}\" as a page",
-    "toastSaveAsPageFailed": "Failed to save board as a page",
     "overrideBadge": "Sostituzione: {minutes} min rimanenti",
     "overrideBadgeLessThan1m": "Sostituzione: <1 min rimanente",
     "cancelOverride": "Annulla sostituzione",
@@ -903,7 +896,42 @@
     "collectionSizeWarning": "{count} pagine su {total} in questa raccolta non corrispondono alle dimensioni di questa board e verranno saltate.",
     "turnOffLiveModeAriaLabel": "Disattiva la modalità dal vivo",
     "liveModeBadge": "Modalità dal vivo",
-    "composeOneOff": "Scrivi un messaggio"
+    "composeOneOff": "Scrivi un messaggio",
+    "silenceManual": "“{pageName}” verrà mostrata al termine del silenzio. Fino ad allora il tabellone resta in silenzio.",
+    "silenceSchedule": "La tua programmazione riprende al termine del silenzio. Fino ad allora il tabellone resta in silenzio.",
+    "silenceNoPage": "Fino ad allora il tabellone resta in silenzio.",
+    "silenceHeld": "Messaggio in attesa: “{preview}” — verrà mostrato per primo.",
+    "showNow": "Mostra ora",
+    "discardHeld": "Scarta messaggio",
+    "selectPageSilence": "la pagina che scegli viene salvata e mostrata allora. Il tabellone resta in silenzio.",
+    "toastSwitchHeld": "“{pageName}” verrà mostrata alle {time}",
+    "toastSwitchHeldNoTime": "“{pageName}” verrà mostrata al termine del silenzio",
+    "toastSwitchPaused": "Salvata — “{pageName}” verrà mostrata quando riprendi il tabellone",
+    "toastShownNow": "“{pageName}” in mostra ora",
+    "toastHeldDiscarded": "Messaggio in attesa scartato",
+    "toastHeldDiscardFailed": "Impossibile scartare il messaggio in attesa"
+  },
+  "boardOutOfSync": {
+    "title": "Un’altra app ha modificato questo board",
+    "detail": "FiestaBoard lo sostituirà al prossimo aggiornamento della tua pagina. Salvalo come pagina per conservarlo.",
+    "restore": "Ripristina",
+    "saveAsPage": "Salva come pagina",
+    "savedAs": "Salvato come \"{pageName}\"",
+    "openPage": "Apri pagina",
+    "dismiss": "Ignora",
+    "holdPaused": "Questo display è in pausa, quindi Ripristina non invierà nulla finché non lo riprendi.",
+    "restoreAllDisplays": "Ripristina reinvia le pagine a tutti i display.",
+    "keptTitle": "Un’altra app ha scritto su questo board alle {time}",
+    "keptDetail": "FiestaBoard ha già rimesso la tua pagina. Puoi ancora salvare ciò che ha scritto l’altra app.",
+    "externalPageName": "Dal board {date}",
+    "toastRestored": "Board ripristinato",
+    "toastRestoredAll": "Pagine reinviate a tutti i display",
+    "toastRestoreFailed": "Impossibile ripristinare il board",
+    "toastNotSentPaused": "Nulla è stato inviato: questo display è in pausa",
+    "toastNotSent": "Nulla è stato inviato al display",
+    "toastSaved": "\"{pageName}\" salvato come pagina",
+    "toastSaveFailed": "Impossibile salvare il board come pagina",
+    "toastOpen": "Apri"
   },
   "forceSetDialog": {
     "title": "Forza impostazione board",
@@ -915,7 +943,9 @@
     "confirm": "Forza",
     "setting": "Impostazione…",
     "toastSuccess": "Mostro «{pageName}» per {minutes} min",
-    "toastError": "Impossibile impostare la sostituzione"
+    "toastError": "Impossibile impostare la sostituzione",
+    "silenceWarning": "Forza mostra subito questa pagina e risveglia il tabellone.",
+    "confirmSilenced": "Mostra ora comunque"
   },
   "composeDialog": {
     "title": "Scrivi un messaggio",
@@ -936,7 +966,17 @@
     "toastSent": "Inviato al tabellone",
     "toastSendError": "Invio del messaggio non riuscito",
     "toastSaved": "Salvato \"{pageName}\"",
-    "toastSaveError": "Salvataggio della pagina non riuscito"
+    "toastSaveError": "Salvataggio della pagina non riuscito",
+    "silenceHold": "Mettilo in attesa e verrà mostrato alle {time}, oppure invialo ora e il tabellone si risveglia.",
+    "silenceNoHold": "Inviare ora risveglia il tabellone. Per tenere i messaggi in attesa fino al termine del silenzio, attiva “Mostra i messaggi in attesa al termine del silenzio” in Impostazioni → Programmazione.",
+    "openSettings": "Apri impostazioni",
+    "hold": "In attesa fino alle {time}",
+    "holdNoTime": "In attesa fino al termine del silenzio",
+    "holding": "Messa in attesa…",
+    "sendNowAnyway": "Invia ora comunque",
+    "toastHeld": "In attesa — verrà mostrato alle {time}",
+    "toastHeldNoTime": "In attesa — verrà mostrato al termine del silenzio",
+    "toastHoldError": "Impossibile mettere in attesa il messaggio"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Impossibile raggiungere l'app. Controlla la rete o che FiestaBoard sia in esecuzione.",
@@ -1032,7 +1072,11 @@
     "transitionPickerTooltip": "Transizione di questa pagina: {strategy}",
     "transitionBuiltInGroup": "Integrate",
     "transitionPluginsGroup": "Plugin (beta)",
-    "transitionUseDisplayTransition": "Usa la transizione dello schermo"
+    "transitionUseDisplayTransition": "Usa la transizione dello schermo",
+    "liveSilencePreviewOnly": "L'output dal vivo mostra solo un'anteprima. Il tabellone resta in silenzio.",
+    "liveSendAnyway": "Invia comunque al tabellone",
+    "liveSilenceOverriding": "L'output dal vivo sta risvegliando il tabellone durante il silenzio.",
+    "liveStopOverriding": "Interrompi invio"
   },
   "displaySettings": {
     "unnamedBoard": "Bacheca senza nome",
@@ -1371,7 +1415,9 @@
     "toastBoardReadIntervalUpdated": "Intervallo di lettura board aggiornato",
     "toastBoardReadIntervalFailed": "Impossibile aggiornare l'intervallo di lettura del board: {error}",
     "updateIntervalsTitle": "Intervalli di aggiornamento",
-    "updateIntervalsDescription": "Con quale frequenza la board recupera nuovi contenuti e rilegge il proprio stato"
+    "updateIntervalsDescription": "Con quale frequenza la board recupera nuovi contenuti e rilegge il proprio stato",
+    "silenceShowHeldLabel": "Mostra i messaggi in attesa al termine del silenzio",
+    "silenceShowHeldHelp": "Un messaggio inviato a questo tabellone durante il silenzio viene messo in attesa e mostrato appena il silenzio termina. Se disattivato, viene rifiutato. I cambi di pagina vengono sempre conservati e non ne hanno bisogno."
   },
   "serviceControls": {
     "title": "Controllo servizio",
@@ -2686,6 +2732,8 @@
     "jsonLabel": "JSON delle forme",
     "jsonInvalid": "JSON non valido: {message}",
     "jsonNotList": "Il JSON delle forme deve essere un elenco.",
+    "jsonInvalidShape": "Ogni elemento deve essere un oggetto forma con un tipo supportato.",
+    "jsonRepairBeforeEditing": "Correggi la bozza JSON prima di modificare le forme. Attiva Modifica come JSON per continuare.",
     "sourceHint": "Una variabile del plugin che disegna questa tela. Quando restituisce un disegno, questo sostituisce quello della tela.",
     "sourceVariable": "Variabile tela del plugin",
     "sourceNone": "Nessuna",
@@ -2697,5 +2745,9 @@
     "serverError": "Le tele non sono state accettate: {message}",
     "notPixelNotice": "Questa pagina contiene tele di pixel. Questa lavagna non può disegnarle, quindi le loro aree restano vuote. Visualizza l'anteprima della pagina su una lavagna LED a pixel per modificarle.",
     "markerTitle": "Una tela inizia su questa riga (non fa parte del testo)"
+  },
+  "silenceNotice": {
+    "untilTitle": "In silenzio fino alle {time}",
+    "untilTitleNoTime": "Il tabellone è in silenzio"
   }
 }

@@ -22,6 +22,9 @@ class MessageRequest(BaseModel):
 
     text: str
     board_id: str | None = None
+    #: Write even while the board is silenced (issues #1943). Pause is never
+    #: overridden.
+    override_silence: bool = False
 
 
 class WelcomeMessageRequest(BaseModel):
@@ -47,6 +50,10 @@ class SendResponse(BaseModel):
 
     message: str
     sent: bool
+    #: True when silence held the message to show when the window ends
+    #: (#1944, HTTP 202). Present only then, so every other answer keeps its
+    #: exact pinned shape (tests/test_platform_contract.py).
+    held: bool | None = None
 
 
 class BoardCurrentMessageResponse(BaseModel):
@@ -80,3 +87,12 @@ class BoardCurrentMessageResponse(BaseModel):
     api_mode: str = Field(json_schema_extra={"deprecated": True}, description=FLAT_BOARD_FIELDS_NOTE)
     #: Echo of the requested board id; null means the primary board.
     board_id: str | None = None
+    #: The last frame the board poll CONFIRMED another app wrote to this
+    #: board, kept after FiestaBoard repaints so it can still be saved as a
+    #: page (issue #1945). Present ONLY while the board holds one: cleared by
+    #: ``DELETE /board/external-frame`` and never served once it is older
+    #: than 24 hours. Every other response is exactly what it was.
+    external_characters: list[list[int]] | None = None
+    #: ISO 8601 UTC time of the poll that confirmed ``external_characters``;
+    #: present only alongside it.
+    external_detected_at: str | None = None

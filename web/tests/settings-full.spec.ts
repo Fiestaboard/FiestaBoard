@@ -121,22 +121,43 @@ test.describe("Settings – Full Coverage", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Status badge lives in About (System tab) or System Controls (also System)
-    await page.getByRole("tab", { name: "System", exact: true }).click();
+    // The service status lives in Advanced → Debug Tools → System Information.
+    // System's update banner can say "running" but is not a service status.
+    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
+    const advanced = page.getByRole("tabpanel", { name: "Advanced", exact: true });
+    await advanced.getByRole("button", { name: "Debug Tools", exact: true }).click();
+    await advanced.getByRole("button", { name: "System Information", exact: true }).click();
+    await expect(advanced.getByText(/^(Running|Stopped)$/)).toBeVisible({ timeout: 10_000 });
 
-    const statusBadge = page.getByText(/running|stopped/i).first();
-    await expect(statusBadge).toBeVisible({ timeout: 10_000 });
+    const initialStatus = await fetch(`${API_URL}/status`);
+    expect(initialStatus.ok).toBe(true);
+    expect(typeof (await initialStatus.json()).running).toBe("boolean");
 
-    // Service start may fail in Docker (no display loop available).
-    // We just verify the endpoints respond without hanging.
-    const startRes = await fetch(`${API_URL}/start`, { method: "POST" });
-    expect([200, 400, 500]).toContain(startRes.status);
+    try {
+      // configureBoard points at the isolated mock board, so the display
+      // loop must start successfully rather than accepting server errors.
+      const startRes = await fetch(`${API_URL}/start`, { method: "POST" });
+      expect(startRes.status).toBe(200);
+      expect(await startRes.json()).toMatchObject({ running: true });
 
-    const statusRes = await fetch(`${API_URL}/status`);
-    expect(statusRes.ok).toBe(true);
+      const runningStatus = await fetch(`${API_URL}/status`);
+      expect(runningStatus.ok).toBe(true);
+      expect(await runningStatus.json()).toMatchObject({ running: true });
 
-    const stopRes = await fetch(`${API_URL}/stop`, { method: "POST" });
-    expect([200, 400, 500]).toContain(stopRes.status);
+      const stopRes = await fetch(`${API_URL}/stop`, { method: "POST" });
+      expect(stopRes.status).toBe(200);
+      expect(await stopRes.json()).toMatchObject({ running: false, changed: true });
+
+      const stoppedStatus = await fetch(`${API_URL}/status`);
+      expect(stoppedStatus.ok).toBe(true);
+      expect(await stoppedStatus.json()).toMatchObject({ running: false });
+    } finally {
+      // Later specs depend on the display loop and board-state poll, even
+      // when an assertion above fails after stopping the loop.
+      const restored = await fetch(`${API_URL}/start`, { method: "POST" });
+      expect(restored.status).toBe(200);
+      expect(await restored.json()).toMatchObject({ running: true });
+    }
   });
 
   test("silence schedule section is visible in settings", async ({ page }) => {

@@ -24,5 +24,5 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
     video: { mode: "on", size: { width: 1280, height: 800 } },
   },
-  projects: [{ name: "draw-demo", use: { ...devices["Desktop Chrome"] } }],
+  projects: [{ name: "draw-demo", use: { ...devices["Desktop Chrome"], screen: undefined } }],
 });

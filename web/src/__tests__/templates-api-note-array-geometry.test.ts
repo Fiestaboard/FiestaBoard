@@ -129,3 +129,20 @@ describe("templates API client note-array geometry", () => {
     ).rejects.toThrow();
   });
 });
+
+it.each([
+  { canvases: [] },
+  { canvases: [{ id: "sky", area: { row: 1, col: 1, rows: 1, cols: 2 }, content: { background: "#ff0000" } }] },
+])("live render transmits explicit canvases %j", async ({ canvases }) => {
+  let body: unknown;
+  server.use(
+    http.post("/api/templates/render/live", async ({ request }) => {
+      body = await request.json();
+      return HttpResponse.json({ rendered: "", lines: [""], line_count: 1, sent_to_board: false });
+    }),
+  );
+  await api.renderTemplateLive([""], "pixels", undefined, undefined, undefined, undefined, undefined, undefined, {
+    canvases,
+  });
+  expect(body).toEqual({ template: [""], board_id: "pixels", canvases });
+});

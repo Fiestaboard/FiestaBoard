@@ -386,14 +386,14 @@ class TestVocabulariesAreEnforcedNotJustDocumented:
     def test_silence_schedule_rejects_an_unknown_mode(self, client):
         response = client.put(
             "/settings/silence-schedule",
-            json={"enabled": True, "start_time": "22:00", "end_time": "07:00", "mode": "bogus"},
+            json={"enabled": True, "start_time": "22:00+00:00", "end_time": "07:00+00:00", "mode": "bogus"},
         )
         assert response.status_code == 422
 
     def test_silence_schedule_still_accepts_indicator(self, client):
         response = client.put(
             "/settings/silence-schedule",
-            json={"enabled": True, "start_time": "22:00", "end_time": "07:00", "mode": "indicator"},
+            json={"enabled": True, "start_time": "22:00+00:00", "end_time": "07:00+00:00", "mode": "indicator"},
         )
         assert response.status_code == 200
         assert response.json()["config"]["mode"] == "indicator"
