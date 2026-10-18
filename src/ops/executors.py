@@ -874,6 +874,12 @@ def _settle_send(
         throttled = _throttle_refusal(outcome, target.board_id)
         if throttled is not None:
             return throttled
+        if outcome.superseded:
+            return err(
+                "This write was superseded by a newer write before its content reached the board.",
+                superseded=True,
+                board_id=target.board_id,
+            )
         if unchanged is None:
             return err(failure)
         return ok(unchanged, skipped=True, board_id=target.board_id)

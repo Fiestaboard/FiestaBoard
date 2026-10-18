@@ -365,7 +365,7 @@ class OutputPluginDriver:
             return WriteResult(False, False)
         if result.throttled:
             return self._device_throttled(admission, result.retry_after_seconds)
-        if result.success and not result.was_sent and token.is_set():
+        if result.success and not result.was_sent and (token.is_set() or result.superseded):
             # Preempted: the plugin stopped mid-write and nothing landed. The
             # newer write that cancelled it owns the board, so it gets the
             # floor slot back and the last-frame store never claims this
@@ -373,7 +373,7 @@ class OutputPluginDriver:
             # never reached the device, and the board stays dark.
             self._output_runtime.release_send(admission)
             self._last_send_preempted = True
-            return WriteResult(True, False)
+            return WriteResult(True, False, superseded=True)
         if result.success:
             # Landed — or the device already showed it (a fan-out whose every
             # part was unchanged): either way it is what the board shows.

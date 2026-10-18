@@ -353,6 +353,7 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
     ``retry_after_seconds`` (#1931) and is the 429 + ``Retry-After`` the
     other manual senders answer — this route used to derive that itself from
     the client after a ``skipped`` result, before the executor gated it.
+    A write superseded by a newer one is a 409: its content never landed.
     A write that reached only part of the board (``partial``, a local note
     array with a failed tile) is a 502 whose structured detail names the
     cells that did not update — it used to be a bare 500 indistinguishable
@@ -366,6 +367,8 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
 
             raise HTTPException(status_code=409, detail=SILENCE_DETAIL + SILENCE_OVERRIDE_HINT)
         raise HTTPException(status_code=409, detail=str(result.get("message")))
+    if result.get("status") == "error" and result.get("superseded"):
+        raise HTTPException(status_code=409, detail=str(result["error"]))
     if result.get("status") == "error" and result.get("partial"):
         raise HTTPException(
             status_code=502,
@@ -404,6 +407,7 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
         "paused or inside its silence window refuses the write with 409 rather than lying about it. Send "
         '`if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board '
         "is paused, and `characters` is what it would have shown. Nothing is written.\n\n"
+        "A write superseded by a newer write returns 409: its content did not reach the board. "
         "A silenced board is left alone. When its silence schedule holds messages (`show_queued_on_exit`) the "
         "write is accepted for later: 202, `sent: false`, `held: true`, and it shows when silence ends. "
         "Otherwise it is a 409. Send `override_silence: true` to write anyway. A board made "

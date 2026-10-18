@@ -211,7 +211,7 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 
 `sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused or inside its silence window refuses the write with 409 rather than lying about it. Send `if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board is paused, and `characters` is what it would have shown. Nothing is written.
 
-A silenced board is left alone. When its silence schedule holds messages (`show_queued_on_exit`) the write is accepted for later: 202, `sent: false`, `held: true`, and it shows when silence ends. Otherwise it is a 409. Send `override_silence: true` to write anyway. A board made of several devices (a local note array) that takes the write on only some of them answers 502, and `detail.failed_regions` names the cells that did not update; sending again retries only those.
+A write superseded by a newer write returns 409: its content did not reach the board. A silenced board is left alone. When its silence schedule holds messages (`show_queued_on_exit`) the write is accepted for later: 202, `sent: false`, `held: true`, and it shows when silence ends. Otherwise it is a 409. Send `override_silence: true` to write anyway. A board made of several devices (a local note array) that takes the write on only some of them answers 502, and `detail.failed_regions` names the cells that did not update; sending again retries only those.
 
 **Parameters**
 

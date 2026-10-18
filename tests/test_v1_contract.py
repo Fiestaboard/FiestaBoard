@@ -1505,3 +1505,75 @@ def test_plugin_id_form_503s_when_the_plugin_has_no_data(client, boards, board_c
     assert response.status_code == 503
     assert response.json()["detail"] == "API down"
     board_client.render.assert_not_called()
+
+
+@pytest.mark.parametrize("timed", [False, True])
+def test_overlapping_forced_writes_report_superseded_not_unchanged(client, boards, monkeypatch, timed):
+    """The replacement clears driver flags before the first request settles."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    from src.outputs.plugin_driver import OutputPluginDriver
+    from tests.test_output_preempted_write import Clock, SlowPanel
+
+    board_id, _ = boards
+
+    class SlowLedPanel(SlowPanel):
+        def write_transition(self, before, after, transition, *, cancel):
+            assert transition.spec.kind == "flip"
+            result = self.write(after, native=None, cancel=cancel)
+            # Older plugins can still return the original two-tuple.
+            return (result.success, result.was_sent)
+
+    from src.fiestaui import builtin_device_models
+
+    plugin = SlowLedPanel()
+    plugin.bind_board(device_model=builtin_device_models()["divoom_pixoo64"])
+    driver = OutputPluginDriver(plugin, clock=Clock())
+    driver._frames.record_sent(BLANK_FLAGSHIP)
+    service = Mock()
+    service.get_board_client.return_value = driver
+    service.vb_client = driver
+    monkeypatch.setattr(SERVICE, lambda: service)
+    monkeypatch.setattr(RUNTIME_SERVICE, lambda: service)
+    replacement_done = threading.Event()
+    real_render = driver.render
+
+    def render_then_settle(characters, **kwargs):
+        result = real_render(characters, **kwargs)
+        if any(1 in row for row in characters):
+            assert replacement_done.wait(5)
+        return result
+
+    monkeypatch.setattr(driver, "render", render_then_settle)
+
+    def send(fill):
+        return client.post(
+            f"/v1/boards/{board_id}/message",
+            json={
+                "lines": ["A" if fill == 1 else "B"],
+                "force": True,
+                "transition": {"strategy": "flip"},
+                **({"duration_minutes": 5} if timed and fill == 1 else {}),
+            },
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(send, 1)
+        try:
+            assert driver.plugin.started.wait(5)
+            replacement = send(2)
+        finally:
+            replacement_done.set()
+        superseded = first.result(timeout=5)
+
+    assert replacement.status_code == 200, replacement.text
+    assert replacement.json()["sent"] is True
+    assert driver.last_send_preempted is False
+    assert superseded.status_code == 409, superseded.text
+    assert "superseded" in superseded.json()["detail"].lower()
+    assert "force=true" not in superseded.json()["detail"]
+
+    stored = client.get("/settings/temporary-override").json()
+    assert stored["active"] is False
+    assert stored["template"] is None
