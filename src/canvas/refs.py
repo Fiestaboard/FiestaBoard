@@ -4,10 +4,9 @@ A canvas reads plugin data through ``{{…}}`` expressions in its ``source``
 and in any shape field. :func:`canvas_plugin_ids` collects the plugin ids
 those expressions name, the way
 :func:`src.templates.engine.extract_template_plugin_ids` does for template
-lines, so a render fetches the plugins its canvases need. An expression that
-is more than a plain dotted path (a formula) makes the set unknowable
-statically: ``None``, which callers read as "fetch every enabled plugin" —
-always safe.
+lines, so a render fetches the plugins its canvases need. Unsupported
+expressions (including function calls) make the set unknowable statically:
+``None``, which callers read as "fetch every enabled plugin" — always safe.
 """
 
 from __future__ import annotations
@@ -16,12 +15,13 @@ import re
 from collections.abc import Iterable
 from typing import Any
 
+from src.templates.expressions import expression_plugin_ids
+
 from .models import Canvas
 
 __all__ = ["canvas_plugin_ids"]
 
 _EXPR = re.compile(r"\{\{(.*?)\}\}", re.S)
-_PATH = re.compile(r"\s*([A-Za-z_][\w:-]*)(?:\.[\w-]+)+\s*")
 
 
 def _strings(value: Any) -> Iterable[str]:
@@ -48,8 +48,8 @@ def canvas_plugin_ids(canvases: Iterable[Canvas] | None) -> set[str] | None:
                 body = match.group(1).strip()
                 if body.startswith("="):
                     body = body[1:]
-                path = _PATH.fullmatch(body)
-                if path is None:
+                expression_refs = expression_plugin_ids(body)
+                if expression_refs is None:
                     return None
-                refs.add(path.group(1).lower())
+                refs.update(expression_refs)
     return refs

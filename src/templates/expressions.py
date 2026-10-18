@@ -2168,6 +2168,33 @@ def evaluate(expression: str, context: dict[str, Any] | None = None) -> str:
         return exc.code
 
 
+def expression_plugin_ids(expression: str) -> set[str] | None:
+    """Collect roots in literals and operator expressions without evaluating them.
+
+    Function calls and unparseable expressions retain the fetch-all fallback.
+    This deliberately does not infer dependencies through function-specific
+    scoping or strings that a function might evaluate as expressions.
+    """
+    try:
+        pending = [_Parser(_tokenize(expression)).parse()]
+    except (FormulaError, RecursionError):
+        return None
+    refs: set[str] = set()
+    while pending:
+        node = pending.pop()
+        if isinstance(node, _Literal):
+            continue
+        if isinstance(node, _Var):
+            refs.add(node.path.split(".", 1)[0].lower())
+        elif isinstance(node, _Unary):
+            pending.append(node.operand)
+        elif isinstance(node, _Binary):
+            pending.extend((node.left, node.right))
+        else:
+            return None
+    return refs
+
+
 def evaluate_value(
     expression: str, context: dict[str, Any] | None = None, bindings: dict[str, Any] | None = None
 ) -> Any:
