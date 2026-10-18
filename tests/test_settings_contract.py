@@ -963,3 +963,34 @@ class TestAllSettings:
     def test_reflects_a_write_made_through_a_sibling_endpoint(self, client):
         client.put("/settings/output", json={"target": "both"})
         assert client.get("/settings/all").json()["output"]["target"] == "both"
+
+
+@pytest.mark.parametrize("board_scoped", [False, True])
+@pytest.mark.parametrize("enabled", [False, True])
+@pytest.mark.parametrize("field", ["start_time", "end_time"])
+@pytest.mark.parametrize("invalid", ["not-a-time", "25:99+00:00", "", "12:00+99:99", "12:00+00:60", "12:00", "12:00Z"])
+def test_silence_rejects_invalid_times_without_writing(client, board_scoped, enabled, field, invalid):
+    from src.config_manager import get_config_manager
+
+    payload = {"enabled": True, "start_time": "04:00+00:00", "end_time": "05:00+00:00"}
+    if board_scoped:
+        payload["board_id"] = _primary_board_id(client)
+    assert client.put("/settings/silence-schedule", json=payload).status_code == 200
+    manager = get_config_manager()
+    before = manager.get_all()
+
+    response = client.put("/settings/silence-schedule", json={**payload, "enabled": enabled, field: invalid})
+
+    assert response.status_code == 422, response.text
+    assert any(error["loc"] == ["body", field] for error in response.json()["detail"])
+    assert manager.get_all() == before
+
+
+@pytest.mark.parametrize("start,end", [("00:00+00:00", "23:59+00:00"), ("20:00-08:00", "14:30+05:30")])
+def test_silence_preserves_valid_offset_times(client, start, end):
+    response = client.put("/settings/silence-schedule", json={
+        "enabled": False, "start_time": start, "end_time": end,
+    })
+    assert response.status_code == 200
+    assert response.json()["config"]["start_time"] == start
+    assert response.json()["config"]["end_time"] == end
