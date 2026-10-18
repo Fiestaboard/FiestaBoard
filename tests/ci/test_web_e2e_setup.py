@@ -19,7 +19,6 @@ ACTION = ROOT / ".github/actions/setup-web-e2e/action.yml"
 def test_browser_setup_requires_successful_locked_install(tmp_path, npm_status, browser_status):
     web = tmp_path / "web"
     web.mkdir()
-    (web / "package-lock.json").write_text("{}")
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     npm = bin_dir / "npm"
