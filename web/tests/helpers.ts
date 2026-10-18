@@ -506,16 +506,26 @@ export async function deletePagesByDevice(deviceType: string): Promise<void> {
   }
 }
 
-/** Delete every page via the API. */
-export async function deleteAllPages(): Promise<void> {
+/** Delete pages; strict fixture setup reports rejected cleanup instead of hiding it.
+ * deleteSchedules unlinks all-board schedule entries before deleting their pages.
+ * Other reference types (collections, defaults, silence) must be removed by their owner.
+ */
+export async function deleteAllPages(options: { strict?: boolean; deleteSchedules?: boolean } = {}): Promise<void> {
+  if (options.deleteSchedules) await deleteAllSchedules({ strict: options.strict });
   const res = await fetch(`${API_URL}/v1/pages`, { headers: authHeaders() });
-  if (!res.ok) return;
+  if (!res.ok) {
+    if (options.strict) throw new Error(`GET /v1/pages cleanup failed (${res.status}): ${await res.text()}`);
+    return;
+  }
   const data = await res.json();
   for (const p of data.pages) {
-    await fetch(`${API_URL}/v1/pages/${p.id}`, {
+    const deleted = await fetch(`${API_URL}/v1/pages/${p.id}`, {
       method: "DELETE",
       headers: authHeaders(),
     });
+    if (options.strict && !deleted.ok) {
+      throw new Error(`DELETE /v1/pages/${p.id} cleanup failed (${deleted.status}): ${await deleted.text()}`);
+    }
   }
 }
 
@@ -556,15 +566,22 @@ export async function deleteSchedule(id: string): Promise<void> {
 }
 
 /** Delete every schedule via the API (across all boards). */
-export async function deleteAllSchedules(): Promise<void> {
+export async function deleteAllSchedules(options: { strict?: boolean } = {}): Promise<void> {
   const res = await fetch(`${API_URL}/v1/schedules?board_id=*`, { headers: authHeaders() });
-  if (!res.ok) return;
+  if (!res.ok) {
+    if (options.strict)
+      throw new Error(`GET /v1/schedules?board_id=* cleanup failed (${res.status}): ${await res.text()}`);
+    return;
+  }
   const data = await res.json();
   for (const s of data.schedules) {
-    await fetch(`${API_URL}/v1/schedules/${s.id}`, {
+    const deleted = await fetch(`${API_URL}/v1/schedules/${s.id}`, {
       method: "DELETE",
       headers: authHeaders(),
     });
+    if (options.strict && !deleted.ok) {
+      throw new Error(`DELETE /v1/schedules/${s.id} cleanup failed (${deleted.status}): ${await deleted.text()}`);
+    }
   }
 }
 
