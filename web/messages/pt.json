@@ -910,14 +910,13 @@
     "silenceHeld": "Mensagem retida: “{preview}” — ela aparece primeiro.",
     "showNow": "Mostrar agora",
     "discardHeld": "Descartar mensagem",
-    "selectPageSilence": "A página escolhida é salva e exibida quando o silêncio terminar — o quadro fica em silêncio.",
-    "toastSwitchHeld": "Salvo — “{pageName}” será exibida quando o silêncio terminar, às {time}",
-    "toastSwitchHeldNoTime": "Salvo — “{pageName}” será exibida quando o silêncio terminar",
+    "selectPageSilence": "a página escolhida é salva e exibida nesse momento. O quadro fica em silêncio.",
+    "toastSwitchHeld": "“{pageName}” será exibida às {time}",
+    "toastSwitchHeldNoTime": "“{pageName}” será exibida quando o silêncio terminar",
     "toastSwitchPaused": "Salvo — “{pageName}” será exibida quando você retomar o quadro",
     "toastShownNow": "Mostrando “{pageName}” agora",
     "toastHeldDiscarded": "Mensagem retida descartada",
     "toastHeldDiscardFailed": "Não foi possível descartar a mensagem retida",
-    "toastResendSilenced": "Nada foi enviado — o quadro está em silêncio até {time}",
     "toastResendNotSent": "Nada foi enviado (quadro pausado ou saída definida só para a interface)"
   },
   "forceSetDialog": {

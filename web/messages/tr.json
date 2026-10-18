@@ -910,14 +910,13 @@
     "silenceHeld": "Bekletilen mesaj: “{preview}” — önce bu gösterilecek.",
     "showNow": "Şimdi göster",
     "discardHeld": "Mesajı at",
-    "selectPageSilence": "Seçtiğiniz sayfa kaydedilir ve sessizlik bittiğinde gösterilir — pano sessiz kalır.",
-    "toastSwitchHeld": "Kaydedildi — sessizlik {time} saatinde bittiğinde “{pageName}” gösterilecek",
-    "toastSwitchHeldNoTime": "Kaydedildi — sessizlik bittiğinde “{pageName}” gösterilecek",
+    "selectPageSilence": "seçtiğiniz sayfa kaydedilir ve o zaman gösterilir. Pano sessiz kalır.",
+    "toastSwitchHeld": "“{pageName}” {time} saatinde gösterilecek",
+    "toastSwitchHeldNoTime": "Sessizlik bittiğinde “{pageName}” gösterilecek",
     "toastSwitchPaused": "Kaydedildi — panoyu devam ettirdiğinizde “{pageName}” gösterilecek",
     "toastShownNow": "“{pageName}” şimdi gösteriliyor",
     "toastHeldDiscarded": "Bekletilen mesaj atıldı",
     "toastHeldDiscardFailed": "Bekletilen mesaj atılamadı",
-    "toastResendSilenced": "Hiçbir şey gönderilmedi — pano {time} saatine kadar sessiz",
     "toastResendNotSent": "Hiçbir şey gönderilmedi (pano duraklatıldı veya çıkış yalnızca arayüze ayarlı)"
   },
   "forceSetDialog": {

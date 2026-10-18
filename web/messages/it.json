@@ -910,14 +910,13 @@
     "silenceHeld": "Messaggio in attesa: “{preview}” — verrà mostrato per primo.",
     "showNow": "Mostra ora",
     "discardHeld": "Scarta messaggio",
-    "selectPageSilence": "La pagina che scegli viene salvata e mostrata al termine del silenzio — il tabellone resta in silenzio.",
-    "toastSwitchHeld": "Salvata — “{pageName}” verrà mostrata al termine del silenzio, alle {time}",
-    "toastSwitchHeldNoTime": "Salvata — “{pageName}” verrà mostrata al termine del silenzio",
+    "selectPageSilence": "la pagina che scegli viene salvata e mostrata allora. Il tabellone resta in silenzio.",
+    "toastSwitchHeld": "“{pageName}” verrà mostrata alle {time}",
+    "toastSwitchHeldNoTime": "“{pageName}” verrà mostrata al termine del silenzio",
     "toastSwitchPaused": "Salvata — “{pageName}” verrà mostrata quando riprendi il tabellone",
     "toastShownNow": "“{pageName}” in mostra ora",
     "toastHeldDiscarded": "Messaggio in attesa scartato",
     "toastHeldDiscardFailed": "Impossibile scartare il messaggio in attesa",
-    "toastResendSilenced": "Non è stato inviato nulla — il tabellone è in silenzio fino alle {time}",
     "toastResendNotSent": "Non è stato inviato nulla (tabellone in pausa o uscita impostata solo sull'interfaccia)"
   },
   "forceSetDialog": {

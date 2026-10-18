@@ -910,14 +910,13 @@
     "silenceHeld": "Message en attente : « {preview} » — il s'affichera en premier.",
     "showNow": "Afficher maintenant",
     "discardHeld": "Supprimer le message",
-    "selectPageSilence": "La page choisie est enregistrée et s'affichera à la fin du silence — le tableau reste silencieux.",
-    "toastSwitchHeld": "Enregistré — « {pageName} » s'affichera à la fin du silence, à {time}",
-    "toastSwitchHeldNoTime": "Enregistré — « {pageName} » s'affichera à la fin du silence",
+    "selectPageSilence": "la page choisie est enregistrée et s'affichera à ce moment-là. Le tableau reste silencieux.",
+    "toastSwitchHeld": "« {pageName} » s'affichera à {time}",
+    "toastSwitchHeldNoTime": "« {pageName} » s'affichera à la fin du silence",
     "toastSwitchPaused": "Enregistré — « {pageName} » s'affichera quand vous reprendrez le tableau",
     "toastShownNow": "Affichage de « {pageName} » maintenant",
     "toastHeldDiscarded": "Message en attente supprimé",
     "toastHeldDiscardFailed": "Impossible de supprimer le message en attente",
-    "toastResendSilenced": "Rien n'a été envoyé — le tableau est en silence jusqu'à {time}",
     "toastResendNotSent": "Rien n'a été envoyé (tableau en pause ou sortie réglée sur l'interface uniquement)"
   },
   "forceSetDialog": {

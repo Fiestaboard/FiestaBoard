@@ -910,14 +910,13 @@
     "silenceHeld": "Zurückgehaltene Nachricht: „{preview}“ – sie wird zuerst angezeigt.",
     "showNow": "Jetzt anzeigen",
     "discardHeld": "Nachricht verwerfen",
-    "selectPageSilence": "Die gewählte Seite wird gespeichert und angezeigt, wenn der Ruhemodus endet – die Tafel bleibt still.",
-    "toastSwitchHeld": "Gespeichert – „{pageName}“ wird um {time} angezeigt, wenn der Ruhemodus endet",
-    "toastSwitchHeldNoTime": "Gespeichert – „{pageName}“ wird angezeigt, wenn der Ruhemodus endet",
+    "selectPageSilence": "die gewählte Seite wird gespeichert und dann angezeigt. Die Tafel bleibt still.",
+    "toastSwitchHeld": "„{pageName}“ wird um {time} angezeigt",
+    "toastSwitchHeldNoTime": "„{pageName}“ wird angezeigt, wenn der Ruhemodus endet",
     "toastSwitchPaused": "Gespeichert – „{pageName}“ wird angezeigt, wenn du die Tafel fortsetzt",
     "toastShownNow": "„{pageName}“ wird jetzt angezeigt",
     "toastHeldDiscarded": "Zurückgehaltene Nachricht verworfen",
     "toastHeldDiscardFailed": "Die zurückgehaltene Nachricht konnte nicht verworfen werden",
-    "toastResendSilenced": "Nichts gesendet – die Tafel ist bis {time} im Ruhemodus",
     "toastResendNotSent": "Nichts gesendet (Tafel pausiert oder Ausgabe nur auf die Oberfläche eingestellt)"
   },
   "forceSetDialog": {

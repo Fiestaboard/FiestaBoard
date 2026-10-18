@@ -910,14 +910,13 @@
     "silenceHeld": "Vastgehouden bericht: “{preview}” — dit wordt eerst getoond.",
     "showNow": "Nu tonen",
     "discardHeld": "Bericht verwijderen",
-    "selectPageSilence": "De pagina die je kiest wordt opgeslagen en getoond als de stilte voorbij is — het bord blijft stil.",
-    "toastSwitchHeld": "Opgeslagen — “{pageName}” wordt om {time} getoond, als de stilte voorbij is",
-    "toastSwitchHeldNoTime": "Opgeslagen — “{pageName}” wordt getoond als de stilte voorbij is",
+    "selectPageSilence": "de pagina die je kiest wordt opgeslagen en dan getoond. Het bord blijft stil.",
+    "toastSwitchHeld": "“{pageName}” wordt om {time} getoond",
+    "toastSwitchHeldNoTime": "“{pageName}” wordt getoond als de stilte voorbij is",
     "toastSwitchPaused": "Opgeslagen — “{pageName}” wordt getoond als je het bord hervat",
     "toastShownNow": "“{pageName}” wordt nu getoond",
     "toastHeldDiscarded": "Vastgehouden bericht verwijderd",
     "toastHeldDiscardFailed": "Kon het vastgehouden bericht niet verwijderen",
-    "toastResendSilenced": "Er is niets verzonden — het bord is stil tot {time}",
     "toastResendNotSent": "Er is niets verzonden (bord gepauzeerd of uitvoer ingesteld op alleen de interface)"
   },
   "forceSetDialog": {

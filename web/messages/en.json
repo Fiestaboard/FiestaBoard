@@ -866,14 +866,13 @@
     "silenceHeld": "Held message: “{preview}” — it shows first.",
     "showNow": "Show now",
     "discardHeld": "Discard message",
-    "selectPageSilence": "The page you pick is saved and shows when silence ends — the board stays quiet.",
-    "toastSwitchHeld": "Saved — “{pageName}” will show when silence ends at {time}",
-    "toastSwitchHeldNoTime": "Saved — “{pageName}” will show when silence ends",
+    "selectPageSilence": "the page you pick is saved and shows then. The board stays quiet.",
+    "toastSwitchHeld": "“{pageName}” will show at {time}",
+    "toastSwitchHeldNoTime": "“{pageName}” will show when silence ends",
     "toastSwitchPaused": "Saved — “{pageName}” will show when you resume the board",
     "toastShownNow": "Showing “{pageName}” now",
     "toastHeldDiscarded": "Held message discarded",
     "toastHeldDiscardFailed": "Could not discard the held message",
-    "toastResendSilenced": "Nothing was sent — the board is silenced until {time}",
     "toastResendNotSent": "Nothing was sent (board paused or output set to UI only)"
   },
   "forceSetDialog": {

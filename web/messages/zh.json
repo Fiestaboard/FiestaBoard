@@ -910,14 +910,13 @@
     "silenceHeld": "暂存的消息：“{preview}”——将首先显示。",
     "showNow": "立即显示",
     "discardHeld": "丢弃消息",
-    "selectPageSilence": "你选择的页面会被保存，并在静默结束后显示——看板保持安静。",
-    "toastSwitchHeld": "已保存——静默于 {time} 结束后将显示“{pageName}”",
-    "toastSwitchHeldNoTime": "已保存——静默结束后将显示“{pageName}”",
+    "selectPageSilence": "你选择的页面会被保存，并在那时显示。看板保持安静。",
+    "toastSwitchHeld": "“{pageName}”将于 {time} 显示",
+    "toastSwitchHeldNoTime": "静默结束后将显示“{pageName}”",
     "toastSwitchPaused": "已保存——恢复看板后将显示“{pageName}”",
     "toastShownNow": "正在显示“{pageName}”",
     "toastHeldDiscarded": "已丢弃暂存的消息",
     "toastHeldDiscardFailed": "无法丢弃暂存的消息",
-    "toastResendSilenced": "未发送任何内容——看板静默至 {time}",
     "toastResendNotSent": "未发送任何内容（看板已暂停，或输出仅设置为界面）"
   },
   "forceSetDialog": {

@@ -910,14 +910,13 @@
     "silenceHeld": "Väntande meddelande: ”{preview}” – det visas först.",
     "showNow": "Visa nu",
     "discardHeld": "Släng meddelandet",
-    "selectPageSilence": "Sidan du väljer sparas och visas när tystnaden tar slut – tavlan förblir tyst.",
-    "toastSwitchHeld": "Sparat – ”{pageName}” visas när tystnaden tar slut kl. {time}",
-    "toastSwitchHeldNoTime": "Sparat – ”{pageName}” visas när tystnaden tar slut",
+    "selectPageSilence": "sidan du väljer sparas och visas då. Tavlan förblir tyst.",
+    "toastSwitchHeld": "”{pageName}” visas kl. {time}",
+    "toastSwitchHeldNoTime": "”{pageName}” visas när tystnaden tar slut",
     "toastSwitchPaused": "Sparat – ”{pageName}” visas när du återupptar tavlan",
     "toastShownNow": "Visar ”{pageName}” nu",
     "toastHeldDiscarded": "Väntande meddelande slängt",
     "toastHeldDiscardFailed": "Det gick inte att slänga det väntande meddelandet",
-    "toastResendSilenced": "Inget skickades – tavlan är tystad till {time}",
     "toastResendNotSent": "Inget skickades (tavlan pausad eller utdata inställd på endast gränssnittet)"
   },
   "forceSetDialog": {

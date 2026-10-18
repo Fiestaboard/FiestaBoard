@@ -910,14 +910,13 @@
     "silenceHeld": "Wstrzymana wiadomość: „{preview}” — pojawi się jako pierwsza.",
     "showNow": "Pokaż teraz",
     "discardHeld": "Odrzuć wiadomość",
-    "selectPageSilence": "Wybrana strona zostanie zapisana i pojawi się po zakończeniu ciszy — tablica pozostaje cicha.",
-    "toastSwitchHeld": "Zapisano — „{pageName}” pojawi się po zakończeniu ciszy o {time}",
-    "toastSwitchHeldNoTime": "Zapisano — „{pageName}” pojawi się po zakończeniu ciszy",
+    "selectPageSilence": "wybrana strona zostanie zapisana i wtedy się pojawi. Tablica pozostaje cicha.",
+    "toastSwitchHeld": "„{pageName}” pojawi się o {time}",
+    "toastSwitchHeldNoTime": "„{pageName}” pojawi się po zakończeniu ciszy",
     "toastSwitchPaused": "Zapisano — „{pageName}” pojawi się po wznowieniu tablicy",
     "toastShownNow": "Wyświetlanie „{pageName}” teraz",
     "toastHeldDiscarded": "Wstrzymana wiadomość odrzucona",
     "toastHeldDiscardFailed": "Nie udało się odrzucić wstrzymanej wiadomości",
-    "toastResendSilenced": "Nic nie wysłano — tablica jest wyciszona do {time}",
     "toastResendNotSent": "Nic nie wysłano (tablica wstrzymana lub wyjście ustawione tylko na interfejs)"
   },
   "forceSetDialog": {

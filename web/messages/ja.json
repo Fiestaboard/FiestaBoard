@@ -910,14 +910,13 @@
     "silenceHeld": "保留中のメッセージ:「{preview}」— 最初に表示されます。",
     "showNow": "今すぐ表示",
     "discardHeld": "メッセージを破棄",
-    "selectPageSilence": "選んだページは保存され、サイレント終了時に表示されます。ボードは静かなままです。",
-    "toastSwitchHeld": "保存しました — サイレントが終わる {time} に「{pageName}」が表示されます",
-    "toastSwitchHeldNoTime": "保存しました — サイレント終了時に「{pageName}」が表示されます",
+    "selectPageSilence": "選んだページは保存され、そのときに表示されます。ボードは静かなままです。",
+    "toastSwitchHeld": "{time} に「{pageName}」が表示されます",
+    "toastSwitchHeldNoTime": "サイレント終了時に「{pageName}」が表示されます",
     "toastSwitchPaused": "保存しました — ボードを再開すると「{pageName}」が表示されます",
     "toastShownNow": "「{pageName}」を今すぐ表示しています",
     "toastHeldDiscarded": "保留中のメッセージを破棄しました",
     "toastHeldDiscardFailed": "保留中のメッセージを破棄できませんでした",
-    "toastResendSilenced": "送信されませんでした — ボードは {time} までサイレント中です",
     "toastResendNotSent": "送信されませんでした(ボードが一時停止中か、出力先が UI のみに設定されています)"
   },
   "forceSetDialog": {

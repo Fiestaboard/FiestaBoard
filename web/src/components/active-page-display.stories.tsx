@@ -437,29 +437,6 @@ export const PausedToast: Story = {
   ],
 };
 
-/** Restore pressed while silenced: nothing was sent, and the banner stays. */
-export const RestoreDuringSilence: Story = {
-  decorators: [
-    withToast(() =>
-      toast.info(i18n.t("activeDisplay.toastResendSilenced", { time: endsAtLabel() }), { duration: Infinity }),
-    ),
-    (Story) => {
-      const client = createQueryClient("page-1", false, true, undefined, SILENCED);
-      const blank = Array.from({ length: 6 }, () => Array(22).fill(0));
-      client.setQueryData(["board-current-message"], {
-        characters: blank.map((row, i) => (i === 0 ? [8, 9, ...row.slice(2)] : row)),
-        message: "HI",
-        rows: 6,
-        cols: 22,
-        expected_characters: blank,
-        cached_at: null,
-        api_mode: "local",
-      });
-      return silenced(client)(Story);
-    },
-  ],
-};
-
 /** Regression: not silenced — no alert, no sheet note, dialogs unchanged. */
 export const SilenceInactiveDefault: Story = {
   decorators: [silenced(createQueryClient("page-1", false, false, undefined, { active: false }))],

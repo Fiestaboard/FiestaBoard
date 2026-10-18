@@ -88,7 +88,6 @@ import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessag
 
 export function ActivePageDisplay() {
   const t = useTranslations("activeDisplay");
-  const tNotice = useTranslations("silenceNotice");
   const _tc = useTranslations("common");
   const tPause = useTranslations("displaySettings.pause");
 
@@ -269,15 +268,9 @@ export function ActivePageDisplay() {
     try {
       const { sent } = await api.forceRefresh();
       if (sent === false) {
-        // Nothing reached the board (silenced, paused or UI-only): leave the
+        // Nothing reached the board (paused or UI-only): leave the
         // out-of-sync banner up — it is still true — and say why (#1945).
-        toast.info(
-          silence.active
-            ? silence.until
-              ? t("toastResendSilenced", { time: silence.until })
-              : tNotice("untilTitleNoTime")
-            : t("toastResendNotSent"),
-        );
+        toast.info(t("toastResendNotSent"));
         return;
       }
       // Optimistically mark as in-sync so the alert disappears immediately.
@@ -299,7 +292,7 @@ export function ActivePageDisplay() {
     } finally {
       setIsSyncing(false);
     }
-  }, [queryClient, scopedBoardId, t, tNotice, silence.active, silence.until]);
+  }, [queryClient, scopedBoardId, t]);
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
@@ -972,7 +965,7 @@ export function ActivePageDisplay() {
           )}
 
           {/* Out-of-sync warning: board was changed by another app */}
-          {isOutOfSync && !liveMessageForBoard && (
+          {isOutOfSync && !liveMessageForBoard && !silence.active && (
             <Alert variant="default" className="border-warning/50 bg-warning/10">
               <AlertTriangle className="h-4 w-4 text-warning" />
               <AlertDescription className="flex items-center justify-between gap-3">

@@ -309,6 +309,27 @@ describe("ActivePageDisplay - silence alert (#1943, #1944)", () => {
     expect(alert).not.toHaveTextContent("will show when silence ends");
   });
 
+  it("hides the 'changed by another app' warning while silenced, since Restore cannot send", async () => {
+    serveSilence(silenced());
+    server.use(
+      http.get(`${API_BASE}/board/current-message`, () =>
+        HttpResponse.json({
+          characters: Array.from({ length: 6 }, () => Array(22).fill(1)),
+          message: "",
+          rows: 6,
+          cols: 22,
+          expected_characters: Array.from({ length: 6 }, () => Array(22).fill(2)),
+          cached_at: null,
+          api_mode: "local",
+        }),
+      ),
+    );
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => expect(screen.getByTestId("silence-alert")).toBeInTheDocument());
+    expect(screen.queryByText("Board was changed by another app")).not.toBeInTheDocument();
+  });
+
   it("shows nothing when the board is not silenced", async () => {
     serveSilence(silenceStatus({ active: false }));
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
@@ -380,7 +401,7 @@ describe("ActivePageDisplay - picking a page during silence (#1943)", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
     await user.click((await screen.findAllByRole("button", { name: /change page/i }))[0]);
     expect(await screen.findByTestId("select-page-silence")).toHaveTextContent(
-      "The page you pick is saved and shows when silence ends — the board stays quiet.",
+      "the page you pick is saved and shows then. The board stays quiet.",
     );
   });
 
@@ -406,7 +427,7 @@ describe("ActivePageDisplay - picking a page during silence (#1943)", () => {
     expect(bodies[0]).toEqual({ page_id: "page-2" });
     await waitFor(() => expect(info).toHaveBeenCalled());
     const [message, options] = info.mock.calls[0] as [string, { action: { label: string; onClick: () => void } }];
-    expect(message).toBe(`Saved — “Custom Template” will show when silence ends at ${localTime(ENDS_AT)}`);
+    expect(message).toBe(`“Custom Template” will show at ${localTime(ENDS_AT)}`);
     expect(options.action.label).toBe("Show now");
 
     options.action.onClick();
@@ -453,8 +474,7 @@ describe("ActivePageDisplay - Restore tells the truth (#1945)", () => {
     );
   }
 
-  it("a Restore that sends nothing during silence says so and keeps the banner", async () => {
-    serveSilence(silenced());
+  it("a Restore that sends nothing says so and keeps the banner", async () => {
     serveOutOfSyncBoard();
     server.use(http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ message: "skipped", sent: false })));
     const info = vi.spyOn((await import("sonner")).toast, "info");
@@ -464,9 +484,7 @@ describe("ActivePageDisplay - Restore tells the truth (#1945)", () => {
 
     await user.click(await screen.findByRole("button", { name: "Restore" }));
 
-    await waitFor(() =>
-      expect(info).toHaveBeenCalledWith(`Nothing was sent — the board is silenced until ${localTime(ENDS_AT)}`),
-    );
+    await waitFor(() => expect(info).toHaveBeenCalledWith("Nothing was sent (board paused or output set to UI only)"));
     expect(success).not.toHaveBeenCalledWith("Board restored");
     expect(screen.getByText("Board was changed by another app")).toBeInTheDocument();
   });

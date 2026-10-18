@@ -910,14 +910,13 @@
     "silenceHeld": "Отложенное сообщение: «{preview}» — оно появится первым.",
     "showNow": "Показать сейчас",
     "discardHeld": "Удалить сообщение",
-    "selectPageSilence": "Выбранная страница сохраняется и появится, когда закончится тишина, — табло остаётся тихим.",
-    "toastSwitchHeld": "Сохранено — «{pageName}» появится, когда тишина закончится в {time}",
-    "toastSwitchHeldNoTime": "Сохранено — «{pageName}» появится, когда закончится тишина",
+    "selectPageSilence": "выбранная страница сохраняется и появится тогда. Табло остаётся тихим.",
+    "toastSwitchHeld": "«{pageName}» появится в {time}",
+    "toastSwitchHeldNoTime": "«{pageName}» появится, когда закончится тишина",
     "toastSwitchPaused": "Сохранено — «{pageName}» появится, когда вы возобновите табло",
     "toastShownNow": "Сейчас показывается «{pageName}»",
     "toastHeldDiscarded": "Отложенное сообщение удалено",
     "toastHeldDiscardFailed": "Не удалось удалить отложенное сообщение",
-    "toastResendSilenced": "Ничего не отправлено — табло в режиме тишины до {time}",
     "toastResendNotSent": "Ничего не отправлено (табло на паузе или вывод настроен только на интерфейс)"
   },
   "forceSetDialog": {

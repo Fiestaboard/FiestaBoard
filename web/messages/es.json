@@ -910,14 +910,13 @@
     "silenceHeld": "Mensaje retenido: «{preview}»; se mostrará primero.",
     "showNow": "Mostrar ahora",
     "discardHeld": "Descartar mensaje",
-    "selectPageSilence": "La página que elijas se guarda y se mostrará cuando termine el silencio; el tablero se queda en silencio.",
-    "toastSwitchHeld": "Guardado: «{pageName}» se mostrará cuando termine el silencio, a las {time}",
-    "toastSwitchHeldNoTime": "Guardado: «{pageName}» se mostrará cuando termine el silencio",
+    "selectPageSilence": "la página que elijas se guarda y se mostrará entonces. El tablero se queda en silencio.",
+    "toastSwitchHeld": "«{pageName}» se mostrará a las {time}",
+    "toastSwitchHeldNoTime": "«{pageName}» se mostrará cuando termine el silencio",
     "toastSwitchPaused": "Guardado: «{pageName}» se mostrará cuando reanudes el tablero",
     "toastShownNow": "Mostrando «{pageName}» ahora",
     "toastHeldDiscarded": "Mensaje retenido descartado",
     "toastHeldDiscardFailed": "No se pudo descartar el mensaje retenido",
-    "toastResendSilenced": "No se envió nada: el tablero está en silencio hasta las {time}",
     "toastResendNotSent": "No se envió nada (tablero en pausa o salida configurada solo para la interfaz)"
   },
   "forceSetDialog": {

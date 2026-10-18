@@ -108,7 +108,7 @@ test.describe("Silence holds manual page changes", () => {
 
     // The choice is saved and the toast says it is held, with the override.
     await expect.poll(activePageId, { timeout: 10_000 }).toBe(picked);
-    const toast = page.locator("[data-sonner-toast]").filter({ hasText: /will show when silence ends/ });
+    const toast = page.locator("[data-sonner-toast]").filter({ hasText: /will show (at|when silence ends)/ });
     await expect(toast).toBeVisible();
 
     // ...and the board was not written.
