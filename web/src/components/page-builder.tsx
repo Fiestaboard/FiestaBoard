@@ -856,6 +856,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const liveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const liveOutputEnabledRef = useRef(false);
   const liveAbortRef = useRef<AbortController | null>(null);
+  const liveCanvasAttemptedRef = useRef(false);
   const liveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const LIVE_OUTPUT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -914,6 +915,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     };
   }, [
     liveOutputEnabled,
+    canvases,
     debouncedTemplateLines,
     debouncedLineAlignments,
     debouncedLineWrapEnabled,
@@ -1796,6 +1798,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         debouncedLineAlignments,
         debouncedLineWrapEnabled,
       );
+      if (canvases.length > 0) liveCanvasAttemptedRef.current = true;
       return api.renderTemplateLive(
         cleanedLines,
         selectedBoardId || undefined,
@@ -1848,6 +1851,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Uses IMMEDIATE state (not debounced) and AbortController to cancel stale requests.
   useEffect(() => {
     if (!liveOutputEnabled) {
+      liveCanvasAttemptedRef.current = false;
       if (liveDebounceRef.current) {
         clearTimeout(liveDebounceRef.current);
         liveDebounceRef.current = null;
@@ -1859,10 +1863,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       return;
     }
 
+    // A cancelled fetch may already have written its canvas to the board.
+    // Clear removed layers locally while the replacement request is pending.
+    if (canvases.length === 0) {
+      setPreviewLayers([]);
+      setCanvasIssues([]);
+      setCanvasError(null);
+    }
+
     const hasContent =
       templateLines.some((line) => line.trim().length > 0) ||
       canvases.length > 0 ||
-      lastLiveSentPreview.current !== null;
+      lastLiveSentPreview.current !== null ||
+      liveCanvasAttemptedRef.current;
     if (!hasContent) {
       if (liveAbortRef.current) {
         liveAbortRef.current.abort();
@@ -1888,6 +1901,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       try {
         const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
 
+        if (canvases.length > 0) liveCanvasAttemptedRef.current = true;
         const data = await api.renderTemplateLive(
           cleanedLines,
           selectedBoardId || undefined,

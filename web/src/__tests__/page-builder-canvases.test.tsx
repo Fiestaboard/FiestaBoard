@@ -5,11 +5,11 @@
  * them says why their areas are blank.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CurrentBoardProvider } from "@/components/current-board-context";
 import { PageBuilder } from "@/components/page-builder";
@@ -190,6 +190,78 @@ describe("PageBuilder — pixel canvases", () => {
   describe("on an LED pixel board", () => {
     beforeEach(() => {
       vi.mocked(api.getPage).mockResolvedValue({ ...PIXOO_PAGE, canvases: [SKY] });
+    });
+
+    afterEach(() => vi.useRealTimers());
+
+    it("clears a removed canvas before the first live response resolves", async () => {
+      vi.mocked(api.getPage).mockResolvedValue({ ...PIXOO_PAGE, template: Array(10).fill(""), canvases: [SKY] });
+      let resolveFirst!: (value: Awaited<ReturnType<typeof api.renderTemplateLive>>) => void;
+      vi.mocked(api.renderTemplateLive)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve;
+            }),
+        )
+        .mockImplementation(() => new Promise(() => {}));
+      const user = userEvent.setup();
+      renderExisting();
+      await waitFor(() => expect(devicePreviewProps.at(-1)?.layers).toEqual([LAYER]), { timeout: 5000 });
+      await user.click(screen.getByRole("switch", { name: /live/i }));
+      await waitFor(() => expect(api.renderTemplateLive).toHaveBeenCalledTimes(1));
+      const firstSignal = vi.mocked(api.renderTemplateLive).mock.calls[0][6];
+      await user.click(screen.getByRole("button", { name: "Delete canvas sky" }));
+      await waitFor(() => expect(vi.mocked(api.renderTemplateLive).mock.calls.at(-1)?.[8]?.canvases).toEqual([]));
+      expect(firstSignal?.aborted).toBe(true);
+      expect(devicePreviewProps.at(-1)?.layers).toEqual([]);
+      await act(async () =>
+        resolveFirst({
+          rendered: "old",
+          lines: ["old"],
+          line_count: 1,
+          sent_to_board: true,
+          paused: false,
+          silenced: false,
+          board_id: "pixoo-1",
+          layers: [LAYER],
+          canvas_issues: [],
+        }),
+      );
+      expect(devicePreviewProps.at(-1)?.layers).toEqual([]);
+    });
+
+    it("keeps live output enabled for five minutes after a canvas edit", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.mocked(api.renderTemplateLive).mockResolvedValue({
+        rendered: "live",
+        lines: ["live"],
+        line_count: 1,
+        sent_to_board: true,
+        paused: false,
+        silenced: false,
+        board_id: "pixoo-1",
+        layers: [LAYER],
+        canvas_issues: [],
+      });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderExisting();
+      await screen.findByTestId("canvas-editor-sky", {}, { timeout: 5000 });
+      const toggle = screen.getByRole("switch", { name: /live/i });
+      await user.click(toggle);
+      await waitFor(() => expect(api.renderTemplateLive).toHaveBeenCalled());
+      await act(async () => {
+        vi.advanceTimersByTime(4 * 60 * 1000);
+      });
+      await user.click(screen.getByRole("button", { name: "Add canvas" }));
+      await act(async () => {
+        vi.advanceTimersByTime(2 * 60 * 1000);
+      });
+      expect(toggle).toHaveAttribute("aria-checked", "true");
+      await act(async () => {
+        vi.advanceTimersByTime(3 * 60 * 1000 + 1000);
+      });
+      expect(toggle).toHaveAttribute("aria-checked", "false");
     });
 
     it.each([false, true])("sends live canvas edits and removal with blank text=%s", async (blank) => {
