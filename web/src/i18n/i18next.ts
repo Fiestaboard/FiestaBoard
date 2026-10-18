@@ -6,55 +6,58 @@
  * for back-compat with users who already had a locale set before the
  * RR7 migration.
  *
- * All 14 locales are statically imported so they're available
- * synchronously at first render — there's no `Suspense` boundary
- * around the first message lookup. If bundle size becomes an issue we
- * can switch to dynamic imports + i18next's resource lazy-loading.
+ * English is bundled so the first render can always resolve a message.
+ * The other 13 locales are separate chunks fetched on demand by the
+ * backend below: bundling all 14 put ~1.8 MB of translation JSON in the
+ * critical-path chunk, which every visitor downloaded (and the Pi
+ * gzipped on the fly) after each nightly update. `i18nReady` resolves
+ * once the detected locale is loaded; the client entry waits on it
+ * before hydrating, so a non-English visitor never sees raw keys.
  */
-import i18n from "i18next";
+import i18n, { type BackendModule, type ResourceKey } from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
-import de from "../../messages/de.json";
 import en from "../../messages/en.json";
-import es from "../../messages/es.json";
-import fr from "../../messages/fr.json";
-import it from "../../messages/it.json";
-import ja from "../../messages/ja.json";
-import ko from "../../messages/ko.json";
-import nl from "../../messages/nl.json";
-import pl from "../../messages/pl.json";
-import pt from "../../messages/pt.json";
-import ru from "../../messages/ru.json";
-import sv from "../../messages/sv.json";
-import tr from "../../messages/tr.json";
-import zh from "../../messages/zh.json";
 import { defaultLocale, locales } from "./config";
 
-const resources = {
-  en: { translation: en },
-  es: { translation: es },
-  fr: { translation: fr },
-  de: { translation: de },
-  it: { translation: it },
-  pt: { translation: pt },
-  nl: { translation: nl },
-  pl: { translation: pl },
-  ru: { translation: ru },
-  sv: { translation: sv },
-  tr: { translation: tr },
-  ja: { translation: ja },
-  ko: { translation: ko },
-  zh: { translation: zh },
+const lazyLocales = import.meta.glob<{ default: ResourceKey }>(["../../messages/*.json", "!../../messages/en.json"]);
+
+/** Loads a non-English locale's messages from its own chunk. */
+export const lazyLocaleBackend: BackendModule = {
+  type: "backend",
+  init() {},
+  read(language, _namespace, callback) {
+    if (language === defaultLocale) {
+      callback(null, en);
+      return;
+    }
+    const load = lazyLocales[`../../messages/${language}.json`];
+    if (!load) {
+      callback(new Error(`No messages for locale "${language}"`), false);
+      return;
+    }
+    load().then(
+      (module) => callback(null, module.default),
+      (error: unknown) => callback(error instanceof Error ? error : new Error(String(error)), false),
+    );
+  },
 };
 
+let ready: Promise<unknown> = Promise.resolve();
+
 if (!i18n.isInitialized) {
-  i18n
+  ready = i18n
+    .use(lazyLocaleBackend)
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
-      resources,
+      resources: { en: { translation: en } },
+      // Keep the bundled `en` and fetch every other locale through the backend.
+      partialBundledLanguages: true,
       supportedLngs: [...locales],
+      // Every locale is a bare language code; never ask the backend for "en-US".
+      load: "languageOnly",
       fallbackLng: defaultLocale,
       // We do our own ICU plural / placeholder interpolation in
       // `@/i18n/translations` because the existing message strings use
@@ -72,5 +75,7 @@ if (!i18n.isInitialized) {
       react: { useSuspense: false },
     });
 }
+
+export const i18nReady = ready;
 
 export default i18n;
