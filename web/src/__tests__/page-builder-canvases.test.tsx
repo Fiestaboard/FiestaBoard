@@ -194,6 +194,24 @@ describe("PageBuilder — pixel canvases", () => {
 
     afterEach(() => vi.useRealTimers());
 
+    it("shows canvas bounds in the rich editor and follows the existing area controls", async () => {
+      const user = userEvent.setup();
+      renderExisting();
+      expect(
+        await screen.findByRole("img", { name: /Canvas: sky.*rows 1–2.*columns 1–4/ }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+      const row = screen.getByLabelText("Row", { exact: true });
+      await user.click(row);
+      await user.keyboard("{Control>}a{/Control}3");
+      expect(await screen.findByRole("img", { name: /Canvas: sky.*rows 3–4/ })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Plain Text" }));
+      expect(screen.queryByRole("img", { name: /Canvas: sky/ })).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Rich Editor" }));
+      expect(await screen.findByRole("img", { name: /Canvas: sky.*rows 3–4/ })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Delete canvas sky" }));
+      expect(screen.queryByRole("img", { name: /Canvas: sky/ })).toBeNull();
+    });
+
     it("shows one failure notification for the current live send", async () => {
       const { toast } = await import("sonner");
       const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});

@@ -2647,6 +2647,10 @@
     }
   },
   "canvasEditor": {
+    "richRegionName": "Canvas: {id}",
+    "richRegionHide": "Canvas: {id}, rows {row}–{lastRow}, columns {col}–{lastCol}. Text in this area is hidden on the display.",
+    "richRegionFlow": "Canvas: {id}, rows {row}–{lastRow}, columns {col}–{lastCol}. Text flows around this area on the display.",
+    "richRegionHint": "Shaded areas belong to canvases. Use Preview to check the final text layout.",
     "title": "Pixel canvases",
     "description": "Draw any pixel in any colour over an area of the board. Text under a canvas is hidden, or flows around it.",
     "add": "Add canvas",
