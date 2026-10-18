@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "Inna aplikacja zmieniła ten board",
-    "detail": "FiestaBoard nadpisze go przy następnej aktualizacji Twojej strony. Zapisz go, aby go zachować.",
+    "detail": "FiestaBoard nadpisze go przy następnej aktualizacji Twojej strony. Zapisz go jako stronę, aby go zachować.",
     "restore": "Przywróć",
     "saveAsPage": "Zapisz jako stronę",
     "savedAs": "Zapisano jako „{pageName}”",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "Przywróć wysyła strony ponownie na wszystkie wyświetlacze.",
     "keptTitle": "Inna aplikacja zapisała na tym boardzie o {time}",
     "keptDetail": "FiestaBoard przywrócił już Twoją stronę. Nadal możesz zapisać to, co napisała inna aplikacja.",
-    "externalPageName": "Zapisano z boarda {date}",
+    "externalPageName": "Z boarda {date}",
     "toastRestored": "Board przywrócony",
     "toastRestoredAll": "Strony wysłano ponownie na wszystkie wyświetlacze",
     "toastRestoreFailed": "Nie udało się przywrócić boarda",

@@ -154,10 +154,10 @@ test.describe("Board changed by another app", () => {
     await alert.getByRole("button", { name: "Save as page" }).click();
     expect((await created).status()).toBe(201);
 
-    await expect(alert).toContainText("Saved as “Saved from board");
+    await expect(alert).toContainText("Saved as “From board");
     await expect(alert.getByRole("button", { name: "Save as page" })).toHaveCount(0);
 
-    const saved = (await listPages()).find((p) => p.name.startsWith("Saved from board"));
+    const saved = (await listPages()).find((p) => p.name.startsWith("From board"));
     expect(saved, "the saved page exists").toBeTruthy();
     expect(saved!.template?.[0]).toBe("HI{{red}}");
 
@@ -295,7 +295,7 @@ test.describe("Board changed by another app", () => {
 
       await kept.getByRole("button", { name: "Save as page" }).click();
       await expect(kept.getByRole("link", { name: "Open page" })).toBeVisible({ timeout: 10_000 });
-      const saved = (await listPages()).find((p) => p.name.startsWith("Saved from board"));
+      const saved = (await listPages()).find((p) => p.name.startsWith("From board"));
       expect(saved?.template?.[0]).toBe("HI{{red}}");
 
       await kept.getByRole("button", { name: "Dismiss" }).click();

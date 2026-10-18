@@ -29,14 +29,11 @@ export default function DisplayPage() {
     <>
       {board && (
         <PageSection icon={<Eye />} title={t("previewTitle")}>
-          <Flex justify="center" className="overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
-            <DisplayLivePreview board={board} size="md" />
-          </Flex>
           {/* Another app wrote to this display (issue #1945) — the banner Home
               shows, for this board. It reads the board-state query the
-              preview above already polls, so it costs no extra request; a
+              preview below already polls, so it costs no extra request; a
               FiestaPanel always shows what was sent, so it never appears there. */}
-          <Box className="mt-4 empty:hidden">
+          <Box className="mb-4 empty:hidden">
             <BoardOutOfSyncBanner
               boardId={board.id}
               geometry={{
@@ -51,6 +48,9 @@ export default function DisplayPage() {
               isPrimary={displays.boards[0]?.id === board.id}
             />
           </Box>
+          <Flex justify="center" className="overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
+            <DisplayLivePreview board={board} size="md" />
+          </Flex>
         </PageSection>
       )}
 

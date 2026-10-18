@@ -81,7 +81,7 @@ describe("useSaveBoardAsPage", () => {
 
     await act(() => result.current.save(GRID, FLAGSHIP));
 
-    expect(created[0].name).toBe("Vom Board gespeichert 17.10.2026, 23:42");
+    expect(created[0].name).toBe("Vom Board 17.10.2026, 23:42");
   });
 
   it("names the page in English for an English app", async () => {
@@ -93,7 +93,7 @@ describe("useSaveBoardAsPage", () => {
     await act(() => result.current.save(GRID, FLAGSHIP));
 
     // Intl writes a narrow no-break space before "PM" on current ICU.
-    expect(String(created[0].name).replace(/\s/g, " ")).toBe("Saved from board Oct 17, 2026, 11:42 PM");
+    expect(String(created[0].name).replace(/\s/g, " ")).toBe("From board Oct 17, 2026, 11:42 PM");
   });
 
   it("posts the board's grid as a template page and returns the page", async () => {
@@ -118,7 +118,7 @@ describe("useSaveBoardAsPage", () => {
 
     expect(success).toHaveBeenCalledTimes(1);
     const [message, options] = success.mock.calls[0] as [string, { action: { label: string; onClick: () => void } }];
-    expect(message).toMatch(/^Saved “Saved from board .*” as a page$/);
+    expect(message).toMatch(/^Saved “From board .*” as a page$/);
     expect(options.action.label).toBe("Open");
     options.action.onClick();
     expect(push).toHaveBeenCalledWith("/pages/edit/p-42");

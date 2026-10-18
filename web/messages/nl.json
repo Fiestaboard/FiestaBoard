@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "Een andere app heeft dit board gewijzigd",
-    "detail": "FiestaBoard overschrijft het zodra je pagina de volgende keer wordt bijgewerkt. Sla het op om het te bewaren.",
+    "detail": "FiestaBoard overschrijft het zodra je pagina de volgende keer wordt bijgewerkt. Sla het op als pagina om het te bewaren.",
     "restore": "Herstellen",
     "saveAsPage": "Opslaan als pagina",
     "savedAs": "Opgeslagen als \"{pageName}\"",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "Herstellen stuurt de pagina’s opnieuw naar alle schermen.",
     "keptTitle": "Een andere app heeft om {time} naar dit board geschreven",
     "keptDetail": "FiestaBoard heeft je pagina inmiddels teruggezet. Je kunt nog steeds opslaan wat de andere app schreef.",
-    "externalPageName": "Opgeslagen van board {date}",
+    "externalPageName": "Van het board {date}",
     "toastRestored": "Board hersteld",
     "toastRestoredAll": "Pagina’s opnieuw naar alle schermen gestuurd",
     "toastRestoreFailed": "Herstellen van board mislukt",

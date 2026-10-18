@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "Otra aplicación cambió esta pantalla",
-    "detail": "FiestaBoard la reemplazará la próxima vez que tu página se actualice. Guárdala para conservarla.",
+    "detail": "FiestaBoard la reemplazará la próxima vez que tu página se actualice. Guárdala como página para conservarla.",
     "restore": "Restaurar",
     "saveAsPage": "Guardar como página",
     "savedAs": "Guardada como «{pageName}»",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "Restaurar reenvía las páginas a todas las pantallas.",
     "keptTitle": "Otra aplicación escribió en esta pantalla a las {time}",
     "keptDetail": "FiestaBoard ya volvió a mostrar tu página. Aún puedes guardar lo que escribió la otra aplicación.",
-    "externalPageName": "Guardado de la pantalla {date}",
+    "externalPageName": "De la pantalla {date}",
     "toastRestored": "Pantalla restaurada",
     "toastRestoredAll": "Páginas reenviadas a todas las pantallas",
     "toastRestoreFailed": "Error al restaurar la pantalla",

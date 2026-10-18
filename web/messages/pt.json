@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "Outra aplicação alterou este board",
-    "detail": "O FiestaBoard vai substituí-lo na próxima atualização da sua página. Salve-o para mantê-lo.",
+    "detail": "O FiestaBoard vai substituí-lo na próxima atualização da sua página. Salve-o como página para mantê-lo.",
     "restore": "Restaurar",
     "saveAsPage": "Salvar como página",
     "savedAs": "Salvo como \"{pageName}\"",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "Restaurar reenvia as páginas para todas as exibições.",
     "keptTitle": "Outra aplicação escreveu neste board às {time}",
     "keptDetail": "O FiestaBoard já recolocou a sua página. Você ainda pode salvar o que a outra aplicação escreveu.",
-    "externalPageName": "Salvo do board {date}",
+    "externalPageName": "Do board {date}",
     "toastRestored": "Board restaurado",
     "toastRestoredAll": "Páginas reenviadas para todas as exibições",
     "toastRestoreFailed": "Falha ao restaurar board",

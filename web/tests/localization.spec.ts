@@ -267,6 +267,6 @@ test.describe("Localization", () => {
     const created = page.waitForRequest((r) => r.url().includes("/api/v1/pages") && r.method() === "POST");
     await banner.getByRole("button", { name: "Als Seite speichern" }).click();
     const { name } = (await created).postDataJSON() as { name: string };
-    expect(name).toMatch(/^Vom Board gespeichert /);
+    expect(name).toMatch(/^Vom Board /);
   });
 });

@@ -913,7 +913,7 @@
   },
   "boardOutOfSync": {
     "title": "Une autre application a modifié ce board",
-    "detail": "FiestaBoard le remplacera à la prochaine mise à jour de votre page. Enregistrez-le pour le conserver.",
+    "detail": "FiestaBoard le remplacera à la prochaine mise à jour de votre page. Enregistrez-le comme page pour le conserver.",
     "restore": "Restaurer",
     "saveAsPage": "Enregistrer comme page",
     "savedAs": "Enregistré sous « {pageName} »",
@@ -924,7 +924,7 @@
     "restoreAllDisplays": "Restaurer renvoie les pages à tous les affichages.",
     "keptTitle": "Une autre application a écrit sur ce board à {time}",
     "keptDetail": "FiestaBoard a depuis remis votre page. Vous pouvez encore enregistrer ce que l’autre application a écrit.",
-    "externalPageName": "Enregistré depuis le board {date}",
+    "externalPageName": "Depuis le board {date}",
     "toastRestored": "Board restauré",
     "toastRestoredAll": "Pages renvoyées à tous les affichages",
     "toastRestoreFailed": "Échec de la restauration du board",
