@@ -120,3 +120,73 @@ describe("a display an output plugin drives", () => {
     expect(await within(card).findByTestId("output-not-installed")).toHaveTextContent("acme_sign");
   });
 });
+
+const FONT_OUTPUT: OutputSummary = {
+  ...PLUGIN,
+  settings_schema: {
+    ...PLUGIN.settings_schema,
+    properties: {
+      ...(PLUGIN.settings_schema?.properties as Record<string, unknown>),
+      font: { type: "string", title: "Font", enum: ["5x7", "3x5"], enumNames: ["Large", "Small"], default: "5x7" },
+    },
+  },
+};
+const LEGACY_SMALL_SIGN = {
+  ...SIGN,
+  grid_rows: 10,
+  grid_cols: 16,
+  led_layout: { tile_gap: "gap", block_padding: 0, font: "3x5" },
+};
+
+describe("an LED board's resolved font", () => {
+  it("shows the legacy resolved font without marking untouched settings dirty", async () => {
+    const calls = setup([LEGACY_SMALL_SIGN], [FONT_OUTPUT]);
+    expect(await screen.findByRole("combobox", { name: "Font" })).toHaveTextContent("Small");
+    expect(screen.getByRole("button", { name: "Save settings" })).toBeDisabled();
+    expect(calls.put).toHaveLength(0);
+  });
+
+  it("keeps an explicit stored font ahead of the resolved fallback", async () => {
+    setup([{ ...LEGACY_SMALL_SIGN, output_config: { ...SIGN.output_config, font: "5x7" } }], [FONT_OUTPUT]);
+    expect(await screen.findByRole("combobox", { name: "Font" })).toHaveTextContent("Large");
+  });
+
+  it("uses the manifest default when the server has no resolved font", async () => {
+    setup([SIGN], [FONT_OUTPUT]);
+    expect(await screen.findByRole("combobox", { name: "Font" })).toHaveTextContent("Large");
+  });
+
+  it("does not persist the fallback when saving a different setting", async () => {
+    const calls = setup([LEGACY_SMALL_SIGN], [FONT_OUTPUT]);
+    const host = await screen.findByLabelText(/Sign address/);
+    await userEvent.clear(host);
+    await userEvent.type(host, "192.0.2.51");
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
+    await waitFor(() => expect(calls.put).toHaveLength(1));
+    const saved = (calls.put[0] as { boards: Record<string, unknown>[] }).boards[0];
+    expect(saved.output_config).toEqual({ host: "192.0.2.51", token: "***" });
+  });
+
+  it("can change a legacy Small board to the manifest's default Large font", async () => {
+    const calls = setup([LEGACY_SMALL_SIGN], [FONT_OUTPUT]);
+    await userEvent.click(await screen.findByRole("combobox", { name: "Font" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Large" }));
+    const save = screen.getByRole("button", { name: "Save settings" });
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+    await waitFor(() => expect(calls.put).toHaveLength(1));
+    const saved = (calls.put[0] as { boards: Record<string, unknown>[] }).boards[0];
+    expect(saved.output_config).toEqual({ ...SIGN.output_config, font: "5x7" });
+  });
+
+  it("autosaves an explicit font selection without saving just from mounting", async () => {
+    const calls = setup([LEGACY_SMALL_SIGN], [{ ...FONT_OUTPUT, builtin: true }]);
+    const font = await screen.findByRole("combobox", { name: "Font" });
+    expect(calls.put).toHaveLength(0);
+    await userEvent.click(font);
+    await userEvent.click(await screen.findByRole("option", { name: "Large" }));
+    await waitFor(() => expect(calls.put).toHaveLength(1));
+    const saved = (calls.put[0] as { boards: Record<string, unknown>[] }).boards[0];
+    expect(saved.output_config).toEqual({ ...SIGN.output_config, font: "5x7" });
+  });
+});
