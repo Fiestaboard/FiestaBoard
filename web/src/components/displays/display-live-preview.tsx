@@ -41,6 +41,11 @@ export const DisplayLivePreview = memo(function DisplayLivePreview({
       size={size}
     >
       <ScaledBoardDisplay
+        // The /displays list ("sm") is a wall of thumbnails: static tiles, no
+        // per-tile effects, no loading drum. Animating every tile of every
+        // thumbnail was ~2/3 of that page's load-time main-thread work. The
+        // detail page's single preview ("md") keeps the animated board.
+        isStatic={size === "sm"}
         message={message}
         isLoading={loading}
         size={size}
