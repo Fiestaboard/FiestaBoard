@@ -537,6 +537,8 @@ export function GlobalAiChatDrawer() {
         transform: isOpen ? "translateX(0)" : "translateX(calc(100% + 0.75rem))",
       }}
       aria-hidden={!isOpen}
+      // globals.css pauses the sparkle animation while closed (perf).
+      data-ai-drawer={isOpen ? "open" : "closed"}
     >
       <AiChatPanel
         getTurnContext={getTurnContext}
