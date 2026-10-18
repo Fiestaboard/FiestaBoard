@@ -1036,6 +1036,7 @@
     "previewAsBlack": "블랙 보드로 미리보기",
     "previewAsWhite": "화이트 보드로 미리보기",
     "liveOutput": "실시간 출력",
+    "livePausedNotice": "이 디스플레이는 일시 중지되어 있습니다. 디스플레이를 다시 시작할 때까지 실시간 출력은 미리보기만 업데이트합니다.",
     "liveOutputAriaLabel": "보드 실시간 출력 전환",
     "selectBoardAriaLabel": "실시간 출력용 보드 선택",
     "deviceTypeSwitcherAriaLabel": "보드 크기 변경",

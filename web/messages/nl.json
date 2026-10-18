@@ -1036,6 +1036,7 @@
     "previewAsBlack": "Voorbeeld als zwart bord",
     "previewAsWhite": "Voorbeeld als wit bord",
     "liveOutput": "Live-uitvoer",
+    "livePausedNotice": "Dit scherm is gepauzeerd. Live-uitvoer werkt alleen het voorbeeld bij totdat je het scherm hervat.",
     "liveOutputAriaLabel": "Live-uitvoer naar bord in-/uitschakelen",
     "selectBoardAriaLabel": "Selecteer bord voor live-uitvoer",
     "deviceTypeSwitcherAriaLabel": "Bordformaat wijzigen",

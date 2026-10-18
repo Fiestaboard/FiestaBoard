@@ -836,6 +836,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // starts sending. Deriving this during render also handles late settings
   // and sidebar context without first selecting the primary board.
   const selectedBoardId = chosenLiveBoardId || previewBoardId || "";
+  const liveTargetPaused = boardSettings?.boards?.find((board) => board.id === selectedBoardId)?.paused === true;
   const previewModel = useMemo(() => resolveBoardModel(previewBoard), [previewBoard]);
   // An LED target's character set: the rich editor then reads and offers that
   // set's extended markup and keeps its case. null for a split-flap target.
@@ -2768,6 +2769,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         id="live-output-toggle"
                         checked={liveOutputEnabled}
                         disabled={!selectedBoardId}
+                        aria-describedby={liveTargetPaused ? "live-output-paused-notice" : undefined}
                         onCheckedChange={(enabled) => {
                           // Starting live output commits the displayed target;
                           // later preview/context changes must not redirect it.
@@ -2807,6 +2809,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       </Select>
                     )}
                   </Flex>
+                  {liveTargetPaused && (
+                    <Alert id="live-output-paused-notice" className="mt-2">
+                      <AlertDescription>{t("livePausedNotice")}</AlertDescription>
+                    </Alert>
+                  )}
                   <LiveOutputSilenceStrip
                     liveOutputEnabled={liveOutputEnabled}
                     lastSilenced={liveSilenced}

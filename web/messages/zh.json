@@ -1036,6 +1036,7 @@
     "previewAsBlack": "以黑色看板预览",
     "previewAsWhite": "以白色看板预览",
     "liveOutput": "实时输出",
+    "livePausedNotice": "此显示屏已暂停。在恢复显示屏之前，实时输出只会更新预览。",
     "liveOutputAriaLabel": "切换实时输出到看板",
     "selectBoardAriaLabel": "选择实时输出的看板",
     "deviceTypeSwitcherAriaLabel": "更改板的尺寸",

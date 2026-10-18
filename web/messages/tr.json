@@ -1036,6 +1036,7 @@
     "previewAsBlack": "Siyah pano olarak önizle",
     "previewAsWhite": "Beyaz pano olarak önizle",
     "liveOutput": "Canlı Çıktı",
+    "livePausedNotice": "Bu ekran duraklatılmış. Ekranı devam ettirene kadar canlı çıktı yalnızca önizlemeyi günceller.",
     "liveOutputAriaLabel": "Panoya canlı çıktıyı aç/kapat",
     "selectBoardAriaLabel": "Canlı çıktı için pano seçin",
     "deviceTypeSwitcherAriaLabel": "Pano boyutunu değiştir",

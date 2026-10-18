@@ -1036,6 +1036,7 @@
     "previewAsBlack": "Vorschau als schwarzes Board",
     "previewAsWhite": "Vorschau als weißes Board",
     "liveOutput": "Live-Ausgabe",
+    "livePausedNotice": "Dieses Display ist pausiert. Live-Ausgabe aktualisiert nur die Vorschau, bis du das Display fortsetzt.",
     "liveOutputAriaLabel": "Live-Ausgabe an Board umschalten",
     "selectBoardAriaLabel": "Board für Live-Ausgabe auswählen",
     "deviceTypeSwitcherAriaLabel": "Boardgröße ändern",

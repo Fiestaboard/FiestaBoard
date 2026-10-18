@@ -1036,6 +1036,7 @@
     "previewAsBlack": "Anteprima con bacheca nera",
     "previewAsWhite": "Anteprima con bacheca bianca",
     "liveOutput": "Output in tempo reale",
+    "livePausedNotice": "Questo display è in pausa. L’uscita in tempo reale aggiorna solo l’anteprima finché non riattivi il display.",
     "liveOutputAriaLabel": "Attiva/disattiva output in tempo reale sulla bacheca",
     "selectBoardAriaLabel": "Seleziona bacheca per output in tempo reale",
     "deviceTypeSwitcherAriaLabel": "Cambia la dimensione della board",

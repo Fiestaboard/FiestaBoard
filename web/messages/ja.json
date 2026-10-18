@@ -1036,6 +1036,7 @@
     "previewAsBlack": "ブラックボードでプレビュー",
     "previewAsWhite": "ホワイトボードでプレビュー",
     "liveOutput": "ライブ出力",
+    "livePausedNotice": "このディスプレイは一時停止中です。再開するまで、ライブ出力はプレビューのみを更新します。",
     "liveOutputAriaLabel": "ボードへのライブ出力を切り替え",
     "selectBoardAriaLabel": "ライブ出力用のボードを選択",
     "deviceTypeSwitcherAriaLabel": "ボードサイズを変更",
