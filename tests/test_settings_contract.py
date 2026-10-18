@@ -87,7 +87,12 @@ class TestAiProviders:
             "approval_mode": "ask",
             "max_model_calls": None,
             "max_tool_calls": None,
+            "tv_chat_supported": True,
         }
+
+    def test_tv_chat_capability_is_server_owned(self, client):
+        assert client.put("/settings/ai", json={"tv_chat_supported": False}).json()["tv_chat_supported"] is True
+        assert client.get("/settings/ai").json()["tv_chat_supported"] is True
 
     def test_put_that_removes_a_signed_in_provider_forgets_its_tokens(self, client, monkeypatch):
         from src.ai import sign_in

@@ -81,6 +81,9 @@ class AiProvidersResponse(BaseModel):
     """AI provider configuration with every ``api_key`` masked."""
 
     enabled: bool
+    #: Capability, not configuration: native TV requires board context and
+    #: the restricted tool catalog before it can offer chat.
+    tv_chat_supported: Literal[True] = True
     providers: list[dict[str, Any]]
     default_provider_id: str | None = None
     approval_mode: AiApprovalMode = "ask"

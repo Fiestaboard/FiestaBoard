@@ -224,7 +224,7 @@ async def update_mqtt_settings(request: MqttSettingsUpdate):
 async def get_ai_settings():
     """Return AI provider configuration with each provider's api_key masked."""
     cm = get_config_manager()
-    return cm.get_ai_providers_masked()
+    return {**cm.get_ai_providers_masked(), "tv_chat_supported": True}
 
 
 @router.put("/settings/ai", response_model=AiProvidersResponse)

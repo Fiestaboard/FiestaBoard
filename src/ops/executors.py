@@ -644,6 +644,15 @@ async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str
     except Exception as exc:
         return err(f"Error setting active page: {exc}")
 
+    if response.get("error"):
+        return err(
+            f"The active-page selection was saved, but the page was not displayed: {response['error']}",
+            page_id=page_id,
+            board_id=board_id,
+            sent_to_board=False,
+            paused=bool(response.get("paused")),
+            warnings=response.get("warnings", []),
+        )
     message = f"Active page set to '{page_id}'."
     if board_id is not None:
         message = f"Active page set to '{page_id}' on board '{board_id}'."

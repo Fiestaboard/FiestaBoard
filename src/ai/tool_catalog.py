@@ -35,6 +35,71 @@ from .mcp_bridge import ToolDescriptor
 
 ChatSurface = Literal["editor", "global"]
 
+# The native TV trial is content control, not an administration console.
+# An allowlist keeps newly added MCP administration tools out by default.
+TV_TOOLS = frozenset(
+    {
+        "ask_user",
+        "list_pages",
+        "get_page",
+        "create_page",
+        "update_page",
+        "delete_page",
+        "render_page_preview",
+        "preview_saved_page",
+        "validate_template",
+        "list_formula_functions",
+        "list_installed_plugins",
+        "get_template_variables",
+        "get_plugin_data",
+        "get_plugin_demo_page",
+        "list_panels",
+        "get_current_display",
+        "get_active_page",
+        "get_board_content",
+        "get_silence_status",
+        "list_schedules",
+        "validate_schedules",
+        "create_schedule",
+        "update_schedule",
+        "delete_schedule",
+        "set_default_page",
+        "set_schedule_mode",
+        "list_collections",
+        "create_collection",
+        "update_collection",
+        "delete_collection",
+        "set_active_page",
+        "send_message",
+        "pause_board",
+        "resume_board",
+        "blank_board",
+        "fill_board",
+    }
+)
+TV_BOARD_TOOLS = frozenset(
+    {
+        "render_page_preview",
+        "preview_saved_page",
+        "get_current_display",
+        "get_active_page",
+        "get_board_content",
+        "get_silence_status",
+        "list_schedules",
+        "validate_schedules",
+        "create_schedule",
+        "update_schedule",
+        "set_default_page",
+        "set_schedule_mode",
+        "set_active_page",
+        "send_message",
+        "pause_board",
+        "resume_board",
+        "blank_board",
+        "fill_board",
+    }
+)
+
 #: Names the chat used to accept and the model may still emit from habit.
 #: Listed once in the addendum and named in the validator's rejection so the
 #: closest-match hint has something to point at.
@@ -103,7 +168,8 @@ class ParsedToolCall:
 class ToolCatalog:
     """The tools one chat turn may call."""
 
-    def __init__(self, descriptors: Iterable[ToolDescriptor]) -> None:
+    def __init__(self, descriptors: Iterable[ToolDescriptor], *, target_board_id: str | None = None) -> None:
+        self._target_board_id = target_board_id
         self._by_name: dict[str, ToolDescriptor] = {}
         for descriptor in descriptors:
             self._by_name[descriptor.name] = descriptor
@@ -118,7 +184,12 @@ class ToolCatalog:
     def for_surface(self, surface: ChatSurface) -> ToolCatalog:
         """The tools ``surface`` teaches, and so the only ones its parser accepts."""
         omitted = _SURFACE_OMITTED_TOOLS.get(surface, frozenset())
-        return ToolCatalog(d for name, d in self._by_name.items() if name not in omitted)
+        return ToolCatalog(
+            (d for name, d in self._by_name.items() if name not in omitted), target_board_id=self._target_board_id
+        )
+
+    def for_tv(self, board_id: str) -> ToolCatalog:
+        return ToolCatalog((d for name, d in self._by_name.items() if name in TV_TOOLS), target_board_id=board_id)
 
     # -- validation ---------------------------------------------------------
 
@@ -137,6 +208,13 @@ class ToolCatalog:
             args = {}
         if not isinstance(args, dict):
             raise ToolCallValidationError("'args' must be a JSON object.")
+        args = dict(args)
+        if self._target_board_id is not None and name in TV_BOARD_TOOLS:
+            if args.get("board_id") not in (None, self._target_board_id):
+                raise ToolCallValidationError(
+                    "This action must target the selected TV board; select another TV to change it."
+                )
+            args["board_id"] = self._target_board_id
 
         schema = descriptor.input_schema or {}
         properties = schema.get("properties") or {}
