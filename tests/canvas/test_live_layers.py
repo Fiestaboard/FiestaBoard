@@ -7,12 +7,13 @@ import pytest
 from src.canvas import CanvasLayer
 from src.outputs.plugin_driver import OutputPluginDriver
 from src.settings.service import get_settings_service
+from tests.canvas.test_canvas_api import output_plugin  # noqa: F401
 from tests.canvas.test_output_layers import LED_3X5, Sign
 from tests.test_v1_contract import client  # noqa: F401
 
 
 @pytest.mark.parametrize("template", [["HELLO"], [""]])
-def test_live_canvas_changes_and_removal_reach_output(client, template):  # noqa: F811
+def test_live_canvas_changes_and_removal_reach_output(client, output_plugin, template):  # noqa: F811
     get_settings_service().set_boards(
         [
             {
@@ -22,7 +23,7 @@ def test_live_canvas_changes_and_removal_reach_output(client, template):  # noqa
                 "grid_rows": 10,
                 "grid_cols": 16,
                 "device_model": "divoom_pixoo64",
-                "output": "divoom_pixoo",
+                "output": "recording_output",
                 "output_config": {"font": "3x5", "host": "192.0.2.50"},
             }
         ]

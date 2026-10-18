@@ -1790,61 +1790,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     previewBoardId,
   ]);
 
-  // Live output mutation - sends rendered preview to the board
+  // Track request status for the sending indicator; the fast path below is
+  // the only trigger, so enabling Live on an existing preview sends once.
   const liveSendMutation = useMutation({
-    mutationFn: async (_rendered: string) => {
-      const { cleanedLines, metadata } = processLinesWithPrefixes(
-        debouncedTemplateLines,
-        debouncedLineAlignments,
-        debouncedLineWrapEnabled,
-      );
-      if (canvases.length > 0) liveCanvasAttemptedRef.current = true;
-      return api.renderTemplateLive(
-        cleanedLines,
-        selectedBoardId || undefined,
-        metadata,
-        deviceType,
-        notesWide,
-        notesTall,
-        undefined,
-        panelGrid,
-        { overrideSilence: liveOverrideSilenceRef.current, canvases },
-      );
-    },
-    onSuccess: (data) => {
-      setLiveSilenced(data.silenced === true);
-      if (data.sent_to_board) {
-        lastLiveSentPreview.current = preview;
-        // Broadcast to the Home page so its virtual board reflects the live content.
-        queryClient.setQueryData(["liveOutputMessage"], data.rendered);
-        writeLiveOutputMessage(data.rendered);
-      }
-    },
-    onError: (error: Error) => {
-      console.error("[LiveOutput] Send failed:", error.message);
-      toast.error(t("toastLiveSendFailed"));
-    },
+    mutationFn: (args: Parameters<typeof api.renderTemplateLive>) => api.renderTemplateLive(...args),
   });
-
-  // Same react-query identity-churn concern as previewMutationRef above.
   const liveSendMutationRef = useRef(liveSendMutation);
   liveSendMutationRef.current = liveSendMutation;
-
-  // Legacy live send path — only used as fallback when fast path hasn't handled the update.
-  // The fast path sets lastLiveSentPreview to match preview, so this is effectively a no-op
-  // when live mode is active. Kept for safety if the fast path request fails.
-  useEffect(() => {
-    if (!liveOutputEnabled || !preview || preview === lastLiveSentPreview.current) {
-      return;
-    }
-
-    const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-    if (!hasContent) return;
-
-    if (!liveSendMutationRef.current.isPending) {
-      liveSendMutationRef.current.mutate(preview);
-    }
-  }, [preview, liveOutputEnabled, debouncedTemplateLines]);
 
   // Live edit fast path: single 100ms debounce → single API call → preview + board update.
   // Bypasses the normal double-debounce (150ms + 200ms) and double API call chain.
@@ -1902,7 +1854,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
 
         if (canvases.length > 0) liveCanvasAttemptedRef.current = true;
-        const data = await api.renderTemplateLive(
+        const data = await liveSendMutationRef.current.mutateAsync([
           cleanedLines,
           selectedBoardId || undefined,
           metadata,
@@ -1912,7 +1864,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           controller.signal,
           panelGrid,
           { overrideSilence: liveOverrideSilence, canvases },
-        );
+        ]);
 
         if (controller.signal.aborted) return;
 
@@ -1923,9 +1875,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         if (data.rendered) {
           setLastPreview(data.rendered);
         }
-        // The "last attempted" marker the mutation-path effect compares
-        // against. It stays unconditional: gating it on sent_to_board would
-        // make that effect re-send every silenced keystroke (#1943).
+        // Remember the rendered content even during silence, so deleting
+        // the final content can still render an explicitly empty page.
         lastLiveSentPreview.current = data.rendered;
         setLiveSilenced(data.silenced === true);
         if (data.sent_to_board) {
