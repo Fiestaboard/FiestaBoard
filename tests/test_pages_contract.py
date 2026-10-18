@@ -600,13 +600,16 @@ def test_import_reports_share_contents_pydantic_rejects_as_422(client):
     assert response.json()["detail"].startswith("Invalid share string — ")
 
 
-@pytest.mark.parametrize("content", [
-    {},
-    {"name": "Shared", "type": "template", "template": 3},
-    {"name": "Shared", "type": "template", "duration_seconds": 1},
-    {"name": "Shared", "type": "template", "device_type": "panel"},
-    {"name": "Shared", "type": "template", "notes_wide": 0},
-])
+@pytest.mark.parametrize(
+    "content",
+    [
+        {},
+        {"name": "Shared", "type": "template", "template": 3},
+        {"name": "Shared", "type": "template", "duration_seconds": 1},
+        {"name": "Shared", "type": "template", "device_type": "panel"},
+        {"name": "Shared", "type": "template", "notes_wide": 0},
+    ],
+)
 def test_import_preview_rejects_invalid_page_content_without_persisting(client, content):
     import base64
     import json
