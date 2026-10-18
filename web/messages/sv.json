@@ -2394,7 +2394,18 @@
     "displaySizeOptionLed": "{name} ({model} · {cols}×{rows} LED)",
     "panelGridOption": "Panel · {cols}×{rows}",
     "fitsPanel": "Passar {name}",
-    "fitsPanelAndMore": "Passar {name} +{count} till"
+    "fitsPanelAndMore": "Passar {name} +{count} till",
+    "matrixSizing": "Matrisstorlek",
+    "matrixSizing_viewer_default": "Visarens standard",
+    "matrixSizingHelp_viewer_default": "Behåller varje visares befintliga storleksinställning. Förhandsvisningen visar anpassningen i webbläsaren.",
+    "matrixSizing_fill_tv": "Fyll tv-skärmen",
+    "matrixSizing_fit_panel": "Anpassa panelen",
+    "matrixSizing_true_size": "Verklig LED-storlek",
+    "matrixSizingHelp_fill_tv": "Fyller skärmen med släckta lysdioder runt hela meddelandet. Lysdioderna behåller sin form.",
+    "matrixSizingHelp_fit_panel": "Anpassar den ursprungliga matrisen till skärmen utan att sträcka ut eller beskära den.",
+    "matrixSizingHelp_true_size": "Använder skärmstorleken ovan och avståndet mellan lysdioderna nedan. Paneler som är större än skärmen förminskas så att hela meddelandet förblir synligt.",
+    "matrixPitch": "Avstånd mellan lysdioder (mm)",
+    "matrixPitchHelp": "Avstånd mellan lysdiodernas mittpunkter, från 1 till 20 mm. Apple TV använder alltid en skärm i formatet 16:9."
   },
   "releaseChannel": {
     "title": "Release channel",

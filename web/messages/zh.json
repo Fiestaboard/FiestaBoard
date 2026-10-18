@@ -2394,7 +2394,18 @@
     "displaySizeOptionLed": "{name} ({model} · {cols}×{rows} LED)",
     "panelGridOption": "面板 · {cols}×{rows}",
     "fitsPanel": "适配 {name}",
-    "fitsPanelAndMore": "适配 {name} 等 {count} 个"
+    "fitsPanelAndMore": "适配 {name} 等 {count} 个",
+    "matrixSizing": "矩阵尺寸",
+    "matrixSizing_viewer_default": "查看器默认设置",
+    "matrixSizingHelp_viewer_default": "保留每个查看器现有的尺寸设置。预览显示浏览器中的适配效果。",
+    "matrixSizing_fill_tv": "填满电视屏幕",
+    "matrixSizing_fit_panel": "适配面板",
+    "matrixSizing_true_size": "LED实际尺寸",
+    "matrixSizingHelp_fill_tv": "在完整消息周围用未点亮的LED填满屏幕。LED保持原有形状。",
+    "matrixSizingHelp_fit_panel": "将原始矩阵完整适配到屏幕，不拉伸或裁剪。",
+    "matrixSizingHelp_true_size": "使用上方的屏幕尺寸和下方的LED间距。大于屏幕的面板会缩小，以确保完整消息可见。",
+    "matrixPitch": "LED间距（毫米）",
+    "matrixPitchHelp": "LED中心之间的距离，范围为1至20毫米。Apple TV始终使用16:9的屏幕。"
   },
   "releaseChannel": {
     "title": "Release channel",

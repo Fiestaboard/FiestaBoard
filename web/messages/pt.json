@@ -2394,7 +2394,18 @@
     "displaySizeOptionLed": "{name} ({model} · {cols}×{rows} LED)",
     "panelGridOption": "Painel · {cols}×{rows}",
     "fitsPanel": "Serve para {name}",
-    "fitsPanelAndMore": "Serve para {name} +{count} mais"
+    "fitsPanelAndMore": "Serve para {name} +{count} mais",
+    "matrixSizing": "Tamanho da matriz",
+    "matrixSizing_viewer_default": "Padrão do visualizador",
+    "matrixSizingHelp_viewer_default": "Mantém a preferência de tamanho atual de cada visualizador. A prévia mostra o ajuste no navegador.",
+    "matrixSizing_fill_tv": "Preencher a TV",
+    "matrixSizing_fit_panel": "Ajustar o painel",
+    "matrixSizing_true_size": "Tamanho real dos LEDs",
+    "matrixSizingHelp_fill_tv": "Preenche a tela com LEDs apagados ao redor da mensagem completa. Os LEDs mantêm sua forma.",
+    "matrixSizingHelp_fit_panel": "Ajusta a matriz original à tela sem esticar nem cortar.",
+    "matrixSizingHelp_true_size": "Usa o tamanho da tela acima e o espaçamento dos LEDs abaixo. Painéis maiores que a tela são reduzidos para manter a mensagem inteira visível.",
+    "matrixPitch": "Espaçamento dos LEDs (mm)",
+    "matrixPitchHelp": "Distância entre os centros dos LEDs, de 1 a 20 mm. A Apple TV sempre usa uma tela de 16:9."
   },
   "releaseChannel": {
     "title": "Release channel",

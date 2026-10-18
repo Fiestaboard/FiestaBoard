@@ -2394,7 +2394,18 @@
     "displaySizeOptionLed": "{name} ({model} · {cols}×{rows} LED)",
     "panelGridOption": "Панель · {cols}×{rows}",
     "fitsPanel": "Подходит для {name}",
-    "fitsPanelAndMore": "Подходит для {name} +{count}"
+    "fitsPanelAndMore": "Подходит для {name} +{count}",
+    "matrixSizing": "Размер матрицы",
+    "matrixSizing_viewer_default": "Настройка программы просмотра",
+    "matrixSizingHelp_viewer_default": "Сохраняет текущую настройку размера в каждой программе просмотра. Предпросмотр показывает подгонку в браузере.",
+    "matrixSizing_fill_tv": "Заполнить экран ТВ",
+    "matrixSizing_fit_panel": "Вписать панель",
+    "matrixSizing_true_size": "Реальный размер светодиодов",
+    "matrixSizingHelp_fill_tv": "Заполняет экран неосвещёнными светодиодами вокруг полного сообщения. Светодиоды сохраняют свою форму.",
+    "matrixSizingHelp_fit_panel": "Вписывает исходную матрицу в экран без растягивания и обрезки.",
+    "matrixSizingHelp_true_size": "Использует размер экрана, указанный выше, и расстояние между светодиодами, указанное ниже. Панели больше экрана уменьшаются, чтобы всё сообщение оставалось видимым.",
+    "matrixPitch": "Расстояние между светодиодами (мм)",
+    "matrixPitchHelp": "Расстояние между центрами светодиодов, от 1 до 20 мм. Apple TV всегда использует экран с соотношением сторон 16:9."
   },
   "releaseChannel": {
     "title": "Release channel",

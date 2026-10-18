@@ -53,9 +53,9 @@ Edit a panel any time — changes reach the TV within about 10 seconds, no reloa
 | **Auto-dim** | Fades the panel down during a nightly window (e.g. 22:00–07:00), using the TV's own clock. |
 | **Size calibration** | ±15% fine-tune for TVs whose browsers misreport their resolution or overscan the picture. |
 
-Matrix sizing is saved per panel and reaches browser and Apple TV viewers on their next configuration refresh. **Viewer default** preserves each viewer’s existing preference; editing unrelated settings keeps that choice. The settings dialog previews matrix size and LED spacing before saving. True LED size includes Size calibration and uses the actual display’s pixel density, including when a browser window occupies only part of its screen.
+Matrix sizing is saved per panel and reaches browser and Apple TV viewers on their next configuration refresh. **Viewer default** preserves each viewer's existing preference; editing unrelated settings keeps that choice. The settings dialog previews matrix size and LED spacing before saving. True LED size includes Size calibration and uses the actual display's pixel density, including when a browser window occupies only part of its screen.
 
-Changing matrix size mode or LED spacing does not resize the source content grid. Changing TV size or aspect ratio re-fits that grid, and the LED face grows beyond its original 192 × 96 pixels when needed to show every character. Apple TV’s physical screen stays 16:9; the configured aspect ratio determines the source grid and browser preview.
+Changing matrix size mode or LED spacing does not resize the source content grid. Changing TV size or aspect ratio re-fits that grid, and the LED face grows beyond its original 192 × 96 pixels when needed to show every character. Apple TV's physical screen stays 16:9; the configured aspect ratio determines the source grid and browser preview.
 
 ## FiestaPi HDMI Output
 
