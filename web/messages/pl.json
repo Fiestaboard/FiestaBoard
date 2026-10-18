@@ -285,6 +285,7 @@
     "variableExpressionAriaLabel": "Expression for rule {index}",
     "variableRuleSummaryArrow": "→ {target}",
     "variableDiscardTitle": "Discard unsaved changes?",
+    "variableSaveOrCancelRule": "Zapisz lub anuluj edycję reguły przed zapisaniem tej kolekcji.",
     "variableDiscardDescription": "You have unsaved changes to this rule. Switching will lose them.",
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",

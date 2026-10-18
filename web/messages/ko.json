@@ -285,6 +285,7 @@
     "variableExpressionAriaLabel": "Expression for rule {index}",
     "variableRuleSummaryArrow": "→ {target}",
     "variableDiscardTitle": "Discard unsaved changes?",
+    "variableSaveOrCancelRule": "이 컬렉션을 저장하기 전에 규칙 편집을 저장하거나 취소하세요.",
     "variableDiscardDescription": "You have unsaved changes to this rule. Switching will lose them.",
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
