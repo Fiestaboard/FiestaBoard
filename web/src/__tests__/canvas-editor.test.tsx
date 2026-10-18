@@ -364,6 +364,43 @@ describe("CanvasShapesEditor", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(spy).toHaveBeenLastCalledWith([{ type: "line", x1: 0, y1: 0, x2: 3, y2: 3, stroke: "red" }]);
   });
+
+  it("blocks competing form changes until the preserved JSON draft is repaired", async () => {
+    const user = userEvent.setup();
+    const spy = vi.fn();
+    const initial: CanvasShape[] = [
+      { type: "rect", x: 3, y: 0, w: 8, h: 8 },
+      { type: "circle", cx: 2, cy: 3, r: 1 },
+    ];
+    render(<Shapes spy={spy} initial={initial} />);
+    const toggle = screen.getByRole("switch", { name: "Edit as JSON" });
+    await user.click(toggle);
+    const draft = JSON.stringify(initial).slice(0, -1);
+    fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: draft } });
+    await user.click(toggle);
+
+    const add = screen.getByRole("button", { name: "Add shape" });
+    const x = screen.getByLabelText("X *");
+    const remove = screen.getByRole("button", { name: "Delete shape 1" });
+    const move = screen.getByRole("button", { name: "Move shape 2 up" });
+    await user.click(add);
+    await user.type(x, "9");
+    await user.click(remove);
+    await user.click(move);
+    expect(spy).not.toHaveBeenCalled();
+    for (const control of [add, x, remove, move]) expect(control).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Repair the JSON draft before editing shapes");
+
+    await user.click(toggle);
+    expect(screen.getByLabelText("Shapes JSON")).toHaveValue(draft);
+    fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: `${draft}]` } });
+    expect(spy).toHaveBeenLastCalledWith(initial);
+    await user.click(toggle);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("X *")).toBeEnabled();
+    await user.click(add);
+    expect(spy.mock.calls.at(-1)![0]).toHaveLength(3);
+  });
 });
 
 describe("CanvasSourcePicker", () => {

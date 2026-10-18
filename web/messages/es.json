@@ -2732,6 +2732,7 @@
     "jsonInvalid": "JSON no válido: {message}",
     "jsonNotList": "El JSON de formas debe ser una lista.",
     "jsonInvalidShape": "Cada entrada debe ser un objeto de forma con un tipo compatible.",
+    "jsonRepairBeforeEditing": "Corrige el borrador JSON antes de editar las formas. Activa Editar como JSON para continuar.",
     "sourceHint": "Una variable de plugin que dibuja este lienzo. Cuando devuelve un dibujo, este sustituye al del propio lienzo.",
     "sourceVariable": "Variable de lienzo del plugin",
     "sourceNone": "Ninguna",

@@ -187,7 +187,7 @@ export function CanvasShapesEditor({ shapes, onChange }: CanvasShapesEditorProps
           <Button
             size="sm"
             variant="outline"
-            disabled={jsonMode && jsonInvalid}
+            disabled={jsonInvalid}
             onClick={() => onChange([...shapes, defaultShape(newType)])}
           >
             <Plus aria-hidden="true" />
@@ -208,25 +208,32 @@ export function CanvasShapesEditor({ shapes, onChange }: CanvasShapesEditorProps
       <Box hidden={!jsonMode}>
         <ShapesJsonEditor shapes={shapes} onChange={onChange} onInvalidChange={setJsonInvalid} />
       </Box>
+      {!jsonMode && jsonInvalid && (
+        <Text size="xs" tone="destructive" role="alert">
+          {t("jsonRepairBeforeEditing")}
+        </Text>
+      )}
       {!jsonMode &&
         (shapes.length === 0 ? (
           <Text size="sm" tone="muted">
             {t("shapesEmpty")}
           </Text>
         ) : (
-          <Stack gap="2" role="list" aria-label={t("shapesListLabel")}>
-            {shapes.map((shape, index) => (
-              <ShapeCard
-                key={index}
-                shape={shape}
-                index={index}
-                count={shapes.length}
-                onChange={(s) => update(index, s)}
-                onMove={(by) => move(index, by)}
-                onDelete={() => onChange(shapes.filter((_, i) => i !== index))}
-              />
-            ))}
-          </Stack>
+          <fieldset disabled={jsonInvalid} className="min-w-0">
+            <Stack gap="2" role="list" aria-label={t("shapesListLabel")}>
+              {shapes.map((shape, index) => (
+                <ShapeCard
+                  key={index}
+                  shape={shape}
+                  index={index}
+                  count={shapes.length}
+                  onChange={(s) => update(index, s)}
+                  onMove={(by) => move(index, by)}
+                  onDelete={() => onChange(shapes.filter((_, i) => i !== index))}
+                />
+              ))}
+            </Stack>
+          </fieldset>
         ))}
     </Stack>
   );

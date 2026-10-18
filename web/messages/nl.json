@@ -2732,6 +2732,7 @@
     "jsonInvalid": "Geen geldige JSON: {message}",
     "jsonNotList": "De vormen-JSON moet een lijst zijn.",
     "jsonInvalidShape": "Elk item moet een vormobject met een ondersteund type zijn.",
+    "jsonRepairBeforeEditing": "Herstel het JSON-concept voordat je vormen bewerkt. Schakel Bewerken als JSON in om door te gaan.",
     "sourceHint": "Een pluginvariabele die dit canvas tekent. Als die een tekening oplevert, vervangt die de eigen tekening van het canvas.",
     "sourceVariable": "Plugin-canvasvariabele",
     "sourceNone": "Geen",

@@ -2732,6 +2732,7 @@
     "jsonInvalid": "無効なJSONです：{message}",
     "jsonNotList": "図形JSONはリストである必要があります。",
     "jsonInvalidShape": "各項目は、対応する種類の図形オブジェクトである必要があります。",
+    "jsonRepairBeforeEditing": "図形を編集する前にJSONの下書きを修正してください。続行するにはJSON編集を有効にしてください。",
     "sourceHint": "このキャンバスを描画するプラグイン変数です。描画が返されると、キャンバス自身の描画に置き換わります。",
     "sourceVariable": "プラグインのキャンバス変数",
     "sourceNone": "なし",

@@ -2732,6 +2732,7 @@
     "jsonInvalid": "Nieprawidłowy JSON: {message}",
     "jsonNotList": "JSON kształtów musi być listą.",
     "jsonInvalidShape": "Każdy element musi być obiektem kształtu obsługiwanego typu.",
+    "jsonRepairBeforeEditing": "Popraw wersję roboczą JSON przed edycją kształtów. Włącz edycję jako JSON, aby kontynuować.",
     "sourceHint": "Zmienna wtyczki, która rysuje tę kanwę. Gdy zwraca rysunek, zastępuje on własny rysunek kanwy.",
     "sourceVariable": "Zmienna kanwy wtyczki",
     "sourceNone": "Brak",
