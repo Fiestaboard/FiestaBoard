@@ -312,6 +312,82 @@ describe("CanvasShapesEditor", () => {
     expect(spy).toHaveBeenLastCalledWith([a]);
   });
 
+  it("preserves leading zeroes in numeric-looking text", () => {
+    const spy = vi.fn();
+    render(<Shapes spy={spy} initial={[{ type: "text", x: 0, y: 0, text: "HI", color: "white" }]} />);
+    fireEvent.change(screen.getByLabelText("Text *"), { target: { value: "00123" } });
+    expect(spy.mock.calls.at(-1)![0][0].text).toBe("00123");
+  });
+
+  it.each([true, false])("stores Only if %s as a boolean", (value) => {
+    const spy = vi.fn();
+    render(<Shapes spy={spy} initial={[{ type: "rect", x: 0, y: 0, w: 8, h: 8 }]} />);
+    fireEvent.change(screen.getByLabelText("Only if"), { target: { value: String(value) } });
+    expect(spy.mock.calls.at(-1)![0][0].if).toBe(value);
+  });
+
+  it.each(
+    [null, 123, "rect", [], {}, { type: "unknown" }, { type: "toString" }, { type: ["rect"] }].map((entry) => ({
+      entry,
+    })),
+  )("rejects an invalid JSON shape entry $entry and retains the last editable shapes", async ({ entry }) => {
+    const user = userEvent.setup();
+    const spy = vi.fn();
+    const shape: CanvasShape = { type: "rect", x: 3, y: 0, w: 8, h: 8 };
+    render(<Shapes spy={spy} initial={[shape]} />);
+    await user.click(screen.getByRole("switch", { name: "Edit as JSON" }));
+    fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: JSON.stringify([shape, entry]) } });
+    expect(spy).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: "Edit as JSON" }));
+    expect(screen.getByLabelText("X *")).toHaveValue("3");
+  });
+
+  it("keeps a shape added in JSON mode after the next whitespace edit", async () => {
+    const user = userEvent.setup();
+    const spy = vi.fn();
+    render(<Shapes spy={spy} />);
+    await user.click(screen.getByRole("switch", { name: "Edit as JSON" }));
+    await user.click(screen.getByRole("button", { name: "Add shape" }));
+    const json = screen.getByLabelText<HTMLTextAreaElement>("Shapes JSON");
+    expect(JSON.parse(json.value)).toEqual([{ type: "rect", x: 0, y: 0, w: 8, h: 8, fill: "#ff0000" }]);
+    fireEvent.change(json, { target: { value: `${json.value} ` } });
+    expect(spy).toHaveBeenLastCalledWith([{ type: "rect", x: 0, y: 0, w: 8, h: 8, fill: "#ff0000" }]);
+  });
+
+  it("preserves an invalid JSON draft by disabling Add shape until it is repaired", async () => {
+    const user = userEvent.setup();
+    const spy = vi.fn();
+    render(<Shapes spy={spy} />);
+    await user.click(screen.getByRole("switch", { name: "Edit as JSON" }));
+    const json = screen.getByLabelText("Shapes JSON");
+    fireEvent.change(json, { target: { value: "[{" } });
+    expect(screen.getByRole("button", { name: "Add shape" })).toBeDisabled();
+    expect(json).toHaveValue("[{");
+    fireEvent.change(json, { target: { value: "[]" } });
+    expect(screen.getByRole("button", { name: "Add shape" })).toBeEnabled();
+  });
+
+  it("recovers the invalid draft after switching to the form and back", async () => {
+    const user = userEvent.setup();
+    const spy = vi.fn();
+    render(<Shapes spy={spy} initial={[{ type: "rect", x: 3, y: 0, w: 8, h: 8 }]} />);
+    const toggle = screen.getByRole("switch", { name: "Edit as JSON" });
+    await user.click(toggle);
+    fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: "[null]" } });
+    await user.click(toggle);
+    expect(screen.getByLabelText("X *")).toHaveValue("3");
+    await user.click(toggle);
+    expect(screen.getByLabelText("Shapes JSON")).toHaveValue("[null]");
+    expect(screen.getByRole("button", { name: "Add shape" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Shapes JSON"), {
+      target: { value: '[{"type":"circle","cx":2,"cy":3,"r":1}]' },
+    });
+    await user.click(toggle);
+    expect(spy).toHaveBeenLastCalledWith([{ type: "circle", cx: 2, cy: 3, r: 1 }]);
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+  });
+
   it("edits as JSON, reporting invalid JSON without applying it", async () => {
     const user = userEvent.setup();
     const spy = vi.fn();
@@ -328,6 +404,43 @@ describe("CanvasShapesEditor", () => {
     });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(spy).toHaveBeenLastCalledWith([{ type: "line", x1: 0, y1: 0, x2: 3, y2: 3, stroke: "red" }]);
+  });
+
+  it("blocks competing form changes until the preserved JSON draft is repaired", async () => {
+    const user = userEvent.setup();
+    const spy = vi.fn();
+    const initial: CanvasShape[] = [
+      { type: "rect", x: 3, y: 0, w: 8, h: 8 },
+      { type: "circle", cx: 2, cy: 3, r: 1 },
+    ];
+    render(<Shapes spy={spy} initial={initial} />);
+    const toggle = screen.getByRole("switch", { name: "Edit as JSON" });
+    await user.click(toggle);
+    const draft = JSON.stringify(initial).slice(0, -1);
+    fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: draft } });
+    await user.click(toggle);
+
+    const add = screen.getByRole("button", { name: "Add shape" });
+    const x = screen.getByLabelText("X *");
+    const remove = screen.getByRole("button", { name: "Delete shape 1" });
+    const move = screen.getByRole("button", { name: "Move shape 2 up" });
+    await user.click(add);
+    await user.type(x, "9");
+    await user.click(remove);
+    await user.click(move);
+    expect(spy).not.toHaveBeenCalled();
+    for (const control of [add, x, remove, move]) expect(control).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Repair the JSON draft before editing shapes");
+
+    await user.click(toggle);
+    expect(screen.getByLabelText("Shapes JSON")).toHaveValue(draft);
+    fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: `${draft}]` } });
+    expect(spy).toHaveBeenLastCalledWith(initial);
+    await user.click(toggle);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("X *")).toBeEnabled();
+    await user.click(add);
+    expect(spy.mock.calls.at(-1)![0]).toHaveLength(3);
   });
 });
 
