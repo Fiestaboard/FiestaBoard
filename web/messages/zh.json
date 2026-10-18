@@ -1004,6 +1004,10 @@
     "compactActive": "活跃"
   },
   "pageBuilder": {
+    "discardChangesTitle": "放弃未保存的更改？",
+    "discardChangesDescription": "对此页面的更改尚未保存。离开将丢失这些更改。",
+    "keepEditing": "继续编辑",
+    "discardAndLeave": "放弃并离开",
     "editPage": "编辑页面",
     "createPage": "创建页面",
     "backToPages": "返回页面列表",

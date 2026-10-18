@@ -1004,6 +1004,10 @@
     "compactActive": "Actief"
   },
   "pageBuilder": {
+    "discardChangesTitle": "Niet-opgeslagen wijzigingen verwerpen?",
+    "discardChangesDescription": "Je wijzigingen aan deze pagina zijn niet opgeslagen. Als je vertrekt, gaan ze verloren.",
+    "keepEditing": "Verder bewerken",
+    "discardAndLeave": "Verwerpen en verlaten",
     "editPage": "Pagina bewerken",
     "createPage": "Pagina aanmaken",
     "backToPages": "Terug naar pagina's",

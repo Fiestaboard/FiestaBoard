@@ -1004,6 +1004,10 @@
     "compactActive": "Actif"
   },
   "pageBuilder": {
+    "discardChangesTitle": "Abandonner les modifications non enregistrées ?",
+    "discardChangesDescription": "Les modifications de cette page ne sont pas enregistrées. Elles seront perdues si vous quittez.",
+    "keepEditing": "Continuer à modifier",
+    "discardAndLeave": "Abandonner et quitter",
     "editPage": "Modifier la page",
     "createPage": "Créer une page",
     "backToPages": "Retour aux pages",

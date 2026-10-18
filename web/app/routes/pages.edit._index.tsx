@@ -1,7 +1,7 @@
 import { Text } from "@fiestaboard/ui";
 import { useEffect, useState } from "react";
 
-import { PageBuilder } from "@/components/page-builder";
+import { PageEditorShell } from "@/components/page-editor-shell";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useTranslations } from "@/i18n/translations";
 
@@ -43,5 +43,5 @@ export default function EditPage() {
     );
   }
 
-  return <PageBuilder embedded pageId={pageId} onClose={handleClose} onSave={handleSave} />;
+  return <PageEditorShell pageId={pageId} onClose={handleClose} onSave={handleSave} />;
 }
