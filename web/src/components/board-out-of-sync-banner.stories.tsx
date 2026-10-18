@@ -254,26 +254,13 @@ export const OutOfSyncPhoneNarrow: Story = {
   },
 };
 
-export const OutOfSyncSilenceHold: Story = {
-  name: "OutOfSync / SilenceHold",
-  decorators: [
-    withBanner({
-      boardState: OUT_OF_SYNC,
-      silence: SILENCE_ON,
-      stubs: { forceRefresh: { status: 200, body: { message: "Nothing sent", sent: false } } },
-    }),
-  ],
+/** Silenced: FiestaBoard leaves the board alone on purpose, so no banner. */
+export const OutOfSyncSilenced: Story = {
+  name: "OutOfSync / Silenced",
+  decorators: [withBanner({ boardState: OUT_OF_SYNC, silence: SILENCE_ON })],
   play: async ({ canvasElement }) => {
-    const alert = await banner(canvasElement);
-    await expect(within(alert).getByTestId("board-out-of-sync-hold")).toHaveTextContent(/Silence mode is on until/);
-    const restore = within(alert).getByRole("button", { name: "Restore" });
-    await expect(restore).toBeEnabled();
-    await userEvent.click(restore);
-    // Nothing was sent: the banner stays and the toast says why.
-    await waitFor(() =>
-      expect(within(document.body).getByText(/Nothing was sent: silence mode is on until/)).toBeInTheDocument(),
-    );
-    await expect(await banner(canvasElement)).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 300));
+    await expect(within(canvasElement).queryByTestId("board-out-of-sync")).toBeNull();
   },
 };
 
@@ -513,10 +500,6 @@ const toastStory = (kind: ToastKind, msgKey: string, params?: Record<string, str
 
 export const ToastRestored: Story = { name: "Toasts / Restored", ...toastStory("success", "toastRestored") };
 export const ToastRestoredAll: Story = { name: "Toasts / RestoredAll", ...toastStory("success", "toastRestoredAll") };
-export const ToastNotSentSilence: Story = {
-  name: "Toasts / NotSentSilence",
-  ...toastStory("warning", "toastNotSentSilence", { time: "7:00 AM" }),
-};
 export const ToastNotSentPaused: Story = {
   name: "Toasts / NotSentPaused",
   ...toastStory("warning", "toastNotSentPaused"),

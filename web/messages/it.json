@@ -908,8 +908,7 @@
     "toastSwitchPaused": "Salvata — “{pageName}” verrà mostrata quando riprendi il tabellone",
     "toastShownNow": "“{pageName}” in mostra ora",
     "toastHeldDiscarded": "Messaggio in attesa scartato",
-    "toastHeldDiscardFailed": "Impossibile scartare il messaggio in attesa",
-    "toastResendNotSent": "Non è stato inviato nulla (tabellone in pausa o uscita impostata solo sull'interfaccia)"
+    "toastHeldDiscardFailed": "Impossibile scartare il messaggio in attesa"
   },
   "boardOutOfSync": {
     "title": "Un’altra app ha modificato questo board",
@@ -919,7 +918,6 @@
     "savedAs": "Salvato come \"{pageName}\"",
     "openPage": "Apri pagina",
     "dismiss": "Ignora",
-    "holdSilence": "La modalità silenziosa è attiva fino alle {time}, quindi Ripristina non invierà nulla fino ad allora.",
     "holdPaused": "Questo display è in pausa, quindi Ripristina non invierà nulla finché non lo riprendi.",
     "restoreAllDisplays": "Ripristina reinvia le pagine a tutti i display.",
     "keptTitle": "Un’altra app ha scritto su questo board alle {time}",
@@ -928,7 +926,6 @@
     "toastRestored": "Board ripristinato",
     "toastRestoredAll": "Pagine reinviate a tutti i display",
     "toastRestoreFailed": "Impossibile ripristinare il board",
-    "toastNotSentSilence": "Nulla è stato inviato: la modalità silenziosa è attiva fino alle {time}",
     "toastNotSentPaused": "Nulla è stato inviato: questo display è in pausa",
     "toastNotSent": "Nulla è stato inviato al display",
     "toastSaved": "\"{pageName}\" salvato come pagina",

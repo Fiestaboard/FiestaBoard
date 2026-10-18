@@ -908,8 +908,7 @@
     "toastSwitchPaused": "Guardado: «{pageName}» se mostrará cuando reanudes el tablero",
     "toastShownNow": "Mostrando «{pageName}» ahora",
     "toastHeldDiscarded": "Mensaje retenido descartado",
-    "toastHeldDiscardFailed": "No se pudo descartar el mensaje retenido",
-    "toastResendNotSent": "No se envió nada (tablero en pausa o salida configurada solo para la interfaz)"
+    "toastHeldDiscardFailed": "No se pudo descartar el mensaje retenido"
   },
   "boardOutOfSync": {
     "title": "Otra aplicación cambió esta pantalla",
@@ -919,7 +918,6 @@
     "savedAs": "Guardada como «{pageName}»",
     "openPage": "Abrir página",
     "dismiss": "Descartar",
-    "holdSilence": "El modo silencioso está activo hasta las {time}, así que Restaurar no enviará nada hasta entonces.",
     "holdPaused": "Esta pantalla está en pausa, así que Restaurar no enviará nada hasta que la reanudes.",
     "restoreAllDisplays": "Restaurar reenvía las páginas a todas las pantallas.",
     "keptTitle": "Otra aplicación escribió en esta pantalla a las {time}",
@@ -928,7 +926,6 @@
     "toastRestored": "Pantalla restaurada",
     "toastRestoredAll": "Páginas reenviadas a todas las pantallas",
     "toastRestoreFailed": "Error al restaurar la pantalla",
-    "toastNotSentSilence": "No se envió nada: el modo silencioso está activo hasta las {time}",
     "toastNotSentPaused": "No se envió nada: esta pantalla está en pausa",
     "toastNotSent": "No se envió nada a la pantalla",
     "toastSaved": "«{pageName}» guardada como página",

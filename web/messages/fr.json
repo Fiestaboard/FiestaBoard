@@ -908,8 +908,7 @@
     "toastSwitchPaused": "Enregistré — « {pageName} » s'affichera quand vous reprendrez le tableau",
     "toastShownNow": "Affichage de « {pageName} » maintenant",
     "toastHeldDiscarded": "Message en attente supprimé",
-    "toastHeldDiscardFailed": "Impossible de supprimer le message en attente",
-    "toastResendNotSent": "Rien n'a été envoyé (tableau en pause ou sortie réglée sur l'interface uniquement)"
+    "toastHeldDiscardFailed": "Impossible de supprimer le message en attente"
   },
   "boardOutOfSync": {
     "title": "Une autre application a modifié ce board",
@@ -919,7 +918,6 @@
     "savedAs": "Enregistré sous « {pageName} »",
     "openPage": "Ouvrir la page",
     "dismiss": "Ignorer",
-    "holdSilence": "Le mode silencieux est actif jusqu’à {time} : Restaurer n’enverra rien d’ici là.",
     "holdPaused": "Cet affichage est en pause : Restaurer n’enverra rien tant que vous ne le reprenez pas.",
     "restoreAllDisplays": "Restaurer renvoie les pages à tous les affichages.",
     "keptTitle": "Une autre application a écrit sur ce board à {time}",
@@ -928,7 +926,6 @@
     "toastRestored": "Board restauré",
     "toastRestoredAll": "Pages renvoyées à tous les affichages",
     "toastRestoreFailed": "Échec de la restauration du board",
-    "toastNotSentSilence": "Rien n’a été envoyé : le mode silencieux est actif jusqu’à {time}",
     "toastNotSentPaused": "Rien n’a été envoyé : cet affichage est en pause",
     "toastNotSent": "Rien n’a été envoyé à l’affichage",
     "toastSaved": "« {pageName} » enregistré comme page",

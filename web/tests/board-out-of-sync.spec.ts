@@ -8,7 +8,8 @@
  *
  *   1. Save as page keeps what the other app wrote, then becomes "Saved as".
  *   2. Restore puts the page back and says so.
- *   3–4. Restore while paused / silenced tells the truth: nothing was sent.
+ *   3. Restore while paused tells the truth: nothing was sent.
+ *   4. During silence the notice stays hidden.
  *   5. The frame survives FiestaBoard's repaint (the "kept" notice).
  *   6. The kept notice, driven by a route mock.
  *   7. Phone layout.
@@ -228,26 +229,20 @@ test.describe("Board changed by another app", () => {
     });
   });
 
-  test.describe("Restore during silence", () => {
+  test.describe("during silence", () => {
     test.afterEach(async () => {
       await setSilence(false);
     });
 
-    test("tells the truth: nothing was sent", async ({ page }) => {
+    test("the notice stays hidden, since FiestaBoard is leaving the board alone", async ({ page }) => {
       await showHelloPage();
       await setSilence(true);
       await writeFromAnotherApp();
       await primeBoardRead();
-      const before = (await getMockBoardState()).history?.length ?? 0;
 
       await page.goto("/");
-      await expect(banner(page)).toBeVisible({ timeout: 15_000 });
-      await expect(banner(page)).toContainText(/Silence mode is on until/);
-      await banner(page).getByRole("button", { name: "Restore" }).click();
-
-      await expect(page.getByText(/Nothing was sent: silence mode is on until/)).toBeVisible({ timeout: 10_000 });
-      await expect(banner(page)).toBeVisible();
-      expect((await getMockBoardState()).history?.length ?? 0).toBe(before);
+      await expect(page.getByTestId("silence-alert")).toBeVisible({ timeout: 15_000 });
+      await expect(banner(page)).toHaveCount(0);
     });
   });
 

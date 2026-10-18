@@ -12,7 +12,7 @@ import { useSaveBoardAsPage } from "@/hooks/use-save-board-as-page";
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { api, type BoardCurrentMessageResponse, type SilenceStatus } from "@/lib/api";
 import type { BoardGeometry } from "@/lib/board-characters-to-template";
-import { formatDetectedAt, formatSilenceEnd } from "@/lib/board-out-of-sync-time";
+import { formatDetectedAt } from "@/lib/board-out-of-sync-time";
 
 export interface BoardOutOfSyncBannerProps {
   /** The board to watch; omitted means the primary (single-board Home). */
@@ -68,11 +68,13 @@ export function BoardOutOfSyncBanner({
   });
 
   const { save, isPending: isSaving } = useSaveBoardAsPage();
-  const { restore, isPending: isRestoring } = useRestoreBoard({ boardId, paused, silenceStatus, isPrimary });
+  const { restore, isPending: isRestoring } = useRestoreBoard({ boardId, paused, isPrimary });
   const [savedPage, setSavedPage] = useState<SavedPage | null>(null);
   const [isDismissing, setIsDismissing] = useState(false);
 
-  if (suppressed || !boardState) return null;
+  // During silence FiestaBoard leaves the board alone on purpose and Restore
+  // cannot send, so there is nothing to offer until the window ends (#1943).
+  if (suppressed || !boardState || silenceStatus?.active) return null;
 
   const characters = boardState.characters ?? null;
   const expected = boardState.expected_characters ?? null;
@@ -120,8 +122,6 @@ export function BoardOutOfSyncBanner({
   let hold: string | null = null;
   if (face === "out-of-sync") {
     if (paused) hold = t("holdPaused");
-    else if (silenceStatus?.active)
-      hold = t("holdSilence", { time: formatSilenceEnd(silenceStatus.end_time_utc, locale) });
     else if (multiBoard && !isPrimary) hold = t("restoreAllDisplays");
   }
 

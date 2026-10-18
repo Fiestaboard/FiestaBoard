@@ -511,7 +511,6 @@ export const OutOfSyncPhone: Story = {
   decorators: [withBoardState(OUT_OF_SYNC_STATE)],
 };
 
-
 export const ExternalFrameKept: Story = {
   decorators: [
     withBoardState({

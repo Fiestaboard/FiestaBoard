@@ -908,8 +908,7 @@
     "toastSwitchPaused": "Gespeichert – „{pageName}“ wird angezeigt, wenn du das Board fortsetzt",
     "toastShownNow": "„{pageName}“ wird jetzt angezeigt",
     "toastHeldDiscarded": "Zurückgehaltene Nachricht verworfen",
-    "toastHeldDiscardFailed": "Die zurückgehaltene Nachricht konnte nicht verworfen werden",
-    "toastResendNotSent": "Nichts gesendet (Board pausiert oder Ausgabe nur auf die Oberfläche eingestellt)"
+    "toastHeldDiscardFailed": "Die zurückgehaltene Nachricht konnte nicht verworfen werden"
   },
   "boardOutOfSync": {
     "title": "Eine andere App hat dieses Board geändert",
@@ -919,7 +918,6 @@
     "savedAs": "Gespeichert als „{pageName}“",
     "openPage": "Seite öffnen",
     "dismiss": "Ausblenden",
-    "holdSilence": "Der Ruhemodus ist bis {time} aktiv, daher sendet „Wiederherstellen“ bis dahin nichts.",
     "holdPaused": "Diese Anzeige ist pausiert, daher sendet „Wiederherstellen“ erst wieder, wenn du sie fortsetzt.",
     "restoreAllDisplays": "„Wiederherstellen“ sendet die Seiten erneut an alle Anzeigen.",
     "keptTitle": "Eine andere App hat um {time} auf dieses Board geschrieben",
@@ -928,7 +926,6 @@
     "toastRestored": "Board wiederhergestellt",
     "toastRestoredAll": "Seiten an alle Anzeigen erneut gesendet",
     "toastRestoreFailed": "Board konnte nicht wiederhergestellt werden",
-    "toastNotSentSilence": "Nichts gesendet: Der Ruhemodus ist bis {time} aktiv",
     "toastNotSentPaused": "Nichts gesendet: Diese Anzeige ist pausiert",
     "toastNotSent": "Nichts an die Anzeige gesendet",
     "toastSaved": "„{pageName}“ als Seite gespeichert",

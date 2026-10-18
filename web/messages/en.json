@@ -864,8 +864,7 @@
     "toastSwitchPaused": "Saved — “{pageName}” will show when you resume the board",
     "toastShownNow": "Showing “{pageName}” now",
     "toastHeldDiscarded": "Held message discarded",
-    "toastHeldDiscardFailed": "Could not discard the held message",
-    "toastResendNotSent": "Nothing was sent (board paused or output set to UI only)"
+    "toastHeldDiscardFailed": "Could not discard the held message"
   },
   "boardOutOfSync": {
     "title": "Another app changed this board",
@@ -875,7 +874,6 @@
     "savedAs": "Saved as “{pageName}”",
     "openPage": "Open page",
     "dismiss": "Dismiss",
-    "holdSilence": "Silence mode is on until {time}, so Restore won't send anything until then.",
     "holdPaused": "This display is paused, so Restore won't send anything until you resume it.",
     "restoreAllDisplays": "Restore resends pages to every display.",
     "keptTitle": "Another app wrote to this board at {time}",
@@ -884,7 +882,6 @@
     "toastRestored": "Board restored",
     "toastRestoredAll": "Pages resent to every display",
     "toastRestoreFailed": "Failed to restore board",
-    "toastNotSentSilence": "Nothing was sent: silence mode is on until {time}",
     "toastNotSentPaused": "Nothing was sent: this display is paused",
     "toastNotSent": "Nothing was sent to the display",
     "toastSaved": "Saved “{pageName}” as a page",

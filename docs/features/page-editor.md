@@ -247,10 +247,12 @@ that display's own page under **Displays**:
   wrote. On a display that is not your first one, the notice says that Restore
   sends pages to every display again, because it does.
 
-Restore does not send anything while the display is paused or while silence
-mode is on for it. The notice says so before you tap it, and if you tap it
-anyway, FiestaBoard tells you that nothing was sent and why, instead of
-reporting success.
+Restore does not send anything while the display is paused. The notice says
+so before you tap it, and if you tap it anyway, FiestaBoard tells you that
+nothing was sent and why, instead of reporting success. While silence mode is
+on for a display, the notice is hidden: FiestaBoard is leaving that board alone
+on purpose, and the notice comes back when silence ends if the other app's
+content is still there.
 
 After FiestaBoard has put your page back, the other app's content is no
 longer on the board, but you can still keep it. A quieter notice stays:
