@@ -130,6 +130,11 @@ Every write surface takes the same flag, `override_silence` (default `false`):
 when the board already shows that exact content); it does not override
 silence.
 
+On `POST /pages/{id}/send` and `POST /displays/{type}/send`, the beta-only
+`?force=true` from v10.0.0-beta.26 still overrides silence as a deprecated
+alias of `override_silence`. Switch to `override_silence`; the alias goes away
+in a later release.
+
 ## Show held messages when silence ends
 
 Turn on **Show held messages when silence ends** in **Settings → Scheduling →

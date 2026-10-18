@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -551,6 +552,9 @@ async def send_page(
     board_id: str | None = None,
     payload: PageSendRequest | None = None,
     override_silence: bool = False,
+    force: Annotated[
+        bool, Query(deprecated=True, description="Deprecated alias of override_silence (shipped in v10.0.0-beta.26).")
+    ] = False,
 ):
     """
     Send a page to the configured target.
@@ -573,6 +577,7 @@ async def send_page(
         target = payload.target
     if board_id is None and payload:
         board_id = payload.board_id
+    override_silence = override_silence or force
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
 

@@ -93,11 +93,12 @@ class TestDisplaySendSilence:
         assert response.json()["silenced"] is False
         send.assert_called_once()
 
-    def test_the_old_force_name_no_longer_overrides_silence(self, client):
+    def test_the_old_force_name_still_overrides_as_a_deprecated_alias(self, client):
+        # ?force=true shipped in v10.0.0-beta.26; kept for one release.
         response, send = _post_display(client, silenced=True, query="?force=true")
-        assert response.json()["sent_to_board"] is False
-        assert response.json()["silenced"] is True
-        send.assert_not_called()
+        assert response.json()["sent_to_board"] is True
+        assert response.json()["silenced"] is False
+        send.assert_called_once()
 
     def test_override_does_not_override_pause(self, client):
         response, send = _post_display(client, silenced=True, paused=True, query="?override_silence=true")
@@ -176,10 +177,11 @@ class TestPageSendSilence:
         assert response.json()["silenced"] is False
         render.assert_called_once()
 
-    def test_the_old_force_name_no_longer_overrides_silence(self, client):
+    def test_the_old_force_name_still_overrides_as_a_deprecated_alias(self, client):
+        # ?force=true shipped in v10.0.0-beta.26; kept for one release.
         response, render = _post_page(client, silenced=True, query="?force=true")
-        assert response.json()["sent_to_board"] is False
-        render.assert_not_called()
+        assert response.json()["sent_to_board"] is True
+        render.assert_called_once()
 
     def test_pause_still_wins_over_the_override(self, client):
         response, render = _post_page(client, silenced=True, paused=True, query="?override_silence=true")

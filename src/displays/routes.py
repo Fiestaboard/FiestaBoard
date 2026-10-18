@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
@@ -216,7 +217,14 @@ async def get_displays_raw_batch(request: DisplayRawBatchRequest):
 
 
 @router.post("/displays/{display_type}/send", response_model=DisplaySendResponse, responses=errors(400, 500, 503))
-async def send_display(display_type: str, target: str | None = None, override_silence: bool = False):
+async def send_display(
+    display_type: str,
+    target: str | None = None,
+    override_silence: bool = False,
+    force: Annotated[
+        bool, Query(deprecated=True, description="Deprecated alias of override_silence (shipped in v10.0.0-beta.26).")
+    ] = False,
+):
     """
     Send a display to the configured target (ui, board, or both).
 
@@ -235,6 +243,7 @@ async def send_display(display_type: str, target: str | None = None, override_si
     Returns:
         Result of the send operation.
     """
+    override_silence = override_silence or force
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
 
