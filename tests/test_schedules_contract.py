@@ -664,3 +664,24 @@ def test_active_page_carries_an_active_temporary_override(client, page_id):
     assert override["page_id"] == page_id
     assert override["revert_mode"] == "schedule"
     assert override["remaining_seconds"] is not None
+
+
+def test_manual_active_schedule_uses_requested_board_page(client, page_id):
+    from src.settings.service import get_settings_service
+
+    added = client.post("/settings/board/add", json={"device_type": "flagship"})
+    assert added.status_code == 201
+    secondary = added.json()["boards"][-1]["id"]
+    settings = get_settings_service()
+    settings.set_active_page_id(page_id)
+    settings.set_schedule_enabled(False, board_id=secondary)
+
+    for name in ("ALPHA", "BETA"):
+        selected = _seed_page(client, name, name)
+        settings.set_active_page_id(selected, board_id=secondary)
+        response = client.get("/schedules/active/page", params={"board_id": secondary})
+        assert response.status_code == 200
+        assert response.json()["page_id"] == selected
+        assert response.json()["resolved_page_id"] == selected
+        assert response.json()["source"] == "manual"
+        assert client.get("/schedules/active/page").json()["page_id"] == page_id
