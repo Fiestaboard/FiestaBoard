@@ -107,7 +107,12 @@ export function PanelBoard({
 
   useLayoutEffect(() => {
     const wrapper = wrapRef.current;
-    const board = led ? wrapper?.firstElementChild : wrapper?.querySelector<HTMLElement>("[data-board-preview]");
+    // DisplayPreview's outer wrapper uses display: contents, so it has no
+    // measurable box. Measure the LED surface itself to keep edge pixels
+    // inside the viewport on panels using the default sizing.
+    const board = wrapper?.querySelector<HTMLElement>(
+      led ? '[data-slot="led-matrix-display"]' : "[data-board-preview]",
+    );
     if (!wrapper || !(board instanceof HTMLElement)) return;
 
     const measure = () => {
