@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -115,32 +112,6 @@ function withPanelWidth(width: number) {
     y: 0,
     toJSON: () => ({}),
   } as DOMRect);
-}
-
-/** The design system's z-index scale (`--z-*: N;` in @fiestaboard/ui's theme.css). */
-const Z_LAYERS: Record<string, number> = Object.fromEntries(
-  [
-    ...readFileSync(resolve(__dirname, "../../node_modules/@fiestaboard/ui/dist/theme.css"), "utf8").matchAll(
-      /--(z-[a-z-]+):\s*(\d+);/g,
-    ),
-  ].map(([, name, value]) => [name, Number(value)]),
-);
-
-/**
- * The z-index layer an element paints in: the nearest ancestor (or itself)
- * that sets one of the scale's `z-[var(--z-…)]` classes. Throws when none
- * does, so a renamed token fails loudly instead of comparing nothing.
- */
-function stackingLayer(element: Element): number {
-  for (let node: Element | null = element; node; node = node.parentElement) {
-    const match = /z-\[var\(--(z-[a-z-]+)\)\]/.exec(node.getAttribute("class") ?? "");
-    if (match) {
-      const value = Z_LAYERS[match[1]];
-      if (value === undefined) throw new Error(`--${match[1]} is not on the design system's z-index scale`);
-      return value;
-    }
-  }
-  throw new Error("element is not inside any z-index layer");
 }
 
 /** Wide enough for the composer to keep the keyboard hint in the toolbar. */
@@ -1122,10 +1093,7 @@ describe("AiChatPanel", () => {
   });
 
   it("picks a model from inside the pill's popover", async () => {
-    // A Select nested in a Popover is two stacked Base UI popups, and this
-    // package has had async-mount trouble with exactly that shape. The mode
-    // radios above prove the popover mounts; only this proves the picker
-    // inside it still opens and commits a choice.
+    // Choosing a visible model updates the actual next-turn hook options.
     configuredWith("ask");
     server.use(
       http.get(`${API_BASE}/settings/ai`, () =>
@@ -1140,8 +1108,8 @@ describe("AiChatPanel", () => {
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
     await openComposerSettings(user);
 
-    await user.click(await screen.findByRole("combobox", { name: enMessages.aiChatPanel.modelSelectAriaLabel }));
-    await user.click(await screen.findByRole("option", { name: "other-model" }));
+    await user.click(await screen.findByRole("radio", { name: "other-model" }));
+    await waitFor(() => expect(capturedHookOpts?.model).toBe("other-model"));
 
     // The pill's face is the readback: the chosen model is what the next
     // send will use.
@@ -1170,14 +1138,14 @@ describe("AiChatPanel", () => {
     const user = userEvent.setup();
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
     const trigger = await screen.findByTestId("ai-composer-settings");
-    await waitFor(() => expect(trigger).toHaveTextContent("live-model"));
+    await waitFor(() => expect(trigger).toHaveTextContent("Live Model"));
 
     await openComposerSettings(user);
-    const picker = await screen.findByRole("combobox", { name: enMessages.aiChatPanel.modelSelectAriaLabel });
+    const picker = await screen.findByRole("searchbox", { name: enMessages.aiChatPanel.composerSettings.modelSearch });
     await user.clear(picker);
     await user.type(picker, "other");
-    await user.click(await screen.findByRole("option", { name: /Other Live/ }));
-    await waitFor(() => expect(screen.getByTestId("ai-composer-settings")).toHaveTextContent("other-live"));
+    await user.click(await screen.findByRole("radio", { name: "Other Live" }));
+    await waitFor(() => expect(screen.getByTestId("ai-composer-settings")).toHaveTextContent("Other Live"));
   });
 
   it("offers the provider picker only when there is more than one provider", async () => {
@@ -1188,38 +1156,85 @@ describe("AiChatPanel", () => {
 
     // One provider needs no choosing, and a one-item select is noise in a
     // popover whose whole purpose is to hold fewer things.
-    await screen.findByRole("combobox", { name: enMessages.aiChatPanel.modelSelectAriaLabel });
+    await screen.findByRole("radiogroup", { name: enMessages.aiChatPanel.modelSelectAriaLabel });
     expect(
-      screen.queryByRole("combobox", { name: enMessages.aiChatPanel.providerSelectAriaLabel }),
+      screen.queryByRole("radiogroup", { name: enMessages.aiChatPanel.providerSelectAriaLabel }),
     ).not.toBeInTheDocument();
   });
 
-  it("opens the provider list in front of the settings popover, not behind it", async () => {
-    // jsdom paints nothing, so this checks the two things that decide what
-    // the browser paints on top. Both popups are positioned in the page's
-    // root stacking context: the Select's list is a nested portal inside the
-    // popover's portal node, and its positioner carries --z-select (120)
-    // while the popover's carried --z-popover (135). It lost by value and
-    // drew under the popover, unclickable. In front means: a layer at least
-    // the popover's, and later in the document so a tie goes to the list.
+  it("switches providers inline and keeps custom model IDs with their provider", async () => {
     server.use(
       http.get(`${API_BASE}/settings/ai`, () =>
         HttpResponse.json({
           ...CONFIGURED,
-          providers: [CONFIGURED_PROVIDER, { ...CONFIGURED_PROVIDER, id: "p2", name: "Second" }],
+          providers: [
+            CONFIGURED_PROVIDER,
+            {
+              ...CONFIGURED_PROVIDER,
+              id: "p2",
+              name: "Second",
+              models: ["second-model"],
+              default_model: "second-model",
+            },
+          ],
         }),
       ),
     );
     const user = userEvent.setup();
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
     await openComposerSettings(user);
-    await user.click(await screen.findByRole("combobox", { name: enMessages.aiChatPanel.providerSelectAriaLabel }));
-    const list = await screen.findByRole("listbox");
-    const popover = document.querySelector<HTMLElement>('[data-slot="popover-content"]');
-    expect(popover).not.toBeNull();
+    await user.type(screen.getByRole("searchbox"), "vendor/custom");
+    await user.click(screen.getByRole("button", { name: "Use “vendor/custom”" }));
+    await waitFor(() => expect(capturedHookOpts?.model).toBe("vendor/custom"));
+    await openComposerSettings(user);
+    await user.type(screen.getByRole("searchbox"), "unmatched");
+    await user.click(screen.getByRole("radio", { name: "Second" }));
+    expect(screen.getByRole("searchbox")).toHaveValue("");
+    expect(screen.queryByRole("radio", { name: "vendor/custom" })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "second-model" })).toBeChecked();
+    await waitFor(() => expect(capturedHookOpts?.providerId).toBe("p2"));
+    await user.click(screen.getByRole("radio", { name: "Test" }));
+    expect(screen.getByRole("radio", { name: "vendor/custom" })).toBeInTheDocument();
+  });
 
-    expect(stackingLayer(list)).toBeGreaterThanOrEqual(stackingLayer(popover!));
-    expect(popover!.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  it("explains both modes and the always-confirmed system actions before changing anything", async () => {
+    configuredWith("ask");
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
+    for (const key of ["askDescription", "autoDescription", "alwaysAsk"] as const) {
+      expect(screen.getByText(enMessages.aiChatPanel.composerSettings[key])).toBeVisible();
+    }
+  });
+
+  it("recovers a failed provider catalogue with Retry while keeping custom IDs available", async () => {
+    let attempts = 0;
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          ...CONFIGURED,
+          providers: [{ ...CONFIGURED_PROVIDER, sign_in: { preset: "openrouter" } }],
+        }),
+      ),
+      http.get(`${API_BASE}/settings/ai/providers/:id/models`, () => {
+        attempts += 1;
+        return attempts === 1
+          ? HttpResponse.json({ detail: "Provider unavailable" }, { status: 502 })
+          : HttpResponse.json({ models: [{ id: "vendor/recovered", name: "Recovered model" }] });
+      }),
+    );
+    const user = userEvent.setup();
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+    await openComposerSettings(user);
+    expect(await screen.findByText(enMessages.aiChatPanel.composerSettings.modelsError)).toBeVisible();
+    expect(screen.getByRole("radio", { name: "test-model" })).toBeVisible();
+    await user.type(screen.getByRole("searchbox"), "vendor/custom");
+    expect(screen.getByRole("button", { name: "Use “vendor/custom”" })).toBeVisible();
+    await user.clear(screen.getByRole("searchbox"));
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await user.click(await screen.findByRole("radio", { name: "Recovered model" }));
+    await waitFor(() => expect(capturedHookOpts?.model).toBe("vendor/recovered"));
+    expect(attempts).toBe(2);
   });
 
   it("choosing Auto writes approval_mode through PUT /settings/ai and shows the one-line note", async () => {

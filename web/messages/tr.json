@@ -2281,7 +2281,19 @@
     "toolRun": "{tool} · {count, plural, one {# kez} other {# kez}}",
     "composerSettings": {
       "triggerAriaLabel": "Sohbet ayarları: onay {mode}, model {model}",
-      "popoverLabel": "Sohbet ayarları"
+      "popoverLabel": "Sohbet ayarları",
+      "description": "FiestaBot’un nasıl çalışacağını seçin.",
+      "askDescription": "Yıkıcı işlemleri onaylayın.",
+      "autoDescription": "Yıkıcı işlemleri sormadan çalıştırın.",
+      "alwaysAsk": "Yeniden başlatma, kapatma ve güncellemeler her zaman onay gerektirir.",
+      "modelSearch": "Model arayın veya bir kimlik girin",
+      "useCustomModel": "“{id}” kullan",
+      "customModel": "Özel model kimliği",
+      "modelsLoading": "Modeller yükleniyor…",
+      "modelsError": "Modeller yüklenemedi. Kayıtlı bir model seçin veya bir kimlik girin.",
+      "modelsEmpty": "Listede model yok. Başlamak için bir model kimliği girin.",
+      "modelsNoMatches": "Eşleşen model yok.",
+      "retryModels": "Tekrar dene"
     },
     "keepGoing": {
       "prompt": "Asistan uzun bir turda duraklattı. Hiçbir şey kaybolmadı.",

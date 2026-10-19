@@ -2281,7 +2281,19 @@
     "toolRun": "{tool} · {count, plural, one {# time} other {# times}}",
     "composerSettings": {
       "triggerAriaLabel": "Chat settings: approval {mode}, model {model}",
-      "popoverLabel": "Chat settings"
+      "popoverLabel": "Chat settings",
+      "description": "Choose how FiestaBot works.",
+      "askDescription": "Confirm destructive actions.",
+      "autoDescription": "Run destructive actions without asking.",
+      "alwaysAsk": "Restart, shutdown, and updates always require approval.",
+      "modelSearch": "Search models or enter an ID",
+      "useCustomModel": "Use “{id}”",
+      "customModel": "Custom model ID",
+      "modelsLoading": "Loading models…",
+      "modelsError": "Could not load models. Choose a saved model or enter an ID.",
+      "modelsEmpty": "No models listed. Enter a model ID to get started.",
+      "modelsNoMatches": "No matching models.",
+      "retryModels": "Retry"
     },
     "keepGoing": {
       "prompt": "The assistant paused on a long turn. Nothing is lost.",

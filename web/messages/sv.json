@@ -2281,7 +2281,19 @@
     "toolRun": "{tool} · {count, plural, one {# gång} other {# gånger}}",
     "composerSettings": {
       "triggerAriaLabel": "Chattinställningar: godkännande {mode}, modell {model}",
-      "popoverLabel": "Chattinställningar"
+      "popoverLabel": "Chattinställningar",
+      "description": "Välj hur FiestaBot arbetar.",
+      "askDescription": "Bekräfta destruktiva åtgärder.",
+      "autoDescription": "Utför destruktiva åtgärder utan att fråga.",
+      "alwaysAsk": "Omstart, avstängning och uppdateringar kräver alltid godkännande.",
+      "modelSearch": "Sök efter modeller eller ange ett ID",
+      "useCustomModel": "Använd ”{id}”",
+      "customModel": "Anpassat modell-ID",
+      "modelsLoading": "Laddar modeller…",
+      "modelsError": "Kunde inte ladda modeller. Välj en sparad modell eller ange ett ID.",
+      "modelsEmpty": "Inga modeller i listan. Ange ett modell-ID för att komma igång.",
+      "modelsNoMatches": "Inga matchande modeller.",
+      "retryModels": "Försök igen"
     },
     "keepGoing": {
       "prompt": "Assistenten pausade under en lång tur. Inget har gått förlorat.",
