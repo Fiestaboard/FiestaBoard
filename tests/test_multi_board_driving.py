@@ -348,7 +348,8 @@ class TestPrimaryBoardFailureIsolation:
         loop repeated two of them on every auto-restart — an unbounded leak.
         """
         boards = [_board("b1", "Broken", local_api_key="", cloud_key=""), _board("b2", "Good", port=7001)]
-        pre_existing = {t.ident for t in threading.enumerate()}
+        # Thread identifiers can be recycled when an earlier test thread exits.
+        pre_existing = set(threading.enumerate())
         release = threading.Event()
 
         def _park(_self):
@@ -373,13 +374,13 @@ class TestPrimaryBoardFailureIsolation:
                 started = [
                     t
                     for t in threading.enumerate()
-                    if t.name == "board-state-poll" and t.is_alive() and t.ident not in pre_existing
+                    if t.name == "board-state-poll" and t.is_alive() and t not in pre_existing
                 ]
                 assert len(started) == 1, f"expected 1 live poll thread, found {len(started)}"
             finally:
                 release.set()
                 for t in threading.enumerate():
-                    if t.name == "board-state-poll" and t.ident not in pre_existing:
+                    if t.name == "board-state-poll" and t not in pre_existing:
                         t.join(timeout=5)
 
     def test_a_recovered_board_clears_its_recorded_error(self, service):
