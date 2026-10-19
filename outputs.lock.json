@@ -10,9 +10,9 @@
     },
     "fiestapanel": {
       "repository": "https://github.com/Fiestaboard/fiestaboard-output--fiestapanel",
-      "commit": "c44a2cf7580327c30f20cfa622470f15bd6fe661",
+      "commit": "cb4c4727691e60fe660decb74be33de117bc58dd",
       "output_api": 1,
-      "tree_sha256": "a09c1373a7cfc461d403bc5eae5224439ff4509ccdb59feca8708cb01c035287",
+      "tree_sha256": "4c0dda81a08d045849f8c17219bee6ca17f302835bb1e9aece4c8577e8fdb913",
       "loadable": true
     },
     "vestaboard": {
