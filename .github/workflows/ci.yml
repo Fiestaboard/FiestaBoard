@@ -1161,6 +1161,62 @@ jobs:
             web/playwright-auth-report.json
           retention-days: 7
 
+      - name: Start isolated TV sign-in backend
+        id: device_start
+        if: ${{ !cancelled() && steps.image.outcome == 'success' }}
+        run: |
+          docker run -d --name fiestaboard-device-auth \
+            -p 127.0.0.1:4429:3000 \
+            -e PRODUCTION=false \
+            -e FIESTABOARD_AUTH_ENABLED=true \
+            -e FIESTABOARD_CORS_ORIGINS=http://127.0.0.1:4430 \
+            fiestaboard:ci
+          mkdir -p web/build/client
+          docker cp fiestaboard-device-auth:/app/web/build/client/. web/build/client/
+
+      - name: Wait for TV sign-in backend
+        id: device_ready
+        if: ${{ !cancelled() && steps.device_start.outcome == 'success' }}
+        timeout-minutes: 2
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 5 http://127.0.0.1:4429/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs fiestaboard-device-auth | tail -50
+          exit 1
+
+      - name: Run TV activation and revocation E2E tests
+        id: device_tests
+        if: ${{ !cancelled() && steps.device_ready.outcome == 'success' }}
+        working-directory: web
+        timeout-minutes: 5
+        run: npx playwright test device-sign-in.spec.ts --config playwright.device.config.ts --workers=1
+        env:
+          CI: true
+          BASE_URL: http://127.0.0.1:4430
+          DEVICE_API_BASE_URL: http://127.0.0.1:4429/api
+
+      - name: Dump TV sign-in logs on failure
+        if: failure() && steps.device_start.outcome != 'skipped'
+        run: docker logs fiestaboard-device-auth | tail -100
+
+      - name: Stop TV sign-in backend
+        if: always()
+        run: docker rm -f fiestaboard-device-auth 2>/dev/null || true
+
+      - name: Upload TV sign-in results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.device_tests.outcome != 'skipped' }}
+        with:
+          name: playwright-device-results
+          path: |
+            web/playwright-device-test-results/
+            web/playwright-device-report.json
+          retention-days: 7
+
       - name: Start FiestaBoard behind the HA Ingress simulator
         id: ingress_start
         if: ${{ !cancelled() && steps.image.outcome == 'success' }}

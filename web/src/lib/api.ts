@@ -39,6 +39,7 @@ export * from "./api/pages";
 export * from "./api/plugin-registry";
 export * from "./api/plugins";
 export * from "./api/schedules";
+export * from "./api/sessions";
 export * from "./api/settings";
 export * from "./api/setup";
 export * from "./api/shared";

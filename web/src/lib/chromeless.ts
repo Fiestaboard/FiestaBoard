@@ -7,7 +7,7 @@ import { stripBasePath } from "./base-path";
  * must never grow chrome or bounce an unauthenticated TV browser to the
  * login form.
  */
-const CHROMELESS_PREFIXES = ["/login", "/panel/", "/p/"] as const;
+const CHROMELESS_PREFIXES = ["/activate", "/login", "/panel/", "/p/"] as const;
 
 function normalize(pathname: string): string {
   const stripped = stripBasePath(pathname);

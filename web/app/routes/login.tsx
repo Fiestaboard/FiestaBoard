@@ -51,12 +51,14 @@ import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { AuthStatusResponse } from "@/lib/api";
 import { apiUrl } from "@/lib/base-path";
+import { safeRedirect } from "@/lib/safe-redirect";
 
 type AuthStatus = AuthStatusResponse;
 
 async function fetchAuthStatus(): Promise<AuthStatus> {
   const res = await fetch(apiUrl("/auth/status"), {
     credentials: "include",
+    cache: "no-store",
     headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) {
@@ -72,6 +74,7 @@ async function postJson(
   const res = await fetch(apiUrl(path), {
     method: "POST",
     credentials: "include",
+    cache: "no-store",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -90,7 +93,7 @@ async function postJson(
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/";
+  const redirectTo = safeRedirect(searchParams.get("redirect"));
   const t = useTranslations("login");
   const tCommon = useTranslations("common");
 

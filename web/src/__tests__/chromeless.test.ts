@@ -39,3 +39,7 @@ describe("isChromelessPath", () => {
     expect(isChromelessPath("/pages")).toBe(false);
   });
 });
+
+it("activation owns authentication without setup-wizard takeover", () => {
+  expect(isChromelessPath("/activate?user_code=WDJB-MJHT")).toBe(true);
+});
