@@ -326,9 +326,9 @@ def _integer_authoring_profile(
 ) -> DisplayProfile:
     """A visual model whose output delivers only the legacy integer grid.
 
-    FiestaPanel's LED appearance has pixel geometry for its viewer, but its
-    writer does not deliver arbitrary pixels or rich text. Keep appearance
-    identity/font while teaching only the content the integer frame carries.
+    An output may have LED appearance without a rich writer. Keep its
+    appearance identity/font while teaching only the content the integer
+    frame carries. Rich FiestaPanel writers use the full profile instead.
     """
     profile = _profile(model, charset, config, grid)
     return replace(profile, width=None, height=None, color="tiles", monochrome=None)

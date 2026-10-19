@@ -39,6 +39,7 @@ from src.board_guards import _board_dims, _find_board
 from src.devices import NOTE_COLS, NOTE_ROWS, is_note_array, resolve_dimensions
 from src.display_runtime import get_service, reinitialize_board_clients, release_board_frames
 from src.outputs.cells import cells_to_json
+from src.outputs.display_profile import board_layers_json
 from src.outputs.registry import FIESTAPANEL, resolve_output_id
 from src.pages.service import find_incompatible_board_references
 from src.settings.service import get_settings_service
@@ -300,9 +301,14 @@ async def get_panel_frame(panel_id: str):
             characters = output.frames.characters
             cells = output.frames.cells
 
+    # Match the board-detail API's canvas contract. A refused/empty frame
+    # must clear layers too, never expose canvases retained at the old size.
+    layers = board_layers_json(board, cells if characters is not None else None)
+    pixel_fields = {"layers": layers} if layers is not None else {}
     if characters is None:
         return PanelFrameResponse(
             characters=None,
+            **pixel_fields,
             message=None,
             rows=dims.rows,
             cols=dims.cols,
@@ -314,6 +320,7 @@ async def get_panel_frame(panel_id: str):
     return PanelFrameResponse(
         characters=characters,
         **rich,
+        **pixel_fields,
         message=characters_to_message(characters),
         rows=len(characters),
         cols=len(characters[0]) if characters else 0,

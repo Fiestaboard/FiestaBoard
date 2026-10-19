@@ -57,6 +57,22 @@ Matrix sizing is saved per panel and reaches browser and Apple TV viewers on the
 
 Changing matrix size mode or LED spacing does not resize the source content grid. Changing TV size or aspect ratio re-fits that grid, and the LED face grows beyond its original 192 × 96 pixels when needed to show every character. Apple TV's physical screen stays 16:9; the configured aspect ratio determines the source grid and browser preview.
 
+LED panels support page pixel canvases, including individual pixel colors,
+shapes, and artwork, using the same canvas editor as Divoom. Canvas layers
+paint over the text at exact LED coordinates; transparent pixels leave the
+content underneath visible. The viewer and previews update even when only
+the pixels change, and switching to a page without canvases clears them.
+Use current Android TV and Apple TV apps with a server bundling FiestaPanel
+output 1.0.1 or newer. Native TV matrices retain their 256-pixel-per-axis limit;
+older TV apps continue to show text but ignore canvas layers.
+
+For viewer integrations, `GET /panel/{id}/frame` includes `layers` for pixel
+panels: ordered `{x, y, width, height, rgba}` objects, with standard base64
+row-major RGBA bytes. Alpha zero is transparent; any nonzero alpha overwrites
+the underlying RGB without blending. Layers clip to the matrix. An empty
+list clears the previous canvases, including when a frame is unavailable or
+its dimensions became stale. Split-flap frames omit this field.
+
 ## FiestaPi HDMI Output
 
 Running FiestaBoard on a FiestaPi? The Pi can drive a TV or monitor directly over HDMI — no browser setup on the TV at all:

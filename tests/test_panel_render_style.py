@@ -214,19 +214,17 @@ def test_settings_board_shows_the_panel_models_for_its_board(client, panels):
     assert shown["device_model_spec"] == FIXTURE_MODELS["fiestapanel_led_matrix"]
 
 
-def test_render_for_an_led_panel_board_checks_its_integer_delivery_charset(client, panels):
+def test_render_for_an_led_panel_board_preserves_its_rich_delivery_charset(client, panels):
     from src.settings.service import get_settings_service
 
     panels.storage.create(Panel(name="Hall TV", board_id="vb-panel", render_style="led_matrix"))
     get_settings_service().set_boards([_panel_board()])
-    # The LED model describes the viewer's appearance; its output still
-    # delivers integer tiles, so lowercase, text colors and icons degrade.
+    # The output retains the rich cells the LED viewers draw.
     body = client.post(
         "/templates/render", json={"template": ["Hi {{red:x}} {{icon:sun}}"], "board_id": "vb-panel"}
     ).json()
-    assert body["charset"] == "vestaboard_v2"
-    assert {issue["reason"] for issue in body["charset_issues"]} >= {"case", "colorSpan", "icon"}
-    assert any(issue["fallback"].get("value") == "I" for issue in body["charset_issues"])
+    assert body["charset"] == "led_5x7"
+    assert body["charset_issues"] == []
 
 
 def test_an_unreadable_panel_store_falls_back_to_split_flap():
