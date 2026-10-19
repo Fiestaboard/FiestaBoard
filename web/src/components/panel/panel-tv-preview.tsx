@@ -14,7 +14,7 @@ import { PanelMatrix } from "@/components/panel/panel-matrix";
 import { usePanelConfig, usePanelFrame } from "@/hooks/use-panel";
 import { useTranslations } from "@/i18n/translations";
 import type { PanelPublicConfig } from "@/lib/api";
-import { isLedModel, ledLetterCase, resolveBoardModel } from "@/lib/device-preview";
+import { isLedModel, ledLayerProps, ledLetterCase, resolveBoardModel } from "@/lib/device-preview";
 import { isInDimWindow, PANEL_DIM_LEVEL } from "@/lib/panel-dim";
 
 export { PANEL_DIM_LEVEL };
@@ -97,6 +97,7 @@ export function PanelTvPreview({ panelId, frameIntervalMs }: PanelTvPreviewProps
             model={model}
             message={frame.data?.message ?? null}
             cells={frame.data?.cells as BoardCellGrid | undefined}
+            layers={frame.data?.layers}
             sizing={data.matrix_sizing}
             diagonal={data.screen_diagonal_inches}
             spacing={data.matrix_pitch_mm}
@@ -114,6 +115,7 @@ export function PanelTvPreview({ panelId, frameIntervalMs }: PanelTvPreviewProps
       tv={{ ...panelTvOptions(data, { dimActive, offline }), offlineLabel: t("offline") }}
       message={frame.data?.message ?? null}
       cells={frame.data?.cells as BoardCellGrid | undefined}
+      {...ledLayerProps(led ? frame.data?.layers : undefined)}
       gridRows={data.rows ?? undefined}
       gridCols={data.cols ?? undefined}
       // The board colour is a split-flap housing option; an LED model offers none.

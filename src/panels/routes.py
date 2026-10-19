@@ -39,6 +39,7 @@ from src.board_guards import _board_dims, _find_board
 from src.devices import NOTE_COLS, NOTE_ROWS, is_note_array, resolve_dimensions
 from src.display_runtime import get_service, reinitialize_board_clients, release_board_frames
 from src.outputs.cells import cells_to_json
+from src.outputs.display_profile import board_layers_json
 from src.outputs.registry import FIESTAPANEL, resolve_output_id
 from src.pages.service import find_incompatible_board_references
 from src.settings.service import get_settings_service
@@ -161,11 +162,14 @@ async def update_panel(panel_id: str, data: PanelUpdate):
     from .autofit import compute_autofit_grid
 
     panel_service = get_panel_service()
+    previous = panel_service.get_panel(panel_id)
+    previous_style = previous.render_style if previous is not None else None
     panel = panel_service.update_panel(panel_id, data)
     if panel is None:
         raise HTTPException(status_code=404, detail="Panel not found")
 
     incompatible_references: list[dict] | None = None
+    rebuild = panel.render_style != previous_style
     updates = data.model_dump(exclude_unset=True)
     screen_changed = any(
         updates.get(field) is not None for field in ("screen_diagonal_inches", "screen_aspect_w", "screen_aspect_h")
@@ -186,11 +190,14 @@ async def update_panel(panel_id: str, data: PanelUpdate):
                 # raw last-sent grid. Releasing the board's runtime frames
                 # clears the displayed and last-sent frames together.
                 release_board_frames(panel.board_id)
-                reinitialize_board_clients()
+                rebuild = True
                 # The grid changed shape: pages authored for the old grid stay
                 # referenced but can no longer render here. Warn-only, exactly
                 # like PUT /pages/{id} after a size retarget (issue #1250).
                 incompatible_references = find_incompatible_board_references(target)
+
+    if rebuild:
+        reinitialize_board_clients()
 
     board = _find_board(panel.board_id)
     return PanelUpdateResponse.model_validate(
@@ -300,9 +307,14 @@ async def get_panel_frame(panel_id: str):
             characters = output.frames.characters
             cells = output.frames.cells
 
+    # Match the board-detail API's canvas contract. A refused/empty frame
+    # must clear layers too, never expose canvases retained at the old size.
+    layers = board_layers_json(board, cells if characters is not None else None)
+    pixel_fields = {"layers": layers} if layers is not None else {}
     if characters is None:
         return PanelFrameResponse(
             characters=None,
+            **pixel_fields,
             message=None,
             rows=dims.rows,
             cols=dims.cols,
@@ -314,6 +326,7 @@ async def get_panel_frame(panel_id: str):
     return PanelFrameResponse(
         characters=characters,
         **rich,
+        **pixel_fields,
         message=characters_to_message(characters),
         rows=len(characters),
         cols=len(characters[0]) if characters else 0,
