@@ -41,6 +41,7 @@ import re
 import sqlite3
 from collections.abc import Iterable
 
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -203,7 +204,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return response
 
     async def _dispatch(self, request: Request, call_next):
-        mode = auth_mode()
+        mode = await run_in_threadpool(auth_mode)
 
         # Always allow CORS preflight (browsers never attach credentials
         # to it, so there is nothing to check).
@@ -213,7 +214,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         supplied = _bearer_from(request)
         if supplied and supplied.startswith("fb_tv_"):
-            session = DeviceService(get_auth_service()).authenticate_tv(supplied)
+            svc = await run_in_threadpool(get_auth_service)
+            session = await run_in_threadpool(DeviceService(svc).authenticate_tv, supplied)
             if session is None:
                 return JSONResponse(
                     {"error": "unauthorized", "detail": "This TV sign-in expired or was revoked."}, status_code=401
@@ -263,10 +265,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # When no token is configured there is nothing to enforce, so we
         # fall through: auth-disabled installs stay open and cookie-auth
         # installs keep using the session cookie.
-        if _accepts_bearer(path) and mcp_token() is not None:
+        if _accepts_bearer(path) and await run_in_threadpool(mcp_token) is not None:
             supplied = _bearer_from(request)
             if supplied is not None:
-                if not verify_mcp_bearer(supplied):
+                if not await run_in_threadpool(verify_mcp_bearer, supplied):
                     return _mcp_unauthorized()
                 request.scope["auth_user"] = "mcp-client" if _is_mcp_path(path) else "api-token"
                 return await call_next(request)
@@ -289,13 +291,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if path == extra or path.startswith(extra.rstrip("/") + "/"):
                 return await call_next(request)
 
-        svc = get_auth_service()
+        svc = await run_in_threadpool(get_auth_service)
 
         # If no user has been provisioned, every protected endpoint should
         # nudge the client toward /auth/setup rather than silently 401ing.
         # ``first_run`` distinguishes "we haven't asked the admin yet" from
         # "the admin has explicitly enabled auth but not finished setup".
-        if not svc.has_user():
+        if not await run_in_threadpool(svc.has_user):
             return JSONResponse(
                 {
                     "detail": "Setup required",
@@ -306,7 +308,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             )
 
         cookie = request.cookies.get(SESSION_COOKIE_NAME)
-        username = svc.verify_session(cookie) if cookie else None
+        username = await run_in_threadpool(svc.verify_session, cookie) if cookie else None
         if not username:
             return JSONResponse(
                 {"detail": "Not authenticated"},

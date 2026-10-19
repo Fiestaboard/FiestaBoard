@@ -2,7 +2,7 @@
 
 # Revocable Sign-ins and TV Activation Implementation Plan
 
-> **For agentic workers:** Use `superpowers:executing-plans` for inline execution, or `superpowers:subagent-driven-development` if the user selects delegation. Steps use checkbox syntax for tracking. This is a planning deliverable, not authorization to execute or publish it.
+> **For agentic workers:** Use `superpowers:executing-plans` for inline execution, or `superpowers:subagent-driven-development` if the user selects delegation. Steps use checkbox syntax for tracking. The user subsequently authorized implementation, CI fixes and merging the server into `next` and TV apps into `main`.
 
 **Goal:** Support QR, desktop-code, and password sign-in on both TV apps, and revocable browser/TV sessions managed in FiestaBoard Account settings.
 
@@ -12,7 +12,7 @@
 
 **Spec:** [Revocable sign-ins and TV activation](../specs/2026-10-18-revocable-sign-ins-design.md). Read it before execution; endpoint bodies, error codes, permissions and lifecycle rules there are the shared contract.
 
-**Status:** Proposed, source-grounded plan. User confirmed browser sessions as well as TVs. No product code, builds, deployments or releases are included in this planning change.
+**Status:** Approved implementation plan. Tasks 1–5 are implemented; automated qualification and merge evidence are tracked in `docs/internal/development/TV_SIGN_IN_BETA.md`. The checklist below preserves the original acceptance scope; physical-device and store-release work remains a separate beta qualification activity.
 
 ## Global constraints
 
@@ -80,7 +80,7 @@ Keep backend Tasks 1–3 in a coordinated feature branch/PR targeting `next`; th
 
 **Files — FiestaBoard:**
 
-- Create `src/auth/device_service.py`, `src/auth/device_routes.py`, `src/auth/device_models.py`, `src/auth/session_routes.py`, `src/auth/csrf.py`.
+- Create `src/auth/device_service.py`, `src/auth/device_routes.py`, `src/auth/device_models.py`, `src/auth/session_routes.py`, `src/auth/browser_routes.py`, `src/auth/origins.py`.
 - Extend `src/auth/session_store.py`, `src/auth/routes.py`, `src/auth/middleware.py`, `src/panels/routes.py`, `src/api_server.py`.
 - Create `tests/test_auth_device_service.py`, `tests/test_auth_device_routes.py`, `tests/test_auth_tv_permissions.py`, `tests/test_auth_session_routes.py`.
 - Create `tests/fixtures/auth/tv-sign-in-v1.json` and `docs/api/tv-sign-in.md` as the canonical wire examples and API contract.
@@ -111,7 +111,7 @@ Keep backend Tasks 1–3 in a coordinated feature branch/PR targeting `next`; th
 
 - Create `web/app/routes/activate.tsx`, `web/src/components/settings/signed-in-devices.tsx`, `web/src/lib/api/sessions.ts`, `web/src/lib/safe-redirect.ts`.
 - Modify `web/app/routes.ts`, `web/app/routes/login.tsx`, `web/src/lib/chromeless.ts`, `web/src/components/account-section.tsx`, `web/src/lib/api/auth.ts`, `web/src/lib/api.ts`, `web/messages/en.json`, `web/vite.config.ts`.
-- Create `web/public/sw-auth-cache-cleanup.js` for activation-time removal of the previous broad runtime cache, imported through Workbox `importScripts`.
+- Create `web/public/sw-auth-cache-cleanup.js` for awaited activation-time removal of old FiestaBoard caches, imported by the retiring worker. Current `next` already removed runtime caching.
 - Extend locale files according to existing translation policy; keep new strings in translation resources.
 - Create `web/src/__tests__/activate.test.tsx`, `web/src/__tests__/signed-in-devices.test.tsx`, `web/src/__tests__/safe-redirect.test.ts`, `web/tests/device-sign-in.spec.ts`.
 - Extend `web/src/__tests__/account-section.test.tsx`, `web/src/__tests__/api-auth.test.ts` and existing base-path/ingress tests.
@@ -126,7 +126,7 @@ Keep backend Tasks 1–3 in a coordinated feature branch/PR targeting `next`; th
 - [ ] Test `safeRedirect` with `/activate?user_code=WDJB-MJHT`, `https://attacker.invalid`, `//attacker.invalid`, backslashes, encoded delimiters, and ingress-prefixed paths. Test that code/credentials never appear in external links or analytics.
 - [ ] Run from `web`: `npm run test:run -- src/__tests__/activate.test.tsx src/__tests__/signed-in-devices.test.tsx src/__tests__/safe-redirect.test.ts`; confirm intended failures.
 - [ ] Implement `/activate` as a chromeless route, using existing `apiUrl`/`appUrl` and router basename rules. Preserve code through `/login?redirect=...`; sanitize existing login redirect usage. Display server address, device metadata, matching code and the explicit permission explanation before Allow/Deny. Add a no-referrer policy to the activation surface.
-- [ ] Put a prefix-aware NetworkOnly rule for API requests before Workbox's broad runtime rule. Remove the previous `offlineCache` at activation and version the remaining static runtime cache. Keep cached offline static assets but never cache auth/session/API data. Extend production Playwright tests to seed the old runtime cache, activate the new worker, revoke a browser, go offline, and assert stale authenticated status/device lists cannot be served; repeat beneath a proxy prefix.
+- [x] Preserve service-worker retirement on current `next`: await removal of the previous `offlineCache` and owned static caches, then unregister without a fetch handler. Production Playwright tests seed the old runtime cache, activate the retiring worker, revoke a browser, go offline, and assert stale authenticated status/device lists cannot be served; repeat beneath a proxy prefix.
 - [ ] Add the Account card with names, category, method, timestamps/expiry, This browser, per-session revoke and bulk actions. Display the legacy-password limitation for legacy clients. Do not imply last active means online. Update logout to use registered-session revocation.
 - [ ] Add Playwright coverage with separate approval-browser and TV HTTP contexts: approve through fresh login, verify TV reads, revoke TV, and assert next TV request is 401 while approval browser remains signed in; revoke a second browser while the current browser keeps working.
 - [ ] Run the focused Vitest tests plus existing Account/auth/base-path suites, `npm run typecheck`, `npm run lint`, `npm run build`, and `npm run test:integration -- tests/device-sign-in.spec.ts` against the paired test backend. Require successful exits and passing assertions.

@@ -89,3 +89,56 @@ def test_logout_invalidates_copied_cookie(service, monkeypatch):
     client.cookies.set("fiestaboard_session", token)
     assert client.post("/auth/logout").status_code == 200
     assert service.verify_session(token) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path,method", [("/private", "GET"), ("/auth/status", "GET"), ("/auth/logout", "POST")])
+async def test_slow_registry_lookup_does_not_block_other_requests(service, monkeypatch, path, method):
+    """Another request must run while credential storage waits on disk/locks."""
+    import asyncio
+    import threading
+
+    from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
+
+    from src.auth import service as module
+    from src.auth.middleware import AuthMiddleware
+    from src.auth.routes import router
+
+    monkeypatch.setattr(module, "_service", service)
+    monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "true")
+    token = service.authenticate("admin", "correct-password")
+    entered, release = threading.Event(), threading.Event()
+    lookup = service.sessions.find_active
+    unblocked_by_other_request = []
+
+    def slow_lookup(*args, **kwargs):
+        entered.set()
+        unblocked_by_other_request.append(release.wait(timeout=1))
+        return lookup(*args, **kwargs)
+
+    monkeypatch.setattr(service.sessions, "find_active", slow_lookup)
+    app = FastAPI()
+    app.add_middleware(AuthMiddleware)
+    app.include_router(router)
+
+    @app.get("/private")
+    def private():
+        return {"ok": True}
+
+    @app.get("/health")
+    async def health():
+        release.set()
+        return {"ok": True}
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+
+        async def concurrent_health():
+            assert await asyncio.to_thread(entered.wait, 2)
+            return await client.get("/health")
+
+        result, health_result = await asyncio.gather(
+            client.request(method, path, headers={"cookie": f"fiestaboard_session={token}"}), concurrent_health()
+        )
+    assert result.status_code == health_result.status_code == 200
+    assert unblocked_by_other_request and all(unblocked_by_other_request)
