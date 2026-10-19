@@ -22,6 +22,7 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -33,7 +34,6 @@ import {
   Globe,
   Info,
   Lightbulb,
-  Loader2,
   Server,
   TestTube,
   Trash2,
@@ -240,7 +240,7 @@ export function DebugSettings() {
                   className="w-full justify-start gap-2"
                 >
                   {networkDiagnosticsMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Spinner label={null} className="h-4 w-4" />
                   ) : (
                     <Wifi className="h-4 w-4" />
                   )}
@@ -353,7 +353,7 @@ export function DebugSettings() {
                   className="w-full justify-start gap-2"
                 >
                   {blankMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Spinner label={null} className="h-4 w-4" />
                   ) : (
                     <Trash2 className="h-4 w-4" />
                   )}
@@ -400,7 +400,7 @@ export function DebugSettings() {
                     className="gap-2"
                   >
                     {fillMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Spinner label={null} className="h-4 w-4" />
                     ) : (
                       <TestTube className="h-4 w-4" />
                     )}
@@ -425,7 +425,7 @@ export function DebugSettings() {
                   className="w-full justify-start gap-2"
                 >
                   {debugInfoMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Spinner label={null} className="h-4 w-4" />
                   ) : (
                     <Info className="h-4 w-4" />
                   )}
@@ -449,7 +449,7 @@ export function DebugSettings() {
                   className="w-full justify-start gap-2"
                 >
                   {clearCacheMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Spinner label={null} className="h-4 w-4" />
                   ) : (
                     <Database className="h-4 w-4" />
                   )}

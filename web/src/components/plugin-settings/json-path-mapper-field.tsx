@@ -1,7 +1,8 @@
 "use client";
 
 import { Box, Button, Code, Flex, Grid, Input, JsonTree, Label, Stack, Text } from "@fiestaboard/ui";
-import { Loader2, Plus, Trash2, Zap } from "lucide-react";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
+import { Plus, Trash2, Zap } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -210,7 +211,7 @@ export function JsonPathMapperField({ property, value, onChange, disabled, allVa
           disabled={disabled || previewLoading}
           className="gap-1.5"
         >
-          {previewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+          {previewLoading ? <Spinner label={null} className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
           {t("testAndPreview")}
         </Button>
         <Text size="xs" tone="muted" className="self-center">

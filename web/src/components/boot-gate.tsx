@@ -114,7 +114,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
       >
         {/* Branding */}
         <Flex align="center" gap="3">
-          <FiestaIcon size={36} className="flex-shrink-0" />
+          {timedOut && <FiestaIcon size={36} className="flex-shrink-0" />}
           <FiestaLogo className="text-2xl" />
         </Flex>
 
@@ -138,7 +138,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
         ) : (
           /* ── Waiting state ── */
           <>
-            <Spinner size="lg" className="size-8 text-muted-foreground" label={null} />
+            <Spinner size="lg" className="size-20" label={null} />
             {awaitingPostUpdateBoot ? (
               <Stack gap="1.5">
                 <Text size="base" weight="semibold">

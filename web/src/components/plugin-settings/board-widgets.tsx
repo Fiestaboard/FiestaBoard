@@ -57,18 +57,8 @@ import {
   ToggleCard,
   ToggleCardGroup,
 } from "@fiestaboard/ui";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-  Pencil,
-  Plus,
-  RotateCw,
-  ScanSearch,
-  Search,
-  SearchX,
-  Trash2,
-} from "lucide-react";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
+import { AlertCircle, CheckCircle2, Pencil, Plus, RotateCw, ScanSearch, Search, SearchX, Trash2 } from "lucide-react";
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -421,7 +411,7 @@ export function DevicePickerField({
         <Box aria-live="polite" data-testid="device-picker-status">
           {searching && (
             <Flex align="center" gap="2">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+              <Spinner label={null} className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <Text as="span" size="sm" tone="muted">
                 {network ? t("searchingNetwork", { network }) : t("searchingYourNetwork")}
               </Text>
@@ -730,7 +720,7 @@ export function TileGridField({
             }}
           >
             {actions.running === "identify" ? (
-              <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" />
+              <Spinner label={null} className="mr-1 h-4 w-4" aria-hidden="true" />
             ) : (
               <ScanSearch className="mr-1 h-4 w-4" aria-hidden="true" />
             )}
@@ -960,7 +950,7 @@ function TileDialog({
                 title={action.description || undefined}
                 onClick={() => runOnTile(action)}
               >
-                {actions.running === action.id && <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" />}
+                {actions.running === action.id && <Spinner label={null} className="mr-1 h-4 w-4" aria-hidden="true" />}
                 {action.label}
               </Button>
             ))}

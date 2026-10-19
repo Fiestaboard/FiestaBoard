@@ -20,6 +20,7 @@
  */
 
 import { Button, Flex, Label, Switch } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -60,7 +61,7 @@ export function PluginUpdateCheckButton() {
       disabled={checkMutation.isPending}
       className="gap-2"
     >
-      <RefreshCw className={cn("h-3.5 w-3.5", checkMutation.isPending && "animate-spin")} />
+      {checkMutation.isPending ? <Spinner size="sm" label={null} /> : <RefreshCw className="h-3.5 w-3.5" />}
       {checkMutation.isPending ? t("checking") : t("checkForUpdates")}
     </Button>
   );

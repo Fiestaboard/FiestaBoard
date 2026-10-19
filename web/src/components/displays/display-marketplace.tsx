@@ -144,7 +144,11 @@ export function DisplayMarketplace({ onAdd }: { onAdd: (output: { id: string; na
                   disabled={updating}
                   aria-label={t("updateLabel", { name: output.name })}
                 >
-                  <RefreshCw className={cn("mr-1 h-3 w-3", updating && "animate-spin")} aria-hidden="true" />
+                  {updating ? (
+                    <Spinner className="mr-1 size-3" label={null} />
+                  ) : (
+                    <RefreshCw className="mr-1 h-3 w-3" aria-hidden="true" />
+                  )}
                   {updating ? t("updating") : t("update")}
                 </Button>
               )}
@@ -167,7 +171,11 @@ export function DisplayMarketplace({ onAdd }: { onAdd: (output: { id: string; na
               disabled={installing}
               aria-label={t("installLabel", { name: output.name })}
             >
-              <ArrowDownToLine className={cn("mr-1 h-3 w-3", installing && "animate-bounce")} aria-hidden="true" />
+              {installing ? (
+                <Spinner label={null} className="mr-1 h-3 w-3" />
+              ) : (
+                <ArrowDownToLine className="mr-1 h-3 w-3" aria-hidden="true" />
+              )}
               {installing ? t("installing") : t("install")}
             </Button>
           )
@@ -301,10 +309,11 @@ function BringYourOwnDisplay({ onAdd }: { onAdd: (output: { id: string; name: st
           onClick={() => void sideLoad()}
           disabled={gitInstall.isInstalling || !gitInstall.canInstall}
         >
-          <Download
-            className={cn("mr-1 h-3.5 w-3.5", gitInstall.isInstalling && "animate-bounce")}
-            aria-hidden="true"
-          />
+          {gitInstall.isInstalling ? (
+            <Spinner label={null} className="mr-1 h-3.5 w-3.5" />
+          ) : (
+            <Download className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+          )}
           {gitInstall.isInstalling ? t("installing") : t("gitInstall")}
         </Button>
         <Text size="sm">

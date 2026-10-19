@@ -26,6 +26,7 @@ import {
   Text,
   TextLink,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDownToLine, CopyPlus, ExternalLink } from "lucide-react";
 import { useState } from "react";
@@ -151,7 +152,11 @@ export default function PluginDetailPage() {
               </Button>
             ) : (
               <Button size="sm" onClick={() => installMutation.mutate()} disabled={installMutation.isPending}>
-                <ArrowDownToLine className={cn("h-3.5 w-3.5 mr-1.5", installMutation.isPending && "animate-bounce")} />
+                {installMutation.isPending ? (
+                  <Spinner label={null} className="h-3.5 w-3.5 mr-1.5" />
+                ) : (
+                  <ArrowDownToLine className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
+                )}
                 {installMutation.isPending ? t("installing") : t("install")}
               </Button>
             ))}

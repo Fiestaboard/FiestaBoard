@@ -73,6 +73,7 @@ import {
   TooltipTrigger,
 } from "@fiestaboard/ui";
 import { EmptyState } from "@fiestaboard/ui/components/feedback/empty-state";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -1817,7 +1818,11 @@ function InstalledPluginRow({
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => onUpdate(plugin.id)} disabled={isUpdating}>
-                      <RefreshCw className={cn("h-3.5 w-3.5 mr-2", isUpdating && "animate-spin")} />
+                      {isUpdating ? (
+                        <Spinner size="sm" className="mr-2" label={null} />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                      )}
                       {isUpdating ? "Updating..." : "Update"}
                     </DropdownMenuItem>
                   </>
@@ -2001,7 +2006,11 @@ function RegistryPluginCard({
               onClick={() => onInstall(entry.id)}
               disabled={isInstalling}
             >
-              <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
+              {isInstalling ? (
+                <Spinner label={null} className="h-3 w-3 mr-1" />
+              ) : (
+                <ArrowDownToLine className="h-3 w-3 mr-1" aria-hidden="true" />
+              )}
               {isInstalling ? t("installing") : t("installAction")}
             </Button>
           )
@@ -2105,7 +2114,11 @@ function RegistryPluginRow({
             onClick={() => onInstall(entry.id)}
             disabled={isInstalling}
           >
-            <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
+            {isInstalling ? (
+              <Spinner label={null} className="h-3 w-3 mr-1" />
+            ) : (
+              <ArrowDownToLine className="h-3 w-3 mr-1" aria-hidden="true" />
+            )}
             {isInstalling ? t("installing") : t("installAction")}
           </Button>
         )}
@@ -2432,7 +2445,7 @@ export default function IntegrationsPage() {
           <Button onClick={handleInstallFromGit} disabled={gitInstall.isInstalling || !gitInstall.canInstall}>
             {gitInstall.isInstalling ? (
               <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                <Spinner className="mr-2" label={null} />
                 {t("installing")}
               </>
             ) : (
@@ -2623,7 +2636,11 @@ export default function IntegrationsPage() {
                       onClick={handleUpdateAll}
                       disabled={isUpdatingAll || !!updatingId}
                     >
-                      <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", isUpdatingAll && "animate-spin")} />
+                      {isUpdatingAll ? (
+                        <Spinner size="sm" className="mr-1.5" label={null} />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                      )}
                       {isUpdatingAll ? t("updating") : t("updateAllCount", { count: updatesAvailableCount })}
                     </Button>
                   </Flex>

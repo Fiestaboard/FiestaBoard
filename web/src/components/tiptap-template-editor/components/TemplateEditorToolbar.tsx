@@ -5,6 +5,7 @@
 "use client";
 
 import { Box, Flex, Skeleton, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useQuery } from "@tanstack/react-query";
 import type { Editor } from "@tiptap/react";
 import {
@@ -777,7 +778,11 @@ export function TemplateEditorToolbar({
                       )}
                       aria-label={t("syncFromBoard")}
                     >
-                      <Download className={cn("w-4 h-4", syncFromBoardPending && "animate-pulse")} />
+                      {syncFromBoardPending ? (
+                        <Spinner label={null} className="w-4 h-4" />
+                      ) : (
+                        <Download className="w-4 h-4" aria-hidden="true" />
+                      )}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>

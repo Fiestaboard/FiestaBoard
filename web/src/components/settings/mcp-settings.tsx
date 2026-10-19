@@ -28,8 +28,9 @@ import {
   Text,
   TextLink,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Bot, Check, Copy, KeyRound, Loader2, Lock, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, Bot, Check, Copy, KeyRound, Lock, RefreshCw, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -223,7 +224,7 @@ export function McpSettings() {
               disabled={unlockMutation.isPending || !tokenInput.trim()}
               className="gap-2"
             >
-              {unlockMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {unlockMutation.isPending ? <Spinner label={null} className="h-4 w-4" /> : null}
               {t("unlockButton")}
             </Button>
           </Flex>
@@ -310,7 +311,7 @@ export function McpSettings() {
               className="gap-2"
             >
               {rotateMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner label={null} className="h-4 w-4" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
@@ -324,7 +325,7 @@ export function McpSettings() {
                 className="gap-2"
               >
                 {clearMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Spinner label={null} className="h-4 w-4" />
                 ) : (
                   <Trash2 className="h-4 w-4" />
                 )}
@@ -348,7 +349,7 @@ export function McpSettings() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={rotateMutation.isPending}>{tCommon("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => rotateMutation.mutate()} disabled={rotateMutation.isPending}>
-              {rotateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {rotateMutation.isPending ? <Spinner label={null} className="h-4 w-4" /> : null}
               {hasToken ? t("rotateConfirmButton") : t("generateConfirmButton")}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -368,7 +369,7 @@ export function McpSettings() {
               disabled={clearMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {clearMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {clearMutation.isPending ? <Spinner label={null} className="h-4 w-4" /> : null}
               {t("revokeConfirmButton")}
             </AlertDialogAction>
           </AlertDialogFooter>
