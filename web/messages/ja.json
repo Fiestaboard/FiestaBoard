@@ -2286,6 +2286,25 @@
     "keepGoing": {
       "prompt": "長いターンの途中で停止しました。作業内容は保持されています。",
       "action": "続ける"
+    },
+    "assistantSubtitle": "ディスプレイ用アシスタント",
+    "minimizePanelAriaLabel": "FiestaBotを最小化",
+    "restorePanelAriaLabel": "FiestaBotを開く · {status}",
+    "activity": {
+      "idle": "いつでもお手伝いできます",
+      "thinking": "考え中",
+      "preparing": "準備中",
+      "running": "作業中",
+      "writing": "返信を作成中",
+      "approval": "承認が必要です",
+      "input": "回答をお待ちしています",
+      "complete": "完了",
+      "error": "確認が必要です",
+      "stopped": "停止しました",
+      "paused": "続行できます",
+      "denied": "操作が拒否されました",
+      "details": "アクティビティの詳細",
+      "completedActions": "{count, plural, other {# 件の操作が完了}}"
     }
   },
   "boardSizeIndicator": {

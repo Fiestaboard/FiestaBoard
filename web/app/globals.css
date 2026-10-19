@@ -360,3 +360,59 @@
   height: 100%;
   transform: none !important;
 }
+
+/* FiestaBot app composition: a quiet identity, with motion only during work. */
+.fiestabot-mark {
+  color: var(--brand-emphasis);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--brand-emphasis) 14%, var(--card)),
+    color-mix(in oklch, var(--accent) 55%, var(--card))
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--brand-emphasis) 18%, transparent);
+}
+.fiestabot-mark::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  box-shadow: 0 0 14px color-mix(in oklch, var(--brand-emphasis) 23%, transparent);
+  opacity: 0;
+}
+.fiestabot-mark[data-active]::before {
+  animation: fiestabot-breathe 2.4s ease-in-out infinite;
+}
+@keyframes fiestabot-breathe {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.fiestabot-header {
+  background: linear-gradient(115deg, color-mix(in oklch, var(--brand-emphasis) 5%, var(--card)), var(--card) 75%);
+}
+.fiestabot-panel {
+  box-shadow: var(--elevation-card-hover);
+}
+.fiestabot-dock[data-state="approval"],
+.fiestabot-dock[data-state="input"],
+.fiestabot-dock[data-state="paused"] {
+  border-color: var(--brand-emphasis);
+}
+.fiestabot-dock[data-state="error"] {
+  border-color: var(--destructive);
+}
+[data-ai-drawer="closed"] .fiestabot-mark::before {
+  animation: none;
+}
+.reduce-motion .fiestabot-mark[data-active]::before {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fiestabot-mark[data-active]::before {
+    animation: none;
+  }
+}

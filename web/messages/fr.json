@@ -2286,6 +2286,25 @@
     "keepGoing": {
       "prompt": "L'assistant s'est arrêté sur un tour long. Rien n'est perdu.",
       "action": "Continuer"
+    },
+    "assistantSubtitle": "Votre assistant pour l’affichage",
+    "minimizePanelAriaLabel": "Réduire FiestaBot",
+    "restorePanelAriaLabel": "Ouvrir FiestaBot · {status}",
+    "activity": {
+      "idle": "À votre disposition",
+      "thinking": "Réflexion en cours",
+      "preparing": "Préparation en cours",
+      "running": "Travail en cours",
+      "writing": "Rédaction de la réponse",
+      "approval": "Approbation requise",
+      "input": "Votre réponse est attendue",
+      "complete": "Terminé",
+      "error": "Nécessite votre attention",
+      "stopped": "Arrêté",
+      "paused": "Prêt à continuer",
+      "denied": "Action refusée",
+      "details": "Détails de l’activité",
+      "completedActions": "{count, plural, one {# action terminée} other {# actions terminées}}"
     }
   },
   "boardSizeIndicator": {
