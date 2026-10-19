@@ -25,9 +25,13 @@ def panel_frame():
         "grid_cols": 32,
     }
     panel = get_panel_service().create_panel(PanelCreate(name="Pixel TV"), board_id=board["id"])
-    panel = get_panel_service().update_panel(panel.id, PanelUpdate(render_style="led_matrix"))
     service = install_live_boards([board])
-    return TestClient(app), panel, service.get_runtime(board["id"]).output.frames, board
+    api = TestClient(app)
+    # Match the UI: creation builds a split-flap runtime before the user
+    # selects LED. The PATCH must update the live driver's capabilities.
+    changed = api.patch(f"/panels/{panel.id}", json={"render_style": "led_matrix"})
+    assert changed.status_code == 200
+    return api, panel, service.get_runtime(board["id"]).output.frames, board
 
 
 def send(frames, layers=(), rows=12, cols=32):
@@ -143,3 +147,39 @@ def test_page_canvases_reach_the_tv_through_real_output_delivery(panel_frame):
         if previous_characters is not None:
             assert frame["characters"] == previous_characters
         previous_characters = frame["characters"]
+
+
+def test_style_round_trip_rebinds_delivery_but_sizing_keeps_the_runtime(panel_frame):
+    from src.display_runtime import get_service
+
+    api, panel, _, board = panel_frame
+    service = get_service()
+    led_runtime = service.get_runtime(board["id"])
+    api.patch(f"/panels/{panel.id}", json={"matrix_sizing": "fit_panel"}).raise_for_status()
+    assert service.get_runtime(board["id"]) is led_runtime
+
+    page = api.post(
+        "/pages",
+        json={
+            "name": "Style switch",
+            "type": "template",
+            "device_type": "panel",
+            "grid_rows": 12,
+            "grid_cols": 32,
+            "template": [""],
+            "canvases": [
+                {"id": "art", "area": {"row": 1, "col": 1, "rows": 1, "cols": 1}, "content": {"background": "#ff0000"}}
+            ],
+        },
+    )
+    assert page.status_code == 201
+    for style in ["split_flap", "led_matrix"]:
+        api.patch(f"/panels/{panel.id}", json={"render_style": style}).raise_for_status()
+        sent = api.post(f"/v1/boards/{board['id']}/message", json={"page_id": page.json()["id"]})
+        assert sent.status_code == 200
+        assert sent.json()["sent"] is True
+        frame = api.get(f"/panel/{panel.id}/frame").json()
+        if style == "led_matrix":
+            assert len(frame["layers"]) == 1
+        else:
+            assert "layers" not in frame
