@@ -80,6 +80,7 @@ const TOOLBAR_STRING_KEYS = [
 
 export interface CharsetTemplateEditorProps {
   canvasRegions?: readonly TemplateCanvasRegion[];
+  onCanvasActivate?: (id: string) => void;
   /** The target board's character set (resolved; an output plugin's own set included). */
   charset: CharacterSet;
   value: string;
@@ -101,6 +102,7 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
   function CharsetTemplateEditor(
     {
       canvasRegions,
+      onCanvasActivate,
       charset,
       value,
       onChange,
@@ -180,6 +182,7 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
       <TemplateEditor
         ref={ref}
         canvasRegions={canvasRegions}
+        onCanvasActivate={onCanvasActivate}
         canvasLabels={{
           name: (id) => tCanvas("richRegionName", { id }),
           description: ({ id, area, text }) =>
@@ -191,6 +194,8 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
               lastCol: area.col + area.cols - 1,
             }),
           hint: tCanvas("richRegionHint"),
+          edit: (id) => tCanvas("selectCanvas", { id }),
+          blocked: tCanvas("richRegionBlocked"),
         }}
         charset={charset}
         value={value}

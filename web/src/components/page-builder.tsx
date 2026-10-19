@@ -65,7 +65,7 @@ import {
 import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
-import { CanvasesPanel } from "@/components/canvas-editor/canvases-panel";
+import { CanvasesPanel, type CanvasesPanelHandle } from "@/components/canvas-editor/canvases-panel";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DevicePreview } from "@/components/device-preview";
 import type { StrokeCell } from "@/components/drawable-board-preview";
@@ -398,6 +398,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // edited only for an LED pixel board, previewed by the server's render
   // (`layers` + `canvas_issues` for the preview board, or its refusal).
   const [canvases, setCanvases] = useState<Canvas[]>([]);
+  const canvasesPanelRef = useRef<CanvasesPanelHandle>(null);
   const [debouncedCanvases, setDebouncedCanvases] = useState<Canvas[]>([]);
   const [previewLayers, setPreviewLayers] = useState<CanvasLayerJson[] | null>(null);
   const [canvasIssues, setCanvasIssues] = useState<CanvasIssue[]>([]);
@@ -2452,6 +2453,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         // No draw mode — it paints flap tiles.
                         <CharsetTemplateEditor
                           canvasRegions={pixelBoard ? canvases : undefined}
+                          onCanvasActivate={(id) => canvasesPanelRef.current?.activateCanvas(id)}
                           charset={editorCharset}
                           value={templateLines.join("\n")}
                           onChange={handleRichEditorChange}
@@ -2879,6 +2881,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 {pixelBoard ? (
                   <Box className="mt-2 border-t pt-4">
                     <CanvasesPanel
+                      ref={canvasesPanelRef}
                       canvases={canvases}
                       onChange={setCanvases}
                       gridRows={dims.rows}
