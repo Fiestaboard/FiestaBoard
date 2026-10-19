@@ -2286,6 +2286,25 @@
     "keepGoing": {
       "prompt": "Assistenten pausade under en lång tur. Inget har gått förlorat.",
       "action": "Fortsätt"
+    },
+    "assistantSubtitle": "Din assistent för displayen",
+    "minimizePanelAriaLabel": "Minimera FiestaBot",
+    "restorePanelAriaLabel": "Öppna FiestaBot · {status}",
+    "activity": {
+      "idle": "Redo när du är",
+      "thinking": "Tänker",
+      "preparing": "Förbereder",
+      "running": "Arbetar",
+      "writing": "Skriver svar",
+      "approval": "Godkännande krävs",
+      "input": "Ditt svar behövs",
+      "complete": "Klart",
+      "error": "Behöver uppmärksamhet",
+      "stopped": "Stoppat",
+      "paused": "Redo att fortsätta",
+      "denied": "Åtgärden avböjdes",
+      "details": "Aktivitetsdetaljer",
+      "completedActions": "{count, plural, one {# åtgärd slutförd} other {# åtgärder slutförda}}"
     }
   },
   "boardSizeIndicator": {

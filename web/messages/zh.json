@@ -2286,6 +2286,25 @@
     "keepGoing": {
       "prompt": "助手在长回合中暂停。已完成的工作均已保留。",
       "action": "继续"
+    },
+    "assistantSubtitle": "您的显示屏助手",
+    "minimizePanelAriaLabel": "最小化 FiestaBot",
+    "restorePanelAriaLabel": "打开 FiestaBot · {status}",
+    "activity": {
+      "idle": "随时为您效劳",
+      "thinking": "思考中",
+      "preparing": "准备中",
+      "running": "处理中",
+      "writing": "正在撰写回复",
+      "approval": "需要批准",
+      "input": "等待您的回答",
+      "complete": "已完成",
+      "error": "需要关注",
+      "stopped": "已停止",
+      "paused": "可以继续",
+      "denied": "操作已拒绝",
+      "details": "活动详情",
+      "completedActions": "{count, plural, other {已完成 # 项操作}}"
     }
   },
   "boardSizeIndicator": {

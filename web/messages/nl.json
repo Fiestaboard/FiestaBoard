@@ -2286,6 +2286,25 @@
     "keepGoing": {
       "prompt": "De assistent pauzeerde tijdens een lange ronde. Niets is verloren.",
       "action": "Doorgaan"
+    },
+    "assistantSubtitle": "Je assistent voor het display",
+    "minimizePanelAriaLabel": "FiestaBot minimaliseren",
+    "restorePanelAriaLabel": "FiestaBot openen · {status}",
+    "activity": {
+      "idle": "Klaar wanneer jij wilt",
+      "thinking": "Aan het nadenken",
+      "preparing": "Aan het voorbereiden",
+      "running": "Aan het werk",
+      "writing": "Antwoord schrijven",
+      "approval": "Goedkeuring nodig",
+      "input": "Je antwoord is nodig",
+      "complete": "Voltooid",
+      "error": "Aandacht nodig",
+      "stopped": "Gestopt",
+      "paused": "Klaar om verder te gaan",
+      "denied": "Actie geweigerd",
+      "details": "Activiteitsdetails",
+      "completedActions": "{count, plural, one {# actie voltooid} other {# acties voltooid}}"
     }
   },
   "boardSizeIndicator": {

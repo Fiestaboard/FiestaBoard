@@ -2286,6 +2286,25 @@
     "keepGoing": {
       "prompt": "긴 작업 도중 일시 중지되었습니다. 진행 내용은 유지됩니다.",
       "action": "계속하기"
+    },
+    "assistantSubtitle": "디스플레이 도우미",
+    "minimizePanelAriaLabel": "FiestaBot 최소화",
+    "restorePanelAriaLabel": "FiestaBot 열기 · {status}",
+    "activity": {
+      "idle": "언제든 도와드릴 준비가 되어 있어요",
+      "thinking": "생각 중",
+      "preparing": "준비 중",
+      "running": "작업 중",
+      "writing": "답변 작성 중",
+      "approval": "승인 필요",
+      "input": "답변이 필요해요",
+      "complete": "완료",
+      "error": "확인 필요",
+      "stopped": "중지됨",
+      "paused": "계속할 준비가 되었어요",
+      "denied": "작업 거부됨",
+      "details": "활동 세부 정보",
+      "completedActions": "{count, plural, other {작업 #개 완료}}"
     }
   },
   "boardSizeIndicator": {

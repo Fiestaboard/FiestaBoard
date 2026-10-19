@@ -784,8 +784,9 @@ test.describe("AI", () => {
       await sendMessage(page, "schedule my page for the morning");
 
       const dialog = page.getByRole("dialog", { name: /FiestaBot/i });
-      // The tool card is the observed step: it appears before the result
-      // and settles to Done once the server has run the tool.
+      // Expand observed activity to inspect the tool's result. The reply
+      // remains visible independently of this disclosure.
+      await dialog.getByTestId("ai-turn-activity").last().getByRole("button").first().click();
       await expect(dialog.getByTestId("ai-tool-create_schedule")).toBeVisible({ timeout: 15_000 });
       await expect(dialog.getByTestId("ai-tool-create_schedule")).toHaveAttribute("data-state", "output-available", {
         timeout: 15_000,
@@ -834,6 +835,7 @@ test.describe("AI", () => {
 
       await approval.getByRole("button", { name: "Deny" }).click();
       await expect(dialog.getByText(/leaving it/i)).toBeVisible({ timeout: 15_000 });
+      await dialog.getByTestId("ai-turn-activity").last().getByRole("button").first().click();
       await expect(dialog.getByTestId("ai-tool-delete_page")).toHaveAttribute("data-state", "denied");
 
       pages = await (await request.get(`${API_URL}/pages`)).json();

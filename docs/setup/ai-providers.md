@@ -252,6 +252,19 @@ configured:
 API keys are stored locally in `data/config.json` and never sent to
 any FiestaBoard-hosted service.
 
+## Following a conversation
+
+Each FiestaBot turn shows a compact activity summary. Expand it to inspect
+individual tool calls and their results. Replies, the latest successfully
+applied page preview, approval requests, questions, and errors stay visible
+outside those details.
+
+Use the **minus** button in the panel header to minimize FiestaBot while
+you keep editing. The status pill shows whether it is thinking, working,
+finished, or waiting for you. Work continues while minimized; use **Stop**
+on the pill to interrupt it, or click the pill to return to the conversation
+with your draft intact.
+
 ## Chat history
 
 Every FiestaBot conversation is saved on your FiestaBoard as you go —

@@ -2286,6 +2286,25 @@
     "keepGoing": {
       "prompt": "Der Assistent hat bei einem langen Vorgang angehalten. Nichts ist verloren.",
       "action": "Weitermachen"
+    },
+    "assistantSubtitle": "Dein Assistent fürs Display",
+    "minimizePanelAriaLabel": "FiestaBot minimieren",
+    "restorePanelAriaLabel": "FiestaBot öffnen · {status}",
+    "activity": {
+      "idle": "Bereit, wenn du es bist",
+      "thinking": "Denke nach",
+      "preparing": "Wird vorbereitet",
+      "running": "In Arbeit",
+      "writing": "Antwort wird geschrieben",
+      "approval": "Bestätigung erforderlich",
+      "input": "Deine Antwort ist gefragt",
+      "complete": "Fertig",
+      "error": "Benötigt Aufmerksamkeit",
+      "stopped": "Gestoppt",
+      "paused": "Bereit zum Fortfahren",
+      "denied": "Aktion abgelehnt",
+      "details": "Aktivitätsdetails",
+      "completedActions": "{count, plural, one {# Aktion abgeschlossen} other {# Aktionen abgeschlossen}}"
     }
   },
   "boardSizeIndicator": {

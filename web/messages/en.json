@@ -2286,6 +2286,25 @@
     "keepGoing": {
       "prompt": "The assistant paused on a long turn. Nothing is lost.",
       "action": "Keep going"
+    },
+    "assistantSubtitle": "Your display assistant",
+    "minimizePanelAriaLabel": "Minimize FiestaBot",
+    "restorePanelAriaLabel": "Open FiestaBot · {status}",
+    "activity": {
+      "idle": "Ready when you are",
+      "thinking": "Thinking",
+      "preparing": "Preparing",
+      "running": "Working",
+      "writing": "Writing reply",
+      "approval": "Approval needed",
+      "input": "Your answer needed",
+      "complete": "Finished",
+      "error": "Needs attention",
+      "stopped": "Stopped",
+      "paused": "Ready to continue",
+      "denied": "Action declined",
+      "details": "Activity details",
+      "completedActions": "{count, plural, one {# action completed} other {# actions completed}}"
     }
   },
   "boardSizeIndicator": {

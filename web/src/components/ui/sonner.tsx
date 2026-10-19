@@ -76,7 +76,9 @@ const Toaster = ({ containerAriaLabel, ...props }: ToasterProps) => {
   const walkthroughOnScreen = useOptionalSpotlight()?.active ?? false;
 
   const position: ToasterProps["position"] =
-    walkthroughOnScreen || (drawerOpen && !isDesktop) ? "top-center" : (props.position ?? "bottom-right");
+    walkthroughOnScreen || aiPanel?.isMinimized || (drawerOpen && !isDesktop)
+      ? "top-center"
+      : (props.position ?? "bottom-right");
   // The drawer's live width plus its inset and a gap of the same size.
   const offset =
     drawerOpen && isDesktop && !walkthroughOnScreen

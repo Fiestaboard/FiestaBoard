@@ -2286,6 +2286,25 @@
     "keepGoing": {
       "prompt": "Ассистент остановился на длинном шаге. Ничего не потеряно.",
       "action": "Продолжить"
+    },
+    "assistantSubtitle": "Ваш помощник для дисплея",
+    "minimizePanelAriaLabel": "Свернуть FiestaBot",
+    "restorePanelAriaLabel": "Открыть FiestaBot · {status}",
+    "activity": {
+      "idle": "Готов помочь",
+      "thinking": "Думаю",
+      "preparing": "Готовлю",
+      "running": "Работаю",
+      "writing": "Пишу ответ",
+      "approval": "Требуется подтверждение",
+      "input": "Ожидается ваш ответ",
+      "complete": "Завершено",
+      "error": "Требует внимания",
+      "stopped": "Остановлено",
+      "paused": "Готов продолжить",
+      "denied": "Действие отклонено",
+      "details": "Сведения о действиях",
+      "completedActions": "Выполнено действий: {count}"
     }
   },
   "boardSizeIndicator": {

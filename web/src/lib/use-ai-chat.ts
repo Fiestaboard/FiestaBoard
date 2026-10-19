@@ -285,7 +285,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             model,
           },
           {
-            onText: (delta) => patch((m) => ({ ...m, content: m.content + delta })),
+            onText: (delta) => patch((m) => ({ ...m, content: m.content + delta, status: undefined })),
             onStatus: (s) => {
               patch((m) => ({ ...m, status: { phase: s.phase, toolCallId: s.tool_call_id } }));
               if (s.phase === "tool_running" && s.tool_call_id) {
@@ -340,7 +340,11 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             },
             onDone: (info) => {
               ended = true;
-              patch((m) => ({ ...m, draft: undefined }));
+              patch((m) => ({
+                ...m,
+                draft: undefined,
+                ...(info.reason === "step_limit" ? { finishReason: "paused" as const } : {}),
+              }));
               if (info.reason === "complete" || info.reason === "step_limit") onTurnComplete?.();
               // A turn that hit a per-turn cap has not failed and has lost
               // nothing: every tool result is already in the transcript, so
@@ -390,6 +394,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             pending: false,
             status: undefined,
             draft: undefined,
+            ...(!ended ? { finishReason: streamHadError ? ("error" as const) : ("stopped" as const) } : {}),
           }));
           if (ended) return settled;
           return settled.map((m) =>
@@ -690,7 +695,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       setMessages(history);
       setStatus("idle");
       setError(null);
-      setPausedAtLimit(false);
+      setPausedAtLimit(last?.role === "assistant" && last.finishReason === "paused");
       setPendingApproval(awaiting ?? null);
       setPendingElicitation(question ?? null);
       autoApproveRef.current = conversation.approval;
@@ -1024,6 +1029,7 @@ export function settleSavedTranscript(saved: ChatMessage[]): ChatMessage[] {
     return {
       ...rest,
       pending: false,
+      ...(m.pending && !m.finishReason ? { finishReason: "stopped" as const } : {}),
       toolCalls: m.toolCalls?.map((c) => (c.phase === "running" ? { ...c, phase: "stopped" } : c)),
     };
   });

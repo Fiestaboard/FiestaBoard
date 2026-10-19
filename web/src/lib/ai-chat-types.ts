@@ -302,6 +302,8 @@ export interface ChatMessage {
   /** The question this entry asked, with the answer once given. */
   elicitation?: Elicitation & { answer?: ElicitationAnswer };
   warnings?: string[];
+  /** A stream that ended before completion, including text-only turns. */
+  finishReason?: "stopped" | "error" | "paused";
   /** True while the server is still working on this entry. */
   pending?: boolean;
   /**

@@ -31,19 +31,19 @@ import {
   Suggestions,
   Text,
 } from "@fiestaboard/ui";
-import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowLeft, History, RotateCcw, SlidersHorizontal, Sparkles, SquarePen, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, History, Minus, RotateCcw, SlidersHorizontal, SquarePen, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { AiBotMark } from "@/components/ai-bot-mark";
 import { AiConversationReview, AiHistoryList, CONVERSATIONS_QUERY_KEY } from "@/components/ai-chat-history";
 import { groupTurns, TranscriptTurns } from "@/components/ai-chat-transcript";
-import { AiStepTimeline } from "@/components/ai-step-timeline";
 import { ModelCombobox } from "@/components/model-combobox";
 import { useElementWidth } from "@/hooks/use-element-width";
 import { useProviderModels } from "@/hooks/use-provider-models";
 import { useTranslations } from "@/i18n/translations";
+import { type AiChatActivity, deriveChatActivity } from "@/lib/ai-chat-activity";
 import type {
   ApprovalDecision,
   ChatTurnContext,
@@ -100,6 +100,8 @@ export interface AiChatPanelProps {
   controllerRef?: React.MutableRefObject<AiChatController | null>;
   /** Close button hides the panel without losing the existing layout. */
   onClose: () => void;
+  onMinimize?: () => void;
+  onActivityChange?: (activity: AiChatActivity) => void;
 }
 
 /**
@@ -131,6 +133,8 @@ export function AiChatPanel({
   onConversationLoaded,
   onStopped,
   onClose,
+  onMinimize,
+  onActivityChange,
   controllerRef,
 }: AiChatPanelProps) {
   const t = useTranslations("aiChatPanel");
@@ -271,6 +275,14 @@ export function AiChatPanel({
     if (controllerRef) controllerRef.current = { approve, answer, stop };
   }, [controllerRef, approve, answer, stop]);
 
+  const activity = useMemo(
+    () => deriveChatActivity(messages, status, error, pausedAtLimit),
+    [messages, status, error, pausedAtLimit],
+  );
+  useEffect(() => {
+    onActivityChange?.(activity);
+  }, [activity, onActivityChange]);
+
   const streaming = status === "streaming";
   const composerStatus = streaming ? "streaming" : status === "error" ? "error" : "ready";
   // History hides the live transcript, so it waits while a turn is running
@@ -301,9 +313,6 @@ export function AiChatPanel({
   // Consecutive assistant entries (one per model call; a resume starts a
   // new one) read as one turn on screen.
   const turns = useMemo(() => groupTurns(messages), [messages]);
-  const lastTurn = turns[turns.length - 1];
-  const currentTurn = lastTurn?.role === "assistant" ? lastTurn : null;
-  const lastEntry = currentTurn?.entries[currentTurn.entries.length - 1];
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -362,18 +371,18 @@ export function AiChatPanel({
 
   return (
     <Flex ref={panelRef} direction="col" className="h-full min-h-0 w-full">
-      <Card className="flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden py-0">
+      <Card className="fiestabot-panel flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden py-0">
         {/* Header: identity and navigation only. Ask / Auto is NOT here — it
             is in the composer's settings pill, with the provider and model,
             because everything that shapes the next send belongs above Send.
             (An older comment here claimed the opposite; the control moved and
             the comment did not.) In History / Review the left side becomes a
             Back button and the title names the view. */}
-        <Box className="flex-shrink-0 border-b px-4 py-3">
+        <Box className="fiestabot-header flex-shrink-0 border-b px-4 py-3">
           <Flex align="center" justify="between" gap="2">
             <Flex align="center" gap="2" className="min-w-0">
               {mode.kind === "chat" ? (
-                <Sparkles className="h-4 w-4 shrink-0 text-brand-emphasis" aria-hidden="true" />
+                <AiBotMark active={streaming} />
               ) : (
                 <Button
                   type="button"
@@ -387,14 +396,21 @@ export function AiChatPanel({
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               )}
-              <Text as="span" size="sm" weight="semibold" className="truncate">
-                {headerTitle}
-              </Text>
-              {streaming && (
-                <Text as="span" className="inline-flex" data-testid="ai-chat-streaming">
-                  <Spinner size="sm" className="text-muted-foreground" label={null} />
+              <Box className="min-w-0">
+                <Text as="span" size="sm" weight="semibold" className="block truncate">
+                  {headerTitle}
                 </Text>
-              )}
+                {mode.kind === "chat" ? (
+                  <Text as="span" size="xs" tone="muted" className="block truncate">
+                    {t("assistantSubtitle")}
+                  </Text>
+                ) : null}
+              </Box>
+              {streaming ? (
+                <Text as="span" data-testid="ai-chat-streaming" className="sr-only">
+                  {t("activity.running")}
+                </Text>
+              ) : null}
             </Flex>
             <Flex align="center" gap="1" className="shrink-0">
               {mode.kind === "chat" ? (
@@ -425,11 +441,24 @@ export function AiChatPanel({
                   </Button>
                 </>
               ) : null}
+              {onMinimize ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-8"
+                  onClick={onMinimize}
+                  title={t("minimizePanelAriaLabel")}
+                  aria-label={t("minimizePanelAriaLabel")}
+                >
+                  <Minus className="size-4" />
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7"
+                className="size-8"
                 onClick={onClose}
                 title={t("closePanelAriaLabel")}
                 aria-label={t("closePanelAriaLabel")}
@@ -454,17 +483,15 @@ export function AiChatPanel({
           />
         ) : (
           <>
-            {/* Observed steps of the current turn — outside the log so each is announced once. */}
-            {currentTurn && (lastEntry?.pending || status === "awaiting_approval" || status === "awaiting_input") ? (
-              <AiStepTimeline messages={messages} />
-            ) : null}
-
             {/* Transcript */}
             <Conversation labels={{ conversation: t("messagesAriaLabel"), scrollToBottom: t("jumpToLatest") }}>
-              <ConversationContent className="px-4 py-4">
+              <ConversationContent className="fiestabot-conversation px-4 py-5">
                 {messages.length === 0 && <EmptyState blocked={blocked} aiDisabled={aiDisabled} onPick={send} />}
                 <TranscriptTurns
                   turns={turns}
+                  status={status}
+                  error={error}
+                  pausedAtLimit={pausedAtLimit}
                   pendingApproval={pendingApproval}
                   pendingElicitation={pendingElicitation}
                   busy={streaming}
@@ -506,7 +533,7 @@ export function AiChatPanel({
             produces them, which is where an explanation of Auto belongs
             anyway: at the moment of choosing, not below the composer
             afterwards. */}
-            <Box className="flex-shrink-0 border-t bg-card px-3 py-3">
+            <Box className="fiestabot-composer flex-shrink-0 border-t bg-card px-3 py-3">
               {/* A turn that hit a per-turn cap stopped mid-work with
                   everything it had done already saved in the transcript.
                   Offering to carry on is the difference between a checkpoint

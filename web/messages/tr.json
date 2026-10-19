@@ -2286,6 +2286,25 @@
     "keepGoing": {
       "prompt": "Asistan uzun bir turda duraklattı. Hiçbir şey kaybolmadı.",
       "action": "Devam et"
+    },
+    "assistantSubtitle": "Ekran asistanınız",
+    "minimizePanelAriaLabel": "FiestaBot’u küçült",
+    "restorePanelAriaLabel": "FiestaBot’u aç · {status}",
+    "activity": {
+      "idle": "Hazır olduğunuzda başlayabiliriz",
+      "thinking": "Düşünüyorum",
+      "preparing": "Hazırlanıyor",
+      "running": "Çalışıyor",
+      "writing": "Yanıt yazılıyor",
+      "approval": "Onay gerekiyor",
+      "input": "Yanıtınız bekleniyor",
+      "complete": "Tamamlandı",
+      "error": "İlgilenmeniz gerekiyor",
+      "stopped": "Durduruldu",
+      "paused": "Devam etmeye hazır",
+      "denied": "İşlem reddedildi",
+      "details": "Etkinlik ayrıntıları",
+      "completedActions": "{count, plural, one {# işlem tamamlandı} other {# işlem tamamlandı}}"
     }
   },
   "boardSizeIndicator": {
