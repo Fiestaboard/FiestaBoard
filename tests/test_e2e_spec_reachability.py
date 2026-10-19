@@ -312,3 +312,14 @@ def test_readiness_guards_do_not_hide_merge_queue_tests():
         "!cancelled() && steps.ai_ready_2.outcome == 'success' && github.event_name == 'pull_request'"
     )
     assert not _admits_merge_group("env.UNKNOWN_GATE == '1'")
+
+
+def test_device_sign_in_has_a_dedicated_merge_queue_gate():
+    invocations = collect_invocations()
+    device = [inv for inv in invocations if inv.config.name == "playwright.device.config.ts"]
+    assert len(device) == 1
+    assert device[0].runs_on_merge_queue
+    assert _runs("device-sign-in.spec.ts", device[0])
+    assert not any(
+        _runs("device-sign-in.spec.ts", inv) for inv in invocations if inv.config.name != "playwright.device.config.ts"
+    )

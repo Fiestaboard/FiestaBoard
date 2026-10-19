@@ -197,3 +197,12 @@ describe("LoginPage 'Keep me logged in'", () => {
     });
   });
 });
+
+it("rejects an external post-login redirect", async () => {
+  replaceMock.mockReset();
+  stableSearchParams.set("redirect", "//attacker.invalid");
+  server.use(http.get("/api/auth/status", () => HttpResponse.json(makeStatus({ authenticated: true }))));
+  render(<LoginPage />);
+  await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/"));
+  stableSearchParams.delete("redirect");
+});

@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 
 from src.api_errors import errors
 
+from .device_models import TVSignInCapability
+from .device_service import DeviceService
 from .middleware import _bearer_from
 from .service import (
     SESSION_COOKIE_NAME,
@@ -44,6 +46,9 @@ class StatusResponse(BaseModel):
     # the admin hasn't recorded a preference and the env var is unset.
     mode: str = "disabled"
     first_run: bool = False
+    session_management_supported: bool = True
+    auth_kind: str | None = None
+    tv_sign_in: TVSignInCapability
 
 
 class LoginRequest(BaseModel):
@@ -129,6 +134,14 @@ def _set_session_cookie(response: Response, request: Request, token: str, *, per
     browser discards when it closes. The token's own ``expires_at`` still caps
     the server-side lifetime in either case.
     """
+    agent = request.headers.get("user-agent", "")
+    browser = "Mozilla/" in agent
+    get_auth_service().sessions.update_metadata(
+        token,
+        device_name=agent[:100] if browser else "Legacy client (may retain your password)",
+        kind="browser" if browser else "legacy",
+    )
+    response.headers["Cache-Control"] = "no-store"
     max_age = _remember_me_ttl_seconds() if persistent else None
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
@@ -156,10 +169,8 @@ _LOCKOUT_WINDOW_SECONDS = 60
 
 
 def _client_ip(request: Request) -> str:
-    # Behind nginx we expect X-Forwarded-For; fall back to direct peer.
-    xff = request.headers.get("x-forwarded-for", "")
-    if xff:
-        return xff.split(",")[0].strip()
+    # Uvicorn resolves forwarded addresses only from configured trusted peers.
+    # Reading the raw X-Forwarded-For header would let callers evade lockout.
     if request.client and request.client.host:
         return request.client.host
     return "unknown"
@@ -173,6 +184,7 @@ def _check_lockout(ip: str) -> None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many failed login attempts. Try again later.",
+            headers={"Retry-After": "60"},
         )
 
 
@@ -229,11 +241,23 @@ def _guard_stored_mcp_token(request: Request, svc) -> None:
         )
 
 
+def _request_identity(request: Request, svc) -> tuple[str | None, str | None]:
+    cookie = request.cookies.get(SESSION_COOKIE_NAME)
+    username = svc.verify_session(cookie) if cookie else None
+    kind = "browser" if username else None
+    bearer = _bearer_from(request)
+    if bearer and bearer.startswith("fb_tv_"):
+        session = DeviceService(svc).authenticate_tv(bearer)
+        username = session.username if session else None
+        kind = "tv" if session else None
+    return username, kind
+
+
 # --- Endpoints -------------------------------------------------------------
 
 
 @router.get("/status", response_model=StatusResponse)
-async def auth_status(request: Request) -> StatusResponse:
+def auth_status(request: Request) -> StatusResponse:
     """Report whether auth is enabled, set-up, and whether the caller is logged in.
 
     Always public so the web UI can decide whether to redirect to /login.
@@ -242,8 +266,7 @@ async def auth_status(request: Request) -> StatusResponse:
     mode = auth_mode()
     enabled = mode in ("enabled", "undecided")
     has_user = svc.has_user()
-    cookie = request.cookies.get(SESSION_COOKIE_NAME)
-    username = svc.verify_session(cookie) if cookie else None
+    username, kind = _request_identity(request, svc)
     return StatusResponse(
         enabled=enabled,
         setup_required=enabled and not has_user,
@@ -251,11 +274,13 @@ async def auth_status(request: Request) -> StatusResponse:
         username=username,
         mode=mode,
         first_run=mode == "undecided" and not has_user,
+        auth_kind=kind,
+        tv_sign_in=TVSignInCapability(enabled=mode == "enabled" and has_user and svc.sessions.enrollment_enabled),
     )
 
 
 @router.post("/preference", response_model=SimpleResponse, responses=errors(403, 409))
-async def auth_preference(payload: PreferenceRequest, request: Request) -> SimpleResponse:
+def auth_preference(payload: PreferenceRequest, request: Request) -> SimpleResponse:
     """Record the admin's first-run auth on/off choice.
 
     Only valid when:
@@ -290,7 +315,7 @@ async def auth_preference(payload: PreferenceRequest, request: Request) -> Simpl
 
 
 @router.post("/setup", response_model=SimpleResponse, status_code=201, responses=errors(400, 403, 409))
-async def auth_setup(payload: SetupRequest, request: Request, response: Response) -> SimpleResponse:
+def auth_setup(payload: SetupRequest, request: Request, response: Response) -> SimpleResponse:
     """Create the first user. Only callable when no user exists yet."""
     svc = get_auth_service()
     if svc.has_user():
@@ -319,7 +344,7 @@ async def auth_setup(payload: SetupRequest, request: Request, response: Response
 
 
 @router.post("/login", response_model=SimpleResponse, responses=errors(401, 409, 429))
-async def auth_login(payload: LoginRequest, request: Request, response: Response) -> SimpleResponse:
+def auth_login(payload: LoginRequest, request: Request, response: Response) -> SimpleResponse:
     """Verify credentials and issue a session cookie."""
     ip = _client_ip(request)
     _check_lockout(ip)
@@ -343,14 +368,18 @@ async def auth_login(payload: LoginRequest, request: Request, response: Response
 
 
 @router.post("/logout", response_model=SimpleResponse)
-async def auth_logout(response: Response) -> SimpleResponse:
-    """Clear the session cookie."""
+def auth_logout(request: Request, response: Response) -> SimpleResponse:
+    """Revoke the session before clearing its browser cookie."""
+    svc = get_auth_service()
+    session = svc.resolve_browser_session(request.cookies.get(SESSION_COOKIE_NAME))
+    if session:
+        svc.sessions.revoke_session(session.username, session.id)
     _clear_session_cookie(response)
     return SimpleResponse(status="ok")
 
 
 @router.post("/change-password", response_model=SimpleResponse, responses=errors(400, 401))
-async def auth_change_password(payload: ChangePasswordRequest, request: Request, response: Response) -> SimpleResponse:
+def auth_change_password(payload: ChangePasswordRequest, request: Request, response: Response) -> SimpleResponse:
     """Change the logged-in user's password."""
     svc = get_auth_service()
     cookie = request.cookies.get(SESSION_COOKIE_NAME)
@@ -375,7 +404,7 @@ async def auth_change_password(payload: ChangePasswordRequest, request: Request,
 
 
 @router.post("/change-username", response_model=SimpleResponse, responses=errors(400, 401))
-async def auth_change_username(payload: ChangeUsernameRequest, request: Request, response: Response) -> SimpleResponse:
+def auth_change_username(payload: ChangeUsernameRequest, request: Request, response: Response) -> SimpleResponse:
     """Rename the logged-in user, gated by their current password."""
     svc = get_auth_service()
     cookie = request.cookies.get(SESSION_COOKIE_NAME)
@@ -399,7 +428,7 @@ async def auth_change_username(payload: ChangeUsernameRequest, request: Request,
 
 
 @router.post("/disable", response_model=SimpleResponse, responses=errors(401, 409))
-async def auth_disable(payload: DisableAuthRequest, request: Request, response: Response) -> SimpleResponse:
+def auth_disable(payload: DisableAuthRequest, request: Request, response: Response) -> SimpleResponse:
     """Turn off auth enforcement after a password check.
 
     Requires both a valid session cookie *and* the current password.
@@ -493,7 +522,7 @@ def _require_admin_or_mcp_token(request: Request) -> str:
 
 
 @router.get("/mcp-token", response_model=McpTokenStatusResponse, responses=errors(401))
-async def auth_mcp_token_status(request: Request) -> McpTokenStatusResponse:
+def auth_mcp_token_status(request: Request) -> McpTokenStatusResponse:
     """Report whether an MCP bearer token is configured, and from where."""
     _require_admin_or_mcp_token(request)
     source = mcp_token_source()
@@ -506,7 +535,7 @@ async def auth_mcp_token_status(request: Request) -> McpTokenStatusResponse:
     status_code=status.HTTP_201_CREATED,
     responses=errors(401, 409),
 )
-async def auth_mcp_token_rotate(request: Request) -> McpTokenRotateResponse:
+def auth_mcp_token_rotate(request: Request) -> McpTokenRotateResponse:
     """Generate a fresh MCP bearer token, persist it, and return it ONCE.
 
     Refuses if ``FIESTABOARD_MCP_TOKEN`` is set, because the env var wins
@@ -529,7 +558,7 @@ async def auth_mcp_token_rotate(request: Request) -> McpTokenRotateResponse:
 
 
 @router.delete("/mcp-token", response_model=SimpleResponse, responses=errors(401, 409))
-async def auth_mcp_token_clear(request: Request) -> SimpleResponse:
+def auth_mcp_token_clear(request: Request) -> SimpleResponse:
     """Revoke the stored MCP bearer token.
 
     External MCP clients will start receiving 401 + Bearer challenge on

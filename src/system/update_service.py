@@ -1466,6 +1466,9 @@ async def rollback(req: RollbackRequest) -> RollbackResponse:
         settings_result = await _restore_settings_from_snapshot(path)
 
     if req.restore_image:
+        from src.auth.service import get_auth_service
+
+        await asyncio.to_thread(get_auth_service().invalidate_all_accounts)
         image_result = await _roll_image_back(snapshot_meta, warnings)
 
     overall = "success" if not warnings else "partial"
@@ -1572,6 +1575,9 @@ async def leave_beta() -> dict[str, Any]:
         )
         logger.warning("Leaving the beta without a join snapshot (recorded=%r)", name)
 
+    from src.auth.service import get_auth_service
+
+    await asyncio.to_thread(get_auth_service().invalidate_all_accounts)
     try:
         resp = await asyncio.to_thread(_updater_post, "/install", {"image": repository, "tag": CHANNEL_TAGS["stable"]})
     except requests.RequestException as e:

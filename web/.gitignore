@@ -51,3 +51,5 @@ yarn-error.log*
 /screenshot-results/
 /draw-mode-demo-results/
 /playwright-report.json
+/playwright-device-test-results/
+/playwright-device-report.json

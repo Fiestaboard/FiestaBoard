@@ -83,12 +83,15 @@ export default defineConfig({
     // 404'd on every load and the app never had a working one. A real one
     // buys no speed here (hashed /assets/ are already `immutable` for a year)
     // and would re-download the whole bundle after every nightly update.
-    // `selfDestroying` ships a sw.js that unregisters itself and clears its
-    // caches, which also evicts any Next.js-era worker still controlling a
+    // Our retirement worker unregisters itself after awaiting deletion of its
+    // owned caches, which also evicts any Next.js-era worker controlling a
     // long-lived tab with a stale precache. Once those are gone (a few
     // releases), this plugin and public/registerSW references can go too.
     VitePWA({
-      selfDestroying: true,
+      strategies: "injectManifest",
+      srcDir: "public",
+      filename: "sw.js",
+      injectManifest: { injectionPoint: undefined },
       injectRegister: "auto",
       // React Router's client build dir; the plugin's default (`dist/`) is
       // never served.
