@@ -2281,7 +2281,19 @@
     "toolRun": "{tool} · {count, plural, other {# 回}}",
     "composerSettings": {
       "triggerAriaLabel": "チャット設定: 承認 {mode}、モデル {model}",
-      "popoverLabel": "チャット設定"
+      "popoverLabel": "チャット設定",
+      "description": "FiestaBotの動作を選択します。",
+      "askDescription": "破壊的な操作の実行前に確認します。",
+      "autoDescription": "破壊的な操作を確認なしで実行します。",
+      "alwaysAsk": "再起動、シャットダウン、更新には常に承認が必要です。",
+      "modelSearch": "モデルを検索するかIDを入力",
+      "useCustomModel": "「{id}」を使用",
+      "customModel": "カスタムモデルID",
+      "modelsLoading": "モデルを読み込み中…",
+      "modelsError": "モデルを読み込めませんでした。保存済みのモデルを選択するか、IDを入力してください。",
+      "modelsEmpty": "モデルが一覧にありません。モデルIDを入力して始めてください。",
+      "modelsNoMatches": "一致するモデルがありません。",
+      "retryModels": "再試行"
     },
     "keepGoing": {
       "prompt": "長いターンの途中で停止しました。作業内容は保持されています。",

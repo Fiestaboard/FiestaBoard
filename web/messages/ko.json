@@ -2281,7 +2281,19 @@
     "toolRun": "{tool} · {count, plural, other {#회}}",
     "composerSettings": {
       "triggerAriaLabel": "채팅 설정: 승인 {mode}, 모델 {model}",
-      "popoverLabel": "채팅 설정"
+      "popoverLabel": "채팅 설정",
+      "description": "FiestaBot의 작동 방식을 선택하세요.",
+      "askDescription": "파괴적인 작업을 실행하기 전에 확인합니다.",
+      "autoDescription": "파괴적인 작업을 묻지 않고 실행합니다.",
+      "alwaysAsk": "재시작, 종료 및 업데이트에는 항상 승인이 필요합니다.",
+      "modelSearch": "모델 검색 또는 ID 입력",
+      "useCustomModel": "“{id}” 사용",
+      "customModel": "사용자 지정 모델 ID",
+      "modelsLoading": "모델 불러오는 중…",
+      "modelsError": "모델을 불러오지 못했습니다. 저장된 모델을 선택하거나 ID를 입력하세요.",
+      "modelsEmpty": "목록에 모델이 없습니다. 모델 ID를 입력하여 시작하세요.",
+      "modelsNoMatches": "일치하는 모델이 없습니다.",
+      "retryModels": "다시 시도"
     },
     "keepGoing": {
       "prompt": "긴 작업 도중 일시 중지되었습니다. 진행 내용은 유지됩니다.",

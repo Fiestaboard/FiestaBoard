@@ -2281,7 +2281,19 @@
     "toolRun": "{tool} · {count, plural, one {# Mal} other {# Mal}}",
     "composerSettings": {
       "triggerAriaLabel": "Chat-Einstellungen: Genehmigung {mode}, Modell {model}",
-      "popoverLabel": "Chat-Einstellungen"
+      "popoverLabel": "Chat-Einstellungen",
+      "description": "Wähle, wie FiestaBot arbeitet.",
+      "askDescription": "Destruktive Aktionen bestätigen.",
+      "autoDescription": "Destruktive Aktionen ohne Rückfrage ausführen.",
+      "alwaysAsk": "Neustart, Herunterfahren und Updates erfordern immer eine Genehmigung.",
+      "modelSearch": "Modelle suchen oder eine ID eingeben",
+      "useCustomModel": "„{id}“ verwenden",
+      "customModel": "Benutzerdefinierte Modell-ID",
+      "modelsLoading": "Modelle werden geladen…",
+      "modelsError": "Modelle konnten nicht geladen werden. Wähle ein gespeichertes Modell oder gib eine ID ein.",
+      "modelsEmpty": "Keine Modelle aufgelistet. Gib eine Modell-ID ein, um zu beginnen.",
+      "modelsNoMatches": "Keine passenden Modelle.",
+      "retryModels": "Erneut versuchen"
     },
     "keepGoing": {
       "prompt": "Der Assistent hat bei einem langen Vorgang angehalten. Nichts ist verloren.",

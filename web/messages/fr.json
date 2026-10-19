@@ -2281,7 +2281,19 @@
     "toolRun": "{tool} · {count, plural, one {# fois} other {# fois}}",
     "composerSettings": {
       "triggerAriaLabel": "Paramètres du chat : approbation {mode}, modèle {model}",
-      "popoverLabel": "Paramètres du chat"
+      "popoverLabel": "Paramètres du chat",
+      "description": "Choisissez comment FiestaBot fonctionne.",
+      "askDescription": "Confirmer les actions destructives.",
+      "autoDescription": "Exécuter les actions destructives sans demander.",
+      "alwaysAsk": "Le redémarrage, l’arrêt et les mises à jour nécessitent toujours une approbation.",
+      "modelSearch": "Rechercher des modèles ou saisir un identifiant",
+      "useCustomModel": "Utiliser « {id} »",
+      "customModel": "Identifiant de modèle personnalisé",
+      "modelsLoading": "Chargement des modèles…",
+      "modelsError": "Impossible de charger les modèles. Choisissez un modèle enregistré ou saisissez un identifiant.",
+      "modelsEmpty": "Aucun modèle répertorié. Saisissez un identifiant de modèle pour commencer.",
+      "modelsNoMatches": "Aucun modèle correspondant.",
+      "retryModels": "Réessayer"
     },
     "keepGoing": {
       "prompt": "L'assistant s'est arrêté sur un tour long. Rien n'est perdu.",

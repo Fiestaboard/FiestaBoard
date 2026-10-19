@@ -2281,7 +2281,19 @@
     "toolRun": "{tool} · {count, plural, one {# raz} few {# razy} many {# razy} other {# raza}}",
     "composerSettings": {
       "triggerAriaLabel": "Ustawienia czatu: zatwierdzanie {mode}, model {model}",
-      "popoverLabel": "Ustawienia czatu"
+      "popoverLabel": "Ustawienia czatu",
+      "description": "Wybierz sposób działania FiestaBota.",
+      "askDescription": "Potwierdzaj działania destrukcyjne.",
+      "autoDescription": "Wykonuj działania destrukcyjne bez pytania.",
+      "alwaysAsk": "Ponowne uruchomienie, wyłączenie i aktualizacje zawsze wymagają zatwierdzenia.",
+      "modelSearch": "Wyszukaj modele lub wpisz identyfikator",
+      "useCustomModel": "Użyj „{id}”",
+      "customModel": "Niestandardowy identyfikator modelu",
+      "modelsLoading": "Ładowanie modeli…",
+      "modelsError": "Nie udało się wczytać modeli. Wybierz zapisany model lub wpisz identyfikator.",
+      "modelsEmpty": "Brak modeli na liście. Wpisz identyfikator modelu, aby rozpocząć.",
+      "modelsNoMatches": "Brak pasujących modeli.",
+      "retryModels": "Spróbuj ponownie"
     },
     "keepGoing": {
       "prompt": "Asystent zatrzymał się w trakcie długiej tury. Nic nie zostało utracone.",
