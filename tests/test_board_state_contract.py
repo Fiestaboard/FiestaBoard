@@ -398,7 +398,9 @@ MCP_CONTENT: dict[str, Callable[[], tuple[Service | None, dict[str, Any]]]] = {
     "secondary.nothing_sent_yet_is_null": lambda: (_mcp_secondary(Runtime(PhysicalClient())), {"board_id": "b2"}),
     "secondary.no_runtime_is_null": lambda: (Service({"b1": Runtime(PhysicalClient())}), {"board_id": "b2"}),
     "secondary.virtual_board_frame": lambda: (
-        Service({"b1": Runtime(PhysicalClient()), "vb": Runtime(virtual("note", frame=grid(NOTE, 8)))}),
+        Service(
+            {"b1": Runtime(PhysicalClient()), "vb": Runtime(virtual("note", frame=grid(NOTE, 8), sent_at=SENT_AT))}
+        ),
         {"board_id": "vb"},
     ),
     "secondary.virtual_board_stale_shape_frame": lambda: (

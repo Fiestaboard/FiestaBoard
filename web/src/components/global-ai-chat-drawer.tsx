@@ -273,7 +273,16 @@ export function GlobalAiChatDrawer() {
       availableCollections: collections,
       registryPlugins,
     };
-  }, [pagesData, pluginsData, schedulesData, collectionsData, registryData, getEditorSnapshot, currentBoardId, currentBoard]);
+  }, [
+    pagesData,
+    pluginsData,
+    schedulesData,
+    collectionsData,
+    registryData,
+    getEditorSnapshot,
+    currentBoardId,
+    currentBoard,
+  ]);
 
   // ---------------------------------------------------------------------------
   // After a tool ran: the toast, and for schedules the same Undo affordances

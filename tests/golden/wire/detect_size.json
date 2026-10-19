@@ -24,7 +24,8 @@
           "cols": 22,
           "notes_wide": null,
           "notes_tall": null,
-          "matched_preset": null
+          "matched_preset": null,
+          "source": "detected"
         }
       }
     },
@@ -49,7 +50,8 @@
           "cols": 30,
           "notes_wide": 2,
           "notes_tall": 1,
-          "matched_preset": "2 side-by-side"
+          "matched_preset": "2 side-by-side",
+          "source": "detected"
         }
       }
     }

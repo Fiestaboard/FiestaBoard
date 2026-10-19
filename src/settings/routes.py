@@ -1323,13 +1323,14 @@ async def _legacy_board_action(board_id: str, action: str, inputs: dict):
 async def detect_board_size(board_id: str):
     """Auto-detect a board's device type and dimensions from its live layout.
 
-    The ``vestaboard`` output's ``detect_geometry`` action: it reads the
-    board's current message over its own transport (local / cloud /
-    note-array) through the board's live driver, and says what size of board
-    that grid is.
+    Runs the saved board's output-defined ``detect_geometry`` action. An
+    output without that action returns the board's configured grid, with
+    ``source: configured``. Vestaboards read their current layout through
+    the live driver's own transport and classify that grid.
 
     Returns ``device_type``, ``rows``, ``cols`` and — for note arrays —
-    ``notes_wide``, ``notes_tall`` and ``matched_preset``.
+    ``notes_wide``, ``notes_tall`` and ``matched_preset``, plus the geometry's
+    ``source`` (``detected`` or ``configured``).
 
     Errors: 404 (unknown board), 400 (board not configured, or a local-mode
     note array, whose size its tile assignments define), 422 (board returned
@@ -1338,7 +1339,10 @@ async def detect_board_size(board_id: str):
     from src.devices import dimensions_of
     from src.outputs.registry import output_registry, resolve_output_id
 
-    board = _require_board(board_id)
+    boards = get_settings_service().get_board_settings().boards or []
+    board = next((item for item in boards if item.get("id") == board_id), None)
+    if board is None:
+        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
     definition = output_registry().get(resolve_output_id(board))
     if definition is None:
         raise HTTPException(status_code=503, detail="The board's output is not installed.")

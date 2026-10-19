@@ -143,6 +143,8 @@ def register_output_plugin(plugin_class: type[OutputPluginBase], manifest: Plugi
             actions=manifest.output.actions,
             offered_device_models=manifest.output.device_model_ids,
             plugin_class=plugin_class,
+            version=manifest.version,
+            output_api=manifest.output.output_api,
         )
     )
     logger.info("Registered output plugin %s", manifest.id)

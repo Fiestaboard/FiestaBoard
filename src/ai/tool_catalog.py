@@ -463,6 +463,9 @@ def _type_name(spec: dict[str, Any]) -> str:
     if isinstance(type_, list):
         return " | ".join(str(t) for t in type_ if t != "null") or "any"
     if isinstance(type_, str):
+        title = spec.get("title")
+        if type_ == "object" and isinstance(title, str) and re.fullmatch(r"[A-Z][A-Za-z0-9_]*", title):
+            return title
         return type_
     any_of = spec.get("anyOf")
     if isinstance(any_of, list):

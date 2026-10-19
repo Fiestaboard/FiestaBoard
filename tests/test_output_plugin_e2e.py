@@ -155,7 +155,9 @@ class TestPerBoardInstances:
         from tests.live_boards import install_live_boards
 
         install_live_boards([board("rec")])
-        response = TestClient(_app()).post("/send-message", json={"text": "HELLO", "board_id": "rec"})
+        # The fixture deliberately declares only A/B/C/0/1/€. Use its actual
+        # alphabet so fallback-to-blank does not obscure the send assertion.
+        response = TestClient(_app()).post("/send-message", json={"text": "ABC 01", "board_id": "rec"})
         assert response.status_code == 200, response.text
         (instance,) = module.INSTANCES
         assert len(instance.writes) == 1

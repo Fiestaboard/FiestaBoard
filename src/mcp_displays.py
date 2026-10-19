@@ -25,6 +25,9 @@ def register_display_tools(tool: Any, tool_error: type[Exception]) -> None:
     def list_display_outputs(output_id: str | None = None) -> dict[str, Any]:
         """Discover installed display plugins, full models/charsets, settings schemas and actions.
         Filter by output_id for one declaration. Use get_display_info for a board's resolved capabilities.
+
+        Args:
+            output_id: Optional installed output to describe; omitted lists all.
         """
         from .outputs.actions import list_outputs
 
@@ -42,6 +45,9 @@ def register_display_tools(tool: Any, tool_error: type[Exception]) -> None:
         """Describe a display's effective geometry, charset, canvas support, transport and masked settings.
         Omitted board_id selects the primary board. Uses declarations and existing runtime state;
         never opens a connection or probes hardware. Unavailable capabilities are null.
+
+        Args:
+            board_id: Saved display ID; omitted selects the primary board.
         """
         from .ops.executors import board_public_view
         from .outputs.config_hooks import mask_config
@@ -66,6 +72,13 @@ def register_display_tools(tool: Any, tool_error: type[Exception]) -> None:
         """Create a display from an installed plugin's declared model and settings schema.
         Discover declarations with list_display_outputs. Supply only user-provided credentials.
         Built-in Vestaboards use add_board; FiestaPanels use create_panel.
+
+        Args:
+            output_id: Installed output plugin ID.
+            device_model: Model ID from the output declaration.
+            output_config: Connection settings matching its schema.
+            name: Optional display name.
+            geometry: Rows/cols for a model with configurable geometry.
         """
         from .outputs.models import OutputBoardCreate
         from .outputs.routes import create_board
@@ -94,6 +107,12 @@ def register_display_tools(tool: Any, tool_error: type[Exception]) -> None:
         """Merge a display's plugin settings; omitted keys retain their values and *** preserves secrets.
         Read get_display_info first for the schema and supported models. Font/layout edits use
         the output's normal configuration rules. Returns resize warnings. Never guess credentials.
+
+        Args:
+            board_id: Saved display to configure.
+            output_config: Partial settings; omitted keys remain unchanged.
+            name: Optional replacement display name.
+            device_model: Optional model ID declared by this output.
         """
         from .ops.executors import board_public_view
         from .settings.models import BoardSettingsUpdate
@@ -134,6 +153,12 @@ def register_display_tools(tool: Any, tool_error: type[Exception]) -> None:
         Read get_display_info for action schemas/effects first. May contact or change hardware;
         only invoke the action the user requested. Optional edited settings are not persisted.
         Secret result values are masked. Device refusals remain errors.
+
+        Args:
+            board_id: Saved display to act on.
+            action: Action ID declared by its output.
+            inputs: Values matching the action's input schema.
+            output_config: Optional temporary connection edits.
         """
         from .outputs.models import SavedBoardActionRequest
         from .outputs.routes import run_board_action

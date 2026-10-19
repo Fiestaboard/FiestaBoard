@@ -1,4 +1,4 @@
-"""Offline MCP audit contracts. Strict xfails track confirmed, unfixed defects."""
+"""Offline regression contracts for the MCP workflow audit."""
 
 from unittest.mock import AsyncMock
 
@@ -34,8 +34,8 @@ def test_selecting_a_page_preserves_the_send_failure(mcp, monkeypatch):
 def test_changing_quiet_hours_keeps_existing_mode_and_indicator(mcp, services, two_boards):
     initial = {
         "enabled": True,
-        "start_time": "22:00",
-        "end_time": "07:00",
+        "start_time": "22:00+00:00",
+        "end_time": "07:00+00:00",
         "mode": "indicator",
         "indicator_text": "QUIET",
     }
@@ -46,8 +46,8 @@ def test_changing_quiet_hours_keeps_existing_mode_and_indicator(mcp, services, t
         category="silence_schedule",
         values={
             "enabled": True,
-            "start_time": "23:00",
-            "end_time": "07:00",
+            "start_time": "23:00+00:00",
+            "end_time": "07:00+00:00",
         },
     )
     stored = services["config"].get_feature("silence_schedule")
@@ -62,8 +62,8 @@ def test_disabling_quiet_hours_needs_only_enabled(mcp, services, two_boards):
         category="silence_schedule",
         values={
             "enabled": True,
-            "start_time": "22:00",
-            "end_time": "07:00",
+            "start_time": "22:00+00:00",
+            "end_time": "07:00+00:00",
         },
     )
     call(mcp, "update_setting", category="silence_schedule", values={"enabled": False})
@@ -76,8 +76,8 @@ def test_enabling_queued_replay_persists(mcp, services, two_boards, board_id):
 
     values = {
         "enabled": True,
-        "start_time": "22:00",
-        "end_time": "07:00",
+        "start_time": "22:00+00:00",
+        "end_time": "07:00+00:00",
         "show_queued_on_exit": True,
     }
     if board_id:

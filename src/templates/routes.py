@@ -335,9 +335,9 @@ class _CharsetCheck:
     Every render speaks extended markup (plan D19; split-flap boards too
     since the Task 12 flip, :func:`src.outputs.cells.charset_extended_markup`).
     No board named: no extra fields. A board named: its resolved character
-    set (plan D17) decides the issues reported; an unknown board, or one
-    whose set is unknown (a FiestaPanel), reports ``charset: null`` and
-    checks nothing.
+    set (plan D17) decides the issues reported. The effective profile limits
+    authoring to what its writer delivers, including integer-only viewers.
+    A board whose set is unavailable reports ``charset: null``.
     """
 
     def __init__(self, board_id: str | None) -> None:
@@ -345,11 +345,19 @@ class _CharsetCheck:
         board = _find_board(board_id) if board_id is not None else None
         #: The board named, when it exists.
         self.board = board
-        self.charset = board_character_set(board) if board is not None else None
-        self.render_kw: dict = {"extended_markup": True} if has_extended_markup(self.charset) else {}
         #: What the board draws (its size and face included), for the
         #: plugins a board-sized render fetches; ``None`` with no board.
         self.display = display_profile_for_board(board) if board is not None else None
+        # The model can describe an LED appearance while its output accepts
+        # only integer character frames. Match the shared delivery profile.
+        self.charset = (
+            dict(self.display.character_set)
+            if self.display is not None and self.display.character_set is not None
+            else board_character_set(board)
+            if board is not None
+            else None
+        )
+        self.render_kw: dict = {"extended_markup": True} if has_extended_markup(self.charset) else {}
 
     @property
     def lines_kw(self) -> dict:

@@ -49,6 +49,37 @@ def _grid(fill: int = 0, rows: int = 6, cols: int = 22) -> list[list[int]]:
 
 
 class TestLoading:
+    @pytest.mark.parametrize(
+        ("device_type", "notes_wide", "notes_tall", "rows", "cols"),
+        [("flagship", 1, 1, 6, 22), ("note", 1, 1, 3, 15), ("note_array", 2, 3, 9, 30)],
+    )
+    def test_first_party_builder_binds_selected_model_and_full_grid(
+        self, device_type, notes_wide, notes_tall, rows, cols
+    ):
+        driver = (
+            output_registry()
+            .get(VESTABOARD)
+            .build(
+                {
+                    "id": "selected-model",
+                    "output": VESTABOARD,
+                    "device_type": device_type,
+                    "notes_wide": notes_wide,
+                    "notes_tall": notes_tall,
+                    "api_mode": "local",
+                    "host": "192.0.2.1",
+                    "local_api_key": "test_key",
+                    "note_array_token": "test_array_token",
+                }
+            )
+        )
+        assert driver is not None
+        try:
+            assert driver.plugin.device_model["id"] == f"vestaboard_{device_type}"
+            assert driver.plugin.board_geometry == (rows, cols)
+        finally:
+            driver.close()
+
     @pytest.mark.parametrize("output_id", FIRST_PARTY_OUTPUTS)
     def test_each_package_loads_with_a_valid_manifest(self, output_id):
         loaded = load_first_party(output_id)

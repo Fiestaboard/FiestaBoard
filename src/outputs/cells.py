@@ -232,8 +232,9 @@ def project_message(
         line = lines[row] if row < len(lines) else ""
         tokens = parse_line(line, cols, extended_markup=True, preserve_case=True)
         tokens = tokens + [_BLANK] * (cols - len(tokens))
-        characters.append([t.flap_code for t in tokens])
-        cells.append([_numeric_tile(charset_fallback(look, t)) for t in tokens])
+        projected = [_numeric_tile(charset_fallback(look, t)) for t in tokens]
+        characters.append([t.flap_code for t in projected])
+        cells.append(projected)
     return ProjectedFrame(characters, cells)
 
 

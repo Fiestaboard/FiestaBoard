@@ -929,16 +929,16 @@ class TestRenderPagePreview:
         assert result["device_type"] == "flagship"
         assert isinstance(result["context_plugins"], list)
 
-    def test_returns_error_json_on_bad_device_type(self, mcp):
-        # Bad device_type falls back to flagship in the engine, so this
-        # should still produce a valid 'rendered' field rather than crash.
-        result = _call_tool(
-            mcp,
-            "render_page_preview",
-            template_lines=["X"],
-            device_type="not-a-device",
-        )
-        assert "rendered" in result or "error" in result
+    def test_rejects_an_unknown_device_type(self, mcp):
+        from src.mcp_server import ToolError
+
+        with pytest.raises(ToolError, match="Unknown device type"):
+            _call_tool(
+                mcp,
+                "render_page_preview",
+                template_lines=["X"],
+                device_type="not-a-device",
+            )
 
 
 # ---------------------------------------------------------------------------

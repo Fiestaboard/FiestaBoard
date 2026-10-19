@@ -1,8 +1,4 @@
-"""Offline repro cases for the MCP display audit; production is unchanged.
-
-Strict xfails describe verified defects, not accepted behavior. Run with
-``--runxfail`` to see the original failures.
-"""
+"""Offline regression contracts for the MCP display and plugin audit."""
 
 from types import SimpleNamespace
 

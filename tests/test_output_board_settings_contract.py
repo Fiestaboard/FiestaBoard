@@ -261,7 +261,7 @@ class TestListing:
     def test_vestaboard_declares_its_hooks_and_enable_local_api(self, client):
         vestaboard = client.get("/outputs").json()[0]
         assert vestaboard["builtin"] is True
-        assert vestaboard["output_api"] is None
+        assert vestaboard["output_api"] == 1
         assert [m["id"] for m in vestaboard["device_models"]] == [
             "vestaboard_flagship",
             "vestaboard_note",
@@ -535,4 +535,11 @@ def test_action_geometry_mirrors_detect_board_size_response():
     from src.outputs.models import ActionGeometry
     from src.settings.models import DetectBoardSizeResponse
 
-    assert list(ActionGeometry.model_fields) == list(DetectBoardSizeResponse.model_fields)
+    # Detection adds provenance when it returns configured geometry without
+    # calling an action. Action geometry retains the shared payload contract.
+    assert list(DetectBoardSizeResponse.model_fields) == [*ActionGeometry.model_fields, "source"]
+    action_properties = ActionGeometry.model_json_schema()["properties"]
+    detected_properties = DetectBoardSizeResponse.model_json_schema()["properties"]
+    assert {name: detected_properties[name] for name in action_properties} == action_properties
+    assert detected_properties["source"]["enum"] == ["detected", "configured"]
+    assert detected_properties["source"]["default"] == "detected"

@@ -370,7 +370,14 @@ class OutputPluginDriver:
             self._write_failed(f"the write did not finish within {budget:g}s; it was cancelled.")
             return WriteResult(False, prior_send is not None and prior_send())
         if result.throttled:
-            return self._device_throttled(admission, result.retry_after_seconds)
+            throttled = self._device_throttled(admission, result.retry_after_seconds)
+            if prior_send is not None and prior_send():
+                # The upload consumed device traffic, but its rich landing
+                # never completed. Keep the integer cache and extended floor
+                # while reporting that the requested target is incomplete.
+                self.last_write_error = "the sequence uploaded, but the rich target was throttled by the output."
+                return throttled._replace(success=False, was_sent=True)
+            return throttled
         if result.success and not result.was_sent and (token.is_set() or result.superseded):
             # Preempted: the plugin stopped mid-write and nothing landed. The
             # newer write that cancelled it owns the board, so it gets the

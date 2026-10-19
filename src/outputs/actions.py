@@ -48,6 +48,8 @@ Raises domain errors; ``routes.py`` maps them.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from collections.abc import Callable, Mapping
 from copy import deepcopy
@@ -536,7 +538,7 @@ def _describe_action(spec: OutputActionSpec) -> dict[str, Any]:
 def describe_output(definition: OutputDefinition) -> dict[str, Any]:
     caps = definition.capabilities
     manifest = definition.output_manifest
-    return {
+    description = {
         "id": definition.id,
         "name": definition.name,
         "description": definition.description,
@@ -546,7 +548,10 @@ def describe_output(definition: OutputDefinition) -> dict[str, Any]:
         # since settings v7, so nothing is gated and everything is available.
         "beta_gated": False,
         "available": True,
-        "output_api": manifest.output_api if manifest is not None else None,
+        "version": definition.version,
+        "output_api": definition.output_api
+        if definition.output_api is not None
+        else (manifest.output_api if manifest is not None else None),
         "capabilities": {
             "technology": caps.technology,
             "delivery": caps.delivery,
@@ -571,6 +576,15 @@ def describe_output(definition: OutputDefinition) -> dict[str, Any]:
         "settings_schema": dict(definition.settings_schema),
         "actions": [_describe_action(spec) for spec in definition.actions],
     }
+    declaration = {
+        key: description[key]
+        for key in ("output_api", "capabilities", "device_models", "character_set", "settings_schema", "actions")
+    }
+    # A revision of the public declaration, independent of any board config
+    # or runtime state. Stable across processes and dictionary insertion order.
+    encoded = json.dumps(declaration, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    description["declaration_revision"] = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    return description
 
 
 def list_outputs() -> list[dict[str, Any]]:

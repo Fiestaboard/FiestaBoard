@@ -20,10 +20,10 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
-from src.led.charsets import resolve_character_set, validate_message
+from src.led.charsets import has_extended_markup, resolve_character_set, validate_message
 from src.markup import BOARD_ICONS
 
 from .board_profile import board_character_set, board_device_model, led_layout_choice
@@ -166,7 +166,18 @@ class DisplayProfile:
         """
         if not self.charset:
             return []
-        result = validate_message(text, self.character_set or self.charset)
+        try:
+            result = validate_message(text, self.character_set or self.charset)
+        except (KeyError, ValueError):
+            return [
+                {
+                    "row": 0,
+                    "col": 0,
+                    "reason": "unknown_charset",
+                    "message": f"Character set {self.charset!r} is unavailable; text cannot be validated.",
+                    "fallback": None,
+                }
+            ]
         return [
             {k: v for k, v in issue.to_dict().items() if k in ("row", "col", "reason", "fallback")}
             for issue in result.issues
@@ -305,6 +316,22 @@ def _profile(
     )
 
 
+def _integer_authoring_profile(
+    model: Mapping[str, Any],
+    charset: Mapping[str, Any],
+    config: Mapping[str, Any] | None,
+    grid: tuple[int, int] | None,
+) -> DisplayProfile:
+    """A visual model whose output delivers only the legacy integer grid.
+
+    FiestaPanel's LED appearance has pixel geometry for its viewer, but its
+    writer does not deliver arbitrary pixels or rich text. Keep appearance
+    identity/font while teaching only the content the integer frame carries.
+    """
+    profile = _profile(model, charset, config, grid)
+    return replace(profile, width=None, height=None, color="tiles", monochrome=None)
+
+
 def _grid(rows: Any, cols: Any) -> tuple[int, int] | None:
     if isinstance(rows, int) and isinstance(cols, int) and rows > 0 and cols > 0:
         return rows, cols
@@ -329,9 +356,13 @@ def display_profile_for_client(client: Any) -> DisplayProfile | None:
         return None
     plugin = getattr(client, "plugin", None)
     config = getattr(plugin, "config", None)
-    return _profile(
-        model, _charset_of(client, model), config if isinstance(config, Mapping) else None, _client_grid(plugin)
-    )
+    config = config if isinstance(config, Mapping) else None
+    if getattr(type(plugin), "markup_follows_charset", True) is False:
+        charset = getattr(plugin, "character_set", None)
+        if not isinstance(charset, Mapping) or has_extended_markup(charset):
+            charset = resolve_character_set("vestaboard_v1")
+        return _integer_authoring_profile(model, charset, config, _client_grid(plugin))
+    return _profile(model, _charset_of(client, model), config, _client_grid(plugin))
 
 
 def display_profile_for_board(board: Mapping[str, Any]) -> DisplayProfile | None:
@@ -339,7 +370,17 @@ def display_profile_for_board(board: Mapping[str, Any]) -> DisplayProfile | None
     way previews resolve it (:mod:`src.outputs.board_profile`); ``None`` when
     the board's device model is unknown (its output plugin is not installed).
     """
+    from .registry import FIRST_PARTY_OUTPUTS, output_registry, resolve_output_id
+
+    output_id = resolve_output_id(board)
+    definition = output_registry().get(output_id)
     model = board_device_model(board)
+    if not isinstance(model, Mapping) and output_id in FIRST_PARTY_OUTPUTS and definition is not None:
+        from src.fiestaui import builtin_device_models
+
+        from .board_profile import board_model_spec, board_profile
+
+        model = board_model_spec(board) or builtin_device_models().get(board_profile(board).device_model)
     if not isinstance(model, Mapping):
         return None
     config = board.get("output_config")
@@ -350,6 +391,12 @@ def display_profile_for_board(board: Mapping[str, Any]) -> DisplayProfile | None
         grid = (dims.rows, dims.cols)
     except ValueError:
         grid = _grid(board.get("grid_rows"), board.get("grid_cols"))
+    if definition is not None and getattr(definition.plugin_class, "markup_follows_charset", True) is False:
+        from src.devices import BoardInstance
+
+        glyph = BoardInstance.from_dict(dict(board)).effective_code62_glyph
+        charset = resolve_character_set("vestaboard_v2" if glyph == "heart" else "vestaboard_v1")
+        return _integer_authoring_profile(model, charset, config if isinstance(config, Mapping) else None, grid)
     return _profile(
         model,
         board_character_set(board),

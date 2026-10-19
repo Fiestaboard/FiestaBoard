@@ -50,27 +50,37 @@ export interface InlineBoardPreviewProps {
  */
 export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", className }: InlineBoardPreviewProps) {
   const t = useTranslations("aiChatPanel");
-  deviceType = snapshot.device_type ?? deviceType;
-  const panelGrid = deviceType === "panel"
-    ? (snapshot.grid_rows && snapshot.grid_cols ? { rows: snapshot.grid_rows, cols: snapshot.grid_cols } : grid ?? null)
-    : null;
+  const effectiveDeviceType = snapshot.device_type ?? deviceType;
+  const panelGrid =
+    effectiveDeviceType === "panel"
+      ? snapshot.grid_rows && snapshot.grid_cols
+        ? { rows: snapshot.grid_rows, cols: snapshot.grid_cols }
+        : (grid ?? null)
+      : null;
   // The board in context draws the preview when the page fits it (an LED
   // board as its LED matrix); a page of another size never borrows a model.
   const { currentBoard } = useCurrentBoard();
   const fitsCurrentBoard =
     !!currentBoard &&
     pagesCompatibleWithBoard(
-      { device_type: deviceType, grid_rows: panelGrid?.rows ?? null, grid_cols: panelGrid?.cols ?? null, notes_wide: snapshot.notes_wide, notes_tall: snapshot.notes_tall },
+      {
+        device_type: effectiveDeviceType,
+        grid_rows: panelGrid?.rows ?? null,
+        grid_cols: panelGrid?.cols ?? null,
+        notes_wide: snapshot.notes_wide,
+        notes_tall: snapshot.notes_tall,
+      },
       currentBoard,
     );
   const boardId = snapshot.board_id ?? (fitsCurrentBoard ? currentBoard?.id : undefined);
   const { data: settings } = useBoardSettings({ enabled: !!boardId });
-  const board = settings?.boards.find((candidate) => candidate.id === boardId) ?? (fitsCurrentBoard ? currentBoard : null);
+  const board =
+    settings?.boards.find((candidate) => candidate.id === boardId) ?? (fitsCurrentBoard ? currentBoard : null);
   const model = board ? resolveBoardModel(board) : null;
   const { data, isLoading, isError } = useQuery({
     queryKey: [
       "inline-preview-render",
-      deviceType,
+      effectiveDeviceType,
       panelGrid?.rows,
       panelGrid?.cols,
       snapshot.template,
@@ -82,7 +92,16 @@ export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", cl
       board,
     ],
     queryFn: () =>
-      api.renderTemplate(snapshot.template, snapshot.line_metadata, deviceType, snapshot.notes_wide, snapshot.notes_tall, panelGrid, boardId, snapshot.canvases),
+      api.renderTemplate(
+        snapshot.template,
+        snapshot.line_metadata,
+        effectiveDeviceType,
+        snapshot.notes_wide,
+        snapshot.notes_tall,
+        panelGrid,
+        boardId,
+        snapshot.canvases,
+      ),
     // Renders are deterministic for a given input — keep them
     // around so quickly switching tool-call cards is instant.
     staleTime: 5 * 60 * 1000,
@@ -109,14 +128,13 @@ export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", cl
       <DevicePreview
         model={model}
         ledLayout={board?.led_layout}
-        cells={isLoading ? undefined : data?.cells}
         layers={isLoading ? undefined : data?.layers}
         message={isLoading ? null : (data?.rendered ?? "")}
         size={size}
       >
         <ScaledBoardDisplay
           message={isLoading ? null : (data?.rendered ?? "")}
-          deviceType={deviceType}
+          deviceType={effectiveDeviceType}
           notesWide={snapshot.notes_wide}
           notesTall={snapshot.notes_tall}
           gridRows={panelGrid?.rows}

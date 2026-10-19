@@ -1450,7 +1450,8 @@ def _build_mcp_server() -> Any:
                       boards). Its character set decides extended markup
                       ({{red:HOT}}, icons) and tile widths; adds charset and
                       charset_issues (cells it draws differently). Geometry
-                      still comes from device_type and the size fields.
+                      follows this board (or the primary) when device_type
+                      is omitted; explicit geometry overrides it.
             canvases: Optional pixel canvases. Text under them is blanked (or
                       flows); for a pixel board_id adds layer_count, layers
                       ({x, y, width, height}) and canvas_issues.
@@ -1478,9 +1479,8 @@ def _build_mcp_server() -> Any:
         # render path (PageService._render_template) relies on — so
         # board-aware plugins see the true geometry. The pre-#1765 call
         # passed no board at all, and every plugin previewed board-blind.
-        # Unknown device types fall back to the default, matching
-        # render_lines' own never-crash fallback. A note_array is sized from
-        # notes_wide × notes_tall, exactly as a saved page's geometry is.
+        # A note_array is sized from notes_wide × notes_tall, exactly as a
+        # saved page's geometry is; unknown types are explicit tool errors.
         render_device_type, notes_wide, notes_tall, grid_rows, grid_cols, dims = _preview_geometry(
             check, device_type, notes_wide, notes_tall, grid_rows, grid_cols
         )
@@ -1491,7 +1491,12 @@ def _build_mcp_server() -> Any:
         from .templates.engine import extract_template_plugin_ids
 
         template_refs = extract_template_plugin_ids(template_lines)
-        canvas_refs = canvas_plugin_ids([Canvas.model_validate(c) for c in canvases or []])
+        from pydantic import ValidationError
+
+        try:
+            canvas_refs = canvas_plugin_ids([Canvas.model_validate(c) for c in canvases or []])
+        except ValidationError as exc:
+            raise ToolError(f"Invalid canvases: {exc}") from exc
         plugin_ids = None if template_refs is None or canvas_refs is None else template_refs | canvas_refs
         context = engine._build_context(
             BoardContext(render_device_type, rows=dims.rows, cols=dims.cols, display=check.display),
@@ -1545,6 +1550,7 @@ def _build_mcp_server() -> Any:
                       list in get_settings_summary()). Adds fits_board and
                       board_warnings to the response; rendering itself always
                       uses the page's own device geometry.
+            include_layer_pixels: Include each pixel layer's base64 RGBA data.
 
         Returns: {page_id, name, device_type, rendered, rows, line_metadata,
         and — when board_id is given — fits_board, board_warnings}.
@@ -1614,6 +1620,8 @@ def _build_mcp_server() -> Any:
                          'flagship' (22 cols), 'note' (15 cols), 'note_array'
                          (15·notes_wide cols), or 'panel' (grid_cols cols).
             notes_wide: For note_array — Notes across (1–8).
+            notes_tall: For note_array — Notes down (1–8).
+            grid_rows: For panel — rows; required for canvas bounds.
             grid_cols: For panel (required) — the panel's cols from list_panels().
             board_id: Optional board to validate for (from the boards list in
                       get_settings_summary()). When its character set is rich
@@ -1642,8 +1650,6 @@ def _build_mcp_server() -> Any:
         errors = get_template_engine().validate_template(text, cols=cols, **check.render_kw)
         found: list[dict[str, Any]] = [{"line": e.line, "column": e.column, "message": e.message} for e in errors]
         if canvases:
-            # Rows are known only for a fixed shape (a Note array's height
-            # and a panel's rows are not parameters here).
             found += _canvas_errors(canvases, dims.rows, cols)
         out: dict[str, Any] = {
             "valid": len(found) == 0,
@@ -2562,7 +2568,7 @@ def _build_mcp_server() -> Any:
 
     @_tool(read_only=True)
     def get_board_content(board_id: str | None = None) -> dict[str, Any]:
-        """What is currently ON a board — the last known flap content. Read-only.
+        """What is currently ON a board — cached characters, rich cells and pixel layers. Read-only.
 
         Served from FiestaBoard's own caches (background poll / last-sent
         content); never writes to the board and never triggers a live read.
@@ -2573,14 +2579,15 @@ def _build_mcp_server() -> Any:
         Args:
             board_id: Board to read on a multi-board install (from the boards
                       list in get_settings_summary()). Omitted = the primary
-                      board. Secondary boards are served from their runtime
-                      cache — board-state polling is primary-only.
+                      board. Each board is served from its existing runtime
+                      cache; this tool never performs a hardware read.
 
         Returns: {characters (2-D grid of flap codes or null), message
         (formatted string or null), rows, cols, source ('polled' = the
         background poll cache, 'last_sent' = what FiestaBoard last sent,
         'live' = a virtual board read from its own memory — never network
-        I/O — or null when nothing is known), board_id}.
+        I/O — or null when nothing is known), board_id, cells, pixel layer
+        metadata, polled_at and last_sent_at when content is available}.
         """
         # get_service is the DisplayService singleton accessor — the same
         # seam get_system_status uses; no REST handler is called.
@@ -3328,6 +3335,8 @@ def _build_mcp_server() -> Any:
         Useful for MCP-UI clients that want to fetch a board preview by
         page id without going through the page tools.
         """
+        from html import escape
+
         try:
             from .board_html_renderer import render_page_preview_html
             from .pages.service import get_page_service
@@ -3335,10 +3344,10 @@ def _build_mcp_server() -> Any:
             svc = get_page_service()
             page = svc.get_page(page_id)
             if page is None:
-                return f"<!DOCTYPE html><html><body><p>Page <code>{page_id}</code> not found.</p></body></html>"
-            return render_page_preview_html(page)
+                return f"<!DOCTYPE html><html><body><p>Page <code>{escape(page_id)}</code> not found.</p></body></html>"
+            return render_page_preview_html(page, display=_charset_check(None).display)
         except Exception as exc:
-            return f"<!DOCTYPE html><html><body><p>Error: {exc}</p></body></html>"
+            return f"<!DOCTYPE html><html><body><p>Error: {escape(str(exc))}</p></body></html>"
 
     @mcp.resource("fiestaboard://variables")
     def get_variables_resource() -> str:

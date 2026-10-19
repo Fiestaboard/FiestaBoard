@@ -1,6 +1,8 @@
+<!-- cspell:ignore readback untargeted charsets worktree -->
+
 # MCP display and canvas compatibility audit
 
-Audited revision: `f84b1d3d3`, October 18, 2026. The table records the original findings and source locations. Implementation is in progress on `fix/mcp-display-plugin-compatibility`, based on `next` at `643fa8b2c`. Candidate fixes and executable regressions are present; integrated verification is pending. Findings 12, 20, 22 and 23 already have upstream changes on this newer base and retain regression coverage here.
+Audited revision: `f84b1d3d3`, October 18, 2026. The table records the original findings and source locations. The implementation is in [PR #2315](https://github.com/Fiestaboard/FiestaBoard/pull/2315), targeting `next`. Every finding has a correction and executable regression coverage; findings 12, 20, 22 and 23 use fixes already present in the newer base. Current integrated verification results are recorded in the PR.
 
 The reported 12×29 detection error is reproducible. The MCP tool reaches a legacy route that always selects the Vestaboard output action, even for a valid FiestaPanel. That action rejects a layout which the panel itself supports. Separately, the information external clients receive does not reliably identify pixel capabilities or teach canvas authoring. Fixing detection alone will not fix the art workflow.
 
@@ -104,4 +106,8 @@ docker run --rm --network none --entrypoint sh \
 
 Working from `/tmp` matters for this linked worktree: its `.git` points to a host-only path. Running Git-backed fixture tests with `/app` as the working directory caused three `git ls-remote` failures; all three passed when the container used `/tmp`. Those were test-environment failures and are not findings above.
 
-This is substantial coverage of the changed MCP/display workflow, not a claim that every possible defect is found. External-client model behavior, frontend end-to-end flows, and physical-device timing still require validation during fixes. The stored regression cases make the confirmed failures repeatable without those dependencies.
+The implementation also closes defects found during independent review: the published HTML resource now uses the primary display profile; custom character fallback reaches integer-only writers; throttled final rich writes retain earlier sequence traffic; and built-in discovery shares its effective profile with previews, AI and drivers. HTML error responses escape page identifiers and exception text. Conformance exercises every declared model, including nondefault models with broken rich or transition writers.
+
+Discovery includes package and output API versions, a stable declaration fingerprint, full model and character documents, masked settings and actions, configured geometry and explicit observation availability. Five generic MCP tools expose this information and the existing output lifecycle: `list_display_outputs`, `get_display_info`, `create_display`, `configure_display` and `run_display_action`. Reads do not open a hardware connection. A FiestaPanel's LED appearance remains distinct from actual pixel authoring support: its current integer writer does not receive arbitrary canvas pixels.
+
+Verification includes real-storage and HTTP MCP tools, exact response contracts, complete backend and frontend suites, and mutation checks proving new regressions detect the corrected behavior. The original audit evidence above remains historical. The PR records current test results and any environmental limitations. No real display or running installation was modified; physical-device timing and external model choices remain outside automated coverage.

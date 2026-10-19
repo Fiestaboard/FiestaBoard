@@ -400,18 +400,15 @@ def _load_source(source: FirstPartySource) -> FirstPartyOutput:
     return FirstPartyOutput(plugin_class, manifest, source)
 
 
-def _board_grid(board: dict) -> tuple[int, int] | None:
-    rows, cols = board.get("grid_rows"), board.get("grid_cols")
-    if isinstance(rows, int) and isinstance(cols, int) and rows > 0 and cols > 0:
-        return rows, cols
-    return None
-
-
 def _builder(loaded: FirstPartyOutput) -> Callable[[dict], OutputDriver | None]:
     plugin_class, output_manifest = loaded.plugin_class, loaded.manifest.output
 
     def build(board: dict) -> OutputDriver | None:
-        from .board_profile import board_character_set
+        from src.devices import dimensions_of
+        from src.fiestaui import builtin_device_models
+
+        from .board_profile import board_character_set, board_model_spec, board_profile
+        from .display_profile import display_profile_for_board
         from .http import OutputHttp
         from .plugin_driver import OutputPluginDriver
 
@@ -423,10 +420,19 @@ def _builder(loaded: FirstPartyOutput) -> Callable[[dict], OutputDriver | None]:
             # Core's choice, not the plugin's: the requests these outputs always made.
             instance._http = OutputHttp.for_first_party()
             instance.bind_manifest(output_manifest)
-            # Only an output whose markup follows its set needs the set resolved
-            # (a FiestaPanel's would read the panel store for its render style).
-            character_set = board_character_set(board) if plugin_class.markup_follows_charset else None
-            instance.bind_board(character_set=character_set, geometry=_board_grid(board))
+            # Explicit shape overrides from config_from_board (a Note probed
+            # inside an array action) describe the instance being constructed.
+            profile_board = {**board, **config, "output": loaded.source.output_id, "output_config": config}
+            profile = display_profile_for_board(profile_board)
+            model = board_model_spec(profile_board) or builtin_device_models().get(
+                board_profile(profile_board).device_model
+            )
+            authoring_charset = profile.character_set if profile is not None else board_character_set(profile_board)
+            dims = dimensions_of(profile_board)
+            instance.bind_board(device_model=model, character_set=authoring_charset, geometry=(dims.rows, dims.cols))
+            # Integer-only outputs retain their existing delivery contract,
+            # while the bound authoring profile describes that same contract.
+            character_set = authoring_charset if plugin_class.markup_follows_charset else None
             instance.open()
             return OutputPluginDriver(instance, character_set=character_set, first_party=True)
         except BaseException:
@@ -498,6 +504,8 @@ def _definition(loaded: FirstPartyOutput) -> OutputDefinition:
         settings_schema=output_manifest.settings_schema,
         offered_device_models=_LEGACY_OFFERED_MODELS.get(output_id, output_manifest.device_model_ids),
         plugin_class=loaded.plugin_class,
+        version=manifest.version,
+        output_api=output_manifest.output_api,
     )
 
 

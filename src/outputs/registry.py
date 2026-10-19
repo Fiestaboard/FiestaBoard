@@ -154,6 +154,9 @@ class OutputDefinition:
     #: ``output_config`` hooks; :mod:`src.outputs.config_hooks`). None only
     #: for a test's stand-in entry.
     plugin_class: Any = None
+    #: Installed package and API versions, captured without constructing it.
+    version: str | None = None
+    output_api: int | None = None
 
 
 class OutputRegistry:

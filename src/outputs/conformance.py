@@ -60,10 +60,10 @@ A factory that replaces the plugin's own request seam with
 - ``floor`` — ``min_interval_ms`` is a non-negative integer; the plugin does
   not throttle itself (core does) nor talk to the device outside a write;
   with a floor, core keeps a second frame inside it off the device;
-- ``device_traffic`` — writes, sequences and connection checks talk to the
+- ``device_traffic`` — for every declared model, writes, sequences and connection checks talk to the
   device only through ``self.http`` (the host fence, timeouts, cancel): no
   socket of their own, and no request that bypassed the helper;
-- ``write_result`` — every write answers a well-formed ``WriteResult``; a
+- ``write_result`` — every declared model's delivery paths answer a well-formed ``WriteResult``; a
   device failure is reported, not raised; a write that landed on part of the
   board is ``partial`` with in-bounds ``failed_regions``. Requests marked
   ``setup=True`` (a reset, a brightness command) are not part of the board
@@ -71,9 +71,9 @@ A factory that replaces the plugin's own request seam with
   request the plugin tolerates does not make a landed write partial — nor
   does a failed request the plugin retried until the same payload landed. A
   pull output (``delivery: pull``) writes no device, so it has none to fail;
-- ``cancel`` — once the run's cancel token fires, ``write`` (and
+- ``cancel`` — for every declared model, once the run's cancel token fires, ``write`` (and
   ``write_sequence``) start no further device request and return promptly;
-- ``sequence`` — for ``animation: sequence`` outputs, ``write_sequence``
+- ``sequence`` — for every declared model on ``animation: sequence`` outputs, ``write_sequence``
   uploads at most ``maxFrames`` frames and always ends on the target frame;
 - ``check_connection`` — returns a ``ConnectionCheck`` and never raises,
   reporting a failure when the device fails.
@@ -350,6 +350,7 @@ class OutputConformanceSuite:
         self._manifest: Any = None
         self._manifest_errors: list[str] | None = None
         self._skipped: list[str] = []
+        self._model_index = 0
 
     # --- plumbing ----------------------------------------------------------------------------
 
@@ -374,21 +375,30 @@ class OutputConformanceSuite:
         plugin = self.factory(board_id, dict(self.config), self.transport)
         if self.manifest is not None and self.manifest.output is not None:
             plugin.bind_manifest(self.manifest.output)
+            model, charset, geometry = self._model_context()
+            plugin.bind_board(device_model=model, character_set=charset, geometry=geometry)
         plugin.http.use_transport(self.transport.http_send)
         plugin.open()
         return plugin
 
-    def _shape(self) -> tuple[int, int]:
-        """The board shape writes use: the first declared model's cell grid."""
+    def _model_context(self) -> tuple[Mapping | None, Mapping | None, tuple[int, int]]:
+        """Resolve the same selected model, alphabet and grid for opening and writes."""
+        from .board_profile import model_character_set
+
         output = self.manifest.output if self.manifest is not None else None
         if output is not None:
+            model = output.model(self._model_index)
+            charset = output.character_set or model_character_set(model)
             try:
-                grid = model_cell_grid(output.model(0), output.character_set)
+                grid = model_cell_grid(model, charset)
             except (ValueError, KeyError):
                 grid = None
-            if grid is not None:
-                return grid
-        return 6, 22
+            return model, charset, grid or (6, 22)
+        return None, None, (6, 22)
+
+    def _shape(self) -> tuple[int, int]:
+        """The selected declared model's character grid."""
+        return self._model_context()[2]
 
     def _frame(self, code: int) -> CellFrame:
         return _grid(*self._shape(), code)
@@ -887,6 +897,32 @@ class OutputConformanceSuite:
         "check_connection",
     )
 
+    MODEL_RULES = frozenset({"device_traffic", "write_result", "cancel", "sequence"})
+
+    def _run_rule(self, rule: str) -> list[Violation]:
+        """Exercise delivery rules on every advertised model, qualifying results."""
+        output = self.manifest.output if self.manifest is not None and rule in self.MODEL_RULES else None
+        indices = range(len(output.device_models)) if output is not None else (0,)
+        violations: list[Violation] = []
+        try:
+            for index in indices:
+                self._model_index = index
+                model_id = output.device_model_ids[index] if output is not None else None
+                skipped_before = len(self._skipped)
+                try:
+                    found = getattr(self, f"check_{rule}")()
+                except Exception as exc:
+                    found = [Violation(rule, f"the check crashed: {exc!r}")]
+                if model_id is not None:
+                    found = [Violation(item.rule, f"[{model_id}] {item.message}") for item in found]
+                    for skipped_index in range(skipped_before, len(self._skipped)):
+                        reason = self._skipped[skipped_index].partition(": ")[2]
+                        self._skipped[skipped_index] = f"{rule}: [{model_id}] {reason}"
+                violations.extend(found)
+        finally:
+            self._model_index = 0
+        return violations
+
     def run(self, rules: tuple[str, ...] | None = None) -> ConformanceReport:
         """Run *rules* (default: all) and report. A rule that crashes is a
         violation of that rule, never an aborted run."""
@@ -900,10 +936,7 @@ class OutputConformanceSuite:
             if manifest_violations and rule != "import_network":
                 self._skipped.append(f"{rule}: the manifest does not load")
                 continue
-            try:
-                violations += getattr(self, f"check_{rule}")()
-            except Exception as exc:
-                violations.append(Violation(rule, f"the check crashed: {exc!r}"))
+            violations += self._run_rule(rule)
         return ConformanceReport(self.plugin_id, violations, list(self._skipped))
 
     def assert_conformant(self, rules: tuple[str, ...] | None = None) -> ConformanceReport:

@@ -83,6 +83,22 @@ def test_html_preview_does_not_draw_extended_markup_as_literal_characters(mcp, p
     assert ">}</span>" not in preview
 
 
+@pytest.mark.asyncio
+async def test_mcp_html_resource_draws_the_primary_pixel_displays_canvas(mcp, boards, pages):
+    from src.settings.service import get_settings_service
+    from tests.canvas.test_canvas_mcp import PIXOO
+
+    get_settings_service().set_boards([PIXOO])
+    canvas = {**CANVAS, "area": {"row": 1, "col": 1, "rows": 10, "cols": 16}, "bleed": ["all"]}
+    page_id = _call(mcp, "create_page", name="Red", template_lines=[""], canvases=[canvas], **PANEL)["page_id"]
+
+    resources = list(await mcp.read_resource(f"fiestaboard://page/{page_id}/preview.html"))
+    preview = resources[0].content
+    assert 'class="pixels"' in preview
+    assert 'viewBox="0 0 64 64"' in preview
+    assert '<rect x="0" y="0" width="64" height="1" fill="#ff0000"/>' in preview
+
+
 def test_current_display_returns_canvases_needed_to_start_a_new_page(mcp, boards, pages):
     from src.settings.service import get_settings_service
 
@@ -123,10 +139,10 @@ async def test_selecting_canvas_page_delivers_art_on_the_first_write(mcp, boards
     assert response["sent_to_board"] is True
     assert len(delivered) == 1
     first = delivered[0]
+    expected = bytes([255, 0, 0]) * (profile.width * profile.height)
+    assert first == expected
     assert service.take_wake() is True
     # Drive precisely the pass wake() requests, without starting a background loop.
-    service.check_and_send_active_page()
-    assert len(delivered) == 2
-    expected = bytes([255, 0, 0]) * (profile.width * profile.height)
-    assert delivered[1] == expected
-    assert first == expected
+    assert service.check_and_send_active_page() is False
+    # The immediate rich send already showed this page; the engine dedupes it.
+    assert len(delivered) == 1

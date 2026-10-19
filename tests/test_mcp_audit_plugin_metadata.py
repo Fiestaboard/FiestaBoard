@@ -1,16 +1,9 @@
-"""Offline audit of accepted third-party display declarations.
-
-Strict xfails capture defects without changing production. ``--runxfail``
-exposes the intended assertion failures; controls prove custom declarations
-already work in the underlying charset and profile resolvers.
-"""
+"""Offline regression contracts for the MCP display and plugin audit."""
 
 from __future__ import annotations
 
 import json
 from types import SimpleNamespace
-
-import pytest
 
 from src.ai.prompt_builder import build_prompt
 from src.devices import BoardContext
@@ -233,5 +226,8 @@ def test_ai_brief_block_span_order_agrees_with_the_actual_markup_parser():
 def test_profile_check_does_not_silently_approve_an_unknown_charset():
     from src.outputs.display_profile import DisplayProfile
 
-    with pytest.raises(ValueError):
-        DisplayProfile(charset="unavailable_custom_charset").check("A")
+    issues = DisplayProfile(charset="unavailable_custom_charset").check("A")
+    assert len(issues) == 1
+    assert issues[0]["reason"] == "unknown_charset"
+    assert "unavailable_custom_charset" in issues[0]["message"]
+    assert issues[0]["fallback"] is None

@@ -282,7 +282,11 @@ def test_addendum_in_ask_mode_still_marks_the_system_tier_as_gated():
 #: paragraph, which is the only part of a docstring the chat surface renders.
 #: Bytes are a tokenizer-free proxy for the real cost: measured just before
 #: this change, 38,137 B of addendum was ~9,032 cl100k tokens.
-ADDENDUM_BYTE_BUDGET = 41_000
+# The five generic display tools and their parameter guidance produce a
+# measured global/ask addendum of 40,958 bytes (40,799 in auto mode).
+# Retain that complete surface and leave more than the 1,000-byte margin;
+# using the historical ratio above, this is approximately 9,700 tokens.
+ADDENDUM_BYTE_BUDGET = 43_000
 
 #: How close to the budget a surface may get before this test fails (#2036).
 #: The budget was found one sentence at a time twice (125 B of headroom before
@@ -665,3 +669,20 @@ def test_real_canvas_tools_publish_a_named_canvas_argument():
     for name in ("create_page", "update_page", "render_page_preview", "validate_template"):
         section = text.split(f"### {name}\n", 1)[1].split("### ", 1)[0]
         assert "canvases?: array of Canvas" in section
+
+
+@pytest.mark.parametrize("inline", [False, True])
+def test_named_structured_arguments_stay_named_when_schema_is_inlined(inline):
+    canvas = {
+        "type": "object",
+        "title": "Canvas",
+        "properties": {"area": {"type": "object"}, "content": {"type": "object"}},
+    }
+    item = canvas if inline else {"$ref": "#/$defs/Canvas"}
+    schema = {
+        "type": "object",
+        "properties": {"canvases": {"type": "array", "items": item}},
+        "$defs": {"Canvas": canvas},
+    }
+    text = ToolCatalog([_d("create_page", schema=schema)]).render_addendum("editor")
+    assert "canvases?: array of Canvas" in text

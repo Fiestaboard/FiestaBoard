@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -46,6 +47,27 @@ def test_normal_output_masking_honors_custom_secret_names(output):
     config = {"host": "192.0.2.50", "pairing_phrase": "test_custom_secret"}
     assert mask_config(PLUGIN_ID, config) == {"host": "192.0.2.50", "pairing_phrase": "***"}
     assert mask_config("uninstalled_output", config) == "***"
+
+
+def test_installing_an_output_skips_data_plugin_enable_and_config(mcp, services, output, monkeypatch):
+    from src.plugins.service import PluginService
+
+    install = AsyncMock(return_value=None)
+    monkeypatch.setattr(PluginService, "install_from_registry", install)
+    # The real enable/configure paths reject output plugins. Successful
+    # installation must leave connection settings to an actual board.
+    result = call(
+        mcp,
+        "install_plugin",
+        plugin_id=PLUGIN_ID,
+        initial_config={"pairing_phrase": "test_secret_not_for_registry"},
+    )
+    install.assert_awaited_once_with(PLUGIN_ID)
+    assert result["status"] == "success"
+    assert result["plugin_type"] == "output"
+    assert "create_display" in result["message"]
+    assert "initial_config was not applied" in result["warnings"][0]
+    assert "test_secret_not_for_registry" not in json.dumps(result)
 
 
 @pytest.mark.parametrize("output_id", [PLUGIN_ID, "uninstalled_output"])

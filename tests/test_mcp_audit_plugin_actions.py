@@ -1,8 +1,4 @@
-"""Third-party output settings/action contracts; no device or network required.
-
-Strict xfails record unfixed behavior. Run with --runxfail to reproduce the
-assertions; each plugin is a valid, dynamically installed recording output.
-"""
+"""Offline regression contracts for the MCP display and plugin audit."""
 
 from __future__ import annotations
 

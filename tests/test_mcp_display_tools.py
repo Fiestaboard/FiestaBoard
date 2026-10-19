@@ -125,6 +125,8 @@ def test_list_display_outputs_exposes_complete_real_plugin_declarations(mcp, out
     assert listing["total"] == 1
     declaration = listing["outputs"][0]
     assert declaration["id"] == PLUGIN_ID
+    assert declaration["version"] == "0.1.0"
+    assert len(declaration["declaration_revision"]) == 64
     assert declaration["device_models"][0]["geometry"] == {"kind": "cells", "rows": 6, "cols": 22}
     assert declaration["device_models"][1]["geometry"]["kind"] == "pixels"
     assert declaration["device_models"][0]["animation"]["delivery"] == "stream"
@@ -141,6 +143,41 @@ def test_list_display_outputs_exposes_complete_real_plugin_declarations(mcp, out
     assert {action["id"] for action in declaration["actions"]} == {"identify", "inspect_context", "refuse"}
     assert _persisted_files(tmp_path) == before
     assert output.module.INSTANCES == [], "Discovery must not construct a device instance"
+
+
+@pytest.mark.parametrize("changed", ["model", "charset", "capabilities", "settings", "action"])
+def test_declaration_revision_is_stable_and_covers_effective_documents(output, changed):
+    from copy import deepcopy
+    from dataclasses import replace
+
+    from src.outputs.actions import describe_output
+    from src.outputs.models import OutputSummary
+    from src.outputs.registry import output_registry
+
+    definition = output_registry().get(PLUGIN_ID)
+    initial = describe_output(definition)
+    assert initial["declaration_revision"] == describe_output(definition)["declaration_revision"]
+    assert OutputSummary(**initial).model_dump()["declaration_revision"] == initial["declaration_revision"]
+    manifest = definition.output_manifest
+    if changed == "model":
+        models = deepcopy(manifest.device_models)
+        models[0]["geometry"]["rows"] += 1
+        altered = replace(definition, output_manifest=replace(manifest, device_models=models))
+    elif changed == "charset":
+        charset = deepcopy(manifest.character_set)
+        charset["chars"].append("2")
+        altered = replace(definition, output_manifest=replace(manifest, character_set=charset))
+    elif changed == "capabilities":
+        altered = replace(definition, capabilities=replace(definition.capabilities, min_interval_ms=999))
+    elif changed == "settings":
+        schema = deepcopy(definition.settings_schema)
+        schema["properties"]["host"]["description"] = "A changed declaration"
+        altered = replace(definition, settings_schema=schema)
+    else:
+        action, *others = definition.actions
+        altered = replace(definition, actions=(replace(action, label="Changed action"), *others))
+    assert describe_output(altered)["declaration_revision"] != initial["declaration_revision"]
+    assert describe_output(definition)["declaration_revision"] == initial["declaration_revision"]
 
 
 def test_create_display_persists_and_masks_all_declared_secrets(mcp, output):
@@ -171,7 +208,10 @@ def test_get_display_info_uses_selected_model_and_masks_connection_without_openi
     assert info["output_config"]["token"] == "***"
     assert info["has_host"] is True
     assert info["has_credentials"] is True
-    assert info["capability_source"] == "declared"
+    assert info["capability_source"] == "output_declaration"
+    assert info["output_version"] == "0.1.0"
+    assert info["declaration_revision"] == info["output_description"]["declaration_revision"]
+    assert info["observation"] == {"availability": "not_probed", "source": None, "observed_at": None}
     assert STORED_TOKEN not in json.dumps(info)
     assert _persisted_files(tmp_path) == before
     assert output.module.INSTANCES == [], "Description must not open a device"
@@ -185,7 +225,7 @@ def test_get_display_info_defaults_to_primary_and_withholds_uninstalled_config(m
                 "name": "Uninstalled",
                 "output": "uninstalled_output",
                 "device_type": "panel",
-                "device_model": "stored_model",
+                "device_model": "vestaboard_flagship",
                 "grid_rows": 6,
                 "grid_cols": 22,
                 "output_config": {"unrecognized_credential": STORED_TOKEN},
@@ -199,11 +239,104 @@ def test_get_display_info_defaults_to_primary_and_withholds_uninstalled_config(m
     assert info["output_description"] is None
     assert info["capabilities"] is None
     assert info["capability_source"] == "unavailable"
+    assert info["device_model_document"] is None
+    assert info["display"] is None
+    assert info["charset"] is None
+    assert info["output_version"] is None
+    assert info["declaration_revision"] is None
+    assert info["observation"] == {"availability": "unavailable", "source": None, "observed_at": None}
     assert STORED_TOKEN not in json.dumps(info)
+
+
+@pytest.mark.parametrize(
+    ("device_type", "glyph", "model", "charset", "rows", "cols"),
+    [
+        ("flagship", "degree", "vestaboard_flagship", "vestaboard_v1", 6, 22),
+        ("flagship", "heart", "vestaboard_flagship", "vestaboard_v2", 6, 22),
+        ("note", "degree", "vestaboard_note", "vestaboard_v2", 3, 15),
+        ("note_array", "degree", "vestaboard_note_array", "vestaboard_v2", 9, 30),
+    ],
+)
+def test_builtin_vestaboard_info_resolves_model_charset_and_profile(
+    mcp, output, device_type, glyph, model, charset, rows, cols
+):
+    output.settings.set_boards(
+        [
+            {
+                "id": "builtin",
+                "name": "Builtin",
+                "output": "vestaboard",
+                "device_type": device_type,
+                "code62_glyph": glyph,
+                "notes_wide": 2,
+                "notes_tall": 3,
+                "output_config": {"api_mode": "local", "host": "192.0.2.60", "local_api_key": STORED_TOKEN},
+            }
+        ]
+    )
+    info = call(mcp, "get_display_info", board_id="builtin")
+    from src.outputs.first_party import load_first_party
+
+    assert info["output_version"] == load_first_party("vestaboard").manifest.version
+    assert info["output_api"] == 1
+    assert len(info["declaration_revision"]) == 64
+    assert info["device_model"] == model
+    assert info["device_model_document"]["id"] == model
+    assert info["charset"] == charset
+    assert info["display"]["charset"] == charset
+    assert info["display"]["technology"] == "split_flap"
+    assert (info["display"]["rows"], info["display"]["cols"]) == (rows, cols)
+    assert info["output_config"]["local_api_key"] == "***"
+    assert STORED_TOKEN not in json.dumps(info)
+    assert output.module.INSTANCES == []
+
+
+@pytest.mark.parametrize("render_style", ["split_flap", "led_matrix"])
+def test_builtin_fiestapanel_info_resolves_saved_style_and_grid(mcp, output, tmp_path, monkeypatch, render_style):
+    from src.panels.models import PanelCreate, PanelUpdate
+    from src.panels.service import PanelService
+    from src.panels.storage import PanelStorage
+
+    panels = PanelService(PanelStorage(str(tmp_path / "panels.json")))
+    panel = panels.create_panel(PanelCreate(name="Actual panel"), board_id="builtin-panel")
+    panels.update_panel(panel.id, PanelUpdate(render_style=render_style))
+    monkeypatch.setattr("src.panels.service._panel_service", panels)
+    output.settings.set_boards(
+        [
+            {
+                "id": "builtin-panel",
+                "name": "TV",
+                "output": "fiestapanel",
+                "api_mode": "virtual",
+                "device_type": "panel",
+                "grid_rows": 14,
+                "grid_cols": 40,
+                "code62_glyph": "heart",
+                "output_config": {},
+            }
+        ]
+    )
+    info = call(mcp, "get_display_info", board_id="builtin-panel")
+    assert info["device_model"] == f"fiestapanel_{render_style}"
+    assert info["device_model_document"]["id"] == f"fiestapanel_{render_style}"
+    assert (info["rows"], info["cols"]) == (14, 40)
+    assert (info["display"]["rows"], info["display"]["cols"]) == (14, 40)
+    assert info["display"]["technology"] == render_style
+    if render_style == "led_matrix":
+        assert info["device_model_document"]["geometry"] == {"kind": "pixels", "width": 240, "height": 112}
+        # The viewer has an LED appearance, while this installed output's
+        # writer accepts only the integer grid and its split-flap alphabet.
+        assert info["charset"] == "vestaboard_v2"
+        assert info["display"]["width"] is info["display"]["height"] is None
+        assert info["display"]["color_spans"] is False
+    else:
+        assert info["charset"] == "vestaboard_v2"
+    assert output.module.INSTANCES == []
 
 
 def test_configure_display_persists_partial_merge_explicit_false_and_masked_secret(mcp, output):
     created = create(mcp)
+    revision = call(mcp, "get_display_info", board_id=created["id"])["declaration_revision"]
     result = call(
         mcp,
         "configure_display",
@@ -217,11 +350,13 @@ def test_configure_display_persists_partial_merge_explicit_false_and_masked_secr
     assert saved["output_config"]["token"] == STORED_TOKEN
     assert saved["output_config"]["wait_for_cancel"] is False
     assert saved["device_model"] == "recording_sign"
+    assert result["board"]["declaration_revision"] == revision
     assert STORED_TOKEN not in json.dumps(result)
     assert {board["id"] for board in output.settings.get_board_settings().boards} == {"existing-board", created["id"]}
     call(mcp, "configure_display", board_id=created["id"], output_config={"token": UPDATED_TOKEN})
     assert stored_board(output, created["id"])["output_config"]["token"] == UPDATED_TOKEN
     assert call(mcp, "get_display_info", board_id=created["id"])["output_config"]["token"] == "***"
+    assert call(mcp, "get_display_info", board_id=created["id"])["declaration_revision"] == revision
 
 
 @pytest.mark.parametrize("operation", ["create_display", "configure_display"])
@@ -351,7 +486,7 @@ def test_generic_display_tools_work_through_published_mcp_protocol(output):
             assert "error" not in result, result
             return result["result"]
 
-        def invoke(name, **arguments):
+        def invoke(name, /, **arguments):
             result = rpc("tools/call", {"name": name, "arguments": arguments})
             assert result.get("isError") is not True, result
             return result["structuredContent"]

@@ -955,7 +955,9 @@ export function computeAppliedSnapshot(
       transition_strategy: a.transition_strategy === undefined ? target?.transition_strategy : a.transition_strategy,
       canvases: a.canvases === undefined ? target?.canvases : (a.canvases ?? []),
       template,
-      line_metadata: template.map((_, i) => a.line_metadata?.[i] ?? target?.line_metadata?.[i] ?? { alignment: "left", wrap: false }),
+      line_metadata: template.map(
+        (_, i) => a.line_metadata?.[i] ?? target?.line_metadata?.[i] ?? { alignment: "left", wrap: false },
+      ),
     };
   }
   return undefined;

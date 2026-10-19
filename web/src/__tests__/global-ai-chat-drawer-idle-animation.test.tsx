@@ -12,7 +12,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { createElement } from "react";
-import type { ChatTurnContext } from "@/lib/ai-chat-types";
 import { describe, expect, it, vi } from "vitest";
 
 import { SpotlightProvider } from "@/components/ai-spotlight/spotlight-provider";
@@ -21,6 +20,7 @@ import { GlobalAiPanelProvider, useGlobalAiPanel } from "@/components/global-ai-
 import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
 import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridge-context";
 import { SidebarProvider } from "@/components/sidebar-context";
+import type { ChatTurnContext } from "@/lib/ai-chat-types";
 
 import { server } from "./mocks/server";
 
@@ -29,14 +29,16 @@ vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
 }));
 
-
 const chatContext = vi.hoisted(() => ({ get: null as null | (() => ChatTurnContext) }));
 vi.mock("@/components/ai-chat-panel", async () => {
   const actual = await vi.importActual<typeof import("@/components/ai-chat-panel")>("@/components/ai-chat-panel");
-  return { ...actual, AiChatPanel: (props: React.ComponentProps<typeof actual.AiChatPanel>) => {
-    chatContext.get = props.getTurnContext;
-    return createElement(actual.AiChatPanel, props);
-  } };
+  return {
+    ...actual,
+    AiChatPanel: (props: React.ComponentProps<typeof actual.AiChatPanel>) => {
+      chatContext.get = props.getTurnContext;
+      return createElement(actual.AiChatPanel, props);
+    },
+  };
 });
 
 // Must import after mocking.
@@ -52,6 +54,8 @@ function CaptureOpen() {
 
 function renderDrawer() {
   server.use(
+    http.get("/api/plugins", () => HttpResponse.json({ plugins: [] })),
+    http.get("/api/plugins/registry", () => HttpResponse.json({ entries: [] })),
     http.get("/api/settings/ai", () =>
       HttpResponse.json({
         enabled: true,
@@ -100,11 +104,26 @@ describe("AI drawer sparkle while closed", () => {
   });
 });
 
-
 it("uses the selected panel type in the next chat turn", async () => {
-  server.use(http.get("/api/settings/board", () => HttpResponse.json({
-    board_type: "black", devices: ["panel"], boards: [{ id: "pixels", name: "Pixels", device_type: "panel", board_color: "black", enabled: true, grid_rows: 10, grid_cols: 16 }],
-  })));
+  server.use(
+    http.get("/api/settings/board", () =>
+      HttpResponse.json({
+        board_type: "black",
+        devices: ["panel"],
+        boards: [
+          {
+            id: "pixels",
+            name: "Pixels",
+            device_type: "panel",
+            board_color: "black",
+            enabled: true,
+            grid_rows: 10,
+            grid_cols: 16,
+          },
+        ],
+      }),
+    ),
+  );
   renderDrawer();
   await waitFor(() => expect(chatContext.get?.()).toMatchObject({ deviceType: "panel", boardId: "pixels" }));
 });

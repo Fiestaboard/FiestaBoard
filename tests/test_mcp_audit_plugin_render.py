@@ -1,4 +1,4 @@
-"""Offline third-party output contracts; strict xfails are verified defects."""
+"""Offline regression contracts for the MCP display and plugin audit."""
 
 import json
 import shutil
@@ -122,6 +122,48 @@ def test_a_complete_custom_alphabet_reusing_a_builtin_id_still_projects():
     assert [cell.value for cell in frame.cells[0]] == ["a", " ", " "]
 
 
+def test_write_only_output_receives_the_custom_alphabet_integer_fallback():
+    class WriteOnlyProbe(CellProbe):
+        write_cells = OutputPluginBase.write_cells
+
+    manifest = output_manifest(["vestaboard_flagship"], custom_charset(chars=["1", "2"]))
+    plugin = WriteOnlyProbe()
+    plugin.bind_manifest(manifest)
+    driver = OutputPluginDriver(plugin, character_set=plugin.character_set)
+    assert not driver.takes_cells
+    grid, kwargs = project_for_output(driver, "A1{red}", 6, 22)
+    assert driver.render(grid, **kwargs) == (True, True)
+    assert plugin.plain[0][0][:3] == [0, 27, 0]
+    assert driver._frames.characters[0][:3] == [0, 27, 0]
+
+
+def test_sequence_throttled_rich_landing_reports_incomplete_target_and_preserves_floor(monkeypatch):
+    model = builtin_device_models()["divoom_pixoo64"]
+    model = {**model, "animation": {"delivery": "sequence", "maxFps": 10, "maxFrames": 5}}
+    driver = probe_driver(output_manifest([model]))
+    capabilities = driver.capabilities
+    driver.plugin.capabilities = lambda: replace(capabilities, min_interval_ms=60_000)
+    frame = project_message("{red:a}", *driver.plugin.board_geometry, driver.character_set)
+    driver.plugin.write_cells = lambda cells, *, native, cancel: WriteResult(
+        True, False, throttled=True, retry_after_seconds=120
+    )
+    driver.set_transition_runner(SimpleNamespace(collect_frames=lambda **kwargs: [(kwargs["to_grid"], 100)]))
+    monkeypatch.setattr("src.outputs.plugin_driver.transition_plugins_enabled", lambda: True)
+
+    result = driver.render(frame.characters, cells=frame.cells, strategy="plugin:audit", with_outcome=True)
+    assert result.success is False
+    assert result.was_sent is True
+    assert result.throttled is True
+    assert result.retry_after_seconds == 120
+    assert "rich target" in driver.last_write_error
+    assert driver._frames.characters == frame.characters
+    assert driver._frames.cells is None
+    retry = driver.render(frame.characters, cells=frame.cells, strategy="plugin:audit", with_outcome=True)
+    assert retry.throttled
+    assert retry.retry_after_seconds >= 119
+    assert len(driver.plugin.sequences) == 1
+
+
 def test_documented_default_capabilities_require_a_multi_model_plugin_override():
     """Characterize an API limitation; the base class documents this default."""
     model = builtin_device_models()["vestaboard_flagship"]
@@ -217,6 +259,42 @@ class HealthyRichWriter(RecordingOutput):
 class BrokenTransitionWriter(HealthyRichWriter):
     def write_transition(self, before, after, transition, *, cancel):
         raise RuntimeError("audit transition writer fails")
+
+
+class BrokenNonDefaultRichWriter(HealthyRichWriter):
+    def write_cells(self, cells, *, native, cancel):
+        if self.device_model["id"] == "divoom_pixoo64":
+            raise RuntimeError("audit nondefault rich writer fails")
+        return super().write_cells(cells, native=native, cancel=cancel)
+
+
+@pytest.mark.parametrize("writer", [BrokenTransitionWriter, BrokenNonDefaultRichWriter])
+def test_conformance_rejects_broken_paths_on_nondefault_models(tmp_path, writer):
+    report = rich_suite(tmp_path, writer).run(("write_result", "device_traffic"))
+    assert not report.ok, report.summary()
+    assert "divoom_pixoo64" in report.summary()
+
+
+def test_conformance_binds_each_models_charset_and_geometry_before_open(tmp_path):
+    opened = []
+
+    class ModelProbe(HealthyRichWriter):
+        def open(self):
+            assert self.character_set["id"] == "recording_sign_v1"
+            assert self.board_geometry == model_cell_grid(self.device_model, self.character_set)
+            opened.append(self.device_model["id"])
+            super().open()
+
+        def write_cells(self, cells, *, native, cancel):
+            rows, cols = self.board_geometry
+            assert len(cells) == rows
+            assert all(len(row) == cols for row in cells)
+            assert bool(getattr(cells, "layers", ())) == (self.device_model["geometry"]["kind"] == "pixels")
+            return super().write_cells(cells, native=native, cancel=cancel)
+
+    report = rich_suite(tmp_path, ModelProbe).run(("write_result",))
+    assert report.ok, report.summary()
+    assert opened == ["recording_sign", "divoom_pixoo64"]
 
 
 class RawRichWriter(HealthyRichWriter):
