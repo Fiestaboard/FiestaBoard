@@ -69,7 +69,8 @@ older TV apps continue to show text but ignore canvas layers.
 For viewer integrations, `GET /panel/{id}/frame` includes `layers` for pixel
 panels: ordered `{x, y, width, height, rgba}` objects, with standard base64
 row-major RGBA bytes. Alpha zero is transparent; any nonzero alpha overwrites
-the underlying RGB without blending. Layers clip to the matrix. An empty
+the underlying RGB without blending. Layer coordinates may extend past the
+matrix edges; viewers must clip them when rendering. An empty
 list clears the previous canvases, including when a frame is unavailable or
 its dimensions became stale. Split-flap frames omit this field.
 
