@@ -1,8 +1,10 @@
 # TV sign-in beta qualification
 
 This change targets FiestaBoard `next`, with matching Apple TV and Android TV
-changes targeting their `main` branches. Enrollment is opt-in under
-Settings → Account. Browser session tracking applies whenever sign-in is enabled.
+changes targeting their `main` branches. TV sign-in is enabled by default; an
+administrator can disable it under Settings → Account. The `next`/beta release
+channel is the rollout gate. Browser session tracking applies whenever sign-in
+is enabled.
 
 ## Protocol and storage
 
@@ -43,8 +45,12 @@ revokes only that TV; enrollment-off does not revoke existing credentials.
 - A live-server Playwright API smoke test verifies separate browser/TV sessions,
   approval, panel access, forbidden administration and immediate revocation.
 - CI runs the built web app with a real auth-enabled server for browser approval,
-  revocation and worker retirement at root and behind a path prefix. Local macOS
-  browser launch is blocked by the sandbox; CI results are the browser evidence.
+  revocation and worker retirement at root and behind a path prefix. Local isolated
+  Docker Chromium also verifies the production bundle against a real API: login,
+  explicit consent, denial, revocation, consent-heading focus, and desktop plus
+  390 × 844 layouts without horizontal overflow. The activation page has no axe
+  WCAG 2 A/AA or 2.1 AA violations in that run. Native macOS Chromium launch
+  remains sandbox-restricted; the Docker browser run provides local evidence.
 - Native tests cover secure credential persistence, migration, scoped requests,
   cancellation, restart and revocation without password recovery. The Android
   emulator uses an isolated validation application ID. Apple TV simulator launch
@@ -52,8 +58,8 @@ revokes only that TV; enrollment-off does not revoke existing credentials.
 
 ## Beta operator checks before wider rollout
 
-Use a non-production instance with a backup, enable the beta, and install the
-matching native builds. Store publication and a 24-hour physical-device soak are
+Use a non-production instance on the beta release channel with a backup, and
+install the matching native builds. Store publication and a 24-hour physical-device soak are
 separate release activities and are not claimed by a code merge.
 
 1. Pair Apple TV and Android TV by QR; repeat using a desktop URL and manual code.
@@ -69,5 +75,5 @@ separate release activities and are not claimed by a code merge.
 8. Exercise managed rollback and re-upgrade. Old cookies and revoked TV credentials
    must not regain access; sign in afresh after rollback.
 
-Keep enrollment off when qualification is incomplete. To halt enrollment, turn
-the switch off; to remove active access, revoke sessions in Signed-in devices.
+To halt enrollment, turn off TV sign-in under Settings → Account. This preserves
+existing access; revoke sessions in Signed-in devices to remove active access.

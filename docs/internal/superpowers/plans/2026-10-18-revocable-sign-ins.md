@@ -6,7 +6,7 @@
 
 **Goal:** Support QR, desktop-code, and password sign-in on both TV apps, and revocable browser/TV sessions managed in FiestaBoard Account settings.
 
-**Architecture:** A server-owned registry tracks browser sessions and scoped TV credentials. QR and desktop-code entry share an explicit browser-approval handshake; TV password entry issues the same credential directly. The web portal manages individual/bulk revocation. Native enrollment is an opt-in beta.
+**Architecture:** A server-owned registry tracks browser sessions and scoped TV credentials. QR and desktop-code entry share an explicit browser-approval handshake; TV password entry issues the same credential directly. The web portal manages individual/bulk revocation. Native enrollment is enabled by default; the beta release channel gates testing.
 
 **Tech stack:** FastAPI/Python/SQLite; React Router/React/TypeScript; SwiftUI/URLSession/Keychain/Core Image; Kotlin/Compose/OkHttp/Android Keystore/ZXing core.
 
@@ -17,7 +17,7 @@
 ## Global constraints
 
 - Backend/web PR targets freshly fetched `origin/next`, not the stale local `next` worktree. TV PRs target each app's current `main`. Create isolated worktrees at implementation time; preserve unrelated local modifications.
-- TV enrollment default off, through Account settings. Browser session tracking is active infrastructure on the new server; disabling enrollment does not disable revocation or invalidate existing TV credentials.
+- TV enrollment defaults on, with an explicit disable available through Account settings. Browser session tracking is active infrastructure on the new server; disabling enrollment does not disable revocation or invalidate existing TV credentials.
 - Both TV apps support QR, manually typed portal URL/code, and username/password. On supporting opted-in servers all issue a TV credential and store no account password.
 - Challenge lifetime 600 seconds; initial polling interval 5 seconds; `slow_down` increases it by 5; transport backoff caps at 30 seconds. Credential lifetime 31,536,000 seconds (365 days), no refresh subsystem.
 - Browser cookie name, 7-day/30-day default TTLs, environment overrides and remember-me semantics remain; versioned cookies additionally require an active registry record.
@@ -99,7 +99,7 @@ Keep backend Tasks 1–3 in a coordinated feature branch/PR targeting `next`; th
 - [ ] Write route tests for all three methods (QR and manual code use identical approve/exchange endpoints), password lockout shared across both password endpoints, CSRF/origin rejection, anonymous admin rejection, auth off/setup required, `no-store`, rate limits, lost exchange response, and secret-free list/log responses.
 - [ ] Write permission tests: TV can perform exactly the six allowed operations plus self-revoke; cannot alter name/backdrop or unknown PATCH fields; mixed allowed/forbidden PATCH changes nothing; cannot use `/v1`, MCP, session APIs, plugins or account mutations; invalid TV bearer plus valid cookie fails; revoked bearer on public frame endpoint fails while anonymous frame requests retain current behavior.
 - [ ] Run `python -m pytest tests/test_auth_device_service.py tests/test_auth_device_routes.py tests/test_auth_tv_permissions.py tests/test_auth_session_routes.py -q`; confirm intended failures.
-- [ ] Implement new endpoints, transactional challenges/limits/CSRF storage and default-off enrollment setting. Retain revoked/consumed tombstones through their original expiry; clean bounded expired records. Bound strings/body sizes, use constant-time secret comparisons where applicable, redact bodies/authorization in errors. Limit active sessions and challenges before issuing credentials.
+- [ ] Implement new endpoints, transactional challenges/limits/CSRF storage and default-on enrollment setting. Retain revoked/consumed tombstones through their original expiry; clean bounded expired records. Bound strings/body sizes, use constant-time secret comparisons where applicable, redact bodies/authorization in errors. Limit active sessions and challenges before issuing credentials.
 - [ ] Extend `/auth/status` and enforce TV identity before public-path bypasses. Validate raw PATCH field keys before existing Pydantic parsing. Browser auth remains admin; no downgrade/fallback when a TV token is presented.
 - [ ] Capture fixtures for enabled, disabled, old-server capability absence, setup required, challenge, every polling outcome, successful token, revoked token and session summary. Include custom port, IPv6 and proxy-prefix URL examples without real secrets. Document all wire status codes, including 429/Retry-After and invalid credential behavior.
 - [ ] Run the four new suites plus `tests/test_auth_mcp_bearer.py`, `tests/test_auth_mcp_token_routes.py`, `tests/test_auth_contract.py`, `tests/test_panels_api.py`, `tests/test_panels_public_access.py`, and `tests/test_panels_contract.py`. Require all passed. Run Ruff on changed Python files.
@@ -157,7 +157,7 @@ Keep backend Tasks 1–3 in a coordinated feature branch/PR targeting `next`; th
 - [ ] Build the activation screen using local Core Image QR encoding, four-module quiet zone and integer scaling. Show URL/code as text; retain direct password entry and Back/New code. Wire app lifecycle cancellation and accessible focus/status updates. Adopt new enrollment only when capability says enabled.
 - [ ] Implement best-effort server self-revocation on Sign out/Forget plus immediate local cancellation and secure deletion. If offline, do not claim server revocation succeeded; Account remains the reliable remote-revoke path. Preserve host/default-panel semantics and Top Shelf exclusions.
 - [ ] Run `./build-and-run.sh --test` and required repository guards/unsigned release archive through the existing CI workflow. Require passing unit, renderer and remote-navigation checks; exercise QR physically during Task 6.
-- [ ] Commit with message `feat(tvos): support revocable QR code and password sign-in`; prepare PR against `main`, referencing the server contract/version and default-off beta.
+- [ ] Commit with message `feat(tvos): support revocable QR code and password sign-in`; prepare PR against `main`, referencing the server contract/version and beta-channel rollout.
 
 ## Task 5: Android TV / Google TV sign-in and credential migration
 
@@ -197,7 +197,7 @@ Keep backend Tasks 1–3 in a coordinated feature branch/PR targeting `next`; th
 - [ ] Physically scan at 1080p/4K from normal viewing distance; exercise Siri Remote/D-pad and VoiceOver/TalkBack. Run a 24-hour signage soak with app background/resume, server restart and mid-soak revocation; record requests stop when backgrounded/revoked and credentials survive normal restarts.
 - [ ] Rehearse upgrade from current sessions and rollback to the prior server build with the same data volume. Require one-time login reset, legacy cookie cutoff preserved, old server rejecting new credentials, and explicit fallback sign-in on TVs. Inspect backup/restore handling for registry omission and auth rollback; fail release if a revoked credential resurrects.
 - [ ] Land coordinated server/web PR to `next` after required checks; publish the approved server beta using the existing release workflow. Ship TV builds through TestFlight and Play internal testing, then wider testing after qualification. Existing signing/account access requirements in each publishing document apply; this plan does not upload builds.
-- [ ] Pilot with a small opt-in group. Document **Settings → Account → TV sign-in (Beta)**, the migration logout, all three sign-in methods, revocation, public-panel and legacy-app limitations. Expand only after the test matrix/soak/rollback pass with no unresolved auth bypass, credential leak or lost-sign-in defect.
+- [ ] Pilot with a small opt-in group. Document **Settings → Account → TV sign-in**, the migration logout, all three sign-in methods, revocation, public-panel and legacy-app limitations. Expand only after the test matrix/soak/rollback pass with no unresolved auth bypass, credential leak or lost-sign-in defect.
 
 ## Rollout and rollback decisions
 

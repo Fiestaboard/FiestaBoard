@@ -6,12 +6,13 @@ import {
   CardHeader,
   CardTitle,
   Flex,
+  Heading,
   Input,
   Label,
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -31,6 +32,8 @@ export default function Activate() {
   const [deadline, setDeadline] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<"approved" | "denied" | null>(null);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const consentHeading = useRef<HTMLHeadingElement>(null);
   const errorMessage = useCallback(
     (err: unknown) => {
       if (err instanceof SessionApiError) {
@@ -98,7 +101,12 @@ export default function Activate() {
     return () => {
       cancelled = true;
     };
-  }, [scannedCode, router, t]);
+  }, [scannedCode, router, t, retryAttempt]);
+
+  useEffect(() => {
+    // Announce the new step without placing focus on an authorization action.
+    if (device) consentHeading.current?.focus();
+  }, [device]);
 
   useEffect(() => {
     if (!device || result) return;
@@ -161,6 +169,18 @@ export default function Activate() {
           )}
           {result && <Text role="status">{t(result)}</Text>}
           {!ready && !error && <Text role="status">{t("loading")}</Text>}
+          {!ready && error && (
+            <Button
+              disabled={busy}
+              onClick={() => {
+                setError(null);
+                setBusy(true);
+                setRetryAttempt((attempt) => attempt + 1);
+              }}
+            >
+              {t("retry")}
+            </Button>
+          )}
           {ready && !result && !device && (
             <Box as="form" onSubmit={inspect} className="space-y-3">
               <Label htmlFor="tv-code">{t("code")}</Label>
@@ -181,7 +201,9 @@ export default function Activate() {
           )}
           {device && (
             <Stack gap="4">
-              <Text weight="semibold">{device.device_name}</Text>
+              <Heading level={2} ref={consentHeading} tabIndex={-1}>
+                {device.device_name}
+              </Heading>
               <Text>{t(device.client_id === "fiestaboard-tvos" ? "appleTV" : "androidTV")}</Text>
               {device.app_version && <Text>{t("version", { version: device.app_version })}</Text>}
               <Text className="font-mono text-2xl">{device.user_code}</Text>

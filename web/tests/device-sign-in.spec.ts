@@ -24,7 +24,7 @@ for (const prefix of ["", "/test-prefix"]) {
         if (status.setup_required) {
           expect((await administrator.post(`${api}/auth/setup`, { data: credentials })).ok()).toBe(true);
           const settings = await (await administrator.get(`${api}/auth/device/settings`)).json();
-          expect(settings.enabled).toBe(false);
+          expect(settings.enabled).toBe(true);
         } else expect((await administrator.post(`${api}/auth/login`, { data: credentials })).ok()).toBe(true);
         expect((await mutate(administrator, api, "/auth/device/settings", "PUT", { enabled: true })).ok()).toBe(true);
         const authorization = await tv.post(`${api}/auth/device/authorize`, {
@@ -42,7 +42,7 @@ for (const prefix of ["", "/test-prefix"]) {
         await page.getByLabel("Username").fill(credentials.username);
         await page.getByLabel("Password", { exact: true }).fill(credentials.password);
         await page.getByRole("button", { name: "Sign in", exact: true }).click();
-        await expect(page.getByText("Acceptance TV", { exact: true })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Acceptance TV", exact: true })).toBeFocused();
         // Scanning and login never authorize on their own.
         const pending = await tv.post(`${api}/auth/device/token`, {
           data: { device_code: challenge.device_code, client_id: "fiestaboard-tvos" },
@@ -72,7 +72,7 @@ for (const prefix of ["", "/test-prefix"]) {
         await expect(page.getByText("Signed-in devices", { exact: true })).toBeVisible();
         await expect(page.getByText("This browser", { exact: true })).toBeVisible();
         const row = page.getByRole("listitem", { name: "Acceptance TV", exact: true });
-        await row.getByRole("button", { name: "Revoke", exact: true }).click();
+        await row.getByRole("button", { name: "Revoke Acceptance TV", exact: true }).click();
         await expect(row).toHaveCount(0);
         expect((await tv.get(`${api}/panels`, { headers: bearer })).status()).toBe(401);
         expect(
@@ -82,8 +82,8 @@ for (const prefix of ["", "/test-prefix"]) {
         expect((await page.request.get(`${api}/auth/sessions`)).ok()).toBe(true);
         expect(leaked).toEqual([]);
         // Disabling enrollment keeps device management and this session available.
-        await page.getByRole("switch", { name: "TV sign-in (Beta)" }).click();
-        await expect(page.getByRole("switch", { name: "TV sign-in (Beta)" })).not.toBeChecked();
+        await page.getByRole("switch", { name: "TV sign-in" }).click();
+        await expect(page.getByRole("switch", { name: "TV sign-in" })).not.toBeChecked();
         await expect(page.getByText("This browser", { exact: true })).toBeVisible();
       } finally {
         await administrator.dispose();
@@ -107,7 +107,7 @@ for (const prefix of ["", "/test-prefix"]) {
         await page.goto(`${prefix}/activate`);
         await page.getByLabel("TV code").fill(challenge.user_code.toLowerCase().replace("-", " "));
         await page.getByRole("button", { name: "Continue", exact: true }).click();
-        await expect(page.getByText("Manual TV", { exact: true })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Manual TV", exact: true })).toBeFocused();
         await page.getByRole("button", { name: "Deny", exact: true }).click();
         await expect(page.getByText("The request was denied.")).toBeVisible();
         const denied = await tv.post(`${api}/auth/device/token`, {

@@ -2789,22 +2789,23 @@
     "denied": "Prośba została odrzucona.",
     "errors": {
       "signIn": "Zaloguj się ponownie, aby kontynuować.",
-      "setup": "Skonfiguruj konto FiestaBoard i włącz logowanie na TV w Ustawienia → Konto.",
-      "feature_disabled": "Logowanie na TV jest wyłączone. Włącz je (Beta) w Ustawienia → Konto.",
+      "setup": "Skonfiguruj konto FiestaBoard przed podłączeniem telewizora.",
+      "feature_disabled": "Logowanie na TV jest wyłączone. Włącz je w Ustawienia → Konto.",
       "expired_token": "Kod wygasł. Poproś o nowy kod na telewizorze.",
       "access_denied": "Prośba została odrzucona. Poproś o nowy kod na telewizorze.",
       "invalid_grant": "Kod jest nieprawidłowy, użyty lub anulowany. Poproś o nowy kod na telewizorze.",
       "slow_down": "Zbyt wiele prób. Poczekaj chwilę i spróbuj ponownie.",
       "rate_limited": "Zbyt wiele prób. Poczekaj chwilę i spróbuj ponownie.",
       "network": "Nie można połączyć z FiestaBoard. Sprawdź połączenie i spróbuj ponownie."
-    }
+    },
+    "retry": "Spróbuj ponownie"
   },
   "signedInDevices": {
     "title": "Zalogowane urządzenia",
     "description": "Zarządzaj przeglądarkami i telewizorami zalogowanymi na to konto. Ostatnia aktywność jest przybliżona i nie oznacza obecności online.",
     "loading": "Wczytywanie urządzeń…",
     "error": "Nie można zaktualizować urządzeń. Sprawdź połączenie i spróbuj ponownie.",
-    "enrollment": "Logowanie na TV (Beta)",
+    "enrollment": "Logowanie na TV",
     "enrollmentHint": "Wyłączenie blokuje nowe logowania na TV i anuluje oczekujące kody. Istniejące urządzenia zachowują dostęp do odwołania lub wygaśnięcia.",
     "current": "Ta przeglądarka",
     "browser": "Przeglądarka",
@@ -2824,6 +2825,8 @@
     "confirmOthers": "Wylogować inne przeglądarki i telewizory? Ta przeglądarka pozostanie zalogowana. Oczekujące kody TV zostaną anulowane.",
     "confirmAll": "Wylogować wszystkie przeglądarki i telewizory, w tym tę przeglądarkę? Oczekujące kody TV zostaną anulowane.",
     "cancel": "Anuluj",
-    "confirm": "Potwierdź"
+    "confirm": "Potwierdź",
+    "revokeDevice": "Odwołaj dostęp: {name}",
+    "retry": "Spróbuj ponownie"
   }
 }

@@ -55,6 +55,19 @@ def test_session_survives_normal_restart(service):
     assert restarted.verify_session(token) == "admin"
 
 
+def test_unset_tv_sign_in_defaults_on_after_restart(service):
+    # Earlier beta registries never wrote a setting for the default-off state.
+    # They must gain the new default without a separate opt-in or migration.
+    with service.sessions.transaction() as db:
+        assert db.execute("SELECT value FROM settings WHERE key='tv_enabled'").fetchone() is None
+    assert AuthService(service._path).sessions.enrollment_enabled is True
+
+
+def test_explicit_tv_sign_in_disable_survives_restart(service):
+    service.sessions.set_enrollment(False)
+    assert AuthService(service._path).sessions.enrollment_enabled is False
+
+
 def test_sign_out_everywhere_invalidates_all(service):
     token = service.authenticate("admin", "correct-password")
     before = service.get_user("admin")["sessions_valid_after_ms"]

@@ -167,7 +167,7 @@ def test_status_after_setup_names_the_signed_in_user(client, signed_in):
         "first_run": False,
         "session_management_supported": True,
         "auth_kind": "browser",
-        "tv_sign_in": {"supported": True, "enabled": False, "protocol_version": 1},
+        "tv_sign_in": {"supported": True, "enabled": True, "protocol_version": 1},
     }
 
 

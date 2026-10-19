@@ -95,3 +95,33 @@ it("explains disabled enrollment", async () => {
   await screen.findByText(/TV sign-in is disabled/i);
   expect(approved).toBe(0);
 });
+
+it.each(["scanned", "manual"])("moves keyboard focus to the consent heading for a %s code", async (entry) => {
+  if (entry === "scanned") params.set("user_code", "WDJB-MJHT");
+  render(<Activate />);
+  if (entry === "manual") {
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("TV code"), "WDJB-MJHT");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+  }
+  const heading = await screen.findByRole("heading", { name: "Living room TV" });
+  expect(heading).toHaveFocus();
+  expect(approved).toBe(0);
+  await userEvent.tab();
+  expect(screen.getByRole("button", { name: "Allow this TV" })).toHaveFocus();
+  expect(approved).toBe(0);
+});
+
+it("can retry an initial connection failure without losing the scanned code or granting access", async () => {
+  server.use(http.get("/api/auth/status", () => HttpResponse.error()));
+  params.set("user_code", "WDJB-MJHT");
+  render(<Activate />);
+  await screen.findByRole("alert");
+  expect(screen.queryByRole("button", { name: "Allow this TV" })).not.toBeInTheDocument();
+  server.use(http.get("/api/auth/status", () => HttpResponse.json(status)));
+  await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+  expect(await screen.findByRole("heading", { name: "Living room TV" })).toHaveFocus();
+  expect(inspected).toBe("WDJBMJHT");
+  expect(approved).toBe(0);
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});

@@ -2789,22 +2789,23 @@
     "denied": "La demande a été refusée.",
     "errors": {
       "signIn": "Reconnectez-vous pour continuer.",
-      "setup": "Créez un compte FiestaBoard et activez la connexion TV dans Paramètres → Compte.",
-      "feature_disabled": "La connexion TV est désactivée. Activez-la (Bêta) dans Paramètres → Compte.",
+      "setup": "Créez un compte FiestaBoard avant de connecter un téléviseur.",
+      "feature_disabled": "La connexion TV est désactivée. Activez-la dans Paramètres → Compte.",
       "expired_token": "Ce code a expiré. Demandez un nouveau code sur votre TV.",
       "access_denied": "Cette demande a été refusée. Demandez un nouveau code sur votre TV.",
       "invalid_grant": "Ce code est invalide, déjà utilisé ou annulé. Demandez un nouveau code sur votre TV.",
       "slow_down": "Trop de tentatives. Patientez puis réessayez.",
       "rate_limited": "Trop de tentatives. Patientez puis réessayez.",
       "network": "Impossible de joindre FiestaBoard. Vérifiez votre connexion et réessayez."
-    }
+    },
+    "retry": "Réessayer"
   },
   "signedInDevices": {
     "title": "Appareils connectés",
     "description": "Gérez les navigateurs et TV connectés à ce compte. La dernière activité est approximative et ne signale pas une présence en ligne.",
     "loading": "Chargement des appareils…",
     "error": "Impossible de mettre à jour les appareils. Vérifiez votre connexion et réessayez.",
-    "enrollment": "Connexion TV (Bêta)",
+    "enrollment": "Connexion TV",
     "enrollmentHint": "La désactivation bloque les nouvelles connexions TV et annule les codes en attente. Les appareils existants conservent leur accès jusqu’à révocation ou expiration.",
     "current": "Ce navigateur",
     "browser": "Navigateur",
@@ -2824,6 +2825,8 @@
     "confirmOthers": "Déconnecter les autres navigateurs et TV ? Ce navigateur restera connecté. Les codes TV en attente seront annulés.",
     "confirmAll": "Déconnecter tous les navigateurs et TV, y compris celui-ci ? Les codes TV en attente seront annulés.",
     "cancel": "Annuler",
-    "confirm": "Confirmer"
+    "confirm": "Confirmer",
+    "revokeDevice": "Révoquer {name}",
+    "retry": "Réessayer"
   }
 }

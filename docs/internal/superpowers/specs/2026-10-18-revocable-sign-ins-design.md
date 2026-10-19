@@ -24,7 +24,7 @@ Inspected on 2026-10-18:
 
 The local worktree named `next` is stale; implementation must branch from freshly fetched `origin/next`, not that worktree. Existing checkouts contain unrelated work. This design and its plan are documentation only in the main FiestaBoard checkout.
 
-The old Beta settings page is retired on current code. Do not add this feature to deprecated `/settings/beta`. Add its opt-in under Account. Existing `/auth/*` routes bypass middleware and must explicitly authenticate sensitive operations. Existing singular `/panel/*` reads are deliberately public; plural `/panels` management is protected.
+The old Beta settings page is retired on current code. Do not add this feature to deprecated `/settings/beta`. TV sign-in is enabled by default, with its administrative control under Account. Existing `/auth/*` routes bypass middleware and must explicitly authenticate sensitive operations. Existing singular `/panel/*` reads are deliberately public; plural `/panels` management is protected.
 
 ## Experience
 
@@ -48,7 +48,7 @@ Show a unified **Signed-in devices** list with:
 - Name, category (Apple TV, Android/Google TV, browser, or legacy/unknown client), app version when supplied, and sign-in method (QR/code approval or password).
 - Created, last active, and expiry timestamps; a **This browser** indicator.
 - **Revoke** per row, **Sign out other devices** retaining the current browser, and **Sign out everywhere** including the current browser. Confirm bulk actions.
-- A **TV sign-in (Beta)** switch controlling the new native TV credential endpoints and pairing. Default off on upgraded and fresh installations. Session tracking for web sign-ins is server infrastructure on `next`, independent of this opt-in.
+- A **TV sign-in** switch controlling the new native TV credential endpoints and pairing. Enabled by default on upgraded and fresh installations; preserve an explicit administrative disable. The beta release channel gates testing, with no separate opt-in. Session tracking for web sign-ins is server infrastructure on `next`, independent of this setting.
 
 Disabling TV sign-in cancels outstanding challenges and prevents new TV credentials; existing credentials remain valid until individually/bulk revoked or expired. Explain that beside the switch and keep management visible when off. This separates stopping enrollment from removing access.
 
@@ -146,6 +146,6 @@ Fresh `origin/next` already retires the service worker. Preserve retirement: an 
 
 Every new sign-in is recorded and individually revocable; both TV apps support all three methods on opted-in servers, survive app/server restart with no password saved, and keep existing rendering/default-panel behavior. A revoked native app stops on its next request; a revoked browser cannot perform another protected operation. Outstanding responses already authorized before revocation can complete; future requests fail.
 
-Release backend/web changes to FiestaBoard `next`, Apple TV through TestFlight, and Android/Google TV through internal testing, followed by closed testing as appropriate. Keep native enrollment default off. Ship server first, then compatible apps; require automated contract/security tests and real TV/phone/desktop acceptance before expanding the cohort. Beta exit includes a 24-hour signage soak, migration/downgrade rehearsal, and no unresolved authentication-boundary failures.
+Release backend/web changes to FiestaBoard `next`, Apple TV through TestFlight, and Android/Google TV through internal testing, followed by closed testing as appropriate. Native enrollment is enabled by default; the beta channel is the testing gate. Ship server first, then compatible apps; require automated contract/security tests and real TV/phone/desktop acceptance before expanding the cohort. Beta exit includes a 24-hour signage soak, migration/downgrade rehearsal, and no unresolved authentication-boundary failures.
 
 Implementation tasks and exact validation commands are in [the coordinated plan](../plans/2026-10-18-revocable-sign-ins.md).

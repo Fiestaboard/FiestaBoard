@@ -2789,22 +2789,23 @@
     "denied": "La solicitud se ha denegado.",
     "errors": {
       "signIn": "Vuelve a iniciar sesión para continuar.",
-      "setup": "Configura una cuenta de FiestaBoard y activa el inicio de sesión de TV en Ajustes → Cuenta.",
-      "feature_disabled": "El inicio de sesión de TV está desactivado. Actívalo (Beta) en Ajustes → Cuenta.",
+      "setup": "Configura una cuenta de FiestaBoard antes de conectar un televisor.",
+      "feature_disabled": "El inicio de sesión de TV está desactivado. Actívalo en Ajustes → Cuenta.",
       "expired_token": "El código ha caducado. Solicita uno nuevo en el TV.",
       "access_denied": "La solicitud se ha denegado. Solicita un código nuevo en el TV.",
       "invalid_grant": "El código no es válido, ya se usó o se canceló. Solicita uno nuevo en el TV.",
       "slow_down": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
       "rate_limited": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
       "network": "No se puede conectar con FiestaBoard. Comprueba la conexión y vuelve a intentarlo."
-    }
+    },
+    "retry": "Reintentar"
   },
   "signedInDevices": {
     "title": "Dispositivos con sesión iniciada",
     "description": "Administra los navegadores y TV conectados a esta cuenta. La última actividad es aproximada y no indica si están en línea.",
     "loading": "Cargando dispositivos…",
     "error": "No se pueden actualizar los dispositivos. Comprueba la conexión y vuelve a intentarlo.",
-    "enrollment": "Inicio de sesión de TV (Beta)",
+    "enrollment": "Inicio de sesión de TV",
     "enrollmentHint": "Al desactivarlo, se impiden nuevas sesiones de TV y se cancelan los códigos pendientes. Los dispositivos conectados mantienen el acceso hasta que se revoque o caduque.",
     "current": "Este navegador",
     "browser": "Navegador",
@@ -2824,6 +2825,8 @@
     "confirmOthers": "¿Cerrar la sesión en los demás navegadores y TV? Este navegador seguirá conectado. Se cancelarán los códigos de TV pendientes.",
     "confirmAll": "¿Cerrar la sesión en todos los navegadores y TV, incluido este? Se cancelarán los códigos de TV pendientes.",
     "cancel": "Cancelar",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "revokeDevice": "Revocar {name}",
+    "retry": "Reintentar"
   }
 }
