@@ -516,6 +516,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const notesWideRef = useRef(notesWide);
   const notesTallRef = useRef(notesTall);
   const panelGridRef = useRef(panelGrid);
+  const durationRef = useRef(300);
+  const draftDisplayRef = useRef({ canvases, transitionStrategy, targetBoardId });
+  useEffect(() => {
+    draftDisplayRef.current = { canvases, transitionStrategy, targetBoardId };
+  }, [canvases, transitionStrategy, targetBoardId]);
   useEffect(() => {
     nameRef.current = name;
   }, [name]);
@@ -658,13 +663,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   const getCurrentPageSnapshot = useCallback((): CurrentPageSnapshot | undefined => {
     const lines = templateLinesRef.current;
-    if (!nameRef.current && !lines.some((l) => l)) return undefined;
+    const draft = draftDisplayRef.current;
+    if (!nameRef.current && !lines.some((l) => l) && !draft.canvases.length) return undefined;
     return {
       // The id tells the assistant whether update_page can target this
       // page; an unsaved draft has none and is created instead.
       ...(pageId ? { id: pageId } : {}),
       name: nameRef.current,
-      template: lines,
+      device_type: deviceTypeRef.current,
+      ...geometryFields(deviceTypeRef.current, notesWideRef.current, notesTallRef.current, panelGridRef.current),
+      ...(draft.targetBoardId ? { board_id: draft.targetBoardId } : {}),
+      canvases: structuredClone(draft.canvases),
+      duration_seconds: durationRef.current,
+      transition_strategy: draft.transitionStrategy,
+      template: [...lines],
       line_metadata: lines.map((_, i) => ({
         alignment: (lineAlignmentsRef.current[i] ?? "left") as LineMetadata["alignment"],
         wrap: lineWrapEnabledRef.current[i] ?? false,
@@ -766,6 +778,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   template: cleanedLines,
                   line_metadata: metadata,
                   ...noteArrayDims,
+                  canvases: draftDisplayRef.current.canvases.length ? draftDisplayRef.current.canvases : null,
+                  transition_strategy: draftDisplayRef.current.transitionStrategy,
                 })
               ).page
             : await api.createPage({
@@ -775,6 +789,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 template: cleanedLines,
                 line_metadata: metadata,
                 ...noteArrayDims,
+                canvases: draftDisplayRef.current.canvases,
+                transition_strategy: draftDisplayRef.current.transitionStrategy,
               });
           // Invalidate the pages list and this page's preview, but don't close.
           queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
@@ -1143,6 +1159,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       }
       forceReseedRef.current = false;
       seededPageIdRef.current = existingPage.id;
+      durationRef.current = existingPage.duration_seconds;
       // Clear draft when loading existing page
       const draftKey = getDraftKey(pageId);
       localStorage.removeItem(draftKey);

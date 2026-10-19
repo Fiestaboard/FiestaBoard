@@ -182,16 +182,19 @@ class OutputPluginDriver:
     @property
     def extended_markup(self) -> bool:
         """Whether this board's set is rich (colour/block spans or icons), so
-        it draws extended markup as written and gets rich cells. Every board
+        it draws extended markup as written. Every board
         parses extended markup since the split-flap flip (plan Task 12); a
         split-flap one draws its degradation."""
         return has_extended_markup(self.character_set)
 
     @property
     def takes_cells(self) -> bool:
-        """Whether rich frames reach the plugin: its set is rich and it
-        overrides :meth:`~OutputPluginBase.write_cells` (the opt-in)."""
-        return self.extended_markup and type(self.plugin).write_cells is not OutputPluginBase.write_cells
+        """Whether declared-alphabet cells reach the plugin's opt-in writer."""
+        from .cells import charset_uses_cells
+
+        return (
+            charset_uses_cells(self.character_set) and type(self.plugin).write_cells is not OutputPluginBase.write_cells
+        )
 
     @property
     def takes_transitions(self) -> bool:
@@ -341,6 +344,7 @@ class OutputPluginDriver:
         final: list[list[int]],
         call: Callable[[CancelToken], Any],
         cells: RichCellFrame | None = None,
+        prior_send: Callable[[], bool] | None = None,
     ) -> WriteResult:
         """Run the plugin's write under the run's token and its budget; settle
         floor, frame cache and breaker."""
@@ -354,31 +358,42 @@ class OutputPluginDriver:
                 # it always was (the engine reports it), not a quiet failure.
                 raise
             logger.exception("Output plugin %s: write failed", self.connection_label)
-            self._output_runtime.release_send(admission)
+            sent = prior_send is not None and prior_send()
+            if not sent:
+                self._output_runtime.release_send(admission)
             self._write_failed(f"the write raised {type(exc).__name__}: {exc}")
-            return WriteResult(False, False)
+            return WriteResult(False, sent)
         if result is None:
             # The slot stays taken: the device may still be receiving the write.
             budget = self.write_timeout_seconds
             logger.error("Output plugin %s: write still running after %gs; cancelled", self.connection_label, budget)
             self._write_failed(f"the write did not finish within {budget:g}s; it was cancelled.")
-            return WriteResult(False, False)
+            return WriteResult(False, prior_send is not None and prior_send())
         if result.throttled:
-            return self._device_throttled(admission, result.retry_after_seconds)
+            throttled = self._device_throttled(admission, result.retry_after_seconds)
+            if prior_send is not None and prior_send():
+                # The upload consumed device traffic, but its rich landing
+                # never completed. Keep the integer cache and extended floor
+                # while reporting that the requested target is incomplete.
+                self.last_write_error = "the sequence uploaded, but the rich target was throttled by the output."
+                return throttled._replace(success=False, was_sent=True)
+            return throttled
         if result.success and not result.was_sent and (token.is_set() or result.superseded):
             # Preempted: the plugin stopped mid-write and nothing landed. The
             # newer write that cancelled it owns the board, so it gets the
             # floor slot back and the last-frame store never claims this
             # frame — otherwise that write is "throttled" by a write that
             # never reached the device, and the board stays dark.
-            self._output_runtime.release_send(admission)
+            sent = prior_send is not None and prior_send()
+            if not sent:
+                self._output_runtime.release_send(admission)
             self._last_send_preempted = True
-            return WriteResult(True, False, superseded=True)
+            return WriteResult(True, sent, superseded=True)
         if result.success:
             # Landed — or the device already showed it (a fan-out whose every
             # part was unchanged): either way it is what the board shows.
             self._frames.record_sent(final, cells=cells)
-        elif not result.success and not result.partial:
+        elif not result.success and not result.partial and not (prior_send is not None and prior_send()):
             self._output_runtime.release_send(admission)
         if result.success:
             self.last_write_error = None
@@ -388,7 +403,10 @@ class OutputPluginDriver:
             # resets the breaker.
             self._write_failed("the output reported the write failed.")
         return WriteResult(
-            result.success, result.was_sent, partial=result.partial, failed_regions=result.failed_regions
+            result.success,
+            result.was_sent or (prior_send is not None and prior_send()),
+            partial=result.partial,
+            failed_regions=result.failed_regions,
         )
 
     def _device_throttled(self, admission: Admission, retry_after: int | None) -> WriteResult:
@@ -475,7 +493,9 @@ class OutputPluginDriver:
                 )
             return self._result(result, with_outcome)
 
-    def write_sequence(self, frames: list[TimedFrame], *, cancel: threading.Event | None = None) -> WriteResult:
+    def write_sequence(
+        self, frames: list[TimedFrame], *, cancel: threading.Event | None = None, cells: RichCellFrame | None = None
+    ) -> WriteResult:
         """A whole transition to the plugin's :meth:`~OutputPluginBase.write_sequence`
         as one write: one floor slot, the last frame recorded as shown.
 
@@ -486,6 +506,25 @@ class OutputPluginDriver:
             return WriteResult(True, False)
         frames = compress_sequence(frames, self.capabilities.max_frames)
         final = frames[-1].frame
+        cells = cells if self.takes_cells else None
+        uploaded_to_device = False
+
+        def deliver(token: CancelToken) -> WriteResult:
+            nonlocal uploaded_to_device
+            uploaded = WriteResult.of(self.plugin.write_sequence(frames, cancel=token))
+            uploaded_to_device = uploaded.was_sent
+            if not uploaded.success or uploaded.throttled or uploaded.superseded or cells is None:
+                return uploaded
+            # If the rich landing fails, readback must still describe the
+            # integer target that the successful upload actually delivered.
+            self._frames.record_sent(final)
+            if token.cancelled:
+                return WriteResult(True, False, superseded=True)
+            # Sequence API 1 carries integer grids. Land on the original rich
+            # target under this same admission and cancellation budget, so the
+            # floor cannot reject the landing and its canvas layers survive.
+            return self.plugin.write_cells(cells, native=None, cancel=token)
+
         with self._output_runtime.write():
             admission = self._admit(lambda: False)
             if admission.verdict == "throttled":
@@ -493,7 +532,7 @@ class OutputPluginDriver:
             refused = self._breaker_refusal(admission)
             if refused is not None:
                 return refused._replace(floor_seconds=self._floor_seconds())
-            result = self._deliver(admission, final, lambda token: self.plugin.write_sequence(frames, cancel=token))
+            result = self._deliver(admission, final, deliver, cells=cells, prior_send=lambda: uploaded_to_device)
             return result._replace(floor_seconds=self._floor_seconds())
 
     def _shown_cells(self, rows: int, cols: int) -> RichCellFrame | None:

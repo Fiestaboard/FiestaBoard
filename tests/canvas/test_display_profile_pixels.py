@@ -41,8 +41,11 @@ def test_the_pixel_size_is_part_of_the_cache_key():
     a = DisplayProfile(technology="led_matrix", device_model="m", width=64, height=32)
     b = DisplayProfile(technology="led_matrix", device_model="m", width=64, height=64)
     assert a.key != b.key
-    # A profile without a pixel size keys exactly as before.
-    assert DisplayProfile(device_model="m").key == "m|None|tiles|None"
+    # Equal effective profiles share an identity; adding a pixel surface
+    # changes it even when the model id is the same.
+    plain = DisplayProfile(device_model="m")
+    assert plain.key == DisplayProfile(device_model="m").key
+    assert plain.key not in (a.key, b.key)
 
 
 def test_the_ai_brief_mentions_canvases_only_on_a_pixel_board():

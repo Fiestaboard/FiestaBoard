@@ -60,15 +60,14 @@ def mask_output_config(config: Any, schema: Mapping[str, Any] | None) -> Any:
 
 
 def _mask(value: Any, schema: Any) -> Any:
+    if isinstance(schema, Mapping) and _is_secret(schema):
+        return MASKED if value else value
     if isinstance(value, dict):
         props = _properties(schema)
         out = {}
         for key, item in value.items():
             prop = props.get(key)
-            if isinstance(prop, Mapping) and _is_secret(prop):
-                out[key] = MASKED if item else item
-            else:
-                out[key] = _mask(item, prop)
+            out[key] = _mask(item, prop)
         return out
     if isinstance(value, list):
         return [_mask(item, _items(schema)) for item in value]
@@ -100,16 +99,15 @@ def _match(item: Any, stored_list: list) -> Any:
 
 
 def _unmask(value: Any, stored: Any, schema: Any) -> Any:
+    if isinstance(schema, Mapping) and _is_secret(schema) and value == MASKED:
+        return MASKED if stored is _UNMATCHED else (stored if stored is not None else "")
     if isinstance(value, dict):
         props = _properties(schema)
         stored_dict = stored if isinstance(stored, dict) else {}
         out = {}
         for key, item in value.items():
             prop = props.get(key)
-            if isinstance(prop, Mapping) and _is_secret(prop) and item == MASKED:
-                out[key] = MASKED if stored is _UNMATCHED else stored_dict.get(key, "")
-            else:
-                out[key] = _unmask(item, _UNMATCHED if stored is _UNMATCHED else stored_dict.get(key), prop)
+            out[key] = _unmask(item, _UNMATCHED if stored is _UNMATCHED else stored_dict.get(key), prop)
         return out
     if isinstance(value, list):
         stored_list = stored if isinstance(stored, list) else []
@@ -125,15 +123,14 @@ def masked_secret_paths(config: Any, schema: Mapping[str, Any] | None, path: str
     found: list[str] = []
     if schema is None:
         return [path or "output_config"] if config == MASKED else []
+    if _is_secret(schema) and config == MASKED:
+        return [path or "output_config"]
     if isinstance(config, dict):
         props = _properties(schema)
         for key, item in config.items():
             prop = props.get(key)
             here = f"{path}.{key}" if path else key
-            if isinstance(prop, Mapping) and _is_secret(prop) and item == MASKED:
-                found.append(here)
-            else:
-                found.extend(masked_secret_paths(item, prop if isinstance(prop, Mapping) else {}, here))
+            found.extend(masked_secret_paths(item, prop if isinstance(prop, Mapping) else {}, here))
     elif isinstance(config, list):
         for i, item in enumerate(config):
             items = _items(schema)

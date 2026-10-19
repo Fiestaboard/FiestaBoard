@@ -405,6 +405,30 @@ class TestRefinements:
         # The same per-board key fails a push output (BoardKeyed, in BROKEN).
         assert rules_broken(suite(PullScreen), "device_key") == set()
 
+    def test_configured_content_geometry_is_used_for_every_model(self):
+        opened_models = set()
+
+        class ConfiguredGridOutput(RecordingOutput):
+            @property
+            def board_geometry(self):
+                return self.config["grid_rows"], self.config["grid_cols"]
+
+            def open(self):
+                opened_models.add(self.device_model["id"])
+                super().open()
+
+            def write(self, frame, *, native, cancel):
+                rows, cols = self.board_geometry
+                if len(frame) != rows or any(len(row) != cols for row in frame):
+                    return WriteResult(False, False)
+                return super().write(frame, native=native, cancel=cancel)
+
+        report = suite(ConfiguredGridOutput, grid_rows=12, grid_cols=29).run(
+            ("write_result", "device_traffic", "cancel")
+        )
+        assert report.ok, report.summary()
+        assert opened_models == {"recording_sign", "divoom_pixoo64"}
+
 
 def test_assert_conformant_lists_every_violation():
     with pytest.raises(AssertionError) as caught:

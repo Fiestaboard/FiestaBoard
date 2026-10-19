@@ -291,13 +291,14 @@ class TestDeclaredVocabularies:
         [
             ("AddBoardRequest", "device_type", ["flagship", "note", "note_array"]),
             # "panel" (FiestaPanel's per-character grid) renders, previews and
-            # overrides like any shape; it is not hardware, so the two
-            # hardware surfaces (AddBoardRequest, DetectBoardSizeResponse)
-            # do not publish it.
+            # overrides like any shape. Detection also reports configured
+            # plugin/virtual grids; only legacy hardware creation omits it.
             ("TemplateRenderRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
             ("TemplateRenderLiveRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
             ("TemporaryOverrideRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
-            ("DetectBoardSizeResponse", "device_type", ["flagship", "note", "note_array"]),
+            # CHANGED: output-aware detection reports configured plugin/panel geometry.
+            ("DetectBoardSizeResponse", "device_type", ["flagship", "note", "note_array", "panel"]),
+            ("DetectBoardSizeResponse", "source", ["detected", "configured"]),
             ("PageSendRequest", "target", ["ui", "board", "both"]),
             ("OutputSettingsUpdate", "target", ["ui", "board", "both"]),
             ("BoardConfigUpdate", "api_mode", ["local", "cloud", "virtual"]),

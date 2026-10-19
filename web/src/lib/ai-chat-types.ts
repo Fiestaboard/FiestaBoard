@@ -11,7 +11,7 @@
 // (src/ai/page_routes.py) and the request models beside them.
 // tests/test_ai_stream_contract.py holds the two sides together.
 
-import type { DeviceType, GridSize, LineMetadata } from "./api";
+import type { Canvas, DeviceType, GridSize, LineMetadata } from "./api";
 
 // ---------------------------------------------------------------------------
 // Editor-local ops. These never cross the wire any more: the page editor's
@@ -205,6 +205,7 @@ export interface CreatePageArgs {
   grid_cols?: number;
   line_metadata?: LineMetadata[];
   transition_strategy?: string | null;
+  canvases?: Canvas[] | null;
 }
 
 export interface UpdatePageArgs {
@@ -219,6 +220,7 @@ export interface UpdatePageArgs {
   grid_cols?: number | null;
   line_metadata?: LineMetadata[] | null;
   transition_strategy?: string | null;
+  canvases?: Canvas[] | null;
 }
 
 export interface CreateScheduleArgs {
@@ -328,6 +330,15 @@ export type WireMessage =
   | { role: "tool"; tool_call_id: string; name: string; status: WireToolStatus; result: unknown };
 
 export interface CurrentPageSnapshot {
+  board_id?: string;
+  device_type?: DeviceType;
+  notes_wide?: number;
+  notes_tall?: number;
+  grid_rows?: number | null;
+  grid_cols?: number | null;
+  canvases?: Canvas[];
+  duration_seconds?: number;
+  transition_strategy?: string | null;
   /** The saved page's id; absent for an unsaved draft in /pages/new. */
   id?: string;
   name: string;

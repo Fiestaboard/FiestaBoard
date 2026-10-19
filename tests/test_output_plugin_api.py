@@ -222,14 +222,19 @@ class TestBackwardCompatibility:
 
         plugin, driver = driven(SequenceOnly)
         runner = MagicMock()
-        runner.collect_frames.return_value = [(frame("AB").characters, 100), (frame("WORLD").characters, 100)]
+        target = frame("{red:World}")
+        runner.collect_frames.return_value = [(frame("AB").characters, 100), (target.characters, 100)]
         driver.set_transition_runner(runner)
         render(driver, "HELLO")
         from unittest.mock import patch
 
         with patch("src.outputs.plugin_driver.transition_plugins_enabled", return_value=True):
-            render(driver, "WORLD", strategy="plugin:typewriter")
-        assert kinds(plugin) == ["write_cells", "write_sequence"]
+            render(driver, "{red:World}", strategy="plugin:typewriter")
+        assert kinds(plugin) == ["write_cells", "write_sequence", "write_cells"]
+        uploaded = plugin.calls[1][1]
+        assert uploaded[-1].frame == target.characters
+        assert plugin.calls[-1][1] == target.cells
+        assert driver._frames.cells == target.cells
 
 
 # --- accessors ------------------------------------------------------------------------------

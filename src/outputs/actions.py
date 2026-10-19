@@ -48,8 +48,12 @@ Raises domain errors; ``routes.py`` maps them.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from collections.abc import Callable, Mapping
+from copy import deepcopy
+from dataclasses import asdict
 from typing import Any
 
 from src.output_allowlist import flush_refusal_summary
@@ -65,7 +69,7 @@ from .hooks import (
     UnknownOutputAction,
     lan_hint,
 )
-from .output_config import validate_output_config
+from .output_config import board_context, validate_output_config
 from .registry import FIESTAPANEL, VESTABOARD, OutputDefinition, output_registry, resolve_output_id
 
 logger = logging.getLogger(__name__)
@@ -96,7 +100,9 @@ def _declares(spec: OutputActionSpec, name: str) -> bool:
     return isinstance(properties, Mapping) and name in properties
 
 
-def _checked_input(spec: OutputActionSpec, inputs: dict[str, Any]) -> dict[str, Any]:
+def _checked_input(
+    spec: OutputActionSpec, inputs: dict[str, Any], board: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
     # The network hint (HINT_HOST) is a generic input every action accepts:
     # the web UI sends it with every scan, for every output. An action that
     # declares it gets it as its schema checks it; ``discover`` gets it as a
@@ -117,7 +123,10 @@ def _checked_input(spec: OutputActionSpec, inputs: dict[str, Any]) -> dict[str, 
             raise InvalidActionInputError(f"Action '{spec.id}' takes no input")
         inputs = {}
     else:
-        errors = [e.replace("output_config", "input", 1) for e in validate_output_config(inputs, spec.input_schema)]
+        errors = [
+            e.replace("output_config", "input", 1)
+            for e in validate_output_config(inputs, spec.input_schema, board_context(board or {}))
+        ]
         if errors:
             raise InvalidActionInputError("; ".join(errors))
     if hint is not None and spec.id == "discover":
@@ -197,7 +206,7 @@ class _Lent:
         if config is None:
             board = self.board
         else:
-            board = {"output": self.definition.id, "output_config": dict(config)}
+            board = {**self.board, "output": self.definition.id, "output_config": dict(config)}
         driver = self._draft(board)
         return getattr(driver, "plugin", None) if driver is not None else None
 
@@ -417,7 +426,7 @@ async def run_draft_action(
     if device_model is not None and definition.plugin and device_model not in definition.offered_device_models:
         raise InvalidOutputConfigError(f"Output '{output_id}' declares no device model '{device_model}'")
     board = draft_board(definition, dict(output_config), device_model)
-    return await _run(definition, spec, board=board, board_id=None, inputs=_checked_input(spec, dict(inputs)))
+    return await _run(definition, spec, board=board, board_id=None, inputs=_checked_input(spec, dict(inputs), board))
 
 
 def saved_board(board_id: str, output_config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -432,16 +441,12 @@ def saved_board(board_id: str, output_config: dict[str, Any] | None = None) -> d
     stored = next((b for b in _settings_service().get_board_settings().boards if b.get("id") == board_id), None)
     if stored is None:
         raise BoardNotFoundError(board_id)
-    output_id = resolve_output_id(stored)
     if output_config is None:
         board = dict(stored)
     else:
         config = dict(output_config)
-        if output_id == VESTABOARD:
-            # Settings v4: a Vestaboard's output_config IS its connection;
-            # an edit names only the fields it changes.
-            stored_config = stored.get("output_config")
-            config = {**(stored_config if isinstance(stored_config, dict) else {}), **config}
+        stored_config = stored.get("output_config")
+        config = {**(stored_config if isinstance(stored_config, dict) else {}), **config}
         incoming = {**stored, "output_config": config}
         try:
             board = restore_masked_board_secrets(incoming, stored)
@@ -467,7 +472,9 @@ async def run_saved_action(
     board = saved_board(board_id, output_config)
     definition = _definition(resolve_output_id(board))
     spec = _spec(definition, action)
-    return await _run(definition, spec, board=board, board_id=board_id, inputs=_checked_input(spec, dict(inputs)))
+    return await _run(
+        definition, spec, board=board, board_id=board_id, inputs=_checked_input(spec, dict(inputs), board)
+    )
 
 
 # --- GET /outputs -----------------------------------------------------------------------------------
@@ -504,6 +511,15 @@ def _new_board_face(definition: OutputDefinition, model_id: str) -> dict[str, An
     return {"new_board_font": font, "new_board_charset": led_charset_for_font(font)}
 
 
+def _model_document(model_id: str, manifest: Any) -> dict[str, Any]:
+    """The full declaration, resolving built-in references without shared state."""
+    from src.fiestaui import builtin_device_models
+
+    if manifest is not None and model_id in manifest.device_model_ids:
+        return deepcopy(dict(manifest.model(manifest.device_model_ids.index(model_id))))
+    return deepcopy(dict(builtin_device_models().get(model_id) or {}))
+
+
 def _describe_action(spec: OutputActionSpec) -> dict[str, Any]:
     return {
         "id": spec.id,
@@ -522,7 +538,7 @@ def _describe_action(spec: OutputActionSpec) -> dict[str, Any]:
 def describe_output(definition: OutputDefinition) -> dict[str, Any]:
     caps = definition.capabilities
     manifest = definition.output_manifest
-    return {
+    description = {
         "id": definition.id,
         "name": definition.name,
         "description": definition.description,
@@ -532,21 +548,43 @@ def describe_output(definition: OutputDefinition) -> dict[str, Any]:
         # since settings v7, so nothing is gated and everything is available.
         "beta_gated": False,
         "available": True,
-        "output_api": manifest.output_api if manifest is not None else None,
+        "version": definition.version,
+        "output_api": definition.output_api
+        if definition.output_api is not None
+        else (manifest.output_api if manifest is not None else None),
         "capabilities": {
             "technology": caps.technology,
             "delivery": caps.delivery,
             "animation": caps.animation,
             "native_transitions": sorted(caps.native_transitions),
             "charset": caps.charset,
+            "min_interval_ms": caps.min_interval_ms,
+            "read_back": asdict(caps.read_back) if caps.read_back is not None else None,
+            "write_timeout_ms": caps.write_timeout_ms,
+            "max_frames": caps.max_frames,
         },
         "device_models": [
-            {"id": model_id, "label": _model_label(model_id, manifest), **_new_board_face(definition, model_id)}
+            {
+                **_model_document(model_id, manifest),
+                "id": model_id,
+                "label": _model_label(model_id, manifest),
+                **_new_board_face(definition, model_id),
+            }
             for model_id in definition.offered_device_models
         ],
+        "character_set": deepcopy(manifest.character_set) if manifest is not None else None,
         "settings_schema": dict(definition.settings_schema),
         "actions": [_describe_action(spec) for spec in definition.actions],
     }
+    declaration = {
+        key: description[key]
+        for key in ("output_api", "capabilities", "device_models", "character_set", "settings_schema", "actions")
+    }
+    # A revision of the public declaration, independent of any board config
+    # or runtime state. Stable across processes and dictionary insertion order.
+    encoded = json.dumps(declaration, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    description["declaration_revision"] = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    return description
 
 
 def list_outputs() -> list[dict[str, Any]]:

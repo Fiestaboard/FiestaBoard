@@ -17,11 +17,13 @@ board is in hand (unit tests, a size-only preview), and a plugin must treat
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Any
 
-from src.led.charsets import resolve_character_set, validate_message
+from src.led.charsets import has_extended_markup, resolve_character_set, validate_message
 from src.markup import BOARD_ICONS
 
 from .board_profile import board_character_set, board_device_model, led_layout_choice
@@ -57,6 +59,8 @@ class DisplayProfile:
         font: The LED face the board draws text in: ``"5x7"`` (Large) or
             ``"3x5"`` (Small); ``None`` off LED. A board's face can change
             at runtime (its text size setting), and its grid with it.
+        block_padding: Effective pixels around highlighted text; ``None`` off LED.
+        monochrome: The fixed lit colour of a monochrome panel, when declared.
         rows: The board's grid height in characters, when known.
         cols: The board's grid width in characters, when known.
         width: A pixel-matrix board's width in pixels; ``None`` on any
@@ -81,6 +85,9 @@ class DisplayProfile:
     cols: int | None = None
     width: int | None = None
     height: int | None = None
+    block_padding: int | None = None
+    monochrome: str | None = None
+    _charset_json: str | None = field(default=None, repr=False)
 
     @property
     def key(self) -> str:
@@ -90,12 +97,42 @@ class DisplayProfile:
         it, :attr:`src.devices.BoardContext.key`); the face and a pixel
         matrix's pixel size are.
         """
-        parts = [self.device_model or self.technology, self.charset, self.color, self.tile_gap]
-        if self.width is not None and self.height is not None:
-            parts.append(f"{self.width}x{self.height}")
-        if self.font is not None:
-            parts.append(self.font)
-        return "|".join(str(part) for part in parts)
+        # Include every effective rendering fact, including plugin-scoped charset
+        # content/version: IDs alone are only unique within a declaration.
+        semantics = self.to_dict()
+        semantics.pop("rows")
+        semantics.pop("cols")
+        encoded = json.dumps(semantics, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(encoded.encode()).hexdigest()
+
+    @property
+    def character_set(self) -> dict[str, Any] | None:
+        """A defensive copy of the materialized declaration, when available."""
+        return json.loads(self._charset_json) if self._charset_json is not None else None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Safe effective authoring facts; no output configuration or credentials."""
+        return {
+            "technology": self.technology,
+            "device_model": self.device_model,
+            "charset": self.charset,
+            "character_set": self.character_set,
+            "color": self.color,
+            "monochrome": self.monochrome,
+            "mixed_case": self.mixed_case,
+            "color_spans": self.color_spans,
+            "block_spans": self.block_spans,
+            "tiles": self.tiles,
+            "icons": list(self.icons),
+            "chars": self.chars,
+            "tile_gap": self.tile_gap,
+            "font": self.font,
+            "block_padding": self.block_padding,
+            "rows": self.rows,
+            "cols": self.cols,
+            "width": self.width,
+            "height": self.height,
+        }
 
     def supports(self, feature: str) -> bool:
         """Whether this display can draw *feature* (one of :data:`FEATURES`).
@@ -130,9 +167,17 @@ class DisplayProfile:
         if not self.charset:
             return []
         try:
-            result = validate_message(text, self.charset)
+            result = validate_message(text, self.character_set or self.charset)
         except (KeyError, ValueError):
-            return []
+            return [
+                {
+                    "row": 0,
+                    "col": 0,
+                    "reason": "unknown_charset",
+                    "message": f"Character set {self.charset!r} is unavailable; text cannot be validated.",
+                    "fallback": None,
+                }
+            ]
         return [
             {k: v for k, v in issue.to_dict().items() if k in ("row", "col", "reason", "fallback")}
             for issue in result.issues
@@ -153,6 +198,8 @@ class DisplayProfile:
             }.get(self.color, "an LED pixel display"),
             "screen": "a screen",
         }.get(self.technology, "a display board")
+        if self.technology == "led_matrix" and not self.supports("pixels"):
+            kind = "a character display with an LED appearance"
         lines = [f"THE DISPLAY: {kind}."]
         size = []
         if self.rows and self.cols:
@@ -165,7 +212,7 @@ class DisplayProfile:
         if self.mixed_case:
             lines.append("Lowercase is drawn as lowercase: write normal sentence case, not all caps.")
         else:
-            lines.append("It has no lowercase: everything is shown in CAPITALS.")
+            lines.append("It has no lowercase: everything is shown in CAPITALS. The board uppercases all letters.")
         names = ", ".join(SPAN_COLORS)
         if self.color_spans:
             lines.append(
@@ -175,7 +222,7 @@ class DisplayProfile:
             )
         if self.block_spans:
             lines.append(
-                "Highlighted text: {background/text colour:words} draws the words on a coloured band, "
+                "Highlighted text: {text colour/background:words} draws the words on a coloured band, "
                 "e.g. {yellow/black:AQI 160}. Use it for the one thing that needs attention."
             )
         if self.tiles:
@@ -186,8 +233,9 @@ class DisplayProfile:
         if self.icons:
             lines.append("Icons: {icon:name} draws a small picture. Available: " + ", ".join(self.icons) + ".")
         if not (self.color_spans or self.block_spans):
-            lines.append("Colour comes only from the solid squares; text itself is one colour.")
+            lines.append("Text itself is one colour.")
         if self.chars:
+            lines.append(f"Supported text characters: {self.chars!r}. Other characters use the charset fallback.")
             symbols = "".join(ch for ch in self.chars if not ch.isalnum() and ch != " ")
             if symbols:
                 lines.append(f"Punctuation it draws: {' '.join(symbols)}. Anything else shows as a blank.")
@@ -232,7 +280,7 @@ def _profile(
     """One :class:`DisplayProfile` from a resolved (effective) device model,
     character set, the board's output config (for the LED tile style) and its
     content grid."""
-    charset = charset or {}
+    charset = resolve_character_set(charset) if charset is not None else {}
     color = model.get("color")
     color_kind = color.get("kind") if isinstance(color, Mapping) else None
     # The tile style the device is actually drawn with: the board's choice
@@ -242,6 +290,8 @@ def _profile(
     pixel_size = None
     if isinstance(geometry, Mapping) and geometry.get("kind") == "pixels":
         pixel_size = (int(geometry["width"]), int(geometry["height"]))
+    if grid is None and isinstance(geometry, Mapping) and geometry.get("kind") == "cells":
+        grid = _grid(geometry.get("rows"), geometry.get("cols"))
     icons = charset.get("icons") or ()
     chars = charset.get("chars") or ()
     return DisplayProfile(
@@ -250,6 +300,7 @@ def _profile(
         charset=str(charset.get("id")) if charset.get("id") else None,
         # FiestaUI's colour kinds are "rgb", "monochrome" and "tiles" (device-model schema).
         color="rgb" if color_kind == "rgb" else ("mono" if color_kind == "monochrome" else "tiles"),
+        monochrome=str(color["color"]) if color_kind == "monochrome" and color.get("color") else None,
         mixed_case=bool(charset.get("mixedCase")),
         color_spans=bool(charset.get("colorSpans")),
         block_spans=bool(charset.get("blockSpans")),
@@ -258,11 +309,29 @@ def _profile(
         chars="".join(str(c) for c in chars),
         tile_gap=layout.tile_gap if layout is not None else None,
         font=layout.font if layout is not None else None,
+        block_padding=layout.block_padding if layout is not None else None,
+        _charset_json=json.dumps(dict(charset), sort_keys=True, separators=(",", ":")) if charset else None,
         rows=grid[0] if grid else None,
         cols=grid[1] if grid else None,
         width=pixel_size[0] if pixel_size else None,
         height=pixel_size[1] if pixel_size else None,
     )
+
+
+def _integer_authoring_profile(
+    model: Mapping[str, Any],
+    charset: Mapping[str, Any],
+    config: Mapping[str, Any] | None,
+    grid: tuple[int, int] | None,
+) -> DisplayProfile:
+    """A visual model whose output delivers only the legacy integer grid.
+
+    FiestaPanel's LED appearance has pixel geometry for its viewer, but its
+    writer does not deliver arbitrary pixels or rich text. Keep appearance
+    identity/font while teaching only the content the integer frame carries.
+    """
+    profile = _profile(model, charset, config, grid)
+    return replace(profile, width=None, height=None, color="tiles", monochrome=None)
 
 
 def _grid(rows: Any, cols: Any) -> tuple[int, int] | None:
@@ -289,9 +358,13 @@ def display_profile_for_client(client: Any) -> DisplayProfile | None:
         return None
     plugin = getattr(client, "plugin", None)
     config = getattr(plugin, "config", None)
-    return _profile(
-        model, _charset_of(client, model), config if isinstance(config, Mapping) else None, _client_grid(plugin)
-    )
+    config = config if isinstance(config, Mapping) else None
+    if getattr(type(plugin), "markup_follows_charset", True) is False:
+        charset = getattr(plugin, "character_set", None)
+        if not isinstance(charset, Mapping) or has_extended_markup(charset):
+            charset = resolve_character_set("vestaboard_v1")
+        return _integer_authoring_profile(model, charset, config, _client_grid(plugin))
+    return _profile(model, _charset_of(client, model), config, _client_grid(plugin))
 
 
 def display_profile_for_board(board: Mapping[str, Any]) -> DisplayProfile | None:
@@ -299,15 +372,38 @@ def display_profile_for_board(board: Mapping[str, Any]) -> DisplayProfile | None
     way previews resolve it (:mod:`src.outputs.board_profile`); ``None`` when
     the board's device model is unknown (its output plugin is not installed).
     """
+    from .registry import FIRST_PARTY_OUTPUTS, output_registry, resolve_output_id
+
+    output_id = resolve_output_id(board)
+    definition = output_registry().get(output_id)
     model = board_device_model(board)
+    if not isinstance(model, Mapping) and output_id in FIRST_PARTY_OUTPUTS and definition is not None:
+        from src.fiestaui import builtin_device_models
+
+        from .board_profile import board_model_spec, board_profile
+
+        model = board_model_spec(board) or builtin_device_models().get(board_profile(board).device_model)
     if not isinstance(model, Mapping):
         return None
     config = board.get("output_config")
+    from src.devices import geometry_of, resolve_dimensions
+
+    try:
+        dims = resolve_dimensions(*geometry_of(board))
+        grid = (dims.rows, dims.cols)
+    except ValueError:
+        grid = _grid(board.get("grid_rows"), board.get("grid_cols"))
+    if definition is not None and getattr(definition.plugin_class, "markup_follows_charset", True) is False:
+        from src.devices import BoardInstance
+
+        glyph = BoardInstance.from_dict(dict(board)).effective_code62_glyph
+        charset = resolve_character_set("vestaboard_v2" if glyph == "heart" else "vestaboard_v1")
+        return _integer_authoring_profile(model, charset, config if isinstance(config, Mapping) else None, grid)
     return _profile(
         model,
         board_character_set(board),
         config if isinstance(config, Mapping) else None,
-        _grid(board.get("grid_rows"), board.get("grid_cols")),
+        grid,
     )
 
 

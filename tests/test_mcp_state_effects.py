@@ -67,6 +67,12 @@ from src.schedules.storage import ScheduleStorage
 #: the fixtures below and pins the same rule: every assertion is on state
 #: read back, or on the call that crossed a patched hardware/sidecar boundary.
 COVERED = {
+    # Generic output-plugin tools — tests/test_mcp_display_tools.py
+    "list_display_outputs",
+    "get_display_info",
+    "create_display",
+    "configure_display",
+    "run_display_action",
     "list_pages",
     "get_page",
     "create_page",
@@ -2324,21 +2330,55 @@ FITS_ON_LED = "{{red:hot}} {{black/white:OPEN}} {{icon:sun}} {sun} XXXXXXXXX"
 
 
 @pytest.fixture
-def boards_with_led(services, monkeypatch):
-    """An LED-charset board 'led1' and a Vestaboard flagship 'vb1'."""
-    from src.led.charsets import BUILTIN_CHARACTER_SETS
+def boards_with_led(services, tmp_path):
+    """A real 6x22 LED output declaration and a Vestaboard flagship."""
     from src.settings.service import get_settings_service
-    from src.templates import routes
 
-    get_settings_service().set_boards(
-        [
-            {"id": "led1", "name": "Sign", "device_type": "flagship"},
-            {"id": "vb1", "name": "Lobby", "device_type": "flagship", "code62_glyph": "degree"},
-        ]
+    root = tmp_path / "led_outputs"
+    plugin_path = root / "recording_output"
+    shutil.copytree(
+        Path(__file__).parent / "fixtures" / "plugins" / "recording_output",
+        plugin_path,
+        ignore=shutil.ignore_patterns("__pycache__"),
     )
-    led = dict(BUILTIN_CHARACTER_SETS["led_5x7"])
-    real = routes.board_character_set
-    monkeypatch.setattr(routes, "board_character_set", lambda board: led if board.get("id") == "led1" else real(board))
+    manifest_path = plugin_path / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["output"].pop("character_set")
+    manifest["output"]["device_models"] = [
+        {
+            "id": "mcp_led_sign",
+            "label": "MCP LED sign",
+            "technology": "led_matrix",
+            "family": "tests",
+            "geometry": {"kind": "pixels", "width": 132, "height": 48},
+            "color": {"kind": "rgb", "bitDepth": 24},
+            "font": "5x7",
+            "charset": "led_5x7",
+            "animation": {"delivery": "stream", "maxFps": 10},
+        }
+    ]
+    manifest_path.write_text(json.dumps(manifest))
+    loader = PluginLoader(plugins_dir=root, external_dirs=[])
+    assert loader.load_plugin("recording_output") is not None, loader.load_errors
+    try:
+        get_settings_service().set_boards(
+            [
+                {
+                    "id": "led1",
+                    "name": "Sign",
+                    "device_type": "panel",
+                    "grid_rows": 6,
+                    "grid_cols": 22,
+                    "output": "recording_output",
+                    "device_model": "mcp_led_sign",
+                    "output_config": {"host": "192.0.2.50"},
+                },
+                {"id": "vb1", "name": "Lobby", "device_type": "flagship", "code62_glyph": "degree"},
+            ]
+        )
+        yield loader
+    finally:
+        loader.unload_plugin("recording_output")
 
 
 def _too_long(result: dict) -> list[str]:
@@ -2351,12 +2391,11 @@ def test_validate_template_for_an_led_board_measures_rendered_tiles(mcp, boards_
     assert result["charset"] == "led_5x7"
 
 
-def test_validate_template_without_a_board_measures_rendered_tiles(mcp, boards_with_led):
-    # A split-flap board speaks extended markup since the Task 12 flip, so it
-    # measures what is drawn, as an LED board does.
+def test_validate_template_defaults_to_the_primary_board(mcp, boards_with_led):
+    # An omitted target uses the configured primary LED profile.
     result = call(mcp, "validate_template", template=FITS_ON_LED)
     assert _too_long(result) == []
-    assert "charset" not in result
+    assert result["charset"] == "led_5x7"
 
 
 def test_validate_template_rejects_an_unknown_board(mcp, boards_with_led):
@@ -2383,12 +2422,13 @@ def test_render_page_preview_reports_the_boards_charset_issues(mcp, boards_with_
     assert {(i["row"], i["col"], i["reason"]) for i in result["charset_issues"]} >= {(0, 1, "case")}
 
 
-def test_render_page_preview_without_a_board_renders_extended_markup(mcp, boards_with_led):
-    # Rendered as a split-flap board, which speaks extended markup since the
-    # Task 12 flip; the response shape is unchanged.
+def test_render_page_preview_defaults_to_the_primary_board(mcp, boards_with_led):
+    # The configured primary LED supplies markup support and metadata.
     result = assert_ok(call(mcp, "render_page_preview", template_lines=["{{red:HOT}}"]), "render_page_preview")
     assert result["rendered"].startswith("{red:HOT}")
-    assert set(result) == {"rendered", "device_type", "rows", "cols", "context_plugins"}
+    assert set(result) == {"rendered", "device_type", "rows", "cols", "context_plugins", "charset", "charset_issues"}
+    assert result["charset"] == "led_5x7"
+    assert result["charset_issues"] == []
 
 
 def test_render_page_preview_rejects_an_unknown_board(mcp, boards_with_led):

@@ -1216,3 +1216,54 @@ describe("useAiChat: pausing at a per-turn cap", () => {
     expect(result.current.pausedAtLimit).toBe(false);
   });
 });
+
+describe("complete page preview snapshots", () => {
+  const canvases = [{ id: "sky", area: { row: 1, col: 1, rows: 2, cols: 4 }, content: { background: "#ff0000" } }];
+  it("preserves geometry, artwork and supplied line formatting on creation", () => {
+    const args = {
+      name: "Art",
+      template_lines: ["A"],
+      line_metadata: [{ alignment: "right", wrap: true }],
+      device_type: "panel",
+      grid_rows: 10,
+      grid_cols: 16,
+      canvases,
+      duration_seconds: 50,
+      transition_strategy: "none",
+    };
+    expect(computeAppliedSnapshot({ name: "create_page", args }, undefined)).toMatchObject({
+      name: "Art",
+      template: ["A"],
+      line_metadata: args.line_metadata,
+      device_type: "panel",
+      grid_rows: 10,
+      grid_cols: 16,
+      canvases,
+      duration_seconds: 50,
+      transition_strategy: "none",
+    });
+  });
+  it("preserves omitted draft artwork and applies explicit canvas removals", () => {
+    const base = {
+      id: "p",
+      name: "Art",
+      template: ["A"],
+      line_metadata: [{ alignment: "left" as const, wrap: false }],
+      device_type: "note_array" as const,
+      notes_wide: 2,
+      notes_tall: 2,
+      canvases,
+    };
+    expect(computeAppliedSnapshot({ name: "update_page", args: { page_id: "p", name: "New" } }, base)).toMatchObject({
+      canvases,
+      notes_wide: 2,
+      notes_tall: 2,
+    });
+    expect(
+      computeAppliedSnapshot({ name: "update_page", args: { page_id: "p", canvases: [] } }, base)?.canvases,
+    ).toEqual([]);
+    expect(
+      computeAppliedSnapshot({ name: "update_page", args: { page_id: "p", canvases: null } }, base)?.canvases,
+    ).toEqual([]);
+  });
+});

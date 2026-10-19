@@ -55,7 +55,7 @@ export function GlobalAiChatDrawer() {
   const router = useRouter();
   const { getEditorSnapshot, staging: pageStaging } = usePageEditorBridge();
   // The chat teaches this board's display (LED colours, icons, canvases).
-  const { currentBoardId } = useCurrentBoard();
+  const { currentBoardId, currentBoard } = useCurrentBoard();
   const { staging: scheduleStaging } = useScheduleEditorBridge();
   const spotlight = useSpotlight();
   const tPanel = useTranslations("aiChatPanel");
@@ -258,9 +258,10 @@ export function GlobalAiChatDrawer() {
       installed: e.installed,
     }));
     const editorSnapshot = getEditorSnapshot();
+    const boardId = editorSnapshot?.board_id ?? currentBoardId;
     return {
-      deviceType: "flagship",
-      ...(currentBoardId && { boardId: currentBoardId }),
+      deviceType: editorSnapshot?.device_type ?? currentBoard?.device_type ?? "flagship",
+      ...(boardId && { boardId }),
       // "editor" when the user is actively editing a page (so the AI
       // should bias toward updating THAT page); "global" otherwise (so the
       // AI biases toward creating things the app then opens).
@@ -272,7 +273,16 @@ export function GlobalAiChatDrawer() {
       availableCollections: collections,
       registryPlugins,
     };
-  }, [pagesData, pluginsData, schedulesData, collectionsData, registryData, getEditorSnapshot, currentBoardId]);
+  }, [
+    pagesData,
+    pluginsData,
+    schedulesData,
+    collectionsData,
+    registryData,
+    getEditorSnapshot,
+    currentBoardId,
+    currentBoard,
+  ]);
 
   // ---------------------------------------------------------------------------
   // After a tool ran: the toast, and for schedules the same Undo affordances

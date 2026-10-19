@@ -456,7 +456,9 @@ class TestDisplayProfile:
     def test_the_profile_names_the_face_and_its_key_changes_with_it(self, pixoo_output):
         large, small = self._profile("5x7"), self._profile("3x5")
         assert (large.font, small.font) == ("5x7", "3x5")
-        assert large.key.split("|")[-1] == "5x7" and small.key.split("|")[-1] == "3x5"
+        assert self._profile("5x7").key == large.key
+        assert self._profile("3x5").key == small.key
+        assert large.to_dict()["font"] == "5x7" and small.to_dict()["font"] == "3x5"
         assert large.key != small.key
 
     def test_the_ai_brief_states_the_grid_and_the_face(self, pixoo_output):

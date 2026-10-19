@@ -75,6 +75,7 @@ AIDeviceType = Literal["flagship", "note"]
 #: editor) vs "global" (global drawer). Steers the AI between in-place page
 #: edits and navigation. Old clients that omit it get "global".
 ChatSurface = Literal["editor", "global"]
+ChatDeviceType = Literal["flagship", "note", "note_array", "panel"]
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +238,7 @@ class AIChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1)
     resume: ChatResumeDecision | None = None
     approval: ChatApprovalOptions | None = None
-    device_type: AIDeviceType = "flagship"
+    device_type: ChatDeviceType = "flagship"
     surface: ChatSurface = "global"
     interaction_mode: Literal["tv"] | None = Field(
         default=None, description="Native TV interaction: concise choices and a board-scoped content tool catalog."

@@ -418,6 +418,7 @@ class OutputRuntime:
                     from_grid=from_grid,
                     config=transition_config,
                     with_outcome=with_outcome,
+                    cells=cells,
                 )
 
             # "stream" (and a "sequence" driver with no upload): frames go
@@ -456,6 +457,7 @@ class OutputRuntime:
         from_grid: Grid | None,
         config: dict | None,
         with_outcome: bool,
+        cells: RichCellFrame | None = None,
     ) -> Any:
         """A frame-driven transition as ONE timed upload to a sequence device."""
         from .plugin_base import TimedFrame
@@ -473,7 +475,8 @@ class OutputRuntime:
             result = SendOutcome(True, False)
         else:
             frames = [TimedFrame(grid, duration) for grid, duration in collected]
-            result = SendOutcome.of(write_sequence(frames, cancel=token))
+            rich = {"cells": cells} if cells is not None and getattr(driver, "takes_cells", False) else {}
+            result = SendOutcome.of(write_sequence(frames, cancel=token, **rich))
         if not with_outcome:
             return (result.success, result.was_sent)
         return result._replace(floor_seconds=_floor_seconds(driver))

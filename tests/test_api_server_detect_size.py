@@ -264,3 +264,34 @@ class TestDetectSizeLocalArrays:
         assert resp.status_code == 200
         assert resp.json()["device_type"] == "note_array"
         assert resp.json()["notes_wide"] == 2
+
+
+@patch("src.api_server.get_settings_service")
+def test_virtual_panel_reports_configured_geometry_without_probing(mock_settings, client):
+    mock_settings.return_value.get_board_settings.return_value = _board_settings_mock(
+        [{"id": "panel-1", "output": "fiestapanel", "device_type": "panel", "grid_rows": 12, "grid_cols": 29}]
+    )
+    with patch(
+        "src.settings.routes._live_board_driver", side_effect=AssertionError("must not probe configured geometry")
+    ):
+        response = client.post("/settings/board/panel-1/detect-size")
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "device_type": "panel",
+        "rows": 12,
+        "cols": 29,
+        "notes_wide": None,
+        "notes_tall": None,
+        "matched_preset": None,
+        "source": "configured",
+    }
+
+
+@patch("src.api_server.get_settings_service")
+def test_missing_output_is_unavailable_instead_of_inventing_detected_geometry(mock_settings, client):
+    mock_settings.return_value.get_board_settings.return_value = _board_settings_mock(
+        [{"id": "missing-1", "output": "not_installed", "device_type": "panel", "grid_rows": 12, "grid_cols": 29}]
+    )
+    response = client.post("/settings/board/missing-1/detect-size")
+    assert response.status_code == 503
+    assert "not installed" in response.json()["detail"]

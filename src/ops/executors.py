@@ -111,6 +111,16 @@ async def install_plugin(
     except Exception as exc:
         return err(f"Error installing plugin '{label}': {exc}")
 
+    manifest = _plugin_service().registry.get_manifest(plugin_id)
+    if getattr(manifest, "plugin_type", None) == "output":
+        return ok(
+            f"Output plugin '{plugin_id}' installed. Use create_display to configure a board for it.",
+            plugin_id=plugin_id,
+            source=source,
+            plugin_type="output",
+            warnings=["initial_config was not applied: output settings belong to a board."] if initial_config else [],
+        )
+
     if auto_enable:
         enabled = enable_plugin(plugin_id)
         if enabled.get("status") == "error":
@@ -1810,6 +1820,14 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
             if refusal is not None:
                 return refusal
             body = prepared or {}
+        elif category == "silence_schedule":
+            from src.config import resolve_silence_schedule
+            from src.config_manager import get_config_manager
+
+            current = resolve_silence_schedule(
+                get_config_manager().get_feature("silence_schedule"), body.get("board_id")
+            )
+            body = {**{key: value for key, value in current.items() if key in allowed}, **body}
         await handler()
     except HTTPException as exc:
         return err(f"Error updating {category} settings: {rest_detail(exc)}")
@@ -1965,12 +1983,14 @@ BOARD_PUBLIC_FIELDS: tuple[str, ...] = (
 
 def board_public_view(board: dict[str, Any]) -> dict[str, Any]:
     """Credential-free projection of a board dict (stored v4, or a flat view)."""
+    from src.outputs.description import describe_board
     from src.settings.board_shape import board_view
 
     board = board_view(board)
     view = {key: board.get(key) for key in BOARD_PUBLIC_FIELDS}
-    view["has_host"] = bool(board.get("host"))
-    view["has_credentials"] = bool(
+    view.update(describe_board(board))
+    view["has_host"] = view["has_host"] or bool(board.get("host"))
+    view["has_credentials"] = view["has_credentials"] or bool(
         board.get("local_api_key") or board.get("cloud_key") or board.get("note_array_token")
     )
     return view
@@ -2090,6 +2110,18 @@ async def update_board(
         target = next((b for b in boards if b.get("id") == board_id), None)
         if target is None:
             return err(f"Board not found: {board_id}")
+        from src.outputs.registry import VESTABOARD, output_registry, resolve_output_id
+
+        output_id = resolve_output_id(target)
+        if output_id != VESTABOARD:
+            if any(key in updates for key in ("api_mode", "device_type", "notes_wide", "notes_tall")):
+                return err("This display uses an output plugin; use configure_display with its declared settings.")
+            if "host" in updates:
+                definition = output_registry().get(output_id)
+                properties = definition.settings_schema.get("properties", {}) if definition else {}
+                if "host" not in properties:
+                    return err("This output does not declare a host setting; use configure_display.")
+                target["output_config"] = {**(target.get("output_config") or {}), "host": updates.pop("host")}
         target.update(updates)
         response = await api.update_board_settings(models.BoardSettingsUpdate(boards=boards))
     except HTTPException as exc:
@@ -2098,7 +2130,13 @@ async def update_board(
         return err(f"Error updating board '{board_id}': {exc}")
 
     stored = next((b for b in response.get("boards", []) if b.get("id") == board_id), target)
-    return ok(f"Board '{board_id}' updated.", board_id=board_id, board=board_public_view(stored))
+    return ok(
+        f"Board '{board_id}' updated.",
+        board_id=board_id,
+        board=board_public_view(stored),
+        retargeted_pages=response.get("retargeted_pages", []),
+        incompatible_references=response.get("incompatible_references", []),
+    )
 
 
 async def add_board(
