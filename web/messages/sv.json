@@ -2789,22 +2789,23 @@
     "denied": "Begäran nekades.",
     "errors": {
       "signIn": "Logga in igen för att fortsätta.",
-      "setup": "Skapa ett FiestaBoard-konto och aktivera TV-inloggning under Inställningar → Konto.",
-      "feature_disabled": "TV-inloggning är avstängd. Aktivera TV-inloggning (Beta) under Inställningar → Konto.",
+      "setup": "Skapa ett FiestaBoard-konto innan du ansluter en TV.",
+      "feature_disabled": "TV-inloggning är avstängd. Aktivera TV-inloggning under Inställningar → Konto.",
       "expired_token": "Koden har gått ut. Begär en ny kod på din TV.",
       "access_denied": "Begäran nekades. Begär en ny kod på din TV.",
       "invalid_grant": "Koden är ogiltig, redan använd eller avbruten. Begär en ny kod på din TV.",
       "slow_down": "För många försök. Vänta en stund och försök igen.",
       "rate_limited": "För många försök. Vänta en stund och försök igen.",
       "network": "Kan inte nå FiestaBoard. Kontrollera anslutningen och försök igen."
-    }
+    },
+    "retry": "Försök igen"
   },
   "signedInDevices": {
     "title": "Inloggade enheter",
     "description": "Hantera webbläsare och TV-apparater inloggade på detta konto. Senaste aktivitet är ungefärlig och visar inte om enheten är online.",
     "loading": "Läser in enheter…",
     "error": "Kunde inte uppdatera enheterna. Kontrollera anslutningen och försök igen.",
-    "enrollment": "TV-inloggning (Beta)",
+    "enrollment": "TV-inloggning",
     "enrollmentHint": "Avstängning hindrar nya TV-inloggningar och avbryter väntande koder. Befintliga enheter behåller åtkomst tills den återkallas eller löper ut.",
     "current": "Denna webbläsare",
     "browser": "Webbläsare",
@@ -2824,6 +2825,8 @@
     "confirmOthers": "Logga ut alla andra webbläsare och TV-apparater? Denna webbläsare förblir inloggad. Väntande TV-koder avbryts.",
     "confirmAll": "Logga ut alla webbläsare och TV-apparater, inklusive denna webbläsare? Väntande TV-koder avbryts.",
     "cancel": "Avbryt",
-    "confirm": "Bekräfta"
+    "confirm": "Bekräfta",
+    "revokeDevice": "Återkalla åtkomst för {name}",
+    "retry": "Försök igen"
   }
 }

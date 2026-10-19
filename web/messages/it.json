@@ -2789,22 +2789,23 @@
     "denied": "La richiesta è stata rifiutata.",
     "errors": {
       "signIn": "Accedi di nuovo per continuare.",
-      "setup": "Configura un account FiestaBoard e abilita l’accesso TV in Impostazioni → Account.",
-      "feature_disabled": "L’accesso TV è disabilitato. Abilitalo (Beta) in Impostazioni → Account.",
+      "setup": "Configura un account FiestaBoard prima di collegare una TV.",
+      "feature_disabled": "L’accesso TV è disabilitato. Abilitalo in Impostazioni → Account.",
       "expired_token": "Codice scaduto. Richiedine uno nuovo sulla TV.",
       "access_denied": "Richiesta rifiutata. Richiedi un nuovo codice sulla TV.",
       "invalid_grant": "Codice non valido, già utilizzato o annullato. Richiedine uno nuovo sulla TV.",
       "slow_down": "Troppi tentativi. Attendi e riprova.",
       "rate_limited": "Troppi tentativi. Attendi e riprova.",
       "network": "Impossibile contattare FiestaBoard. Controlla la connessione e riprova."
-    }
+    },
+    "retry": "Riprova"
   },
   "signedInDevices": {
     "title": "Dispositivi connessi",
     "description": "Gestisci browser e TV connessi a questo account. L’ultima attività è approssimativa e non indica se un dispositivo è online.",
     "loading": "Caricamento dispositivi…",
     "error": "Impossibile aggiornare i dispositivi. Controlla la connessione e riprova.",
-    "enrollment": "Accesso TV (Beta)",
+    "enrollment": "Accesso TV",
     "enrollmentHint": "Disabilitando, si bloccano nuovi accessi TV e si annullano i codici in attesa. I dispositivi esistenti mantengono l’accesso fino alla revoca o alla scadenza.",
     "current": "Questo browser",
     "browser": "Browser",
@@ -2824,6 +2825,8 @@
     "confirmOthers": "Disconnettere gli altri browser e TV? Questo browser resterà connesso. I codici TV in attesa saranno annullati.",
     "confirmAll": "Disconnettere tutti i browser e TV, incluso questo browser? I codici TV in attesa saranno annullati.",
     "cancel": "Annulla",
-    "confirm": "Conferma"
+    "confirm": "Conferma",
+    "revokeDevice": "Revoca {name}",
+    "retry": "Riprova"
   }
 }

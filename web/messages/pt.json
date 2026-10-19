@@ -2789,22 +2789,23 @@
     "denied": "A solicitação foi negada.",
     "errors": {
       "signIn": "Entre novamente para continuar.",
-      "setup": "Configure uma conta FiestaBoard e ative o acesso pela TV em Configurações → Conta.",
-      "feature_disabled": "O acesso pela TV está desativado. Ative-o (Beta) em Configurações → Conta.",
+      "setup": "Configure uma conta FiestaBoard antes de conectar uma TV.",
+      "feature_disabled": "O acesso pela TV está desativado. Ative-o em Configurações → Conta.",
       "expired_token": "Este código expirou. Solicite um novo na TV.",
       "access_denied": "Esta solicitação foi negada. Solicite um novo código na TV.",
       "invalid_grant": "Este código é inválido, já foi usado ou foi cancelado. Solicite um novo na TV.",
       "slow_down": "Muitas tentativas. Aguarde um momento e tente novamente.",
       "rate_limited": "Muitas tentativas. Aguarde um momento e tente novamente.",
       "network": "Não foi possível acessar o FiestaBoard. Verifique a conexão e tente novamente."
-    }
+    },
+    "retry": "Tentar novamente"
   },
   "signedInDevices": {
     "title": "Dispositivos conectados",
     "description": "Gerencie navegadores e TVs conectados a esta conta. A última atividade é aproximada e não indica se o dispositivo está online.",
     "loading": "Carregando dispositivos…",
     "error": "Não foi possível atualizar os dispositivos. Verifique a conexão e tente novamente.",
-    "enrollment": "Acesso pela TV (Beta)",
+    "enrollment": "Acesso pela TV",
     "enrollmentHint": "Ao desativar, novos acessos pela TV são bloqueados e códigos pendentes são cancelados. Os dispositivos existentes mantêm o acesso até a revogação ou expiração.",
     "current": "Este navegador",
     "browser": "Navegador",
@@ -2824,6 +2825,8 @@
     "confirmOthers": "Sair dos outros navegadores e TVs? Este navegador continuará conectado. Os códigos de TV pendentes serão cancelados.",
     "confirmAll": "Sair de todos os navegadores e TVs, incluindo este navegador? Os códigos de TV pendentes serão cancelados.",
     "cancel": "Cancelar",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "revokeDevice": "Revogar {name}",
+    "retry": "Tentar novamente"
   }
 }

@@ -2789,22 +2789,23 @@
     "denied": "The request was denied.",
     "errors": {
       "signIn": "Sign in again to continue.",
-      "setup": "Set up a FiestaBoard account and enable TV sign-in in Settings → Account before connecting a TV.",
-      "feature_disabled": "TV sign-in is disabled. Enable TV sign-in (Beta) in Settings → Account.",
+      "setup": "Set up a FiestaBoard account before connecting a TV.",
+      "feature_disabled": "TV sign-in is disabled. Enable TV sign-in in Settings → Account.",
       "expired_token": "This code expired. Request a new code on your TV.",
       "access_denied": "This request was denied. Request a new code on your TV.",
       "invalid_grant": "This code is invalid, already used, or cancelled. Request a new code on your TV.",
       "slow_down": "Too many attempts. Wait a moment and try again.",
       "rate_limited": "Too many attempts. Wait a moment and try again.",
       "network": "Unable to reach FiestaBoard. Check your connection and try again."
-    }
+    },
+    "retry": "Retry"
   },
   "signedInDevices": {
     "title": "Signed-in devices",
     "description": "Manage browsers and TVs signed into this account. Last active is approximate; it does not indicate whether a device is online.",
     "loading": "Loading signed-in devices…",
     "error": "Unable to update signed-in devices. Check your connection and try again.",
-    "enrollment": "TV sign-in (Beta)",
+    "enrollment": "TV sign-in",
     "enrollmentHint": "When disabled, new TV sign-ins stop and pending codes are cancelled. Existing devices keep access until revoked or expired.",
     "current": "This browser",
     "browser": "Browser",
@@ -2824,6 +2825,8 @@
     "confirmOthers": "Sign out every other browser and TV? This browser will stay signed in. Pending TV codes will be cancelled.",
     "confirmAll": "Sign out all browsers and TVs, including this browser? Pending TV codes will be cancelled.",
     "cancel": "Cancel",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "revokeDevice": "Revoke {name}",
+    "retry": "Retry"
   }
 }

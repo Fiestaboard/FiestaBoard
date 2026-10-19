@@ -2789,22 +2789,23 @@
     "denied": "Het verzoek is geweigerd.",
     "errors": {
       "signIn": "Meld je opnieuw aan om door te gaan.",
-      "setup": "Stel een FiestaBoard-account in en schakel tv-aanmelding in via Instellingen → Account.",
-      "feature_disabled": "Tv-aanmelding is uitgeschakeld. Schakel tv-aanmelding (Bèta) in via Instellingen → Account.",
+      "setup": "Stel een FiestaBoard-account in voordat je een tv verbindt.",
+      "feature_disabled": "Tv-aanmelding is uitgeschakeld. Schakel tv-aanmelding in via Instellingen → Account.",
       "expired_token": "Deze code is verlopen. Vraag een nieuwe code aan op je tv.",
       "access_denied": "Dit verzoek is geweigerd. Vraag een nieuwe code aan op je tv.",
       "invalid_grant": "Deze code is ongeldig, al gebruikt of geannuleerd. Vraag een nieuwe code aan op je tv.",
       "slow_down": "Te veel pogingen. Wacht even en probeer opnieuw.",
       "rate_limited": "Te veel pogingen. Wacht even en probeer opnieuw.",
       "network": "FiestaBoard is niet bereikbaar. Controleer je verbinding en probeer opnieuw."
-    }
+    },
+    "retry": "Opnieuw proberen"
   },
   "signedInDevices": {
     "title": "Aangemelde apparaten",
     "description": "Beheer browsers en tv’s die bij dit account zijn aangemeld. Laatst actief is een schatting en geeft niet aan of een apparaat online is.",
     "loading": "Apparaten laden…",
     "error": "Apparaten bijwerken mislukt. Controleer je verbinding en probeer opnieuw.",
-    "enrollment": "Tv-aanmelding (Bèta)",
+    "enrollment": "Tv-aanmelding",
     "enrollmentHint": "Uitschakelen voorkomt nieuwe tv-aanmeldingen en annuleert openstaande codes. Bestaande apparaten behouden toegang tot intrekking of verloop.",
     "current": "Deze browser",
     "browser": "Browser",
@@ -2824,6 +2825,8 @@
     "confirmOthers": "Alle andere browsers en tv’s afmelden? Deze browser blijft aangemeld. Openstaande tv-codes worden geannuleerd.",
     "confirmAll": "Alle browsers en tv’s afmelden, inclusief deze browser? Openstaande tv-codes worden geannuleerd.",
     "cancel": "Annuleren",
-    "confirm": "Bevestigen"
+    "confirm": "Bevestigen",
+    "revokeDevice": "Toegang voor {name} intrekken",
+    "retry": "Opnieuw proberen"
   }
 }

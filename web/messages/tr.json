@@ -2789,22 +2789,23 @@
     "denied": "İstek reddedildi.",
     "errors": {
       "signIn": "Devam etmek için tekrar oturum açın.",
-      "setup": "Bir FiestaBoard hesabı oluşturun ve Ayarlar → Hesap bölümünde TV oturum açmayı etkinleştirin.",
-      "feature_disabled": "TV oturum açma devre dışı. Ayarlar → Hesap bölümünden TV oturum açmayı (Beta) etkinleştirin.",
+      "setup": "TV bağlamadan önce bir FiestaBoard hesabı oluşturun.",
+      "feature_disabled": "TV oturum açma devre dışı. Ayarlar → Hesap bölümünden TV oturum açmayı etkinleştirin.",
       "expired_token": "Bu kodun süresi doldu. TV’nizden yeni bir kod isteyin.",
       "access_denied": "Bu istek reddedildi. TV’nizden yeni bir kod isteyin.",
       "invalid_grant": "Bu kod geçersiz, kullanılmış veya iptal edilmiş. TV’nizden yeni bir kod isteyin.",
       "slow_down": "Çok fazla deneme. Biraz bekleyip tekrar deneyin.",
       "rate_limited": "Çok fazla deneme. Biraz bekleyip tekrar deneyin.",
       "network": "FiestaBoard’a ulaşılamıyor. Bağlantınızı kontrol edip tekrar deneyin."
-    }
+    },
+    "retry": "Tekrar dene"
   },
   "signedInDevices": {
     "title": "Oturum açmış cihazlar",
     "description": "Bu hesapta oturum açmış tarayıcıları ve TV’leri yönetin. Son etkinlik yaklaşık bir değerdir; cihazın çevrimiçi olduğunu göstermez.",
     "loading": "Cihazlar yükleniyor…",
     "error": "Cihazlar güncellenemedi. Bağlantınızı kontrol edip tekrar deneyin.",
-    "enrollment": "TV oturum açma (Beta)",
+    "enrollment": "TV oturum açma",
     "enrollmentHint": "Devre dışı bırakmak yeni TV oturumlarını engeller ve bekleyen kodları iptal eder. Mevcut cihazlar iptal edilene veya süreleri dolana kadar erişimi korur.",
     "current": "Bu tarayıcı",
     "browser": "Tarayıcı",
@@ -2824,6 +2825,8 @@
     "confirmOthers": "Diğer tüm tarayıcılardan ve TV’lerden çıkış yapılsın mı? Bu tarayıcı açık kalır. Bekleyen TV kodları iptal edilir.",
     "confirmAll": "Bu tarayıcı dahil tüm tarayıcılardan ve TV’lerden çıkış yapılsın mı? Bekleyen TV kodları iptal edilir.",
     "cancel": "Vazgeç",
-    "confirm": "Onayla"
+    "confirm": "Onayla",
+    "revokeDevice": "{name} erişimini iptal et",
+    "retry": "Tekrar dene"
   }
 }

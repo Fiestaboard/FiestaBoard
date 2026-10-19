@@ -2789,22 +2789,23 @@
     "denied": "Die Anfrage wurde abgelehnt.",
     "errors": {
       "signIn": "Melde dich erneut an, um fortzufahren.",
-      "setup": "Richte ein FiestaBoard-Konto ein und aktiviere die TV-Anmeldung unter Einstellungen → Konto.",
-      "feature_disabled": "Die TV-Anmeldung ist deaktiviert. Aktiviere TV-Anmeldung (Beta) unter Einstellungen → Konto.",
+      "setup": "Richte ein FiestaBoard-Konto ein, bevor du einen Fernseher verbindest.",
+      "feature_disabled": "Die TV-Anmeldung ist deaktiviert. Aktiviere TV-Anmeldung unter Einstellungen → Konto.",
       "expired_token": "Dieser Code ist abgelaufen. Fordere auf deinem TV einen neuen an.",
       "access_denied": "Diese Anfrage wurde abgelehnt. Fordere auf deinem TV einen neuen Code an.",
       "invalid_grant": "Dieser Code ist ungültig, bereits verwendet oder abgebrochen. Fordere auf deinem TV einen neuen an.",
       "slow_down": "Zu viele Versuche. Warte kurz und versuche es erneut.",
       "rate_limited": "Zu viele Versuche. Warte kurz und versuche es erneut.",
       "network": "FiestaBoard ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut."
-    }
+    },
+    "retry": "Erneut versuchen"
   },
   "signedInDevices": {
     "title": "Angemeldete Geräte",
     "description": "Verwalte Browser und TVs dieses Kontos. Die letzte Aktivität ist eine ungefähre Angabe und kein Online-Status.",
     "loading": "Geräte werden geladen…",
     "error": "Geräte konnten nicht aktualisiert werden. Prüfe deine Verbindung und versuche es erneut.",
-    "enrollment": "TV-Anmeldung (Beta)",
+    "enrollment": "TV-Anmeldung",
     "enrollmentHint": "Deaktivieren verhindert neue TV-Anmeldungen und verwirft ausstehende Codes. Bestehende Geräte behalten ihren Zugriff bis zum Widerruf oder Ablauf.",
     "current": "Dieser Browser",
     "browser": "Browser",
@@ -2824,6 +2825,8 @@
     "confirmOthers": "Alle anderen Browser und TVs abmelden? Dieser Browser bleibt angemeldet. Ausstehende TV-Codes werden verworfen.",
     "confirmAll": "Alle Browser und TVs einschließlich dieses Browsers abmelden? Ausstehende TV-Codes werden verworfen.",
     "cancel": "Abbrechen",
-    "confirm": "Bestätigen"
+    "confirm": "Bestätigen",
+    "revokeDevice": "Zugriff für {name} widerrufen",
+    "retry": "Erneut versuchen"
   }
 }
