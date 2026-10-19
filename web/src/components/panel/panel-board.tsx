@@ -13,14 +13,15 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 
 import { PanelMatrix } from "@/components/panel/panel-matrix";
 import { useTranslations } from "@/i18n/translations";
-import type { MatrixSizing } from "@/lib/api";
-import { isLedModel, ledLetterCase } from "@/lib/device-preview";
+import type { CanvasLayerJson, MatrixSizing } from "@/lib/api";
+import { isLedModel, ledLayerProps, ledLetterCase } from "@/lib/device-preview";
 import { NOTE_COL_PITCH_IN, PANEL_PHYSICAL_WIDTH_IN, panelAutofitScale } from "@/lib/panel-scale";
 
 interface PanelBoardProps {
   message: string | null;
   /** The frame as rich cells, when the frame has them; they win over `message`. */
   cells?: BoardCellGrid;
+  layers?: CanvasLayerJson[];
   /** The panel's render-style model (`device_model_spec`); an LED model draws as an LED matrix. */
   model?: DeviceModel | null;
   animationsEnabled: boolean;
@@ -74,6 +75,7 @@ function colPitchIn(deviceType: DeviceType): number {
 export function PanelBoard({
   message,
   cells,
+  layers,
   model,
   animationsEnabled,
   deviceType,
@@ -159,6 +161,7 @@ export function PanelBoard({
           model={model}
           message={message}
           cells={cells}
+          layers={layers}
           sizing={matrixSizing}
           diagonal={diagonalInches}
           spacing={matrixPitch}
@@ -186,6 +189,7 @@ export function PanelBoard({
             model={model}
             message={message}
             cells={cells}
+            {...ledLayerProps(layers)}
             size="lg"
             letterCase={ledLetterCase(model)}
             announceUpdates

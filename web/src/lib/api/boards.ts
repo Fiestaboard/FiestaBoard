@@ -195,6 +195,8 @@ export interface PanelFrame {
    * when the frame has them (its board's output draws a rich character set).
    */
   cells?: BoardTokenJson[][];
+  /** Pixel canvas layers, drawn over the cells by LED panels. */
+  layers?: CanvasLayerJson[];
   message: string | null;
   rows: number;
   cols: number;
