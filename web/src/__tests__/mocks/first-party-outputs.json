@@ -13,14 +13,7 @@
       "technology": "split_flap",
       "delivery": "push",
       "animation": "stream",
-      "native_transitions": [
-        "column",
-        "diagonal",
-        "edges-to-center",
-        "random",
-        "reverse-column",
-        "row"
-      ],
+      "native_transitions": ["column", "diagonal", "edges-to-center", "random", "reverse-column", "row"],
       "charset": null,
       "min_interval_ms": 0,
       "read_back": null,
@@ -50,20 +43,12 @@
           "delivery": "stream",
           "maxFps": 1,
           "notes": "Frames are written by FiestaBoard one at a time (transition plugins step frame-by-frame); the board's own flap cascade animates each write. ~1 frame/s is the practical ceiling for legible flap motion on the local API. Cloud connections are additionally floored by FiestaBoard at one write per 15 s (transport policy, not device capability).",
-          "sources": [
-            "FiestaBoard core transition runner and send floor (fiestaboard#2190)"
-          ]
+          "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
         },
         "appearance": {
-          "boardColors": [
-            "black",
-            "white"
-          ],
+          "boardColors": ["black", "white"],
           "options": {
-            "board_color": [
-              "black",
-              "white"
-            ]
+            "board_color": ["black", "white"]
           }
         },
         "legacy": {
@@ -88,20 +73,12 @@
           "delivery": "stream",
           "maxFps": 1,
           "notes": "Frames are written by FiestaBoard one at a time (transition plugins step frame-by-frame); the board's own flap cascade animates each write. ~1 frame/s is the practical ceiling for legible flap motion on the local API. Cloud connections are additionally floored by FiestaBoard at one write per 15 s (transport policy, not device capability).",
-          "sources": [
-            "FiestaBoard core transition runner and send floor (fiestaboard#2190)"
-          ]
+          "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
         },
         "appearance": {
-          "boardColors": [
-            "black",
-            "white"
-          ],
+          "boardColors": ["black", "white"],
           "options": {
-            "board_color": [
-              "black",
-              "white"
-            ]
+            "board_color": ["black", "white"]
           }
         },
         "legacy": {
@@ -124,20 +101,12 @@
           "delivery": "stream",
           "maxFps": 1,
           "notes": "Frames are written by FiestaBoard one at a time (transition plugins step frame-by-frame); the board's own flap cascade animates each write. ~1 frame/s is the practical ceiling for legible flap motion on the local API. Cloud connections are additionally floored by FiestaBoard at one write per 15 s (transport policy, not device capability).",
-          "sources": [
-            "FiestaBoard core transition runner and send floor (fiestaboard#2190)"
-          ]
+          "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
         },
         "appearance": {
-          "boardColors": [
-            "black",
-            "white"
-          ],
+          "boardColors": ["black", "white"],
           "options": {
-            "board_color": [
-              "black",
-              "white"
-            ]
+            "board_color": ["black", "white"]
           }
         },
         "legacy": {
@@ -152,10 +121,7 @@
         "api_mode": {
           "type": "string",
           "title": "Connection",
-          "enum": [
-            "local",
-            "cloud"
-          ],
+          "enum": ["local", "cloud"],
           "default": "local",
           "ui:widget": "mode-cards",
           "ui:options": {
@@ -186,10 +152,7 @@
           },
           "ui:visible_when": {
             "api_mode": "local",
-            "@device_type": [
-              "flagship",
-              "note"
-            ]
+            "@device_type": ["flagship", "note"]
           }
         },
         "local_api_key": {
@@ -200,10 +163,7 @@
           "secret": true,
           "ui:visible_when": {
             "api_mode": "local",
-            "@device_type": [
-              "flagship",
-              "note"
-            ]
+            "@device_type": ["flagship", "note"]
           }
         },
         "cloud_key": {
@@ -214,10 +174,7 @@
           "secret": true,
           "ui:visible_when": {
             "api_mode": "cloud",
-            "@device_type": [
-              "flagship",
-              "note"
-            ]
+            "@device_type": ["flagship", "note"]
           }
         },
         "note_array_token": {
@@ -238,15 +195,8 @@
           "ui:widget": "tile-grid",
           "ui:options": {
             "layout": "board",
-            "item_actions": [
-              "test_tile",
-              "identify",
-              "enable_local_api"
-            ],
-            "unique_fields": [
-              "host",
-              "port"
-            ]
+            "item_actions": ["test_tile", "identify", "enable_local_api"],
+            "unique_fields": ["host", "port"]
           },
           "ui:visible_when": {
             "api_mode": "local",
@@ -254,10 +204,7 @@
           },
           "items": {
             "type": "object",
-            "required": [
-              "host",
-              "local_api_key"
-            ],
+            "required": ["host", "local_api_key"],
             "properties": {
               "row": {
                 "type": "integer",
@@ -311,27 +258,16 @@
           "default": 7000,
           "ui:visible_when": {
             "api_mode": "local",
-            "@device_type": [
-              "flagship",
-              "note"
-            ]
+            "@device_type": ["flagship", "note"]
           }
         }
       },
-      "required": [
-        "host",
-        "local_api_key",
-        "cloud_key",
-        "note_array_token",
-        "tiles"
-      ],
+      "required": ["host", "local_api_key", "cloud_key", "note_array_token", "tiles"],
       "ui:sections": [
         {
           "id": "advanced",
           "title": "Advanced",
-          "fields": [
-            "port"
-          ],
+          "fields": ["port"],
           "collapsible": true,
           "collapsed": true
         }
@@ -418,10 +354,7 @@
           "properties": {
             "target": {
               "type": "string",
-              "enum": [
-                "tile",
-                "all"
-              ],
+              "enum": ["tile", "all"],
               "default": "tile"
             },
             "row": {
@@ -489,9 +422,7 @@
               "ui:placeholder": "192.168.1.100"
             }
           },
-          "required": [
-            "enablement_token"
-          ]
+          "required": ["enablement_token"]
         },
         "result_fields": {
           "api_key": {
@@ -545,20 +476,12 @@
           "delivery": "stream",
           "maxFps": 0.5,
           "notes": "Virtual board shown by a browser or TV app that polls frames every ~2 s. A client sends one message at a time; the virtual flaps cascade each change.",
-          "sources": [
-            "FiestaBoard core transition runner and send floor (fiestaboard#2190)"
-          ]
+          "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
         },
         "appearance": {
-          "boardColors": [
-            "black",
-            "white"
-          ],
+          "boardColors": ["black", "white"],
           "options": {
-            "board_color": [
-              "black",
-              "white"
-            ]
+            "board_color": ["black", "white"]
           }
         },
         "legacy": {

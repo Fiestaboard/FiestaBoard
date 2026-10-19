@@ -198,6 +198,8 @@ class DisplayProfile:
             }.get(self.color, "an LED pixel display"),
             "screen": "a screen",
         }.get(self.technology, "a display board")
+        if self.technology == "led_matrix" and not self.supports("pixels"):
+            kind = "a character display with an LED appearance"
         lines = [f"THE DISPLAY: {kind}."]
         size = []
         if self.rows and self.cols:

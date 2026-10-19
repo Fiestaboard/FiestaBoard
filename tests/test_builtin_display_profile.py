@@ -95,4 +95,5 @@ def test_builtin_discovery_preview_and_ai_share_authoring_support(mcp, services,
     assert preview["layers"] is None
     prompt = build_prompt("Improve", "panel", mode="chat", display=_display_for_board(panel_board["id"])).system_prompt
     assert "PIXEL CANVASES" not in prompt
+    assert "LED pixel display" not in prompt
     assert "Coloured text:" not in prompt

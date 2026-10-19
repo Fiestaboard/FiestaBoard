@@ -351,6 +351,7 @@ class OutputConformanceSuite:
         self._manifest_errors: list[str] | None = None
         self._skipped: list[str] = []
         self._model_index = 0
+        self._bound_geometry: tuple[int, int] | None = None
 
     # --- plumbing ----------------------------------------------------------------------------
 
@@ -379,10 +380,14 @@ class OutputConformanceSuite:
             plugin.bind_board(device_model=model, character_set=charset, geometry=geometry)
         plugin.http.use_transport(self.transport.http_send)
         plugin.open()
+        # A plugin may expose a configured content grid (e.g. a TV viewer)
+        # independent of its model's visual pixel/font geometry. Core sends
+        # that actual grid, so conformance must use it for writes and regions.
+        self._bound_geometry = plugin.board_geometry
         return plugin
 
     def _model_context(self) -> tuple[Mapping | None, Mapping | None, tuple[int, int]]:
-        """Resolve the same selected model, alphabet and grid for opening and writes."""
+        """Resolve the selected model, alphabet and default grid for binding."""
         from .board_profile import model_character_set
 
         output = self.manifest.output if self.manifest is not None else None
@@ -397,8 +402,8 @@ class OutputConformanceSuite:
         return None, None, (6, 22)
 
     def _shape(self) -> tuple[int, int]:
-        """The selected declared model's character grid."""
-        return self._model_context()[2]
+        """The opened board's effective content grid, else its model default."""
+        return self._bound_geometry or self._model_context()[2]
 
     def _frame(self, code: int) -> CellFrame:
         return _grid(*self._shape(), code)
@@ -907,6 +912,7 @@ class OutputConformanceSuite:
         try:
             for index in indices:
                 self._model_index = index
+                self._bound_geometry = None
                 model_id = output.device_model_ids[index] if output is not None else None
                 skipped_before = len(self._skipped)
                 try:
@@ -921,6 +927,7 @@ class OutputConformanceSuite:
                 violations.extend(found)
         finally:
             self._model_index = 0
+            self._bound_geometry = None
         return violations
 
     def run(self, rules: tuple[str, ...] | None = None) -> ConformanceReport:
