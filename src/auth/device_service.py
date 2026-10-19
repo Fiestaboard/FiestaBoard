@@ -88,7 +88,7 @@ class DeviceService:
     @staticmethod
     def _enrollment_in_transaction(db: sqlite3.Connection) -> None:
         row = db.execute("SELECT value FROM settings WHERE key='tv_enabled'").fetchone()
-        if not row or row["value"] != "true":
+        if row is not None and row["value"] != "true":
             raise AuthFlowError("feature_disabled", "TV sign-in is disabled.", 403)
 
     def _challenge_for_user(self, db: sqlite3.Connection, code: str) -> sqlite3.Row:

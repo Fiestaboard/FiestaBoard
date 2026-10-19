@@ -44,11 +44,21 @@ def password_token(client):
     return response.json()
 
 
-def test_enrollment_default_off_and_additive_capability(auth):
+def test_enrollment_enabled_by_default_without_an_opt_in(auth):
     client = TestClient(app)
     status = client.get("/auth/status").json()
-    assert status["tv_sign_in"] == {"supported": True, "enabled": False, "protocol_version": 1}
+    assert status["tv_sign_in"] == {"supported": True, "enabled": True, "protocol_version": 1}
     assert status["session_management_supported"] is True
+    assert client.post("/auth/device/authorize", json=META).status_code == 200
+    assert (
+        client.post("/auth/device/login", json={**META, "username": "admin", "password": PASSWORD}).status_code == 200
+    )
+
+
+def test_explicit_enrollment_disable_still_blocks_new_sign_ins(auth, browser):
+    assert browser.put("/auth/device/settings", json={"enabled": False}).status_code == 200
+    client = TestClient(app)
+    assert client.get("/auth/status").json()["tv_sign_in"]["enabled"] is False
     assert client.post("/auth/device/authorize", json=META).status_code == 403
     assert (
         client.post("/auth/device/login", json={**META, "username": "admin", "password": PASSWORD}).status_code == 403

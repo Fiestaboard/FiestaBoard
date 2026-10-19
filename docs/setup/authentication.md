@@ -191,10 +191,10 @@ The corresponding API endpoints are also available:
 | `POST` | `/api/auth/change-password` | `{ "current_password", "new_password" }` |
 | `POST` | `/api/auth/logout` | *(none)* |
 
-## TV sign-in (Beta)
+## TV sign-in
 
-Enable **TV sign-in (Beta)** in **Settings → Account**. It is off by default
-and requires a configured username and password. On a compatible Apple TV or
+TV sign-in is enabled by default when account login is configured. No separate
+beta opt-in is needed. Manage it in **Settings → Account**. On a compatible Apple TV or
 Android TV app, choose **Sign in with a phone or computer**:
 
 1. Scan the QR code, or open the displayed `/activate` URL on a desktop or phone
@@ -203,7 +203,7 @@ Android TV app, choose **Sign in with a phone or computer**:
 3. Check the displayed TV and matching code, then explicitly allow or deny access.
    Scanning alone never approves a TV. Codes expire after ten minutes.
 
-**Use username and password** remains available on the TV. With this beta enabled,
+**Use username and password** remains available on the TV. With TV sign-in enabled,
 it creates the same individually revocable TV credential and does not retain the
 account password after secure storage succeeds. Compatible apps migrate previously
 saved passwords once. Older servers keep their existing password flow.
@@ -213,7 +213,7 @@ settings only. They cannot manage accounts, edit content, or access AI/MCP. Revo
 TV from **Signed-in devices**; its next authenticated request is rejected. A revoked
 TV asks you to sign in again rather than replaying a saved password.
 
-Turning the beta switch off stops new TV sign-ins and cancels pending codes. Existing
+Turning **TV sign-in** off stops new TV sign-ins and cancels pending codes. Existing
 TV credentials remain valid until revoked or expired. Use the device list to remove
 existing access. Password or username changes revoke all existing browser and TV
 sessions. Public panel URLs remain public even after revoking a TV credential.
