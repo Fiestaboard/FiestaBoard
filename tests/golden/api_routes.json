@@ -90,6 +90,86 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/auth/device/approve",
+      "methods": [
+        "POST"
+      ],
+      "name": "approve",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/authorize",
+      "methods": [
+        "POST"
+      ],
+      "name": "authorize",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/cancel",
+      "methods": [
+        "POST"
+      ],
+      "name": "cancel",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/deny",
+      "methods": [
+        "POST"
+      ],
+      "name": "deny",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/inspect",
+      "methods": [
+        "POST"
+      ],
+      "name": "inspect",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/login",
+      "methods": [
+        "POST"
+      ],
+      "name": "login",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/session",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "revoke_self",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/settings",
+      "methods": [
+        "GET"
+      ],
+      "name": "settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/settings",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/token",
+      "methods": [
+        "POST"
+      ],
+      "name": "exchange",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/auth/disable",
       "methods": [
         "POST"
@@ -143,6 +223,38 @@
         "POST"
       ],
       "name": "auth_preference",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/sessions",
+      "methods": [
+        "GET"
+      ],
+      "name": "sessions",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/sessions/context",
+      "methods": [
+        "GET"
+      ],
+      "name": "context",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/sessions/revoke",
+      "methods": [
+        "POST"
+      ],
+      "name": "revoke_many",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/sessions/{session_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "revoke",
       "kind": "APIRoute"
     },
     {

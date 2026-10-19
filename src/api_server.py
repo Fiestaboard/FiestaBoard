@@ -762,6 +762,11 @@ app.mount("/mcp", _mcp_mount)
 app.add_middleware(RequestTraceMiddleware)
 app.add_middleware(AuthMiddleware, extra_public_paths=("/panel/",))
 app.include_router(auth_router)
+from .auth.device_routes import router as device_auth_router  # noqa: E402
+from .auth.session_routes import router as auth_sessions_router  # noqa: E402
+
+app.include_router(device_auth_router)
+app.include_router(auth_sessions_router)
 if is_auth_enabled():
     logger.info("Authentication is ENABLED (FIESTABOARD_AUTH_ENABLED=true)")
 else:

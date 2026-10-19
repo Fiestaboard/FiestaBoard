@@ -37,12 +37,16 @@ Bearer-token paths (``/mcp/*`` and ``/v1/*``):
 from __future__ import annotations
 
 import logging
+import re
+import sqlite3
 from collections.abc import Iterable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from .device_models import AuthFlowError
+from .device_service import DeviceService
 from .service import (
     SESSION_COOKIE_NAME,
     auth_mode,
@@ -50,6 +54,7 @@ from .service import (
     mcp_token,
     verify_mcp_bearer,
 )
+from .session_store import SessionLimit
 
 logger = logging.getLogger(__name__)
 
@@ -176,6 +181,28 @@ class AuthMiddleware(BaseHTTPMiddleware):
         self._extra_public = tuple(extra_public_paths)
 
     async def dispatch(self, request: Request, call_next):
+        try:
+            response = await self._dispatch(request, call_next)
+        except AuthFlowError as exc:
+            response = JSONResponse({"error": exc.error, "detail": exc.detail}, status_code=exc.status)
+            if exc.retry_after:
+                response.headers["Retry-After"] = str(exc.retry_after)
+        except SessionLimit as exc:
+            response = JSONResponse({"error": "session_limit", "detail": str(exc)}, status_code=429)
+        except (sqlite3.Error, OSError):
+            # Credential storage failures must never become anonymous access.
+            response = JSONResponse(
+                {
+                    "error": "temporarily_unavailable",
+                    "detail": "Authentication storage is unavailable. Try again shortly.",
+                },
+                status_code=503,
+            )
+        if request.url.path.startswith("/auth/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+    async def _dispatch(self, request: Request, call_next):
         mode = auth_mode()
 
         # Always allow CORS preflight (browsers never attach credentials
@@ -184,6 +211,47 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         path = request.url.path
+        supplied = _bearer_from(request)
+        if supplied and supplied.startswith("fb_tv_"):
+            session = DeviceService(get_auth_service()).authenticate_tv(supplied)
+            if session is None:
+                return JSONResponse(
+                    {"error": "unauthorized", "detail": "This TV sign-in expired or was revoked."}, status_code=401
+                )
+            allowed = (
+                (
+                    request.method == "GET"
+                    and (path in ("/auth/status", "/panels") or re.fullmatch(r"/panel/[^/]+(?:/frame)?", path))
+                )
+                or (request.method == "PATCH" and re.fullmatch(r"/panels/[^/]+", path))
+                or (request.method == "DELETE" and path == "/auth/device/session")
+            )
+            if not allowed:
+                return JSONResponse(
+                    {"error": "forbidden", "detail": "This TV sign-in does not permit that operation."}, status_code=403
+                )
+            if request.method == "PATCH":
+                try:
+                    body = await request.json()
+                except (ValueError, UnicodeDecodeError):
+                    return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
+                fields = {
+                    "screen_diagonal_inches",
+                    "screen_aspect_w",
+                    "screen_aspect_h",
+                    "calibration_scale",
+                    "animations_enabled",
+                    "render_style",
+                }
+                if not isinstance(body, dict) or not body or not set(body).issubset(fields):
+                    return JSONResponse(
+                        {"error": "forbidden", "detail": "This TV can only update screen presentation settings."},
+                        status_code=403,
+                    )
+            request.scope["auth_kind"] = "tv"
+            request.scope["auth_user"] = session.username
+            request.scope["auth_session_id"] = session.id
+            return await call_next(request)
 
         # MCP endpoint: a *configured* bearer token is enforced in every
         # auth mode, including "disabled". Auth mode governs the browser

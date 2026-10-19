@@ -1,0 +1,138 @@
+{
+  "protocol_version": 1,
+  "old_server_status": {
+    "enabled": true,
+    "setup_required": false,
+    "authenticated": false
+  },
+  "status": {
+    "enabled": true,
+    "setup_required": false,
+    "authenticated": false,
+    "username": null,
+    "mode": "enabled",
+    "first_run": false,
+    "session_management_supported": true,
+    "auth_kind": null,
+    "tv_sign_in": {
+      "supported": true,
+      "enabled": true,
+      "protocol_version": 1
+    }
+  },
+  "challenge": {
+    "device_code": "test-only-private-challenge",
+    "user_code": "WDJB-MJHT",
+    "verification_path": "/activate",
+    "verification_path_complete": "/activate?user_code=WDJB-MJHT",
+    "expires_in": 600,
+    "interval": 5
+  },
+  "token": {
+    "access_token": "fb_tv_test-only-synthetic-credential",
+    "token_type": "Bearer",
+    "expires_in": 31536000,
+    "session_id": "test-session-id",
+    "scope": "tv_panels"
+  },
+  "context": {
+    "csrf_token": "test-only-csrf-nonce",
+    "expires_in": 600
+  },
+  "inspect": {
+    "user_code": "WDJB-MJHT",
+    "client_id": "fiestaboard-tvos",
+    "device_name": "Living room",
+    "app_version": "1.0",
+    "expires_in": 590,
+    "scope": "tv_panels"
+  },
+  "sessions": {
+    "sessions": [
+      {
+        "id": "test-session-id",
+        "kind": "tv",
+        "device_name": "Living room",
+        "client_id": "fiestaboard-tvos",
+        "app_version": "1.0",
+        "method": "device_code",
+        "created_at": "2026-10-18T12:00:00+00:00",
+        "last_active_at": "2026-10-18T12:00:00+00:00",
+        "expires_at": "2027-10-18T12:00:00+00:00"
+      }
+    ],
+    "current_session_id": "test-browser-id"
+  },
+  "errors": {
+    "authorization_pending": {
+      "status": 400,
+      "body": {
+        "error": "authorization_pending",
+        "detail": "Waiting for approval in the web portal."
+      }
+    },
+    "slow_down": {
+      "status": 400,
+      "body": {
+        "error": "slow_down",
+        "detail": "Wait longer before checking this code again."
+      }
+    },
+    "access_denied": {
+      "status": 400,
+      "body": {
+        "error": "access_denied",
+        "detail": "Sign-in was declined in the web portal."
+      }
+    },
+    "expired_token": {
+      "status": 400,
+      "body": {
+        "error": "expired_token",
+        "detail": "That code expired. Request a new code."
+      }
+    },
+    "invalid_grant": {
+      "status": 400,
+      "body": {
+        "error": "invalid_grant",
+        "detail": "That sign-in is no longer available. Request a new code."
+      }
+    },
+    "feature_disabled": {
+      "status": 403,
+      "body": {
+        "error": "feature_disabled",
+        "detail": "TV sign-in is disabled."
+      }
+    },
+    "unauthorized": {
+      "status": 401,
+      "body": {
+        "error": "unauthorized",
+        "detail": "This TV sign-in expired or was revoked."
+      }
+    },
+    "rate_limited": {
+      "status": 429,
+      "body": {
+        "error": "rate_limited",
+        "detail": "Too many attempts. Try again in a minute."
+      }
+    }
+  },
+  "url_examples": [
+    {
+      "base": "http://192.168.1.25:4420",
+      "activation": "http://192.168.1.25:4420/activate?user_code=WDJB-MJHT"
+    },
+    {
+      "base": "https://board.example.test/fiesta",
+      "activation": "https://board.example.test/fiesta/activate?user_code=WDJB-MJHT"
+    },
+    {
+      "base": "http://[fd00::1]:4420",
+      "activation": "http://[fd00::1]:4420/activate?user_code=WDJB-MJHT"
+    }
+  ]
+}
