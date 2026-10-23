@@ -175,6 +175,33 @@ class TestPerBoardInstances:
         assert old.closed is True
         assert module.INSTANCES[-1].config["host"] == "192.0.2.51" and not module.INSTANCES[-1].closed
 
+    def test_reconfiguring_a_board_cancels_its_in_flight_direct_write(self, loaded):
+        from src.settings.service import get_settings_service
+        from tests.live_boards import install_live_boards
+
+        service = install_live_boards([board("rec", wait_for_cancel=True)])
+        old = service.get_board_client("rec")
+        done = threading.Event()
+
+        def write():
+            try:
+                old.send_characters(GRID)
+            finally:
+                done.set()
+
+        worker = threading.Thread(target=write, daemon=True)
+        worker.start()
+        try:
+            assert old.plugin.write_started.wait(2)
+            get_settings_service().set_boards([board("rec", host="192.0.2.51")])
+            service._build_board_clients(sync_cache=False)
+            assert done.wait(1), "the retired instance kept its direct write running"
+            assert old.plugin.cancelled_writes == 1
+            assert old.plugin.writes == []
+        finally:
+            old._output_runtime.preempt()
+            worker.join(2)
+
 
 # --- core policy through the adapter -----------------------------------------------------
 
