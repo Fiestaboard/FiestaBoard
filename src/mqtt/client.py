@@ -38,6 +38,7 @@ class MQTTClient:
         self._sync_interval = 30
         self._running = False
         self._connected = False
+        self._discovery_page_names: list[str] | None = None
 
     def set_state_publisher(self, publisher: "StatePublisher") -> None:
         """Set the state publisher (called from state module to avoid circular import)."""
@@ -160,7 +161,19 @@ class MQTTClient:
         """
         self._publish_discovery()
 
-    def _publish_discovery(self) -> None:
+    def _active_page_names(self) -> list[str]:
+        from .content import collection_options
+
+        pages = []
+        try:
+            from src.pages.service import get_page_service
+
+            pages = get_page_service().list_pages()
+        except Exception:
+            logger.debug("Could not retrieve page names for MQTT discovery")
+        return [p.name for p in pages] + [label for label, _cid in collection_options(pages)]
+
+    def _publish_discovery(self, page_names: list[str] | None = None) -> None:
         """Publish all HA discovery messages (retained)."""
         try:
             import src as src_pkg
@@ -169,14 +182,8 @@ class MQTTClient:
         except Exception:
             sw_version = "1.0.0"
         configuration_url = self.config.external_url or None
-        page_names = None
-        try:
-            from src.pages.service import get_page_service
-
-            pages = get_page_service().list_pages()
-            page_names = [p.name for p in pages]
-        except Exception:
-            logger.debug("Could not retrieve page names for MQTT discovery")
+        if page_names is None:
+            page_names = self._active_page_names()
         messages = build_all_discovery_messages(
             self.config,
             sw_version=sw_version,
@@ -191,6 +198,7 @@ class MQTTClient:
                 qos=1,
                 retain=True,
             )
+        self._discovery_page_names = page_names
         logger.info("Published %d MQTT discovery messages", len(messages))
 
     def publish_state(self, object_id: str, value: str) -> None:
@@ -218,6 +226,12 @@ class MQTTClient:
             time.sleep(self._sync_interval)
             if not self._running or not self._connected:
                 continue
+            try:
+                page_names = self._active_page_names()
+                if page_names != self._discovery_page_names:
+                    self._publish_discovery(page_names)
+            except Exception as e:
+                logger.debug("Discovery sync failed: %s", e)
             if self._state_publisher:
                 try:
                     self._state_publisher.gather_and_publish()
