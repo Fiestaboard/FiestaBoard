@@ -59,6 +59,20 @@ docker compose -f docker-compose.dev.yml --profile test run --rm web sh -c "npm 
 
 In CI, tests run directly on the GitHub Actions host for speed (not in Docker).
 
+## Storybook access
+
+The optional Docker Storybook service listens on `0.0.0.0` inside its container.
+Its explicit `core.allowedHosts` list in `web/.storybook/main.ts` keeps host and
+origin validation enabled. Open it at `http://localhost:6006` or
+`http://127.0.0.1:6006`. If you use a custom hostname, add that exact hostname to
+the list instead of disabling validation.
+
+Run the host-validation regression in the disposable web test container:
+
+```bash
+docker compose -f docker-compose.dev.yml --profile test run --rm web sh -c "npm ci --legacy-peer-deps && npm run test:storybook-hosts"
+```
+
 ## Code Style
 
 The project uses:

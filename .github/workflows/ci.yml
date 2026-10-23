@@ -593,6 +593,11 @@ jobs:
       working-directory: web
       run: npx playwright install --with-deps chromium
 
+    - name: Check Storybook Docker host validation
+      working-directory: web
+      timeout-minutes: 3
+      run: npm run test:storybook-hosts
+
     - name: Build Storybook
       working-directory: web
       run: npm run build-storybook -- --quiet

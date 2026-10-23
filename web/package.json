@@ -21,7 +21,8 @@
     "test-storybook:ci": "test-storybook --ci",
     "analyze": "ANALYZE=true react-router build",
     "test:layout": "playwright test --config tests/layout/playwright.config.ts",
-    "test:integration": "npx playwright test"
+    "test:integration": "npx playwright test",
+    "test:storybook-hosts": "node --test scripts/test-storybook-hosts.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
