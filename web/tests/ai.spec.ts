@@ -967,13 +967,44 @@ test.describe("AI", () => {
         ],
       });
       await openDrawer(page, "/pages");
+      // These visuals can finish between assertion polls. Start watching
+      // before Send, and record the full text only while it is visible.
+      const observed = await page.evaluateHandle(() => {
+        const seen = { ghost: false, savedCaption: false };
+        const visible = (element: Element | null) => {
+          if (!element) return false;
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return rect.width > 0 && rect.height > 0 && style.visibility === "visible" && Number(style.opacity) > 0;
+        };
+        const sample = () => {
+          const ghost = document.querySelector(
+            '[data-testid="ai-ghost"][data-anchor="settings.general.instance_name"]',
+          );
+          if (visible(ghost) && ghost?.textContent?.includes("Kitchen Board")) seen.ghost = true;
+          const caption = document.querySelector('[data-testid="ai-spotlight-caption"]');
+          if (visible(caption) && /Setting saved/i.test(caption?.textContent ?? "")) seen.savedCaption = true;
+          if (!seen.ghost || !seen.savedCaption) requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+        return seen;
+      });
       await sendMessage(page, "rename my board to Kitchen Board");
 
       await expect(page).toHaveURL(/\/settings\?section=general/, { timeout: 15_000 });
-      const ghost = page.getByTestId("ai-ghost");
-      await expect(ghost.first()).toBeVisible({ timeout: 15_000 });
-      await expect(ghost.first()).toContainText("Kitchen Board");
-      await expect(page.getByTestId("ai-spotlight-caption")).toHaveText(/Setting saved/i, { timeout: 15_000 });
+      await expect
+        .poll(() => observed.evaluate((seen) => seen.ghost), {
+          timeout: 15_000,
+          message: "The full Kitchen Board ghost was visible",
+        })
+        .toBe(true);
+      await expect
+        .poll(() => observed.evaluate((seen) => seen.savedCaption), {
+          timeout: 15_000,
+          message: "The Setting saved caption was visible",
+        })
+        .toBe(true);
+      await observed.dispose();
       // The real value landed on the control the ghost pointed at.
       await expect(page.locator("#instance-name")).toHaveValue("Kitchen Board", { timeout: 15_000 });
       // The ring is gone once the walkthrough settles.
