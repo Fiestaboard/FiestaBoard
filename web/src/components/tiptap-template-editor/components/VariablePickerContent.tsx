@@ -59,6 +59,18 @@ function asItemMap(value: unknown): Record<string, Record<string, unknown>> | un
     : undefined;
 }
 
+/**
+ * Current value of an array item field, formatted for the pill preview.
+ * Only scalars are shown; nested objects/arrays and empty values get no preview.
+ */
+export function formatItemPreview(value: unknown): string | undefined {
+  if (value === null || value === undefined || value === "") return undefined;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return undefined;
+}
+
 function resolveIcon(iconName: string | undefined): LucideIcon | null {
   if (!iconName) return null;
   const pascalName = iconName
@@ -224,6 +236,7 @@ function renderSubArraySection(
                           label={field}
                           value={varValue}
                           description={itemFieldMeta(subArraySchema.item_fields, field)?.description}
+                          preview={formatItemPreview(itemData[field])}
                           onInsert={() => onInsert(varValue)}
                         />
                       );
@@ -309,7 +322,10 @@ function renderArraySection(
   }
 
   return (
-    <ScrollArea className="max-h-[400px] pr-1">
+    // No nested ScrollArea here: the picker's own list already scrolls. A
+    // max-height ScrollArea inside it clipped expanded items without
+    // scrolling them (#2209).
+    <Box className="pr-1">
       <Accordion type="single" collapsible className="w-full">
         {filteredArrayData.map(({ item, index }) => {
           const itemLabel = String(item[labelField] || item.name || `Item ${index}`);
@@ -364,6 +380,7 @@ function renderArraySection(
                               label={field}
                               value={varValue}
                               description={itemFieldMeta(arraySchema.item_fields, field)?.description}
+                              preview={formatItemPreview(item[field])}
                               onInsert={() => onInsert(varValue)}
                             />
                           );
@@ -398,7 +415,7 @@ function renderArraySection(
           );
         })}
       </Accordion>
-    </ScrollArea>
+    </Box>
   );
 }
 
