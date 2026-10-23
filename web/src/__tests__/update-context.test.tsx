@@ -13,7 +13,7 @@
  * attempt, which lives in a separate container and therefore survives
  * FiestaBoard being recreated.
  */
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -195,7 +195,7 @@ describe("UpdateOverlay", () => {
       </UpdateProvider>,
     );
 
-    await advance(1500 + 2000 * 3);
+    await advance(60_000);
 
     expect(screen.getByTestId("updating")).toHaveTextContent("false");
     expect(screen.getByTestId("awaiting")).toHaveTextContent("true");
@@ -223,5 +223,111 @@ describe("UpdateOverlay", () => {
     await advance(100);
 
     expect(screen.getByTestId("awaiting")).toHaveTextContent("false");
+  });
+});
+
+describe("UpdateProvider server discovery", () => {
+  it("discovers an update started by another browser and uses the existing completion flow", async () => {
+    vi.spyOn(api, "getUpdateStatus").mockResolvedValue(status());
+    vi.spyOn(api, "getVersion").mockResolvedValue({ package_version: FROM_VERSION } as Awaited<
+      ReturnType<typeof api.getVersion>
+    >);
+
+    render(
+      <UpdateProvider>
+        <span>Application</span>
+      </UpdateProvider>,
+    );
+
+    await advance(29_999);
+    expect(screen.queryByText("Updating FiestaBoard")).not.toBeInTheDocument();
+    await advance(1);
+    expect(screen.getByText("Pulling the latest image from Docker Hub…")).toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(LS_KEY) ?? "{}").fromVersion).toBe(FROM_VERSION);
+
+    vi.mocked(api.getUpdateStatus).mockResolvedValue(status({ last_update_status: "success" }));
+    await advance(1500 + 800);
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(window.localStorage.getItem(LS_KEY) ?? "{}").awaitingBoot).toBe(true);
+  });
+
+  it("shows the discovered update's failure and lets the user dismiss it", async () => {
+    vi.spyOn(api, "getUpdateStatus").mockResolvedValue(status());
+    vi.spyOn(api, "getVersion").mockRejectedValue(new Error("API restarting"));
+    render(
+      <UpdateProvider>
+        <span>Application</span>
+      </UpdateProvider>,
+    );
+
+    await advance(30_000);
+    expect(screen.getByText("Pulling the latest image from Docker Hub…")).toBeInTheDocument();
+    vi.mocked(api.getUpdateStatus).mockResolvedValue(
+      status({ last_update_status: "failed", last_update_error: "pull_failed" }),
+    );
+    await advance(1500);
+
+    expect(screen.getByText("Reason: pull_failed")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText("Update didn't complete")).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(LS_KEY)).toBeNull();
+    await advance(30_000);
+    expect(screen.queryByText("Update didn't complete")).not.toBeInTheDocument();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it.each(["none", "success", "rolled_back", "failed", "rollback_failed", null] as const)(
+    "does not resume a historical %s attempt on an idle browser",
+    async (last_update_status) => {
+      vi.spyOn(api, "getUpdateStatus").mockResolvedValue(status({ last_update_status }));
+      render(
+        <UpdateProvider>
+          <span>Application</span>
+        </UpdateProvider>,
+      );
+      await advance(60_000);
+      expect(screen.queryByText("Pulling the latest image from Docker Hub…")).not.toBeInTheDocument();
+      expect(window.localStorage.getItem(LS_KEY)).toBeNull();
+      expect(reload).not.toHaveBeenCalled();
+    },
+  );
+
+  it("retries discovery after an unreachable server without blocking the application", async () => {
+    vi.spyOn(api, "getUpdateStatus").mockRejectedValueOnce(new Error("offline")).mockResolvedValue(status());
+    vi.spyOn(api, "getVersion").mockResolvedValue({ package_version: FROM_VERSION } as Awaited<
+      ReturnType<typeof api.getVersion>
+    >);
+    render(
+      <UpdateProvider>
+        <span>Application</span>
+      </UpdateProvider>,
+    );
+    await advance(30_000);
+    expect(screen.getByText("Application")).toBeInTheDocument();
+    expect(screen.queryByText("Pulling the latest image from Docker Hub…")).not.toBeInTheDocument();
+    await advance(30_000);
+    expect(screen.getByText("Pulling the latest image from Docker Hub…")).toBeInTheDocument();
+  });
+
+  it("does not open an overlay when an outstanding discovery completes after unmount", async () => {
+    let resolveStatus!: (value: UpdateStatusResponse) => void;
+    const pendingStatus = new Promise<UpdateStatusResponse>((resolve) => {
+      resolveStatus = resolve;
+    });
+    vi.spyOn(api, "getUpdateStatus").mockReturnValue(pendingStatus);
+    vi.spyOn(api, "getVersion").mockResolvedValue({ package_version: FROM_VERSION } as Awaited<
+      ReturnType<typeof api.getVersion>
+    >);
+    const { unmount } = render(
+      <UpdateProvider>
+        <span>Application</span>
+      </UpdateProvider>,
+    );
+    await advance(30_000);
+    unmount();
+    await act(async () => {
+      resolveStatus(status());
+    });
+    expect(window.localStorage.getItem(LS_KEY)).toBeNull();
   });
 });

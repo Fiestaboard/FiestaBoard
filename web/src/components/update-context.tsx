@@ -56,6 +56,8 @@ const LS_KEY = "fb_updating";
 const MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes — matches UPDATE_TIMEOUT_MS
 /** A post-update boot that hasn't completed within this window is stale. */
 const AWAITING_BOOT_MAX_AGE_MS = 5 * 60 * 1000;
+/** Discover attempts initiated in another browser or by the auto-updater. */
+const DISCOVERY_INTERVAL_MS = 30_000;
 
 interface PersistedUpdate {
   fromVersion?: string;
@@ -123,6 +125,43 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
     setCurrentVersion(version);
     setIsUpdating(true);
   }, []);
+
+  // Idle browsers have no local marker when another client (or the scheduled
+  // updater) starts an attempt. Discover only live attempts; replaying a saved
+  // success here would reload every browser forever. Once discovered, the
+  // existing overlay owns the faster polling and the terminal-state handling.
+  useEffect(() => {
+    if (isUpdating || awaitingPostUpdateBoot) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const discover = async () => {
+      try {
+        const status = await api.getUpdateStatus();
+        if (cancelled) return;
+        if (status.last_update_status === "in_progress") {
+          // Preserve the version fallback used by the overlay if the sidecar
+          // loses its record during a restart. Failure to read it must not
+          // prevent showing an update that we already know is in progress.
+          let version: string | undefined;
+          try {
+            version = (await api.getVersion()).package_version;
+          } catch {}
+          if (!cancelled) startUpdate(version);
+          return;
+        }
+      } catch {
+        // An idle browser stays usable while the API is unavailable.
+      }
+      if (!cancelled) timer = setTimeout(discover, DISCOVERY_INTERVAL_MS);
+    };
+
+    timer = setTimeout(discover, DISCOVERY_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isUpdating, awaitingPostUpdateBoot, startUpdate]);
 
   const markPostUpdateBootComplete = useCallback(() => {
     clearPersisted();
