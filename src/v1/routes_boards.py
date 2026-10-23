@@ -392,6 +392,17 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
     if request.duration_minutes is not None:
         _check_timed_request(board_id, template_lines)
 
+    # A paused preview must not persist an override, even in UI-only mode.
+    if request.if_paused == "preview" and settings_service.is_paused(board_id=board_id) is True:
+        return MessageResponse(
+            sent=False,
+            board_id=board_id,
+            characters=characters,
+            text=text,
+            expires_at=None,
+            reason=PAUSED_PREVIEW_REASON,
+        )
+
     if not settings_service.should_send_to_board():
         if request.duration_minutes is not None:
             expires_at = await _arm_temporary_override(board_id, request, template_lines)
@@ -402,16 +413,6 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
             text=text,
             expires_at=expires_at,
             reason=UI_ONLY_REASON,
-        )
-
-    if request.if_paused == "preview" and settings_service.is_paused(board_id=board_id) is True:
-        return MessageResponse(
-            sent=False,
-            board_id=board_id,
-            characters=characters,
-            text=text,
-            expires_at=None,
-            reason=PAUSED_PREVIEW_REASON,
         )
 
     transition = request.transition
