@@ -204,6 +204,15 @@ class TestSetupRequests:
         assert recorder.requests[0].json == {"Command": "x"}
 
 
+@pytest.mark.parametrize("setup", [False, True], ids=["frame", "brightness-cleanup"])
+def test_a_retired_instance_cannot_send_with_a_fresh_cancel_token(http, recorder, setup):
+    """A stale fade's cleanup must not override its replacement's settings."""
+    http.close()
+    with pytest.raises(RequestCancelled):
+        http.post("http://192.0.2.10/post", json={"value": "old"}, setup=setup, cancel=CancelToken())
+    assert recorder.requests == []
+
+
 class _Probe(OutputPluginBase):
     def write(self, frame, *, native, cancel):
         self.http.post("http://192.0.2.10/post", json={"frame": frame})
@@ -211,6 +220,46 @@ class _Probe(OutputPluginBase):
 
 
 class TestOnThePluginBase:
+    def test_retirement_fences_http_before_waking_cancellation_cleanup(self, recorder):
+        from src.outputs.plugin_driver import OutputPluginDriver
+
+        plugin = _Probe("board", {})
+        plugin.http.use_transport(recorder)
+        plugin.capabilities = lambda: _caps()
+        started, finished = threading.Event(), threading.Event()
+        refused = []
+
+        def write(frame, *, native, cancel):
+            started.set()
+            try:
+                if cancel.wait(2):
+                    try:
+                        plugin.http.post(
+                            "http://192.0.2.10/post", json={"Brightness": 50}, setup=True, cancel=CancelToken()
+                        )
+                    except RequestCancelled:
+                        refused.append(True)
+                return WriteResult(True, False)
+            finally:
+                finished.set()
+
+        plugin.write = write
+        # A plugin may wait for its worker when releasing resources. This
+        # makes the cancellation/cleanup ordering deterministic.
+        plugin.close = lambda: finished.wait(2)
+        driver = OutputPluginDriver(plugin)
+        worker = threading.Thread(target=lambda: driver.send_characters([[1] * 15 for _ in range(3)]), daemon=True)
+        worker.start()
+        try:
+            assert started.wait(2)
+            driver.close()
+            assert finished.wait(2)
+            assert refused == [True], "retirement allowed fresh-token cleanup HTTP after cancellation"
+            assert recorder.requests == []
+        finally:
+            driver._output_runtime.preempt()
+            worker.join(2)
+
     def test_every_plugin_instance_has_its_own_helper(self):
         one, two = _Probe("a", {}), _Probe("b", {})
         assert isinstance(one.http, OutputHttp)

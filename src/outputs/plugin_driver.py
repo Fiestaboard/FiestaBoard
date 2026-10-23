@@ -754,11 +754,16 @@ class OutputPluginDriver:
         if self._closed:
             return
         self._closed = True
-        try:
-            self.plugin.close()
-        except Exception:
-            logger.exception("Output plugin %s: close failed", self.connection_label)
+        # Fence new requests before cancellation wakes transition cleanup,
+        # which may otherwise bypass its cancelled token to restore settings.
         try:
             self.plugin.http.close()
         except Exception:
             logger.exception("Output plugin %s: closing its HTTP session failed", self.connection_label)
+        # Direct API writes do not run on the engine's send worker. Retiring
+        # that worker alone cannot cancel their old runtime's transition.
+        self._output_runtime.preempt()
+        try:
+            self.plugin.close()
+        except Exception:
+            logger.exception("Output plugin %s: close failed", self.connection_label)
