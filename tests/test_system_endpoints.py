@@ -945,9 +945,7 @@ class TestSystemUpdateStatusRollbackFields:
         def fake_get(url, **_kwargs):
             response = Mock(status_code=200)
             response.json.return_value = (
-                {"status": "in_progress", "started_at": "2026-10-22T12:00:00Z"}
-                if url.endswith("/last-update")
-                else {}
+                {"status": "in_progress", "started_at": "2026-10-22T12:00:00Z"} if url.endswith("/last-update") else {}
             )
             return response
 
