@@ -575,16 +575,19 @@ export function ActivePageDisplay() {
     mutationFn: () => {
       const characters = boardState?.characters;
       if (!characters) throw new Error("No board content to save");
+      // Device families remain distinct even when dimensions match (a 1×1
+      // Note array is 3×15, but a Note page cannot be selected on that array).
+      const deviceType = currentBoard?.device_type ?? activeGeometry.deviceType;
       return api.createPage({
         name: t("externalPageName", { date: new Date().toLocaleString() }),
         type: "template",
-        device_type: activeGeometry.deviceType,
+        device_type: deviceType,
         template: boardCharactersToTemplate(characters),
-        ...(activeGeometry.deviceType === "note_array" && {
-          notes_wide: activeGeometry.notesWide,
-          notes_tall: activeGeometry.notesTall,
+        ...(deviceType === "note_array" && {
+          notes_wide: currentBoard?.notes_wide ?? activeGeometry.notesWide,
+          notes_tall: currentBoard?.notes_tall ?? activeGeometry.notesTall,
         }),
-        ...(activeGeometry.deviceType === "panel" && {
+        ...(deviceType === "panel" && {
           grid_rows: activeGeometry.gridRows ?? characters.length,
           grid_cols: activeGeometry.gridCols ?? characters[0]?.length,
         }),

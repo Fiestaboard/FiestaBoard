@@ -282,6 +282,7 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
 
   it.each([
     { device_type: "note", rows: 3, cols: 15, geometry: {} },
+    { device_type: "note_array", rows: 3, cols: 15, geometry: { notes_wide: 1, notes_tall: 1 } },
     { device_type: "note_array", rows: 6, cols: 30, geometry: { notes_wide: 2, notes_tall: 2 } },
     { device_type: "panel", rows: 7, cols: 23, geometry: { grid_rows: 7, grid_cols: 23 } },
   ])(
