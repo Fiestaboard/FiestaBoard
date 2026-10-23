@@ -193,11 +193,11 @@ Rename a board, pause or resume it, turn its schedule on or off, or set the page
 
 **Put something on a board**
 
-The one way to write to a board. Send exactly one of `text` (word-wrapped for you), `lines` (one string per row), `characters` (a raw flap grid), `page_id` (render a saved page) or `fill` (one flap code everywhere; 0 blanks the board).
+The one way to write to a board. Send exactly one of `text` (word-wrapped for you), `lines` (one string per row), `characters` (a raw flap grid), `page_id` (render a saved page), `fill` (one flap code everywhere; 0 blanks the board), `plugin_id` (a plugin's live data, formatted the way the plugin displays itself) or `template` (one line per row with plugin variables like `{{weather.temperature}}` filled from live plugin data).
 
 Add `duration_minutes` to make it temporary — it reverts to your schedule, a chosen page, or a blank board when the time is up. `board` may be a board id or the literal `primary`.
 
-`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused or inside its silence window refuses the write with 409 rather than lying about it.
+`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused or inside its silence window refuses the write with 409 rather than lying about it. Send `if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board is paused, and `characters` is what it would have shown. Nothing is written.
 
 **Parameters**
 
@@ -214,11 +214,14 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 | `characters` | array of array of `integer` \| `null` | no | A raw flap grid, sized exactly to the board. Codes are 0-71. |
 | `page_id` | `string` \| `null` | no | Render a saved page (or collection) and send the result. |
 | `fill` | `integer` \| `null` | no | Fill the whole board with one flap code (0-71). 0 blanks it. (0–71) |
+| `plugin_id` | `string` \| `null` | no | Plugin content: fetch this plugin's live data, format it the way the plugin displays itself, and send the result (#2072). |
+| `template` | array of `string` \| `null` | no | Plugin content: one template line per board row, with plugin variables such as `{{weather.temperature}}` filled in from live plugin data before sending (#2072). |
 | `duration_minutes` | `integer` \| `null` | no | Show this for N minutes, then revert. Omit for a message that stays until something else replaces it. (1–480) |
 | `revert_mode` | `"schedule"` \| `"page"` \| `"blank"` \| `null` | no | What to show when a timed message expires. Requires duration_minutes. Defaults to "schedule". |
 | `revert_page_id` | `string` \| `null` | no | The page to revert to. Required when revert_mode is "page". |
 | `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the install's transition animation for this one send. |
 | `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. (default `false`) |
+| `if_paused` | `"reject"` \| `"preview"` | no | What to do when the board is paused. "reject" (the default) answers 409. "preview" answers 200 with `sent: false`, a `reason`, and the grid that would have been shown, without writing anything. (default `"reject"`) |
 
 **Responses**
 
@@ -750,6 +753,51 @@ Removes the collection. Its member pages are untouched, but anything still refer
 |--------|------|---------|
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
+
+### `GET /v1/install` {#get-v1-install}
+
+**Read the install's own settings**
+
+Settings that belong to the install rather than to one board: whether the schedule is on and the install-wide page shown when the schedule has a gap. A board's own values are on `GET /v1/boards/{board}`.
+
+**Responses**
+
+| Status | Body | Description |
+|--------|------|-------------|
+| `200` | [`InstallSettings`](#schema-installsettings) | Successful Response |
+
+**Errors**
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
+
+### `PATCH /v1/install` {#patch-v1-install}
+
+**Change the install's own settings**
+
+Turn the install's schedule on or off, or set the install-wide page shown when the schedule has a gap. Only the fields you send are applied; omit the rest. Send `default_page_id: null` to clear it. To change one board, use `PATCH /v1/boards/{board}`.
+
+**Request body** (required) — [`InstallUpdate`](#schema-installupdate)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schedule_enabled` | `boolean` \| `null` | no | Turn the install's schedule on or off. |
+| `default_page_id` | `string` \| `null` | no | Install-wide page shown when the schedule has a gap. Send null to clear it. |
+
+**Responses**
+
+| Status | Body | Description |
+|--------|------|-------------|
+| `200` | [`InstallSettings`](#schema-installsettings) | Successful Response |
+
+**Errors**
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
+| `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
 
 ### `GET /v1/variables` {#get-v1-variables}
 
@@ -1313,6 +1361,24 @@ Warn-only: the backend never mutates or removes the reference.
 | `surface` | `"schedule"` \| `"active_page"` \| `"silence"` | yes | — |
 | `schedule_id` | `string` \| `null` | no | — |
 
+### `InstallSettings` {#schema-installsettings}
+
+`GET /v1/install` — the settings that belong to the install, not to any one board.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schedule_enabled` | `boolean` | yes | Whether the install follows its schedule. On an install with boards this is the primary board's value; on an install with no boards configured yet it is the install-wide flag. |
+| `default_page_id` | `string` \| `null` | no | The install-wide page shown when the schedule has a gap. A board's own `default_page_id` (`PATCH /v1/boards/{board}`) takes precedence over it for that board. |
+
+### `InstallUpdate` {#schema-installupdate}
+
+`PATCH /v1/install` — every field optional, only what you send is applied.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schedule_enabled` | `boolean` \| `null` | no | Turn the install's schedule on or off. |
+| `default_page_id` | `string` \| `null` | no | Install-wide page shown when the schedule has a gap. Send null to clear it. |
+
 ### `LineMetadata` {#schema-linemetadata}
 
 Per-line formatting metadata for template pages.
@@ -1344,8 +1410,9 @@ what every existing caller gets today.
 
 `POST /v1/boards/{board}/message` — the front door.
 
-Exactly one of `text`, `lines`, `characters`, `page_id` or
-`fill` says _what_ to show. Everything else says how long and how.
+Exactly one of `text`, `lines`, `characters`, `page_id`,
+`fill`, `plugin_id` or `template` says _what_ to show. Everything else says how
+long and how.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -1354,11 +1421,14 @@ Exactly one of `text`, `lines`, `characters`, `page_id` or
 | `characters` | array of array of `integer` \| `null` | no | A raw flap grid, sized exactly to the board. Codes are 0-71. |
 | `page_id` | `string` \| `null` | no | Render a saved page (or collection) and send the result. |
 | `fill` | `integer` \| `null` | no | Fill the whole board with one flap code (0-71). 0 blanks it. (0–71) |
+| `plugin_id` | `string` \| `null` | no | Plugin content: fetch this plugin's live data, format it the way the plugin displays itself, and send the result (#2072). |
+| `template` | array of `string` \| `null` | no | Plugin content: one template line per board row, with plugin variables such as `{{weather.temperature}}` filled in from live plugin data before sending (#2072). |
 | `duration_minutes` | `integer` \| `null` | no | Show this for N minutes, then revert. Omit for a message that stays until something else replaces it. (1–480) |
 | `revert_mode` | `"schedule"` \| `"page"` \| `"blank"` \| `null` | no | What to show when a timed message expires. Requires duration_minutes. Defaults to "schedule". |
 | `revert_page_id` | `string` \| `null` | no | The page to revert to. Required when revert_mode is "page". |
 | `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the install's transition animation for this one send. |
 | `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. (default `false`) |
+| `if_paused` | `"reject"` \| `"preview"` | no | What to do when the board is paused. "reject" (the default) answers 409. "preview" answers 200 with `sent: false`, a `reason`, and the grid that would have been shown, without writing anything. (default `"reject"`) |
 
 ### `MessageResponse` {#schema-messageresponse}
 
@@ -1923,7 +1993,7 @@ truthy non-error result selects `page_id` as the active page.
 
 ## Where the rest of the API went
 
-This page documents the 33 operations the app publishes. The other
+This page documents the 35 operations the app publishes. The other
 ~200 paths the app serves are the web UI's private RPC channel: they still
 answer exactly as they always have, but they are undocumented on purpose,
 carry no compatibility promise, and may change in any release. They are

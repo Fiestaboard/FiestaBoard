@@ -141,11 +141,15 @@ class TransitionOverride(BaseModel):
     step_size: int | None = Field(default=None, ge=1, description="Flaps advanced per animation step.")
 
 
+IfPaused = Literal["reject", "preview"]
+
+
 class MessageRequest(BaseModel):
     """``POST /v1/boards/{board}/message`` — the front door.
 
-    Exactly one of ``text``, ``lines``, ``characters``, ``page_id`` or
-    ``fill`` says *what* to show. Everything else says how long and how.
+    Exactly one of ``text``, ``lines``, ``characters``, ``page_id``,
+    ``fill``, ``plugin_id`` or ``template`` says *what* to show. Everything else says how
+    long and how.
     """
 
     text: str | None = Field(
@@ -167,6 +171,20 @@ class MessageRequest(BaseModel):
     fill: FlapCode | None = Field(
         default=None,
         description="Fill the whole board with one flap code (0-71). 0 blanks it.",
+    )
+    plugin_id: str | None = Field(
+        default=None,
+        description=(
+            "Plugin content: fetch this plugin's live data, format it the way the plugin displays itself, "
+            "and send the result (#2072)."
+        ),
+    )
+    template: list[str] | None = Field(
+        default=None,
+        description=(
+            "Plugin content: one template line per board row, with plugin variables such as "
+            "`{{weather.temperature}}` filled in from live plugin data before sending (#2072)."
+        ),
     )
 
     duration_minutes: int | None = Field(
@@ -193,6 +211,13 @@ class MessageRequest(BaseModel):
         default=False,
         description="Send even when the board already shows this exact content, which is normally skipped.",
     )
+    if_paused: IfPaused = Field(
+        default="reject",
+        description=(
+            'What to do when the board is paused. "reject" (the default) answers 409. "preview" answers 200 with '
+            "`sent: false`, a `reason`, and the grid that would have been shown, without writing anything."
+        ),
+    )
 
     @model_validator(mode="after")
     def _exactly_one_content_field(self) -> MessageRequest:
@@ -204,12 +229,14 @@ class MessageRequest(BaseModel):
                 ("characters", self.characters),
                 ("page_id", self.page_id),
                 ("fill", self.fill),
+                ("plugin_id", self.plugin_id),
+                ("template", self.template),
             )
             if value is not None
         ]
         if len(supplied) != 1:
             raise ValueError(
-                "Supply exactly one of text, lines, characters, page_id or fill "
+                "Supply exactly one of text, lines, characters, page_id, fill, plugin_id or template "
                 f"(got {', '.join(supplied) if supplied else 'none'})"
             )
         return self
@@ -354,4 +381,35 @@ class RenderRequest(BaseModel):
     line_metadata: list[dict[str, Any]] | None = Field(
         default=None,
         description="Per-line alignment and wrap options, one entry per line.",
+    )
+
+
+class InstallSettings(BaseModel):
+    """``GET /v1/install`` — the settings that belong to the install, not to any one board."""
+
+    schedule_enabled: bool = Field(
+        description=(
+            "Whether the install follows its schedule. On an install with boards this is the primary board's "
+            "value; on an install with no boards configured yet it is the install-wide flag."
+        ),
+    )
+    default_page_id: str | None = Field(
+        default=None,
+        description=(
+            "The install-wide page shown when the schedule has a gap. A board's own ``default_page_id`` "
+            "(``PATCH /v1/boards/{board}``) takes precedence over it for that board."
+        ),
+    )
+
+
+class InstallUpdate(BaseModel):
+    """``PATCH /v1/install`` — every field optional, only what you send is applied."""
+
+    schedule_enabled: StrictBool | None = Field(
+        default=None,
+        description="Turn the install's schedule on or off.",
+    )
+    default_page_id: str | None = Field(
+        default=None,
+        description="Install-wide page shown when the schedule has a gap. Send null to clear it.",
     )
