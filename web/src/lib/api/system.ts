@@ -179,6 +179,8 @@ export interface UpdateStatusResponse {
   /** Sidecar error code, e.g. "pull_failed" | "recreate_failed" | "retag_failed". */
   last_update_error: string | null;
   last_update_previous_digest: string | null;
+  /** Attempt identity/freshness; older API versions may omit this field. */
+  last_update_started_at?: string | null;
   last_update_completed_at: string | null;
 }
 

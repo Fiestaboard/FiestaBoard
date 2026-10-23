@@ -56,6 +56,7 @@
         "last_update_completed_at": "null",
         "last_update_error": "null",
         "last_update_previous_digest": "null",
+        "last_update_started_at": "null",
         "last_update_status": "null",
         "managed_externally": "bool",
         "post_upgrade_regression": "null",
@@ -81,6 +82,7 @@
         "last_update_completed_at": "str",
         "last_update_error": "null",
         "last_update_previous_digest": "str",
+        "last_update_started_at": "null",
         "last_update_status": "str",
         "managed_externally": "bool",
         "post_upgrade_regression": {

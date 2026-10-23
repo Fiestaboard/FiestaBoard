@@ -234,6 +234,93 @@ describe("UpdateOverlay", () => {
 });
 
 describe("UpdateProvider server discovery", () => {
+  it("ignores an expired in-progress record left by an interrupted updater", async () => {
+    vi.spyOn(api, "getUpdateStatus").mockResolvedValue(
+      status({ last_update_started_at: new Date(Date.now() - 10 * 60_000 - 1).toISOString() }),
+    );
+    vi.spyOn(api, "getVersion").mockResolvedValue(VERSION_RESPONSE);
+    render(
+      <UpdateProvider>
+        <span>Application</span>
+      </UpdateProvider>,
+    );
+
+    await advance(30_000);
+
+    expect(screen.queryByText("Pulling the latest image from Docker Hub…")).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(LS_KEY)).toBeNull();
+  });
+
+  it("keeps a timed-out attempt dismissed while allowing a new attempt", async () => {
+    const getStatus = vi
+      .spyOn(api, "getUpdateStatus")
+      .mockResolvedValue(status({ last_update_started_at: new Date().toISOString() }));
+    vi.spyOn(api, "getVersion").mockResolvedValue(VERSION_RESPONSE);
+    render(
+      <UpdateProvider>
+        <span>Application</span>
+      </UpdateProvider>,
+    );
+    await advance(30_000);
+    expect(screen.getByText("Pulling the latest image from Docker Hub…")).toBeInTheDocument();
+    await advance(602_000);
+    fireEvent.click(screen.getByRole("button", { name: /dismiss.*refresh/i }));
+    await advance(30_000);
+    expect(screen.queryByText("Pulling the latest image from Docker Hub…")).not.toBeInTheDocument();
+
+    getStatus.mockResolvedValue(status({ last_update_started_at: new Date().toISOString() }));
+    await advance(30_000);
+    expect(screen.getByText("Pulling the latest image from Docker Hub…")).toBeInTheDocument();
+  });
+
+  it("keeps an older updater's timed-out attempt dismissed until it becomes idle", async () => {
+    // Older APIs omit the attempt timestamp. Repeated in_progress replies
+    // must not reopen the same dismissed attempt, but an observed idle state
+    // allows the next attempt to be discovered without a timestamp too.
+    const getStatus = vi.spyOn(api, "getUpdateStatus").mockResolvedValue(status());
+    vi.spyOn(api, "getVersion").mockResolvedValue(VERSION_RESPONSE);
+    render(
+      <UpdateProvider>
+        <span>Application</span>
+      </UpdateProvider>,
+    );
+    await advance(30_000);
+    await advance(602_000);
+    fireEvent.click(screen.getByRole("button", { name: /dismiss.*refresh/i }));
+    await advance(30_000);
+    expect(screen.queryByText("Pulling the latest image from Docker Hub…")).not.toBeInTheDocument();
+
+    getStatus.mockResolvedValue(status({ last_update_status: "failed" }));
+    await advance(30_000);
+    getStatus.mockResolvedValue(status());
+    await advance(30_000);
+    expect(screen.getByText("Pulling the latest image from Docker Hub…")).toBeInTheDocument();
+  });
+
+  it("preserves dismissal across a page reload when the updater has no attempt timestamp", async () => {
+    vi.spyOn(api, "getUpdateStatus").mockResolvedValue(status());
+    vi.spyOn(api, "getVersion").mockResolvedValue(VERSION_RESPONSE);
+    const { unmount } = render(
+      <UpdateProvider>
+        <span>Application</span>
+      </UpdateProvider>,
+    );
+    await advance(30_000);
+    await advance(602_000);
+    fireEvent.click(screen.getByRole("button", { name: /dismiss.*refresh/i }));
+    expect(window.localStorage.getItem(LS_KEY)).toBeNull();
+    unmount();
+
+    render(
+      <UpdateProvider>
+        <span>Application</span>
+      </UpdateProvider>,
+    );
+    await advance(30_000);
+
+    expect(screen.queryByText("Pulling the latest image from Docker Hub…")).not.toBeInTheDocument();
+  });
+
   it("discovers an update started by another browser and uses the existing completion flow", async () => {
     vi.spyOn(api, "getUpdateStatus").mockResolvedValue(status());
     vi.spyOn(api, "getVersion").mockResolvedValue(VERSION_RESPONSE);
