@@ -75,6 +75,7 @@ class StatePublisher:
             # display_service
             display_running = self._get_display_running()
             out["display_service"] = "ON" if display_running else "OFF"
+            out["board_paused"] = "ON" if settings.is_paused() is True else "OFF"
 
             # active_page, current_page: page name. With no active page,
             # publish the select's stable no-page option — HA rejects
@@ -84,9 +85,9 @@ class StatePublisher:
             active_id = settings.get_active_page_id()
             page_name = NO_ACTIVE_PAGE_OPTION
             if active_id:
-                page = page_service.get_page(active_id)
-                if page:
-                    page_name = page.name
+                from .content import content_name
+
+                page_name = content_name(active_id, page_service) or NO_ACTIVE_PAGE_OPTION
             # While the primary board shows out-of-band content (a manual
             # MQTT/HTTP write, which persists per issue #1794), the board is
             # NOT showing the configured page — report the same stable
@@ -216,9 +217,9 @@ class StatePublisher:
                         board_page_id = ""
                     board_page_name = ""
                     if board_page_id:
-                        board_page = page_service.get_page(board_page_id)
-                        if board_page:
-                            board_page_name = board_page.name
+                        from .content import content_name
+
+                        board_page_name = content_name(board_page_id, page_service) or ""
                     by_board[bid] = {"page_id": board_page_id, "page_name": board_page_name}
                 if by_board:
                     page_attrs["by_board"] = by_board
