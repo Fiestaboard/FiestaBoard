@@ -22,6 +22,13 @@ import { api, type UpdateStatusResponse } from "@/lib/api";
 
 const LS_KEY = "fb_updating";
 const FROM_VERSION = "8.20.5";
+const VERSION_RESPONSE = {
+  package_version: FROM_VERSION,
+  running_version: FROM_VERSION,
+  build_version: "test",
+  is_dev: false,
+  hardware_model: null,
+};
 
 /** A status payload with no verdict yet — the sidecar is still working. */
 function status(overrides: Partial<UpdateStatusResponse> = {}): UpdateStatusResponse {
@@ -229,9 +236,7 @@ describe("UpdateOverlay", () => {
 describe("UpdateProvider server discovery", () => {
   it("discovers an update started by another browser and uses the existing completion flow", async () => {
     vi.spyOn(api, "getUpdateStatus").mockResolvedValue(status());
-    vi.spyOn(api, "getVersion").mockResolvedValue({ package_version: FROM_VERSION } as Awaited<
-      ReturnType<typeof api.getVersion>
-    >);
+    vi.spyOn(api, "getVersion").mockResolvedValue(VERSION_RESPONSE);
 
     render(
       <UpdateProvider>
@@ -294,9 +299,7 @@ describe("UpdateProvider server discovery", () => {
 
   it("retries discovery after an unreachable server without blocking the application", async () => {
     vi.spyOn(api, "getUpdateStatus").mockRejectedValueOnce(new Error("offline")).mockResolvedValue(status());
-    vi.spyOn(api, "getVersion").mockResolvedValue({ package_version: FROM_VERSION } as Awaited<
-      ReturnType<typeof api.getVersion>
-    >);
+    vi.spyOn(api, "getVersion").mockResolvedValue(VERSION_RESPONSE);
     render(
       <UpdateProvider>
         <span>Application</span>
@@ -315,9 +318,7 @@ describe("UpdateProvider server discovery", () => {
       resolveStatus = resolve;
     });
     vi.spyOn(api, "getUpdateStatus").mockReturnValue(pendingStatus);
-    vi.spyOn(api, "getVersion").mockResolvedValue({ package_version: FROM_VERSION } as Awaited<
-      ReturnType<typeof api.getVersion>
-    >);
+    vi.spyOn(api, "getVersion").mockResolvedValue(VERSION_RESPONSE);
     const { unmount } = render(
       <UpdateProvider>
         <span>Application</span>
