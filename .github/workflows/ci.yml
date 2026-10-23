@@ -67,6 +67,9 @@ jobs:
               # red (#2004). Guarded by tests/test_ci_path_filters.py.
               - 'plugin-registry.json'
               - 'plugin-previews.json'
+              # Python guards verify known fixes in both developer lockfiles.
+              - 'package-lock.json'
+              - 'web/package-lock.json'
             ui:
               - 'web/**'
               - 'Dockerfile'
