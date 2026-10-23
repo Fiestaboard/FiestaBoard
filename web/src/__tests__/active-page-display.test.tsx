@@ -482,6 +482,83 @@ describe("ActivePageDisplay", () => {
     toastSpy.mockRestore();
   });
 
+  it("saves the externally set board content as a new template page", async () => {
+    const toastSpy = vi.spyOn((await import("sonner")).toast, "success");
+    // Row 0 reads "HI" followed by a red tile; the rest is blank.
+    const externalChars = Array.from({ length: 6 }, () => Array(22).fill(0));
+    externalChars[0][0] = 8;
+    externalChars[0][1] = 9;
+    externalChars[0][2] = 63;
+    const expectedChars = Array.from({ length: 6 }, () => Array(22).fill(2));
+    let createdBody: Record<string, unknown> | null = null;
+    server.use(
+      http.get(`${API_BASE}/board/current-message`, () =>
+        HttpResponse.json({
+          characters: externalChars,
+          message: "",
+          rows: 6,
+          cols: 22,
+          expected_characters: expectedChars,
+          cached_at: null,
+          api_mode: "local",
+        }),
+      ),
+      http.post(`${API_BASE}/v1/pages`, async ({ request }) => {
+        createdBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: "new-page", ...createdBody }, { status: 201 });
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    const saveButton = await screen.findByRole("button", { name: /Save as page/i });
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(createdBody).not.toBeNull();
+    });
+    expect(createdBody).toMatchObject({
+      type: "template",
+      template: ["HI{{red}}", "", "", "", "", ""],
+    });
+    expect(String(createdBody!.name)).toMatch(/^Saved from board /);
+    await waitFor(() => {
+      expect(toastSpy).toHaveBeenCalledWith(expect.stringMatching(/^Saved ".*" as a page$/));
+    });
+
+    toastSpy.mockRestore();
+  });
+
+  it("shows an error toast when saving the external board content fails", async () => {
+    const toastSpy = vi.spyOn((await import("sonner")).toast, "error");
+    server.use(
+      http.get(`${API_BASE}/board/current-message`, () =>
+        HttpResponse.json({
+          characters: Array.from({ length: 6 }, () => Array(22).fill(1)),
+          message: "",
+          rows: 6,
+          cols: 22,
+          expected_characters: Array.from({ length: 6 }, () => Array(22).fill(2)),
+          cached_at: null,
+          api_mode: "local",
+        }),
+      ),
+      http.post(`${API_BASE}/v1/pages`, () => HttpResponse.json({ detail: "nope" }, { status: 500 })),
+    );
+
+    const user = userEvent.setup();
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: /Save as page/i }));
+
+    await waitFor(() => {
+      expect(toastSpy).toHaveBeenCalledWith("Failed to save board as a page");
+    });
+
+    toastSpy.mockRestore();
+  });
+
   it("handles set active page error", async () => {
     const toastSpy = vi.spyOn((await import("sonner")).toast, "error");
     server.use(
