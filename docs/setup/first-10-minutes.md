@@ -1,12 +1,12 @@
 ---
 sidebar_position: 3
 description: "Your first 10 minutes with FiestaBoard: create a page, enable plugins, and set up a schedule for your split-flap display."
-keywords: [FiestaBoard getting started, first page, enable plugins, setup walkthrough, Vestaboard tutorial]
+keywords: [FiestaBoard getting started, first page, enable plugins, setup walkthrough, Vestaboard tutorial, Pixoo tutorial, TV dashboard]
 ---
 
 # Your First 10 Minutes
 
-You've got FiestaBoard running at **http://localhost:4420** and your board is connected. Now what? This guide walks you through everything you can do in your first 10 minutes to get the most out of your board.
+You've got FiestaBoard running at **http://localhost:4420** and your display is connected. Now what? This guide walks you through everything you can do in your first 10 minutes to get the most out of it. It works the same for a Vestaboard, a Pixoo, or a TV.
 
 ## 1. Verify the Display Service
 
@@ -14,7 +14,7 @@ The display service starts automatically when the container is running. Open the
 
 ## 2. Enable Your First Plugins
 
-Plugins are data sources - they pull information like weather, time, stock prices, and more so you can put that data on your board.
+Plugins are data sources - they pull information like weather, time, stock prices, and more so you can put that data on your displays.
 
 1. Click **Integrations** in the navigation
 2. You'll see all available plugins. Start by enabling a few that need no API key:
@@ -42,7 +42,7 @@ You can always come back and enable more plugins later, including ones that need
 
 ## 3. Create Your First Page
 
-Pages are the templates for what your board displays. Each page is a layout you design using the visual editor.
+Pages are the templates for what your displays show. Each page is a layout you design using the visual editor.
 
 1. Click **Pages** in the navigation
 2. Select the tab matching your board type (**Flagship** for the standard 22x6 board, **Note** for the compact 15x3)
@@ -133,7 +133,7 @@ In Schedule settings, you can set a **default page** that displays whenever ther
 
 ## 7. Set Quiet Hours (Optional)
 
-Split-flap displays can be noisy when they flip. If your board is in a bedroom or living room, you'll want to set quiet hours:
+Split-flap displays can be noisy when they flip, and a bright LED matrix or TV can light up a dark room. If a display is in a bedroom or living room, you'll want to set quiet hours:
 
 1. Go to **Settings**
 2. Find the **Silence Schedule** section

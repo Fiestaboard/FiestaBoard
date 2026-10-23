@@ -14,9 +14,15 @@
 
 <p align="center"><strong>Your data, out in the real world.</strong></p>
 
-**FiestaBoard turns live data into something you can glance at from across the room** — your morning commute, the markets, the surf, a little Star Trek wisdom — on the displays around you: split-flap boards like Vestaboard, or any TV with a browser. Pick from 60+ plugins, design pages in a visual editor, schedule what shows when, and build your own plugins. Free, open source, and self-hosted in Docker.
+**FiestaBoard turns live data into something you can glance at from across the room** — your morning commute, the markets, the surf, a little Star Trek wisdom — on the displays around you: split-flap boards like Vestaboard, LED matrices like the Divoom Pixoo 64, or any TV with a browser. Pick from 60+ plugins, design pages in a visual editor, schedule what shows when, and build your own plugins. Free, open source, and self-hosted in Docker.
 
-**Works with:** Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas), plus [FiestaPanel](https://fiestaboard.app/docs/features/fiestapanel), which turns any TV or screen with a web browser into a virtual split-flap board.
+**Works with:**
+
+- **Split-flap:** Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas)
+- **LED matrix:** Divoom Pixoo 64
+- **TV:** [FiestaPanel](https://fiestaboard.app/docs/displays/tv) turns any TV or screen with a web browser into a life-size board. Native Apple TV and Android TV apps are coming soon.
+
+Every display is an [output plugin](https://fiestaboard.app/docs/development/output-plugins), so support for new hardware can be added without changing FiestaBoard. See [Supported Displays](https://fiestaboard.app/docs/displays).
 
 You bring the display and the API keys for the services you care about. FiestaBoard handles the rest.
 

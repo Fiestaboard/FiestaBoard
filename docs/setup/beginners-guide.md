@@ -1,19 +1,19 @@
 ---
 sidebar_position: 2
-description: "Step-by-step beginner guide to installing and configuring FiestaBoard for your Vestaboard or split-flap display."
-keywords: [FiestaBoard beginner guide, first time setup, step by step, Vestaboard tutorial, Vestaboard beginner guide, Vestaboard installation, installation guide]
+description: "Step-by-step beginner guide to installing FiestaBoard and connecting your first display: a Vestaboard, a Divoom Pixoo 64 LED matrix, or a TV."
+keywords: [FiestaBoard beginner guide, first time setup, step by step, Vestaboard tutorial, Pixoo setup, TV dashboard setup, Vestaboard beginner guide, Vestaboard installation, installation guide]
 ---
 
 # Beginner's Guide
 
-Never used Docker or the command line before? No problem. This guide walks through every step clearly, from picking the easiest install path to seeing your first content on the board.
+Never used Docker or the command line before? No problem. This guide walks through every step clearly, from picking the easiest install path to seeing your first content on your display.
 
 **Time needed:** About 15 minutes.
 
 ## What You'll Need
 
-- A split-flap display that's already set up and working with the board's app
-- Your board's API key (Step 2 below shows you where to find it)
+- A display: a Vestaboard, a Divoom Pixoo 64, or any TV with a web browser. See [Supported Displays](/docs/displays) for the full list. No display yet? You can set FiestaBoard up first and add one later.
+- For a Vestaboard only: your board's API key (Step 2 below shows you where to find it)
 - An internet connection
 - **Either** a Raspberry Pi + microSD card (see [The Easiest Path: Flash a Raspberry Pi](#the-easiest-path-flash-a-raspberry-pi)), **or** a computer (Mac, Windows, or Linux) where we'll install Docker
 
@@ -38,7 +38,7 @@ If you have (or are willing to buy) a Raspberry Pi, this is by far the easiest r
    - Click **Write** and wait ~5 minutes
 5. **Insert the SD card into the Pi, plug it in**, and wait 2–3 minutes for first boot.
 6. **Open a browser** on any device on the same network and go to **[the FiestaBoard setup wizard](http://fiestapi.local:4420)** at `http://fiestapi.local:4420`. If that page doesn't load, go to **[fiestaboard.app/find](https://fiestaboard.app/find/)** in Chrome or Edge instead. It searches your network for the Pi and opens it.
-7. **Skip ahead to Step 2** below to grab your board's API key, then enter it in the wizard. You're done.
+7. **Pick your display** in the wizard and follow its steps. If it's a Vestaboard, grab its API key first ([Step 2](#step-2-get-ready-to-connect-your-display)). You're done.
 
 That's the whole thing. No Docker. No Terminal. No PowerShell. The Pi runs FiestaBoard 24/7 and updates itself with one click in **Settings → System** when new versions release.
 
@@ -86,9 +86,13 @@ Log out and back in after running these commands, then verify Docker is working:
 docker --version
 ```
 
-## Step 2: Get Your Board API Key
+## Step 2: Get Ready to Connect Your Display
 
-Your board API key is what lets FiestaBoard talk to your display. You can use either the Local API or the Cloud API.
+What you need depends on your display:
+
+- **A TV:** nothing. You'll open an address in the TV's browser in Step 5.
+- **A Divoom Pixoo 64:** make sure it's set up in the Divoom app and on the same Wi-Fi as FiestaBoard. FiestaBoard can find it on your network for you.
+- **A Vestaboard:** you need its API key. Follow the steps below. You can use either the Local API or the Cloud API.
 
 ### Local API (Recommended)
 
@@ -161,7 +165,6 @@ Then run the install wizard:
 The wizard will:
 
 - Check that Docker is installed and running
-- Ask for your board API key and device type
 - Start the server
 - Open the setup page in your browser
 
@@ -205,23 +208,26 @@ Don't know that address? Open **[fiestaboard.app/find](https://fiestaboard.app/f
 If the page doesn't load, wait 30 seconds and try again - the server may still be starting up. Make sure Docker Desktop is running (look for the whale icon in your system tray or menu bar).
 :::
 
-## Step 5: Connect Your Board
+## Step 5: Connect Your Display
 
-If you used the install wizard (Path B or C), you may have already entered your API key. If not:
+The first time you open FiestaBoard, the setup wizard asks **What do you want to show FiestaBoard on?**
 
-1. In the FiestaBoard dashboard, go to **Settings**
-2. Enter your board API key (from Step 2)
-3. If you're using the Local API, also enter your board's IP address (settings save automatically)
+1. Pick your display: **Vestaboard**, **Divoom Pixoo 64**, or **FiestaPanel** for a TV.
+2. Follow its steps:
+   - **Vestaboard:** enter your API key from Step 2, plus the board's IP address for the Local API, then click **Test connection**.
+   - **Divoom Pixoo 64:** click **Find my Pixoo** or type its IP address, then click **Test connection**.
+   - **TV:** name it and enter its screen size, then open the address the wizard shows in the TV's browser.
+3. Pick a few data sources, and the wizard sends a welcome message to your display.
 
-<AppShot name="settings-board-config" alt="Settings page with board API key and IP address inputs" />
+Already past the wizard? Open **Displays** and click **Add a display**. Each display has its own guide under [Supported Displays](/docs/displays).
 
 ## Step 6: Verify the Service is Running
 
 1. Go to the main dashboard at **http://localhost:4420**
 2. The display service starts automatically — verify the status shows **Running**
-3. Your board should start updating within a few seconds
+3. Your display should start updating within a few seconds
 
-Congratulations - your board is now controlled by FiestaBoard!
+Congratulations - your display is now controlled by FiestaBoard!
 
 ## Step 7: Make It Yours
 
@@ -313,11 +319,11 @@ Make sure Docker Desktop is open. Look for the whale icon in your menu bar (Mac)
 - Make sure nothing else is using port 4420
 - On another device, `localhost` won't work. Use **[fiestaboard.app/find](https://fiestaboard.app/find/)** to find the right address; see [I don't know my board's address](/docs/troubleshooting#i-dont-know-my-boards-address)
 
-### Board not updating
+### Display not updating
 
 1. Check that the service shows **Running** on the dashboard
-2. Verify your board API key is correct (go to Settings)
-3. For Local API: make sure your board and computer are on the same WiFi network
+2. Open the display's page in **Displays** and click **Test connection**. For a Vestaboard, check that the API key is correct
+3. For a Vestaboard on the Local API or a Pixoo: make sure the display and FiestaBoard are on the same Wi-Fi network
 4. Check the logs: `docker compose logs -f`
 
 ### Still stuck?
