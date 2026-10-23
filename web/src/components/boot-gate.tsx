@@ -1,6 +1,6 @@
 "use client";
 
-import { FiestaIcon, FiestaLogo, Flex, Stack, Text } from "@fiestaboard/ui";
+import { Button, FiestaIcon, FiestaLogo, Flex, Stack, Text } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useQuery } from "@tanstack/react-query";
 import { WifiOff } from "lucide-react";
@@ -128,12 +128,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
               </Text>
               <Text tone="muted">{awaitingPostUpdateBoot ? t("updateErrorDescription") : t("errorDescription")}</Text>
             </Stack>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              {t("refreshPage")}
-            </button>
+            <Button onClick={() => window.location.reload()}>{t("refreshPage")}</Button>
           </>
         ) : (
           /* ── Waiting state ── */
