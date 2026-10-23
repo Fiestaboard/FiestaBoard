@@ -570,6 +570,7 @@ Every request to the device goes through `self.http`, never `requests` directly.
 - **No redirects.** A redirect would reach a host the allowlist never checked.
 - **Cancel.** Once the write's cancel token fires, the next request raises `RequestCancelled` without reaching the device.
 - **Setup requests.** Pass `setup=True` for a request that is not the board write itself, such as a reset or a brightness command. A failed setup request you tolerate does not make a landed write count as failed.
+- **Instance lifetime.** When core retires a board's driver, it cancels the active write and closes its HTTP helper. A closed helper refuses further requests, even with an explicit fresh cancel token. An old instance's cleanup cannot overwrite its replacement's frame or settings. Requests already in flight remain subject to their timeouts.
 
 Every error is a `requests` exception, so one `except requests.RequestException` handles a blocked, cancelled or unreachable device.
 

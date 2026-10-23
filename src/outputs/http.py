@@ -26,6 +26,9 @@ in front of third-party code (plan D10):
   write itself (a reset, a brightness command). Core's conformance suite
   leaves those out of the write's accounting: a write whose frame landed is
   a success even if a setup request it tolerates losing failed.
+- **Lifetime.** Closing an instance permanently refuses new requests,
+  including cleanup with an explicit token. A retired writer must not
+  change the device after its replacement has taken over.
 
 Usage, inside a plugin::
 
@@ -121,6 +124,7 @@ class OutputHttp:
         self._session_lock = threading.Lock()
         self._local = threading.local()
         self._module_requests = module_requests
+        self._closed = False
 
     @classmethod
     def for_first_party(cls) -> OutputHttp:
@@ -178,7 +182,7 @@ class OutputHttp:
         if kwargs.pop("allow_redirects", False):
             raise ValueError("Output requests never follow a redirect: it would reach a host the fence never saw.")
         token = cancel if cancel is not None else self.current_cancel
-        if token is not None and token.cancelled:
+        if self._closed or (token is not None and token.cancelled):
             raise RequestCancelled(url)
         check_output_url(url)
         # The caller's keywords in the caller's order, the timeout where it
@@ -226,8 +230,9 @@ class OutputHttp:
             return self._session
 
     def close(self) -> None:
-        """Release pooled connections. Core calls it after the plugin's ``close``."""
+        """Retire this instance's HTTP client and release pooled connections."""
         with self._session_lock:
+            self._closed = True
             session, self._session = self._session, None
         if session is not None:
             session.close()
