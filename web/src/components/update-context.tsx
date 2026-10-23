@@ -53,16 +53,22 @@ const UpdateContext = createContext<UpdateContextValue>({
 // ---------------------------------------------------------------------------
 
 const LS_KEY = "fb_updating";
+// Keep the handled identity after the overlay marker is cleared, so a page
+// refresh cannot rediscover an abandoned attempt that the user dismissed.
+const HANDLED_ATTEMPT_KEY = "fb_update_handled_attempt";
 const MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes — matches UPDATE_TIMEOUT_MS
 /** A post-update boot that hasn't completed within this window is stale. */
 const AWAITING_BOOT_MAX_AGE_MS = 5 * 60 * 1000;
 /** Discover attempts initiated in another browser or by the auto-updater. */
 const DISCOVERY_INTERVAL_MS = 30_000;
+/** Older APIs do not expose an attempt timestamp. */
+const LEGACY_ATTEMPT = "legacy";
 
 interface PersistedUpdate {
   fromVersion?: string;
   startedAt: number;
   awaitingBoot?: boolean;
+  attemptId?: string;
 }
 
 function readPersisted(): PersistedUpdate | null {
@@ -94,6 +100,21 @@ function clearPersisted() {
   } catch {}
 }
 
+function readHandledAttempt(): string | null {
+  try {
+    return localStorage.getItem(HANDLED_ATTEMPT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeHandledAttempt(attemptId: string | null) {
+  try {
+    if (attemptId === null) localStorage.removeItem(HANDLED_ATTEMPT_KEY);
+    else localStorage.setItem(HANDLED_ATTEMPT_KEY, attemptId);
+  } catch {}
+}
+
 /**
  * Flip the persisted entry into "we reloaded, waiting for the new container"
  * mode. Keeps `startedAt` fresh so the staleness window is measured from the
@@ -119,9 +140,14 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   const [isUpdating, setIsUpdating] = useState(() => persisted !== null && !persisted.awaitingBoot);
   const [currentVersion, setCurrentVersion] = useState<string | undefined>(() => persisted?.fromVersion);
   const [awaitingPostUpdateBoot, setAwaitingPostUpdateBoot] = useState(() => persisted?.awaitingBoot === true);
+  const handledAttempt = useRef<string | null>(
+    persisted ? (persisted.attemptId ?? LEGACY_ATTEMPT) : readHandledAttempt(),
+  );
 
-  const startUpdate = useCallback((version?: string) => {
-    writePersisted({ fromVersion: version, startedAt: Date.now() });
+  const startUpdate = useCallback((version?: string, attemptId = LEGACY_ATTEMPT) => {
+    handledAttempt.current = attemptId;
+    writeHandledAttempt(attemptId);
+    writePersisted({ fromVersion: version, startedAt: Date.now(), attemptId });
     setCurrentVersion(version);
     setIsUpdating(true);
   }, []);
@@ -139,7 +165,12 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
       try {
         const status = await api.getUpdateStatus();
         if (cancelled) return;
-        if (status.last_update_status === "in_progress") {
+        const startedAt = status.last_update_started_at;
+        const startedAtMs = startedAt ? Date.parse(startedAt) : NaN;
+        const hasTimestamp = Number.isFinite(startedAtMs);
+        const attemptId = hasTimestamp ? startedAt! : LEGACY_ATTEMPT;
+        const fresh = !hasTimestamp || Date.now() - startedAtMs <= MAX_AGE_MS;
+        if (status.last_update_status === "in_progress" && fresh && handledAttempt.current !== attemptId) {
           // Preserve the version fallback used by the overlay if the sidecar
           // loses its record during a restart. Failure to read it must not
           // prevent showing an update that we already know is in progress.
@@ -147,8 +178,15 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
           try {
             version = (await api.getVersion()).package_version;
           } catch {}
-          if (!cancelled) startUpdate(version);
+          if (!cancelled) startUpdate(version, attemptId);
           return;
+        }
+        // Without a timestamp we can only recognize a new attempt after an
+        // explicit idle/terminal reply. Unreachable/unknown status is not an
+        // idle transition, and must not re-arm an abandoned attempt.
+        if (status.last_update_status && status.last_update_status !== "in_progress") {
+          handledAttempt.current = null;
+          writeHandledAttempt(null);
         }
       } catch {
         // An idle browser stays usable while the API is unavailable.
@@ -169,6 +207,7 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleDone = useCallback(() => {
+    writeHandledAttempt(handledAttempt.current);
     clearPersisted();
     setIsUpdating(false);
   }, []);
