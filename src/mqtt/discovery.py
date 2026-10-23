@@ -97,6 +97,13 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
         icon="mdi:television-play",
         has_command=True,
     ),
+    EntityDefinition(
+        entity_type="switch",
+        object_id="board_paused",
+        name="Board Paused",
+        icon="mdi:pause-circle",
+        has_command=True,
+    ),
     # Selects
     EntityDefinition(
         entity_type="select",

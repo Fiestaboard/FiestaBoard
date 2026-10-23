@@ -61,13 +61,15 @@ async def get_install() -> InstallSettings:
 async def update_install(request: InstallUpdate) -> InstallSettings:
     provided = request.model_dump(exclude_unset=True)
 
+    # Validate references before persisting any part of this PATCH.
+    if provided.get("default_page_id") is not None:
+        _require_page_ref(provided["default_page_id"])
+
     if provided.get("schedule_enabled") is not None:
         _settings_service().set_schedule_enabled(provided["schedule_enabled"], board_id=None)
 
     if "default_page_id" in provided:
         page_id = provided["default_page_id"]
-        if page_id is not None:
-            _require_page_ref(page_id)
         _schedule_service().set_default_page(page_id, board_id=None)
 
     return _read()
