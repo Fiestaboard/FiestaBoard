@@ -361,6 +361,7 @@ class OutputPluginDriver:
             sent = prior_send is not None and prior_send()
             if not sent:
                 self._output_runtime.release_send(admission)
+                self._frames.forget()
             self._write_failed(f"the write raised {type(exc).__name__}: {exc}")
             return WriteResult(False, sent)
         if result is None:
@@ -379,6 +380,8 @@ class OutputPluginDriver:
                 # while reporting that the requested target is incomplete.
                 self.last_write_error = "the sequence uploaded, but the rich target was throttled by the output."
                 return throttled._replace(success=False, was_sent=True)
+            # A plugin can be refused after it uploaded intermediate frames.
+            self._frames.forget()
             return throttled
         if result.success and not result.was_sent and (token.is_set() or result.superseded):
             # Preempted: the plugin stopped mid-write and nothing landed. The
@@ -404,6 +407,7 @@ class OutputPluginDriver:
                 self._frames.forget()
         elif not result.success and not result.partial and not (prior_send is not None and prior_send()):
             self._output_runtime.release_send(admission)
+            self._frames.forget()
         if result.success:
             self.last_write_error = None
             output_breakers().record_success(self._breaker_key())
