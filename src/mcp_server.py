@@ -60,8 +60,10 @@ Docstrings
 External MCP clients get the whole docstring as the tool description, but
 the in-app chat does not: ``ToolCatalog._compact_description``
 (``src/ai/tool_catalog.py``) renders only the **first paragraph** plus the
-``Args:`` block, because the full text of 86 tools does not fit the chat
-addendum's byte budget (#2036). So anything the model must know to call a
+``Args:`` block, because the full text of every tool does not fit the chat
+addendum's byte budget (#2036). That budget is per chat surface: a tool in
+``tool_catalog._SURFACE_OMITTED_TOOLS`` is not shown to (or callable from) the
+surfaces it is listed for. So anything the model must know to call a
 tool correctly — preconditions, which other tool to use instead, which
 field to read — goes in the first paragraph or in ``Args:``. Everything
 else (return shapes, WARNING consequences aimed at the human approving the

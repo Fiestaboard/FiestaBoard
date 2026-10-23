@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from src.ai.mcp_bridge import ToolDescriptor
-from src.ai.tool_catalog import RETIRED_OPS, ParsedToolCall, ToolCallValidationError, ToolCatalog
+from src.ai.tool_catalog import RETIRED_OPS, ParsedToolCall, ToolCallValidationError, ToolCatalog, dropped_paragraphs
 
 
 def _d(
@@ -137,6 +137,18 @@ def test_addendum_renders_required_args_starred_and_typed(catalog):
     assert "duration_seconds?: integer = 300" in text
 
 
+def test_a_null_default_is_not_printed_after_an_optional_arg():
+    """``?`` already says the arg may be omitted, and omitting it is what a
+    null default means. 133 real args printed `` = null`` — ~930 B of the
+    addendum on every surface (#2036) — and told the model nothing."""
+    schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string", "default": None}, "enabled": {"type": "boolean", "default": False}},
+    }
+    text = ToolCatalog([_d("update_thing", schema=schema)]).render_addendum("global")
+    assert "Args: name?: string, enabled?: boolean = false\n" in text
+
+
 def test_addendum_keeps_the_first_paragraph_and_the_args_block_only(catalog):
     text = catalog.render_addendum("global")
     assert "Create a page." in text
@@ -169,6 +181,47 @@ def test_editor_and_global_surfaces_differ_only_in_the_surface_intro(catalog):
     assert editor.split("### ")[1:] == global_.split("### ")[1:]
     assert "update_page" in editor.split("### ")[0]
     assert "create_page" in global_.split("### ")[0]
+
+
+def test_the_editor_surface_does_not_teach_the_system_tier():
+    """#2036: the editor chat edits one page, and the system/hardware tools
+    (restart, update, Wi-Fi, backups) were ~1.6 kB of its addendum it never
+    needs. The global drawer, open on every screen, still teaches them."""
+    catalog = ToolCatalog([_d("create_page"), _d("restart_system", destructive=True), _d("disconnect_wifi")])
+    editor = catalog.render_addendum("editor")
+    global_ = catalog.render_addendum("global")
+    assert "### create_page" in editor
+    assert "### restart_system" not in editor
+    assert "### disconnect_wifi" not in editor
+    assert "### restart_system" in global_
+    assert "### disconnect_wifi" in global_
+
+
+def test_a_surface_catalog_rejects_a_tool_that_surface_does_not_teach():
+    """What the model is taught and what the parser accepts stay the same
+    set: the editor surface refuses a system call it was never shown."""
+    catalog = ToolCatalog([_d("create_page"), _d("restart_system", destructive=True)])
+    with pytest.raises(ToolCallValidationError, match="restart_system"):
+        catalog.for_surface("editor").validate({"op": "restart_system", "args": {"x": "1"}})
+    assert catalog.for_surface("global").validate({"op": "restart_system", "args": {"x": "1"}}).name == (
+        "restart_system"
+    )
+
+
+def test_every_tool_a_surface_omits_is_one_the_real_server_publishes():
+    """A renamed tool would silently slip back onto the surface it was left
+    off, and its bytes back into that surface's budget."""
+    pytest.importorskip("mcp", reason="mcp package not installed")
+    import asyncio
+
+    from src.ai.chat_tools import ChatExtensionBackend
+    from src.ai.mcp_bridge import CompositeToolBackend, McpToolBackend
+    from src.ai.tool_catalog import _SURFACE_OMITTED_TOOLS
+
+    descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
+    published = {d.name for d in descriptors}
+    for surface, omitted in _SURFACE_OMITTED_TOOLS.items():
+        assert omitted <= published, f"{surface} omits tools the server does not publish: {sorted(omitted - published)}"
 
 
 def _with_system_tier(catalog_descriptors):
@@ -231,16 +284,27 @@ def test_addendum_in_ask_mode_still_marks_the_system_tier_as_gated():
 #: this change, 38,137 B of addendum was ~9,032 cl100k tokens.
 ADDENDUM_BYTE_BUDGET = 41_000
 
+#: How close to the budget a surface may get before this test fails (#2036).
+#: The budget was found one sentence at a time twice (125 B of headroom before
+#: #2043, 271 B before this change), each time by whoever added the next
+#: sentence. Failing a kilobyte early (~240 cl100k tokens) leaves room to make
+#: the call on purpose: render fewer tools on that surface
+#: (``_SURFACE_OMITTED_TOOLS``), trim, or raise the budget against a measured
+#: token cost.
+ADDENDUM_HEADROOM_MARGIN = 1_000
+
 
 @pytest.mark.parametrize("surface", ["editor", "global"])
 @pytest.mark.parametrize("skip_destructive_pause", [False, True])
 def test_addendum_for_the_real_server_stays_under_the_size_budget(surface, skip_destructive_pause):
-    """Every surface/mode combination, not just the cheapest one.
+    """Every surface/mode combination, not just the cheapest one, with
+    ADDENDUM_HEADROOM_MARGIN to spare.
 
-    ``editor`` renders more than ``global`` and ``auto`` more than ``ask``, so
-    checking only ``global``/``ask`` measures 302 B less than the largest thing
-    actually shipped. Sizes at the time of writing: editor/auto 38,452 ·
-    editor/ask 38,286 · global/auto 38,316 · global/ask 38,150.
+    ``auto`` renders more than ``ask``. Before #2036 the editor rendered every
+    tool and was the largest; it now leaves the system tier out, so ``global``
+    is. Sizes at the time of writing: global/auto 39,662 · global/ask 39,496
+    · editor/auto 38,154 · editor/ask 38,058 (#2036 measured editor/auto at
+    40,729 before the change: 271 B of headroom).
     """
     pytest.importorskip("mcp", reason="mcp package not installed")
     import asyncio
@@ -251,12 +315,15 @@ def test_addendum_for_the_real_server_stays_under_the_size_budget(surface, skip_
     descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
     text = ToolCatalog(descriptors).render_addendum(surface, skip_destructive_pause=skip_destructive_pause)
     size = len(text.encode())
-    assert size < ADDENDUM_BYTE_BUDGET, (
-        f"{surface}/{'auto' if skip_destructive_pause else 'ask'} addendum is {size} bytes, "
-        f"over the {ADDENDUM_BYTE_BUDGET} budget; trim descriptions"
+    assert size + ADDENDUM_HEADROOM_MARGIN <= ADDENDUM_BYTE_BUDGET, (
+        f"{surface}/{'auto' if skip_destructive_pause else 'ask'} addendum is {size} bytes: "
+        f"{ADDENDUM_BYTE_BUDGET - size} B of headroom under the {ADDENDUM_BYTE_BUDGET} budget, "
+        f"less than the {ADDENDUM_HEADROOM_MARGIN} B margin. Decide, don't squeeze: leave tools "
+        "this surface does not need out of it (_SURFACE_OMITTED_TOOLS), trim descriptions, "
+        "or raise the budget against a measured token cost."
     )
     # A ratchet, not a target: it catches a backend that silently stops
-    # publishing tools. 86 today.
+    # publishing tools. 83 today.
     assert len(descriptors) >= 80
 
 
@@ -379,3 +446,150 @@ def test_a_title_that_says_something_the_name_does_not_is_kept():
         source="chat",
     )
     assert "### ask_user — Ask the user" in ToolCatalog([descriptor]).render_addendum("global")
+
+
+# ---------------------------------------------------------------------------
+# Guidance below the first paragraph never reaches in-app chat (#2036)
+# ---------------------------------------------------------------------------
+
+
+def test_dropped_paragraphs_matches_what_the_renderer_omits():
+    doc = "Do the thing.\n\nReturns a dict with notes_wide.\n\nArgs:\n    x: The x.\n\nTip: call it twice."
+    assert dropped_paragraphs(doc) == ["Returns a dict with notes_wide.", "Tip: call it twice."]
+    assert dropped_paragraphs("One paragraph only.") == []
+    assert dropped_paragraphs("") == []
+    # Only the first Args: block is rendered, so a second one counts as dropped.
+    assert dropped_paragraphs("Do it.\n\nArgs:\n    x: X.\n\nArgs:\n    y: Y.") == ["Args:\n    y: Y."]
+
+
+def test_an_argument_free_tool_loses_every_paragraph_after_the_first():
+    """The sharp edge from #2035: no ``Args:`` block, so nothing below the
+    first paragraph survives — not even a line the model needs."""
+    doc = "List things.\n\nEach entry has notes_wide."
+    no_args = {"type": "object", "properties": {}}
+    text = ToolCatalog([_d("list_things", schema=no_args, description=doc)]).render_addendum("global")
+    assert "List things." in text
+    assert "notes_wide" not in text
+    assert dropped_paragraphs(doc) == ["Each entry has notes_wide."]
+
+
+#: Reviewed snapshot (#2036) of how many docstring paragraphs each real tool
+#: has that in-app chat never sees. These are return shapes, WARNING
+#: consequences and tips that external MCP clients still receive in full.
+#: A RATCHET: a count may go down (or a tool drop off) freely; it may not go
+#: up, and a tool not listed may not start dropping paragraphs, without
+#: someone deciding here that the new text is fine for chat to miss.
+REVIEWED_DROPPED_PARAGRAPHS: dict[str, int] = {
+    "add_board": 1,
+    "blank_board": 1,
+    "cancel_temporary_override": 2,
+    "check_for_update": 1,
+    "check_plugin_updates": 2,
+    "clear_board_cache": 1,
+    "configure_plugin": 5,
+    "create_collection": 1,
+    "create_page": 3,
+    "create_panel": 1,
+    "create_plugin_demo_page": 2,
+    "create_plugin_instance": 2,
+    "create_schedule": 1,
+    "delete_page": 1,
+    "delete_panel": 1,
+    "delete_plugin_instance": 1,
+    "detect_board_size": 2,
+    "disable_plugin": 1,
+    "disconnect_wifi": 1,
+    "enable_plugin": 1,
+    "export_backup": 1,
+    "export_page": 2,
+    "fill_board": 1,
+    "force_refresh": 2,
+    "forget_wifi_network": 1,
+    "get_active_page": 2,
+    "get_board_content": 2,
+    "get_current_display": 2,
+    "get_page": 1,
+    "get_plugin_data": 2,
+    "get_plugin_demo_page": 1,
+    "get_plugin_manifest": 1,
+    "get_settings_summary": 2,
+    "get_silence_status": 2,
+    "get_system_status": 2,
+    "get_template_variables": 2,
+    "get_temporary_override": 2,
+    "identify_tile": 1,
+    "import_page": 2,
+    "import_staff_pick": 2,
+    "install_plugin": 2,
+    "list_collections": 1,
+    "list_formula_functions": 2,
+    "list_installed_plugins": 1,
+    "list_pages": 1,
+    "list_panels": 1,
+    "list_pending_plugin_updates": 2,
+    "list_plugin_errors": 1,
+    "list_plugin_instances": 1,
+    "list_plugin_options": 2,
+    "list_registry_plugins": 2,
+    "list_schedules": 2,
+    "list_staff_picks": 1,
+    "list_transition_plugins": 2,
+    "pause_board": 1,
+    "preview_saved_page": 2,
+    "remove_board": 1,
+    "render_page_preview": 2,
+    "restart_system": 1,
+    "restore_board": 2,
+    "resume_board": 1,
+    "run_network_diagnostics": 1,
+    "send_message": 2,
+    "set_active_page": 1,
+    "set_default_page": 1,
+    "set_schedule_mode": 1,
+    "set_temporary_override": 1,
+    "show_board_debug_info": 1,
+    "shutdown_system": 1,
+    "test_ai_provider": 1,
+    "test_transition_live": 3,
+    "trigger_system_update": 1,
+    "uninstall_plugin": 1,
+    "update_all_plugins": 1,
+    "update_board": 1,
+    "update_collection": 1,
+    "update_page": 2,
+    "update_panel": 1,
+    "update_plugin": 1,
+    "update_schedule": 1,
+    "update_setting": 3,
+    "validate_schedules": 2,
+    "validate_template": 2,
+}
+
+
+def test_no_tool_hides_new_guidance_below_its_first_paragraph():
+    """Fails when a tool's docstring gains a paragraph the chat renderer drops.
+
+    Anything the in-app model must know goes in the FIRST paragraph (or the
+    ``Args:`` block, for a parameter). If the new paragraph really is only for
+    human readers and external MCP clients, bump that tool's count in
+    REVIEWED_DROPPED_PARAGRAPHS — deliberately, in the same change.
+    """
+    pytest.importorskip("mcp", reason="mcp package not installed")
+    import asyncio
+
+    from src.ai.chat_tools import ChatExtensionBackend
+    from src.ai.mcp_bridge import CompositeToolBackend, McpToolBackend
+
+    descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
+    grown = {}
+    for d in descriptors:
+        dropped = dropped_paragraphs(d.description)
+        if len(dropped) > REVIEWED_DROPPED_PARAGRAPHS.get(d.name, 0):
+            grown[d.name] = dropped
+    assert not grown, (
+        "These tools have docstring paragraphs that in-app chat never sees "
+        "(only the first paragraph and Args: are rendered). Move anything the "
+        "model must know into the first paragraph, or raise the tool's count in "
+        "REVIEWED_DROPPED_PARAGRAPHS if it is only for human/MCP readers:\n"
+        + "\n".join(f"- {name}: {paras[-1][:120]!r}" for name, paras in sorted(grown.items()))
+    )
