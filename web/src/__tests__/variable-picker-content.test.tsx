@@ -247,11 +247,90 @@ describe("VariablePickerContent", () => {
     render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
 
     await user.click(await screen.findByText("NYY @ BOS"));
-    const pill = await screen.findByRole("button", { name: "minutes_until_game" });
+    const pill = await screen.findByRole("button", { name: /^minutes_until_game/ });
     await user.hover(pill);
 
     expect((await screen.findAllByText("Minutes until first pitch")).length).toBeGreaterThan(0);
     await user.click(pill);
     expect(mockOnInsert).toHaveBeenCalledWith("{{mlb.games.0.minutes_until_game}}");
+  });
+
+  describe("array variables (#2209)", () => {
+    function useGamesFixture() {
+      server.use(
+        http.get("/api/v1/variables", () =>
+          HttpResponse.json({ variables: { mlb: ["games", "games.*.minutes_until_game"] }, max_lengths: {} }),
+        ),
+        http.get("/api/plugins/mlb/manifest", () =>
+          HttpResponse.json({
+            id: "mlb",
+            name: "MLB",
+            version: "1.0.0",
+            description: "",
+            author: "FiestaBoard",
+            settings_schema: {},
+            max_lengths: {},
+            variables: {
+              arrays: {
+                games: {
+                  label_field: "formatted",
+                  item_fields: {
+                    formatted: { description: "Summary line" },
+                    minutes_until_game: { description: "Minutes until first pitch", type: "number" },
+                    extra: { description: "Nested object" },
+                  },
+                },
+              },
+            },
+          }),
+        ),
+        http.post("/api/displays/raw/batch", () =>
+          HttpResponse.json({
+            displays: {
+              mlb: {
+                data: {
+                  games: [
+                    { formatted: "NYY @ BOS", minutes_until_game: 15, extra: { a: 1 } },
+                    { formatted: "LAD @ SF", minutes_until_game: 90, extra: { a: 2 } },
+                  ],
+                },
+                available: true,
+                error: null,
+              },
+            },
+          }),
+        ),
+      );
+    }
+
+    it("shows the current value of an indexed array field on its pill", async () => {
+      useGamesFixture();
+      const user = userEvent.setup();
+      render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
+
+      await user.click(await screen.findByText("NYY @ BOS"));
+      const pill = await screen.findByRole("button", { name: /^minutes_until_game/ });
+      expect(within(pill).getByText("15")).toBeInTheDocument();
+    });
+
+    it("does not show a preview for non-scalar array field values", async () => {
+      useGamesFixture();
+      const user = userEvent.setup();
+      render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
+
+      await user.click(await screen.findByText("NYY @ BOS"));
+      const pill = await screen.findByRole("button", { name: /^extra/ });
+      expect(pill).toHaveTextContent(/^extra$/);
+    });
+
+    it("does not nest a second scroll area around the array list", async () => {
+      useGamesFixture();
+      const { container } = render(<VariablePickerContent onInsert={mockOnInsert} />, { wrapper: TestWrapper });
+
+      await screen.findByText("NYY @ BOS");
+      // Only the picker's own list should scroll; a nested max-height
+      // ScrollArea clipped expanded indexes without letting them scroll.
+      expect(container.querySelectorAll("[data-slot='scroll-area']")).toHaveLength(1);
+    });
   });
 });

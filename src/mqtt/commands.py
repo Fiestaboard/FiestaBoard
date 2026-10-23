@@ -33,6 +33,8 @@ class CommandHandler:
                 self._handle_schedule_enabled(payload)
             elif object_id == "display_service":
                 self._handle_display_service(payload)
+            elif object_id == "board_paused":
+                self._handle_board_paused(payload)
             elif object_id == "active_page":
                 self._handle_active_page(payload)
             elif object_id == "transition_style":
@@ -276,6 +278,26 @@ class CommandHandler:
         else:
             self._stop_display_service()
 
+    def _handle_board_paused(self, payload: str) -> None:
+        from src.settings.service import get_settings_service
+
+        value, board_ref = self._parse_board_payload(payload, value_keys=("value", "paused"))
+        value = value.upper()
+        if value not in ("ON", "OFF", "1", "0", "TRUE", "FALSE", "YES", "NO"):
+            logger.warning("MQTT board_paused: invalid value %r", value)
+            return
+        board_id = None
+        if board_ref:
+            board_id, _board = self._resolve_board(board_ref)
+            if board_id is None:
+                return
+        settings = get_settings_service()
+        paused = value in ("ON", "1", "TRUE", "YES")
+        if board_id is None:
+            settings.set_paused(paused)
+        else:
+            settings.set_paused(paused, board_id=board_id)
+
     def _handle_active_page(self, payload: str) -> None:
         if not payload:
             return
@@ -295,7 +317,8 @@ class CommandHandler:
 
         page_service = get_page_service()
         payload_lower = page_name.lower()
-        for page in page_service.list_pages():
+        pages = page_service.list_pages()
+        for page in pages:
             if page.name.lower() == payload_lower:
                 if board_id is not None:
                     get_settings_service().set_active_page_id(page.id, board_id=board_id)
@@ -306,6 +329,20 @@ class CommandHandler:
                 # Push the page immediately (issue #1794): re-selecting the
                 # currently-set page must still restore it to the board after
                 # an out-of-band write.
+                self._force_send_active_page(board_id)
+                return
+        from .content import collection_options
+
+        for label, collection_id in collection_options(pages):
+            if label.lower() == payload_lower:
+                if board_id is None:
+                    get_settings_service().set_active_page_id(collection_id)
+                else:
+                    get_settings_service().set_active_page_id(collection_id, board_id=board_id)
+                attributes = {"page_name": label, "collection_id": collection_id}
+                if board_id is not None:
+                    attributes["board_id"] = board_id
+                self._publish_event("page_changed", "page_switched", attributes)
                 self._force_send_active_page(board_id)
                 return
         from .discovery import NO_ACTIVE_PAGE_OPTION

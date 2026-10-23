@@ -7,7 +7,7 @@ channel — 179 of the 199 published operations have no caller outside
 This package is the answer to "how do I put text on my board" being a
 sixteen-way choice with no ranking.
 
-Thirty-one operations over four nouns — board, page, schedule, plugin — every
+Thirty-three operations over five nouns — board, page, schedule, plugin, install — every
 one of them an adapter over a handler, service or executor that already
 exists. It adds exactly one concept: `{board}` accepts the literal `primary`,
 so a single-board owner never learns that boards have ids, and a multi-board
@@ -24,7 +24,7 @@ published schema tells every consumer the API is unauthenticated.
 
 from __future__ import annotations
 
-from . import routes_boards, routes_content, routes_meta, routes_plugins
+from . import routes_boards, routes_content, routes_install, routes_meta, routes_plugins
 from .openapi import install_security_scheme
 from .router import router
 from .visibility import build_internal_openapi, hide_internal_operations, mount_internal_schema

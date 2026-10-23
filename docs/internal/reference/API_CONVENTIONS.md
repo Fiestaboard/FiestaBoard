@@ -262,10 +262,10 @@ get one:
 
 | Not deprecated | What its v1 equivalent still drops |
 |---|---|
-| `POST /pages/{id}/send` | `paused` and `target`; a paused board is a 409 on v1, not a 200 that says so |
-| `POST /displays/{type}/send` | nothing in `POST /v1/boards/{b}/message` accepts a plugin id at all |
-| `GET`/`PUT /schedules/enabled` | both answer for the *install* when no `board_id` is given; `GET`/`PATCH /v1/boards/{board}` has no board-less form, and the write 404s where these fall back to the global mirror |
-| `GET`/`PUT /schedules/default-page` | same |
+| `POST /pages/{id}/send` | `target`. (A paused board no longer has to be a 409: `if_paused: "preview"` answers 200 with `sent: false` and the grid it would have shown — #2072.) |
+| `POST /displays/{type}/send` | `target`. (Plugin content is now a v1 content form — `plugin_id`, or `template` lines with plugin variables — #2072.) |
+| `GET`/`PUT /schedules/enabled` | No remaining install-scope gap: `GET`/`PATCH /v1/install` supplies the board-less form (#2073). Deprecating these routes remains #1941's decision. |
+| `GET`/`PUT /schedules/default-page` | Same: `GET`/`PATCH /v1/install` supplies the board-less form (#2073). |
 | `GET /displays` | `source`; and it 503s where this answers 200 with an empty list |
 | `POST /settings/board/{id}/pause` | the embedded `board_settings` block — `BoardDetail` deliberately carries no credentials, tiles, colour or transport fields |
 

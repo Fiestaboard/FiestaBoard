@@ -47,6 +47,7 @@ logger = logging.getLogger(__name__)
 
 UI_ONLY_REASON = "The install's output target is UI only, so nothing was written to the board."
 UNCHANGED_REASON = "The board already shows this exact content. Send force=true to write it anyway."
+PAUSED_PREVIEW_REASON = "The board is paused, so nothing was written. This is what it would have shown."
 
 
 def _settings_service():
@@ -243,7 +244,27 @@ def _validate_grid(characters: list[list[int]], rows: int, cols: int) -> None:
         )
 
 
-def _grid_for(request: MessageRequest, rows: int, cols: int) -> tuple[list[list[int]], str, list[str] | None]:
+def _render_plugin_template(lines: list[str], entry: dict[str, Any]) -> str:
+    """Render live plugin variables with the target board's geometry."""
+    from src.templates.engine import get_template_engine
+
+    geometry = geometry_of(entry)
+    try:
+        return get_template_engine().render_lines(
+            list(lines),
+            device_type=geometry.device_type,
+            notes_wide=geometry.notes_wide,
+            notes_tall=geometry.notes_tall,
+            grid_rows=geometry.grid_rows,
+            grid_cols=geometry.grid_cols,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Template rendering failed: {exc}") from exc
+
+
+def _grid_for(
+    request: MessageRequest, rows: int, cols: int, entry: dict[str, Any]
+) -> tuple[list[list[int]], str, list[str] | None]:
     """``(characters, text, template_lines)`` for whichever content field was sent.
 
     ``template_lines`` is the form a timed message can be stored as; it is
@@ -257,6 +278,25 @@ def _grid_for(request: MessageRequest, rows: int, cols: int) -> tuple[list[list[
     if request.lines is not None:
         joined = "\n".join(request.lines)
         return text_to_board_array(joined, rows=rows, cols=cols), joined, list(request.lines)
+
+    if request.plugin_id is not None:
+        from src.devices import board_context_for
+        from src.displays.service import get_display_service
+
+        result = get_display_service().get_display(request.plugin_id, board=board_context_for(*geometry_of(entry)))
+        if not result.available and result.error and "Unknown display type" in result.error:
+            raise HTTPException(status_code=404, detail=f"Plugin not found: {request.plugin_id}")
+        if not result.available:
+            raise HTTPException(status_code=503, detail=result.error or "Plugin data not available")
+        return (
+            text_to_board_array(result.formatted, rows=rows, cols=cols),
+            result.formatted,
+            result.formatted.split("\n"),
+        )
+
+    if request.template is not None:
+        rendered = _render_plugin_template(request.template, entry)
+        return text_to_board_array(rendered, rows=rows, cols=cols), rendered, rendered.split("\n")
 
     if request.fill is not None:
         grid = [[request.fill] * cols for _ in range(rows)]
@@ -312,13 +352,17 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
     summary="Put something on a board",
     description=(
         "The one way to write to a board. Send exactly one of `text` (word-wrapped for you), `lines` (one string "
-        "per row), `characters` (a raw flap grid), `page_id` (render a saved page) or `fill` (one flap code "
-        "everywhere; 0 blanks the board).\n\n"
+        "per row), `characters` (a raw flap grid), `page_id` (render a saved page), `fill` (one flap code "
+        "everywhere; 0 blanks the board), `plugin_id` (a plugin's live data, formatted the way the plugin displays "
+        "itself) or `template` (one line per row with plugin variables like "
+        "`{{weather.temperature}}` filled from live plugin data).\n\n"
         "Add `duration_minutes` to make it temporary — it reverts to your schedule, a chosen page, or a blank board "
         "when the time is up. `board` may be a board id or the literal `primary`.\n\n"
         "`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the "
         "install's output target is UI-only and when the board already showed this exact content. A board that is "
-        "paused or inside its silence window refuses the write with 409 rather than lying about it."
+        "paused or inside its silence window refuses the write with 409 rather than lying about it. Send "
+        '`if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board '
+        "is paused, and `characters` is what it would have shown. Nothing is written."
     ),
 )
 async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
@@ -337,7 +381,7 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
         raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
 
     dims = board_dimensions(entry)
-    characters, text, template_lines = _grid_for(request, dims.rows, dims.cols)
+    characters, text, template_lines = _grid_for(request, dims.rows, dims.cols, entry)
 
     # A timed message is validated up front (its 400s must precede any
     # write) but ARMED only after the write is in. It used to be armed and
@@ -347,6 +391,17 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
     expires_at = None
     if request.duration_minutes is not None:
         _check_timed_request(board_id, template_lines)
+
+    # A paused preview must not persist an override, even in UI-only mode.
+    if request.if_paused == "preview" and settings_service.is_paused(board_id=board_id) is True:
+        return MessageResponse(
+            sent=False,
+            board_id=board_id,
+            characters=characters,
+            text=text,
+            expires_at=None,
+            reason=PAUSED_PREVIEW_REASON,
+        )
 
     if not settings_service.should_send_to_board():
         if request.duration_minutes is not None:

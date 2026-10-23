@@ -190,10 +190,12 @@ test.describe("regression: integrations.installed", () => {
     // -- Column sort: clicking the Name header should flip chevron direction.
     const nameHeaderTh = page.locator("th").filter({ hasText: /^Name/ }).first();
     await expect(nameHeaderTh).toBeVisible();
-    await nameHeaderTh.click();
-    // After one click, the header should display either an up or down chevron icon.
-    await nameHeaderTh.click(); // toggle once more to assert direction can flip
-    // We assert at least one of the chevron icons is rendered inside the header.
+    // The header is a real button and the th announces direction via aria-sort (#2003).
+    await expect(nameHeaderTh).toHaveAttribute("aria-sort", "ascending");
+    await nameHeaderTh.getByRole("button").click();
+    await expect(nameHeaderTh).toHaveAttribute("aria-sort", "descending");
+    await nameHeaderTh.getByRole("button").click(); // toggle once more to assert direction can flip
+    await expect(nameHeaderTh).toHaveAttribute("aria-sort", "ascending");
     await expect(nameHeaderTh.locator("svg")).toBeVisible();
 
     // -- Overflow menu: opens the DropdownMenu with action items.

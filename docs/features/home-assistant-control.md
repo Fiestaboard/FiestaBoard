@@ -89,7 +89,7 @@ If FiestaBoard doesn't appear, check:
 
 ## What You Get in Home Assistant
 
-Once connected, FiestaBoard appears as a device with **24 entities** — controls, sensors, diagnostics, and events:
+Once connected, FiestaBoard appears as a device with **25 entities** — controls, sensors, diagnostics, and events:
 
 ### Controls (you can change these from HA)
 
@@ -97,7 +97,8 @@ Once connected, FiestaBoard appears as a device with **24 entities** — control
 |--------|------|-------------|
 | **Schedule** | Switch | Turn the FiestaBoard schedule on/off |
 | **Display Service** | Switch | Start/stop the FiestaBoard display service |
-| **Active Page** | Select | Choose which page to display (dynamically populated from your pages). Selecting a page always re-sends it, even if it is already the active page — that is how you put the page back after a manual message. The list also carries a `None` option so "no page is active" is a state HA can show; as a *command* it only applies to secondary boards, since the primary board never goes dark. |
+| **Board Paused** | Switch | Pause/resume the primary board. While on, all writes stop, including manual messages, page selections, collection rotation and scheduled updates. |
+| **Active Page** | Select | Choose a page or collection to display. Collections appear as `Collection: Name`; labels that collide include the collection's id. The options refresh automatically when pages or collections are added, renamed or removed. Selecting a target always re-sends it, even if already active, so it restores content after a manual message. The `None` option represents no active page; as a command it only applies to secondary boards, since the primary board never goes dark. |
 | **Transition Style** | Select | Board transition animation (column, reverse-column, edges-to-center, row, diagonal, random) |
 | **Send Message** | Text | Send a text message to the board (up to 255 characters — Home Assistant's text-entity ceiling; markup like `{red}` counts as characters here but as one flap on the board) |
 | **Refresh Display** | Button | Force a display refresh. This is a *force* refresh: unchanged content is re-sent, so it restores the active page after something else wrote to the board. |
@@ -112,8 +113,23 @@ off — so both edges of the switch change the board on the next polling pass.
 To make re-enabling wait until the schedule reaches its next window, turn on
 *Wait for the next scheduled change* in Settings → Behavior (see
 [Schedule Mode](/docs/features/schedule)). To leave the board untouched
-entirely while an automation runs, use the **Display Service** switch instead
+entirely while an automation runs, turn on the **Board Paused** switch instead
 of the Schedule switch.
+
+**Board Paused is a hands-off control.** Turn it on before quiet hours or
+unplugging a board. Page selections can still be saved while paused, but
+FiestaBoard sends nothing until you turn it off. It uses the same pause state
+as Settings → Boards, and the display loop resumes the selected content on
+its next pass. Stopping Display Service only stops the background loop;
+Board Paused also blocks manual writes.
+
+The discovered switch controls the primary board. To pause a secondary board,
+publish `{"paused": true, "board_id": "YOUR_BOARD_ID"}` to
+`fiestaboard/board_paused/set`; use `false` to resume it. The switch state
+continues to report the primary board. To select a collection on a secondary
+board, publish `{"page": "Collection: Morning", "board_id": "YOUR_BOARD_ID"}`
+to `fiestaboard/active_page/set`. Replace `fiestaboard` if you use a custom
+MQTT base topic.
 
 **Manual writes stay on the board.** Send Message, Blank Board and the debug
 endpoints write straight to the board and are left there — the display loop
@@ -481,6 +497,7 @@ Each entity in HA shows a Material Design Icon that reflects its role:
 |--------|------|-----------|
 | Schedule | `mdi:calendar-clock` | Scheduled content delivery |
 | Display Service | `mdi:television-play` | The board as an active display |
+| Board Paused | `mdi:pause-circle` | Prevent every write to the board |
 | Active Page | `mdi:bookmark` | The page queued for display |
 | Transition Style | `mdi:animation-play` | Animated flip between pages |
 | Current Page | `mdi:eye` | What is visible on the board right now |

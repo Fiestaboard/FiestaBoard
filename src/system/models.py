@@ -71,6 +71,9 @@ class UpdateStatusResponse(BaseModel):
     last_update_action: str | None = None  # "update" | "rollback"
     last_update_error: str | None = None
     last_update_previous_digest: str | None = None
+    # Identifies an in-progress attempt and lets clients ignore abandoned
+    # records after an interrupted updater. Older sidecars may omit it.
+    last_update_started_at: str | None = None
     last_update_completed_at: str | None = None
     # Most recent settings snapshots taken before each /system/update call.
     # Each entry includes ``previous_digest`` and ``previous_image`` so the

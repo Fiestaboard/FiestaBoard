@@ -44,6 +44,7 @@ import {
   PencilLine,
   Play,
   Radio,
+  Save,
   Timer,
   UploadCloud,
   X,
@@ -76,6 +77,7 @@ import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { BoardCurrentMessageResponse, Collection, DeviceType, SilenceStatus } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
+import { boardCharactersToTemplate } from "@/lib/board-characters-to-template";
 import { classifyDimensions, pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
 
@@ -567,6 +569,39 @@ export function ActivePageDisplay() {
   // board with no cached content. Falls back to null (skeleton).
   const displayMessage = liveMessageForBoard ?? boardState?.message ?? fallbackPreview?.message ?? null;
 
+  // Save the observed board grid, independently of the expected page or live
+  // editor preview. The selected board supplies both the frame and its size.
+  const saveExternalAsPageMutation = useMutation({
+    mutationFn: () => {
+      const characters = boardState?.characters;
+      if (!characters) throw new Error("No board content to save");
+      // Device families remain distinct even when dimensions match (a 1×1
+      // Note array is 3×15, but a Note page cannot be selected on that array).
+      const deviceType = currentBoard?.device_type ?? activeGeometry.deviceType;
+      return api.createPage({
+        name: t("externalPageName", { date: new Date().toLocaleString() }),
+        type: "template",
+        device_type: deviceType,
+        template: boardCharactersToTemplate(characters),
+        ...(deviceType === "note_array" && {
+          notes_wide: currentBoard?.notes_wide ?? activeGeometry.notesWide,
+          notes_tall: currentBoard?.notes_tall ?? activeGeometry.notesTall,
+        }),
+        ...(deviceType === "panel" && {
+          grid_rows: activeGeometry.gridRows ?? characters.length,
+          grid_cols: activeGeometry.gridCols ?? characters[0]?.length,
+        }),
+      });
+    },
+    onSuccess: (page) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages });
+      toast.success(t("toastSaveAsPageSuccess", { pageName: page.name }));
+    },
+    onError: () => {
+      toast.error(t("toastSaveAsPageFailed"));
+    },
+  });
+
   // Out-of-sync: the board was updated externally if its current state differs
   // from what FiestaBoard last sent.
   const isOutOfSync = useMemo(() => {
@@ -810,20 +845,36 @@ export function ActivePageDisplay() {
           {isOutOfSync && !liveMessageForBoard && (
             <Alert variant="default" className="border-warning/50 bg-warning/10">
               <AlertTriangle className="h-4 w-4 text-warning" />
-              <AlertDescription className="flex items-center justify-between gap-3">
+              <AlertDescription className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                 <Text as="span" size="sm">
                   {t("updatedExternally")}
                 </Text>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleResendToBoard}
-                  disabled={isSyncing}
-                  className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
-                >
-                  {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
-                  {t("resendToBoard")}
-                </Button>
+                <Flex align="center" gap="2" wrap>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleResendToBoard}
+                    disabled={isSyncing}
+                    className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
+                  >
+                    {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
+                    {t("resendToBoard")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => saveExternalAsPageMutation.mutate()}
+                    disabled={saveExternalAsPageMutation.isPending}
+                    className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
+                  >
+                    {saveExternalAsPageMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Save className="h-3 w-3" />
+                    )}
+                    {t("saveAsPage")}
+                  </Button>
+                </Flex>
               </AlertDescription>
             </Alert>
           )}

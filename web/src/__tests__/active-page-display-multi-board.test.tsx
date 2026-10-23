@@ -279,4 +279,56 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
     expect(seenActivePage.every((id) => id === null)).toBe(true);
     expect(screen.queryByTestId("active-display-board-name")).not.toBeInTheDocument();
   });
+
+  it.each([
+    { device_type: "note", rows: 3, cols: 15, geometry: {} },
+    { device_type: "note_array", rows: 3, cols: 15, geometry: { notes_wide: 1, notes_tall: 1 } },
+    { device_type: "note_array", rows: 6, cols: 30, geometry: { notes_wide: 2, notes_tall: 2 } },
+    { device_type: "panel", rows: 7, cols: 23, geometry: { grid_rows: 7, grid_cols: 23 } },
+  ])(
+    "saves the selected $device_type board's observed characters and geometry",
+    async ({ device_type, rows, cols, geometry }) => {
+      localStorage.setItem("fiestaboard_current_board", "board-2");
+      const observed = Array.from({ length: rows }, () => Array(cols).fill(0));
+      observed[0].splice(0, 7, 0, 8, 9, 63, 70, 71, 62);
+      let createdBody: Record<string, unknown> | null = null;
+      server.use(
+        http.get(`${API_BASE}/settings/board`, () =>
+          HttpResponse.json({
+            ...TWO_BOARDS,
+            boards: [TWO_BOARDS.boards[0], { ...TWO_BOARDS.boards[1], device_type, ...geometry }],
+          }),
+        ),
+        http.get(`${API_BASE}/board/current-message`, ({ request }) => {
+          const selected = boardId(request) === "board-2";
+          return HttpResponse.json({
+            characters: selected ? observed : Array.from({ length: 6 }, () => Array(22).fill(1)),
+            message: "THIS PREVIEW TEXT MUST NOT BE SAVED",
+            rows: selected ? rows : 6,
+            cols: selected ? cols : 22,
+            expected_characters: selected ? Array.from({ length: rows }, () => Array(cols).fill(2)) : null,
+            cached_at: null,
+            api_mode: "local",
+            board_id: boardId(request),
+          });
+        }),
+        http.post(`${API_BASE}/v1/pages`, async ({ request }) => {
+          createdBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ id: "saved-external", ...createdBody }, { status: 201 });
+        }),
+      );
+
+      render(<ActivePageDisplay />, { wrapper: TestWrapper });
+      await userEvent.setup().click(await screen.findByRole("button", { name: /Save as page/i }));
+
+      await waitFor(() => expect(createdBody).not.toBeNull());
+      expect(createdBody).toMatchObject({
+        type: "template",
+        device_type,
+        ...geometry,
+        template: [" HI{{red}}{{black}}{{filled}}°", ...Array(rows - 1).fill("")],
+      });
+      expect(createdBody).not.toHaveProperty("board_id");
+    },
+  );
 });

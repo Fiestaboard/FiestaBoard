@@ -10,9 +10,10 @@ arguments and annotations.
 Two jobs:
 
 - :meth:`ToolCatalog.render_addendum` — the system-prompt section listing
-  every tool. Compact on purpose (first paragraph + the docstring's
-  ``Args:`` block + a generated one-line signature): the catalog is ~36
-  tools and every byte is paid for on every turn.
+  every tool the surface carries (:meth:`ToolCatalog.for_surface`).
+  Compact on purpose (first paragraph + the docstring's ``Args:`` block +
+  a generated one-line signature): the catalog is ~80 tools and every
+  byte is paid for on every turn.
 - :meth:`ToolCatalog.validate` — the check the streaming fence parser runs
   on a completed block. Name, shape, required keys and top-level primitive
   types; anything deeper is the MCP server's pydantic validation at call
@@ -57,6 +58,26 @@ _RETIRED_REPLACEMENTS = {
     "update_plugin_config": "configure_plugin",
 }
 
+#: Tools a surface neither teaches nor accepts (#2036). The addendum is paid
+#: for on every turn, so each surface carries only the tools it is for. The
+#: editor chat edits one page; the system/hardware tier (Settings → System,
+#: Network, Backup) is for the global drawer, and costs the editor ~1.6 kB.
+_SURFACE_OMITTED_TOOLS: dict[ChatSurface, frozenset[str]] = {
+    "editor": frozenset(
+        {
+            "restart_system",
+            "shutdown_system",
+            "trigger_system_update",
+            "check_for_update",
+            "get_system_status",
+            "export_backup",
+            "disconnect_wifi",
+            "forget_wifi_network",
+            "run_network_diagnostics",
+        }
+    ),
+}
+
 _JSON_TYPES = {
     "string": str,
     "integer": int,
@@ -93,6 +114,11 @@ class ToolCatalog:
 
     def get(self, name: str) -> ToolDescriptor | None:
         return self._by_name.get(name)
+
+    def for_surface(self, surface: ChatSurface) -> ToolCatalog:
+        """The tools ``surface`` teaches, and so the only ones its parser accepts."""
+        omitted = _SURFACE_OMITTED_TOOLS.get(surface, frozenset())
+        return ToolCatalog(d for name, d in self._by_name.items() if name not in omitted)
 
     # -- validation ---------------------------------------------------------
 
@@ -148,7 +174,8 @@ class ToolCatalog:
         does not narrate a pause that will not happen.
         """
         intro = _EDITOR_SURFACE_INTRO if surface == "editor" else _GLOBAL_SURFACE_INTRO
-        sections = [_render_tool(d, skip_destructive_pause) for d in self._by_name.values()]
+        tools = self.for_surface(surface)._by_name.values()
+        sections = [_render_tool(d, skip_destructive_pause) for d in tools]
         retired = ", ".join(RETIRED_OPS)
         destructive_rule = _RULE_DESTRUCTIVE_AUTO if skip_destructive_pause else _RULE_DESTRUCTIVE_ASK
         return (
@@ -278,17 +305,43 @@ def _compact_description(description: str) -> str:
     text is the only place parameters are explained (the JSON Schema has no
     per-property descriptions). Trailing paragraphs — return shapes, tips —
     are useful to a human reader but cost tokens on every turn.
+
+    Convention (#2036): anything the in-app chat model MUST know goes in the
+    first paragraph (or, for a parameter, in ``Args:``). A tool with no
+    ``Args:`` block loses every paragraph after the first; see
+    :func:`dropped_paragraphs` and the ratchet in
+    ``tests/ai/test_tool_catalog.py`` that guards it.
     """
     text = (description or "").strip()
     if not text:
         return ""
-    paragraphs = re.split(r"\n\s*\n", text)
+    paragraphs = _paragraphs(text)
     first = " ".join(line.strip() for line in paragraphs[0].splitlines())
     args_block = next((p for p in paragraphs[1:] if p.lstrip().startswith("Args:")), None)
     if args_block is None:
         return first
     args_lines = [line.strip() for line in args_block.splitlines()]
     return first + "\n" + "\n".join(args_lines)
+
+
+def _paragraphs(text: str) -> list[str]:
+    return re.split(r"\n\s*\n", text)
+
+
+def dropped_paragraphs(description: str) -> list[str]:
+    """The paragraphs of ``description`` that :func:`_compact_description` drops.
+
+    Everything after the first paragraph that is not the ``Args:`` block.
+    External MCP clients see these; in-app chat never does (#2036).
+    """
+    text = (description or "").strip()
+    if not text:
+        return []
+    rest = _paragraphs(text)[1:]
+    # Mirror _compact_description exactly: only the FIRST ``Args:`` block is
+    # rendered, so any later one is dropped too.
+    args_idx = next((i for i, p in enumerate(rest) if p.lstrip().startswith("Args:")), None)
+    return [p for i, p in enumerate(rest) if i != args_idx]
 
 
 def _signature_line(schema: dict[str, Any]) -> str:
@@ -300,7 +353,9 @@ def _signature_line(schema: dict[str, Any]) -> str:
         type_name = _type_name(spec)
         if key in required:
             parts.append(f"{key}*: {type_name}")
-        elif "default" in spec:
+        elif spec.get("default") is not None:
+            # A null default is what omitting the arg means, which ``?``
+            # already says; printing it cost ~930 B of the addendum (#2036).
             parts.append(f"{key}?: {type_name} = {json.dumps(spec['default'])}")
         else:
             parts.append(f"{key}?: {type_name}")

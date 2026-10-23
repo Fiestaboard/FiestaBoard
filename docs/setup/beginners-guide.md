@@ -252,7 +252,7 @@ Now the fun part. Here's what to do next:
 1. Go to the **Pages** section
 2. Click **New**
 3. Use the visual editor to type what you want on the board
-4. Use the **Variables** button to insert live data (like `{weather.temperature}` or `{date_time.datetime}`)
+4. Use the **Variables** button to insert live data (like `{{weather.temperature}}` or `{{date_time.datetime}}`)
 5. Click **Save**
 
 ### Set it as active

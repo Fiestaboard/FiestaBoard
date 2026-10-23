@@ -36,7 +36,7 @@ from src.v1.visibility import (
 _HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options", "trace"})
 
 #: The contract the whole change rests on.
-EXPECTED_PUBLISHED_OPERATIONS = 33
+EXPECTED_PUBLISHED_OPERATIONS = 35
 
 
 def _operations(schema: dict) -> set[str]:
@@ -68,8 +68,8 @@ def internal() -> dict:
 # ---------------------------------------------------------------------------
 
 
-def test_a_consumer_sees_exactly_thirty_three_operations(published):
-    """231 -> 33. A 34th is a decision, not a side effect."""
+def test_a_consumer_sees_exactly_thirty_five_operations(published):
+    """231 -> 33, then 35 with ``GET``/``PATCH /v1/install`` (#2073). A 36th is a decision, not a side effect."""
     assert len(_operations(published)) == EXPECTED_PUBLISHED_OPERATIONS
 
 

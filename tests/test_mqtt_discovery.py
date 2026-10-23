@@ -47,8 +47,8 @@ class TestEntityDefinitions:
     """Tests for the entity definition registry."""
 
     def test_entity_count(self):
-        """FiestaBoard should expose 24 entities to HA."""
-        assert len(ENTITY_DEFINITIONS) == 24
+        """FiestaBoard should expose 25 entities to HA."""
+        assert len(ENTITY_DEFINITIONS) == 25
 
     def test_all_entity_types_valid(self):
         """All entity types must be valid HA entity types."""
@@ -73,12 +73,13 @@ class TestEntityDefinitions:
             assert entity.icon.startswith("mdi:"), f"Entity '{entity.object_id}' icon must start with 'mdi:'"
 
     def test_switch_entities(self):
-        """Should have exactly 2 switch entities."""
+        """Should have exactly 3 switch entities."""
         switches = [e for e in ENTITY_DEFINITIONS if e.entity_type == "switch"]
-        assert len(switches) == 2
+        assert len(switches) == 3
         switch_ids = {e.object_id for e in switches}
         assert "schedule_enabled" in switch_ids
         assert "display_service" in switch_ids
+        assert "board_paused" in switch_ids
 
     def test_select_entities(self):
         """Should have exactly 2 select entities."""
