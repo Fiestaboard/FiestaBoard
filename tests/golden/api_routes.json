@@ -844,6 +844,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/outputs/catalog",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_output_catalog",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/outputs/{output_id}/actions/{action}",
       "methods": [
         "POST"

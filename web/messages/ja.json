@@ -767,7 +767,8 @@
       "allSet": "準備完了です！",
       "chooseOutput": "FiestaBoard を何に表示しますか？",
       "setUpTv": "テレビを設定",
-      "setUpOutput": "{name} を設定"
+      "setUpOutput": "{name} を設定",
+      "review": "Review & Finish"
     },
     "stepDescriptions": {
       "enterCredentials": "ボードの認証情報を入力して開始します",
@@ -775,7 +776,9 @@
       "sendTestMessage": "ボードにテストメッセージを送信します",
       "chooseOutput": "お持ちのディスプレイを選んでください。あとから設定で追加できます。",
       "setUpTv": "テレビの名前と画面サイズを入力してください",
-      "setUpOutput": "接続してテストし、ボードとして保存します"
+      "setUpOutput": "接続してテストし、ボードとして保存します",
+      "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
+      "review": "Save your choices, try an optional test message, then create your first page."
     },
     "boardSetup": {
       "boardType": "ボードタイプ",
@@ -787,7 +790,8 @@
       "code62DegreeAriaLabel": "度記号のフラップ",
       "code62HeartAriaLabel": "ハートのフラップ",
       "connectionTestFailed": "接続テストに失敗しました",
-      "connectedSaved": "接続しました！ボードを保存しました。"
+      "connectedSaved": "接続しました！ボードを保存しました。",
+      "saveHint": "Choose your board type and appearance before testing. Test Connection saves these settings; if you change them afterward, test again before continuing."
     },
     "easyPlugins": {
       "description": "以下の機能は外部 API キーなしですぐに使えます。使いたい機能を有効にしましょう！",
@@ -807,7 +811,54 @@
       "noPassword": "（パスワードなし）",
       "addMoreHint": "<link>連携</link>ページからいつでも追加できます。",
       "builtInBadge": "組み込み",
-      "previewLabel": "プレビュー:"
+      "previewLabel": "プレビュー:",
+      "items": {
+        "date_time": {
+          "name": "Date & Time",
+          "description": "Display the current date and time on your board."
+        },
+        "countdown": {
+          "name": "Countdown",
+          "description": "Count down to an event after you choose its date in Integrations."
+        },
+        "weather": {
+          "name": "Weather",
+          "description": "Add local weather after setting your location and any required credentials in Integrations."
+        },
+        "stocks": {
+          "name": "Stock Prices",
+          "description": "Real-time stock prices and percentage changes."
+        },
+        "sports_scores": {
+          "name": "Sports Scores",
+          "description": "Recent match scores for NFL, Soccer, NHL, and more."
+        },
+        "dad_jokes": {
+          "name": "Dad Jokes",
+          "description": "Random dad jokes. No API key needed."
+        },
+        "guest_wifi": {
+          "name": "Guest WiFi",
+          "description": "Show your guest network name and password after you configure them in Integrations."
+        },
+        "star_trek_quotes": {
+          "name": "Star Trek Quotes",
+          "description": "Wisdom from the Federation. No API key needed."
+        },
+        "surf": {
+          "name": "Surf Conditions",
+          "description": "Wave height and swell period for your local break."
+        },
+        "spacecraft_launches": {
+          "name": "Spacecraft Launches",
+          "description": "Track upcoming launch countdowns and statuses."
+        }
+      },
+      "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
+      "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
+      "readyBadge": "Ready to use",
+      "configureBadge": "Configure after setup",
+      "toggleLabel": "Select {name}"
     },
     "welcome": {
       "setupComplete": "セットアップ完了！",
@@ -827,7 +878,23 @@
       "dateTimeName": "日付と時刻",
       "starTrekName": "スタートレックの名言",
       "guestWifiName": "ゲストWiFi",
-      "displayReady": "{name}（{output}）を設定しました"
+      "displayReady": "{name}（{output}）を設定しました",
+      "reviewTitle": "Ready for your first page",
+      "reviewDescription": "Your display settings are saved. Save your optional integrations when you finish below.",
+      "reviewSummary": "Your setup",
+      "pluginSelected": "{name} selected — saves when you finish",
+      "noIntegrationsSelected": "No integrations selected. You can create a page with your own text and add live data later.",
+      "optionalTestDescription": "Optional: send a welcome message to check your display. This changes what it is showing right now.",
+      "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
+      "nextTitle": "Next: make it yours",
+      "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
+      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "saveFailed": "Some integrations still need attention",
+      "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
+      "continueToIntegrations": "Continue and configure integrations later",
+      "saving": "Saving your integration choices…",
+      "createFirstPage": "Save & create my first page",
+      "saveGoToDashboard": "Save & go to dashboard"
     },
     "progressDisplay": "ディスプレイ",
     "chooseOutput": {
@@ -837,15 +904,32 @@
       "optionsLabel": "ディスプレイ",
       "downloads": "続行するとダウンロードされるため、インターネット接続が必要です。",
       "skipTitle": "スキップ — ディスプレイはあとで追加する",
-      "skipDescription": "今はページを見て回ってプレビューできます。ディスプレイはいつでも「ディスプレイ」から追加できます。"
+      "skipDescription": "今はページを見て回ってプレビューできます。ディスプレイはいつでも「ディスプレイ」から追加できます。",
+      "introTitle": "Displays and pages",
+      "introDescription": "A page is a layout of text, colors, and live information. Choose your display below; its plugin will guide you through connecting it.",
+      "displayHint": "Using a TV or browser? Choose FiestaPanel. You can also explore now and add a display later.",
+      "empty": "No display types are available right now. You can try again later from Displays.",
+      "customPlugin": "Have a display plugin URL?"
     },
     "outputSetup": {
       "installing": "{name} をインストールしています…",
       "installFailed": "{name} をインストールできませんでした",
       "offline": "FiestaBoard は {name} をダウンロードできませんでした。このデバイスのインターネット接続を確認して、もう一度お試しください。",
       "retry": "再試行",
-      "created": "{board} を保存しました。準備完了です。",
-      "createFailed": "ボードを保存できませんでした"
+      "created": "{board} is saved.",
+      "createFailed": "ボードを保存できませんでした",
+      "verified": "Connection verified",
+      "unverified": "Connection not verified",
+      "savedUnverified": "Connection has not been verified. You can test it from Displays.",
+      "verifiedHelp": "These connection settings passed the plugin’s test. Save your display to continue.",
+      "testHelp": "Use the plugin’s connection test above before saving. You can also save now and connect later.",
+      "noTestHelp": "This plugin does not provide a connection test. Save your display, then check its output on the device.",
+      "rows": "Rows",
+      "columns": "Columns",
+      "notesTall": "Notes tall",
+      "notesWide": "Notes wide",
+      "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
+      "sizeRange": "Whole number from {min} to {max}"
     },
     "panelSetup": {
       "nameLabel": "テレビの名前",
@@ -856,8 +940,10 @@
       "creating": "作成しています…",
       "created": "{name} の準備ができました",
       "openOnTv": "テレビのブラウザでこのアドレスを開いてください：",
-      "failed": "テレビのボードを作成できませんでした"
-    }
+      "failed": "テレビのボードを作成できませんでした",
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+    },
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
   },
   "activeDisplay": {
     "title": "アクティブ表示",
@@ -1231,6 +1317,25 @@
       "gitInstalledData": "{pluginId}をインストールしましたが、これはディスプレイではなくデータプラグインです。連携ページから使ってください。",
       "gitOpenIntegrations": "連携を開く",
       "gitFailedTitle": "そのリポジトリからインストールできませんでした"
+    },
+    "catalog": {
+      "search": "Search displays",
+      "searchPlaceholder": "Search by product, manufacturer, or model",
+      "category": "Display category",
+      "all": "All displays",
+      "other": "Other displays",
+      "selected": "Selected: {name}",
+      "count": "{count} displays",
+      "clear": "Clear filters",
+      "emptyTitle": "No matching displays",
+      "emptyBody": "Try a product name or model, or clear your filters to see all displays.",
+      "pagination": "Display results",
+      "previous": "Previous results",
+      "next": "Next results",
+      "page": "{current} of {total}",
+      "unavailableTitle": "Marketplace unavailable",
+      "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
+      "retry": "Retry marketplace"
     }
   },
   "systemUpdate": {

@@ -28,13 +28,14 @@ from .errors import (
     UndeclaredDeviceModelError,
 )
 from .hooks import OutputActionError, UnknownOutputAction
-from .install import install_output, list_available_outputs
+from .install import install_output, list_available_outputs, list_output_catalog
 from .models import (
     ActionResult,
     AvailableOutput,
     DraftActionRequest,
     OutputBoardCreate,
     OutputBoardResponse,
+    OutputCatalog,
     OutputSummary,
     SavedBoardActionRequest,
 )
@@ -133,6 +134,16 @@ async def get_outputs() -> list[OutputSummary]:
 )
 async def get_available_outputs() -> list[AvailableOutput]:
     return [AvailableOutput(**output) for output in list_available_outputs()]
+
+
+@router.get(
+    "/outputs/catalog",
+    response_model=OutputCatalog,
+    responses=errors(500),
+    summary="Browse display plugins with catalog availability",
+)
+async def get_output_catalog() -> OutputCatalog:
+    return OutputCatalog(**(await asyncio.to_thread(list_output_catalog)))
 
 
 @router.post(

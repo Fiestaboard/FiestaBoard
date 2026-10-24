@@ -767,7 +767,8 @@
       "allSet": "Alles bereit!",
       "chooseOutput": "Worauf soll FiestaBoard angezeigt werden?",
       "setUpTv": "Fernseher einrichten",
-      "setUpOutput": "{name} einrichten"
+      "setUpOutput": "{name} einrichten",
+      "review": "Review & Finish"
     },
     "stepDescriptions": {
       "enterCredentials": "Geben Sie Ihre Board-Zugangsdaten ein, um zu beginnen",
@@ -775,7 +776,9 @@
       "sendTestMessage": "Senden Sie eine Testnachricht an Ihr Board",
       "chooseOutput": "Wähle die Anzeige, die du hast. Weitere kannst du später in den Einstellungen hinzufügen.",
       "setUpTv": "Benenne deinen Fernseher und gib seine Bildschirmgröße an",
-      "setUpOutput": "Verbinden, testen und als Board speichern"
+      "setUpOutput": "Verbinden, testen und als Board speichern",
+      "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
+      "review": "Save your choices, try an optional test message, then create your first page."
     },
     "boardSetup": {
       "boardType": "Board-Typ",
@@ -787,7 +790,8 @@
       "code62DegreeAriaLabel": "Gradzeichen-Klappe",
       "code62HeartAriaLabel": "Herz-Klappe",
       "connectionTestFailed": "Verbindungstest fehlgeschlagen",
-      "connectedSaved": "Verbunden! Dein Board ist gespeichert."
+      "connectedSaved": "Verbunden! Dein Board ist gespeichert.",
+      "saveHint": "Choose your board type and appearance before testing. Test Connection saves these settings; if you change them afterward, test again before continuing."
     },
     "easyPlugins": {
       "description": "Diese Funktionen sind sofort einsatzbereit, ohne externe API-Schlüssel. Aktivieren Sie, was Ihnen gefällt!",
@@ -807,7 +811,54 @@
       "noPassword": "(kein Passwort)",
       "addMoreHint": "Sie können jederzeit weitere über die Seite <link>Integrationen</link> hinzufügen.",
       "builtInBadge": "Integriert",
-      "previewLabel": "Vorschau:"
+      "previewLabel": "Vorschau:",
+      "items": {
+        "date_time": {
+          "name": "Date & Time",
+          "description": "Display the current date and time on your board."
+        },
+        "countdown": {
+          "name": "Countdown",
+          "description": "Count down to an event after you choose its date in Integrations."
+        },
+        "weather": {
+          "name": "Weather",
+          "description": "Add local weather after setting your location and any required credentials in Integrations."
+        },
+        "stocks": {
+          "name": "Stock Prices",
+          "description": "Real-time stock prices and percentage changes."
+        },
+        "sports_scores": {
+          "name": "Sports Scores",
+          "description": "Recent match scores for NFL, Soccer, NHL, and more."
+        },
+        "dad_jokes": {
+          "name": "Dad Jokes",
+          "description": "Random dad jokes. No API key needed."
+        },
+        "guest_wifi": {
+          "name": "Guest WiFi",
+          "description": "Show your guest network name and password after you configure them in Integrations."
+        },
+        "star_trek_quotes": {
+          "name": "Star Trek Quotes",
+          "description": "Wisdom from the Federation. No API key needed."
+        },
+        "surf": {
+          "name": "Surf Conditions",
+          "description": "Wave height and swell period for your local break."
+        },
+        "spacecraft_launches": {
+          "name": "Spacecraft Launches",
+          "description": "Track upcoming launch countdowns and statuses."
+        }
+      },
+      "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
+      "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
+      "readyBadge": "Ready to use",
+      "configureBadge": "Configure after setup",
+      "toggleLabel": "Select {name}"
     },
     "welcome": {
       "setupComplete": "Einrichtung abgeschlossen!",
@@ -827,7 +878,23 @@
       "dateTimeName": "Datum & Uhrzeit",
       "starTrekName": "Star Trek Zitate",
       "guestWifiName": "Gast-WLAN",
-      "displayReady": "{name} ({output}) ist eingerichtet"
+      "displayReady": "{name} ({output}) ist eingerichtet",
+      "reviewTitle": "Ready for your first page",
+      "reviewDescription": "Your display settings are saved. Save your optional integrations when you finish below.",
+      "reviewSummary": "Your setup",
+      "pluginSelected": "{name} selected — saves when you finish",
+      "noIntegrationsSelected": "No integrations selected. You can create a page with your own text and add live data later.",
+      "optionalTestDescription": "Optional: send a welcome message to check your display. This changes what it is showing right now.",
+      "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
+      "nextTitle": "Next: make it yours",
+      "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
+      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "saveFailed": "Some integrations still need attention",
+      "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
+      "continueToIntegrations": "Continue and configure integrations later",
+      "saving": "Saving your integration choices…",
+      "createFirstPage": "Save & create my first page",
+      "saveGoToDashboard": "Save & go to dashboard"
     },
     "progressDisplay": "Anzeige",
     "chooseOutput": {
@@ -837,15 +904,32 @@
       "optionsLabel": "Anzeigen",
       "downloads": "Wird beim Fortfahren heruntergeladen und braucht daher eine Internetverbindung.",
       "skipTitle": "Überspringen – ich füge später eine Anzeige hinzu",
-      "skipDescription": "Sieh dich um und schau dir Seiten in der Vorschau an. Eine Anzeige kannst du jederzeit unter Anzeigen hinzufügen."
+      "skipDescription": "Sieh dich um und schau dir Seiten in der Vorschau an. Eine Anzeige kannst du jederzeit unter Anzeigen hinzufügen.",
+      "introTitle": "Displays and pages",
+      "introDescription": "A page is a layout of text, colors, and live information. Choose your display below; its plugin will guide you through connecting it.",
+      "displayHint": "Using a TV or browser? Choose FiestaPanel. You can also explore now and add a display later.",
+      "empty": "No display types are available right now. You can try again later from Displays.",
+      "customPlugin": "Have a display plugin URL?"
     },
     "outputSetup": {
       "installing": "{name} wird installiert…",
       "installFailed": "{name} konnte nicht installiert werden",
       "offline": "FiestaBoard konnte {name} nicht herunterladen. Prüfe die Internetverbindung dieses Geräts und versuche es erneut.",
       "retry": "Erneut versuchen",
-      "created": "{board} ist gespeichert und bereit.",
-      "createFailed": "Das Board konnte nicht gespeichert werden"
+      "created": "{board} is saved.",
+      "createFailed": "Das Board konnte nicht gespeichert werden",
+      "verified": "Connection verified",
+      "unverified": "Connection not verified",
+      "savedUnverified": "Connection has not been verified. You can test it from Displays.",
+      "verifiedHelp": "These connection settings passed the plugin’s test. Save your display to continue.",
+      "testHelp": "Use the plugin’s connection test above before saving. You can also save now and connect later.",
+      "noTestHelp": "This plugin does not provide a connection test. Save your display, then check its output on the device.",
+      "rows": "Rows",
+      "columns": "Columns",
+      "notesTall": "Notes tall",
+      "notesWide": "Notes wide",
+      "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
+      "sizeRange": "Whole number from {min} to {max}"
     },
     "panelSetup": {
       "nameLabel": "Name des Fernsehers",
@@ -856,8 +940,10 @@
       "creating": "Wird erstellt…",
       "created": "{name} ist bereit",
       "openOnTv": "Öffne diese Adresse im Browser des Fernsehers:",
-      "failed": "Das TV-Board konnte nicht erstellt werden"
-    }
+      "failed": "Das TV-Board konnte nicht erstellt werden",
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+    },
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
   },
   "activeDisplay": {
     "title": "Aktive Anzeige",
@@ -1231,6 +1317,25 @@
       "gitInstalledData": "{pluginId} ist installiert, aber es ist ein Daten-Plugin, keine Anzeige. Nutze es auf der Seite Integrationen.",
       "gitOpenIntegrations": "Integrationen öffnen",
       "gitFailedTitle": "Installation aus diesem Repository fehlgeschlagen"
+    },
+    "catalog": {
+      "search": "Search displays",
+      "searchPlaceholder": "Search by product, manufacturer, or model",
+      "category": "Display category",
+      "all": "All displays",
+      "other": "Other displays",
+      "selected": "Selected: {name}",
+      "count": "{count} displays",
+      "clear": "Clear filters",
+      "emptyTitle": "No matching displays",
+      "emptyBody": "Try a product name or model, or clear your filters to see all displays.",
+      "pagination": "Display results",
+      "previous": "Previous results",
+      "next": "Next results",
+      "page": "{current} of {total}",
+      "unavailableTitle": "Marketplace unavailable",
+      "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
+      "retry": "Retry marketplace"
     }
   },
   "systemUpdate": {

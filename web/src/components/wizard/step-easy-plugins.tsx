@@ -18,7 +18,6 @@ import type { LucideIcon } from "lucide-react";
 import { Clock, Cloud, Laugh, Rocket, Star, Timer, TrendingUp, Trophy, Waves, Wifi } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import Link from "@/components/smart-link";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
@@ -45,89 +44,67 @@ interface StepEasyPluginsProps {
 
 interface CuratedPlugin {
   id: string;
-  name: string;
-  description: string;
   icon: LucideIcon;
   builtin: boolean;
-  badge?: string;
+  needsSetup?: boolean;
 }
 
 const CURATED_PLUGINS: CuratedPlugin[] = [
   {
     id: "date_time",
-    name: "Date & Time",
-    description: "Display the current date and time on your board.",
     icon: Clock,
     builtin: true,
   },
   {
     id: "countdown",
-    name: "Countdown",
-    description: "Countdown timer to any date or event.",
+    needsSetup: true,
     icon: Timer,
     builtin: true,
   },
   {
     id: "weather",
-    name: "Weather",
-    description: "Current conditions, temperature, and humidity.",
+    needsSetup: true,
     icon: Cloud,
     builtin: false,
-    badge: "Popular",
   },
   {
     id: "stocks",
-    name: "Stock Prices",
-    description: "Real-time stock prices and percentage changes.",
+    needsSetup: true,
     icon: TrendingUp,
     builtin: false,
   },
   {
     id: "sports_scores",
-    name: "Sports Scores",
-    description: "Recent match scores for NFL, Soccer, NHL, and more.",
+    needsSetup: true,
     icon: Trophy,
     builtin: false,
-    badge: "Popular",
   },
   {
     id: "dad_jokes",
-    name: "Dad Jokes",
-    description: "Random dad jokes. No API key needed.",
     icon: Laugh,
     builtin: false,
-    badge: "No setup",
   },
   {
     id: "guest_wifi",
-    name: "Guest WiFi",
-    description: "Display guest WiFi credentials on your board.",
+    needsSetup: true,
     icon: Wifi,
     builtin: false,
-    badge: "No setup",
   },
   {
     id: "star_trek_quotes",
-    name: "Star Trek Quotes",
-    description: "Wisdom from the Federation. No API key needed.",
     icon: Star,
     builtin: false,
-    badge: "No setup",
   },
   {
     id: "surf",
-    name: "Surf Conditions",
-    description: "Wave height and swell period for your local break.",
+    needsSetup: true,
     icon: Waves,
     builtin: false,
   },
   {
     id: "spacecraft_launches",
-    name: "Spacecraft Launches",
-    description: "Track upcoming launch countdowns and statuses.",
     icon: Rocket,
     builtin: false,
-    badge: "No setup",
   },
 ];
 
@@ -149,7 +126,7 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
     const updateTime = () => {
       try {
         setCurrentTime(
-          new Date().toLocaleTimeString("en-US", {
+          new Date().toLocaleTimeString(undefined, {
             timeZone: config.date_time.timezone,
             hour: "numeric",
             minute: "2-digit",
@@ -167,7 +144,6 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
 
   const isSelected = (id: string) => {
     if (id === "date_time") return config.date_time.enabled;
-    if (id === "countdown") return config.registry_selected.includes("countdown");
     return config.registry_selected.includes(id);
   };
 
@@ -185,16 +161,10 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
   return (
     <Stack gap="4">
       <Text tone="muted" className="mb-1">
-        {t("description")}
+        {t("optionalDescription")}
       </Text>
       <Text size="xs" tone="muted" className="mb-4">
-        {t.rich("addMoreHint", {
-          link: (chunks: string) => (
-            <Link href="/integrations" className="underline hover:text-foreground">
-              {chunks}
-            </Link>
-          ),
-        })}
+        {t("configureLaterHint")}
       </Text>
 
       <Stack gap="3">
@@ -214,27 +184,25 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
                       <Icon className={cn("h-5 w-5", selected ? "text-primary" : "text-muted-foreground")} />
                     </Box>
                     <Box>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        {plugin.name}
-                        {plugin.badge && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                            {plugin.badge}
-                          </Badge>
-                        )}
+                      <CardTitle className="text-base flex flex-wrap items-center gap-2">
+                        {t(`items.${plugin.id}.name`)}
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                          {t(plugin.needsSetup ? "configureBadge" : "readyBadge")}
+                        </Badge>
                         {plugin.builtin && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground">
                             {t("builtInBadge")}
                           </Badge>
                         )}
                       </CardTitle>
-                      <CardDescription className="text-xs">{plugin.description}</CardDescription>
+                      <CardDescription className="text-xs">{t(`items.${plugin.id}.description`)}</CardDescription>
                     </Box>
                   </Flex>
                   <Switch
                     checked={selected}
                     onCheckedChange={(checked) => handleToggle(plugin, checked)}
                     onClick={(e) => e.stopPropagation()}
-                    aria-label={`Toggle ${plugin.name}`}
+                    aria-label={t("toggleLabel", { name: t(`items.${plugin.id}.name`) })}
                   />
                 </Flex>
               </CardHeader>

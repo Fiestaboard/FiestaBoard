@@ -767,7 +767,8 @@
       "allSet": "Her Şey Hazır!",
       "chooseOutput": "FiestaBoard'u nerede göstermek istiyorsunuz?",
       "setUpTv": "Televizyonunuzu kurun",
-      "setUpOutput": "{name} kurulumu"
+      "setUpOutput": "{name} kurulumu",
+      "review": "Review & Finish"
     },
     "stepDescriptions": {
       "enterCredentials": "Başlamak için pano kimlik bilgilerinizi girin",
@@ -775,7 +776,9 @@
       "sendTestMessage": "Panonuza bir test mesajı gönderin",
       "chooseOutput": "Sahip olduğunuz ekranı seçin. Daha fazlasını sonra Ayarlar'dan ekleyebilirsiniz.",
       "setUpTv": "Televizyonunuza bir ad verin ve ekran boyutunu belirtin",
-      "setUpOutput": "Bağlayın, test edin ve pano olarak kaydedin"
+      "setUpOutput": "Bağlayın, test edin ve pano olarak kaydedin",
+      "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
+      "review": "Save your choices, try an optional test message, then create your first page."
     },
     "boardSetup": {
       "boardType": "Pano Türü",
@@ -787,7 +790,8 @@
       "code62DegreeAriaLabel": "Derece kanadı",
       "code62HeartAriaLabel": "Kalp kanadı",
       "connectionTestFailed": "Bağlantı testi başarısız",
-      "connectedSaved": "Bağlandı! Panonuz kaydedildi."
+      "connectedSaved": "Bağlandı! Panonuz kaydedildi.",
+      "saveHint": "Choose your board type and appearance before testing. Test Connection saves these settings; if you change them afterward, test again before continuing."
     },
     "easyPlugins": {
       "description": "Bu özellikler harici API anahtarı gerektirmeden hemen çalışır. İstediğinizi etkinleştirin!",
@@ -807,7 +811,54 @@
       "noPassword": "(şifresiz)",
       "addMoreHint": "Dilediğiniz zaman <link>Entegrasyonlar</link> sayfasından daha fazlasını ekleyebilirsiniz.",
       "builtInBadge": "Yerleşik",
-      "previewLabel": "Önizleme:"
+      "previewLabel": "Önizleme:",
+      "items": {
+        "date_time": {
+          "name": "Date & Time",
+          "description": "Display the current date and time on your board."
+        },
+        "countdown": {
+          "name": "Countdown",
+          "description": "Count down to an event after you choose its date in Integrations."
+        },
+        "weather": {
+          "name": "Weather",
+          "description": "Add local weather after setting your location and any required credentials in Integrations."
+        },
+        "stocks": {
+          "name": "Stock Prices",
+          "description": "Real-time stock prices and percentage changes."
+        },
+        "sports_scores": {
+          "name": "Sports Scores",
+          "description": "Recent match scores for NFL, Soccer, NHL, and more."
+        },
+        "dad_jokes": {
+          "name": "Dad Jokes",
+          "description": "Random dad jokes. No API key needed."
+        },
+        "guest_wifi": {
+          "name": "Guest WiFi",
+          "description": "Show your guest network name and password after you configure them in Integrations."
+        },
+        "star_trek_quotes": {
+          "name": "Star Trek Quotes",
+          "description": "Wisdom from the Federation. No API key needed."
+        },
+        "surf": {
+          "name": "Surf Conditions",
+          "description": "Wave height and swell period for your local break."
+        },
+        "spacecraft_launches": {
+          "name": "Spacecraft Launches",
+          "description": "Track upcoming launch countdowns and statuses."
+        }
+      },
+      "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
+      "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
+      "readyBadge": "Ready to use",
+      "configureBadge": "Configure after setup",
+      "toggleLabel": "Select {name}"
     },
     "welcome": {
       "setupComplete": "Kurulum Tamamlandı!",
@@ -827,7 +878,23 @@
       "dateTimeName": "Tarih ve Saat",
       "starTrekName": "Star Trek Alıntıları",
       "guestWifiName": "Misafir WiFi",
-      "displayReady": "{name} ({output}) kuruldu"
+      "displayReady": "{name} ({output}) kuruldu",
+      "reviewTitle": "Ready for your first page",
+      "reviewDescription": "Your display settings are saved. Save your optional integrations when you finish below.",
+      "reviewSummary": "Your setup",
+      "pluginSelected": "{name} selected — saves when you finish",
+      "noIntegrationsSelected": "No integrations selected. You can create a page with your own text and add live data later.",
+      "optionalTestDescription": "Optional: send a welcome message to check your display. This changes what it is showing right now.",
+      "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
+      "nextTitle": "Next: make it yours",
+      "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
+      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "saveFailed": "Some integrations still need attention",
+      "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
+      "continueToIntegrations": "Continue and configure integrations later",
+      "saving": "Saving your integration choices…",
+      "createFirstPage": "Save & create my first page",
+      "saveGoToDashboard": "Save & go to dashboard"
     },
     "progressDisplay": "Ekran",
     "chooseOutput": {
@@ -837,15 +904,32 @@
       "optionsLabel": "Ekranlar",
       "downloads": "Devam ettiğinizde indirilir, bu yüzden internet bağlantısı gerekir.",
       "skipTitle": "Atla — ekranı sonra ekleyeceğim",
-      "skipDescription": "Şimdi etrafa göz atın ve sayfaları önizleyin. İstediğiniz zaman Ekranlar bölümünden ekran ekleyin."
+      "skipDescription": "Şimdi etrafa göz atın ve sayfaları önizleyin. İstediğiniz zaman Ekranlar bölümünden ekran ekleyin.",
+      "introTitle": "Displays and pages",
+      "introDescription": "A page is a layout of text, colors, and live information. Choose your display below; its plugin will guide you through connecting it.",
+      "displayHint": "Using a TV or browser? Choose FiestaPanel. You can also explore now and add a display later.",
+      "empty": "No display types are available right now. You can try again later from Displays.",
+      "customPlugin": "Have a display plugin URL?"
     },
     "outputSetup": {
       "installing": "{name} yükleniyor…",
       "installFailed": "{name} yüklenemedi",
       "offline": "FiestaBoard {name} öğesini indiremedi. Bu cihazın internet bağlantısını kontrol edip tekrar deneyin.",
       "retry": "Tekrar dene",
-      "created": "{board} kaydedildi ve hazır.",
-      "createFailed": "Pano kaydedilemedi"
+      "created": "{board} is saved.",
+      "createFailed": "Pano kaydedilemedi",
+      "verified": "Connection verified",
+      "unverified": "Connection not verified",
+      "savedUnverified": "Connection has not been verified. You can test it from Displays.",
+      "verifiedHelp": "These connection settings passed the plugin’s test. Save your display to continue.",
+      "testHelp": "Use the plugin’s connection test above before saving. You can also save now and connect later.",
+      "noTestHelp": "This plugin does not provide a connection test. Save your display, then check its output on the device.",
+      "rows": "Rows",
+      "columns": "Columns",
+      "notesTall": "Notes tall",
+      "notesWide": "Notes wide",
+      "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
+      "sizeRange": "Whole number from {min} to {max}"
     },
     "panelSetup": {
       "nameLabel": "Televizyon adı",
@@ -856,8 +940,10 @@
       "creating": "Oluşturuluyor…",
       "created": "{name} hazır",
       "openOnTv": "Bu adresi televizyonun tarayıcısında açın:",
-      "failed": "TV panosu oluşturulamadı"
-    }
+      "failed": "TV panosu oluşturulamadı",
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+    },
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
   },
   "activeDisplay": {
     "title": "Aktif Ekran",
@@ -1231,6 +1317,25 @@
       "gitInstalledData": "{pluginId} kuruldu, ancak bu bir ekran değil, bir veri eklentisi. Entegrasyonlar sayfasından kullan.",
       "gitOpenIntegrations": "Entegrasyonları aç",
       "gitFailedTitle": "Bu depodan kurulamadı"
+    },
+    "catalog": {
+      "search": "Search displays",
+      "searchPlaceholder": "Search by product, manufacturer, or model",
+      "category": "Display category",
+      "all": "All displays",
+      "other": "Other displays",
+      "selected": "Selected: {name}",
+      "count": "{count} displays",
+      "clear": "Clear filters",
+      "emptyTitle": "No matching displays",
+      "emptyBody": "Try a product name or model, or clear your filters to see all displays.",
+      "pagination": "Display results",
+      "previous": "Previous results",
+      "next": "Next results",
+      "page": "{current} of {total}",
+      "unavailableTitle": "Marketplace unavailable",
+      "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
+      "retry": "Retry marketplace"
     }
   },
   "systemUpdate": {

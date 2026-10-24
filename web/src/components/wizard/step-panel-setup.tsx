@@ -7,7 +7,18 @@
  * to open on the TV. Everything else (aspect ratio, backdrop, calibration)
  * stays in Settings → FiestaPanel.
  */
-import { Alert, AlertDescription, AlertTitle, Button, Grid, Input, Label, Stack, Text } from "@fiestaboard/ui";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Grid,
+  Input,
+  Label,
+  Stack,
+  Text,
+  TextLink,
+} from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -87,8 +98,16 @@ export function StepPanelSetup({
           <AlertDescription>
             <Stack gap="1">
               <Text size="sm">{t("openOnTv")}</Text>
-              <Text size="sm" className="font-mono break-all">
+              <TextLink
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-sm break-all underline underline-offset-4"
+              >
                 {url}
+              </TextLink>
+              <Text size="xs" tone="muted">
+                {t("viewerHint")}
               </Text>
             </Stack>
           </AlertDescription>

@@ -30,11 +30,13 @@ from typing import Any
 from src.plugins import sources
 
 from .actions import describe_output, list_outputs
+from .catalog_metadata import display_metadata
 from .errors import (
     OutputInstallRefusedError,
     OutputNotInstallableError,
     OutputSourceUnreachableError,
 )
+from .output_manifest import parse_output_block
 from .registry import output_registry
 from .seed import seed_root, seeded_entries, seeded_output
 
@@ -72,7 +74,35 @@ def _seeded_manifest(plugin_id: str) -> dict[str, Any] | None:
 
 
 def list_available_outputs() -> list[dict[str, Any]]:
-    """Installed outputs, then seeded, then registry outputs; each id once."""
+    """Legacy array API; the catalog also reports incomplete discovery."""
+    return list_output_catalog()["outputs"]
+
+
+def list_output_catalog() -> dict[str, Any]:
+    """Local outputs remain usable when marketplace discovery fails."""
+    try:
+        entries = [entry for entry in sources.load_registry(strict=True) if entry.plugin_type == "output"]
+        registry_status = "available"
+    except (OSError, ValueError, TypeError) as exc:
+        logger.warning("Display catalog unavailable: %s", exc)
+        entries = []
+        registry_status = "unavailable"
+    registry_by_id = {entry.plugin_id: entry for entry in entries}
+    local_metadata: dict[str, dict[str, Any]] = {}
+    fallback_categories: dict[str, str] = {}
+    installed = list_outputs()
+    for output in installed:
+        manifest = _plugin_registry().get_manifest(output["id"])
+        raw = manifest.raw.get("display") if manifest else None
+        meta = display_metadata(raw)
+        meta["models"] = list(dict.fromkeys([*meta["models"], *(m["label"] for m in output["device_models"])]))
+        local_metadata[output["id"]] = meta
+        technology = output["capabilities"]["technology"]
+        fallback_categories[output["id"]] = (
+            "TV & browser"
+            if output["id"] == "fiestapanel"
+            else {"split_flap": "Split-flap displays", "led_matrix": "LED displays"}.get(technology, "")
+        )
     listed: list[dict[str, Any]] = [
         {
             "id": output["id"],
@@ -87,7 +117,7 @@ def list_available_outputs() -> list[dict[str, Any]]:
             "needs_network": False,
             "output_api": output["output_api"],
         }
-        for output in list_outputs()
+        for output in installed
     ]
     seen = {entry["id"] for entry in listed}
 
@@ -98,6 +128,21 @@ def list_available_outputs() -> list[dict[str, Any]]:
         manifest = _seeded_manifest(plugin_id)  # None for a data-only entry: never loaded, never offered
         if manifest is None:
             continue
+        meta = display_metadata(manifest.get("display"))
+        copy = seeded_output(plugin_id)
+        parsed, _ = parse_output_block(
+            manifest.get("output"), base_dir=copy.path if copy else None, data_files=manifest.get("data_files", [])
+        )
+        if parsed is not None:
+            models = [parsed.model(index) for index in range(len(parsed.device_models))]
+            meta["models"] = list(dict.fromkeys([*meta["models"], *(model["label"] for model in models)]))
+            technologies = {model["technology"] for model in models}
+            if len(technologies) == 1:
+                fallback_categories[plugin_id] = {
+                    "split_flap": "Split-flap displays",
+                    "led_matrix": "LED displays",
+                }.get(next(iter(technologies)), "")
+        local_metadata[plugin_id] = meta
         seeded.append(
             {
                 "id": plugin_id,
@@ -117,7 +162,7 @@ def list_available_outputs() -> list[dict[str, Any]]:
     listed += seeded
     seen |= {entry["id"] for entry in seeded}
 
-    for entry in sorted(_registry_outputs(), key=lambda e: e.name.lower()):
+    for entry in sorted(entries, key=lambda e: e.name.lower()):
         if entry.plugin_id in seen:
             continue
         seen.add(entry.plugin_id)
@@ -136,7 +181,17 @@ def list_available_outputs() -> list[dict[str, Any]]:
                 "output_api": None,
             }
         )
-    return listed
+    for output in listed:
+        entry = registry_by_id.get(output["id"])
+        remote = display_metadata(entry.display if entry else None)
+        local = local_metadata.get(output["id"], display_metadata(None))
+        output["display"] = {
+            "category": local["category"] or remote["category"] or fallback_categories.get(output["id"], ""),
+            "manufacturer": local["manufacturer"] or remote["manufacturer"],
+            "models": list(dict.fromkeys([*local["models"], *remote["models"]])),
+            "keywords": list(dict.fromkeys([*local["keywords"], *remote["keywords"]])),
+        }
+    return {"outputs": listed, "registry_status": registry_status}
 
 
 def install_output(output_id: str) -> tuple[dict[str, Any], bool]:

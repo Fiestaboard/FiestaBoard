@@ -767,7 +767,8 @@
       "allSet": "Je bent klaar!",
       "chooseOutput": "Waarop wil je FiestaBoard tonen?",
       "setUpTv": "Je tv instellen",
-      "setUpOutput": "{name} instellen"
+      "setUpOutput": "{name} instellen",
+      "review": "Review & Finish"
     },
     "stepDescriptions": {
       "enterCredentials": "Voer je bordreferenties in om te beginnen",
@@ -775,7 +776,9 @@
       "sendTestMessage": "Stuur een testbericht naar je bord",
       "chooseOutput": "Kies het scherm dat je hebt. Je kunt er later meer toevoegen in Instellingen.",
       "setUpTv": "Geef je tv een naam en vertel ons hoe groot het scherm is",
-      "setUpOutput": "Verbind het, test het en sla het op als bord"
+      "setUpOutput": "Verbind het, test het en sla het op als bord",
+      "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
+      "review": "Save your choices, try an optional test message, then create your first page."
     },
     "boardSetup": {
       "boardType": "Bordtype",
@@ -787,7 +790,8 @@
       "code62DegreeAriaLabel": "Gradenteken-klepje",
       "code62HeartAriaLabel": "Hartje-klepje",
       "connectionTestFailed": "Verbindingstest mislukt",
-      "connectedSaved": "Verbonden! Je bord is opgeslagen."
+      "connectedSaved": "Verbonden! Je bord is opgeslagen.",
+      "saveHint": "Choose your board type and appearance before testing. Test Connection saves these settings; if you change them afterward, test again before continuing."
     },
     "easyPlugins": {
       "description": "Deze functies werken direct zonder externe API-sleutels. Schakel in wat je wilt!",
@@ -807,7 +811,54 @@
       "noPassword": "(geen wachtwoord)",
       "addMoreHint": "Je kunt er altijd meer toevoegen via de pagina <link>Integraties</link>.",
       "builtInBadge": "Ingebouwd",
-      "previewLabel": "Voorbeeld:"
+      "previewLabel": "Voorbeeld:",
+      "items": {
+        "date_time": {
+          "name": "Date & Time",
+          "description": "Display the current date and time on your board."
+        },
+        "countdown": {
+          "name": "Countdown",
+          "description": "Count down to an event after you choose its date in Integrations."
+        },
+        "weather": {
+          "name": "Weather",
+          "description": "Add local weather after setting your location and any required credentials in Integrations."
+        },
+        "stocks": {
+          "name": "Stock Prices",
+          "description": "Real-time stock prices and percentage changes."
+        },
+        "sports_scores": {
+          "name": "Sports Scores",
+          "description": "Recent match scores for NFL, Soccer, NHL, and more."
+        },
+        "dad_jokes": {
+          "name": "Dad Jokes",
+          "description": "Random dad jokes. No API key needed."
+        },
+        "guest_wifi": {
+          "name": "Guest WiFi",
+          "description": "Show your guest network name and password after you configure them in Integrations."
+        },
+        "star_trek_quotes": {
+          "name": "Star Trek Quotes",
+          "description": "Wisdom from the Federation. No API key needed."
+        },
+        "surf": {
+          "name": "Surf Conditions",
+          "description": "Wave height and swell period for your local break."
+        },
+        "spacecraft_launches": {
+          "name": "Spacecraft Launches",
+          "description": "Track upcoming launch countdowns and statuses."
+        }
+      },
+      "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
+      "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
+      "readyBadge": "Ready to use",
+      "configureBadge": "Configure after setup",
+      "toggleLabel": "Select {name}"
     },
     "welcome": {
       "setupComplete": "Installatie voltooid!",
@@ -827,7 +878,23 @@
       "dateTimeName": "Datum & Tijd",
       "starTrekName": "Star Trek Citaten",
       "guestWifiName": "Gast WiFi",
-      "displayReady": "{name} ({output}) is ingesteld"
+      "displayReady": "{name} ({output}) is ingesteld",
+      "reviewTitle": "Ready for your first page",
+      "reviewDescription": "Your display settings are saved. Save your optional integrations when you finish below.",
+      "reviewSummary": "Your setup",
+      "pluginSelected": "{name} selected — saves when you finish",
+      "noIntegrationsSelected": "No integrations selected. You can create a page with your own text and add live data later.",
+      "optionalTestDescription": "Optional: send a welcome message to check your display. This changes what it is showing right now.",
+      "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
+      "nextTitle": "Next: make it yours",
+      "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
+      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "saveFailed": "Some integrations still need attention",
+      "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
+      "continueToIntegrations": "Continue and configure integrations later",
+      "saving": "Saving your integration choices…",
+      "createFirstPage": "Save & create my first page",
+      "saveGoToDashboard": "Save & go to dashboard"
     },
     "progressDisplay": "Scherm",
     "chooseOutput": {
@@ -837,15 +904,32 @@
       "optionsLabel": "Schermen",
       "downloads": "Wordt gedownload als je doorgaat, dus er is een internetverbinding nodig.",
       "skipTitle": "Overslaan — ik voeg later een scherm toe",
-      "skipDescription": "Kijk rond en bekijk nu alvast pagina's. Voeg op elk moment een scherm toe via Schermen."
+      "skipDescription": "Kijk rond en bekijk nu alvast pagina's. Voeg op elk moment een scherm toe via Schermen.",
+      "introTitle": "Displays and pages",
+      "introDescription": "A page is a layout of text, colors, and live information. Choose your display below; its plugin will guide you through connecting it.",
+      "displayHint": "Using a TV or browser? Choose FiestaPanel. You can also explore now and add a display later.",
+      "empty": "No display types are available right now. You can try again later from Displays.",
+      "customPlugin": "Have a display plugin URL?"
     },
     "outputSetup": {
       "installing": "{name} installeren…",
       "installFailed": "{name} kon niet worden geïnstalleerd",
       "offline": "FiestaBoard kon {name} niet downloaden. Controleer de internetverbinding van dit apparaat en probeer het opnieuw.",
       "retry": "Opnieuw proberen",
-      "created": "{board} is opgeslagen en klaar.",
-      "createFailed": "Het bord kon niet worden opgeslagen"
+      "created": "{board} is saved.",
+      "createFailed": "Het bord kon niet worden opgeslagen",
+      "verified": "Connection verified",
+      "unverified": "Connection not verified",
+      "savedUnverified": "Connection has not been verified. You can test it from Displays.",
+      "verifiedHelp": "These connection settings passed the plugin’s test. Save your display to continue.",
+      "testHelp": "Use the plugin’s connection test above before saving. You can also save now and connect later.",
+      "noTestHelp": "This plugin does not provide a connection test. Save your display, then check its output on the device.",
+      "rows": "Rows",
+      "columns": "Columns",
+      "notesTall": "Notes tall",
+      "notesWide": "Notes wide",
+      "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
+      "sizeRange": "Whole number from {min} to {max}"
     },
     "panelSetup": {
       "nameLabel": "Naam van de tv",
@@ -856,8 +940,10 @@
       "creating": "Bezig met maken…",
       "created": "{name} is klaar",
       "openOnTv": "Open dit adres in de browser van de tv:",
-      "failed": "Het tv-bord kon niet worden gemaakt"
-    }
+      "failed": "Het tv-bord kon niet worden gemaakt",
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+    },
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
   },
   "activeDisplay": {
     "title": "Actieve weergave",
@@ -1231,6 +1317,25 @@
       "gitInstalledData": "{pluginId} is geïnstalleerd, maar het is een dataplugin, geen scherm. Gebruik het via de pagina Integraties.",
       "gitOpenIntegrations": "Integraties openen",
       "gitFailedTitle": "Kan niet installeren vanuit die repository"
+    },
+    "catalog": {
+      "search": "Search displays",
+      "searchPlaceholder": "Search by product, manufacturer, or model",
+      "category": "Display category",
+      "all": "All displays",
+      "other": "Other displays",
+      "selected": "Selected: {name}",
+      "count": "{count} displays",
+      "clear": "Clear filters",
+      "emptyTitle": "No matching displays",
+      "emptyBody": "Try a product name or model, or clear your filters to see all displays.",
+      "pagination": "Display results",
+      "previous": "Previous results",
+      "next": "Next results",
+      "page": "{current} of {total}",
+      "unavailableTitle": "Marketplace unavailable",
+      "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
+      "retry": "Retry marketplace"
     }
   },
   "systemUpdate": {

@@ -79,7 +79,7 @@ function setup({ outputs = [VESTABOARD, FIESTAPANEL, PIXOO, ACME], updates = {} 
   server.use(
     http.get(`${API}/settings/board`, () => HttpResponse.json({ board_type: "black", boards: [], devices: [] })),
     http.get(`${API}/outputs`, () => HttpResponse.json(mockOutputs)),
-    http.get(`${API}/outputs/available`, () => HttpResponse.json(listed)),
+    http.get(`${API}/outputs/catalog`, () => HttpResponse.json({ outputs: listed, registry_status: "available" })),
     http.post(`${API}/outputs/:id/install`, ({ params }) => {
       const id = String(params.id);
       calls.install.push(id);
@@ -259,7 +259,7 @@ describe("Displays → Marketplace", () => {
     setup();
     renderPage();
     await cardFor("Acme Sign");
-    await userEvent.type(screen.getByPlaceholderText("Search displays..."), "pixoo");
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search displays" }), "pixoo");
     const market = await marketplace();
     await waitFor(() => expect(within(market).queryByRole("heading", { name: "Acme Sign" })).not.toBeInTheDocument());
     expect(within(market).getByRole("heading", { name: "Divoom Pixoo" })).toBeInTheDocument();
@@ -298,8 +298,11 @@ describe("Displays → Marketplace", () => {
           installed = response.status < 400;
           return response;
         }),
-        http.get(`${API}/outputs/available`, () =>
-          HttpResponse.json(installed && becomes ? [VESTABOARD, FIESTAPANEL, becomes] : [VESTABOARD, FIESTAPANEL]),
+        http.get(`${API}/outputs/catalog`, () =>
+          HttpResponse.json({
+            outputs: installed && becomes ? [VESTABOARD, FIESTAPANEL, becomes] : [VESTABOARD, FIESTAPANEL],
+            registry_status: "available",
+          }),
         ),
       );
       return bodies;
