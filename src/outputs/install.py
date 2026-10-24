@@ -206,11 +206,18 @@ def install_output(output_id: str) -> tuple[dict[str, Any], bool]:
     if definition is not None:
         return describe_output(definition), False
 
+    # The first request after startup can initialize the plugin registry,
+    # registering outputs already on disk. Check again before offering or
+    # copying anything, including installed outputs no longer in a catalog.
+    registry = _plugin_registry()
+    definition = output_registry().get(output_id)
+    if definition is not None:
+        return describe_output(definition), False
+
     from_seed = seeded_output(output_id) is not None
     if not from_seed and not any(entry.plugin_id == output_id for entry in _registry_outputs()):
         raise OutputNotInstallableError(output_id)
 
-    registry = _plugin_registry()
     errors = registry.install_output_from_seed(output_id) if from_seed else registry.install_from_registry(output_id)
     if errors:
         reason = "; ".join(errors)

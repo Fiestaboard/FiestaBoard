@@ -64,6 +64,8 @@ Changing the text size resizes the display, and FiestaBoard lays its pages out a
 
 Pick a transition in the display's settings: flip, slide, wipe, cascade, dissolve, fade, or none. The Pixoo shows about five frames a second, so a flip looks like a quick, stepped scramble that takes two to three seconds.
 
+The default **Through black** fade uses six pixel frames over approximately one second. It looks stepped and leaves the device's brightness setting alone while the picture dims. **Blend** cross-fades the two pages. A configured brightness is applied after the new page arrives.
+
 ### Mounting
 
 Mounted the Pixoo sideways or upside down? Set **Orientation** in the display's settings to rotate the picture to match.
@@ -77,4 +79,18 @@ Mounted the Pixoo sideways or upside down? Set **Orientation** in the display's 
 | Text is cut off | The page is wider or taller than the grid: 10 columns × 8 rows at Large. Pick this display in the page editor's size picker, or switch to Small. |
 | The display stopped updating | The Pixoo's IP address changed. Reserve a fixed address in your router, then update it in the display's settings. |
 
-For the bundled settings and actions, see the [pinned plugin manifest](https://github.com/Fiestaboard/fiestaboard-output--divoom-pixoo/blob/3819a91e2637829b28ab83b03d13acc5cf6e1e76/manifest.json). The plugin's older setup guide still describes a manual beta installation; v10 bundles the plugin.
+### Discovery and Manual Setup
+
+If **Find my Pixoo** reports a container network such as `172.18.0.0/24`, open FiestaBoard using the Pi's LAN IP address, or enter your LAN network in **Network to search**. Opening FiestaBoard through a hostname such as `fiestapi.local` does not supply an IP-based network hint.
+
+You can also choose **Enter address manually**, enter the Pixoo's address, complete **Test connection**, and save the display. Entering an address in **Network to search** runs discovery against that address; it does not complete manual setup.
+
+**Ask Divoom's servers** can fill in a device address even when FiestaBoard cannot reach that device locally. Follow it with **Test connection**, save, and send a page. If discovery fails but manual setup works, include that distinction when reporting the problem.
+
+### Updating an Existing Beta Installation
+
+Updating FiestaBoard's image does not replace an already-installed Divoom plugin. After updating FiestaBoard, open **Integrations**, choose **Check for updates**, and apply the Divoom plugin update if offered. Then send a page and check the display's brightness, including when you interrupt a fade by sending another page.
+
+The cancellation fix is included in the bundled plugin commit `863ab740a23db02e4274e52f23a3b0a815c4526e`. Both the previous bundled copy and this fix declare plugin version `0.6.0`, so that version label alone does not confirm that the fix is installed. Plugin update checks compare repository commits.
+
+For the bundled settings and actions, see the [pinned plugin manifest](https://github.com/Fiestaboard/fiestaboard-output--divoom-pixoo/blob/863ab740a23db02e4274e52f23a3b0a815c4526e/manifest.json). The plugin's older setup guide still describes a manual beta installation; v10 bundles the plugin.
