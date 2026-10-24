@@ -66,3 +66,38 @@
 - [x] Run focused UI suites, then the full web suite, typecheck, production build and scoped ESLint/Prettier. Run isolated browser/e2e checks with fake boards if available; never connect to the live installation. Record remaining UI verification limits precisely.
 - [x] Update user/API docs and local test evidence; commit. Write task-3-report.md.
 - [x] Controller performs independent whole-branch review and fixes material findings with RED/GREEN evidence, then verifies final Python/web suites and the final diff. Leave the candidate local for review.
+
+### Task 4: Restore automatic retry and protect unreadable queues
+
+**Files:** Modify `src/silence_queue.py`, `src/board_guards.py`,
+`src/main.py`, status route/models and existing consuming-write integrations
+only as needed. Adapt Home/hooks/client types and 14 catalogs to remove
+manual-recovery semantics and visibly expose unavailable queue status. Update
+queue/final regression tests, UI tests and the feature/send/verification docs.
+
+**Interfaces:** Preserve typed newest-per-board intentions, conditional cleanup,
+explicit hold/discard persistence errors and all pause/output gates. No durable
+delivery marker may suppress automatic retry. Older candidate marker records
+must resume ordinary pending delivery. Queue load failure must not publish or
+cache an empty store, rewrite the source, or acknowledge a new mutation.
+
+- [ ] Add behavioral RED tests for exception/interruption then reload/retry,
+  successful-write cleanup failure then restart/retry, and old marker records.
+  Prove subsequent success clears only the observed intent and preserves newer
+  concurrent holds. Preserve paused/throttled/offline retry coverage.
+- [ ] Add RED tests for existing unreadable/invalid JSON/wrong top-level queue
+  data: hold/discard/status expose failure, source bytes remain recoverable,
+  retries work after repair, and a missing file still permits a first hold.
+  Keep valid and malformed-record behavior explicit; never silently launder a
+  damaged existing file through an empty successful acceptance.
+- [ ] Implement the minimal reliability correction using v10 #2257 as retry
+  reference, without copying its silent save errors or unconditional cleanup.
+  Remove unresolved/manual-recovery UI and add focused unavailable-status
+  warning coverage so stored content cannot merely disappear from Home.
+- [ ] Run focused RED/GREEN, full Python and web suites, sequential typecheck,
+  build, scoped lint/format, docs/locales and API schema checks as affected.
+  Use only the already-authorized Docker workflow with isolated fake hardware;
+  never retry the denied reviewer probe or write a physical board.
+- [ ] Commit locally and write `task-4-report.md` with exact logs, duplicate-send
+  semantics and remaining limits. Independent source review must inspect the
+  correction and evidence; update this plan and verification record afterward.

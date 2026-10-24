@@ -23,6 +23,12 @@ live-board changes, dependency upgrades, or deprecated endpoint removal.
   text using the v9 renderer, expire after 24 hours, and discard only after
   successful delivery. Retry after offline, throttled or paused attempts;
   restarting during silence must not lose the message.
+- Automatic retry also applies after an interrupted or ambiguous delivery;
+  a physical send can therefore repeat after restart or failed cleanup. Do not
+  promise exactly-once delivery or require manual recovery for uncertainty.
+- An existing queue that cannot be read or decoded is not an empty queue.
+  Preserve its contents, expose the failure, and reject new acceptance/discard
+  rather than overwriting recoverable data. A genuinely missing file is empty.
 - Held HTTP message sends return 202 and held=true; unaccepted silenced sends
   retain their refusal contract. Selection/live-preview responses can report
   silenced without pretending a board write occurred. No false sent=true.
