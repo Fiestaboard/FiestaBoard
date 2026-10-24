@@ -18,9 +18,11 @@
 
 ## What is FiestaBoard?
 
-FiestaBoard turns live data into something you can glance at from across the room — your morning commute, the markets, the surf, a little Star Trek wisdom — on the displays around you: split-flap boards like Vestaboard, or any TV with a browser. Pick from 60+ plugins, design pages in a visual editor, schedule what shows when, and build your own plugins. Free, open source, and self-hosted in Docker.
+FiestaBoard turns live data into something you can glance at from across the room — your morning commute, the markets, the surf, a little Star Trek wisdom — on the displays around you: split-flap boards like Vestaboard, LED matrices like the Divoom Pixoo 64, or any TV with a browser. Pick from 60+ plugins, design pages in a visual editor, schedule what shows when, and build your own plugins. Free, open source, and self-hosted in Docker.
 
-Works with Vestaboard Flagship (22x6), Note (15x3), and Note arrays, plus [FiestaPanel](https://fiestaboard.app/docs/features/fiestapanel), which turns any TV or screen with a web browser into a virtual split-flap board.
+Works with Vestaboard Flagship (22x6), Note (15x3), and Note arrays; the Divoom Pixoo 64 LED matrix; and any TV or screen with a web browser through [FiestaPanel](https://github.com/Fiestaboard/FiestaBoard/blob/a0ec7db1d29fdf4388c234a3d4f83bf11804c0b5/docs/displays/tv.md). Native Apple TV and Android TV apps are coming soon. See [Supported Displays](https://github.com/Fiestaboard/FiestaBoard/blob/a0ec7db1d29fdf4388c234a3d4f83bf11804c0b5/docs/displays/index.md).
+
+**Version availability:** Divoom Pixoo 64 support and the output-plugin setup described here target v10 (`next` / beta). Stable v9 does not include them. Native TV apps are coming soon; browser viewing is available.
 
 You bring the display and the API keys for the services you care about. FiestaBoard handles the rest.
 

@@ -1,10 +1,16 @@
 ---
 sidebar_position: 2
-description: "Get FiestaBoard running in minutes and connect it to your Vestaboard through Vestaboard's official API. Run it on a Raspberry Pi (easiest), with Docker Hub, or with the install wizard."
+description: "Get FiestaBoard running in minutes and connect your first display: a Vestaboard, a Divoom Pixoo 64, or a TV. Run it on a Raspberry Pi (easiest), with Docker Hub, or with the install wizard."
 keywords: [FiestaBoard quick start, FiestaPi, Docker setup, getting started, Vestaboard setup, Vestaboard quick start, Vestaboard Docker, split-flap dashboard]
 ---
 
 # Quick Start
+
+:::note Version availability
+These instructions describe FiestaBoard v10 (`next` / beta). The output-plugin setup and Divoom Pixoo 64 support are not available in stable v9. Native Apple TV and Android TV apps are coming soon; use a browser for TV viewing.
+
+The installation paths below default to stable v9. For Pixoo or the v10 setup, first install with Docker, then follow [Beta channel](/docs/features/updating#the-beta-channel) to back up your data and switch the image to `fiestaboard/fiestaboard:beta` before connecting a display. FiestaPi images also start on stable; they do not provide v10 support just by flashing them.
+:::
 
 Get FiestaBoard running in under 5 minutes. There are two supported paths:
 
@@ -17,7 +23,7 @@ Have a Raspberry Pi 3B or newer? Flash a microSD card with our pre-built **Fiest
 
 **→ [FiestaPi Quick Start](/docs/setup/raspberry-pi)** — Download, flash, boot, done.
 
-This is what we recommend for almost everyone — including users who have never used Docker, a terminal, or a Pi before. The Pi is inexpensive, low-power, and runs 24/7, which makes it a reliable always-on home for the FiestaBoard software. The Pi runs FiestaBoard only — it sits on your network and sends messages to your board through the board's official API. It doesn't go inside, replace, or modify your board.
+This is what we recommend for almost everyone — including users who have never used Docker, a terminal, or a Pi before. The Pi is inexpensive, low-power, and runs 24/7, which makes it a reliable always-on home for the FiestaBoard software. The Pi runs FiestaBoard only — it sits on your network and sends pages to your displays through each display's own interface, such as Vestaboard's official API. It doesn't go inside, replace, or modify any display.
 
 :::tip Don't have a Pi yet?
 Any Raspberry Pi 3B / 3B+ / Zero 2 W / 4 / 5 with 1 GB+ RAM works. Pi 4 and Pi 5 are great choices and have been thoroughly tested.
@@ -29,7 +35,7 @@ Any Raspberry Pi 3B / 3B+ / Zero 2 W / 4 / 5 with 1 GB+ RAM works. Pi 4 and Pi 5
 
 Already have a laptop, desktop, NAS, or home server you'd rather use? FiestaBoard runs anywhere Docker runs. You'll need:
 
-- **Your board's API key** ([how to find it](#getting-your-board-api-key))
+- **For a Vestaboard:** your board's API key ([how to find it](#getting-your-board-api-key)). A Divoom Pixoo 64 or a TV needs no key.
 - **Docker and Docker Compose** ([install Docker Desktop](https://docs.docker.com/desktop/))
 
 If you've never used Docker before, the [Beginner's Guide](/docs/setup/beginners-guide) walks through every step.
@@ -78,19 +84,19 @@ cd FiestaBoard
 .\scripts\install.ps1
 ```
 
-The wizard asks for your board API key, device type, and board color, then starts everything for you.
+The script checks prerequisites, starts FiestaBoard and opens the setup wizard, which asks what display you want to connect.
 
-## Connect Your Board
+## Connect Your Display
 
 Once FiestaBoard is running (either on your Pi at `http://fiestapi.local:4420` or on your computer at `http://localhost:4420`):
 
-1. The setup wizard first asks what you want to show FiestaBoard on. Pick **Vestaboard** and it guides you through connecting your board, or pick **FiestaPanel** to use a TV. Other displays FiestaBoard can drive are listed as cards too; choosing one installs its support and opens its own settings screen. Not ready yet? Choose **Skip — I'll add a display later** to look around first. (If you've already been through setup, go to **Settings** instead.)
+1. The setup wizard first asks what you want to show FiestaBoard on. Pick **Vestaboard** for a split-flap board, **Divoom Pixoo 64** for an LED matrix, or **FiestaPanel** for a TV, and it guides you through connecting it. Each display has its own guide under [Supported Displays](/docs/displays). Not ready yet? Choose **Skip — I'll add a display later** to look around first. (If you've already been through setup, open **Displays** and click **Add a display** instead.)
 2. Once connected, the display service starts automatically
-3. Verify the dashboard shows **Running** — your board is now connected!
+3. Verify the dashboard shows **Running** — your display is now connected!
 
 ### Adding Another Display Later
 
-Open **Displays** and click **Add a display**. Pick what to add — a Vestaboard, a TV (FiestaPanel), or another installed display type — or **Find more displays** in the plugin registry. For a display plugin, name the board, choose its device model, and fill in its settings screen. Buttons such as **Test connection** work before you save.
+Open **Displays** and click **Add a display**. Pick what to add — a Vestaboard, a Divoom Pixoo 64, a TV (FiestaPanel), or another installed display type — or **Find more displays** in the plugin registry. For a display plugin, name the board, choose its device model, and fill in its settings screen. Buttons such as **Test connection** work before you save.
 
 To see every kind of display FiestaBoard can drive, open the **Marketplace** tab on the **Displays** page. It works like the **Integrations** marketplace: install a display plugin, update one, or click **Add display** on a card to set up a board with it. To side-load a display plugin that isn't listed, paste its git repository URL under **Bring your own display**. Every display plugin is available to everyone, with nothing to turn on first. Developers can add support for a new display: see [Writing an Output Plugin](/docs/development/output-plugins).
 
@@ -116,7 +122,7 @@ For a full walkthrough, see **[Your First 10 Minutes](/docs/setup/first-10-minut
 
 ## Getting Your Board API Key
 
-Have your board API key ready before running setup. There are two connection modes:
+For a Vestaboard, have your board API key ready before running setup. There are two connection modes:
 
 ### Local API (Recommended)
 
@@ -153,6 +159,7 @@ On FiestaPi, FiestaBoard starts automatically on boot — there's nothing to sto
 ## Next Steps
 
 - **[FiestaPi Quick Start](/docs/setup/raspberry-pi)** - The recommended Pi-flash path, in detail
+- **[Supported Displays](/docs/displays)** - Setup guides for split-flap boards, LED matrices and TVs
 - **[Your First 10 Minutes](/docs/setup/first-10-minutes)** - Create your first page and enable plugins
 - **[Plugin Directory](/plugins)** - See all available plugins
 - **[Beginner's Guide](/docs/setup/beginners-guide)** - More detailed step-by-step instructions

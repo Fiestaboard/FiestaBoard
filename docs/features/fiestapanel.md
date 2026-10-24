@@ -62,9 +62,10 @@ shapes, and artwork, using the same canvas editor as Divoom. Canvas layers
 paint over the text at exact LED coordinates; transparent pixels leave the
 content underneath visible. The viewer and previews update even when only
 the pixels change, and switching to a page without canvases clears them.
-Use current Android TV and Apple TV apps with a server bundling FiestaPanel
-output 1.0.1 or newer. Native TV matrices retain their 256-pixel-per-axis limit;
-older TV apps continue to show text but ignore canvas layers.
+Native Android TV and Apple TV apps are coming soon. Use the browser viewer
+for now. Development builds of the native viewers require FiestaPanel output
+1.0.1 or newer for canvas layers and retain a 256-pixel-per-axis limit; this
+does not establish released app availability.
 
 For viewer integrations, `GET /panel/{id}/frame` includes `layers` for pixel
 panels: ordered `{x, y, width, height, rgba}` objects, with standard base64
