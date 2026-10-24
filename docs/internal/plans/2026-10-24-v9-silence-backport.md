@@ -37,11 +37,11 @@
 
 **Interfaces:** Produces `HeldSend.text/lines/grid/page/display(..., board_id=...)`, `hold(send)`, `peek(board_id)`, `discard(board_id)->bool`, `preview_text(send)` in `src.silence_queue`; use the established #2257 signatures. Produces `resolve_board_id(board_id)`, `silence_window_end(board_id)`, `silence_verdict(board_id, *, override_silence:bool, hold=None, what=None)->SilenceVerdict` with fields `silenced`, `held`, `ends_at_utc`. Store in the existing isolated data directory. GET /silence-status and DELETE /silence-queue use the spec's additive contract.
 
-- [ ] Write behavior tests first: settings accepts/preserves scoped show_queued_on_exit; store survives reload, newest wins, separate ids, TTL expires and discard is scoped; guard refuses/holds/overrides correctly; status/discard target validation.
-- [ ] Run each new test group before production edits; save the observed expected failures.
-- [ ] Implement only store, policy, setting and status functionality. Inspect v10 as reference but adapt to existing stable configuration and route conventions. Malformed persisted records must not break startup. Keep test reset helpers in test utilities where possible.
-- [ ] Verify targeted store/policy/status/silence-setting suites plus adjacent existing silence tests, Ruff, route/schema goldens, and full Python suite once. Expected GREEN, with any baseline failure explicitly established and reported.
-- [ ] Commit the task and write task-1-report.md with exact RED/GREEN evidence and public interface notes.
+- [x] Write behavior tests first: settings accepts/preserves scoped show_queued_on_exit; store survives reload, newest wins, separate ids, TTL expires and discard is scoped; guard refuses/holds/overrides correctly; status/discard target validation.
+- [x] Run each new test group before production edits; save the observed expected failures.
+- [x] Implement only store, policy, setting and status functionality. Inspect v10 as reference but adapt to existing stable configuration and route conventions. Malformed persisted records must not break startup. Keep test reset helpers in test utilities where possible.
+- [x] Verify targeted store/policy/status/silence-setting suites plus adjacent existing silence tests, Ruff, route/schema goldens, and full Python suite once. Expected GREEN, with any baseline failure explicitly established and reported.
+- [x] Commit the task and write task-1-report.md with exact RED/GREEN evidence and public interface notes.
 
 ### Task 2: All manual writes and stable engine delivery
 
@@ -49,11 +49,11 @@
 
 **Interfaces:** Consumes Task 1's store, settings and verdict. Produces additive override_silence request fields on relevant write paths, truthful silenced/held/ends_at_utc/sent response fields, HTTP 202 for accepted held messages, unchanged v1 force meaning. Active-page selection persists but immediate hardware writes defer. DELETE /silence-queue and status from Task 1 remain the UI contract. The stable engine peeks outside silence, after pause/UI-only gates, renders typed intents through stable helpers, and discards only on success.
 
-- [ ] Write behavioral RED tests for every affected send surface using existing fake hardware fixtures; include primary and secondary boards, unknown ids, pause with explicit override, v1 force alone during silence, and invalid payload preserving a prior intent.
-- [ ] Run before implementation, save expected failures, then adapt each boundary to the common policy. Preserve each existing endpoint's pause/refusal/preview contract; do not route unrelated debug/diagnostic operations through new UX.
-- [ ] Write engine RED tests for persistent intent after restart, board isolation, delivery at silence exit, failed/throttled/paused retry, 24-hour expiry, fresh page rendering and successful explicit send supersession. Include a newer intent queued while an older send is in flight; the older completion must preserve the newer intent. Implement minimal v9 engine integration.
-- [ ] Run full focused manual-send/silence/engine/v1/MCP/MQTT suites, the full Python suite, Ruff and API route/wire contract validation. Expected GREEN. Run no live server or board tests.
-- [ ] Commit and write task-2-report.md, including the exact final API shape consumed by Task 3.
+- [x] Write behavioral RED tests for every affected send surface using existing fake hardware fixtures; include primary and secondary boards, unknown ids, pause with explicit override, v1 force alone during silence, and invalid payload preserving a prior intent.
+- [x] Run before implementation, save expected failures, then adapt each boundary to the common policy. Preserve each existing endpoint's pause/refusal/preview contract; do not route unrelated debug/diagnostic operations through new UX.
+- [x] Write engine RED tests for persistent intent after restart, board isolation, delivery at silence exit, failed/throttled/paused retry, 24-hour expiry, fresh page rendering and successful explicit send supersession. Include a newer intent queued while an older send is in flight; the older completion must preserve the newer intent. Implement minimal v9 engine integration.
+- [x] Run full focused manual-send/silence/engine/v1/MCP/MQTT suites, the full Python suite, Ruff and API route/wire contract validation. Expected GREEN. Run no live server or board tests.
+- [x] Commit and write task-2-report.md, including the exact final API shape consumed by Task 3.
 
 ### Task 3: Stable silence UI, docs and final integration
 
@@ -61,8 +61,8 @@
 
 **Interfaces:** Consumes Task 2's request/response fields and Task 1's status/discard contract. All actions target the selected board; client invalidation refreshes the same board after success. Show now uses explicit override_silence; failures retain truthful held state.
 
-- [ ] Write and run RED tests for silence notice/end time, selected-page deferral, Show now and Discard, target switching, failed requests, paused warnings, Compose/Force Set/Live confirmations, out-of-sync suppression and settings persistence.
-- [ ] Implement the established v10 UX using stable existing components and APIs. Keep translations, accessible names, keyboard flows and mobile layout intact. Do not import v10 preview/display architecture.
-- [ ] Run focused UI suites, then the full web suite, typecheck, production build and scoped ESLint/Prettier. Run isolated browser/e2e checks with fake boards if available; never connect to the live installation. Record remaining UI verification limits precisely.
-- [ ] Update user/API docs and local test evidence; commit. Write task-3-report.md.
-- [ ] Controller performs independent whole-branch review and fixes material findings with RED/GREEN evidence, then verifies final Python/web suites and the final diff. Leave the candidate local for review.
+- [x] Write and run RED tests for silence notice/end time, selected-page deferral, Show now and Discard, target switching, failed requests, paused warnings, Compose/Force Set/Live confirmations, out-of-sync suppression and settings persistence.
+- [x] Implement the established v10 UX using stable existing components and APIs. Keep translations, accessible names, keyboard flows and mobile layout intact. Do not import v10 preview/display architecture.
+- [x] Run focused UI suites, then the full web suite, typecheck, production build and scoped ESLint/Prettier. Run isolated browser/e2e checks with fake boards if available; never connect to the live installation. Record remaining UI verification limits precisely.
+- [x] Update user/API docs and local test evidence; commit. Write task-3-report.md.
+- [x] Controller performs independent whole-branch review and fixes material findings with RED/GREEN evidence, then verifies final Python/web suites and the final diff. Leave the candidate local for review.
