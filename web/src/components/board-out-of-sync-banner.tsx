@@ -1,8 +1,9 @@
 "use client";
 
 import { Alert, AlertDescription, AlertTitle, Box, Button, Flex, Text } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Check, History, Loader2, Save, UploadCloud } from "lucide-react";
+import { AlertTriangle, Check, History, Save, UploadCloud } from "lucide-react";
 import { useState } from "react";
 
 import Link from "@/components/smart-link";
@@ -154,7 +155,7 @@ export function BoardOutOfSyncBanner({
         {live && (
           <Button size="sm" variant="outline" onClick={restore} disabled={isRestoring} className="gap-1.5">
             {isRestoring ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              <Spinner label={null} className="h-3.5 w-3.5" aria-hidden="true" />
             ) : (
               <UploadCloud className="h-3.5 w-3.5" aria-hidden="true" />
             )}
@@ -176,7 +177,7 @@ export function BoardOutOfSyncBanner({
         ) : (
           <Button size="sm" variant="outline" onClick={handleSave} disabled={isSaving} className="gap-1.5">
             {isSaving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              <Spinner label={null} className="h-3.5 w-3.5" aria-hidden="true" />
             ) : (
               <Save className="h-3.5 w-3.5" aria-hidden="true" />
             )}

@@ -1,7 +1,8 @@
 "use client";
 
 import { Box, Button, Flex, Heading, Stack, Text } from "@fiestaboard/ui";
-import { CheckCircle, Clock, Loader2, PartyPopper, Puzzle, Send, XCircle } from "lucide-react";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
+import { CheckCircle, Clock, PartyPopper, Puzzle, Send, XCircle } from "lucide-react";
 import { useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
@@ -183,7 +184,7 @@ export function StepWelcome({
           >
             {sendStatus === "sending" ? (
               <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                <Spinner label={null} className="h-5 w-5 mr-2" />
                 {tc("sending")}
               </>
             ) : sendStatus === "success" ? (

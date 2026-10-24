@@ -16,7 +16,7 @@ import {
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowUpCircle, Cpu, Loader2, Power, RefreshCw } from "lucide-react";
+import { ArrowUpCircle, Cpu, Power, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useUpdate } from "@/components/update-context";
@@ -93,7 +93,7 @@ export function SystemControls() {
             disabled={anyPending}
           >
             {updateMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Spinner label={null} className="h-4 w-4 mr-2" />
             ) : (
               <ArrowUpCircle className="h-4 w-4 mr-2" />
             )}
@@ -102,7 +102,7 @@ export function SystemControls() {
 
           <Button variant="outline" size="sm" onClick={() => setConfirmAction("restart")} disabled={anyPending}>
             {restartMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Spinner label={null} className="h-4 w-4 mr-2" />
             ) : (
               <RefreshCw className="h-4 w-4 mr-2" />
             )}
@@ -117,7 +117,7 @@ export function SystemControls() {
             className="text-destructive hover:text-destructive"
           >
             {shutdownMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Spinner label={null} className="h-4 w-4 mr-2" />
             ) : (
               <Power className="h-4 w-4 mr-2" />
             )}

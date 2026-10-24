@@ -20,8 +20,9 @@ import {
   Text,
   Textarea,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
-import { AlertCircle, ChevronDown, ChevronRight, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronRight, MapPin, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -672,7 +673,7 @@ function NumberField(props: NumberFieldProps) {
           title={t("useMyCurrentLocation")}
         >
           {isGettingLocation || isLocationLoading ? (
-            <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+            <Spinner label={null} className="h-4 w-4 text-muted-foreground" />
           ) : (
             <MapPin className="h-4 w-4 text-muted-foreground" />
           )}

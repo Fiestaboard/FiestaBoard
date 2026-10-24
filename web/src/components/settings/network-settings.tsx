@@ -21,7 +21,7 @@ import {
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Loader2, Lock, RefreshCw, Trash2, Unlink, Wifi, WifiOff, X } from "lucide-react";
+import { Check, Lock, RefreshCw, Trash2, Unlink, Wifi, WifiOff, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -195,7 +195,7 @@ export function NetworkSettings() {
             disabled={statusQuery.isFetching}
           >
             {statusQuery.isFetching ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Spinner label={null} className="h-4 w-4 mr-2" />
             ) : (
               <RefreshCw className="h-4 w-4 mr-2" />
             )}
@@ -221,7 +221,7 @@ export function NetworkSettings() {
         title={t("availableNetworks")}
         action={
           <Button size="sm" variant="ghost" onClick={handleScan} disabled={scanning}>
-            {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            {scanning ? <Spinner label={null} className="h-4 w-4 mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
             {scanning ? t("scanning") : t("rescan")}
           </Button>
         }
@@ -340,7 +340,7 @@ export function NetworkSettings() {
             >
               {connectMutation.isPending ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Spinner label={null} className="h-4 w-4 mr-2" />
                   {t("connecting")}
                 </>
               ) : (
@@ -369,7 +369,7 @@ export function NetworkSettings() {
               disabled={disconnectMutation.isPending}
             >
               {disconnectMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Spinner label={null} className="h-4 w-4 mr-2" />
               ) : (
                 <Unlink className="h-4 w-4 mr-2" />
               )}
@@ -397,7 +397,7 @@ export function NetworkSettings() {
               disabled={forgetMutation.isPending}
             >
               {forgetMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Spinner label={null} className="h-4 w-4 mr-2" />
               ) : (
                 <Trash2 className="h-4 w-4 mr-2" />
               )}
