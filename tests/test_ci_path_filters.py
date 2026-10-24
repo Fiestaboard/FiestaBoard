@@ -76,3 +76,9 @@ def test_every_root_json_read_by_tests_triggers_platform_tests() -> None:
         "touching only those files would skip the tests that validate them. "
         "Add them to the `api` filter (#2004)."
     )
+
+
+def test_dependency_locks_trigger_platform_tests() -> None:
+    patterns = _platform_patterns()
+    for name in ("package-lock.json", "web/package-lock.json"):
+        assert _matches(name, patterns), f"{name} must trigger the developer dependency security guards"

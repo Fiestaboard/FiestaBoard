@@ -184,8 +184,11 @@ test.describe("Board send-path integration", () => {
 
     const token = uniq("STEP");
     const pageId = await createPage(`Stepped ${token}`, [token, "", "", "", "", ""]);
+    // Deleting the last page creates an active Welcome replacement. Pin our
+    // target so an engine pass cannot overwrite it between send and readback.
+    await setActivePage(pageId);
 
-    // Start from a blank board so the typewriter genuinely reveals the target
+    // Clear the cached frame so the typewriter genuinely reveals the target
     // over several frames rather than snapping.
     await clearBoardCache();
     await resetMockBoard();

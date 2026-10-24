@@ -936,6 +936,25 @@ class TestSettingsSnapshots:
 class TestSystemUpdateStatusRollbackFields:
     """``/system/update/status`` surfaces the sidecar's last-update result."""
 
+    def test_status_includes_sidecar_attempt_start_time(self, client, tmp_path, monkeypatch):
+        """Idle browsers can distinguish a live update from an abandoned record."""
+        monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
+        monkeypatch.setattr("src.system.update_service.SYSTEM_UPDATE_STATE_FILE", tmp_path / "state.json")
+        monkeypatch.setattr("src.system.update_service.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps")
+
+        def fake_get(url, **_kwargs):
+            response = Mock(status_code=200)
+            response.json.return_value = (
+                {"status": "in_progress", "started_at": "2026-10-22T12:00:00Z"} if url.endswith("/last-update") else {}
+            )
+            return response
+
+        with patch("src.system.update_service.requests.get", side_effect=fake_get):
+            response = client.get("/system/update/status")
+
+        assert response.status_code == 200
+        assert response.json()["last_update_started_at"] == "2026-10-22T12:00:00Z"
+
     def test_status_includes_sidecar_last_update(self, client, tmp_path, monkeypatch):
         """A rolled-back attempt is reflected in the status payload."""
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
