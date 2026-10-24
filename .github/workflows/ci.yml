@@ -67,6 +67,9 @@ jobs:
               # red (#2004). Guarded by tests/test_ci_path_filters.py.
               - 'plugin-registry.json'
               - 'plugin-previews.json'
+              # Python guards verify known fixes in both developer lockfiles.
+              - 'package-lock.json'
+              - 'web/package-lock.json'
             ui:
               - 'web/**'
               - 'Dockerfile'
@@ -589,6 +592,11 @@ jobs:
     - name: Install Playwright browsers
       working-directory: web
       run: npx playwright install --with-deps chromium
+
+    - name: Check Storybook Docker host validation
+      working-directory: web
+      timeout-minutes: 3
+      run: npm run test:storybook-hosts
 
     - name: Build Storybook
       working-directory: web
