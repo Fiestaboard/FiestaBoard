@@ -4,6 +4,7 @@ Date: 2026-10-24. Issues: #1943 and #1944.
 Branch: `fix/v9-silence-backport`.
 Worktree: `/tmp/fiestaboard-v9-silence-backport`.
 Stable base: `256c9d58d2d13a58cc50429574a06982312b22ea`.
+Reviewed implementation: `80923fb3335ef992616f22f6539371cbc7849154`.
 Prior tested implementation: `226a8a73c1ca7d996f39c73d826a6c938c60f75a`.
 Task 4 corrects retry and unreadable-store behavior; its verification is recorded below.
 
@@ -21,9 +22,10 @@ No v10 output architecture or dependency changes were introduced.
 Task 1, Task 2 and Task 3 independent reviews approved their earlier changes.
 The whole-branch review found four Important issues; one grouped fix wave
 addresses all four in the tested implementation above. Bounded final re-review
-approved all four as addressed at that time. Task4 supersedes the earlier
-delivery-marker policy and requires its own independent review. No merge or
-publication approval is implied.
+approved all four as addressed at that time. Task 4 supersedes the earlier
+delivery-marker policy. Fresh final independent source review approved the
+complete correction and its interactions with no actionable findings. No merge
+or publication approval is implied.
 
 ## Prior candidate verification
 
@@ -100,13 +102,26 @@ were updated to assert automatic retry rather than deleted.
 | Locale scope | All 14 catalogs: exactly two recovery keys replaced with two unavailable keys; all other values unchanged |
 | Generated API | Current, 2023 lines; schema, convention and response golden tests passed |
 | Docs | 41 frontmatter pages, 41 pages/5 categories, 86 Markdown files without issues, feature spelling clean |
+| Actual HTTP/mock board | Five groups passed on the final reloaded source |
+| Production UI/actual API | Eight groups passed, including inactive paused pending-message Discard/no wire and four viewport/theme checks |
+| Damaged synthetic queue | Five groups passed: status unavailable, hold/discard 503, no wire, four viewport/theme warning checks; exact damaged bytes preserved |
+| Repair without restart | Six groups passed: available status/exact pending preview, four viewport/theme checks, actual UI Discard/no wire |
+| Fresh final source review | Approved; no Critical, Important or Minor findings |
 
 The first Task 4 full Python run passed 9480 before self-review found the
 no-write compatibility interaction; its log is retained and the 9488 result
 supersedes it. The web source was unchanged by that backend correction.
 Raw logs and exact commands are retained in the ignored task workspace's
-`task-4-report.md` and `evidence/task-4-*.log`. Independent review remains the
-controller's next gate; no publication is authorized.
+`task-4-report.md`, `task-4-controller-evidence.md`, `task-4-review.md`,
+`evidence/task-4-*.log` and `evidence/v9-silence-task4-*.log`. All final browser
+page-error arrays are empty; scoped axe and overflow checks passed. The mobile
+unavailable warning was visually inspected and is readable without clipping.
+The reused fresh-container harness initially ran before service readiness and
+assumed a ten-second deadline below its configured fifteen-second polling
+interval. Final readiness is explicit, and the deadline derives from the
+configured poll plus ten seconds (25 seconds in the passing log). Earlier
+failures and their source-derived explanation are retained; no product latency
+change or semantic assertion relaxation was made. No publication is authorized.
 
 ## Current reliability decisions and limits
 
@@ -119,8 +134,13 @@ Unreadable or malformed queue data is preserved and exposed as unavailable;
 mutations fail until repair, and status checks retry loading automatically.
 An already in-flight hardware write cannot be undone by Discard.
 
-The implementation retains the existing single-process storage topology,
-setup/diagnostic exceptions and stable temporary-override authorization. No
+The stock shipped Docker/Pi configuration uses one Python writer. This is a
+deployment convention, not enforcement: external Home Assistant wrappers,
+custom conf.d programs or multiple containers sharing data were not verified.
+Setup welcome retains its silence/pause guards. Legacy REST debug blank/fill/info
+still bypass silence while respecting pause/output; canonical/MCP equivalents
+check silence. Temporary-override creation retains its explicit wake semantics,
+while engine pause still prevents hardware I/O. No
 physical board, native screen reader, all-language native editorial review or
 whole-application WCAG audit was performed. Isolated fake hardware, viewport
 layout, scoped axe and locale completeness were verified.
@@ -149,7 +169,7 @@ branch are preserved for review.
   Cost if wrong: internal reference paths change.
 - Retain the existing single-process storage boundary. Cost if wrong:
   independent concurrent writers can lose queue updates.
-- Retain setup/diagnostic exceptions and stable temporary-override authorization;
+- Retain existing setup guards, diagnostic exceptions and temporary-override authorization;
   fix their new held-intent interactions. Cost if wrong: existing policy
   exceptions remain.
 - Retry ambiguous delivery automatically, retaining conditional cleanup and

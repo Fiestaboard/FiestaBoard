@@ -98,6 +98,6 @@ cache an empty store, rewrite the source, or acknowledge a new mutation.
   build, scoped lint/format, docs/locales and API schema checks as affected.
   Use only the already-authorized Docker workflow with isolated fake hardware;
   never retry the denied reviewer probe or write a physical board.
-- [ ] Commit locally and write `task-4-report.md` with exact logs, duplicate-send
+- [x] Commit locally and write `task-4-report.md` with exact logs, duplicate-send
   semantics and remaining limits. Independent source review must inspect the
   correction and evidence; update this plan and verification record afterward.
