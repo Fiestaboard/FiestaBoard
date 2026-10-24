@@ -166,8 +166,10 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Muni Transit](https://github.com/Fiestaboard/fiestaboard-plugin--muni) | Real-time SF Muni arrivals | Yes (free) |
 | [National Day](https://github.com/Fiestaboard/fiestaboard-plugin--national-day) | Today's national days and observances | No |
 | [Nearby Aircraft](https://github.com/Fiestaboard/fiestaboard-plugin--nearby-aircraft) | Real-time aircraft tracking | Optional |
+| [Netatmo Weather](https://github.com/rummeyer/fiestaboard-plugin--netatmo-weather) | Netatmo Weather Station readings, one module per row | Own app (free) |
 | [Network Speed](https://github.com/Fiestaboard/fiestaboard-plugin--network-speed) | Internet download/upload speed | No |
 | [On This Day](https://github.com/Fiestaboard/fiestaboard-plugin--on-this-day) | Historical event from today's date | No |
+| [Open Meteo Weather](https://github.com/rummeyer/fiestaboard-plugin--open-meteo-weather) | Current weather and the week as color tiles, from Open-Meteo | No |
 | [Oura](https://github.com/Fiestaboard/fiestaboard-plugin--oura) | Show your Oura Ring's daily Sleep, Readiness and Activity scores, last night's sleep and resting heart rate, and today's steps. Signs in to your Oura account through your own free Oura API application | Own app (free) |
 | [Pet Facts](https://github.com/Fiestaboard/fiestaboard-plugin--pet-facts) | Random cat or dog fact | No |
 | [Pi-hole Stats](https://github.com/Fiestaboard/fiestaboard-plugin--pihole) | DNS query stats from local Pi-hole | No |
