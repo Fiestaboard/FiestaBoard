@@ -2216,7 +2216,7 @@ class DisplayService:
 
         No failed, paused, throttled or unrenderable attempt consumes it.
         The exact intent is compared at completion, preserving a newer hold.
-        None means it cannot currently render (or needs manual recovery), so
+        None means it cannot currently render, so
         existing normal/explicit engine inputs still get their turn.
         """
         from src import silence_queue
@@ -2227,12 +2227,9 @@ class DisplayService:
 
         board_id = held.board_id
         key = ("silence-held", held.queued_at)
-        # The durable marker is already unresolved while this worker writes.
-        # Background ticks must not mistake that live attempt for recovery.
+        # Background ticks must not preempt an in-flight held delivery.
         if not wait and self._send_in_flight(rt, key):
             return False
-        if held.delivery_state == "unresolved":
-            return None
         board = board if board is not None else self._board_dict_for(board_id)
         if not rt.client or board is None:
             return False

@@ -910,9 +910,9 @@
     "toastResendNotSent": "Rien n'a été envoyé (tableau en pause ou sortie réglée sur l'interface uniquement)",
     "heldPendingTitle": "Message en attente de livraison",
     "heldPending": "Ce message attend sa livraison. Une nouvelle tentative aura lieu lorsque le tableau sera disponible. Vous pouvez le supprimer ci-dessous.",
-    "heldRecoveryTitle": "La livraison nécessite votre attention",
-    "heldRecovery": "La livraison n’a pas pu être confirmée. Les tentatives automatiques sont arrêtées pour éviter de répéter le message. Supprimez cette entrée ou envoyez explicitement un nouveau contenu pour la remplacer.",
-    "heldPreview": "Message en attente : « {preview} »"
+    "heldPreview": "Message en attente : « {preview} »",
+    "heldUnavailableTitle": "Messages en attente indisponibles",
+    "heldUnavailable": "La file enregistrée ne peut pas être lue. Les messages en attente sont inconnus. Leur mise en attente et leur suppression sont indisponibles tant que le stockage ne fonctionne pas."
   },
   "forceSetDialog": {
     "title": "Forcer l'affichage",

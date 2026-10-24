@@ -676,9 +676,9 @@ class _SendTarget:
         self.board_id = board_id
         self.primary_id = primary_id
         self.settings_service = settings_service
-        from src import silence_queue
+        from src.board_guards import peek_held_send
 
-        self.previous = silence_queue.peek(board_id or primary_id)
+        self.previous = peek_held_send(board_id or primary_id)
 
 
 def _resolve_send_target(
@@ -946,6 +946,8 @@ def send_message(
             success="Message sent successfully.",
         )
     except Exception as exc:
+        if getattr(exc, "status_code", None) == 503:
+            return err(str(exc.detail), http_status=503)
         return err(f"Error sending message: {exc}")
 
 
@@ -1007,6 +1009,8 @@ def send_characters(
             success="Characters sent successfully.",
         )
     except Exception as exc:
+        if getattr(exc, "status_code", None) == 503:
+            return err(str(exc.detail), http_status=503)
         return err(f"Error sending characters: {exc}")
 
 

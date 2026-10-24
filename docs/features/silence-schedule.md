@@ -142,13 +142,15 @@ A saved page that is deleted, cannot render, or no longer fits the board stays
 pending without blocking other normal content or a new explicit override.
 
 If the queue cannot be saved, a hold or discard reports an error and leaves the
-previous saved message intact. Before delivery, the queue records that a write
-is starting. If delivery or its final cleanup cannot be confirmed, Home shows
-**Delivery needs attention** and automatic retry stops to avoid repeating a
-message after restart. This can also happen if the app stops after recording
-the attempt but before sending. Discard the entry, or explicitly send new
-content to replace it. **Show now** still sends the selected page. A failed
-discard keeps the entry visible so you can try again after storage recovers.
+previous saved message intact. Automatic retry continues after an interrupted
+send or restart. If the board received a message but its acknowledgment or queue
+cleanup failed, a later retry can send it again. Delivery is not exactly once.
+A successful board write is still reported as sent when only queue cleanup fails.
+
+If saved queue data cannot be read or is damaged, Home shows **Held messages
+unavailable**. The existing file stays intact; new holds and discards report an
+error until storage access or the saved data is repaired. Status checks retry
+reading it automatically. A genuinely missing queue file starts an empty queue.
 
 ## API Behavior
 

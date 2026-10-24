@@ -910,9 +910,9 @@
     "toastResendNotSent": "Inget skickades (tavlan pausad eller utdata inställd på endast gränssnittet)",
     "heldPendingTitle": "Meddelande väntar på leverans",
     "heldPending": "Det här meddelandet väntar på leverans. Ett nytt försök görs när tavlan är tillgänglig. Du kan ta bort det nedan.",
-    "heldRecoveryTitle": "Leveransen behöver åtgärdas",
-    "heldRecovery": "Leveransen kunde inte bekräftas. Automatiska försök har stoppats för att undvika att upprepa meddelandet. Ta bort posten eller skicka uttryckligen nytt innehåll för att ersätta den.",
-    "heldPreview": "Sparat meddelande: ”{preview}”"
+    "heldPreview": "Sparat meddelande: ”{preview}”",
+    "heldUnavailableTitle": "Väntande meddelanden är inte tillgängliga",
+    "heldUnavailable": "Den sparade kön kunde inte läsas. Väntande meddelanden är okända. Det går inte att spara eller ta bort meddelanden förrän lagringen fungerar igen."
   },
   "forceSetDialog": {
     "title": "Tvinga inställning av board",

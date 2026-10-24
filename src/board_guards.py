@@ -506,11 +506,21 @@ def silence_verdict(
     return SilenceVerdict(silenced=True, held=False, ends_at_utc=ends_at)
 
 
+def peek_held_send(board_id):
+    """Read a manual write's observed intent, exposing unavailable storage as 503."""
+    from src import silence_queue
+
+    try:
+        return silence_queue.peek(board_id)
+    except silence_queue.QueueUnavailableError as exc:
+        raise HTTPException(status_code=503, detail="Held message queue is unavailable") from exc
+
+
 def deliver_with_held_cleanup(previous, send, *args, require_current: bool = False, check=None, **kwargs):
-    """Protect a consuming board write with the queue's durable marker."""
+    """Clear only the observed intent after an actual successful board write."""
     from src import silence_queue
 
     try:
         return silence_queue.deliver(previous, send, *args, require_current=require_current, check=check, **kwargs)
-    except silence_queue.DeliveryPreparationError as exc:
-        raise HTTPException(status_code=503, detail="Could not persist held delivery state") from exc
+    except silence_queue.QueueUnavailableError as exc:
+        raise HTTPException(status_code=503, detail="Held message queue is unavailable") from exc

@@ -40,7 +40,7 @@ function SwitchBoard() {
   return <button onClick={() => setCurrentBoardId("b")}>Select second board</button>;
 }
 
-function fixture({ enabled = true, paused = false, unresolved = false } = {}) {
+function fixture({ enabled = true, paused = false, queueAvailable = true } = {}) {
   const held: Record<string, boolean> = { a: true, b: true };
   server.use(
     http.get("/api/settings/board", () =>
@@ -61,14 +61,15 @@ function fixture({ enabled = true, paused = false, unresolved = false } = {}) {
         start_time_utc: "22:00+00:00",
         end_time_utc: "07:00+00:00",
         mode: "freeze",
-        held: held[board]
-          ? {
-              kind: "text",
-              preview: `MESSAGE ${board.toUpperCase()}`,
-              queued_at: "2026-10-24T23:00:00Z",
-              delivery_state: unresolved ? "unresolved" : "pending",
-            }
-          : null,
+        queue_available: queueAvailable,
+        held:
+          queueAvailable && held[board]
+            ? {
+                kind: "text",
+                preview: `MESSAGE ${board.toUpperCase()}`,
+                queued_at: "2026-10-24T23:00:00Z",
+              }
+            : null,
       });
     }),
   );
@@ -131,13 +132,13 @@ describe("Home keeps pending delivery visible outside quiet hours", () => {
     expect(held.a).toBe(true);
   });
 
-  it("explains unresolved delivery without promising automatic retry", async () => {
-    fixture({ enabled: false, unresolved: true });
+  it("warns when the held queue is unavailable without pretending it is empty", async () => {
+    fixture({ enabled: false, queueAvailable: false });
     render(<ActivePageDisplay />, { wrapper: Wrapper });
-    const notice = await screen.findByTestId("silence-alert");
-    expect(notice).toHaveTextContent("Delivery needs attention");
-    expect(notice).toHaveTextContent("Automatic retry is stopped");
-    expect(notice).toHaveTextContent("explicitly send new content");
-    expect(screen.getByTestId("silence-discard-held")).toBeEnabled();
+    const notice = await screen.findByTestId("silence-queue-unavailable");
+    expect(notice).toHaveTextContent("Held messages unavailable");
+    expect(notice).toHaveTextContent("The saved queue could not be read");
+    expect(screen.queryByTestId("silence-discard-held")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("silence-held")).not.toBeInTheDocument();
   });
 });

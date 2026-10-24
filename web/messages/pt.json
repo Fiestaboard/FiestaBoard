@@ -910,9 +910,9 @@
     "toastResendNotSent": "Nada foi enviado (quadro pausado ou saída definida só para a interface)",
     "heldPendingTitle": "Mensagem aguardando entrega",
     "heldPending": "Esta mensagem aguarda entrega. Uma nova tentativa será feita quando o painel estiver disponível. Você pode descartá-la abaixo.",
-    "heldRecoveryTitle": "A entrega requer atenção",
-    "heldRecovery": "Não foi possível confirmar a entrega. As tentativas automáticas foram interrompidas para evitar repetir a mensagem. Descarte esta entrada ou envie explicitamente novo conteúdo para substituí-la.",
-    "heldPreview": "Mensagem retida: “{preview}”"
+    "heldPreview": "Mensagem retida: “{preview}”",
+    "heldUnavailableTitle": "Mensagens retidas indisponíveis",
+    "heldUnavailable": "Não foi possível ler a fila guardada. As mensagens retidas são desconhecidas. Não é possível reter ou descartar mensagens até que o armazenamento recupere."
   },
   "forceSetDialog": {
     "title": "Forçar board",

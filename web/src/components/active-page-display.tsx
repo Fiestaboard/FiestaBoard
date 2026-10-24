@@ -3,6 +3,7 @@
 import {
   Alert,
   AlertDescription,
+  AlertTitle,
   Badge,
   Box,
   Button,
@@ -899,41 +900,41 @@ export function ActivePageDisplay() {
         </Stack>
 
         <Box className="space-y-4">
+          {!silence.queueAvailable && (
+            <Alert
+              variant="default"
+              className="border-warning/50 bg-warning/10"
+              data-testid="silence-queue-unavailable"
+            >
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertTitle>{t("heldUnavailableTitle")}</AlertTitle>
+              <AlertDescription>{t("heldUnavailable")}</AlertDescription>
+            </Alert>
+          )}
           {/* Silence (#1943): what is on hold and what happens when it ends. */}
           {(silence.active || silence.held) && (
             <SilenceNotice
               until={silence.until}
-              title={
-                silence.active
-                  ? undefined
-                  : silence.held?.delivery_state === "unresolved"
-                    ? t("heldRecoveryTitle")
-                    : t("heldPendingTitle")
-              }
+              title={silence.active ? undefined : t("heldPendingTitle")}
               data-testid="silence-alert"
               description={
                 <>
                   <Text as="span" size="sm" className="block">
-                    {silence.held?.delivery_state === "unresolved"
-                      ? t("heldRecovery")
-                      : !silence.active
-                        ? t("heldPending")
-                        : isTargetPaused
-                          ? activePage || activeCollection
-                            ? t("toastSwitchPaused", { pageName: activeCollection?.name ?? activePage?.name ?? "" })
-                            : tPause("tooltip")
-                          : scheduleEnabled
-                            ? t("silenceSchedule")
-                            : activeCollection || activePage
-                              ? t("silenceManual", { pageName: activeCollection?.name ?? activePage?.name ?? "" })
-                              : t("silenceNoPage")}
+                    {!silence.active
+                      ? t("heldPending")
+                      : isTargetPaused
+                        ? activePage || activeCollection
+                          ? t("toastSwitchPaused", { pageName: activeCollection?.name ?? activePage?.name ?? "" })
+                          : tPause("tooltip")
+                        : scheduleEnabled
+                          ? t("silenceSchedule")
+                          : activeCollection || activePage
+                            ? t("silenceManual", { pageName: activeCollection?.name ?? activePage?.name ?? "" })
+                            : t("silenceNoPage")}
                   </Text>
                   {silence.held && (
                     <Text as="span" size="sm" className="mt-1 block" data-testid="silence-held">
-                      {t(
-                        silence.active && silence.held.delivery_state !== "unresolved" ? "silenceHeld" : "heldPreview",
-                        { preview: silence.held.preview },
-                      )}
+                      {t(silence.active ? "silenceHeld" : "heldPreview", { preview: silence.held.preview })}
                     </Text>
                   )}
                 </>

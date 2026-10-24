@@ -910,9 +910,9 @@
     "toastResendNotSent": "Non è stato inviato nulla (tabellone in pausa o uscita impostata solo sull'interfaccia)",
     "heldPendingTitle": "Messaggio in attesa di consegna",
     "heldPending": "Questo messaggio è in attesa di consegna. Verrà riprovato quando il tabellone sarà disponibile. Puoi eliminarlo qui sotto.",
-    "heldRecoveryTitle": "La consegna richiede attenzione",
-    "heldRecovery": "Non è stato possibile confermare la consegna. I tentativi automatici sono interrotti per evitare di ripetere il messaggio. Elimina questa voce o invia esplicitamente nuovi contenuti per sostituirla.",
-    "heldPreview": "Messaggio trattenuto: «{preview}»"
+    "heldPreview": "Messaggio trattenuto: «{preview}»",
+    "heldUnavailableTitle": "Messaggi in attesa non disponibili",
+    "heldUnavailable": "Impossibile leggere la coda salvata. I messaggi in attesa sono sconosciuti e non è possibile conservarli o eliminarli finché lo spazio di archiviazione non torna disponibile."
   },
   "forceSetDialog": {
     "title": "Forza impostazione board",

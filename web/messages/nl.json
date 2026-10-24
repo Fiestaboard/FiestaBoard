@@ -910,9 +910,9 @@
     "toastResendNotSent": "Er is niets verzonden (bord gepauzeerd of uitvoer ingesteld op alleen de interface)",
     "heldPendingTitle": "Bericht wacht op bezorging",
     "heldPending": "Dit bericht wacht op bezorging. Er volgt een nieuwe poging zodra het bord beschikbaar is. Je kunt het hieronder verwijderen.",
-    "heldRecoveryTitle": "Bezorging vereist aandacht",
-    "heldRecovery": "De bezorging kon niet worden bevestigd. Automatische pogingen zijn gestopt om herhaling te voorkomen. Verwijder dit item of verstuur bewust nieuwe inhoud om het te vervangen.",
-    "heldPreview": "Vastgehouden bericht: ‘{preview}’"
+    "heldPreview": "Vastgehouden bericht: ‘{preview}’",
+    "heldUnavailableTitle": "Bewaarde berichten niet beschikbaar",
+    "heldUnavailable": "De opgeslagen wachtrij kon niet worden gelezen. Bewaarde berichten zijn onbekend. Bewaren en verwijderen zijn niet beschikbaar totdat de opslag is hersteld."
   },
   "forceSetDialog": {
     "title": "Board forceren",

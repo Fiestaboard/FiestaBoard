@@ -135,7 +135,7 @@ def test_failed_explicit_discard_retains_durable_intent(sends, monkeypatch):
 
 
 @pytest.mark.parametrize("surface", ["held", "legacy", "v1", "active"])
-def test_successful_write_with_failed_cleanup_is_truthful_and_does_not_replay(engine, sends, monkeypatch, surface):
+def test_successful_write_with_failed_cleanup_is_truthful_and_retries(engine, sends, monkeypatch, surface):
     bid = sends.boards[0]["id"]
     silence_queue.hold(silence_queue.HeldSend.text("OLD", board_id=bid))
     sends.clock.set(datetime(2026, 10, 25, 8, tzinfo=UTC))
@@ -159,17 +159,14 @@ def test_successful_write_with_failed_cleanup_is_truthful_and_does_not_replay(en
             assert response.status_code == 200
             assert response.json()["sent_to_board" if surface == "active" else "sent"] is True
         status = sends.http.get("/silence-status", params={"board_id": bid}).json()
-        assert status["held"]["delivery_state"] == "unresolved"
+        assert status["held"]["preview"] == "OLD"
     importlib.reload(silence_queue)
-    assert silence_queue.peek(bid).delivery_state == "unresolved"
+    assert silence_queue.peek(bid).payload == "OLD"
     sends.clients[bid].render.reset_mock()
-    drive(engine, sends)
+    assert drive(engine, sends) is True
     from tests.helpers import decode_board_rows
 
-    for call in sends.clients[bid].render.call_args_list:
-        assert decode_board_rows(call.args[0])[0].strip() != "OLD"
-    response = sends.http.delete("/silence-queue", params={"board_id": bid})
-    assert response.status_code == 200 and response.json()["discarded"] is True
+    assert decode_board_rows(sends.clients[bid].render.call_args.args[0])[0].strip() == "OLD"
     importlib.reload(silence_queue)
     assert silence_queue.peek(bid) is None
 
@@ -182,23 +179,26 @@ def test_failed_or_throttled_delivery_restores_durable_pending(engine, sends, ou
     sends.clients[bid].render.return_value = outcome
     assert drive(engine, sends) is False
     importlib.reload(silence_queue)
-    assert silence_queue.peek(bid).delivery_state == "pending"
+    assert silence_queue.peek(bid).payload == "RETRY"
     sends.clients[bid].render.return_value = (True, True)
     assert drive(engine, sends) is True
     assert silence_queue.peek(bid) is None
 
 
-def test_interrupted_delivery_remains_unresolved_after_reload(engine, sends):
+def test_interrupted_delivery_retries_after_reload(engine, sends):
     bid = sends.boards[0]["id"]
     silence_queue.hold(silence_queue.HeldSend.text("UNCERTAIN", board_id=bid))
     sends.clock.set(datetime(2026, 10, 25, 8, tzinfo=UTC))
     sends.clients[bid].render.side_effect = RuntimeError("connection lost after starting write")
     assert drive(engine, sends) is False
     importlib.reload(silence_queue)
-    assert silence_queue.peek(bid).delivery_state == "unresolved"
+    assert silence_queue.peek(bid).payload == "UNCERTAIN"
+    sends.clients[bid].render.side_effect = None
+    assert drive(engine, sends) is True
+    assert silence_queue.peek(bid) is None
 
 
-def test_marker_save_failure_prevents_hardware_and_preserves_pending(engine, sends, monkeypatch):
+def test_failed_cleanup_preserves_retry_without_prewrite_marker(engine, sends, monkeypatch):
     bid = sends.boards[0]["id"]
     silence_queue.hold(silence_queue.HeldSend.text("KEEP", board_id=bid))
     sends.clock.set(datetime(2026, 10, 25, 8, tzinfo=UTC))
@@ -210,30 +210,35 @@ def test_marker_save_failure_prevents_hardware_and_preserves_pending(engine, sen
 
     with monkeypatch.context() as patch:
         patch.setattr(silence_queue, "write_json_atomic", fail_save)
-        assert drive(engine, sends) is False
+        assert drive(engine, sends) is True
         assert attempted == [True]
-        sends.clients[bid].render.assert_not_called()
+        sends.clients[bid].render.assert_called_once()
     importlib.reload(silence_queue)
-    assert silence_queue.peek(bid).delivery_state == "pending"
+    assert silence_queue.peek(bid).payload == "KEEP"
+    assert drive(engine, sends) is True
+    assert silence_queue.peek(bid) is None
 
 
-def test_failed_pending_restore_remains_unresolved(engine, sends, monkeypatch):
+def test_failed_delivery_needs_no_storage_write_to_remain_retryable(engine, sends, monkeypatch):
     bid = sends.boards[0]["id"]
     silence_queue.hold(silence_queue.HeldSend.text("KEEP", board_id=bid))
     sends.clock.set(datetime(2026, 10, 25, 8, tzinfo=UTC))
-    write = silence_queue.write_json_atomic
+    attempted = []
 
-    def fail_restore(path, data, **kwargs):
-        if data[bid]["delivery_state"] == "pending":
-            raise OSError("restore failed")
-        return write(path, data, **kwargs)
+    def fail_restore(*args, **kwargs):
+        attempted.append(True)
+        raise OSError("storage unavailable")
 
     sends.clients[bid].render.return_value = (False, False)
     with monkeypatch.context() as patch:
         patch.setattr(silence_queue, "write_json_atomic", fail_restore)
         assert drive(engine, sends) is False
+        assert attempted == []
     importlib.reload(silence_queue)
-    assert silence_queue.peek(bid).delivery_state == "unresolved"
+    assert silence_queue.peek(bid).payload == "KEEP"
+    sends.clients[bid].render.return_value = (True, True)
+    assert drive(engine, sends) is True
+    assert silence_queue.peek(bid) is None
 
 
 def test_overlapping_writes_of_same_observed_intent_settle_in_order(sends):
@@ -268,7 +273,7 @@ def test_overlapping_writes_of_same_observed_intent_settle_in_order(sends):
     assert silence_queue.peek(bid) is None
 
 
-def test_in_flight_marker_does_not_let_background_content_preempt_held_delivery(engine, sends):
+def test_in_flight_send_does_not_let_background_content_preempt_held_delivery(engine, sends):
     import threading
 
     bid = sends.boards[0]["id"]
@@ -290,7 +295,7 @@ def test_in_flight_marker_does_not_let_background_content_preempt_held_delivery(
             is True
         )
         assert started.wait(2)
-        assert silence_queue.peek(bid).delivery_state == "unresolved"
+        assert silence_queue.peek(bid).payload == "HELD"
         assert (
             engine.check_and_send_for_board(
                 bid, engine.runtimes[bid], is_primary=True, board=sends.boards[0], wait=False

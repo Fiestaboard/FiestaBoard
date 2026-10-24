@@ -910,9 +910,9 @@
     "toastResendNotSent": "No se envió nada (tablero en pausa o salida configurada solo para la interfaz)",
     "heldPendingTitle": "Mensaje pendiente de entrega",
     "heldPending": "Este mensaje espera su entrega. Se reintentará cuando el tablero esté disponible. Puedes descartarlo abajo.",
-    "heldRecoveryTitle": "La entrega requiere atención",
-    "heldRecovery": "No se pudo confirmar la entrega. Los reintentos automáticos están detenidos para evitar repetir el mensaje. Descarta esta entrada o envía contenido nuevo expresamente para reemplazarla.",
-    "heldPreview": "Mensaje retenido: «{preview}»"
+    "heldPreview": "Mensaje retenido: «{preview}»",
+    "heldUnavailableTitle": "Mensajes retenidos no disponibles",
+    "heldUnavailable": "No se pudo leer la cola guardada. Se desconocen los mensajes retenidos y no se pueden retener ni descartar mensajes hasta que se recupere el almacenamiento."
   },
   "forceSetDialog": {
     "title": "Forzar pantalla",

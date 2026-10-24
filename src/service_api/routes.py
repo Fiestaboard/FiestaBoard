@@ -388,16 +388,21 @@ async def get_silence_status(board_id: str | None = None):
     seconds_until_next_change = timing.seconds_until_next_change
 
     held = None
+    queue_available = True
     if board_id is not None:
         from src import silence_queue
 
-        entry = silence_queue.peek(board_id)
+        try:
+            entry = silence_queue.peek(board_id)
+        except silence_queue.QueueUnavailableError as exc:
+            logger.warning("Held message queue unavailable: %s", exc)
+            queue_available = False
+            entry = None
         if entry is not None:
             held = HeldSendSummary(
                 kind=entry.kind,
                 preview=silence_queue.preview_text(entry),
                 queued_at=datetime.fromtimestamp(entry.queued_at, tz=UTC).isoformat(),
-                delivery_state=entry.delivery_state,
             )
 
     return SilenceStatusResponse(
@@ -416,6 +421,7 @@ async def get_silence_status(board_id: str | None = None):
         ends_at_utc=timing.next_change_at,
         holds_blocked_sends=silence_config.get("show_queued_on_exit") is True,
         held=held,
+        queue_available=queue_available,
     )
 
 

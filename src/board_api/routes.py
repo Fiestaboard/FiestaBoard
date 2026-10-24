@@ -251,7 +251,9 @@ async def send_message(request: MessageRequest, response: Response = None):
         )
     if verdict.silenced:
         raise HTTPException(status_code=409, detail=SILENCE_DETAIL)
-    previous = silence_queue.peek(resolve_board_id(board_id))
+    from src.board_guards import peek_held_send
+
+    previous = peek_held_send(resolve_board_id(board_id))
 
     board_client = service.get_board_client(board_id) if board_id is not None else service.vb_client
     if not board_client:

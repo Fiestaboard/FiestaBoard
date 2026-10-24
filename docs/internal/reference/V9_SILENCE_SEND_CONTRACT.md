@@ -38,8 +38,7 @@ contracts are unchanged.
 
 Hold acceptance and explicit discard are durable transactions. If saving fails,
 no new hold or discard is acknowledged; the prior memory/disk slot is retained.
-REST hold/discard failures return an error (503 for the shared REST policy and
-discard route; v1 message uses its existing executor-error 500 envelope), never
+REST and v1 hold/discard storage failures return 503, never
 202/`held: true` or `discarded: true`.
 
 UI-only page/display/selection requests do not create holds. Live output keeps
@@ -69,23 +68,32 @@ content or an explicit temporary override. It remains pending for later retry.
 A successful explicit override clears only the older intent observed by that
 pass; a failed/paused write preserves it.
 
-Before a write that may consume an intent, the exact observed slot is durably
-marked `delivery_state: "unresolved"`. Successful delivery conditionally removes
-it. A reported failed/throttled/unchanged write restores its previous state for
-normal retry. A write exception, interruption, failed cleanup or failed state
-restoration leaves the unresolved slot visible and suppresses automatic replay,
-including after restart. The actual send result remains truthful when cleanup
-alone fails. This intentionally favors avoiding duplicate physical writes:
-an interruption after marking but before I/O may also require manual recovery.
-No marker is written for an ordinary hold waiting through silence.
+Automatic retry continues after ordinary restart, ambiguous exceptions and
+interruption. The original durable intent is retained until successful cleanup;
+failed/throttled/unchanged attempts do not rewrite it. Successful physical I/O
+followed by failed cleanup remains truthfully sent, with the retained intent
+eligible for a later tick or restart retry. This can duplicate a hardware send;
+there is no exactly-once guarantee. No delivery marker suppresses retry. Extra
+marker fields from older local candidate records are ignored on load, so those
+intents also retry automatically.
 
-`held.delivery_state` is `"pending"` or `"unresolved"` (old persisted records
-default to pending). Home keeps pending/unresolved previews and scoped Discard
-visible outside quiet hours, including disabled silence. Unresolved copy explains
-that automatic retry is stopped. Recovery uses existing actions: durably discard
-the entry or explicitly send replacement content (Show now sends the selected
-page, Compose/Force Set keep their existing targets). Failed Discard retains the
-entry and reports failure. A newer accepted hold replaces it normally.
+Home keeps pending previews and scoped Discard visible outside quiet hours,
+including disabled silence. Failed Discard retains the entry and reports failure.
+A newer accepted hold replaces it normally. Show now sends the selected page,
+not the held preview.
+
+`GET /silence-status` returns `queue_available: boolean` (default true), alongside
+`held: {kind, preview, queued_at} | null`. When queue data cannot be read safely,
+`queue_available` is false and `held` is null meaning unknown, not empty. Valid
+silence timing and configuration still return normally. Home shows a bounded
+unavailable warning rather than a false empty state. Read OSError, invalid JSON,
+wrong top-level shape and any malformed/mismatched record leave the entire file
+unchanged and uncached. New holds/discards fail; valid sibling records are kept
+for repair rather than silently removed. Later reads automatically retry loading
+after repair. Only a missing file is treated as an empty store. Expired valid
+records remain ineligible and may be cleaned up; malformed data is never
+rewritten as part of that cleanup. Storage retains its existing single-process,
+lazy-load model, without file watching or support for independent writers.
 
 After held delivery, the message stays until active content changes or an
 explicit refresh replaces it, following v9's manual-message behavior. The engine

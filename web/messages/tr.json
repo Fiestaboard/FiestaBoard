@@ -910,9 +910,9 @@
     "toastResendNotSent": "Hiçbir şey gönderilmedi (pano duraklatıldı veya çıkış yalnızca arayüze ayarlı)",
     "heldPendingTitle": "Mesaj teslim edilmeyi bekliyor",
     "heldPending": "Bu mesaj teslim edilmeyi bekliyor. Pano kullanılabilir olduğunda yeniden denenecek. Aşağıdan silebilirsiniz.",
-    "heldRecoveryTitle": "Teslimat için işlem gerekiyor",
-    "heldRecovery": "Teslimat doğrulanamadı. Mesajın tekrarlanmasını önlemek için otomatik denemeler durduruldu. Bu kaydı silin veya yerine açıkça yeni içerik gönderin.",
-    "heldPreview": "Bekletilen mesaj: “{preview}”"
+    "heldPreview": "Bekletilen mesaj: “{preview}”",
+    "heldUnavailableTitle": "Bekletilen mesajlar kullanılamıyor",
+    "heldUnavailable": "Kaydedilen kuyruk okunamadı. Bekletilen mesajlar bilinmiyor. Depolama yeniden kullanılabilir olana kadar mesajlar bekletilemez veya silinemez."
   },
   "forceSetDialog": {
     "title": "Board'u Zorla Ayarla",

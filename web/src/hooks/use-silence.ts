@@ -20,6 +20,7 @@ export interface SilenceState {
   holds: boolean;
   /** The send this board is holding, if any. */
   held: HeldSendSummary | null;
+  queueAvailable: boolean;
 }
 
 /**
@@ -57,6 +58,7 @@ export function useSilence(boardId?: string): SilenceState {
     active,
     until: active ? silenceEndsAtLabel(status, dataUpdatedAt, locale) : null,
     holds: status?.holds_blocked_sends === true,
-    held: status?.held ?? null,
+    held: status?.queue_available === false ? null : (status?.held ?? null),
+    queueAvailable: status?.queue_available !== false,
   };
 }

@@ -31,7 +31,7 @@ import logging
 import math
 import threading
 import time
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -57,8 +57,8 @@ _loaded_path: Path | None = None
 _delivery_locks: dict[tuple[Path, str], threading.Lock] = {}
 
 
-class DeliveryPreparationError(OSError):
-    """No board write started because its durable marker could not be saved."""
+class QueueUnavailableError(OSError):
+    """Existing queue data could not be read safely; leave it intact for repair."""
 
 
 @dataclass(frozen=True)
@@ -69,15 +69,12 @@ class HeldSend:
     payload: Any
     board_id: str
     queued_at: float
-    delivery_state: Literal["pending", "unresolved"] = "pending"
 
     def __post_init__(self) -> None:
         if not isinstance(self.board_id, str) or not self.board_id:
             raise ValueError("A held send needs a resolved board id")
         if self.kind not in _KINDS:
             raise ValueError(f"Unknown held send kind: {self.kind!r}")
-        if self.delivery_state not in ("pending", "unresolved"):
-            raise ValueError("Unknown held delivery state")
         if not isinstance(self.queued_at, (int, float)) or not math.isfinite(self.queued_at):
             raise ValueError("A held send needs a finite timestamp")
         # The status API formats this as an ISO instant. A finite but
@@ -141,7 +138,6 @@ def _from_dict(raw: Any) -> HeldSend | None:
             payload=raw["payload"],
             board_id=raw["board_id"],
             queued_at=float(raw["queued_at"]),
-            delivery_state=raw.get("delivery_state", "pending"),
         )
     except (KeyError, TypeError, ValueError, OverflowError, OSError):
         return None
@@ -155,20 +151,25 @@ def _load_locked() -> dict[str, HeldSend]:
         return _held
     loaded: dict[str, HeldSend] = {}
     dropped = False
-    if path.exists():
-        try:
-            raw = json.loads(path.read_text())
-        except (OSError, ValueError, UnicodeError) as exc:
-            logger.warning("Ignoring unreadable held-send store %s: %s", path, exc)
-            raw = {}
-        if isinstance(raw, dict):
-            now = time.time()
-            for board_id, entry in raw.items():
-                send = _from_dict(entry)
-                if send is None or send.board_id != board_id or send.is_stale(now):
-                    dropped = True
-                    continue
-                loaded[board_id] = send
+    try:
+        raw = json.loads(path.read_text())
+    except FileNotFoundError:
+        raw = {}
+    except (OSError, ValueError, UnicodeError) as exc:
+        raise QueueUnavailableError(f"Cannot read held-send store: {path}") from exc
+    if not isinstance(raw, dict):
+        raise QueueUnavailableError("Held-send store must contain an object")
+    now = time.time()
+    for board_id, entry in raw.items():
+        send = _from_dict(entry)
+        if send is None or send.board_id != board_id:
+            # Never rewrite partially damaged data and silently lose another
+            # board's recoverable intent. Retry loading after external repair.
+            raise QueueUnavailableError(f"Invalid held-send record for board {board_id}")
+        if send.is_stale(now):
+            dropped = True
+            continue
+        loaded[board_id] = send
     _held = loaded
     _loaded_path = path
     if dropped:
@@ -246,56 +247,26 @@ def deliver(expected: HeldSend | None, send, *args, require_current: bool = Fals
 
 
 def _deliver_observed(expected, send, *args, require_current=False, check=None, **kwargs):
-    """Write with a durable uncertainty marker before consuming an old intent.
+    """Retry until actual success, conditionally clearing only this intent.
 
-    A crash or cleanup failure cannot replay an already delivered intent. The
-    unresolved slot stays visible for explicit discard/replacement. A known
-    failed/throttled/unchanged write restores pending for ordinary retries.
-    Newer holds are never modified by this attempt's completion.
+    An exception/interruption or failed cleanup leaves the original durable
+    intent retryable. An ambiguous physical outcome can therefore send twice.
     """
     from src.send_outcome import SendOutcome
 
-    marked = None
-    if expected is not None:
-        with _lock:
-            held = _load_locked()
-            if held.get(expected.board_id) == expected:
-                marked = replace(expected, delivery_state="unresolved")
-                try:
-                    _publish_locked({**held, expected.board_id: marked})
-                except OSError as exc:
-                    raise DeliveryPreparationError(str(exc)) from exc
-            elif require_current:
-                return False, False
-
-    def settle(delivered: bool) -> None:
-        if marked is None:
-            return
-        try:
-            with _lock:
-                held = _load_locked()
-                if held.get(marked.board_id) != marked:
-                    return
-                candidate = {bid: item for bid, item in held.items() if bid != marked.board_id}
-                if not delivered:
-                    candidate[marked.board_id] = expected
-                _publish_locked(candidate)
-        except OSError as exc:
-            # The durable pre-write marker remains. Never pretend the physical
-            # write failed, and never automatically replay an uncertain write.
-            logger.error("Held delivery needs manual recovery for board %s: %s", marked.board_id, exc)
-
-    # Recheck after the durable write too: it can block on filesystem I/O.
-    if (require_current and marked is not None and peek(marked.board_id) != marked) or (check and not check()):
-        settle(False)
+    if (require_current and expected is not None and peek(expected.board_id) != expected) or (check and not check()):
         return False, False
-    # Exceptions may follow a partial physical write. Keep the unresolved
-    # marker; only explicit false outcomes are safe to retry.
     result = send(*args, **kwargs)
-    if marked is None:
+    if expected is None:
         return result
     outcome = SendOutcome.of(result)
-    settle(outcome.success and outcome.was_sent and not outcome.throttled)
+    if outcome.success and outcome.was_sent and not outcome.throttled:
+        try:
+            discard(expected.board_id, expected=expected)
+        except OSError as exc:
+            # Hardware already succeeded. Report it truthfully; the durable
+            # queue can repeat this send on a later tick or after restart.
+            logger.error("Could not clear delivered held send for board %s; it may retry: %s", expected.board_id, exc)
     return result
 
 

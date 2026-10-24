@@ -910,9 +910,9 @@
     "toastResendNotSent": "未发送任何内容（看板已暂停，或输出仅设置为界面）",
     "heldPendingTitle": "消息等待发送",
     "heldPending": "此消息正在等待发送。显示板可用时会重试。您可以在下方丢弃它。",
-    "heldRecoveryTitle": "发送状态需要处理",
-    "heldRecovery": "无法确认是否已发送。为避免重复消息，已停止自动重试。请丢弃此记录，或主动发送新内容来替换它。",
-    "heldPreview": "暂存的消息：“{preview}”"
+    "heldPreview": "暂存的消息：“{preview}”",
+    "heldUnavailableTitle": "暂存消息不可用",
+    "heldUnavailable": "无法读取已保存的队列。暂存消息状态未知，在存储恢复之前无法暂存或丢弃消息。"
   },
   "forceSetDialog": {
     "title": "强制设置 Board",

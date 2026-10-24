@@ -257,10 +257,9 @@ async def send_display(display_type: str, target: str | None = None, override_si
     sent_to_board = False
     paused = False
     from src import silence_queue
-    from src.board_guards import SilenceVerdict, resolve_board_id, silence_verdict
+    from src.board_guards import SilenceVerdict, peek_held_send, resolve_board_id, silence_verdict
 
     verdict = SilenceVerdict(False)
-    previous = silence_queue.peek(resolve_board_id(None))
     if send_to_board:
         # Skip when the (first) board is paused (issue #970).
         if _board_is_paused():
@@ -273,6 +272,7 @@ async def send_display(display_type: str, target: str | None = None, override_si
                 hold=lambda bid: silence_queue.HeldSend.display(display_type, board_id=bid),
             )
         if not paused and not verdict.silenced:
+            previous = peek_held_send(resolve_board_id(None))
             transition = settings_service.get_transition_settings()
             # Size to the first board's geometry (flagship, note, a note
             # array's notes grid, or a panel's explicit grid).

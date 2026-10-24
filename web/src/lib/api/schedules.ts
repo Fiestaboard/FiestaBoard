@@ -28,13 +28,14 @@ export interface SilenceStatus {
   holds_blocked_sends?: boolean;
   /** The send this board is holding until silence ends, if any (#1944). */
   held?: HeldSendSummary | null;
+  /** False means held content is unknown because the saved queue could not be read. */
+  queue_available?: boolean;
 }
 
 export interface HeldSendSummary {
   kind: string;
   preview: string;
   queued_at: string;
-  delivery_state?: "pending" | "unresolved";
 }
 
 // Schedule types

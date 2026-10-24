@@ -543,7 +543,7 @@ async def send_page(
     if override_silence is None:
         override_silence = bool(payload and payload.override_silence)
     from src import silence_queue
-    from src.board_guards import SilenceVerdict, resolve_board_id, silence_verdict
+    from src.board_guards import SilenceVerdict, peek_held_send, resolve_board_id, silence_verdict
 
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
@@ -596,7 +596,6 @@ async def send_page(
         sent_to_board = False
         paused = False
         verdict = SilenceVerdict(False)
-        previous = silence_queue.peek(resolve_board_id(board_id))
         if send_to_board:
             # CRITICAL: Block ALL manual sends during silence mode to prevent
             # wake-ups — for the board this send targets (issue #1788).
@@ -611,6 +610,7 @@ async def send_page(
                     hold=lambda bid: silence_queue.HeldSend.page(page_id, board_id=bid),
                 )
             if not paused and not verdict.silenced:
+                previous = peek_held_send(resolve_board_id(board_id))
                 # Use page-level transitions if set, otherwise fall back to system defaults
                 system_transition = settings_service.get_transition_settings()
                 strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy

@@ -335,7 +335,9 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                 hold=lambda resolved: silence_queue.HeldSend.grid(board_array, board_id=resolved),
             )
         if not paused and not verdict.silenced:
-            previous = silence_queue.peek(target_board.get("id"))
+            from src.board_guards import peek_held_send
+
+            previous = peek_held_send(target_board.get("id"))
             client = board_client_from_board_dict(target_board)
             if client:
                 geometry = geometry_of(target_board)

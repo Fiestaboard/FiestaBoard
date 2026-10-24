@@ -4,7 +4,8 @@ Date: 2026-10-24. Issues: #1943 and #1944.
 Branch: `fix/v9-silence-backport`.
 Worktree: `/tmp/fiestaboard-v9-silence-backport`.
 Stable base: `256c9d58d2d13a58cc50429574a06982312b22ea`.
-Tested implementation: `226a8a73c1ca7d996f39c73d826a6c938c60f75a`.
+Prior tested implementation: `226a8a73c1ca7d996f39c73d826a6c938c60f75a`.
+Task 4 corrects retry and unreadable-store behavior; its verification is recorded below.
 
 ## Result
 
@@ -17,13 +18,14 @@ Home keeps pending-message preview and Discard visible after quiet hours end.
 All 14 locales, user guidance and generated API documentation are updated.
 No v10 output architecture or dependency changes were introduced.
 
-Task 1, Task 2 and Task 3 independent reviews approved their final changes.
+Task 1, Task 2 and Task 3 independent reviews approved their earlier changes.
 The whole-branch review found four Important issues; one grouped fix wave
 addresses all four in the tested implementation above. Bounded final re-review
-approved all four as addressed, with no new or residual findings. No merge or
+approved all four as addressed at that time. Task4 supersedes the earlier
+delivery-marker policy and requires its own independent review. No merge or
 publication approval is implied.
 
-## Observed verification
+## Prior candidate verification
 
 | Gate | Result |
 | --- | --- |
@@ -76,15 +78,45 @@ The first whole-branch full run passed 9467 tests before a newly proven in-fligh
 marker-ordering race was corrected. The final 9468-pass run supersedes it.
 The final fix adds 29 Python behavioral tests, 3 metadata tests and 6 web tests.
 
-## Review decisions and limits
+## Task 4 automatic-retry correction
 
-Durable queue mutations publish memory only after persistence succeeds. A durable
-marker precedes a write that may consume an observed intention. If completion or
-rollback cannot be persisted, the visible intention becomes unresolved and does
-not automatically replay; Discard or explicit replacement provides recovery.
-An interruption before actual I/O may therefore require manual recovery even
-when nothing was sent. A physical write and filesystem commit cannot be atomic.
-Untouched restart holds and ordinary failed/throttled retry remain automatic.
+The local candidate now retries after both ordinary restart and ambiguous
+delivery, and preserves unreadable queue files without acknowledging new
+acceptance. The earlier marker policy is superseded. Home exposes unavailable
+storage while retaining valid silence timing. Seventeen new reliability cases
+cover damaged files, repair, legacy marker compatibility, retry concurrency,
+paused/UI-only results and invalid-selection precedence. Earlier marker tests
+were updated to assert automatic retry rather than deleted.
+
+| Gate | Task 4 result |
+| --- | --- |
+| Backend RED | 30 failed, 35 passed before implementation; subsequent no-write compatibility matrix: 8 failed |
+| UI RED | Unavailable warning: 1 failed, 5 passed before implementation |
+| Covering backend | 1328 passed; subsequent final route correction: 324 passed |
+| Final full Python | 9488 passed, 1 existing xdist-only skip, 219 warnings; 170.20 seconds |
+| Full web, maxWorkers=2 | 190 files; 2267 passed, 7 existing skips; 159.76 seconds |
+| Covering UI/locales | 79 passed across 4 files |
+| Static/build | Typecheck, production SPA build, scoped ESLint/Prettier, Ruff and Python format passed |
+| Locale scope | All 14 catalogs: exactly two recovery keys replaced with two unavailable keys; all other values unchanged |
+| Generated API | Current, 2023 lines; schema, convention and response golden tests passed |
+| Docs | 41 frontmatter pages, 41 pages/5 categories, 86 Markdown files without issues, feature spelling clean |
+
+The first Task 4 full Python run passed 9480 before self-review found the
+no-write compatibility interaction; its log is retained and the 9488 result
+supersedes it. The web source was unchanged by that backend correction.
+Raw logs and exact commands are retained in the ignored task workspace's
+`task-4-report.md` and `evidence/task-4-*.log`. Independent review remains the
+controller's next gate; no publication is authorized.
+
+## Current reliability decisions and limits
+
+Durable queue mutations publish memory only after persistence succeeds.
+Automatic retry applies to ordinary restart and ambiguous delivery, matching
+the established v10 contract. An acknowledgment or cleanup failure may repeat
+a physical send; delivery is not exactly once. Successful I/O remains truthfully
+sent even if cleanup fails. A physical write and filesystem commit cannot be atomic.
+Unreadable or malformed queue data is preserved and exposed as unavailable;
+mutations fail until repair, and status checks retry loading automatically.
 An already in-flight hardware write cannot be undone by Discard.
 
 The implementation retains the existing single-process storage topology,
@@ -120,6 +152,6 @@ branch are preserved for review.
 - Retain setup/diagnostic exceptions and stable temporary-override authorization;
   fix their new held-intent interactions. Cost if wrong: existing policy
   exceptions remain.
-- Mark delivery durably and expose unresolved outcomes instead of automatic
-  replay. Cost if wrong: an interruption before I/O can require manual recovery
-  even when nothing was sent.
+- Retry ambiguous delivery automatically, retaining conditional cleanup and
+  explicit persistence errors. Cost: a physical send can repeat after an
+  ambiguous outcome or cleanup failure. No exactly-once claim is made.

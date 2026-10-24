@@ -81,20 +81,20 @@ delivery marker may suppress automatic retry. Older candidate marker records
 must resume ordinary pending delivery. Queue load failure must not publish or
 cache an empty store, rewrite the source, or acknowledge a new mutation.
 
-- [ ] Add behavioral RED tests for exception/interruption then reload/retry,
+- [x] Add behavioral RED tests for exception/interruption then reload/retry,
   successful-write cleanup failure then restart/retry, and old marker records.
   Prove subsequent success clears only the observed intent and preserves newer
   concurrent holds. Preserve paused/throttled/offline retry coverage.
-- [ ] Add RED tests for existing unreadable/invalid JSON/wrong top-level queue
+- [x] Add RED tests for existing unreadable/invalid JSON/wrong top-level queue
   data: hold/discard/status expose failure, source bytes remain recoverable,
   retries work after repair, and a missing file still permits a first hold.
   Keep valid and malformed-record behavior explicit; never silently launder a
   damaged existing file through an empty successful acceptance.
-- [ ] Implement the minimal reliability correction using v10 #2257 as retry
+- [x] Implement the minimal reliability correction using v10 #2257 as retry
   reference, without copying its silent save errors or unconditional cleanup.
   Remove unresolved/manual-recovery UI and add focused unavailable-status
   warning coverage so stored content cannot merely disappear from Home.
-- [ ] Run focused RED/GREEN, full Python and web suites, sequential typecheck,
+- [x] Run focused RED/GREEN, full Python and web suites, sequential typecheck,
   build, scoped lint/format, docs/locales and API schema checks as affected.
   Use only the already-authorized Docker workflow with isolated fake hardware;
   never retry the denied reviewer probe or write a physical board.

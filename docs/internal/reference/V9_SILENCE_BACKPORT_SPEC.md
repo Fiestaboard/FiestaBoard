@@ -39,6 +39,8 @@ live-board changes, dependency upgrades, or deprecated endpoint removal.
 - GET /silence-status adds ends_at_utc, holds_blocked_sends and nullable held
   {kind, preview, queued_at}. DELETE /silence-queue?board_id=... discards only
   that resolved board's intent; unknown write targets return 404.
+- Status also reports queue_available=false with held=null when persisted queue
+  data is unreadable; timing remains valid, and Home shows an unavailable warning.
 - Home shows silence throughout the window, its ending time, the saved page
   or held-message preview, Show now and Discard actions. Page selection says
   it is saved for later. Force Set, Compose and Live Output warn before an

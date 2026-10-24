@@ -592,10 +592,9 @@ async def set_active_page(request: SetActivePageRequest):
     """
     settings_service = get_settings_service()
     from src import silence_queue
-    from src.board_guards import SilenceVerdict, resolve_board_id, silence_verdict
+    from src.board_guards import SilenceVerdict, peek_held_send, resolve_board_id, silence_verdict
 
     verdict = SilenceVerdict(False)
-    previous = silence_queue.peek(resolve_board_id(request.board_id))
     page_service = get_page_service()
     service = get_service()
 
@@ -688,6 +687,7 @@ async def set_active_page(request: SetActivePageRequest):
             if not can_send():
                 return False, paused, None
             else:
+                previous = peek_held_send(resolve_board_id(board_id))
                 result = page_service.preview_page(render_page_id, force_refresh=True)
                 if result and result.available:
                     system_transition = settings_service.get_transition_settings()
@@ -714,7 +714,7 @@ async def set_active_page(request: SetActivePageRequest):
                     # per-board _send_lock, so worker threads can't interleave.
                     from src.board_guards import deliver_with_held_cleanup
 
-                    # Rendering and durable queue preparation can block. The
+                    # Fresh rendering can block. The
                     # same policy is checked again immediately before I/O.
                     success, was_sent = deliver_with_held_cleanup(
                         previous,

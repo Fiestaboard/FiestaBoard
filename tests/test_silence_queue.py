@@ -44,13 +44,18 @@ def test_expiration_drops_old_intent_without_touching_fresh_board(monkeypatch, r
 
 
 @pytest.mark.parametrize("raw", ["not json", "[]", '{"a":null}', '{"a":{"kind":"text"}}'])
-def test_bad_file_does_not_prevent_new_holds(raw):
+def test_bad_file_blocks_new_holds_until_repaired(raw):
     queue = _queue()
     from src.paths import get_data_dir
 
     (get_data_dir() / "silence_held.json").write_text(raw)
     importlib.reload(queue)
-    assert queue.peek("a") is None
+    with pytest.raises(OSError):
+        queue.peek("a")
+    with pytest.raises(OSError):
+        queue.hold(queue.HeldSend.text("RECOVERED", board_id="a"))
+    assert (get_data_dir() / "silence_held.json").read_text() == raw
+    (get_data_dir() / "silence_held.json").write_text("{}")
     queue.hold(queue.HeldSend.text("RECOVERED", board_id="a"))
     importlib.reload(queue)
     assert queue.peek("a").payload == "RECOVERED"
@@ -71,7 +76,7 @@ def test_bad_file_does_not_prevent_new_holds(raw):
         {"kind": "text", "payload": []},
     ],
 )
-def test_malformed_record_does_not_hide_valid_board(changes):
+def test_malformed_record_preserves_valid_board_until_explicit_repair(changes):
     queue = _queue()
     from src.paths import get_data_dir
 
@@ -80,7 +85,10 @@ def test_malformed_record_does_not_hide_valid_board(changes):
     good = {"kind": "text", "payload": "GOOD", "board_id": "b", "queued_at": queue.time.time()}
     (get_data_dir() / "silence_held.json").write_text(json.dumps({"a": record, "b": good}))
     importlib.reload(queue)
-    assert queue.peek("a") is None
+    with pytest.raises(OSError):
+        queue.peek("a")
+    assert json.loads((get_data_dir() / "silence_held.json").read_text())["b"] == good
+    (get_data_dir() / "silence_held.json").write_text(json.dumps({"b": good}))
     assert queue.peek("b").payload == "GOOD"
 
 

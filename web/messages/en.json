@@ -866,9 +866,9 @@
     "toastResendNotSent": "Nothing was sent (board paused or output set to UI only)",
     "heldPendingTitle": "Message awaiting delivery",
     "heldPending": "This message is waiting for delivery. It will be retried when the board is available. You can discard it below.",
-    "heldRecoveryTitle": "Delivery needs attention",
-    "heldRecovery": "Delivery could not be confirmed. Automatic retry is stopped to avoid repeating a message. Discard this entry, or explicitly send new content to replace it.",
-    "heldPreview": "Held message: “{preview}”"
+    "heldPreview": "Held message: “{preview}”",
+    "heldUnavailableTitle": "Held messages unavailable",
+    "heldUnavailable": "The saved queue could not be read. Held messages are unknown, and holding or discarding is unavailable until storage recovers."
   },
   "forceSetDialog": {
     "title": "Force Set Board",
