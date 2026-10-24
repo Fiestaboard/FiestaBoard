@@ -105,12 +105,36 @@ export function useBoardCurrentMessage(boardId?: string) {
 
 // Set active page mutation - backend handles immediate send to board.
 // Pass a boardId to target that board's active-page slot (issue #1247).
+/**
+ * What `useSetActivePage().mutate` takes: a page id (or null), or that id with
+ * `overrideSilence` to show it now even while the board is silenced (#1943).
+ */
+export type SetActivePageVariables =
+  string | null | { pageId: string | null; overrideSilence?: boolean; boardId?: string };
+
+function normalizeSetActivePage(vars: SetActivePageVariables, boardId?: string) {
+  if (vars !== null && typeof vars === "object") {
+    return {
+      pageId: vars.pageId,
+      overrideSilence: vars.overrideSilence === true,
+      boardId: "boardId" in vars ? vars.boardId : boardId,
+    };
+  }
+  return { pageId: vars, overrideSilence: false, boardId };
+}
+
 export function useSetActivePage(boardId?: string) {
   const queryClient = useQueryClient();
-  const activePageKey = queryKeys.activePage(boardId);
   return useMutation({
-    mutationFn: (pageId: string | null) => api.setActivePage(pageId, boardId),
-    onMutate: async (newPageId) => {
+    mutationFn: (vars: SetActivePageVariables) => {
+      const { pageId, overrideSilence, boardId: target } = normalizeSetActivePage(vars, boardId);
+      return overrideSilence
+        ? api.setActivePage(pageId, target, { overrideSilence })
+        : api.setActivePage(pageId, target);
+    },
+    onMutate: async (vars) => {
+      const { pageId: newPageId, boardId: target } = normalizeSetActivePage(vars, boardId);
+      const activePageKey = queryKeys.activePage(target);
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: activePageKey });
 
@@ -121,22 +145,23 @@ export function useSetActivePage(boardId?: string) {
       queryClient.setQueryData(activePageKey, { page_id: newPageId });
 
       // Return context with the snapshotted value
-      return { previousActivePage };
+      return { previousActivePage, activePageKey, target };
     },
     onError: (err, newPageId, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousActivePage) {
-        queryClient.setQueryData(activePageKey, context.previousActivePage);
+        queryClient.setQueryData(context.activePageKey, context.previousActivePage);
       }
     },
-    onSuccess: () => {
+    onSuccess: (_result, _vars, context) => {
       // Only invalidate status, not activePage (we already updated it optimistically)
       queryClient.invalidateQueries({ queryKey: queryKeys.status });
+      queryClient.invalidateQueries({ queryKey: queryKeys.silenceStatus(context.target) });
       scheduleBoardStateInvalidations(queryClient);
     },
-    onSettled: () => {
+    onSettled: (_result, _error, _vars, context) => {
       // Always refetch after error or success to ensure consistency
-      queryClient.invalidateQueries({ queryKey: activePageKey });
+      if (context) queryClient.invalidateQueries({ queryKey: context.activePageKey });
     },
   });
 }

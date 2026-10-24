@@ -893,7 +893,21 @@
     "collectionSizeWarning": "{count} av {total} sidor i den här samlingen passar inte den här tavlans storlek och hoppas över.",
     "turnOffLiveModeAriaLabel": "Stäng av liveläge",
     "liveModeBadge": "Liveläge",
-    "composeOneOff": "Skriv ett meddelande"
+    "composeOneOff": "Skriv ett meddelande",
+    "silenceManual": "”{pageName}” visas när tystnaden tar slut. Tavlan förblir tyst tills dess.",
+    "silenceSchedule": "Ditt schema fortsätter när tystnaden tar slut. Tavlan förblir tyst tills dess.",
+    "silenceNoPage": "Tavlan förblir tyst tills dess.",
+    "silenceHeld": "Väntande meddelande: ”{preview}” – det visas först.",
+    "showNow": "Visa nu",
+    "discardHeld": "Släng meddelandet",
+    "selectPageSilence": "sidan du väljer sparas och visas då. Tavlan förblir tyst.",
+    "toastSwitchHeld": "”{pageName}” visas kl. {time}",
+    "toastSwitchHeldNoTime": "”{pageName}” visas när tystnaden tar slut",
+    "toastSwitchPaused": "Sparat – ”{pageName}” visas när du återupptar tavlan",
+    "toastShownNow": "Visar ”{pageName}” nu",
+    "toastHeldDiscarded": "Väntande meddelande slängt",
+    "toastHeldDiscardFailed": "Det gick inte att slänga det väntande meddelandet",
+    "toastResendNotSent": "Inget skickades (tavlan pausad eller utdata inställd på endast gränssnittet)"
   },
   "forceSetDialog": {
     "title": "Tvinga inställning av board",
@@ -905,7 +919,9 @@
     "confirm": "Tvinga",
     "setting": "Ställer in…",
     "toastSuccess": "Visar ”{pageName}” i {minutes} min",
-    "toastError": "Kunde inte sätta åsidosättning"
+    "toastError": "Kunde inte sätta åsidosättning",
+    "silenceWarning": "Tvinga visar sidan direkt och väcker tavlan.",
+    "confirmSilenced": "Visa nu ändå"
   },
   "composeDialog": {
     "title": "Skriv ett meddelande",
@@ -926,7 +942,17 @@
     "toastSent": "Skickat till tavlan",
     "toastSendError": "Det gick inte att skicka meddelandet",
     "toastSaved": "\"{pageName}\" sparades",
-    "toastSaveError": "Det gick inte att spara sidan"
+    "toastSaveError": "Det gick inte att spara sidan",
+    "silenceHold": "Låt det vänta så visas det kl. {time}, eller skicka det nu så vaknar tavlan.",
+    "silenceNoHold": "Att skicka nu väcker tavlan. Om du vill att meddelanden ska vänta tills tystnaden tar slut, slå på ”Visa väntande meddelanden när tystnaden tar slut” under Inställningar → Beteende.",
+    "openSettings": "Öppna inställningar",
+    "hold": "Vänta till {time}",
+    "holdNoTime": "Vänta tills tystnaden tar slut",
+    "holding": "Lägger i kö…",
+    "sendNowAnyway": "Skicka nu ändå",
+    "toastHeld": "Väntar – visas kl. {time}",
+    "toastHeldNoTime": "Väntar – visas när tystnaden tar slut",
+    "toastHoldError": "Det gick inte att låta meddelandet vänta"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Kan inte nå appen. Kontrollera nätverket eller att FiestaBoard körs.",
@@ -1021,7 +1047,11 @@
     "transitionUseGlobalDefault": "Använd global standard",
     "transitionBuiltInGroup": "Inbyggda",
     "transitionPluginsGroup": "Plugins (beta)",
-    "transitionOpenLab": "Öppna övergångslabbet"
+    "transitionOpenLab": "Öppna övergångslabbet",
+    "liveSilencePreviewOnly": "Liveutdata visar bara en förhandsgranskning. Tavlan förblir tyst.",
+    "liveSendAnyway": "Skicka till tavlan ändå",
+    "liveSilenceOverriding": "Liveutdata väcker tavlan under tystnaden.",
+    "liveStopOverriding": "Sluta skicka"
   },
   "displaySettings": {
     "title": "Dina tavlor",
@@ -1364,7 +1394,9 @@
     "toastBoardReadIntervalUpdated": "Board-läsintervall uppdaterat",
     "toastBoardReadIntervalFailed": "Kunde inte uppdatera board-läsintervall: {error}",
     "updateIntervalsTitle": "Uppdateringsintervall",
-    "updateIntervalsDescription": "Hur ofta tavlan söker efter nytt innehåll och läser om sitt aktuella tillstånd"
+    "updateIntervalsDescription": "Hur ofta tavlan söker efter nytt innehåll och läser om sitt aktuella tillstånd",
+    "silenceShowHeldLabel": "Visa väntande meddelanden när tystnaden tar slut",
+    "silenceShowHeldHelp": "Ett meddelande som skickas till den här tavlan under tystnaden får vänta och visas så fort tystnaden tar slut. När det är av avvisas det i stället. Sidbyten sparas alltid och behöver inte detta."
   },
   "serviceControls": {
     "title": "Tjänststyrning",
@@ -2498,5 +2530,9 @@
     "empty": "Inga matchande modeller",
     "typedId": "Använd detta id",
     "showingFirst": "De första {shown} av {total}. Skriv för att begränsa."
+  },
+  "silenceNotice": {
+    "untilTitle": "Tyst till {time}",
+    "untilTitleNoTime": "Tavlan är tystad"
   }
 }

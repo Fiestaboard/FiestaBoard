@@ -15,12 +15,14 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MonitorSmartphone, PencilLine, Save, Send } from "lucide-react";
+import { Clock, MonitorSmartphone, PencilLine, Save, Send } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import { PausedNotice, SilenceNotice } from "@/components/silence-notice";
+import Link from "@/components/smart-link";
 import { queryKeys } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
@@ -52,6 +54,9 @@ interface ComposePageDialogProps {
    * never surprised by which board lights up.
    */
   targetBoardName?: string;
+  targetBoardId?: string;
+  silence?: { until: string | null; holds: boolean } | null;
+  paused?: boolean;
 }
 
 /**
@@ -78,8 +83,12 @@ export function ComposePageDialog({
   boardColor = "black",
   code62Glyph,
   targetBoardName,
+  targetBoardId,
+  silence = null,
+  paused = false,
 }: ComposePageDialogProps) {
   const t = useTranslations("composeDialog");
+  const tActive = useTranslations("activeDisplay");
   const queryClient = useQueryClient();
   const messageId = useId();
   const pageNameId = useId();
@@ -136,15 +145,41 @@ export function ComposePageDialog({
 
   const sendMutation = useMutation({
     mutationFn: (request: SetTemporaryOverrideRequest) => api.setTemporaryOverride(request),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
       queryClient.invalidateQueries({ queryKey: ["temporaryOverride"] });
-      api.forceRefresh().catch(() => {});
-      toast.success(t("toastSent"));
+      queryClient.invalidateQueries({ queryKey: queryKeys.silenceStatus(targetBoardId) });
+      const refresh = await api.forceRefresh().catch(() => null);
+      if (refresh?.sent) toast.success(t("toastSent"));
+      else if (refresh) toast.info(tActive("toastResendNotSent"));
+      else toast.error(t("toastSendError"));
       onOpenChange(false);
     },
     onError: (error: Error) => {
       toast.error(error.message || t("toastSendError"));
+    },
+  });
+
+  // Hold until silence ends (#1944): POST /v1/boards/{board}/message answers
+  // 202 `held: true` when the board's schedule holds messages. Unlike Send,
+  // this never wakes the board.
+  const holdMutation = useMutation({
+    mutationFn: (holdLines: string[]) => api.sendBoardMessage(targetBoardId, { lines: holdLines }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.silenceStatus() });
+      if (result.held) {
+        toast.success(silence?.until ? t("toastHeld", { time: silence.until }) : t("toastHeldNoTime"));
+      } else if (result.sent) {
+        // Silence ended between opening the dialog and pressing Hold.
+        toast.success(t("toastSent"));
+      } else {
+        toast.info(tActive("toastResendNotSent"));
+        return;
+      }
+      onOpenChange(false);
+    },
+    onError: () => {
+      toast.error(t("toastHoldError"));
     },
   });
 
@@ -171,6 +206,11 @@ export function ComposePageDialog({
       ...geometryFields,
     });
   }, [canSend, lines, deviceType, geometryFields, sendMutation]);
+
+  const handleHold = useCallback(() => {
+    if (!canSend) return;
+    holdMutation.mutate(lines);
+  }, [canSend, lines, holdMutation]);
 
   const handleSave = useCallback(() => {
     if (isEmpty || pageName.trim() === "") return;
@@ -202,6 +242,30 @@ export function ComposePageDialog({
                 {t("primaryBoardNote", { boardName: targetBoardName })}
               </Text>
             </Flex>
+          )}
+
+          {paused && <PausedNotice data-testid="compose-paused" />}
+          {silence && (
+            <SilenceNotice
+              variant={silence.holds ? "info" : "warning"}
+              until={silence.until}
+              data-testid="compose-silence"
+              description={
+                silence.holds ? (
+                  t("silenceHold", { time: silence.until ?? "—" })
+                ) : (
+                  <>
+                    {t("silenceNoHold")}{" "}
+                    <Link
+                      href="/settings?section=behavior#silence-schedule"
+                      className="font-medium underline underline-offset-2 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    >
+                      {t("openSettings")}
+                    </Link>
+                  </>
+                )
+              }
+            />
           )}
 
           <Stack gap="2">
@@ -261,8 +325,12 @@ export function ComposePageDialog({
           )}
         </Stack>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={sendMutation.isPending}>
+        <DialogFooter className="flex-wrap">
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={sendMutation.isPending || holdMutation.isPending}
+          >
             {t("cancel")}
           </Button>
           {!showSaveForm && (
@@ -271,10 +339,31 @@ export function ComposePageDialog({
               {t("saveAsPage")}
             </Button>
           )}
-          <Button onClick={handleSend} disabled={!canSend || sendMutation.isPending}>
+          {/* During silence the send is named for what it does: it wakes the
+              board (#949). With holds on, Hold is the primary action, last. */}
+          <Button
+            variant={silence?.holds ? "outline" : "default"}
+            onClick={handleSend}
+            disabled={!canSend || sendMutation.isPending || holdMutation.isPending}
+            data-testid={silence ? "compose-send-anyway" : undefined}
+          >
             <Send className="mr-1.5 h-4 w-4" />
-            {sendMutation.isPending ? t("sending") : t("send")}
+            {sendMutation.isPending ? t("sending") : silence ? t("sendNowAnyway") : t("send")}
           </Button>
+          {silence?.holds && (
+            <Button
+              onClick={handleHold}
+              disabled={!canSend || holdMutation.isPending || sendMutation.isPending}
+              data-testid="compose-hold"
+            >
+              <Clock className="mr-1.5 h-4 w-4" />
+              {holdMutation.isPending
+                ? t("holding")
+                : silence.until
+                  ? t("hold", { time: silence.until })
+                  : t("holdNoTime")}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -145,3 +145,59 @@ describe("ForceSetDialog", () => {
     await waitFor(() => expect(screen.queryByText(/setting…/i)).toBeInTheDocument());
   });
 });
+
+describe("ForceSetDialog during silence (#1943, #949)", () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it("warns that it wakes the board and relabels the confirm button", () => {
+    renderDialog({ silencedUntil: "7:00 AM" });
+    const notice = screen.getByTestId("force-set-silence");
+    expect(notice).toHaveTextContent("Silenced until 7:00 AM");
+    expect(notice).toHaveTextContent("Force Set shows this page right away and wakes the board.");
+    expect(screen.getByRole("button", { name: "Show now anyway" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^force set$/i })).not.toBeInTheDocument();
+  });
+
+  it("still warns when the end time is unknown", () => {
+    renderDialog({ silenced: true, silencedUntil: null });
+    expect(screen.getByTestId("force-set-silence")).toHaveTextContent("The board is silenced");
+    expect(screen.getByRole("button", { name: "Show now anyway" })).toBeInTheDocument();
+  });
+
+  it("is exactly today's dialog when the board is not silenced", () => {
+    renderDialog();
+    expect(screen.queryByTestId("force-set-silence")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^force set$/i })).toBeInTheDocument();
+  });
+
+  it("confirming still posts the same temporary override", async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ active: true });
+      }),
+    );
+    renderDialog({ silencedUntil: "7:00 AM" });
+    fireEvent.click(screen.getByRole("button", { name: "Show now anyway" }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toEqual({ page_id: "page-1", duration_minutes: 5, revert_mode: "schedule" });
+  });
+});
+
+it("warns before setting an override on a paused board", () => {
+  renderDialog({ silenced: true, paused: true });
+  expect(screen.getByTestId("force-set-paused")).toHaveTextContent(
+    "When paused, FiestaBoard does not push anything to this board",
+  );
+});
+
+it("a paused refresh after Force Set does not claim the page was shown", async () => {
+  server.use(http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ sent: false })));
+  const info = vi.spyOn((await import("sonner")).toast, "info");
+  renderDialog({ silenced: true });
+  fireEvent.click(screen.getByRole("button", { name: "Show now anyway" }));
+  await waitFor(() => expect(info).toHaveBeenCalledWith("Nothing was sent (board paused or output set to UI only)"));
+});

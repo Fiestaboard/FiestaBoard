@@ -332,3 +332,110 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
     },
   );
 });
+
+describe("Home silence actions stay on their board", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    useTwoBoards();
+  });
+
+  function serveHeldBoards() {
+    server.use(
+      http.get(`${API_BASE}/silence-status`, ({ request }) => {
+        const id = boardId(request) || "board-1";
+        return HttpResponse.json({
+          enabled: true,
+          active: true,
+          mode: "freeze",
+          ends_at_utc: "2026-10-25T07:00:00Z",
+          holds_blocked_sends: true,
+          held: { kind: "text", preview: `HELD ${id}`, queued_at: "2026-10-24T23:00:00Z" },
+        });
+      }),
+    );
+  }
+
+  it("switching boards changes the held preview and Discard deletes only the selected slot", async () => {
+    serveHeldBoards();
+    const deleted: (string | null)[] = [];
+    let discarded = false;
+    server.use(
+      http.get(`${API_BASE}/silence-status`, ({ request }) => {
+        const id = boardId(request) || "board-1";
+        return HttpResponse.json({
+          enabled: true,
+          active: true,
+          mode: "freeze",
+          ends_at_utc: "2026-10-25T07:00:00Z",
+          held:
+            discarded && id === "board-2"
+              ? null
+              : { kind: "text", preview: `HELD ${id}`, queued_at: "2026-10-24T23:00:00Z" },
+        });
+      }),
+      http.delete(`${API_BASE}/silence-queue`, ({ request }) => {
+        deleted.push(boardId(request));
+        discarded = true;
+        return HttpResponse.json({ discarded: true, board_id: boardId(request) });
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <>
+        <SwitchBoardButton to="board-2" />
+        <SwitchBoardButton to="board-1" />
+        <ActivePageDisplay />
+      </>,
+      { wrapper: TestWrapper },
+    );
+    await waitFor(() => expect(screen.getByTestId("silence-held")).toHaveTextContent("HELD board-1"));
+    await user.click(screen.getByText("switch-board-board-2"));
+    await waitFor(() => expect(screen.getByTestId("silence-held")).toHaveTextContent("HELD board-2"));
+    await user.click(screen.getByTestId("silence-discard-held"));
+    await waitFor(() => expect(deleted).toEqual(["board-2"]));
+    await waitFor(() => expect(screen.queryByTestId("silence-held")).not.toBeInTheDocument());
+    await user.click(screen.getByText("switch-board-board-1"));
+    await waitFor(() => expect(screen.getByTestId("silence-held")).toHaveTextContent("HELD board-1"));
+  });
+
+  it("an old Show now toast keeps the board whose page was saved after switching boards", async () => {
+    serveHeldBoards();
+    const bodies: Record<string, unknown>[] = [];
+    server.use(
+      http.put(`${API_BASE}/settings/active-page`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        bodies.push(body);
+        return HttpResponse.json({
+          page_id: body.page_id,
+          sent_to_board: body.override_silence === true,
+          silenced: body.override_silence !== true,
+          paused: false,
+          error: null,
+          warnings: [],
+        });
+      }),
+    );
+    const info = vi.spyOn((await import("sonner")).toast, "info");
+    const user = userEvent.setup();
+    render(
+      <>
+        <SwitchBoardButton to="board-2" />
+        <ActivePageDisplay />
+      </>,
+      { wrapper: TestWrapper },
+    );
+    await screen.findByTestId("silence-alert");
+    await user.click((await screen.findAllByRole("button", { name: /change page/i }))[0]);
+    await user.click(await screen.findByRole("button", { name: /custom template/i }));
+    await waitFor(() => expect(info).toHaveBeenCalled());
+    const options = info.mock.calls.find((call) => call[1]?.action)?.[1];
+    expect(options?.action).toBeDefined();
+    await user.click(screen.getByText("switch-board-board-2"));
+    await waitFor(() => expect(screen.getByTestId("silence-held")).toHaveTextContent("HELD board-2"));
+    const action = options!.action as { onClick: (event: unknown) => void };
+    action.onClick({});
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[1]).toEqual({ page_id: "page-2", board_id: "board-1", override_silence: true });
+  });
+});

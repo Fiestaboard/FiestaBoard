@@ -22,7 +22,7 @@ Split-flap displays can be noisy when updating. The silence schedule ensures you
 2. Go to **Settings** → **Behavior**
 3. Find the **Silence Schedule** section
 4. Set your **Start Time** and **End Time**
-5. Save your settings
+5. Optionally enable **Show held messages when silence ends** (off by default).
 
 Settings save automatically a second after you stop typing.
 
@@ -47,10 +47,10 @@ A few things follow from this:
   Flagship page cannot be chosen for a 15×3 Note.
 - **Single-board installs see no difference.** There is just the one board, so
   its schedule is the schedule.
-- **Manual sends respect the target board's window.** Sending a message or a
-  page from the Web UI, the API, or Home Assistant is blocked while *that*
-  board is silenced, so a 2 AM send cannot wake a board whose own quiet hours
-  say it should be asleep.
+- **Manual changes respect the target board's window.** Picking a page saves
+  the selection for later. Message sends and Live Output leave a silenced
+  board quiet unless you explicitly choose to send now. Pausing the board
+  prevents writes even when you override silence.
 - **The Home Assistant `silence_mode` sensor reports the primary board.** Like
   the other entities in that payload (active page, transition style), it
   describes the primary board rather than the install as a whole. The same is
@@ -79,11 +79,73 @@ Regardless of which mode you pick:
 When the silence window ends:
 
 - The display service resumes normal operation
-- The currently scheduled (or default) page is sent to the board
+- A held message is attempted first, if you enabled holding and one is pending
+- Otherwise, the selected manual page or current scheduled/default page is shown
+- A paused or offline board keeps its held message for a later attempt
 
 :::tip
 The silence schedule uses your configured timezone (`TIMEZONE` in `.env`). Make sure this is set correctly for your location.
 :::
+
+## Manual Changes During Silence
+
+Home shows **Silenced until…** throughout the active window, with the ending
+time in your browser's time zone and selected UI language. Selecting a page
+saves it for when silence ends; the page picker and confirmation explain this.
+**Show now** explicitly sends the selected saved page during silence. It sends
+the full page freshly rendered, never the shortened held-message preview.
+Pause still prevents the write.
+
+Compose and Force Set warn before waking the primary board. These two actions
+keep their existing temporary-override behavior: Compose creates an indefinite
+one-off message; Force Set shows a page for the chosen duration and then
+returns to the schedule. In multi-board installs, Compose names the primary
+board when it differs from the board selected in the sidebar.
+
+Live Output continues updating the editor preview while leaving a silenced
+board quiet. **Send to board anyway** explicitly allows writes for that Live
+Output session. **Stop sending**, turning Live Output off, or changing the
+output board ends that permission. A paused render never claims to have
+updated the board.
+
+## Holding a Message for Later
+
+**Show held messages when silence ends** is an opt-in setting for each board;
+boards without an override inherit the install-wide value. It applies in all
+three silence modes. Turning it on lets accepted manual sends wait quietly
+until silence ends. Compose offers **Hold until…** beside **Send now anyway**.
+With holding off, a blocked message is refused rather than saved.
+
+Each board has one persistent held-message slot. A newer accepted message
+replaces the older one for that board. Home shows a shortened preview and
+**Discard message** clears only the selected board's slot. Discard does not
+change your saved active page, and cannot undo a hardware send that already
+started. **Show now** sends your selected page, which may differ from the held
+message; it is not a held-message replay button.
+
+Held messages survive restarts and expire after 24 hours. Pages and plugin
+displays render fresh at delivery; text uses the target board's normal v9
+wrapping and dimensions. Delivery waits for silence to end, the board to be
+resumed, and hardware output to be available. Failed or throttled attempts
+retain the message for a later attempt. A successful explicit send supersedes
+an older held message; a failed or paused send keeps it.
+
+## API Behavior
+
+See the [API reference](/docs/reference/api-endpoints) for request and response
+fields. For example, `POST /v1/boards/primary/message` with
+`{"text":"GOOD MORNING"}` returns HTTP 202 with `held: true`, `silenced: true`,
+`sent: false`, and `ends_at_utc` when holding is enabled during silence.
+Otherwise a silenced message is refused with HTTP 409. Add the JSON boolean
+`"override_silence": true` only when you deliberately want to wake the board.
+`force` only sends unchanged content again; neither flag bypasses pause.
+
+A page selection can succeed while returning `sent: false` (v1) or
+`sent_to_board: false` (the UI endpoint): the choice was saved without a
+hardware write. Live rendering likewise returns a preview while silenced.
+`GET /silence-status?board_id=…` reports the ending instant, holding setting,
+and optional held summary; `DELETE /silence-queue?board_id=…` discards that
+board's held intent. Omitting the board id targets the primary board.
 
 ## Example Configurations
 

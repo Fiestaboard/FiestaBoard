@@ -69,9 +69,11 @@ import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
 import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
+import { LiveOutputSilenceStrip } from "@/components/live-output-silence-strip";
 import { PanelFitNote } from "@/components/panel-fit-note";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import { PausedNotice } from "@/components/silence-notice";
 import type {
   DrawHistoryEvent,
   TipTapTemplateEditorHandle,
@@ -90,8 +92,10 @@ import {
   resolveCode62Glyph,
   useBoardSettings,
 } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { usePanelTargets } from "@/hooks/use-panel-targets";
 import { useRouter } from "@/hooks/use-router";
+import { useSilence } from "@/hooks/use-silence";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
@@ -731,11 +735,36 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   const LIVE_OUTPUT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
+  // Silence (#1943): live renders leave a silenced board alone unless the
+  // user explicitly chose "Send to board anyway" for this Live Output session.
+  const liveSilence = useSilence(selectedBoardId || undefined);
+  const [liveOverrideSilence, setLiveOverrideSilence] = useState(false);
+  // The last live render came back `silenced: true` (the board was left alone).
+  const [liveSilenced, setLiveSilenced] = useState(false);
+  const [livePaused, setLivePaused] = useState(false);
+  const liveOverrideSilenceRef = useRef(false);
+  liveOverrideSilenceRef.current = liveOverrideSilence;
+  const liveCanPrimeRef = useRef(false);
+  liveCanPrimeRef.current =
+    liveSilence.status?.active === false &&
+    !boardSettings?.boards?.find((board) => board.id === selectedBoardId)?.paused;
+
   const disableLiveOutput = useCallback(() => {
     setLiveOutputEnabled(false);
+    setLiveOverrideSilence(false);
     lastLiveSentPreview.current = null;
     toast.info(t("toastLiveOutputOff"));
   }, [t]);
+
+  // Turning Live Output off — from any path: the switch, the timeout, another
+  // tab's kill switch — ends the override too, so the next session starts
+  // honouring silence again. A render-phase reset (react-hooks/set-state-in-effect).
+  const liveSessionChanged = useDepsChanged([liveOutputEnabled, selectedBoardId]);
+  if (liveSessionChanged) {
+    setLiveOverrideSilence(false);
+    setLiveSilenced(false);
+    setLivePaused(false);
+  }
 
   // Debounced state (for expensive operations)
   const [debouncedTemplateLines, setDebouncedTemplateLines] = useState<string[]>(emptyLines());
@@ -787,7 +816,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (!liveOutputEnabledRef.current && liveOutputEnabled) {
       // Live output just enabled — prime the Home page cache with the current
       // page preview so there is no gap between enabling and first live render.
-      if (lastPreviewRef.current) {
+      // Not while the board is silenced: Home's Live Mode badge must never
+      // claim a frame the board does not show (#1943).
+      if (lastPreviewRef.current && liveCanPrimeRef.current) {
         queryClient.setQueryData(["liveOutputMessage"], lastPreviewRef.current);
         writeLiveOutputMessage(lastPreviewRef.current);
       }
@@ -1561,9 +1592,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         notesTall,
         undefined,
         panelGrid,
+        { overrideSilence: liveOverrideSilenceRef.current },
       );
     },
     onSuccess: (data) => {
+      setLiveSilenced(data.silenced === true);
+      setLivePaused(data.paused === true);
       if (data.sent_to_board) {
         lastLiveSentPreview.current = preview;
         // Broadcast to the Home page so its virtual board reflects the live content.
@@ -1648,6 +1682,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           notesTall,
           controller.signal,
           panelGrid,
+          { overrideSilence: liveOverrideSilence },
         );
 
         if (controller.signal.aborted) return;
@@ -1656,10 +1691,22 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         if (data.rendered) {
           setLastPreview(data.rendered);
         }
+        // The "last attempted" marker the mutation-path effect compares
+        // against. It stays unconditional: gating it on sent_to_board would
+        // make that effect re-send every silenced keystroke (#1943).
         lastLiveSentPreview.current = data.rendered;
-        // Broadcast to the Home page (same tab and other tabs) so navigating there shows this content.
-        queryClient.setQueryData(["liveOutputMessage"], data.rendered);
-        writeLiveOutputMessage(data.rendered);
+        setLiveSilenced(data.silenced === true);
+        setLivePaused(data.paused === true);
+        if (data.sent_to_board) {
+          // Broadcast to the Home page (same tab and other tabs) so navigating
+          // there shows this content — only a frame the board really shows.
+          queryClient.setQueryData(["liveOutputMessage"], data.rendered);
+          writeLiveOutputMessage(data.rendered);
+        } else if ((data.silenced || data.paused) && queryClient.getQueryData(["liveOutputMessage"]) != null) {
+          // A frame primed before silence was known: take the claim back.
+          queryClient.setQueryData(["liveOutputMessage"], null);
+          writeLiveOutputMessage(null);
+        }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -1688,6 +1735,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     notesTall,
     panelGrid,
     queryClient,
+    // Choosing "Send to board anyway" re-sends the current preview at once.
+    liveOverrideSilence,
   ]);
 
   // Initialize selected board to first board when settings load
@@ -2506,6 +2555,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       </Select>
                     )}
                   </Flex>
+                  {liveOutputEnabled &&
+                    (livePaused || boardSettings?.boards?.find((board) => board.id === selectedBoardId)?.paused) && (
+                      <PausedNotice data-testid="live-paused" />
+                    )}
+                  <LiveOutputSilenceStrip
+                    liveOutputEnabled={liveOutputEnabled}
+                    lastSilenced={liveSilenced}
+                    silenceActive={liveSilence.active}
+                    overriding={liveOverrideSilence}
+                    until={liveSilence.until}
+                    onSendAnyway={() => setLiveOverrideSilence(true)}
+                    onStopOverriding={() => setLiveOverrideSilence(false)}
+                  />
                 </Box>
               </Stack>
             </ScrollArea>

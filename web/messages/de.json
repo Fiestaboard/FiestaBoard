@@ -893,7 +893,21 @@
     "collectionSizeWarning": "{count} von {total} Seiten in dieser Sammlung passen nicht zur Größe dieses Boards und werden übersprungen.",
     "turnOffLiveModeAriaLabel": "Live-Modus deaktivieren",
     "liveModeBadge": "Live-Modus",
-    "composeOneOff": "Nachricht verfassen"
+    "composeOneOff": "Nachricht verfassen",
+    "silenceManual": "„{pageName}“ wird angezeigt, wenn der Ruhemodus endet. Bis dahin bleibt das Board still.",
+    "silenceSchedule": "Dein Zeitplan läuft weiter, wenn der Ruhemodus endet. Bis dahin bleibt das Board still.",
+    "silenceNoPage": "Bis dahin bleibt das Board still.",
+    "silenceHeld": "Zurückgehaltene Nachricht: „{preview}“ – sie wird zuerst angezeigt.",
+    "showNow": "Jetzt anzeigen",
+    "discardHeld": "Nachricht verwerfen",
+    "selectPageSilence": "die gewählte Seite wird gespeichert und dann angezeigt. Das Board bleibt still.",
+    "toastSwitchHeld": "„{pageName}“ wird um {time} angezeigt",
+    "toastSwitchHeldNoTime": "„{pageName}“ wird angezeigt, wenn der Ruhemodus endet",
+    "toastSwitchPaused": "Gespeichert – „{pageName}“ wird angezeigt, wenn du das Board fortsetzt",
+    "toastShownNow": "„{pageName}“ wird jetzt angezeigt",
+    "toastHeldDiscarded": "Zurückgehaltene Nachricht verworfen",
+    "toastHeldDiscardFailed": "Die zurückgehaltene Nachricht konnte nicht verworfen werden",
+    "toastResendNotSent": "Nichts gesendet (Board pausiert oder Ausgabe nur auf die Oberfläche eingestellt)"
   },
   "forceSetDialog": {
     "title": "Board erzwingen",
@@ -905,7 +919,9 @@
     "confirm": "Erzwingen",
     "setting": "Stelle ein…",
     "toastSuccess": "Zeige „{pageName}\" für {minutes} Min.",
-    "toastError": "Übersteuerung konnte nicht gesetzt werden"
+    "toastError": "Übersteuerung konnte nicht gesetzt werden",
+    "silenceWarning": "Erzwingen zeigt diese Seite sofort an und weckt das Board.",
+    "confirmSilenced": "Trotzdem jetzt anzeigen"
   },
   "composeDialog": {
     "title": "Nachricht verfassen",
@@ -926,7 +942,17 @@
     "toastSent": "An die Tafel gesendet",
     "toastSendError": "Nachricht konnte nicht gesendet werden",
     "toastSaved": "„{pageName}“ gespeichert",
-    "toastSaveError": "Seite konnte nicht gespeichert werden"
+    "toastSaveError": "Seite konnte nicht gespeichert werden",
+    "silenceHold": "Halte sie zurück, dann erscheint sie um {time} – oder sende sie jetzt, dann wird das Board geweckt.",
+    "silenceNoHold": "Jetzt senden weckt das Board. Um Nachrichten bis zum Ende des Ruhemodus zurückzuhalten, aktiviere „Zurückgehaltene Nachrichten nach dem Ruhemodus anzeigen“ unter Einstellungen → Verhalten.",
+    "openSettings": "Einstellungen öffnen",
+    "hold": "Bis {time} zurückhalten",
+    "holdNoTime": "Bis zum Ende des Ruhemodus zurückhalten",
+    "holding": "Wird zurückgehalten…",
+    "sendNowAnyway": "Trotzdem jetzt senden",
+    "toastHeld": "Zurückgehalten – erscheint um {time}",
+    "toastHeldNoTime": "Zurückgehalten – erscheint, wenn der Ruhemodus endet",
+    "toastHoldError": "Die Nachricht konnte nicht zurückgehalten werden"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "App nicht erreichbar. Netzwerk prüfen oder prüfen, ob FiestaBoard läuft.",
@@ -1021,7 +1047,11 @@
     "transitionUseGlobalDefault": "Globalen Standard verwenden",
     "transitionBuiltInGroup": "Integriert",
     "transitionPluginsGroup": "Plugins (Beta)",
-    "transitionOpenLab": "Übergangs-Labor öffnen"
+    "transitionOpenLab": "Übergangs-Labor öffnen",
+    "liveSilencePreviewOnly": "Die Live-Ausgabe zeigt nur eine Vorschau. Das Board bleibt still.",
+    "liveSendAnyway": "Trotzdem an das Board senden",
+    "liveSilenceOverriding": "Die Live-Ausgabe weckt das Board während des Ruhemodus.",
+    "liveStopOverriding": "Senden beenden"
   },
   "displaySettings": {
     "title": "Ihre Boards",
@@ -1364,7 +1394,9 @@
     "toastBoardReadIntervalUpdated": "Board-Leseintervall aktualisiert",
     "toastBoardReadIntervalFailed": "Aktualisierung des Board-Leseintervalls fehlgeschlagen: {error}",
     "updateIntervalsTitle": "Aktualisierungsintervalle",
-    "updateIntervalsDescription": "Wie oft das Board nach neuen Inhalten sucht und seinen aktuellen Zustand erneut liest"
+    "updateIntervalsDescription": "Wie oft das Board nach neuen Inhalten sucht und seinen aktuellen Zustand erneut liest",
+    "silenceShowHeldLabel": "Zurückgehaltene Nachrichten nach dem Ruhemodus anzeigen",
+    "silenceShowHeldHelp": "Eine Nachricht, die während des Ruhemodus an dieses Board gesendet wird, wird zurückgehalten und angezeigt, sobald der Ruhemodus endet. Ist dies aus, wird sie stattdessen abgelehnt. Seitenwechsel werden immer gespeichert und brauchen das nicht."
   },
   "serviceControls": {
     "title": "Dienststeuerung",
@@ -2498,5 +2530,9 @@
     "empty": "Keine passenden Modelle",
     "typedId": "Diese ID verwenden",
     "showingFirst": "Die ersten {shown} von {total}. Tippe, um einzugrenzen."
+  },
+  "silenceNotice": {
+    "untilTitle": "Im Ruhemodus bis {time}",
+    "untilTitleNoTime": "Das Board ist im Ruhemodus"
   }
 }

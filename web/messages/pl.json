@@ -893,7 +893,21 @@
     "collectionSizeWarning": "{count} z {total} stron w tej kolekcji nie pasuje do rozmiaru tej tablicy i zostaną pominięte.",
     "turnOffLiveModeAriaLabel": "Wyłącz tryb na żywo",
     "liveModeBadge": "Tryb na żywo",
-    "composeOneOff": "Napisz wiadomość"
+    "composeOneOff": "Napisz wiadomość",
+    "silenceManual": "„{pageName}” pojawi się po zakończeniu ciszy. Do tego czasu tablica pozostaje cicha.",
+    "silenceSchedule": "Harmonogram wznowi się po zakończeniu ciszy. Do tego czasu tablica pozostaje cicha.",
+    "silenceNoPage": "Do tego czasu tablica pozostaje cicha.",
+    "silenceHeld": "Wstrzymana wiadomość: „{preview}” — pojawi się jako pierwsza.",
+    "showNow": "Pokaż teraz",
+    "discardHeld": "Odrzuć wiadomość",
+    "selectPageSilence": "wybrana strona zostanie zapisana i wtedy się pojawi. Tablica pozostaje cicha.",
+    "toastSwitchHeld": "„{pageName}” pojawi się o {time}",
+    "toastSwitchHeldNoTime": "„{pageName}” pojawi się po zakończeniu ciszy",
+    "toastSwitchPaused": "Zapisano — „{pageName}” pojawi się po wznowieniu tablicy",
+    "toastShownNow": "Wyświetlanie „{pageName}” teraz",
+    "toastHeldDiscarded": "Wstrzymana wiadomość odrzucona",
+    "toastHeldDiscardFailed": "Nie udało się odrzucić wstrzymanej wiadomości",
+    "toastResendNotSent": "Nic nie wysłano (tablica wstrzymana lub wyjście ustawione tylko na interfejs)"
   },
   "forceSetDialog": {
     "title": "Wymuś ustawienie boarda",
@@ -905,7 +919,9 @@
     "confirm": "Wymuś",
     "setting": "Ustawianie…",
     "toastSuccess": "Wyświetlanie „{pageName}\" przez {minutes} min",
-    "toastError": "Nie udało się ustawić nadpisania"
+    "toastError": "Nie udało się ustawić nadpisania",
+    "silenceWarning": "Wymuszenie od razu pokazuje tę stronę i budzi tablicę.",
+    "confirmSilenced": "Mimo to pokaż teraz"
   },
   "composeDialog": {
     "title": "Napisz wiadomość",
@@ -926,7 +942,17 @@
     "toastSent": "Wysłano na tablicę",
     "toastSendError": "Nie udało się wysłać wiadomości",
     "toastSaved": "Zapisano „{pageName}”",
-    "toastSaveError": "Nie udało się zapisać strony"
+    "toastSaveError": "Nie udało się zapisać strony",
+    "silenceHold": "Wstrzymaj ją, a pojawi się o {time}, albo wyślij teraz, a tablica się obudzi.",
+    "silenceNoHold": "Wysłanie teraz obudzi tablicę. Aby wstrzymywać wiadomości do końca ciszy, włącz „Pokazuj wstrzymane wiadomości po zakończeniu ciszy” w Ustawienia → Zachowanie.",
+    "openSettings": "Otwórz ustawienia",
+    "hold": "Wstrzymaj do {time}",
+    "holdNoTime": "Wstrzymaj do końca ciszy",
+    "holding": "Wstrzymywanie…",
+    "sendNowAnyway": "Mimo to wyślij teraz",
+    "toastHeld": "Wstrzymano — pojawi się o {time}",
+    "toastHeldNoTime": "Wstrzymano — pojawi się po zakończeniu ciszy",
+    "toastHoldError": "Nie udało się wstrzymać wiadomości"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Nie można połączyć się z aplikacją. Sprawdź sieć lub czy FiestaBoard jest uruchomiony.",
@@ -1021,7 +1047,11 @@
     "transitionUseGlobalDefault": "Użyj domyślnego ustawienia globalnego",
     "transitionBuiltInGroup": "Wbudowane",
     "transitionPluginsGroup": "Wtyczki (beta)",
-    "transitionOpenLab": "Otwórz laboratorium przejść"
+    "transitionOpenLab": "Otwórz laboratorium przejść",
+    "liveSilencePreviewOnly": "Wyjście na żywo pokazuje tylko podgląd. Tablica pozostaje cicha.",
+    "liveSendAnyway": "Mimo to wyślij na tablicę",
+    "liveSilenceOverriding": "Wyjście na żywo budzi tablicę w czasie ciszy.",
+    "liveStopOverriding": "Przestań wysyłać"
   },
   "displaySettings": {
     "title": "Twoje tablice",
@@ -1364,7 +1394,9 @@
     "toastBoardReadIntervalUpdated": "Interwał odczytu boarda zaktualizowany",
     "toastBoardReadIntervalFailed": "Nie udało się zaktualizować interwału odczytu boarda: {error}",
     "updateIntervalsTitle": "Interwały aktualizacji",
-    "updateIntervalsDescription": "Jak często tablica sprawdza nową treść i ponownie odczytuje swój aktualny stan"
+    "updateIntervalsDescription": "Jak często tablica sprawdza nową treść i ponownie odczytuje swój aktualny stan",
+    "silenceShowHeldLabel": "Pokazuj wstrzymane wiadomości po zakończeniu ciszy",
+    "silenceShowHeldHelp": "Wiadomość wysłana na tę tablicę w czasie ciszy jest wstrzymywana i pokazywana w chwili, gdy cisza się kończy. Gdy ta opcja jest wyłączona, wiadomość jest odrzucana. Zmiany strony są zawsze zapisywane i jej nie potrzebują."
   },
   "serviceControls": {
     "title": "Kontrola usługi",
@@ -2498,5 +2530,9 @@
     "empty": "Brak pasujących modeli",
     "typedId": "Użyj tego id",
     "showingFirst": "Pierwsze {shown} z {total}. Pisz, aby zawęzić."
+  },
+  "silenceNotice": {
+    "untilTitle": "Wyciszona do {time}",
+    "untilTitleNoTime": "Tablica jest wyciszona"
   }
 }

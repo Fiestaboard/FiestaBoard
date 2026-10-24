@@ -893,7 +893,21 @@
     "collectionSizeWarning": "{count} des {total} pages de cette collection ne correspondent pas à la taille de ce tableau et seront ignorées.",
     "turnOffLiveModeAriaLabel": "Désactiver le mode direct",
     "liveModeBadge": "Mode direct",
-    "composeOneOff": "Rédiger un message"
+    "composeOneOff": "Rédiger un message",
+    "silenceManual": "« {pageName} » s'affichera à la fin du silence. D'ici là, le tableau reste silencieux.",
+    "silenceSchedule": "Votre planning reprend à la fin du silence. D'ici là, le tableau reste silencieux.",
+    "silenceNoPage": "D'ici là, le tableau reste silencieux.",
+    "silenceHeld": "Message en attente : « {preview} » — il s'affichera en premier.",
+    "showNow": "Afficher maintenant",
+    "discardHeld": "Supprimer le message",
+    "selectPageSilence": "la page choisie est enregistrée et s'affichera à ce moment-là. Le tableau reste silencieux.",
+    "toastSwitchHeld": "« {pageName} » s'affichera à {time}",
+    "toastSwitchHeldNoTime": "« {pageName} » s'affichera à la fin du silence",
+    "toastSwitchPaused": "Enregistré — « {pageName} » s'affichera quand vous reprendrez le tableau",
+    "toastShownNow": "Affichage de « {pageName} » maintenant",
+    "toastHeldDiscarded": "Message en attente supprimé",
+    "toastHeldDiscardFailed": "Impossible de supprimer le message en attente",
+    "toastResendNotSent": "Rien n'a été envoyé (tableau en pause ou sortie réglée sur l'interface uniquement)"
   },
   "forceSetDialog": {
     "title": "Forcer l'affichage",
@@ -905,7 +919,9 @@
     "confirm": "Forcer",
     "setting": "Application…",
     "toastSuccess": "Affichage de « {pageName} » pendant {minutes} min",
-    "toastError": "Échec du remplacement"
+    "toastError": "Échec du remplacement",
+    "silenceWarning": "Forcer affiche cette page immédiatement et réveille le tableau.",
+    "confirmSilenced": "Afficher maintenant quand même"
   },
   "composeDialog": {
     "title": "Rédiger un message",
@@ -926,7 +942,17 @@
     "toastSent": "Envoyé au tableau",
     "toastSendError": "Échec de l’envoi du message",
     "toastSaved": "« {pageName} » enregistré",
-    "toastSaveError": "Échec de l’enregistrement de la page"
+    "toastSaveError": "Échec de l’enregistrement de la page",
+    "silenceHold": "Mettez-le en attente et il s'affichera à {time}, ou envoyez-le maintenant et le tableau se réveillera.",
+    "silenceNoHold": "Envoyer maintenant réveille le tableau. Pour mettre les messages en attente jusqu'à la fin du silence, activez « Afficher les messages en attente à la fin du silence » dans Réglages → Comportement.",
+    "openSettings": "Ouvrir les réglages",
+    "hold": "Mettre en attente jusqu'à {time}",
+    "holdNoTime": "Mettre en attente jusqu'à la fin du silence",
+    "holding": "Mise en attente…",
+    "sendNowAnyway": "Envoyer maintenant quand même",
+    "toastHeld": "En attente — il s'affichera à {time}",
+    "toastHeldNoTime": "En attente — il s'affichera à la fin du silence",
+    "toastHoldError": "Impossible de mettre le message en attente"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Application inaccessible. Vérifiez votre réseau ou que FiestaBoard est en cours d'exécution.",
@@ -1021,7 +1047,11 @@
     "transitionUseGlobalDefault": "Utiliser le réglage par défaut global",
     "transitionBuiltInGroup": "Intégrées",
     "transitionPluginsGroup": "Plugins (bêta)",
-    "transitionOpenLab": "Ouvrir le labo des transitions"
+    "transitionOpenLab": "Ouvrir le labo des transitions",
+    "liveSilencePreviewOnly": "La sortie en direct n'affiche qu'un aperçu. Le tableau reste silencieux.",
+    "liveSendAnyway": "Envoyer au tableau quand même",
+    "liveSilenceOverriding": "La sortie en direct réveille le tableau pendant le silence.",
+    "liveStopOverriding": "Arrêter l'envoi"
   },
   "displaySettings": {
     "title": "Vos tableaux",
@@ -1364,7 +1394,9 @@
     "toastBoardReadIntervalUpdated": "Intervalle de lecture mis à jour",
     "toastBoardReadIntervalFailed": "Échec de la mise à jour de l'intervalle de lecture : {error}",
     "updateIntervalsTitle": "Intervalles de mise à jour",
-    "updateIntervalsDescription": "À quelle fréquence le tableau récupère le nouveau contenu et relit son état actuel"
+    "updateIntervalsDescription": "À quelle fréquence le tableau récupère le nouveau contenu et relit son état actuel",
+    "silenceShowHeldLabel": "Afficher les messages en attente à la fin du silence",
+    "silenceShowHeldHelp": "Un message envoyé à ce tableau pendant le silence est mis en attente et affiché dès la fin du silence. Désactivé, il est refusé. Les changements de page sont toujours conservés et n'en ont pas besoin."
   },
   "serviceControls": {
     "title": "Contrôle du service",
@@ -2498,5 +2530,9 @@
     "empty": "Aucun modèle correspondant",
     "typedId": "Utiliser cet identifiant",
     "showingFirst": "Les {shown} premiers sur {total}. Tapez pour affiner."
+  },
+  "silenceNotice": {
+    "untilTitle": "En silence jusqu'à {time}",
+    "untilTitleNoTime": "Le tableau est en silence"
   }
 }

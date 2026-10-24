@@ -83,6 +83,13 @@ export interface TemplateRenderLiveResponse {
   sent_to_board: boolean;
   /** True when the send was skipped because the target board is paused. */
   paused: boolean;
+  /**
+   * True when the board's silence window kept this render off the board
+   * (#1943). The render is still returned so the preview keeps updating.
+   */
+  silenced: boolean;
+  held?: boolean;
+  ends_at_utc?: string | null;
   board_id: string | null;
 }
 
@@ -137,6 +144,8 @@ export const templatesApi = {
     notesTall?: number,
     signal?: AbortSignal,
     grid?: GridSize | null,
+    // `overrideSilence` writes to the board even while it is silenced (#1943).
+    opts?: { overrideSilence?: boolean },
   ) =>
     fetchApi<TemplateRenderLiveResponse>("/templates/render/live", {
       method: "POST",
@@ -148,6 +157,7 @@ export const templatesApi = {
         ...(notesWide != null && { notes_wide: notesWide }),
         ...(notesTall != null && { notes_tall: notesTall }),
         ...gridFields(grid),
+        ...(opts?.overrideSilence === true && { override_silence: true }),
       }),
       signal,
     }),

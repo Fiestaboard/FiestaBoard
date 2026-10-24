@@ -20,6 +20,7 @@ import { Timer } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import { PausedNotice, SilenceNotice } from "@/components/silence-notice";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type { SetTemporaryOverrideRequest } from "@/lib/api";
@@ -37,10 +38,28 @@ interface ForceSetDialogProps {
   onOpenChange: (open: boolean) => void;
   pageId: string | null;
   pageName: string;
+  /**
+   * When the PRIMARY board's silence ends ("7:00 AM") — the override store is
+   * primary-only, so that is the board Force Set wakes (#1943, #949). Set
+   * (with `silenced`) only while that board is silenced.
+   */
+  silencedUntil?: string | null;
+  /** The primary board is silenced. Defaults to "`silencedUntil` is set". */
+  silenced?: boolean;
+  paused?: boolean;
 }
 
-export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSetDialogProps) {
+export function ForceSetDialog({
+  open,
+  onOpenChange,
+  pageId,
+  pageName,
+  silencedUntil = null,
+  silenced = silencedUntil != null,
+  paused = false,
+}: ForceSetDialogProps) {
   const t = useTranslations("forceSetDialog");
+  const tActive = useTranslations("activeDisplay");
   const queryClient = useQueryClient();
 
   const [durationMinutes, setDurationMinutes] = useState<number>(5);
@@ -60,11 +79,14 @@ export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSe
 
   const setOverrideMutation = useMutation({
     mutationFn: (req: SetTemporaryOverrideRequest) => api.setTemporaryOverride(req),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
       queryClient.invalidateQueries({ queryKey: ["temporaryOverride"] });
-      api.forceRefresh().catch(() => {});
-      toast.success(t("toastSuccess", { minutes: effectiveDuration, pageName }));
+      queryClient.invalidateQueries({ queryKey: ["silenceStatus"] });
+      const refresh = await api.forceRefresh().catch(() => null);
+      if (refresh?.sent) toast.success(t("toastSuccess", { minutes: effectiveDuration, pageName }));
+      else if (refresh) toast.info(tActive("toastResendNotSent"));
+      else toast.error(t("toastError"));
       onOpenChange(false);
     },
     onError: (err: Error) => {
@@ -98,6 +120,17 @@ export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSe
           </DialogTitle>
           <DialogDescription>{t("description", { pageName })}</DialogDescription>
         </DialogHeader>
+
+        {/* Force Set deliberately beats silence (#949). Say so before the
+            click, and name the choice on the button. */}
+        {paused && <PausedNotice data-testid="force-set-paused" />}
+        <SilenceNotice
+          active={silenced}
+          variant="warning"
+          until={silencedUntil}
+          description={t("silenceWarning")}
+          data-testid="force-set-silence"
+        />
 
         <Box className="py-2">
           <Stack gap="2">
@@ -158,7 +191,7 @@ export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSe
           </Button>
           <Button onClick={handleConfirm} disabled={!isValid || setOverrideMutation.isPending}>
             <Timer className="mr-1.5 h-4 w-4" />
-            {setOverrideMutation.isPending ? t("setting") : t("confirm")}
+            {setOverrideMutation.isPending ? t("setting") : silenced ? t("confirmSilenced") : t("confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>
