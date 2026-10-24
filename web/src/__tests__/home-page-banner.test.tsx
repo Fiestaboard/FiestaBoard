@@ -72,7 +72,7 @@ describe("Home page - board not configured banner", () => {
 
     await waitFor(() => {
       expect(screen.getByText("No board configured")).toBeInTheDocument();
-      expect(screen.getByText(/Your board is not set up yet/)).toBeInTheDocument();
+      expect(screen.getByText(/You can create and preview pages now/)).toBeInTheDocument();
     });
   });
 

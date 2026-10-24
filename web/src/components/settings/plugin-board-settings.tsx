@@ -171,7 +171,13 @@ export interface PluginBoardSettingsProps {
   /** Apply a detected size. Without it, detect-size still reports what it found. */
   onGeometry?: (geometry: ActionGeometry) => void;
   /** Every action's answer, after the screen has shown it (the wizard saves on a passing test). */
-  onActionResult?: (actionId: string, result: ActionResult) => void;
+  onActionResult?: (
+    actionId: string,
+    result: ActionResult,
+    tested: { config: Record<string, unknown>; deviceModel?: string },
+  ) => void;
+  /** Start/end notifications let setup clear a previous verification before a retest. */
+  onActionStateChange?: (actionId: string, pending: boolean) => void;
   disabled?: boolean;
 }
 
@@ -191,6 +197,7 @@ export function PluginBoardSettings({
   layout,
   onGeometry,
   onActionResult,
+  onActionStateChange,
   disabled,
 }: PluginBoardSettingsProps) {
   const t = useTranslations("boardSettingsScreen");
@@ -218,6 +225,7 @@ export function PluginBoardSettings({
       const answer = (entry: Omit<ActionFeedbackEntry, "action">) =>
         setFeedback((current) => ({ ...current, [origin]: { action, ...entry } }));
       setRunning(actionId);
+      onActionStateChange?.(actionId, true);
       setFeedback((current) => {
         const rest = { ...current };
         delete rest[origin];
@@ -239,7 +247,7 @@ export function PluginBoardSettings({
         const autoApplied = !!(action.auto_apply && response.geometry && onGeometry);
         if (autoApplied) onGeometry!(response.geometry!);
         answer({ result: response, error: null, filled: applied.filled, applied: autoApplied });
-        onActionResult?.(actionId, response);
+        onActionResult?.(actionId, response, { config: values, deviceModel });
         return response;
       } catch (error) {
         answer({
@@ -251,9 +259,10 @@ export function PluginBoardSettings({
         return null;
       } finally {
         setRunning(null);
+        onActionStateChange?.(actionId, false);
       }
     },
-    [boardId, deviceModel, onActionResult, onChange, onGeometry, output, t, values],
+    [boardId, deviceModel, onActionResult, onActionStateChange, onChange, onGeometry, output, t, values],
   );
 
   /** Run an action from a button, asking for its input first when it declares any. */

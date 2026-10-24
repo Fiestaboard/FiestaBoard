@@ -105,13 +105,13 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 ### After Setup
 
-1. Open **http://localhost:4420** — the setup wizard will guide you through connecting your board
-2. The display service starts automatically once your board is connected
-3. Go to **Integrations** to enable plugins (weather, stocks, etc.)
-4. Go to **Pages** to create and design what your board displays
-5. Go to **Schedule** to automate when different pages show up
+1. Open **http://localhost:4420** on the computer running Docker, or **http://fiestapi.local:4420** for a FiestaPi on your network.
+2. Choose where your content will appear: a **Vestaboard**, **FiestaPanel** for a TV or browser, or another supported display. The wizard guides you through saving its connection. For FiestaPanel, open the viewer address on your TV and leave its browser open.
+3. Optionally choose **Integrations**, which supply live information such as the time or weather. Start with Date & Time; some integrations need a location, event date, or API key configured later.
+4. Choose **Save & create my first page**. A page is the layout of text, colors, and information you want to show. Preview it in the editor before sending it to your display. The welcome test message is optional; your integration choices save either way.
+5. Later, use **Schedule** to decide when pages appear, **Displays** to manage connections, and **Integrations** to configure or add live data.
 
-> **Tip:** Many plugins need no API key at all - Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, Sun Art, and more work right out of the box. Start with those while you gather API keys for others.
+> **No display yet?** Choose **I'll add a display later** to explore FiestaBoard and create page previews. You can connect a display whenever you are ready.
 
 > **Use `http://`, not `https://`.** FiestaBoard runs on your local network and is served over plain HTTP — it has no SSL certificate. Type the address with `http://` (for example `http://localhost:4420`). If your browser shows a "connection is not secure" or `ERR_SSL_PROTOCOL_ERROR` page, it upgraded the address to `https://`; delete the `s` and reload. See [Can't reach the web UI](#cant-reach-the-web-ui) if it keeps happening.
 

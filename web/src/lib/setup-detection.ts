@@ -26,6 +26,7 @@ export interface WizardProgress {
     boardId: string;
     name: string;
     viewerPath?: string;
+    connectionVerified?: boolean;
   };
   boardConfig?: {
     /** The Vestaboard's connection as its settings screen edits it (the board's `output_config`). */
@@ -41,6 +42,7 @@ export interface WizardProgress {
     code62_glyph?: Code62Glyph;
   };
   plugins?: {
+    registry_selected?: string[];
     date_time?: {
       enabled: boolean;
       timezone: string;

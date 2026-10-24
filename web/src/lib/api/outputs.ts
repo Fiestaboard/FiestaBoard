@@ -22,6 +22,7 @@ export interface OutputActionDescriptor {
 }
 
 export interface OutputDeviceModel {
+  geometry?: { kind: string; rows?: number; cols?: number; width?: number; height?: number } | null;
   id: string;
   label: string;
   /**
@@ -65,7 +66,20 @@ export interface OutputSummary {
  * `GET /outputs/available` — an output the user can pick, installed or not
  * (plan D18). Mirrors `AvailableOutput` in src/outputs/models.py.
  */
+export interface DisplayCatalogMetadata {
+  category: string;
+  manufacturer: string;
+  models: string[];
+  keywords: string[];
+}
+
+export interface OutputCatalog {
+  outputs: AvailableOutput[];
+  registry_status: "available" | "unavailable";
+}
+
 export interface AvailableOutput {
+  display?: DisplayCatalogMetadata;
   id: string;
   name: string;
   description: string;
@@ -156,6 +170,8 @@ export const outputsApi = {
   listOutputs: () => fetchApi<OutputSummary[]>("/outputs"),
 
   /** Every output that can be picked, installed or not (the setup wizard's first step). */
+  listOutputCatalog: () => fetchApi<OutputCatalog>("/outputs/catalog"),
+
   listAvailableOutputs: () => fetchApi<AvailableOutput[]>("/outputs/available"),
 
   /** Install an output (the seed offline, else the registry); answers it as `GET /outputs` lists it. Idempotent. */

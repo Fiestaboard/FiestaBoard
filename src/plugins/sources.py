@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -150,6 +150,9 @@ class RegistryEntry:
     #: that predates the field; the UI sorts those last rather than guessing.
     added: str = ""
 
+    #: Optional product discovery metadata for display plugins.
+    display: dict[str, Any] = field(default_factory=dict)
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "RegistryEntry":
         return cls(
@@ -164,6 +167,7 @@ class RegistryEntry:
             category=data.get("category", "utility"),
             plugin_type=data.get("plugin_type", "data"),
             added=data.get("added", ""),
+            display=data.get("display", {}),
         )
 
 
@@ -189,12 +193,14 @@ class PluginUpdateCheck:
 # ── registry loading ────────────────────────────────────────────────────────
 
 
-def load_registry(registry_path: Path | None = None) -> list[RegistryEntry]:
+def load_registry(registry_path: Path | None = None, *, strict: bool = False) -> list[RegistryEntry]:
     """Load the plugin registry JSON file.
 
     Args:
         registry_path: Explicit path.  When *None* the file is located
             relative to the project root.
+        strict: Raise for missing, malformed or unreadable catalog data so
+            discovery can distinguish an incomplete catalog from an empty one.
 
     Returns:
         List of :class:`RegistryEntry` objects.  Returns an empty list when the
@@ -205,6 +211,8 @@ def load_registry(registry_path: Path | None = None) -> list[RegistryEntry]:
         registry_path = project_root / REGISTRY_FILENAME
 
     if not registry_path.exists():
+        if strict:
+            raise FileNotFoundError(registry_path)
         logger.debug("Plugin registry not found at %s", registry_path)
         return []
 
@@ -212,13 +220,31 @@ def load_registry(registry_path: Path | None = None) -> list[RegistryEntry]:
         with open(registry_path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (json.JSONDecodeError, OSError) as exc:
+        if strict:
+            raise
         logger.error("Failed to read plugin registry %s: %s", registry_path, exc)
         return []
 
+    if not isinstance(data, dict) or not isinstance(data.get("plugins"), list):
+        if strict:
+            raise ValueError("Plugin registry must contain a plugins array")
+        return []
     entries: list[RegistryEntry] = []
-    for item in data.get("plugins", []):
+    for item in data["plugins"]:
+        if not isinstance(item, dict):
+            if strict:
+                raise ValueError("Plugin registry entries must be objects")
+            continue
+        if strict and any(
+            not isinstance(item[key], str)
+            for key in ("id", "name", "repository", "description", "icon", "plugin_type")
+            if key in item
+        ):
+            raise ValueError("Plugin registry identity and description fields must be strings")
         entry = RegistryEntry.from_dict(item)
         if not entry.plugin_id or not entry.repository:
+            if strict:
+                raise ValueError("Plugin registry entries need an id and repository")
             logger.warning("Skipping invalid registry entry: %s", item)
             continue
         entries.append(entry)

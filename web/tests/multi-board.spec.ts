@@ -368,7 +368,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
     await chooseVestaboardInWizard(page);
 
-    await expect(page.getByText("Board Type")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("Board Type", { exact: true })).toBeVisible({ timeout: 5_000 });
     // Target the tiles by role + accessible name, not by bare text. The step's
     // help copy also mentions "Flagship" and the dimensions read as plain text,
     // so `getByText("Flagship")` matched the tile AND the help paragraph and
@@ -517,9 +517,9 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Add Data Sources" })).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Setup Complete!" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Ready for your first page" })).toBeVisible();
 
-    await page.getByRole("button", { name: /Go to Dashboard|Skip/ }).click();
+    await page.getByRole("button", { name: "Save & go to dashboard" }).click();
 
     // Navigate to Displays
     await openDisplays(page);

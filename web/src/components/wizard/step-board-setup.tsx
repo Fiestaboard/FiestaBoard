@@ -130,6 +130,9 @@ export function StepBoardSetup({ config, onConfigChange, onValidChange, setIsLoa
 
   return (
     <Stack gap="6">
+      <Text size="sm" tone="muted">
+        {t("saveHint")}
+      </Text>
       {vestaboard ? (
         <PluginBoardSettings
           output={vestaboard}
@@ -174,7 +177,7 @@ export function StepBoardSetup({ config, onConfigChange, onValidChange, setIsLoa
             align="center"
             value={config.device_type}
             onValueChange={(value) => {
-              if (isDeviceType(value)) onConfigChange({ ...config, device_type: value });
+              if (isDeviceType(value)) onConfigChange({ ...config, device_type: value, connectionVerified: false });
             }}
             aria-label={t("boardType")}
           >
@@ -188,7 +191,7 @@ export function StepBoardSetup({ config, onConfigChange, onValidChange, setIsLoa
           <Flex align="center" gap="3">
             <button
               type="button"
-              onClick={() => onConfigChange({ ...config, board_color: "black" })}
+              onClick={() => onConfigChange({ ...config, board_color: "black", connectionVerified: false })}
               aria-label={tc("black")}
               aria-pressed={config.board_color === "black"}
               className={cn(
@@ -200,7 +203,7 @@ export function StepBoardSetup({ config, onConfigChange, onValidChange, setIsLoa
             />
             <button
               type="button"
-              onClick={() => onConfigChange({ ...config, board_color: "white" })}
+              onClick={() => onConfigChange({ ...config, board_color: "white", connectionVerified: false })}
               aria-label={tc("white")}
               aria-pressed={config.board_color === "white"}
               className={cn(
@@ -226,7 +229,7 @@ export function StepBoardSetup({ config, onConfigChange, onValidChange, setIsLoa
                 <button
                   key={value}
                   type="button"
-                  onClick={() => onConfigChange({ ...config, code62_glyph: value })}
+                  onClick={() => onConfigChange({ ...config, code62_glyph: value, connectionVerified: false })}
                   aria-label={t(labelKey)}
                   aria-pressed={config.code62_glyph === value}
                   data-testid={`wizard-code62-${value}`}

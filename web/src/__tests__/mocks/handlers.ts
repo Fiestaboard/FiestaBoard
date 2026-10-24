@@ -1071,6 +1071,24 @@ export const handlers = [
       })),
     ),
   ),
+  http.get(`${API_BASE}/outputs/catalog`, () =>
+    HttpResponse.json({
+      registry_status: "available",
+      outputs: mockOutputs.map(({ id, name, description, icon, builtin, beta_gated, available, output_api }) => ({
+        id,
+        name,
+        description,
+        icon,
+        source: "installed",
+        installed: true,
+        builtin,
+        beta_gated,
+        available,
+        needs_network: false,
+        output_api,
+      })),
+    }),
+  ),
 
   // Setup wizard outcome
   http.get(`${API_BASE}/settings/wizard`, () => HttpResponse.json({ state: null })),

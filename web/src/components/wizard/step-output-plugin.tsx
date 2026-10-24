@@ -44,7 +44,16 @@ import { queryKeys } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { OutputSummary } from "@/lib/api";
 import { api, ApiError } from "@/lib/api";
-import { MAX_BOARD_NAME_LENGTH } from "@/lib/board-dimensions";
+import {
+  MAX_BOARD_NAME_LENGTH,
+  MAX_GRID_COLS,
+  MAX_GRID_ROWS,
+  MAX_NOTES_PER_AXIS,
+  MIN_GRID_COLS,
+  MIN_GRID_ROWS,
+  NOTE_COLS,
+  NOTE_ROWS,
+} from "@/lib/board-dimensions";
 import { isLedModel, modelInNewBoardFace, resolveBoardModel } from "@/lib/device-preview";
 
 import { removeUntouchedPlaceholder } from "./default-board";
@@ -62,6 +71,7 @@ export interface WizardCreatedBoard {
   name: string;
   /** A FiestaPanel's viewer address (`/p/{n}`), to open on the TV. */
   viewerPath?: string;
+  connectionVerified?: boolean;
 }
 
 interface StepOutputPluginProps {
@@ -122,7 +132,12 @@ export function StepOutputPlugin({
     return (
       <Alert variant="success" data-testid="wizard-output-created">
         <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-        <AlertDescription>{t("created", { board: done.name })}</AlertDescription>
+        <AlertDescription>
+          <Stack gap="1">
+            <Text>{t("created", { board: done.name })}</Text>
+            <Text size="sm">{done.connectionVerified ? t("verified") : t("savedUnverified")}</Text>
+          </Stack>
+        </AlertDescription>
       </Alert>
     );
   }
@@ -196,7 +211,45 @@ function OutputBoardForm({
   const queryClient = useQueryClient();
   const [name, setName] = useState(output.name);
   const [deviceModel, setDeviceModel] = useState(output.device_models[0]?.id ?? "");
+  const [size, setSize] = useState<Record<string, string>>({});
+  const modelGeometry = output.device_models.find((model) => model.id === deviceModel)?.geometry;
+  const sizeFields =
+    modelGeometry?.kind === "panel"
+      ? [
+          {
+            key: "rows",
+            label: t("rows"),
+            min: MIN_GRID_ROWS,
+            max: MAX_GRID_ROWS,
+            fallback: modelGeometry.rows ?? MIN_GRID_ROWS,
+          },
+          {
+            key: "cols",
+            label: t("columns"),
+            min: MIN_GRID_COLS,
+            max: MAX_GRID_COLS,
+            fallback: modelGeometry.cols ?? MIN_GRID_COLS,
+          },
+        ]
+      : modelGeometry?.kind === "note_array"
+        ? [
+            { key: "notes_tall", label: t("notesTall"), min: 1, max: MAX_NOTES_PER_AXIS, fallback: 1 },
+            { key: "notes_wide", label: t("notesWide"), min: 1, max: MAX_NOTES_PER_AXIS, fallback: 1 },
+          ]
+        : [];
+  const geometry = Object.fromEntries(
+    sizeFields.map((field) => [field.key, Number(size[field.key] ?? field.fallback)]),
+  );
+  const sizeValid = sizeFields.every(
+    (field) =>
+      Number.isInteger(geometry[field.key]) && geometry[field.key] >= field.min && geometry[field.key] <= field.max,
+  );
   const [config, setConfig] = useState<Record<string, unknown>>({});
+  const [verifiedConfig, setVerifiedConfig] = useState<string | null>(null);
+  const [actionPending, setActionPending] = useState(false);
+  const configKey = JSON.stringify({ config, deviceModel });
+  const verified = verifiedConfig === configKey;
+  const canTest = output.actions.some((action) => action.id === "test_connection");
   // What the chosen LED device looks like, showing the board's name: FiestaUI
   // draws a model it builds in as its matrix; a plugin's own model is only
   // known once the board exists, so it shows no preview here (nor does a
@@ -210,12 +263,15 @@ function OutputBoardForm({
   const previewModel = isLedModel(resolvedModel) ? resolvedModel : null;
 
   const create = useMutation({
+    // Creating a board is not idempotent: an interrupted response must not submit it twice.
+    retry: false,
     mutationFn: async () => {
       setIsLoading(true);
       try {
         const board = await api.createOutputBoard(output.id, {
           device_model: deviceModel,
           output_config: config,
+          ...(sizeFields.length ? { geometry } : {}),
           ...(name.trim() ? { name: name.trim() } : {}),
         });
         if (replacePlaceholder) await removeUntouchedPlaceholder(board.id);
@@ -226,7 +282,7 @@ function OutputBoardForm({
     },
     onSuccess: (board) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
-      onCreated({ outputId: output.id, boardId: board.id, name: board.name });
+      onCreated({ outputId: output.id, boardId: board.id, name: board.name, connectionVerified: verified });
     },
   });
 
@@ -247,7 +303,17 @@ function OutputBoardForm({
       {output.device_models.length > 1 && (
         <Grid gap="1.5">
           <Label htmlFor="wizard-output-device-model">{tbs("deviceModelLabel")}</Label>
-          <Select value={deviceModel} onValueChange={(v) => v && setDeviceModel(v)}>
+          <Select
+            value={deviceModel}
+            disabled={create.isPending || actionPending}
+            onValueChange={(v) => {
+              if (v) {
+                setDeviceModel(v);
+                setSize({});
+                setVerifiedConfig(null);
+              }
+            }}
+          >
             <SelectTrigger id="wizard-output-device-model">
               <SelectValue />
             </SelectTrigger>
@@ -261,6 +327,38 @@ function OutputBoardForm({
           </Select>
         </Grid>
       )}
+      {sizeFields.length > 0 && (
+        <Stack gap="2">
+          <Text size="sm" tone="muted">
+            {t("sizeHelp")}
+          </Text>
+          <Grid cols="2" gap="3">
+            {sizeFields.map((field) => (
+              <Stack key={field.key} gap="1">
+                <Label htmlFor={`wizard-size-${field.key}`}>{field.label}</Label>
+                <Input
+                  id={`wizard-size-${field.key}`}
+                  type="number"
+                  min={field.min}
+                  max={field.max}
+                  step={1}
+                  value={size[field.key] ?? field.fallback}
+                  disabled={create.isPending || actionPending}
+                  onChange={(event) => setSize((current) => ({ ...current, [field.key]: event.target.value }))}
+                  aria-invalid={
+                    !Number.isInteger(geometry[field.key]) ||
+                    geometry[field.key] < field.min ||
+                    geometry[field.key] > field.max
+                  }
+                />
+                <Text size="xs" tone="muted">
+                  {t("sizeRange", { min: field.min, max: field.max })}
+                </Text>
+              </Stack>
+            ))}
+          </Grid>
+        </Stack>
+      )}
       {previewModel && (
         <Box data-testid="wizard-output-device-preview" className="flex justify-center">
           <DevicePreview model={previewModel} message={name.trim() || output.name} size="sm">
@@ -271,10 +369,41 @@ function OutputBoardForm({
       <PluginBoardSettings
         output={output}
         values={config}
-        onChange={setConfig}
+        onChange={(values) => {
+          setConfig(values);
+          setVerifiedConfig(null);
+        }}
         deviceModel={deviceModel}
+        facts={{ device_type: "panel", device_model: deviceModel }}
+        onGeometry={
+          sizeFields.length
+            ? (detected) => {
+                setSize(
+                  modelGeometry?.kind === "note_array"
+                    ? {
+                        notes_tall: String(detected.notes_tall ?? detected.rows / NOTE_ROWS),
+                        notes_wide: String(detected.notes_wide ?? detected.cols / NOTE_COLS),
+                      }
+                    : { rows: String(detected.rows), cols: String(detected.cols) },
+                );
+              }
+            : undefined
+        }
         disabled={create.isPending}
+        onActionStateChange={(id, pending) => {
+          setActionPending(pending);
+          if (id === "test_connection" && pending) setVerifiedConfig(null);
+        }}
+        onActionResult={(id, result, tested) => {
+          if (id === "test_connection") setVerifiedConfig(result.status === "ok" ? JSON.stringify(tested) : null);
+        }}
       />
+      <Stack gap="1" className="rounded-lg bg-muted p-3" data-testid="plugin-connection-status" role="status">
+        <Text weight="medium">{verified ? t("verified") : t("unverified")}</Text>
+        <Text size="sm" tone="muted">
+          {verified ? t("verifiedHelp") : canTest ? t("testHelp") : t("noTestHelp")}
+        </Text>
+      </Stack>
       {create.isError && (
         <Alert variant="destructive" data-testid="wizard-output-create-error">
           <XCircle className="h-4 w-4" aria-hidden="true" />
@@ -285,7 +414,7 @@ function OutputBoardForm({
       <Button
         type="button"
         onClick={() => create.mutate()}
-        disabled={create.isPending || !deviceModel}
+        disabled={create.isPending || actionPending || !deviceModel || !sizeValid}
         className="w-full"
       >
         {create.isPending ? tbs("creating") : createLabel}
