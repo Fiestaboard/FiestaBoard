@@ -46,6 +46,7 @@ interface ForceSetDialogProps {
   silencedUntil?: string | null;
   /** The primary board is silenced. Defaults to "`silencedUntil` is set". */
   silenced?: boolean;
+  silenceUnknown?: boolean;
   paused?: boolean;
 }
 
@@ -56,10 +57,12 @@ export function ForceSetDialog({
   pageName,
   silencedUntil = null,
   silenced = silencedUntil != null,
+  silenceUnknown = false,
   paused = false,
 }: ForceSetDialogProps) {
   const t = useTranslations("forceSetDialog");
   const tActive = useTranslations("activeDisplay");
+  const tSilence = useTranslations("silenceNotice");
   const queryClient = useQueryClient();
 
   const [durationMinutes, setDurationMinutes] = useState<number>(5);
@@ -124,11 +127,17 @@ export function ForceSetDialog({
         {/* Force Set deliberately beats silence (#949). Say so before the
             click, and name the choice on the button. */}
         {paused && <PausedNotice data-testid="force-set-paused" />}
+        {!silenceUnknown && !silenced && (
+          <Text size="sm" tone="muted" data-testid="force-set-wake-hint">
+            {tSilence("wakeCapability")}
+          </Text>
+        )}
         <SilenceNotice
-          active={silenced}
+          active={silenced || silenceUnknown}
           variant="warning"
-          until={silencedUntil}
-          description={t("silenceWarning")}
+          until={silenceUnknown ? null : silencedUntil}
+          title={silenceUnknown ? tSilence("unknownTitle") : undefined}
+          description={silenceUnknown ? tSilence("unknownWarning") : t("silenceWarning")}
           data-testid="force-set-silence"
         />
 
@@ -191,7 +200,11 @@ export function ForceSetDialog({
           </Button>
           <Button onClick={handleConfirm} disabled={!isValid || setOverrideMutation.isPending}>
             <Timer className="mr-1.5 h-4 w-4" />
-            {setOverrideMutation.isPending ? t("setting") : silenced ? t("confirmSilenced") : t("confirm")}
+            {setOverrideMutation.isPending
+              ? t("setting")
+              : silenced || silenceUnknown
+                ? t("confirmSilenced")
+                : t("confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

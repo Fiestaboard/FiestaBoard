@@ -1050,8 +1050,9 @@
     "transitionOpenLab": "トランジションラボを開く",
     "liveSilencePreviewOnly": "ライブ出力はプレビューのみです。ボードは静かなままです。",
     "liveSendAnyway": "それでもボードに送信",
-    "liveSilenceOverriding": "ライブ出力がサイレント中のボードを起こしています。",
-    "liveStopOverriding": "送信を停止"
+    "liveSilenceOverriding": "ライブ出力はサイレント時間中も送信できます。一時停止中は送信されません。",
+    "liveStopOverriding": "送信を停止",
+    "livePermissionTitle": "ライブ出力の許可"
   },
   "displaySettings": {
     "title": "ボード一覧",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "{time} までサイレント中",
-    "untilTitleNoTime": "ボードはサイレント中です"
+    "untilTitleNoTime": "ボードはサイレント中です",
+    "unknownTitle": "サイレント時間の状態が不明です",
+    "unknownWarning": "サイレント時間を確認できませんでした。今すぐ送信するとボードが動く可能性があります。",
+    "wakeCapability": "今すぐ送信するとサイレント時間中でもボードが動く可能性があります。一時停止中は送信されません。"
   }
 }

@@ -1050,8 +1050,9 @@
     "transitionOpenLab": "Geçiş Laboratuvarını aç",
     "liveSilencePreviewOnly": "Canlı çıkış yalnızca önizleme yapıyor. Pano sessiz kalır.",
     "liveSendAnyway": "Yine de panoya gönder",
-    "liveSilenceOverriding": "Canlı çıkış sessizlik sırasında panoyu uyandırıyor.",
-    "liveStopOverriding": "Göndermeyi durdur"
+    "liveSilenceOverriding": "Canlı çıkış sessiz saatlerde gönderebilir. Duraklatma yine de göndermeyi engeller.",
+    "liveStopOverriding": "Göndermeyi durdur",
+    "livePermissionTitle": "Canlı çıkış izni"
   },
   "displaySettings": {
     "title": "Panolarınız",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "{time} saatine kadar sessiz",
-    "untilTitleNoTime": "Pano sessizde"
+    "untilTitleNoTime": "Pano sessizde",
+    "unknownTitle": "Sessiz saatlerin durumu bilinmiyor",
+    "unknownWarning": "Sessiz saatler doğrulanamadı. Şimdi göndermek panoyu uyandırabilir.",
+    "wakeCapability": "Şimdi göndermek sessiz saatlerde panoyu uyandırabilir. Duraklatma yine de göndermeyi engeller."
   }
 }

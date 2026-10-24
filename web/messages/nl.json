@@ -1050,8 +1050,9 @@
     "transitionOpenLab": "Transitielab openen",
     "liveSilencePreviewOnly": "Live-uitvoer toont alleen een voorbeeld. Het bord blijft stil.",
     "liveSendAnyway": "Toch naar bord sturen",
-    "liveSilenceOverriding": "Live-uitvoer maakt het bord wakker tijdens de stilte.",
-    "liveStopOverriding": "Stoppen met sturen"
+    "liveSilenceOverriding": "Live-uitvoer mag tijdens stille uren verzenden. Pauzeren voorkomt nog steeds het verzenden.",
+    "liveStopOverriding": "Stoppen met sturen",
+    "livePermissionTitle": "Toestemming voor live-uitvoer"
   },
   "displaySettings": {
     "title": "Je borden",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "Stil tot {time}",
-    "untilTitleNoTime": "Het bord is stil"
+    "untilTitleNoTime": "Het bord is stil",
+    "unknownTitle": "Status van stille uren onbekend",
+    "unknownWarning": "De stille uren konden niet worden bevestigd. Nu verzenden kan het bord wakker maken.",
+    "wakeCapability": "Nu verzenden kan het bord tijdens stille uren wakker maken. Pauzeren voorkomt nog steeds het verzenden."
   }
 }

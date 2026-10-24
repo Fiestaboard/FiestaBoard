@@ -1050,8 +1050,9 @@
     "transitionOpenLab": "Abrir el laboratorio de transiciones",
     "liveSilencePreviewOnly": "La salida en vivo solo muestra una vista previa. El tablero se queda en silencio.",
     "liveSendAnyway": "Enviar al tablero de todos modos",
-    "liveSilenceOverriding": "La salida en vivo está despertando el tablero durante el silencio.",
-    "liveStopOverriding": "Dejar de enviar"
+    "liveSilenceOverriding": "La salida en vivo puede enviar durante el horario de silencio. La pausa sigue impidiendo el envío.",
+    "liveStopOverriding": "Dejar de enviar",
+    "livePermissionTitle": "Permiso de salida en vivo"
   },
   "displaySettings": {
     "title": "Tus tableros",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "En silencio hasta las {time}",
-    "untilTitleNoTime": "El tablero está en silencio"
+    "untilTitleNoTime": "El tablero está en silencio",
+    "unknownTitle": "Estado del horario de silencio desconocido",
+    "unknownWarning": "No se pudo confirmar el horario de silencio. Enviar ahora puede despertar el tablero.",
+    "wakeCapability": "Enviar ahora puede despertar el tablero durante el horario de silencio. La pausa sigue impidiendo el envío."
   }
 }

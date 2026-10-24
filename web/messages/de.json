@@ -1050,8 +1050,9 @@
     "transitionOpenLab": "Übergangs-Labor öffnen",
     "liveSilencePreviewOnly": "Die Live-Ausgabe zeigt nur eine Vorschau. Das Board bleibt still.",
     "liveSendAnyway": "Trotzdem an das Board senden",
-    "liveSilenceOverriding": "Die Live-Ausgabe weckt das Board während des Ruhemodus.",
-    "liveStopOverriding": "Senden beenden"
+    "liveSilenceOverriding": "Die Live-Ausgabe darf während der Ruhezeiten senden. Pause verhindert weiterhin das Senden.",
+    "liveStopOverriding": "Senden beenden",
+    "livePermissionTitle": "Berechtigung für Live-Ausgabe"
   },
   "displaySettings": {
     "title": "Ihre Boards",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "Im Ruhemodus bis {time}",
-    "untilTitleNoTime": "Das Board ist im Ruhemodus"
+    "untilTitleNoTime": "Das Board ist im Ruhemodus",
+    "unknownTitle": "Ruhezeitenstatus unbekannt",
+    "unknownWarning": "Die Ruhezeiten konnten nicht bestätigt werden. Jetzt senden kann das Board wecken.",
+    "wakeCapability": "Jetzt senden kann das Board während der Ruhezeiten wecken. Pause verhindert weiterhin das Senden."
   }
 }

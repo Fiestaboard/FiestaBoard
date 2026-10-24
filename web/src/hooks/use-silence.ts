@@ -10,6 +10,8 @@ import { silenceEndsAtLabel } from "@/lib/silence-until";
 
 export interface SilenceState {
   status: SilenceStatus | undefined;
+  availability: "loading" | "error" | "known";
+  refresh: () => Promise<unknown>;
   /** The board is inside its silence window right now. */
   active: boolean;
   /** When silence ends, formatted for the viewer ("7:00 AM"); null if unknown or not silenced. */
@@ -29,14 +31,29 @@ export interface SilenceState {
  */
 export function useSilence(boardId?: string): SilenceState {
   const locale = useLocale();
-  const { data: status, dataUpdatedAt } = useQuery<SilenceStatus>({
+  const {
+    data: status,
+    dataUpdatedAt,
+    isError,
+    isFetching,
+    refetch,
+  } = useQuery<SilenceStatus>({
     queryKey: queryKeys.silenceStatus(boardId),
     queryFn: () => api.getSilenceStatus(boardId),
     refetchInterval: 30_000,
   });
   const active = status?.active === true;
+  const availability: SilenceState["availability"] = isFetching
+    ? "loading"
+    : isError
+      ? "error"
+      : typeof status?.active === "boolean"
+        ? "known"
+        : "loading";
   return {
     status,
+    availability,
+    refresh: refetch,
     active,
     until: active ? silenceEndsAtLabel(status, dataUpdatedAt, locale) : null,
     holds: status?.holds_blocked_sends === true,

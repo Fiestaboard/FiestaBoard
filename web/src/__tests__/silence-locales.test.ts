@@ -32,9 +32,15 @@ const sections: Record<string, string[]> = {
     "toastHeldNoTime",
     "toastHoldError",
   ],
-  pageBuilder: ["liveSilencePreviewOnly", "liveSendAnyway", "liveSilenceOverriding", "liveStopOverriding"],
+  pageBuilder: [
+    "liveSilencePreviewOnly",
+    "liveSendAnyway",
+    "liveSilenceOverriding",
+    "liveStopOverriding",
+    "livePermissionTitle",
+  ],
   generalSettings: ["silenceShowHeldLabel", "silenceShowHeldHelp"],
-  silenceNotice: ["untilTitle", "untilTitleNoTime"],
+  silenceNotice: ["untilTitle", "untilTitleNoTime", "unknownTitle", "unknownWarning", "wakeCapability"],
 };
 const english = catalogs["../../messages/en.json"];
 const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();

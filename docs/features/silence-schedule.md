@@ -100,12 +100,18 @@ Compose and Force Set warn before waking the primary board. These two actions
 keep their existing temporary-override behavior: Compose creates an indefinite
 one-off message; Force Set shows a page for the chosen duration and then
 returns to the schedule. In multi-board installs, Compose names the primary
-board when it differs from the board selected in the sidebar.
+board when it differs from the board selected in the sidebar. Opening either
+dialog checks quiet hours again. If that check is pending or unavailable, an
+explicit wake warning remains visible. Even outside known quiet hours, the
+dialog explains that sending now can wake the board during quiet hours; this
+remains true if the dialog stays open when quiet hours begin.
 
 Live Output continues updating the editor preview while leaving a silenced
 board quiet. **Send to board anyway** explicitly allows writes for that Live
 Output session. **Stop sending**, turning Live Output off, or changing the
-output board ends that permission. A paused render never claims to have
+output board ends that permission. The permission warning and **Stop sending**
+stay visible even when quiet-hours status is unavailable or stale. Pause still
+prevents writes. A paused render never claims to have
 updated the board.
 
 ## Holding a Message for Later

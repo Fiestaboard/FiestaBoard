@@ -1050,8 +1050,9 @@
     "transitionOpenLab": "Otwórz laboratorium przejść",
     "liveSilencePreviewOnly": "Wyjście na żywo pokazuje tylko podgląd. Tablica pozostaje cicha.",
     "liveSendAnyway": "Mimo to wyślij na tablicę",
-    "liveSilenceOverriding": "Wyjście na żywo budzi tablicę w czasie ciszy.",
-    "liveStopOverriding": "Przestań wysyłać"
+    "liveSilenceOverriding": "Wyjście na żywo może wysyłać w godzinach ciszy. Wstrzymanie nadal blokuje wysyłanie.",
+    "liveStopOverriding": "Przestań wysyłać",
+    "livePermissionTitle": "Uprawnienie wyjścia na żywo"
   },
   "displaySettings": {
     "title": "Twoje tablice",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "Wyciszona do {time}",
-    "untilTitleNoTime": "Tablica jest wyciszona"
+    "untilTitleNoTime": "Tablica jest wyciszona",
+    "unknownTitle": "Nieznany stan godzin ciszy",
+    "unknownWarning": "Nie udało się potwierdzić godzin ciszy. Wysłanie teraz może obudzić tablicę.",
+    "wakeCapability": "Wysłanie teraz może obudzić tablicę w godzinach ciszy. Wstrzymanie nadal blokuje wysyłanie."
   }
 }

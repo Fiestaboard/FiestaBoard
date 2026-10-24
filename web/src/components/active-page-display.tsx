@@ -189,6 +189,7 @@ export function ActivePageDisplay() {
   const silence = useSilence(scopedBoardId);
   const silenceStatus = silence.status;
   const primarySilence = useSilence(undefined);
+  const refreshPrimarySilence = primarySilence.refresh;
 
   // Fetch live board state so the Home display reflects what was last sent
   // via Live Output in the page editor. The query is seeded from localStorage
@@ -456,6 +457,7 @@ export function ActivePageDisplay() {
       if ((scheduleEnabled || overrideActive) && !openSheetAsManual) {
         // In schedule mode (or while an override is already active), show the
         // Force Set dialog so the user can pick a duration and revert mode.
+        void refreshPrimarySilence();
         setForceSetPageId(pageId);
         setForceSetDialogOpen(true);
         setIsSheetOpen(false);
@@ -531,6 +533,7 @@ export function ActivePageDisplay() {
       t,
       silence.until,
       showPageNow,
+      refreshPrimarySilence,
     ],
   );
 
@@ -1075,6 +1078,7 @@ export function ActivePageDisplay() {
                 size="sm"
                 className="gap-2"
                 onClick={() => {
+                  void refreshPrimarySilence();
                   setIsSheetOpen(false);
                   setComposeOpen(true);
                 }}
@@ -1137,6 +1141,7 @@ export function ActivePageDisplay() {
         targetBoardName={composeTargetsAnotherBoard ? composeTargetBoard?.name : undefined}
         targetBoardId={composeTargetBoard?.id}
         paused={composeTargetBoard?.paused === true}
+        silenceUnknown={primarySilence.availability !== "known"}
         silence={primarySilence.active ? { until: primarySilence.until, holds: primarySilence.holds } : null}
       />
 
@@ -1147,6 +1152,7 @@ export function ActivePageDisplay() {
         pageId={forceSetPageId}
         pageName={pages.find((p) => p.id === forceSetPageId)?.name ?? ""}
         silenced={primarySilence.active}
+        silenceUnknown={primarySilence.availability !== "known"}
         paused={composeTargetBoard?.paused === true}
         silencedUntil={primarySilence.until}
       />

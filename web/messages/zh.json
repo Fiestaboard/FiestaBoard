@@ -1050,8 +1050,9 @@
     "transitionOpenLab": "打开过渡实验室",
     "liveSilencePreviewOnly": "实时输出仅在预览。看板保持安静。",
     "liveSendAnyway": "仍然发送到看板",
-    "liveSilenceOverriding": "实时输出正在静默期间唤醒看板。",
-    "liveStopOverriding": "停止发送"
+    "liveSilenceOverriding": "实时输出可以在静默时段发送。暂停仍会阻止发送。",
+    "liveStopOverriding": "停止发送",
+    "livePermissionTitle": "实时输出权限"
   },
   "displaySettings": {
     "title": "您的看板",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "静默至 {time}",
-    "untilTitleNoTime": "看板处于静默中"
+    "untilTitleNoTime": "看板处于静默中",
+    "unknownTitle": "静默时段状态未知",
+    "unknownWarning": "无法确认静默时段。现在发送可能会唤醒看板。",
+    "wakeCapability": "现在发送可能会在静默时段唤醒看板。暂停仍会阻止发送。"
   }
 }

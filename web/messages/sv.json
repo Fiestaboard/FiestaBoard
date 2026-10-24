@@ -1050,8 +1050,9 @@
     "transitionOpenLab": "Öppna övergångslabbet",
     "liveSilencePreviewOnly": "Liveutdata visar bara en förhandsgranskning. Tavlan förblir tyst.",
     "liveSendAnyway": "Skicka till tavlan ändå",
-    "liveSilenceOverriding": "Liveutdata väcker tavlan under tystnaden.",
-    "liveStopOverriding": "Sluta skicka"
+    "liveSilenceOverriding": "Liveutmatning får skicka under tysta timmar. Paus förhindrar fortfarande sändning.",
+    "liveStopOverriding": "Sluta skicka",
+    "livePermissionTitle": "Behörighet för liveutmatning"
   },
   "displaySettings": {
     "title": "Dina tavlor",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "Tyst till {time}",
-    "untilTitleNoTime": "Tavlan är tystad"
+    "untilTitleNoTime": "Tavlan är tystad",
+    "unknownTitle": "Status för tysta timmar är okänd",
+    "unknownWarning": "De tysta timmarna kunde inte bekräftas. Att skicka nu kan väcka tavlan.",
+    "wakeCapability": "Att skicka nu kan väcka tavlan under tysta timmar. Paus förhindrar fortfarande sändning."
   }
 }

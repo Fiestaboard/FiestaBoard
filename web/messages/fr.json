@@ -1050,8 +1050,9 @@
     "transitionOpenLab": "Ouvrir le labo des transitions",
     "liveSilencePreviewOnly": "La sortie en direct n'affiche qu'un aperçu. Le tableau reste silencieux.",
     "liveSendAnyway": "Envoyer au tableau quand même",
-    "liveSilenceOverriding": "La sortie en direct réveille le tableau pendant le silence.",
-    "liveStopOverriding": "Arrêter l'envoi"
+    "liveSilenceOverriding": "La sortie en direct peut envoyer pendant les heures de silence. La pause empêche toujours l’envoi.",
+    "liveStopOverriding": "Arrêter l'envoi",
+    "livePermissionTitle": "Autorisation de sortie en direct"
   },
   "displaySettings": {
     "title": "Vos tableaux",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "En silence jusqu'à {time}",
-    "untilTitleNoTime": "Le tableau est en silence"
+    "untilTitleNoTime": "Le tableau est en silence",
+    "unknownTitle": "État des heures de silence inconnu",
+    "unknownWarning": "Les heures de silence n’ont pas pu être confirmées. Envoyer maintenant peut réveiller le tableau.",
+    "wakeCapability": "Envoyer maintenant peut réveiller le tableau pendant les heures de silence. La pause empêche toujours l’envoi."
   }
 }

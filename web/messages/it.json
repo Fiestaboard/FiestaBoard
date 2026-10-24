@@ -1050,8 +1050,9 @@
     "transitionOpenLab": "Apri il laboratorio transizioni",
     "liveSilencePreviewOnly": "L'output dal vivo mostra solo un'anteprima. Il tabellone resta in silenzio.",
     "liveSendAnyway": "Invia comunque al tabellone",
-    "liveSilenceOverriding": "L'output dal vivo sta risvegliando il tabellone durante il silenzio.",
-    "liveStopOverriding": "Interrompi invio"
+    "liveSilenceOverriding": "L’output dal vivo può inviare durante le ore di silenzio. La pausa continua a impedire l’invio.",
+    "liveStopOverriding": "Interrompi invio",
+    "livePermissionTitle": "Autorizzazione output dal vivo"
   },
   "displaySettings": {
     "title": "Le tue bacheche",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "In silenzio fino alle {time}",
-    "untilTitleNoTime": "Il tabellone è in silenzio"
+    "untilTitleNoTime": "Il tabellone è in silenzio",
+    "unknownTitle": "Stato delle ore di silenzio sconosciuto",
+    "unknownWarning": "Non è stato possibile confermare le ore di silenzio. Inviare ora potrebbe risvegliare il tabellone.",
+    "wakeCapability": "Inviare ora può risvegliare il tabellone durante le ore di silenzio. La pausa continua a impedire l’invio."
   }
 }

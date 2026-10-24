@@ -183,7 +183,7 @@ describe("PageBuilder Live Output during silence", () => {
 
     await waitFor(() => expect(bodies.some((b) => b.override_silence === true)).toBe(true));
     expect(await screen.findByTestId("live-silence-overriding")).toHaveTextContent(
-      "Live Output is waking the board during silence.",
+      "Live Output may send during quiet hours. Pause still prevents sending.",
     );
     // A frame the board really shows is claimed on Home.
     await waitFor(() => expect(readLiveOutputMessage()).toBe("HI THERE LIVE"));
@@ -299,4 +299,60 @@ describe("PageBuilder Live Output during silence", () => {
     expect(claimed).toBeNull();
     await screen.findByTestId("live-silence");
   });
+
+  it.each(["inactive", "loading", "error"] as const)(
+    "Live permission stays visible and revocable with %s metadata and a pause change",
+    async (mode) => {
+      const bodies = serveSilencedBoard();
+      let release = () => {};
+      const ready = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      server.use(
+        http.get(`${API_BASE}/silence-status`, async () => {
+          if (mode === "loading") await ready;
+          if (mode === "error") return HttpResponse.json({ detail: "unavailable" }, { status: 503 });
+          return HttpResponse.json({ ...SILENCED_STATUS, active: false, ends_at_utc: null });
+        }),
+      );
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+      const user = userEvent.setup();
+      render(
+        <QueryClientProvider client={client}>
+          <ConfigOverridesProvider>
+            <ThemeProvider attribute="class" defaultTheme="light">
+              <PageBuilder pageId="page-1" skipDraft onClose={vi.fn()} />
+            </ThemeProvider>
+          </ConfigOverridesProvider>
+        </QueryClientProvider>,
+      );
+      try {
+        await turnLiveOn(user);
+        await user.click(await screen.findByTestId("live-send-anyway"));
+        await waitFor(() => expect(bodies.some((body) => body.override_silence === true)).toBe(true));
+        const warning = screen.getByTestId("live-silence-overriding");
+        expect(warning).toHaveTextContent("Live Output may send during quiet hours. Pause still prevents sending.");
+        expect(warning).not.toHaveTextContent("The board is silenced");
+        await act(async () => {
+          client.setQueryData(["boardSettings"], {
+            board_type: "black",
+            boards: [{ ...BOARD, paused: true }],
+            devices: ["flagship"],
+          });
+        });
+        expect(await screen.findByTestId("live-paused")).toBeInTheDocument();
+        const stop = screen.getByTestId("live-stop-override");
+        expect(stop).toBeVisible();
+        const before = bodies.length;
+        await user.click(stop);
+        await waitFor(() => expect(bodies.length).toBeGreaterThan(before));
+        expect(bodies.slice(before).every((body) => body.override_silence !== true)).toBe(true);
+        expect(screen.queryByTestId("live-stop-override")).not.toBeInTheDocument();
+      } finally {
+        await act(async () => {
+          release();
+        });
+      }
+    },
+  );
 });

@@ -1050,8 +1050,9 @@
     "transitionOpenLab": "Abrir o laboratório de transições",
     "liveSilencePreviewOnly": "A saída ao vivo está só pré-visualizando. O quadro fica em silêncio.",
     "liveSendAnyway": "Enviar ao quadro mesmo assim",
-    "liveSilenceOverriding": "A saída ao vivo está acordando o quadro durante o silêncio.",
-    "liveStopOverriding": "Parar de enviar"
+    "liveSilenceOverriding": "A saída ao vivo pode enviar durante o horário de silêncio. A pausa continua impedindo o envio.",
+    "liveStopOverriding": "Parar de enviar",
+    "livePermissionTitle": "Permissão de saída ao vivo"
   },
   "displaySettings": {
     "title": "Seus Painéis",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "Em silêncio até {time}",
-    "untilTitleNoTime": "O quadro está em silêncio"
+    "untilTitleNoTime": "O quadro está em silêncio",
+    "unknownTitle": "Estado do horário de silêncio desconhecido",
+    "unknownWarning": "Não foi possível confirmar o horário de silêncio. Enviar agora pode acordar o quadro.",
+    "wakeCapability": "Enviar agora pode acordar o quadro durante o horário de silêncio. A pausa continua impedindo o envio."
   }
 }

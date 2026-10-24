@@ -1006,8 +1006,9 @@
     "transitionOpenLab": "Open Transition Lab",
     "liveSilencePreviewOnly": "Live Output is previewing only. The board stays quiet.",
     "liveSendAnyway": "Send to board anyway",
-    "liveSilenceOverriding": "Live Output is waking the board during silence.",
-    "liveStopOverriding": "Stop sending"
+    "liveSilenceOverriding": "Live Output may send during quiet hours. Pause still prevents sending.",
+    "liveStopOverriding": "Stop sending",
+    "livePermissionTitle": "Live Output permission"
   },
   "displaySettings": {
     "title": "Your Boards",
@@ -2533,6 +2534,9 @@
   },
   "silenceNotice": {
     "untilTitle": "Silenced until {time}",
-    "untilTitleNoTime": "The board is silenced"
+    "untilTitleNoTime": "The board is silenced",
+    "unknownTitle": "Quiet hours status unknown",
+    "unknownWarning": "Quiet hours could not be confirmed. Sending now may wake the board.",
+    "wakeCapability": "Sending now can wake the board during quiet hours. Pause still prevents sending."
   }
 }

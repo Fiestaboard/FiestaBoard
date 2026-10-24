@@ -2562,9 +2562,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <LiveOutputSilenceStrip
                     liveOutputEnabled={liveOutputEnabled}
                     lastSilenced={liveSilenced}
-                    silenceActive={liveSilence.active}
+                    silenceActive={liveSilence.availability === "known" && liveSilence.active}
                     overriding={liveOverrideSilence}
-                    until={liveSilence.until}
+                    until={liveSilence.availability === "known" ? liveSilence.until : null}
                     onSendAnyway={() => setLiveOverrideSilence(true)}
                     onStopOverriding={() => setLiveOverrideSilence(false)}
                   />

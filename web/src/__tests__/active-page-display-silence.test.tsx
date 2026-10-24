@@ -556,3 +556,201 @@ it("a silenced paused board says its selected page waits for resume", async () =
   const notice = await screen.findByTestId("silence-alert");
   await waitFor(() => expect(notice).toHaveTextContent("will show when you resume the board"));
 });
+
+describe("Home wake consent while quiet-hours status is unknown", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function unknownStatus(mode: "delayed" | "failed") {
+    let release = () => {};
+    const ready = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const reads: string[] = [];
+    server.use(
+      http.get(`${API_BASE}/silence-status`, async () => {
+        reads.push(mode);
+        if (mode === "delayed") await ready;
+        return mode === "failed"
+          ? HttpResponse.json({ detail: "unavailable" }, { status: 503 })
+          : HttpResponse.json(silenced());
+      }),
+    );
+    return { release, reads };
+  }
+
+  it.each(["delayed", "failed"] as const)(
+    "Compose warns and requires an explicit wake choice with %s status",
+    async (mode) => {
+      const { release, reads } = unknownStatus(mode);
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
+          bodies.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json({ active: true });
+        }),
+      );
+      const user = userEvent.setup();
+      render(<ActivePageDisplay />, { wrapper: TestWrapper });
+      await user.click((await screen.findAllByRole("button", { name: /change page/i }))[0]);
+      await user.click(await screen.findByRole("button", { name: "Compose a message" }));
+      await user.type(screen.getByRole("textbox", { name: /message/i }), "HELLO");
+      try {
+        await waitFor(() => expect(reads.length).toBeGreaterThan(0));
+        expect(screen.getByTestId("compose-silence")).toHaveTextContent(
+          "Quiet hours could not be confirmed. Sending now may wake the board.",
+        );
+        expect(screen.queryByRole("button", { name: "Send to board" })).not.toBeInTheDocument();
+        expect(bodies).toEqual([]);
+        await user.click(screen.getByRole("button", { name: "Send now anyway" }));
+        await waitFor(() => expect(bodies).toHaveLength(1));
+        expect(bodies[0]).toMatchObject({ template: ["HELLO"], device_type: "flagship" });
+      } finally {
+        release();
+      }
+    },
+  );
+
+  it.each(["delayed", "failed"] as const)(
+    "Force Set warns and requires an explicit wake choice with %s status",
+    async (mode) => {
+      const { release, reads } = unknownStatus(mode);
+      server.use(
+        http.get(`${API_BASE}/schedules/active/page`, () =>
+          HttpResponse.json({
+            page_id: "page-1",
+            source: "schedule",
+            schedule_enabled: true,
+            temporary_override: { active: false },
+          }),
+        ),
+      );
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
+          bodies.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json({ active: true });
+        }),
+      );
+      const user = userEvent.setup();
+      render(<ActivePageDisplay />, { wrapper: TestWrapper });
+      await user.click((await screen.findAllByRole("button", { name: /change page/i }))[0]);
+      await user.click(await screen.findByRole("button", { name: /override temporarily/i }));
+      await user.click(await screen.findByRole("button", { name: /Custom Template/i }));
+      try {
+        await waitFor(() => expect(reads.length).toBeGreaterThan(0));
+        expect(screen.getByTestId("force-set-silence")).toHaveTextContent(
+          "Quiet hours could not be confirmed. Sending now may wake the board.",
+        );
+        expect(screen.queryByRole("button", { name: "Force Set" })).not.toBeInTheDocument();
+        expect(bodies).toEqual([]);
+        await user.click(screen.getByRole("button", { name: "Show now anyway" }));
+        await waitFor(() => expect(bodies).toHaveLength(1));
+        expect(bodies[0]).toEqual({ page_id: "page-2", duration_minutes: 5, revert_mode: "schedule" });
+      } finally {
+        release();
+      }
+    },
+  );
+});
+
+describe("Home refreshes cached quiet-hours status before temporary overrides", () => {
+  it.each(["Compose", "Force Set"])(
+    "%s rechecks an earlier inactive status when quiet hours begin before the poll",
+    async (surface) => {
+      let quiet = false;
+      const reads: boolean[] = [];
+      server.use(
+        http.get(`${API_BASE}/silence-status`, () => {
+          reads.push(quiet);
+          return HttpResponse.json(quiet ? silenced() : silenceStatus({ active: false }));
+        }),
+      );
+      if (surface === "Force Set")
+        server.use(
+          http.get(`${API_BASE}/schedules/active/page`, () =>
+            HttpResponse.json({
+              page_id: "page-1",
+              source: "schedule",
+              schedule_enabled: true,
+              temporary_override: { active: false },
+            }),
+          ),
+        );
+      const user = userEvent.setup();
+      render(<ActivePageDisplay />, { wrapper: TestWrapper });
+      await waitFor(() => expect(reads).toContain(false));
+      quiet = true;
+      await user.click((await screen.findAllByRole("button", { name: /change page/i }))[0]);
+      if (surface === "Compose") await user.click(await screen.findByRole("button", { name: "Compose a message" }));
+      else {
+        await user.click(await screen.findByRole("button", { name: /override temporarily/i }));
+        await user.click(await screen.findByRole("button", { name: /Custom Template/i }));
+      }
+      await waitFor(() => expect(reads).toContain(true));
+      expect(
+        await screen.findByTestId(surface === "Compose" ? "compose-silence" : "force-set-silence"),
+      ).toHaveTextContent("Silenced until");
+      expect(
+        screen.getByRole("button", {
+          name: surface === "Compose" ? "Send now anyway" : "Show now anyway",
+        }),
+      ).toBeInTheDocument();
+    },
+  );
+});
+
+describe("Home keeps immediate wake capability clear while a dialog remains open", () => {
+  it.each(["Compose", "Force Set"])(
+    "%s keeps its wake hint across quiet-start despite cached inactive metadata",
+    async (surface) => {
+      let quiet = false;
+      const reads: boolean[] = [];
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.get(`${API_BASE}/silence-status`, () => {
+          reads.push(quiet);
+          return HttpResponse.json(quiet ? silenced() : silenceStatus({ active: false }));
+        }),
+        http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
+          bodies.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json({ active: true });
+        }),
+      );
+      if (surface === "Force Set")
+        server.use(
+          http.get(`${API_BASE}/schedules/active/page`, () =>
+            HttpResponse.json({
+              page_id: "page-1",
+              source: "schedule",
+              schedule_enabled: true,
+              temporary_override: { active: false },
+            }),
+          ),
+        );
+      const user = userEvent.setup();
+      render(<ActivePageDisplay />, { wrapper: TestWrapper });
+      await waitFor(() => expect(reads).toContain(false));
+      await user.click((await screen.findAllByRole("button", { name: /change page/i }))[0]);
+      if (surface === "Compose") {
+        await user.click(await screen.findByRole("button", { name: "Compose a message" }));
+        await user.type(screen.getByRole("textbox", { name: /message/i }), "HELLO");
+      } else {
+        await user.click(await screen.findByRole("button", { name: /override temporarily/i }));
+        await user.click(await screen.findByRole("button", { name: /Custom Template/i }));
+      }
+      const send = await screen.findByRole("button", {
+        name: surface === "Compose" ? "Send to board" : "Force Set",
+      });
+      const hint = screen.getByTestId(surface === "Compose" ? "compose-wake-hint" : "force-set-wake-hint");
+      expect(hint).toHaveTextContent(
+        "Sending now can wake the board during quiet hours. Pause still prevents sending.",
+      );
+      quiet = true;
+      expect(reads).not.toContain(true);
+      expect(hint).toBeVisible();
+      expect(bodies).toEqual([]);
+      await user.click(send);
+      await waitFor(() => expect(bodies).toHaveLength(1));
+    },
+  );
+});

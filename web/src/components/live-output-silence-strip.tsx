@@ -25,8 +25,8 @@ export interface LiveOutputSilenceStripProps {
  *
  * While the target board is silenced, live renders keep updating the preview
  * but leave the board alone, and this strip says so with one explicit way to
- * write anyway. Once overriding, it says the board is being woken and offers
- * the way back. It never raises a toast: a keystroke stream would flood them.
+ * write anyway. Once overriding, the permission and its revoke control stay
+ * visible even when quiet-hours metadata is stale. It never raises a toast.
  */
 export function LiveOutputSilenceStrip({
   liveOutputEnabled,
@@ -40,12 +40,13 @@ export function LiveOutputSilenceStrip({
   const t = useTranslations("pageBuilder");
   if (!liveOutputEnabled) return null;
 
-  if (overriding && silenceActive) {
+  if (overriding) {
     return (
       <SilenceNotice
         compact
         variant="warning"
-        until={until}
+        until={silenceActive ? until : null}
+        title={silenceActive ? undefined : t("livePermissionTitle")}
         description={t("liveSilenceOverriding")}
         className="mt-2"
         data-testid="live-silence-overriding"

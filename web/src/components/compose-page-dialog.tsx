@@ -56,6 +56,7 @@ interface ComposePageDialogProps {
   targetBoardName?: string;
   targetBoardId?: string;
   silence?: { until: string | null; holds: boolean } | null;
+  silenceUnknown?: boolean;
   paused?: boolean;
 }
 
@@ -85,10 +86,12 @@ export function ComposePageDialog({
   targetBoardName,
   targetBoardId,
   silence = null,
+  silenceUnknown = false,
   paused = false,
 }: ComposePageDialogProps) {
   const t = useTranslations("composeDialog");
   const tActive = useTranslations("activeDisplay");
+  const tSilence = useTranslations("silenceNotice");
   const queryClient = useQueryClient();
   const messageId = useId();
   const pageNameId = useId();
@@ -245,27 +248,42 @@ export function ComposePageDialog({
           )}
 
           {paused && <PausedNotice data-testid="compose-paused" />}
-          {silence && (
+          {!silenceUnknown && !silence && (
+            <Text size="sm" tone="muted" data-testid="compose-wake-hint">
+              {tSilence("wakeCapability")}
+            </Text>
+          )}
+          {silenceUnknown ? (
             <SilenceNotice
-              variant={silence.holds ? "info" : "warning"}
-              until={silence.until}
+              variant="warning"
+              until={null}
+              title={tSilence("unknownTitle")}
+              description={tSilence("unknownWarning")}
               data-testid="compose-silence"
-              description={
-                silence.holds ? (
-                  t("silenceHold", { time: silence.until ?? "—" })
-                ) : (
-                  <>
-                    {t("silenceNoHold")}{" "}
-                    <Link
-                      href="/settings?section=behavior#silence-schedule"
-                      className="font-medium underline underline-offset-2 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                    >
-                      {t("openSettings")}
-                    </Link>
-                  </>
-                )
-              }
             />
+          ) : (
+            silence && (
+              <SilenceNotice
+                variant={silence.holds ? "info" : "warning"}
+                until={silence.until}
+                data-testid="compose-silence"
+                description={
+                  silence.holds ? (
+                    t("silenceHold", { time: silence.until ?? "—" })
+                  ) : (
+                    <>
+                      {t("silenceNoHold")}{" "}
+                      <Link
+                        href="/settings?section=behavior#silence-schedule"
+                        className="font-medium underline underline-offset-2 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                      >
+                        {t("openSettings")}
+                      </Link>
+                    </>
+                  )
+                }
+              />
+            )
           )}
 
           <Stack gap="2">
@@ -345,12 +363,12 @@ export function ComposePageDialog({
             variant={silence?.holds ? "outline" : "default"}
             onClick={handleSend}
             disabled={!canSend || sendMutation.isPending || holdMutation.isPending}
-            data-testid={silence ? "compose-send-anyway" : undefined}
+            data-testid={silence || silenceUnknown ? "compose-send-anyway" : undefined}
           >
             <Send className="mr-1.5 h-4 w-4" />
-            {sendMutation.isPending ? t("sending") : silence ? t("sendNowAnyway") : t("send")}
+            {sendMutation.isPending ? t("sending") : silence || silenceUnknown ? t("sendNowAnyway") : t("send")}
           </Button>
-          {silence?.holds && (
+          {!silenceUnknown && silence?.holds && (
             <Button
               onClick={handleHold}
               disabled={!canSend || holdMutation.isPending || sendMutation.isPending}

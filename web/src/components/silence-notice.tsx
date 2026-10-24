@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 export interface SilenceNoticeProps {
   /** When silence ends, already formatted ("7:00 AM"); null when unknown. */
   until: string | null;
+  title?: string;
   /** False renders nothing — the board is not silenced. */
   active?: boolean;
   /** `info` for "this is what will happen", `warning` for "this wakes the board". */
@@ -37,6 +38,7 @@ export interface SilenceNoticeProps {
  */
 export function SilenceNotice({
   until,
+  title: customTitle,
   active = true,
   variant = "info",
   description,
@@ -48,7 +50,7 @@ export function SilenceNotice({
   const t = useTranslations("silenceNotice");
   if (!active) return null;
 
-  const title = until ? t("untilTitle", { time: until }) : t("untilTitleNoTime");
+  const title = customTitle ?? (until ? t("untilTitle", { time: until }) : t("untilTitleNoTime"));
   const tone = variant === "warning" ? "border-warning/50 bg-warning/10" : "border-info/50 bg-info/10";
   const iconTone = variant === "warning" ? "text-warning" : "text-info";
 
