@@ -6,6 +6,10 @@ keywords: [FiestaBoard beginner guide, first time setup, step by step, Vestaboar
 
 # Beginner's Guide
 
+:::note Version availability
+These instructions describe FiestaBoard v10 (`next` / beta). The output-plugin setup and Divoom Pixoo 64 support are not available in stable v9. Native Apple TV and Android TV apps are coming soon; use a browser for TV viewing.
+:::
+
 Never used Docker or the command line before? No problem. This guide walks through every step clearly, from picking the easiest install path to seeing your first content on your display.
 
 **Time needed:** About 15 minutes.

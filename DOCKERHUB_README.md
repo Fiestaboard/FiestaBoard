@@ -22,6 +22,8 @@ FiestaBoard turns live data into something you can glance at from across the roo
 
 Works with Vestaboard Flagship (22x6), Note (15x3), and Note arrays; the Divoom Pixoo 64 LED matrix; and any TV or screen with a web browser through [FiestaPanel](https://fiestaboard.app/docs/displays/tv). Native Apple TV and Android TV apps are coming soon. See [Supported Displays](https://fiestaboard.app/docs/displays).
 
+**Version availability:** Divoom Pixoo 64 support and the output-plugin setup described here target v10 (`next` / beta). Stable v9 does not include them. Native TV apps are coming soon; browser viewing is available.
+
 You bring the display and the API keys for the services you care about. FiestaBoard handles the rest.
 
 ## Quick Start

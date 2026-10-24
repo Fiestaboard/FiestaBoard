@@ -6,6 +6,10 @@ keywords: [Vestaboard setup, Vestaboard Flagship, Vestaboard Note, Note array, s
 
 # Split-Flap Boards
 
+:::note Version availability
+These instructions describe FiestaBoard v10 (`next` / beta). The output-plugin setup and Divoom Pixoo 64 support are not available in stable v9. Native Apple TV and Android TV apps are coming soon; use a browser for TV viewing.
+:::
+
 FiestaBoard drives Vestaboard split-flap boards: the Flagship, the Note, and Note arrays made of several Notes. Every page lands on the board with the same mechanical clatter as anything else you send it.
 
 ## Supported Boards
@@ -30,9 +34,8 @@ You need your board's **API key**. There are two ways to connect, and you choose
 ## Set It Up
 
 1. In the setup wizard, pick **Vestaboard**. If FiestaBoard is already set up, open **Displays**, click **Add a display**, and pick **Vestaboard**.
-2. Choose your connection type and enter your API key, plus the board's IP address for the Local API.
-3. Pick your board model and housing color.
-4. Click **Test connection**. When it passes, the board is saved.
+2. In the first-run wizard, choose your connection type and enter your API key, plus the board's IP address for the Local API. Pick your model and housing color, then click **Test connection**.
+3. When adding a board from **Displays**, choose its model first, then open the new board's settings to enter its connection details and test it. This path differs from the first-run wizard.
 
 The board now appears in **Displays** and in the board selector. Give it an active page, add it to a schedule, or send it a page from the editor.
 

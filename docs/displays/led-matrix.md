@@ -6,6 +6,10 @@ keywords: [LED matrix display, Divoom Pixoo 64, Pixoo dashboard, Pixoo 64 Fiesta
 
 # LED Matrices
 
+:::note Version availability
+These instructions describe FiestaBoard v10 (`next` / beta). The output-plugin setup and Divoom Pixoo 64 support are not available in stable v9. Native Apple TV and Android TV apps are coming soon; use a browser for TV viewing.
+:::
+
 FiestaBoard can draw your pages on an LED matrix: a grid of bright RGB pixels. LED matrices show things a split-flap board can't, like colored text, lowercase letters, icons, and pixel art. Pages change with smooth transitions such as wipe, slide and dissolve.
 
 ## Supported Devices
@@ -14,15 +18,15 @@ FiestaBoard can draw your pages on an LED matrix: a grid of bright RGB pixels. L
 |---|---|---|
 | **Divoom Pixoo 64** | 64 × 64 LEDs: 8 rows × 10 columns of text at Large, 10 × 16 at Small | Directly over your Wi-Fi |
 
-The smaller Pixoo 16 and Pixoo 32 aren't supported. They can't fit FiestaBoard's minimum grid of 3 rows × 15 columns.
+The bundled plugin declares only the Pixoo 64. Pixoo 16, Pixoo 32 and other Divoom models are not supported or validated by this guide. Hardware timing was measured on a Pixoo 64; other firmware may behave differently.
 
-More LED panels will arrive as [output plugins](/docs/development/output-plugins). FiestaBoard's renderer already knows how to draw common panel types, so a plugin only has to talk to the hardware.
+Support for other LED panels requires a compatible [output plugin](/docs/development/output-plugins) and validation on that hardware.
 
 ## Before You Start
 
 - Set the Pixoo 64 up with the Divoom app and connect it to your Wi-Fi.
 - FiestaBoard and the Pixoo must be on the same network.
-- No Divoom account or cloud service is needed. Everything stays on your network.
+- FiestaBoard's local discovery and display delivery need no Divoom cloud service. The optional **Ask Divoom's servers** action contacts Divoom and exposes your public IP address; it is not required.
 
 ## Set It Up
 
@@ -73,4 +77,4 @@ Mounted the Pixoo sideways or upside down? Set **Orientation** in the display's 
 | Text is cut off | The page is wider or taller than the grid: 10 columns × 8 rows at Large. Pick this display in the page editor's size picker, or switch to Small. |
 | The display stopped updating | The Pixoo's IP address changed. Reserve a fixed address in your router, then update it in the display's settings. |
 
-For every setting, see the plugin's [setup guide](https://github.com/Fiestaboard/fiestaboard-output--divoom-pixoo/blob/main/docs/SETUP.md).
+For the bundled settings and actions, see the [pinned plugin manifest](https://github.com/Fiestaboard/fiestaboard-output--divoom-pixoo/blob/3819a91e2637829b28ab83b03d13acc5cf6e1e76/manifest.json). The plugin's older setup guide still describes a manual beta installation; v10 bundles the plugin.

@@ -6,6 +6,10 @@ keywords: [FiestaBoard, split-flap display, LED matrix display, Divoom Pixoo 64,
 
 # Welcome to FiestaBoard
 
+:::note Version availability
+These instructions describe FiestaBoard v10 (`next` / beta). The output-plugin setup and Divoom Pixoo 64 support are not available in stable v9. Native Apple TV and Android TV apps are coming soon; use a browser for TV viewing.
+:::
+
 **Your data, out in the real world.** FiestaBoard turns live data into something you can glance at from across the room — your morning commute, the markets, the surf, a little Star Trek wisdom — on the displays around you: split-flap boards like Vestaboard, LED matrices like the Divoom Pixoo 64, or any TV with a browser. Pick from 60+ plugins, design pages in a visual editor, schedule what shows when, and build your own plugins. Free, open source, and self-hosted in Docker.
 
 FiestaBoard works with three kinds of display, and you can mix them:

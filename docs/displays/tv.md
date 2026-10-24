@@ -6,6 +6,10 @@ keywords: [TV dashboard, FiestaPanel, TV information display, wall display, digi
 
 # TVs
 
+:::note Version availability
+These instructions describe FiestaBoard v10 (`next` / beta). The output-plugin setup and Divoom Pixoo 64 support are not available in stable v9. Native Apple TV and Android TV apps are coming soon; use a browser for TV viewing.
+:::
+
 Any TV or screen with a web browser can be a FiestaBoard display. **FiestaPanel** fills the screen with a life-size board, drawn as split-flap flaps or as the dots of an LED sign. FiestaBoard drives it like any other display, with pages, schedules and plugins.
 
 ## Ways to Put FiestaBoard on a TV

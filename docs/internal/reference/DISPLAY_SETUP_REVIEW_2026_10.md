@@ -81,3 +81,7 @@ Badges stay state-only. A device's name, size or family is shown as data on the 
 | 7. Retire the legacy shape vocabulary | 13 | Ongoing | FiestaBoard, file by file |
 
 Step 1 should land before v10 ships. The other steps don't block v10.
+
+## Continuation validation, October 24, 2026
+
+The docs continuation was reviewed against `next` at `55cbf41f2`. The destructive Vestaboard wizard save, placeholder **My Board**, and different Vestaboard add flow remain separate QA findings; no production fix is included in the docs change. The public display guide warns about the rerun path. Pixoo support is limited to the bundled Pixoo 64 model and requires v10; native TV apps remain coming soon. The older Divoom plugin setup guide describes manual beta installation and must be updated separately.

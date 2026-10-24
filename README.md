@@ -24,6 +24,8 @@
 
 Every display is an [output plugin](https://fiestaboard.app/docs/development/output-plugins), so support for new hardware can be added without changing FiestaBoard. See [Supported Displays](https://fiestaboard.app/docs/displays).
 
+**Version availability:** Divoom Pixoo 64 support and the output-plugin setup described here target v10 (`next` / beta). Stable v9 does not include them. Native TV apps are coming soon; browser viewing is available.
+
 You bring the display and the API keys for the services you care about. FiestaBoard handles the rest.
 
 **[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/2GAqKnRF6h)**

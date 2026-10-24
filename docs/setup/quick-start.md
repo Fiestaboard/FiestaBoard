@@ -6,6 +6,10 @@ keywords: [FiestaBoard quick start, FiestaPi, Docker setup, getting started, Ves
 
 # Quick Start
 
+:::note Version availability
+These instructions describe FiestaBoard v10 (`next` / beta). The output-plugin setup and Divoom Pixoo 64 support are not available in stable v9. Native Apple TV and Android TV apps are coming soon; use a browser for TV viewing.
+:::
+
 Get FiestaBoard running in under 5 minutes. There are two supported paths:
 
 1. **Flash a Raspberry Pi with FiestaPi** — the easiest route for anyone, technical or not.

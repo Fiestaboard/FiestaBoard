@@ -1,10 +1,14 @@
 ---
 sidebar_position: 3
-description: "Your first 10 minutes with FiestaBoard: create a page, enable plugins, and set up a schedule for your split-flap display."
+description: "Your first 10 minutes with FiestaBoard: create a page, enable plugins, and set up a schedule for your display."
 keywords: [FiestaBoard getting started, first page, enable plugins, setup walkthrough, Vestaboard tutorial, Pixoo tutorial, TV dashboard]
 ---
 
 # Your First 10 Minutes
+
+:::note Version availability
+These instructions describe FiestaBoard v10 (`next` / beta). The output-plugin setup and Divoom Pixoo 64 support are not available in stable v9. Native Apple TV and Android TV apps are coming soon; use a browser for TV viewing.
+:::
 
 You've got FiestaBoard running at **http://localhost:4420** and your display is connected. Now what? This guide walks you through everything you can do in your first 10 minutes to get the most out of it. It works the same for a Vestaboard, a Pixoo, or a TV.
 
@@ -45,7 +49,7 @@ You can always come back and enable more plugins later, including ones that need
 Pages are the templates for what your displays show. Each page is a layout you design using the visual editor.
 
 1. Click **Pages** in the navigation
-2. Select the tab matching your board type (**Flagship** for the standard 22x6 board, **Note** for the compact 15x3)
+2. Choose the size matching your display. The editor lists TVs and LED displays by name, alongside **Flagship**, **Note**, and **Note Array** sizes.
 3. Click **New**
 4. Give your page a name (e.g., "Morning Info")
 

@@ -6,6 +6,10 @@ keywords: [FiestaBoard displays, supported displays, Vestaboard, split-flap disp
 
 # Supported Displays
 
+:::note Version availability
+These instructions describe FiestaBoard v10 (`next` / beta). The output-plugin setup and Divoom Pixoo 64 support are not available in stable v9. Native Apple TV and Android TV apps are coming soon; use a browser for TV viewing.
+:::
+
 FiestaBoard shows your pages on three kinds of display: split-flap boards, LED matrices, and TVs. You design a page once, and FiestaBoard draws it the way each display needs. Split-flap boards get flaps, LED matrices get pixels, and a TV gets a life-size board on screen.
 
 You can run several displays at once, and they don't have to be the same kind. A Vestaboard in the kitchen, a Pixoo on a desk, and a TV in the hallway can each show their own pages on their own schedules.
@@ -27,11 +31,15 @@ The first time you open FiestaBoard, the setup wizard asks **What do you want to
 To add another display later:
 
 1. Open **Displays** and click **Add a display**.
-2. Pick the kind of display. Split-flap, LED matrix and TV support ship with FiestaBoard, so they work without an internet connection.
+2. Pick the kind of display. In v10, the three seeded display plugins are bundled with the image; installing or updating other plugins requires internet access.
 3. Fill in the display's settings screen. Most displays have a **Test connection** button, and some can search your network for you, like **Find my Pixoo**.
 4. Save. The new display appears in the board selector, ready for pages and schedules.
 
 Each display has its own grid size, so a page made for one shape won't always fit another. The page editor's size picker lists your TVs and LED displays by name, next to the standard Vestaboard sizes, so you can make a page for a specific display in one step.
+
+:::warning Adding to an existing installation
+Use **Displays → Add a display** to add hardware. Re-running the setup wizard and choosing Vestaboard currently replaces the saved display list and can remove other displays. Skipping setup can also leave a placeholder named **My Board**; it is not evidence that hardware was found.
+:::
 
 ## Every Display Is a Plugin
 
