@@ -70,6 +70,7 @@ from src.board_client import board_client_from_board_dict
 from src.board_guards import (
     _board_dims,
     _require_board,
+    deliver_with_held_cleanup,
     primary_board_entry,
     resolve_board_id,
     silence_verdict,
@@ -274,7 +275,9 @@ async def send_message(request: MessageRequest, response: Response = None):
 
     try:
         outcome = SendOutcome.of(
-            render_message(
+            deliver_with_held_cleanup(
+                previous,
+                render_message,
                 board_client,
                 request.text,
                 rows=dims.rows,
@@ -309,8 +312,6 @@ async def send_message(request: MessageRequest, response: Response = None):
     # is a pull — /force-refresh, MQTT Refresh Display, re-selecting a page,
     # or an actual content change (issue #1794).
     runtime._note_out_of_band_write(board_id)
-    if previous is not None:
-        silence_queue.discard(previous.board_id, expected=previous)
     # The adaptive post-send refresh polls the PRIMARY board only (board-state
     # polling tracks one board by design, issue #1243), so a send aimed at a
     # secondary must not ask for one. Same rule the executor applies.

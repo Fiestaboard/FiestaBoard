@@ -907,7 +907,12 @@
     "toastShownNow": "Wyświetlanie „{pageName}” teraz",
     "toastHeldDiscarded": "Wstrzymana wiadomość odrzucona",
     "toastHeldDiscardFailed": "Nie udało się odrzucić wstrzymanej wiadomości",
-    "toastResendNotSent": "Nic nie wysłano (tablica wstrzymana lub wyjście ustawione tylko na interfejs)"
+    "toastResendNotSent": "Nic nie wysłano (tablica wstrzymana lub wyjście ustawione tylko na interfejs)",
+    "heldPendingTitle": "Wiadomość oczekuje na dostarczenie",
+    "heldPending": "Ta wiadomość oczekuje na dostarczenie. Próba zostanie ponowiona, gdy tablica będzie dostępna. Możesz ją odrzucić poniżej.",
+    "heldRecoveryTitle": "Dostarczenie wymaga uwagi",
+    "heldRecovery": "Nie udało się potwierdzić dostarczenia. Automatyczne próby zostały wstrzymane, aby uniknąć powtórzenia wiadomości. Odrzuć ten wpis lub świadomie wyślij nową treść, aby go zastąpić.",
+    "heldPreview": "Wstrzymana wiadomość: „{preview}”"
   },
   "forceSetDialog": {
     "title": "Wymuś ustawienie boarda",

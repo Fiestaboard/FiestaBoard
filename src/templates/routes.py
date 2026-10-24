@@ -237,7 +237,7 @@ async def render_template(request: TemplateRenderRequest):
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
 
 
-@router.post("/templates/render/live", response_model=TemplateRenderLiveResponse, responses=errors(400, 404, 422))
+@router.post("/templates/render/live", response_model=TemplateRenderLiveResponse, responses=errors(400, 404, 422, 503))
 async def render_template_live(request: TemplateRenderLiveRequest):
     """
     Render a template and send it to a board (live edit mode).
@@ -355,7 +355,11 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                     # Live-editor previews get their own bounded pool (#1878):
                     # rapid-fire keystroke sends must not occupy the workers
                     # /refresh, /force-refresh and POST /pages/{id}/send need.
+                    from src.board_guards import deliver_with_held_cleanup
+
                     success, was_sent = await run_board_preview(
+                        deliver_with_held_cleanup,
+                        previous,
                         client.send_characters,
                         board_array,
                         strategy=live_strategy,
@@ -364,8 +368,6 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                         force=True,
                     )
                     sent_to_board = was_sent
-                    if success and was_sent and previous is not None:
-                        silence_queue.discard(previous.board_id, expected=previous)
                 except Exception as e:
                     logger.error(f"Live send to board failed: {e}", exc_info=True)
 

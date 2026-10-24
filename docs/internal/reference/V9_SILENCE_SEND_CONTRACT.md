@@ -36,6 +36,12 @@ Pause keeps the existing 409 message refusal or the preview/selection's
 `paused: true` behavior. v1's `if_paused: "preview"` and UI-only response
 contracts are unchanged.
 
+Hold acceptance and explicit discard are durable transactions. If saving fails,
+no new hold or discard is acknowledged; the prior memory/disk slot is retained.
+REST hold/discard failures return an error (503 for the shared REST policy and
+discard route; v1 message uses its existing executor-error 500 envelope), never
+202/`held: true` or `discarded: true`.
+
 UI-only page/display/selection requests do not create holds. Live output keeps
 v9's explicit live-send targeting semantics. Malformed requests and unknown
 write targets are rejected before queue mutation. Preview responses do not
@@ -57,6 +63,29 @@ discards it. A newer successful explicit send also supersedes the older intent
 it observed before writing. Both use atomic conditional discard, preserving a
 newer hold created during an older in-flight send. Discard cannot undo hardware
 I/O that already started.
+
+An intent that cannot currently render does not block normal scheduled/manual
+content or an explicit temporary override. It remains pending for later retry.
+A successful explicit override clears only the older intent observed by that
+pass; a failed/paused write preserves it.
+
+Before a write that may consume an intent, the exact observed slot is durably
+marked `delivery_state: "unresolved"`. Successful delivery conditionally removes
+it. A reported failed/throttled/unchanged write restores its previous state for
+normal retry. A write exception, interruption, failed cleanup or failed state
+restoration leaves the unresolved slot visible and suppresses automatic replay,
+including after restart. The actual send result remains truthful when cleanup
+alone fails. This intentionally favors avoiding duplicate physical writes:
+an interruption after marking but before I/O may also require manual recovery.
+No marker is written for an ordinary hold waiting through silence.
+
+`held.delivery_state` is `"pending"` or `"unresolved"` (old persisted records
+default to pending). Home keeps pending/unresolved previews and scoped Discard
+visible outside quiet hours, including disabled silence. Unresolved copy explains
+that automatic retry is stopped. Recovery uses existing actions: durably discard
+the entry or explicitly send replacement content (Show now sends the selected
+page, Compose/Force Set keep their existing targets). Failed Discard retains the
+entry and reports failure. A newer accepted hold replaces it normally.
 
 After held delivery, the message stays until active content changes or an
 explicit refresh replaces it, following v9's manual-message behavior. The engine

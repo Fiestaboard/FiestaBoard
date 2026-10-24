@@ -494,10 +494,23 @@ def silence_verdict(
 
         if getattr(hold, "board_id", None) != resolved:
             raise ValueError("Held intent must target the resolved board")
-        silence_queue.hold(hold)
+        try:
+            silence_queue.hold(hold)
+        except OSError as exc:
+            raise HTTPException(status_code=503, detail="Could not persist the held message; nothing was sent") from exc
         logger.info("Silence active - holding %s for board %s until %s", kind, resolved, silence_ends_hhmm(ends_at))
         return SilenceVerdict(silenced=True, held=True, ends_at_utc=ends_at)
     logger.info(
         "Silence active - refusing %s for board %s (pass override_silence=true to write anyway)", kind, resolved
     )
     return SilenceVerdict(silenced=True, held=False, ends_at_utc=ends_at)
+
+
+def deliver_with_held_cleanup(previous, send, *args, require_current: bool = False, check=None, **kwargs):
+    """Protect a consuming board write with the queue's durable marker."""
+    from src import silence_queue
+
+    try:
+        return silence_queue.deliver(previous, send, *args, require_current=require_current, check=check, **kwargs)
+    except silence_queue.DeliveryPreparationError as exc:
+        raise HTTPException(status_code=503, detail="Could not persist held delivery state") from exc

@@ -136,6 +136,20 @@ resumed, and hardware output to be available. Failed or throttled attempts
 retain the message for a later attempt. A successful explicit send supersedes
 an older held message; a failed or paused send keeps it.
 
+Home keeps the held preview and **Discard message** visible after quiet hours
+end or silence is disabled, including while the board is paused or offline.
+A saved page that is deleted, cannot render, or no longer fits the board stays
+pending without blocking other normal content or a new explicit override.
+
+If the queue cannot be saved, a hold or discard reports an error and leaves the
+previous saved message intact. Before delivery, the queue records that a write
+is starting. If delivery or its final cleanup cannot be confirmed, Home shows
+**Delivery needs attention** and automatic retry stops to avoid repeating a
+message after restart. This can also happen if the app stops after recording
+the attempt but before sending. Discard the entry, or explicitly send new
+content to replace it. **Show now** still sends the selected page. A failed
+discard keeps the entry visible so you can try again after storage recovers.
+
 ## API Behavior
 
 See the [API reference](/docs/reference/api-endpoints) for request and response

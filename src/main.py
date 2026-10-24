@@ -1781,12 +1781,13 @@ class DisplayService:
 
             # Held manual content gets the first delivery opportunity outside
             # silence, after pause/output gates, even without an active page.
-            if not silence_mode_active:
-                from src import silence_queue
+            from src import silence_queue
 
-                held = silence_queue.peek(board_id)
-                if held is not None:
-                    return self._deliver_held_send(held, rt, board=board, is_primary=is_primary, wait=wait)
+            held = silence_queue.peek(board_id)
+            if not silence_mode_active and held is not None:
+                held_result = self._deliver_held_send(held, rt, board=board, is_primary=is_primary, wait=wait)
+                if held_result is not None:
+                    return held_result
 
             # --- Stage: trigger input (PRIMARY only; suppressed during silence) ---
             # Triggers are a first-class engine input (#1850, per the #1767
@@ -2135,11 +2136,15 @@ class DisplayService:
                 logger.error(f"Board {board_id}: failed to send active page: {active_page_id}")
                 return False
 
+            from src.board_guards import deliver_with_held_cleanup
+
             return self._dispatch_send(
                 rt,
                 board_id,
                 key=send_key,
-                send=lambda: client.render(
+                send=lambda: deliver_with_held_cleanup(
+                    held if override_active else None,
+                    client.render,
                     board_array,
                     strategy=strategy,
                     step_interval_ms=interval_ms,
@@ -2206,30 +2211,37 @@ class DisplayService:
             logger.warning("Could not snapshot active content for held send on board %s: %s", rt.board_id, exc)
             return None
 
-    def _deliver_held_send(self, held, rt: BoardRuntime, *, board=None, is_primary=False, wait=True) -> bool:
+    def _deliver_held_send(self, held, rt: BoardRuntime, *, board=None, is_primary=False, wait=True) -> bool | None:
         """Render a persisted intention through v9's client and send worker.
 
         No failed, paused, throttled or unrenderable attempt consumes it.
         The exact intent is compared at completion, preserving a newer hold.
+        None means it cannot currently render (or needs manual recovery), so
+        existing normal/explicit engine inputs still get their turn.
         """
         from src import silence_queue
+        from src.board_guards import deliver_with_held_cleanup
         from src.devices import board_context_for
         from src.send_outcome import SendOutcome
         from src.text_to_board import wrap_message_text
 
         board_id = held.board_id
+        key = ("silence-held", held.queued_at)
+        # The durable marker is already unresolved while this worker writes.
+        # Background ticks must not mistake that live attempt for recovery.
+        if not wait and self._send_in_flight(rt, key):
+            return False
+        if held.delivery_state == "unresolved":
+            return None
         board = board if board is not None else self._board_dict_for(board_id)
         if not rt.client or board is None:
-            return False
-        key = ("silence-held", held.queued_at)
-        if not wait and self._send_in_flight(rt, key):
             return False
         dims = dimensions_of(board)
         page = None
         if held.kind == "grid":
             grid = held.payload["characters"]
             if len(grid) != dims.rows or any(len(row) != dims.cols for row in grid):
-                return False
+                return None
         else:
             if held.kind == "text":
                 content = wrap_message_text(held.payload, rows=dims.rows, cols=dims.cols)
@@ -2241,20 +2253,20 @@ class DisplayService:
                     page_id = get_collection_service().resolve_page_id(page_id)
                 page = get_page_service().get_page(page_id) if page_id else None
                 if page is None or not pages_compatible_with_board(page, board):
-                    return False
+                    return None
                 result = get_page_service().preview_page(page_id, force_refresh=True)
                 if not result or not result.available:
-                    return False
+                    return None
                 content = result.formatted
             elif held.kind == "display":
                 from src.displays.service import get_display_service
 
                 result = get_display_service().get_display(held.payload, board=board_context_for(*geometry_of(board)))
                 if not result or not result.available:
-                    return False
+                    return None
                 content = result.formatted
             else:
-                return False
+                return None
             grid = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
 
         settings = get_settings_service()
@@ -2270,8 +2282,6 @@ class DisplayService:
         baseline = None
 
         def can_send():
-            if silence_queue.peek(board_id) != held:
-                return False
             if settings.is_paused(board_id=board_id) is True or Config.is_silence_mode_active(board_id):
                 return False
             return getattr(rt.client, "is_virtual", False) is True or settings.should_send_to_board() is not False
@@ -2279,15 +2289,17 @@ class DisplayService:
         def send():
             nonlocal outcome, baseline
             # Avoid rendering an intent already blocked when its worker starts.
-            if not can_send():
+            if silence_queue.peek(board_id) != held or not can_send():
                 return False, False
             baseline = self._held_active_baseline(rt, board, is_primary=is_primary)
             # Fresh rendering may block on plugin data. Recheck the live gates
             # after that work, immediately before touching hardware.
-            if not can_send():
+            if silence_queue.peek(board_id) != held or not can_send():
                 return False, False
             outcome = SendOutcome.of(
-                rt.client.render(
+                deliver_with_held_cleanup(
+                    held,
+                    rt.client.render,
                     grid,
                     strategy=strategy,
                     step_interval_ms=interval,
@@ -2295,6 +2307,8 @@ class DisplayService:
                     device_type=board.get("device_type"),
                     force=True,
                     with_outcome=True,
+                    require_current=True,
+                    check=can_send,
                 )
             )
             return outcome.success, outcome.was_sent
@@ -2302,7 +2316,6 @@ class DisplayService:
         def complete(success, was_sent, exc):
             if exc is not None or not success or not was_sent or (outcome and outcome.throttled):
                 return False
-            silence_queue.discard(board_id, expected=held)
             rt.last_active_page_id, rt.last_active_page_content = baseline or (None, None)
             rt.last_render = None
             rt.showing_out_of_band = True

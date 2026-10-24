@@ -34,6 +34,7 @@ export interface HeldSendSummary {
   kind: string;
   preview: string;
   queued_at: string;
+  delivery_state?: "pending" | "unresolved";
 }
 
 // Schedule types

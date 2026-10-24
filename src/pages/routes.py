@@ -632,7 +632,11 @@ async def send_page(
                 board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
                 # render() serializes concurrent senders via the client's
                 # per-board _send_lock, so worker threads can't interleave.
-                success, was_sent = board_client.render(
+                from src.board_guards import deliver_with_held_cleanup
+
+                success, was_sent = deliver_with_held_cleanup(
+                    previous,
+                    board_client.render,
                     board_array,
                     strategy=strategy,
                     step_interval_ms=interval_ms,
@@ -640,8 +644,6 @@ async def send_page(
                     device_type=(board.get("device_type") if board is not None else page.device_type),
                 )
                 sent_to_board = was_sent
-                if success and was_sent and previous is not None:
-                    silence_queue.discard(previous.board_id, expected=previous)
                 if not success:
                     # Board offline / unreachable. Deliberately NOT 502/503/504:
                     # nginx intercepts those on /api/ and replaces the body with

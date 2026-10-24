@@ -900,26 +900,40 @@ export function ActivePageDisplay() {
 
         <Box className="space-y-4">
           {/* Silence (#1943): what is on hold and what happens when it ends. */}
-          {silence.active && (
+          {(silence.active || silence.held) && (
             <SilenceNotice
               until={silence.until}
+              title={
+                silence.active
+                  ? undefined
+                  : silence.held?.delivery_state === "unresolved"
+                    ? t("heldRecoveryTitle")
+                    : t("heldPendingTitle")
+              }
               data-testid="silence-alert"
               description={
                 <>
                   <Text as="span" size="sm" className="block">
-                    {isTargetPaused
-                      ? activePage || activeCollection
-                        ? t("toastSwitchPaused", { pageName: activeCollection?.name ?? activePage?.name ?? "" })
-                        : tPause("tooltip")
-                      : scheduleEnabled
-                        ? t("silenceSchedule")
-                        : activeCollection || activePage
-                          ? t("silenceManual", { pageName: activeCollection?.name ?? activePage?.name ?? "" })
-                          : t("silenceNoPage")}
+                    {silence.held?.delivery_state === "unresolved"
+                      ? t("heldRecovery")
+                      : !silence.active
+                        ? t("heldPending")
+                        : isTargetPaused
+                          ? activePage || activeCollection
+                            ? t("toastSwitchPaused", { pageName: activeCollection?.name ?? activePage?.name ?? "" })
+                            : tPause("tooltip")
+                          : scheduleEnabled
+                            ? t("silenceSchedule")
+                            : activeCollection || activePage
+                              ? t("silenceManual", { pageName: activeCollection?.name ?? activePage?.name ?? "" })
+                              : t("silenceNoPage")}
                   </Text>
                   {silence.held && (
                     <Text as="span" size="sm" className="mt-1 block" data-testid="silence-held">
-                      {t("silenceHeld", { preview: silence.held.preview })}
+                      {t(
+                        silence.active && silence.held.delivery_state !== "unresolved" ? "silenceHeld" : "heldPreview",
+                        { preview: silence.held.preview },
+                      )}
                     </Text>
                   )}
                 </>

@@ -907,7 +907,12 @@
     "toastShownNow": "“{pageName}” in mostra ora",
     "toastHeldDiscarded": "Messaggio in attesa scartato",
     "toastHeldDiscardFailed": "Impossibile scartare il messaggio in attesa",
-    "toastResendNotSent": "Non è stato inviato nulla (tabellone in pausa o uscita impostata solo sull'interfaccia)"
+    "toastResendNotSent": "Non è stato inviato nulla (tabellone in pausa o uscita impostata solo sull'interfaccia)",
+    "heldPendingTitle": "Messaggio in attesa di consegna",
+    "heldPending": "Questo messaggio è in attesa di consegna. Verrà riprovato quando il tabellone sarà disponibile. Puoi eliminarlo qui sotto.",
+    "heldRecoveryTitle": "La consegna richiede attenzione",
+    "heldRecovery": "Non è stato possibile confermare la consegna. I tentativi automatici sono interrotti per evitare di ripetere il messaggio. Elimina questa voce o invia esplicitamente nuovi contenuti per sostituirla.",
+    "heldPreview": "Messaggio trattenuto: «{preview}»"
   },
   "forceSetDialog": {
     "title": "Forza impostazione board",

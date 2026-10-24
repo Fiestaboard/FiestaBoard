@@ -907,7 +907,12 @@
     "toastShownNow": "Mostrando «{pageName}» ahora",
     "toastHeldDiscarded": "Mensaje retenido descartado",
     "toastHeldDiscardFailed": "No se pudo descartar el mensaje retenido",
-    "toastResendNotSent": "No se envió nada (tablero en pausa o salida configurada solo para la interfaz)"
+    "toastResendNotSent": "No se envió nada (tablero en pausa o salida configurada solo para la interfaz)",
+    "heldPendingTitle": "Mensaje pendiente de entrega",
+    "heldPending": "Este mensaje espera su entrega. Se reintentará cuando el tablero esté disponible. Puedes descartarlo abajo.",
+    "heldRecoveryTitle": "La entrega requiere atención",
+    "heldRecovery": "No se pudo confirmar la entrega. Los reintentos automáticos están detenidos para evitar repetir el mensaje. Descarta esta entrada o envía contenido nuevo expresamente para reemplazarla.",
+    "heldPreview": "Mensaje retenido: «{preview}»"
   },
   "forceSetDialog": {
     "title": "Forzar pantalla",

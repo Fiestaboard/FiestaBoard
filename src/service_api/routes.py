@@ -397,6 +397,7 @@ async def get_silence_status(board_id: str | None = None):
                 kind=entry.kind,
                 preview=silence_queue.preview_text(entry),
                 queued_at=datetime.fromtimestamp(entry.queued_at, tz=UTC).isoformat(),
+                delivery_state=entry.delivery_state,
             )
 
     return SilenceStatusResponse(
@@ -421,7 +422,7 @@ async def get_silence_status(board_id: str | None = None):
 @router.delete(
     "/silence-queue",
     response_model=SilenceQueueDiscardResponse,
-    responses=errors(404),
+    responses=errors(404, 503),
     tags=["board"],
 )
 async def discard_held_send(board_id: str | None = None):
@@ -441,7 +442,10 @@ async def discard_held_send(board_id: str | None = None):
     resolved = resolve_board_id(board_id)
     if resolved is None:
         raise HTTPException(status_code=404, detail="No board is configured")
-    discarded = silence_queue.discard(resolved)
+    try:
+        discarded = silence_queue.discard(resolved)
+    except OSError as exc:
+        raise HTTPException(status_code=503, detail="Could not persist discard; the held message is unchanged") from exc
     if discarded:
         logger.info("Discarded the message held during silence for board %s", resolved)
     return SilenceQueueDiscardResponse(board_id=resolved, discarded=discarded)

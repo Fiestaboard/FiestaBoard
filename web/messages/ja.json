@@ -907,7 +907,12 @@
     "toastShownNow": "「{pageName}」を今すぐ表示しています",
     "toastHeldDiscarded": "保留中のメッセージを破棄しました",
     "toastHeldDiscardFailed": "保留中のメッセージを破棄できませんでした",
-    "toastResendNotSent": "送信されませんでした(ボードが一時停止中か、出力先が UI のみに設定されています)"
+    "toastResendNotSent": "送信されませんでした(ボードが一時停止中か、出力先が UI のみに設定されています)",
+    "heldPendingTitle": "送信待ちのメッセージ",
+    "heldPending": "このメッセージは送信待ちです。ボードが利用可能になると再試行します。下のボタンで破棄できます。",
+    "heldRecoveryTitle": "送信状況の確認が必要です",
+    "heldRecovery": "送信を確認できませんでした。重複送信を避けるため、自動再試行を停止しています。この項目を破棄するか、新しい内容を明示的に送信して置き換えてください。",
+    "heldPreview": "保留中のメッセージ：「{preview}」"
   },
   "forceSetDialog": {
     "title": "ボードを強制設定",

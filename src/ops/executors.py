@@ -840,10 +840,6 @@ def _settle_send(
             return err(failure)
         return ok(unchanged, skipped=True, board_id=target.board_id)
     _after_send(target)
-    if target.previous is not None:
-        from src import silence_queue
-
-        silence_queue.discard(target.previous.board_id, expected=target.previous)
     return ok(success, board_id=target.board_id, **fields)
 
 
@@ -914,6 +910,7 @@ def send_message(
     if not isinstance(text, str):
         return err("text must be a string.")
     try:
+        from src.board_guards import deliver_with_held_cleanup
         from src.displays.messages import render_message
         from src.silence_queue import HeldSend
 
@@ -928,7 +925,9 @@ def send_message(
         resolved_strategy, resolved_interval, resolved_step = _transition_for(
             target, strategy, step_interval_ms, step_size
         )
-        outcome = render_message(
+        outcome = deliver_with_held_cleanup(
+            target.previous,
+            render_message,
             target.client,
             text,
             rows=dims.rows,
@@ -975,6 +974,7 @@ def send_characters(
     rendered wrong).
     """
     try:
+        from src.board_guards import deliver_with_held_cleanup
         from src.silence_queue import HeldSend
 
         target, refusal = _resolve_send_target(
@@ -989,7 +989,9 @@ def send_characters(
         resolved_strategy, resolved_interval, resolved_step = _transition_for(
             target, strategy, step_interval_ms, step_size
         )
-        outcome = target.client.render(
+        outcome = deliver_with_held_cleanup(
+            target.previous,
+            target.client.render,
             characters,
             strategy=resolved_strategy,
             step_interval_ms=resolved_interval,

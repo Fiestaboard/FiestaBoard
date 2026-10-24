@@ -283,7 +283,11 @@ async def send_display(display_type: str, target: str | None = None, override_si
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             # Board network I/O goes on the dedicated bounded send pool, never
             # inline on the event loop (#1878).
+            from src.board_guards import deliver_with_held_cleanup
+
             success, was_sent = await run_board_send(
+                deliver_with_held_cleanup,
+                previous,
                 service.vb_client.render,
                 board_array,
                 strategy=transition.strategy,
@@ -292,8 +296,6 @@ async def send_display(display_type: str, target: str | None = None, override_si
                 device_type=device_type,
             )
             sent_to_board = was_sent
-            if success and was_sent and previous is not None:
-                silence_queue.discard(previous.board_id, expected=previous)
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to send to board")
 

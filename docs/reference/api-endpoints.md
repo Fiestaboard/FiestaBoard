@@ -305,6 +305,7 @@ The selection is stored whether or not the send succeeded, so check `sent` — a
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 | `502` | [`ErrorResponse`](#schema-errorresponse) | An upstream the server called on your behalf failed. |
+| `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
 
 ### `GET /v1/pages` {#get-v1-pages}
 

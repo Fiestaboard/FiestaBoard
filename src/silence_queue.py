@@ -31,7 +31,7 @@ import logging
 import math
 import threading
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -54,6 +54,11 @@ _FILE_NAME = "silence_held.json"
 _lock = threading.Lock()
 _held: dict[str, HeldSend] | None = None
 _loaded_path: Path | None = None
+_delivery_locks: dict[tuple[Path, str], threading.Lock] = {}
+
+
+class DeliveryPreparationError(OSError):
+    """No board write started because its durable marker could not be saved."""
 
 
 @dataclass(frozen=True)
@@ -64,12 +69,15 @@ class HeldSend:
     payload: Any
     board_id: str
     queued_at: float
+    delivery_state: Literal["pending", "unresolved"] = "pending"
 
     def __post_init__(self) -> None:
         if not isinstance(self.board_id, str) or not self.board_id:
             raise ValueError("A held send needs a resolved board id")
         if self.kind not in _KINDS:
             raise ValueError(f"Unknown held send kind: {self.kind!r}")
+        if self.delivery_state not in ("pending", "unresolved"):
+            raise ValueError("Unknown held delivery state")
         if not isinstance(self.queued_at, (int, float)) or not math.isfinite(self.queued_at):
             raise ValueError("A held send needs a finite timestamp")
         # The status API formats this as an ISO instant. A finite but
@@ -133,6 +141,7 @@ def _from_dict(raw: Any) -> HeldSend | None:
             payload=raw["payload"],
             board_id=raw["board_id"],
             queued_at=float(raw["queued_at"]),
+            delivery_state=raw.get("delivery_state", "pending"),
         )
     except (KeyError, TypeError, ValueError, OverflowError, OSError):
         return None
@@ -163,29 +172,32 @@ def _load_locked() -> dict[str, HeldSend]:
     _held = loaded
     _loaded_path = path
     if dropped:
-        _save_locked()
+        try:
+            _save_locked(loaded)
+        except OSError as exc:
+            logger.warning("Could not persist expired held-send cleanup: %s", exc)
     return _held
 
 
-def _save_locked() -> None:
+def _save_locked(held: dict[str, HeldSend]) -> None:
     """Atomically rewrite the store file (caller holds ``_lock``)."""
-    held = _held or {}
     path = _path()
     data = {board_id: asdict(send) for board_id, send in held.items()}
-    try:
-        write_json_atomic(path, data, private=True)
-    except OSError as exc:
-        # A held message that is not persisted still works until a restart;
-        # failing the send that asked for it would be worse.
-        logger.warning("Could not persist held sends to %s: %s", path, exc)
+    write_json_atomic(path, data, private=True)
+
+
+def _publish_locked(candidate: dict[str, HeldSend]) -> None:
+    """Publish memory only after the candidate map is durably saved."""
+    global _held
+    _save_locked(candidate)
+    _held = candidate
 
 
 def hold(send: HeldSend) -> None:
     """Hold *send* for its board, replacing whatever was held there."""
     with _lock:
         held = _load_locked()
-        held[send.board_id] = send
-        _save_locked()
+        _publish_locked({**held, send.board_id: send})
 
 
 def peek(board_id: str | None) -> HeldSend | None:
@@ -196,8 +208,11 @@ def peek(board_id: str | None) -> HeldSend | None:
         held = _load_locked()
         send = held.get(board_id)
         if send is not None and send.is_stale():
-            del held[board_id]
-            _save_locked()
+            try:
+                _publish_locked({bid: item for bid, item in held.items() if bid != board_id})
+            except OSError as exc:
+                # Stale content is never eligible, even if disk cleanup fails.
+                logger.warning("Could not persist expired held-send cleanup: %s", exc)
             return None
         return send
 
@@ -216,9 +231,72 @@ def discard(board_id: str | None, *, expected: HeldSend | None = None) -> bool:
             return False
         if expected is not None and held[board_id] != expected:
             return False
-        del held[board_id]
-        _save_locked()
+        _publish_locked({bid: item for bid, item in held.items() if bid != board_id})
         return True
+
+
+def deliver(expected: HeldSend | None, send, *args, require_current: bool = False, check=None, **kwargs):
+    """Serialize consuming writes per board without blocking new holds/discard."""
+    if expected is None:
+        return _deliver_observed(expected, send, *args, require_current=require_current, check=check, **kwargs)
+    with _lock:
+        delivery_lock = _delivery_locks.setdefault((_path(), expected.board_id), threading.Lock())
+    with delivery_lock:
+        return _deliver_observed(expected, send, *args, require_current=require_current, check=check, **kwargs)
+
+
+def _deliver_observed(expected, send, *args, require_current=False, check=None, **kwargs):
+    """Write with a durable uncertainty marker before consuming an old intent.
+
+    A crash or cleanup failure cannot replay an already delivered intent. The
+    unresolved slot stays visible for explicit discard/replacement. A known
+    failed/throttled/unchanged write restores pending for ordinary retries.
+    Newer holds are never modified by this attempt's completion.
+    """
+    from src.send_outcome import SendOutcome
+
+    marked = None
+    if expected is not None:
+        with _lock:
+            held = _load_locked()
+            if held.get(expected.board_id) == expected:
+                marked = replace(expected, delivery_state="unresolved")
+                try:
+                    _publish_locked({**held, expected.board_id: marked})
+                except OSError as exc:
+                    raise DeliveryPreparationError(str(exc)) from exc
+            elif require_current:
+                return False, False
+
+    def settle(delivered: bool) -> None:
+        if marked is None:
+            return
+        try:
+            with _lock:
+                held = _load_locked()
+                if held.get(marked.board_id) != marked:
+                    return
+                candidate = {bid: item for bid, item in held.items() if bid != marked.board_id}
+                if not delivered:
+                    candidate[marked.board_id] = expected
+                _publish_locked(candidate)
+        except OSError as exc:
+            # The durable pre-write marker remains. Never pretend the physical
+            # write failed, and never automatically replay an uncertain write.
+            logger.error("Held delivery needs manual recovery for board %s: %s", marked.board_id, exc)
+
+    # Recheck after the durable write too: it can block on filesystem I/O.
+    if (require_current and marked is not None and peek(marked.board_id) != marked) or (check and not check()):
+        settle(False)
+        return False, False
+    # Exceptions may follow a partial physical write. Keep the unresolved
+    # marker; only explicit false outcomes are safe to retry.
+    result = send(*args, **kwargs)
+    if marked is None:
+        return result
+    outcome = SendOutcome.of(result)
+    settle(outcome.success and outcome.was_sent and not outcome.throttled)
+    return result
 
 
 def _page_name(page_id: str) -> str:

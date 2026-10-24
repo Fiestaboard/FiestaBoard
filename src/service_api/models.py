@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -102,6 +102,8 @@ class HeldSendSummary(BaseModel):
     preview: str
     #: ISO-8601 instant it was held.
     queued_at: str
+    #: Unresolved writes require explicit discard/replacement, never automatic replay.
+    delivery_state: Literal["pending", "unresolved"] = "pending"
 
 
 class SilenceStatusResponse(BaseModel):

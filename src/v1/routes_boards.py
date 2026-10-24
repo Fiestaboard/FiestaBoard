@@ -592,7 +592,7 @@ async def clear_board_message(board: str) -> MessageResponse:
 @router.put(
     "/boards/{board}/active-page",
     response_model=ActivePageResponse,
-    responses=errors(400, 404, 502),
+    responses=errors(400, 404, 502, 503),
     summary="Pin a page to a board",
     description=(
         "Sets the page (or collection) this board shows until something changes it — the sticky selection a "

@@ -907,7 +907,12 @@
     "toastShownNow": "„{pageName}“ wird jetzt angezeigt",
     "toastHeldDiscarded": "Zurückgehaltene Nachricht verworfen",
     "toastHeldDiscardFailed": "Die zurückgehaltene Nachricht konnte nicht verworfen werden",
-    "toastResendNotSent": "Nichts gesendet (Board pausiert oder Ausgabe nur auf die Oberfläche eingestellt)"
+    "toastResendNotSent": "Nichts gesendet (Board pausiert oder Ausgabe nur auf die Oberfläche eingestellt)",
+    "heldPendingTitle": "Nachricht wartet auf Zustellung",
+    "heldPending": "Diese Nachricht wartet auf die Zustellung. Sobald das Board verfügbar ist, wird es erneut versucht. Du kannst sie unten verwerfen.",
+    "heldRecoveryTitle": "Zustellung erfordert Aufmerksamkeit",
+    "heldRecovery": "Die Zustellung konnte nicht bestätigt werden. Automatische Wiederholungen sind gestoppt, damit die Nachricht nicht erneut gesendet wird. Verwirf diesen Eintrag oder sende ausdrücklich neue Inhalte, um ihn zu ersetzen.",
+    "heldPreview": "Zurückgehaltene Nachricht: „{preview}“"
   },
   "forceSetDialog": {
     "title": "Board erzwingen",

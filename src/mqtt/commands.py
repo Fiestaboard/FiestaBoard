@@ -591,7 +591,11 @@ class CommandHandler:
             unescape_newlines=self._json_object(payload) is None,
         )
         board_array = text_to_board_array(wrapped, rows=dims.rows, cols=dims.cols)
-        result = client.send_characters(
+        from src.board_guards import deliver_with_held_cleanup
+
+        result = deliver_with_held_cleanup(
+            previous,
+            client.send_characters,
             board_array,
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
@@ -601,12 +605,7 @@ class CommandHandler:
         # NOTE: deliberately does NOT invalidate the display loop's dedupe
         # cache — see _handle_blank_board. The message must outlive the next
         # engine tick, or "Welcome Home John!" lasts 15 seconds.
-        from src.send_outcome import SendOutcome
-
-        outcome = SendOutcome.of(result) if isinstance(result, tuple | list) else None
         if self._send_succeeded(result):
-            if outcome is not None and outcome.success and outcome.was_sent and previous is not None:
-                silence_queue.discard(previous.board_id, expected=previous)
             # The board now shows out-of-band content (issue #1831); the
             # trailing gather_and_publish in handle() reports it to HA.
             self._mark_out_of_band(board_id)

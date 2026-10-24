@@ -907,7 +907,12 @@
     "toastShownNow": "Affichage de « {pageName} » maintenant",
     "toastHeldDiscarded": "Message en attente supprimé",
     "toastHeldDiscardFailed": "Impossible de supprimer le message en attente",
-    "toastResendNotSent": "Rien n'a été envoyé (tableau en pause ou sortie réglée sur l'interface uniquement)"
+    "toastResendNotSent": "Rien n'a été envoyé (tableau en pause ou sortie réglée sur l'interface uniquement)",
+    "heldPendingTitle": "Message en attente de livraison",
+    "heldPending": "Ce message attend sa livraison. Une nouvelle tentative aura lieu lorsque le tableau sera disponible. Vous pouvez le supprimer ci-dessous.",
+    "heldRecoveryTitle": "La livraison nécessite votre attention",
+    "heldRecovery": "La livraison n’a pas pu être confirmée. Les tentatives automatiques sont arrêtées pour éviter de répéter le message. Supprimez cette entrée ou envoyez explicitement un nouveau contenu pour la remplacer.",
+    "heldPreview": "Message en attente : « {preview} »"
   },
   "forceSetDialog": {
     "title": "Forcer l'affichage",

@@ -907,7 +907,12 @@
     "toastShownNow": "“{pageName}” şimdi gösteriliyor",
     "toastHeldDiscarded": "Bekletilen mesaj atıldı",
     "toastHeldDiscardFailed": "Bekletilen mesaj atılamadı",
-    "toastResendNotSent": "Hiçbir şey gönderilmedi (pano duraklatıldı veya çıkış yalnızca arayüze ayarlı)"
+    "toastResendNotSent": "Hiçbir şey gönderilmedi (pano duraklatıldı veya çıkış yalnızca arayüze ayarlı)",
+    "heldPendingTitle": "Mesaj teslim edilmeyi bekliyor",
+    "heldPending": "Bu mesaj teslim edilmeyi bekliyor. Pano kullanılabilir olduğunda yeniden denenecek. Aşağıdan silebilirsiniz.",
+    "heldRecoveryTitle": "Teslimat için işlem gerekiyor",
+    "heldRecovery": "Teslimat doğrulanamadı. Mesajın tekrarlanmasını önlemek için otomatik denemeler durduruldu. Bu kaydı silin veya yerine açıkça yeni içerik gönderin.",
+    "heldPreview": "Bekletilen mesaj: “{preview}”"
   },
   "forceSetDialog": {
     "title": "Board'u Zorla Ayarla",

@@ -37,6 +37,7 @@ from typing import Any
 import requests
 from fastapi import APIRouter, HTTPException
 
+from src.api_errors import errors
 from src.board_guards import (
     validate_board_host as _validate_board_host,
 )
@@ -571,7 +572,7 @@ async def get_active_page(board_id: str | None = None):
 @router.put(
     "/settings/active-page",
     response_model=SetActivePageResponse,
-    responses={**ERROR_400, **ERROR_404, **ERROR_502},
+    responses={**ERROR_400, **ERROR_404, **ERROR_502, **errors(503)},
 )
 async def set_active_page(request: SetActivePageRequest):
     """
@@ -668,21 +669,25 @@ async def set_active_page(request: SetActivePageRequest):
         sent_to_board = False
         paused = False
         send_error: str | None = None
-        if render_page_id and page and send_client and settings_service.should_send_to_board():
-            # Skip immediate send when the board is paused (issue #970). The
-            # active-page selection is still persisted so it takes effect when
-            # the user later resumes the board.
-            if _board_is_paused(board_id):
-                logger.info("Board is paused - skipping immediate active-page send")
-                paused = True
-            else:
+        blocked = False
+
+        def can_send():
+            nonlocal verdict, paused, blocked
+            paused = _board_is_paused(board_id)
+            blocked = paused or not settings_service.should_send_to_board()
+            if not blocked:
                 verdict = silence_verdict(
                     board_id,
                     override_silence=request.override_silence,
                     hold=lambda bid: silence_queue.HeldSend.page(page_id, board_id=bid),
                 )
-                if verdict.silenced:
-                    return False, False, None
+                blocked = verdict.silenced
+            return not blocked
+
+        if render_page_id and page and send_client:
+            if not can_send():
+                return False, paused, None
+            else:
                 result = page_service.preview_page(render_page_id, force_refresh=True)
                 if result and result.available:
                     system_transition = settings_service.get_transition_settings()
@@ -707,16 +712,23 @@ async def set_active_page(request: SetActivePageRequest):
                     board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
                     # render() serializes concurrent senders via the client's
                     # per-board _send_lock, so worker threads can't interleave.
-                    success, was_sent = send_client.render(
+                    from src.board_guards import deliver_with_held_cleanup
+
+                    # Rendering and durable queue preparation can block. The
+                    # same policy is checked again immediately before I/O.
+                    success, was_sent = deliver_with_held_cleanup(
+                        previous,
+                        send_client.render,
                         board_array,
                         strategy=strategy,
                         step_interval_ms=interval_ms,
                         step_size=step_size,
                         device_type=(board.get("device_type") if board is not None else page.device_type),
+                        check=can_send,
                     )
+                    if blocked:
+                        return False, paused, None
                     sent_to_board = was_sent
-                    if success and was_sent and previous is not None:
-                        silence_queue.discard(previous.board_id, expected=previous)
                     if not success:
                         send_error = f"Failed to send page to board: {page_id}"
                         logger.warning(f"Failed to send active page to board: {page_id}")

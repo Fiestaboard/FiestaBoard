@@ -907,7 +907,12 @@
     "toastShownNow": "Visar ”{pageName}” nu",
     "toastHeldDiscarded": "Väntande meddelande slängt",
     "toastHeldDiscardFailed": "Det gick inte att slänga det väntande meddelandet",
-    "toastResendNotSent": "Inget skickades (tavlan pausad eller utdata inställd på endast gränssnittet)"
+    "toastResendNotSent": "Inget skickades (tavlan pausad eller utdata inställd på endast gränssnittet)",
+    "heldPendingTitle": "Meddelande väntar på leverans",
+    "heldPending": "Det här meddelandet väntar på leverans. Ett nytt försök görs när tavlan är tillgänglig. Du kan ta bort det nedan.",
+    "heldRecoveryTitle": "Leveransen behöver åtgärdas",
+    "heldRecovery": "Leveransen kunde inte bekräftas. Automatiska försök har stoppats för att undvika att upprepa meddelandet. Ta bort posten eller skicka uttryckligen nytt innehåll för att ersätta den.",
+    "heldPreview": "Sparat meddelande: ”{preview}”"
   },
   "forceSetDialog": {
     "title": "Tvinga inställning av board",
