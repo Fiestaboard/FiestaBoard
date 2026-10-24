@@ -51,7 +51,7 @@
 
 - [ ] Write behavioral RED tests for every affected send surface using existing fake hardware fixtures; include primary and secondary boards, unknown ids, pause with explicit override, v1 force alone during silence, and invalid payload preserving a prior intent.
 - [ ] Run before implementation, save expected failures, then adapt each boundary to the common policy. Preserve each existing endpoint's pause/refusal/preview contract; do not route unrelated debug/diagnostic operations through new UX.
-- [ ] Write engine RED tests for persistent intent after restart, board isolation, delivery at silence exit, failed/throttled/paused retry, 24-hour expiry, fresh page rendering and successful explicit send supersession. Implement minimal v9 engine integration.
+- [ ] Write engine RED tests for persistent intent after restart, board isolation, delivery at silence exit, failed/throttled/paused retry, 24-hour expiry, fresh page rendering and successful explicit send supersession. Include a newer intent queued while an older send is in flight; the older completion must preserve the newer intent. Implement minimal v9 engine integration.
 - [ ] Run full focused manual-send/silence/engine/v1/MCP/MQTT suites, the full Python suite, Ruff and API route/wire contract validation. Expected GREEN. Run no live server or board tests.
 - [ ] Commit and write task-2-report.md, including the exact final API shape consumed by Task 3.
 

@@ -28,6 +28,8 @@ live-board changes, dependency upgrades, or deprecated endpoint removal.
   silenced without pretending a board write occurred. No false sent=true.
 - Explicit successful writes supersede an older held intent for that board.
   Failed or paused writes must not lose the held intent.
+- Completion of an older in-flight delivery must not discard a newer intent
+  queued for the same board while that delivery was running.
 - GET /silence-status adds ends_at_utc, holds_blocked_sends and nullable held
   {kind, preview, queued_at}. DELETE /silence-queue?board_id=... discards only
   that resolved board's intent; unknown write targets return 404.
