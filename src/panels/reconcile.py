@@ -1,7 +1,7 @@
 """Keep every panel's virtual board fit to its TV.
 
-A panel's grid is derived, never chosen: it is whatever
-:func:`src.panels.autofit.compute_autofit_grid` says the screen holds. Two
+A panel's grid follows its sizing policy: physical autofit for split-flap,
+pixel-derived cells for screen LED, or the saved grid for legacy LED. Two
 things can leave a stored board out of step with that:
 
 * A screen-size edit — handled inline by ``PATCH /panels/{id}``, which
@@ -55,9 +55,15 @@ def reconcile_panel_boards() -> int:
     """Re-fit every panel board that disagrees with its screen. Returns the count.
 
     Idempotent: once every board matches, this reads and changes nothing.
-    Never raises — a failure is logged and the boot continues with the boards
-    as they were.
+    A grid-repair failure is logged and keeps the stored boards. An uncertain
+    interrupted content conversion raises before repair so recovery evidence
+    and later user edits cannot be overwritten.
     """
+    from .content_resize_recovery import recover_pending_panel_resizes
+
+    # An uncertain conversion must be recovered before a derived-grid repair
+    # can overwrite its evidence. Recovery errors intentionally stop startup.
+    recover_pending_panel_resizes()
     try:
         return _reconcile()
     except Exception:
@@ -70,7 +76,7 @@ def _reconcile() -> int:
     from src.pages.retarget import add_resize, retarget_pages
     from src.settings.service import get_settings_service
 
-    from .autofit import compute_autofit_grid
+    from .geometry import PanelGeometryError, resolve_panel_geometry
     from .service import get_panel_service
 
     panels = get_panel_service().list_panels()
@@ -87,7 +93,11 @@ def _reconcile() -> int:
         board = by_id.get(panel.board_id)
         if board is None or resolve_output_id(board) != FIESTAPANEL:
             continue
-        grid = compute_autofit_grid(panel.screen_diagonal_inches, panel.screen_aspect_w, panel.screen_aspect_h)
+        try:
+            grid = resolve_panel_geometry(panel, board).grid
+        except PanelGeometryError:
+            logger.warning("Panel %r has unsupported LED geometry; keeping its stored grid", panel.name)
+            continue
         if board_matches_grid(board, grid):
             continue
         old_key = size_key(*geometry_of(board))

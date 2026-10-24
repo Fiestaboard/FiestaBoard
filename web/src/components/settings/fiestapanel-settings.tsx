@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
   Box,
   Button,
+  Checkbox,
   Code,
   Dialog,
   DialogContent,
@@ -37,14 +38,19 @@ import { PanelMatrixEditorPreview } from "@/components/panel/panel-matrix-editor
 import { PanelTvPreview } from "@/components/panel/panel-tv-preview";
 import { TvPreview } from "@/components/panel/tv-preview";
 import { TimePicker } from "@/components/ui/time-picker";
+import { queryKeys } from "@/hooks/use-board";
 import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import {
   api,
+  ApiError,
   type HdmiKioskStatus,
+  type MatrixFont,
+  type MatrixLayout,
   type MatrixSizing,
   type Panel,
+  type PanelGeometryRequest,
   type PanelRenderStyle,
   type PanelUpdateRequest,
 } from "@/lib/api";
@@ -101,6 +107,9 @@ interface EditorState {
   renderStyle: PanelRenderStyle;
   matrixSizing: MatrixSizing | null;
   matrixPitch: number;
+  matrixLayout: MatrixLayout;
+  matrixFont: MatrixFont;
+  copyContent: boolean;
 }
 
 /** Calibration bounds — mirror the backend's Panel.calibration_scale. */
@@ -123,6 +132,9 @@ const NEW_PANEL: EditorState = {
   renderStyle: "split_flap",
   matrixSizing: "fill_tv",
   matrixPitch: 6,
+  matrixLayout: "screen",
+  matrixFont: "5x7",
+  copyContent: false,
 };
 
 function editorFromPanel(panel: Panel): EditorState {
@@ -143,6 +155,21 @@ function editorFromPanel(panel: Panel): EditorState {
     renderStyle: panel.render_style ?? "split_flap",
     matrixSizing: panel.matrix_sizing ?? null,
     matrixPitch: panel.matrix_pitch_mm ?? 6,
+    matrixLayout: panel.matrix_layout ?? "legacy",
+    matrixFont: panel.matrix_font ?? "5x7",
+    copyContent: false,
+  };
+}
+
+function geometryRequest(editor: EditorState): PanelGeometryRequest {
+  return {
+    panel_id: editor.panelId,
+    render_style: editor.renderStyle,
+    screen_diagonal_inches: editor.diagonal,
+    screen_aspect_w: editor.aspectW,
+    screen_aspect_h: editor.aspectH,
+    matrix_layout: editor.matrixLayout,
+    matrix_font: editor.matrixFont,
   };
 }
 
@@ -159,6 +186,34 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Panel | null>(null);
+  const draftRequest = editor ? geometryRequest(editor) : undefined;
+  const originalRequest = editor?.original ? geometryRequest(editorFromPanel(editor.original)) : undefined;
+  const geometry = useQuery({
+    queryKey: ["panel-geometry", draftRequest],
+    queryFn: () => api.resolvePanelGeometry(draftRequest!),
+    enabled: !!draftRequest,
+    retry: false,
+    staleTime: 30_000,
+  });
+  const originalGeometry = useQuery({
+    queryKey: ["panel-geometry", originalRequest],
+    queryFn: () => api.resolvePanelGeometry(originalRequest!),
+    enabled: !!originalRequest,
+    retry: false,
+    staleTime: 30_000,
+  });
+  const geometryChanged = !!(
+    editor?.original &&
+    geometry.data &&
+    (geometry.data.rows !== editor.original.rows ||
+      geometry.data.cols !== editor.original.cols ||
+      (originalGeometry.data && originalGeometry.data.geometry_key !== geometry.data.geometry_key))
+  );
+  const shrinking =
+    geometryChanged &&
+    !!geometry.data &&
+    !!editor?.original &&
+    (geometry.data.rows < (editor.original.rows ?? 0) || geometry.data.cols < (editor.original.cols ?? 0));
 
   const { data, isLoading } = useQuery({
     queryKey: PANELS_QUERY_KEY,
@@ -196,6 +251,9 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
     void queryClient.invalidateQueries({ queryKey: PANELS_QUERY_KEY });
     // A panel's virtual board shows up in every board-scoped surface.
     void queryClient.invalidateQueries({ queryKey: ["boardSettings"] });
+    void queryClient.invalidateQueries({ queryKey: ["panel"] });
+    void queryClient.invalidateQueries({ queryKey: ["panel-frame"] });
+    void queryClient.invalidateQueries({ queryKey: ["panel-geometry"] });
   };
 
   const createMutation = useMutation({
@@ -226,7 +284,12 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
         calibration_scale: state.calibration,
         render_style: state.renderStyle,
         ...(state.renderStyle === "led_matrix"
-          ? { matrix_sizing: state.matrixSizing, matrix_pitch_mm: state.matrixPitch }
+          ? {
+              matrix_sizing: state.matrixSizing,
+              matrix_pitch_mm: state.matrixPitch,
+              matrix_layout: state.matrixLayout,
+              matrix_font: state.matrixFont,
+            }
           : {}),
       };
       const original = state.original;
@@ -238,6 +301,8 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
             render_style: original.render_style ?? "split_flap",
             matrix_sizing: original.matrix_sizing ?? null,
             matrix_pitch_mm: original.matrix_pitch_mm ?? 6,
+            matrix_layout: original.matrix_layout ?? "legacy",
+            matrix_font: original.matrix_font ?? "5x7",
           }
         : {};
       const changes = Object.fromEntries(
@@ -245,10 +310,22 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
           ([key, value]) => JSON.stringify(value) !== JSON.stringify(baseline[key as keyof typeof baseline]),
         ),
       ) as PanelUpdateRequest;
+      if (geometryChanged && state.copyContent) changes.copy_content = true;
       return api.updatePanel(state.panelId ?? "", changes);
     },
-    onSuccess: (result) => {
+    onSuccess: (result, state) => {
       invalidate();
+      if (state.copyContent) {
+        for (const queryKey of [
+          queryKeys.pages,
+          queryKeys.collections,
+          queryKeys.activePage(),
+          ["schedules"],
+          queryKeys.silenceStatus(),
+        ]) {
+          void queryClient.invalidateQueries({ queryKey });
+        }
+      }
       setEditor(null);
       toast.success(t("saved"));
       // A TV-size change re-fits the board's grid; pages authored for the
@@ -334,7 +411,9 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
                 <Text className="font-medium">{panel.name}</Text>
                 <Text size="sm" tone="muted">
                   {t("screenMeta", { inches: panel.screen_diagonal_inches })}
-                  {panel.rows && panel.cols ? ` · ${t("gridMeta", { cols: panel.cols, rows: panel.rows })}` : ""}
+                  {panel.rows && panel.cols
+                    ? ` · ${t(panel.render_style === "led_matrix" ? "ledGridMeta" : "gridMeta", { cols: panel.cols, rows: panel.rows })}`
+                    : ""}
                   {panel.board_missing ? ` · ${t("boardMissing")}` : ""}
                 </Text>
                 <Flex gap="2" align="center" className="min-w-0">
@@ -436,42 +515,44 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
                     onChange={(e) => setEditor({ ...editor, name: e.target.value })}
                   />
                 </Stack>
+                {(editor.renderStyle === "split_flap" || editor.matrixSizing === "true_size") && (
+                  <Stack gap="2">
+                    <Label>{t("screenSize")}</Label>
+                    <Flex gap="2" wrap>
+                      {SIZE_PRESETS.map((inches) => (
+                        <Button
+                          key={inches}
+                          type="button"
+                          size="sm"
+                          variant={editor.diagonal === inches ? "default" : "outline"}
+                          onClick={() => setEditor({ ...editor, diagonal: inches })}
+                        >
+                          {inches}&quot;
+                        </Button>
+                      ))}
+                    </Flex>
+                    <Flex gap="2" align="center">
+                      <Label htmlFor="panel-custom-size" className="text-sm font-normal">
+                        {t("screenSizeCustom")}
+                      </Label>
+                      <Input
+                        id="panel-custom-size"
+                        type="number"
+                        min={DIAGONAL_MIN}
+                        max={DIAGONAL_MAX}
+                        step={0.5}
+                        className="w-24"
+                        value={editor.diagonal}
+                        onChange={(e) => {
+                          const parsed = Number(e.target.value);
+                          if (Number.isFinite(parsed)) setEditor({ ...editor, diagonal: parsed });
+                        }}
+                      />
+                    </Flex>
+                  </Stack>
+                )}
                 <Stack gap="2">
-                  <Label>{t("screenSize")}</Label>
-                  <Flex gap="2" wrap>
-                    {SIZE_PRESETS.map((inches) => (
-                      <Button
-                        key={inches}
-                        type="button"
-                        size="sm"
-                        variant={editor.diagonal === inches ? "default" : "outline"}
-                        onClick={() => setEditor({ ...editor, diagonal: inches })}
-                      >
-                        {inches}&quot;
-                      </Button>
-                    ))}
-                  </Flex>
-                  <Flex gap="2" align="center">
-                    <Label htmlFor="panel-custom-size" className="text-sm font-normal">
-                      {t("screenSizeCustom")}
-                    </Label>
-                    <Input
-                      id="panel-custom-size"
-                      type="number"
-                      min={DIAGONAL_MIN}
-                      max={DIAGONAL_MAX}
-                      step={0.5}
-                      className="w-24"
-                      value={editor.diagonal}
-                      onChange={(e) => {
-                        const parsed = Number(e.target.value);
-                        if (Number.isFinite(parsed)) setEditor({ ...editor, diagonal: parsed });
-                      }}
-                    />
-                  </Flex>
-                </Stack>
-                <Stack gap="2">
-                  <Label>{t("aspectRatioLabel")}</Label>
+                  <Label>{t(editor.renderStyle === "led_matrix" ? "screenShape" : "aspectRatioLabel")}</Label>
                   <Flex gap="2" align="center" wrap>
                     {ASPECT_PRESETS.map((preset) => (
                       <Button
@@ -523,23 +604,109 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
                     editor.aspectH >= ASPECT_MIN &&
                     editor.diagonal >= DIAGONAL_MIN &&
                     editor.diagonal <= DIAGONAL_MAX &&
-                    (editor.renderStyle === "led_matrix" && editor.panelId ? (
-                      <PanelMatrixEditorPreview
-                        panelId={editor.panelId}
-                        diagonal={editor.diagonal}
-                        aspectW={editor.aspectW}
-                        aspectH={editor.aspectH}
-                        sizing={editor.matrixSizing}
-                        spacing={editor.matrixPitch}
-                        calibration={editor.calibration}
-                      />
+                    (editor.renderStyle === "led_matrix" ? (
+                      geometry.data && editor.panelId ? (
+                        <PanelMatrixEditorPreview
+                          geometry={geometry.data}
+                          panelId={editor.panelId}
+                          diagonal={editor.diagonal}
+                          aspectW={editor.aspectW}
+                          aspectH={editor.aspectH}
+                          sizing={editor.matrixSizing}
+                          spacing={editor.matrixPitch}
+                          calibration={editor.calibration}
+                        />
+                      ) : (
+                        <Text size="xs" tone="muted">
+                          {geometry.isError
+                            ? geometry.error instanceof ApiError && [404, 405].includes(geometry.error.status)
+                              ? t("geometryUnavailable")
+                              : geometry.error.message
+                            : t("geometryLoading")}
+                        </Text>
+                      )
                     ) : (
                       <TvPreview diagonalInches={editor.diagonal} aspectW={editor.aspectW} aspectH={editor.aspectH} />
                     ))}
                   <Text size="xs" tone="muted">
-                    {t("autoFitHint")}
+                    {t(
+                      editor.renderStyle === "led_matrix"
+                        ? editor.matrixLayout === "screen"
+                          ? "ledGeometryHint"
+                          : "legacyGridHint"
+                        : "autoFitHint",
+                    )}
                   </Text>
                 </Stack>
+                {editor.renderStyle === "led_matrix" && (
+                  <Stack gap="2">
+                    <Label>{t("matrixLayout")}</Label>
+                    <Flex gap="2" wrap>
+                      {(["legacy", "screen"] as const).map((layout) => (
+                        <Button
+                          key={layout}
+                          size="sm"
+                          type="button"
+                          aria-pressed={editor.matrixLayout === layout}
+                          variant={editor.matrixLayout === layout ? "default" : "outline"}
+                          onClick={() =>
+                            setEditor({
+                              ...editor,
+                              matrixLayout: layout,
+                              copyContent: false,
+                              matrixSizing:
+                                layout === "screen" ? (editor.matrixSizing ?? "fill_tv") : editor.matrixSizing,
+                            })
+                          }
+                        >
+                          {t(`matrixLayout_${layout}`)}
+                        </Button>
+                      ))}
+                    </Flex>
+                    {editor.matrixLayout === "screen" && (
+                      <>
+                        <Label>{t("matrixTextSize")}</Label>
+                        <Flex gap="2">
+                          {(["5x7", "3x5"] as const).map((font) => (
+                            <Button
+                              key={font}
+                              size="sm"
+                              type="button"
+                              aria-pressed={editor.matrixFont === font}
+                              variant={editor.matrixFont === font ? "default" : "outline"}
+                              onClick={() => setEditor({ ...editor, matrixFont: font, copyContent: false })}
+                            >
+                              {t(`matrixFont_${font}`)}
+                            </Button>
+                          ))}
+                        </Flex>
+                      </>
+                    )}
+                    {geometry.data && (
+                      <Text size="sm">{t("ledGridMeta", { cols: geometry.data.cols, rows: geometry.data.rows })}</Text>
+                    )}
+                  </Stack>
+                )}
+                {geometryChanged && (
+                  <Stack gap="2">
+                    <Flex gap="2" align="center">
+                      <Checkbox
+                        id="panel-copy-content"
+                        checked={editor.copyContent}
+                        onChange={(event) => setEditor({ ...editor, copyContent: event.target.checked })}
+                      />
+                      <Label htmlFor="panel-copy-content">{t("copyContent")}</Label>
+                    </Flex>
+                    <Text size="xs" tone="muted">
+                      {t("copyContentHelp")}
+                    </Text>
+                    {shrinking && (
+                      <Text role="alert" size="sm">
+                        {t("copyContentCrop")}
+                      </Text>
+                    )}
+                  </Stack>
+                )}
                 {editor.mode === "edit" && (
                   <>
                     <Stack gap="2">
@@ -711,6 +878,7 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
                   }
                   disabled={
                     saving ||
+                    (editor.renderStyle === "led_matrix" && editor.matrixLayout === "screen" && !geometry.data) ||
                     !editor.name.trim() ||
                     (editor.renderStyle === "led_matrix" &&
                       (!Number.isFinite(editor.matrixPitch) || editor.matrixPitch < 1 || editor.matrixPitch > 20)) ||

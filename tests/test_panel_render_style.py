@@ -16,6 +16,7 @@ fixture carries them (vendored in ``src/fiestaui``) — so:
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -31,6 +32,8 @@ from src.panels.storage import PanelStorage
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "fiestaui" / "plugin-models.json"
 FIXTURE_MODELS = {m["id"]: m for m in json.loads(FIXTURE.read_text(encoding="utf-8"))["models"]}
+LEGACY_LED_MODEL = copy.deepcopy(FIXTURE_MODELS["fiestapanel_led_matrix"])
+LEGACY_LED_MODEL["geometry"] = {"kind": "pixels", "width": 174, "height": 96}
 
 
 @pytest.fixture
@@ -132,7 +135,9 @@ def test_public_config_carries_the_style_and_its_model(client, panels, style):
         data = client.get(f"/panel/{panel.id}").json()
     assert data["render_style"] == style
     assert data["device_model"] == f"fiestapanel_{style}"
-    assert data["device_model_spec"] == FIXTURE_MODELS[f"fiestapanel_{style}"]
+    assert data["device_model_spec"] == (
+        LEGACY_LED_MODEL if style == "led_matrix" else FIXTURE_MODELS[f"fiestapanel_{style}"]
+    )
 
 
 def test_public_config_for_an_orphaned_panel_still_names_its_model(client, panels):
@@ -199,7 +204,7 @@ def test_a_panel_board_reports_its_model_spec_and_a_builtin_does_not(panels):
     from src.outputs.board_profile import board_model_spec
 
     panels.storage.create(Panel(name="Hall TV", board_id="vb-panel", render_style="led_matrix"))
-    assert board_model_spec(_panel_board()) == FIXTURE_MODELS["fiestapanel_led_matrix"]
+    assert board_model_spec(_panel_board()) == LEGACY_LED_MODEL
     # A built-in model is resolved by id on the client; no document is sent.
     assert board_model_spec({"id": "v1", "device_type": "flagship", "api_mode": "local"}) is None
 
@@ -211,7 +216,7 @@ def test_settings_board_shows_the_panel_models_for_its_board(client, panels):
     get_settings_service().set_boards([_panel_board()])
     (shown,) = client.get("/settings/board").json()["boards"]
     assert (shown["device_model"], shown["charset"]) == ("fiestapanel_led_matrix", "led_5x7")
-    assert shown["device_model_spec"] == FIXTURE_MODELS["fiestapanel_led_matrix"]
+    assert shown["device_model_spec"] == LEGACY_LED_MODEL
 
 
 def test_render_for_an_led_panel_board_preserves_its_rich_delivery_charset(client, panels):
@@ -284,4 +289,4 @@ def test_resized_matrix_contains_the_complete_board_in_every_public_model(client
     expected = {"kind": "pixels", "width": 240, "height": 128}
     assert config["device_model_spec"]["geometry"] == expected
     assert board_model_spec(board)["geometry"] == expected
-    assert board_model_spec(_panel_board())["geometry"] == {"kind": "pixels", "width": 192, "height": 96}
+    assert board_model_spec(_panel_board())["geometry"] == {"kind": "pixels", "width": 174, "height": 96}

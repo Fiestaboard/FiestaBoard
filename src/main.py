@@ -923,7 +923,7 @@ class DisplayService:
         flat dict) signs as its v4 equivalent.
         """
         from src.devices import BoardInstance
-        from src.outputs.board_profile import board_profile
+        from src.outputs.board_profile import board_model_spec, board_profile
         from src.outputs.registry import output_registry, resolve_output_id
 
         instance = BoardInstance.from_dict(board)
@@ -946,6 +946,9 @@ class DisplayService:
             # A panel's style lives outside board settings, so connection
             # fields alone would retain its old split-flap driver.
             board_profile(board),
+            # Pixel geometry can change while the character grid is equal.
+            # Rebuild then so canvas placement and render dedupe reset too.
+            json.dumps(board_model_spec(board), sort_keys=True, default=str),
         )
 
     def _build_board_clients(self, sync_cache: bool = True):

@@ -8,6 +8,7 @@ where the router binds them. ``tests/test_panels_contract.py`` pins the same
 contract by value.
 """
 
+from threading import RLock
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -42,6 +43,7 @@ def client():
 def mock_panel_service():
     with patch("src.panels.routes.get_panel_service") as mock:
         service = Mock()
+        service.storage.lock = RLock()
         mock.return_value = service
         yield service
 
@@ -80,11 +82,12 @@ class TestPanelCrudEndpoints:
         assert response.json()["panels"][0]["board_missing"] is True
 
     def test_patch_unknown_panel_404s(self, client, mock_panel_service):
-        mock_panel_service.update_panel.return_value = None
+        mock_panel_service.get_panel.return_value = None
         response = client.patch("/panels/nope", json={"name": "X"})
         assert response.status_code == 404
 
     def test_patch_updates_panel(self, client, mock_panel_service):
+        mock_panel_service.get_panel.return_value = _panel()
         mock_panel_service.update_panel.return_value = _panel(name="Bedroom TV")
         response = client.patch("/panels/abc", json={"name": "Bedroom TV"})
         assert response.status_code == 200
@@ -240,6 +243,7 @@ class TestPanelOrchestration:
             boards[:] = [BoardInstance.from_dict(dict(b)).to_dict() for b in new_boards]
 
         return SimpleNamespace(
+            lock=RLock(),
             add_board=add_board,
             remove_board=remove_board,
             set_boards=set_boards,

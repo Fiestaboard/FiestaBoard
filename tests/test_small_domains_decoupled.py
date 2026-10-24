@@ -249,6 +249,7 @@ panel_service.create_panel.return_value = panel
 panel_service.update_panel.return_value = panel
 panel_service.delete_panel.return_value = panel
 panel_service.get_panel_by_ref.return_value = panel
+panel_service.get_panel.return_value = panel
 
 settings_service = MagicMock()
 settings_service.get_board_settings.return_value = SimpleNamespace(boards=[])

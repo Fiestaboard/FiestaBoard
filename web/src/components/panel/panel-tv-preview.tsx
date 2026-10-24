@@ -5,6 +5,7 @@ import {
   Box,
   type DeviceModel,
   DisplayPreview,
+  Text,
   TvFrame,
   type TvFrameOptions,
 } from "@fiestaboard/ui";
@@ -16,6 +17,7 @@ import { useTranslations } from "@/i18n/translations";
 import type { PanelPublicConfig } from "@/lib/api";
 import { isLedModel, ledLayerProps, ledLetterCase, resolveBoardModel } from "@/lib/device-preview";
 import { isInDimWindow, PANEL_DIM_LEVEL } from "@/lib/panel-dim";
+import { compatiblePanelFrame } from "@/lib/panel-frame";
 
 export { PANEL_DIM_LEVEL };
 
@@ -76,10 +78,17 @@ export function PanelTvPreview({ panelId, frameIntervalMs }: PanelTvPreviewProps
 
   const data = config.data;
   if (!data || data.board_missing) return null;
+  if (data.geometry_error)
+    return (
+      <Text role="alert" size="sm">
+        {t("geometryUnsupported")}
+      </Text>
+    );
 
   // A server that predates render_style sends no model: the split-flap
   // panel built into FiestaUI draws the same flaps.
   const model: DeviceModel | string = resolveBoardModel(data) ?? "vestaboard_panel";
+  const compatibleFrame = compatiblePanelFrame(data, frame.data);
   const autoDim = data.auto_dim;
   const dimActive = !!autoDim?.enabled && isInDimWindow(minutesNow, autoDim.start, autoDim.end);
   const offline = frame.isError;
@@ -95,9 +104,9 @@ export function PanelTvPreview({ panelId, frameIntervalMs }: PanelTvPreviewProps
         <Box style={{ width: "100%", height: "100%" }}>
           <PanelMatrix
             model={model}
-            message={frame.data?.message ?? null}
-            cells={frame.data?.cells as BoardCellGrid | undefined}
-            layers={frame.data?.layers}
+            message={compatibleFrame?.message ?? null}
+            cells={compatibleFrame?.cells as BoardCellGrid | undefined}
+            layers={compatibleFrame?.layers}
             sizing={data.matrix_sizing}
             diagonal={data.screen_diagonal_inches}
             spacing={data.matrix_pitch_mm}
@@ -113,9 +122,9 @@ export function PanelTvPreview({ panelId, frameIntervalMs }: PanelTvPreviewProps
       model={model}
       frame="tv"
       tv={{ ...panelTvOptions(data, { dimActive, offline }), offlineLabel: t("offline") }}
-      message={frame.data?.message ?? null}
-      cells={frame.data?.cells as BoardCellGrid | undefined}
-      {...ledLayerProps(led ? frame.data?.layers : undefined)}
+      message={compatibleFrame?.message ?? null}
+      cells={compatibleFrame?.cells as BoardCellGrid | undefined}
+      {...ledLayerProps(led ? compatibleFrame?.layers : undefined)}
       gridRows={data.rows ?? undefined}
       gridCols={data.cols ?? undefined}
       // The board colour is a split-flap housing option; an LED model offers none.
