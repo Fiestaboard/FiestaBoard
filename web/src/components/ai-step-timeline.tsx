@@ -60,7 +60,7 @@ export function AiTurnActivity({
         : t(`activity.${activity.state}`);
   const title = (
     <Text as="span" className="flex min-w-0 items-center gap-2">
-      {moving ? <Spinner size="sm" label={null} /> : <Icon className="size-3.5 shrink-0" aria-hidden="true" />}
+      {moving ? <Spinner size="lg" label={null} /> : <Icon className="size-3.5 shrink-0" aria-hidden="true" />}
       <Text as="span" className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <Text as="span" size="xs" weight="medium" className="min-w-0 break-words">
           {label}
