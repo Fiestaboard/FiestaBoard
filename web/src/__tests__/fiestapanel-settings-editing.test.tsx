@@ -12,7 +12,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useCollections,usePages } from "@/hooks/use-board";
+import { useCollections, usePages } from "@/hooks/use-board";
 import type { Panel } from "@/lib/api";
 
 import { FIESTAPANEL_LED_MATRIX } from "./mocks/fiestapanel-models";

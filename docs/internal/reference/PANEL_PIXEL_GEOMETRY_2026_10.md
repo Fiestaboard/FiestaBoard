@@ -53,7 +53,7 @@ The minimum was retained in FiestaBoard commit `deca52140` / PR #2290, which fix
 
 ## Reproduced geometry matrix
 
-Executed the actual Python autofit, model resolver, and LED grid-layout functions at FiestaBoard `62b69eca1`:
+Executed the actual Python automatic fitting, model resolver, and LED grid-layout functions at FiestaBoard `62b69eca1`:
 
 | Screen | Authored grid, columns × rows | Advertised pixels | Python raster grid | Outcome |
 |---|---|---|---|---|
@@ -156,7 +156,7 @@ The builder review identified migration, density, older clients, presentation de
 - Page size picker, preview, live frame, model-derived cell grid, and native renderers agree on every usable character position.
 - Edge markers occupy the first and last usable columns. A full-page canvas with all-edge bleed reaches all four pixel boundaries.
 - Right-aligned values align to the last usable column. Portrait placement does not add a hidden offset to surrounding content.
-- 32/43/55/65/75/85-inch presets, portrait, 4:3, and ultrawide shapes; include grids above the current 256-pixel limit.
+- 32/43/55/65/75/85-inch presets, portrait, 4:3, and ultra-wide shapes; include grids above the current 256-pixel limit.
 - Rich-cell and legacy message paths, blank/no-frame state, canvas-only updates/removal, transitions, calibration, reconnect, and resize while polling.
 - `fill_tv`, `fit_panel`, `true_size`, and legacy `null` have explicit, tested semantics. Screen drift/protection never pushes edge content offscreen.
 - Divoom 64 × 64 at 3×5 and 5×7, split-flap panels, and physical Vestaboards retain their correct geometry.

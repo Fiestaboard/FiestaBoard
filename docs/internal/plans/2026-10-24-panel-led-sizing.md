@@ -15,7 +15,7 @@
 - `matrix_layout`: `legacy` or `screen`. Missing stored values mean `legacy`; newly created panels select `screen`. Render style stays independent.
 - `matrix_font`: `5x7` (Large) or `3x5` (Small), default `5x7`; only screen layout offers text-size changes. Legacy always uses its historical 5x7 face.
 - Screen layout uses an aspect-matched integer pixel surface whose longest edge is approximately 192 pixels, never above 256. Reduce the requested aspect to a bounded rational ratio, choose an integer multiplier, then derive cells using FiestaUI glyph metrics. Standard 16:9 is 192×108, 5x7 gives 32×13, 3x5 gives 48×18; portrait 9:16 is 108×192. Reject impossible/extreme shapes before mutating state rather than inflating/clamping the authored grid.
-- Inches, calibration, pitch, and presentation mode never change an LED screen-layout page's geometry. Split-flap retains existing autofit behavior.
+- Inches, calibration, pitch, and presentation mode never change an LED screen-layout page's geometry. Split-flap retains existing automatic fitting behavior.
 - Legacy LED models derive their surface from the stored grid, removing the 192×96 minimum. Legacy surfaces exceeding supported raster capacity are surfaced as unsupported; bounded screen layout is the upgrade path, not silently clamped content.
 - No generic renderer-capacity increase or physical-LED geometry change is required for the new mode. Larger renderer support remains a separately versioned capability project.
 - Existing `null` presentation stays viewer-local. Selecting screen layout in the web editor sets explicit `fill_tv` unless the user chooses another mode. Aspect matching makes uniform contain fill the matching screen; background LEDs are not counted as content.
@@ -28,7 +28,7 @@
 - Rich cells and canvas layers from a stale frame must not render against a different grid.
 - A shared collection, scheduled page, default page, or silence page must not change on other boards during conversion.
 - Font/aspect changes must update the runtime profile, authoring charset, model, page picker, and draft preview together.
-- Small/large and portrait/ultrawide surfaces must fit renderer bounds and plugin minimum character dimensions without silent clamping.
+- Small/large and portrait/ultra-wide surfaces must fit renderer bounds and plugin minimum character dimensions without silent clamping.
 
 ## Task 1: Canonical geometry and API
 
@@ -36,7 +36,7 @@ Files: create `src/panels/geometry.py`; modify panel models/service/storage/rout
 
 Interfaces: `resolve_panel_geometry(panel, board=None)` returns a dataclass with `rows`, `cols`, `width`, `height`, `font`, `model`; `POST /panels/geometry` resolves a draft without saving, returning `rows`, `cols`, `device_model_spec` and geometry key. Panel responses carry `matrix_layout` and `matrix_font`; public config and frame carry a consistent geometry key for stale-frame protection.
 
-- [x] Write tests for 16:9/portrait/ultrawide, both fonts, inches/calibration independence, legacy preservation, invalid aspect, and create/update/restart parity; observe failure.
+- [x] Write tests for 16:9/portrait/ultra-wide, both fonts, inches/calibration independence, legacy preservation, invalid aspect, and create/update/restart parity; observe failure.
 - [x] Implement resolver and wire it into model/profile/runtime paths and routes. Validate prospective settings before saving; roll back settings when board update fails.
 - [x] Run focused backend tests and record results.
 
