@@ -236,7 +236,7 @@ jobs:
       needs.detect-changes.outputs.api == 'true'
       || needs.detect-changes.outputs.shared == 'true'
       || needs.detect-changes.outputs.e2e_wiring == 'true'
-    timeout-minutes: 10
+    timeout-minutes: 15
     
     steps:
     - uses: actions/checkout@v7
@@ -282,14 +282,14 @@ jobs:
         python scripts/seed_outputs.py build --lock outputs.lock.json --dest "$RUNNER_TEMP/output-seed"
         echo "FIESTABOARD_OUTPUT_SEED_DIR=$RUNNER_TEMP/output-seed" >> "$GITHUB_ENV"
 
-    - name: Test the seeded first-party outputs against this core
+    - name: Test the bundled output plugins against this core
       run: |
         # Each seeded package's own tests (its conformance suite included),
         # run the way its repository's CI runs them, against this checkout:
-        # a core change that breaks the pinned Vestaboard or FiestaPanel
-        # fails here, before release (plan D9). On a copy: the seed itself
+        # a core change that breaks the pinned Vestaboard, FiestaPanel or
+        # Divoom fails here, before release. On a copy: the seed itself
         # stays exactly the verified tree.
-        for id in vestaboard fiestapanel; do
+        for id in vestaboard fiestapanel divoom_pixoo; do
           rm -rf "$RUNNER_TEMP/first-party/$id"
           mkdir -p "$RUNNER_TEMP/first-party"
           cp -R "$FIESTABOARD_OUTPUT_SEED_DIR/$id" "$RUNNER_TEMP/first-party/$id"
