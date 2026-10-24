@@ -428,6 +428,43 @@
         }
       ]
     },
+    "game_of_thrones_quotes": {
+      "teaser": "WINTER IS",
+      "previews": [
+        {
+          "device_type": "note",
+          "rows": [
+            "   WINTER IS   ",
+            "    COMING!    ",
+            "- EDDARD STARK "
+          ]
+        },
+        {
+          "device_type": "flagship",
+          "rows": [
+            "   A LION DOES NOT    ",
+            " CONCERN HIMSELF WITH ",
+            "THE OPINION OF SHEEP. ",
+            "                      ",
+            "  - TYWIN LANNISTER   ",
+            "                      "
+          ]
+        },
+        {
+          "device_type": "note_array",
+          "notes_wide": 2,
+          "notes_tall": 2,
+          "rows": [
+            "                              ",
+            "THE NIGHT IS DARK AND FULL OF ",
+            "           TERRORS.           ",
+            "                              ",
+            "         - MELISANDRE         ",
+            "                              "
+          ]
+        }
+      ]
+    },
     "generative_ai_art": {
       "teaser": "{67}{68}{63}{64}{65}{66} AI ART",
       "previews": [

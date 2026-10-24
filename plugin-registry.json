@@ -917,6 +917,17 @@
       "icon": "cloud-sun",
       "category": "weather",
       "added": "2026-10-24"
+    },
+    {
+      "id": "game_of_thrones_quotes",
+      "name": "Game of Thrones Quotes",
+      "description": "A Game of Thrones quote on every refresh, signed with the character who said it. Only quotes that fit: short ones on a Note, long ones too on a Flagship. Filter by character or house.",
+      "repository": "https://github.com/rummeyer/fiestaboard-plugin--game-of-thrones-quotes",
+      "author": "Oliver Rummeyer",
+      "fiestaboard_version": ">=8.25.0",
+      "icon": "crown",
+      "category": "entertainment",
+      "added": "2026-10-24"
     }
   ]
 }
