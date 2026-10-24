@@ -176,6 +176,7 @@ class OutputDeviceModel(BaseModel):
 
     id: str
     label: str
+    geometry: dict[str, Any] | None = None
     #: The LED face (text size) a new board on this model is created in --
     #: ``"5x7"`` (Large) or ``"3x5"`` (Small) -- and the built-in character
     #: set drawn in it, so an "add a board" preview draws what the board will
@@ -229,6 +230,13 @@ class OutputSummary(BaseModel):
     actions: list[OutputActionDescriptor]
 
 
+class DisplayCatalogMetadata(BaseModel):
+    category: str = ""
+    manufacturer: str = ""
+    models: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
+
+
 class AvailableOutput(BaseModel):
     """An output the user can pick, installed or not (``GET /outputs/available``)."""
 
@@ -236,6 +244,7 @@ class AvailableOutput(BaseModel):
     name: str
     description: str
     icon: str | None
+    display: DisplayCatalogMetadata = Field(default_factory=DisplayCatalogMetadata)
     source: Literal["installed", "seed", "registry"] = Field(
         description="installed: usable now; seed: bundled with this image (installs offline); "
         "registry: installs from its repository."
@@ -254,3 +263,8 @@ class AvailableOutput(BaseModel):
     output_api: int | None = Field(
         description="The contract major it targets, when known; null for a registry entry without a declaration."
     )
+
+
+class OutputCatalog(BaseModel):
+    outputs: list[AvailableOutput]
+    registry_status: Literal["available", "unavailable"]

@@ -11,14 +11,14 @@
  */
 import { Alert, AlertDescription, Button, Flex, Stack, Text, ToggleCard, ToggleCardGroup } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
 import { useEffect } from "react";
 
+import { CatalogAvailability, DisplayCatalogBrowser, useDisplayCatalog } from "@/components/displays/display-catalog";
+import { BringYourOwnDisplay } from "@/components/displays/display-marketplace";
 import { OutputIcon } from "@/components/settings/output-boards";
 import { useTranslations } from "@/i18n/translations";
 import type { AvailableOutput } from "@/lib/api";
-import { api } from "@/lib/api";
 
 export const AVAILABLE_OUTPUTS_QUERY_KEY = ["outputs", "available"] as const;
 
@@ -35,12 +35,8 @@ interface StepChooseOutputProps {
 
 export function StepChooseOutput({ value, onChange, onSkip, onValidChange, include }: StepChooseOutputProps) {
   const t = useTranslations("wizard.chooseOutput");
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: AVAILABLE_OUTPUTS_QUERY_KEY,
-    queryFn: () => api.listAvailableOutputs(),
-    staleTime: 60_000,
-  });
-  const outputs = include ? (data ?? []).filter(include) : (data ?? []);
+  const { data, isLoading, isError, refetch, isFetching } = useDisplayCatalog();
+  const outputs = include ? (data?.outputs ?? []).filter(include) : (data?.outputs ?? []);
   const chosen = outputs.find((output) => output.id === value) ?? null;
 
   useEffect(() => {
@@ -49,6 +45,18 @@ export function StepChooseOutput({ value, onChange, onSkip, onValidChange, inclu
 
   return (
     <Stack gap="6">
+      {onSkip && (
+        <Stack gap="2" className="rounded-lg bg-muted/50 p-4">
+          <Text weight="medium">{t("introTitle")}</Text>
+          <Text size="sm" tone="muted">
+            {t("introDescription")}
+          </Text>
+          <Text size="sm" tone="muted">
+            {t("displayHint")}
+          </Text>
+        </Stack>
+      )}
+      {!isLoading && !isError && outputs.length === 0 && <Text role="status">{t("empty")}</Text>}
       {isLoading && (
         <Flex align="center" gap="2" role="status">
           <Spinner label={null} />
@@ -73,37 +81,76 @@ export function StepChooseOutput({ value, onChange, onSkip, onValidChange, inclu
         </Alert>
       )}
 
+      <CatalogAvailability
+        unavailable={data?.registry_status === "unavailable"}
+        retry={() => void refetch()}
+        busy={isFetching}
+      />
       {outputs.length > 0 && (
-        <ToggleCardGroup
-          columns="1"
-          value={value ?? ""}
-          onValueChange={(id) => {
-            const output = outputs.find((o) => o.id === id);
-            if (output) onChange(output);
-          }}
-          aria-label={t("optionsLabel")}
-          data-testid="wizard-output-choices"
-        >
-          {outputs.map((output) => (
-            <ToggleCard
-              key={output.id}
-              value={output.id}
-              icon={<OutputIcon name={output.icon} className="h-5 w-5" />}
-              title={output.name}
-              description={output.description}
-              data-testid={`wizard-output-${output.id}`}
+        <DisplayCatalogBrowser outputs={outputs} selectedId={value}>
+          {(shown) => (
+            <ToggleCardGroup
+              columns="1"
+              className="max-h-96 overflow-y-auto p-1"
+              value={value ?? ""}
+              onValueChange={(id) => {
+                const output = outputs.find((o) => o.id === id);
+                if (output) onChange(output);
+              }}
+              aria-label={t("optionsLabel")}
+              data-testid="wizard-output-choices"
             >
-              {/* Spans: the card is a <button>, which may hold phrasing content only. */}
-              {output.needs_network ? (
-                <Text as="span" size="xs" tone="muted" className="block">
-                  {t("downloads")}
-                </Text>
-              ) : null}
-            </ToggleCard>
-          ))}
-        </ToggleCardGroup>
+              {shown.map((output) => (
+                <ToggleCard
+                  key={output.id}
+                  value={output.id}
+                  icon={<OutputIcon name={output.icon} className="h-5 w-5" />}
+                  title={output.name}
+                  description={output.description}
+                  data-testid={`wizard-output-${output.id}`}
+                >
+                  {output.display?.manufacturer || output.display?.models?.length ? (
+                    <Text as="span" size="xs" tone="muted" className="block">
+                      {[output.display?.manufacturer, ...(output.display?.models ?? []).slice(0, 3)]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                  ) : null}
+                  {/* Spans: the card is a <button>, which may hold phrasing content only. */}
+                  {output.needs_network ? (
+                    <Text as="span" size="xs" tone="muted" className="block">
+                      {t("downloads")}
+                    </Text>
+                  ) : null}
+                </ToggleCard>
+              ))}
+            </ToggleCardGroup>
+          )}
+        </DisplayCatalogBrowser>
       )}
 
+      <details className="rounded-lg border p-3">
+        <summary className="cursor-pointer text-sm font-medium">{t("customPlugin")}</summary>
+        <Stack gap="3" className="mt-3">
+          <BringYourOwnDisplay
+            onAdd={(output) => {
+              onChange({
+                ...output,
+                description: "",
+                icon: null,
+                source: "installed",
+                installed: true,
+                builtin: false,
+                beta_gated: false,
+                available: true,
+                needs_network: false,
+                output_api: null,
+              });
+              void refetch();
+            }}
+          />
+        </Stack>
+      </details>
       {onSkip && (
         <Stack gap="1" className="border-t pt-4">
           <Flex>

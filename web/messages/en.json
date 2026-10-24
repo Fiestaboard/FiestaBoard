@@ -125,7 +125,7 @@
     "title": "Dashboard",
     "description": "Monitor your board display and system activity",
     "noBoardConfigured": "No board configured",
-    "noBoardDescription": "Your board is not set up yet. Connect your board to start displaying content.",
+    "noBoardDescription": "You can create and preview pages now. Connect a display when you are ready to show them on a Vestaboard, TV, or another supported device.",
     "boardInitErrorTitle": "{boardName} is unavailable",
     "boardInitErrorTitleUnnamed": "A board is unavailable",
     "boardInitErrorOpenSettings": "Open board settings",
@@ -723,15 +723,18 @@
       "allSet": "You're All Set!",
       "chooseOutput": "What do you want to show FiestaBoard on?",
       "setUpTv": "Set Up Your TV",
-      "setUpOutput": "Set Up {name}"
+      "setUpOutput": "Set Up {name}",
+      "review": "Review & Finish"
     },
     "stepDescriptions": {
-      "enterCredentials": "Enter your board credentials to get started",
+      "enterCredentials": "Choose your board settings, then use Test Connection to verify and save them.",
       "enableFeatures": "Enable optional features that work right away",
       "sendTestMessage": "Send a test message to your board",
-      "chooseOutput": "Pick the display you have. You can add more later in Settings.",
+      "chooseOutput": "Choose a display type, or explore with previews. You can add more later in Displays.",
       "setUpTv": "Name your TV and tell us its screen size",
-      "setUpOutput": "Connect it, test it and save it as a board"
+      "setUpOutput": "Connect it, test it and save it as a board",
+      "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
+      "review": "Save your choices, try an optional test message, then create your first page."
     },
     "boardSetup": {
       "boardType": "Board Type",
@@ -743,7 +746,8 @@
       "code62DegreeAriaLabel": "Degree flap",
       "code62HeartAriaLabel": "Heart flap",
       "connectionTestFailed": "Connection test failed",
-      "connectedSaved": "Connected! Your board is saved."
+      "connectedSaved": "Connected! Your board is saved.",
+      "saveHint": "Choose your board type and appearance before testing. Test Connection saves these settings; if you change them afterward, test again before continuing."
     },
     "easyPlugins": {
       "description": "These features work right away without any external API keys. Enable what you'd like!",
@@ -763,7 +767,54 @@
       "noPassword": "(no password)",
       "addMoreHint": "You can add more from the <link>Integrations</link> page at any time.",
       "builtInBadge": "Built-in",
-      "previewLabel": "Preview:"
+      "previewLabel": "Preview:",
+      "items": {
+        "date_time": {
+          "name": "Date & Time",
+          "description": "Display the current date and time on your board."
+        },
+        "countdown": {
+          "name": "Countdown",
+          "description": "Count down to an event after you choose its date in Integrations."
+        },
+        "weather": {
+          "name": "Weather",
+          "description": "Add local weather after setting your location and any required credentials in Integrations."
+        },
+        "stocks": {
+          "name": "Stock Prices",
+          "description": "Real-time stock prices and percentage changes."
+        },
+        "sports_scores": {
+          "name": "Sports Scores",
+          "description": "Recent match scores for NFL, Soccer, NHL, and more."
+        },
+        "dad_jokes": {
+          "name": "Dad Jokes",
+          "description": "Random dad jokes. No API key needed."
+        },
+        "guest_wifi": {
+          "name": "Guest WiFi",
+          "description": "Show your guest network name and password after you configure them in Integrations."
+        },
+        "star_trek_quotes": {
+          "name": "Star Trek Quotes",
+          "description": "Wisdom from the Federation. No API key needed."
+        },
+        "surf": {
+          "name": "Surf Conditions",
+          "description": "Wave height and swell period for your local break."
+        },
+        "spacecraft_launches": {
+          "name": "Spacecraft Launches",
+          "description": "Track upcoming launch countdowns and statuses."
+        }
+      },
+      "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
+      "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
+      "readyBadge": "Ready to use",
+      "configureBadge": "Configure after setup",
+      "toggleLabel": "Select {name}"
     },
     "welcome": {
       "setupComplete": "Setup Complete!",
@@ -783,7 +834,23 @@
       "dateTimeName": "Date & Time",
       "starTrekName": "Star Trek Quotes",
       "guestWifiName": "Guest WiFi",
-      "displayReady": "{name} ({output}) is set up"
+      "displayReady": "{name} ({output}) is set up",
+      "reviewTitle": "Ready for your first page",
+      "reviewDescription": "Your display settings are saved. Save your optional integrations when you finish below.",
+      "reviewSummary": "Your setup",
+      "pluginSelected": "{name} selected — saves when you finish",
+      "noIntegrationsSelected": "No integrations selected. You can create a page with your own text and add live data later.",
+      "optionalTestDescription": "Optional: send a welcome message to check your display. This changes what it is showing right now.",
+      "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
+      "nextTitle": "Next: make it yours",
+      "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
+      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "saveFailed": "Some integrations still need attention",
+      "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
+      "continueToIntegrations": "Continue and configure integrations later",
+      "saving": "Saving your integration choices…",
+      "createFirstPage": "Save & create my first page",
+      "saveGoToDashboard": "Save & go to dashboard"
     },
     "progressDisplay": "Display",
     "chooseOutput": {
@@ -793,15 +860,32 @@
       "optionsLabel": "Displays",
       "downloads": "Downloads when you continue, so it needs an internet connection.",
       "skipTitle": "Skip — I'll add a display later",
-      "skipDescription": "Look around and preview pages now. Add a display any time from Displays."
+      "skipDescription": "Look around and preview pages now. Add a display any time from Displays.",
+      "introTitle": "Displays and pages",
+      "introDescription": "A page is a layout of text, colors, and live information. Choose your display below; its plugin will guide you through connecting it.",
+      "displayHint": "Using a TV or browser? Choose FiestaPanel. You can also explore now and add a display later.",
+      "empty": "No display types are available right now. You can try again later from Displays.",
+      "customPlugin": "Have a display plugin URL?"
     },
     "outputSetup": {
       "installing": "Installing {name}…",
       "installFailed": "{name} could not be installed",
       "offline": "FiestaBoard couldn't download {name}. Check this device's internet connection, then try again.",
       "retry": "Try again",
-      "created": "{board} is saved and ready.",
-      "createFailed": "Couldn't save the board"
+      "created": "{board} is saved.",
+      "createFailed": "Couldn't save the board",
+      "verified": "Connection verified",
+      "unverified": "Connection not verified",
+      "savedUnverified": "Connection has not been verified. You can test it from Displays.",
+      "verifiedHelp": "These connection settings passed the plugin’s test. Save your display to continue.",
+      "testHelp": "Use the plugin’s connection test above before saving. You can also save now and connect later.",
+      "noTestHelp": "This plugin does not provide a connection test. Save your display, then check its output on the device.",
+      "rows": "Rows",
+      "columns": "Columns",
+      "notesTall": "Notes tall",
+      "notesWide": "Notes wide",
+      "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
+      "sizeRange": "Whole number from {min} to {max}"
     },
     "panelSetup": {
       "nameLabel": "TV name",
@@ -812,8 +896,10 @@
       "creating": "Creating…",
       "created": "{name} is ready",
       "openOnTv": "Open this address in the TV's browser:",
-      "failed": "Couldn't create the TV board"
-    }
+      "failed": "Couldn't create the TV board",
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+    },
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
   },
   "activeDisplay": {
     "title": "Active Display",
@@ -1187,6 +1273,25 @@
       "gitInstalledData": "{pluginId} is installed, but it's a data plugin, not a display. Use it from the Integrations page.",
       "gitOpenIntegrations": "Open Integrations",
       "gitFailedTitle": "Couldn't install from that repository"
+    },
+    "catalog": {
+      "search": "Search displays",
+      "searchPlaceholder": "Search by product, manufacturer, or model",
+      "category": "Display category",
+      "all": "All displays",
+      "other": "Other displays",
+      "selected": "Selected: {name}",
+      "count": "{count} displays",
+      "clear": "Clear filters",
+      "emptyTitle": "No matching displays",
+      "emptyBody": "Try a product name or model, or clear your filters to see all displays.",
+      "pagination": "Display results",
+      "previous": "Previous results",
+      "next": "Next results",
+      "page": "{current} of {total}",
+      "unavailableTitle": "Marketplace unavailable",
+      "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
+      "retry": "Retry marketplace"
     }
   },
   "systemUpdate": {

@@ -39,6 +39,7 @@ from src.plugins.sources import RegistryEntry
 
 FIXTURE = Path(__file__).parent / "fixtures" / "plugins" / "recording_output"
 PLUGIN_ID = "recording_output"
+REAL_LOAD_REGISTRY = sources.load_registry
 REPO_URL = "https://github.com/Fiestaboard/fiestaboard-output--recording-output"
 
 _GIT_ENV = {
@@ -124,6 +125,90 @@ def plugins(tmp_path, monkeypatch):
 
 
 _REGISTRY: list[RegistryEntry] = []
+
+
+class TestOutputCatalog:
+    def test_registry_metadata_survives_local_precedence(self, client, seeded):
+        entry = _registry_entry()
+        entry.display = {"category": "Ambient sculptures", "manufacturer": "Acme", "models": ["Orb 2"]}
+        set_registry([entry])
+        response = client.get("/outputs/catalog")
+        assert response.status_code == 200
+        catalog = response.json()
+        assert catalog["registry_status"] == "available"
+        output = next(o for o in catalog["outputs"] if o["id"] == PLUGIN_ID)
+        assert output["source"] == "seed"
+        assert output["display"]["category"] == "Ambient sculptures"
+        assert "Orb 2" in output["display"]["models"]
+        assert "Recording sign" in output["display"]["models"]
+        assert client.post(f"/outputs/{PLUGIN_ID}/install").status_code == 201
+        output = next(o for o in client.get("/outputs/catalog").json()["outputs"] if o["id"] == PLUGIN_ID)
+        assert output["installed"] is True
+        assert output["display"]["manufacturer"] == "Acme"
+
+    def test_unreadable_registry_preserves_local_choices_and_reports_status(self, client, seeded, monkeypatch):
+        def broken(*args, **kwargs):
+            raise OSError("registry unavailable")
+
+        monkeypatch.setattr(sources, "load_registry", broken)
+        catalog = client.get("/outputs/catalog").json()
+        assert catalog["registry_status"] == "unavailable"
+        assert PLUGIN_ID in [o["id"] for o in catalog["outputs"]]
+
+    def test_valid_empty_registry_is_not_an_outage(self, client, plugins):
+        catalog = client.get("/outputs/catalog").json()
+        assert catalog["registry_status"] == "available"
+        assert "vestaboard" in [o["id"] for o in catalog["outputs"]]
+
+    def test_malformed_optional_metadata_does_not_hide_plugin(self, client, plugins):
+        entry = RegistryEntry.from_dict(
+            {
+                "id": "odd_sign",
+                "name": "Odd Sign",
+                "repository": REPO_URL,
+                "plugin_type": "output",
+                "display": {"category": [], "models": ["Model A", 42], "keywords": "bad"},
+            }
+        )
+        set_registry([entry])
+        response = client.get("/outputs/catalog")
+        assert response.status_code == 200
+        output = next(o for o in response.json()["outputs"] if o["id"] == "odd_sign")
+        assert output["display"] == {"category": "", "manufacturer": "", "models": ["Model A"], "keywords": []}
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            None,
+            {"id": ["bad"], "repository": REPO_URL, "plugin_type": "output"},
+            {"id": "bad", "name": None, "repository": REPO_URL, "plugin_type": "output"},
+        ],
+    )
+    def test_malformed_registry_entry_retains_local_choices(self, client, seeded, tmp_path, monkeypatch, bad):
+        path = tmp_path / "catalog.json"
+        path.write_text(json.dumps({"plugins": [bad]}), encoding="utf-8")
+        monkeypatch.setattr(sources, "load_registry", lambda **kwargs: REAL_LOAD_REGISTRY(path, **kwargs))
+        response = client.get("/outputs/catalog")
+        assert response.status_code == 200
+        catalog = response.json()
+        assert catalog["registry_status"] == "unavailable"
+        assert PLUGIN_ID in [output["id"] for output in catalog["outputs"]]
+
+    def test_installed_model_exposes_geometry_for_generic_setup(self, client, seeded):
+        assert client.post(f"/outputs/{PLUGIN_ID}/install").status_code == 201
+        output = next(o for o in client.get("/outputs").json() if o["id"] == PLUGIN_ID)
+        assert output["device_models"][0]["geometry"] == {"kind": "cells", "rows": 6, "cols": 22}
+
+    def test_strict_registry_reader_distinguishes_missing_corrupt_and_empty(self, tmp_path, monkeypatch):
+        # Exercise the disk reader without undoing other fixtures.
+        path = tmp_path / "registry.json"
+        with pytest.raises(OSError):
+            REAL_LOAD_REGISTRY(path, strict=True)
+        path.write_text("{broken", encoding="utf-8")
+        with pytest.raises(ValueError):
+            REAL_LOAD_REGISTRY(path, strict=True)
+        path.write_text('{"plugins": []}', encoding="utf-8")
+        assert REAL_LOAD_REGISTRY(path, strict=True) == []
 
 
 def set_registry(entries: list[RegistryEntry]) -> None:

@@ -79,7 +79,11 @@ function available(extra: AvailableOutput[] = []) {
     needs_network: false,
     output_api: o.output_api,
   }));
-  server.use(http.get("/api/outputs/available", () => HttpResponse.json([...installed, ...extra])));
+  server.use(
+    http.get("/api/outputs/catalog", () =>
+      HttpResponse.json({ outputs: [...installed, ...extra], registry_status: "available" }),
+    ),
+  );
 }
 
 function renderWizard() {
@@ -215,6 +219,14 @@ describe("the Vestaboard path", () => {
     expect(await screen.findByText("Connected! Your board is saved.")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Next" })).toBeEnabled());
     expect(legacy).toEqual([]);
+
+    // Appearance edits after the test must not leave Next claiming they were saved.
+    await userEvent.click(screen.getByRole("button", { name: "White" }));
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(screen.queryByTestId("wizard-board-saved")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Test Connection" }));
+    await waitFor(() => expect(boards).toHaveLength(2));
+    expect((boards[1] as { boards: Array<Record<string, unknown>> }).boards[0].board_color).toBe("white");
   });
 
   it("connects a board over the Local API with the type, colour and flap chosen", async () => {
@@ -387,7 +399,7 @@ describe("an output plugin", () => {
     await userEvent.type(name, "Porch sign");
     await userEvent.click(screen.getByRole("button", { name: "Add board" }));
 
-    expect(await screen.findByTestId("wizard-output-created")).toHaveTextContent("Porch sign is saved and ready.");
+    expect(await screen.findByTestId("wizard-output-created")).toHaveTextContent("Porch sign is saved.");
     expect(boards).toEqual([{ device_model: "sign_small", output_config: { host: "192.0.2.10" }, name: "Porch sign" }]);
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
   });

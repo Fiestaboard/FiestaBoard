@@ -23,26 +23,31 @@ import {
   Flex,
   Grid,
   Heading,
-  Input,
   PluginCard,
   Stack,
   Text,
   TextLink,
 } from "@fiestaboard/ui";
-import { EmptyState } from "@fiestaboard/ui/components/feedback/empty-state";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDownToLine, Download, Plus, RefreshCw, Search } from "lucide-react";
+import { ArrowDownToLine, Download, Plus, RefreshCw } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { GitInstallFields, useGitPluginInstall } from "@/components/plugin-git-install";
-import { AVAILABLE_OUTPUTS_QUERY_KEY, OUTPUTS_QUERY_KEY } from "@/components/settings/output-boards";
+import { OUTPUTS_QUERY_KEY } from "@/components/settings/output-boards";
 import Link from "@/components/smart-link";
 import { useTranslations } from "@/i18n/translations";
 import type { AvailableOutput } from "@/lib/api";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+
+import {
+  CatalogAvailability,
+  DISPLAY_CATALOG_QUERY_KEY,
+  DisplayCatalogBrowser,
+  useDisplayCatalog,
+} from "./display-catalog";
 
 /** Where "Write a display plugin" points: the output plugin author's guide. */
 export const OUTPUT_PLUGIN_GUIDE_URL = "https://fiestaboard.app/docs/development/output-plugins";
@@ -56,15 +61,10 @@ export function DisplayMarketplace({ onAdd }: { onAdd: (output: { id: string; na
   const t = useTranslations("displays.marketplace");
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
-  const [query, setQuery] = useState("");
   const installedHeadingId = useId();
   const availableHeadingId = useId();
 
-  const outputs = useQuery({
-    queryKey: AVAILABLE_OUTPUTS_QUERY_KEY,
-    queryFn: () => api.listAvailableOutputs(),
-    staleTime: 60_000,
-  });
+  const outputs = useDisplayCatalog();
   // Attribution only: a registry entry carries its author.
   const registry = useQuery({
     queryKey: ["plugin-registry"],
@@ -100,13 +100,6 @@ export function DisplayMarketplace({ onAdd }: { onAdd: (output: { id: string; na
     },
     onError: (err, output) => toast.error(t("toastUpdateFailed", { name: output.name, error: errorText(err) })),
   });
-
-  const needle = query.trim().toLowerCase();
-  const shown = (outputs.data ?? []).filter(
-    (o) => !needle || o.name.toLowerCase().includes(needle) || o.description.toLowerCase().includes(needle),
-  );
-  const installed = shown.filter((o) => o.installed);
-  const toInstall = shown.filter((o) => !o.installed);
 
   const card = (output: AvailableOutput, index: number) => {
     const author = authorOf(output.id);
@@ -186,20 +179,11 @@ export function DisplayMarketplace({ onAdd }: { onAdd: (output: { id: string; na
 
   return (
     <Stack gap="6" data-testid="display-marketplace">
-      <Box className="relative w-full md:max-w-md">
-        <Search
-          className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <Input
-          type="search"
-          aria-label={t("searchLabel")}
-          placeholder={t("searchPlaceholder")}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full pl-9"
-        />
-      </Box>
+      <CatalogAvailability
+        unavailable={outputs.data?.registry_status === "unavailable"}
+        retry={() => void outputs.refetch()}
+        busy={outputs.isFetching}
+      />
 
       {outputs.isLoading ? (
         <Flex align="center" gap="2" role="status">
@@ -221,31 +205,37 @@ export function DisplayMarketplace({ onAdd }: { onAdd: (output: { id: string; na
             </Stack>
           </AlertDescription>
         </Alert>
-      ) : shown.length === 0 ? (
-        <EmptyState icon={Search} title={t("noMatch", { query })} className="py-16" />
       ) : (
-        <>
-          {installed.length > 0 && (
-            <Box as="section" aria-labelledby={installedHeadingId}>
-              <Heading level={2} size="sm" id={installedHeadingId} className="mb-3">
-                {t("installedHeading")}
-              </Heading>
-              <Grid cols="1" md="2" gap="4" className="items-stretch xl:grid-cols-3">
-                {installed.map((output, index) => card(output, index))}
-              </Grid>
-            </Box>
-          )}
-          {toInstall.length > 0 && (
-            <Box as="section" aria-labelledby={availableHeadingId}>
-              <Heading level={2} size="sm" id={availableHeadingId} className="mb-3">
-                {t("availableHeading")}
-              </Heading>
-              <Grid cols="1" md="2" gap="4" className="items-stretch xl:grid-cols-3">
-                {toInstall.map((output, index) => card(output, installed.length + index))}
-              </Grid>
-            </Box>
-          )}
-        </>
+        <DisplayCatalogBrowser outputs={outputs.data?.outputs ?? []}>
+          {(shown) => {
+            const installed = shown.filter((output) => output.installed);
+            const toInstall = shown.filter((output) => !output.installed);
+            return (
+              <>
+                {installed.length > 0 && (
+                  <Box as="section" aria-labelledby={installedHeadingId}>
+                    <Heading level={2} size="sm" id={installedHeadingId} className="mb-3">
+                      {t("installedHeading")}
+                    </Heading>
+                    <Grid cols="1" md="2" gap="4" className="items-stretch xl:grid-cols-3">
+                      {installed.map(card)}
+                    </Grid>
+                  </Box>
+                )}
+                {toInstall.length > 0 && (
+                  <Box as="section" aria-labelledby={availableHeadingId}>
+                    <Heading level={2} size="sm" id={availableHeadingId} className="mb-3">
+                      {t("availableHeading")}
+                    </Heading>
+                    <Grid cols="1" md="2" gap="4" className="items-stretch xl:grid-cols-3">
+                      {toInstall.map(card)}
+                    </Grid>
+                  </Box>
+                )}
+              </>
+            );
+          }}
+        </DisplayCatalogBrowser>
       )}
 
       <BringYourOwnDisplay onAdd={onAdd} />
@@ -264,7 +254,7 @@ type SideLoadOutcome =
  * Plugin from Git), then add a display with it. A repository that holds a
  * data plugin installs too, and is pointed at Integrations.
  */
-function BringYourOwnDisplay({ onAdd }: { onAdd: (output: { id: string; name: string }) => void }) {
+export function BringYourOwnDisplay({ onAdd }: { onAdd: (output: { id: string; name: string }) => void }) {
   const t = useTranslations("displays.marketplace");
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
@@ -283,9 +273,13 @@ function BringYourOwnDisplay({ onAdd }: { onAdd: (output: { id: string; name: st
     }
     gitInstall.reset();
     const outputs = await queryClient
-      .fetchQuery({ queryKey: AVAILABLE_OUTPUTS_QUERY_KEY, queryFn: () => api.listAvailableOutputs(), staleTime: 0 })
-      .catch(() => [] as AvailableOutput[]);
-    const output = outputs.find((o) => o.id === pluginId && o.installed);
+      .fetchQuery({ queryKey: DISPLAY_CATALOG_QUERY_KEY, queryFn: () => api.listOutputCatalog(), staleTime: 0 })
+      .catch(() => null);
+    if (!outputs) {
+      setOutcome({ kind: "error", message: t("loadFailed") });
+      return;
+    }
+    const output = outputs.outputs.find((o) => o.id === pluginId && o.installed);
     setOutcome(output ? { kind: "display", id: output.id, name: output.name } : { kind: "data", pluginId });
   };
 

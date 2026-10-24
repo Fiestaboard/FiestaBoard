@@ -74,7 +74,7 @@ function setup(
   const calls = { add: [] as unknown[], create: [] as unknown[], install: [] as string[], removed: [] as string[] };
   server.use(
     http.get(`${API}/outputs`, () => HttpResponse.json([...mockOutputs, SIGN])),
-    http.get(`${API}/outputs/available`, () => HttpResponse.json(offered)),
+    http.get(`${API}/outputs/catalog`, () => HttpResponse.json({ outputs: offered, registry_status: "available" })),
     http.post(`${API}/outputs/:id/install`, ({ params }) => {
       calls.install.push(String(params.id));
       return HttpResponse.json(SIGN);
@@ -120,7 +120,7 @@ async function choose(name: RegExp) {
 }
 
 describe("Add a display", () => {
-  it("offers every installed or bundled output and no way to skip", async () => {
+  it("offers local and marketplace outputs and no way to skip", async () => {
     setup([
       ...BUILT_INS,
       available({ id: "acme_sign", name: "Acme Sign", source: "seed", installed: false }),
@@ -130,8 +130,7 @@ describe("Add a display", () => {
     expect(await within(dialog).findByRole("radio", { name: /Vestaboard/ })).toBeInTheDocument();
     expect(within(dialog).getByRole("radio", { name: /FiestaPanel/ })).toBeInTheDocument();
     expect(within(dialog).getByRole("radio", { name: /Acme Sign/ })).toBeInTheDocument();
-    // A registry output is "Find more displays", not a card here.
-    expect(within(dialog).queryByRole("radio", { name: /Far Sign/ })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("radio", { name: /Far Sign/ })).toBeInTheDocument();
     expect(within(dialog).queryByTestId("wizard-skip-display")).not.toBeInTheDocument();
   });
 
@@ -268,67 +267,27 @@ describe("Add a display", () => {
   });
 });
 
-describe("Find more displays", () => {
-  function registry() {
-    const entry = (id: string, name: string, plugin_type: string, installed = false) => ({
-      id,
-      name,
-      description: `${name} plugin`,
-      repository: `https://example.com/${id}`,
-      branch: "main",
-      author: "Example Author",
-      fiestaboard_version: ">=10.0.0",
-      icon: "monitor",
-      category: "utility",
-      installed,
-      plugin_type,
-      teaser: "",
-      previews: [],
-    });
-    server.use(
-      http.get(`${API}/plugins/registry`, () =>
-        HttpResponse.json({
-          plugin_system_enabled: true,
-          entries: [
-            entry("weather", "Weather", "data"),
-            entry("sparkle", "Sparkle", "transition"),
-            entry("far_sign", "Far Sign", "output"),
-            entry("old_sign", "Old Sign", "output", true),
-          ],
-        }),
-      ),
-    );
-  }
-
-  it("lists the marketplace's display plugins not installed yet", async () => {
-    setup();
-    registry();
-    await userEvent.click(await screen.findByTestId("find-more-displays"));
-    const list = await screen.findByTestId("find-more-list");
-    expect(within(list).getByRole("button", { name: /Far Sign/ })).toBeInTheDocument();
-    expect(within(list).queryByRole("button", { name: /Weather/ })).not.toBeInTheDocument();
-    expect(within(list).queryByRole("button", { name: /Sparkle/ })).not.toBeInTheDocument();
-    expect(within(list).queryByRole("button", { name: /Old Sign/ })).not.toBeInTheDocument();
+describe("marketplace displays in the shared chooser", () => {
+  const remote = available({
+    id: "far_sign",
+    name: "Far Sign",
+    installed: false,
+    source: "registry",
+    needs_network: true,
   });
-
-  it("picking one installs it and opens its screen", async () => {
-    const { calls } = setup();
-    registry();
-    await userEvent.click(await screen.findByTestId("find-more-displays"));
-    await userEvent.click(await screen.findByRole("button", { name: /Far Sign/ }));
+  it("offers marketplace plugins alongside local displays", async () => {
+    setup([...BUILT_INS, remote]);
+    expect(await screen.findByRole("radio", { name: /Far Sign/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Vestaboard/ })).toBeInTheDocument();
+  });
+  it("installs the selected plugin and returns to the same chooser", async () => {
+    const { calls } = setup([...BUILT_INS, remote]);
+    await userEvent.click(await screen.findByRole("radio", { name: /Far Sign/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(await screen.findByRole("dialog", { name: "Add a Far Sign" })).toBeInTheDocument();
     await waitFor(() => expect(calls.install).toEqual(["far_sign"]));
-    // Back from its screen goes back to the marketplace it came from.
     await userEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(await screen.findByRole("dialog", { name: "Find more displays" })).toBeInTheDocument();
-  });
-
-  it("says so when the registry has none", async () => {
-    setup();
-    server.use(
-      http.get(`${API}/plugins/registry`, () => HttpResponse.json({ plugin_system_enabled: true, entries: [] })),
-    );
-    await userEvent.click(await screen.findByTestId("find-more-displays"));
-    expect(await screen.findByTestId("find-more-empty")).toBeInTheDocument();
+    expect(await screen.findByText("Selected: Far Sign")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
   });
 });

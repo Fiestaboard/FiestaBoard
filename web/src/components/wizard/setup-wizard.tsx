@@ -98,7 +98,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
   // Plugin config state
   const [pluginConfig, setPluginConfig] = useState<WizardPluginConfig>(() => ({
-    date_time: { enabled: true, timezone: "America/Los_Angeles" },
+    date_time: { enabled: true, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" },
     registry_selected: [],
     ...saved?.plugins,
   }));
@@ -146,12 +146,13 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
   const handleBack = useCallback(() => {
     if (currentStep > 1) {
+      setCanProceed(false);
       setCurrentStep((prev) => prev - 1);
     }
   }, [currentStep]);
 
   const finish = useCallback(
-    (outcome: "completed" | "skipped") => {
+    (outcome: "completed" | "skipped", destination: "/" | "/pages/new" | "/integrations" = "/") => {
       // Kept server-side too (plan D18), so the wizard stays away in every
       // browser, not just this one. Best effort: failing to record it only
       // means the next browser may offer the wizard again.
@@ -159,11 +160,14 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       markWizardComplete();
       clearWizardProgress();
       onComplete?.();
-      router.push("/");
+      router.push(destination);
     },
     [onComplete, router],
   );
-  const handleComplete = useCallback(() => finish("completed"), [finish]);
+  const handleComplete = useCallback(
+    (destination?: "/" | "/pages/new" | "/integrations") => finish("completed", destination),
+    [finish],
+  );
   const handleSkip = useCallback(() => finish("skipped"), [finish]);
 
   const renderSetupStep = () => {
@@ -246,13 +250,13 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       : output && output.id !== "vestaboard"
         ? t("stepDescriptions.setUpOutput")
         : t("stepDescriptions.enterCredentials");
-  const stepTitles = [t("stepTitles.chooseOutput"), setupTitle, t("stepTitles.addDataSources"), t("stepTitles.allSet")];
+  const stepTitles = [t("stepTitles.chooseOutput"), setupTitle, t("stepTitles.addDataSources"), t("stepTitles.review")];
 
   const stepDescriptions = [
     t("stepDescriptions.chooseOutput"),
     setupDescription,
-    t("stepDescriptions.enableFeatures"),
-    t("stepDescriptions.sendTestMessage"),
+    t("stepDescriptions.optionalIntegrations"),
+    t("stepDescriptions.review"),
   ];
 
   return (
@@ -267,7 +271,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         />
       }
       title={t("welcomeTitle")}
-      description={t("welcomeSubtitle")}
+      description={t("introSubtitle")}
       aside={<LanguageSelector />}
       steps={[t("progressDisplay"), t("progressConnect"), t("progressCustomize"), t("progressFinish")]}
       current={currentStep}

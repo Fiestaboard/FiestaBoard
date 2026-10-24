@@ -169,6 +169,46 @@ And its device model, `output/device-models.json`:
 
 An output plugin declares no `variables`, `teaser` or `previews`: it shows other plugins' content and has none of its own. The rest of the manifest (`id`, `name`, `version`, `icon`, `author`, `repository`) follows the [Plugin Development Guide](/docs/development/plugin-guide#step-3-define-your-manifest).
 
+### Help people find your display
+
+Setup, **Displays → Add a display**, and the display marketplace share a searchable
+catalog. A user can select a registry output before installing it; setup installs
+it and renders its settings and actions without a custom wizard screen.
+
+Add optional `display` discovery metadata at the top level of `manifest.json` and
+to the matching entry in `plugin-registry.json`, so it is searchable before install:
+
+```json
+"display": {
+  "category": "LED signs",
+  "manufacturer": "Acme",
+  "models": ["Acme Sign 64", "Acme Sign 128"],
+  "keywords": ["desk", "matrix"]
+}
+```
+
+`category` is an open, human-readable label. A new label appears as a catalog filter
+without a FiestaBoard frontend change. It does not add a rendering technology or
+bypass the device-model contract. Reuse an existing category label when appropriate.
+`models` and `keywords` are arrays of strings. Unknown or malformed optional metadata
+is ignored without hiding the plugin. Older plugins remain searchable by name,
+description and id; local model labels are included automatically.
+
+Installed and bundled versions take precedence over registry entries with the same
+id. Local metadata wins where present, registry metadata fills missing labels, and
+model names and keywords are combined. When the registry cannot be read, local
+choices remain available and the UI explains that the catalog is incomplete.
+`GET /outputs/catalog` returns `outputs` and `registry_status` (`available` or
+`unavailable`); `GET /outputs/available` retains its array response for existing clients.
+
+Expose the standard `test_connection` action to let setup show **Connection verified**.
+A failed retest or an edit invalidates that status. Saving remains available without
+a test, including for plugins that have no test action, but the UI explicitly says
+that the connection has not been verified. Saving configuration is not evidence of
+a successful write to the device. Configurable `panel` and `note_array` models
+expose their dimensions in setup; `detect_geometry` actions can fill them. Fields
+and actions conditional on the selected model use its draft board facts.
+
 ### The `output` block
 
 | Field | Required | Default | What it declares |
