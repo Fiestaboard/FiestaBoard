@@ -2047,13 +2047,6 @@ class DisplayService:
 
             # --- Normal send (content changed) ---
             current_content = result.formatted
-            if rt.last_active_page_id == "__silence_held__" and rt.last_active_page_content is not None:
-                # Preserve a delivered one-off until the active page actually
-                # changes, just like v9's other out-of-band manual messages.
-                rt.last_active_page_content = current_content
-                rt.last_active_page_id = active_page_id
-                rt.last_render = (fingerprint, current_content, active_page_id) if fingerprint else None
-                return False
             if current_content == rt.last_active_page_content and active_page_id == rt.last_active_page_id:
                 logger.debug("Board %s: content unchanged, skipping send", board_id or "(default)")
                 # Arm the render short-circuit (issue #1883): this render's
@@ -2163,6 +2156,56 @@ class DisplayService:
             logger.error(f"Error checking active page for board {board_id}: {e}")
             return False
 
+    def _held_active_baseline(self, rt: BoardRuntime, board, *, is_primary: bool) -> tuple[str, str] | None:
+        """Snapshot normal active content without consuming engine inputs.
+
+        A held one-off persists while this content is unchanged. Capture before
+        the write, never on the next tick: edits during/after delivery must be
+        visible to dedupe. Triggers and temporary overrides retain their normal
+        priority on that next tick. A missing/unrenderable baseline is explicit
+        (None), allowing the normal engine to send when content becomes usable.
+        """
+        from copy import copy
+
+        from src.time_service import get_time_service
+
+        try:
+            settings = get_settings_service()
+            pages = get_page_service()
+            board_id = rt.board_id
+            scheduled = settings.is_schedule_enabled(board_id=board_id)
+            deferred = False
+            if scheduled:
+                now = get_time_service().get_current_time()
+                # Reuse the defer decision on a shallow runtime copy: observing
+                # this baseline must not consume a schedule-mode edge.
+                deferred = self._schedule_defer_active(copy(rt), now, board_id)
+                page_id = (
+                    settings.get_active_page_id(board_id=board_id)
+                    if deferred
+                    else get_schedule_service().get_active_page_id(
+                        now.time(), now.strftime("%A").lower(), board_id=board_id
+                    )
+                )
+            else:
+                page_id = settings.get_active_page_id(board_id=board_id)
+            if not page_id and is_primary and (not scheduled or deferred):
+                available = pages.list_pages()
+                page_id = available[0].id if available else None
+            if not page_id:
+                return None
+            # Time/random rotation is stateless; variable collections use the
+            # same board-agnostic context as normal engine resolution.
+            page_id = get_collection_service().resolve_page_id(page_id)
+            page = pages.get_page(page_id) if page_id else None
+            if page is None or not pages_compatible_with_board(page, board):
+                return None
+            result = pages.preview_page(page_id, force_refresh=True)
+            return (page_id, result.formatted) if result and result.available else None
+        except Exception as exc:
+            logger.warning("Could not snapshot active content for held send on board %s: %s", rt.board_id, exc)
+            return None
+
     def _deliver_held_send(self, held, rt: BoardRuntime, *, board=None, is_primary=False, wait=True) -> bool:
         """Render a persisted intention through v9's client and send worker.
 
@@ -2170,7 +2213,7 @@ class DisplayService:
         The exact intent is compared at completion, preserving a newer hold.
         """
         from src import silence_queue
-        from src.board_chars import characters_to_message
+        from src.devices import board_context_for
         from src.send_outcome import SendOutcome
         from src.text_to_board import wrap_message_text
 
@@ -2206,7 +2249,7 @@ class DisplayService:
             elif held.kind == "display":
                 from src.displays.service import get_display_service
 
-                result = get_display_service().get_display(held.payload)
+                result = get_display_service().get_display(held.payload, board=board_context_for(*geometry_of(board)))
                 if not result or not result.available:
                     return False
                 content = result.formatted
@@ -2224,9 +2267,10 @@ class DisplayService:
         )
         step = page.transition_step_size if page and page.transition_step_size is not None else transition.step_size
         outcome = None
+        baseline = None
 
         def send():
-            nonlocal outcome
+            nonlocal outcome, baseline
             if silence_queue.peek(board_id) != held:
                 return False, False
             # A queued worker may start after the user pauses or silence starts.
@@ -2234,6 +2278,7 @@ class DisplayService:
                 return False, False
             if getattr(rt.client, "is_virtual", False) is not True and settings.should_send_to_board() is False:
                 return False, False
+            baseline = self._held_active_baseline(rt, board, is_primary=is_primary)
             outcome = SendOutcome.of(
                 rt.client.render(
                     grid,
@@ -2251,8 +2296,7 @@ class DisplayService:
             if exc is not None or not success or not was_sent or (outcome and outcome.throttled):
                 return False
             silence_queue.discard(board_id, expected=held)
-            rt.last_active_page_content = characters_to_message(grid)
-            rt.last_active_page_id = "__silence_held__"
+            rt.last_active_page_id, rt.last_active_page_content = baseline or (None, None)
             rt.last_render = None
             rt.showing_out_of_band = True
             if is_primary:

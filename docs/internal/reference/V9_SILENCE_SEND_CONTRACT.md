@@ -59,7 +59,17 @@ newer hold created during an older in-flight send. Discard cannot undo hardware
 I/O that already started.
 
 After held delivery, the message stays until active content changes or an
-explicit refresh replaces it, following v9's manual-message behavior.
+explicit refresh replaces it, following v9's manual-message behavior. The engine
+snapshots fresh normal active content just before the held write and records
+that baseline only on actual success, so edits, dynamic data and schedule
+changes before the next tick are detected. A missing or unrenderable baseline
+does not block held delivery; the normal engine can send once content becomes
+available. Existing trigger and temporary-override priority is preserved.
+
+MQTT page/collection selection validates target compatibility before changing
+selection or held intent. UI-only selections persist without creating or
+replacing a hold. Held plugin displays receive the target board's full render
+context, including Note and array dimensions, just as immediate v1 sends do.
 
 `GET /silence-status` and `DELETE /silence-queue?board_id=...` keep Task 1's
 contract. Status includes the held preview and window end. Discard clears only

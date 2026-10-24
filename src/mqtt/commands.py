@@ -157,6 +157,8 @@ class CommandHandler:
             settings = get_settings_service()
             if settings.is_paused(board_id=board_id) is True:
                 return
+            if settings.should_send_to_board() is False:
+                return
             page_id = settings.get_active_page_id(board_id=board_id)
             if silence_verdict(
                 board_id,
@@ -338,7 +340,7 @@ class CommandHandler:
             board_id, _board = self._resolve_board(board_ref)
             if board_id is None:
                 return
-        from src.pages.service import get_page_service
+        from src.pages.service import check_ref_board_compatibility, get_page_service
         from src.settings.service import get_settings_service
 
         page_service = get_page_service()
@@ -346,6 +348,10 @@ class CommandHandler:
         pages = page_service.list_pages()
         for page in pages:
             if page.name.lower() == payload_lower:
+                compatibility = check_ref_board_compatibility(page.id, board_id)
+                if not compatibility.ok:
+                    logger.warning("MQTT active_page: %s", compatibility.error)
+                    return
                 if board_id is not None:
                     get_settings_service().set_active_page_id(page.id, board_id=board_id)
                     self._publish_event("page_changed", "page_switched", {"page_name": page.name, "board_id": board_id})
@@ -361,6 +367,10 @@ class CommandHandler:
 
         for label, collection_id in collection_options(pages):
             if label.lower() == payload_lower:
+                compatibility = check_ref_board_compatibility(collection_id, board_id)
+                if not compatibility.ok:
+                    logger.warning("MQTT active_page: %s", compatibility.error)
+                    return
                 if board_id is None:
                     get_settings_service().set_active_page_id(collection_id)
                 else:

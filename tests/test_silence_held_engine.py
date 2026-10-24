@@ -4,12 +4,13 @@ import importlib
 import threading
 import time
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 
 from src import silence_queue
 from src.main import BoardRuntime, DisplayService
-from src.pages.models import PageUpdate
+from src.pages.models import PageCreate, PageUpdate
 from src.pages.service import get_page_service
 from src.send_outcome import SendOutcome
 from tests.helpers import decode_board_rows
@@ -50,11 +51,9 @@ def test_restart_delivers_each_kind_at_silence_exit(engine, sends, monkeypatch, 
         "page": lambda: silence_queue.HeldSend.page(sends.page.id, board_id=bid),
         "display": lambda: silence_queue.HeldSend.display("weather", board_id=bid),
     }
-    from types import SimpleNamespace
-
     monkeypatch.setattr(
         "src.displays.service.get_display_service",
-        lambda: SimpleNamespace(get_display=lambda _: SimpleNamespace(available=True, formatted="PLUGIN")),
+        lambda: SimpleNamespace(get_display=lambda _, **kw: SimpleNamespace(available=True, formatted="PLUGIN")),
     )
     silence_queue.hold(factories[kind]())
     importlib.reload(silence_queue)
@@ -145,6 +144,102 @@ def test_delivered_message_survives_unchanged_tick_then_yields_to_page_change(en
     get_page_service().update_page(sends.page.id, PageUpdate(template=["CHANGED"]))
     assert drive(engine, sends) is True
     assert decode_board_rows(sends.clients[bid].render.call_args.args[0])[0].strip() == "CHANGED"
+
+
+@pytest.mark.parametrize("change", ["edit", "dynamic", "schedule"])
+def test_first_change_after_held_delivery_is_sent(engine, sends, monkeypatch, change):
+    from src.schedules.models import ScheduleCreate
+    from src.schedules.service import get_schedule_service
+
+    bid = sends.boards[0]["id"]
+    pages = get_page_service()
+    dynamic = {"text": "HELLO"}
+    if change == "dynamic":
+        # The renderer's changing data is the collaborator; real engine dedupe
+        # must compare successive rendered values, with no static input memo.
+        monkeypatch.setattr(
+            pages, "preview_page", lambda *a, **kw: SimpleNamespace(available=True, formatted=dynamic["text"])
+        )
+        monkeypatch.setattr(engine, "_render_fingerprint", lambda *a, **kw: None)
+    if change == "schedule":
+        other = pages.create_page(PageCreate(name="Later", type="template", template=["CHANGED"]))
+        schedules = get_schedule_service()
+        schedules.create_schedule(
+            ScheduleCreate(page_id=sends.page.id, board_id=bid, start_time="07:00", end_time="09:00")
+        )
+        schedules.create_schedule(ScheduleCreate(page_id=other.id, board_id=bid, start_time="09:00", end_time="10:00"))
+        sends.settings.set_schedule_enabled(True, board_id=bid)
+    sends.clock.set(datetime(2026, 10, 25, 8, tzinfo=UTC))
+    assert drive(engine, sends) is True
+    silence_queue.hold(silence_queue.HeldSend.text("HELD", board_id=bid))
+    assert drive(engine, sends) is True
+    before = sends.clients[bid].render.call_count
+    if change == "edit":
+        pages.update_page(sends.page.id, PageUpdate(template=["CHANGED"]))
+    elif change == "dynamic":
+        dynamic["text"] = "CHANGED"
+    else:
+        sends.clock.set(datetime(2026, 10, 25, 9, tzinfo=UTC))
+    assert drive(engine, sends) is True
+    assert drive(engine, sends) is False
+    assert sends.clients[bid].render.call_count == before + 1
+    assert decode_board_rows(sends.clients[bid].render.call_args.args[0])[0].strip() == "CHANGED"
+
+
+@pytest.mark.parametrize("array", [False, True])
+def test_held_display_uses_secondary_board_rendering_context(engine, sends, monkeypatch, array):
+    from src.devices import board_context_for, dimensions_of, geometry_of
+
+    board = sends.boards[1]
+    if array:
+        board.update(device_type="note_array", notes_wide=2, notes_tall=2)
+    expected = board_context_for(*geometry_of(board))
+    seen = []
+
+    def display(name, board=None):
+        seen.append(board)
+        return SimpleNamespace(available=True, formatted="TARGET" if board == expected else "DEFAULT")
+
+    monkeypatch.setattr("src.displays.service.get_display_service", lambda: SimpleNamespace(get_display=display))
+    silence_queue.hold(silence_queue.HeldSend.display("weather", board_id=board["id"]))
+    sends.clock.set(datetime(2026, 10, 25, 8, tzinfo=UTC))
+    assert drive(engine, sends, 1) is True
+    assert seen == [expected]
+    grid = sends.clients[board["id"]].render.call_args.args[0]
+    dims = dimensions_of(board)
+    assert (len(grid), len(grid[0])) == dims
+    assert decode_board_rows(grid)[0].strip() == "TARGET"
+
+
+@pytest.mark.parametrize("source", ["trigger", "override"])
+def test_held_baseline_preserves_primary_override_priority(engine, sends, monkeypatch, source):
+    from src.settings.service import TemporaryOverride
+
+    bid = sends.boards[0]["id"]
+    if source == "trigger":
+        monkeypatch.setattr(engine, "_check_trigger_override", lambda: "PRIORITY")
+    else:
+        sends.settings.set_temporary_override(TemporaryOverride(template=["PRIORITY"], device_type="flagship"))
+    silence_queue.hold(silence_queue.HeldSend.text("HELD", board_id=bid))
+    sends.clock.set(datetime(2026, 10, 25, 8, tzinfo=UTC))
+    assert drive(engine, sends) is True
+    assert decode_board_rows(sends.clients[bid].render.call_args.args[0])[0].strip() == "HELD"
+    assert drive(engine, sends) is True
+    assert decode_board_rows(sends.clients[bid].render.call_args.args[0])[0].strip() == "PRIORITY"
+
+
+def test_unavailable_baseline_does_not_block_held_or_swallow_recovery(engine, sends, monkeypatch):
+    bid = sends.boards[0]["id"]
+    pages = get_page_service()
+    preview = pages.preview_page
+    monkeypatch.setattr(pages, "preview_page", lambda *a, **kw: None)
+    silence_queue.hold(silence_queue.HeldSend.text("HELD", board_id=bid))
+    sends.clock.set(datetime(2026, 10, 25, 8, tzinfo=UTC))
+    assert drive(engine, sends) is True
+    assert silence_queue.peek(bid) is None
+    monkeypatch.setattr(pages, "preview_page", preview)
+    assert drive(engine, sends) is True
+    assert decode_board_rows(sends.clients[bid].render.call_args.args[0])[0].strip() == "HELLO"
 
 
 @pytest.mark.parametrize("change", ["discard", "replace", "pause"])

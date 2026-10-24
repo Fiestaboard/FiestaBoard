@@ -340,6 +340,43 @@ def test_mqtt_active_selection_is_saved_and_held_without_engine_wake(sends):
     sends.service.check_and_send_for_board.assert_not_called()
 
 
+@pytest.mark.parametrize("prior_hold", [False, True])
+def test_mqtt_ui_only_selection_preserves_queue(sends, prior_hold):
+    from src.mqtt.commands import CommandHandler
+
+    bid = sends.boards[0]["id"]
+    old = silence_queue.HeldSend.text("KEEP", board_id=bid) if prior_hold else None
+    if old:
+        silence_queue.hold(old)
+    sends.settings.set_output_target("ui")
+    CommandHandler(Mock())._handle_active_page(json.dumps({"page": sends.page.name, "board_id": bid}))
+    assert sends.settings.get_active_page_id(board_id=bid) == sends.page.id
+    assert silence_queue.peek(bid) == old
+    sends.clients[bid].render.assert_not_called()
+    sends.service.check_and_send_for_board.assert_not_called()
+
+
+@pytest.mark.parametrize("collection", [False, True])
+def test_mqtt_incompatible_selection_preserves_previous_intent(sends, collection):
+    from src.collections.models import CollectionCreate
+    from src.collections.service import get_collection_service
+    from src.mqtt.commands import CommandHandler
+
+    bid = sends.boards[1]["id"]
+    old = silence_queue.HeldSend.text("KEEP", board_id=bid)
+    silence_queue.hold(old)
+    before = sends.settings.get_active_page_id(board_id=bid)
+    name = sends.page.name
+    if collection:
+        item = get_collection_service().create_collection(CollectionCreate(name="Large", page_ids=[sends.page.id]))
+        name = f"Collection: {item.name}"
+    CommandHandler(Mock())._handle_active_page(json.dumps({"page": name, "board_id": bid}))
+    assert silence_queue.peek(bid) == old
+    assert sends.settings.get_active_page_id(board_id=bid) == before
+    sends.clients[bid].render.assert_not_called()
+    sends.service.check_and_send_for_board.assert_not_called()
+
+
 def test_mqtt_daytime_selection_supersedes_older_held_message(sends):
     from src.mqtt.commands import CommandHandler
 
