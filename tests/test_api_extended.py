@@ -1594,7 +1594,13 @@ class TestServiceLifecycle:
         with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 200
-        assert response.json() == {"message": "Message sent successfully", "sent": True}
+        assert response.json() == {
+            "message": "Message sent successfully",
+            "sent": True,
+            "silenced": False,
+            "held": False,
+            "ends_at_utc": None,
+        }
 
     def test_send_message_skipped(self, client, mock_service, mock_settings_service):
         mock_service.vb_client.send_characters.return_value = (True, False)

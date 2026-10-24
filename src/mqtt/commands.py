@@ -137,7 +137,7 @@ class CommandHandler:
             return bool(result[0])
         return bool(result)
 
-    def _force_send_active_page(self, board_id: str | None) -> None:
+    def _force_send_active_page(self, board_id: str | None, *, override_silence: bool = False) -> None:
         """Invalidate dedupe state and immediately push the active page.
 
         Mirrors what PUT /settings/active-page does for the web UI. The
@@ -149,6 +149,28 @@ class CommandHandler:
         if service is None:
             return
         try:
+            from src import silence_queue
+            from src.board_guards import resolve_board_id, silence_verdict
+            from src.settings.service import get_settings_service
+            from src.silence_queue import HeldSend
+
+            settings = get_settings_service()
+            if settings.is_paused(board_id=board_id) is True:
+                return
+            page_id = settings.get_active_page_id(board_id=board_id)
+            if silence_verdict(
+                board_id,
+                override_silence=override_silence,
+                hold=(lambda bid: HeldSend.page(page_id, board_id=bid)) if page_id else None,
+            ).silenced:
+                return
+            if override_silence or silence_queue.peek(resolve_board_id(board_id)) is not None:
+                import asyncio
+
+                from src.ops.executors import set_active_page
+
+                asyncio.run(set_active_page(page_id, board_id, override_silence=override_silence))
+                return
             self._invalidate_board_content(board_id)
             if board_id is not None:
                 rt = service.get_runtime(board_id)
@@ -307,6 +329,10 @@ class CommandHandler:
         page_name, board_ref = self._parse_board_payload(payload, value_keys=("page", "page_name", "name"))
         if not page_name:
             return
+        data = self._json_object(payload) or {}
+        override_silence = data.get("override_silence", False)
+        if not isinstance(override_silence, bool):
+            return
         board_id = None
         if board_ref:
             board_id, _board = self._resolve_board(board_ref)
@@ -329,7 +355,7 @@ class CommandHandler:
                 # Push the page immediately (issue #1794): re-selecting the
                 # currently-set page must still restore it to the board after
                 # an out-of-band write.
-                self._force_send_active_page(board_id)
+                self._force_send_active_page(board_id, override_silence=override_silence)
                 return
         from .content import collection_options
 
@@ -343,7 +369,7 @@ class CommandHandler:
                 if board_id is not None:
                     attributes["board_id"] = board_id
                 self._publish_event("page_changed", "page_switched", attributes)
-                self._force_send_active_page(board_id)
+                self._force_send_active_page(board_id, override_silence=override_silence)
                 return
         from .discovery import NO_ACTIVE_PAGE_OPTION
 
@@ -484,6 +510,11 @@ class CommandHandler:
     def _handle_send_message(self, payload: str) -> None:
         if not payload:
             return
+        data = self._json_object(payload)
+        if data is not None:
+            value = data.get("message", data.get("text"))
+            if not isinstance(value, str):
+                return
         # JSON payloads may target a specific board (issue #1244):
         # {"message": "HI", "board": "Kitchen"}. Plain-string payloads keep
         # the legacy primary-board behavior.
@@ -495,23 +526,6 @@ class CommandHandler:
             board_id, board = self._resolve_board(board_ref)
             if board_id is None:
                 return
-        from src.config import Config
-
-        # Silence is per board (issue #1788): resolve the window of the board
-        # this message targets, falling back to the primary board for a plain
-        # -string payload. Without this a Home Assistant send at 2am woke a
-        # board whose own override said it should be quiet.
-        from src.settings.service import get_settings_service
-
-        silence_board_id = board_id
-        if silence_board_id is None:
-            try:
-                silence_board_id = get_settings_service().get_primary_board_id()
-            except Exception:  # pragma: no cover - defensive
-                silence_board_id = None
-        if Config.is_silence_mode_active(silence_board_id):
-            logger.info("MQTT send_message blocked by silence mode")
-            return
         from src.api_server import get_service
         from src.text_to_board import text_to_board_array, wrap_message_text
 
@@ -533,6 +547,22 @@ class CommandHandler:
         if paused is True:
             logger.info("MQTT send_message blocked: board is paused")
             return
+        from src import silence_queue
+        from src.board_guards import resolve_board_id, silence_verdict
+
+        data = self._json_object(payload)
+        override_silence = (data or {}).get("override_silence", False)
+        if not isinstance(override_silence, bool):
+            return
+        held_text = message if data is not None else message.replace("\\n", "\n")
+        verdict = silence_verdict(
+            board_id,
+            override_silence=override_silence,
+            hold=lambda bid: silence_queue.HeldSend.text(held_text, board_id=bid),
+        )
+        if verdict.silenced:
+            return
+        previous = silence_queue.peek(resolve_board_id(board_id))
         transition = settings.get_transition_settings()
         # Grid sized to the target board (issue #1793): the named board when
         # given, else the primary board, else the flagship 6x22 default.
@@ -556,11 +586,17 @@ class CommandHandler:
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
+            with_outcome=True,
         )
         # NOTE: deliberately does NOT invalidate the display loop's dedupe
         # cache — see _handle_blank_board. The message must outlive the next
         # engine tick, or "Welcome Home John!" lasts 15 seconds.
+        from src.send_outcome import SendOutcome
+
+        outcome = SendOutcome.of(result) if isinstance(result, tuple | list) else None
         if self._send_succeeded(result):
+            if outcome is not None and outcome.success and outcome.was_sent and previous is not None:
+                silence_queue.discard(previous.board_id, expected=previous)
             # The board now shows out-of-band content (issue #1831); the
             # trailing gather_and_publish in handle() reports it to HA.
             self._mark_out_of_band(board_id)

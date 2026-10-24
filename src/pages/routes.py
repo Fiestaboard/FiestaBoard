@@ -28,7 +28,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_dims, _board_is_paused, _require_board, _silence_active
+from src.board_guards import _board_dims, _board_is_paused, _require_board
 from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service
 from src.devices import geometry_of, resolve_dimensions, size_key
@@ -523,6 +523,7 @@ async def send_page(
     target: str | None = None,
     board_id: str | None = None,
     payload: PageSendRequest | None = None,
+    override_silence: bool | None = None,
 ):
     """
     Send a page to the configured target.
@@ -539,6 +540,11 @@ async def send_page(
         target = payload.target
     if board_id is None and payload:
         board_id = payload.board_id
+    if override_silence is None:
+        override_silence = bool(payload and payload.override_silence)
+    from src import silence_queue
+    from src.board_guards import SilenceVerdict, resolve_board_id, silence_verdict
+
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
 
@@ -589,18 +595,22 @@ async def send_page(
 
         sent_to_board = False
         paused = False
+        verdict = SilenceVerdict(False)
+        previous = silence_queue.peek(resolve_board_id(board_id))
         if send_to_board:
             # CRITICAL: Block ALL manual sends during silence mode to prevent
             # wake-ups — for the board this send targets (issue #1788).
-            if _silence_active(board_id):
-                logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
-                sent_to_board = False
-                # Don't raise error, just skip sending
-            elif _board_is_paused(board_id):
+            if _board_is_paused(board_id):
                 # Block when the target (or first) board is paused (issue #970).
                 logger.info("Board is paused - blocking manual page send")
                 paused = True
             else:
+                verdict = silence_verdict(
+                    board_id,
+                    override_silence=override_silence,
+                    hold=lambda bid: silence_queue.HeldSend.page(page_id, board_id=bid),
+                )
+            if not paused and not verdict.silenced:
                 # Use page-level transitions if set, otherwise fall back to system defaults
                 system_transition = settings_service.get_transition_settings()
                 strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
@@ -630,6 +640,8 @@ async def send_page(
                     device_type=(board.get("device_type") if board is not None else page.device_type),
                 )
                 sent_to_board = was_sent
+                if success and was_sent and previous is not None:
+                    silence_queue.discard(previous.board_id, expected=previous)
                 if not success:
                     # Board offline / unreachable. Deliberately NOT 502/503/504:
                     # nginx intercepts those on /api/ and replaces the body with
@@ -653,6 +665,9 @@ async def send_page(
             message=result.formatted,
             sent_to_board=sent_to_board,
             paused=paused,
+            silenced=verdict.silenced,
+            held=verdict.held,
+            ends_at_utc=verdict.ends_at_utc,
             target=target or settings_service.get_output_settings().target,
             board_id=board_id,
         )

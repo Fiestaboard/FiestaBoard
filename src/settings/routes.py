@@ -590,6 +590,11 @@ async def set_active_page(request: SetActivePageRequest):
     unchanged content). The page selection itself is persisted either way.
     """
     settings_service = get_settings_service()
+    from src import silence_queue
+    from src.board_guards import SilenceVerdict, resolve_board_id, silence_verdict
+
+    verdict = SilenceVerdict(False)
+    previous = silence_queue.peek(resolve_board_id(request.board_id))
     page_service = get_page_service()
     service = get_service()
 
@@ -633,6 +638,7 @@ async def set_active_page(request: SetActivePageRequest):
     # write itself is not internally locked yet — per-store locking is
     # Track A2's job (#1848).
     def _work() -> tuple[bool, bool, str | None]:
+        nonlocal verdict
         # Dismiss any active plugin triggers so the user's explicit page change
         # actually sticks. Without this, a plugin re-emitting the same trigger
         # every display loop tick (e.g. calendar_sub during a countdown window)
@@ -670,6 +676,13 @@ async def set_active_page(request: SetActivePageRequest):
                 logger.info("Board is paused - skipping immediate active-page send")
                 paused = True
             else:
+                verdict = silence_verdict(
+                    board_id,
+                    override_silence=request.override_silence,
+                    hold=lambda bid: silence_queue.HeldSend.page(page_id, board_id=bid),
+                )
+                if verdict.silenced:
+                    return False, False, None
                 result = page_service.preview_page(render_page_id, force_refresh=True)
                 if result and result.available:
                     system_transition = settings_service.get_transition_settings()
@@ -702,6 +715,8 @@ async def set_active_page(request: SetActivePageRequest):
                         device_type=(board.get("device_type") if board is not None else page.device_type),
                     )
                     sent_to_board = was_sent
+                    if success and was_sent and previous is not None:
+                        silence_queue.discard(previous.board_id, expected=previous)
                     if not success:
                         send_error = f"Failed to send page to board: {page_id}"
                         logger.warning(f"Failed to send active page to board: {page_id}")
@@ -730,6 +745,9 @@ async def set_active_page(request: SetActivePageRequest):
         "board_id": board_id,
         "error": send_error,
         "warnings": compat_warnings,
+        "silenced": verdict.silenced,
+        "held": verdict.held,
+        "ends_at_utc": verdict.ends_at_utc,
     }
 
 

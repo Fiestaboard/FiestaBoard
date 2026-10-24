@@ -10,7 +10,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 
 from src.devices import (
     DEFAULT_DEVICE_TYPE,
@@ -425,6 +425,7 @@ class PageSendRequest(BaseModel):
 
     target: str | None = Field(default=None, json_schema_extra={"enum": VALID_OUTPUT_TARGETS})
     board_id: str | None = None
+    override_silence: StrictBool = False
 
 
 class PageSendResponse(BaseModel):
@@ -434,6 +435,9 @@ class PageSendResponse(BaseModel):
     paused board (``paused`` tells those last two apart from the first).
     """
 
+    silenced: bool = False
+    held: bool = False
+    ends_at_utc: str | None = None
     page_id: str
     message: str
     sent_to_board: bool

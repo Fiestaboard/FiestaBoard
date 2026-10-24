@@ -202,13 +202,19 @@ def peek(board_id: str | None) -> HeldSend | None:
         return send
 
 
-def discard(board_id: str | None) -> bool:
-    """Forget the send held for *board_id*; True when there was one."""
+def discard(board_id: str | None, *, expected: HeldSend | None = None) -> bool:
+    """Forget this board's intent, optionally only if it is still *expected*.
+
+    Delivery snapshots the intent before writing. Comparing under the store
+    lock prevents an older completion from removing a newer queued message.
+    """
     if not board_id:
         return False
     with _lock:
         held = _load_locked()
         if board_id not in held:
+            return False
+        if expected is not None and held[board_id] != expected:
             return False
         del held[board_id]
         _save_locked()

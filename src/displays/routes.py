@@ -215,7 +215,7 @@ async def get_displays_raw_batch(request: DisplayRawBatchRequest):
 
 
 @router.post("/displays/{display_type}/send", response_model=DisplaySendResponse, responses=errors(400, 500, 503))
-async def send_display(display_type: str, target: str | None = None):
+async def send_display(display_type: str, target: str | None = None, override_silence: bool = False):
     """
     Send a display to the configured target (ui, board, or both).
 
@@ -256,12 +256,23 @@ async def send_display(display_type: str, target: str | None = None):
 
     sent_to_board = False
     paused = False
+    from src import silence_queue
+    from src.board_guards import SilenceVerdict, resolve_board_id, silence_verdict
+
+    verdict = SilenceVerdict(False)
+    previous = silence_queue.peek(resolve_board_id(None))
     if send_to_board:
         # Skip when the (first) board is paused (issue #970).
         if _board_is_paused():
             logger.info("Board is paused - skipping display send to board")
             paused = True
         else:
+            verdict = silence_verdict(
+                None,
+                override_silence=override_silence,
+                hold=lambda bid: silence_queue.HeldSend.display(display_type, board_id=bid),
+            )
+        if not paused and not verdict.silenced:
             transition = settings_service.get_transition_settings()
             # Size to the first board's geometry (flagship, note, a note
             # array's notes grid, or a panel's explicit grid).
@@ -281,6 +292,8 @@ async def send_display(display_type: str, target: str | None = None):
                 device_type=device_type,
             )
             sent_to_board = was_sent
+            if success and was_sent and previous is not None:
+                silence_queue.discard(previous.board_id, expected=previous)
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to send to board")
 
@@ -289,5 +302,8 @@ async def send_display(display_type: str, target: str | None = None):
         message=result.formatted,
         sent_to_board=sent_to_board,
         paused=paused,
+        silenced=verdict.silenced,
+        held=verdict.held,
+        ends_at_utc=verdict.ends_at_utc,
         target=target or settings_service.get_output_settings().target,
     )

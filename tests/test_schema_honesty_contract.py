@@ -105,7 +105,13 @@ class TestSendMessageBoardTargeting:
         clients, _service, _ss = two_boards
         response = client.post("/send-message", json={"text": "HELLO"})
         assert response.status_code == 200
-        assert response.json() == {"message": "Message sent successfully", "sent": True}
+        assert response.json() == {
+            "message": "Message sent successfully",
+            "sent": True,
+            "silenced": False,
+            "held": False,
+            "ends_at_utc": None,
+        }
         assert len(clients["board-primary"].rendered) == 1
         assert clients["board-second"].rendered == []
 
@@ -123,7 +129,13 @@ class TestSendMessageBoardTargeting:
         clients, _service, _ss = two_boards
         response = client.post("/send-message", json={"text": "HELLO", "board_id": "board-second"})
         assert response.status_code == 200
-        assert response.json() == {"message": "Message sent successfully", "sent": True}
+        assert response.json() == {
+            "message": "Message sent successfully",
+            "sent": True,
+            "silenced": False,
+            "held": False,
+            "ends_at_utc": None,
+        }
         assert len(clients["board-second"].rendered) == 1
         assert clients["board-primary"].rendered == []
 

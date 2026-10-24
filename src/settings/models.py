@@ -234,6 +234,7 @@ class SetActivePageRequest(BaseModel):
 
     page_id: str | None = None
     board_id: str | None = None
+    override_silence: StrictBool = False
 
 
 class SetActivePageResponse(BaseModel):
@@ -245,6 +246,9 @@ class SetActivePageResponse(BaseModel):
     warnings" and "this build does not report warnings" indistinguishable.
     """
 
+    silenced: bool = False
+    held: bool = False
+    ends_at_utc: str | None = None
     page_id: str | None = None
     sent_to_board: bool
     paused: bool

@@ -79,7 +79,7 @@ import inspect
 import logging
 from typing import Annotated, Any
 
-from pydantic import Field
+from pydantic import Field, StrictBool
 
 # Mutating tools dispatch into the shared operation layer (#1764); the
 # result envelopes live there too, so executors and the read-only tools
@@ -2174,21 +2174,24 @@ def _build_mcp_server() -> Any:
         return summary
 
     @_tool(destructive=False, idempotent=True)
-    async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
-        """Set which page is currently shown on the FiestaBoard display.
+    async def set_active_page(
+        page_id: str, board_id: str | None = None, override_silence: StrictBool = False
+    ) -> dict[str, Any]:
+        """Save the active page. Silence defers its write unless override_silence is explicitly true; pause always defers it.
 
-        This immediately changes what's visible on the board.
+        The response reports whether it was sent, silenced or held for later.
 
         Args:
             page_id: The page or collection ID to display (from list_pages() or list_collections()).
             board_id: Board to target on a multi-board install (from the boards
                       list in get_settings_summary()). Omitted = the primary board.
+            override_silence: True only when the user explicitly asks to wake the board. Pause still defers it.
         """
         # The executor delegates to the REST handler rather than
         # reimplementing it (#1559): selecting a page validates the ref,
         # enforces page<->board size compatibility, dismisses active plugin
         # triggers (#856), and renders to the board.
-        return await ops_executors.set_active_page(page_id, board_id=board_id)
+        return await ops_executors.set_active_page(page_id, board_id=board_id, override_silence=override_silence)
 
     @_tool(destructive=False, idempotent=True)
     def set_schedule_mode(enabled: bool, board_id: str | None = None) -> dict[str, Any]:
@@ -2403,16 +2406,17 @@ def _build_mcp_server() -> Any:
         }
 
     @_tool(destructive=False)
-    def send_message(text: str, board_id: str | None = None) -> dict[str, Any]:
-        """Send a one-off text message directly to a board.
+    def send_message(text: str, board_id: str | None = None, override_silence: StrictBool = False) -> dict[str, Any]:
+        """Send a one-off text message; silence holds it when opted in, otherwise blocks it. Only explicit override_silence wakes it; pause always blocks.
 
         The text is word-wrapped to the board's width; real newlines are
         honored; single-brace color markers like {red} or {63} render as one
         colored tile each. This bypasses pages entirely — the message stays
         up until the active page next changes or the display refreshes.
 
-        A paused board or active silence mode returns status "blocked"
-        (deliberate policy — relay it to the user, don't retry). A message
+        A paused board returns status "blocked". During silence, held=true
+        means accepted for later, not sent. Without holding, status is "blocked".
+        Only pass override_silence=true when the user asks to wake the board. A message
         sent inside the board's minimum send interval is DROPPED by the
         board, not queued: that is an error whose text names the window
         (e.g. "at most one message every 15s") — wait it out, then retry.
@@ -2421,8 +2425,9 @@ def _build_mcp_server() -> Any:
             text: The message text to display.
             board_id: Board to target on a multi-board install (from the boards
                       list in get_settings_summary()). Omitted = the primary board.
+            override_silence: True only when the user explicitly asks to wake the board. Pause still blocks it.
         """
-        return ops_executors.send_message(text, board_id=board_id)
+        return ops_executors.send_message(text, board_id=board_id, override_silence=override_silence)
 
     # -----------------------------------------------------------------------
     # Board state tools — the Home page's controls

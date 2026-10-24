@@ -674,10 +674,13 @@
       "status": 200,
       "shape": {
         "board_id": "null",
+        "ends_at_utc": "null",
+        "held": "bool",
         "message": "str",
         "page_id": "str",
         "paused": "bool",
         "sent_to_board": "bool",
+        "silenced": "bool",
         "target": "str"
       }
     }

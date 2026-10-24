@@ -152,6 +152,9 @@ class MessageRequest(BaseModel):
     long and how.
     """
 
+    override_silence: StrictBool = Field(
+        default=False, description="Explicitly allow this write during silence. Does not bypass pause."
+    )
     text: str | None = Field(
         default=None,
         description="Plain text, word-wrapped to the board. Colour and character markers ({red}, {63}) work here.",
@@ -251,6 +254,9 @@ class MessageResponse(BaseModel):
     loop rather than written on the spot. ``reason`` names which.
     """
 
+    silenced: bool = Field(default=False, description="Silence prevented this request from writing to the board.")
+    held: bool = Field(default=False, description="The message was saved for delivery after silence (HTTP 202).")
+    ends_at_utc: str | None = Field(default=None, description="End of the active silence window (ISO 8601 UTC).")
     sent: bool = Field(description="True only when flaps were written to the physical board by this request.")
     board_id: str = Field(description="The board this went to, with the 'primary' alias already resolved.")
     characters: list[list[int]] = Field(description="The flap grid this request produced, sent or not.")
@@ -268,6 +274,9 @@ class MessageResponse(BaseModel):
 class ActivePageRequest(BaseModel):
     """``PUT /v1/boards/{board}/active-page``."""
 
+    override_silence: StrictBool = Field(
+        default=False, description="Explicitly show the selected page during silence. Does not bypass pause."
+    )
     page_id: str | None = Field(
         description="Page or collection to pin to this board. Send null to unpin and fall back to the schedule.",
     )
@@ -276,6 +285,9 @@ class ActivePageRequest(BaseModel):
 class ActivePageResponse(BaseModel):
     """The result of pinning a page to a board."""
 
+    silenced: bool = False
+    held: bool = False
+    ends_at_utc: str | None = None
     board_id: str
     page_id: str | None = Field(description="What is now pinned. Null means nothing is.")
     sent: bool = Field(description="Whether the new page reached the board immediately.")

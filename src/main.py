@@ -1779,6 +1779,15 @@ class DisplayService:
                 # unchanged, skipping send" leaves the indicator stuck.
                 rt.last_active_page_content = None
 
+            # Held manual content gets the first delivery opportunity outside
+            # silence, after pause/output gates, even without an active page.
+            if not silence_mode_active:
+                from src import silence_queue
+
+                held = silence_queue.peek(board_id)
+                if held is not None:
+                    return self._deliver_held_send(held, rt, board=board, is_primary=is_primary, wait=wait)
+
             # --- Stage: trigger input (PRIMARY only; suppressed during silence) ---
             # Triggers are a first-class engine input (#1850, per the #1767
             # decision: the plugin contract — supports_triggers /
@@ -2038,6 +2047,13 @@ class DisplayService:
 
             # --- Normal send (content changed) ---
             current_content = result.formatted
+            if rt.last_active_page_id == "__silence_held__" and rt.last_active_page_content is not None:
+                # Preserve a delivered one-off until the active page actually
+                # changes, just like v9's other out-of-band manual messages.
+                rt.last_active_page_content = current_content
+                rt.last_active_page_id = active_page_id
+                rt.last_render = (fingerprint, current_content, active_page_id) if fingerprint else None
+                return False
             if current_content == rt.last_active_page_content and active_page_id == rt.last_active_page_id:
                 logger.debug("Board %s: content unchanged, skipping send", board_id or "(default)")
                 # Arm the render short-circuit (issue #1883): this render's
@@ -2146,6 +2162,106 @@ class DisplayService:
             self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
             logger.error(f"Error checking active page for board {board_id}: {e}")
             return False
+
+    def _deliver_held_send(self, held, rt: BoardRuntime, *, board=None, is_primary=False, wait=True) -> bool:
+        """Render a persisted intention through v9's client and send worker.
+
+        No failed, paused, throttled or unrenderable attempt consumes it.
+        The exact intent is compared at completion, preserving a newer hold.
+        """
+        from src import silence_queue
+        from src.board_chars import characters_to_message
+        from src.send_outcome import SendOutcome
+        from src.text_to_board import wrap_message_text
+
+        board_id = held.board_id
+        board = board if board is not None else self._board_dict_for(board_id)
+        if not rt.client or board is None:
+            return False
+        key = ("silence-held", held.queued_at)
+        if not wait and self._send_in_flight(rt, key):
+            return False
+        dims = dimensions_of(board)
+        page = None
+        if held.kind == "grid":
+            grid = held.payload["characters"]
+            if len(grid) != dims.rows or any(len(row) != dims.cols for row in grid):
+                return False
+        else:
+            if held.kind == "text":
+                content = wrap_message_text(held.payload, rows=dims.rows, cols=dims.cols)
+            elif held.kind == "lines":
+                content = "\n".join(held.payload)
+            elif held.kind == "page":
+                page_id = held.payload
+                if is_collection_id(page_id):
+                    page_id = get_collection_service().resolve_page_id(page_id)
+                page = get_page_service().get_page(page_id) if page_id else None
+                if page is None or not pages_compatible_with_board(page, board):
+                    return False
+                result = get_page_service().preview_page(page_id, force_refresh=True)
+                if not result or not result.available:
+                    return False
+                content = result.formatted
+            elif held.kind == "display":
+                from src.displays.service import get_display_service
+
+                result = get_display_service().get_display(held.payload)
+                if not result or not result.available:
+                    return False
+                content = result.formatted
+            else:
+                return False
+            grid = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
+
+        settings = get_settings_service()
+        transition = settings.get_transition_settings()
+        strategy = page.transition_strategy if page and page.transition_strategy else transition.strategy
+        interval = (
+            page.transition_interval_ms
+            if page and page.transition_interval_ms is not None
+            else transition.step_interval_ms
+        )
+        step = page.transition_step_size if page and page.transition_step_size is not None else transition.step_size
+        outcome = None
+
+        def send():
+            nonlocal outcome
+            if silence_queue.peek(board_id) != held:
+                return False, False
+            # A queued worker may start after the user pauses or silence starts.
+            if settings.is_paused(board_id=board_id) is True or Config.is_silence_mode_active(board_id):
+                return False, False
+            if getattr(rt.client, "is_virtual", False) is not True and settings.should_send_to_board() is False:
+                return False, False
+            outcome = SendOutcome.of(
+                rt.client.render(
+                    grid,
+                    strategy=strategy,
+                    step_interval_ms=interval,
+                    step_size=step,
+                    device_type=board.get("device_type"),
+                    force=True,
+                    with_outcome=True,
+                )
+            )
+            return outcome.success, outcome.was_sent
+
+        def complete(success, was_sent, exc):
+            if exc is not None or not success or not was_sent or (outcome and outcome.throttled):
+                return False
+            silence_queue.discard(board_id, expected=held)
+            rt.last_active_page_content = characters_to_message(grid)
+            rt.last_active_page_id = "__silence_held__"
+            rt.last_render = None
+            rt.showing_out_of_band = True
+            if is_primary:
+                self.request_board_refresh()
+            return True
+
+        return self._dispatch_send(
+            rt, board_id, key=key, send=send, on_complete=complete, wait=wait, sink=self._error_sink()
+        )
 
     # ------------------------------------------------------------------ #
     # Temporary override helpers

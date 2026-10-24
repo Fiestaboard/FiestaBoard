@@ -315,6 +315,10 @@ async def render_template_live(request: TemplateRenderLiveRequest):
 
     sent_to_board = False
     paused = False
+    from src import silence_queue
+    from src.board_guards import SilenceVerdict, silence_verdict
+
+    verdict = SilenceVerdict(False)
     if target_board:
         # Block when the target board is paused (issue #970). Render is still
         # returned to the caller so the live editor preview keeps updating.
@@ -322,12 +326,20 @@ async def render_template_live(request: TemplateRenderLiveRequest):
             logger.info("Board %s is paused - skipping live template send", target_board.get("id"))
             paused = True
         else:
+            bid = target_board.get("id")
+            dims = resolve_dimensions(*geometry_of(target_board))
+            board_array = text_to_board_array(rendered, rows=dims.rows, cols=dims.cols)
+            verdict = silence_verdict(
+                bid,
+                override_silence=request.override_silence,
+                hold=lambda resolved: silence_queue.HeldSend.grid(board_array, board_id=resolved),
+            )
+        if not paused and not verdict.silenced:
+            previous = silence_queue.peek(target_board.get("id"))
             client = board_client_from_board_dict(target_board)
             if client:
                 geometry = geometry_of(target_board)
                 device_type = geometry.device_type
-                dims = resolve_dimensions(*geometry)
-                board_array = text_to_board_array(rendered, rows=dims.rows, cols=dims.cols)
 
                 transition_settings = settings_service.get_transition_settings()
                 # Live editor sends are rapid-fire; a "plugin:<id>" system
@@ -352,6 +364,8 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                         force=True,
                     )
                     sent_to_board = was_sent
+                    if success and was_sent and previous is not None:
+                        silence_queue.discard(previous.board_id, expected=previous)
                 except Exception as e:
                     logger.error(f"Live send to board failed: {e}", exc_info=True)
 
@@ -362,5 +376,8 @@ async def render_template_live(request: TemplateRenderLiveRequest):
         line_count=len(lines),
         sent_to_board=sent_to_board,
         paused=paused,
+        silenced=verdict.silenced,
+        held=verdict.held,
+        ends_at_utc=verdict.ends_at_utc,
         board_id=target_board.get("id") if target_board else None,
     )

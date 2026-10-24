@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StrictBool, model_validator
 
 from src.devices import (
     MAX_GRID_COLS,
@@ -129,6 +129,7 @@ class TemplateRenderLiveRequest(TemplateRenderRequest):
     """``POST /templates/render/live`` request body."""
 
     board_id: str | None = None
+    override_silence: StrictBool = False
 
 
 class TemplateRenderLiveResponse(TemplateRenderResponse):
@@ -139,6 +140,9 @@ class TemplateRenderLiveResponse(TemplateRenderResponse):
     is paused" apart from "nothing was sent because there is no board".
     """
 
+    silenced: bool = False
+    held: bool = False
+    ends_at_utc: str | None = None
     sent_to_board: bool
     paused: bool = False
     board_id: str | None = None

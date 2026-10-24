@@ -90,6 +90,9 @@ class DisplayRawBatchResponse(BaseModel):
 class DisplaySendResponse(BaseModel):
     """``POST /displays/{display_type}/send``."""
 
+    silenced: bool = False
+    held: bool = False
+    ends_at_utc: str | None = None
     status: str = "success"
     display_type: str
     message: str

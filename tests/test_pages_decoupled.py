@@ -131,7 +131,7 @@ with (
     patch("src.pages.routes.get_schedule_service", return_value=schedule_service),
     patch("src.pages.routes.get_service", return_value=display_service),
     patch("src.pages.routes._require_board", return_value=BOARD) as require_board,
-    patch("src.pages.routes._silence_active", return_value=False) as silence_active,
+    patch("src.board_guards._silence_active", return_value=False) as silence_active,
     patch("src.pages.routes._board_is_paused", return_value=False) as board_is_paused,
 ):
     # 1. GET /pages

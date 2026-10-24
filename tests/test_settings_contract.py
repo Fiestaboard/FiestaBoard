@@ -310,6 +310,9 @@ class TestActivePage:
         assert response.json() == {
             "page_id": None,
             "sent_to_board": False,
+            "silenced": False,
+            "held": False,
+            "ends_at_utc": None,
             "paused": False,
             "board_id": None,
             "error": None,

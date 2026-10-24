@@ -823,6 +823,9 @@ def test_pinning_a_page_sets_it_and_reports_delivery(client, boards, board_clien
         "board_id": primary_id,
         "page_id": page_id,
         "sent": True,
+        "silenced": False,
+        "held": False,
+        "ends_at_utc": None,
         "error": None,
         "warnings": [],
     }

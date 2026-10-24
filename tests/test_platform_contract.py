@@ -74,7 +74,7 @@ PAUSED = "src.display_runtime._board_is_paused"
 #: binds its own settings service — stubbing only the display_runtime one
 #: leaves a paused board reading as running.
 GUARD_SETTINGS_SERVICE = "src.board_guards.get_settings_service"
-SILENCE_ACTIVE = "src.board_api.routes._silence_active"
+SILENCE_ACTIVE = "src.board_guards._silence_active"
 REQUIRE_BOARD = "src.service_api.routes._require_board"
 BOARD_REQUIRE_BOARD = "src.board_api.routes._require_board"
 PRIMARY_BOARD_ENTRY = "src.display_runtime._primary_board_entry"
@@ -532,7 +532,13 @@ def test_send_message_delivers_the_text_and_says_so(client, wired):
     resp = client.post("/send-message", json={"text": "HELLO"})
     assert resp.status_code == 200
     # Re-pinned: bare body; `sent` replaces the "status": "success" envelope.
-    assert resp.json() == {"message": "Message sent successfully", "sent": True}
+    assert resp.json() == {
+        "message": "Message sent successfully",
+        "sent": True,
+        "silenced": False,
+        "held": False,
+        "ends_at_utc": None,
+    }
     assert wired.call_count == 1
 
 
@@ -541,7 +547,13 @@ def test_send_message_reports_unchanged_content_as_a_skip_not_a_send(client, wir
     now["t"] += 16.0  # outside the cloud send floor, so this is a true dedupe skip
     resp = client.post("/send-message", json={"text": "HELLO"})
     assert resp.status_code == 200
-    assert resp.json() == {"message": "Message unchanged, no update needed", "sent": False}
+    assert resp.json() == {
+        "message": "Message unchanged, no update needed",
+        "sent": False,
+        "silenced": False,
+        "held": False,
+        "ends_at_utc": None,
+    }
     assert wired.call_count == 1
 
 

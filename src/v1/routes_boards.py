@@ -348,7 +348,10 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
 @router.post(
     "/boards/{board}/message",
     response_model=MessageResponse,
-    responses=errors(400, 404, 409, 429, 500, 503),
+    responses={
+        **errors(400, 404, 409, 429, 500, 503),
+        202: {"model": MessageResponse, "description": "Held until silence ends"},
+    },
     summary="Put something on a board",
     description=(
         "The one way to write to a board. Send exactly one of `text` (word-wrapped for you), `lines` (one string "
@@ -360,7 +363,10 @@ def _raise_for_executor(result: dict[str, Any]) -> None:
         "when the time is up. `board` may be a board id or the literal `primary`.\n\n"
         "`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the "
         "install's output target is UI-only and when the board already showed this exact content. A board that is "
-        "paused or inside its silence window refuses the write with 409 rather than lying about it. Send "
+        "paused refuses the write with 409. During silence, `show_queued_on_exit` opt-in accepts a held message "
+        "with 202, `held: true`, `silenced: true`, `sent: false` and `ends_at_utc`; otherwise it refuses with 409. "
+        "Only `override_silence: true` allows a write during silence. `force` only resends unchanged content; "
+        "neither flag bypasses pause. Held messages expire after 24 hours and do not arm a temporary override. Send "
         '`if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board '
         "is paused, and `characters` is what it would have shown. Nothing is written."
     ),
@@ -421,6 +427,7 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
         "step_interval_ms": transition.interval_ms if transition else None,
         "step_size": transition.step_size if transition else None,
         "force": request.force,
+        "override_silence": request.override_silence,
     }
 
     from src.board_send_executor import run_board_send
@@ -428,9 +435,33 @@ async def send_to_board(board: str, request: MessageRequest) -> MessageResponse:
     if request.text is not None:
         result = await run_board_send(executors.send_message, request.text, board_id, **send_kwargs)
     else:
+        from src.silence_queue import HeldSend
+
+        if request.page_id is not None:
+            send_kwargs["held_intent"] = HeldSend.page(request.page_id, board_id=board_id)
+        elif request.plugin_id is not None:
+            send_kwargs["held_intent"] = HeldSend.display(request.plugin_id, board_id=board_id)
+        elif request.lines is not None:
+            send_kwargs["held_intent"] = HeldSend.lines(request.lines, board_id=board_id)
         result = await run_board_send(executors.send_characters, characters, board_id, **send_kwargs)
 
     _raise_for_executor(result)
+    if result.get("held"):
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(
+            status_code=202,
+            content=MessageResponse(
+                sent=False,
+                board_id=board_id,
+                characters=characters,
+                text=text,
+                reason="Held until silence ends",
+                silenced=True,
+                held=True,
+                ends_at_utc=result.get("ends_at_utc"),
+            ).model_dump(),
+        )
 
     if request.duration_minutes is not None:
         expires_at = await _arm_temporary_override(board_id, request, template_lines)
@@ -576,11 +607,16 @@ async def set_board_active_page(board: str, request: ActivePageRequest) -> Activ
     from src.settings.routes import set_active_page
 
     board_id = resolve_board_id(board)
-    response = await set_active_page(SetActivePageRequest(page_id=request.page_id, board_id=board_id))
+    response = await set_active_page(
+        SetActivePageRequest(page_id=request.page_id, board_id=board_id, override_silence=request.override_silence)
+    )
     return ActivePageResponse(
         board_id=board_id,
         page_id=response.get("page_id"),
         sent=bool(response.get("sent_to_board")),
+        silenced=bool(response.get("silenced")),
+        held=bool(response.get("held")),
+        ends_at_utc=response.get("ends_at_utc"),
         # #1791 added this to the internal response precisely so a 200 that
         # never reached the board is detectable. Dropping it made every v1
         # pin look like a success.

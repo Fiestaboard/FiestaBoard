@@ -58,14 +58,22 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
+from fastapi.responses import JSONResponse
 
 from src import display_runtime as runtime
+from src import silence_queue
 from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice
 from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_client import board_client_from_board_dict
-from src.board_guards import _board_dims, _require_board, _silence_active, primary_board_entry
+from src.board_guards import (
+    _board_dims,
+    _require_board,
+    primary_board_entry,
+    resolve_board_id,
+    silence_verdict,
+)
 from src.board_guards import raise_if_paused as _raise_if_paused
 from src.board_guards import raise_if_throttled as _raise_if_throttled
 from src.board_send_executor import run_board_send
@@ -92,7 +100,7 @@ def _raise_if_silenced(board_id: str | None = None) -> None:
     about to touch. ``board_id`` omitted resolves the primary board, which is
     what this path meant before it could target one.
     """
-    if _silence_active(board_id):
+    if silence_verdict(board_id, override_silence=False).silenced:
         logger.info("Silence mode is active - blocking manual send to prevent wake-up")
         raise HTTPException(status_code=409, detail=SILENCE_DETAIL)
 
@@ -192,11 +200,14 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
 @router.post(
     "/send-message",
     response_model=SendResponse,
-    responses=errors(404, 409, 429, 500, 503),
+    responses={
+        **errors(404, 409, 429, 500, 503),
+        202: {"model": SendResponse, "description": "Held until silence ends"},
+    },
     deprecated=True,
     dependencies=[deprecation_notice(successor=V1_BOARD_MESSAGE_SUCCESSOR)],
 )
-async def send_message(request: MessageRequest):
+async def send_message(request: MessageRequest, response: Response = None):
     """Deprecated: use ``POST /v1/boards/{board}/message`` instead.
 
     Send a custom message to a board.
@@ -219,8 +230,27 @@ async def send_message(request: MessageRequest):
     board_id = request.board_id
     board = _require_board(board_id) if board_id is not None else None
 
-    _raise_if_silenced(board_id)
     _raise_if_paused(board_id)
+    verdict = silence_verdict(
+        board_id,
+        override_silence=request.override_silence,
+        hold=lambda bid: silence_queue.HeldSend.text(request.text, board_id=bid),
+    )
+    if verdict.held:
+        return JSONResponse(
+            status_code=202,
+            headers=dict(response.headers) if response is not None else None,
+            content=SendResponse(
+                message="Held until silence ends",
+                sent=False,
+                silenced=True,
+                held=True,
+                ends_at_utc=verdict.ends_at_utc,
+            ).model_dump(),
+        )
+    if verdict.silenced:
+        raise HTTPException(status_code=409, detail=SILENCE_DETAIL)
+    previous = silence_queue.peek(resolve_board_id(board_id))
 
     board_client = service.get_board_client(board_id) if board_id is not None else service.vb_client
     if not board_client:
@@ -279,6 +309,8 @@ async def send_message(request: MessageRequest):
     # is a pull — /force-refresh, MQTT Refresh Display, re-selecting a page,
     # or an actual content change (issue #1794).
     runtime._note_out_of_band_write(board_id)
+    if previous is not None:
+        silence_queue.discard(previous.board_id, expected=previous)
     # The adaptive post-send refresh polls the PRIMARY board only (board-state
     # polling tracks one board by design, issue #1243), so a send aimed at a
     # secondary must not ask for one. Same rule the executor applies.
@@ -287,7 +319,12 @@ async def send_message(request: MessageRequest):
     return SendResponse(message="Message sent successfully", sent=True)
 
 
-@router.post("/send-welcome-message", response_model=SendResponse, responses=errors(409, 429, 500, 503))
+@router.post(
+    "/send-welcome-message",
+    response_model=SendResponse,
+    response_model_exclude={"silenced", "held", "ends_at_utc"},
+    responses=errors(409, 429, 500, 503),
+)
 async def send_welcome_message():
     """Send a colorful welcome message to the board.
 

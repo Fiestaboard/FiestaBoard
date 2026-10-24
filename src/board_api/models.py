@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBool
 
 
 class MessageRequest(BaseModel):
@@ -17,19 +17,22 @@ class MessageRequest(BaseModel):
 
     text: str
     board_id: str | None = None
+    override_silence: StrictBool = False
 
 
 class SendResponse(BaseModel):
     """The outcome of an out-of-band write.
 
-    ``sent`` is False when the content was identical to what the board
-    already shows — the write was correctly skipped, not refused. Every other
-    non-delivery (paused board, silence window, send floor, board failure) is
-    a status code, not a flag.
+    ``sent`` is False for unchanged content or a held message. Accepted
+    silence holds return 202 with ``held`` and ``silenced`` true; refusals,
+    pause, send-floor throttles and board failures keep their error status.
     """
 
     message: str
     sent: bool
+    silenced: bool = False
+    held: bool = False
+    ends_at_utc: str | None = None
 
 
 class BoardCurrentMessageResponse(BaseModel):

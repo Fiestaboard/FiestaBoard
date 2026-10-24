@@ -197,7 +197,7 @@ The one way to write to a board. Send exactly one of `text` (word-wrapped for yo
 
 Add `duration_minutes` to make it temporary — it reverts to your schedule, a chosen page, or a blank board when the time is up. `board` may be a board id or the literal `primary`.
 
-`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused or inside its silence window refuses the write with 409 rather than lying about it. Send `if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board is paused, and `characters` is what it would have shown. Nothing is written.
+`sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused refuses the write with 409. During silence, `show_queued_on_exit` opt-in accepts a held message with 202, `held: true`, `silenced: true`, `sent: false` and `ends_at_utc`; otherwise it refuses with 409. Only `override_silence: true` allows a write during silence. `force` only resends unchanged content; neither flag bypasses pause. Held messages expire after 24 hours and do not arm a temporary override. Send `if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board is paused, and `characters` is what it would have shown. Nothing is written.
 
 **Parameters**
 
@@ -209,6 +209,7 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `override_silence` | `boolean` | no | Explicitly allow this write during silence. Does not bypass pause. (default `false`) |
 | `text` | `string` \| `null` | no | Plain text, word-wrapped to the board. Colour and character markers (`{red}`, `{63}`) work here. |
 | `lines` | array of `string` \| `null` | no | One string per board row, laid out without re-wrapping across rows. |
 | `characters` | array of array of `integer` \| `null` | no | A raw flap grid, sized exactly to the board. Codes are 0-71. |
@@ -228,6 +229,7 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 | Status | Body | Description |
 |--------|------|-------------|
 | `200` | [`MessageResponse`](#schema-messageresponse) | Successful Response |
+| `202` | [`MessageResponse`](#schema-messageresponse) | Held until silence ends |
 
 **Errors**
 
@@ -286,6 +288,7 @@ The selection is stored whether or not the send succeeded, so check `sent` — a
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `override_silence` | `boolean` | no | Explicitly show the selected page during silence. Does not bypass pause. (default `false`) |
 | `page_id` | `string` \| `null` | yes | Page or collection to pin to this board. Send null to unpin and fall back to the schedule. |
 
 **Responses**
@@ -1118,12 +1121,14 @@ request was accepted.
 |-------|------|----------|-------------|
 | `text` | `string` | yes | — |
 | `board_id` | `string` \| `null` | no | — |
+| `override_silence` | `boolean` | no | default `false` |
 
 **Responses**
 
 | Status | Body | Description |
 |--------|------|-------------|
 | `200` | [`SendResponse`](#schema-sendresponse) | Successful Response |
+| `202` | [`SendResponse`](#schema-sendresponse) | Held until silence ends |
 
 **Errors**
 
@@ -1146,6 +1151,7 @@ Every model the operations above name, expanded once.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `override_silence` | `boolean` | no | Explicitly show the selected page during silence. Does not bypass pause. (default `false`) |
 | `page_id` | `string` \| `null` | yes | Page or collection to pin to this board. Send null to unpin and fall back to the schedule. |
 
 ### `ActivePageResponse` {#schema-activepageresponse}
@@ -1154,6 +1160,9 @@ The result of pinning a page to a board.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `silenced` | `boolean` | no | default `false` |
+| `held` | `boolean` | no | default `false` |
+| `ends_at_utc` | `string` \| `null` | no | — |
 | `board_id` | `string` | yes | — |
 | `page_id` | `string` \| `null` | yes | What is now pinned. Null means nothing is. |
 | `sent` | `boolean` | yes | Whether the new page reached the board immediately. |
@@ -1405,6 +1414,7 @@ what every existing caller gets today.
 |-------|------|----------|-------------|
 | `text` | `string` | yes | — |
 | `board_id` | `string` \| `null` | no | — |
+| `override_silence` | `boolean` | no | default `false` |
 
 ### `MessageRequest (v1)` {#schema-src-v1-models-messagerequest}
 
@@ -1416,6 +1426,7 @@ long and how.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `override_silence` | `boolean` | no | Explicitly allow this write during silence. Does not bypass pause. (default `false`) |
 | `text` | `string` \| `null` | no | Plain text, word-wrapped to the board. Colour and character markers (`{red}`, `{63}`) work here. |
 | `lines` | array of `string` \| `null` | no | One string per board row, laid out without re-wrapping across rows. |
 | `characters` | array of array of `integer` \| `null` | no | A raw flap grid, sized exactly to the board. Codes are 0-71. |
@@ -1441,6 +1452,9 @@ loop rather than written on the spot. `reason` names which.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `silenced` | `boolean` | no | Silence prevented this request from writing to the board. (default `false`) |
+| `held` | `boolean` | no | The message was saved for delivery after silence (HTTP 202). (default `false`) |
+| `ends_at_utc` | `string` \| `null` | no | End of the active silence window (ISO 8601 UTC). |
 | `sent` | `boolean` | yes | True only when flaps were written to the physical board by this request. |
 | `board_id` | `string` | yes | The board this went to, with the 'primary' alias already resolved. |
 | `characters` | array of array of `integer` | yes | The flap grid this request produced, sent or not. |
@@ -1881,15 +1895,17 @@ doesn't report warnings"; it is now always present and empty when clean.
 
 The outcome of an out-of-band write.
 
-`sent` is False when the content was identical to what the board
-already shows — the write was correctly skipped, not refused. Every other
-non-delivery (paused board, silence window, send floor, board failure) is
-a status code, not a flag.
+`sent` is False for unchanged content or a held message. Accepted
+silence holds return 202 with `held` and `silenced` true; refusals,
+pause, send-floor throttles and board failures keep their error status.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `message` | `string` | yes | — |
 | `sent` | `boolean` | yes | — |
+| `silenced` | `boolean` | no | default `false` |
+| `held` | `boolean` | no | default `false` |
+| `ends_at_utc` | `string` \| `null` | no | — |
 
 ### `StatusResponse` {#schema-statusresponse}
 
