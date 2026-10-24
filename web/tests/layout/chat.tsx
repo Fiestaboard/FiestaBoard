@@ -28,6 +28,7 @@ const page = {
   duration_seconds: 60,
   line_metadata: [],
 };
+const settingsScenario = new URLSearchParams(window.location.search).get("scenario") === "settings";
 const originalFetch = window.fetch;
 // No backend or live installation is used by these visual fixtures.
 window.fetch = async (input, init) => {
@@ -46,7 +47,18 @@ window.fetch = async (input, init) => {
           base_url: "https://example.test/v1",
           api_key: "***",
           models: ["example-model"],
+          ...(settingsScenario && { sign_in: { preset: "openrouter" } }),
         },
+        ...(settingsScenario
+          ? [
+              {
+                id: "second",
+                name: "Local models for development and testing",
+                models: ["local-model"],
+                base_url: "https://local.test/v1",
+              },
+            ]
+          : []),
       ],
       default_provider_id: "example",
       approval_mode: "ask",
@@ -58,7 +70,18 @@ window.fetch = async (input, init) => {
   else if (path === "/schedules") value = { schedules: [] };
   else if (path === "/collections") value = { collections: [] };
   else if (path === "/outputs") value = outputs;
-  else if (path.includes("/models")) value = { models: [{ id: "example-model", name: "Example model" }] };
+  else if (path.includes("/models"))
+    value = {
+      models: [
+        { id: "example-model", name: "Example model" },
+        ...(settingsScenario
+          ? Array.from({ length: 100 }, (_, i) => ({
+              id: `provider/model-${i}-with-a-long-version-identifier`,
+              name: `Reasoning model ${i}`,
+            }))
+          : []),
+      ],
+    };
   else if (path === "/templates/render")
     value = {
       rendered:

@@ -12,6 +12,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from src.canvas.schemas import CanvasLayerModel
+
 # Panel ids go in unauthenticated URLs; long random slugs keep them
 # unguessable-by-accident (they are NOT treated as secrets).
 _PANEL_ID_BYTES = 9  # token_urlsafe(9) -> 12 chars
@@ -220,6 +222,9 @@ class PanelFrameResponse(BaseModel):
     #: response is exactly what it always was. ``characters`` and
     #: ``message`` are unchanged either way.
     cells: list[list[dict[str, Any]]] | None = None
+    #: Ordered pixel canvases for LED matrices, painted over cells. An empty
+    #: list clears the previous frame's canvases; non-pixel boards omit it.
+    layers: list[CanvasLayerModel] | None = None
     message: str | None = None
     rows: int
     cols: int

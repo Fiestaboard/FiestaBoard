@@ -4,8 +4,8 @@ import { type BoardCellGrid, Box, type DeviceModel, LedMatrixDisplay } from "@fi
 import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
-import type { MatrixSizing } from "@/lib/api";
-import { ledLetterCase } from "@/lib/device-preview";
+import type { CanvasLayerJson, MatrixSizing } from "@/lib/api";
+import { ledLayerProps, ledLetterCase } from "@/lib/device-preview";
 import { panelMatrixLayout } from "@/lib/panel-matrix-layout";
 
 /** Shared matrix presentation for the browser viewer and the panel editor's TV preview. */
@@ -13,6 +13,7 @@ export function PanelMatrix({
   model,
   message,
   cells,
+  layers,
   sizing,
   diagonal,
   spacing = 6,
@@ -22,6 +23,7 @@ export function PanelMatrix({
   model: DeviceModel;
   message: string | null;
   cells?: BoardCellGrid;
+  layers?: CanvasLayerJson[];
   sizing: MatrixSizing;
   diagonal: number;
   spacing?: number;
@@ -107,6 +109,7 @@ export function PanelMatrix({
           model={model}
           message={message}
           cells={cells}
+          {...ledLayerProps(layers)}
           size="lg"
           bezel={false}
           letterCase={ledLetterCase(model)}

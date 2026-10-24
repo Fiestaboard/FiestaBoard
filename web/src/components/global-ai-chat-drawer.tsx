@@ -223,6 +223,10 @@ export function GlobalAiChatDrawer() {
     }, 0);
 
     const handler = (e: KeyboardEvent) => {
+      // The settings popover owns its portal's focus and Escape dismissal.
+      // It is outside panelRef even though it belongs to this drawer.
+      if (e.defaultPrevented || (e.target instanceof Element && e.target.closest("[data-ai-composer-settings-popup]")))
+        return;
       if (e.key === "Escape") {
         close();
         return;

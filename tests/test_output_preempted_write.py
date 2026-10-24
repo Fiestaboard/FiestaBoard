@@ -99,6 +99,49 @@ def test_the_write_that_preempts_an_upload_reaches_the_device():
     assert plugin.landed == [PAGE]
 
 
+@pytest.mark.parametrize("target_landed", [False, True])
+def test_a_preempted_transition_cannot_deduplicate_its_successor(target_landed):
+    plugin = SlowPanel()
+    plugin.first = False
+    now = [1000.0]
+    driver = OutputPluginDriver(plugin, clock=lambda: now[0])
+    assert driver.send_characters(PAGE, with_outcome=True).was_sent
+    send_floors().clear()
+    original_write = plugin.write
+    intermediate = [[65] * 16 for _ in range(10)]
+    target = [[66] * 16 for _ in range(10)]
+    brightness = [60]
+
+    def restored_write(frame, *, native, cancel):
+        result = original_write(frame, native=native, cancel=cancel)
+        brightness[0] = 60
+        return result
+
+    def interrupted_write(frame, *, native, cancel):
+        # A streamed transition can change the device before its target lands.
+        plugin.landed.append(frame if target_landed else intermediate)
+        brightness[0] = 0
+        plugin.started.set()
+        cancel.wait(5)
+        plugin.write = restored_write
+        return WriteResult(True, target_landed)
+
+    plugin.write = interrupted_write
+    worker = threading.Thread(target=lambda: driver.send_characters(target))
+    worker.start()
+    try:
+        assert plugin.started.wait(2)
+        now[0] += 2  # respect the floor even when the cancelled target landed
+        successor = target if target_landed else PAGE
+        returned = driver.send_characters(successor, with_outcome=True)
+        assert returned.was_sent, "cached content hid an unfinished cancelled transition"
+        assert plugin.landed[-1] == successor
+        assert brightness[0] == 60
+    finally:
+        driver._output_runtime.preempt()
+        worker.join(2)
+
+
 def test_a_preempted_write_is_not_recorded_as_shown():
     plugin = SlowPanel()
     driver = OutputPluginDriver(plugin, clock=Clock())
@@ -111,6 +154,60 @@ def test_a_preempted_write_is_not_recorded_as_shown():
 
     assert not result["r"].was_sent
     assert driver._output_runtime.last_frame is None, "a frame that never landed is in the last-frame store"
+
+
+def test_a_timed_out_transition_cannot_deduplicate_its_successor(monkeypatch):
+    plugin = SlowPanel()
+    plugin.first = False
+    now = [1000.0]
+    driver = OutputPluginDriver(plugin, clock=lambda: now[0])
+    assert driver.send_characters(PAGE, with_outcome=True).was_sent
+    send_floors().clear()
+    original_write = plugin.write
+    stopped = threading.Event()
+
+    def interrupted_write(frame, *, native, cancel):
+        plugin.landed.append([[65] * 16 for _ in range(10)])
+        cancel.wait(5)
+        stopped.set()
+        return WriteResult(True, False)
+
+    plugin.write = interrupted_write
+    monkeypatch.setattr(OutputPluginDriver, "write_timeout_seconds", property(lambda _: 0.05))
+    assert not driver.send_characters([[66] * 16 for _ in range(10)], with_outcome=True).success
+    assert stopped.wait(2)
+    plugin.write = original_write
+    now[0] += 2
+    assert driver.send_characters(PAGE, with_outcome=True).was_sent
+    assert plugin.landed[-1] == PAGE
+
+
+@pytest.mark.parametrize("failure", ["reported", "raised", "throttled"])
+def test_an_interrupted_write_cannot_deduplicate_the_previous_page(failure):
+    plugin = SlowPanel()
+    plugin.first = False
+    now = [1000.0]
+    driver = OutputPluginDriver(plugin, clock=lambda: now[0])
+    assert driver.send_characters(PAGE, with_outcome=True).was_sent
+    send_floors().clear()
+    original_write = plugin.write
+
+    def interrupted_write(frame, *, native, cancel):
+        plugin.landed.append([[65] * 16 for _ in range(10)])
+        if failure == "raised":
+            raise OSError("connection lost after an intermediate frame")
+        if failure == "throttled":
+            return WriteResult(True, False, throttled=True, retry_after_seconds=1)
+        return WriteResult(False, False)
+
+    plugin.write = interrupted_write
+    failed = driver.send_characters([[66] * 16 for _ in range(10)], with_outcome=True)
+    assert failed.throttled if failure == "throttled" else not failed.success
+    plugin.write = original_write
+    now[0] += 2
+    returned = driver.send_characters(PAGE, with_outcome=True)
+    assert returned.was_sent, "cached previous page hid an interrupted write's intermediate frame"
+    assert plugin.landed[-1] == PAGE
 
 
 def test_the_driver_says_its_last_write_was_preempted_and_the_next_one_clears_it():

@@ -324,11 +324,9 @@ def test_builtin_fiestapanel_info_resolves_saved_style_and_grid(mcp, output, tmp
     assert info["display"]["technology"] == render_style
     if render_style == "led_matrix":
         assert info["device_model_document"]["geometry"] == {"kind": "pixels", "width": 240, "height": 112}
-        # The viewer has an LED appearance, while this installed output's
-        # writer accepts only the integer grid and its split-flap alphabet.
-        assert info["charset"] == "vestaboard_v2"
-        assert info["display"]["width"] is info["display"]["height"] is None
-        assert info["display"]["color_spans"] is False
+        assert info["charset"] == "led_5x7"
+        assert (info["display"]["width"], info["display"]["height"]) == (240, 112)
+        assert info["display"]["color_spans"] is True
     else:
         assert info["charset"] == "vestaboard_v2"
     assert output.module.INSTANCES == []

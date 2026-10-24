@@ -43,20 +43,21 @@ def panel_board(request, tmp_path, monkeypatch):
     return settings.get_board_settings().boards[0]
 
 
-def test_builtin_panel_profile_matches_the_integer_writer(panel_board):
+def test_builtin_panel_profile_matches_its_writer(panel_board):
     from src.outputs.registry import output_registry
 
     profile = display_profile_for_board(panel_board)
     assert profile is not None
-    assert profile.charset == "vestaboard_v2"
-    assert not any(
-        profile.supports(feature) for feature in ("pixels", "lowercase", "color_text", "background", "icons", "rgb")
-    )
+    led = profile.technology == "led_matrix"
+    assert profile.charset == ("led_5x7" if led else "vestaboard_v2")
+    for feature in ("pixels", "lowercase", "color_text", "background", "icons", "rgb"):
+        assert profile.supports(feature) is led
     assert profile.supports("tiles")
     assert (profile.rows, profile.cols) == (6, 22)
     client = output_registry().get("fiestapanel").build(panel_board)
     try:
-        assert client.character_set is None  # The existing integer delivery contract.
+        assert client.takes_cells is led
+        assert client.character_set == profile.character_set
         assert display_profile_for_client(client) == profile
     finally:
         client.close()
@@ -74,7 +75,11 @@ def test_builtin_discovery_preview_and_ai_share_authoring_support(mcp, services,
     check = _CharsetCheck(panel_board["id"])
     assert check.display == profile
     assert check.charset == profile.character_set
-    assert check.result("a")["charset_issues"][0]["fallback"]["value"] == "A"
+    led = profile.supports("pixels")
+    if led:
+        assert check.result("a")["charset_issues"] == []
+    else:
+        assert check.result("a")["charset_issues"][0]["fallback"]["value"] == "A"
     preview = call(
         mcp,
         "render_page_preview",
@@ -88,12 +93,15 @@ def test_builtin_discovery_preview_and_ai_share_authoring_support(mcp, services,
             }
         ],
     )
-    assert preview.get("layer_count", 0) == 0
-    # Existing page semantics reserve canvas cells on every display; the
-    # integer-only panel must not claim to draw a bitmap in that space.
+    assert preview.get("layer_count", 0) == (1 if led else 0)
+    # Page semantics reserve canvas cells on every display; only the LED
+    # panel can draw the bitmap in that space.
     assert preview["rendered"].split("\n")[0].startswith(" ELLO")
-    assert preview["layers"] is None
+    if led:
+        assert len(preview["layers"]) == 1
+    else:
+        assert preview["layers"] is None
     prompt = build_prompt("Improve", "panel", mode="chat", display=_display_for_board(panel_board["id"])).system_prompt
-    assert "PIXEL CANVASES" not in prompt
-    assert "LED pixel display" not in prompt
-    assert "Coloured text:" not in prompt
+    assert ("PIXEL CANVASES" in prompt) is led
+    assert ("LED pixel display" in prompt) is led
+    assert ("Coloured text:" in prompt) is led

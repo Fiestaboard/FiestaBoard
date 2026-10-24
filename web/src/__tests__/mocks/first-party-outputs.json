@@ -446,7 +446,7 @@
     "builtin": true,
     "beta_gated": false,
     "available": true,
-    "version": "1.0.0",
+    "version": "1.0.1",
     "output_api": 1,
     "capabilities": {
       "technology": "screen",

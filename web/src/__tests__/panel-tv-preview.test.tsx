@@ -99,6 +99,28 @@ describe("PanelTvPreview", () => {
     expect(board.getAttribute("aria-label")).toContain("ON THE TV");
   });
 
+  it.each([undefined, "fill_tv", "fit_panel", "true_size"] as const)(
+    "draws a canvas-only frame with matrix sizing %s",
+    async (sizing) => {
+      const frame = {
+        ...FRAME,
+        message: null,
+        layers: [{ x: 0, y: 2, width: 1, height: 1, rgba: "/wAA/w==" }],
+      };
+      mockPanel(
+        {
+          ...CONFIG,
+          render_style: "led_matrix",
+          device_model_spec: FIESTAPANEL_LED_MATRIX,
+          matrix_sizing: sizing,
+        },
+        frame,
+      );
+      render(<PanelTvPreview panelId="p1" />, { wrapper: Wrapper });
+      await waitFor(() => expect(screen.getByRole("img")).toHaveAttribute("data-layers", "1"));
+    },
+  );
+
   it("draws an LED panel through its LED model", async () => {
     mockPanel({
       ...CONFIG,

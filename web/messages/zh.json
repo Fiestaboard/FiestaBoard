@@ -2281,7 +2281,19 @@
     "toolRun": "{tool} · {count, plural, other {# 次}}",
     "composerSettings": {
       "triggerAriaLabel": "聊天设置：审批 {mode}，模型 {model}",
-      "popoverLabel": "聊天设置"
+      "popoverLabel": "聊天设置",
+      "description": "选择 FiestaBot 的工作方式。",
+      "askDescription": "执行破坏性操作前请求确认。",
+      "autoDescription": "执行破坏性操作时无需询问。",
+      "alwaysAsk": "重启、关机和更新始终需要审批。",
+      "modelSearch": "搜索模型或输入 ID",
+      "useCustomModel": "使用“{id}”",
+      "customModel": "自定义模型 ID",
+      "modelsLoading": "正在加载模型…",
+      "modelsError": "无法加载模型。请选择已保存的模型或输入 ID。",
+      "modelsEmpty": "列表中没有模型。请输入模型 ID 以开始使用。",
+      "modelsNoMatches": "没有匹配的模型。",
+      "retryModels": "重试"
     },
     "keepGoing": {
       "prompt": "助手在长回合中暂停。已完成的工作均已保留。",

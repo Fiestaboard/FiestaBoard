@@ -326,11 +326,12 @@ class TestContractAdditions:
         frames_of(driver).record_sent(_grid(6))  # a frame of another shape (a re-fit)
         assert driver.read_current_message() is None
 
-    def test_an_output_whose_markup_does_not_follow_its_set_gets_none(self):
-        # A FiestaPanel's LED look draws with a rich set; its content keeps
-        # split-flap markup all the same (the viewer draws the 0-71 grid).
+    def test_an_output_whose_markup_does_not_follow_its_set_gets_none(self, monkeypatch):
+        # Exercise an explicitly integer-only output. FiestaPanel now opts
+        # into rich LED delivery, but other plugins may still opt out.
         from src.outputs.board_profile import board_character_set
 
+        monkeypatch.setattr(load_first_party(FIESTAPANEL).plugin_class, "markup_follows_charset", False)
         board = {"id": "led-panel", "api_mode": "virtual", "device_type": "flagship"}
         with patch("src.outputs.board_profile._panel_render_style", return_value="led_matrix"):
             led_set = board_character_set(board)

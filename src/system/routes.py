@@ -157,6 +157,7 @@ async def system_update_status():
         last_update_action=last.get("action"),
         last_update_error=last.get("error"),
         last_update_previous_digest=last.get("previous_digest"),
+        last_update_started_at=last.get("started_at"),
         last_update_completed_at=last.get("completed_at"),
         settings_snapshots=snapshots,
         post_upgrade_regression=regression,

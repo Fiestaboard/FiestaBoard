@@ -1,6 +1,8 @@
 import type { StorybookConfig } from "@storybook/react-vite";
 
 const config: StorybookConfig = {
+  // Preserve host/origin validation when Docker listens on 0.0.0.0.
+  core: { allowedHosts: ["localhost", "127.0.0.1"] },
   stories: ["../src/**/*.mdx", "../src/**/*.stories.@(js|jsx|mjs|ts|tsx)"],
   addons: ["@storybook/addon-a11y"],
   framework: {

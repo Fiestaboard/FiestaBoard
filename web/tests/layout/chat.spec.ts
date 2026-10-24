@@ -94,3 +94,58 @@ test("long translated activity labels fit a narrow phone", async ({ page }, test
   expect(await label.evaluate((e) => e.clientWidth >= e.scrollWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("fiestabot-russian-320.png") });
 });
+
+for (const theme of ["light", "dark"]) {
+  for (const viewport of [
+    { width: 320, height: 850 },
+    { width: 1280, height: 650 },
+    { width: 667, height: 375 },
+  ]) {
+    test(`settings picker fits ${viewport.width}x${viewport.height} in ${theme}`, async ({ page }, testInfo) => {
+      await page.setViewportSize(viewport);
+      await page.goto(`/tests/layout/chat.html?theme=${theme}&scenario=settings`);
+      await page.getByRole("button", { name: "Open assistant", exact: true }).click();
+      const trigger = page.getByTestId("ai-composer-settings");
+      await trigger.click();
+      const popup = page.getByRole("dialog", { name: "Chat settings", exact: true });
+      await expect(popup.getByRole("radio", { name: "Example model", exact: true })).toBeVisible();
+      const bounds = await popup.boundingBox();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.y).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
+      expect(await popup.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      if (viewport.height >= 650) {
+        await expect(popup.getByRole("radio", { name: "Example model", exact: true })).toBeInViewport();
+      }
+      for (const provider of await popup.getByRole("radiogroup", { name: "Provider" }).getByRole("radio").all()) {
+        expect(await provider.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true);
+      }
+      await injectAxe(page);
+      await checkA11y(page, "[data-ai-composer-settings-popup]");
+      await page.screenshot({ path: testInfo.outputPath(`picker-${theme}-${viewport.width}.png`) });
+      await popup.getByRole("radio", { name: "Example model", exact: true }).focus();
+      await page.keyboard.press("ArrowDown");
+      await expect(popup.getByRole("radio", { name: "Reasoning model 0", exact: true })).toBeChecked();
+      await page.keyboard.press("ArrowDown");
+      await expect(popup.getByRole("radio", { name: "Reasoning model 1", exact: true })).toBeChecked();
+      const search = popup.getByRole("searchbox");
+      await search.fill("model 99");
+      await search.press("Tab");
+      const model = popup.getByRole("radio", { name: "Reasoning model 99", exact: true });
+      await expect(model).toBeFocused();
+      await model.press("Enter");
+      await expect(popup).toBeHidden();
+      await expect(trigger).toBeFocused();
+      await expect(trigger).toContainText("Reasoning model 99");
+      await trigger.click();
+      if (viewport.height >= 650) {
+        await expect(popup.getByRole("radio", { name: "Reasoning model 99", exact: true })).toBeInViewport();
+      }
+      await popup.getByRole("searchbox").press("Escape");
+      await expect(popup).toBeHidden();
+      await expect(page.getByRole("dialog", { name: "FiestaBot AI chat" })).toBeVisible();
+      await expect(trigger).toBeFocused();
+    });
+  }
+}

@@ -2281,7 +2281,19 @@
     "toolRun": "{tool} · {count, plural, one {# keer} other {# keer}}",
     "composerSettings": {
       "triggerAriaLabel": "Chatinstellingen: goedkeuring {mode}, model {model}",
-      "popoverLabel": "Chatinstellingen"
+      "popoverLabel": "Chatinstellingen",
+      "description": "Kies hoe FiestaBot werkt.",
+      "askDescription": "Destructieve acties bevestigen.",
+      "autoDescription": "Destructieve acties uitvoeren zonder te vragen.",
+      "alwaysAsk": "Opnieuw opstarten, afsluiten en updates vereisen altijd goedkeuring.",
+      "modelSearch": "Modellen zoeken of een ID invoeren",
+      "useCustomModel": "‘{id}’ gebruiken",
+      "customModel": "Aangepaste model-ID",
+      "modelsLoading": "Modellen laden…",
+      "modelsError": "Modellen konden niet worden geladen. Kies een opgeslagen model of voer een ID in.",
+      "modelsEmpty": "Geen modellen in de lijst. Voer een model-ID in om te beginnen.",
+      "modelsNoMatches": "Geen overeenkomende modellen.",
+      "retryModels": "Opnieuw proberen"
     },
     "keepGoing": {
       "prompt": "De assistent pauzeerde tijdens een lange ronde. Niets is verloren.",

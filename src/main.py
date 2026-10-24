@@ -923,6 +923,7 @@ class DisplayService:
         flat dict) signs as its v4 equivalent.
         """
         from src.devices import BoardInstance
+        from src.outputs.board_profile import board_profile
         from src.outputs.registry import output_registry, resolve_output_id
 
         instance = BoardInstance.from_dict(board)
@@ -941,6 +942,10 @@ class DisplayService:
             instance.grid_cols,
             instance.output,
             json.dumps(instance.output_config, sort_keys=True, default=str),
+            # The model/charset binds the driver's rich-cell capability.
+            # A panel's style lives outside board settings, so connection
+            # fields alone would retain its old split-flap driver.
+            board_profile(board),
         )
 
     def _build_board_clients(self, sync_cache: bool = True):

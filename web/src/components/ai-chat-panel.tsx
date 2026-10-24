@@ -12,34 +12,24 @@ import {
   Flex,
   Kbd,
   Label,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
   PromptInput,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputToolbar,
   PromptInputTools,
-  SegmentedControl,
-  SegmentedControlItem,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Suggestion,
   Suggestions,
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowLeft, History, Minus, RotateCcw, SlidersHorizontal, SquarePen, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, History, Minus, RotateCcw, SquarePen, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AiBotMark } from "@/components/ai-bot-mark";
 import { AiConversationReview, AiHistoryList, CONVERSATIONS_QUERY_KEY } from "@/components/ai-chat-history";
 import { groupTurns, TranscriptTurns } from "@/components/ai-chat-transcript";
-import { ModelCombobox } from "@/components/model-combobox";
+import { ComposerSettingsPill } from "@/components/ai-composer-settings";
 import { useElementWidth } from "@/hooks/use-element-width";
 import { useProviderModels } from "@/hooks/use-provider-models";
 import { useTranslations } from "@/i18n/translations";
@@ -190,27 +180,38 @@ export function AiChatPanel({
   const savedModels = useMemo(() => selectedProvider?.models ?? [], [selectedProvider]);
   // A signed-in provider (or one with no models saved yet) offers what the
   // provider itself lists, so choosing a model never means typing an id.
-  const { data: liveModels } = useProviderModels(
+  const {
+    data: liveModels,
+    isFetching: modelsLoading,
+    isError: modelsError,
+    refetch: retryModels,
+  } = useProviderModels(
     effectiveProviderId,
     !!selectedProvider && (!!selectedProvider.sign_in || savedModels.length === 0),
   );
   // Ids typed by hand into the picker, kept selectable for this panel's life.
-  const [typedModels, setTypedModels] = useState<string[]>([]);
+  const [typedModels, setTypedModels] = useState<Record<string, string[]>>({});
   const modelOptions = useMemo<AIModel[]>(() => {
     const byId = new Map<string, AIModel>();
     for (const id of savedModels) byId.set(id, liveModels?.find((m) => m.id === id) ?? { id, name: id });
     for (const m of liveModels ?? []) if (!byId.has(m.id)) byId.set(m.id, m);
-    for (const id of typedModels) if (!byId.has(id)) byId.set(id, { id, name: id });
+    for (const id of typedModels[effectiveProviderId] ?? []) if (!byId.has(id)) byId.set(id, { id, name: id });
     return [...byId.values()];
-  }, [savedModels, liveModels, typedModels]);
+  }, [savedModels, liveModels, typedModels, effectiveProviderId]);
   const effectiveModel =
     model && modelOptions.some((m) => m.id === model)
       ? model
       : (selectedProvider?.default_model ?? savedModels[0] ?? liveModels?.[0]?.id ?? "");
-  const chooseModel = useCallback((id: string) => {
-    setTypedModels((prev) => (prev.includes(id) ? prev : [...prev, id]));
-    setModel(id);
-  }, []);
+  const chooseModel = useCallback(
+    (id: string) => {
+      setTypedModels((prev) => {
+        const ids = prev[effectiveProviderId] ?? [];
+        return ids.includes(id) ? prev : { ...prev, [effectiveProviderId]: [...ids, id] };
+      });
+      setModel(id);
+    },
+    [effectiveProviderId],
+  );
 
   const aiDisabled = settings ? !settings.enabled : false;
   const noProviders = providers.length === 0;
@@ -599,6 +600,9 @@ export function AiChatPanel({
                         setProviderId(v);
                         setModel("");
                       }}
+                      modelsLoading={modelsLoading}
+                      modelsError={modelsError}
+                      onRetryModels={() => void retryModels()}
                       models={modelOptions}
                       model={effectiveModel}
                       onModelChange={chooseModel}
@@ -726,164 +730,5 @@ function EmptyState({
         ))}
       </Suggestions>
     </Flex>
-  );
-}
-
-/** The model name without its vendor prefix — `anthropic/sonnet-4` → `sonnet-4`. */
-function shortModelName(model: string): string {
-  return model.split("/").slice(-1)[0] || model;
-}
-
-/**
- * Everything that shapes the next send, behind one pill in the composer
- * toolbar: the approval mode, the provider and the model.
- *
- * The pill's face is the two facts worth reading at a glance — the mode and
- * the model — and the popover is where they change. That trade is the point
- * the row it sits in is ~340px wide at the drawer's default, which
- * is not enough for a segmented control plus two selects, and the previous
- * attempt to make them all shrink produced a row of clipped, unreadable
- * controls with the mode's `whitespace-nowrap` labels painting over the
- * model pill beside them.
- *
- * The trigger is a real `<button>` (no `asChild`), so nothing clones it and
- * drops the handler that opens it — the failure mode already recorded on
- * `PromptInputSubmit` below.
- */
-function ComposerSettingsPill({
-  approvalMode,
-  onApprovalModeChange,
-  approvalModeDisabled,
-  autoNote,
-  autoForThisChatOnly,
-  providers,
-  providerId,
-  onProviderChange,
-  models,
-  model,
-  onModelChange,
-}: {
-  approvalMode: AiApprovalMode;
-  /** Takes the raw value: `SegmentedControl` emits `string`, and the panel's
-      handler is what narrows it to a mode. */
-  onApprovalModeChange: (value: string) => void;
-  approvalModeDisabled: boolean;
-  autoNote: boolean;
-  autoForThisChatOnly: boolean;
-  providers: AISettings["providers"];
-  providerId: string;
-  onProviderChange: (id: string) => void;
-  models: AIModel[];
-  model: string;
-  onModelChange: (m: string) => void;
-}) {
-  const t = useTranslations("aiChatPanel");
-  const onlyOneProvider = providers.length <= 1;
-  const shortModel = model ? shortModelName(model) : t("defaultModel");
-  const modeLabel = t(`approvalMode.${approvalMode}`);
-  return (
-    <Popover>
-      {/* `min-w-0` + a truncating label: the pill yields width to Send
-          rather than pushing it off the row. */}
-      <PopoverTrigger
-        className="inline-flex h-7 min-w-0 shrink items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2.5 text-[11px] text-foreground transition-colors hover:bg-muted/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-        aria-label={t("composerSettings.triggerAriaLabel", { mode: modeLabel, model: shortModel })}
-        data-testid="ai-composer-settings"
-      >
-        <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <Text as="span" className="truncate text-[11px]" aria-hidden="true">
-          {modeLabel} ·{" "}
-          <Text as="span" className="font-mono text-[11px]">
-            {shortModel}
-          </Text>
-        </Text>
-      </PopoverTrigger>
-      {/* On the Select layer, not the popover one. The provider Select's
-          list portals into this popover's portal node and is positioned in
-          the root stacking context with --z-select (120); against the
-          popover's own --z-popover (135) it lost by value and opened behind
-          the popover. Sharing the layer, the list wins by coming later in
-          the document. The popover only needs to clear the chat drawer (40)
-          and the mobile header (100) it opens from, not modals. */}
-      <PopoverContent
-        align="start"
-        side="top"
-        className="w-72 p-3"
-        positionerClassName="z-[var(--z-select)]"
-        label={t("composerSettings.popoverLabel")}
-      >
-        <Flex direction="col" gap="3">
-          <Flex direction="col" gap="1.5">
-            {/* Not a <Label>: a radiogroup takes its name from
-                `aria-label` (below), and a <label for> pointing at one
-                names nothing. This is the visible heading only. */}
-            <Text as="span" size="xs" weight="medium" aria-hidden="true">
-              {t("approvalMode.label")}
-            </Text>
-            <SegmentedControl
-              aria-label={t("approvalMode.label")}
-              size="sm"
-              layout="grid"
-              columns="2"
-              value={approvalMode}
-              onValueChange={onApprovalModeChange}
-              disabled={approvalModeDisabled}
-              data-testid="ai-approval-mode"
-            >
-              <SegmentedControlItem value="ask">{t("approvalMode.ask")}</SegmentedControlItem>
-              <SegmentedControlItem value="auto">{t("approvalMode.auto")}</SegmentedControlItem>
-            </SegmentedControl>
-            {/* What Auto means, shown where Auto is chosen. */}
-            {autoNote ? (
-              <Text size="xs" tone="muted" data-testid="ai-approval-mode-note">
-                {t("approvalMode.autoNote")}
-              </Text>
-            ) : null}
-            {autoForThisChatOnly ? (
-              <Text size="xs" tone="muted" data-testid="ai-approval-mode-this-chat">
-                {t("approvalMode.thisChat")}
-              </Text>
-            ) : null}
-          </Flex>
-
-          {!onlyOneProvider && (
-            <Flex direction="col" gap="1.5">
-              <Label htmlFor="ai-provider-select" className="text-xs">
-                {t("providerSelectAriaLabel")}
-              </Label>
-              <Select value={providerId} onValueChange={onProviderChange}>
-                <SelectTrigger id="ai-provider-select" className="h-8 text-xs">
-                  <SelectValue placeholder={t("defaultModel")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {providers.map((p) => (
-                    <SelectItem key={p.id} value={p.id} className="text-xs">
-                      {p.name || p.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Flex>
-          )}
-
-          <Flex direction="col" gap="1.5">
-            <Label htmlFor="ai-model-select" className="text-xs">
-              {t("modelSelectAriaLabel")}
-            </Label>
-            {/* Searchable: a signed-in OpenRouter lists hundreds. The list
-                stays inside the popover so picking from it does not count
-                as a click outside, which would close the popover. */}
-            <ModelCombobox
-              id="ai-model-select"
-              models={models}
-              value={model}
-              onValueChange={onModelChange}
-              portal={false}
-              className="h-8 font-mono text-xs"
-            />
-          </Flex>
-        </Flex>
-      </PopoverContent>
-    </Popover>
   );
 }

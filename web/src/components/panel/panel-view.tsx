@@ -173,6 +173,7 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
         // Rich cells when the frame has them (an output that took colour);
         // FiestaUI's renderers prefer them over the message.
         cells={frame.data?.cells as BoardCellGrid | undefined}
+        layers={frame.data?.layers}
         // The render style's model: an LED panel draws as an LED matrix. A
         // server that predates render_style sends none — split-flap, as ever.
         model={resolveBoardModel(config.data)}
