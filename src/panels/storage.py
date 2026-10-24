@@ -196,6 +196,10 @@ class PanelStorage:
                     panel_data.pop("matrix_sizing", None)
                 if panel_data.get("matrix_pitch_mm") == 6.0:
                     panel_data.pop("matrix_pitch_mm", None)
+                if panel_data.get("matrix_layout") == "legacy":
+                    panel_data.pop("matrix_layout", None)
+                if panel_data.get("matrix_font") == "5x7":
+                    panel_data.pop("matrix_font", None)
                 for key in ("created_at", "updated_at"):
                     if isinstance(panel_data.get(key), datetime):
                         panel_data[key] = panel_data[key].isoformat()
@@ -313,6 +317,12 @@ class PanelStorage:
 
         logger.info(f"Deleted panel: {panel_id}")
         return True
+
+    def restore(self, panel: Panel) -> None:
+        """Restore an exact pre-operation record, including its timestamps."""
+        with self._store.lock:
+            self._panels[panel.id] = panel.model_copy(deep=True)
+            self._save()
 
     def exists(self, panel_id: str) -> bool:
         return panel_id in self._panels

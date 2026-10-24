@@ -45,9 +45,12 @@ from src.pages.service import find_incompatible_board_references
 from src.settings.service import get_settings_service
 
 from .models import (
+    Panel,
     PanelCreate,
     PanelDeleteResponse,
     PanelFrameResponse,
+    PanelGeometryRequest,
+    PanelGeometryResponse,
     PanelListResponse,
     PanelPublicResponse,
     PanelResponse,
@@ -124,11 +127,14 @@ async def create_panel(data: PanelCreate):
     virtual board is added first; if panel creation then fails the board
     is rolled back so no orphan is left behind.
     """
-    from .autofit import compute_autofit_grid
+    from .geometry import PanelGeometryError, resolve_panel_geometry
 
     settings_service = get_settings_service()
     board_id = str(uuid.uuid4())
-    grid = compute_autofit_grid(data.screen_diagonal_inches, data.screen_aspect_w, data.screen_aspect_h)
+    try:
+        grid = resolve_panel_geometry(Panel(**data.model_dump(), board_id=board_id, matrix_layout="screen")).grid
+    except PanelGeometryError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     settings_service.add_board(
         {
             "id": board_id,
@@ -139,7 +145,6 @@ async def create_panel(data: PanelCreate):
             "name": f"{data.name} (Panel)",
         }
     )
-    reinitialize_board_clients()
     panel_service = get_panel_service()
     try:
         panel = panel_service.create_panel(data, board_id=board_id)
@@ -148,56 +153,118 @@ async def create_panel(data: PanelCreate):
             settings_service.remove_board(board_id)
             reinitialize_board_clients()
         raise
+    reinitialize_board_clients()
     board = _find_board(board_id)
     return PanelResponse.model_validate({**panel.model_dump(mode="json"), **_panel_board_fields(board)})
 
 
+@router.post("/panels/geometry", response_model=PanelGeometryResponse, responses=errors(404, 422))
+async def preview_panel_geometry(data: PanelGeometryRequest):
+    """Resolve proposed sizing without changing any settings or content."""
+    from .geometry import PanelGeometryError, resolve_panel_geometry
+
+    saved = get_panel_service().get_panel(data.panel_id) if data.panel_id else None
+    if data.panel_id and saved is None:
+        raise HTTPException(status_code=404, detail="Panel not found")
+    panel = Panel.model_validate(
+        {
+            **(saved.model_dump() if saved else {"name": "Preview", "board_id": "preview"}),
+            **data.model_dump(exclude={"panel_id"}),
+        }
+    )
+    board = _find_board(saved.board_id) if saved else None
+    try:
+        geometry = resolve_panel_geometry(panel, board)
+    except PanelGeometryError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {
+        "rows": geometry.rows,
+        "cols": geometry.cols,
+        "device_model_spec": geometry.model,
+        "geometry_key": geometry.key,
+    }
+
+
 @router.patch("/panels/{panel_id}", response_model=PanelUpdateResponse, responses=errors(404, 422))
 async def update_panel(panel_id: str, data: PanelUpdate):
-    """Update a panel's display configuration.
-
-    A screen-size change re-fits the virtual board's grid: content keeps
-    flowing at the new dimensions on the next send.
-    """
-    from .autofit import compute_autofit_grid
+    """Validate and apply the style's geometry, optionally copying content."""
+    from .content_resize import panel_content_resize
+    from .geometry import PanelGeometryError, resolve_panel_geometry
 
     panel_service = get_panel_service()
-    previous = panel_service.get_panel(panel_id)
-    previous_style = previous.render_style if previous is not None else None
-    panel = panel_service.update_panel(panel_id, data)
-    if panel is None:
-        raise HTTPException(status_code=404, detail="Panel not found")
-
-    incompatible_references: list[dict] | None = None
-    rebuild = panel.render_style != previous_style
-    updates = data.model_dump(exclude_unset=True)
-    screen_changed = any(
-        updates.get(field) is not None for field in ("screen_diagonal_inches", "screen_aspect_w", "screen_aspect_h")
-    )
-    if screen_changed:
-        settings_service = get_settings_service()
+    settings_service = get_settings_service()
+    # Use the same lock order as content copying; no await occurs while held.
+    with settings_service.lock, panel_service.storage.lock:
+        previous = panel_service.get_panel(panel_id)
+        if previous is None:
+            raise HTTPException(status_code=404, detail="Panel not found")
+        updates = {
+            k: v
+            for k, v in data.model_dump(exclude_unset=True, exclude={"copy_content"}).items()
+            if v is not None or k == "matrix_sizing"
+        }
+        if (
+            updates.get("render_style") == "led_matrix"
+            and previous.render_style != "led_matrix"
+            and updates.get("matrix_layout", previous.matrix_layout) == "screen"
+            and "matrix_sizing" not in updates
+        ):
+            updates["matrix_sizing"] = "fill_tv"
+            data = data.model_copy(update={"matrix_sizing": "fill_tv"})
+        prospective = Panel.model_validate({**previous.model_dump(), **updates})
         boards = [dict(b) for b in (settings_service.get_board_settings().boards or [])]
-        target = next((b for b in boards if b.get("id") == panel.board_id), None)
-        if target is not None and resolve_output_id(target) == FIESTAPANEL:
-            grid = compute_autofit_grid(panel.screen_diagonal_inches, panel.screen_aspect_w, panel.screen_aspect_h)
-            if not board_matches_grid(target, grid):
-                fit_board_to_grid(target, grid)
-                settings_service.set_boards(boards)
-                # Drop the old-shape frame BEFORE rebuilding the client. The
-                # panel frame refuses a frame whose shape no longer matches
-                # the board (core's stale-shape guard), but the
-                # `expected_characters` half of /board/current-message is the
-                # raw last-sent grid. Releasing the board's runtime frames
-                # clears the displayed and last-sent frames together.
-                release_board_frames(panel.board_id)
-                rebuild = True
-                # The grid changed shape: pages authored for the old grid stay
-                # referenced but can no longer render here. Warn-only, exactly
-                # like PUT /pages/{id} after a size retarget (issue #1250).
-                incompatible_references = find_incompatible_board_references(target)
-
-    if rebuild:
-        reinitialize_board_clients()
+        board = next((b for b in boards if b.get("id") == previous.board_id), None)
+        original_board = dict(board) if board else None
+        try:
+            before_geometry = resolve_panel_geometry(previous, board)
+            geometry = resolve_panel_geometry(prospective, board)
+        except PanelGeometryError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        resized = (
+            board is not None
+            and resolve_output_id(board) == FIESTAPANEL
+            and not board_matches_grid(board, geometry.grid)
+        )
+        geometry_changed = before_geometry.key != geometry.key
+        if geometry_changed and prospective.is_display != previous.is_display:
+            raise HTTPException(
+                status_code=422, detail="Save the layout change before changing the display-output selection."
+            )
+        rebuild = geometry_changed or previous.render_style != prospective.render_style
+        copies = None
+        copying = bool(resized and data.copy_content)
+        try:
+            with panel_content_resize(
+                board or {}, geometry.grid, copying, prospective_panel=prospective.model_dump(mode="json")
+            ) as copies:
+                panel = panel_service.update_panel(panel_id, data)
+                if resized:
+                    fit_board_to_grid(board, geometry.grid)
+                    settings_service.set_boards(boards)
+        except Exception as exc:
+            # Storage may have changed in memory before a failed disk write.
+            # Copying owns rollback and its durable recovery journal; don't
+            # overwrite an uncertain rollback with a second recovery attempt.
+            if not copying:
+                panel_service.storage.restore(previous)
+            if resized and not copying:
+                # Content-copy rollback restores its settings snapshot. Without
+                # copying, restore just this board from the original dimensions.
+                restored = [dict(b) for b in settings_service.get_board_settings().boards or []]
+                old = next((b for b in restored if b.get("id") == previous.board_id), None)
+                if old is not None:
+                    old.clear()
+                    old.update(original_board)
+                    settings_service.set_boards(restored)
+            if isinstance(exc, ValueError):
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise
+        assert panel is not None
+        if geometry_changed:
+            release_board_frames(previous.board_id)
+        incompatible_references = find_incompatible_board_references(board) if resized else None
+        if rebuild:
+            reinitialize_board_clients()
 
     board = _find_board(panel.board_id)
     return PanelUpdateResponse.model_validate(
@@ -205,6 +272,7 @@ async def update_panel(panel_id: str, data: PanelUpdate):
             **panel.model_dump(mode="json"),
             **_panel_board_fields(board),
             "incompatible_references": incompatible_references,
+            "content_copies": copies if data.copy_content else None,
         }
     )
 
@@ -243,12 +311,20 @@ async def get_panel_public(panel_id: str):
     if panel is None:
         raise HTTPException(status_code=404, detail=_panel_not_found_detail(panel_id))
     out = panel.model_dump(mode="json")
-    from src.fiestaui import fiestapanel_model
+    from .geometry import resolve_panel_geometry
 
     board = _find_board(panel.board_id)
     fields = _panel_board_fields(board)
-    model = fiestapanel_model(panel.render_style, fields["rows"], fields["cols"])
-    out.update({"device_model": model["id"], "device_model_spec": model})
+    geometry = resolve_panel_geometry(panel, board)
+    model = geometry.model
+    out.update(
+        {
+            "device_model": model["id"],
+            "device_model_spec": model,
+            "geometry_key": geometry.key,
+            "geometry_error": geometry.error,
+        }
+    )
     # One source for the board-derived block, so the viewer and the app can
     # never be told different geometry for the same panel.
     out.update(fields)
@@ -288,6 +364,9 @@ async def get_panel_frame(panel_id: str):
         raise HTTPException(status_code=404, detail=_panel_not_found_detail(panel_id))
     board = _find_board(panel.board_id)
     dims = _board_dims(board) if board is not None else resolve_dimensions("flagship")
+    from .geometry import resolve_panel_geometry
+
+    geometry_key = resolve_panel_geometry(panel, board).key
 
     service = get_service()
     rt = service.runtime_for(panel.board_id) if service is not None else None
@@ -319,6 +398,7 @@ async def get_panel_frame(panel_id: str):
             rows=dims.rows,
             cols=dims.cols,
             updated_at=updated_at,
+            **({"geometry_key": geometry_key} if panel.render_style == "led_matrix" else {}),
         )
     # `cells` is set only for a frame that has rich cells, so every other
     # board's response is byte-for-byte what it was (exclude_unset).
@@ -331,4 +411,5 @@ async def get_panel_frame(panel_id: str):
         rows=len(characters),
         cols=len(characters[0]) if characters else 0,
         updated_at=updated_at,
+        **({"geometry_key": geometry_key} if panel.render_style == "led_matrix" else {}),
     )

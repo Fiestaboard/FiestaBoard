@@ -53,6 +53,10 @@ class PanelService:
             screen_diagonal_inches=data.screen_diagonal_inches,
             screen_aspect_w=data.screen_aspect_w,
             screen_aspect_h=data.screen_aspect_h,
+            render_style=data.render_style,
+            matrix_layout="screen",
+            matrix_font=data.matrix_font,
+            matrix_sizing="fill_tv" if data.render_style == "led_matrix" else None,
         )
         return self.storage.create(panel)
 
@@ -62,7 +66,7 @@ class PanelService:
         Designating a panel as the local display clears the role from any
         other holder first — exactly one panel may serve /p/display.
         """
-        updates = data.model_dump(exclude_unset=True)
+        updates = data.model_dump(exclude_unset=True, exclude={"copy_content"})
         if updates.get("is_display"):
             # Confirm the target exists BEFORE demoting the current holder:
             # a 404-ing request (stale tab, deleted panel) must not blank the

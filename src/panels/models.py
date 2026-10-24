@@ -28,6 +28,8 @@ BackdropStyle = Literal["wall", "dark", "none"]
 # ``fiestapanel_<style>`` (src.fiestaui.fiestapanel_device_models).
 RenderStyle = Literal["split_flap", "led_matrix"]
 MatrixSizing = Literal["fill_tv", "fit_panel", "true_size"]
+MatrixLayout = Literal["legacy", "screen"]
+MatrixFont = Literal["5x7", "3x5"]
 
 
 def _generate_panel_id() -> str:
@@ -81,6 +83,9 @@ class Panel(BaseModel):
     # None preserves legacy viewers and the native TV's local preference.
     matrix_sizing: MatrixSizing | None = None
     matrix_pitch_mm: float = Field(default=6.0, ge=1.0, le=20.0, allow_inf_nan=False)
+    # Missing on stored panels: keep authored pages until an explicit conversion.
+    matrix_layout: MatrixLayout = "legacy"
+    matrix_font: MatrixFont = "5x7"
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -96,6 +101,8 @@ class PanelCreate(BaseModel):
     screen_diagonal_inches: float = Field(default=55.0, ge=3.0, le=200.0)
     screen_aspect_w: float = Field(default=16.0, ge=1.0, le=100.0)
     screen_aspect_h: float = Field(default=9.0, ge=1.0, le=100.0)
+    render_style: RenderStyle = "split_flap"
+    matrix_font: MatrixFont = "5x7"
 
 
 class PanelUpdate(BaseModel):
@@ -113,6 +120,30 @@ class PanelUpdate(BaseModel):
     render_style: RenderStyle | None = None
     matrix_sizing: MatrixSizing | None = None
     matrix_pitch_mm: float | None = Field(default=None, ge=1.0, le=20.0, allow_inf_nan=False)
+    matrix_layout: MatrixLayout | None = None
+    matrix_font: MatrixFont | None = None
+    copy_content: bool = False
+
+
+class PanelGeometryRequest(BaseModel):
+    """A read-only settings preview, optionally based on a saved panel."""
+
+    panel_id: str | None = None
+    render_style: RenderStyle = "split_flap"
+    matrix_layout: MatrixLayout = "screen"
+    matrix_font: MatrixFont = "5x7"
+    screen_diagonal_inches: float = Field(default=55.0, ge=3.0, le=200.0, allow_inf_nan=False)
+    screen_aspect_w: float = Field(default=16.0, ge=1.0, le=100.0, allow_inf_nan=False)
+    screen_aspect_h: float = Field(default=9.0, ge=1.0, le=100.0, allow_inf_nan=False)
+
+
+class PanelGeometryResponse(BaseModel):
+    """Resolved geometry shared by saved panels and unsaved previews."""
+
+    rows: int
+    cols: int
+    device_model_spec: dict
+    geometry_key: str
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +208,7 @@ class PanelUpdateResponse(PanelResponse):
     """
 
     incompatible_references: list[IncompatiblePanelReference] | None = None
+    content_copies: dict[str, Any] | None = None
 
 
 class PanelDeleteResponse(BaseModel):
@@ -202,6 +234,8 @@ class PanelPublicResponse(PanelResponse):
     #: Present even for an orphaned panel -- the style is the panel's.
     device_model: str | None = None
     device_model_spec: dict[str, Any] | None = None
+    geometry_key: str | None = None
+    geometry_error: str | None = None
 
 
 class PanelFrameResponse(BaseModel):
@@ -229,3 +263,4 @@ class PanelFrameResponse(BaseModel):
     rows: int
     cols: int
     updated_at: str | None = None
+    geometry_key: str | None = None

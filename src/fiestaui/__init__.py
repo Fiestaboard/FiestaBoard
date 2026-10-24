@@ -95,17 +95,18 @@ def fiestapanel_device_models() -> Mapping[str, Mapping[str, Any]]:
 
 
 def fiestapanel_model(render_style: str, rows: int | None = None, cols: int | None = None) -> dict[str, Any]:
-    """Panel model with enough pixels for its entire character grid.
+    """Legacy panel model with exactly its authored character grid.
 
-    Keep the original minimum face for existing panels. Each 5x7 glyph
-    occupies a 6x8 cell including its gutter; never clip a resized board.
-    The cached vendored document remains unchanged.
+    The fixture's pixel size is an example, not a minimum. Keeping it as a
+    minimum creates phantom columns beside smaller pages. The cached fixture
+    remains unchanged; screen-layout panels resolve their own surface.
     """
     model = dict(fiestapanel_device_models()[render_style])
     if render_style == "led_matrix" and rows and cols:
+        font = builtin_led_fonts()[model["font"]]
         model["geometry"] = {
             "kind": "pixels",
-            "width": max(model["geometry"]["width"], cols * 6),
-            "height": max(model["geometry"]["height"], rows * 8),
+            "width": cols * (font["glyphWidth"] + font.get("spacingX", 1)),
+            "height": rows * (font["glyphHeight"] + font.get("spacingY", 1)),
         }
     return model

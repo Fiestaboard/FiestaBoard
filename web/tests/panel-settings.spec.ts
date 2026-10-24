@@ -160,6 +160,38 @@ test.describe("FiestaPanel settings flow", () => {
     expect(refreshed.message).toContain("AFTER RESIZE");
   });
 
+  test("converts a legacy LED panel with the server preview and an explicit content-copy choice", async ({ page }) => {
+    const panel = await createPanelViaApi("E2E LED Layout");
+    const switched = await fetch(`${API_URL}/panels/${panel.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ render_style: "led_matrix", matrix_layout: "legacy" }),
+    });
+    expect(switched.ok).toBe(true);
+    await openDisplay(page, "E2E LED Layout (Panel)");
+    await page.getByRole("button", { name: "Edit panel" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("button", { name: "Keep existing grid" })).toHaveAttribute("aria-pressed", "true");
+    await dialog.getByRole("button", { name: "Fit screen shape" }).click();
+    await expect(dialog.getByText("32 × 13 characters", { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "Small (3 × 5)" }).click();
+    await expect(dialog.getByText("48 × 18 characters", { exact: true })).toBeVisible();
+    await expect(dialog.locator('[data-slot="led-matrix-display"]')).toHaveAttribute("data-matrix-height", "108");
+    await expect(dialog.getByRole("checkbox", { name: "Copy this panel’s content to the new grid" })).not.toBeChecked();
+    await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    const config = await (await fetch(`${API_URL}/panel/${panel.id}`)).json();
+    expect(config).toMatchObject({
+      rows: 18,
+      cols: 48,
+      matrix_layout: "screen",
+      matrix_font: "3x5",
+      matrix_sizing: "fill_tv",
+    });
+    expect(config.device_model_spec.geometry).toMatchObject({ width: 192, height: 108 });
+    expect(config.device_model_spec.charset).toBe("led_3x5");
+  });
+
   test("deleting a panel removes its display", async ({ page }) => {
     await createPanelViaApi("E2E Doomed Panel");
 

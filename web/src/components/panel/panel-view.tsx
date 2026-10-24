@@ -8,6 +8,7 @@ import { usePanelConfig, usePanelFrame } from "@/hooks/use-panel";
 import { useTranslations } from "@/i18n/translations";
 import { resolveBoardModel } from "@/lib/device-preview";
 import { isInDimWindow, PANEL_DIM_LEVEL } from "@/lib/panel-dim";
+import { compatiblePanelFrame } from "@/lib/panel-frame";
 
 interface PanelViewProps {
   panelId: string;
@@ -163,17 +164,24 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
         </Text>
       </Box>
     );
+  } else if (config.data?.geometry_error) {
+    content = (
+      <Text role="alert" className="max-w-lg px-6 text-center text-neutral-400">
+        {t("geometryUnsupported")}
+      </Text>
+    );
   } else if (config.data) {
+    const compatibleFrame = compatiblePanelFrame(config.data, frame.data);
     const rows = config.data.rows ?? 6;
     const cols = config.data.cols ?? 22;
     const deviceType = config.data.device_type ?? "flagship";
     content = (
       <PanelBoard
-        message={frame.data?.message ?? null}
+        message={compatibleFrame?.message ?? null}
         // Rich cells when the frame has them (an output that took colour);
         // FiestaUI's renderers prefer them over the message.
-        cells={frame.data?.cells as BoardCellGrid | undefined}
-        layers={frame.data?.layers}
+        cells={compatibleFrame?.cells as BoardCellGrid | undefined}
+        layers={compatibleFrame?.layers}
         // The render style's model: an LED panel draws as an LED matrix. A
         // server that predates render_style sends none — split-flap, as ever.
         model={resolveBoardModel(config.data)}

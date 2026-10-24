@@ -1044,6 +1044,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/panels/geometry",
+      "methods": [
+        "POST"
+      ],
+      "name": "preview_panel_geometry",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/panels/{panel_id}",
       "methods": [
         "DELETE"

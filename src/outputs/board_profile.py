@@ -35,7 +35,7 @@ import logging
 from collections.abc import Mapping
 from typing import Any, NamedTuple
 
-from src.fiestaui import builtin_device_models, fiestapanel_device_models, fiestapanel_model
+from src.fiestaui import builtin_device_models, fiestapanel_model
 from src.led.charsets import BUILTIN_CHARACTER_SETS, materialize_character_set
 from src.led.matrix import LedLayoutChoice, layout_policy_for_model, led_layout_options_for_model, model_with_led_font
 
@@ -113,7 +113,8 @@ def _panel_render_style(board: Mapping[str, Any]) -> str:
 
 
 def _fiestapanel(board: Mapping[str, Any]) -> BoardProfile:
-    model = fiestapanel_device_models()[_panel_render_style(board)]
+    model = board_model_spec(board)
+    assert model is not None
     if model.get("technology") == "split_flap":
         # The flaps a panel draws carry the board's code-62 glyph, as a
         # Flagship's do (BoardInstance.effective_code62_glyph).
@@ -145,7 +146,15 @@ def board_model_spec(board: Mapping[str, Any]) -> dict | None:
         return None
     if output_id == FIESTAPANEL:
         from src.devices import dimensions_of
+        from src.panels.geometry import resolve_panel_geometry
+        from src.panels.service import get_panel_service
 
+        try:
+            panel = get_panel_service().get_panel_by_board_id(board.get("id"))
+        except Exception:
+            panel = None
+        if panel is not None:
+            return resolve_panel_geometry(panel, dict(board)).model
         dims = dimensions_of(dict(board))
         return fiestapanel_model(_panel_render_style(board), dims.rows, dims.cols)
     model = board_device_model(board)
@@ -334,8 +343,7 @@ def board_led_layout(board: Mapping[str, Any]) -> dict[str, Any] | None:
         return None
     config: Mapping[str, Any] | None = None
     if output_id == FIESTAPANEL:
-        # A panel offers no LED layout settings: its model's defaults.
-        model: Mapping[str, Any] | None = fiestapanel_device_models()[_panel_render_style(board)]
+        model: Mapping[str, Any] | None = board_model_spec(board)
     else:
         model = board_device_model(board)
         raw = board.get("output_config")

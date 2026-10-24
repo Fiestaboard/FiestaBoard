@@ -77,6 +77,9 @@ export type PanelBackdrop = "wall" | "dark" | "none";
  * setting existed, and the default) or an LED matrix. Each style is one device
  * model FiestaBoard declares, `fiestapanel_split_flap` / `fiestapanel_led_matrix`.
  */
+export type MatrixLayout = "legacy" | "screen";
+export type MatrixFont = "5x7" | "3x5";
+
 export type MatrixSizing = "fill_tv" | "fit_panel" | "true_size";
 
 export type PanelRenderStyle = "split_flap" | "led_matrix";
@@ -104,6 +107,8 @@ export interface Panel {
   /** Unset preserves each viewer's existing sizing preference. */
   matrix_sizing?: MatrixSizing | null;
   matrix_pitch_mm?: number;
+  matrix_layout?: MatrixLayout;
+  matrix_font?: MatrixFont;
   created_at: string;
   updated_at: string;
   // Attached by the API from the panel's virtual board (null/true when the
@@ -131,6 +136,8 @@ export interface PanelCreateRequest {
 }
 
 export interface PanelUpdateRequest {
+  /** Copy referenced content for this board only; never persisted as a setting. */
+  copy_content?: boolean;
   name?: string;
   screen_diagonal_inches?: number;
   screen_aspect_w?: number;
@@ -144,6 +151,8 @@ export interface PanelUpdateRequest {
   /** Unset preserves each viewer's existing sizing preference. */
   matrix_sizing?: MatrixSizing | null;
   matrix_pitch_mm?: number;
+  matrix_layout?: MatrixLayout;
+  matrix_font?: MatrixFont;
 }
 
 /**
@@ -166,8 +175,27 @@ export interface PanelUpdateResult extends Panel {
   incompatible_references: PanelIncompatibleReference[] | null;
 }
 
+export interface PanelGeometryRequest {
+  panel_id?: string;
+  render_style: PanelRenderStyle;
+  screen_diagonal_inches: number;
+  screen_aspect_w: number;
+  screen_aspect_h: number;
+  matrix_layout: MatrixLayout;
+  matrix_font: MatrixFont;
+}
+
+export interface PanelGeometry {
+  rows: number;
+  cols: number;
+  device_model_spec: DeviceModel;
+  geometry_key: string;
+}
+
 // Public viewer config served by GET /panel/{id} (no auth).
 export interface PanelPublicConfig extends Panel {
+  geometry_key?: string;
+  geometry_error?: string | null;
   board_color: "black" | "white" | null;
   code62_glyph: "degree" | "heart" | null;
   /** The device model the render style draws as (`fiestapanel_split_flap` / `fiestapanel_led_matrix`). */
@@ -189,6 +217,7 @@ export interface HdmiKioskStatus {
 
 // Public frame served by GET /panel/{id}/frame (no auth).
 export interface PanelFrame {
+  geometry_key?: string;
   characters: number[][] | null;
   /**
    * The same frame as rich cells (FiestaUI `BoardToken[][]`), present only
@@ -587,6 +616,12 @@ export const boardsApi = {
       body: JSON.stringify({ paused }),
     }),
   // ---- FiestaPanel ----
+  resolvePanelGeometry: (data: PanelGeometryRequest) =>
+    fetchApi<PanelGeometry>("/panels/geometry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
   listPanels: () => fetchApi<{ panels: Panel[]; total: number }>("/panels"),
   // 201 with the bare panel (Phase 2 slice 8; was 200 + { status, panel }).
   createPanel: (data: PanelCreateRequest) =>

@@ -12,8 +12,10 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useCollections, usePages } from "@/hooks/use-board";
 import type { Panel } from "@/lib/api";
 
+import { FIESTAPANEL_LED_MATRIX } from "./mocks/fiestapanel-models";
 import { server } from "./mocks/server";
 
 vi.mock("sonner", () => ({
@@ -68,9 +70,121 @@ async function openEditDialog(user: ReturnType<typeof userEvent.setup>) {
   return screen.findByRole("dialog");
 }
 
+function ContentNames() {
+  const pages = usePages();
+  const collections = useCollections();
+  return (
+    <>
+      {pages.data?.pages.map((page) => (
+        <span key={page.id}>{page.name}</span>
+      ))}
+      {collections.data?.collections.map((collection) => (
+        <span key={collection.id}>{collection.name}</span>
+      ))}
+    </>
+  );
+}
+
 describe("FiestaPanelSettings — edit dialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it.each([false, true])("converts legacy LED geometry explicitly with copy choice %s", async (copyContent) => {
+    mockList([{ ...PANEL, render_style: "led_matrix", matrix_sizing: null }]);
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.post("/api/panels/geometry", async ({ request }) => {
+        const draft = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({
+          rows: draft.matrix_layout === "screen" ? 13 : 12,
+          cols: draft.matrix_layout === "screen" ? 32 : 30,
+          geometry_key: String(draft.matrix_layout),
+          device_model_spec: FIESTAPANEL_LED_MATRIX,
+        });
+      }),
+      http.patch("/api/panels/abc123def456", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...PANEL, ...body });
+      }),
+    );
+    server.use(
+      http.get("/api/v1/pages", () => HttpResponse.json({ pages: [{ id: "copied-page", name: "Copied page" }] })),
+      http.get("/api/v1/collections", () =>
+        HttpResponse.json({ collections: [{ id: "copied-collection", name: "Copied collection" }] }),
+      ),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(["pages"], { pages: [] });
+    client.setQueryData(["collections"], { collections: [] });
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={client}>
+        <FiestaPanelSettings />
+        <ContentNames />
+      </QueryClientProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Edit panel" }));
+    expect(screen.getByRole("button", { name: "Keep existing grid" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: "Small (3 × 5)" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Fit screen shape" }));
+    expect(await screen.findByText("32 × 13 characters")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fill TV" })).toHaveAttribute("aria-pressed", "true");
+    const copy = screen.getByRole("checkbox", { name: "Copy this panel’s content to the new grid" });
+    expect(copy).not.toBeChecked();
+    if (copyContent) await user.click(copy);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(body).toMatchObject({ matrix_layout: "screen", matrix_sizing: "fill_tv" }));
+    if (copyContent) {
+      expect(body).toHaveProperty("copy_content", true);
+      expect(await screen.findByText("Copied page")).toBeInTheDocument();
+      expect(await screen.findByText("Copied collection")).toBeInTheDocument();
+    } else expect(body).not.toHaveProperty("copy_content");
+  });
+
+  it("uses server text-size geometry and warns before copying into a smaller grid", async () => {
+    mockList([
+      { ...PANEL, render_style: "led_matrix", matrix_layout: "screen", matrix_font: "3x5", rows: 18, cols: 48 },
+    ]);
+    server.use(
+      http.post("/api/panels/geometry", async ({ request }) => {
+        const draft = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({
+          rows: draft.matrix_font === "3x5" ? 18 : 13,
+          cols: draft.matrix_font === "3x5" ? 48 : 32,
+          geometry_key: String(draft.matrix_font),
+          device_model_spec: FIESTAPANEL_LED_MATRIX,
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    await openEditDialog(user);
+    expect(screen.queryByLabelText("Custom (inches)")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Large (5 × 7)" }));
+    expect(await screen.findByText("32 × 13 characters")).toBeInTheDocument();
+    expect(screen.getByText(/Content outside the new grid will be cropped/)).toBeInTheDocument();
+  });
+
+  it("shows a useful old-server fallback and blocks unsupported screen conversion", async () => {
+    mockList([{ ...PANEL, render_style: "led_matrix" }]);
+    const user = userEvent.setup();
+    await openEditDialog(user);
+    expect(await screen.findByText(/Draft geometry is unavailable on this server/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Fit screen shape" }));
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("reports unsupported geometry before saving", async () => {
+    mockList([{ ...PANEL, render_style: "led_matrix", matrix_layout: "screen" }]);
+    server.use(
+      http.post("/api/panels/geometry", () =>
+        HttpResponse.json({ detail: "Screen aspect is too extreme" }, { status: 422 }),
+      ),
+    );
+    await openEditDialog(userEvent.setup());
+    expect(await screen.findByText("Screen aspect is too extreme")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("seeds the editor from the panel being edited", async () => {
@@ -165,18 +279,32 @@ describe("FiestaPanelSettings — edit dialog", () => {
     await waitFor(() => expect(body).toEqual({ name: "Renamed" }));
   });
 
-  it("previews matrix sizing, spacing, and resized geometry before saving", async () => {
+  it("previews server geometry without resizing legacy LED content when inches change", async () => {
     mockList([{ ...PANEL, render_style: "led_matrix", matrix_sizing: "fit_panel" }]);
+    server.use(
+      http.post("/api/panels/geometry", () =>
+        HttpResponse.json({
+          rows: 12,
+          cols: 30,
+          geometry_key: "legacy",
+          device_model_spec: {
+            ...FIESTAPANEL_LED_MATRIX,
+            geometry: { kind: "pixels", width: 180, height: 96 },
+          },
+        }),
+      ),
+    );
+
     const user = userEvent.setup();
     const dialog = await openEditDialog(user);
-    expect(within(dialog).getByTestId("panel-matrix")).toHaveAttribute("data-sizing", "fit_panel");
+    expect(await within(dialog).findByTestId("panel-matrix")).toHaveAttribute("data-sizing", "fit_panel");
     await user.click(screen.getByRole("button", { name: "True LED size" }));
     fireEvent.change(screen.getByLabelText("LED spacing (mm)"), { target: { value: "5" } });
     await user.click(screen.getByRole("button", { name: '75"' }));
     expect(within(dialog).getByTestId("panel-matrix")).toHaveAttribute("data-sizing", "true_size");
     const matrix = dialog.querySelector('[data-slot="led-matrix-display"]');
-    expect(matrix).toHaveAttribute("data-matrix-width", "240");
-    expect(matrix).toHaveAttribute("data-matrix-height", "128");
+    expect(matrix).toHaveAttribute("data-matrix-width", "180");
+    expect(matrix).toHaveAttribute("data-matrix-height", "96");
     expect(within(dialog).queryByTestId("tv-preview-grid")).not.toBeInTheDocument();
   });
 

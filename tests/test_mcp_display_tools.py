@@ -299,7 +299,7 @@ def test_builtin_fiestapanel_info_resolves_saved_style_and_grid(mcp, output, tmp
 
     panels = PanelService(PanelStorage(str(tmp_path / "panels.json")))
     panel = panels.create_panel(PanelCreate(name="Actual panel"), board_id="builtin-panel")
-    panels.update_panel(panel.id, PanelUpdate(render_style=render_style))
+    panels.update_panel(panel.id, PanelUpdate(render_style=render_style, matrix_layout="legacy"))
     monkeypatch.setattr("src.panels.service._panel_service", panels)
     output.settings.set_boards(
         [

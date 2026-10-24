@@ -21,7 +21,7 @@ def panel_frame():
         "name": "Pixel TV",
         "api_mode": "virtual",
         "device_type": "panel",
-        "grid_rows": 12,
+        "grid_rows": 13,
         "grid_cols": 32,
     }
     panel = get_panel_service().create_panel(PanelCreate(name="Pixel TV"), board_id=board["id"])
@@ -34,7 +34,7 @@ def panel_frame():
     return api, panel, service.get_runtime(board["id"]).output.frames, board
 
 
-def send(frames, layers=(), rows=12, cols=32):
+def send(frames, layers=(), rows=13, cols=32):
     characters = [[0] * cols for _ in range(rows)]
     cells = project_message("", rows, cols, "led_5x7", layers=layers).cells
     frames.record_sent(characters, cells=cells)
@@ -56,7 +56,7 @@ def test_pixel_only_updates_and_removal_reach_tv_frames(panel_frame):
                 "rgba": base64.b64encode(rgba).decode("ascii"),
             }
         ]
-        assert response.json()["characters"] == [[0] * 32 for _ in range(12)]
+        assert response.json()["characters"] == [[0] * 32 for _ in range(13)]
     send(frames)
     assert api.get(url).json()["layers"] == []
 
@@ -120,7 +120,7 @@ def test_page_canvases_reach_the_tv_through_real_output_delivery(panel_frame):
                 "name": "Pixel art",
                 "type": "template",
                 "device_type": "panel",
-                "grid_rows": 12,
+                "grid_rows": 13,
                 "grid_cols": 32,
                 "template": [""],
                 "canvases": canvases,
@@ -141,7 +141,7 @@ def test_page_canvases_reach_the_tv_through_real_output_delivery(panel_frame):
         else:
             assert len(frame["layers"]) == 1
             layer = frame["layers"][0]
-            assert (layer["x"], layer["y"], layer["width"], layer["height"]) == (0, 0, 5, 7)
+            assert (layer["x"], layer["y"], layer["width"], layer["height"]) == (0, 2, 5, 7)
             expected = bytes.fromhex(color[1:] + "ff") * 35
             assert base64.b64decode(layer["rgba"]) == expected
         if previous_characters is not None:
@@ -164,7 +164,7 @@ def test_style_round_trip_rebinds_delivery_but_sizing_keeps_the_runtime(panel_fr
             "name": "Style switch",
             "type": "template",
             "device_type": "panel",
-            "grid_rows": 12,
+            "grid_rows": 13,
             "grid_cols": 32,
             "template": [""],
             "canvases": [
