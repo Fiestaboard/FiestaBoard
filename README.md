@@ -20,9 +20,9 @@
 
 - **Split-flap:** Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas)
 - **LED matrix:** Divoom Pixoo 64
-- **TV:** [FiestaPanel](https://fiestaboard.app/docs/displays/tv) turns any TV or screen with a web browser into a life-size board. Native Apple TV and Android TV apps are coming soon.
+- **TV:** [FiestaPanel](docs/displays/tv.md) turns any TV or screen with a web browser into a life-size board. Native Apple TV and Android TV apps are coming soon.
 
-Every display is an [output plugin](https://fiestaboard.app/docs/development/output-plugins), so support for new hardware can be added without changing FiestaBoard. See [Supported Displays](https://fiestaboard.app/docs/displays).
+Every display is an [output plugin](docs/development/output-plugins.md), so support for new hardware can be added without changing FiestaBoard. See [Supported Displays](docs/displays/index.md).
 
 **Version availability:** Divoom Pixoo 64 support and the output-plugin setup described here target v10 (`next` / beta). Stable v9 does not include them. Native TV apps are coming soon; browser viewing is available.
 

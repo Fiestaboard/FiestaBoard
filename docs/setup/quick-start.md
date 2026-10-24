@@ -9,7 +9,7 @@ keywords: [FiestaBoard quick start, FiestaPi, Docker setup, getting started, Ves
 :::note Version availability
 These instructions describe FiestaBoard v10 (`next` / beta). The output-plugin setup and Divoom Pixoo 64 support are not available in stable v9. Native Apple TV and Android TV apps are coming soon; use a browser for TV viewing.
 
-The installation paths below default to stable v9. For Pixoo or the v10 setup, first install with Docker, then follow [Beta channel](/docs/features/updating#beta-channel) to back up your data and switch the image to `fiestaboard/fiestaboard:beta` before connecting a display. FiestaPi images also start on stable; they do not provide v10 support just by flashing them.
+The installation paths below default to stable v9. For Pixoo or the v10 setup, first install with Docker, then follow [Beta channel](/docs/features/updating#the-beta-channel) to back up your data and switch the image to `fiestaboard/fiestaboard:beta` before connecting a display. FiestaPi images also start on stable; they do not provide v10 support just by flashing them.
 :::
 
 Get FiestaBoard running in under 5 minutes. There are two supported paths:
