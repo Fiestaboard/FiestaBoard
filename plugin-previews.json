@@ -1125,6 +1125,43 @@
         }
       ]
     },
+    "netatmo_weather": {
+      "teaser": "WOHNZIMMER 21.5",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "WOHNZIMMER   21.5\u00b0 45%",
+            "KUECHE       22.1\u00b0 41%",
+            "SCHLAFZIMMER 19.4\u00b0 52%",
+            "DRAUSSEN      8.4\u00b0 78%",
+            "REGEN            6.9MM",
+            "WIND          12KMH SW"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "WOHNZIMMER 21.5",
+            "KUECHE     22.1",
+            "SCHLAFZIMM 19.4"
+          ]
+        },
+        {
+          "device_type": "note_array",
+          "notes_wide": 2,
+          "notes_tall": 2,
+          "rows": [
+            "WOHNZIMMER           21.5C 45%",
+            "KUECHE               22.1C 41%",
+            "SCHLAFZIMMER         19.4C 52%",
+            "DRAUSSEN              8.4C 78%",
+            "REGEN                    6.9MM",
+            "WIND                  12KMH SW"
+          ]
+        }
+      ]
+    },
     "network_speed": {
       "teaser": "DN 250 UP 19",
       "previews": [
@@ -1167,6 +1204,43 @@
             "{65}{65} ON THIS DAY",
             "1969",
             "MOON LANDING"
+          ]
+        }
+      ]
+    },
+    "open_meteo_weather": {
+      "teaser": "WOLKIG 12\u00b0C 71%",
+      "previews": [
+        {
+          "device_type": "note",
+          "rows": [
+            "WOLKIG 12\u00b0C 71%",
+            "{67} 7\u00b0C  {63} 14\u00b0C  ",
+            "M{63}D{66}M{69}D{63}F{66}S{69}S{66} "
+          ]
+        },
+        {
+          "device_type": "flagship",
+          "rows": [
+            "BEWOELKT 12\u00b0C 71%     ",
+            "{67} 7\u00b0C  {63} 14\u00b0C         ",
+            "REGEN 20%   WIND 14KMH",
+            " MO DI MI DO FR SA SO ",
+            " {63}{63} {66}{66} {69}{69} {63}{63} {66}{66} {69}{69} {66}{66} ",
+            " 10 13 12 10 15 14 16 "
+          ]
+        },
+        {
+          "device_type": "note_array",
+          "notes_wide": 2,
+          "notes_tall": 2,
+          "rows": [
+            "BEWOELKT 12\u00b0C 71%             ",
+            "{67} 7\u00b0C  {63} 14\u00b0C                 ",
+            "REGEN 20%           WIND 14KMH",
+            "     MO DI MI DO FR SA SO     ",
+            "     {63}{63} {66}{66} {69}{69} {63}{63} {66}{66} {69}{69} {66}{66}     ",
+            "     10 13 12 10 15 14 16     "
           ]
         }
       ]

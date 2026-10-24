@@ -895,6 +895,28 @@
       "icon": "users",
       "category": "data",
       "added": "2026-10-03"
+    },
+    {
+      "id": "netatmo_weather",
+      "name": "Netatmo Weather",
+      "description": "Live readings from a Netatmo Weather Station: room temperature, CO2, humidity, outdoor conditions, rain and wind, one module per board row.",
+      "repository": "https://github.com/rummeyer/fiestaboard-plugin--netatmo-weather",
+      "author": "Oliver Rummeyer",
+      "fiestaboard_version": ">=8.25.0",
+      "icon": "thermometer",
+      "category": "weather",
+      "added": "2026-10-24"
+    },
+    {
+      "id": "open_meteo_weather",
+      "name": "Open Meteo Weather",
+      "description": "Current weather and the week as one colored tile per day for any coordinates, from Open-Meteo. Built for the Note, adapts to the Flagship. No API key.",
+      "repository": "https://github.com/rummeyer/fiestaboard-plugin--open-meteo-weather",
+      "author": "Oliver Rummeyer",
+      "fiestaboard_version": ">=8.25.0",
+      "icon": "cloud-sun",
+      "category": "weather",
+      "added": "2026-10-24"
     }
   ]
 }
