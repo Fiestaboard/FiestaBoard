@@ -2269,16 +2269,23 @@ class DisplayService:
         outcome = None
         baseline = None
 
+        def can_send():
+            if silence_queue.peek(board_id) != held:
+                return False
+            if settings.is_paused(board_id=board_id) is True or Config.is_silence_mode_active(board_id):
+                return False
+            return getattr(rt.client, "is_virtual", False) is True or settings.should_send_to_board() is not False
+
         def send():
             nonlocal outcome, baseline
-            if silence_queue.peek(board_id) != held:
-                return False, False
-            # A queued worker may start after the user pauses or silence starts.
-            if settings.is_paused(board_id=board_id) is True or Config.is_silence_mode_active(board_id):
-                return False, False
-            if getattr(rt.client, "is_virtual", False) is not True and settings.should_send_to_board() is False:
+            # Avoid rendering an intent already blocked when its worker starts.
+            if not can_send():
                 return False, False
             baseline = self._held_active_baseline(rt, board, is_primary=is_primary)
+            # Fresh rendering may block on plugin data. Recheck the live gates
+            # after that work, immediately before touching hardware.
+            if not can_send():
+                return False, False
             outcome = SendOutcome.of(
                 rt.client.render(
                     grid,

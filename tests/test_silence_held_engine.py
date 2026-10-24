@@ -242,6 +242,38 @@ def test_unavailable_baseline_does_not_block_held_or_swallow_recovery(engine, se
     assert decode_board_rows(sends.clients[bid].render.call_args.args[0])[0].strip() == "HELLO"
 
 
+@pytest.mark.parametrize("change", ["pause", "discard", "replace", "silence", "ui"])
+def test_worker_rechecks_gates_after_baseline_render(engine, sends, monkeypatch, change):
+    bid = sends.boards[0]["id"]
+    old = silence_queue.HeldSend.text("OLD", board_id=bid)
+    newer = silence_queue.HeldSend.text("NEW", board_id=bid)
+    silence_queue.hold(old)
+    sends.clock.set(datetime(2026, 10, 25, 8, tzinfo=UTC))
+    rendered = []
+
+    def preview(*args, **kwargs):
+        rendered.append(True)
+        if change == "pause":
+            sends.settings.set_paused(True, board_id=bid)
+        elif change == "discard":
+            silence_queue.discard(bid)
+        elif change == "replace":
+            silence_queue.hold(newer)
+        elif change == "silence":
+            sends.clock.set(datetime(2026, 10, 25, 22, tzinfo=UTC))
+        else:
+            sends.settings.set_output_target("ui")
+        return SimpleNamespace(available=True, formatted="NORMAL")
+
+    monkeypatch.setattr(get_page_service(), "preview_page", preview)
+    assert drive(engine, sends) is False
+    assert rendered == [True]
+    sends.clients[bid].render.assert_not_called()
+    assert silence_queue.peek(bid) == {"discard": None, "replace": newer}.get(change, old)
+    assert engine.runtimes[bid].last_active_page_content is None
+    assert engine.runtimes[bid].showing_out_of_band is False
+
+
 @pytest.mark.parametrize("change", ["discard", "replace", "pause"])
 def test_worker_rechecks_intent_and_pause_before_pending_delivery(engine, sends, change):
     bid = sends.boards[0]["id"]
