@@ -207,11 +207,24 @@ test.describe("Check for Updates", () => {
     await page.goto("/integrations");
     const toggle = page.getByRole("switch", { name: "Auto-update plugins" });
     await expect(toggle).toBeVisible({ timeout: 15_000 });
-    const label = page.getByText("Auto-update plugins", { exact: true });
-    const [sw, lb] = [await toggle.boundingBox(), await label.boundingBox()];
-    // One line: the label sits beside the switch and does not wrap.
-    expect(lb!.height).toBeLessThan(sw!.height + 8);
-    expect(Math.abs(lb!.y + lb!.height / 2 - (sw!.y + sw!.height / 2))).toBeLessThan(4);
+    // Measure both elements in the same browser frame. Layout transitions can
+    // move the row between separate boundingBox calls and report a false offset.
+    await expect(async () => {
+      const boxes = await toggle.evaluate((control) => {
+        const label = (control as HTMLButtonElement).labels?.[0];
+        if (!label) throw new Error("Auto-update switch has no associated label");
+        const sw = control.getBoundingClientRect();
+        const lb = label.getBoundingClientRect();
+        return {
+          switchHeight: sw.height,
+          labelHeight: lb.height,
+          centerOffset: Math.abs(lb.y + lb.height / 2 - (sw.y + sw.height / 2)),
+        };
+      });
+      // One line: the label sits beside the switch and does not wrap.
+      expect(boxes.labelHeight).toBeLessThan(boxes.switchHeight + 8);
+      expect(boxes.centerOffset).toBeLessThan(4);
+    }).toPass({ timeout: 5_000 });
   });
 
   test("shows Check for updates as the section header's action", async ({ page }) => {

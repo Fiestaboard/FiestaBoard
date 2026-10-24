@@ -1,7 +1,7 @@
-import { Text } from "@fiestaboard/ui";
+import { BoardSizeIndicator as UIBoardSizeIndicator, type DeviceType } from "@fiestaboard/ui";
 
 import { useTranslations } from "@/i18n/translations";
-import { isNoteArray, isPanel, NOTE_ARRAY_PRESETS, resolveDimensions } from "@/lib/board-dimensions";
+import { isNoteArray, isPanel, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
 
 interface BoardSizeIndicatorProps {
   /** "flagship" | "note" | "note_array" | "panel" */
@@ -23,6 +23,16 @@ function resolvePresetId(notesWide: number, notesTall: number): string | null {
   return match ? match.id : null;
 }
 
+/** Narrow the API's free-form device type; unknown types fall back to flagship, as resolveDimensions does. */
+function toDeviceType(deviceType: string): DeviceType {
+  return deviceType === "note" || deviceType === "note_array" || deviceType === "panel" ? deviceType : "flagship";
+}
+
+/**
+ * The kit's `rows × cols` readout, wired to the app's note-array presets and
+ * translations. The kit does not model named presets, so the localized layout
+ * name is resolved here and passed in as `layoutLabel`.
+ */
 export function BoardSizeIndicator({
   deviceType,
   notesWide = 1,
@@ -37,7 +47,6 @@ export function BoardSizeIndicator({
   // selector — not the raw English label baked into board-dimensions.ts (which
   // previously leaked into both the visible text and the aria-label).
   const tSettings = useTranslations("displaySettings");
-  const { rows, cols } = resolveDimensions(deviceType, notesWide, notesTall, gridRows, gridCols);
   const noteArray = isNoteArray(deviceType);
   const panel = isPanel(deviceType);
   // Single fallback point: a matched preset's localized label, else "Custom".
@@ -49,36 +58,21 @@ export function BoardSizeIndicator({
       : t("custom")
     : panel
       ? t("panel")
-      : null;
-
-  // aria-label explicitly names each dimension (rows/columns), so screen-reader
-  // users get an unambiguous reading regardless of the visual order below.
-  const ariaLabel = presetLabel
-    ? t("ariaLabelWithLayout", { rows, cols, layout: presetLabel })
-    : t("ariaLabel", { rows, cols });
+      : undefined;
 
   return (
-    <Text
-      as="span"
-      size="xs"
-      tone="muted"
-      role="img"
-      aria-label={ariaLabel}
-      className={`inline-flex items-center gap-1 font-mono tabular-nums${className ? ` ${className}` : ""}`}
-    >
-      {/* Rows × cols (height × width) per the note-array epic convention; the
-          wizard "characters" strings and tests use the same rows × cols order. */}
-      {rows} × {cols}
-      {presetLabel && (
-        <>
-          <Text as="span" size="xs" className="text-muted-foreground/50 mx-0.5">
-            ·
-          </Text>
-          <Text as="span" size="xs" tone="muted">
-            {presetLabel}
-          </Text>
-        </>
-      )}
-    </Text>
+    <UIBoardSizeIndicator
+      deviceType={toDeviceType(deviceType)}
+      notesWide={notesWide}
+      notesTall={notesTall}
+      gridRows={gridRows ?? undefined}
+      gridCols={gridCols ?? undefined}
+      layoutLabel={presetLabel}
+      labels={{
+        dimensions: (rows, cols) => t("ariaLabel", { rows, cols }),
+        dimensionsWithLayout: (rows, cols, layout) => t("ariaLabelWithLayout", { rows, cols, layout }),
+      }}
+      className={className}
+    />
   );
 }

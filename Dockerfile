@@ -6,7 +6,7 @@
 # ============================================================
 
 # --- Stage 1: Build Python dependencies ---
-FROM python:3.14-slim AS python-builder
+FROM python:3.15-slim AS python-builder
 
 WORKDIR /app
 
@@ -64,7 +64,7 @@ RUN --mount=type=cache,target=/app/node_modules/.vite \
 # --- Stage 3: Shared runtime base (API + static UI + nginx) ---
 # This stage holds everything common to production and dev. The concrete
 # `runtime` (production) and `runtime-dev` stages below both build FROM it.
-FROM python:3.14-slim AS runtime-base
+FROM python:3.15-slim AS runtime-base
 
 ARG VERSION=dev
 ENV VERSION=${VERSION}
@@ -97,7 +97,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages from builder
-COPY --from=python-builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
+COPY --from=python-builder /usr/local/lib/python3.15/site-packages /usr/local/lib/python3.15/site-packages
 COPY --from=python-builder /usr/local/bin /usr/local/bin
 
 # Copy application code (API)
