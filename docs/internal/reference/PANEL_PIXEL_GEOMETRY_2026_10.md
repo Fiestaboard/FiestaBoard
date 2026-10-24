@@ -169,7 +169,6 @@ FiestaBoard source: `62b69eca1`; web dependency pin: `@fiestaboard/ui 8.13.1`, i
 
 The focused Python probes passed; full repository suites and native/device acceptance tests have not been run. This document does not claim the bug is fixed.
 
-
 ## Approved implementation and verification follow-up
 
 The user approved approach 2: independent pixel-authoritative LED sizing while retaining physical split-flap sizing and character-based authoring. Implementation is on `codex/panel-led-sizing`; the research above records the evidence and alternatives before that decision.

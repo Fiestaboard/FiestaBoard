@@ -66,7 +66,6 @@ Files: panel API types/client, panel settings, draft preview, viewer/frame hooks
 - [x] Document modes, conversion/copy behavior, and retained legacy behavior. Obtain fresh whole-change code review; fix important findings with regression tests.
 - [x] Commit the reviewed work in this isolated checkout and report evidence and material limitations. Do not deploy to the live Pi.
 
-
 ## Implementation notes and acceptance limits
 
 - Added pending/committed conversion journals and startup recovery; recovery checks for later conflicting panel or reference edits before restoring anything.
