@@ -107,6 +107,10 @@ def plugins(tmp_path, monkeypatch):
     import src.plugins.registry as registry_module
     from src.plugins.registry import PluginRegistry
 
+    # Load the built-ins from the verified test seed before this fixture
+    # hides it. Otherwise this file only passes after another test has
+    # initialized the process-wide output registry.
+    output_registry()
     monkeypatch.setenv("FIESTABOARD_OUTPUT_SEED_DIR", str(tmp_path / "no-seed"))
     loader = PluginLoader(plugins_dir=tmp_path / "builtin", external_dirs=[], seed_dir=tmp_path / "no-seed")
     registry = PluginRegistry(plugins_dir=tmp_path / "builtin")
@@ -271,6 +275,35 @@ class TestInstallFromSeed:
         second = client.post(f"/outputs/{PLUGIN_ID}/install")
         assert (first.status_code, second.status_code) == (201, 200)
         assert second.json() == first.json()
+
+    @pytest.mark.parametrize("still_seeded", [True, False])
+    def test_a_first_request_after_restart_recognizes_an_installed_output(
+        self, client, seeded, no_network, plugins, monkeypatch, tmp_path, still_seeded
+    ):
+        import src.plugins.registry as registry_module
+
+        first = client.post(f"/outputs/{PLUGIN_ID}/install")
+        assert first.status_code == 201
+        installed = sources.get_external_plugins_dir() / PLUGIN_ID
+        original_tree = tree_digest(installed)
+
+        # Simulate process startup: the files persist, but plugins have not
+        # been loaded yet. Exercise the real lazy singleton initialization.
+        plugins._loader.unload_plugin(PLUGIN_ID)
+        assert output_registry().get(PLUGIN_ID) is None
+        plugins._initialized = False
+        monkeypatch.setattr(registry_module, "_registry", None)
+        monkeypatch.setattr(registry_module, "PluginRegistry", lambda: plugins)
+        if not still_seeded:
+            monkeypatch.setenv("FIESTABOARD_OUTPUT_SEED_DIR", str(tmp_path / "no-seed"))
+            monkeypatch.setattr(plugins._loader, "seed_dir", tmp_path / "no-seed")
+
+        # No preliminary GET /outputs to warm the registry. Even a plugin
+        # no longer offered by the seed/catalog remains installed.
+        second = client.post(f"/outputs/{PLUGIN_ID}/install")
+        assert second.status_code == 200, second.text
+        assert second.json() == first.json()
+        assert tree_digest(installed) == original_tree
 
     def test_installs_with_no_opt_in(self, client, seeded, no_network):
         resp = client.post(f"/outputs/{PLUGIN_ID}/install")
