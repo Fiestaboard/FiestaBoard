@@ -100,6 +100,6 @@ as H.264 MP4s (1600 × 1000, 25 fps, no audio). The production frontend was exer
 with labeled simulated catalog, installation, and hardware responses. Screenshots
 and decoded video frames were inspected; every MP4 decoded without errors.
 
-Delivered to `/Users/jeffre/Desktop/FiestaBoard-Plugin-Experience` and retained in
-`/Users/jeffre/Library/Developer/FiestaBoard-Plugin-Experience`. Every Desktop file
+Delivered to `~/Desktop/FiestaBoard-Plugin-Experience` and retained in
+`~/Library/Developer/FiestaBoard-Plugin-Experience`. Every Desktop file
 matches its source by SHA-256. The temporary demo server and browser were closed.

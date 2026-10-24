@@ -51,7 +51,7 @@ coverage for the create-page handoff and existing integrations following review.
 The original regressions failed before the implementation and pass afterward.
 The final frontend suite passes: 216 files, 2,525 tests passed and 7 skipped.
 TypeScript, changed-file ESLint, frontend formatting, Markdown lint, docs contract,
-frontmatter, and diff whitespace checks pass.
+front matter, and diff whitespace checks pass.
 The browser preview could not run: the sandbox refuses Chromium startup, and
 computer-use reports no connected browsers. Physical display verification and
 translations of new English copy remain follow-up work.
