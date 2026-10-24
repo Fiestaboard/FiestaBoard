@@ -374,7 +374,7 @@ class SilenceTiming:
     next_change_utc: str
     #: Wall-clock seconds to that boundary; ``None`` when silence is disabled.
     seconds_until_next_change: int | None
-    #: ISO-8601 instant of that boundary (now + seconds); ``None`` when disabled.
+    #: ISO-8601 instant of that boundary; ``None`` when disabled.
     next_change_at: str | None
 
 
@@ -406,8 +406,9 @@ def silence_timing(silence_config: dict) -> SilenceTiming:
             # means the boundary already passed today and will recur tomorrow.
             if delta_seconds < 0:
                 delta_seconds += 86_400
+                next_change_dt += timedelta(days=1)
             seconds = delta_seconds
-            at = (current_utc + timedelta(seconds=delta_seconds)).isoformat()
+            at = next_change_dt.isoformat()
     return SilenceTiming(
         active=active, next_change_utc=next_change_utc, seconds_until_next_change=seconds, next_change_at=at
     )

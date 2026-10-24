@@ -220,3 +220,24 @@ def test_settings_single_board_install_update_preserves_opt_in_before_pruning_ov
     assert result.json()["config"]["show_queued_on_exit"] is True
     assert Config.silence_config_for("a")["show_queued_on_exit"] is True
     assert cm.get_feature("silence_schedule")["by_board"].get("a") is None
+
+
+@pytest.mark.parametrize(
+    "now,ends_at,countdown",
+    [
+        ("2026-10-25T01:00:00.500000+00:00", "2026-10-25T07:00:00+00:00", 21599),
+        ("2026-10-24T23:30:00.500000+00:00", "2026-10-25T07:00:00+00:00", 27000),
+    ],
+)
+def test_fractional_clock_preserves_exact_silence_boundary(setup_policy, now, ends_at, countdown):
+    _, client, clock = setup_policy
+    clock.set(datetime.fromisoformat(now))
+
+    status = client.get("/silence-status").json()
+    assert status["active"] is True
+    # Preserve v9's integer countdown, including rounding before midnight rollover.
+    assert status["seconds_until_next_change"] == countdown
+    assert status["ends_at_utc"] == ends_at
+    verdict = board_guards.silence_verdict("a", override_silence=False)
+    assert verdict.ends_at_utc == ends_at
+    assert verdict.ends_hhmm == "07:00"
