@@ -293,15 +293,21 @@ class TestBreaker:
         outcome = driver.send_characters(frame(9), with_outcome=True)
         assert (outcome.success, outcome.was_sent, outcome.throttled) == (True, True, False)
 
-    def test_unchanged_frames_still_report_success_while_it_is_open(self):
+    @pytest.mark.parametrize("confirmed_by_readback", [False, True])
+    def test_only_a_confirmed_frame_can_report_success_while_it_is_open(self, confirmed_by_readback):
         plugin = Sign()
         driver = driver_for(plugin)
         assert driver.send_characters(GRID) == (True, True)
         plugin.behave = fail
         for i in range(OUTPUT_BREAKER_THRESHOLD):
             driver.send_characters(frame(i + 2))
-        # The board still shows GRID (the failed writes never landed).
-        assert driver.send_characters(GRID) == (True, False)
+        # A failed target does not prove that no intermediate frame landed.
+        # Readback can independently re-establish what the device shows.
+        if confirmed_by_readback:
+            driver._frames.record_read(GRID)
+        calls = plugin.calls
+        assert driver.send_characters(GRID) == (confirmed_by_readback, False)
+        assert plugin.calls == calls  # neither path bypasses the open breaker
 
     def test_a_sequence_upload_is_refused_too(self):
         from src.outputs.plugin_base import TimedFrame

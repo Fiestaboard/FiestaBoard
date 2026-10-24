@@ -361,10 +361,13 @@ class OutputPluginDriver:
             sent = prior_send is not None and prior_send()
             if not sent:
                 self._output_runtime.release_send(admission)
+                self._frames.forget()
             self._write_failed(f"the write raised {type(exc).__name__}: {exc}")
             return WriteResult(False, sent)
         if result is None:
             # The slot stays taken: the device may still be receiving the write.
+            # A timed-out transition may already have changed the device.
+            self._frames.forget()
             budget = self.write_timeout_seconds
             logger.error("Output plugin %s: write still running after %gs; cancelled", self.connection_label, budget)
             self._write_failed(f"the write did not finish within {budget:g}s; it was cancelled.")
@@ -377,6 +380,8 @@ class OutputPluginDriver:
                 # while reporting that the requested target is incomplete.
                 self.last_write_error = "the sequence uploaded, but the rich target was throttled by the output."
                 return throttled._replace(success=False, was_sent=True)
+            # A plugin can be refused after it uploaded intermediate frames.
+            self._frames.forget()
             return throttled
         if result.success and not result.was_sent and (token.is_set() or result.superseded):
             # Preempted: the plugin stopped mid-write and nothing landed. The
@@ -387,14 +392,22 @@ class OutputPluginDriver:
             sent = prior_send is not None and prior_send()
             if not sent:
                 self._output_runtime.release_send(admission)
+            # A cancelled transition may have shown intermediate content or
+            # dimmed the device even though its target never landed.
+            self._frames.forget()
             self._last_send_preempted = True
             return WriteResult(True, sent, superseded=True)
         if result.success:
             # Landed — or the device already showed it (a fan-out whose every
             # part was unchanged): either way it is what the board shows.
             self._frames.record_sent(final, cells=cells)
+            if token.is_set():
+                # The target can land before a transition finishes restoring
+                # device state. Its successor must still reach the plugin.
+                self._frames.forget()
         elif not result.success and not result.partial and not (prior_send is not None and prior_send()):
             self._output_runtime.release_send(admission)
+            self._frames.forget()
         if result.success:
             self.last_write_error = None
             output_breakers().record_success(self._breaker_key())
