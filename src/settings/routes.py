@@ -390,6 +390,25 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         "indicator_position": indicator_position,
     }
 
+    # Carry the effective value before the single-board cleanup below can
+    # prune the override containing it. Older clients omit this opt-in.
+    show_queued_on_exit = request.show_queued_on_exit
+    if show_queued_on_exit is None:
+        from src.config import resolve_silence_schedule
+
+        carry_board = board_id
+        if carry_board is None:
+            try:
+                stored_boards = get_settings_service().get_board_settings().boards or []
+            except Exception:  # pragma: no cover - defensive
+                stored_boards = []
+            if len(stored_boards) == 1 and isinstance(stored_boards[0], dict):
+                carry_board = stored_boards[0].get("id")
+        show_queued_on_exit = resolve_silence_schedule(config_manager.get_feature("silence_schedule"), carry_board)[
+            "show_queued_on_exit"
+        ]
+    updated["show_queued_on_exit"] = show_queued_on_exit
+
     if board_id is not None:
         success = config_manager.set_silence_schedule_for_board(board_id, updated)
     else:

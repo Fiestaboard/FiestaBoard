@@ -20,6 +20,7 @@ _SILENCE_KEYS = (
     "page_id",
     "indicator_text",
     "indicator_position",
+    "show_queued_on_exit",
 )
 
 SILENCE_INDICATOR_POSITIONS = ("center", "top-left", "top-right", "bottom-left", "bottom-right")
@@ -42,7 +43,7 @@ def resolve_silence_schedule(feature: dict | None, board_id: str | None = None) 
         board_id: Board to resolve, or None for the install-wide layer.
 
     Returns:
-        A normalized dict with exactly the seven silence keys — never
+        A normalized dict of silence keys — never
         ``by_board``.
     """
     feature = feature or {}
@@ -79,6 +80,7 @@ def resolve_silence_schedule(feature: dict | None, board_id: str | None = None) 
         "page_id": page_id,
         "indicator_text": indicator_text,
         "indicator_position": position,
+        "show_queued_on_exit": layer.get("show_queued_on_exit") is True,
     }
 
 
@@ -259,14 +261,14 @@ class Config:
                 (what the seven ``SILENCE_SCHEDULE_*`` classproperties read).
 
         Returns:
-            A normalized dict with exactly the seven silence keys. Never
+            A normalized dict of silence keys. Never
             contains ``by_board``.
 
         The parsed result is cached per board and invalidated by the config
         manager's write generation (issue #1752), so the display loop's 1 Hz
         boundary probe stops taking the config lock and deep-copying the
         feature dict every second. Callers get a fresh shallow copy — all
-        seven values are scalars — so mutating a result never corrupts the
+        values are scalars — so mutating a result never corrupts the
         cache.
         """
         cm = cls._get_cm()

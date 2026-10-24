@@ -1525,6 +1525,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/silence-queue",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "discard_held_send",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/silence-status",
       "methods": [
         "GET"

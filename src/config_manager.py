@@ -44,6 +44,7 @@ SILENCE_SCHEDULE_KEYS = (
     "page_id",
     "indicator_text",
     "indicator_position",
+    "show_queued_on_exit",
 )
 
 # Mapping from legacy feature keys to plugin IDs.
@@ -424,6 +425,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "features": {
         "silence_schedule": {
             "enabled": False,
+            "show_queued_on_exit": False,
             "start_time": "20:00",  # 8pm (will be migrated to UTC ISO format)
             "end_time": "07:00",  # 7am (will be migrated to UTC ISO format)
             # Behavior while silence is active:
@@ -438,7 +440,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
             # Page id to display when mode == "page" (variables are frozen at silence-start)
             "page_id": None,
             # Per-board overrides (issue #1788): board_id -> partial dict of the
-            # seven keys above. A board with no entry inherits the values above,
+            # silence keys above. A board with no entry inherits the values above,
             # which act as the install-wide default. MUST stay in DEFAULT_CONFIG:
             # set_feature() whitelists keys against it and would otherwise drop
             # this one silently.
@@ -1679,7 +1681,7 @@ class ConfigManager:
 
         Args:
             board_id: Board whose override to write.
-            values: Full or partial dict of the seven silence keys.
+            values: Full or partial dict of silence keys.
 
         Returns:
             True if the write was persisted.

@@ -115,6 +115,7 @@ class TestSilenceConfigResolution:
 
         assert resolved == {
             "enabled": False,
+            "show_queued_on_exit": False,
             "start_time": "20:00",
             "end_time": "07:00",
             "mode": "freeze",

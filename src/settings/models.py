@@ -571,6 +571,7 @@ class SilenceScheduleRequest(BaseModel):
     enabled: bool
     start_time: str
     end_time: str
+    show_queued_on_exit: StrictBool | None = None
     # An unknown mode used to be coerced to "freeze" and answered 200, so a
     # client asking for "indicater" got a frozen board and no signal.
     mode: SilenceMode | None = None  # omitted → "freeze"
