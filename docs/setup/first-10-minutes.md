@@ -137,7 +137,7 @@ In Schedule settings, you can set a **default page** that displays whenever ther
 
 ## 7. Set Quiet Hours (Optional)
 
-Split-flap displays can be noisy when they flip, and a bright LED matrix or TV can light up a dark room. If a display is in a bedroom or living room, you'll want to set quiet hours:
+Split-flap displays can be noisy when they flip. If your board is in a bedroom or living room, set quiet hours:
 
 1. Go to **Settings**
 2. Find the **Silence Schedule** section
