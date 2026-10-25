@@ -118,8 +118,12 @@ def _seed_page(client: TestClient, name: str = "Contract Page") -> str:
 # ── the surface itself ──────────────────────────────────────────────────────
 
 
-def test_v1_publishes_exactly_thirty_three_operations():
-    """The contract is 33 operations. A 34th is a decision, not a side effect."""
+def test_v1_publishes_exactly_thirty_four_operations():
+    """The contract is 34 operations. A 35th is a decision, not a side effect.
+
+    The 34th, ``POST /v1/boards/{board}/resend``, was that decision (#2354):
+    recovering a board another client overwrote had no board-scoped path.
+    """
     from tests.test_route_inventory import build_route_inventory
 
     operations = [
@@ -136,6 +140,7 @@ def test_v1_publishes_exactly_thirty_three_operations():
             "PATCH /v1/boards/{board}",
             "POST /v1/boards/{board}/message",
             "DELETE /v1/boards/{board}/message",
+            "POST /v1/boards/{board}/resend",
             "PUT /v1/boards/{board}/active-page",
             "GET /v1/install",
             "PATCH /v1/install",

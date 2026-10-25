@@ -46,6 +46,7 @@ from .models import (
     MessageRequest,
     MessageResponse,
     PartialWriteError,
+    ResendResponse,
 )
 from .router import router
 
@@ -53,6 +54,9 @@ logger = logging.getLogger(__name__)
 
 HELD_REASON = "Held: the board is silenced until {time} UTC; this will show when silence ends."
 UI_ONLY_REASON = "The install's output target is UI only, so nothing was written to the board."
+RESEND_NOTHING_REASON = (
+    "Nothing was written: there is nothing to show on this board right now, or its send limit deferred the write."
+)
 UNCHANGED_REASON = "The board already shows this exact content. Send force=true to write it anyway."
 PAUSED_PREVIEW_REASON = "The board is paused, so nothing was written. This is what it would have shown."
 SILENCED_PIN_REASON = (
@@ -652,6 +656,68 @@ async def clear_board_message(board: str) -> MessageResponse:
         text="",
         expires_at=None,
         reason=None if refreshed.sent else "Nothing changed on the board — it already showed the scheduled content.",
+    )
+
+
+@router.post(
+    "/boards/{board}/resend",
+    response_model=ResendResponse,
+    responses=errors(404, 409, 500, 503),
+    summary="Resend what a board should show",
+    description=(
+        "Recovery for a board another app or controller overwrote. FiestaBoard remembers what it last sent each "
+        "board and skips a send that would not change it, so after an outside write it believes the board is "
+        "already up to date. This forgets that for this one board and runs its display pass, which writes "
+        "whatever the schedule, timed message or pinned page says belongs there.\n\n"
+        "Nothing is changed: no page is pinned or unpinned and a timed message keeps running. A paused or "
+        "silenced board refuses with 409, and a UI-only install answers `sent: false`.\n\n"
+        "`sent` means the board accepted the write. No supported board reports what it actually displays, so "
+        "`device_observed` is always false — look at the board to confirm."
+    ),
+)
+async def resend_board(board: str) -> ResendResponse:
+    from src import board_guards
+    from src.board_send_executor import run_board_send
+
+    board_id, entry = resolve_board(board)
+    settings_service = _settings_service()
+    page_id = settings_service.get_active_page_id(board_id=board_id)
+
+    board_guards.raise_if_paused(board_id, what="resend")
+    if board_guards.silence_verdict(board_id, override_silence=False, what="resend").silenced:
+        raise HTTPException(status_code=409, detail=board_guards.SILENCE_DETAIL)
+    if not settings_service.should_send_to_board():
+        return ResendResponse(board_id=board_id, page_id=page_id, sent=False, reason=UI_ONLY_REASON)
+
+    service = runtime.get_service()
+    if not service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    rt = service.get_runtime(board_id)
+    if rt is None:
+        raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
+
+    def _work() -> tuple[bool, str | None]:
+        # Only this board: an outside write to one board is no reason to
+        # rewrite the others. The pass applies its own dedupe and send floor.
+        service.invalidate_board_content(board_id)
+        return runtime._send_with_status(
+            service,
+            "check_and_send_for_board_with_status",
+            "check_and_send_for_board",
+            board_id,
+            rt,
+            is_primary=board_id == settings_service.get_primary_board_id(),
+            board=entry,
+        )
+
+    sent, error = await run_board_send(_work)
+    if error:
+        raise HTTPException(status_code=500, detail=f"Failed to resend to board {board_id}: {error}")
+    return ResendResponse(
+        board_id=board_id,
+        page_id=page_id,
+        sent=sent,
+        reason=None if sent else RESEND_NOTHING_REASON,
     )
 
 

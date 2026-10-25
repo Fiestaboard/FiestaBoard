@@ -388,6 +388,37 @@ class ActivePageResponse(BaseModel):
     )
 
 
+class ResendResponse(BaseModel):
+    """The result of re-sending what a board should show (#2354).
+
+    Three different things, kept apart on purpose: what FiestaBoard intends
+    the board to show (``page_id``), whether that was written (``sent``), and
+    what the device actually displays — which no supported board reports back,
+    so ``device_observed`` is always false.
+    """
+
+    board_id: str = Field(description="The board, with the 'primary' alias already resolved.")
+    page_id: str | None = Field(
+        default=None,
+        description=(
+            "The page pinned to this board, if any. A schedule or timed message may take precedence over it; "
+            "resend shows whichever the display loop would."
+        ),
+    )
+    sent: bool = Field(description="True when the board accepted the write. Not proof of what it displays.")
+    reason: str | None = Field(
+        default=None,
+        description="Why nothing was written, when sent is false. Null when sent is true.",
+    )
+    device_observed: bool = Field(
+        default=False,
+        description=(
+            "Always false: no supported board can read back what it displays, so a successful resend confirms "
+            "the write was accepted, not that the pixels or flaps changed."
+        ),
+    )
+
+
 class PluginEntry(BaseModel):
     """One plugin in the merged catalogue.
 

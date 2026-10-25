@@ -2045,6 +2045,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/v1/boards/{board}/resend",
+      "methods": [
+        "POST"
+      ],
+      "name": "resend_board",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/v1/collections",
       "methods": [
         "GET"

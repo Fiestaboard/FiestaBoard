@@ -285,6 +285,38 @@ Undoes a `POST` to this path. Any timed message is cancelled, the board's conten
 | `500` | [`ErrorResponse`](#schema-errorresponse) | The server could not complete the operation. Deliberately raised, not an unhandled error. |
 | `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
 
+### `POST /v1/boards/{board}/resend` {#post-v1-boards-board-resend}
+
+**Resend what a board should show**
+
+Recovery for a board another app or controller overwrote. FiestaBoard remembers what it last sent each board and skips a send that would not change it, so after an outside write it believes the board is already up to date. This forgets that for this one board and runs its display pass, which writes whatever the schedule, timed message or pinned page says belongs there.
+
+Nothing is changed: no page is pinned or unpinned and a timed message keeps running. A paused or silenced board refuses with 409, and a UI-only install answers `sent: false`.
+
+`sent` means the board accepted the write. No supported board reports what it actually displays, so `device_observed` is always false — look at the board to confirm.
+
+**Parameters**
+
+| Name | In | Type | Required | Description |
+|------|----|------|----------|-------------|
+| `board` | path | `string` | yes | — |
+
+**Responses**
+
+| Status | Body | Description |
+|--------|------|-------------|
+| `200` | [`ResendResponse`](#schema-resendresponse) | Successful Response |
+
+**Errors**
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `409` | [`ErrorResponse`](#schema-errorresponse) | Conflict — duplicate id, or a resource pinned by the environment. |
+| `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
+| `500` | [`ErrorResponse`](#schema-errorresponse) | The server could not complete the operation. Deliberately raised, not an unhandled error. |
+| `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
+
 ### `PUT /v1/boards/{board}/active-page` {#put-v1-boards-board-active-page}
 
 **Pin a page to a board**
@@ -1957,6 +1989,23 @@ both are present, which is what the pre-conversion handler did.
 | `template` | `string` \| array of `string` | yes | A template string, or one string per board row. A list is padded to the board's height. |
 | `line_metadata` | array of `object` \| `null` | no | Per-line alignment and wrap options, one entry per line. |
 
+### `ResendResponse` {#schema-resendresponse}
+
+The result of re-sending what a board should show (#2354).
+
+Three different things, kept apart on purpose: what FiestaBoard intends
+the board to show (`page_id`), whether that was written (`sent`), and
+what the device actually displays — which no supported board reports back,
+so `device_observed` is always false.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `board_id` | `string` | yes | The board, with the 'primary' alias already resolved. |
+| `page_id` | `string` \| `null` | no | The page pinned to this board, if any. A schedule or timed message may take precedence over it; resend shows whichever the display loop would. |
+| `sent` | `boolean` | yes | True when the board accepted the write. Not proof of what it displays. |
+| `reason` | `string` \| `null` | no | Why nothing was written, when sent is false. Null when sent is true. |
+| `device_observed` | `boolean` | no | Always false: no supported board can read back what it displays, so a successful resend confirms the write was accepted, not that the pixels or flaps changed. (default `false`) |
+
 ### `RowConfig` {#schema-rowconfig}
 
 Configuration for a single row in a composite page.
@@ -2237,7 +2286,7 @@ truthy non-error result selects `page_id` as the active page.
 
 ## Where the rest of the API went
 
-This page documents the 35 operations the app publishes. The other
+This page documents the 36 operations the app publishes. The other
 ~200 paths the app serves are the web UI's private RPC channel: they still
 answer exactly as they always have, but they are undocumented on purpose,
 carry no compatibility promise, and may change in any release. They are
