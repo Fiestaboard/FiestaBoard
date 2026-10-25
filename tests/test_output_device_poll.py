@@ -123,6 +123,19 @@ class TestDriverPollDevice:
 
         assert output_breakers().state(key, 1000.0) is None
 
+    def test_an_overwrite_report_closes_the_devices_breaker(self):
+        """Reporting another client's upload means the device answered (#2354)."""
+        plugin = Panel()
+        driver = OutputPluginDriver(plugin)
+        key = driver._breaker_key()
+        for _ in range(5):
+            output_breakers().record_failure(key, "unreachable", 1000.0)
+
+        plugin.news = DevicePoll(overwritten=True)
+        driver.poll_device()
+
+        assert output_breakers().state(key, 1000.0) is None
+
     def test_no_news_leaves_the_breaker_alone(self):
         plugin = Panel()
         driver = OutputPluginDriver(plugin)

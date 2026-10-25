@@ -237,7 +237,14 @@ If you share a display with another app on purpose, turn off **Restore
 automatically** in that display's settings under **Displays**, next to
 **Pause sends**. FiestaBoard then leaves the other app's content alone until
 you tap **Restore** or your page changes. The setting is on for every display
-unless you turn it off.
+unless you turn it off. Turn it off as well if another app or script keeps
+writing to the display on purpose: with it on, FiestaBoard takes the display
+back every time.
+
+FiestaBoard puts back what it would show right now: the scheduled page, a
+timed message, or the page you picked. A message you sent from FiestaBoard by
+hand that another app then wrote over comes back as that page, not as the
+message.
 
 #### How FiestaBoard notices
 

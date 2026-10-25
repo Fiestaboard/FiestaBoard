@@ -47,7 +47,6 @@ class BoardSummary(BaseModel):
     paused: bool = Field(description="While true, FiestaBoard writes nothing to this board from any code path.")
     schedule_enabled: bool = Field(description="Whether this board follows its schedule rather than a fixed page.")
     auto_restore: bool = Field(
-        default=True,
         description=(
             "Whether FiestaBoard puts this board's content back when another app overwrites it. "
             "Detected by reading the board back, or by a device that reports another client wrote it."

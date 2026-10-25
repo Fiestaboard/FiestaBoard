@@ -219,3 +219,120 @@ def test_a_fiestaboard_manual_write_clears_the_overwrite():
 
     assert rt.overwritten_at is None
     assert rt.showing_out_of_band is True
+
+
+# ── a JSON client's string value ────────────────────────────────────────────
+
+
+def test_a_string_false_turns_auto_restore_off():
+    """``PUT /settings/board`` takes raw dicts: ``bool("false")`` would turn it ON."""
+    for value in ("false", "False", "0", "no", "off"):
+        assert BoardInstance.from_dict({"id": "x", "auto_restore": value}).auto_restore is False, value
+
+
+def test_a_string_true_keeps_auto_restore_on():
+    for value in ("true", "1", "yes", "on"):
+        assert BoardInstance.from_dict({"id": "x", "auto_restore": value}).auto_restore is True, value
+
+
+def test_an_unreadable_auto_restore_value_falls_back_to_on():
+    assert BoardInstance.from_dict({"id": "x", "auto_restore": "maybe"}).auto_restore is True
+
+
+# ── a device that keeps reporting the same overwrite ────────────────────────
+
+
+def test_a_repeated_overwrite_report_keeps_the_first_detection_time():
+    """A level-triggered report (auto-restore off, so nothing re-sends) must not move the time each poll."""
+    svc, _client, rt, settings = _device_service(DevicePoll(overwritten=True), auto_restore=False)
+
+    with patch("src.main.time") as clock:
+        clock.time.side_effect = [100.0, 200.0]
+        _poll_devices(svc, settings)
+        _poll_devices(svc, settings)
+
+    assert rt.overwritten_at == 100.0
+
+
+# ── end to end through the real engine and frame cache ──────────────────────
+
+PAGE_EXTERNAL = [[7] * 22 for _ in range(6)]
+
+
+def _wired_engine():
+    """One flagship board whose mock client records into the real frame cache, as a bound driver does."""
+    from tests.test_per_board_engine import _board, _page_service, _schedule_service, _service_with_runtimes
+
+    boards = [_board("b1", "One")]
+    svc, clients = _service_with_runtimes(boards)
+    rt, client = svc.runtimes["b1"], clients["b1"]
+    sent: list = []
+
+    def render(grid, **_kwargs):
+        rt.output.frames.record_sent(grid)
+        sent.append([row[:] for row in grid])
+        return (True, True)
+
+    client.render.side_effect = render
+    client.clear_cache.side_effect = rt.output.frames.forget
+    pages = _page_service({"pA": {"content": "ALPHA"}})
+    schedule = _schedule_service({"b1": "pA"})
+    return svc, boards, rt, sent, pages, schedule
+
+
+def _read(svc, rt, live, *, auto_restore=True):
+    rt.client.read_current_message.return_value = live
+    settings = Mock()
+    settings.is_paused.return_value = False
+    settings.get_primary_board_id.return_value = "b1"
+    settings.is_auto_restore.return_value = auto_restore
+    with patch("src.main.get_settings_service", return_value=settings):
+        svc._poll_board_state_once(rt)
+
+
+def test_the_engine_resends_the_page_after_a_confirmed_overwrite():
+    from tests.test_per_board_engine import _drive
+
+    svc, boards, rt, sent, pages, schedule = _wired_engine()
+    _drive(svc, boards, pages=pages, schedule=schedule)
+
+    _read(svc, rt, PAGE_EXTERNAL)
+    _read(svc, rt, PAGE_EXTERNAL)
+    _drive(svc, boards, pages=pages, schedule=schedule)
+
+    assert len(sent) == 2
+    assert sent[1] == sent[0]
+    assert rt.showing_out_of_band is False
+
+
+def test_restoring_does_not_set_off_another_detection():
+    """After the restore, a lagging read of the old frame then a true read must not fire again."""
+    from tests.test_per_board_engine import _drive
+
+    svc, boards, rt, sent, pages, schedule = _wired_engine()
+    _drive(svc, boards, pages=pages, schedule=schedule)
+    _read(svc, rt, PAGE_EXTERNAL)
+    _read(svc, rt, PAGE_EXTERNAL)
+    _drive(svc, boards, pages=pages, schedule=schedule)
+
+    _read(svc, rt, PAGE_EXTERNAL)
+    _read(svc, rt, sent[0])
+    _drive(svc, boards, pages=pages, schedule=schedule)
+
+    assert len(sent) == 2
+
+
+def test_an_overwrite_during_silence_waits_for_silence_to_end():
+    from tests.test_per_board_engine import _drive
+
+    svc, boards, rt, sent, pages, schedule = _wired_engine()
+    _drive(svc, boards, pages=pages, schedule=schedule)
+    _drive(svc, boards, pages=pages, schedule=schedule, silence=True, silence_mode="freeze")
+    _read(svc, rt, PAGE_EXTERNAL)
+    _read(svc, rt, PAGE_EXTERNAL)
+
+    _drive(svc, boards, pages=pages, schedule=schedule, silence=True, silence_mode="freeze")
+    assert len(sent) == 1
+
+    _drive(svc, boards, pages=pages, schedule=schedule)
+    assert len(sent) == 2

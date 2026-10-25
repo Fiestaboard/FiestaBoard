@@ -1246,7 +1246,7 @@ one document, because "what is this board doing" is one question.
 | `is_primary` | `boolean` | yes | True for the board that the alias "primary" resolves to. |
 | `paused` | `boolean` | yes | While true, FiestaBoard writes nothing to this board from any code path. |
 | `schedule_enabled` | `boolean` | yes | Whether this board follows its schedule rather than a fixed page. |
-| `auto_restore` | `boolean` | no | Whether FiestaBoard puts this board's content back when another app overwrites it. Detected by reading the board back, or by a device that reports another client wrote it. (default `true`) |
+| `auto_restore` | `boolean` | yes | Whether FiestaBoard puts this board's content back when another app overwrites it. Detected by reading the board back, or by a device that reports another client wrote it. |
 | `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
 | `device_model` | `string` \| `null` | no | The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). Null when it is not known (a FiestaPanel, for now). |
 | `charset` | `string` \| `null` | no | The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). Null when it is not known. |
@@ -1302,7 +1302,7 @@ a consumer writing to a board has any use for.
 | `is_primary` | `boolean` | yes | True for the board that the alias "primary" resolves to. |
 | `paused` | `boolean` | yes | While true, FiestaBoard writes nothing to this board from any code path. |
 | `schedule_enabled` | `boolean` | yes | Whether this board follows its schedule rather than a fixed page. |
-| `auto_restore` | `boolean` | no | Whether FiestaBoard puts this board's content back when another app overwrites it. Detected by reading the board back, or by a device that reports another client wrote it. (default `true`) |
+| `auto_restore` | `boolean` | yes | Whether FiestaBoard puts this board's content back when another app overwrites it. Detected by reading the board back, or by a device that reports another client wrote it. |
 | `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
 | `device_model` | `string` \| `null` | no | The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). Null when it is not known (a FiestaPanel, for now). |
 | `charset` | `string` \| `null` | no | The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). Null when it is not known. |

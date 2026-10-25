@@ -261,7 +261,11 @@ class BoardInstance:
         if not isinstance(self.paused, bool):
             self.paused = bool(self.paused)
         if not isinstance(self.auto_restore, bool):
-            self.auto_restore = bool(self.auto_restore)
+            # ``PUT /settings/board`` takes raw dicts, and ``bool("false")``
+            # is True: read the usual spellings, and anything else as the
+            # default (on).
+            text = str(self.auto_restore).strip().lower()
+            self.auto_restore = text not in ("false", "0", "no", "off", "none", "")
         self.transition = (self.transition.strip() or None) if isinstance(self.transition, str) else None
         self.transition_step_interval_ms = clamp_transition_speed(
             "transition_step_interval_ms", self.transition_step_interval_ms

@@ -1391,8 +1391,11 @@ class DisplayService:
                 self.invalidate_board_content(key)
             elif news.overwritten is True:
                 rt.showing_out_of_band = True
-                rt.overwritten_at = time.time()
-                logger.info("Board %s: another client wrote its device", board_id)
+                if rt.overwritten_at is None:
+                    # The first report is the detection: a device may keep
+                    # reporting the same overwrite until core writes it again.
+                    rt.overwritten_at = time.time()
+                    logger.info("Board %s: another client wrote its device", board_id)
                 self._restore_after_overwrite(rt, board_id, settings, key=key)
 
     def _restore_after_overwrite(self, rt: BoardRuntime, board_id, settings, *, key=None) -> None:
@@ -1405,7 +1408,7 @@ class DisplayService:
         Mock settings service never turns it off.
         """
         if settings.is_auto_restore(board_id=board_id) is False:
-            logger.info("Board %s: auto-restore is off; leaving the other app's content", board_id)
+            logger.debug("Board %s: auto-restore is off; leaving the other app's content", board_id)
             return
         logger.info("Board %s: restoring its content over the other app's", board_id)
         self.invalidate_board_content(key if key is not None else board_id)
