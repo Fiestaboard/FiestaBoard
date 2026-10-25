@@ -253,12 +253,16 @@ message.
   counts a change as another app's after two reads in a row show it.
 - **Divoom Pixoo:** a Pixoo can't report what it's showing, but it does count
   the pictures sent to it. When that count moves past FiestaBoard's own,
-  another app uploaded a picture. If the Pixoo restarts, FiestaBoard always
-  sends your page again.
+  another app uploaded a picture. When the count goes back down, the Pixoo
+  restarted or another app reset the count before uploading, which most Pixoo
+  scripts do. FiestaBoard can't tell those two apart, so it always sends your
+  page again, even with **Restore automatically** off.
 
 Some changes don't show up on a Pixoo. If an app switches the Pixoo to another
 channel, such as its clock, without uploading a picture, FiestaBoard can't
-tell, so no notice appears. Call the restore endpoint (see
+tell, so no notice appears. The same goes for an upload that happens to leave
+the count where FiestaBoard left it. Whether the Divoom app's own uploads move
+the count hasn't been confirmed yet. Call the restore endpoint (see
 [Using the API](#using-the-api)) to put your page back.
 
 #### The notice

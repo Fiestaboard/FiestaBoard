@@ -68,7 +68,9 @@ The default **Through black** fade uses six pixel frames over approximately one 
 
 ### Using the Divoom App Too
 
-If the Divoom app or another tool uploads a picture to the Pixoo, FiestaBoard notices that the Pixoo's picture count moved past its own and sends your page again. If the Pixoo restarts, FiestaBoard always sends your page again.
+If a script or another tool uploads a picture to the Pixoo, FiestaBoard notices that the Pixoo's picture count moved past its own and sends your page again. Whether the Divoom app's own uploads move that count hasn't been confirmed yet. If the Pixoo restarts, or a tool resets the count before uploading (most Pixoo scripts do), FiestaBoard can't tell the two apart and always sends your page again, even with **Restore automatically** off.
+
+Use one FiestaBoard display per Pixoo. Two displays, or two FiestaBoard installs, pointed at the same Pixoo each see the other as another app.
 
 To let another app keep the Pixoo, turn off **Restore automatically** in the display's settings. FiestaBoard then shows a notice with a **Restore** button instead of taking the Pixoo back.
 

@@ -50,3 +50,21 @@ def test_current_message_has_no_overwrite_key_when_none_was_seen(client, service
     body = client.get("/board/current-message?board_id=b2").json()
 
     assert "overwritten_at" not in body
+
+
+def test_an_overwritten_device_without_read_back_answers_its_last_sent_frame_and_the_mark(client, service):  # noqa: F811
+    """The pairing the web banner sees for a Pixoo (#2354 review): with no read-back,
+    ``characters`` is the last frame FiestaBoard sent — equal to ``expected_characters``
+    — so ``overwritten_at`` is the only sign another app wrote it."""
+    rt = service.runtimes["b2"]
+    rt.polled_characters = None
+    rt.polled_at = None
+    sent = [[5] * 15 for _ in range(3)]
+    rt.output.frames.record_sent(sent)
+    rt.overwritten_at = DETECTED_AT
+
+    body = client.get("/board/current-message?board_id=b2").json()
+
+    assert body["characters"] == sent
+    assert body["expected_characters"] == sent
+    assert body["overwritten_at"] == "2023-11-14T22:13:20+00:00"
