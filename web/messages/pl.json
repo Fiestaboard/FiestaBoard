@@ -1006,12 +1006,11 @@
     "openPage": "Otwórz stronę",
     "dismiss": "Zamknij",
     "holdPaused": "Ten wyświetlacz jest wstrzymany, więc Przywróć niczego nie wyśle, dopóki go nie wznowisz.",
-    "restoreAllDisplays": "Przywróć wysyła strony ponownie na wszystkie wyświetlacze.",
     "keptTitle": "Inna aplikacja zapisała na tym boardzie o {time}",
     "keptDetail": "FiestaBoard przywrócił już Twoją stronę. Nadal możesz zapisać to, co napisała inna aplikacja.",
+    "overwrittenDetail": "Wykryto: {time}. FiestaBoard nie widzi, co ten wyświetlacz teraz pokazuje, więc nie ma czego zapisać. Przywróć przywraca Twoją stronę.",
     "externalPageName": "Z boarda {date}",
     "toastRestored": "Board przywrócony",
-    "toastRestoredAll": "Strony wysłano ponownie na wszystkie wyświetlacze",
     "toastRestoreFailed": "Nie udało się przywrócić boarda",
     "toastNotSentPaused": "Nic nie wysłano: ten wyświetlacz jest wstrzymany",
     "toastNotSent": "Nic nie wysłano na wyświetlacz",
@@ -1207,6 +1206,10 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "autoRestore": {
+      "toggle": "Przywracaj automatycznie",
+      "help": "Gdy inna aplikacja zmieni ten wyświetlacz, FiestaBoard przywróci Twoją stronę. Wyłącz to, aby inna aplikacja mogła zachować wyświetlacz."
     },
     "initError": {
       "badge": "Niedostępna",

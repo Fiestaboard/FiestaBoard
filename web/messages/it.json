@@ -1006,12 +1006,11 @@
     "openPage": "Apri pagina",
     "dismiss": "Ignora",
     "holdPaused": "Questo display è in pausa, quindi Ripristina non invierà nulla finché non lo riprendi.",
-    "restoreAllDisplays": "Ripristina reinvia le pagine a tutti i display.",
     "keptTitle": "Un’altra app ha scritto su questo board alle {time}",
     "keptDetail": "FiestaBoard ha già rimesso la tua pagina. Puoi ancora salvare ciò che ha scritto l’altra app.",
+    "overwrittenDetail": "Rilevato: {time}. FiestaBoard non può vedere cosa mostra ora questo display, quindi non c’è nulla da salvare. Ripristina rimette la tua pagina.",
     "externalPageName": "Dal board {date}",
     "toastRestored": "Board ripristinato",
-    "toastRestoredAll": "Pagine reinviate a tutti i display",
     "toastRestoreFailed": "Impossibile ripristinare il board",
     "toastNotSentPaused": "Nulla è stato inviato: questo display è in pausa",
     "toastNotSent": "Nulla è stato inviato al display",
@@ -1207,6 +1206,10 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "autoRestore": {
+      "toggle": "Ripristina automaticamente",
+      "help": "Quando un’altra app modifica questo display, FiestaBoard rimette la tua pagina. Disattiva questa opzione per lasciare il display a un’altra app."
     },
     "initError": {
       "badge": "Non disponibile",

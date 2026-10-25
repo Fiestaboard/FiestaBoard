@@ -857,8 +857,6 @@ export function ActivePageDisplay() {
             geometry={activeGeometry}
             paused={isTargetPaused}
             suppressed={!!liveMessageForBoard}
-            multiBoard={isMultiBoard}
-            isPrimary={isPrimaryBoard}
           />
 
           {/* Board Frame — contain: layout style paint isolates the tile grid from

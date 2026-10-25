@@ -5,6 +5,10 @@
  * showed the out-of-sync banner. The one poll thread now reads every readable
  * hardware board, so an external write to board 2 surfaces on Home (with
  * board 2 selected) and on board 2's own display page — and only there.
+ *
+ * Restore is per board (#2354): restoring board 2 writes board 2 only.
+ * Board 2's "Restore automatically" is turned off here so the other app's
+ * content stays up until the test restores it by hand.
  */
 import type { Page } from "@playwright/test";
 
@@ -15,12 +19,14 @@ import {
   deleteAllPages,
   ensureTwoBoardsWithConnections,
   expect,
+  getMockBoardState,
   getMockBoardState2,
   gridToText,
   MOCK_BOARD_URL_2,
   mockBoardGrid,
   resetMockBoard,
   resetToSingleBoard,
+  setAutoRestore,
   setScheduleEnabled,
   suppressWizard,
   test,
@@ -92,12 +98,15 @@ test.afterEach(async () => {
   await resetMockBoard();
 });
 
-test("another app writes board 2 → its banner, its geometry, and an install-wide Restore", async ({ page }) => {
+test("another app writes board 2 → its banner, its geometry, and a Restore of board 2 only", async ({ page }) => {
   test.setTimeout(120_000);
   const { board1Id, board2Id } = await ensureTwoBoardsWithConnections({
     board1Name: "Living Room",
     board2Name: "Kitchen",
   });
+  // Keep the other app's content on board 2 until Restore (resetToSingleBoard
+  // in afterEach replaces both boards, so nothing to undo).
+  await setAutoRestore(board2Id, false);
   await setLocalReadInterval(20);
 
   const text1 = `ONE ${uniqueWord()}`;
@@ -133,7 +142,9 @@ test("another app writes board 2 → its banner, its geometry, and an install-wi
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
   await selectBoard(page, "Kitchen");
   await expect(banner(page)).toBeVisible({ timeout: 15_000 });
-  await expect(banner(page)).toContainText("Restore resends pages to every display.");
+  await expect(banner(page)).toHaveAttribute("data-face", "out-of-sync");
+  // The old install-wide hold line is gone: Restore no longer touches board 1.
+  await expect(banner(page)).not.toContainText("every display");
 
   // Board 2's own display page: the banner sits under "Now showing".
   await page.goto(`/displays/${board2Id}`);
@@ -155,10 +166,28 @@ test("another app writes board 2 → its banner, its geometry, and an install-wi
   await page.waitForTimeout(2_000);
   await expect(banner(page)).toHaveCount(0);
 
-  // Restore from board 2: install-wide, and the toast says so.
+  // Restore from board 2: board 2's own restore, and board 1 is not written.
   await selectBoard(page, "Kitchen");
   await expect(banner(page)).toBeVisible({ timeout: 15_000 });
+  const board1Writes = (await getMockBoardState()).message_count ?? 0;
+  const restoreRequests: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "POST" && /\/api\/(force-refresh|v1\/boards\/[^/]+\/restore)/.test(r.url())) {
+      restoreRequests.push(new URL(r.url()).pathname);
+    }
+  });
+  const restored = page.waitForResponse(
+    (r) => r.url().includes(`/api/v1/boards/${board2Id}/restore`) && r.request().method() === "POST",
+  );
   await banner(page).getByRole("button", { name: "Restore" }).click();
-  await expect(page.getByText("Pages resent to every display")).toBeVisible({ timeout: 10_000 });
+  const response = await restored;
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toMatchObject({ board_id: board2Id, sent: true });
+  await expect(page.getByText("Board restored")).toBeVisible({ timeout: 10_000 });
   await expect.poll(async () => mockBoardGrid(await getMockBoardState2()), { timeout: 10_000 }).toEqual(board2Page);
+  // Past the banner's confirming refetch: still only board 2's restore, and
+  // board 1's listener received nothing.
+  await page.waitForTimeout(5_000);
+  expect(restoreRequests).toEqual([`/api/v1/boards/${board2Id}/restore`]);
+  expect((await getMockBoardState()).message_count ?? 0).toBe(board1Writes);
 });

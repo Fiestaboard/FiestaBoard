@@ -962,12 +962,11 @@
     "openPage": "Open page",
     "dismiss": "Dismiss",
     "holdPaused": "This display is paused, so Restore won't send anything until you resume it.",
-    "restoreAllDisplays": "Restore resends pages to every display.",
     "keptTitle": "Another app wrote to this board at {time}",
     "keptDetail": "FiestaBoard has since put your page back. You can still save what the other app wrote.",
+    "overwrittenDetail": "Detected: {time}. FiestaBoard can't see what this display shows now, so there's nothing to save. Restore puts your page back.",
     "externalPageName": "From board {date}",
     "toastRestored": "Board restored",
-    "toastRestoredAll": "Pages resent to every display",
     "toastRestoreFailed": "Failed to restore board",
     "toastNotSentPaused": "Nothing was sent: this display is paused",
     "toastNotSent": "Nothing was sent to the display",
@@ -1156,6 +1155,10 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "autoRestore": {
+      "toggle": "Restore automatically",
+      "help": "When another app changes this display, FiestaBoard puts your page back. Turn this off to let another app keep the display."
     },
     "initError": {
       "badge": "Unavailable",

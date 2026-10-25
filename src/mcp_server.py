@@ -2827,6 +2827,7 @@ def _build_mcp_server() -> Any:
         transition: str | None = None,
         transition_step_interval_ms: int | None = None,
         transition_step_size: int | None = None,
+        auto_restore: bool | None = None,
     ) -> dict[str, Any]:
         """Rename, retype, resize or reconfigure one board's non-secret hardware fields, or set its transition.
 
@@ -2863,6 +2864,8 @@ def _build_mcp_server() -> Any:
             transition_step_interval_ms: Delay between animation steps in ms,
                 0–5000 (0 = as fast as the board goes), for split-flap strategies.
             transition_step_size: Columns or rows that move per step (≥ 1).
+            auto_restore: False lets another app keep this board after it
+                overwrites it; True (default) puts FiestaBoard's content back.
         """
         return await ops_executors.update_board(
             board_id,
@@ -2877,6 +2880,7 @@ def _build_mcp_server() -> Any:
             transition=transition,
             transition_step_interval_ms=transition_step_interval_ms,
             transition_step_size=transition_step_size,
+            auto_restore=auto_restore,
         )
 
     @_tool(destructive=False)

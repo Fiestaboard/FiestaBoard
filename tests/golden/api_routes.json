@@ -2045,6 +2045,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/v1/boards/{board}/restore",
+      "methods": [
+        "POST"
+      ],
+      "name": "restore_board",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/v1/collections",
       "methods": [
         "GET"

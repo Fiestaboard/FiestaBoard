@@ -46,6 +46,12 @@ class BoardSummary(BaseModel):
     is_primary: bool = Field(description='True for the board that the alias "primary" resolves to.')
     paused: bool = Field(description="While true, FiestaBoard writes nothing to this board from any code path.")
     schedule_enabled: bool = Field(description="Whether this board follows its schedule rather than a fixed page.")
+    auto_restore: bool = Field(
+        description=(
+            "Whether FiestaBoard puts this board's content back when another app overwrites it. "
+            "Detected by reading the board back, or by a device that reports another client wrote it."
+        ),
+    )
     output: str = Field(
         description=(
             'The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" '
@@ -156,6 +162,13 @@ class BoardUpdate(BaseModel):
     schedule_enabled: StrictBool | None = Field(
         default=None,
         description="Turn this board's schedule on or off.",
+    )
+    auto_restore: StrictBool | None = Field(
+        default=None,
+        description=(
+            "Turn off to let another app keep this board after it overwrites FiestaBoard's content; "
+            "on (the default) puts the content back."
+        ),
     )
     default_page_id: str | None = Field(
         default=None,
@@ -385,6 +398,37 @@ class ActivePageResponse(BaseModel):
     warnings: list[str] = Field(
         default_factory=list,
         description="Non-fatal problems, e.g. collection members that do not fit this board.",
+    )
+
+
+class RestoreResponse(BaseModel):
+    """The result of restoring what a board should show (#2354).
+
+    Three different things, kept apart on purpose: what FiestaBoard intends
+    the board to show (``page_id``), whether that was written (``sent``), and
+    what the device actually displays — which no supported board reports back,
+    so ``device_observed`` is always false.
+    """
+
+    board_id: str = Field(description="The board, with the 'primary' alias already resolved.")
+    page_id: str | None = Field(
+        default=None,
+        description=(
+            "The page pinned to this board, if any. A schedule or timed message may take precedence over it; "
+            "restore shows whichever the display loop would."
+        ),
+    )
+    sent: bool = Field(description="True when the board accepted the write. Not proof of what it displays.")
+    reason: str | None = Field(
+        default=None,
+        description="Why nothing was written, when sent is false. Null when sent is true.",
+    )
+    device_observed: bool = Field(
+        default=False,
+        description=(
+            "Always false: no supported board can read back what it displays, so a successful restore confirms "
+            "the write was accepted, not that the pixels or flaps changed."
+        ),
     )
 
 

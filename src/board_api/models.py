@@ -96,3 +96,7 @@ class BoardCurrentMessageResponse(BaseModel):
     #: ISO 8601 UTC time of the poll that confirmed ``external_characters``;
     #: present only alongside it.
     external_detected_at: str | None = None
+    #: ISO 8601 UTC time a device that cannot read back reported another app
+    #: wrote it (#2354). Present ONLY until FiestaBoard writes the board again;
+    #: there is no frame to show, only that it changed.
+    overwritten_at: str | None = None
