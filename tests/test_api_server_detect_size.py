@@ -13,6 +13,22 @@ def client():
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def live_service():
+    """Detect-size reads through the board's LIVE driver (``runtime_for``).
+
+    The settings service is a Mock in every test here, so the stand-in builds
+    each board's live driver with the runtime factory from the boards that
+    Mock returns — as the real service does from saved boards.
+    """
+    import src.api_server as api_server
+    from tests.live_boards import live_runtimes_from
+
+    service = live_runtimes_from(lambda: api_server.get_settings_service().get_board_settings().boards)
+    with patch("src.api_server.get_service", return_value=service):
+        yield service
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -59,7 +75,7 @@ class TestDetectSizeSuccess:
     """Endpoint returns the classification of the live grid for each transport."""
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_local_flagship_6x22(self, mock_read, mock_ss, client):
         """Local API, flagship 6×22 grid → device_type flagship."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock(
@@ -81,7 +97,7 @@ class TestDetectSizeSuccess:
         assert data["matched_preset"] is None
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_cloud_note_3x15(self, mock_read, mock_ss, client):
         """Cloud API, Note 3×15 grid → device_type note (classified from the grid)."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock(
@@ -97,7 +113,7 @@ class TestDetectSizeSuccess:
         assert data["cols"] == 15
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_note_array_6x30_2x2_grid(self, mock_read, mock_ss, client):
         """Note-array board, 6×30 grid → note_array 2×2, preset '2×2 grid'."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock(
@@ -126,7 +142,7 @@ class TestDetectSizeSuccess:
         assert data["cols"] == 30
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_note_array_3x60_4_side_by_side(self, mock_read, mock_ss, client):
         """Note-array board, 3×60 grid → note_array 4×1, preset '4 side-by-side'."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock(
@@ -182,7 +198,7 @@ class TestDetectSizeErrors:
         assert "not configured" in resp.json()["detail"].lower()
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_board_unreachable_422(self, mock_read, mock_ss, client):
         """Board configured but read returns None (unreachable/blank) → 422."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock([_make_board_dict()])
@@ -193,7 +209,7 @@ class TestDetectSizeErrors:
         assert "no layout" in resp.json()["detail"].lower()
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_unclassifiable_grid_422(self, mock_read, mock_ss, client):
         """Board returns a 5×15 grid (5 % 3 != 0) → 422 unclassifiable."""
         mock_ss.return_value.get_board_settings.return_value = _board_settings_mock([_make_board_dict()])
@@ -235,7 +251,7 @@ class TestDetectSizeLocalArrays:
         assert "local-mode note arrays" in resp.json()["detail"]
 
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.read_current_message")
+    @patch("src.outputs.plugin_driver.OutputPluginDriver.read_current_message")
     def test_token_fallback_array_still_detects_via_cloud(self, mock_read, mock_ss, client):
         """api_mode 'local' with NO tiles drives via the cloud token — detect keeps working."""
         board = self._local_array_board(tiles=[])
@@ -248,3 +264,34 @@ class TestDetectSizeLocalArrays:
         assert resp.status_code == 200
         assert resp.json()["device_type"] == "note_array"
         assert resp.json()["notes_wide"] == 2
+
+
+@patch("src.api_server.get_settings_service")
+def test_virtual_panel_reports_configured_geometry_without_probing(mock_settings, client):
+    mock_settings.return_value.get_board_settings.return_value = _board_settings_mock(
+        [{"id": "panel-1", "output": "fiestapanel", "device_type": "panel", "grid_rows": 12, "grid_cols": 29}]
+    )
+    with patch(
+        "src.settings.routes._live_board_driver", side_effect=AssertionError("must not probe configured geometry")
+    ):
+        response = client.post("/settings/board/panel-1/detect-size")
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "device_type": "panel",
+        "rows": 12,
+        "cols": 29,
+        "notes_wide": None,
+        "notes_tall": None,
+        "matched_preset": None,
+        "source": "configured",
+    }
+
+
+@patch("src.api_server.get_settings_service")
+def test_missing_output_is_unavailable_instead_of_inventing_detected_geometry(mock_settings, client):
+    mock_settings.return_value.get_board_settings.return_value = _board_settings_mock(
+        [{"id": "missing-1", "output": "not_installed", "device_type": "panel", "grid_rows": 12, "grid_cols": 29}]
+    )
+    response = client.post("/settings/board/missing-1/detect-size")
+    assert response.status_code == 503
+    assert "not installed" in response.json()["detail"]

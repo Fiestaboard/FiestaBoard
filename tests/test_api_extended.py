@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
+from src.outputs import OutputRuntime
 
 
 @pytest.fixture
@@ -164,17 +165,11 @@ def mock_settings_service():
         location.to_dict.return_value = {"latitude": None, "longitude": None}
         ss.get_location_settings.return_value = location
 
-        beta = Mock()
-        beta.https_enabled = False
-        # transition_plugins_enabled added with the conventions pass: the
-        # field has existed since the transition-plugin beta, and the
-        # response_model now validates it.
-        beta.to_dict.return_value = {"https_enabled": False, "transition_plugins_enabled": False}
-        ss.get_beta_settings.return_value = beta
-        ss.update_beta_settings.return_value = beta
-
         plugin_settings = Mock()
-        plugin_settings.to_dict.return_value = {"auto_update": True}
+        plugin_settings.to_dict.return_value = {
+            "auto_update": True,
+            "transition_plugins_enabled": False,
+        }
         ss.get_plugin_settings.return_value = plugin_settings
         ss.update_plugin_settings.return_value = plugin_settings
 
@@ -387,7 +382,6 @@ def mock_service():
         }
         svc.vb_client.clear_cache.return_value = None
         svc.vb_client.use_cloud = False
-        svc.vb_client._last_characters = None
         svc.board_clients = {}
         svc.running = True
         svc.initialize.return_value = True
@@ -399,12 +393,16 @@ def mock_service():
             """What ``runtime_for(None)`` answers: the fixture's primary caches, live."""
 
             client = property(lambda self: svc.vb_client)
+            # The primary board's core runtime: its frame cache answers
+            # "what FiestaBoard last sent".
+            output = OutputRuntime()
             polled_characters = property(
                 lambda self: svc._polled_characters, lambda self, v: setattr(svc, "_polled_characters", v)
             )
             polled_at = property(lambda self: svc._polled_at, lambda self, v: setattr(svc, "_polled_at", v))
 
         primary_runtime = _PrimaryRuntime()
+        svc.primary_output = primary_runtime.output
         svc.get_runtime.return_value = None
 
         def runtime_for(board_id=None):
@@ -740,7 +738,12 @@ class TestSettingsEndpoints:
         response = client.put("/settings/board", json={"board_type": "white"})
         assert response.status_code == 200
         # Bare BoardSettings since the conventions pass (Phase 2, Task 8).
-        assert response.json() == mock_settings_service.set_board_type.return_value.to_dict()
+        # A board_type save resizes nothing: what a boards save moved is null.
+        assert response.json() == {
+            **mock_settings_service.set_board_type.return_value.to_dict(),
+            "retargeted_pages": None,
+            "incompatible_references": None,
+        }
 
     def test_update_board_settings_devices(self, client, mock_settings_service):
         response = client.put("/settings/board", json={"devices": ["flagship"]})
@@ -1070,9 +1073,8 @@ class TestTemplateEndpoints:
         assert response.status_code == 400
 
     def test_render_template_live_success(self, client, mock_template_engine, mock_settings_service):
-        with patch("src.templates.routes.board_client_from_board_dict") as mock_bcfbd:
+        with patch("src.templates.routes.live_driver") as mock_bcfbd:
             mock_board_client = Mock()
-            mock_board_client.send_characters.return_value = (True, True)
             mock_board_client.render.return_value = (True, True)
             mock_bcfbd.return_value = mock_board_client
             response = client.post(
@@ -1110,9 +1112,9 @@ class TestTemplateEndpoints:
         board_settings.boards = [na_board]
         mock_settings_service.get_board_settings.return_value = board_settings
 
-        with patch("src.templates.routes.board_client_from_board_dict") as mock_bcfbd:
+        with patch("src.templates.routes.live_driver") as mock_bcfbd:
             mock_client = Mock()
-            mock_client.send_characters.return_value = (True, True)
+            mock_client.render.return_value = (True, True)
             mock_bcfbd.return_value = mock_client
             response = client.post(
                 "/templates/render/live",
@@ -1121,7 +1123,7 @@ class TestTemplateEndpoints:
 
         assert response.status_code == 200, response.text
         assert response.json()["sent_to_board"] is True
-        sent_grid = mock_client.send_characters.call_args.args[0]
+        sent_grid = mock_client.render.call_args.args[0]
         assert len(sent_grid) == 3, f"expected 3 rows for 4-wide note array, got {len(sent_grid)}"
         assert all(len(row) == 60 for row in sent_grid), "expected 60 cols (4 notes × 15) per row"
 
@@ -1144,7 +1146,7 @@ class TestTemplateEndpoints:
 
     def test_render_template_live_board_not_found(self, client, mock_template_engine, mock_settings_service):
         mock_settings_service.get_board_settings.return_value = Mock(boards=[{"id": "b1", "device_type": "flagship"}])
-        with patch("src.templates.routes.board_client_from_board_dict", return_value=None):
+        with patch("src.templates.routes.live_driver", return_value=None):
             response = client.post(
                 "/templates/render/live",
                 json={
@@ -1582,7 +1584,7 @@ class TestServiceLifecycle:
             response = client.post("/send-message", json={"text": "Hello"})
         # Phase 2 Task 8: a silence-window refusal is a 409, not a word at 200.
         assert response.status_code == 409
-        assert "silence mode" in response.json()["detail"]
+        assert "silenced" in response.json()["detail"]
 
     def test_send_message_no_board_client(self, client, mock_service, mock_settings_service):
         mock_service.vb_client = None
@@ -1817,7 +1819,7 @@ class TestBoardCurrentMessage:
         grid = [[0] * 22 for _ in range(6)]
         expected = [[5] * 22 for _ in range(6)]
         mock_service.vb_client.read_current_message.return_value = grid
-        mock_service.vb_client._last_characters = expected
+        mock_service.primary_output.frames.characters = expected
         response = client.get("/board/current-message")
         assert response.status_code == 200
         assert response.json()["expected_characters"] == expected
@@ -1966,7 +1968,7 @@ class TestWelcomeMessage:
         with patch("src.api_server.Config.is_silence_mode_active", return_value=True):
             response = client.post("/send-welcome-message")
         assert response.status_code == 409
-        assert "silence mode" in response.json()["detail"]
+        assert "silenced" in response.json()["detail"]
 
 
 # ============================================================
@@ -1999,7 +2001,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"apiKey": "generated_api_key_abc"}
-        with patch("src.config_api.service.requests.post", return_value=mock_resp):
+        with patch("requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2016,7 +2018,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {}
-        with patch("src.config_api.service.requests.post", return_value=mock_resp):
+        with patch("requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2031,7 +2033,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 401
         mock_resp.text = "Unauthorized"
-        with patch("src.config_api.service.requests.post", return_value=mock_resp):
+        with patch("requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2046,7 +2048,7 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 500
         mock_resp.text = "Internal Server Error"
-        with patch("src.config_api.service.requests.post", return_value=mock_resp):
+        with patch("requests.post", return_value=mock_resp):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2060,9 +2062,7 @@ class TestEnableLocalAPI:
     def test_connection_error(self, client):
         import requests as http_requests
 
-        with patch(
-            "src.config_api.service.requests.post", side_effect=http_requests.exceptions.ConnectionError("refused")
-        ):
+        with patch("requests.post", side_effect=http_requests.exceptions.ConnectionError("refused")):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2076,7 +2076,7 @@ class TestEnableLocalAPI:
     def test_timeout_error(self, client):
         import requests as http_requests
 
-        with patch("src.config_api.service.requests.post", side_effect=http_requests.exceptions.Timeout("timed out")):
+        with patch("requests.post", side_effect=http_requests.exceptions.Timeout("timed out")):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2088,7 +2088,7 @@ class TestEnableLocalAPI:
         assert response.json()["success"] is False
 
     def test_generic_error(self, client):
-        with patch("src.config_api.service.requests.post", side_effect=RuntimeError("unexpected")):
+        with patch("requests.post", side_effect=RuntimeError("unexpected")):
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2100,7 +2100,7 @@ class TestEnableLocalAPI:
 
     def test_rejects_public_ip(self, client):
         """SSRF guard: a public IP must be rejected before any HTTP request."""
-        with patch("src.config_api.service.requests.post") as mock_post:
+        with patch("requests.post") as mock_post:
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2120,7 +2120,7 @@ class TestEnableLocalAPI:
 
     def test_rejects_aws_metadata_address(self, client):
         """SSRF guard: the AWS instance-metadata IP must be rejected."""
-        with patch("src.config_api.service.requests.post") as mock_post:
+        with patch("requests.post") as mock_post:
             response = client.post(
                 "/config/board/enable-local-api",
                 json={
@@ -2157,7 +2157,7 @@ class TestTrafficGeocode:
         mock_resp.status_code = 200
         mock_resp.json.return_value = [{"lat": "40.7128", "lon": "-74.0060", "display_name": "NYC"}]
         mock_resp.raise_for_status = Mock()
-        with patch("src.config_api.service.requests.get", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             response = client.post("/traffic/routes/geocode", json={"address": "NYC"})
         assert response.status_code == 200
         data = response.json()
@@ -2172,7 +2172,7 @@ class TestTrafficGeocode:
         mock_resp.status_code = 200
         mock_resp.json.return_value = []
         mock_resp.raise_for_status = Mock()
-        with patch("src.config_api.service.requests.get", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             response = client.post("/traffic/routes/geocode", json={"address": "xyznonexistent"})
         assert response.status_code == 404
 
@@ -2379,9 +2379,10 @@ class TestBoardCurrentMessagePerBoard:
     @staticmethod
     def _make_runtime(last_sent=None, polled=None, polled_at=None, use_cloud=False):
         rt = Mock()
+        rt.output = OutputRuntime()
+        rt.output.frames.characters = last_sent
         rt.client = Mock()
         rt.client.is_virtual = False
-        rt.client._last_characters = last_sent
         rt.client.use_cloud = use_cloud
         rt.polled_characters = polled
         rt.polled_at = polled_at
@@ -2495,7 +2496,14 @@ class TestStatusPerBoard:
 
         assert response.status_code == 200
         boards = response.json()["boards"]
-        assert boards["b1"] == {"configured": True, "paused": False, "active_page_id": "page1", "error": None}
+        assert boards["b1"] == {
+            "configured": True,
+            "paused": False,
+            "active_page_id": "page1",
+            "error": None,
+            # b1 carries no credentials: its output (the Vestaboard) says so.
+            "output_status": {"state": "not_configured", "message": ""},
+        }
         assert boards["b2"]["configured"] is False
         assert boards["b2"]["paused"] is True
 
@@ -2514,6 +2522,37 @@ class TestStatusPerBoard:
         boards = response.json()["boards"]
         assert boards["b1"]["error"] == "api_key is required"
         assert boards["b2"]["error"] is None
+
+    def test_status_carries_each_boards_output_status(self, client, mock_service, mock_settings_service):
+        """Plan D13 ``status``: the board card's Connected / Not configured
+        badge is the board's output's summary of its settings — the
+        Vestaboard's rules, a FiestaPanel always connected, nothing from an
+        output with nothing to say."""
+        board_settings = Mock()
+        board_settings.boards = [
+            {"id": "local", "device_type": "flagship", "api_mode": "local", "host": "192.0.2.10", "local_api_key": "k"},
+            {"id": "keyless", "device_type": "flagship", "api_mode": "local", "host": "192.0.2.10"},
+            {"id": "cloud", "device_type": "flagship", "api_mode": "cloud", "cloud_key": "test_rw"},
+            {"id": "array", "device_type": "note_array", "api_mode": "cloud", "note_array_token": "test_tok"},
+            {"id": "panel", "device_type": "panel", "output": "fiestapanel", "grid_rows": 3, "grid_cols": 15},
+            {"id": "elsewhere", "device_type": "panel", "output": "not-installed", "grid_rows": 3, "grid_cols": 15},
+        ]
+        mock_settings_service.get_board_settings.return_value = board_settings
+        mock_settings_service.get_primary_board_id.return_value = "local"
+        mock_service.get_board_client = Mock(return_value=None)
+
+        with patch("src.api_server._service_running", True):
+            boards = client.get("/status").json()["boards"]
+
+        states = {bid: (b["output_status"] or {}).get("state") for bid, b in boards.items()}
+        assert states == {
+            "local": "connected",
+            "keyless": "not_configured",
+            "cloud": "connected",
+            "array": "connected",
+            "panel": "connected",
+            "elsewhere": None,
+        }
 
     def test_status_keeps_top_level_fields(self, client, mock_service, mock_settings_service):
         _configure_boards(mock_settings_service)

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.outputs.cells import project_for_output
 from src.text_to_board import text_to_board_array, wrap_message_text
 
 
@@ -43,9 +44,13 @@ def render_message(
     message is re-flapped rather than skipped. It defaults to False — the
     behavior every caller had before ``POST /v1/boards/{board}/message``
     needed to expose it.
+
+    A board whose output draws a rich character set also gets the message's
+    rich cells (:func:`src.outputs.cells.project_for_output`); a split-flap
+    board's call is unchanged.
     """
     wrapped = wrap_message_text(text, rows=rows, cols=cols)
-    board_array = text_to_board_array(wrapped, rows=rows, cols=cols)
+    board_array, rich = project_for_output(client, wrapped, rows, cols, flap=text_to_board_array)
     return client.render(
         board_array,
         strategy=strategy,
@@ -53,4 +58,5 @@ def render_message(
         step_size=step_size,
         force=force,
         with_outcome=with_outcome,
+        **rich,
     )

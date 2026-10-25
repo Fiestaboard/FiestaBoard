@@ -1,0 +1,27 @@
+{
+  "scenario": "paused_no_request",
+  "description": "A paused board refuses the write with 409 and nothing goes on the wire.",
+  "seam": "POST /send-message and POST /v1/boards/{board}/message",
+  "steps": [
+    {
+      "action": "send PAUSED via /send-message",
+      "requests": [],
+      "result": {
+        "status": 409,
+        "body": {
+          "detail": "Board is paused \u2014 sends are blocked until it is resumed."
+        }
+      }
+    },
+    {
+      "action": "send PAUSED via v1",
+      "requests": [],
+      "result": {
+        "status": 409,
+        "body": {
+          "detail": "Board is paused \u2014 sends are blocked until it is resumed."
+        }
+      }
+    }
+  ]
+}

@@ -46,6 +46,61 @@ def pytest_configure(config):
     worker = os.environ.get("PYTEST_XDIST_WORKER") or f"pid{os.getpid()}"
     _SESSION_DATA_ROOT = Path(tempfile.mkdtemp(prefix=f"fiestaboard-tests-{worker}-"))
     os.environ["FIESTABOARD_DATA_DIR"] = str(_SESSION_DATA_ROOT / "data")
+    _use_output_seed()
+
+
+#: Where the image builds the output seed (src/outputs/seed.py).
+_IMAGE_SEED_DIR = "/opt/fiestaboard/seed/outputs"
+
+
+def _use_output_seed() -> None:
+    """Run the suite against a built output seed, its first-party outputs imported.
+
+    Vestaboard and FiestaPanel live in their own repositories and load from
+    the output seed (``src/outputs/first_party.py``), so the suite needs one
+    built from ``outputs.lock.json``: ``$FIESTABOARD_OUTPUT_SEED_DIR`` when
+    the runner sets it (CI builds it before the tests), else the image's
+    (``docker compose exec fiestaboard pytest``). The tests never fetch it:
+    building it needs the network, which the suite is fenced from.
+
+    Both packages are imported here, before collection, because test modules
+    import them by name (``from plugins.vestaboard import transport``).
+    A test that needs another seed builds one and points at it itself.
+    """
+    seed = os.environ.get("FIESTABOARD_OUTPUT_SEED_DIR", "").strip()
+    if not seed and Path(_IMAGE_SEED_DIR, "outputs.lock.json").is_file():
+        seed = _IMAGE_SEED_DIR
+    if not seed or not Path(seed, "outputs.lock.json").is_file():
+        pytest.exit(
+            "No output seed to test against (FIESTABOARD_OUTPUT_SEED_DIR="
+            f"{seed or '<unset>'}). Build one, then point the variable at it:\n"
+            "  python scripts/seed_outputs.py build --lock outputs.lock.json --dest <dir>\n"
+            "  FIESTABOARD_OUTPUT_SEED_DIR=<dir> pytest ...",
+            returncode=4,
+        )
+    os.environ["FIESTABOARD_OUTPUT_SEED_DIR"] = seed
+
+    from src.outputs.first_party import FIRST_PARTY_OUTPUTS, FirstPartyOutputError, first_party_module
+
+    for output_id in FIRST_PARTY_OUTPUTS:
+        try:
+            first_party_module(output_id)
+        except FirstPartyOutputError as exc:
+            pytest.exit(f"The output seed at {seed} is unusable: {exc}", returncode=4)
+
+
+def pytest_collection_modifyitems(config, items):
+    """Exempt ``integration`` tests from the network fence.
+
+    ``--allow-hosts`` in pyproject limits every test to loopback (see
+    ``tests/test_network_fence.py``). Integration tests are the ones that
+    reach the real network by design (plugin installs from GitHub), and
+    pytest-socket's ``enable_socket`` marker takes precedence over
+    ``--allow-hosts``. Everything else stays fenced.
+    """
+    for item in items:
+        if item.get_closest_marker("integration"):
+            item.add_marker(pytest.mark.enable_socket)
 
 
 def pytest_unconfigure(config):
@@ -125,6 +180,10 @@ def _drop_all_singletons() -> None:
     reset_conversation_service()
     # Holds a TokenStore bound to the data dir it was built against.
     reset_oauth_service()
+    # The held-send store (#1944) caches what it loaded from the data dir.
+    import src.silence_queue as silence_queue_module
+
+    silence_queue_module._reset_for_tests()
 
     # The DisplayService singleton. The comment that used to sit here named
     # `src.api_server._service`, an attribute that has not existed since the
@@ -341,6 +400,27 @@ def _reset_silence_window_cache():
     yield
     Config._silence_cache.clear()
     Config._silence_migrations_ran = None
+
+
+@pytest.fixture(autouse=True)
+def _reset_send_floors():
+    """Isolate the send floor per test.
+
+    The floor registry (``src/outputs/floor.py``) is process-wide and keyed
+    by device, by design: a window must outlive the client that opened it.
+    Tests reuse the same fake keys and tokens, so without this one test's
+    send would throttle an unrelated test's first send.
+    """
+    from src.outputs.breaker import output_breakers
+    from src.outputs.floor import send_floors
+
+    # The output circuit breaker is keyed by device the same way, for the
+    # same reason (src/outputs/breaker.py).
+    send_floors().clear()
+    output_breakers().clear()
+    yield
+    send_floors().clear()
+    output_breakers().clear()
 
 
 # Shared fixtures for test helpers

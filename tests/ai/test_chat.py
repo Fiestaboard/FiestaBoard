@@ -841,3 +841,52 @@ def test_chat_endpoint_rejects_invalid_device_type(reset_throttle):
     # validation detail still names the field, which is what this asserts.
     assert r.status_code == 422
     assert "device_type" in r.text
+
+
+@pytest.mark.parametrize("interaction_mode", [None, "tv"])
+def test_the_chat_board_id_reaches_the_turn_as_that_boards_display(reset_throttle, monkeypatch, interaction_mode):
+    """``board_id`` names the board the chat is for; the turn is taught its display."""
+    from fastapi.testclient import TestClient
+
+    from src.api_server import app
+    from src.fiestaui import builtin_device_models
+
+    pixoo = {
+        "id": "pixoo-1",
+        "device_type": "panel",
+        "grid_rows": 10,
+        "grid_cols": 16,
+        "device_model": "divoom_pixoo64",
+    }
+    monkeypatch.setattr("src.board_guards._find_board", lambda board_id: pixoo if board_id == "pixoo-1" else None)
+    monkeypatch.setattr(
+        "src.outputs.display_profile.board_device_model", lambda board: builtin_device_models()["divoom_pixoo64"]
+    )
+    seen: dict = {}
+
+    async def fake_turn(**kwargs):
+        seen.update(kwargs)
+        yield {"event": "done", "data": {"reason": "complete"}}
+
+    monkeypatch.setattr("src.ai.agent.run_chat_turn", fake_turn)
+    client = TestClient(app)
+    body = {"messages": [{"role": "user", "content": "hi"}], "board_id": "pixoo-1"}
+    if interaction_mode is not None:
+        body["interaction_mode"] = interaction_mode
+    assert client.post("/pages/ai/chat", json=body).status_code == 200
+    assert seen["display"] is not None and seen["display"].supports("pixels")
+    assert seen["target_board"] == {"id": "pixoo-1", "device_type": "panel", "grid_rows": 10, "grid_cols": 16}
+    assert seen["interaction_mode"] == interaction_mode
+    seen.clear()
+    response = client.post("/pages/ai/chat", json={**body, "board_id": "gone"})
+    if interaction_mode == "tv":
+        # TV actions must not fall back to flagship geometry or the primary
+        # board when the explicitly selected panel has disappeared.
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Board not found: gone"}
+        assert seen == {}  # Rejected before the agent loop starts.
+    else:
+        # Ordinary web chat retains its existing unknown-board fallback.
+        assert response.status_code == 200
+        assert seen["display"] is None
+        assert seen["target_board"] is None

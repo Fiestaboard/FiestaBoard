@@ -26,13 +26,13 @@ import {
   Switch,
   Text,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   ChevronDown,
   KeyRound,
-  Loader2,
   LogIn,
   Plus,
   Server,
@@ -605,7 +605,7 @@ function ProviderRow({
               onClick={loadModels}
               disabled={modelsQuery.isFetching}
             >
-              {modelsQuery.isFetching && <Loader2 className="h-3 w-3 animate-spin" />}
+              {modelsQuery.isFetching && <Spinner label={null} className="h-3 w-3" />}
               {offeredModels ? t("refreshModels") : t("loadModels")}
             </Button>
           )}
@@ -677,7 +677,7 @@ function ProviderRow({
           onClick={runTest}
           disabled={testing || provider.models.length === 0 || !provider.base_url}
         >
-          {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+          {testing ? <Spinner label={null} className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
           <Text as="span" size="xs">
             {t("testConnectionButton")}
           </Text>
@@ -844,7 +844,7 @@ export function AiSettings() {
       toast.error(tOAuth(oauthReturnErrorKey(aiReturn.reason)));
     }
     setExpandedIds((prev) => new Set(prev).add(aiReturn.providerId));
-    router.replace("/settings?section=integrations", { scroll: false });
+    router.replace("/settings?section=ai", { scroll: false });
   }, [aiReturn, router, tOAuth]);
 
   const current: AISettings = draft ??

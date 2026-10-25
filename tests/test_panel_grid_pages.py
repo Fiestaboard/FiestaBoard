@@ -95,8 +95,9 @@ class TestMigration:
     def _v5(self):
         return dict(MIGRATIONS)[5]
 
-    def test_schema_is_version_5(self):
-        assert CURRENT_SCHEMA_VERSION == 5
+    def test_schema_is_at_least_version_5(self):
+        # v5 added the panel grid; v6 (pixel canvases) followed it.
+        assert CURRENT_SCHEMA_VERSION >= 5
 
     def test_v4_pages_gain_null_grid_fields(self):
         pages = [{"id": "a", "device_type": "flagship"}, {"id": "b", "device_type": "note_array"}]
@@ -112,7 +113,7 @@ class TestMigration:
         self._v5()(pages)
         assert (pages[0]["grid_rows"], pages[0]["grid_cols"]) == (12, 29)
 
-    def test_a_v4_file_loads_and_saves_at_v5(self, tmp_path):
+    def test_a_v4_file_loads_and_saves_at_the_current_version(self, tmp_path):
         import json
 
         from src.pages.storage import PageStorage
@@ -139,7 +140,7 @@ class TestMigration:
         storage = PageStorage(storage_file=str(path))
         assert storage.get("p1") is not None
         saved = json.loads(path.read_text())
-        assert saved["schema_version"] == 5
+        assert saved["schema_version"] == CURRENT_SCHEMA_VERSION
         assert saved["pages"][0]["grid_rows"] is None
 
 

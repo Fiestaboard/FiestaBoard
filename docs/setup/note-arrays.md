@@ -36,7 +36,7 @@ Arrays can be driven two ways:
 
 ## Add the board
 
-In the FiestaBoard web UI, open **Settings → Hardware**, click **Add Board**,
+In the FiestaBoard web UI, open **Displays**, click **Add a display**, choose **Vestaboard**,
 and choose **Note Array**. The new board starts as a *2 side-by-side* array in
 Cloud mode. Pick your size with the **Board type** dropdown — five presets
 (2 side-by-side, 4 side-by-side, 2 stacked, 4 stacked, 2×2 grid) plus

@@ -34,22 +34,32 @@ Plugin IDs are used as template namespaces (e.g., {{weather.temp}}, {{stocks.sym
 
 import logging
 import re
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
+from src.markup import blank_tiles, neutralize_data, resolve_icon_name, split_rows, take_tiles, wrap_line
+from src.markup import count_tiles as markup_count_tiles
 from src.plugins import get_plugin_registry
 from src.plugins.manifest import resolve_color_rules
+from src.text_to_board import SPLIT_FLAP_EXTENDED_MARKUP, needs_extended_markup
 from src.text_utils import extract_alignment_from_line
 
 from .colors import COLOR_CODES
 from .colors import is_color_code as _is_color_code
-from .expressions import ensure_render_clock, find_formulas, render_expressions, validate_expression
+from .expressions import ensure_render_clock, evaluate_value, find_formulas, render_expressions, validate_expression
 from .filters import FILTER_NAMES
 
 logger = logging.getLogger(__name__)
 
-# Symbol name to character mapping
+# Symbol shortcut -> legacy ASCII stand-in. This is what `{sun}` renders as
+# with extended markup off (today, on every board). With extended markup on,
+# a shortcut is an alias of the icon registry instead (plan D16): `{sun}` is
+# `{icon:sun}`, resolved by `src.markup.resolve_icon_name` from FiestaUI's
+# registry data, so this table carries no icon meanings. `{heart}` is the
+# typed ♥ (code 62), not an icon. A shortcut the registry does not know keeps
+# its ASCII in both modes.
 SYMBOL_CHARS = {
     "sun": "*",
     "star": "*",
@@ -73,9 +83,69 @@ COLOR_PATTERN = re.compile(
     r"\{\{(red|orange|yellow|green|blue|violet|purple|white|black|filled|6[3-9]|7[01])\}\}", re.IGNORECASE
 )
 SYMBOL_PATTERN = re.compile(r"\{(sun|star|cloud|rain|snow|storm|fog|partly|heart|check|x)\}", re.IGNORECASE)
+# A shortcut that is not the inside of a ``{{variable}}``.
+_SHORTCUT_OUTSIDE_VARIABLE = re.compile(r"(?<!\{)" + SYMBOL_PATTERN.pattern, re.IGNORECASE)
 FILL_SPACE_PATTERN = re.compile(r"\{\{fill_space\}\}", re.IGNORECASE)
 FILL_SPACE_REPEAT_PATTERN = re.compile(r"\{\{fill_space_repeat:(.+?)\}\}", re.IGNORECASE)
 FILLED_PATTERN = re.compile(r"\{\{filled:(.+?)\}\}", re.IGNORECASE)
+
+# Extended-markup authoring forms (plan D19): `{{<head>:<body>}}` where the
+# head is CLOSED: a colour (name, 63-70 or #rrggbb, never filled/71), a
+# block `fg/bg`, or the literal `icon`. Anything else is a variable.
+_SPAN_COLOUR = r"(?:red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|70|#[0-9a-fA-F]{6})"
+EXTENDED_HEAD_PATTERN = re.compile(r"\{\{(icon|" + _SPAN_COLOUR + r"(?:/" + _SPAN_COLOUR + r")?):", re.IGNORECASE)
+
+
+#: How deep the ``{{<head>:<body>}}`` authoring forms nest (FiestaUI
+#: ``MAX_TEMPLATE_SPAN_DEPTH``, the parser's :data:`src.markup.MAX_SPAN_DEPTH`
+#: for templates): a form at the top level is depth 1. A form that would be
+#: the ninth level is kept whole as literal text: not normalised, and its
+#: variables, formulas and tile names left as written (the board parser then
+#: still reads single-brace tiles inside it). The cap bounds the normaliser's
+#: recursion, so a hostile template cannot exhaust the stack.
+MAX_TEMPLATE_SPAN_DEPTH = 8
+
+# A kept ninth-level form rides through the remaining render passes with its
+# braces swapped for these, so no later pass (variables, formulas, tile names,
+# shortcuts) reads it; :func:`_unprotect` restores them at the end.
+_KEPT_OPEN, _KEPT_CLOSE = "\x01", "\x02"
+_PROTECT = str.maketrans("{}", _KEPT_OPEN + _KEPT_CLOSE)
+_UNPROTECT = str.maketrans(_KEPT_OPEN + _KEPT_CLOSE, "{}")
+_BRACE = re.compile(r"[{}]")
+
+
+def _unprotect(text: str) -> str:
+    return text.translate(_UNPROTECT) if _KEPT_OPEN in text else text
+
+
+def _brace_matches(text: str) -> dict[int, int]:
+    """For every ``{`` in *text*, the ``}`` that balances it (absent when unbalanced).
+
+    One pass, so finding every form's end costs one scan of the template, not
+    one per opener: a run of unbalanced openers stays linear.
+    """
+    matches: dict[int, int] = {}
+    stack: list[int] = []
+    for found in _BRACE.finditer(text):
+        at = found.start()
+        if text[at] == "{":
+            stack.append(at)
+        elif stack:
+            matches[stack.pop()] = at
+    return matches
+
+
+def _matching_double_brace(text: str, start: int, matches: dict[int, int]) -> int:
+    """Index of the `}` closing the `{{` at *start*, counting nested braces; -1 if none.
+
+    The closing pair must be `}}`, so the form ends where both opening braces
+    are balanced (a body may hold `{{var}}`, `{{= f }}`, `{63}`, nested forms).
+    *matches* is :func:`_brace_matches` of *text*.
+    """
+    end = matches.get(start, -1)
+    if end == -1:
+        return -1
+    return end if text[end - 1] == "}" and end - 1 > start + 1 else -1
 
 
 def extract_template_plugin_ids(template_lines: "list[str] | str | None") -> set[str] | None:
@@ -182,13 +252,22 @@ class TemplateEngine:
             self._config_manager = get_config_manager()
         return self._config_manager
 
-    def render(self, template: str, context: dict[str, Any] | None = None) -> str:
+    def render(
+        self,
+        template: str,
+        context: dict[str, Any] | None = None,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+    ) -> str:
         """Render template with data context.
 
         Args:
             template: Template string with {{variables}} and {{colors}}
             context: Optional pre-fetched context data. If not provided,
                      data will be fetched from display sources.
+            extended_markup: Resolve symbol shortcuts (``{sun}``) through the
+                icon registry instead of their ASCII stand-ins (plan D16). Off
+                by default; nothing turns it on until the v10 markup switch.
 
         Returns:
             Rendered string with all substitutions applied
@@ -205,7 +284,34 @@ class TemplateEngine:
         # when render_lines (or any outer caller) already pinned it.
         context = ensure_render_clock(context)
 
+        return _unprotect(self._render(template, context, extended_markup, 0))
+
+    def evaluate_expression(
+        self, expression: str, context: dict[str, Any], *, bindings: dict[str, Any] | None = None
+    ) -> Any:
+        """Evaluate one formula-language expression to its native value.
+
+        The body of a ``{{…}}`` / ``{{= … }}`` without the braces, against a
+        template *context* (plugin data), with optional *bindings* (extra
+        names, e.g. a loop item). Unlike :meth:`render` it returns data, not
+        board text, and raises :class:`~src.templates.expressions.FormulaError`
+        on any error. Used by pixel canvases (``src.canvas``); template
+        rendering does not go through it.
+        """
+        return evaluate_value(expression, ensure_render_clock(context), bindings)
+
+    def _render(self, template: str, context: dict[str, Any], extended_markup: bool, span_depth: int) -> str:
+        """:meth:`render`'s passes, for a template nested *span_depth* forms deep.
+
+        A kept ninth-level form is still protected in the result; only the
+        outermost :meth:`render` restores it.
+        """
         result = template
+
+        # Extended-markup authoring forms ({{red:HOT}}, {{icon:sun}}) before
+        # anything else: VAR_PATTERN would read "red:HOT" as a variable name.
+        if extended_markup:
+            result = self._normalize_extended(result, context, span_depth)
 
         # Process colors FIRST (before variables) to prevent VAR_PATTERN from matching them
         # This converts {{red}} to {{63}}, etc.
@@ -223,19 +329,24 @@ class TemplateEngine:
         result = self._render_variables(result, context)
 
         # Process symbols (single brackets like {sun})
-        return self._render_symbols(result)
+        return self._render_symbols(result, extended_markup=extended_markup)
 
-    def _count_tiles(self, text: str) -> int:
+    def _count_tiles(self, text: str, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP) -> int:
         """Count the number of tiles in a text string.
 
         Color markers like {66} count as 1 tile each, not their character length.
 
         Args:
             text: Rendered text string (may contain color markers like {66})
+            extended_markup: Measure what an extended-markup board draws
+                (plan D19): a span or block counts its cells, an icon one
+                tile (:func:`src.markup.count_tiles`).
 
         Returns:
             Number of tiles (characters + color markers, where each marker = 1 tile)
         """
+        if needs_extended_markup(text, extended_markup):
+            return markup_count_tiles(text)
         tile_count = 0
         i = 0
 
@@ -269,16 +380,23 @@ class TemplateEngine:
 
         return tile_count
 
-    def _truncate_to_tiles(self, text: str, max_tiles: int = 22) -> str:
+    def _truncate_to_tiles(
+        self, text: str, max_tiles: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> str:
         """Truncate text to max_tiles, where color markers count as 1 tile each.
 
         Args:
             text: Rendered text string (may contain color markers like {66})
             max_tiles: Maximum number of tiles (characters + color markers)
+            extended_markup: Cut by drawn tiles, never inside a span, block
+                or icon; a span cut short is closed
+                (:func:`src.markup.take_tiles`).
 
         Returns:
             Truncated string that fits within max_tiles
         """
+        if needs_extended_markup(text, extended_markup):
+            return take_tiles(text, max_tiles)[0]
         # Count tiles (characters + color markers) and truncate appropriately
         result = []
         tile_count = 0
@@ -327,6 +445,10 @@ class TemplateEngine:
         notes_tall: int = 1,
         grid_rows: int | None = None,
         grid_cols: int | None = None,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        display: Any = None,
+        free_spans: Sequence[Sequence[tuple[int, int]]] | None = None,
     ) -> str:
         """Render a list of template lines (for template pages).
 
@@ -354,6 +476,14 @@ class TemplateEngine:
                 vertically (determines rows = notes_tall × 3). Ignored for other types.
             grid_rows / grid_cols: For 'panel', the explicit grid. Ignored for
                 other types.
+            extended_markup: The target board speaks extended markup (its
+                character set is rich; plan D19). Every line renders with it,
+                as :meth:`render` documents.
+            free_spans: Per row, the half-open ``(start_col, end_col)`` runs
+                text may use (pixel canvases with ``text: "flow"`` take the
+                rest; :func:`src.canvas.free_spans`). ``None``, or every row
+                one full-width span, renders exactly as without it. Otherwise
+                see :meth:`_render_flow`.
 
         Returns:
             Rendered string with newlines
@@ -374,7 +504,7 @@ class TemplateEngine:
         # board size — including note arrays (no fixed DEVICE_DIMENSIONS entry).
         if context is None:
             context = self._build_context(
-                BoardContext(render_device_type, rows=dims.rows, cols=dims.cols),
+                BoardContext(render_device_type, rows=dims.rows, cols=dims.cols, display=display),
                 plugin_ids=extract_template_plugin_ids(template_lines),
             )
         # Pin the clock once for the whole board: every line's render()
@@ -384,6 +514,10 @@ class TemplateEngine:
 
         num_rows = dims.rows
         board_width = dims.cols
+        # With extended_markup, every width below (alignment, padding,
+        # truncation, fill_space, wrap) is measured in the tiles the board
+        # draws: a span or block by its cells, an icon as one tile. Off, each
+        # helper takes its unchanged split-flap path.
 
         # Pad to num_rows lines
         lines = list(template_lines[:num_rows])
@@ -418,8 +552,50 @@ class TemplateEngine:
 
         def _render_cached(idx: int) -> str:
             if idx not in rendered_cache:
-                rendered_cache[idx] = self.render(contents[idx], context)
+                rendered_cache[idx] = self.render(contents[idx], context, extended_markup=extended_markup)
             return rendered_cache[idx]
+
+        def _overflow_budget(start: int) -> int:
+            """Rows an overflowing line at ``start`` may fill, itself included.
+
+            A row is available if it is literally empty, opts into the
+            region with wrap=True, or renders to whitespace (e.g.
+            ``{{plugin.var}}`` where var resolves to ""). A wrap=False row
+            that renders visible content hard-stops the overflow — that is
+            what protects a footer the author put below.
+
+            Both overflow paths share this: ``|wrap`` and a row-emitting
+            formula spill the same way, so they must stop the same way.
+            """
+            available = 1  # the overflowing line itself
+            for j in range(start + 1, num_rows):
+                if contents[j].strip() == "":
+                    available += 1
+                    continue
+                if wraps[j] or "|wrap}}" in contents[j] or "|wrap|" in contents[j]:
+                    available += 1
+                    continue
+                if _render_cached(j).strip() == "":
+                    available += 1
+                    continue
+                break
+            return available
+
+        flow = free_spans is not None and any(
+            list(free_spans[r] if r < len(free_spans) else [(0, board_width)]) != [(0, board_width)]
+            for r in range(num_rows)
+        )
+        if flow:
+            return self._render_flow(
+                contents,
+                alignments,
+                wraps,
+                free_spans,
+                render_cached=_render_cached,
+                overflow_budget=_overflow_budget,
+                board_width=board_width,
+                extended_markup=extended_markup,
+            )
 
         for i in range(num_rows):
             if i <= skip_until:
@@ -431,41 +607,23 @@ class TemplateEngine:
 
             has_wrap = wrap_enabled or "|wrap}}" in content or "|wrap|" in content
 
-            def _overflow_budget(start: int) -> int:
-                """Rows an overflowing line at ``start`` may fill, itself included.
-
-                A row is available if it is literally empty, opts into the
-                region with wrap=True, or renders to whitespace (e.g.
-                ``{{plugin.var}}`` where var resolves to ""). A wrap=False row
-                that renders visible content hard-stops the overflow — that is
-                what protects a footer the author put below.
-
-                Both overflow paths share this: ``|wrap`` and a row-emitting
-                formula spill the same way, so they must stop the same way.
-                """
-                available = 1  # the overflowing line itself
-                for j in range(start + 1, num_rows):
-                    if contents[j].strip() == "":
-                        available += 1
-                        continue
-                    if wraps[j] or "|wrap}}" in contents[j] or "|wrap|" in contents[j]:
-                        available += 1
-                        continue
-                    if _render_cached(j).strip() == "":
-                        available += 1
-                        continue
-                    break
-                return available
-
             if has_wrap:
                 wrapped_lines = self._render_with_wrap(
-                    content, context, max_lines=_overflow_budget(i), board_width=board_width
+                    content,
+                    context,
+                    max_lines=_overflow_budget(i),
+                    board_width=board_width,
+                    extended_markup=extended_markup,
                 )
 
                 for k, wrapped_line in enumerate(wrapped_lines):
                     if i + k < num_rows:
-                        processed = self._process_fill_space(wrapped_line, width=board_width)
-                        rendered[i + k] = self._apply_alignment(processed, alignment, width=board_width)
+                        processed = self._process_fill_space(
+                            wrapped_line, width=board_width, extended_markup=extended_markup
+                        )
+                        rendered[i + k] = self._apply_alignment(
+                            processed, alignment, width=board_width, extended_markup=extended_markup
+                        )
 
                 skip_until = i + len(wrapped_lines) - 1
             else:
@@ -477,19 +635,192 @@ class TemplateEngine:
                     # |wrap would. Without this it wrote straight over a
                     # footer, and the footer was not pushed down or shown
                     # anywhere — it was simply gone.
-                    split_lines = rendered_line.split("\n")[: _overflow_budget(i)]
+                    # On an extended-markup board a span the formula sits in
+                    # is closed and reopened across the break, as |wrap does.
+                    all_rows = (
+                        split_rows(rendered_line)
+                        if needs_extended_markup(rendered_line, extended_markup)
+                        else rendered_line.split("\n")
+                    )
+                    split_lines = all_rows[: _overflow_budget(i)]
                     for line_idx, split_line in enumerate(split_lines):
                         if i + line_idx >= num_rows:
                             break
-                        processed_line = self._process_fill_space(split_line, width=board_width)
-                        rendered[i + line_idx] = self._apply_alignment(processed_line, alignment, width=board_width)
+                        processed_line = self._process_fill_space(
+                            split_line, width=board_width, extended_markup=extended_markup
+                        )
+                        rendered[i + line_idx] = self._apply_alignment(
+                            processed_line, alignment, width=board_width, extended_markup=extended_markup
+                        )
                     if len(split_lines) > 1:
                         skip_until = min(i + len(split_lines) - 1, num_rows - 1)
                 else:
-                    rendered_line = self._process_fill_space(rendered_line, width=board_width)
-                    rendered[i] = self._apply_alignment(rendered_line, alignment, width=board_width)
+                    rendered_line = self._process_fill_space(
+                        rendered_line, width=board_width, extended_markup=extended_markup
+                    )
+                    rendered[i] = self._apply_alignment(
+                        rendered_line, alignment, width=board_width, extended_markup=extended_markup
+                    )
 
         return "\n".join(rendered)
+
+    def _render_flow(
+        self,
+        contents: list[str],
+        alignments: list[str],
+        wraps: list[bool],
+        free_spans: Sequence[Sequence[tuple[int, int]]],
+        *,
+        render_cached: Callable[[int], str],
+        overflow_budget: Callable[[int], int],
+        board_width: int,
+        extended_markup: bool,
+    ) -> str:
+        """:meth:`render_lines` for a page whose ``flow`` canvases take cells from some rows.
+
+        Each row offers its free spans in reading order (left span, then
+        right span). A wrapping line (wrap on, or a ``|wrap`` variable — the
+        whole rendered line wraps) flows from its own row's first span through
+        every span of the rows its overflow budget allows, a word never split
+        across spans (one too wide for a span moves on to the next span that
+        can hold it); alignment applies within each span. A line without wrap
+        takes its row's first span and is clipped at the span's end. Cells
+        outside every span are blank.
+        """
+        num_rows = len(contents)
+        row_spans = [list(free_spans[r]) if r < len(free_spans) else [(0, board_width)] for r in range(num_rows)]
+        placed: dict[tuple[int, int], str] = {}
+
+        def put(row: int, span: tuple[int, int], text: str, alignment: str) -> None:
+            width = span[1] - span[0]
+            text = self._process_fill_space(text, width=width, extended_markup=extended_markup)
+            placed[(row, span[0])] = self._apply_alignment(
+                text, alignment, width=width, extended_markup=extended_markup
+            )
+
+        skip_until = -1
+        for i in range(num_rows):
+            if i <= skip_until:
+                continue
+            content, alignment = contents[i], alignments[i]
+            if wraps[i] or "|wrap}}" in content or "|wrap|" in content:
+                last = min(num_rows, i + overflow_budget(i))
+                slots = [(r, span) for r in range(i, last) for span in row_spans[r]]
+                if not slots:
+                    continue
+                lines = self._flow_wrap(render_cached(i), [b - a for _r, (a, b) in slots], extended_markup)
+                for (row, span), line in zip(slots, lines, strict=False):
+                    put(row, span, line, alignment)
+                if lines:
+                    skip_until = slots[len(lines) - 1][0]
+                continue
+            rendered_line = render_cached(i)
+            if "\n" in rendered_line:
+                all_rows = (
+                    split_rows(rendered_line)
+                    if needs_extended_markup(rendered_line, extended_markup)
+                    else rendered_line.split("\n")
+                )
+                split_lines = all_rows[: overflow_budget(i)]
+                for k, line in enumerate(split_lines):
+                    if i + k < num_rows and row_spans[i + k]:
+                        put(i + k, row_spans[i + k][0], line, alignment)
+                if len(split_lines) > 1:
+                    skip_until = min(i + len(split_lines) - 1, num_rows - 1)
+            elif row_spans[i]:
+                put(i, row_spans[i][0], rendered_line, alignment)
+
+        out: list[str] = []
+        for row in range(num_rows):
+            parts: list[str] = []
+            col = 0
+            for start, end in row_spans[row]:
+                parts.append(" " * (start - col))
+                parts.append(placed.get((row, start), " " * (end - start)))
+                col = end
+            parts.append(" " * (board_width - col))
+            out.append("".join(parts))
+        return "\n".join(out)
+
+    def _flow_wrap(self, text: str, widths: list[int], extended_markup: bool) -> list[str]:
+        """Word-wrap *text* into rows of the given *widths* (tiles); words never split
+        unless no later row can hold them. At most ``len(widths)`` rows."""
+        if not text.strip():
+            return []
+        if needs_extended_markup(text, extended_markup):
+            return wrap_line(text, max(widths), widths=widths, keep_words=True)
+        words: list[str] = []
+        word: list[str] = []
+        for token in self._split_into_tokens(text):
+            if len(token) == 1 and token.isspace():
+                if word:
+                    words.append("".join(word))
+                    word = []
+            else:
+                word.append(token)
+        if word:
+            words.append("".join(word))
+        lines: list[str] = []
+        line, line_tiles, k = "", 0, 0
+        for w in words:
+            tiles = self._count_tiles(w, extended_markup=False)
+            while k < len(widths):
+                width = widths[k]
+                if line and line_tiles + 1 + tiles <= width:
+                    line, line_tiles = f"{line} {w}", line_tiles + 1 + tiles
+                    break
+                if line:
+                    lines.append(line)
+                    line, line_tiles, k = "", 0, k + 1
+                    continue
+                if tiles <= width:
+                    line, line_tiles = w, tiles
+                    break
+                if any(tiles <= later for later in widths[k + 1 :]):
+                    lines.append("")
+                    k += 1
+                    continue
+                line, line_tiles = self._truncate_to_tiles(w, width, extended_markup=False), width
+                break
+            else:
+                break
+        if line and k < len(widths):
+            lines.append(line)
+        return lines
+
+    def blank_cells(
+        self, text: str, cells: Collection[tuple[int, int]], *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> str:
+        """*text* (board rows) with every 0-based ``(row, col)`` in *cells* drawn blank.
+
+        What a ``text: "hide"`` pixel canvas does to the text under it, on
+        every board: the row renders as usual, then the covered cells become
+        blank tiles (a colour tile, a coloured letter or a block's background
+        included). Other cells keep exactly what they drew.
+        """
+        if not cells:
+            return text
+        by_row: dict[int, set[int]] = {}
+        for row, col in cells:
+            by_row.setdefault(row, set()).add(col)
+        rows = text.split("\n")
+        for row, cols in by_row.items():
+            if row >= len(rows):
+                continue
+            line = rows[row]
+            if needs_extended_markup(line, extended_markup):
+                rows[row] = blank_tiles(line, cols)
+                continue
+            out: list[str] = []
+            tile = 0
+            for token in self._split_into_tokens(line):
+                if token.startswith("{/"):
+                    out.append(token)
+                    continue
+                out.append(" " if tile in cols else token)
+                tile += 1
+            rows[row] = "".join(out)
+        return "\n".join(rows)
 
     @staticmethod
     def _find_wrap_expression(template: str) -> tuple[int, int, str] | None:
@@ -535,7 +866,13 @@ class TemplateEngine:
             pos = close + 2
 
     def _render_with_wrap(
-        self, template: str, context: dict[str, Any], max_lines: int = 1, board_width: int = 22
+        self,
+        template: str,
+        context: dict[str, Any],
+        max_lines: int = 1,
+        board_width: int = 22,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
     ) -> list[str]:
         """Render a template line that should wrap across multiple lines.
 
@@ -570,26 +907,29 @@ class TemplateEngine:
             # Apply any other filters (except wrap)
             for f in other_filters:
                 value = self._apply_filter(value, f)
+            value = self._as_data(var_part, value)
 
             # Get prefix and suffix around the variable
             prefix = template[:match_start]
             suffix = template[match_end:]
 
             # Render prefix and suffix (they may have other variables)
-            prefix = self.render(prefix, context)
-            suffix = self.render(suffix, context)
+            prefix = self.render(prefix, context, extended_markup=extended_markup)
+            suffix = self.render(suffix, context, extended_markup=extended_markup)
 
             # Calculate available width for wrapped content using tile counts, not character counts
             # Color markers like {67} are 4 characters but only 1 tile
-            prefix_tiles = self._count_tiles(prefix)
-            suffix_tiles = self._count_tiles(suffix)
+            prefix_tiles = self._count_tiles(prefix, extended_markup=extended_markup)
+            suffix_tiles = self._count_tiles(suffix, extended_markup=extended_markup)
 
             # First line has prefix and suffix
             first_line_width = max(1, board_width - prefix_tiles - suffix_tiles)  # Ensure at least 1 tile available
             # Subsequent lines have full width
             subsequent_width = board_width
 
-            wrapped = self._word_wrap(value, first_line_width, subsequent_width, max_lines)
+            wrapped = self._word_wrap(
+                value, first_line_width, subsequent_width, max_lines, extended_markup=extended_markup
+            )
 
             # Build result lines
             result = []
@@ -601,15 +941,27 @@ class TemplateEngine:
 
             return result
         # Line-level wrap: render the entire template first, then wrap the result
-        rendered = self.render(template, context)
+        rendered = self.render(template, context, extended_markup=extended_markup)
 
         # Use tile-based wrapping for the entire rendered content
         # Full width available on all lines
         return self._word_wrap_tiles(
-            rendered, first_width=board_width, subsequent_width=board_width, max_lines=max_lines
+            rendered,
+            first_width=board_width,
+            subsequent_width=board_width,
+            max_lines=max_lines,
+            extended_markup=extended_markup,
         )
 
-    def _word_wrap(self, text: str, first_width: int, subsequent_width: int, max_lines: int) -> list[str]:
+    def _word_wrap(
+        self,
+        text: str,
+        first_width: int,
+        subsequent_width: int,
+        max_lines: int,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+    ) -> list[str]:
         """Word-wrap text across multiple lines.
 
         Args:
@@ -617,12 +969,16 @@ class TemplateEngine:
             first_width: Width available on first line
             subsequent_width: Width available on subsequent lines
             max_lines: Maximum number of lines
+            extended_markup: Wrap by drawn tiles, as :meth:`_word_wrap_tiles`
+                does with it on.
 
         Returns:
             List of wrapped lines
         """
         if not text:
             return [""]
+        if needs_extended_markup(text, extended_markup):
+            return self._word_wrap_tiles(text, first_width, subsequent_width, max_lines, extended_markup=True)
 
         words = text.split()
         lines = []
@@ -701,7 +1057,15 @@ class TemplateEngine:
 
         return tokens
 
-    def _word_wrap_tiles(self, text: str, first_width: int, subsequent_width: int, max_lines: int) -> list[str]:
+    def _word_wrap_tiles(
+        self,
+        text: str,
+        first_width: int,
+        subsequent_width: int,
+        max_lines: int,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+    ) -> list[str]:
         """Word-wrap text across multiple lines using tile counts instead of character counts.
 
         This is used for line-level wrap where the text may contain color markers
@@ -712,12 +1076,17 @@ class TemplateEngine:
             first_width: Tile width available on first line
             subsequent_width: Tile width available on subsequent lines
             max_lines: Maximum number of lines
+            extended_markup: Wrap by drawn tiles with :func:`src.markup.wrap_line`
+                (FiestaUI semantics): never inside a span, block or icon, and
+                a span crossing rows is closed on one and reopened on the next.
 
         Returns:
             List of wrapped lines
         """
         if not text:
             return [""]
+        if needs_extended_markup(text, extended_markup):
+            return wrap_line(text, subsequent_width, first_cols=first_width)[:max_lines]
 
         # Split into words, preserving color markers
         # We'll split on spaces but keep color markers with adjacent text
@@ -759,8 +1128,8 @@ class TemplateEngine:
         current_width = first_width
 
         for word in words:
-            word_tiles = self._count_tiles(word)
-            current_line_tiles = self._count_tiles(current_line) if current_line else 0
+            word_tiles = self._count_tiles(word, extended_markup=False)
+            current_line_tiles = self._count_tiles(current_line, extended_markup=False) if current_line else 0
 
             if not current_line:
                 # First word on line
@@ -777,7 +1146,7 @@ class TemplateEngine:
 
                         for token in tokens:
                             test_with_token = test_line + token
-                            if self._count_tiles(test_with_token) > current_width:
+                            if self._count_tiles(test_with_token, extended_markup=False) > current_width:
                                 break
                             test_line = test_with_token
                             tokens_to_take += 1
@@ -828,7 +1197,7 @@ class TemplateEngine:
 
                         for token in tokens:
                             test_with_token = test_line + token
-                            if self._count_tiles(test_with_token) > current_width:
+                            if self._count_tiles(test_with_token, extended_markup=False) > current_width:
                                 break
                             test_line = test_with_token
                             tokens_to_take += 1
@@ -864,6 +1233,15 @@ class TemplateEngine:
 
         return lines
 
+    def build_context(self, board: BoardContext | None = None, plugin_ids: "set[str] | None" = None) -> dict[str, Any]:
+        """The template context (plugin data) a render on *board* reads; see :meth:`_build_context`.
+
+        Public so a page render that needs the context itself (its pixel
+        canvases read it too) builds it once and hands it to
+        :meth:`render_lines`.
+        """
+        return self._build_context(board, plugin_ids=plugin_ids)
+
     def _build_context(self, board: BoardContext | None = None, plugin_ids: "set[str] | None" = None) -> dict[str, Any]:
         """Build context by fetching data from enabled plugins.
 
@@ -897,12 +1275,18 @@ class TemplateEngine:
             # Check for filter: {{value|filter:arg}}
             if "|" in expr:
                 var_part, filter_part = expr.split("|", 1)
+                if self._variable_format(var_part) == "canvas":
+                    return ""
                 value = self._get_variable_value(var_part.strip(), context)
-                filtered = self._apply_filter(value, filter_part.strip())
+                filtered = self._as_data(var_part, self._apply_filter(value, filter_part.strip()))
                 # Apply color rules to the variable (before filtering changed it)
                 color_prefix = self._get_color_for_value(var_part.strip(), context)
                 return f"{color_prefix}{filtered}" if color_prefix else filtered
-            value = self._get_variable_value(expr, context)
+            if self._variable_format(expr) == "canvas":
+                # A canvas content object is drawn by a canvas's ``source``,
+                # never as board text: in a line it is empty, not "???".
+                return ""
+            value = self._as_data(expr, self._get_variable_value(expr, context))
             # Check if the value itself is a color code (e.g., {66})
             # This allows plugins to return color codes directly
             # Only recognize color codes, not color names (to avoid issues with team names like "Green Hornets")
@@ -924,6 +1308,76 @@ class TemplateEngine:
             return f"{color_prefix}{value}" if color_prefix else value
 
         return VAR_PATTERN.sub(replace_var, template)
+
+    def _as_data(self, expr: str, value: Any) -> Any:
+        """A substituted value as *data* (plan D19): neutralise any brace that
+        is not a base-grammar tile or end tag, unless the plugin declares the
+        variable ``"format": "markup"``. Applies on every output."""
+        if not isinstance(value, str) or self._variable_format(expr) == "markup":
+            return value
+        return neutralize_data(value)
+
+    def _variable_format(self, expr: str) -> str:
+        """The manifest ``format`` of ``plugin[:instance].field[.n.sub]``; ``"text"`` if undeclared."""
+        parts = expr.strip().split(".")
+        registry = getattr(self, "_plugin_registry", None)
+        if len(parts) < 2 or registry is None:
+            return "text"
+        manifest = registry.get_manifest(parts[0].lower().split(":", 1)[0])
+        if manifest is None:
+            return "text"
+        metadata = manifest.variables.metadata
+        fields = parts[1:]
+        meta = metadata.get(".".join(fields)) or metadata.get(".".join("*" if f.isdigit() else f for f in fields))
+        return meta.format if meta else "text"
+
+    def _normalize_extended(self, template: str, context: dict[str, Any], span_depth: int = 0) -> str:
+        """Turn the double-brace authoring forms into single-brace markup (plan D19).
+
+        ``{{red:HOT}}`` -> ``{red:HOT}``, ``{{black/white:OPEN}}`` ->
+        ``{black/white:OPEN}``, ``{{icon:sun}}`` -> ``{icon:sun}``. The head
+        grammar is closed (:data:`EXTENDED_HEAD_PATTERN`), so everything else,
+        including instance keys like ``{{weather:sf.temperature}}`` and
+        ``{{filled:-}}``, stays a variable. The body is rendered first
+        (variables, formulas, tiles, nested spans), then wrapped. Runs before
+        variable substitution, which would otherwise read ``red:HOT`` as a
+        variable name. Forms nest :data:`MAX_TEMPLATE_SPAN_DEPTH` deep.
+        """
+        return self._rewrite_extended(
+            template, lambda body, depth: self._render(body, context, True, depth), span_depth
+        )
+
+    @staticmethod
+    def _rewrite_extended(template: str, body_of: Any, depth: int = 0) -> str:
+        """``{{<head>:<body>}}`` -> ``{<head>:<body_of(body, depth + 1)>}`` for every authoring form.
+
+        *template* sits *depth* forms deep. A form that would be deeper than
+        :data:`MAX_TEMPLATE_SPAN_DEPTH` is kept whole, its braces protected
+        from the passes after this one (see :func:`_unprotect`).
+        """
+        if "{{" not in template:
+            return template
+        matches = _brace_matches(template)
+        out: list[str] = []
+        i = 0
+        while True:
+            at = template.find("{{", i)
+            if at == -1:
+                out.append(template[i:])
+                return "".join(out)
+            head = EXTENDED_HEAD_PATTERN.match(template, at)
+            end = _matching_double_brace(template, at, matches) if head else -1
+            if end == -1:
+                out.append(template[i : at + 1])
+                i = at + 1
+                continue
+            out.append(template[i:at])
+            if depth >= MAX_TEMPLATE_SPAN_DEPTH:
+                out.append(template[at : end + 1].translate(_PROTECT))
+            else:
+                body = template[head.end() : end - 1]
+                out.append("{" + head.group(1) + ":" + body_of(body, depth + 1) + "}")
+            i = end + 1
 
     def _get_configured_color_rules(self, plugin_id: str, base_plugin_id: str, field: str) -> list:
         """The rules that color ``plugin_id.field`` (see :func:`resolve_color_rules`)."""
@@ -1335,11 +1789,22 @@ class TemplateEngine:
 
         return value
 
-    def _render_symbols(self, template: str) -> str:
-        """Replace {symbol} shortcuts with characters."""
+    def _render_symbols(self, template: str, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP) -> str:
+        """Replace {symbol} shortcuts.
+
+        With ``extended_markup`` off: the legacy ASCII stand-in from
+        :data:`SYMBOL_CHARS`. With it on: the icon the registry names
+        (``{icon:<canonical name>}``), or ``♥`` for ``{heart}``.
+        """
 
         def replace_symbol(match):
             symbol = match.group(1).lower()
+            if extended_markup:
+                if symbol == "heart":
+                    return "♥"
+                icon = resolve_icon_name(symbol)
+                if icon is not None:
+                    return "{icon:" + icon + "}"
             return SYMBOL_CHARS.get(symbol, match.group(0))
 
         return SYMBOL_PATTERN.sub(replace_symbol, template)
@@ -1369,23 +1834,34 @@ class TemplateEngine:
         """
         return extract_alignment_from_line(line)
 
-    def _apply_alignment(self, text: str, alignment: str, width: int = 22) -> str:
+    def _apply_alignment(
+        self, text: str, alignment: str, width: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> str:
         """Apply alignment to rendered text.
 
         Args:
             text: Rendered text (may contain color markers)
             alignment: 'left', 'center', or 'right'
             width: Target width (default 22 for board)
+            extended_markup: Measure and cut by drawn tiles (see
+                :meth:`_count_tiles`). A cut no markup can express keeps a
+                whole span for the cut-off part, so the kept part can fall
+                short of *width*; it is then aligned like any short row.
 
         Returns:
             Text padded/aligned to the specified width
         """
-        # Calculate actual tile count (color markers count as 1 tile)
-        tile_count = self._count_tiles(text)
+        extended_markup = needs_extended_markup(text, extended_markup)
+        if extended_markup:
+            text = self._truncate_to_tiles(text, width, extended_markup=True)
+            tile_count = self._count_tiles(text, extended_markup=True)
+        else:
+            # Calculate actual tile count (color markers count as 1 tile)
+            tile_count = self._count_tiles(text, extended_markup=False)
 
         if tile_count >= width:
             # Already at or over width, truncate
-            return self._truncate_to_tiles(text, width)
+            return self._truncate_to_tiles(text, width, extended_markup=extended_markup)
 
         padding_needed = width - tile_count
 
@@ -1398,7 +1874,9 @@ class TemplateEngine:
         # left (default)
         return text + " " * padding_needed
 
-    def _process_fill_space(self, text: str, width: int = 22) -> str:
+    def _process_fill_space(
+        self, text: str, width: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> str:
         """Process fill_space markers, expanding them to fill available space.
 
         If multiple fill_space markers exist, space is distributed evenly.
@@ -1412,12 +1890,15 @@ class TemplateEngine:
         Args:
             text: Rendered text with fill_space markers
             width: Target width (default 22 for board)
+            extended_markup: Measure the text around the markers, and cut it
+                when there is no room, by drawn tiles (see :meth:`_count_tiles`).
 
         Returns:
             Text with fill_space markers replaced by appropriate padding
         """
         from src.board_chars import BoardChars
 
+        extended_markup = needs_extended_markup(text, extended_markup)
         # Find all fill markers (both regular and repeat)
         fill_pattern = re.compile(r"\x00FILL_SPACE(?:_REPEAT:(.+?))?\x00")
         fill_matches = list(fill_pattern.finditer(text))
@@ -1428,11 +1909,11 @@ class TemplateEngine:
 
         # Calculate text width without fill_space markers
         text_without_fills = fill_pattern.sub("", text)
-        tile_count = self._count_tiles(text_without_fills)
+        tile_count = self._count_tiles(text_without_fills, extended_markup=extended_markup)
 
         if tile_count >= width:
             # No room for fills, remove them
-            return self._truncate_to_tiles(text_without_fills, width)
+            return self._truncate_to_tiles(text_without_fills, width, extended_markup=extended_markup)
 
         # Calculate space to distribute
         total_fill_space = width - tile_count
@@ -1491,7 +1972,9 @@ class TemplateEngine:
             return []
         return list(self._plugin_registry.enabled_plugins.keys())
 
-    def validate_template(self, template: str, cols: int = 22) -> list[TemplateError]:
+    def validate_template(
+        self, template: str, cols: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> list[TemplateError]:
         """Validate template syntax.
 
         Args:
@@ -1500,6 +1983,9 @@ class TemplateEngine:
                   Pass the actual board width for note/note_array devices.
                   TODO(#1176): callers in the web template editor should pass the
                   actual board width once web preview rendering is updated.
+            extended_markup: The target board speaks extended markup: line
+                length is measured in the tiles it draws (spans and blocks by
+                their cells, icons and shortcut aliases as one tile).
 
         Returns:
             List of validation errors (empty if valid)
@@ -1518,7 +2004,7 @@ class TemplateEngine:
             if open_count != close_count:
                 errors.append(TemplateError(line=line_num, column=0, message="Mismatched variable braces {{}}"))
 
-            max_length = self._calculate_max_line_length(line, cols=cols)
+            max_length = self._calculate_max_line_length(line, cols=cols, extended_markup=extended_markup)
             if max_length > cols:
                 errors.append(
                     TemplateError(
@@ -1655,7 +2141,9 @@ class TemplateEngine:
             return set()
         return set(self._plugin_registry.plugins.keys())
 
-    def _calculate_max_line_length(self, line: str, cols: int = 22) -> int:
+    def _calculate_max_line_length(
+        self, line: str, cols: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+    ) -> int:
         """Calculate maximum possible rendered length of a template line.
 
         Considers:
@@ -1667,6 +2155,9 @@ class TemplateEngine:
         Args:
             line: Template line to analyze
             cols: Board column width. Defaults to 22 (flagship).
+            extended_markup: Count drawn tiles under the extended grammar:
+                ``{{red:HOT}}`` is 3, ``{{icon:sun}}`` and ``{sun}`` are 1,
+                ``{heart}`` is 1 (♥), a variable inside a span its max length.
 
         Returns:
             Maximum possible character count after rendering
@@ -1684,19 +2175,38 @@ class TemplateEngine:
 
         # Start with the line
         result = line
-
-        # Remove color markers (they become single tiles, count as 1 char each)
-        # Replace {color} with single char placeholder
-        result = re.sub(
-            r"\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|70)\}", "C", result, flags=re.IGNORECASE
-        )
-        result = re.sub(
-            r"\{/(red|orange|yellow|green|blue|violet|purple|white|black)?\}", "", result, flags=re.IGNORECASE
+        # Plain text (no span, block or icon head, no authoring form and no
+        # shortcut) is measured exactly as before the split-flap flip.
+        extended_markup = extended_markup and (
+            needs_extended_markup(line, True)
+            or EXTENDED_HEAD_PATTERN.search(line) is not None
+            or _SHORTCUT_OUTSIDE_VARIABLE.search(line) is not None
         )
 
-        # Replace symbols with their character equivalent (usually 1-2 chars)
-        for symbol, char in SYMBOL_CHARS.items():
-            result = re.sub(rf"\{{{symbol}\}}", char, result, flags=re.IGNORECASE)
+        if extended_markup:
+            # Authoring forms to the single-brace markup render() produces,
+            # keeping each body's variables for the max-length pass below;
+            # named tiles to codes so VAR_PATTERN cannot read them.
+            def body_of(body: str, depth: int) -> str:
+                return self._rewrite_extended(body, body_of, depth)
+
+            result = self._normalize_colors(self._rewrite_extended(result, body_of))
+        else:
+            # Remove color markers (they become single tiles, count as 1 char each)
+            # Replace {color} with single char placeholder
+            result = re.sub(
+                r"\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|70)\}",
+                "C",
+                result,
+                flags=re.IGNORECASE,
+            )
+            result = re.sub(
+                r"\{/(red|orange|yellow|green|blue|violet|purple|white|black)?\}", "", result, flags=re.IGNORECASE
+            )
+
+            # Replace symbols with their character equivalent (usually 1-2 chars)
+            for symbol, char in SYMBOL_CHARS.items():
+                result = re.sub(rf"\{{{symbol}\}}", char, result, flags=re.IGNORECASE)
 
         # Get max lengths from appropriate source
         max_lengths = self._get_max_lengths_for_validation()
@@ -1725,8 +2235,13 @@ class TemplateEngine:
                 max_len = 1 if self._renders_as_color_tile(parts) else cols
             return "X" * (max_len + color_prefix_len)
 
-        result = VAR_PATTERN.sub(replace_with_max_length, result)
+        # A kept ninth-level form is literal text, measured as written.
+        result = _unprotect(VAR_PATTERN.sub(replace_with_max_length, result))
 
+        if extended_markup:
+            # Shortcuts become what the board draws ({sun} -> one icon tile,
+            # {heart} -> ♥), then the line is measured in drawn tiles.
+            return markup_count_tiles(self._render_symbols(result, extended_markup=True))
         return len(result)
 
     @staticmethod

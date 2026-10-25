@@ -52,6 +52,9 @@ class PluginSummary(BaseModel):
     source: dict[str, Any] | None = None
     update_available: bool = False
     update_blocked_reason: str = ""
+    #: A first-party output (Vestaboard, FiestaPanel): it updates like any
+    #: plugin but can never be uninstalled, so the UI offers no Uninstall.
+    required: bool = False
     supports_triggers: bool = False
     instance_label: str | None = None
     base_plugin_id: str | None = None

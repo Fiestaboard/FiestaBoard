@@ -151,12 +151,12 @@ test.describe("FiestaPanel viewer", () => {
         await page.goto(`/p/${panel.short_code}`);
         await expect(page.getByRole("img")).toHaveAttribute("aria-label", /SCALE CHECK/, { timeout: 15000 });
 
-        // Wait for measurement: the crop window sizes itself once the grid is
-        // measured; before that it is width:auto with opacity 0.
-        const crop = page.getByTestId("panel-board-crop");
+        // Wait for measurement: the board (bare flaps, no housing to crop)
+        // is held at opacity 0 until its grid is measured.
+        const fit = page.getByTestId("panel-board-fit");
         await expect(async () => {
-          const width = await crop.evaluate((el) => (el as HTMLElement).style.width);
-          expect(width).not.toBe("");
+          const opacity = await fit.evaluate((el) => (el as HTMLElement).style.opacity);
+          expect(opacity).not.toBe("0");
         }).toPass({ timeout: 10000 });
 
         // Measure until the layout settles: the viewer re-measures after its
@@ -164,7 +164,7 @@ test.describe("FiestaPanel viewer", () => {
         // a transient scale. A board that is really cropped never settles.
         await expect(async () => {
           const metrics = await page.evaluate(() => {
-            const cropEl = document.querySelector<HTMLElement>('[data-testid="panel-board-crop"]');
+            const fitEl = document.querySelector<HTMLElement>('[data-testid="panel-board-fit"]');
             const scaler = document.querySelector<HTMLElement>('[data-testid="panel-board-scaler"]');
             const t0 = document.querySelector<HTMLElement>('[data-testid="char-tile-0-0"]');
             const t1 = document.querySelector<HTMLElement>('[data-testid="char-tile-0-1"]');
@@ -175,8 +175,8 @@ test.describe("FiestaPanel viewer", () => {
             const scale = transform === "none" ? 1 : new DOMMatrixReadOnly(transform).a;
             const rect = t0?.getBoundingClientRect();
             return {
-              cropOpacity: cropEl ? getComputedStyle(cropEl).opacity : null,
-              cropWidth: cropEl?.clientWidth ?? 0,
+              fitOpacity: fitEl ? getComputedStyle(fitEl).opacity : null,
+              fitWidth: fitEl?.clientWidth ?? 0,
               scale,
               unscaledPitchPx: t0 && t1 ? t1.offsetLeft - t0.offsetLeft : 0,
               firstTile: rect ? { x: rect.x, y: rect.y, width: rect.width } : null,
@@ -188,10 +188,10 @@ test.describe("FiestaPanel viewer", () => {
             };
           });
 
-          // The crop window is actually visible (a failed measurement leaves it
+          // The board is actually visible (a failed measurement leaves it
           // transparent — the "silent black TV" failure mode).
-          expect(metrics.cropOpacity).toBe("1");
-          expect(metrics.cropWidth).toBeGreaterThan(0);
+          expect(metrics.fitOpacity).toBe("1");
+          expect(metrics.fitWidth).toBeGreaterThan(0);
           expect(metrics.scale).toBeGreaterThan(0);
 
           // Life-size invariant: rendered column pitch equals the physical pitch

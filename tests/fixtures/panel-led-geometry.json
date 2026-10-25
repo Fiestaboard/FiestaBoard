@@ -1,0 +1,11 @@
+{
+  "description": "Synthetic TV panel surfaces within the common 256-pixel renderer limit. Origins use centered glyphs with one-pixel spacing.",
+  "cases": [
+    {"name":"screen-large","width":192,"height":108,"font":"5x7","rows":13,"cols":32,"origin_x":0,"origin_y":2},
+    {"name":"screen-small","width":192,"height":108,"font":"3x5","rows":18,"cols":48,"origin_x":0,"origin_y":0},
+    {"name":"portrait-large","width":108,"height":192,"font":"5x7","rows":24,"cols":18,"origin_x":0,"origin_y":0},
+    {"name":"four-three-large","width":192,"height":144,"font":"5x7","rows":18,"cols":32,"origin_x":0,"origin_y":0},
+    {"name":"ultrawide-large","width":189,"height":81,"font":"5x7","rows":10,"cols":31,"origin_x":2,"origin_y":1},
+    {"name":"legacy-29-columns","width":174,"height":96,"font":"5x7","rows":12,"cols":29,"origin_x":0,"origin_y":0}
+  ]
+}

@@ -35,7 +35,7 @@ keep the two in lockstep (their tests share the same example cases).
 
 import math
 
-from src.devices import NOTE_COLS, DeviceDimensions, clamp_grid
+from src.devices import MIN_GRID_COLS, MIN_GRID_ROWS, NOTE_COLS, DeviceDimensions, clamp_grid
 
 # Real Vestaboard Note: 24.5" wide (frameless unit) for 15 columns.
 NOTE_UNIT_WIDTH_IN = 24.5
@@ -76,7 +76,14 @@ def compute_autofit_grid(
 ) -> DeviceDimensions:
     """(rows, cols) of the largest true-scale character grid that fits.
 
-    Each axis is clamped into [MIN_GRID_*, MAX_GRID_*] (see src/devices.py).
+    Each axis is clamped into [MIN_GRID_*, MAX_GRID_*] (see src/devices.py):
+    the 3 × 15 Note floor, not the 3 × 10 one of an LED board in pixels —
+    a TV has room for a Note, and every plugin is authored for one.
     """
     width_in, height_in = screen_dimensions_in(diagonal_inches, aspect_w, aspect_h)
-    return clamp_grid(math.floor(height_in / ROW_PITCH_IN), math.floor(width_in / COL_PITCH_IN))
+    return clamp_grid(
+        math.floor(height_in / ROW_PITCH_IN),
+        math.floor(width_in / COL_PITCH_IN),
+        min_rows=MIN_GRID_ROWS,
+        min_cols=MIN_GRID_COLS,
+    )

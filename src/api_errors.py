@@ -92,9 +92,21 @@ def _model_for(code: int) -> type[BaseModel]:
     return HTTPValidationError if code == 422 else ErrorResponse
 
 
-def errors(*status_codes: int) -> dict[int | str, dict[str, Any]]:
-    """Build the ``responses=`` block for the given failure codes."""
+def errors(*status_codes: int, models: dict[int, type[BaseModel]] | None = None) -> dict[int | str, dict[str, Any]]:
+    """Build the ``responses=`` block for the given failure codes.
+
+    ``models`` overrides the body model of a code whose ``detail`` is
+    structured — an object with a ``message`` string plus named fields
+    (API_CONVENTIONS.md, "Error contract") — instead of the plain string.
+    """
     unknown = [code for code in status_codes if code not in _DESCRIPTIONS]
     if unknown:
         raise ValueError(f"No canonical description for status code(s) {unknown}; add one to src/api_errors.py")
-    return {code: {"model": _model_for(code), "description": _DESCRIPTIONS[code]} for code in status_codes}
+    overrides = models or {}
+    stray = sorted(set(overrides) - set(status_codes))
+    if stray:
+        raise ValueError(f"Model override(s) for undeclared status code(s) {stray}")
+    return {
+        code: {"model": overrides.get(code, _model_for(code)), "description": _DESCRIPTIONS[code]}
+        for code in status_codes
+    }

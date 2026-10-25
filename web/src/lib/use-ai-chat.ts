@@ -273,6 +273,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             resume: options.resume,
             approval: autoApproveRef.current ? { auto_approve_destructive: true } : undefined,
             device_type: ctx.deviceType,
+            ...(ctx.boardId && { board_id: ctx.boardId }),
             surface: ctx.surface,
             current_page: ctx.currentPage,
             available_pages: ctx.availablePages,
@@ -284,7 +285,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             model,
           },
           {
-            onText: (delta) => patch((m) => ({ ...m, content: m.content + delta })),
+            onText: (delta) => patch((m) => ({ ...m, content: m.content + delta, status: undefined })),
             onStatus: (s) => {
               patch((m) => ({ ...m, status: { phase: s.phase, toolCallId: s.tool_call_id } }));
               if (s.phase === "tool_running" && s.tool_call_id) {
@@ -312,7 +313,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
               const display: ToolCallDisplay = {
                 ...call,
                 phase: "running",
-                appliedSnapshot: computeAppliedSnapshot(call, runningSnapshot),
+                appliedSnapshot: computeAppliedSnapshot(call, runningSnapshot, ctx.boardId),
                 deviceType: deviceTypeForCall(call, ctx.deviceType),
                 previewGrid: gridForCall(call),
               };
@@ -339,7 +340,11 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             },
             onDone: (info) => {
               ended = true;
-              patch((m) => ({ ...m, draft: undefined }));
+              patch((m) => ({
+                ...m,
+                draft: undefined,
+                ...(info.reason === "step_limit" ? { finishReason: "paused" as const } : {}),
+              }));
               if (info.reason === "complete" || info.reason === "step_limit") onTurnComplete?.();
               // A turn that hit a per-turn cap has not failed and has lost
               // nothing: every tool result is already in the transcript, so
@@ -389,6 +394,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             pending: false,
             status: undefined,
             draft: undefined,
+            ...(!ended ? { finishReason: streamHadError ? ("error" as const) : ("stopped" as const) } : {}),
           }));
           if (ended) return settled;
           return settled.map((m) =>
@@ -689,7 +695,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
       setMessages(history);
       setStatus("idle");
       setError(null);
-      setPausedAtLimit(false);
+      setPausedAtLimit(last?.role === "assistant" && last.finishReason === "paused");
       setPendingApproval(awaiting ?? null);
       setPendingElicitation(question ?? null);
       autoApproveRef.current = conversation.approval;
@@ -913,14 +919,24 @@ function answerResult(answer: ElicitationAnswer): unknown {
 export function computeAppliedSnapshot(
   call: Pick<ToolCall, "name" | "args">,
   base: CurrentPageSnapshot | undefined,
+  boardId?: string,
 ): CurrentPageSnapshot | undefined {
   if (call.name === "create_page") {
     const a = call.args as unknown as CreatePageArgs;
     if (!Array.isArray(a.template_lines)) return undefined;
     return {
+      ...(boardId ? { board_id: boardId } : {}),
       name: a.name ?? "",
+      device_type: a.device_type,
+      notes_wide: a.notes_wide,
+      notes_tall: a.notes_tall,
+      grid_rows: a.grid_rows,
+      grid_cols: a.grid_cols,
+      duration_seconds: a.duration_seconds,
+      transition_strategy: a.transition_strategy,
+      canvases: a.canvases ?? [],
       template: a.template_lines,
-      line_metadata: a.template_lines.map(() => ({ alignment: "left", wrap: false })),
+      line_metadata: a.template_lines.map((_, i) => a.line_metadata?.[i] ?? { alignment: "left", wrap: false }),
     };
   }
   if (call.name === "update_page") {
@@ -931,10 +947,22 @@ export function computeAppliedSnapshot(
     const template = a.template_lines ?? target?.template;
     if (!template) return undefined;
     return {
-      ...(target?.id ? { id: target.id } : {}),
+      ...target,
+      id: a.page_id,
+      ...(boardId && !target?.board_id ? { board_id: boardId } : {}),
       name: a.name ?? target?.name ?? "",
+      device_type: a.device_type ?? target?.device_type,
+      notes_wide: a.notes_wide ?? target?.notes_wide,
+      notes_tall: a.notes_tall ?? target?.notes_tall,
+      grid_rows: a.grid_rows ?? target?.grid_rows,
+      grid_cols: a.grid_cols ?? target?.grid_cols,
+      duration_seconds: a.duration_seconds ?? target?.duration_seconds,
+      transition_strategy: a.transition_strategy === undefined ? target?.transition_strategy : a.transition_strategy,
+      canvases: a.canvases === undefined ? target?.canvases : (a.canvases ?? []),
       template,
-      line_metadata: template.map((_, i) => target?.line_metadata?.[i] ?? { alignment: "left", wrap: false }),
+      line_metadata: template.map(
+        (_, i) => a.line_metadata?.[i] ?? target?.line_metadata?.[i] ?? { alignment: "left", wrap: false },
+      ),
     };
   }
   return undefined;
@@ -1001,6 +1029,7 @@ export function settleSavedTranscript(saved: ChatMessage[]): ChatMessage[] {
     return {
       ...rest,
       pending: false,
+      ...(m.pending && !m.finishReason ? { finishReason: "stopped" as const } : {}),
       toolCalls: m.toolCalls?.map((c) => (c.phase === "running" ? { ...c, phase: "stopped" } : c)),
     };
   });

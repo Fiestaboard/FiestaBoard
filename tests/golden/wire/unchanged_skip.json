@@ -1,0 +1,49 @@
+{
+  "scenario": "unchanged_skip",
+  "description": "Same text twice: the second send is skipped client-side (no request) and answers sent=false.",
+  "seam": "POST /send-message",
+  "steps": [
+    {
+      "action": "send SAME",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [19, 1, 13, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "message": "Message sent successfully",
+          "sent": true
+        }
+      }
+    },
+    {
+      "action": "send SAME again",
+      "requests": [],
+      "result": {
+        "status": 200,
+        "body": {
+          "message": "Message unchanged, no update needed",
+          "sent": false
+        }
+      }
+    }
+  ]
+}

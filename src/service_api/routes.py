@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Response
 
@@ -40,7 +41,7 @@ from src import display_runtime as runtime
 from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice, superseded_by_v1
 from src.api_errors import errors
 from src.auth.service import auth_mode
-from src.board_guards import _require_board
+from src.board_guards import _require_board, silence_timing
 from src.board_send_executor import run_board_send
 from src.config import Config
 from src.config_manager import get_config_manager
@@ -52,9 +53,12 @@ from .models import (
     BoardStatus,
     DiscoverResponse,
     HealthResponse,
+    HeldSendSummary,
+    OutputStatusSummary,
     RefreshRequest,
     RefreshResponse,
     ServiceStateResponse,
+    SilenceQueueDiscardResponse,
     SilenceStatusResponse,
     StatusResponse,
 )
@@ -62,6 +66,18 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["service"])
+
+
+def _output_status(board: dict) -> OutputStatusSummary | None:
+    """*board*'s connection summary from its output (plan D13 ``status``)."""
+    from src.devices import BoardInstance
+
+    try:
+        status = BoardInstance.from_dict(board).status
+    except Exception:  # a summary must never break the status poll
+        logger.debug("Board %s: output status unavailable", board.get("id"), exc_info=True)
+        return None
+    return OutputStatusSummary(state=status.state, message=status.message) if status is not None else None
 
 
 def _loop_is_running() -> bool:
@@ -184,6 +200,7 @@ async def get_status():
                 paused=runtime._board_is_paused(bid),
                 active_page_id=active_page_id,
                 error=init_error,
+                output_status=_output_status(board),
             )
     except Exception as e:
         logger.debug(f"Per-board status unavailable: {e}")
@@ -376,28 +393,25 @@ async def get_silence_status(board_id: str | None = None):
     start_time = silence_config["start_time"]
     end_time = silence_config["end_time"]
 
-    # Check if currently active
-    active = time_service.is_time_in_window(start_time, end_time) if enabled else False
-
+    # The one copy of the window arithmetic, shared with every "silenced
+    # until 07:00" message the send surfaces quote (src/board_guards.py).
+    timing = silence_timing(silence_config)
+    active = timing.active
     current_utc = time_service.get_current_utc()
+    next_change_utc = timing.next_change_utc
+    seconds_until_next_change = timing.seconds_until_next_change
 
-    # Determine next change time (simplified - just return start or end)
-    next_change_utc = end_time if active else start_time
+    held = None
+    if board_id is not None:
+        from src import silence_queue
 
-    # Wall-clock seconds until the next active/inactive transition. Lets the
-    # frontend show a "silence starts in N min" warning without re-doing the
-    # UTC + offset math the silence window uses (which has subtle edge cases
-    # around midnight rollover and DST). None when silence is disabled.
-    seconds_until_next_change: int | None = None
-    if enabled:
-        next_change_dt = time_service.parse_iso_time(next_change_utc)
-        if next_change_dt is not None:
-            delta_seconds = int((next_change_dt - current_utc).total_seconds())
-            # next_change_dt is anchored to "today" in UTC, so a negative value
-            # means the boundary already passed today and will recur tomorrow.
-            if delta_seconds < 0:
-                delta_seconds += 86_400
-            seconds_until_next_change = delta_seconds
+        entry = silence_queue.peek(board_id)
+        if entry is not None:
+            held = HeldSendSummary(
+                kind=entry.kind,
+                preview=silence_queue.preview_text(entry),
+                queued_at=datetime.fromtimestamp(entry.queued_at, tz=UTC).isoformat(),
+            )
 
     return SilenceStatusResponse(
         enabled=enabled,
@@ -412,4 +426,36 @@ async def get_silence_status(board_id: str | None = None):
         indicator_text=silence_config["indicator_text"],
         indicator_position=silence_config["indicator_position"],
         board_id=board_id,
+        ends_at_utc=timing.next_change_at,
+        holds_blocked_sends=silence_config.get("show_queued_on_exit") is True,
+        held=held,
     )
+
+
+@router.delete(
+    "/silence-queue",
+    response_model=SilenceQueueDiscardResponse,
+    responses=errors(404),
+    tags=["board"],
+)
+async def discard_held_send(board_id: str | None = None):
+    """Discard the send a board is holding until silence ends (issue #1944).
+
+    Args:
+        board_id: Board whose held send to discard (query param). Omitted →
+            the primary board. An unknown board is a 404 — this is a write.
+
+    ``discarded`` is false when nothing was held.
+    """
+    from src import silence_queue
+    from src.board_guards import resolve_board_id
+
+    if board_id is not None:
+        _require_board(board_id)
+    resolved = resolve_board_id(board_id)
+    if resolved is None:
+        raise HTTPException(status_code=404, detail="No board is configured")
+    discarded = silence_queue.discard(resolved)
+    if discarded:
+        logger.info("Discarded the message held during silence for board %s", resolved)
+    return SilenceQueueDiscardResponse(board_id=resolved, discarded=discarded)

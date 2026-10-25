@@ -9,7 +9,7 @@
  * Videos are recorded (`test.use({ video: "on" })`) so the flow can be
  * validated visually.
  */
-import { configureBoard, expect, openSettingsTab, resetToSingleBoard, suppressWizard, test } from "./helpers";
+import { configureBoard, expect, openDisplays, resetToSingleBoard, suppressWizard, test } from "./helpers";
 
 test.use({ video: "on" });
 
@@ -25,15 +25,15 @@ test.describe("Add Note Array board", () => {
   });
 
   test("Note Array is offered as a device type and starts as a cloud 2×1 array", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
-    const addButton = page.getByRole("button", { name: "Add Board" });
+    const addButton = page.getByRole("button", { name: "Add a display" });
     await addButton.scrollIntoViewIfNeeded();
     await addButton.hover();
     await page.waitForTimeout(600);
     await addButton.click();
+    await page.getByRole("radio", { name: /Vestaboard/ }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // All three Vestaboard product shapes are offered — Note Array is its own
     // one-click choice, not "add a Note, then convert its type". Hover each so
@@ -52,20 +52,19 @@ test.describe("Add Note Array board", () => {
     await page.waitForTimeout(700);
     await arrayChoice.click();
 
-    // The new board card appears as a 2×1 note array (3 rows × 30 cols).
+    // The new board's page opens: a 2×1 note array (3 rows × 30 cols).
     const card = page.getByTestId("board-card").filter({ hasText: "My Board 2" });
     await expect(card).toBeVisible({ timeout: 10_000 });
     await expect(card).toContainText("3 × 30");
     await expect(card).toContainText("2 side-by-side");
     await page.waitForTimeout(600);
 
-    // Expand the card: cloud mode is active with the token field visible.
-    await card.getByText("My Board 2").click();
+    // Cloud mode is active with the token field visible.
     const localMode = card.getByRole("radio", { name: /Local API/ });
     await expect(localMode).toBeVisible();
-    await expect(card.getByText("Cloud API Token", { exact: true })).toBeVisible();
-    // A tokenless array is not usable yet — the form says which credential it needs.
-    await expect(card.getByText("Cloud API token is required")).toBeVisible();
+    await expect(card.getByLabel(/Cloud API Token/)).toBeVisible();
+    // A tokenless array is not usable yet — the token field itself says it is needed.
+    await expect(card.getByLabel(/Cloud API Token/)).toHaveAccessibleDescription(/Required/);
 
     // Bring the connection section on screen and dwell so the video
     // clearly shows the mode switch.
@@ -81,7 +80,7 @@ test.describe("Add Note Array board", () => {
     await expect(card.getByTestId("tile-slot-0-0")).toBeVisible();
     await expect(card.getByTestId("tile-slot-0-1")).toBeVisible();
     await expect(tileGrid).toContainText("0/2 tiles assigned");
-    await expect(card.getByText("Cloud API Token", { exact: true })).not.toBeVisible();
+    await expect(card.getByLabel(/Cloud API Token/)).not.toBeVisible();
     await tileGrid.evaluate((el) => el.scrollIntoView({ block: "center" }));
     await page.waitForTimeout(900);
 
@@ -89,14 +88,14 @@ test.describe("Add Note Array board", () => {
     await card.getByTestId("tile-slot-0-1").click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("Board Host")).toBeVisible();
+    await expect(dialog.getByLabel(/Board IP Address/)).toBeVisible();
     await expect(dialog.getByRole("button", { name: /Identify/ })).toBeVisible();
     await page.waitForTimeout(1_200);
     await page.keyboard.press("Escape");
 
     // Switching back to cloud restores the token field.
     await card.getByRole("radio", { name: /Cloud API/ }).click();
-    await expect(card.getByText("Cloud API Token", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(card.getByLabel(/Cloud API Token/)).toBeVisible({ timeout: 10_000 });
 
     // Pause so the video captures the final state before teardown.
     await page.waitForTimeout(1_200);

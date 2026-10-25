@@ -1,0 +1,22 @@
+{
+  "pages": [
+    {
+      "id": "00000000-0000-4000-8000-000000000201",
+      "name": "Note Hello",
+      "type": "template",
+      "display_type": null,
+      "rows": null,
+      "template": [
+        "{center}GOOD MORNING",
+        "{{date_time.time}}",
+        ""
+      ],
+      "duration_seconds": 300,
+      "transition_strategy": null,
+      "transition_interval_ms": null,
+      "transition_step_size": null,
+      "created_at": "2026-01-20T08:00:00",
+      "updated_at": null
+    }
+  ]
+}

@@ -39,6 +39,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from src.config_manager import unmask_sensitive_values
 
 from .errors import (
@@ -68,6 +70,22 @@ def sanitize_optional_plugin_id(plugin_id: str | None) -> str | None:
     return plugin_id
 
 
+def reload_installed_copy(registry: Any, plugin_id: str) -> str | None:
+    """Reload *plugin_id* after an update; why its installed copy did not
+    load, or ``None`` when it did.
+
+    An output plugin that came up from the seed (plan D8) counts as a failed
+    load: the copy just pulled is the one that cannot run, so the update
+    must be rolled back rather than reported as applied.
+    """
+    reloaded = registry.reload_plugin(plugin_id)
+    if reloaded is None:
+        detail = "; ".join(registry.get_load_errors().get(plugin_id, []))
+        return detail or "Plugin failed to reload after update."
+    fallback = registry.get_seed_fallback(plugin_id)
+    return fallback if isinstance(fallback, str) and fallback else None
+
+
 class PluginService:
     """Owns every plugin mutation's orchestration sequence."""
 
@@ -79,6 +97,7 @@ class PluginService:
         reset_template: Callable[[], None] | None = None,
         page_service: Any | None = None,
         settings_service: Any | None = None,
+        rebuild_boards: Callable[[], None] | None = None,
     ) -> None:
         self._registry = registry
         self._config_manager = config_manager
@@ -86,6 +105,7 @@ class PluginService:
         self._reset_template = reset_template
         self._page_service = page_service
         self._settings_service = settings_service
+        self._rebuild_boards = rebuild_boards
 
     # -- collaborator resolution --------------------------------------------
 
@@ -148,6 +168,24 @@ class PluginService:
             from src.templates.engine import reset_template_engine
 
             reset_template_engine()
+
+    def rebuild_boards_after_output_change(self, plugin_id: str) -> None:
+        """Rebuild the board runtimes after output plugin *plugin_id*'s code
+        changed (an update applied or rolled back), so its boards are driven
+        by the code that now runs, not the instance built before. A data
+        plugin's change needs nothing here. Never raises."""
+        manifest = self.registry.get_manifest(plugin_id)
+        if manifest is None or manifest.plugin_type != "output":
+            return
+        try:
+            if self._rebuild_boards is not None:
+                self._rebuild_boards()
+            else:
+                from src.display_runtime import reinitialize_board_clients
+
+                reinitialize_board_clients()
+        except Exception:
+            logger.exception("Could not rebuild the boards after output plugin '%s' changed", plugin_id)
 
     # -- private-member wrappers --------------------------------------------
 
@@ -393,7 +431,11 @@ class PluginService:
             if existing is not None:
                 return {"page": existing, "created": False, "recreated": False, "device_type": resolved_device_type}
 
-        page, recreated = page_service.create_demo_page(plugin_id, demo_schema)
+        try:
+            page, recreated = page_service.create_demo_page(plugin_id, demo_schema)
+        except ValidationError as exc:
+            # The manifest's demo canvases are not valid page canvases.
+            raise PluginOperationRejected(f"Plugin '{plugin_id}' demo page is invalid: {exc}") from exc
         return {"page": page, "created": True, "recreated": recreated, "device_type": resolved_device_type}
 
     # -- config / enablement mutations --------------------------------------
@@ -406,6 +448,8 @@ class PluginService:
         registry = self.registry
         if not registry.get_plugin(plugin_id):
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
+        if getattr(registry.get_manifest(plugin_id), "plugin_type", None) == "output":
+            raise PluginOperationRejected("Output settings belong to a board; use configure_display instead.")
 
         # Resolve the "***" placeholders before anything sees the payload.
         # Config goes out masked, so any client that echoes back what it read
@@ -460,6 +504,10 @@ class PluginService:
         registry = self.registry
         if not registry.get_plugin(plugin_id):
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
+        if getattr(registry.get_manifest(plugin_id), "plugin_type", None) == "output":
+            raise PluginOperationRejected(
+                "Output plugins are used by their boards; enable or resume the board instead."
+            )
 
         if not registry.enable_plugin(plugin_id):
             raise PluginOperationRejected(f"Failed to enable plugin: {plugin_id}")
@@ -474,6 +522,10 @@ class PluginService:
         registry = self.registry
         if not registry.get_plugin(plugin_id):
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
+        if getattr(registry.get_manifest(plugin_id), "plugin_type", None) == "output":
+            raise PluginOperationRejected(
+                "Output plugins are used by their boards; disable or pause the board instead."
+            )
 
         if not registry.disable_plugin(plugin_id):
             raise PluginOperationRejected(f"Failed to disable plugin: {plugin_id}")
@@ -701,26 +753,32 @@ class PluginService:
             raise PluginOperationRejected(f"Plugin '{plugin_id}' is not a git repository.")
 
     async def apply_update(self, plugin_id: str) -> None:
-        """Fetch the latest commits for an external plugin and reload it."""
-        from .sources import clone_or_update_repo, get_external_plugins_dir
+        """Fetch the latest commits for an external plugin and reload it.
 
-        registry = self.registry
+        An output plugin's update that cannot run is rolled back to the
+        version it replaced (:func:`~src.plugins.sources.update_external_plugin`).
+        """
+        from .sources import get_external_plugins_dir, update_external_plugin
+
         self._validated_update_path(plugin_id)
 
-        # Pass the validated plugin_id — clone_or_update_repo resolves the
+        # Pass the validated plugin_id — update_external_plugin resolves the
         # path internally so no user-controlled Path flows into subprocess
         # sinks. Both the git fetch and the module reimport go to a worker
         # thread so the event loop keeps serving other requests during the
         # update (#1750).
-        ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=get_external_plugins_dir())
-        if not ok:
-            raise PluginOperationFailed(f"Update failed: {err}")
-
-        reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
-        if reloaded is None:
-            errors = registry.get_load_errors().get(plugin_id, [])
-            detail = "; ".join(errors) if errors else "Plugin failed to reload after update."
-            raise PluginOperationFailed(detail)
+        outcome = await asyncio.to_thread(
+            update_external_plugin,
+            plugin_id,
+            get_external_plugins_dir(),
+            reload=lambda: reload_installed_copy(self.registry, plugin_id),
+        )
+        if outcome.ok or outcome.stage != "fetch":
+            self.rebuild_boards_after_output_change(plugin_id)
+        if not outcome.ok:
+            if outcome.stage == "fetch":
+                raise PluginOperationFailed(f"Update failed: {outcome.error}")
+            raise PluginOperationFailed(outcome.error)
 
         self.clear_update_status(plugin_id)
 
@@ -732,7 +790,7 @@ class PluginService:
         """
         import os as _os
 
-        from .sources import clone_or_update_repo, get_external_plugins_dir
+        from .sources import get_external_plugins_dir, update_external_plugin
 
         registry = self.registry
         pending = [pid for pid, has_update in registry.get_update_status().items() if has_update]
@@ -764,19 +822,21 @@ class PluginService:
                 failed[plugin_id] = "Plugin is not a git repository."
                 continue
 
-            # Pass the validated plugin_id — clone_or_update_repo resolves the
-            # path internally so no user-controlled Path flows into subprocess
-            # sinks. A bulk update is N sequential git fetches; keeping them on
-            # the loop would freeze the API for the sum of all of them (#1750).
-            ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=_ext_dir)
-            if not ok:
-                failed[plugin_id] = f"git fetch failed: {err}"
-                continue
-
-            reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
-            if reloaded is None:
-                errors = registry.get_load_errors().get(plugin_id, [])
-                failed[plugin_id] = "; ".join(errors) if errors else "Reload failed."
+            # Pass the validated plugin_id — update_external_plugin resolves
+            # the path internally so no user-controlled Path flows into
+            # subprocess sinks. A bulk update is N sequential git fetches;
+            # keeping them on the loop would freeze the API for the sum of all
+            # of them (#1750).
+            outcome = await asyncio.to_thread(
+                update_external_plugin,
+                plugin_id,
+                _ext_dir,
+                reload=lambda pid=plugin_id: reload_installed_copy(registry, pid),
+            )
+            if outcome.ok or outcome.stage != "fetch":
+                self.rebuild_boards_after_output_change(plugin_id)
+            if not outcome.ok:
+                failed[plugin_id] = f"git fetch failed: {outcome.error}" if outcome.stage == "fetch" else outcome.error
                 continue
 
             self.clear_update_status(plugin_id)

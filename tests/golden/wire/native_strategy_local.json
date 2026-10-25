@@ -1,0 +1,41 @@
+{
+  "scenario": "native_strategy_local",
+  "description": "Built-in transition: strategy/step_interval_ms/step_size ride in the Local-API payload.",
+  "seam": "POST /send-message (transition settings: column, 250ms, step 2)",
+  "steps": [
+    {
+      "action": "send text WAVE",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "http://192.168.0.10:7000/local-api/message",
+          "headers": {
+            "X-Vestaboard-Local-Api-Key": "test_local_key",
+            "Content-Type": "application/json"
+          },
+          "json": {
+            "characters": [
+              [23, 1, 22, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ],
+            "strategy": "column",
+            "step_interval_ms": 250,
+            "step_size": 2
+          },
+          "timeout": [3.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "message": "Message sent successfully",
+          "sent": true
+        }
+      }
+    }
+  ]
+}

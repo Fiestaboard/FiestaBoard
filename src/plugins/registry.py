@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from src.devices import BoardContext
+from src.outputs.first_party import is_first_party_output
+from src.outputs.seed import install_from_seed
 
 from .base import OptionsRequest, OptionsResult, PluginBase, PluginResult, normalise
 from .loader import PluginLoader, retire_plugin_object
@@ -199,6 +201,29 @@ def _config_in_use(plugin_id: str, stored_configs: dict[str, dict[str, Any]]) ->
         return True
     prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
     return any(key.startswith(prefix) and cfg.get("enabled", False) for key, cfg in stored_configs.items())
+
+
+def _saved_boards() -> list[dict[str, Any]]:
+    """The saved boards (raw dicts) from the settings service."""
+    from src.settings.service import get_settings_service
+
+    return [b for b in (get_settings_service().get_board_settings().boards or []) if isinstance(b, dict)]
+
+
+def boards_using_output(output_id: str) -> list[str]:
+    """Names of the saved boards whose output is *output_id* (empty when none).
+
+    Raises whatever reading the saved boards raises: a caller guarding a
+    removal must fail closed, not treat "unknown" as "unused".
+    """
+    from src.outputs.registry import resolve_output_id
+
+    return [str(b.get("name") or b.get("id") or "?") for b in _saved_boards() if resolve_output_id(b) == output_id]
+
+
+def _first_party_refusal(plugin_id: str, verb: str) -> str:
+    """Why first-party output *plugin_id* cannot be *verb* (plan D8)."""
+    return f"'{plugin_id}' comes with FiestaBoard: it can be updated from the Integrations page, but not {verb}."
 
 
 class PluginRegistry:
@@ -471,6 +496,9 @@ class PluginRegistry:
             logger.debug("Plugin registry already initialized - skipping reload (pass force=True to rescan)")
             return
 
+        # Before discovery, so what it installs loads with everything else.
+        self._auto_install_seeded_outputs()
+
         loaded = self._loader.load_all_plugins()
 
         # Self-heal directories left orphaned by a plugin rename: an update
@@ -543,6 +571,40 @@ class PluginRegistry:
             self._initialized = True
             enabled_count = sum(1 for e in self._enabled.values() if e)
             logger.info(f"Initialized {len(self._plugins)} plugins ({enabled_count} enabled)")
+
+    def _auto_install_seeded_outputs(self) -> list[str]:
+        """Install from the image's seed every output plugin a board names
+        that is not installed (plan D8): offline, no registry, no GitHub.
+
+        Vestaboard and FiestaPanel always get an installed copy, whatever the
+        boards name: the copy the Integrations page updates in-app. One older
+        than the seed's pin, or from another repository, is replaced by the
+        seed's (:func:`src.outputs.seed.install_first_party_outputs`).
+        A failure is logged, never raised: the board then reports its output
+        as not installed, exactly as without a seed; a first-party output
+        then runs from the seed itself.
+        """
+        external_dirs = list(self._loader._external_dirs)
+        if not external_dirs:
+            return []
+        from src.outputs.seed import install_first_party_outputs, install_seeded_outputs_for_boards
+
+        installed: list[str] = []
+        try:
+            installed += install_first_party_outputs(external_dir=external_dirs[0], root=self._loader.seed_dir)
+        except Exception:
+            logger.exception("Could not install the first-party outputs from the seed")
+        try:
+            boards = _saved_boards()
+            installed += install_seeded_outputs_for_boards(
+                boards,
+                plugin_dirs=[self._loader.plugins_dir, *external_dirs],
+                external_dir=external_dirs[0],
+                root=self._loader.seed_dir,
+            )
+        except Exception:
+            logger.exception("Could not install seeded output plugins for the saved boards")
+        return installed
 
     @staticmethod
     def _overlaid(plugin_id: str, stored_config: dict[str, Any]) -> dict[str, Any]:
@@ -1301,7 +1363,7 @@ class PluginRegistry:
         """Get variables with rich metadata for every enabled plugin.
 
         Returns:
-            ``{plugin_id: {var_name: {description, type, max_length, group, example, preview}}}``
+            ``{plugin_id: {var_name: {description, type, max_length, group, example, preview, format?}}}``
         """
         all_vars, synthetic = self._collect_variables()
         context = self.build_template_context()
@@ -1367,6 +1429,11 @@ class PluginRegistry:
                     "example": meta.example,
                     "preview": preview,
                 }
+                # Only a non-default format is named, so every text variable's
+                # entry is exactly what it was; the page editor's canvas Source
+                # picker lists the ``"canvas"`` ones.
+                if meta.format != "text":
+                    var_dict[name]["format"] = meta.format
 
             if var_dict:
                 result[plugin_id] = var_dict
@@ -1472,6 +1539,8 @@ class PluginRegistry:
                 "source": source.to_dict() if source else {"source_type": "builtin"},
                 "update_available": self._update_status.get(plugin_id, False),
                 "update_blocked_reason": self._update_blocked.get(plugin_id, ""),
+                # Vestaboard and FiestaPanel: updated in-app, never uninstalled.
+                "required": is_first_party_output(base_id),
                 "supports_triggers": manifest.supports_triggers if manifest else False,
                 "instance_label": instance_label,
                 "base_plugin_id": base_id,
@@ -1603,6 +1672,11 @@ class PluginRegistry:
 
             logger.info("Rebuilt plugin instance after reload: %s", compound_key)
 
+    def get_seed_fallback(self, plugin_id: str) -> str | None:
+        """Why *plugin_id* is running from the output seed, or ``None`` when
+        its installed copy is the one loaded (plan D8)."""
+        return self._loader.seed_fallbacks.get(plugin_id)
+
     def get_load_errors(self) -> dict[str, list[str]]:
         """Get plugin load errors.
 
@@ -1636,7 +1710,7 @@ class PluginRegistry:
             # Disabled plugins (with no enabled instance) aren't running any
             # code — don't generate git traffic keeping them fresh. They are
             # brought up to date when re-enabled instead.
-            if not self._plugin_in_use(plugin_id):
+            if not self._update_check_wanted(plugin_id):
                 continue
             local_path = Path(source.local_path)
             check = check_plugin_update_available(local_path)
@@ -1655,6 +1729,21 @@ class PluginRegistry:
             self._update_status = results
             self._update_blocked = blocked
         return results
+
+    def _update_check_wanted(self, plugin_id: str) -> bool:
+        """Whether *plugin_id* runs code worth keeping fresh: a data plugin
+        that is enabled (or has an enabled instance); an output plugin that a
+        board uses; a first-party output always (it is never disabled)."""
+        if is_first_party_output(plugin_id):
+            return True
+        manifest = self.get_manifest(plugin_id)
+        if manifest is not None and manifest.plugin_type == "output":
+            try:
+                return bool(boards_using_output(plugin_id))
+            except Exception:
+                logger.exception("Could not read the saved boards; checking output plugin '%s' anyway", plugin_id)
+                return True
+        return self._plugin_in_use(plugin_id)
 
     def get_update_status(self) -> dict[str, bool]:
         """Return cached update status from the last check_for_updates() call."""
@@ -1777,6 +1866,8 @@ class PluginRegistry:
         Returns:
             List of error messages (empty on success).
         """
+        if is_first_party_output(plugin_id):
+            return [_first_party_refusal(plugin_id, "installed from elsewhere")]
         entries = load_registry()
         entry = next((e for e in entries if e.plugin_id == plugin_id), None)
         if entry is None:
@@ -1787,7 +1878,24 @@ class PluginRegistry:
         ok, err = install_registry_plugin(entry)
         if not ok:
             return [err]
+        return self._load_installed(plugin_id, "registry plugin")
 
+    def install_output_from_seed(self, plugin_id: str) -> list[str]:
+        """Install a first-party output plugin from the image's seed (plan D8, D18).
+
+        No network: the seed's verified copy is copied into the external
+        plugins directory, where it updates like any installed plugin.
+
+        Returns:
+            List of error messages (empty on success).
+        """
+        ok, err = install_from_seed(plugin_id, get_external_plugins_dir(), self._loader.seed_dir)
+        if not ok:
+            return [err]
+        return self._load_installed(plugin_id, "output plugin from the seed")
+
+    def _load_installed(self, plugin_id: str, what: str) -> list[str]:
+        """Load a plugin that was just put in the external plugins directory."""
         with self._lock:
             # Reload external dirs and load the new plugin
             self._loader._external_dirs = [get_external_plugins_dir()]
@@ -1801,7 +1909,7 @@ class PluginRegistry:
                 self._plugins[plugin_id] = plugin
                 self._manifests[plugin_id] = manifest
                 self._enabled[plugin_id] = False
-                logger.info("Installed registry plugin: %s", plugin_id)
+                logger.info("Installed %s: %s", what, plugin_id)
 
         self._clear_removed_tombstone(plugin_id)
         return []
@@ -1820,34 +1928,20 @@ class PluginRegistry:
         Returns:
             List of error messages (empty on success).
         """
+        # Determine the id if not given
+        target_id = plugin_id
+        if target_id is None:
+            from .sources import plugin_id_from_repo_name, repo_name_from_url
+
+            target_id = plugin_id_from_repo_name(repo_name_from_url(repo_url))
+        if is_first_party_output(target_id):
+            return [_first_party_refusal(target_id, "installed from elsewhere")]
+
         ok, err = install_git_plugin(repo_url, plugin_id=plugin_id, branch=branch)
         if not ok:
             return [err]
 
-        # Determine the id if not given
-        if plugin_id is None:
-            from .sources import plugin_id_from_repo_name, repo_name_from_url
-
-            repo_name = repo_name_from_url(repo_url)
-            plugin_id = plugin_id_from_repo_name(repo_name)
-
-        with self._lock:
-            # Reload external dirs and load the new plugin
-            self._loader._external_dirs = [get_external_plugins_dir()]
-            plugin = self._loader.load_plugin(plugin_id)
-            if plugin is None:
-                errors = self._loader.load_errors.get(plugin_id, [])
-                return errors or [f"Failed to load plugin after install: {plugin_id}"]
-
-            manifest = self._loader.get_manifest(plugin_id)
-            if manifest:
-                self._plugins[plugin_id] = plugin
-                self._manifests[plugin_id] = manifest
-                self._enabled[plugin_id] = False
-                logger.info("Installed git plugin: %s from %s", plugin_id, repo_url)
-
-        self._clear_removed_tombstone(plugin_id)
-        return []
+        return self._load_installed(target_id, f"git plugin from {repo_url}")
 
     def uninstall_external_plugin(self, plugin_id: str) -> list[str]:
         """Remove an external (non-built-in) plugin.
@@ -1865,6 +1959,24 @@ class PluginRegistry:
             return [f"Plugin not found: {plugin_id}"]
         if source.source_type == "builtin":
             return ["Cannot uninstall a built-in plugin"]
+        if is_first_party_output(plugin_id):
+            return [_first_party_refusal(plugin_id, "uninstalled")]
+
+        # An output plugin that drives a board stays (plan D8): removing it
+        # would take the board dark. Checked before anything is touched, and
+        # fail closed: boards that cannot be read cannot be shown unused.
+        manifest = self._loader.get_manifest(plugin_id)
+        try:
+            in_use = boards_using_output(plugin_id) if manifest is not None and manifest.plugin_type == "output" else []
+        except Exception:
+            logger.exception("Could not read the saved boards to check output plugin '%s' is unused", plugin_id)
+            return [f"Could not confirm that no board uses output plugin '{plugin_id}'; it was not uninstalled."]
+        if in_use:
+            names = ", ".join(f"'{name}'" for name in in_use)
+            return [
+                f"Output plugin '{plugin_id}' drives {len(in_use)} board(s): {names}. "
+                "Switch those boards to another output, or delete them, before uninstalling it."
+            ]
 
         instance_prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
         retired: list[tuple[str, PluginBase]] = []
@@ -2027,7 +2139,16 @@ class PluginRegistry:
         # The identity of a fetch: one plugin ON one board geometry. The
         # in-flight registry, the circuit breaker and the timeout streaks all
         # key off it, so they agree on what "this fetch" means.
-        board_key = None if board is None else (board.device_type, board.rows, board.cols)
+        board_key = (
+            None
+            if board is None
+            else (
+                board.device_type,
+                board.rows,
+                board.cols,
+                getattr(getattr(board, "display", None), "key", None),
+            )
+        )
 
         # Circuit-breaker gate (issue #1884): a quarantined plugin is dropped
         # from this build entirely — not submitted, and crucially not WAITED
@@ -2273,6 +2394,12 @@ def get_plugin_registry() -> PluginRegistry:
         _registry = PluginRegistry()
         _registry.initialize()  # Load all plugins on first access
     return _registry
+
+
+def plugin_registry_initialized() -> bool:
+    """Whether the global registry has loaded its plugins (output plugins
+    included) — without creating or loading it."""
+    return _registry is not None and _registry._initialized
 
 
 def reset_plugin_registry() -> None:

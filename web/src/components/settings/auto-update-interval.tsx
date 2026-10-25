@@ -11,6 +11,7 @@ import {
   SelectValue,
   Text,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -151,7 +152,11 @@ export function AutoUpdateIntervalCard() {
           disabled={checkNowMutation.isPending}
           className="ml-auto"
         >
-          <RefreshCw className={`h-4 w-4 mr-2 ${checkNowMutation.isPending ? "animate-spin" : ""}`} />
+          {checkNowMutation.isPending ? (
+            <Spinner className="mr-2" label={null} />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
           {checkNowMutation.isPending ? t("checkingForUpdates") : t("checkNow")}
         </Button>
       </Flex>

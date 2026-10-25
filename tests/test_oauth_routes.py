@@ -670,4 +670,4 @@ def test_an_ai_sign_in_returns_to_the_ai_settings():
     from src.oauth.service import CallbackOutcome
 
     location = _return_location(CallbackOutcome(connected=True, connection_id="ai.or1"))
-    assert location == "../../settings?section=integrations&oauth=connected&connection=ai.or1"
+    assert location == "../../settings?section=ai&oauth=connected&connection=ai.or1"

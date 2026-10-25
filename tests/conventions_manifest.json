@@ -12,6 +12,7 @@
     "mqtt",
     "network",
     "oauth",
+    "outputs",
     "pages",
     "panels",
     "plugin-support",
@@ -22,7 +23,6 @@
     "staff-picks",
     "system",
     "templates",
-    "transitions",
     "triggers",
     "v1"
   ],
@@ -31,6 +31,11 @@
       "route": "DELETE /ai/conversations",
       "rule": "declared_errors",
       "reason": "Idempotent clear-all with no path or body parameters. Clearing an empty store is a success with deleted=0 — the caller's intent (no saved chats) is satisfied either way — so there is no status it refuses at, and the handler raises nothing. The same reasoning as DELETE /settings/temporary-override."
+    },
+    {
+      "route": "DELETE /board/external-frame",
+      "rule": "response_model",
+      "reason": "Answers 204 No Content (API_CONVENTIONS.md: delete -> 204 with no body); there is no document for a model to describe. The route declares status_code=204 and response_class=Response, documents its 404 and 503, and tests/test_board_api_external_frame.py pins the empty body."
     },
     {
       "route": "DELETE /config/board",
@@ -190,7 +195,12 @@
     {
       "route": "GET /settings/beta",
       "rule": "declared_errors",
-      "reason": "Read-only, no path or body parameters: it returns the stored beta flags plus their runtime status and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+      "reason": "Deprecated read-only alias (until v11) for the two plugin flags in GET /settings/plugins, with no path or body parameters and no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
+    },
+    {
+      "route": "GET /settings/restore-notice",
+      "rule": "declared_errors",
+      "reason": "Read-only, no path or body parameters: it reports the downgrade bridge's notice, and an unreadable or malformed notice file is answered as 'no notice' (the bridge's boot log is the record of the swap; the notice only drives a banner). There is no failure path to declare."
     },
     {
       "route": "GET /settings/board",

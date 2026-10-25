@@ -124,7 +124,7 @@ class TestCommandHandlerActivePage:
 class TestCommandHandlerTransitionStyle:
     """Tests for transition_style command."""
 
-    @patch("src.board_client.VALID_STRATEGIES", ["column", "random"])
+    @patch("src.outputs.transitions.VALID_STRATEGIES", ["column", "random"])
     @patch("src.settings.service.get_settings_service")
     def test_handle_transition_style(self, get_settings, handler):
         settings = MagicMock()

@@ -1,7 +1,7 @@
 """Board character codes and symbol mappings.
 
-Official board character codes (0-71).
-Reference: https://docs.vestaboard.com/docs/characterCodes
+Official board character codes (0-71): the split-flap character set as the
+Vestaboard documents it in its developer docs ("Character Codes").
 
 Note: Some codes (43, 45, 51, 57, 58, 61) are not defined in the official table.
 """

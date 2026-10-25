@@ -39,6 +39,8 @@ from src.mcp_server import _build_mcp_server
 #: Tools that only observe. They run immediately in the chat loop and no
 #: client should confirm them.
 READ_ONLY = {
+    "list_display_outputs",
+    "get_display_info",
     "list_installed_plugins",
     "list_registry_plugins",
     "get_template_variables",
@@ -57,7 +59,6 @@ READ_ONLY = {
     "export_page",
     "list_staff_picks",
     "get_current_display",
-    "list_transition_plugins",
     "list_formula_functions",
     "list_plugin_instances",
     "get_plugin_demo_page",
@@ -83,6 +84,7 @@ READ_ONLY = {
 #: they are the everyday editing path and the previous state is one
 #: ``get_*`` away, so they are deliberately NOT here.
 APPROVAL_GATED = {
+    "run_display_action",
     "delete_page",
     "delete_schedule",
     "delete_collection",
@@ -116,6 +118,7 @@ SYSTEM_GATED = {
 #: over the network, a git remote, a plugin's upstream API, the release
 #: registries, a third-party AI endpoint, the public internet).
 OPEN_WORLD = {
+    "run_display_action",
     "list_registry_plugins",
     "get_plugin_data",
     "install_plugin",
@@ -134,6 +137,7 @@ OPEN_WORLD = {
 #: second call restarts the expiry clock, so the state after two calls is
 #: not the state after one.
 IDEMPOTENT = READ_ONLY | {
+    "configure_display",
     "enable_plugin",
     "disable_plugin",
     "configure_plugin",
@@ -145,7 +149,6 @@ IDEMPOTENT = READ_ONLY | {
     "update_schedule",
     "update_collection",
     # Snapping a board back to its active page twice leaves it where once did.
-    "restore_board",
     "check_plugin_updates",
     "update_all_plugins",
     "set_default_page",

@@ -24,13 +24,14 @@ full dump, so an unset optional field never overwrites stored state with
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
+from src.api_deprecation import FLAT_BOARD_FIELDS_NOTE
 from src.config import SilenceMode
-from src.devices import DeviceType, HardwareDeviceType
-from src.settings.service import VALID_OUTPUT_TARGETS
+from src.devices import MAX_TRANSITION_STEP_INTERVAL_MS, DeviceType, HardwareDeviceType
+from src.settings.service import VALID_OUTPUT_TARGETS, SettingsRestoreNotice
 
 # ---------------------------------------------------------------------------
 # MQTT
@@ -80,6 +81,9 @@ class AiProvidersResponse(BaseModel):
     """AI provider configuration with every ``api_key`` masked."""
 
     enabled: bool
+    #: Capability, not configuration: native TV requires board context and
+    #: the restricted tool catalog before it can offer chat.
+    tv_chat_supported: Literal[True] = True
     providers: list[dict[str, Any]]
     default_provider_id: str | None = None
     approval_mode: AiApprovalMode = "ask"
@@ -174,12 +178,14 @@ class TransitionSettingsUpdate(BaseModel):
     """Partial transition update.
 
     An explicit ``null`` clears a field; an omitted key leaves it alone. The
-    handler tells the two apart with ``exclude_unset``.
+    handler tells the two apart with ``exclude_unset``. The bounds are a
+    display's (``src.devices.TRANSITION_SPEED_BOUNDS``), the interval's the
+    same as a page's.
     """
 
     strategy: str | None = None
-    step_interval_ms: int | None = None
-    step_size: int | None = None
+    step_interval_ms: int | None = Field(default=None, ge=0, le=MAX_TRANSITION_STEP_INTERVAL_MS)
+    step_size: int | None = Field(default=None, ge=1)
 
 
 # ---------------------------------------------------------------------------
@@ -234,6 +240,10 @@ class SetActivePageRequest(BaseModel):
 
     page_id: str | None = None
     board_id: str | None = None
+    #: Show the page now even while the board is silenced (issue #1943).
+    #: Default false: during silence the selection is saved and the page
+    #: appears when silence ends.
+    override_silence: bool = False
 
 
 class SetActivePageResponse(BaseModel):
@@ -248,6 +258,9 @@ class SetActivePageResponse(BaseModel):
     page_id: str | None = None
     sent_to_board: bool
     paused: bool
+    #: True when the board's silence window held the immediate send (#1943).
+    #: Reported independently of ``paused``: a silenced, paused board says both.
+    silenced: bool = False
     board_id: str | None = None
     error: str | None = None
     warnings: list[str] = Field(default_factory=list)
@@ -299,6 +312,22 @@ class ClearTemporaryOverrideResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Downgrade bridge notice (output-plugins plan D8)
+# ---------------------------------------------------------------------------
+
+
+class SettingsRestoreNoticeResponse(BaseModel):
+    """``GET``/``DELETE /settings/restore-notice``.
+
+    ``notice`` is set when this build booted by restoring its own pre-upgrade
+    settings snapshot over a file a newer version wrote, and stays set until
+    the user dismisses it. Null otherwise — and always null after a dismiss.
+    """
+
+    notice: SettingsRestoreNotice | None = None
+
+
+# ---------------------------------------------------------------------------
 # Polling
 # ---------------------------------------------------------------------------
 
@@ -341,8 +370,49 @@ class BoardSettingsResponse(BaseModel):
     """
 
     board_type: str | None = None
-    boards: list[dict[str, Any]]
+    boards: list[dict[str, Any]] = Field(description=f"The boards, as stored. {FLAT_BOARD_FIELDS_NOTE}")
     devices: list[str]
+
+
+class RetargetedPage(BaseModel):
+    """A page moved onto a board's new grid when the board was resized in place
+    (an LED board's text size switch): it was sized exactly for the old grid
+    and no other board still has that size."""
+
+    page_id: str
+    page_name: str
+    from_size: str = Field(description="The page's size key before, e.g. `panel:10x16`.")
+    to_size: str = Field(description="The page's size key now, e.g. `panel:8x10`.")
+
+
+class IncompatibleBoardReference(BaseModel):
+    """A schedule entry or active page whose page no longer fits a resized board.
+
+    Warn-only, exactly like ``PATCH /panels/{id}`` after a re-fit: the
+    reference is left in place and the caller decides what to do.
+    """
+
+    board_id: str
+    board_name: str
+    page_id: str
+    page_name: str
+    surface: str
+    schedule_id: str | None = None
+
+
+class BoardSettingsUpdateResponse(BoardSettingsResponse):
+    """``PUT /settings/board``: the board settings, plus what a resize moved.
+
+    A board whose grid changed in the save (an LED board's text size: a
+    Pixoo is 10 x 16 in the small face and 8 x 10 in the large one) has its
+    pages sized for the old grid moved onto the new one
+    (``retarget``), unless another board still has that size; the
+    references to pages that still do not fit are reported
+    (``incompatible_references``). Both are null unless ``boards`` was saved.
+    """
+
+    retargeted_pages: list[RetargetedPage] | None = None
+    incompatible_references: list[IncompatibleBoardReference] | None = None
 
 
 class BoardSettingsUpdate(BaseModel):
@@ -397,12 +467,13 @@ class BoardPauseResponse(BaseModel):
 class DetectBoardSizeResponse(BaseModel):
     """A board's device type and grid, classified from its live layout."""
 
-    device_type: HardwareDeviceType
+    device_type: DeviceType
     rows: int
     cols: int
     notes_wide: int | None = None
     notes_tall: int | None = None
     matched_preset: str | None = None
+    source: Literal["detected", "configured"] = "detected"
 
 
 class BoardIdentifyRequest(BaseModel):
@@ -498,44 +569,60 @@ class SunTimesWeekResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Beta
+# Beta (deprecated alias of the plugin flags, until v11)
 # ---------------------------------------------------------------------------
 
 
 class BetaSettings(BaseModel):
-    """Opt-in beta feature flags."""
+    """The two plugin flags, as ``/settings/beta`` still reports them."""
 
-    https_enabled: bool
     transition_plugins_enabled: bool
-
-
-class BetaHttpsStatus(BaseModel):
-    """Runtime status of the HTTPS beta feature."""
-
-    cert_present: bool
-    cert_path: str
-    key_path: str
-    updater_available: bool
+    output_plugins_enabled: bool = Field(
+        default=True,
+        deprecated=True,
+        description="Always true: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
 
 
 class BetaSettingsResponse(BaseModel):
-    """Beta flags plus the certificate/sidecar status behind them."""
+    """``GET``/``PUT /settings/beta``: deprecated, read ``/settings/plugins``."""
 
     settings: BetaSettings
-    https: BetaHttpsStatus
-
-
-class BetaSettingsUpdateResponse(BetaSettingsResponse):
-    """Beta flags after a write, plus whether a restart is needed."""
-
-    restart_required: bool
 
 
 class BetaSettingsUpdate(BaseModel):
-    """Partial beta update: only the flags present are changed."""
+    """Partial update of the two plugin flags through the deprecated alias.
 
-    https_enabled: StrictBool | None = None
+    Any other key is ignored — ``https_enabled`` (removed in v5) and
+    ``auto_update`` (never a beta flag) included — so an old client gets a
+    200 and no change. ``output_plugins_enabled`` is accepted and ignored
+    too (settings v7: display plugins need no opt-in).
+    """
+
     transition_plugins_enabled: StrictBool | None = None
+    output_plugins_enabled: StrictBool | None = Field(
+        default=None,
+        deprecated=True,
+        description="Ignored: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Setup wizard
+# ---------------------------------------------------------------------------
+
+
+class WizardStateBody(BaseModel):
+    """``GET``/``PUT /settings/wizard``: how the setup wizard ended.
+
+    ``completed`` or ``skipped`` keeps the wizard away for good (first run is
+    "no board has a usable output AND the wizard was neither completed nor
+    skipped"); ``null`` is "never ended" — what a reset leaves.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    state: Literal["completed", "skipped"] | None
 
 
 # ---------------------------------------------------------------------------
@@ -544,9 +631,20 @@ class BetaSettingsUpdate(BaseModel):
 
 
 class PluginSettingsResponse(BaseModel):
-    """Plugin-system settings."""
+    """Plugin-system settings.
+
+    ``transition_plugins_enabled`` was a ``/settings/beta`` flag until
+    settings v6. ``output_plugins_enabled`` was the display-plugin opt-in
+    until settings v7; it is kept on the wire, always true, until v11.
+    """
 
     auto_update: bool
+    transition_plugins_enabled: bool = False
+    output_plugins_enabled: bool = Field(
+        default=True,
+        deprecated=True,
+        description="Always true: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
 
 
 class PluginSettingsUpdate(BaseModel):
@@ -558,6 +656,13 @@ class PluginSettingsUpdate(BaseModel):
     """
 
     auto_update: StrictBool | None = None
+    transition_plugins_enabled: StrictBool | None = None
+    #: Accepted (an old client may still send it) and ignored.
+    output_plugins_enabled: StrictBool | None = Field(
+        default=None,
+        deprecated=True,
+        description="Ignored: display plugins need no opt-in since settings v7. Removed in v11.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -565,18 +670,33 @@ class PluginSettingsUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+# Runtime silence evaluation consumes HH:MM with an explicit UTC offset.
+# Bare HH:MM values are accepted only by the legacy config migration.
+SilenceTime = Annotated[
+    str,
+    Field(
+        pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9][+-]([01][0-9]|2[0-3]):[0-5][0-9]$",
+        description="Time in HH:MM±HH:MM format, for example 04:00+00:00 or 20:00-08:00",
+    ),
+]
+
+
 class SilenceScheduleRequest(BaseModel):
     """Update the silence ("snooze") window, install-wide or for one board."""
 
     enabled: bool
-    start_time: str
-    end_time: str
+    start_time: SilenceTime
+    end_time: SilenceTime
     # An unknown mode used to be coerced to "freeze" and answered 200, so a
     # client asking for "indicater" got a frozen board and no signal.
     mode: SilenceMode | None = None  # omitted → "freeze"
     page_id: str | None = None  # Page id to display when mode == "page"
     indicator_text: str | None = None  # Custom text to display when mode == "indicator"
     indicator_position: str | None = None  # Position: center, top-left, top-right, bottom-left, bottom-right
+    # Issue #1944: when the window ends, show the last message that was
+    # blocked during it. Opt-in. Omitted (None) → keep the stored value, so a
+    # client that does not know the key never turns it off by saving.
+    show_queued_on_exit: bool | None = None
     # Board to target (issue #1788). Omitted → the install-wide schedule.
     # Deliberately in the BODY, not the URL, so the endpoint path is unchanged.
     board_id: str | None = None
@@ -677,7 +797,6 @@ class AllSettingsResponse(BaseModel):
     mqtt: MqttSettingsResponse
     display: DisplaySettingsResponse
     location: LocationSettingsResponse
-    beta: BetaSettings
     plugins: PluginSettingsResponse
     schedule: ScheduleBehaviourBlock
     status: ServiceStatus

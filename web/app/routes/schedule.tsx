@@ -75,6 +75,7 @@ import {
   type SilenceMode,
 } from "@/lib/api";
 import { extractTimeFromDate, getDayNameFromDate, type ResolvedSilenceSchedule } from "@/lib/schedule-calendar";
+import { resolveSilenceConfig } from "@/lib/silence-config";
 import { utcToLocalTime } from "@/lib/timezone-utils";
 import { cn } from "@/lib/utils";
 
@@ -267,9 +268,10 @@ export default function SchedulePage() {
     queryFn: api.getAllSettings,
   });
 
+  const timezone = allSettings?.general?.timezone ?? "America/Los_Angeles";
   const resolvedSilenceSchedule = useMemo<ResolvedSilenceSchedule | null>(() => {
-    const config = allSettings?.silence_schedule?.config;
-    const timezone = allSettings?.general?.timezone ?? "America/Los_Angeles";
+    // Silence settings are board-scoped even for single-board installs.
+    const config = resolveSilenceConfig(allSettings?.silence_schedule?.config, currentBoardId || undefined);
     if (!config || !config.start_time || !config.end_time) return null;
     const startLocal = utcToLocalTime(config.start_time, timezone);
     const endLocal = utcToLocalTime(config.end_time, timezone);
@@ -284,10 +286,10 @@ export default function SchedulePage() {
       indicatorText: config.indicator_text ?? null,
       pageId: config.page_id ?? null,
     };
-  }, [allSettings]);
+  }, [allSettings, currentBoardId, timezone]);
 
   const handleSilenceClick = useCallback(() => {
-    router.push("/settings?section=behavior#silence-schedule");
+    router.push("/settings?section=scheduling#silence-schedule");
   }, [router]);
 
   // Toggle schedule (per board when multi-board)
@@ -519,7 +521,7 @@ export default function SchedulePage() {
             // header chrome on mobile so the calendar isn't squeezed.
             isCalendarMode && "py-2 sm:py-4 mb-2 sm:mb-5",
           )}
-          description={t("descriptionWithTimezone", { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })}
+          description={t("descriptionWithTimezone", { timezone })}
         />
 
         {/* ── Compact toolbar: everything in one row ── */}

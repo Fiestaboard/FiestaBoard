@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComposePageDialog } from "@/components/compose-page-dialog";
 import { ThemeProvider } from "@/hooks/use-theme";
 
+import { FIESTAPANEL_LED_MATRIX, FIESTAPANEL_SPLIT_FLAP } from "./mocks/fiestapanel-models";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -158,10 +159,12 @@ describe("ComposePageDialog", () => {
 
   it("saving is optional — sending never creates a page", async () => {
     let pageCreated = false;
+    let sent = false;
     server.use(
-      http.post(`${API_BASE}/settings/temporary-override`, () =>
-        HttpResponse.json({ active: true, template: ["HI"], device_type: "flagship" }),
-      ),
+      http.post(`${API_BASE}/settings/temporary-override`, () => {
+        sent = true;
+        return HttpResponse.json({ active: true, template: ["HI"], device_type: "flagship" });
+      }),
       http.post(`${API_BASE}/v1/pages`, () => {
         pageCreated = true;
         return HttpResponse.json({ id: "p", name: "x" }, { status: 201 });
@@ -173,6 +176,10 @@ describe("ComposePageDialog", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: /send to board/i }));
 
+    // Wait for the send itself to land: the button is enabled again before
+    // the request even starts, and a request still in flight when this test
+    // ends is answered by the NEXT test's handlers.
+    await waitFor(() => expect(sent).toBe(true));
     await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
     expect(pageCreated).toBe(false);
   });
@@ -246,5 +253,16 @@ describe("ComposePageDialog", () => {
     renderDialog({ deviceType: "note" });
     typeMessage("A\nB\nC\nD");
     await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeDisabled());
+  });
+
+  it("previews the message on an LED destination board as its LED matrix", () => {
+    renderDialog({ deviceType: "panel", gridRows: 8, gridCols: 10, model: FIESTAPANEL_LED_MATRIX });
+    expect(document.querySelector('[data-slot="display-preview"]')).toHaveAttribute("data-technology", "led_matrix");
+  });
+
+  it("previews on the flaps for a split-flap destination, as before", () => {
+    renderDialog({ model: FIESTAPANEL_SPLIT_FLAP });
+    expect(document.querySelector('[data-slot="display-preview"]')).not.toBeInTheDocument();
+    expect(document.querySelector("[data-board-preview]")).toBeInTheDocument();
   });
 });

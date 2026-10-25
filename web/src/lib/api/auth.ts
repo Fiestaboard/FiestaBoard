@@ -15,6 +15,9 @@ export type AuthStatusResponse = {
   username: string | null;
   mode: "enabled" | "disabled" | "undecided";
   first_run: boolean;
+  session_management_supported?: boolean;
+  auth_kind?: "browser" | "tv" | null;
+  tv_sign_in?: { supported: boolean; enabled: boolean; protocol_version: number };
 };
 
 /**
@@ -35,7 +38,7 @@ export const authApi = {
   // `detail` field. The helpers below are for the rest of the UI — e.g.
   // a "Sign out" button in the profile menu.
 
-  getAuthStatus: () => fetchApi<AuthStatusResponse>("/auth/status"),
+  getAuthStatus: () => fetchApi<AuthStatusResponse>("/auth/status", { cache: "no-store" }),
 
   logout: () => fetchApi<{ status: string }>("/auth/logout", { method: "POST" }),
 

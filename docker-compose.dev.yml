@@ -29,10 +29,22 @@ services:
       # registered & exercised by hand in dev — its live board UI is at
       # http://localhost:19200/ui. Unset this to talk to the real Vestaboard Cloud.
       - VESTABOARD_CLOUD_API_URL=http://fiestaboard-mock-cloud:9200/
+      # Fence board traffic to the bundled mocks, so a data/ directory that
+      # still points at a real Vestaboard can't reach it from dev. To drive a
+      # real board (or a real LED matrix) from dev, add its host in .env, e.g.
+      #   FIESTABOARD_OUTPUTS_ALLOW_HOSTS=fiestaboard-mock-board,fiestaboard-mock-cloud,192.168.1.50
+      # Set it empty to allow every host.
+      - FIESTABOARD_OUTPUTS_ALLOW_HOSTS=${FIESTABOARD_OUTPUTS_ALLOW_HOSTS-fiestaboard-mock-board,fiestaboard-mock-cloud,localhost,127.0.0.1}
     volumes:
       - ./data:/app/data
       - ./src:/app/src
       - ./plugins:/app/plugins
+      # Vestaboard and FiestaPanel load from the image's output seed. To work
+      # on one, mount a checkout of its repository and point
+      # FIESTABOARD_DEV_OUTPUT_<ID> at it in .env (docs/internal/development/
+      # FIRST_PARTY_OUTPUTS.md), e.g.
+      #   - ../fiestaboard-output--vestaboard:/opt/dev-outputs/vestaboard
+      # with FIESTABOARD_DEV_OUTPUT_VESTABOARD=/opt/dev-outputs/vestaboard
       - ./external_plugins:/app/external_plugins
       - ./plugin-registry.json:/app/plugin-registry.json:ro
       - ./plugin-previews.json:/app/plugin-previews.json:ro
@@ -43,7 +55,7 @@ services:
       - web-dev-node-modules:/app/web/node_modules
       - ./start-dev.sh:/app/start-dev.sh:ro
       - ./supervisord-dev.conf:/app/supervisord-dev.conf:ro
-      - ./nginx-dev.conf:/app/nginx.http.conf:ro
+      - ./nginx-dev.conf:/etc/nginx/nginx.conf:ro
     command: ["/bin/sh", "/app/start-dev.sh"]
     networks:
       - fiestaboard-dev

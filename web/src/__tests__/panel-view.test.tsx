@@ -7,6 +7,7 @@ import { isInDimWindow } from "@/components/panel/panel-view";
 import { PanelView } from "@/components/panel/panel-view";
 import type { PanelFrame, PanelPublicConfig } from "@/lib/api";
 
+import { FIESTAPANEL_LED_MATRIX } from "./mocks/fiestapanel-models";
 import { server } from "./mocks/server";
 
 const CONFIG: PanelPublicConfig = {
@@ -53,6 +54,58 @@ function mockPanel(config: PanelPublicConfig = CONFIG, frame: PanelFrame = FRAME
 }
 
 describe("PanelView", () => {
+  it.each([{ geometry_key: "previous" }, { geometry_key: undefined, rows: 5 }])(
+    "blanks a stale frame including cells and layers: %j",
+    async (stale) => {
+      mockPanel(
+        { ...CONFIG, geometry_key: "current", render_style: "led_matrix", device_model_spec: FIESTAPANEL_LED_MATRIX },
+        {
+          ...FRAME,
+          cells: [[{ type: "char", value: "X" }]],
+          layers: [{ x: 0, y: 0, width: 1, height: 1, rgba: "/wAA/w==" }],
+          ...stale,
+        },
+      );
+      render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+      const board = await screen.findByRole("img");
+      expect(board).not.toHaveAttribute("data-layers", "1");
+      expect(board.getAttribute("aria-label")).not.toContain("HELLO PANEL");
+      expect(board.getAttribute("aria-label")).not.toContain("X");
+    },
+  );
+
+  it("removes previously rendered content when a config poll advances geometry before its frame", async () => {
+    const config = {
+      ...CONFIG,
+      geometry_key: "old",
+      render_style: "led_matrix" as const,
+      device_model_spec: FIESTAPANEL_LED_MATRIX,
+      matrix_sizing: "fill_tv" as const,
+    };
+    mockPanel(config, {
+      ...FRAME,
+      geometry_key: "old",
+      layers: [{ x: 0, y: 0, width: 1, height: 1, rgba: "/wAA/w==" }],
+    });
+    render(<PanelView panelId="p1" configIntervalMs={40} frameIntervalMs={100000} />, { wrapper: Wrapper });
+    await waitFor(() => expect(screen.getByRole("img")).toHaveAttribute("data-layers", "1"));
+    server.use(http.get("/api/panel/p1", () => HttpResponse.json({ ...config, geometry_key: "new" })));
+    await waitFor(() => expect(screen.getByRole("img")).not.toHaveAttribute("data-layers", "1"));
+    expect(screen.getByRole("img").getAttribute("aria-label")).not.toContain("HELLO PANEL");
+  });
+
+  it("shows the legacy geometry upgrade warning instead of a truncated matrix", async () => {
+    mockPanel({
+      ...CONFIG,
+      render_style: "led_matrix",
+      device_model_spec: FIESTAPANEL_LED_MATRIX,
+      geometry_error: "Legacy LED surface exceeds 256 pixels",
+    });
+    render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    expect(await screen.findByRole("alert")).toHaveTextContent(/choose Fit screen shape/);
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
   it("renders the frame's message on the board", async () => {
     mockPanel();
     render(<PanelView panelId="p1" />, { wrapper: Wrapper });
@@ -129,6 +182,82 @@ describe("PanelView", () => {
     await screen.findByRole("img");
     expect(screen.getByTestId("char-tile-5-29")).toBeInTheDocument();
     expect(screen.queryByTestId("char-tile-6-0")).not.toBeInTheDocument();
+  });
+
+  it("draws only the flaps: the board has no housing of its own on the TV", async () => {
+    mockPanel();
+    render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    const board = await screen.findByRole("img");
+    expect(board).toHaveAttribute("data-bezel", "false");
+  });
+
+  it.each([undefined, "fill_tv", "fit_panel", "true_size"] as const)(
+    "draws a canvas-only frame with matrix sizing %s",
+    async (sizing) => {
+      const frame = {
+        ...FRAME,
+        message: null,
+        layers: [{ x: 0, y: 2, width: 1, height: 1, rgba: "/wAA/w==" }],
+      };
+      mockPanel(
+        {
+          ...CONFIG,
+          render_style: "led_matrix",
+          device_model_spec: FIESTAPANEL_LED_MATRIX,
+          matrix_sizing: sizing,
+        },
+        frame,
+      );
+      render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+      await waitFor(() => expect(screen.getByRole("img")).toHaveAttribute("data-layers", "1"));
+    },
+  );
+
+  it("draws an LED-matrix panel through its model, not as flaps", async () => {
+    mockPanel(
+      {
+        ...CONFIG,
+        device_type: "panel",
+        rows: 12,
+        cols: 29,
+        render_style: "led_matrix",
+        device_model: "fiestapanel_led_matrix",
+        device_model_spec: FIESTAPANEL_LED_MATRIX,
+      },
+      { ...FRAME, rows: 12, cols: 29 },
+    );
+    const { container } = render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    await screen.findByRole("img");
+    expect(container.querySelector('[data-slot="display-preview"]')).toHaveAttribute("data-technology", "led_matrix");
+    expect(screen.queryByTestId("char-tile-0-0")).not.toBeInTheDocument();
+  });
+
+  it.each(["fill_tv", "fit_panel", "true_size"] as const)("applies shared matrix sizing %s", async (sizing) => {
+    mockPanel(
+      {
+        ...CONFIG,
+        render_style: "led_matrix",
+        device_model_spec: FIESTAPANEL_LED_MATRIX,
+        matrix_sizing: sizing,
+        matrix_pitch_mm: 5,
+      },
+      FRAME,
+    );
+    const { container } = render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    const matrix = await screen.findByTestId("panel-matrix");
+    expect(matrix).toHaveAttribute("data-sizing", sizing);
+    expect(container.querySelector('[data-slot="led-matrix-display"]')).toHaveAttribute("data-matrix-width", "192");
+    expect(container.querySelector('[data-slot="led-matrix-display"]')).toHaveAttribute("data-bezel", "false");
+    expect(matrix.querySelector("pattern") !== null).toBe(sizing === "fill_tv");
+  });
+
+  it("draws the frame's rich cells when the frame has them", async () => {
+    const cells = [[..."CELLS"].map((value) => ({ type: "char" as const, value }))];
+    mockPanel(CONFIG, { ...FRAME, message: "IGNORED", cells });
+    render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    const board = await screen.findByRole("img");
+    await waitFor(() => expect(board.getAttribute("aria-label")).toContain("CELLS"));
+    expect(board.getAttribute("aria-label")).not.toContain("IGNORED");
   });
 
   it("reports the orphaned-board state", async () => {

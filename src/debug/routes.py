@@ -43,7 +43,6 @@ from fastapi import APIRouter, HTTPException, Query
 from src import __version__, log_store
 from src import display_runtime as runtime
 from src.api_errors import errors
-from src.board_client import board_client_from_board_dict
 from src.board_guards import raise_if_throttled
 from src.board_send_executor import run_board_send
 from src.send_outcome import SendOutcome
@@ -401,16 +400,17 @@ async def debug_get_system_info():
     client = runtime._get_board_client()
     cache_status = client.get_cache_status() if client else None
 
-    # Check if board is configured: the client factory is the authority on
-    # "has a usable connection". No boards[] entry means unconfigured — the
-    # legacy config.json copy is never consulted (issue #1760).
+    # Configured = the primary board has a live runtime: the runtime factory
+    # built its driver, so it has a usable connection. No boards[] entry
+    # means unconfigured — the legacy config.json copy is never consulted
+    # (issue #1760).
     board = runtime._primary_board_entry()
     board_configured = False
     if board is not None:
         try:
-            board_configured = board_client_from_board_dict(board) is not None
+            board_configured = runtime.live_driver(board.get("id")) is not None
         except Exception as exc:
-            logger.debug("Could not evaluate board connection config: %s", exc)
+            logger.debug("Could not resolve the primary board's live runtime: %s", exc)
 
     return SystemInfoResponse(
         board_ip=board_ip,
@@ -430,28 +430,24 @@ async def debug_get_system_info():
 async def debug_network_diagnostics():
     """Run network diagnostics to troubleshoot connectivity issues.
 
-    Checks DNS resolution, internet connectivity, and Vestaboard reachability.
+    Checks DNS resolution, internet connectivity, and the primary board's
+    reachability — the last asked of the board's output (its diagnostics
+    hook).
     """
     from src.network_diagnostics import run_full_diagnostics
 
     # Diagnose the connection the send path actually uses: the boards[]
     # store. The legacy config.json copy is never consulted (issue #1760) —
     # with no boards entry the diagnostics run without board credentials.
-    board = runtime._primary_board_entry() or {}
-    board_host = board.get("host") or None
-    board_port = board.get("port") or 7000
-    board_api_key = board.get("local_api_key") or None
-    use_cloud = (board.get("api_mode") or "local").lower() == "cloud"
-    cloud_key = board.get("cloud_key") or None
+    from src.settings.board_shape import board_view
+
+    board = runtime._primary_board_entry()
+    # The output's diagnostics hook reads the connection in the settings-v3
+    # flat shape; settings v4 stores it in output_config (plan D8).
+    board = board_view(board) if board else {}
 
     try:
-        return run_full_diagnostics(
-            board_host=board_host,
-            board_port=board_port,
-            board_api_key=board_api_key,
-            use_cloud=use_cloud,
-            cloud_key=cloud_key,
-        )
+        return run_full_diagnostics(board)
     except Exception as e:
         logger.error(f"Error running network diagnostics: {e}")
         raise HTTPException(status_code=500, detail="Network diagnostics failed") from e

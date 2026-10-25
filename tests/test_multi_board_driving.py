@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.main import BoardRuntime, DisplayService
+from tests.first_party_drivers import vestaboards_built
 
 
 def _board(board_id: str, name: str, **overrides) -> dict:
@@ -58,7 +59,7 @@ class TestBuildBoardClients:
         clients = {"b1": MagicMock(), "b2": MagicMock()}
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", side_effect=lambda b: clients[b["id"]]),
+            patch("src.main.build_driver", side_effect=lambda b: clients[b["id"]]),
         ):
             service._build_board_clients()
 
@@ -89,7 +90,7 @@ class TestBuildBoardClients:
         clients = {"b1": MagicMock(), "b2": MagicMock()}
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", side_effect=lambda b: clients.get(b["id"])),
+            patch("src.main.build_driver", side_effect=lambda b: clients.get(b["id"])),
         ):
             service._build_board_clients()
 
@@ -97,7 +98,7 @@ class TestBuildBoardClients:
 
     def test_local_array_board_with_tiles_gets_a_runtime(self, service):
         """Local Array Mode (#1399): a local-mode note array with saved tiles
-        must get a runtime via the real client factory (NoteArrayLocalClient)."""
+        must get a runtime via the real client factory (the tile fan-out)."""
         boards = [
             _board(
                 "b1",
@@ -119,7 +120,7 @@ class TestBuildBoardClients:
             service._build_board_clients(sync_cache=False)
 
         assert set(service.runtimes) == {"b1"}
-        assert type(service.runtimes["b1"].client).__name__ == "NoteArrayLocalClient"
+        assert service.runtimes["b1"].client.plugin.connection.mode == "local_tiles"
 
     def test_board_without_credentials_gets_no_runtime(self, service):
         """Uses the REAL client factory: a board with no usable credential
@@ -138,7 +139,7 @@ class TestBuildBoardClients:
 
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", return_value=original_client),
+            patch("src.main.build_driver", return_value=original_client),
         ):
             service._build_board_clients(sync_cache=False)
             service.runtimes["b1"].last_active_page_content = "REMEMBER ME"
@@ -155,7 +156,7 @@ class TestBuildBoardClients:
         boards = [_board("b2", "Two", port=7001)]
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", side_effect=lambda b: MagicMock()),
+            patch("src.main.build_driver", side_effect=lambda b: MagicMock()),
         ):
             assert service.reinitialize_board_client() is True
 
@@ -221,7 +222,7 @@ class TestPrimaryBoardFailureIsolation:
 
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", side_effect=factory),
+            patch("src.main.build_driver", side_effect=factory),
         ):
             service._build_board_clients(sync_cache=False)
 
@@ -236,7 +237,7 @@ class TestPrimaryBoardFailureIsolation:
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
             patch(
-                "src.main.board_client_from_board_dict",
+                "src.main.build_driver",
                 side_effect=lambda b: None if b["id"] == "b1" else good,
             ),
         ):
@@ -253,14 +254,14 @@ class TestPrimaryBoardFailureIsolation:
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
             patch(
-                "src.main.board_client_from_board_dict",
+                "src.main.build_driver",
                 side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
             ),
-            patch("src.main.BoardClient") as legacy_client,
+            vestaboards_built() as legacy_built,
         ):
             service._build_board_clients(sync_cache=False)
 
-        legacy_client.assert_not_called()
+        assert legacy_built == []
         assert service._PRIMARY_FALLBACK_KEY not in service.runtimes
 
     def test_secondary_board_is_still_driven_when_the_primary_is_misconfigured(self, service):
@@ -272,7 +273,7 @@ class TestPrimaryBoardFailureIsolation:
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
             patch(
-                "src.main.board_client_from_board_dict",
+                "src.main.build_driver",
                 side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
             ),
         ):
@@ -292,7 +293,7 @@ class TestPrimaryBoardFailureIsolation:
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
             patch(
-                "src.main.board_client_from_board_dict",
+                "src.main.build_driver",
                 side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
             ),
             patch("src.main.Config.validate", return_value=True),
@@ -309,11 +310,12 @@ class TestPrimaryBoardFailureIsolation:
 
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", return_value=None),
+            patch("src.main.build_driver", return_value=None),
             patch("src.main.Config.validate", return_value=True),
-            patch("src.main.BoardClient", side_effect=ValueError("api_key is required")),
+            vestaboards_built() as legacy_built,
         ):
             assert service.initialize() is False
+        assert legacy_built == []
 
     def test_primary_failure_reason_is_recorded_for_surfacing(self, service):
         """The skipped board's reason must be observable, not swallowed —
@@ -327,7 +329,7 @@ class TestPrimaryBoardFailureIsolation:
 
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", side_effect=factory),
+            patch("src.main.build_driver", side_effect=factory),
         ):
             service._build_board_clients(sync_cache=False)
 
@@ -346,7 +348,8 @@ class TestPrimaryBoardFailureIsolation:
         loop repeated two of them on every auto-restart — an unbounded leak.
         """
         boards = [_board("b1", "Broken", local_api_key="", cloud_key=""), _board("b2", "Good", port=7001)]
-        pre_existing = {t.ident for t in threading.enumerate()}
+        # Thread identifiers can be recycled when an earlier test thread exits.
+        pre_existing = set(threading.enumerate())
         release = threading.Event()
 
         def _park(_self):
@@ -355,7 +358,7 @@ class TestPrimaryBoardFailureIsolation:
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
             patch(
-                "src.main.board_client_from_board_dict",
+                "src.main.build_driver",
                 side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
             ),
             patch("src.main.Config.validate", return_value=True),
@@ -371,24 +374,24 @@ class TestPrimaryBoardFailureIsolation:
                 started = [
                     t
                     for t in threading.enumerate()
-                    if t.name == "board-state-poll" and t.is_alive() and t.ident not in pre_existing
+                    if t.name == "board-state-poll" and t.is_alive() and t not in pre_existing
                 ]
                 assert len(started) == 1, f"expected 1 live poll thread, found {len(started)}"
             finally:
                 release.set()
                 for t in threading.enumerate():
-                    if t.name == "board-state-poll" and t.ident not in pre_existing:
+                    if t.name == "board-state-poll" and t not in pre_existing:
                         t.join(timeout=5)
 
     def test_a_recovered_board_clears_its_recorded_error(self, service):
         boards = [_board("b1", "One")]
 
         with patch("src.main.get_settings_service", return_value=_settings_service(boards)):
-            with patch("src.main.board_client_from_board_dict", side_effect=ValueError("boom")):
+            with patch("src.main.build_driver", side_effect=ValueError("boom")):
                 service._build_board_clients(sync_cache=False)
             assert "b1" in service.board_init_errors
 
-            with patch("src.main.board_client_from_board_dict", return_value=MagicMock()):
+            with patch("src.main.build_driver", return_value=MagicMock()):
                 service._build_board_clients(sync_cache=False)
 
         assert service.board_init_errors == {}

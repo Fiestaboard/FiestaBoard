@@ -8,7 +8,7 @@ Color markers like {{red}} or {{66}} create SOLID COLOR TILES, not colored text.
 Use them as decorative indicators followed by a space, e.g., "{green} SSID: network"
 """
 
-from src.text_to_board import count_tiles, take_tiles
+from src.text_to_board import SPLIT_FLAP_EXTENDED_MARKUP, count_tiles, needs_extended_markup, take_tiles
 
 
 class MessageFormatter:
@@ -21,15 +21,18 @@ class MessageFormatter:
     MAX_ROWS = 6
     MAX_COLS = 22
 
-    def __init__(self, rows: int = 6, cols: int = 22) -> None:
+    def __init__(self, rows: int = 6, cols: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP) -> None:
         """Initialize message formatter.
 
         Args:
             rows: Number of rows for the target board (default 6 for flagship).
             cols: Number of columns for the target board (default 22 for flagship).
+            extended_markup: Measure and wrap colour spans and icons by the
+                tiles they draw (see :mod:`src.markup`). Off by default.
         """
         self._rows = rows
         self._cols = cols
+        self._extended_markup = extended_markup
 
     def split_into_lines(self, text: str, max_lines: int = MAX_ROWS) -> list[str]:
         """
@@ -54,8 +57,12 @@ class MessageFormatter:
         result: list[str] = []
 
         for line in text.split("\n")[:max_lines]:
-            if count_tiles(line) <= self._cols:
+            if count_tiles(line, extended_markup=self._extended_markup) <= self._cols:
                 result.append(line)
+            elif needs_extended_markup(line, self._extended_markup):
+                from src.markup import wrap_line
+
+                result.extend(wrap_line(line, self._cols))
             else:
                 result.extend(self._wrap_line(line))
 
@@ -74,7 +81,7 @@ class MessageFormatter:
         current_tiles = 0
 
         for word in words:
-            word_tiles = count_tiles(word)
+            word_tiles = count_tiles(word, extended_markup=False)
             if current and current_tiles + 1 + word_tiles <= self._cols:
                 current = f"{current} {word}"
                 current_tiles += 1 + word_tiles
@@ -85,11 +92,14 @@ class MessageFormatter:
             # A single word wider than the board flows onto further rows
             # instead of vanishing past the column limit.
             while word_tiles > self._cols:
-                head, word = take_tiles(word, self._cols)
+                head, word = take_tiles(word, self._cols, extended_markup=False)
                 if not head:  # defensive: never loop forever on a 0-wide board
                     break
                 wrapped.append(head)
-                word_tiles = count_tiles(word)
+                # The cut never lands inside a marker, so the tail costs what
+                # the word did less the head; re-counting the tail each row
+                # made a long word quadratic.
+                word_tiles -= count_tiles(head, extended_markup=False)
             if word:
                 current, current_tiles = word, word_tiles
 

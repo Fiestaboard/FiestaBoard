@@ -132,6 +132,9 @@ def test_status_on_a_disabled_install_reports_every_flag_off(client, disabled):
         "username": None,
         "mode": "disabled",
         "first_run": False,
+        "session_management_supported": True,
+        "auth_kind": None,
+        "tv_sign_in": {"supported": True, "enabled": False, "protocol_version": 1},
     }
 
 
@@ -146,6 +149,9 @@ def test_status_on_a_first_run_install_is_secure_by_default_and_flags_first_run(
         "username": None,
         "mode": "undecided",
         "first_run": True,
+        "session_management_supported": True,
+        "auth_kind": None,
+        "tv_sign_in": {"supported": True, "enabled": False, "protocol_version": 1},
     }
 
 
@@ -159,6 +165,9 @@ def test_status_after_setup_names_the_signed_in_user(client, signed_in):
         "username": USERNAME,
         "mode": "enabled",
         "first_run": False,
+        "session_management_supported": True,
+        "auth_kind": "browser",
+        "tv_sign_in": {"supported": True, "enabled": True, "protocol_version": 1},
     }
 
 
@@ -557,6 +566,9 @@ def test_disable_turns_auth_off_deletes_the_user_and_clears_the_cookie(client, o
         "username": None,
         "mode": "disabled",
         "first_run": False,
+        "session_management_supported": True,
+        "auth_kind": None,
+        "tv_sign_in": {"supported": True, "enabled": False, "protocol_version": 1},
     }
 
 

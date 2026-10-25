@@ -12,13 +12,32 @@
  * That makes the geometry the whole relationship, and this module the one place
  * the comparison lives.
  */
-import type { Panel } from "@/lib/api";
+import type { BoardInstance, Panel } from "@/lib/api";
 import { isPanel, sizeKey } from "@/lib/board-dimensions";
+import { isLedModel, resolveBoardModel } from "@/lib/device-preview";
 
-/** A panel the app can size a page to. */
+/**
+ * A display the app can size a page to: a FiestaPanel, or any other board
+ * whose shape is a custom character grid (an output plugin's — an LED matrix).
+ * The same geometry rule covers both: a page for it is a `panel` page of its
+ * grid, and nothing on the page names the display.
+ */
 export interface PanelTarget {
+  /** The panel's id for a FiestaPanel; the board's id for any other display. */
   id: string;
   name: string;
+  /**
+   * `panel` for a FiestaPanel (listed by `GET /panels`); `display` for any
+   * other board with a custom grid (from `GET /settings/board`). Absent reads
+   * as `panel`. Picks the size-picker value prefix (see {@link targetValue}).
+   */
+  kind?: "panel" | "display";
+  /** The board pages for this target are shown on; null/absent when unknown. */
+  boardId?: string | null;
+  /** The board's device-model label (e.g. "Divoom Pixoo 64"); null when unknown. */
+  modelLabel?: string | null;
+  /** True when the board is drawn as an LED matrix. */
+  led?: boolean;
   /**
    * The panel board's device family, which is part of the compatibility key:
    * "panel" for a per-character board, "note_array" for a legacy one.
@@ -79,6 +98,55 @@ export function panelTargets(panels: Panel[] | undefined): PanelTarget[] {
     });
   }
   return targets;
+}
+
+/**
+ * Every display a page can be sized to: the FiestaPanels first (as
+ * {@link panelTargets} lists them), then every other board whose shape is a
+ * custom character grid — a `panel` board with `grid_rows` × `grid_cols`,
+ * which is how an output plugin's board (an LED matrix such as a Pixoo) is
+ * stored. Driven only by board data: nothing here knows any particular
+ * device. A panel's own virtual board is not listed a second time.
+ */
+export function displayTargets(
+  panels: Panel[] | undefined,
+  boards: readonly BoardInstance[] | undefined,
+): PanelTarget[] {
+  const boardOfPanel = new Map((panels ?? []).map((p) => [p.id, p.board_id]));
+  const targets: PanelTarget[] = panelTargets(panels).map((t) => ({
+    ...t,
+    kind: "panel",
+    boardId: boardOfPanel.get(t.id) ?? null,
+  }));
+  const panelBoards = new Set(boardOfPanel.values());
+  for (const board of boards ?? []) {
+    if (panelBoards.has(board.id) || !isPanel(board.device_type)) continue;
+    const rows = board.grid_rows;
+    const cols = board.grid_cols;
+    if (typeof rows !== "number" || typeof cols !== "number" || rows <= 0 || cols <= 0) continue;
+    const model = resolveBoardModel(board);
+    targets.push({
+      id: board.id,
+      name: board.name,
+      kind: "display",
+      boardId: board.id,
+      modelLabel: model?.label ?? null,
+      led: isLedModel(model),
+      deviceType: "panel",
+      notesWide: 1,
+      notesTall: 1,
+      gridRows: rows,
+      gridCols: cols,
+      rows,
+      cols,
+    });
+  }
+  return targets;
+}
+
+/** The size picker's value for a target: `panel:<id>` or `display:<id>`. */
+export function targetValue(target: PanelTarget): string {
+  return `${target.kind ?? "panel"}:${target.id}`;
 }
 
 /** The compatibility key of a panel's board (see `sizeKey`). */

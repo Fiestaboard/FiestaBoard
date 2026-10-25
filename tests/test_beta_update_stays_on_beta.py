@@ -183,6 +183,8 @@ class TestDegradingAgainstAnOldSidecar:
             ),
             patch("src.system.update_service._updater_post", return_value=resp404),
             patch("src.system.update_service._take_settings_snapshot", return_value=None),
+            # Without this the beta release lookup went to the real internet.
+            patch("src.system.update_service._latest_for_channel", return_value=None),
             pytest.raises(SidecarError) as excinfo,
         ):
             await update_service.apply_update()

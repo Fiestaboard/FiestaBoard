@@ -16,8 +16,9 @@ import {
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowUpCircle, Cpu, Loader2, Power, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowUpCircle, Cpu, Power, RefreshCw } from "lucide-react";
+import { type ReactNode, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
@@ -93,7 +94,7 @@ export function SystemControls() {
             disabled={anyPending}
           >
             {updateMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Spinner label={null} className="h-4 w-4 mr-2" />
             ) : (
               <ArrowUpCircle className="h-4 w-4 mr-2" />
             )}
@@ -102,7 +103,7 @@ export function SystemControls() {
 
           <Button variant="outline" size="sm" onClick={() => setConfirmAction("restart")} disabled={anyPending}>
             {restartMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Spinner label={null} className="h-4 w-4 mr-2" />
             ) : (
               <RefreshCw className="h-4 w-4 mr-2" />
             )}
@@ -117,7 +118,7 @@ export function SystemControls() {
             className="text-destructive hover:text-destructive"
           >
             {shutdownMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Spinner label={null} className="h-4 w-4 mr-2" />
             ) : (
               <Power className="h-4 w-4 mr-2" />
             )}
@@ -212,6 +213,23 @@ export function SystemControls() {
   );
 }
 
+/**
+ * Viewport-covering backdrop for the restart/shutdown screens.
+ *
+ * Portaled to <body> because <main> carries `contain: layout` (FiestaUI's
+ * .content-root), which makes it the containing block for position:fixed
+ * descendants — rendered in place, `fixed inset-0` would stretch over the
+ * whole page instead of the window and center its content off-screen.
+ */
+function FullScreenOverlay({ children }: { children: ReactNode }) {
+  return createPortal(
+    <Flex align="center" justify="center" className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm">
+      {children}
+    </Flex>,
+    document.body,
+  );
+}
+
 // Timeout before showing the "something went wrong" error state.
 const RESTART_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -285,7 +303,7 @@ function RestartingOverlay({ currentVersion }: { currentVersion?: string }) {
 
   if (phase === "error") {
     return (
-      <Flex align="center" justify="center" className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm">
+      <FullScreenOverlay>
         <Stack gap="4" className="text-center max-w-sm mx-auto px-4">
           <Heading level={2} size="xl">
             {t("takingLonger")}
@@ -296,12 +314,12 @@ function RestartingOverlay({ currentVersion }: { currentVersion?: string }) {
             {t("refreshPage")}
           </Button>
         </Stack>
-      </Flex>
+      </FullScreenOverlay>
     );
   }
 
   return (
-    <Flex align="center" justify="center" className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm">
+    <FullScreenOverlay>
       <Stack gap="4" className="text-center">
         <Spinner size="lg" className="size-12 mx-auto text-primary" label={null} />
         <Heading level={2} size="xl">
@@ -309,7 +327,7 @@ function RestartingOverlay({ currentVersion }: { currentVersion?: string }) {
         </Heading>
         <Text tone="muted">{phase === "restarting" ? t("restartingDuration") : t("almostThere")}</Text>
       </Stack>
-    </Flex>
+    </FullScreenOverlay>
   );
 }
 
@@ -320,7 +338,7 @@ function RestartingOverlay({ currentVersion }: { currentVersion?: string }) {
 function ShutdownOverlay() {
   const t = useTranslations("systemControls");
   return (
-    <Flex align="center" justify="center" className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm">
+    <FullScreenOverlay>
       <Stack gap="4" className="text-center">
         <Power className="h-12 w-12 mx-auto text-muted-foreground" />
         <Heading level={2} size="xl">
@@ -330,6 +348,6 @@ function ShutdownOverlay() {
           {t("shuttingDownDescription")}
         </Text>
       </Stack>
-    </Flex>
+    </FullScreenOverlay>
   );
 }

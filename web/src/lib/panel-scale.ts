@@ -5,7 +5,7 @@
  * All lengths are CSS pixels. `window.screen.width/height` report CSS px
  * for the full screen, so devicePixelRatio cancels out of the ppi math.
  */
-import { type BoardDimensions, panelDimensions } from "@/lib/board-dimensions";
+import { type BoardDimensions, MIN_GRID_COLS, MIN_GRID_ROWS, panelDimensions } from "@/lib/board-dimensions";
 
 /**
  * Real Vestaboard unit widths in inches (bezel included), from the
@@ -53,14 +53,18 @@ export function screenDimensionsIn(diagonalInches: number, aspectW = 16, aspectH
 /**
  * (rows, cols) of the largest true-scale character grid that fits the
  * screen — fit per character, not in whole Note blocks. Each axis is clamped
- * into [MIN_GRID_*, MAX_GRID_*]. Mirrors src/panels/autofit.py
+ * into [MIN_GRID_*, MAX_GRID_*]: the 3 × 15 Note floor, not an LED board's
+ * 3 × 10 — a TV has room for a Note. Mirrors src/panels/autofit.py
  * compute_autofit_grid() — the panel editor previews the grid live with this,
  * and the backend computes the board it actually creates with the Python
  * twin; their tests share the same example cases so drift fails loudly.
  */
 export function computeAutofitGrid(diagonalInches: number, aspectW = 16, aspectH = 9): BoardDimensions {
   const [widthIn, heightIn] = screenDimensionsIn(diagonalInches, aspectW, aspectH);
-  return panelDimensions(Math.floor(heightIn / NOTE_ROW_PITCH_IN), Math.floor(widthIn / NOTE_COL_PITCH_IN));
+  return panelDimensions(Math.floor(heightIn / NOTE_ROW_PITCH_IN), Math.floor(widthIn / NOTE_COL_PITCH_IN), {
+    rows: MIN_GRID_ROWS,
+    cols: MIN_GRID_COLS,
+  });
 }
 
 /** Max stretch beyond true flap size allowed to close the gap to the screen edge. */

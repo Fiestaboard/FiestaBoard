@@ -1,9 +1,13 @@
 // Boards domain: board instances + settings, FiestaPanel, board
 // connection config, and the setup wizard's board endpoints.
 
+import type { DeviceModel } from "@fiestaboard/ui";
+
+import type { CanvasLayerJson } from "./canvas";
 import { fetchApi } from "./core";
 import type { GeneralConfig } from "./settings";
 import type { Code62Glyph, DeviceType } from "./shared";
+import type { BoardTokenJson } from "./templates";
 
 export interface BoardStatus {
   configured: boolean;
@@ -15,12 +19,31 @@ export interface BoardStatus {
    * the fleet keeps running.
    */
   error?: string | null;
+  /**
+   * The board's connection summary as its output reads the board's settings
+   * (plan D13 `status`): the board card's Connected / Not configured badge.
+   * `null` when the output has nothing to say.
+   */
+  output_status?: OutputStatusSummary | null;
+}
+
+export interface OutputStatusSummary {
+  state: "connected" | "not_configured";
+  message: string;
 }
 
 export interface BoardCurrentMessageResponse {
   // characters/message are null for a secondary board that has no cached
   // content yet (board-state polling is primary-only; see issue #1247).
   characters: number[][] | null;
+  /**
+   * The same frame as rich cells (FiestaUI `BoardToken[][]`), present only
+   * when FiestaBoard last sent it with cells (an LED output: colour, case and
+   * icons `characters` cannot hold).
+   */
+  cells?: BoardTokenJson[][];
+  /** A pixel-matrix board only: the page's canvases on that frame, drawn over `cells`. */
+  layers?: CanvasLayerJson[];
   message: string | null;
   rows: number;
   cols: number;
@@ -28,6 +51,22 @@ export interface BoardCurrentMessageResponse {
   cached_at: string | null;
   api_mode: "local" | "cloud";
   board_id?: string | null;
+  /**
+   * The last frame the board poll CONFIRMED another app put on this board,
+   * kept after FiestaBoard repaints so it can still be saved (issue #1945).
+   * Present only while the backend holds one (cleared by
+   * `dismissExternalFrame`, a successful Restore, or after 24 h).
+   */
+  external_characters?: number[][] | null;
+  /** ISO 8601 UTC time of the poll that confirmed `external_characters`. */
+  external_detected_at?: string | null;
+  /**
+   * ISO 8601 UTC time a display that cannot read back what it shows (a
+   * Divoom Pixoo) reported another app wrote it (issue #2354). Present ONLY
+   * until FiestaBoard writes the board again; there is no frame to show or
+   * compare, only that it changed.
+   */
+  overwritten_at?: string | null;
 }
 
 // ---- FiestaPanel (mirrors src/panels/models.py) ----
@@ -39,6 +78,18 @@ export interface PanelAutoDim {
 }
 
 export type PanelBackdrop = "wall" | "dark" | "none";
+
+/**
+ * How the TV draws the board: split-flap tiles (every panel's look before the
+ * setting existed, and the default) or an LED matrix. Each style is one device
+ * model FiestaBoard declares, `fiestapanel_split_flap` / `fiestapanel_led_matrix`.
+ */
+export type MatrixLayout = "legacy" | "screen";
+export type MatrixFont = "5x7" | "3x5";
+
+export type MatrixSizing = "fill_tv" | "fit_panel" | "true_size";
+
+export type PanelRenderStyle = "split_flap" | "led_matrix";
 
 export interface Panel {
   id: string;
@@ -58,6 +109,13 @@ export interface Panel {
   is_display: boolean;
   backdrop: PanelBackdrop;
   auto_dim: PanelAutoDim;
+  /** Absent on a payload from a server that predates it: read as `split_flap`. */
+  render_style?: PanelRenderStyle;
+  /** Unset preserves each viewer's existing sizing preference. */
+  matrix_sizing?: MatrixSizing | null;
+  matrix_pitch_mm?: number;
+  matrix_layout?: MatrixLayout;
+  matrix_font?: MatrixFont;
   created_at: string;
   updated_at: string;
   // Attached by the API from the panel's virtual board (null/true when the
@@ -85,6 +143,8 @@ export interface PanelCreateRequest {
 }
 
 export interface PanelUpdateRequest {
+  /** Copy referenced content for this board only; never persisted as a setting. */
+  copy_content?: boolean;
   name?: string;
   screen_diagonal_inches?: number;
   screen_aspect_w?: number;
@@ -94,6 +154,12 @@ export interface PanelUpdateRequest {
   is_display?: boolean;
   backdrop?: PanelBackdrop;
   auto_dim?: PanelAutoDim;
+  render_style?: PanelRenderStyle;
+  /** Unset preserves each viewer's existing sizing preference. */
+  matrix_sizing?: MatrixSizing | null;
+  matrix_pitch_mm?: number;
+  matrix_layout?: MatrixLayout;
+  matrix_font?: MatrixFont;
 }
 
 /**
@@ -116,10 +182,33 @@ export interface PanelUpdateResult extends Panel {
   incompatible_references: PanelIncompatibleReference[] | null;
 }
 
+export interface PanelGeometryRequest {
+  panel_id?: string;
+  render_style: PanelRenderStyle;
+  screen_diagonal_inches: number;
+  screen_aspect_w: number;
+  screen_aspect_h: number;
+  matrix_layout: MatrixLayout;
+  matrix_font: MatrixFont;
+}
+
+export interface PanelGeometry {
+  rows: number;
+  cols: number;
+  device_model_spec: DeviceModel;
+  geometry_key: string;
+}
+
 // Public viewer config served by GET /panel/{id} (no auth).
 export interface PanelPublicConfig extends Panel {
+  geometry_key?: string;
+  geometry_error?: string | null;
   board_color: "black" | "white" | null;
   code62_glyph: "degree" | "heart" | null;
+  /** The device model the render style draws as (`fiestapanel_split_flap` / `fiestapanel_led_matrix`). */
+  device_model?: string | null;
+  /** That model's document. FiestaUI does not build FiestaPanel's models in, so the viewer renders from this. */
+  device_model_spec?: DeviceModel | null;
 }
 
 /** FiestaPi HDMI kiosk state (Settings → FiestaPanel; pi profile only). */
@@ -135,7 +224,15 @@ export interface HdmiKioskStatus {
 
 // Public frame served by GET /panel/{id}/frame (no auth).
 export interface PanelFrame {
+  geometry_key?: string;
   characters: number[][] | null;
+  /**
+   * The same frame as rich cells (FiestaUI `BoardToken[][]`), present only
+   * when the frame has them (its board's output draws a rich character set).
+   */
+  cells?: BoardTokenJson[][];
+  /** Pixel canvas layers, drawn over the cells by LED panels. */
+  layers?: CanvasLayerJson[];
   message: string | null;
   rows: number;
   cols: number;
@@ -174,6 +271,26 @@ export interface NoteArrayTile {
   enabled?: boolean;
 }
 
+/**
+ * An LED board's layout choices (plan D23), the values FiestaUI's
+ * `tileGap` / `blockPadding` take: `"fill"` lights the gutter between
+ * same-colour tiles and block cells; `1` grows a block span's background one
+ * pixel into the gutters and margin.
+ */
+export interface BoardLedLayout {
+  tile_gap: "gap" | "fill";
+  block_padding: 0 | 1;
+  /**
+   * The face the board draws text in — its text size: `"5x7"` (Large) or
+   * `"3x5"` (Small). It sizes an LED board's grid (a Pixoo 64 is 8x10 in 5x7,
+   * 10x16 in 3x5). Stored as `output_config.font`; absent from an older core.
+   */
+  font?: LedFontId;
+}
+
+/** An LED face, as FiestaUI names it: Large `"5x7"` or Small `"3x5"`. */
+export type LedFontId = "5x7" | "3x5";
+
 export interface BoardInstance {
   id: string;
   name: string;
@@ -195,6 +312,11 @@ export interface BoardInstance {
   paused?: boolean;
   /** Per-board schedule mode (issue #1242). Emitted on every GET /settings/board. */
   schedule_enabled?: boolean;
+  /**
+   * Put this board's content back when another app overwrites it (issue
+   * #2354). Absent on boards saved before the setting existed, which means on.
+   */
+  auto_restore?: boolean;
   api_mode: "local" | "cloud" | "virtual";
   host: string;
   /** Local API port (default 7000). */
@@ -217,6 +339,56 @@ export interface BoardInstance {
    * resizes; filter by the current dimensions when rendering.
    */
   tiles?: NoteArrayTile[];
+  /**
+   * The output that drives this board — `"vestaboard"`, `"fiestapanel"`, or
+   * an output plugin's id. Stored since settings v4; absent on a board the UI
+   * builds itself (the server derives it from `api_mode` then).
+   */
+  output?: string;
+  /**
+   * The FiestaUI device model the board resolves to (`"vestaboard_flagship"`,
+   * `"divoom_pixoo64"`, ...); `null` when unknown (a FiestaPanel, for now).
+   * Derived on every `GET /settings/board`; stored only for an output
+   * plugin's board (the model it was created as).
+   */
+  device_model?: string | null;
+  /**
+   * The model's document, sent only when FiestaUI does not build the model in
+   * (a FiestaPanel's, or an output plugin's own): a built-in resolves by id,
+   * anything else only from this. Derived, never stored.
+   */
+  device_model_spec?: DeviceModel | null;
+  /** The character set the board draws with, a FiestaUI id; `null` when unknown. Derived, never stored. */
+  charset?: string | null;
+  /**
+   * An LED board's byte-changing layout choices, resolved against its model
+   * (its `output_config` `tile_gap` / `block_padding` when the model allows
+   * them, else the model's defaults), so its preview draws what the device
+   * is sent. Sent only for an LED board. Derived, never stored.
+   */
+  led_layout?: BoardLedLayout | null;
+  /**
+   * The board's output settings, shaped by its output's settings schema
+   * (`GET /outputs`); every secret reads back as `"***"`, and echoing `"***"`
+   * on a PUT keeps the stored value. A Vestaboard's is its connection (the
+   * same fields as the flat `api_mode`/`host`/... above, which the API still
+   * returns for other clients); this app reads and writes only this half
+   * (`toV4Write`), though the API accepts either. A FiestaPanel's is `{}`.
+   */
+  output_config?: Record<string, unknown>;
+  /**
+   * How this display changes its message (plan D21), from its device's menu:
+   * a split-flap strategy (`"column"`...), `"plugin:<id>"`, an LED menu id
+   * (`"flip"`, `"fade"`...) or `"none"`. Every display owns its transition
+   * (settings v6; there is no install-wide one). Absent only on an LED board
+   * migrated without a choice, where it means the device model's default.
+   * A page's own override still wins.
+   */
+  transition?: string | null;
+  /** Delay between animation steps in ms (0 = as fast as the board goes); absent = the device's default. */
+  transition_step_interval_ms?: number | null;
+  /** Columns or rows that move per step (≥ 1); absent = the device's default. */
+  transition_step_size?: number | null;
 }
 
 /**
@@ -236,6 +408,14 @@ export interface BoardDetail {
   is_primary: boolean;
   paused: boolean;
   schedule_enabled: boolean;
+  /** Whether FiestaBoard puts this board's content back when another app overwrites it (#2354). */
+  auto_restore: boolean;
+  /** The output that drives this board: `"vestaboard"`, `"fiestapanel"`, or an installed output's id. */
+  output: string;
+  /** The FiestaUI device model the board is drawn as; `null` when unknown (a FiestaPanel, for now). */
+  device_model?: string | null;
+  /** The character set the board draws with, a FiestaUI id; `null` when unknown. */
+  charset?: string | null;
   characters: number[][] | null;
   text: string | null;
   read_at: string | null;
@@ -264,6 +444,42 @@ export interface BoardSettings {
   board_type: "black" | "white" | null;
   boards: BoardInstance[];
   devices: DeviceType[]; // Computed from boards for backward compat
+}
+
+/**
+ * A page moved onto a board's new grid when a save resized the board in
+ * place (an LED board's text size). Mirrors `RetargetedPage` in
+ * src/settings/models.py.
+ */
+export interface RetargetedPage {
+  page_id: string;
+  page_name: string;
+  /** The page's size key before, e.g. `panel:10x16`. */
+  from_size: string;
+  /** The page's size key now, e.g. `panel:8x10`. */
+  to_size: string;
+}
+
+/**
+ * A schedule entry or active page whose page no longer fits a board a save
+ * resized (warn-only). Mirrors `IncompatibleBoardReference`.
+ */
+export interface IncompatibleBoardReference {
+  board_id: string;
+  board_name: string;
+  page_id: string;
+  page_name: string;
+  surface: "schedule" | "active_page";
+  schedule_id: string | null;
+}
+
+/**
+ * `PUT /settings/board`: the board settings, plus what a resize moved. Both
+ * lists are null unless `boards` was saved (`BoardSettingsUpdateResponse`).
+ */
+export interface BoardSettingsUpdateResult extends BoardSettings {
+  retargeted_pages?: RetargetedPage[] | null;
+  incompatible_references?: IncompatibleBoardReference[] | null;
 }
 
 /**
@@ -330,13 +546,57 @@ export interface ConfigValidationResponse {
   missing_fields: string[];
 }
 
+/**
+ * `POST /v1/boards/{board}/message`. A silenced board whose schedule holds
+ * messages answers 202 with `held: true` (#1944): accepted, shown when
+ * silence ends. A 409 (silenced, not held; or paused) is an error to fetchApi.
+ */
+export interface BoardMessageResponse {
+  sent: boolean;
+  silenced: boolean;
+  held: boolean;
+  reason: string | null;
+  board_id: string;
+  text: string;
+}
+
+/**
+ * `POST /v1/boards/{board}/restore` (#2354): put back what this one board
+ * should show after another app overwrote it. A paused or silenced board
+ * answers 409, an error to fetchApi. `sent` means the board accepted the
+ * write; no board reports its pixels, so `device_observed` is always false.
+ */
+export interface BoardRestoreResponse {
+  board_id: string;
+  page_id: string | null;
+  sent: boolean;
+  reason: string | null;
+  device_observed: boolean;
+}
+
 export const boardsApi = {
+  /** Omitted board → the primary. */
+  restoreBoard: (boardId?: string | null) =>
+    fetchApi<BoardRestoreResponse>(`/v1/boards/${boardPathSegment(boardId)}/restore`, { method: "POST" }),
+  sendBoardMessage: (boardId: string | null | undefined, body: { lines: string[]; override_silence?: boolean }) =>
+    fetchApi<BoardMessageResponse>(`/v1/boards/${boardPathSegment(boardId)}/message`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   // Non-empty string only — see the getActivePage note (issue #1244).
   getBoardCurrentMessage: (boardId?: string) =>
     fetchApi<BoardCurrentMessageResponse>(
       typeof boardId === "string" && boardId
         ? `/board/current-message?board_id=${encodeURIComponent(boardId)}`
         : "/board/current-message",
+    ),
+  /** Forget the board's remembered external frame (issue #1945). Omitted board → the primary. */
+  dismissExternalFrame: (boardId?: string) =>
+    fetchApi<void>(
+      typeof boardId === "string" && boardId
+        ? `/board/external-frame?board_id=${encodeURIComponent(boardId)}`
+        : "/board/external-frame",
+      { method: "DELETE" },
     ),
   // Configuration endpoints
   getFullConfig: () => fetchApi<FullConfig>("/config/full"),
@@ -361,7 +621,7 @@ export const boardsApi = {
     devices?: DeviceType[];
     boards?: BoardInstance[];
   }) =>
-    fetchApi<BoardSettings>("/settings/board", {
+    fetchApi<BoardSettingsUpdateResult>("/settings/board", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
@@ -387,6 +647,12 @@ export const boardsApi = {
       body: JSON.stringify({ paused }),
     }),
   // ---- FiestaPanel ----
+  resolvePanelGeometry: (data: PanelGeometryRequest) =>
+    fetchApi<PanelGeometry>("/panels/geometry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
   listPanels: () => fetchApi<{ panels: Panel[]; total: number }>("/panels"),
   // 201 with the bare panel (Phase 2 slice 8; was 200 + { status, panel }).
   createPanel: (data: PanelCreateRequest) =>

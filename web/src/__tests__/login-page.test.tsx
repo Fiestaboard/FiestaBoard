@@ -57,6 +57,14 @@ describe("LoginPage first-run picker", () => {
     replaceMock.mockReset();
   });
 
+  it("keeps the wordmark without a second taco while checking authentication", () => {
+    server.use(http.get("/api/auth/status", () => new Promise(() => {})));
+    const { container } = render(<LoginPage />);
+    expect(container.querySelector('[data-slot="spinner"]')).toBeInTheDocument();
+    expect(container.querySelector('svg[viewBox="0 0 32 32"]')).not.toBeInTheDocument();
+    expect(screen.getByText("Fiesta")).toBeInTheDocument();
+  });
+
   it("renders the picker when the server reports first_run=true", async () => {
     server.use(
       http.get("/api/auth/status", () =>
@@ -196,4 +204,13 @@ describe("LoginPage 'Keep me logged in'", () => {
       });
     });
   });
+});
+
+it("rejects an external post-login redirect", async () => {
+  replaceMock.mockReset();
+  stableSearchParams.set("redirect", "//attacker.invalid");
+  server.use(http.get("/api/auth/status", () => HttpResponse.json(makeStatus({ authenticated: true }))));
+  render(<LoginPage />);
+  await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/"));
+  stableSearchParams.delete("redirect");
 });

@@ -41,6 +41,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Response
 
+from src.api_deprecation import flat_board_fields_notice
 from src.api_errors import errors
 from src.board_guards import primary_board_entry
 from src.config import Config
@@ -83,7 +84,7 @@ def _as_http(exc: service.BoardProbeError) -> HTTPException:
     return HTTPException(status_code=exc.status_code, detail=exc.detail)
 
 
-@router.get("/config", response_model=ConfigSummaryResponse)
+@router.get("/config", response_model=ConfigSummaryResponse, dependencies=[flat_board_fields_notice()])
 async def get_config():
     """Get current configuration summary (without sensitive keys)."""
     return Config.get_summary()
@@ -123,7 +124,9 @@ def _legacy_board_config_view() -> dict:
     Transition fields come from the settings transitions section — the copy
     the runtime actually uses.
     """
-    board = primary_board_entry() or {}
+    from src.settings.board_shape import flat_connection
+
+    board = flat_connection(primary_board_entry() or {})
     transitions = get_settings_service().get_transition_settings()
     return {
         "api_mode": board.get("api_mode") or "local",
@@ -243,18 +246,13 @@ async def reset_board_config():
         settings_svc = get_settings_service()
         settings_svc.set_boards(
             [
-                BoardInstance(
-                    name="My Board",
-                    device_type="flagship",
-                    board_color="black",
-                    enabled=True,
-                    api_mode="local",
-                    host="",
-                    local_api_key="",
-                    cloud_key="",
-                ).to_dict()
+                # An unconfigured local Vestaboard: every connection field empty.
+                BoardInstance(name="My Board", device_type="flagship", board_color="black", enabled=True).to_dict()
             ]
         )
+        # A reset means "run the wizard again": a stored completed/skipped
+        # outcome would otherwise keep it away (plan D18).
+        settings_svc.set_wizard_state(None)
     except Exception:  # pragma: no cover - defensive
         logger.exception("Failed to reset multi-board settings during board config reset")
 
@@ -369,8 +367,9 @@ async def scan_for_boards(request: BoardScanRequest = BoardScanRequest()):
     """
     Scan the local network for Vestaboard devices.
 
-    Uses mDNS service browsing and subnet port probing (port 7000) to
-    discover boards automatically so users don't have to enter an IP.
+    The ``vestaboard`` output's ``discover`` hook: mDNS service browsing
+    and a subnet probe of the Local API port, so users don't have to enter
+    an IP.
 
     Optional body:
     {
@@ -380,11 +379,13 @@ async def scan_for_boards(request: BoardScanRequest = BoardScanRequest()):
     Returns:
         boards: list of discovered devices with ip, port, hostname, source
     """
-    from src.system.mdns import scan_for_boards as _scan
+    # The scan is the vestaboard output's ``discover`` hook; this legacy
+    # route stays (pinned in tests/golden/api_routes.json) and delegates.
+    from src.outputs.registry import VESTABOARD, discover_devices
 
     timeout = min(max(float(request.timeout or 4.0), 1.0), 15.0)
 
-    boards = _scan(timeout=timeout)
+    boards = discover_devices(VESTABOARD, timeout=timeout)
     return BoardScanResponse(boards=boards)
 
 

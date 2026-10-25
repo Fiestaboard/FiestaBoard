@@ -100,7 +100,7 @@ describe("AnimationSettings — board flip speed", () => {
   it("says in so many words that this is the on-screen board, not the hardware", async () => {
     render(<AnimationSettings />, { wrapper: TestWrapper });
 
-    // Users have a second, unrelated speed control under Behavior -> Board
+    // Users have a second, unrelated speed control under Scheduling -> Board
     // transitions. Without this line the two read as the same setting twice.
     const note = await screen.findByText(/board preview on screen only/i);
     expect(note).toBeInTheDocument();

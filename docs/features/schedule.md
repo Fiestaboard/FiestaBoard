@@ -92,7 +92,7 @@ whichever window is current.
 
 If you drive the switch from an automation (say, turning the schedule off
 while a film is playing), you may prefer the board to stay put until it would
-have changed on its own. Turn on **Settings → Behavior → Schedule toggle →
+have changed on its own. Turn on **Settings → Scheduling → Schedule toggle →
 "Wait for the next scheduled change"**. Re-enabling then records the schedule
 entry winning at that moment and keeps the board on its manual page until a
 different entry takes over. Gaps between entries count as a window of their

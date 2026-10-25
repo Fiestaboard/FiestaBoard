@@ -1,0 +1,7 @@
+{
+  "id": "recording_sign_v1",
+  "label": "Recording sign",
+  "extends": "led_3x5",
+  "chars": ["A", "B", "C", "0", "1", "€"],
+  "glyphs": {"€": [".##", "##.", "#..", "##.", ".##"]}
+}

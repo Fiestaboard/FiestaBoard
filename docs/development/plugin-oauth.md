@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 description: "Build a FiestaBoard plugin that signs in to an online account with OAuth: the manifest oauth block, get_oauth_token(), flows, credentials, testing, and a worked Spotify example."
 keywords: [FiestaBoard OAuth plugin, get_oauth_token, manifest oauth block, PKCE, device code flow, redirect URI, plugin sign-in, Spotify plugin, plugin development]
 ---

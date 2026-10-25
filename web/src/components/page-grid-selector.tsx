@@ -2,10 +2,12 @@
 
 import {
   Badge,
+  type BoardCellGrid,
   Box,
   Button,
   Card,
   CardContent,
+  type DeviceModel,
   EmptyState,
   Flex,
   Grid,
@@ -22,6 +24,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
+import { DevicePreview } from "@/components/device-preview";
 import { PanelFitNote } from "@/components/panel-fit-note";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
@@ -29,9 +32,17 @@ import { StaticBoardDisplay } from "@/components/static-board-display";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { Collection, DeviceType, Page, PagePreviewBatchEntry, PagePreviewResponse } from "@/lib/api";
+import type {
+  BoardLedLayout,
+  Collection,
+  DeviceType,
+  Page,
+  PagePreviewBatchEntry,
+  PagePreviewResponse,
+} from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { boardForShape, isLedModel, resolveBoardModel } from "@/lib/device-preview";
 
 // Cache key for batch previews in localStorage
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";
@@ -91,6 +102,11 @@ function _setCachedPreview(pageId: string, pageUpdatedAt: string, preview: PageP
   setCachedPreviews(allPreviews);
 }
 
+/** A page's slot in the preview cache: its id, or `<board>::<id>` for a render asked for an LED board. */
+function previewCacheKey(pageId: string, boardId: string | null): string {
+  return boardId ? `${boardId}::${pageId}` : pageId;
+}
+
 // Check if a cached preview is still valid for a page
 function isCacheValid(cached: CachedPreviewData | undefined, pageUpdatedAt: string): boolean {
   if (!cached) return false;
@@ -109,6 +125,8 @@ const PageButtonPreview = memo(
     notesTall,
     gridRows,
     gridCols,
+    model = null,
+    ledLayout = null,
   }: {
     preview: PagePreviewResponse | null;
     isLoading: boolean;
@@ -119,6 +137,10 @@ const PageButtonPreview = memo(
     notesTall?: number;
     gridRows?: number;
     gridCols?: number;
+    /** The current board's device model, when the page fits that board: an LED board's pages preview as LED. */
+    model?: DeviceModel | null;
+    /** The board's LED layout choices (`led_layout`), drawn with the model. */
+    ledLayout?: BoardLedLayout | null;
   }) {
     const t = useTranslations("pageGridSelector");
     const ref = useRef<HTMLDivElement>(null);
@@ -171,17 +193,26 @@ const PageButtonPreview = memo(
           // are fixed-pixel and `shrink-0`, so nothing else can make it fit.
           // `isStatic` keeps the cheap zero-hooks-per-tile render path that
           // made this a StaticBoardDisplay in the first place.
-          <ScaledBoardDisplay
-            isStatic
+          <DevicePreview
+            model={model}
+            ledLayout={ledLayout}
             message={preview?.message || null}
+            cells={model ? (preview?.cells as BoardCellGrid | undefined) : undefined}
+            layers={model ? preview?.layers : undefined}
             size="sm"
-            boardType={boardType ?? "black"}
-            deviceType={deviceType}
-            notesWide={notesWide}
-            notesTall={notesTall}
-            gridRows={gridRows}
-            gridCols={gridCols}
-          />
+          >
+            <ScaledBoardDisplay
+              isStatic
+              message={preview?.message || null}
+              size="sm"
+              boardType={boardType ?? "black"}
+              deviceType={deviceType}
+              notesWide={notesWide}
+              notesTall={notesTall}
+              gridRows={gridRows}
+              gridCols={gridCols}
+            />
+          </DevicePreview>
         ) : (
           <Box className="w-full" style={{ height: deviceType === "note" ? 90 : 168 }} />
         )}
@@ -197,7 +228,9 @@ const PageButtonPreview = memo(
       prevProps.notesWide === nextProps.notesWide &&
       prevProps.notesTall === nextProps.notesTall &&
       prevProps.gridRows === nextProps.gridRows &&
-      prevProps.gridCols === nextProps.gridCols
+      prevProps.gridCols === nextProps.gridCols &&
+      prevProps.model === nextProps.model &&
+      prevProps.ledLayout === nextProps.ledLayout
     );
   },
 );
@@ -213,6 +246,8 @@ const PageButton = memo(
     onSelect,
     showActiveIndicator = true,
     boardType = "black",
+    model = null,
+    ledLayout = null,
   }: {
     page: Page;
     preview: PagePreviewResponse | null;
@@ -222,6 +257,9 @@ const PageButton = memo(
     onSelect: (pageId: string) => void;
     showActiveIndicator?: boolean;
     boardType?: "black" | "white" | null;
+    model?: DeviceModel | null;
+    /** The board's LED layout choices (`led_layout`), drawn with the model. */
+    ledLayout?: BoardLedLayout | null;
   }) {
     const TypeIcon = LayoutTemplate;
 
@@ -255,6 +293,7 @@ const PageButton = memo(
         className={buttonClassName}
         type="button"
         aria-pressed={isActive}
+        data-section-item={page.id}
         {...anchorProps(`page.${page.id}`)}
       >
         <Flex align="center" gap="2.5" className="min-w-0">
@@ -293,6 +332,8 @@ const PageButton = memo(
             notesTall={page.notes_tall}
             gridRows={page.grid_rows ?? undefined}
             gridCols={page.grid_cols ?? undefined}
+            model={model}
+            ledLayout={ledLayout}
           />
         </Box>
 
@@ -311,7 +352,9 @@ const PageButton = memo(
       prevProps.isPending === nextProps.isPending &&
       prevProps.page.updated_at === nextProps.page.updated_at &&
       prevProps.showActiveIndicator === nextProps.showActiveIndicator &&
-      prevProps.boardType === nextProps.boardType
+      prevProps.boardType === nextProps.boardType &&
+      prevProps.model === nextProps.model &&
+      prevProps.ledLayout === nextProps.ledLayout
     );
   },
 );
@@ -371,6 +414,7 @@ const PageListItem = memo(
         className={buttonClassName}
         type="button"
         aria-pressed={isActive}
+        data-section-item={page.id}
         {...anchorProps(`page.${page.id}`)}
       >
         <LayoutTemplate className={iconClassName} aria-hidden="true" />
@@ -611,6 +655,9 @@ export function PageGridSelector({
   // Current board for size-compatibility filtering (issue #1249). Single-board
   // installs see no change: their pages match the only board by construction.
   const { currentBoard } = useCurrentBoard();
+  // The current board's device model: a page that fits it previews as it.
+  const currentBoardModel = useMemo(() => resolveBoardModel(currentBoard), [currentBoard]);
+  const boards = boardSettings?.boards;
 
   // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
   const allPages = useMemo(() => pagesData?.pages || [], [pagesData]);
@@ -624,6 +671,30 @@ export function PageGridSelector({
     }
     return result;
   }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard]);
+
+  // The board each page previews as: the current board when the page fits it,
+  // else the first board it fits. An LED board's model draws the thumbnail,
+  // and its previews are asked for that board (spans and icons render, with
+  // cells) and cached apart from the split-flap renders — so a page for an
+  // LED display (an output plugin's, such as a Pixoo) shows as LED in the
+  // library even while another board is selected.
+  const previewTargets = useMemo(() => {
+    const out: Record<
+      string,
+      { model: DeviceModel | null; richBoardId: string | null; ledLayout: BoardLedLayout | null }
+    > = {};
+    for (const page of pages) {
+      const board =
+        currentBoard && pagesCompatibleWithBoard(page, currentBoard) ? currentBoard : boardForShape(boards, [], page);
+      const model = board === currentBoard ? currentBoardModel : resolveBoardModel(board);
+      out[page.id] = {
+        model,
+        richBoardId: board && isLedModel(model) ? board.id : null,
+        ledLayout: board?.led_layout ?? null,
+      };
+    }
+    return out;
+  }, [pages, currentBoard, currentBoardModel, boards]);
 
   // State for batch preview data — only what the network produced. Both
   // outcomes are kept: a failed entry is still an answer for that page, and
@@ -644,7 +715,7 @@ export function PageGridSelector({
     const initial: Record<string, PagePreviewResponse> = {};
     const toFetch: string[] = [];
     for (const page of pages) {
-      const entry = cached[page.id];
+      const entry = cached[previewCacheKey(page.id, previewTargets[page.id]?.richBoardId ?? null)];
       if (isCacheValid(entry, page.updated_at || "")) {
         initial[page.id] = entry.preview;
       } else {
@@ -652,7 +723,7 @@ export function PageGridSelector({
       }
     }
     return { cachedPreviews: cached, initialPreviews: initial, pagesToFetch: toFetch };
-  }, [pages, viewMode]);
+  }, [pages, viewMode, previewTargets]);
 
   // Cache hits render instantly; anything fetched since layers on top. Entries
   // that failed to render carry only `{ error, available: false }` — they stay
@@ -681,16 +752,30 @@ export function PageGridSelector({
 
     const fetchBatchPreviews = async () => {
       try {
-        const result = await api.previewPagesBatch(pagesToFetch);
+        // One batch per board the pages preview as: the split-flap ones in a
+        // plain batch (exactly as before), each LED board's in its own.
+        const groups = new Map<string | null, string[]>();
+        for (const id of pagesToFetch) {
+          const key = previewTargets[id]?.richBoardId ?? null;
+          groups.set(key, [...(groups.get(key) ?? []), id]);
+        }
+        const results = await Promise.all(
+          [...groups].map(async ([boardId, ids]) => ({
+            boardId,
+            result: boardId ? await api.previewPagesBatch(ids, boardId) : await api.previewPagesBatch(ids),
+          })),
+        );
+        const allPreviews: Record<string, PagePreviewBatchEntry> = {};
+        for (const { result } of results) Object.assign(allPreviews, result.previews ?? {});
 
-        if (mounted && result.previews) {
+        if (mounted) {
           const newCachedPreviews = { ...cachedPreviews };
 
-          for (const [pageId, preview] of Object.entries(result.previews)) {
+          for (const [pageId, preview] of Object.entries(allPreviews)) {
             if (preview.available) {
               const page = pages.find((p) => p.id === pageId);
               if (page) {
-                newCachedPreviews[pageId] = {
+                newCachedPreviews[previewCacheKey(pageId, previewTargets[pageId]?.richBoardId ?? null)] = {
                   preview,
                   pageUpdatedAt: page.updated_at || "",
                   cachedAt: new Date().toISOString(),
@@ -703,7 +788,7 @@ export function PageGridSelector({
 
           setFetchedPreviews((prev) => ({
             ...prev,
-            ...result.previews,
+            ...allPreviews,
           }));
         }
       } catch (error) {
@@ -719,7 +804,7 @@ export function PageGridSelector({
     return () => {
       mounted = false;
     };
-  }, [pagesToFetch, cachedPreviews, pages]);
+  }, [pagesToFetch, cachedPreviews, pages, previewTargets]);
 
   if (isLoadingPages) {
     return (
@@ -839,6 +924,8 @@ export function PageGridSelector({
             onSelect={onSelectPage}
             showActiveIndicator={showActiveIndicator}
             boardType={getEffectiveBoardColor(boardSettings)}
+            model={previewTargets[page.id]?.model ?? null}
+            ledLayout={previewTargets[page.id]?.ledLayout ?? null}
           />
         ))}
       </Grid>

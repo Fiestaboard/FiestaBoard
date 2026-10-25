@@ -94,23 +94,46 @@ export function collectionPollMs(nextCheckSeconds: number | null | undefined): n
 // A secondary boardId is served from the backend's per-board runtime cache
 // (last-sent content); `message`/`characters` are null until something is
 // sent to it (issue #1247).
-export function useBoardCurrentMessage(boardId?: string) {
+/**
+ * What a board shows, polled every 30 s. `poll: false` reads it once and
+ * stops — a paused board does not change, and may be unplugged.
+ */
+export function useBoardCurrentMessage(boardId?: string, { poll = true }: { poll?: boolean } = {}) {
   return useQuery({
     queryKey: queryKeys.boardCurrentMessage(boardId),
     queryFn: () => api.getBoardCurrentMessage(boardId),
-    refetchInterval: 30_000,
+    refetchInterval: poll ? 30_000 : false,
     staleTime: 25_000,
   });
 }
 
 // Set active page mutation - backend handles immediate send to board.
 // Pass a boardId to target that board's active-page slot (issue #1247).
+/**
+ * What `useSetActivePage().mutate` takes: a page id (or null), or that id with
+ * `overrideSilence` to show it now even while the board is silenced (#1943).
+ */
+export type SetActivePageVariables = string | null | { pageId: string | null; overrideSilence?: boolean };
+
+function normalizeSetActivePage(vars: SetActivePageVariables): { pageId: string | null; overrideSilence: boolean } {
+  if (vars !== null && typeof vars === "object") {
+    return { pageId: vars.pageId, overrideSilence: vars.overrideSilence === true };
+  }
+  return { pageId: vars, overrideSilence: false };
+}
+
 export function useSetActivePage(boardId?: string) {
   const queryClient = useQueryClient();
   const activePageKey = queryKeys.activePage(boardId);
   return useMutation({
-    mutationFn: (pageId: string | null) => api.setActivePage(pageId, boardId),
-    onMutate: async (newPageId) => {
+    mutationFn: (vars: SetActivePageVariables) => {
+      const { pageId, overrideSilence } = normalizeSetActivePage(vars);
+      return overrideSilence
+        ? api.setActivePage(pageId, boardId, { overrideSilence })
+        : api.setActivePage(pageId, boardId);
+    },
+    onMutate: async (vars) => {
+      const { pageId: newPageId } = normalizeSetActivePage(vars);
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: activePageKey });
 

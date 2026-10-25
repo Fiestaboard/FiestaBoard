@@ -241,7 +241,7 @@ export function AnimationSettings() {
             </Text>
 
             {/* Users have a second, unrelated speed control under
-                Behavior → Board Transitions (step_interval_ms, sent to the
+                Scheduling → Board Transitions (step_interval_ms, sent to the
                 physical unit over the Local API). Without this the two read
                 as the same setting configured twice. */}
             <Flex align="start" gap="2" className="p-2.5 rounded-md bg-muted/50">

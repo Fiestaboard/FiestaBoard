@@ -49,6 +49,7 @@ from src.collections.service import CollectionService
 from src.collections.storage import CollectionStorage
 from src.config_manager import ConfigManager
 from src.mcp_server import _build_mcp_server
+from src.outputs import OutputRuntime
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
 from src.plugins.loader import PluginLoader
@@ -66,6 +67,12 @@ from src.schedules.storage import ScheduleStorage
 #: the fixtures below and pins the same rule: every assertion is on state
 #: read back, or on the call that crossed a patched hardware/sidecar boundary.
 COVERED = {
+    # Generic output-plugin tools — tests/test_mcp_display_tools.py
+    "list_display_outputs",
+    "get_display_info",
+    "create_display",
+    "configure_display",
+    "run_display_action",
     "list_pages",
     "get_page",
     "create_page",
@@ -100,15 +107,12 @@ COVERED = {
     "validate_template",
     "update_setting",
     # Page editor parity: every field the editor saves, share strings,
-    # staff picks, the live display, and the Transition Lab.
+    # staff picks, and the live display.
     "export_page",
     "import_page",
     "list_staff_picks",
     "import_staff_pick",
     "get_current_display",
-    "list_transition_plugins",
-    "test_transition_live",
-    "restore_board",
     "list_formula_functions",
     # Integrations-page coverage: instances, demo pages, updates, discovery.
     "list_plugin_instances",
@@ -925,14 +929,12 @@ def test_read_only_tools_leave_every_store_untouched(mcp, services, plugins, eng
     }
     # get_plugin_data reads a plugin's live values, which needs it enabled
     # and configured — writes that belong BEFORE the snapshot. Likewise
-    # get_current_display needs an active page and list_transition_plugins
-    # needs the beta gate open.
+    # get_current_display needs an active page.
     assert_ok(call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9414290"}), "configure_plugin")
     assert_ok(call(mcp, "enable_plugin", plugin_id=PLUGIN_ID), "enable_plugin")
     from src.settings.service import get_settings_service
 
     get_settings_service().set_active_page_id(page["page_id"])
-    get_settings_service().update_beta_settings({"transition_plugins_enabled": True})
 
     before = _persisted_files(tmp_path)
     for name in sorted(READ_ONLY - skipped):
@@ -1363,6 +1365,10 @@ def file_origin_updates(updatable_plugins, monkeypatch):
         url = subprocess.run(
             ["git", "-C", str(dest_dir), "remote", "get-url", "origin"], capture_output=True, text=True, check=True
         ).stdout.strip()
+        if not url.startswith("file://"):
+            # The first-party outputs' installed copies point at GitHub; the
+            # suite never reaches it, so they report no remote head.
+            return None
         listed = subprocess.run(["git", "ls-remote", url, "HEAD"], capture_output=True, text=True, check=True)
         return listed.stdout.split()[0] if listed.stdout.strip() else None
 
@@ -1918,25 +1924,29 @@ class _FakeClient:
         self.rendered: list[list[list[int]]] = []
         self.render_kwargs: list[dict[str, Any]] = []
         self.snapped: list[list[list[int]]] = []
-        self._last_characters = None
+        self._output = OutputRuntime()
+
+    def set_output_runtime(self, runtime):
+        self._output = runtime
 
     def render(self, board_array, **kwargs):
         self.rendered.append(board_array)
         self.render_kwargs.append(kwargs)
-        self._last_characters = board_array
+        self._output.frames.record_sent(board_array)
         return (True, True)
 
     def send_characters(self, board_array, **kwargs):
-        # The Transition Lab snaps the from-page onto the board plainly
-        # before animating to the to-page.
+        # A plain snap onto the board, recorded apart from render().
         self.snapped.append(board_array)
-        self._last_characters = board_array
+        self._output.frames.record_sent(board_array)
         return True
 
 
 class _FakeRuntime:
     def __init__(self, client):
+        self.output = OutputRuntime()
         self.client = client
+        client.set_output_runtime(self.output)
         self.polled_characters = None
         self.polled_at = None
 
@@ -2197,7 +2207,7 @@ def test_get_board_content_reads_a_secondary_boards_runtime_cache(mcp, services,
 
     assert result["source"] == "last_sent"
     assert (result["rows"], result["cols"]) == (3, 15)
-    assert result["characters"] == engine.runtimes["board-note"].client._last_characters
+    assert result["characters"] == engine.runtimes["board-note"].output.frames.characters
 
 
 def test_get_board_content_is_null_when_nothing_was_ever_sent(mcp, services, engine):
@@ -2308,6 +2318,124 @@ def test_validate_template_rejects_an_unknown_device_type(mcp, services):
     assert "jumbotron" in message
 
 
+# -- board-aware templates: validate_template / render_page_preview ---------
+#
+# Same contract as POST /templates/validate and /templates/render with a
+# board_id (plan D17/D19): the board's character set decides extended markup
+# and widths; a render reports charset_issues. An unknown board is an error
+# here, as for every other board-targeting tool.
+
+#: 22 drawn tiles on an LED board; longer than 22 characters as split-flap.
+FITS_ON_LED = "{{red:hot}} {{black/white:OPEN}} {{icon:sun}} {sun} XXXXXXXXX"
+
+
+@pytest.fixture
+def boards_with_led(services, tmp_path):
+    """A real 6x22 LED output declaration and a Vestaboard flagship."""
+    from src.settings.service import get_settings_service
+
+    root = tmp_path / "led_outputs"
+    plugin_path = root / "recording_output"
+    shutil.copytree(
+        Path(__file__).parent / "fixtures" / "plugins" / "recording_output",
+        plugin_path,
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
+    manifest_path = plugin_path / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["output"].pop("character_set")
+    manifest["output"]["device_models"] = [
+        {
+            "id": "mcp_led_sign",
+            "label": "MCP LED sign",
+            "technology": "led_matrix",
+            "family": "tests",
+            "geometry": {"kind": "pixels", "width": 132, "height": 48},
+            "color": {"kind": "rgb", "bitDepth": 24},
+            "font": "5x7",
+            "charset": "led_5x7",
+            "animation": {"delivery": "stream", "maxFps": 10},
+        }
+    ]
+    manifest_path.write_text(json.dumps(manifest))
+    loader = PluginLoader(plugins_dir=root, external_dirs=[])
+    assert loader.load_plugin("recording_output") is not None, loader.load_errors
+    try:
+        get_settings_service().set_boards(
+            [
+                {
+                    "id": "led1",
+                    "name": "Sign",
+                    "device_type": "panel",
+                    "grid_rows": 6,
+                    "grid_cols": 22,
+                    "output": "recording_output",
+                    "device_model": "mcp_led_sign",
+                    "output_config": {"host": "192.0.2.50"},
+                },
+                {"id": "vb1", "name": "Lobby", "device_type": "flagship", "code62_glyph": "degree"},
+            ]
+        )
+        yield loader
+    finally:
+        loader.unload_plugin("recording_output")
+
+
+def _too_long(result: dict) -> list[str]:
+    return [e["message"] for e in result["errors"] if "too long" in e["message"]]
+
+
+def test_validate_template_for_an_led_board_measures_rendered_tiles(mcp, boards_with_led):
+    result = assert_ok(call(mcp, "validate_template", template=FITS_ON_LED, board_id="led1"), "validate_template")
+    assert _too_long(result) == []
+    assert result["charset"] == "led_5x7"
+
+
+def test_validate_template_defaults_to_the_primary_board(mcp, boards_with_led):
+    # An omitted target uses the configured primary LED profile.
+    result = call(mcp, "validate_template", template=FITS_ON_LED)
+    assert _too_long(result) == []
+    assert result["charset"] == "led_5x7"
+
+
+def test_validate_template_rejects_an_unknown_board(mcp, boards_with_led):
+    message = call_expect_error(mcp, "validate_template", template="HI", board_id="nope")
+    assert "Board not found: nope" in message
+
+
+def test_render_page_preview_for_an_led_board_renders_extended_markup(mcp, boards_with_led):
+    result = assert_ok(
+        call(mcp, "render_page_preview", template_lines=["{{red:HOT}}"], board_id="led1"),
+        "render_page_preview",
+    )
+    assert result["rendered"].split("\n")[0] == "{red:HOT}" + " " * 19
+    assert result["charset"] == "led_5x7"
+    assert result["charset_issues"] == []
+
+
+def test_render_page_preview_reports_the_boards_charset_issues(mcp, boards_with_led):
+    result = assert_ok(
+        call(mcp, "render_page_preview", template_lines=["Hi {{red:x}}"], board_id="vb1"),
+        "render_page_preview",
+    )
+    assert result["charset"] == "vestaboard_v1"
+    assert {(i["row"], i["col"], i["reason"]) for i in result["charset_issues"]} >= {(0, 1, "case")}
+
+
+def test_render_page_preview_defaults_to_the_primary_board(mcp, boards_with_led):
+    # The configured primary LED supplies markup support and metadata.
+    result = assert_ok(call(mcp, "render_page_preview", template_lines=["{{red:HOT}}"]), "render_page_preview")
+    assert result["rendered"].startswith("{red:HOT}")
+    assert set(result) == {"rendered", "device_type", "rows", "cols", "context_plugins", "charset", "charset_issues"}
+    assert result["charset"] == "led_5x7"
+    assert result["charset_issues"] == []
+
+
+def test_render_page_preview_rejects_an_unknown_board(mcp, boards_with_led):
+    message = call_expect_error(mcp, "render_page_preview", template_lines=["HI"], board_id="nope")
+    assert "Board not found: nope" in message
+
+
 # ---------------------------------------------------------------------------
 # render_page_preview fidelity — issue #1765
 #
@@ -2365,7 +2493,7 @@ def test_render_page_preview_applies_line_metadata(mcp, services):
 #
 # Every control the page editor saves must be reachable from update_page /
 # create_page, and the sibling editor features — share strings, staff picks,
-# the live display, the Transition Lab — need tools of their own. Each test
+# the live display — need tools of their own. Each test
 # reads the state back through get_page / list_pages / the fake board client,
 # never through a call record.
 # ---------------------------------------------------------------------------
@@ -2681,161 +2809,6 @@ def test_list_formula_functions_describes_every_function(mcp, services):
     for name, entry in functions.items():
         assert set(entry) == {"category", "signature", "summary"}, f"{name}: {entry}"
         assert entry["signature"].startswith(name)
-
-
-# -- Transition Lab ----------------------------------------------------------
-
-TRANSITION_PLUGIN_ID = "harness_wipe"
-
-_TRANSITION_MANIFEST = {
-    "id": TRANSITION_PLUGIN_ID,
-    "name": "Harness Wipe",
-    "version": "1.0.0",
-    "description": "Fixture transition plugin for MCP state-effect tests.",
-    "author": "FiestaBoard Tests",
-    "icon": "type",
-    "category": "transition",
-    "plugin_type": "transition",
-    "settings_schema": {"type": "object", "properties": {"frame_interval_ms": {"type": "integer", "default": 100}}},
-    "transition_settings": {"interruptible": True, "min_interval_ms": 25, "max_frames": 5, "max_runtime_seconds": 60},
-}
-
-
-@pytest.fixture
-def transition_lab(engine, monkeypatch):
-    """Beta on, one hand-built transition plugin installed, fake board engine.
-
-    The transitions service binds ``get_service`` at import time from
-    ``src.display_runtime``, so the engine fake is patched there as well as
-    where the ``engine`` fixture already puts it.
-    """
-    from src.plugins import registry as registry_mod
-    from src.plugins.base import TransitionPluginBase
-    from src.plugins.manifest import PluginManifest
-    from src.settings.service import get_settings_service
-
-    class _Wipe(TransitionPluginBase):
-        @property
-        def plugin_id(self) -> str:
-            return TRANSITION_PLUGIN_ID
-
-        def generate_frames(self, from_grid, to_grid, device, config):
-            yield [list(row) for row in from_grid], int(config.get("frame_interval_ms", 100))
-            yield to_grid, 0
-
-    fresh = registry_mod.PluginRegistry()
-    plugin = _Wipe(_TRANSITION_MANIFEST)
-    plugin.config = {"frame_interval_ms": 50}
-    fresh._plugins[TRANSITION_PLUGIN_ID] = plugin
-    fresh._manifests[TRANSITION_PLUGIN_ID] = PluginManifest.from_dict(_TRANSITION_MANIFEST)
-    fresh._enabled[TRANSITION_PLUGIN_ID] = True
-    monkeypatch.setattr(registry_mod, "_registry", fresh)
-    monkeypatch.setattr("src.transitions.service.get_service", lambda: engine)
-    monkeypatch.setattr("src.transitions.service.LIVE_TEST_FROM_HOLD_SECONDS", 0)
-    get_settings_service().update_beta_settings({"transition_plugins_enabled": True})
-    return engine
-
-
-def test_list_transition_plugins_is_gated_behind_the_beta_flag(mcp, services, two_boards):
-    assert "beta" in call_expect_error(mcp, "list_transition_plugins").lower()
-
-
-def test_list_transition_plugins_lists_the_installed_transition_plugins(mcp, services, transition_lab):
-    result = assert_ok(call(mcp, "list_transition_plugins"), "list_transition_plugins")
-    by_id = {p["id"]: p for p in result["plugins"]}
-    assert TRANSITION_PLUGIN_ID in by_id
-    entry = by_id[TRANSITION_PLUGIN_ID]
-    assert entry["strategy"] == f"plugin:{TRANSITION_PLUGIN_ID}", "the string a page stores as transition_strategy"
-    assert entry["config"] == {"frame_interval_ms": 50}
-    assert entry["transition_settings"]["max_frames"] == 5
-
-
-def test_test_transition_live_drives_the_plugin_on_the_board(mcp, services, transition_lab):
-    target = assert_ok(
-        call(mcp, "create_page", name="Target", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
-        "create_page",
-    )
-    origin = assert_ok(
-        call(mcp, "create_page", name="Origin", template_lines=["BYE", "", "", "", "", ""], device_type="flagship"),
-        "create_page",
-    )
-
-    result = assert_ok(
-        call(
-            mcp,
-            "test_transition_live",
-            plugin_id=TRANSITION_PLUGIN_ID,
-            to_page_id=target["page_id"],
-            from_page_id=origin["page_id"],
-            config={"frame_interval_ms": 30},
-        ),
-        "test_transition_live",
-    )
-
-    assert result["sent"] is True
-    client = transition_lab.vb_client
-    assert len(client.snapped) == 1, "the from-page must be snapped onto the board first"
-    assert len(client.rendered) == 1, "the to-page must be rendered exactly once"
-    assert (len(client.rendered[0]), len(client.rendered[0][0])) == (6, 22)
-    kwargs = client.render_kwargs[0]
-    assert kwargs["strategy"] == f"plugin:{TRANSITION_PLUGIN_ID}"
-    assert kwargs["transition_config"] == {"frame_interval_ms": 30}, "per-run config overrides the bound config"
-    assert transition_lab.runtimes["board-note"].client.rendered == [], "the other board was touched"
-
-
-def test_test_transition_live_on_a_paused_board_is_blocked_without_touching_it(mcp, services, transition_lab):
-    from src.settings.service import get_settings_service
-
-    target = assert_ok(
-        call(mcp, "create_page", name="Target", template_lines=NOTE_TEMPLATE, device_type="note"),
-        "create_page",
-    )
-    get_settings_service().set_paused(True, board_id="board-note")
-
-    result = call(
-        mcp,
-        "test_transition_live",
-        plugin_id=TRANSITION_PLUGIN_ID,
-        to_page_id=target["page_id"],
-        board_id="board-note",
-    )
-
-    assert result["status"] == "blocked", result
-    assert result["paused"] is True
-    assert transition_lab.runtimes["board-note"].client.rendered == []
-
-
-def test_test_transition_live_reports_an_unknown_plugin(mcp, services, transition_lab):
-    target = assert_ok(
-        call(mcp, "create_page", name="Target", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
-        "create_page",
-    )
-    message = call_expect_error(mcp, "test_transition_live", plugin_id="no_such_plugin", to_page_id=target["page_id"])
-    assert "no_such_plugin" in message
-    assert transition_lab.vb_client.rendered == []
-
-
-def test_restore_board_snaps_the_board_back_to_its_active_page(mcp, services, transition_lab):
-    from src.settings.service import get_settings_service
-
-    active = assert_ok(
-        call(mcp, "create_page", name="Active", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
-        "create_page",
-    )
-    get_settings_service().set_active_page_id(active["page_id"])
-
-    result = assert_ok(call(mcp, "restore_board"), "restore_board")
-
-    assert result["page_id"] == active["page_id"]
-    assert result["sent"] is True
-    client = transition_lab.vb_client
-    assert len(client.rendered) == 1
-    assert client.render_kwargs[0]["strategy"] is None, "restore sends plainly, with no transition"
-
-
-def test_restore_board_without_an_active_page_is_an_error(mcp, services, transition_lab):
-    assert "no active page" in call_expect_error(mcp, "restore_board").lower()
-    assert transition_lab.vb_client.rendered == []
 
 
 # ---------------------------------------------------------------------------

@@ -44,7 +44,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from src.outputs.breaker import write_failure_reason
 from src.plugins.errors import PluginError
+from src.request_trace import trace_phase
 from src.send_outcome import SendOutcome
 
 from .results import err, ok, plugin_detail, rest_detail, serialize
@@ -108,6 +110,16 @@ async def install_plugin(
         return err(f"Error installing plugin '{label}': {plugin_detail(exc)}")
     except Exception as exc:
         return err(f"Error installing plugin '{label}': {exc}")
+
+    manifest = _plugin_service().registry.get_manifest(plugin_id)
+    if getattr(manifest, "plugin_type", None) == "output":
+        return ok(
+            f"Output plugin '{plugin_id}' installed. Use create_display to configure a board for it.",
+            plugin_id=plugin_id,
+            source=source,
+            plugin_type="output",
+            warnings=["initial_config was not applied: output settings belong to a board."] if initial_config else [],
+        )
 
     if auto_enable:
         enabled = enable_plugin(plugin_id)
@@ -344,7 +356,7 @@ def _plugin_strategy_refusal(transition_strategy: str | None) -> dict[str, Any] 
     """The REST layer's beta gate on ``plugin:<id>`` strategies, as an envelope.
 
     ``POST/PUT /pages`` and ``POST /pages/import`` all refuse a plugin
-    transition while ``beta.transition_plugins_enabled`` is off, so a page
+    transition while ``plugins.transition_plugins_enabled`` is off, so a page
     can never store a strategy the runtime will not honor. The same guard
     is reused here rather than re-derived, so the three page writers and
     their MCP counterparts cannot disagree about it.
@@ -373,15 +385,18 @@ def create_page(
     transition_step_size: int | None = None,
     grid_rows: int | None = None,
     grid_cols: int | None = None,
+    canvases: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Create a new template page with every field the page editor saves.
 
     ``notes_wide``/``notes_tall`` size a ``note_array`` page and
     ``grid_rows``/``grid_cols`` a ``panel`` page; ``line_metadata``
     is the per-line alignment + wrap the editor stores; the three
-    ``transition_*`` fields are the per-page override of the system
-    transition. Omitted fields take the model defaults, exactly like a REST
-    ``POST /pages`` body that leaves them out.
+    ``transition_*`` fields are the per-page override of the board's
+    transition. ``canvases`` are the page's pixel canvases (validated by
+    ``PageCreate``, areas against the page's grid). Omitted fields take the
+    model defaults, exactly like a REST ``POST /pages`` body that leaves them
+    out.
     """
     try:
         from src.pages.models import PageCreate
@@ -408,6 +423,7 @@ def create_page(
             "transition_strategy": transition_strategy,
             "transition_interval_ms": transition_interval_ms,
             "transition_step_size": transition_step_size,
+            "canvases": canvases,
         }
         fields.update({key: value for key, value in supplied.items() if value is not None})
         page = svc.create_page(PageCreate(**fields))
@@ -436,6 +452,7 @@ def update_page(
     clear_transition_override: bool = False,
     grid_rows: int | None = None,
     grid_cols: int | None = None,
+    canvases: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Update any of the fields the page editor saves. Only supplied fields change.
 
@@ -445,8 +462,9 @@ def update_page(
 
     That wipe-protection makes ``transition_strategy=None`` mean "unchanged",
     which leaves no way to drop a per-page transition override and fall back
-    to the system default — ``clear_transition_override=True`` is that
+    to the board's transition — ``clear_transition_override=True`` is that
     escape hatch (the ``clear_end_time`` pattern from :func:`update_schedule`).
+    ``canvases`` replaces every canvas; an empty list removes them all.
 
     A device or size retarget (``device_type``/``notes_wide``/``notes_tall``/
     ``grid_rows``/``grid_cols``)
@@ -480,15 +498,18 @@ def update_page(
             "transition_step_size": transition_step_size,
         }
         fields: dict[str, Any] = {key: value for key, value in supplied.items() if value is not None}
+        if canvases is not None:
+            # An empty list clears them: stored as null, as PUT /pages does.
+            fields["canvases"] = canvases or None
         if clear_transition_override:
             # Explicit Nones: PageStorage.update lets exactly these three be
-            # cleared back to "inherit the system transition" (#1306).
+            # cleared back to "inherit the board's transition" (#1306).
             fields.update(transition_strategy=None, transition_interval_ms=None, transition_step_size=None)
         if not fields:
             return err(
                 "Nothing to update: pass at least one of name, template_lines, duration_seconds, "
-                "device_type, notes_wide, notes_tall, grid_rows, grid_cols, line_metadata, transition_strategy, "
-                "transition_interval_ms, transition_step_size, or clear_transition_override."
+                "device_type, notes_wide, notes_tall, grid_rows, grid_cols, line_metadata, canvases, "
+                "transition_strategy, transition_interval_ms, transition_step_size, or clear_transition_override."
             )
 
         existing = svc.get_page(page_id)
@@ -607,7 +628,9 @@ def delete_page(page_id: str) -> dict[str, Any]:
         return err(f"Error deleting page '{page_id}': {exc}")
 
 
-async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
+async def set_active_page(
+    page_id: str, board_id: str | None = None, *, override_silence: bool = False
+) -> dict[str, Any]:
     """Set which page is currently shown on the display.
 
     Delegates to the REST handler rather than reimplementing it: selecting
@@ -618,13 +641,16 @@ async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str
     ``board_id`` targets that board's active-page slot (#1765); omitted is
     the legacy primary-board call, exactly as before — the REST handler
     already speaks per-board (#1244), so the parameter simply flows through.
+
+    During silence the page is saved and shown when the window ends;
+    ``override_silence`` shows it now anyway (issue #1943).
     """
     from fastapi import HTTPException
 
     from src.settings.models import SetActivePageRequest
     from src.settings.routes import set_active_page as _rest_set_active_page
 
-    body: dict[str, Any] = {"page_id": page_id}
+    body: dict[str, Any] = {"page_id": page_id, "override_silence": bool(override_silence)}
     if board_id is not None:
         body["board_id"] = board_id
     try:
@@ -634,11 +660,33 @@ async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str
     except Exception as exc:
         return err(f"Error setting active page: {exc}")
 
+    if response.get("error"):
+        return err(
+            f"The active-page selection was saved, but the page was not displayed: {response['error']}",
+            page_id=page_id,
+            board_id=board_id,
+            sent_to_board=False,
+            paused=bool(response.get("paused")),
+            warnings=response.get("warnings", []),
+        )
     message = f"Active page set to '{page_id}'."
     if board_id is not None:
         message = f"Active page set to '{page_id}' on board '{board_id}'."
+    silenced = bool(response.get("silenced"))
+    silence_ends_at = None
+    if silenced:
+        from src import board_guards
+
+        silence_ends_at = board_guards.silence_window_end(board_id)
     if response.get("paused"):
         message += " The board is paused, so it will appear when you resume it."
+    elif silenced:
+        from src.board_guards import silence_ends_hhmm
+
+        message += (
+            f" The board is silenced until {silence_ends_hhmm(silence_ends_at)} UTC, so it will appear then. "
+            "Pass override_silence=true to show it now."
+        )
     elif not response.get("sent_to_board"):
         message += " It will appear on the board on the next display refresh."
     return ok(
@@ -647,6 +695,8 @@ async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str
         board_id=board_id,
         sent_to_board=bool(response.get("sent_to_board")),
         paused=bool(response.get("paused")),
+        silenced=silenced,
+        silence_ends_at=silence_ends_at,
         warnings=response.get("warnings", []),
     )
 
@@ -671,19 +721,27 @@ class _SendTarget:
         self.settings_service = settings_service
 
 
-def _resolve_send_target(board_id: str | None) -> tuple[_SendTarget | None, dict[str, Any] | None]:
+def _resolve_send_target(
+    board_id: str | None, *, override_silence: bool = False, hold: Any = None
+) -> tuple[_SendTarget | None, dict[str, Any] | None]:
     """``(target, refusal)`` — exactly one of the two is not ``None``.
 
     The refusal is already an executor envelope: an ``err`` for a missing
     collaborator, or a ``status: "blocked"`` result for the silence window
     (#1788) and a paused board (#970). Blocked is deliberately not an error —
     it is policy, and a model relaying it should not retry.
+
+    Silence is decided by :func:`src.board_guards.silence_verdict`:
+    ``override_silence`` writes anyway (pause still refuses), and ``hold``
+    (a :class:`~src.silence_queue.HeldSend`, or a factory taking the resolved
+    board id) is held until the window ends when the board's
+    ``show_queued_on_exit`` is on — the envelope then says ``held: true``.
     """
     # get_service is the DisplayService singleton accessor — api_server
     # owns it, but this is the same seam get_system_status and
     # set_active_page already use; no REST handler is called.
+    from src import board_guards
     from src.api_server import get_service
-    from src.config import Config
     from src.settings.service import get_settings_service
 
     service = get_service()
@@ -700,12 +758,26 @@ def _resolve_send_target(board_id: str | None) -> tuple[_SendTarget | None, dict
             return None, err(f"Board not found: {board_id}")
 
     # Silence gate (#1788): resolve the *target* board's window; omitted
-    # board_id resolves the primary, exactly like the REST handler.
-    if Config.is_silence_mode_active(board_id if board_id is not None else primary_id):
+    # board_id resolves the primary, exactly like the REST handler. An
+    # explicit override_silence writes anyway; a held send is accepted for
+    # delivery when the window ends (#1943, #1944).
+    verdict = board_guards.silence_verdict(
+        board_id if board_id is not None else primary_id, override_silence=override_silence, hold=hold
+    )
+    if verdict.silenced:
+        if verdict.held:
+            message = f"Held until silence ends at {verdict.ends_hhmm} UTC."
+        else:
+            message = (
+                f"The board is silenced until {verdict.ends_hhmm} UTC: the message was not sent. "
+                "Pass override_silence=true to send it anyway."
+            )
         return None, {
             "status": "blocked",
-            "message": "Manual sends blocked during silence mode to prevent wake-ups",
+            "message": message,
             "silence_mode": True,
+            "held": verdict.held,
+            "silence_ends_at": verdict.ends_at_utc,
             "board_id": board_id,
         }
 
@@ -741,12 +813,12 @@ def _target_dimensions(target: _SendTarget):
 
 
 def _transition_for(target: _SendTarget, strategy, step_interval_ms, step_size):
-    """Per-call transition overrides, falling back to the stored settings.
+    """Per-call transition overrides, falling back to the target display's.
 
-    ``None`` means "use what the install is configured for" — the behavior
+    ``None`` means "use what the display is configured for" — the behavior
     every caller had before the overrides existed.
     """
-    stored = target.settings_service.get_transition_settings()
+    stored = target.settings_service.get_transition_settings(target.board.get("id") or target.board_id)
     return (
         stored.strategy if strategy is None else strategy,
         stored.step_interval_ms if step_interval_ms is None else step_interval_ms,
@@ -812,16 +884,50 @@ def _settle_send(
     """
     outcome = SendOutcome.of(outcome)
     if not outcome.success:
-        return err(failure)
+        if outcome.partial:
+            return _partial_refusal(outcome)
+        # An output plugin's driver says why (timed out, breaker open,
+        # raised); every other driver keeps the plain failure message.
+        reason = write_failure_reason(target.client)
+        return err(f"{failure} ({reason})" if reason else failure)
     if not outcome.was_sent:
         throttled = _throttle_refusal(outcome, target.board_id)
         if throttled is not None:
             return throttled
+        if outcome.superseded:
+            return err(
+                "This write was superseded by a newer write before its content reached the board.",
+                superseded=True,
+                board_id=target.board_id,
+            )
         if unchanged is None:
             return err(failure)
         return ok(unchanged, skipped=True, board_id=target.board_id)
+    trace_phase("after_send_started")
     _after_send(target)
+    trace_phase("after_send_returned")
     return ok(success, board_id=target.board_id, **fields)
+
+
+def _partial_refusal(outcome: SendOutcome) -> dict[str, Any]:
+    """A write that reached only part of the board (a WriteResult with ``partial``).
+
+    Not a plain failure — the healthy parts now show the new content and the
+    failed ones the old — and not a success. The message says so on its own
+    (the MCP boundary relays only ``error``); ``partial`` and
+    ``failed_regions`` ride alongside for a front door that maps them (``/v1``
+    answers 502 with both). Retrying is safe: only the failed parts are
+    re-sent.
+    """
+    regions = [region.as_dict() for region in outcome.failed_regions]
+    count = len(regions)
+    noun = "section" if count == 1 else "sections"
+    return err(
+        f"The board only partly updated: {count} {noun} of the board did not take the new content "
+        "(the rest did). Sending again retries only what failed.",
+        partial=True,
+        failed_regions=regions,
+    )
 
 
 def _after_send(target: _SendTarget) -> None:
@@ -863,6 +969,7 @@ def send_message(
     step_interval_ms: int | None = None,
     step_size: int | None = None,
     force: bool = False,
+    override_silence: bool = False,
 ) -> dict[str, Any]:
     """Send an ad-hoc text message straight to a board (issue #1765).
 
@@ -886,11 +993,21 @@ def send_message(
     ``force`` to bypass the client's unchanged-content dedupe. Every one of
     them defaults to the behavior this executor had before they existed —
     the stored transition settings, and no forcing.
+
+    During silence the message is held (shown when the window ends) when the
+    board's ``show_queued_on_exit`` is on, and refused otherwise;
+    ``override_silence`` sends it anyway and supersedes anything held
+    (#1943, #1944). ``force`` never overrides silence.
     """
     try:
         from src.displays.messages import render_message
+        from src.silence_queue import HeldSend
 
-        target, refusal = _resolve_send_target(board_id)
+        target, refusal = _resolve_send_target(
+            board_id,
+            override_silence=override_silence,
+            hold=lambda resolved: HeldSend.text(text, board_id=resolved),
+        )
         if refusal is not None:
             return refusal
         assert target is not None
@@ -899,6 +1016,7 @@ def send_message(
         resolved_strategy, resolved_interval, resolved_step = _transition_for(
             target, strategy, step_interval_ms, step_size
         )
+        trace_phase("render_started")
         outcome = render_message(
             target.client,
             text,
@@ -910,15 +1028,27 @@ def send_message(
             force=force,
             with_outcome=True,
         )
-        return _settle_send(
+        trace_phase("render_returned")
+        result = _settle_send(
             target,
             outcome,
             failure="Failed to send message to the board.",
             unchanged="Message unchanged, no update needed.",
             success="Message sent successfully.",
         )
+        _discard_held_after_override(target, result, override_silence)
+        return result
     except Exception as exc:
         return err(f"Error sending message: {exc}")
+
+
+def _discard_held_after_override(target: _SendTarget, result: dict[str, Any], override_silence: bool) -> None:
+    """A newer explicit write beats a message held during silence (#1944)."""
+    if not override_silence or result.get("status") != "success" or result.get("skipped"):
+        return
+    from src import silence_queue
+
+    silence_queue.discard(target.board_id if target.board_id is not None else target.primary_id)
 
 
 def send_characters(
@@ -929,6 +1059,9 @@ def send_characters(
     step_interval_ms: int | None = None,
     step_size: int | None = None,
     force: bool = False,
+    cells: Any | None = None,
+    override_silence: bool = False,
+    hold: Any = None,
 ) -> dict[str, Any]:
     """Send an already-built flap grid to a board.
 
@@ -942,9 +1075,17 @@ def send_characters(
     validating it is the caller's job, because the caller knows whether a
     mismatch is a client error (a supplied grid) or a server one (a page that
     rendered wrong).
+
+    ``cells`` are the grid's rich cells (:mod:`src.outputs.cells`), for a
+    board whose output draws a rich character set; forwarded to ``render``
+    only when given, so every other call keeps its exact shape.
+
+    ``override_silence`` and ``hold`` are :func:`send_message`'s silence
+    policy; the caller says what to hold (the grid, the lines it came from,
+    or the page it rendered), because only it knows.
     """
     try:
-        target, refusal = _resolve_send_target(board_id)
+        target, refusal = _resolve_send_target(board_id, override_silence=override_silence, hold=hold)
         if refusal is not None:
             return refusal
         assert target is not None
@@ -952,6 +1093,7 @@ def send_characters(
         resolved_strategy, resolved_interval, resolved_step = _transition_for(
             target, strategy, step_interval_ms, step_size
         )
+        trace_phase("render_started")
         outcome = target.client.render(
             characters,
             strategy=resolved_strategy,
@@ -959,126 +1101,20 @@ def send_characters(
             step_size=resolved_step,
             force=force,
             with_outcome=True,
+            **({"cells": cells} if cells is not None else {}),
         )
-        return _settle_send(
+        trace_phase("render_returned")
+        result = _settle_send(
             target,
             outcome,
             failure="Failed to send characters to the board.",
             unchanged="Board content unchanged, no update needed.",
             success="Characters sent successfully.",
         )
+        _discard_held_after_override(target, result, override_silence)
+        return result
     except Exception as exc:
         return err(f"Error sending characters: {exc}")
-
-
-# ---------------------------------------------------------------------------
-# Transition Lab operations (beta)
-#
-# Both delegate to :mod:`src.transitions.service`, the domain layer behind
-# ``POST /transitions/test-live`` and ``POST /transitions/restore``. The
-# service raises ``TransitionError`` with the status/detail pair the router
-# answers; here a 409 (silence window, paused board) becomes the same
-# ``status: "blocked"`` policy envelope :func:`send_message` returns, and
-# everything else is an error.
-# ---------------------------------------------------------------------------
-
-
-def _transition_beta_refusal() -> dict[str, Any] | None:
-    """The router's beta gate, as an envelope: 404 while the flag is off."""
-    from src.settings.service import get_settings_service
-
-    if get_settings_service().get_beta_settings().transition_plugins_enabled:
-        return None
-    return err("Transition plugins are an experimental beta. Enable them in Settings → Beta to use this tool.")
-
-
-def _transition_refusal(exc: Any, board_id: str | None) -> dict[str, Any]:
-    """Map a ``TransitionError`` onto the executor envelope contract."""
-    detail = str(getattr(exc, "detail", exc))
-    if getattr(exc, "status_code", None) == 409:
-        paused = "paused" in detail.lower()
-        return {
-            "status": "blocked",
-            "message": detail,
-            "paused": paused,
-            "silence_mode": not paused,
-            "board_id": board_id,
-        }
-    return err(detail)
-
-
-async def test_transition_live(
-    plugin_id: str,
-    to_page_id: str,
-    from_page_id: str | None = None,
-    config: dict[str, Any] | None = None,
-    board_id: str | None = None,
-) -> dict[str, Any]:
-    """Run a transition plugin once on the real board — ``POST /transitions/test-live``."""
-    from fastapi import HTTPException
-
-    refusal = _transition_beta_refusal()
-    if refusal is not None:
-        return refusal
-    try:
-        from src.transitions import service as transitions
-        from src.transitions.models import TransitionLiveTestRequest
-
-        response = await transitions.run_live_transition_test(
-            TransitionLiveTestRequest(
-                plugin_id=plugin_id,
-                to_page_id=to_page_id,
-                from_page_id=from_page_id,
-                config=config,
-                board_id=board_id,
-            )
-        )
-    except transitions.TransitionError as exc:
-        return _transition_refusal(exc, board_id)
-    except HTTPException as exc:
-        # _require_board still raises the transport error for an unknown board.
-        return err(f"Error running live transition test: {rest_detail(exc)}")
-    except Exception as exc:
-        return err(f"Error running live transition test: {exc}")
-
-    target = f" on board '{board_id}'" if board_id is not None else ""
-    return ok(
-        f"Transition '{plugin_id}' ran{target}; the board is now showing page '{to_page_id}'. "
-        "Call restore_board() to return it to its active page.",
-        sent=bool(response.sent),
-        plugin_id=response.plugin_id,
-        from_page_id=response.from_page_id,
-        to_page_id=response.to_page_id,
-        board_id=response.board_id,
-    )
-
-
-async def restore_board(board_id: str | None = None) -> dict[str, Any]:
-    """Snap a board back to its active page — ``POST /transitions/restore``."""
-    from fastapi import HTTPException
-
-    refusal = _transition_beta_refusal()
-    if refusal is not None:
-        return refusal
-    try:
-        from src.transitions import service as transitions
-        from src.transitions.models import TransitionRestoreRequest
-
-        response = await transitions.restore_after_transition_test(TransitionRestoreRequest(board_id=board_id))
-    except transitions.TransitionError as exc:
-        return _transition_refusal(exc, board_id)
-    except HTTPException as exc:
-        return err(f"Error restoring the board: {rest_detail(exc)}")
-    except Exception as exc:
-        return err(f"Error restoring the board: {exc}")
-
-    target = f"Board '{board_id}'" if board_id is not None else "The board"
-    return ok(
-        f"{target} is back on its active page '{response.page_id}'.",
-        page_id=response.page_id,
-        sent=bool(response.sent),
-        board_id=response.board_id,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -1744,8 +1780,10 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
             allowed = GENERAL_SETTING_KEYS
             handler = lambda: update_general_config(GeneralConfigUpdate(**body))  # noqa: E731
         elif category == "beta":
+            # Deprecated alias (until v11): settings v6 moved the beta flags
+            # to "plugins". Only the two flags, as the REST alias takes.
             allowed = models.BetaSettingsUpdate.model_fields
-            handler = lambda: api.update_beta_settings(models.BetaSettingsUpdate(**body))  # noqa: E731
+            handler = lambda: api.update_plugin_settings(models.PluginSettingsUpdate(**body))  # noqa: E731
         elif category == "plugins":
             allowed = models.PluginSettingsUpdate.model_fields
             handler = lambda: api.update_plugin_settings(models.PluginSettingsUpdate(**body))  # noqa: E731
@@ -1782,6 +1820,14 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
             if refusal is not None:
                 return refusal
             body = prepared or {}
+        elif category == "silence_schedule":
+            from src.config import resolve_silence_schedule
+            from src.config_manager import get_config_manager
+
+            current = resolve_silence_schedule(
+                get_config_manager().get_feature("silence_schedule"), body.get("board_id")
+            )
+            body = {**{key: value for key, value in current.items() if key in allowed}, **body}
         await handler()
     except HTTPException as exc:
         return err(f"Error updating {category} settings: {rest_detail(exc)}")
@@ -1929,14 +1975,23 @@ BOARD_PUBLIC_FIELDS: tuple[str, ...] = (
     "enabled",
     "paused",
     "schedule_enabled",
+    "auto_restore",
+    "transition",
+    "transition_step_interval_ms",
+    "transition_step_size",
 )
 
 
 def board_public_view(board: dict[str, Any]) -> dict[str, Any]:
-    """Credential-free projection of a stored board dict."""
+    """Credential-free projection of a board dict (stored v4, or a flat view)."""
+    from src.outputs.description import describe_board
+    from src.settings.board_shape import board_view
+
+    board = board_view(board)
     view = {key: board.get(key) for key in BOARD_PUBLIC_FIELDS}
-    view["has_host"] = bool(board.get("host"))
-    view["has_credentials"] = bool(
+    view.update(describe_board(board))
+    view["has_host"] = view["has_host"] or bool(board.get("host"))
+    view["has_credentials"] = view["has_credentials"] or bool(
         board.get("local_api_key") or board.get("cloud_key") or board.get("note_array_token")
     )
     return view
@@ -1957,7 +2012,14 @@ def _validate_board_fields(**fields: Any) -> dict[str, Any] | None:
     value. A malformed host raises the guard's own HTTPException(400).
     """
     from src.board_guards import validate_board_host
-    from src.devices import CODE62_GLYPHS, DEVICE_TYPES, MAX_NOTES_PER_AXIS, VALID_API_MODES
+    from src.devices import (
+        CODE62_GLYPHS,
+        DEVICE_TYPES,
+        MAX_NOTES_PER_AXIS,
+        TRANSITION_SPEED_BOUNDS,
+        VALID_API_MODES,
+        transition_speed_error,
+    )
 
     vocab = {
         "device_type": DEVICE_TYPES,
@@ -1980,6 +2042,10 @@ def _validate_board_fields(**fields: Any) -> dict[str, Any] | None:
             continue
         if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_NOTES_PER_AXIS:
             return err(f"{key} must be an integer between 1 and {MAX_NOTES_PER_AXIS}.")
+    for key in TRANSITION_SPEED_BOUNDS:
+        error = transition_speed_error(key, fields.get(key))
+        if error:
+            return err(error)
     host = fields.get("host")
     if host is not None:
         validate_board_host(host)
@@ -1996,8 +2062,12 @@ async def update_board(
     code62_glyph: str | None = None,
     api_mode: str | None = None,
     host: str | None = None,
+    transition: str | None = None,
+    transition_step_interval_ms: int | None = None,
+    transition_step_size: int | None = None,
+    auto_restore: bool | None = None,
 ) -> dict[str, Any]:
-    """Change non-secret hardware fields of one board.
+    """Change non-secret hardware fields of one board, or its transition.
 
     The Settings page edits a board by re-sending the whole roster to
     ``PUT /settings/board`` with one entry changed; this does the same, so
@@ -2022,13 +2092,18 @@ async def update_board(
                 "code62_glyph": code62_glyph,
                 "api_mode": api_mode,
                 "host": host,
+                "transition": transition,
+                "transition_step_interval_ms": transition_step_interval_ms,
+                "transition_step_size": transition_step_size,
+                "auto_restore": auto_restore,
             }.items()
             if value is not None
         }
         if not updates:
             return err(
                 "Nothing to update: pass at least one of name, device_type, notes_wide, notes_tall, "
-                "board_color, code62_glyph, api_mode, host."
+                "board_color, code62_glyph, api_mode, host, transition, transition_step_interval_ms, "
+                "transition_step_size, auto_restore."
             )
         refusal = _validate_board_fields(**updates)
         if refusal is not None:
@@ -2038,6 +2113,18 @@ async def update_board(
         target = next((b for b in boards if b.get("id") == board_id), None)
         if target is None:
             return err(f"Board not found: {board_id}")
+        from src.outputs.registry import VESTABOARD, output_registry, resolve_output_id
+
+        output_id = resolve_output_id(target)
+        if output_id != VESTABOARD:
+            if any(key in updates for key in ("api_mode", "device_type", "notes_wide", "notes_tall")):
+                return err("This display uses an output plugin; use configure_display with its declared settings.")
+            if "host" in updates:
+                definition = output_registry().get(output_id)
+                properties = definition.settings_schema.get("properties", {}) if definition else {}
+                if "host" not in properties:
+                    return err("This output does not declare a host setting; use configure_display.")
+                target["output_config"] = {**(target.get("output_config") or {}), "host": updates.pop("host")}
         target.update(updates)
         response = await api.update_board_settings(models.BoardSettingsUpdate(boards=boards))
     except HTTPException as exc:
@@ -2046,7 +2133,13 @@ async def update_board(
         return err(f"Error updating board '{board_id}': {exc}")
 
     stored = next((b for b in response.get("boards", []) if b.get("id") == board_id), target)
-    return ok(f"Board '{board_id}' updated.", board_id=board_id, board=board_public_view(stored))
+    return ok(
+        f"Board '{board_id}' updated.",
+        board_id=board_id,
+        board=board_public_view(stored),
+        retargeted_pages=response.get("retargeted_pages", []),
+        incompatible_references=response.get("incompatible_references", []),
+    )
 
 
 async def add_board(
@@ -2224,6 +2317,7 @@ async def update_panel(
     is_display: bool | None = None,
     backdrop: str | None = None,
     auto_dim: dict[str, Any] | None = None,
+    render_style: str | None = None,
 ) -> dict[str, Any]:
     """Update a panel's display configuration. Only supplied fields change."""
     from fastapi import HTTPException
@@ -2244,13 +2338,14 @@ async def update_panel(
                 "is_display": is_display,
                 "backdrop": backdrop,
                 "auto_dim": auto_dim,
+                "render_style": render_style,
             }.items()
             if value is not None
         }
         if not fields:
             return err(
                 "Nothing to update: pass at least one of name, screen_diagonal_inches, screen_aspect_w, "
-                "screen_aspect_h, calibration_scale, animations_enabled, is_display, backdrop, auto_dim."
+                "screen_aspect_h, calibration_scale, animations_enabled, is_display, backdrop, auto_dim, render_style."
             )
         panel = await _rest_update_panel(panel_id, PanelUpdate(**fields))
     except HTTPException as exc:

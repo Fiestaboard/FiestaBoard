@@ -47,7 +47,7 @@ from collections.abc import Callable
 from .board_guards import _board_is_paused  # noqa: F401  (re-export: pre-move patch target)
 from .board_guards import primary_board_entry as _primary_board_entry  # noqa: F401  (same)
 from .devices import dimensions_of, resolve_dimensions
-from .main import DisplayService
+from .main import UNCONFIGURED_BOARD_ERROR, DisplayService
 from .settings.service import get_settings_service
 
 logger = logging.getLogger(__name__)
@@ -273,6 +273,35 @@ def _get_board_client():
     return None
 
 
+def live_driver(board_id: str | None):
+    """The board's LIVE driver — bound to its ``OutputRuntime`` — or ``None``.
+
+    ``board_id`` ``None`` means the primary board. ``None`` comes back when
+    there is no service, or the board has no live runtime (not configured,
+    or its connection failed to build: see ``DisplayService.board_init_errors``).
+    Every write through it is a write of the board's runtime: it preempts a
+    running transition, takes the send lock, and lands in the board's frame
+    cache and send floor, exactly as an engine send does.
+    """
+    service = get_service()
+    if service is None:
+        return None
+    rt = service.runtime_for(board_id)
+    return rt.client if rt is not None else None
+
+
+def board_build_error(board_id: str | None) -> str | None:
+    """Why the runtime factory refused to build *board_id*'s driver, or ``None``.
+
+    ``None`` too when the board simply has no usable connection (missing
+    host, key or token) — that is "not configured", not a refusal.
+    """
+    service = peek_service()
+    errors = getattr(service, "board_init_errors", None)
+    reason = errors.get(board_id) if isinstance(errors, dict) else None
+    return None if reason == UNCONFIGURED_BOARD_ERROR else reason
+
+
 def _primary_connection_info() -> tuple[str, str]:
     """Return ``(connection_mode, board_host)`` for the primary board.
 
@@ -284,6 +313,9 @@ def _primary_connection_info() -> tuple[str, str]:
     """
     board = _primary_board_entry()
     if board is not None:
+        from src.settings.board_shape import flat_connection
+
+        board = flat_connection(board)
         mode = board.get("api_mode") or "local"
         host = board.get("host") or ""
         return (mode.lower() if isinstance(mode, str) else "local", host if isinstance(host, str) else "")
@@ -314,6 +346,25 @@ def _get_first_board_dims():
     except Exception as exc:
         logger.debug("Could not resolve board dims (using flagship default): %s", exc)
     return resolve_dimensions("flagship")
+
+
+def release_board_frames(board_id: str | None) -> None:
+    """Drop a board's stored frames from its live runtime.
+
+    Called when a panel is deleted, or re-fit to a new grid, so the frame it
+    showed never outlives it — not on ``GET /panel/{id}/frame`` and not as
+    the ``expected_characters`` half of ``/board/current-message``. Only the
+    id's own runtime is touched (never the primary's by fallback); no
+    service, or no runtime for the id, is nothing to release. The rebuild
+    that follows (:func:`reinitialize_board_clients`) gives a re-fit board a
+    fresh runtime regardless — releasing first closes the window before it.
+    """
+    if board_id is None:
+        return
+    service = peek_service()
+    rt = service.get_runtime(board_id) if service is not None else None
+    if rt is not None:
+        rt.output.release_frames()
 
 
 def reinitialize_board_clients() -> None:

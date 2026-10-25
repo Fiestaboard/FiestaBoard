@@ -20,6 +20,8 @@ from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from src.main import BoardRuntime, DisplayService
 from tests.engine_harness import TornReadRuntime
 
@@ -480,19 +482,20 @@ class TestEngineTickInFlightDedupe:
         assert svc.wait_until_idle(timeout=5)
         assert clients["b1"].render.call_count == 1
 
-    def test_enqueue_signals_the_clients_cancel_event_immediately(self):
+    def test_enqueue_signals_the_boards_cancel_token_immediately(self):
         """Enqueuing a newer frame preempts a running transition at once.
 
-        A plain render() call sets the client's ``_cancel_transition`` event
-        before taking the send lock; with the queue in between, the dispatch
-        must mirror that at ENQUEUE time — otherwise an in-flight transition
-        would only learn about the newer frame when the worker dequeued it.
+        A plain render() call signals the board's cancel token (owned by its
+        ``OutputRuntime``) before taking the send lock; with the queue in
+        between, the dispatch must mirror that at ENQUEUE time — otherwise an
+        in-flight transition would only learn about the newer frame when the
+        worker dequeued it.
         """
         boards = [_board("b1", "Primary", schedule_enabled=False)]
         svc, clients = _service_with_runtimes(boards)
         started, release = self._blocked_client(clients, "b1")
         cancel = threading.Event()
-        clients["b1"]._cancel_transition = cancel
+        svc.runtimes["b1"].output.cancel_event = cancel
         settings = _settings_service(boards, schedule_off=("b1",), manual={"b1": "page-1"})
         pages = _page_service({"page-1": {"content": "HELLO"}, "page-2": {"content": "WORLD"}})
         try:
@@ -680,12 +683,13 @@ class TestOutputTarget:
 
         ``target="ui"`` means "don't touch hardware", but a FiestaPanel's
         frame is populated only by the render path here. Short-circuiting it
-        froze every virtual board on its last frame. ``VirtualBoardClient``
-        sets ``is_virtual = True``, which exempts it from the short-circuit.
+        froze every virtual board on its last frame. The board's output
+        (``fiestapanel``) is pulled — ``delivery == "pull"`` in the output
+        registry — which exempts it from the short-circuit.
         """
         boards = [_board("b1", "One")]
         svc, clients = _service_with_runtimes(boards)
-        clients["b1"].is_virtual = True
+        svc.runtimes["b1"].output.output_id = "fiestapanel"
         pages = _page_service({"pA": {"content": "ALPHA"}})
         schedule = _schedule_service({"b1": "pA"})
         settings = _settings_service(boards, send_to_board=False)
@@ -693,6 +697,34 @@ class TestOutputTarget:
         _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
 
         clients["b1"].render.assert_called_once()
+
+    def test_ui_only_exemption_is_the_outputs_delivery_not_the_clients_say_so(self):
+        """A client claiming ``is_virtual`` on a pushed output is still hardware."""
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].is_virtual = True
+        svc.runtimes["b1"].output.output_id = "vestaboard"
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=False)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_not_called()
+
+    @pytest.mark.parametrize("output_id", ["not-installed", None])
+    def test_ui_only_target_treats_an_unknown_output_as_hardware(self, output_id):
+        """Fail closed: an output the registry cannot vouch for is never driven under UI-only."""
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        svc.runtimes["b1"].output.output_id = output_id
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=False)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_not_called()
 
     def test_paused_virtual_board_is_not_driven_under_ui_only_target(self):
         """The virtual exemption must not reach above the pause short-circuit.
@@ -703,7 +735,7 @@ class TestOutputTarget:
         """
         boards = [_board("b1", "One")]
         svc, clients = _service_with_runtimes(boards)
-        clients["b1"].is_virtual = True
+        svc.runtimes["b1"].output.output_id = "fiestapanel"
         pages = _page_service({"pA": {"content": "ALPHA"}})
         schedule = _schedule_service({"b1": "pA"})
         settings = _settings_service(boards, paused=("b1",), send_to_board=False)
@@ -720,7 +752,7 @@ class TestOutputTarget:
         """
         boards = [_board("b1", "One")]
         svc, clients = _service_with_runtimes(boards)
-        clients["b1"].is_virtual = True
+        svc.runtimes["b1"].output.output_id = "fiestapanel"
         pages = _page_service({"pA": {"content": "ALPHA"}})
         schedule = _schedule_service({"b1": "pA"})
         settings = _settings_service(boards, send_to_board=False)
@@ -1130,6 +1162,27 @@ class TestThrottledSendDoesNotPrimeDedupeCache:
         _drive(svc, boards, pages=pages, schedule=_schedule_service({"b1": "pA"}))
 
         assert svc.runtimes["b1"].last_active_page_content == "ALPHA"
+
+
+class TestPreemptedSendDoesNotPrimeDedupeCache:
+    """A page send whose write was preempted mid-upload (a Pixoo: the
+    active-page PUT's own write cancelled the engine's) returns ``(True,
+    False)`` like an unchanged skip, but nothing reached the board. Caching
+    it would leave the engine sure the page is shown when the board is dark."""
+
+    def test_a_preempted_send_leaves_the_dedupe_cache_clear(self):
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].render.return_value = (True, False)
+        clients["b1"].last_send_throttled = False
+        clients["b1"].last_send_preempted = True
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+
+        _drive(svc, boards, pages=pages, schedule=_schedule_service({"b1": "pA"}))
+
+        rt = svc.runtimes["b1"]
+        assert rt.last_active_page_content is None, "cached a page the preempted write never delivered"
+        assert rt.last_active_page_id is None
 
 
 class TestOutOfBandContentFlag:

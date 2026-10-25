@@ -8,7 +8,6 @@ import { requestStore } from "./mocks/handlers";
 // Reset request store before each test
 beforeEach(() => {
   requestStore.lastPageCreate = undefined;
-  requestStore.lastTransitionUpdate = undefined;
   requestStore.lastOutputUpdate = undefined;
 });
 
@@ -102,48 +101,12 @@ describe("API Contract Tests", () => {
   });
 
   describe("Settings API", () => {
-    it("updateTransitionSettings sends correct structure", async () => {
-      const settings = {
-        strategy: "column",
-        step_interval_ms: 100,
-        step_size: 2,
-      };
-
-      const result = await api.updateTransitionSettings(settings);
-
-      // Bare TransitionSettings since the conventions pass (Phase 2, Task 8).
-      expect(result.strategy).toBe("column");
-      expect(requestStore.lastTransitionUpdate).toEqual(settings);
-    });
-
-    it("updateTransitionSettings with null values for reset", async () => {
-      const settings = {
-        strategy: null,
-        step_interval_ms: null,
-        step_size: null,
-      };
-
-      const result = await api.updateTransitionSettings(settings);
-
-      expect(result.strategy).toBeNull();
-      expect(requestStore.lastTransitionUpdate?.strategy).toBeNull();
-      expect(requestStore.lastTransitionUpdate?.step_interval_ms).toBeNull();
-    });
-
     it("updateOutputSettings sends target correctly", async () => {
       const result = await api.updateOutputSettings("both");
 
       // Bare OutputSettings since the conventions pass (Phase 2, Task 8).
       expect(result.target).toBe("both");
       expect(requestStore.lastOutputUpdate?.target).toBe("both");
-    });
-
-    it("getTransitionSettings returns strategies list", async () => {
-      const result = await api.getTransitionSettings();
-
-      expect(result.strategy).toBeDefined();
-      expect(result.available_strategies).toBeDefined();
-      expect(Array.isArray(result.available_strategies)).toBe(true);
     });
 
     it("getOutputSettings returns available targets", async () => {

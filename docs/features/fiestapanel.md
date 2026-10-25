@@ -6,7 +6,7 @@ keywords: [FiestaPanel, virtual board, virtual split-flap display, split-flap TV
 
 # FiestaPanel
 
-FiestaPanel turns any screen with a web browser — most usefully a TV on a wall — into a realistic split-flap display that fills the screen. No Vestaboard hardware required.
+FiestaPanel turns any screen with a web browser — most usefully a TV on a wall — into a split-flap or LED display that fills the screen. No Vestaboard hardware required.
 
 A panel is a **virtual board**: FiestaBoard drives it exactly like a physical board (pages, schedules, plugins, transitions), and a full-screen web page renders whatever was last sent to it, optionally flipping its tiles with the same mechanical animation as the real thing.
 
@@ -18,9 +18,9 @@ A panel is a **virtual board**: FiestaBoard drives it exactly like a physical bo
 
 ## Quick Setup
 
-1. Open **Settings → Hardware → FiestaPanel** and click **Create panel**.
-2. Give it a name and choose your TV's diagonal size (presets from 32″ to 85″, or a custom value). The board's grid is computed automatically.
-3. Open the panel URL in the TV's web browser. Every panel gets a short URL that's easy to type on a TV — the first panel is `/p/1` (for example `http://192.168.1.50:4420/p/1`) — plus a QR code and a copy button in Settings.
+1. Open **Displays**, click **Add a display** and choose **FiestaPanel**.
+2. Give it a name and your TV's diagonal size in inches. The board's grid is computed automatically, and the panel's page opens. Edit the panel there to fine-tune it (size presets from 32″ to 85″, aspect ratio, calibration).
+3. Open the panel URL in the TV's web browser. Every panel gets a short URL that's easy to type on a TV — the first panel is `/p/1` (for example `http://192.168.1.50:4420/p/1`) — plus a QR code and a copy button on the panel's page.
 4. Give the panel content the same way you would any board: it appears in the board selector, so set its active page, add it to schedules, or point plugins at it. A panel's grid is any number of columns and rows — it is not built from 15×3 Note blocks — and the page editor sizes pages to it for you (see below).
 
 That's it. The TV shows a blank board until the first frame arrives.
@@ -45,17 +45,53 @@ Edit a panel any time — changes reach the TV within about 10 seconds, no reloa
 
 | Setting | What it does |
 |---|---|
-| **TV size** | Drives everything: the flap scale (pixels-per-inch from your diagonal) and the auto-fit grid (as many real-size flaps — columns and rows — as fit a screen of that size and aspect ratio). Changing it re-fits the board's dimensions. |
+| **TV size** | Drives everything: the flap scale (pixels-per-inch from your diagonal) and the auto-fit grid (as many real-size flaps — columns and rows — as fit a screen of that size and aspect ratio). Changing it re-fits split-flap dimensions. LED screen layout follows the aspect ratio; diagonal inches only affect physical presentation. |
+| **Render style** | **Split-flap** (the default) draws life-size flaps. **LED matrix** draws the board as the dots of an LED sign. Each panel's page in Displays shows what its TV is showing now, in the chosen style. |
+| **LED layout** | **Fit screen shape** uses a pixel surface matched to the screen, with **Large** or **Small** text. **Keep existing grid** preserves an older panel's page dimensions. |
+| **Matrix size** | For LED panels: **Fill TV** adds unlit LEDs around the full message; **Fit panel** fits the original matrix; **True LED size** uses your TV diagonal and LED spacing. Oversized matrices scale down to keep the message visible. |
+| **LED spacing** | Distance between LED centers (1–20 mm), available with True LED size. Apple TV uses a fixed 16:9 screen. |
 | **Flip animation** | Off by default — characters update in place instantly. Turn it on for the full mechanical spin on every change. |
 | **Auto-dim** | Fades the panel down during a nightly window (e.g. 22:00–07:00), using the TV's own clock. |
 | **Size calibration** | ±15% fine-tune for TVs whose browsers misreport their resolution or overscan the picture. |
+
+Matrix sizing is saved per panel and reaches browser and Apple TV viewers on their next configuration refresh. **Viewer default** preserves each viewer's existing preference; editing unrelated settings keeps that choice. The settings dialog previews matrix size and LED spacing before saving. True LED size includes Size calibration and uses the actual display's pixel density, including when a browser window occupies only part of its screen.
+
+LED and split-flap use separate sizing rules. In **Fit screen shape**, a 16:9 LED screen has a 192 × 108 pixel surface: **Large** text gives 32 columns × 13 rows, and **Small** gives 48 × 18. Portrait and other screen shapes use the same bounded pixel sizing policy. The page size picker, preview, canvas layout, and display all use the resulting grid. Character gutters can leave a few margin pixels; full-page canvases with all-edge bleed reach the surface edges.
+
+Changing diagonal inches, calibration, matrix presentation, or LED spacing does not resize an LED screen-layout page. Changing screen shape or text size can. **Fill TV** uses square pixels and fills a viewport with the configured aspect ratio; a different viewport shape fits the complete surface with margins. The preview shows the proposed grid and hides an old live frame while its geometry differs.
+
+Existing panels keep their saved grid after an upgrade. Choose **Fit screen shape** to convert one. When changing grid dimensions, the settings dialog offers copies of referenced pages and collections for this panel. Copies preserve text and canvas cell coordinates; only this panel's active, scheduled, default, and silence-page references move. Shared originals remain available. Review smaller layouts for clipping; the conversion does not rewrite literal spaces or infer a new design. Without copies, existing pages keep their original size and may be reported as incompatible. A temporary override must finish before a content-copy conversion.
+
+Conversion writes a recovery journal before changing content or references. Failed saves restore the previous state; after an interruption, startup recovers before adjusting panel grids. If later edits conflict with recovery, it retains the journal and copies and reports the conflict rather than overwriting those edits.
+
+Legacy LED grids above the shared 256-pixel renderer limit show an unsupported-layout warning in browser viewers. Convert them to **Fit screen shape**. Native builds that do not understand the warning may still clip oversized legacy content; the new bounded layouts avoid requiring a renderer-capacity upgrade.
+
+LED panels support page pixel canvases, including individual pixel colors,
+shapes, and artwork, using the same canvas editor as Divoom. Canvas layers
+paint over the text at exact LED coordinates; transparent pixels leave the
+content underneath visible. The viewer and previews update even when only
+the pixels change, and switching to a page without canvases clears them.
+Native Android TV and Apple TV apps are coming soon. Use the browser viewer
+for now. Canvas delivery requires FiestaPanel output 1.0.1 or newer and a
+viewer that consumes pixel layers. The inspected Apple TV development renderer
+supports those layers; the inspected Android TV development checkout does not
+yet consume them. The new screen layouts stay within the common 256-pixel
+limit. These source checks do not establish released app availability.
+
+For viewer integrations, `GET /panel/{id}/frame` includes `layers` for pixel
+panels: ordered `{x, y, width, height, rgba}` objects, with standard base64
+row-major RGBA bytes. Alpha zero is transparent; any nonzero alpha overwrites
+the underlying RGB without blending. Layer coordinates may extend past the
+matrix edges; viewers must clip them when rendering. An empty
+list clears the previous canvases, including when a frame is unavailable or
+its dimensions became stale. Split-flap frames omit this field. Configuration and LED frames also include a `geometry_key`; integrations should discard a frame whose key differs from the current configuration. `POST /panels/geometry` resolves an unsaved layout without changing settings.
 
 ## FiestaPi HDMI Output
 
 Running FiestaBoard on a FiestaPi? The Pi can drive a TV or monitor directly over HDMI — no browser setup on the TV at all:
 
 1. Connect a screen to the Pi's HDMI port.
-2. In **Settings → Hardware → FiestaPanel**, turn on **HDMI output on this FiestaPi**. The Pi installs a minimal kiosk browser (a few minutes, one time) and boots it onto the screen, pointed at the reserved `/p/display` URL.
+2. On the panel's page in **Displays**, turn on **HDMI output on this FiestaPi**. The Pi installs a minimal kiosk browser (a few minutes, one time) and boots it onto the screen, pointed at the reserved `/p/display` URL.
 3. Turn on **Display output** for the panel you want on that screen. Only one panel holds the role at a time — switching it re-points the screen from the app, no touching the Pi.
 
 Until a panel is designated, the screen shows a short instruction card. Turn the HDMI switch off to stop the kiosk and reclaim its memory.

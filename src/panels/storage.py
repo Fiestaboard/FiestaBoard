@@ -186,6 +186,20 @@ class PanelStorage:
             panels_out: list[dict] = []
             for panel in self._panels.values():
                 panel_data = panel.model_dump()
+                # The default render style is the absence of the key, so a
+                # panels.json written before the setting existed round-trips
+                # byte for byte (no migration: the stored format only grows
+                # for a panel that leaves the default).
+                if panel_data.get("render_style") == "split_flap":
+                    del panel_data["render_style"]
+                if panel_data.get("matrix_sizing") is None:
+                    panel_data.pop("matrix_sizing", None)
+                if panel_data.get("matrix_pitch_mm") == 6.0:
+                    panel_data.pop("matrix_pitch_mm", None)
+                if panel_data.get("matrix_layout") == "legacy":
+                    panel_data.pop("matrix_layout", None)
+                if panel_data.get("matrix_font") == "5x7":
+                    panel_data.pop("matrix_font", None)
                 for key in ("created_at", "updated_at"):
                     if isinstance(panel_data.get(key), datetime):
                         panel_data[key] = panel_data[key].isoformat()
@@ -279,7 +293,8 @@ class PanelStorage:
 
             panel_dict = self._panels[panel_id].model_dump()
             for key, value in updates.items():
-                if key in panel_dict and value is not None:
+                # Null explicitly clears the optional shared presentation.
+                if key in panel_dict and (value is not None or key == "matrix_sizing"):
                     panel_dict[key] = value
 
             panel_dict["updated_at"] = datetime.now(UTC)
@@ -302,6 +317,12 @@ class PanelStorage:
 
         logger.info(f"Deleted panel: {panel_id}")
         return True
+
+    def restore(self, panel: Panel) -> None:
+        """Restore an exact pre-operation record, including its timestamps."""
+        with self._store.lock:
+            self._panels[panel.id] = panel.model_copy(deep=True)
+            self._save()
 
     def exists(self, panel_id: str) -> bool:
         return panel_id in self._panels

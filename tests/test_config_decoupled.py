@@ -78,7 +78,7 @@ with (
     patch("src.config_api.routes.reinitialize_board_clients") as reinit,
     patch("src.config_api.routes.get_service", return_value=service),
     patch("src.config_api.routes.reset_time_service") as reset_clock,
-    patch("src.system.mdns.scan_for_boards", return_value=[]),
+    patch("src.outputs.registry.discover_devices", return_value=[]),
 ):
     full = call(routes.get_full_config())
     assert full["board"]["local_api_key"] == "***", full

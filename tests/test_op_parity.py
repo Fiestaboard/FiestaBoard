@@ -592,10 +592,10 @@ def test_a_write_the_send_floor_dropped_is_refused_on_both_surfaces(tmp_path, mc
     from mcp.server.mcpserver.exceptions import ToolError
 
     from src.api_server import app
-    from src.board_client import BoardClient
+    from tests.first_party_drivers import cloud_driver
 
     now = {"t": 1000.0}
-    cloud = BoardClient(api_key="test_key", use_cloud=True, _time_func=lambda: now["t"])
+    cloud = cloud_driver("test_key", clock=lambda: now["t"])
     service = Mock()
     service.vb_client = cloud
     service.get_board_client.return_value = cloud
@@ -603,7 +603,7 @@ def test_a_write_the_send_floor_dropped_is_refused_on_both_surfaces(tmp_path, mc
 
     with (
         patch("src.api_server.get_service", return_value=service),
-        patch("src.board_client.requests.post") as post,
+        patch("requests.post") as post,
     ):
         post.return_value = Mock(raise_for_status=Mock())
         rest = TestClient(app)

@@ -8,7 +8,7 @@
  * The mock OpenAI server (integration-tests/mock-llm/server.py) speaks just
  * enough of the chat completions API for src/ai/generator.py to round-trip
  * end-to-end. We configure a provider pointing at it via PUT /settings/ai,
- * then drive both the API and the Settings → Integrations tab UI.
+ * then drive both the API and the Settings → AI tab UI.
  *
  * Gated behind RUN_AI_TESTS in playwright.config.ts because the spec needs
  * the mock-llm container reachable at MOCK_LLM_URL — only the dedicated CI
@@ -432,8 +432,8 @@ test.describe("AI", () => {
     });
   });
 
-  test.describe("Settings → Integrations UI", () => {
-    test("AI Settings card renders inside the Integrations tab", async ({ page, request }) => {
+  test.describe("Settings → AI UI", () => {
+    test("AI Settings card renders inside the AI tab", async ({ page, request }) => {
       await configureMockProvider(request);
       // The WizardProvider holds every non-/login page on a full-screen
       // loader (then SetupWizard) while `/config/validate` reports
@@ -446,9 +446,9 @@ test.describe("AI", () => {
       expect(boardRes.ok()).toBe(true);
 
       await page.goto("/settings");
-      // Settings page splits into tabs (General / Hardware / Behavior /
-      // Integrations / System / Advanced). AI Settings live in Integrations.
-      await page.getByRole("tab", { name: "Integrations", exact: true }).click();
+      // Settings page splits into tabs (General / Scheduling / AI / System /
+      // Advanced). AI Settings live in AI.
+      await page.getByRole("tab", { name: "AI", exact: true }).click();
 
       // The settings component is loaded — assert on a stable string from
       // its header / description copy rather than a specific button label.
@@ -784,8 +784,9 @@ test.describe("AI", () => {
       await sendMessage(page, "schedule my page for the morning");
 
       const dialog = page.getByRole("dialog", { name: /FiestaBot/i });
-      // The tool card is the observed step: it appears before the result
-      // and settles to Done once the server has run the tool.
+      // Expand observed activity to inspect the tool's result. The reply
+      // remains visible independently of this disclosure.
+      await dialog.getByTestId("ai-turn-activity").last().getByRole("button").first().click();
       await expect(dialog.getByTestId("ai-tool-create_schedule")).toBeVisible({ timeout: 15_000 });
       await expect(dialog.getByTestId("ai-tool-create_schedule")).toHaveAttribute("data-state", "output-available", {
         timeout: 15_000,
@@ -834,6 +835,7 @@ test.describe("AI", () => {
 
       await approval.getByRole("button", { name: "Deny" }).click();
       await expect(dialog.getByText(/leaving it/i)).toBeVisible({ timeout: 15_000 });
+      await dialog.getByTestId("ai-turn-activity").last().getByRole("button").first().click();
       await expect(dialog.getByTestId("ai-tool-delete_page")).toHaveAttribute("data-state", "denied");
 
       pages = await (await request.get(`${API_URL}/pages`)).json();
@@ -965,13 +967,44 @@ test.describe("AI", () => {
         ],
       });
       await openDrawer(page, "/pages");
+      // These visuals can finish between assertion polls. Start watching
+      // before Send, and record the full text only while it is visible.
+      const observed = await page.evaluateHandle(() => {
+        const seen = { ghost: false, savedCaption: false };
+        const visible = (element: Element | null) => {
+          if (!element) return false;
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return rect.width > 0 && rect.height > 0 && style.visibility === "visible" && Number(style.opacity) > 0;
+        };
+        const sample = () => {
+          const ghost = document.querySelector(
+            '[data-testid="ai-ghost"][data-anchor="settings.general.instance_name"]',
+          );
+          if (visible(ghost) && ghost?.textContent?.includes("Kitchen Board")) seen.ghost = true;
+          const caption = document.querySelector('[data-testid="ai-spotlight-caption"]');
+          if (visible(caption) && /Setting saved/i.test(caption?.textContent ?? "")) seen.savedCaption = true;
+          if (!seen.ghost || !seen.savedCaption) requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+        return seen;
+      });
       await sendMessage(page, "rename my board to Kitchen Board");
 
       await expect(page).toHaveURL(/\/settings\?section=general/, { timeout: 15_000 });
-      const ghost = page.getByTestId("ai-ghost");
-      await expect(ghost.first()).toBeVisible({ timeout: 15_000 });
-      await expect(ghost.first()).toContainText("Kitchen Board");
-      await expect(page.getByTestId("ai-spotlight-caption")).toHaveText(/Setting saved/i, { timeout: 15_000 });
+      await expect
+        .poll(() => observed.evaluate((seen) => seen.ghost), {
+          timeout: 15_000,
+          message: "The full Kitchen Board ghost was visible",
+        })
+        .toBe(true);
+      await expect
+        .poll(() => observed.evaluate((seen) => seen.savedCaption), {
+          timeout: 15_000,
+          message: "The Setting saved caption was visible",
+        })
+        .toBe(true);
+      await observed.dispose();
       // The real value landed on the control the ghost pointed at.
       await expect(page.locator("#instance-name")).toHaveValue("Kitchen Board", { timeout: 15_000 });
       // The ring is gone once the walkthrough settles.

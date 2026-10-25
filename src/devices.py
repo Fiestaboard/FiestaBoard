@@ -3,9 +3,10 @@
 Defines the supported Vestaboard device types and their physical constraints.
 """
 
+import logging
 import uuid
 from dataclasses import asdict, dataclass, field
-from typing import Literal, NamedTuple, get_args
+from typing import Any, Literal, NamedTuple, get_args
 
 #: The device vocabulary, defined ONCE. ``DEVICE_TYPES`` is derived from the
 #: Literal rather than retyped beside it: the two used to be hand-copied
@@ -53,6 +54,22 @@ MIN_GRID_COLS: int = NOTE_COLS
 MAX_GRID_ROWS: int = 96
 MAX_GRID_COLS: int = 128
 
+# The floor of an LED board measured in pixels (a device model with
+# ``pixels`` geometry, src/outputs/geometry.py): 3 × 10. Its grid is how many
+# glyphs fit, so it follows the font: a Divoom Pixoo 64 in the 5x7 face is
+# 8 × 10, a 64 × 32 HUB75 or Tidbyt is 4 × 10. Pages longer than 10 columns
+# are cut off there; the owner accepts that for a face legible across a room.
+# Vestaboards, FiestaPanel autofit and every other model keep the Note floor.
+MIN_LED_GRID_ROWS: int = 3
+MIN_LED_GRID_COLS: int = 10
+
+# The smallest grid any board can have — the lower of the two floors on each
+# axis. Stored grids (clamp_grid) and page/template geometry are bounded by
+# this; which floor a *new* board must reach depends on its device model
+# (src/outputs/geometry.py check_floor).
+ABSOLUTE_MIN_GRID_ROWS: int = min(MIN_GRID_ROWS, MIN_LED_GRID_ROWS)
+ABSOLUTE_MIN_GRID_COLS: int = min(MIN_GRID_COLS, MIN_LED_GRID_COLS)
+
 #: Every field that sizes a page/board. A change to any of them is a size
 #: retarget (re-validate, warn about now-incompatible references).
 GEOMETRY_FIELDS: tuple[str, ...] = ("device_type", "notes_wide", "notes_tall", "grid_rows", "grid_cols")
@@ -79,6 +96,12 @@ ApiMode = Literal["local", "cloud", "virtual"]
 
 VALID_API_MODES: tuple[str, ...] = get_args(ApiMode)
 
+# The first-party outputs (src/outputs/registry.py VESTABOARD / FIESTAPANEL),
+# whose board settings core still projects to the settings-v3 flat shape.
+# Spelled here because the outputs package imports this module;
+# tests/test_output_plugin_e2e.py holds the two lists equal.
+BUILTIN_OUTPUT_IDS = frozenset({"vestaboard", "fiestapanel"})
+
 # Which glyph a board's character-code-62 flap physically carries (issue #1657).
 #
 # Code 62 is one code with two possible flaps. Vestaboard shipped every Flagship
@@ -94,63 +117,62 @@ Code62Glyph = Literal["degree", "heart"]
 
 CODE62_GLYPHS = ("degree", "heart")
 
-# Sensitive per-tile fields for local note arrays (masked in API responses)
-TILE_SENSITIVE_FIELDS = {"local_api_key"}
+#: The settings-v3 flat connection fields: settings v3 stored a board's
+#: connection at the top level of its dict. Settings v4 (plan D8) stores them
+#: in the board's ``output_config``; a dict that still carries them at the
+#: top level is a legacy write (or a v3 file), folded in by
+#: :meth:`BoardInstance.from_dict`. Core keeps only their names — the shape
+#: of its own old storage and of the flat API views; what they mean, and
+#: their defaults, are the Vestaboard output's
+#: (:mod:`src.outputs.config_hooks`).
+LEGACY_CONNECTION_FIELDS: tuple[str, ...] = (
+    "api_mode",
+    "host",
+    "port",
+    "local_api_key",
+    "cloud_key",
+    "note_array_token",
+    "tiles",
+)
+
+_VESTABOARD = "vestaboard"
+_FIESTAPANEL = "fiestapanel"
 
 
-def normalize_note_array_tiles(tiles) -> list[dict]:
-    """Normalize a local note-array tile list.
+def derive_output_id(board) -> str:
+    """The output a board dict names, by the settings-v4 precedence rule.
 
-    Each tile addresses one physical Note over the local API:
-    ``{"row", "col", "host", "port", "local_api_key", "enabled"}`` with
-    ``row``/``col`` 0-indexed in note coordinates.
-
-    Drops non-dict entries and entries without a usable row/col, coerces field
-    types, and dedupes by (row, col) keeping the last occurrence. Does NOT
-    filter to the board's current notes_wide/notes_tall — out-of-range tiles
-    are preserved in storage so shrinking and re-growing an array never
-    destroys hard-to-reobtain local API keys. Filter at point of use via
-    BoardInstance.configured_tiles().
+    An explicit ``output`` wins; else ``api_mode == "virtual"`` is a
+    FiestaPanel (this covers legacy virtual note-array panels, which predate
+    the ``panel`` device type); else a Vestaboard. The same rule as
+    :func:`src.outputs.registry.resolve_output_id`, spelled here because the
+    outputs package imports this module.
     """
-    if not isinstance(tiles, list):
-        return []
-    by_pos: dict[tuple[int, int], dict] = {}
-    for tile in tiles:
-        if not isinstance(tile, dict):
-            continue
-        try:
-            row = int(tile.get("row"))
-            col = int(tile.get("col"))
-        except (TypeError, ValueError):
-            continue
-        if isinstance(tile.get("row"), bool) or isinstance(tile.get("col"), bool):
-            continue
-        if row < 0 or col < 0:
-            continue
-        port = tile.get("port")
-        if not isinstance(port, int) or isinstance(port, bool):
-            try:
-                port = int(port)
-            except (TypeError, ValueError):
-                port = 7000
-        by_pos[(row, col)] = {
-            "row": row,
-            "col": col,
-            "host": str(tile.get("host") or "").strip(),
-            "port": port,
-            "local_api_key": str(tile.get("local_api_key") or "").strip(),
-            "enabled": bool(tile.get("enabled", True)),
-        }
-    return [by_pos[key] for key in sorted(by_pos)]
+    explicit = board.get("output")
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    if str(board.get("api_mode") or "").lower() == "virtual":
+        return _FIESTAPANEL
+    return _VESTABOARD
 
 
 @dataclass
 class BoardInstance:
-    """A configured Vestaboard instance.
+    """A configured board: identity, display, geometry, and its output.
 
-    Represents a single physical board with its own identity,
-    device type, display color, and connection settings.
-    Each board has its own API credentials and connection mode.
+    Settings v4 (plan D8): core keeps what is device-independent — identity,
+    display (colour, code-62 glyph), flags, content geometry — plus the
+    board's ``output`` (the output plugin that drives it) and
+    ``output_config`` (that plugin's settings for it), stored as the output
+    normalises it (:func:`src.outputs.config_hooks.normalize_config`); a
+    FiestaPanel's is empty. What the settings mean is the output's: whether
+    the board is configured is its :class:`~src.outputs.hooks.OutputStatus`.
+
+    The read-only ``api_mode`` / ``host`` / ``port`` / ``local_api_key`` /
+    ``cloud_key`` / ``note_array_token`` / ``tiles`` properties are the
+    settings-v3 flat view (:func:`src.settings.board_shape.flat_connection`)
+    for the readers and public API shapes that still speak it (D8 "Public
+    API shapes unchanged"). Construct from flat fields with :meth:`from_dict`.
     """
 
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -180,12 +202,11 @@ class BoardInstance:
     # the schedule only affects the schedule-driven rotation.
     paused: bool = False
     schedule_enabled: bool = False  # Per-board: use schedule mode for this board
-    api_mode: str = "local"
-    host: str = ""
-    port: int = 7000  # Local API port (default Vestaboard); used for multi-board mock e2e
-    local_api_key: str = ""
-    cloud_key: str = ""
-    note_array_token: str = ""  # X-Vestaboard-Token for note-array boards
+    # Put the board's content back when another app overwrites it (#2354).
+    # On by default; off for a display deliberately shared with another app.
+    # Detection is the read-back poll (#1945) or the output's device poll
+    # (``DevicePoll.overwritten``); a device restart is always re-sent.
+    auto_restore: bool = True
     notes_wide: int = 1
     notes_tall: int = 1
     # Explicit grid for device_type == "panel" (FiestaPanel virtual boards are
@@ -193,9 +214,31 @@ class BoardInstance:
     # every other device type, whose size is implied by the type/notes.
     grid_rows: int | None = None
     grid_cols: int | None = None
-    # Local array mode: per-tile local API endpoints, one per physical Note.
-    # Only meaningful when device_type == "note_array" and api_mode == "local".
-    tiles: list = field(default_factory=list)
+    # The output that drives this board (plan D2) and its settings for it.
+    # Stored for every board since settings v4 (D8): "vestaboard",
+    # "fiestapanel", or an output plugin's id.
+    output: str = _VESTABOARD
+    output_config: dict = field(default_factory=dict)
+    # The FiestaUI device model an output plugin's board was created as
+    # (POST /outputs/{output_id}/boards). Output-plugin boards only: absent
+    # from to_dict for every other board.
+    device_model: str | None = None
+    # How this display changes its message (plan D21): the device menu's
+    # choice — a split-flap native strategy, ``"plugin:<id>"``, an LED menu
+    # id (``"flip"``, ``"fade"``...) or ``"none"``. Since settings v6 every
+    # display owns its transition: there is no install-wide default any more.
+    # ``None`` survives only on an output plugin's board migrated from v5
+    # without a choice, where it means its device model's default (a flip
+    # where the device can show one). A new display is given one when it is
+    # added (``SettingsService.add_board``). A page's own override still wins.
+    # Absent from to_dict while unset.
+    transition: str | None = None
+    # The transition's speed (settings v6): the delay between animation
+    # steps in ms (0 = as fast as the device goes) and how many columns or
+    # rows move per step, forwarded to devices that animate natively.
+    # ``None`` is the device's own default. Absent from to_dict while unset.
+    transition_step_interval_ms: int | None = None
+    transition_step_size: int | None = None
 
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
@@ -204,17 +247,30 @@ class BoardInstance:
             self.board_color = "black"
         if self.code62_glyph not in CODE62_GLYPHS:
             self.code62_glyph = "degree"
-        if self.api_mode not in VALID_API_MODES:
-            self.api_mode = "local"
-        # "panel" is the FiestaPanel virtual board's grid, not hardware: no
-        # Vestaboard accepts an arbitrary rows × cols frame. A physical board
-        # claiming it falls back to the default like any unknown type.
-        if self.device_type == "panel" and self.api_mode != "virtual":
+        self.output = self.output.strip() if isinstance(self.output, str) and self.output.strip() else _VESTABOARD
+        # "panel" is a free rows × cols content grid: a FiestaPanel's, or an
+        # output plugin's (an LED matrix is any rows × cols, plan D8). No
+        # Vestaboard accepts an arbitrary rows × cols frame, so a Vestaboard
+        # claiming it falls back to the default like any unknown type —
+        # coercing a plugin's board instead would silently make a
+        # non-Vestaboard board a Vestaboard-shaped one.
+        if self.device_type == "panel" and self.output == _VESTABOARD:
             self.device_type = "flagship"
         if not isinstance(self.enabled, bool):
             self.enabled = bool(self.enabled)
         if not isinstance(self.paused, bool):
             self.paused = bool(self.paused)
+        if not isinstance(self.auto_restore, bool):
+            # ``PUT /settings/board`` takes raw dicts, and ``bool("false")``
+            # is True: read the usual spellings, and anything else as the
+            # default (on).
+            text = str(self.auto_restore).strip().lower()
+            self.auto_restore = text not in ("false", "0", "no", "off", "none", "")
+        self.transition = (self.transition.strip() or None) if isinstance(self.transition, str) else None
+        self.transition_step_interval_ms = clamp_transition_speed(
+            "transition_step_interval_ms", self.transition_step_interval_ms
+        )
+        self.transition_step_size = clamp_transition_speed("transition_step_size", self.transition_step_size)
         # Name is user-editable (issue #1792): strip, cap, and fall back to
         # the default. "   " is truthy, so a falsy-only guard stored
         # whitespace verbatim and rendered a blank sidebar row.
@@ -231,7 +287,8 @@ class BoardInstance:
             self.notes_tall = 1
         if self.notes_tall > MAX_NOTES_PER_AXIS:
             self.notes_tall = MAX_NOTES_PER_AXIS
-        # A panel always carries a valid grid (clamped; a missing axis falls
+        # A panel always carries a valid grid (clamped to the absolute 3 × 10
+        # minimum, so an LED board's 8 × 10 is kept; a missing axis falls
         # back to the Note-sized minimum so the board still resolves); every
         # other type carries none, so a stale grid can never leak into a
         # flagship's geometry after a type change.
@@ -243,8 +300,75 @@ class BoardInstance:
         else:
             self.grid_rows = None
             self.grid_cols = None
-        # Tiles only make sense on note-array boards
-        self.tiles = normalize_note_array_tiles(self.tiles) if self.device_type == "note_array" else []
+        if self.output == _FIESTAPANEL:
+            # A panel renders to memory: it has no connection to configure.
+            self.output_config = {}
+            self.device_model = None
+        else:
+            from src.outputs.config_hooks import normalize_config
+
+            if self.output in BUILTIN_OUTPUT_IDS:
+                self.device_model = None
+            else:
+                model = self.device_model.strip() if isinstance(self.device_model, str) else ""
+                self.device_model = model or None
+            self.output_config = normalize_config(self.output, self.output_config, self._geometry_facts())
+
+    # --- the settings-v3 flat view, and the output's status ------------------------------
+
+    def _geometry_facts(self) -> dict:
+        """What an output reads about the board besides its settings."""
+        return {
+            "id": self.id,
+            "device_type": self.device_type,
+            "notes_wide": self.notes_wide,
+            "notes_tall": self.notes_tall,
+            "grid_rows": self.grid_rows,
+            "grid_cols": self.grid_cols,
+            "output": self.output,
+            "device_model": self.device_model,
+        }
+
+    def _flat(self, name: str):
+        from src.settings.board_shape import flat_connection
+
+        return flat_connection({"output": self.output, "output_config": self.output_config})[name]
+
+    @property
+    def api_mode(self) -> str:
+        return self._flat("api_mode")
+
+    @property
+    def host(self) -> str:
+        return self._flat("host")
+
+    @property
+    def port(self) -> int:
+        return self._flat("port")
+
+    @property
+    def local_api_key(self) -> str:
+        return self._flat("local_api_key")
+
+    @property
+    def cloud_key(self) -> str:
+        return self._flat("cloud_key")
+
+    @property
+    def note_array_token(self) -> str:
+        return self._flat("note_array_token")
+
+    @property
+    def tiles(self) -> list:
+        return self._flat("tiles")
+
+    @property
+    def status(self):
+        """The board's :class:`~src.outputs.hooks.OutputStatus` as its output
+        reads its settings, or ``None`` when the output has nothing to say."""
+        from src.outputs.config_hooks import board_status
+
+        return board_status({**self._geometry_facts(), "output_config": self.output_config})
 
     @property
     def effective_code62_glyph(self) -> str:
@@ -263,34 +387,17 @@ class BoardInstance:
         return self.code62_glyph
 
     @property
-    def uses_local_tiles(self) -> bool:
-        """True when this note array is driven tile-by-tile over the local API.
-
-        Requires BOTH api_mode == "local" and at least one saved tile: legacy
-        array dicts created without an explicit api_mode default to "local"
-        but carry only a cloud token — those must keep driving via the cloud.
-        """
-        return is_note_array(self.device_type) and self.api_mode == "local" and bool(self.tiles)
-
-    @property
     def is_connection_configured(self) -> bool:
-        if self.api_mode == "virtual":
-            # Virtual boards (FiestaPanel) render to memory; there is no
-            # connection to configure.
-            return True
-        if is_note_array(self.device_type):
-            if self.uses_local_tiles:
-                # A partial array is usable: assigned tiles receive their
-                # slice, unassigned slots simply stay dark. Requiring every
-                # slot would flip a half-assembled array back to
-                # "unconfigured" and could re-trigger first-run detection.
-                return bool(self.configured_tiles())
-            # notes_wide/notes_tall are always >= 1 (clamped in __post_init__),
-            # so configuration hinges solely on having a token.
-            return bool(self.note_array_token)
-        if self.api_mode == "cloud":
-            return bool(self.cloud_key)
-        return bool(self.local_api_key and self.host)
+        """Whether a driver can be built for this board (its output's
+        :attr:`status`). A FiestaPanel always is. An output that is not
+        installed (yet: at boot the plugin registry may still be loading it)
+        has no status, and any stored setting counts, as for
+        :attr:`has_connection_attempt`; whether a driver can really be built
+        is the runtime factory's answer."""
+        status = self.status
+        if status is None:
+            return self.has_connection_attempt
+        return status.configured
 
     @property
     def has_connection_attempt(self) -> bool:
@@ -301,39 +408,43 @@ class BoardInstance:
         *misconfigured*, not *unconfigured*. First-run detection must use
         this, not the strict check — a misconfigured board should surface
         as a per-board error (#1813), never flip a working install back
-        into the setup wizard (#1760).
+        into the setup wizard (#1760). With no status from its output (one
+        that is not installed), any stored setting counts.
         """
-        if self.api_mode == "virtual":
-            return True
-        return bool(self.host or self.local_api_key or self.cloud_key or self.note_array_token or self.tiles)
-
-    def configured_tiles(self) -> list[dict]:
-        """Return tiles that are in-range for the current W×H, enabled, and credentialed.
-
-        Single source of truth for "which tiles can actually be driven" —
-        used by the client factory, the configured check, and identify.
-        """
-        return [
-            t
-            for t in self.tiles
-            if t["row"] < self.notes_tall
-            and t["col"] < self.notes_wide
-            and t["enabled"]
-            and t["host"]
-            and t["local_api_key"]
-        ]
+        status = self.status
+        if status is None:
+            return any(value not in (None, "", [], {}) for value in self.output_config.values())
+        return status.attempted
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        """The board as settings v4 stores it."""
+        data = asdict(self)
+        if self.device_model is None:
+            del data["device_model"]
+        for key in ("transition", "transition_step_interval_ms", "transition_step_size"):
+            if data[key] is None:
+                del data[key]
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> "BoardInstance":
-        port = data.get("port")
-        if port is not None and not isinstance(port, int):
-            try:
-                port = int(port)
-            except (TypeError, ValueError):
-                port = 7000
+        """A board from a stored or incoming dict, settings v3 or v4.
+
+        The output follows the precedence rule (:func:`derive_output_id`).
+        For a Vestaboard, flat connection fields (a settings-v3 board, or a
+        write in the legacy flat shape) are folded into ``output_config``,
+        and win over a value the dict's ``output_config`` also carries: a
+        dict carrying both halves is a flat write over a stored board. A
+        caller that has the stored board and must honour whichever half the
+        client actually changed merges first
+        (:func:`src.settings.board_shape.merge_board_write`). Flat fields mean
+        nothing to any other output and are dropped.
+        """
+        output = derive_output_id(data)
+        config = data.get("output_config")
+        if output == _VESTABOARD:
+            flat = {name: data[name] for name in LEGACY_CONNECTION_FIELDS if name in data}
+            config = {**(config if isinstance(config, dict) else {}), **flat}
         return cls(
             id=data.get("id", str(uuid.uuid4())),
             name=data.get("name", ""),
@@ -347,17 +458,18 @@ class BoardInstance:
             enabled=data.get("enabled", True),
             paused=data.get("paused", False),
             schedule_enabled=data.get("schedule_enabled", False),
-            api_mode=data.get("api_mode", "local"),
-            host=data.get("host", ""),
-            port=port if port is not None else 7000,
-            local_api_key=data.get("local_api_key", ""),
-            cloud_key=data.get("cloud_key", ""),
-            note_array_token=(data.get("note_array_token") or "").strip(),
+            # Absent on a board saved before #2354: on, like a new board.
+            auto_restore=data.get("auto_restore", True),
             notes_wide=data.get("notes_wide", 1),
             notes_tall=data.get("notes_tall", 1),
             grid_rows=data.get("grid_rows"),
             grid_cols=data.get("grid_cols"),
-            tiles=data.get("tiles") or [],
+            output=output,
+            output_config=config,
+            device_model=data.get("device_model"),
+            transition=data.get("transition"),
+            transition_step_interval_ms=data.get("transition_step_interval_ms"),
+            transition_step_size=data.get("transition_step_size"),
         )
 
 
@@ -380,6 +492,32 @@ class BoardContext:
     device_type: str  # "flagship" | "note" | future/composite
     rows: int  # height in tiles
     cols: int  # width in tiles
+    # What the display can draw (src.outputs.display_profile.DisplayProfile):
+    # its technology, colour, lowercase, coloured text, backgrounds, tiles
+    # and icons, as its output plugin declares them. None when the render has
+    # no board in hand (a size-only preview, a unit test); a plugin treats
+    # None as the split-flap baseline.
+    display: Any = None
+
+    @property
+    def key(self) -> str:
+        """Identity for per-board state: equal keys render identically.
+
+        Key any per-board cache or state on this, never on ``device_type``
+        alone: a board's size can change at runtime (an LED board's text
+        size switches a Pixoo between 10 x 16 and 8 x 10 under one
+        ``device_type``), and two boards of one size can draw differently
+        (a split-flap and an LED panel). It is the key core caches plugin
+        results on. Flagship and Note have fixed sizes, so their
+        ``device_type`` stands for the size; every other family folds its
+        dimensions in; the display's own key is appended when known.
+        """
+        if self.device_type in ("flagship", "note"):
+            key = self.device_type
+        else:
+            key = f"{self.device_type}:{self.cols}x{self.rows}"
+        display = self.display
+        return f"{key}|{display.key}" if display is not None else key
 
     @property
     def width(self) -> int:
@@ -444,11 +582,21 @@ def is_panel(device_type: str) -> bool:
     return device_type == "panel"
 
 
-def clamp_grid(grid_rows: int, grid_cols: int) -> DeviceDimensions:
-    """Clamp a panel grid into [MIN_GRID_*, MAX_GRID_*] on each axis."""
+def clamp_grid(
+    grid_rows: int,
+    grid_cols: int,
+    min_rows: int = ABSOLUTE_MIN_GRID_ROWS,
+    min_cols: int = ABSOLUTE_MIN_GRID_COLS,
+) -> DeviceDimensions:
+    """Clamp a panel grid into [min_*, MAX_GRID_*] on each axis.
+
+    The floor defaults to the absolute minimum (ABSOLUTE_MIN_GRID_*, 3 × 10),
+    so a stored LED board's 8 × 10 grid is kept, not widened to 15. FiestaPanel
+    autofit passes the Note floor (src/panels/autofit.py).
+    """
     return DeviceDimensions(
-        rows=max(MIN_GRID_ROWS, min(MAX_GRID_ROWS, int(grid_rows))),
-        cols=max(MIN_GRID_COLS, min(MAX_GRID_COLS, int(grid_cols))),
+        rows=max(min_rows, min(MAX_GRID_ROWS, int(grid_rows))),
+        cols=max(min_cols, min(MAX_GRID_COLS, int(grid_cols))),
     )
 
 
@@ -463,64 +611,6 @@ def panel_dimensions(grid_rows: int | None, grid_cols: int | None) -> DeviceDime
         if isinstance(value, bool) or not isinstance(value, int):
             raise ValueError(f"A panel grid needs an integer {name} (got {value!r})")
     return clamp_grid(grid_rows, grid_cols)
-
-
-def slice_note_array_grid(
-    grid: list[list[int]], notes_wide: int, notes_tall: int
-) -> dict[tuple[int, int], list[list[int]]]:
-    """Slice a full note-array grid into per-tile 3×15 subgrids.
-
-    The grid must be exactly (notes_tall * NOTE_ROWS) × (notes_wide * NOTE_COLS).
-    Returns subgrids keyed by (row, col) in note coordinates, 0-indexed.
-
-    Raises ValueError if the grid does not match the expected dimensions.
-    """
-    dims = note_array_dimensions(notes_wide, notes_tall)
-    if len(grid) != dims.rows or any(len(row) != dims.cols for row in grid):
-        raise ValueError(f"Grid must be exactly {dims.rows}×{dims.cols} for a {notes_wide}×{notes_tall} note array")
-    return {
-        (tr, tc): [grid[tr * NOTE_ROWS + i][tc * NOTE_COLS : (tc + 1) * NOTE_COLS] for i in range(NOTE_ROWS)]
-        for tr in range(notes_tall)
-        for tc in range(notes_wide)
-    }
-
-
-def stitch_note_array_grid(
-    subgrids: dict[tuple[int, int], list[list[int]]],
-    notes_wide: int,
-    notes_tall: int,
-    fill: int = 0,
-) -> list[list[int]]:
-    """Stitch per-tile 3×15 subgrids back into a full note-array grid.
-
-    Inverse of slice_note_array_grid. Missing or malformed subgrids leave
-    their slot filled with ``fill``.
-    """
-    dims = note_array_dimensions(notes_wide, notes_tall)
-    grid = [[fill] * dims.cols for _ in range(dims.rows)]
-    for (tr, tc), sub in subgrids.items():
-        if tr < 0 or tr >= notes_tall or tc < 0 or tc >= notes_wide:
-            continue
-        if not isinstance(sub, list) or len(sub) != NOTE_ROWS:
-            continue
-        if any(not isinstance(r, list) or len(r) != NOTE_COLS for r in sub):
-            continue
-        for i in range(NOTE_ROWS):
-            grid[tr * NOTE_ROWS + i][tc * NOTE_COLS : (tc + 1) * NOTE_COLS] = sub[i]
-    return grid
-
-
-def identify_pattern(row: int, col: int, notes_wide: int) -> list[list[int]]:
-    """Render the identify flash for one tile: a 3×15 grid labeling its slot.
-
-    Shows the reading-order position number plus the (row, col) coordinate,
-    1-indexed for humans — mirroring OS monitor-arrangement identify.
-    """
-    from .text_to_board import text_to_board_array
-
-    position = row * notes_wide + col + 1
-    text = f"\nPOSITION {position}\nR{row + 1} C{col + 1}"
-    return text_to_board_array(text, rows=NOTE_ROWS, cols=NOTE_COLS)
 
 
 def is_valid_note_array_grid(rows: int, cols: int) -> bool:
@@ -670,6 +760,67 @@ class Geometry(NamedTuple):
     grid_cols: int | None = None
 
 
+def _bounded_int(value, *, minimum: int, maximum: int | None = None) -> int | None:
+    """*value* when it is a whole number (an int, never a bool or a float)
+    within ``[minimum, maximum]``; otherwise ``None``."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        return None
+    if maximum is not None and value > maximum:
+        return None
+    return value
+
+
+#: The longest transition step interval, in ms: a display's
+#: (``transition_step_interval_ms``) and a page's (``transition_interval_ms``).
+#: The one definition: the settings and page models, the MCP docs and the web
+#: UI (``MAX_STEP_INTERVAL_MS`` in display-transition.tsx) all follow it.
+MAX_TRANSITION_STEP_INTERVAL_MS: int = 5000
+
+#: A display's transition speed fields and their bounds (settings v6).
+TRANSITION_SPEED_BOUNDS: dict[str, tuple[int, int | None]] = {
+    "transition_step_interval_ms": (0, MAX_TRANSITION_STEP_INTERVAL_MS),
+    "transition_step_size": (1, None),
+}
+
+
+def transition_speed(key: str, value) -> int | None:
+    """*value* for speed field *key* when it is in bounds, else ``None``.
+
+    The one validator for a display's transition speed: the board model,
+    the settings API and the MCP executors all use it.
+    """
+    minimum, maximum = TRANSITION_SPEED_BOUNDS[key]
+    return _bounded_int(value, minimum=minimum, maximum=maximum)
+
+
+def clamp_transition_speed(key: str, value) -> int | None:
+    """*value* for speed field *key* as stored data is normalized: above the
+    maximum it is clamped to the maximum (and logged), so data written before
+    the cap never blocks a later write; otherwise :func:`transition_speed`."""
+    _, maximum = TRANSITION_SPEED_BOUNDS[key]
+    if maximum is not None and isinstance(value, int) and not isinstance(value, bool) and value > maximum:
+        logging.getLogger(__name__).warning("%s %r is above the %d maximum; clamped", key, value, maximum)
+        return maximum
+    return transition_speed(key, value)
+
+
+def transition_speed_error(key: str, value) -> str | None:
+    """Why *value* is no valid speed for *key* (``None`` is: the device default)."""
+    if value is None or transition_speed(key, value) is not None:
+        return None
+    minimum, maximum = TRANSITION_SPEED_BOUNDS[key]
+    bound = f"between {minimum} and {maximum}" if maximum is not None else f"of at least {minimum}"
+    return f"{key} must be a whole number {bound} (got {value!r})."
+
+
+def is_split_flap(board) -> bool:
+    """Whether *board* is driven by a first-party split-flap output (a
+    Vestaboard, or a FiestaPanel imitating one), not an output plugin's
+    device (an LED matrix). Decides what an unset transition means: none on
+    a split-flap, the device model's default on an output plugin's board."""
+    return derive_output_id(board) in BUILTIN_OUTPUT_IDS
+
+
 def _optional_int(value) -> int | None:
     if isinstance(value, bool) or value is None:
         return None
@@ -677,6 +828,19 @@ def _optional_int(value) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def board_is_set_up(board: Any) -> bool:
+    """Whether a stored board dict carries a connection: configured, or with
+    any connection detail entered (a misconfigured board is that board's own
+    error, #1813). The placeholder board a fresh install seeds has neither."""
+    if not isinstance(board, dict):
+        return False
+    try:
+        instance = BoardInstance.from_dict(board)
+    except Exception:
+        return False
+    return instance.is_connection_configured or instance.has_connection_attempt
 
 
 def geometry_of(obj) -> Geometry:
@@ -727,6 +891,7 @@ def board_context_for(
     notes_tall: int = 1,
     grid_rows: int | None = None,
     grid_cols: int | None = None,
+    display: Any = None,
 ) -> BoardContext:
     """Build a :class:`BoardContext` for any device type, including note arrays.
 
@@ -741,4 +906,4 @@ def board_context_for(
     except ValueError:
         device_type = DEFAULT_DEVICE_TYPE
         dims = resolve_dimensions(device_type, notes_wide, notes_tall)
-    return BoardContext(device_type=device_type, rows=dims.rows, cols=dims.cols)
+    return BoardContext(device_type=device_type, rows=dims.rows, cols=dims.cols, display=display)

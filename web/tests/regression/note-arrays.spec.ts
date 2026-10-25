@@ -2,7 +2,7 @@
  * Note arrays — web (Playwright) regression coverage. [#1180]
  *
  * Covers the genuinely E2E-reachable note-array surface in
- * Settings → Hardware (web/src/components/settings/display-settings.tsx):
+ * a display's page on Displays (web/src/components/settings/display-settings.tsx):
  *   1. All 5 note-array presets selectable + persisted (W×H + device_type).
  *      (#1178 already covered "4 side-by-side"; this fills the other four and
  *      re-covers all five via a data-driven loop for completeness.)
@@ -29,7 +29,8 @@ import {
   ensureAuthForFetch,
   expect,
   loginIfNeeded,
-  openSettingsTab,
+  openDisplay,
+  openDisplays,
   resetToSingleBoard,
   test,
 } from "../helpers";
@@ -64,13 +65,9 @@ test.afterEach(async () => {
   await resetToSingleBoard();
 });
 
-/** Navigate to Settings → Hardware and expand the single "My Board" card. */
+/** Open the single "My Board" display's page (was: expand its card on Settings → Hardware). */
 async function openHardwareAndExpand(page: import("@playwright/test").Page) {
-  await page.goto("/settings");
-  await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-  await openSettingsTab(page, "Hardware");
-  // Expand the board card (header text is the board name).
-  await page.getByText("My Board").first().click();
+  await openDisplay(page, "My Board");
 }
 
 /** The grouped board type/size combobox inside the expanded board card. */
@@ -201,11 +198,9 @@ test.describe("regression: note-arrays — size indicator", () => {
       }),
     });
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
-    // The indicator is a role="img" in the always-visible card header.
+    // The indicator is a role="img" in the display card's summary.
     // aria-label = boardSizeIndicator.ariaLabelWithLayout
     // ("{rows} rows by {cols} columns, {layout}") → board-size-indicator.tsx:31.
     const indicator = page.getByRole("img", { name: "3 rows by 60 columns, 4 side-by-side" });
@@ -237,9 +232,7 @@ test.describe("regression: note-arrays — size indicator", () => {
       }),
     });
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
 
     // 3×2 notes → 6 × 45 chars; no preset matches → boardSizeIndicator.custom ("Custom").
     const indicator = page.getByRole("img", { name: "6 rows by 45 columns, Custom" });
@@ -278,28 +271,41 @@ test.describe("regression: note-arrays — auto-detect", () => {
       }),
     });
 
-    // Mock detect-size to classify the board as a flagship (22×6).
-    await page.route("**/settings/board/*/detect-size", async (route) => {
+    // Mock the board's detect action to classify it as a flagship (22×6).
+    await page.route("**/boards/*/actions/detect_geometry", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ device_type: "flagship", rows: 6, cols: 22 }),
+        body: JSON.stringify({
+          status: "ok",
+          message: "Size detected.",
+          guidance: [],
+          fields: null,
+          devices: null,
+          geometry: {
+            device_type: "flagship",
+            rows: 6,
+            cols: 22,
+            notes_wide: null,
+            notes_tall: null,
+            matched_preset: null,
+          },
+        }),
       });
     });
 
     await openHardwareAndExpand(page);
 
-    // Token field (displaySettings.noteArrayTokenLabel) is present for note arrays.
-    // exact: true — "Cloud API token is required" also renders for tokenless arrays.
-    await expect(page.getByText("Cloud API Token", { exact: true })).toBeVisible({ timeout: 5_000 });
+    // Token field (the Vestaboard manifest's note_array_token) is present for note arrays.
+    await expect(page.getByLabel(/Cloud API Token/)).toBeVisible({ timeout: 5_000 });
 
-    // Click Auto-detect (displaySettings.autoDetect → display-settings.tsx:725).
+    // Click Auto-detect (the manifest's detect_geometry action, auto_apply).
     await page.getByRole("button", { name: "Auto-detect from board" }).first().click();
 
     // Header now shows flagship dimensions (6 × 22) and persists flagship.
     await expect(page.getByText("6 × 22").first()).toBeVisible({ timeout: 10_000 });
     // The Cloud API Token field is hidden once the board is no longer a note array.
-    await expect(page.getByText("Cloud API Token", { exact: true })).toHaveCount(0, { timeout: 5_000 });
+    await expect(page.getByLabel(/Cloud API Token/)).toHaveCount(0, { timeout: 5_000 });
 
     const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
     const data = await res.json();
@@ -307,8 +313,8 @@ test.describe("regression: note-arrays — auto-detect", () => {
   });
 
   test("detect failure surfaces the 422 detail message inline", async ({ page }) => {
-    // Mock detect-size to fail with a FastAPI-style 422 `detail`.
-    await page.route("**/settings/board/*/detect-size", async (route) => {
+    // Mock the detect action to fail with a FastAPI-style 422 `detail`.
+    await page.route("**/boards/*/actions/detect_geometry", async (route) => {
       await route.fulfill({
         status: 422,
         contentType: "application/json",
@@ -320,8 +326,8 @@ test.describe("regression: note-arrays — auto-detect", () => {
 
     await page.getByRole("button", { name: "Auto-detect from board" }).first().click();
 
-    // fetchApi throws Error(detail); handleAutoDetect stores it in detectError
-    // and renders it inline (display-settings.tsx:728-732).
+    // fetchApi throws Error(detail); the settings screen shows it inline
+    // under the button that ran it (action-feedback.tsx, data-testid="action-failure").
     await expect(page.getByText("Board did not return a recognizable size")).toBeVisible({ timeout: 10_000 });
 
     // The board type is unchanged (still flagship from resetToSingleBoard).

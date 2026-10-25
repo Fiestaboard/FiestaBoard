@@ -1,14 +1,17 @@
 "use client";
 
-import { Box } from "@fiestaboard/ui";
+import { Box, Button, Text } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { ArrowUpRight, Square } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { AiBotMark } from "@/components/ai-bot-mark";
 import { type AiChatController, AiChatPanel } from "@/components/ai-chat-panel";
 import { AiDrawerResizeHandle } from "@/components/ai-drawer-resize-handle";
 import { useSpotlight } from "@/components/ai-spotlight/spotlight-provider";
 import { labelForTool } from "@/components/ai-tool-labels";
+import { useCurrentBoard } from "@/components/current-board-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
@@ -16,6 +19,7 @@ import { useAiDrawerWidth } from "@/hooks/use-ai-drawer-width";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import { type AiChatActivity, isActiveChatActivity } from "@/lib/ai-chat-activity";
 import type { ChatTurnContext, ToolCall, ToolResult } from "@/lib/ai-chat-types";
 import { queryKeysForTool } from "@/lib/ai-choreography/query-keys";
 import type { ChoreographyContext } from "@/lib/ai-choreography/types";
@@ -39,7 +43,17 @@ const LEGACY_CHAINING_MODE_KEY = "fiestaboard:ai-chaining-mode";
  * the on-screen walkthrough of each call are the next PR (the choreography).
  */
 export function GlobalAiChatDrawer() {
-  const { isOpen, close } = useGlobalAiPanel();
+  const { isOpen, isMinimized, open, close, minimize } = useGlobalAiPanel();
+  const [activity, setActivity] = useState<AiChatActivity>({ state: "idle" });
+  const restoreRef = useRef<HTMLButtonElement>(null);
+  // React runs ref cleanup before removing Stop, while its focus is still
+  // observable. Only return focus if it was here; never interrupt editing.
+  const dockStopRef = useCallback((node: HTMLButtonElement | null) => {
+    if (!node) return;
+    return () => {
+      if (document.activeElement === node) restoreRef.current?.focus();
+    };
+  }, []);
   const t = useTranslations("globalAiChatDrawer");
   // The drawer's width is the viewer's, dragged or nudged from the left
   // edge; `MainContent`'s reservation follows it through a CSS custom
@@ -50,9 +64,12 @@ export function GlobalAiChatDrawer() {
   const panelRef = useRef<HTMLDivElement>(null);
   // The element that had focus when the panel opened, so we can restore it on close.
   const openerRef = useRef<HTMLElement | null>(null);
+  const previousModeRef = useRef<"closed" | "open" | "minimized">("closed");
   const queryClient = useQueryClient();
   const router = useRouter();
   const { getEditorSnapshot, staging: pageStaging } = usePageEditorBridge();
+  // The chat teaches this board's display (LED colours, icons, canvases).
+  const { currentBoardId, currentBoard } = useCurrentBoard();
   const { staging: scheduleStaging } = useScheduleEditorBridge();
   const spotlight = useSpotlight();
   const tPanel = useTranslations("aiChatPanel");
@@ -115,40 +132,60 @@ export function GlobalAiChatDrawer() {
   const { data: pagesData } = useQuery({
     queryKey: ["pages"],
     queryFn: () => api.getPages(),
-    enabled: isOpen,
+    enabled: isOpen || isMinimized,
   });
 
   const { data: pluginsData } = useQuery({
     queryKey: ["plugins"],
     queryFn: () => api.listPlugins(),
-    enabled: isOpen,
+    enabled: isOpen || isMinimized,
   });
 
   const { data: schedulesData } = useQuery({
     queryKey: ["schedules"],
     queryFn: () => api.getSchedules(),
-    enabled: isOpen,
+    enabled: isOpen || isMinimized,
   });
 
   const { data: collectionsData } = useQuery({
     queryKey: ["collections"],
     queryFn: () => api.getCollections(),
-    enabled: isOpen,
+    enabled: isOpen || isMinimized,
   });
 
   const { data: registryData } = useQuery({
     queryKey: ["registry-plugins"],
     queryFn: () => api.listRegistryPlugins(),
-    enabled: isOpen,
+    enabled: isOpen || isMinimized,
   });
 
-  // Remember what had focus when the panel opened; give it back on close.
+  // Minimize keeps the original opener: the dock button disappears on
+  // restore, so capturing it again would strand focus on the next Close.
+  useEffect(() => {
+    const previous = previousModeRef.current;
+    if (isOpen) {
+      if (previous !== "minimized") openerRef.current = document.activeElement as HTMLElement | null;
+    } else if (isMinimized) {
+      restoreRef.current?.focus();
+    } else if (previous !== "closed") {
+      openerRef.current?.focus?.();
+    }
+    previousModeRef.current = isOpen ? "open" : isMinimized ? "minimized" : "closed";
+  }, [isOpen, isMinimized]);
+
+  // An explicit Open/Restore always enters the conversation, including
+  // while the walkthrough has temporarily released the modal focus trap.
   useEffect(() => {
     if (!isOpen) return;
-    openerRef.current = document.activeElement as HTMLElement | null;
-    return () => {
-      openerRef.current?.focus?.();
-    };
+    const timer = window.setTimeout(() => {
+      const panel = panelRef.current;
+      (
+        panel?.querySelector<HTMLElement>("#ai-chat-input:not([disabled])") ??
+        panel?.querySelector<HTMLElement>("button:not([disabled])") ??
+        panel
+      )?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [isOpen]);
 
   // Modal focus management: trap Tab focus inside the panel while open and
@@ -178,10 +215,18 @@ export function GlobalAiChatDrawer() {
     // Move focus into the panel on open.
     const focusTimer = window.setTimeout(() => {
       const focusable = getFocusable();
-      (focusable[0] ?? panelRef.current)?.focus();
+      (
+        panelRef.current?.querySelector<HTMLElement>("#ai-chat-input:not([disabled])") ??
+        focusable[0] ??
+        panelRef.current
+      )?.focus();
     }, 0);
 
     const handler = (e: KeyboardEvent) => {
+      // The settings popover owns its portal's focus and Escape dismissal.
+      // It is outside panelRef even though it belongs to this drawer.
+      if (e.defaultPrevented || (e.target instanceof Element && e.target.closest("[data-ai-composer-settings-popup]")))
+        return;
       if (e.key === "Escape") {
         close();
         return;
@@ -218,10 +263,10 @@ export function GlobalAiChatDrawer() {
   // Auto-close when AI is disabled so the drawer doesn't trap users who
   // navigate to the AI panel and then toggle AI off in Settings (issue #806).
   useEffect(() => {
-    if (isOpen && aiSettings && !aiSettings.enabled) {
+    if ((isOpen || isMinimized) && aiSettings && !aiSettings.enabled) {
       close();
     }
-  }, [isOpen, aiSettings, close]);
+  }, [isOpen, isMinimized, aiSettings, close]);
 
   const getTurnContext = useCallback((): ChatTurnContext => {
     const pages = pagesData?.pages?.map((p) => ({ id: p.id, name: p.name }));
@@ -255,8 +300,10 @@ export function GlobalAiChatDrawer() {
       installed: e.installed,
     }));
     const editorSnapshot = getEditorSnapshot();
+    const boardId = editorSnapshot?.board_id ?? currentBoardId;
     return {
-      deviceType: "flagship",
+      deviceType: editorSnapshot?.device_type ?? currentBoard?.device_type ?? "flagship",
+      ...(boardId && { boardId }),
       // "editor" when the user is actively editing a page (so the AI
       // should bias toward updating THAT page); "global" otherwise (so the
       // AI biases toward creating things the app then opens).
@@ -268,7 +315,16 @@ export function GlobalAiChatDrawer() {
       availableCollections: collections,
       registryPlugins,
     };
-  }, [pagesData, pluginsData, schedulesData, collectionsData, registryData, getEditorSnapshot]);
+  }, [
+    pagesData,
+    pluginsData,
+    schedulesData,
+    collectionsData,
+    registryData,
+    getEditorSnapshot,
+    currentBoardId,
+    currentBoard,
+  ]);
 
   // ---------------------------------------------------------------------------
   // After a tool ran: the toast, and for schedules the same Undo affordances
@@ -504,63 +560,126 @@ export function GlobalAiChatDrawer() {
   // A wall display never grows an AI drawer.
   if (chromeless || !hasProviders) return null;
 
+  const working = isActiveChatActivity(activity.state);
+  const activityLabel = activity.tool
+    ? `${tPanel(`activity.${activity.state}`)} · ${labelForTool(activity.tool, tPanel)}`
+    : tPanel(`activity.${activity.state}`);
+
   return (
-    <Box
-      ref={panelRef}
-      role="dialog"
-      aria-modal={!driving}
-      data-driving={driving ? "" : undefined}
-      aria-label={t("panelAriaLabel")}
-      tabIndex={-1}
-      className={cn(
-        // A floating card on the same 12px inset the rail sits on. Its width
-        // is the viewer's choice, published as --ai-drawer-width; MainContent
-        // reserves that plus the inset (globals.css) so the page never sits
-        // under it. The card chrome itself (bg, border, radius, shadow) lives
-        // on AiChatPanel's Card; this Box only sizes, places and slides it.
-        // Below lg it clears the floating mobile header the same way the nav
-        // menu does, and the maxWidth clamp keeps the card inside a phone
-        // viewport (the drawer is full-bleed there, and unresizable).
-        "fixed right-3 bottom-3 top-[calc(var(--mobile-header-height,56px)+16px)] lg:top-3 z-40 flex w-96 flex-col",
-        "lg:w-[var(--ai-drawer-width,384px)] ai-drawer-width-transition",
-        "transition-transform duration-300 ease-in-out sidebar-transition",
-      )}
-      // Inline rather than a Tailwind arbitrary class: translate-x-full alone
-      // would leave the 12px inset's worth of card (plus its shadow) peeking
-      // at the screen edge, so the closed offset is 100% + the inset.
-      style={{
-        maxWidth: "calc(100vw - 1.5rem)",
-        transform: isOpen ? "translateX(0)" : "translateX(calc(100% + 0.75rem))",
-      }}
-      aria-hidden={!isOpen}
-    >
-      <AiChatPanel
-        getTurnContext={getTurnContext}
-        onToolCall={handleToolCall}
-        onToolStreaming={handleToolStreaming}
-        onToolResult={handleToolResult}
-        onAwaitingApproval={handleAwaitingApproval}
-        onTurnComplete={handleTurnComplete}
-        onConversationLoaded={handleConversationLoaded}
-        onStopped={handleStopped}
-        onClose={close}
-        controllerRef={controllerRef}
-      />
-      {/* After the panel in DOM order, not before: the drawer moves focus to
+    <>
+      <Box
+        id="fiestabot-chat-drawer"
+        ref={panelRef}
+        role="dialog"
+        aria-modal={!driving}
+        data-driving={driving ? "" : undefined}
+        aria-label={t("panelAriaLabel")}
+        tabIndex={-1}
+        className={cn(
+          // A floating card on the same 12px inset the rail sits on. Its width
+          // is the viewer's choice, published as --ai-drawer-width; MainContent
+          // reserves that plus the inset (globals.css) so the page never sits
+          // under it. The card chrome itself (bg, border, radius, shadow) lives
+          // on AiChatPanel's Card; this Box only sizes, places and slides it.
+          // Below lg it clears the floating mobile header the same way the nav
+          // menu does, and the maxWidth clamp keeps the card inside a phone
+          // viewport (the drawer is full-bleed there, and unresizable).
+          "fixed right-3 bottom-3 top-[calc(var(--mobile-header-height,56px)+16px)] lg:top-3 z-40 flex w-96 flex-col",
+          "lg:w-[var(--ai-drawer-width,384px)] ai-drawer-width-transition",
+          "transition-transform duration-300 ease-in-out sidebar-transition",
+        )}
+        // Inline rather than a Tailwind arbitrary class: translate-x-full alone
+        // would leave the 12px inset's worth of card (plus its shadow) peeking
+        // at the screen edge, so the closed offset is 100% + the inset.
+        style={{
+          maxWidth: "calc(100% - 1.5rem)",
+          transform: isOpen ? "translateX(0)" : "translateX(calc(100% + 0.75rem))",
+        }}
+        aria-hidden={!isOpen}
+        inert={!isOpen}
+        // globals.css pauses the sparkle animation while closed (perf).
+        data-ai-drawer={isOpen ? "open" : "closed"}
+      >
+        <AiChatPanel
+          getTurnContext={getTurnContext}
+          onToolCall={handleToolCall}
+          onToolStreaming={handleToolStreaming}
+          onToolResult={handleToolResult}
+          onAwaitingApproval={handleAwaitingApproval}
+          onTurnComplete={handleTurnComplete}
+          onConversationLoaded={handleConversationLoaded}
+          onStopped={handleStopped}
+          onClose={close}
+          onMinimize={minimize}
+          onActivityChange={setActivity}
+          controllerRef={controllerRef}
+        />
+        {/* After the panel in DOM order, not before: the drawer moves focus to
           its first focusable child on open, and that should be the composer,
           not the resize handle. Position is absolute, so this costs nothing
           visually and keeps the handle late in the tab order. */}
-      {isOpen ? (
-        <AiDrawerResizeHandle
-          width={width}
-          minWidth={minWidth}
-          maxWidth={maxWidth}
-          onResize={setWidth}
-          onToggle={toggleWidth}
-          onReset={resetWidth}
-          onDraggingChange={setDragging}
-        />
+        {isOpen ? (
+          <AiDrawerResizeHandle
+            width={width}
+            minWidth={minWidth}
+            maxWidth={maxWidth}
+            onResize={setWidth}
+            onToggle={toggleWidth}
+            onReset={resetWidth}
+            onDraggingChange={setDragging}
+          />
+        ) : null}
+      </Box>
+      {isMinimized && aiSettings?.enabled ? (
+        <Box
+          className="fiestabot-dock fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-center gap-1 rounded-2xl border bg-card p-1.5 shadow-lg"
+          data-state={activity.state}
+        >
+          <Button
+            ref={restoreRef}
+            type="button"
+            variant="ghost"
+            onClick={open}
+            aria-label={tPanel("restorePanelAriaLabel", { status: activityLabel })}
+            aria-controls="fiestabot-chat-drawer"
+            aria-expanded={false}
+            className="h-auto min-w-0 justify-start gap-2.5 rounded-xl px-2.5 py-1.5"
+          >
+            <AiBotMark active={working} className="size-8 rounded-lg" />
+            <Text as="span" className="min-w-0 text-left">
+              <Text as="span" size="sm" weight="semibold" className="block">
+                {tPanel("panelTitle")}
+              </Text>
+              <Text
+                as="span"
+                size="xs"
+                tone="muted"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                className="block max-w-52 truncate"
+              >
+                {activityLabel}
+              </Text>
+            </Text>
+            <ArrowUpRight className="ml-1 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </Button>
+          {working ? (
+            <Button
+              ref={dockStopRef}
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => controllerRef.current?.stop()}
+              aria-label={tPanel("stopButton")}
+              title={tPanel("stopButton")}
+              className="size-9 shrink-0 rounded-xl"
+            >
+              <Square className="size-3.5 fill-current" aria-hidden="true" />
+            </Button>
+          ) : null}
+        </Box>
       ) : null}
-    </Box>
+    </>
   );
 }

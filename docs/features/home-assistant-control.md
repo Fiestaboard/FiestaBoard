@@ -99,7 +99,7 @@ Once connected, FiestaBoard appears as a device with **25 entities** — control
 | **Display Service** | Switch | Start/stop the FiestaBoard display service |
 | **Board Paused** | Switch | Pause/resume the primary board. While on, all writes stop, including manual messages, page selections, collection rotation and scheduled updates. |
 | **Active Page** | Select | Choose a page or collection to display. Collections appear as `Collection: Name`; labels that collide include the collection's id. The options refresh automatically when pages or collections are added, renamed or removed. Selecting a target always re-sends it, even if already active, so it restores content after a manual message. The `None` option represents no active page; as a command it only applies to secondary boards, since the primary board never goes dark. |
-| **Transition Style** | Select | Board transition animation (column, reverse-column, edges-to-center, row, diagonal, random) |
+| **Transition Style** | Select | The first display's transition animation (column, reverse-column, edges-to-center, row, diagonal, random). Each display owns its transition; set the others in **Displays** |
 | **Send Message** | Text | Send a text message to the board (up to 255 characters — Home Assistant's text-entity ceiling; markup like `{red}` counts as characters here but as one flap on the board) |
 | **Refresh Display** | Button | Force a display refresh. This is a *force* refresh: unchanged content is re-sent, so it restores the active page after something else wrote to the board. |
 | **Blank Board** | Button | Clear the board display (all blank) |
@@ -111,7 +111,7 @@ Once connected, FiestaBoard appears as a device with **25 entities** — control
 content comes from — the schedule while on, the manually selected page while
 off — so both edges of the switch change the board on the next polling pass.
 To make re-enabling wait until the schedule reaches its next window, turn on
-*Wait for the next scheduled change* in Settings → Behavior (see
+*Wait for the next scheduled change* in Settings → Scheduling (see
 [Schedule Mode](/docs/features/schedule)). To leave the board untouched
 entirely while an automation runs, turn on the **Board Paused** switch instead
 of the Schedule switch.

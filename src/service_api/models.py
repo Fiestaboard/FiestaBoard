@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ApiInfoResponse(BaseModel):
@@ -40,6 +40,16 @@ class DiscoverResponse(BaseModel):
     name: str
 
 
+class OutputStatusSummary(BaseModel):
+    """A board's connection summary, as its output reads the board's
+    settings: what the board card's Connected / Not configured badge shows."""
+
+    state: Literal["connected", "not_configured"] = Field(
+        description="connected: the board has the details its output needs; not_configured: it does not."
+    )
+    message: str = Field(default="", description="The output's own words about it, if any.")
+
+
 class BoardStatus(BaseModel):
     """Per-board runtime state (issue #1244)."""
 
@@ -48,6 +58,9 @@ class BoardStatus(BaseModel):
     active_page_id: str | None = None
     #: Why this board failed to get a client at startup, if it did (#1749).
     error: str | None = None
+    #: The board's connection summary from its output (plan D13), or None
+    #: when the output has nothing to say (a FiestaPanel is always connected).
+    output_status: OutputStatusSummary | None = None
 
 
 class StatusResponse(BaseModel):
@@ -93,6 +106,17 @@ class RefreshResponse(BaseModel):
     sent: bool
 
 
+class HeldSendSummary(BaseModel):
+    """What a board is holding until silence ends (issue #1944)."""
+
+    #: ``text`` | ``lines`` | ``grid`` | ``page`` | ``display``.
+    kind: str
+    #: A short human preview (at most 40 characters).
+    preview: str
+    #: ISO-8601 instant it was held.
+    queued_at: str
+
+
 class SilenceStatusResponse(BaseModel):
     """``GET /silence-status`` — the resolved silence window for one board."""
 
@@ -111,3 +135,19 @@ class SilenceStatusResponse(BaseModel):
     indicator_position: str | None = None
     #: The board this window describes. Null only when no board is configured.
     board_id: str | None = None
+    #: ISO-8601 instant of the next change (now + ``seconds_until_next_change``)
+    #: — while ``active``, when silence ends. Null when silence is disabled.
+    #: The UI formats it in the viewer's local time (issue #1943).
+    ends_at_utc: str | None = None
+    #: The board's resolved ``show_queued_on_exit``: a send refused during
+    #: silence is held and shown when it ends (issue #1944).
+    holds_blocked_sends: bool = False
+    #: The send held for this board, if any.
+    held: HeldSendSummary | None = None
+
+
+class SilenceQueueDiscardResponse(BaseModel):
+    """``DELETE /silence-queue`` — whether a held send was discarded."""
+
+    board_id: str
+    discarded: bool

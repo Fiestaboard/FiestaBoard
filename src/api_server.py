@@ -39,12 +39,6 @@ from .auth.routes import router as auth_router  # noqa: E402
 # tests/test_api_extended.py exercises the helper through it.
 from .board_chars import characters_to_message as _characters_to_message  # noqa: E402,F401
 
-# Patch seams (Phase 2, Task 8): api_server has no handler of its own left that
-# calls these, but src/settings/routes.py resolves them through
-# `src.api_server` at call time so the ~200 tests that patch them at that path
-# keep steering the moved /settings handlers.
-from .board_client import board_client_from_board_dict  # noqa: E402, F401  (patch seam)
-
 # Board lookup / send guards and the DisplayService accessor now live in
 # neutral modules so the extracted routers can import them directly instead of
 # reaching back into this one at call time (Phase 2 §2.3). They stay bound as
@@ -54,6 +48,7 @@ from .board_guards import (  # noqa: E402, F401  (patch seams, see above)
     _board_dims,
     _board_is_paused,
     _require_board,
+    silence_verdict,
 )
 from .collections.models import is_collection_id  # noqa: E402, F401  (patch seam)
 
@@ -115,6 +110,7 @@ from .pages.service import (  # noqa: E402, F401  (patch seam)
     get_page_service,
 )
 from .panels.service import get_panel_service  # noqa: E402, F401  (patch seam, see above)
+from .request_trace import RequestTraceMiddleware  # noqa: E402
 from .settings.service import get_settings_service  # noqa: E402, F401  (patch seam)
 from .text_to_board import text_to_board_array  # noqa: E402, F401  (patch seam)
 from .time_service import reset_time_service  # noqa: E402
@@ -172,11 +168,30 @@ def _run_startup_migrations() -> None:
     except Exception:
         logger.warning("Silence-schedule UTC migration failed on startup", exc_info=True)
     # Re-fit panels fit by an older rule (Note blocks) to the per-character
-    # grid, before the service builds clients from the board list. Never
-    # raises (logs instead) — see src/panels/reconcile.py.
+    # grid, before the service builds clients from the board list. Pending
+    # content conversions recover first; uncertain recovery stops startup.
     from .panels.reconcile import reconcile_panel_boards
 
     reconcile_panel_boards()
+    # HTTPS (Beta) is gone (settings v5): delete the self-signed cert pair it
+    # generated. Never raises (logs instead) — see src/system/legacy_https.py.
+    try:
+        from .paths import get_data_dir
+        from .system.legacy_https import remove_legacy_https_certs
+
+        remove_legacy_https_certs(get_data_dir())
+    except Exception:
+        logger.warning("Leftover HTTPS certificate cleanup failed on startup", exc_info=True)
+    # After the migrations, so it reads the migrated stores: report stored
+    # text that draws differently now that every board (split-flap too)
+    # speaks extended markup (plan Task 12). A report, never a rewrite.
+    try:
+        from .markup_compat import log_upgrade_scan
+        from .paths import get_data_dir
+
+        log_upgrade_scan(get_data_dir())
+    except Exception:
+        logger.warning("Markup upgrade scan failed on startup", exc_info=True)
 
 
 @asynccontextmanager
@@ -471,6 +486,18 @@ own contract checks. Two flat legacy operations, `POST /send-message` and
 `POST /refresh`, remain here because earlier documentation named them; both
 are deprecated and both name their `/v1` replacement in a `Link` header.
 
+### Deprecated board fields
+
+Since settings v4, a board's connection lives in its `output_config`, read
+alongside its `output`. The flat connection fields that board responses
+still carry (`api_mode`, `host`, `port`, `local_api_key`, `cloud_key`,
+`note_array_token`, `tiles`, and the `board_api_mode`, `board_host` and
+`board_key_set` summary fields) are copies of it, kept for compatibility
+through v10 and removed in v11. Every response that carries them sends
+`Deprecation: true` and a `Link` with `rel="deprecation"` pointing here,
+and the schema marks the typed ones `deprecated`. The same fields leave the
+MQTT `board_api_mode` entity and the MCP board tools in v11.
+
 ### Authentication
 
 Off by default: a fresh install answers every request. With
@@ -501,7 +528,6 @@ OPENAPI_TAGS = [
     {"name": "schedules", "description": "Time-of-day rules choosing which page a board shows."},
     {"name": "collections", "description": "Ordered groups of pages that rotate as one."},
     {"name": "triggers", "description": "Event-driven page interrupts, and the ones currently firing."},
-    {"name": "transitions", "description": "Transition plugins (beta): preview, test and restore board animations."},
     {
         "name": "plugins",
         "description": "Install, configure, enable and inspect the data-source plugins that fill template variables.",
@@ -509,10 +535,11 @@ OPENAPI_TAGS = [
     {"name": "plugin-support", "description": "Platform helpers that back a plugin's configuration form."},
     {"name": "staff-picks", "description": "Curated example pages shipped with the app."},
     {"name": "panels", "description": "FiestaPanel — the read-only browser view of a board."},
+    {"name": "outputs", "description": "Boards driven by output plugins: create one from a declared device model."},
     {"name": "ai", "description": "AI page generation, chat editing and the operation grammar shared with MCP."},
     {
         "name": "settings",
-        "description": "Install settings: boards, display, location, polling, output, MQTT, AI, beta flags.",
+        "description": "Install settings: boards, display, location, polling, output, MQTT, AI, plugin flags.",
     },
     {"name": "config", "description": "Board connection configuration and its validation/discovery helpers."},
     {"name": "backup", "description": "Export and import the whole install as one file."},
@@ -732,8 +759,14 @@ app.mount("/mcp", _mcp_mount)
 # /panel/ (singular) is the FiestaPanel viewer surface: read-only endpoints a
 # TV browser must reach with no session cookie. The /panels CRUD surface
 # (plural) stays behind auth like everything else.
+app.add_middleware(RequestTraceMiddleware)
 app.add_middleware(AuthMiddleware, extra_public_paths=("/panel/",))
 app.include_router(auth_router)
+from .auth.device_routes import router as device_auth_router  # noqa: E402
+from .auth.session_routes import router as auth_sessions_router  # noqa: E402
+
+app.include_router(device_auth_router)
+app.include_router(auth_sessions_router)
 if is_auth_enabled():
     logger.info("Authentication is ENABLED (FIESTABOARD_AUTH_ENABLED=true)")
 else:
@@ -744,6 +777,10 @@ else:
 log_buffer_handler = LogBufferHandler()
 log_buffer_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
 logging.getLogger().addHandler(log_buffer_handler)
+
+
+#: How often a fresh install (no board yet) checks for its first board.
+_FIRST_BOARD_POLL_SECONDS = 5
 
 
 def run_service_background():
@@ -761,6 +798,13 @@ def run_service_background():
             continue
 
         if not service.vb_client:
+            if service.awaiting_first_board:
+                # A fresh install: initialize() announces the wait once; poll
+                # quietly, without backing off, so a board added in the wizard
+                # comes up within seconds.
+                service.initialize()
+                time.sleep(_FIRST_BOARD_POLL_SECONDS)
+                continue
             logger.info("Service not fully initialized, attempting initialization...")
             if not service.initialize():
                 logger.error("Service initialization failed - retrying in %ds...", restart_delay)
@@ -768,7 +812,15 @@ def run_service_background():
                 restart_delay = min(restart_delay * 2, max_restart_delay)
                 continue
 
+        # Set before the poll thread starts: its loop runs ``while
+        # self.running``, and after POST /stop the flag is still False.
         service.running = True
+        # The board-state poll starts in initialize(), which is skipped when
+        # the client already exists — a board added after startup through the
+        # settings route, or a restart after POST /stop, which also ended the
+        # poll loop. Without this, polling stayed off until a restart.
+        service._ensure_board_poll_thread()
+
         _service_running = True
         mark_service_started()
         restart_delay = 2  # Reset backoff on successful start
@@ -965,7 +1017,8 @@ async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
     import os as _os
     from pathlib import Path as _Path
 
-    from .plugins.sources import clone_or_update_repo, get_external_plugins_dir
+    from .plugins.service import reload_installed_copy
+    from .plugins.sources import get_external_plugins_dir, update_external_plugin
 
     _ext_dir = get_external_plugins_dir()
     _ext_root = _os.path.realpath(str(_ext_dir))
@@ -991,15 +1044,15 @@ async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
             failed.append(plugin_id)
             continue
 
-        ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=_ext_dir)
-        if not ok:
-            logger.warning("Auto-update: git fetch failed for %s: %s", plugin_id, err)
-            failed.append(plugin_id)
-            continue
-
-        reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
-        if reloaded is None:
-            logger.warning("Auto-update: reload failed for %s", plugin_id)
+        # An output plugin's update that cannot run is rolled back (plan D8).
+        outcome = await asyncio.to_thread(
+            update_external_plugin,
+            plugin_id,
+            _ext_dir,
+            reload=lambda pid=plugin_id: reload_installed_copy(registry, pid),
+        )
+        if not outcome.ok:
+            logger.warning("Auto-update: %s failed for %s: %s", outcome.stage, plugin_id, outcome.error)
             failed.append(plugin_id)
             continue
 
@@ -2022,18 +2075,6 @@ async def validate_traffic_route(request: dict):
 
 
 # =============================================================================
-# Transition plugins (beta) — moved to src/transitions/routes.py (slice 8)
-# =============================================================================
-
-from .transitions.routes import router as transitions_router  # noqa: E402
-
-app.include_router(transitions_router)
-
-
-# ==================== Beta Settings (HTTPS, etc.) ====================
-
-
-# =============================================================================
 # Debug / diagnostics / logs Endpoints — moved to src/debug/routes.py
 # (Phase 2 Task 8). Covers /debug/*, GET /cache-status, POST /clear-cache,
 # POST /force-refresh and GET /logs.
@@ -2051,6 +2092,12 @@ app.include_router(debug_router)
 from .panels.routes import router as panels_router  # noqa: E402
 
 app.include_router(panels_router)
+
+# Boards driven by output plugins (plan D5): POST /outputs/{output_id}/boards.
+# Vestaboards keep POST /settings/board/add, FiestaPanels POST /panels.
+from .outputs.routes import router as outputs_router  # noqa: E402
+
+app.include_router(outputs_router)
 
 
 # =============================================================================

@@ -60,12 +60,19 @@ jobs:
               - 'tests/**'
               - 'scripts/**'
               - 'pyproject.toml'
+              # The output seed's pins: the image build and the platform
+              # tests fetch and verify them, so a bumped pin (a new Vestaboard
+              # or FiestaPanel release) must rebuild and retest (plan D8/D9).
+              - 'outputs.lock.json'
               # Repo-root data the Python suite reads (test_plugin_previews,
               # test_sync_plugin_previews, test_plugin_sources, ...). Without
               # these a registry-only PR skipped Platform Tests and merged
               # red (#2004). Guarded by tests/test_ci_path_filters.py.
               - 'plugin-registry.json'
               - 'plugin-previews.json'
+              # Python guards verify known fixes in both developer lockfiles.
+              - 'package-lock.json'
+              - 'web/package-lock.json'
             ui:
               - 'web/**'
               - 'Dockerfile'
@@ -180,7 +187,7 @@ jobs:
       && (needs.detect-changes.outputs.api == 'true'
           || needs.detect-changes.outputs.shared == 'true'
           || needs.detect-changes.outputs.e2e_wiring == 'true')
-    timeout-minutes: 10
+    timeout-minutes: 15
     
     steps:
     - uses: actions/checkout@v7
@@ -190,7 +197,7 @@ jobs:
 
     - name: Verify imports
       run: |
-        python -c "import sys; sys.path.insert(0, '.'); from src import config, board_client, board_chars; print('✅ Core imports successful')"
+        python -c "import sys; sys.path.insert(0, '.'); from src import config, board_chars; print('✅ Core imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.utils import datetime, home_assistant; print('✅ Utils imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.formatters import message_formatter; print('✅ Formatter imports successful')"
         python -c "import sys; sys.path.insert(0, '.'); from src.main import FiestaBoardDisplayService; print('✅ Main module imports successful')"
@@ -216,6 +223,30 @@ jobs:
         # ruff format replaces black; same output, one tool.
         ruff format --check src/ plugins/ tests/ scripts/
     
+    - name: Build the output seed
+      run: |
+        # Vestaboard and FiestaPanel live in their own repositories and load
+        # from the output seed: their commits pinned in outputs.lock.json,
+        # fetched and digest-verified exactly as the image build does (plan
+        # D8/D9). Built once here, with the network; the tests themselves
+        # stay fenced and only read it (tests/conftest.py).
+        python scripts/seed_outputs.py build --lock outputs.lock.json --dest "$RUNNER_TEMP/output-seed"
+        echo "FIESTABOARD_OUTPUT_SEED_DIR=$RUNNER_TEMP/output-seed" >> "$GITHUB_ENV"
+
+    - name: Test the bundled output plugins against this core
+      run: |
+        # Each seeded package's own tests (its conformance suite included),
+        # run the way its repository's CI runs them, against this checkout:
+        # a core change that breaks the pinned Vestaboard, FiestaPanel or
+        # Divoom fails here, before release. On a copy: the seed itself
+        # stays exactly the verified tree.
+        for id in vestaboard fiestapanel divoom_pixoo; do
+          rm -rf "$RUNNER_TEMP/first-party/$id"
+          mkdir -p "$RUNNER_TEMP/first-party"
+          cp -R "$FIESTABOARD_OUTPUT_SEED_DIR/$id" "$RUNNER_TEMP/first-party/$id"
+          (cd "$RUNNER_TEMP/first-party/$id" && ./run_tests.sh "$GITHUB_WORKSPACE")
+        done
+
     - name: Snapshot data/ before tests
       run: |
         # Isolation guard (#1762): the suite must never write the checkout's
@@ -296,11 +327,13 @@ jobs:
     name: UI Tests
     runs-on: ubuntu-latest
     needs: detect-changes
-    # Draft PRs skip the heavy test fleet (see test-platform).
+    # Draft PRs skip the heavy test fleet (see test-platform); the merge
+    # queue always runs UI Tests regardless of paths.
     if: >-
-      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-      && (needs.detect-changes.outputs.ui == 'true'
-          || needs.detect-changes.outputs.shared == 'true')
+      github.event_name == 'merge_group'
+      || ((github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+          && (needs.detect-changes.outputs.ui == 'true'
+              || needs.detect-changes.outputs.shared == 'true'))
     timeout-minutes: 10
 
     steps:
@@ -328,6 +361,14 @@ jobs:
     - name: Run UI tests with coverage
       working-directory: web
       run: npm run test:coverage
+
+    - name: Install layout test browser
+      working-directory: web
+      run: npx playwright install --with-deps chromium
+
+    - name: Browser layout regressions
+      working-directory: web
+      run: npx playwright test --config tests/layout/playwright.config.ts
 
     - name: Write coverage summary
       if: always()
@@ -394,6 +435,11 @@ jobs:
     - name: Install Playwright browsers
       working-directory: web
       run: npx playwright install --with-deps chromium
+
+    - name: Check Storybook Docker host validation
+      working-directory: web
+      timeout-minutes: 3
+      run: npm run test:storybook-hosts
 
     - name: Build Storybook
       working-directory: web
@@ -972,6 +1018,62 @@ jobs:
             web/playwright-auth-report.json
           retention-days: 7
 
+      - name: Start isolated TV sign-in backend
+        id: device_start
+        if: ${{ !cancelled() && steps.image.outcome == 'success' }}
+        run: |
+          docker run -d --name fiestaboard-device-auth \
+            -p 127.0.0.1:4429:3000 \
+            -e PRODUCTION=false \
+            -e FIESTABOARD_AUTH_ENABLED=true \
+            -e FIESTABOARD_CORS_ORIGINS=http://127.0.0.1:4430 \
+            fiestaboard:ci
+          mkdir -p web/build/client
+          docker cp fiestaboard-device-auth:/app/web/build/client/. web/build/client/
+
+      - name: Wait for TV sign-in backend
+        id: device_ready
+        if: ${{ !cancelled() && steps.device_start.outcome == 'success' }}
+        timeout-minutes: 2
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 5 http://127.0.0.1:4429/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs fiestaboard-device-auth | tail -50
+          exit 1
+
+      - name: Run TV activation and revocation E2E tests
+        id: device_tests
+        if: ${{ !cancelled() && steps.device_ready.outcome == 'success' }}
+        working-directory: web
+        timeout-minutes: 5
+        run: npx playwright test device-sign-in.spec.ts --config playwright.device.config.ts --workers=1
+        env:
+          CI: true
+          BASE_URL: http://127.0.0.1:4430
+          DEVICE_API_BASE_URL: http://127.0.0.1:4429/api
+
+      - name: Dump TV sign-in logs on failure
+        if: failure() && steps.device_start.outcome != 'skipped'
+        run: docker logs fiestaboard-device-auth | tail -100
+
+      - name: Stop TV sign-in backend
+        if: always()
+        run: docker rm -f fiestaboard-device-auth 2>/dev/null || true
+
+      - name: Upload TV sign-in results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.device_tests.outcome != 'skipped' }}
+        with:
+          name: playwright-device-results
+          path: |
+            web/playwright-device-test-results/
+            web/playwright-device-report.json
+          retention-days: 7
+
       - name: Start FiestaBoard behind the HA Ingress simulator
         id: ingress_start
         if: ${{ !cancelled() && steps.image.outcome == 'success' }}
@@ -1121,7 +1223,9 @@ jobs:
         allow-licenses: >-
           MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD,
           CC0-1.0, Unlicense, Python-2.0, MPL-2.0, Zlib, BlueOak-1.0.0,
-          CNRI-Python
+          CNRI-Python, MIT-CMU
+        # Pillow uses MIT-CMU; retain its notices in the installed wheel.
+        # https://github.com/python-pillow/Pillow/blob/main/LICENSE
         # Per-package exceptions for deps whose license isn't on the
         # general allow-list but which we've reviewed and accepted.
         # - caniuse-lite ships browser-compat *data* under CC-BY-4.0 (the

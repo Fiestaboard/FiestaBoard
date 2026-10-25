@@ -12,13 +12,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.devices import MAX_BOARD_NAME_LENGTH
+from src.settings.board_shape import board_view
 from src.settings.service import (
     VALID_OUTPUT_TARGETS,
     ActivePageSettings,
-    BetaSettings,
     BoardSettings,
     DisplaySettings,
     OutputSettings,
+    PluginSettings,
     PollingSettings,
     ScheduleSettings,
     SettingsService,
@@ -307,7 +308,7 @@ class TestSettingsServiceInit:
     def test_save_to_file_writes_json(self, settings_service, settings_file):
         settings_service._save_to_file()
         data = json.loads(Path(settings_file).read_text())
-        assert "transitions" in data
+        assert "transitions" not in data  # settings v6: each board owns its transition
         assert "output" in data
         assert "board" in data
 
@@ -460,7 +461,7 @@ class TestSettingsServiceBoard:
         settings_service.set_boards(
             [{"device_type": "flagship", "id": settings_service._board.boards[0]["id"], "local_api_key": "***"}]
         )
-        assert settings_service._board.boards[0]["local_api_key"] == "secret"
+        assert board_view(settings_service._board.boards[0])["local_api_key"] == "secret"
 
     def test_set_boards_empty_raises(self, settings_service):
         with pytest.raises(ValueError, match="At least one board"):
@@ -577,9 +578,18 @@ class TestSettingsServiceLoadFromFile:
     """Test loading each setting type from file."""
 
     def test_load_transition_from_file(self, settings_file, mock_config):
-        Path(settings_file).write_text(json.dumps({"transitions": {"strategy": "row", "step_interval_ms": 50}}))
+        """A pre-v6 install-wide transition lands on the board (settings v6)."""
+        Path(settings_file).write_text(
+            json.dumps(
+                {
+                    "transitions": {"strategy": "row", "step_interval_ms": 50},
+                    "board": {"boards": [{"id": "b1", "device_type": "flagship"}]},
+                }
+            )
+        )
         svc = SettingsService(settings_file=settings_file)
-        assert svc.get_transition_settings().strategy == "row"
+        resolved = svc.get_transition_settings("b1")
+        assert (resolved.strategy, resolved.step_interval_ms) == ("row", 50)
 
     def test_load_output_from_file(self, settings_file, mock_config):
         Path(settings_file).write_text(json.dumps({"output": {"target": "both"}}))
@@ -633,7 +643,7 @@ class TestSettingsServiceMigration:
         }
         with patch("src.config_manager.get_config_manager", return_value=mock_cm):
             svc = SettingsService(settings_file=settings_file)
-        assert svc._board.boards[0]["local_api_key"] == "migrated-key"
+        assert board_view(svc._board.boards[0])["local_api_key"] == "migrated-key"
 
     def test_migration_skips_when_board_has_keys(self, settings_file, mock_config):
         Path(settings_file).write_text(
@@ -684,68 +694,79 @@ class TestGetSettingsService:
         assert isinstance(svc, SettingsService)
 
 
-# ==================== BetaSettings ====================
+# ==================== Plugin flags (beta until settings v6) ====================
 
 
-class TestBetaSettings:
-    """Test BetaSettings dataclass."""
+class TestPluginSettingsFlags:
+    """The transition plugin flag on PluginSettings (the output flag was
+    dropped in settings v7: display plugins need no opt-in)."""
 
     def test_defaults_to_disabled(self):
-        bs = BetaSettings()
-        assert bs.https_enabled is False
+        ps = PluginSettings()
+        assert ps.transition_plugins_enabled is False
+        assert not hasattr(ps, "output_plugins_enabled")
 
-    def test_from_dict_with_https_enabled(self):
-        bs = BetaSettings.from_dict({"https_enabled": True})
-        assert bs.https_enabled is True
+    def test_from_dict_with_transition_plugins_enabled(self):
+        assert PluginSettings.from_dict({"transition_plugins_enabled": True}).transition_plugins_enabled is True
 
     def test_from_dict_empty(self):
-        bs = BetaSettings.from_dict({})
-        assert bs.https_enabled is False
+        assert PluginSettings.from_dict({}).transition_plugins_enabled is False
 
     def test_from_dict_coerces_truthy(self):
-        bs = BetaSettings.from_dict({"https_enabled": 1})
-        assert bs.https_enabled is True
-        bs = BetaSettings.from_dict({"https_enabled": ""})
-        assert bs.https_enabled is False
+        assert PluginSettings.from_dict({"transition_plugins_enabled": 1}).transition_plugins_enabled is True
+        assert PluginSettings.from_dict({"transition_plugins_enabled": ""}).transition_plugins_enabled is False
+
+    def test_from_dict_ignores_unknown_keys(self):
+        ps = PluginSettings.from_dict({"https_enabled": True, "output_plugins_enabled": False})
+        assert ps.to_dict() == {
+            "auto_update": True,
+            "transition_plugins_enabled": False,
+        }
 
     def test_to_dict_roundtrip(self):
-        original = BetaSettings(https_enabled=True)
-        restored = BetaSettings.from_dict(original.to_dict())
-        assert restored.https_enabled is True
+        original = PluginSettings(transition_plugins_enabled=True)
+        assert PluginSettings.from_dict(original.to_dict()) == original
 
 
-class TestSettingsServiceBeta:
-    """Test SettingsService beta-feature methods."""
+class TestSettingsServicePluginFlags:
+    """Test SettingsService plugin-flag methods."""
 
-    def test_get_beta_settings_default(self, settings_service):
-        bs = settings_service.get_beta_settings()
-        assert bs.https_enabled is False
+    def test_get_plugin_settings_default(self, settings_service):
+        bs = settings_service.get_plugin_settings()
+        assert bs.transition_plugins_enabled is False
 
-    def test_update_beta_settings_enables_https(self, settings_service):
-        bs = settings_service.update_beta_settings({"https_enabled": True})
-        assert bs.https_enabled is True
+    def test_update_plugin_settings_enables_transition_plugins(self, settings_service):
+        bs = settings_service.update_plugin_settings({"transition_plugins_enabled": True})
+        assert bs.transition_plugins_enabled is True
         # Reload from disk to confirm persistence.
         with open(settings_service.settings_file) as f:
             data = json.load(f)
-        assert data["beta"]["https_enabled"] is True
+        assert data["plugins"]["transition_plugins_enabled"] is True
+        assert "beta" not in data
 
-    def test_update_beta_settings_partial_update_preserves_other_keys(self, settings_service):
-        settings_service.update_beta_settings({"https_enabled": True})
+    def test_update_plugin_settings_partial_update_preserves_other_keys(self, settings_service):
+        settings_service.update_plugin_settings({"transition_plugins_enabled": True})
         # Empty update keeps existing value.
-        bs = settings_service.update_beta_settings({})
-        assert bs.https_enabled is True
+        bs = settings_service.update_plugin_settings({})
+        assert bs.transition_plugins_enabled is True
 
-    def test_update_beta_settings_disables_https(self, settings_service):
-        settings_service.update_beta_settings({"https_enabled": True})
-        bs = settings_service.update_beta_settings({"https_enabled": False})
-        assert bs.https_enabled is False
+    def test_update_plugin_settings_disables_transition_plugins(self, settings_service):
+        settings_service.update_plugin_settings({"transition_plugins_enabled": True})
+        bs = settings_service.update_plugin_settings({"transition_plugins_enabled": False})
+        assert bs.transition_plugins_enabled is False
 
-    def test_beta_settings_persist_across_reload(self, settings_file, mock_config):
+    def test_update_plugin_settings_ignores_the_retired_https_flag(self, settings_service):
+        bs = settings_service.update_plugin_settings({"https_enabled": True})
+        assert not hasattr(bs, "https_enabled")
+        with open(settings_service.settings_file) as f:
+            assert "https_enabled" not in json.load(f)["plugins"]
+
+    def test_plugin_flags_persist_across_reload(self, settings_file, mock_config):
         svc1 = SettingsService(settings_file=settings_file)
-        svc1.update_beta_settings({"https_enabled": True})
+        svc1.update_plugin_settings({"transition_plugins_enabled": True})
 
         svc2 = SettingsService(settings_file=settings_file)
-        assert svc2.get_beta_settings().https_enabled is True
+        assert svc2.get_plugin_settings().transition_plugins_enabled is True
 
 
 class TestDisplaySettings:
@@ -944,7 +965,7 @@ class TestLocalArrayTileMasking:
         update["tiles"][1]["local_api_key"] = "***"
         update["tiles"][0]["host"] = "10.0.0.99"
         settings_service.set_boards([update])
-        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        tiles = {(t["row"], t["col"]): t for t in board_view(settings_service._board.boards[0])["tiles"]}
         assert tiles[(0, 0)]["local_api_key"] == "secret-a"
         assert tiles[(0, 0)]["host"] == "10.0.0.99"
         assert tiles[(0, 1)]["local_api_key"] == "secret-b"
@@ -957,7 +978,7 @@ class TestLocalArrayTileMasking:
             {"row": 0, "col": 5, "host": "10.0.0.3", "port": 7000, "local_api_key": "***", "enabled": True}
         ]
         settings_service.set_boards([update])
-        [tile] = settings_service._board.boards[0]["tiles"]
+        [tile] = board_view(settings_service._board.boards[0])["tiles"]
         assert tile["local_api_key"] == ""
 
     def test_set_boards_accepts_new_plaintext_tile_keys(self, settings_service):
@@ -966,7 +987,7 @@ class TestLocalArrayTileMasking:
         update = self._array_board(id=board_id)
         update["tiles"][0]["local_api_key"] = "rotated"
         settings_service.set_boards([update])
-        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        tiles = {(t["row"], t["col"]): t for t in board_view(settings_service._board.boards[0])["tiles"]}
         assert tiles[(0, 0)]["local_api_key"] == "rotated"
 
     def test_set_boards_swap_keeps_key_with_its_board(self, settings_service):
@@ -986,7 +1007,7 @@ class TestLocalArrayTileMasking:
         ]
         settings_service.set_boards([update])
 
-        by_host = {t["host"]: t["local_api_key"] for t in settings_service._board.boards[0]["tiles"]}
+        by_host = {t["host"]: t["local_api_key"] for t in board_view(settings_service._board.boards[0])["tiles"]}
         assert by_host["10.0.0.1"] == "key-for-host-1"
         assert by_host["10.0.0.2"] == "key-for-host-2"
 
@@ -1001,7 +1022,7 @@ class TestLocalArrayTileMasking:
         update["tiles"][0]["local_api_key"] = "***"
         settings_service.set_boards([update])
 
-        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        tiles = {(t["row"], t["col"]): t for t in board_view(settings_service._board.boards[0])["tiles"]}
         assert tiles[(0, 0)]["host"] == "10.0.0.77"
         assert tiles[(0, 0)]["local_api_key"] == "secret-a"
 
@@ -1073,3 +1094,34 @@ class TestSettingsRefusesAFutureSchema:
         from src.settings.service import SettingsService
 
         SettingsService(settings_file=path)  # must not raise
+
+
+class TestUpdateBoardOutputConfig:
+    """An output saves what it found out by itself (DevicePoll.config): a moved device's address."""
+
+    def test_merges_updates_into_the_boards_output_config_and_saves(self, settings_service, settings_file):
+        settings_service.set_boards([{"device_type": "flagship", "name": "Pixoo"}])
+        board_id = settings_service._board.boards[0]["id"]
+        settings_service._board.boards[0]["output_config"] = {"host": "192.0.2.24", "mac": "aabbccddeeff"}
+
+        assert settings_service.update_board_output_config(board_id, {"host": "192.0.2.23"}) is True
+
+        reloaded = SettingsService(settings_file=settings_file)
+        assert reloaded.get_board_settings().boards[0]["output_config"] == {
+            "host": "192.0.2.23",
+            "mac": "aabbccddeeff",
+        }
+
+    def test_no_change_saves_nothing(self, settings_service):
+        settings_service.set_boards([{"device_type": "flagship"}])
+        board_id = settings_service._board.boards[0]["id"]
+        settings_service._board.boards[0]["output_config"] = {"host": "192.0.2.23"}
+
+        with patch.object(settings_service, "_save_to_file") as save:
+            assert settings_service.update_board_output_config(board_id, {"host": "192.0.2.23"}) is False
+        save.assert_not_called()
+
+    def test_unknown_board_is_a_no_op(self, settings_service):
+        settings_service.set_boards([{"device_type": "flagship"}])
+
+        assert settings_service.update_board_output_config("no-such-board", {"host": "192.0.2.23"}) is False

@@ -12,7 +12,7 @@ import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
 
 /**
- * Settings → Behavior → how the schedule on/off toggle behaves.
+ * Settings → Scheduling → how the schedule on/off toggle behaves.
  *
  * Turning schedule mode back on normally repaints the board at once, because
  * the active page is re-resolved from the clock on every polling pass. Users

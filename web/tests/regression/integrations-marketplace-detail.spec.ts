@@ -111,7 +111,7 @@ test.describe("regression: integrations.detail", () => {
   /** UX node: integrations.detail.installed */
   test("integrations.detail.installed — built-in plugin detail page renders", async ({ page }) => {
     await page.goto("/integrations/date_time");
-    await expect(page.getByRole("main").getByRole("heading", { level: 1, name: /Date|Time/i })).toBeVisible({
+    await expect(page.getByRole("main").getByRole("heading", { level: 2, name: /Date|Time/i })).toBeVisible({
       timeout: 15_000,
     });
   });
@@ -182,7 +182,7 @@ test.describe("regression: integrations.detail", () => {
     // Scoped to <main>'s h1: an unscoped getByText(/Date|Time/) also matches
     // chrome outside the page (e.g. the sidebar's "Update to x.y.z", which sits
     // hidden in the mobile drawer on desktop) and resolves to that first.
-    await expect(page.getByRole("main").getByRole("heading", { level: 1, name: /Date|Time/i })).toBeVisible({
+    await expect(page.getByRole("main").getByRole("heading", { level: 2, name: /Date|Time/i })).toBeVisible({
       timeout: 15_000,
     });
   });

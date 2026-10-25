@@ -280,8 +280,13 @@ class TestBetaTargetDerivation:
             "The target is derived from the newest stable tag; use "
             "BETA_TARGET_OVERRIDE for a breaking cycle instead."
         )
-        assert re.search(r'BETA_TARGET_OVERRIDE:\s*""', text), (
-            "BETA_TARGET_OVERRIDE should be present and empty by default, so the normal path sets no version at all."
+        # Empty on a normal cycle, so the derivation sets the version. A
+        # breaking cycle sets an explicit X.Y.Z, as the workflow's own comment
+        # prescribes (the derivation can add a minor, never a major); the
+        # step's runtime assert then refuses a target at or below a release.
+        assert re.search(r'BETA_TARGET_OVERRIDE:\s*"(\d+\.\d+\.\d+)?"\s*$', text, re.M), (
+            "BETA_TARGET_OVERRIDE should be present, and either empty (normal cycle: derived target) "
+            'or an explicit "X.Y.Z" for a breaking cycle.'
         )
 
     def test_the_computing_job_fetches_tags(self):

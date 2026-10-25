@@ -376,7 +376,7 @@ class CommandHandler:
     def _handle_transition_style(self, payload: str) -> None:
         if not payload:
             return
-        from src.board_client import VALID_STRATEGIES
+        from src.outputs.transitions import VALID_STRATEGIES
         from src.settings.service import get_settings_service
 
         if payload not in VALID_STRATEGIES:
@@ -495,24 +495,32 @@ class CommandHandler:
             board_id, board = self._resolve_board(board_ref)
             if board_id is None:
                 return
-        from src.config import Config
-
         # Silence is per board (issue #1788): resolve the window of the board
         # this message targets, falling back to the primary board for a plain
         # -string payload. Without this a Home Assistant send at 2am woke a
         # board whose own override said it should be quiet.
-        from src.settings.service import get_settings_service
+        #
+        # A JSON payload may say ``"override_silence": true`` to write anyway
+        # (#1943). Otherwise the message is held and shown when silence ends
+        # when the board's schedule holds messages, and dropped when it does
+        # not (#1944) — a bare string has nowhere to carry the flag.
+        from src.board_guards import resolve_board_id, silence_verdict
+        from src.silence_queue import HeldSend
 
-        silence_board_id = board_id
-        if silence_board_id is None:
-            try:
-                silence_board_id = get_settings_service().get_primary_board_id()
-            except Exception:  # pragma: no cover - defensive
-                silence_board_id = None
-        if Config.is_silence_mode_active(silence_board_id):
-            logger.info("MQTT send_message blocked by silence mode")
+        data = self._json_object(payload)
+        override_silence = bool(data and data.get("override_silence") is True)
+        silence_board_id = resolve_board_id(board_id)
+        held_text = message if data is not None else message.replace("\\n", "\n")
+        verdict = silence_verdict(
+            silence_board_id,
+            override_silence=override_silence,
+            hold=(HeldSend.text(held_text, board_id=silence_board_id) if silence_board_id else None),
+            what="MQTT send_message",
+        )
+        if verdict.silenced:
             return
         from src.api_server import get_service
+        from src.outputs.cells import project_for_output
         from src.text_to_board import text_to_board_array, wrap_message_text
 
         service = get_service()
@@ -533,7 +541,7 @@ class CommandHandler:
         if paused is True:
             logger.info("MQTT send_message blocked: board is paused")
             return
-        transition = settings.get_transition_settings()
+        transition = settings.get_transition_settings(board_id)
         # Grid sized to the target board (issue #1793): the named board when
         # given, else the primary board, else the flagship 6x22 default.
         # Plain-string payloads (what HA's text entity sends) used to fall
@@ -550,12 +558,15 @@ class CommandHandler:
             cols=dims.cols,
             unescape_newlines=self._json_object(payload) is None,
         )
-        board_array = text_to_board_array(wrapped, rows=dims.rows, cols=dims.cols)
+        # A rich (LED) board also gets the message's rich cells; a split-flap
+        # board's call is unchanged.
+        board_array, rich = project_for_output(client, wrapped, dims.rows, dims.cols, flap=text_to_board_array)
         result = client.send_characters(
             board_array,
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
+            **rich,
         )
         # NOTE: deliberately does NOT invalidate the display loop's dedupe
         # cache — see _handle_blank_board. The message must outlive the next
@@ -564,6 +575,11 @@ class CommandHandler:
             # The board now shows out-of-band content (issue #1831); the
             # trailing gather_and_publish in handle() reports it to HA.
             self._mark_out_of_band(board_id)
+            if override_silence:
+                # A newer explicit write beats a message held during silence.
+                from src import silence_queue
+
+                silence_queue.discard(silence_board_id)
         self._mark_display_updated()
         self._publish_event("display_updated", "message_sent")
 

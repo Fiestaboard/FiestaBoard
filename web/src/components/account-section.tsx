@@ -40,12 +40,15 @@ import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCircle2, Use
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
+import { SignedInDevices } from "@/components/settings/signed-in-devices";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 export function AccountSection() {
   const t = useTranslations("accountSection");
+  const tDevices = useTranslations("signedInDevices");
+  const [signOutError, setSignOutError] = useState(false);
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -88,10 +91,12 @@ export function AccountSection() {
   const username = authStatus.username ?? "—";
 
   const handleSignOut = async () => {
+    setSignOutError(false);
     try {
       await api.logout();
     } catch {
-      // Server cookie clear is best-effort.
+      setSignOutError(true);
+      return;
     }
     queryClient.removeQueries({ queryKey: ["auth-status"] });
     router.replace("/login");
@@ -116,6 +121,8 @@ export function AccountSection() {
           </CardDescription>
         </CardHeader>
       </Card>
+
+      {authStatus.session_management_supported && <SignedInDevices />}
 
       <Card>
         <CardHeader>
@@ -152,6 +159,11 @@ export function AccountSection() {
           <CardDescription>{t("signOut.description")}</CardDescription>
         </CardHeader>
         <CardContent>
+          {signOutError && (
+            <Text role="alert" tone="destructive">
+              {tDevices("error")}
+            </Text>
+          )}
           <Button type="button" variant="outline" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" /> {t("signOut.button")}
           </Button>

@@ -85,7 +85,7 @@ class TestApiSendGuards:
         # Phase 2 Task 8: the refusal is a 409, matching the /pages and /debug
         # senders, instead of a 200 carrying the word "blocked".
         assert response.status_code == 409, response.text
-        assert "silence mode" in response.json()["detail"]
+        assert "silenced" in response.json()["detail"]
         service.vb_client.render.assert_not_called()
 
     def test_send_welcome_message_respects_the_primary_boards_window(self, client):
@@ -95,14 +95,13 @@ class TestApiSendGuards:
             patch("src.api_server.get_settings_service", return_value=settings),
             # The send guards moved to src/board_guards.py (Phase 2 slice 3).
             patch("src.board_guards.get_settings_service", return_value=settings),
-            patch("src.board_client.BoardClient") as board_client,
+            patch("requests.post") as post,
         ):
-            board_client.return_value.render.return_value = (True, True)
             response = client.post("/send-welcome-message")
 
         assert response.status_code == 409, response.text
-        assert "silence mode" in response.json()["detail"]
-        board_client.return_value.render.assert_not_called()
+        assert "silenced" in response.json()["detail"]
+        post.assert_not_called()
 
     def test_page_send_respects_the_target_boards_window(self, client):
         """POST /pages/{id}/send?board_id= must use that board's window."""
@@ -133,41 +132,6 @@ class TestApiSendGuards:
         assert response.status_code == 200, response.text
         assert response.json()["sent_to_board"] is False
         board_client.render.assert_not_called()
-
-    def test_live_transition_test_respects_the_target_boards_window(self, client):
-        registry = MagicMock()
-        registry.get_transition_plugin.return_value = MagicMock()
-
-        with (
-            _board_aware_silence(),
-            patch("src.transitions.routes._ensure_transition_plugins_beta"),
-            patch("src.transitions.service.get_plugin_registry", return_value=registry),
-            patch("src.transitions.service._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
-            patch("src.transitions.service.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
-        ):
-            response = client.post(
-                "/transitions/test-live",
-                json={"plugin_id": "wipe", "to_page_id": "page-1", "board_id": SILENCED_BOARD},
-            )
-
-        # The silence guard is the first thing after the board client is
-        # resolved, so any other status means it did not fire.
-        assert response.status_code == 409, response.text
-        assert "Silence" in response.json()["detail"]
-
-    def test_transition_restore_respects_the_target_boards_window(self, client):
-        with (
-            _board_aware_silence(),
-            patch("src.transitions.routes._ensure_transition_plugins_beta"),
-            patch("src.transitions.service._resolve_live_board_client", return_value=(BOARDS[0], MagicMock())),
-            patch("src.transitions.service.get_settings_service", return_value=_settings(primary=LOUD_BOARD)),
-        ):
-            response = client.post("/transitions/restore", json={"board_id": SILENCED_BOARD})
-
-        # Same ordering as /transitions/test-live: anything but 409 means the
-        # guard resolved the wrong board and let the restore through.
-        assert response.status_code == 409, response.text
-        assert "Silence" in response.json()["detail"]
 
 
 # ==================== MQTT / Home Assistant ====================

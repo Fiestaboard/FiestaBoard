@@ -34,67 +34,9 @@ if [ -z "${FIESTAUPDATER_TOKEN:-}" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# HTTPS (Beta) -- swap nginx config and (re)generate cert when enabled.
-# ---------------------------------------------------------------------------
-# The user toggles this from Settings → Beta in the web UI, which writes
-# `beta.https_enabled` into data/settings.json. We resolve that flag here,
-# at container start, because nginx only reads its config once.
-#
-# When enabled:
-#   * Generate a self-signed cert into data/certs/ if missing.
-#   * Install /app/nginx.https.conf as /etc/nginx/nginx.conf.
-# When disabled (or no cert files present):
-#   * Install /app/nginx.http.conf as /etc/nginx/nginx.conf.
-configure_https() {
-    # Skip if nginx.conf is a read-only bind mount (e.g. dev compose).
-    if ! touch /etc/nginx/nginx.conf 2>/dev/null; then
-        echo "[entrypoint] /etc/nginx/nginx.conf is read-only; skipping nginx config setup."
-        return 0
-    fi
-
-    HTTPS_ENABLED=$(python -c '
-import json, sys
-try:
-    with open("/app/data/settings.json", "r") as f:
-        data = json.load(f)
-    print("true" if bool(data.get("beta", {}).get("https_enabled")) else "false")
-except (FileNotFoundError, json.JSONDecodeError, OSError):
-    print("false")
-' 2>/dev/null || echo "false")
-
-    if [ "$HTTPS_ENABLED" = "true" ]; then
-        echo "[entrypoint] HTTPS (Beta) is enabled; ensuring certificate exists."
-        # Generate cert as appuser so the running services can read it.
-        if [ "$(id -u)" = "0" ]; then
-            gosu appuser python -m src.system.https_certs_cli ensure || {
-                echo "[entrypoint] Cert generation failed; falling back to HTTP." >&2
-                cp /app/nginx.http.conf /etc/nginx/nginx.conf
-                return 0
-            }
-        else
-            python -m src.system.https_certs_cli ensure || {
-                echo "[entrypoint] Cert generation failed; falling back to HTTP." >&2
-                cp /app/nginx.http.conf /etc/nginx/nginx.conf
-                return 0
-            }
-        fi
-
-        if [ -f /app/data/certs/fiestaboard.crt ] && [ -f /app/data/certs/fiestaboard.key ]; then
-            cp /app/nginx.https.conf /etc/nginx/nginx.conf
-            echo "[entrypoint] nginx will serve HTTPS on port 3000."
-        else
-            echo "[entrypoint] Cert files missing after generation; serving HTTP." >&2
-            cp /app/nginx.http.conf /etc/nginx/nginx.conf
-        fi
-    else
-        cp /app/nginx.http.conf /etc/nginx/nginx.conf
-    fi
-}
-
-# ---------------------------------------------------------------------------
 # Frame-embedding headers
 # ---------------------------------------------------------------------------
-# nginx.conf / nginx.https.conf / nginx-dev.conf each `include` the snippets
+# nginx.conf / nginx-dev.conf each `include` the snippets
 # directory inside their `server` block; this function renders the actual
 # `add_header` lines into /etc/nginx/fiestaboard/frame-headers.conf so they can
 # be controlled by env without baking a value into the image.
@@ -279,11 +221,10 @@ sub_filter '"basename":"/"' '"basename":"$http_x_ingress_path/"';
 NGINX
 }
 
-# Run cert/config setup before dropping privileges so the entrypoint can
-# both write /etc/nginx/nginx.conf (root-owned) and chown cert files.
+# Render the nginx snippets before dropping privileges: /etc/nginx is
+# root-owned.
 configure_frame_headers
 configure_ingress_path_rewrite
-configure_https
 
 # ---------------------------------------------------------------------------
 # If the container is already running as a non-root user (e.g. Docker

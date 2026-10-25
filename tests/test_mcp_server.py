@@ -279,7 +279,7 @@ def api_stack(mock_page_service):
     service = MagicMock()
     service.vb_client = client
 
-    preview = SimpleNamespace(available=True, formatted="HELLO")
+    preview = SimpleNamespace(available=True, formatted="HELLO", layers=[])
     mock_page_service.preview_page.return_value = preview
 
     with (
@@ -382,15 +382,12 @@ EXPECTED_TOOLS = {
     "preview_saved_page",
     "validate_template",
     # Page editor parity: share strings, staff picks, live display,
-    # Transition Lab, formula reference
+    # formula reference
     "export_page",
     "import_page",
     "list_staff_picks",
     "import_staff_pick",
     "get_current_display",
-    "list_transition_plugins",
-    "test_transition_live",
-    "restore_board",
     "list_formula_functions",
     # Integrations-page coverage: instances, demo pages, updates, discovery
     "list_plugin_instances",
@@ -932,16 +929,16 @@ class TestRenderPagePreview:
         assert result["device_type"] == "flagship"
         assert isinstance(result["context_plugins"], list)
 
-    def test_returns_error_json_on_bad_device_type(self, mcp):
-        # Bad device_type falls back to flagship in the engine, so this
-        # should still produce a valid 'rendered' field rather than crash.
-        result = _call_tool(
-            mcp,
-            "render_page_preview",
-            template_lines=["X"],
-            device_type="not-a-device",
-        )
-        assert "rendered" in result or "error" in result
+    def test_rejects_an_unknown_device_type(self, mcp):
+        from src.mcp_server import ToolError
+
+        with pytest.raises(ToolError, match="Unknown device type"):
+            _call_tool(
+                mcp,
+                "render_page_preview",
+                template_lines=["X"],
+                device_type="not-a-device",
+            )
 
 
 # ---------------------------------------------------------------------------

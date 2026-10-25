@@ -103,7 +103,7 @@ describe("homeFor", () => {
    * on the `/pages` catch-all is exactly what this is here to catch.
    */
   const WRITER_HOMES: Record<string, string> = {
-    add_board: "/settings?section=hardware",
+    add_board: "/displays",
     blank_board: "/settings?section=advanced",
     cancel_temporary_override: "/",
     check_plugin_updates: "/integrations",
@@ -111,13 +111,13 @@ describe("homeFor", () => {
     configure_plugin: "/integrations",
     create_collection: "/collections",
     create_page: "/pages",
-    create_panel: "/settings?section=hardware",
+    create_panel: "/displays",
     create_plugin_demo_page: "/integrations",
     create_plugin_instance: "/integrations",
     create_schedule: "/schedule",
     delete_collection: "/collections",
     delete_page: "/pages",
-    delete_panel: "/settings?section=hardware",
+    delete_panel: "/displays",
     delete_plugin_instance: "/integrations",
     delete_schedule: "/schedule",
     disable_plugin: "/integrations",
@@ -126,14 +126,13 @@ describe("homeFor", () => {
     fill_board: "/settings?section=advanced",
     force_refresh: "/",
     forget_wifi_network: "/settings?section=network",
-    identify_tile: "/settings?section=hardware",
+    identify_tile: "/displays",
     import_page: "/pages",
     import_staff_pick: "/picks",
     install_plugin: "/integrations",
     pause_board: "/",
-    remove_board: "/settings?section=hardware",
+    remove_board: "/displays",
     restart_system: "/settings?section=system",
-    restore_board: "/",
     resume_board: "/",
     send_message: "/",
     set_active_page: "/",
@@ -142,14 +141,13 @@ describe("homeFor", () => {
     set_temporary_override: "/",
     show_board_debug_info: "/settings?section=advanced",
     shutdown_system: "/settings?section=system",
-    test_transition_live: "/transitions",
     trigger_system_update: "/settings?section=system",
     uninstall_plugin: "/integrations",
     update_all_plugins: "/integrations",
-    update_board: "/settings?section=hardware",
+    update_board: "/displays",
     update_collection: "/collections",
     update_page: "/pages",
-    update_panel: "/settings?section=hardware",
+    update_panel: "/displays",
     update_plugin: "/integrations",
     update_schedule: "/schedule",
     update_setting: "/settings?section=general",
@@ -166,24 +164,38 @@ describe("homeFor", () => {
     // being a board *device* the hardware tab configures.
     expect(homeFor({ name: "pause_board", args: {} })).toEqual({ href: "/", anchor: "home.active-display" });
     expect(homeFor({ name: "resume_board", args: {} }).href).toBe("/");
-    expect(homeFor({ name: "restore_board", args: {} }).href).toBe("/");
     expect(homeFor({ name: "blank_board", args: {} }).href).toBe("/settings?section=advanced");
     expect(homeFor({ name: "fill_board", args: {} }).href).toBe("/settings?section=advanced");
   });
 
   it("sends a settings write to the tab that owns its category", () => {
     expect(homeFor({ name: "update_setting", args: { category: "mqtt" } })).toEqual({
-      href: "/settings?section=integrations",
+      href: "/settings?section=general",
       anchor: "settings.mqtt",
     });
+    expect(homeFor({ name: "update_setting", args: { category: "ai" } }).href).toBe("/settings?section=ai");
+    expect(homeFor({ name: "update_setting", args: { category: "polling" } }).href).toBe(
+      "/settings?section=scheduling",
+    );
+    // Plugin updates moved out of Settings onto the Integrations page.
+    expect(homeFor({ name: "update_setting", args: { category: "plugins" } }).href).toBe("/integrations");
     expect(homeFor({ name: "update_setting", args: {} }).href).toBe("/settings?section=general");
   });
 
-  it("sends board state to the dashboard and hardware to the settings tab", () => {
+  it("sends board state to the dashboard and a board device to Displays", () => {
     expect(homeFor({ name: "set_active_page", args: {} }).href).toBe("/");
     expect(homeFor({ name: "send_message", args: {} }).anchor).toBe("home.active-display");
-    expect(homeFor({ name: "update_board", args: {} }).href).toBe("/settings?section=hardware");
+    expect(homeFor({ name: "update_board", args: {} }).href).toBe("/displays");
     expect(homeFor({ name: "restart_system", args: {} }).href).toBe("/settings?section=system");
+  });
+
+  it("sends a change to one board to that display's page", () => {
+    expect(homeFor({ name: "update_board", args: { board_id: "b2" } })).toEqual({
+      href: "/displays/b2",
+      anchor: "settings.board.b2",
+    });
+    // Removing it leaves no page of its own to land on.
+    expect(homeFor({ name: "remove_board", args: { board_id: "b2" } }).href).toBe("/displays");
   });
 });
 
@@ -207,9 +219,16 @@ describe("anchors", () => {
     }
   });
 
-  it("maps every setting category to a tab", () => {
+  it("maps every setting category to a tab, or a board's to Displays", () => {
+    const boards = new Set(["boards", "output", "hdmi_kiosk", "transitions"]);
+    const tabs = new Set(["general", "account", "network", "scheduling", "ai", "system", "advanced"]);
     for (const category of Object.keys(SETTING_SECTIONS)) {
-      expect(settingsHref(category)).toMatch(/^\/settings\?section=/);
+      if (boards.has(category)) expect(settingsHref(category), category).toBe("/displays");
+      else if (category === "plugins") expect(settingsHref(category), category).toBe("/integrations");
+      else {
+        const section = new URLSearchParams(settingsHref(category).split("?")[1]).get("section");
+        expect(tabs.has(section ?? ""), `${category} → ${section}`).toBe(true);
+      }
     }
     expect(settingAnchors("general", "instance_name")).toEqual({
       control: "settings.general.instance_name",

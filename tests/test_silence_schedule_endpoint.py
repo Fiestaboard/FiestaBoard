@@ -85,6 +85,7 @@ class TestUpdateSilenceScheduleEndpoint:
                 "page_id": None,
                 "indicator_text": "SNOOZING",
                 "indicator_position": "center",
+                "show_queued_on_exit": False,
             },
         )
 
@@ -108,6 +109,7 @@ class TestUpdateSilenceScheduleEndpoint:
             "page_id": None,
             "indicator_text": "SNOOZING",
             "indicator_position": "center",
+            "show_queued_on_exit": False,
         }
 
     def test_update_missing_fields_returns_422(self, client, mock_config_manager_for_silence):

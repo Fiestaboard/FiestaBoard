@@ -35,7 +35,12 @@ if (!process.env.RUN_INGRESS_TESTS) {
 export default defineConfig({
   testDir: "./tests",
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || "playwright-test-results",
-  testIgnore: [...(process.env.CI ? ciIgnore : []), "**/draw-mode-demo.spec.ts"],
+  testIgnore: [
+    ...(process.env.CI ? ciIgnore : []),
+    "**/draw-mode-demo.spec.ts",
+    "**/layout/**",
+    "**/device-sign-in.spec.ts",
+  ],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

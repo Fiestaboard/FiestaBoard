@@ -427,7 +427,7 @@ test.describe("regression: dashboard", () => {
    * Source refs: web/src/components/dashboard/*
    * Coverage status: uncovered
    */
-  test("dashboard.actions.resend-toast — Restore button triggers /force-refresh and shows toast", async ({ page }) => {
+  test("dashboard.actions.resend-toast — Restore button restores this board and shows toast", async ({ page }) => {
     await deleteAllPagesAuthed();
     const pageId = await createPageAuthed(`Resend ${Date.now()}`);
     await setActivePageAuthed(pageId);
@@ -457,19 +457,27 @@ test.describe("regression: dashboard", () => {
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Out-of-sync alert + Restore button appears
-    await expect(page.getByText("Board was changed by another app")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Another app changed this board")).toBeVisible({ timeout: 15_000 });
     const restoreBtn = page.getByRole("button", { name: "Restore" });
     await expect(restoreBtn).toBeVisible();
 
-    // Click and assert POST to /force-refresh + success toast
-    const refreshResp = page.waitForResponse(
-      (r) => r.url().includes("/api/force-refresh") && r.request().method() === "POST",
+    // Click and assert this board's restore (single-board Home → the
+    // `primary` alias), not the install-wide /force-refresh, + success toast
+    const forceRefreshes: string[] = [];
+    page.on("request", (r) => {
+      if (r.method() === "POST" && r.url().includes("/api/force-refresh")) forceRefreshes.push(r.url());
+    });
+    const restoreResp = page.waitForResponse(
+      (r) => r.url().includes("/api/v1/boards/primary/restore") && r.request().method() === "POST",
       { timeout: 10_000 },
     );
     await restoreBtn.click();
-    await refreshResp;
+    const response = await restoreResp;
+    expect(response.status()).toBe(200);
+    expect((await response.json()).sent).toBe(true);
 
     await expect(page.getByText("Board restored")).toBeVisible({ timeout: 10_000 });
+    expect(forceRefreshes).toEqual([]);
   });
 
   /**

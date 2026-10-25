@@ -16,15 +16,17 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_is_paused
+from src.board_guards import _board_is_paused, silence_verdict
 from src.board_send_executor import run_board_send
 from src.devices import geometry_of, resolve_dimensions
 from src.display_runtime import get_service
+from src.outputs.cells import project_for_output
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service
 from src.text_to_board import text_to_board_array
 
@@ -215,7 +217,14 @@ async def get_displays_raw_batch(request: DisplayRawBatchRequest):
 
 
 @router.post("/displays/{display_type}/send", response_model=DisplaySendResponse, responses=errors(400, 500, 503))
-async def send_display(display_type: str, target: str | None = None):
+async def send_display(
+    display_type: str,
+    target: str | None = None,
+    override_silence: bool = False,
+    force: Annotated[
+        bool, Query(deprecated=True, description="Deprecated alias of override_silence (shipped in v10.0.0-beta.26).")
+    ] = False,
+):
     """
     Send a display to the configured target (ui, board, or both).
 
@@ -223,10 +232,18 @@ async def send_display(display_type: str, target: str | None = None):
         display_type: The display type to send
         target: Override output target (ui, board, both). If not provided,
                 uses the configured default.
+        override_silence: ``true`` explicitly overrides the primary
+               board's silence window for this one send (issue #1943).
+               Defaults to ``false``: during silence the board is left
+               untouched (``silenced: true``), the same policy every other
+               manual send applies, and the display is held to show when
+               silence ends when the board's schedule holds sends
+               (``held: true``). Pause is never overridden.
 
     Returns:
         Result of the send operation.
     """
+    override_silence = override_silence or force
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
 
@@ -256,20 +273,37 @@ async def send_display(display_type: str, target: str | None = None):
 
     sent_to_board = False
     paused = False
+    silenced = False
+    held = False
     if send_to_board:
-        # Skip when the (first) board is paused (issue #970).
+        # Respect the silence window unless the caller explicitly overrides
+        # it (issue #1943) — this path used to ignore silence entirely.
+        from src.silence_queue import HeldSend
+
+        verdict = silence_verdict(
+            None,
+            override_silence=override_silence,
+            hold=lambda resolved: HeldSend.display(display_type, board_id=resolved),
+            what="display send (pass override_silence=true to override)",
+        )
+        silenced, held = verdict.silenced, verdict.held
+        # Skip when the (first) board is paused (issue #970). Evaluated even
+        # when silence won, so both flags are reported truthfully.
         if _board_is_paused():
             logger.info("Board is paused - skipping display send to board")
             paused = True
-        else:
-            transition = settings_service.get_transition_settings()
+        if not silenced and not paused:
+            # The first board's own transition choice, if it has one (D21).
+            transition = settings_service.get_transition_settings(settings_service.get_primary_board_id())
             # Size to the first board's geometry (flagship, note, a note
             # array's notes grid, or a panel's explicit grid).
             board_settings = settings_service.get_board_settings()
             geometry = geometry_of(board_settings.boards[0]) if board_settings.boards else geometry_of({})
             device_type = geometry.device_type
             dims = resolve_dimensions(*geometry)
-            board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
+            board_array, rich = project_for_output(
+                service.vb_client, result.formatted, dims.rows, dims.cols, flap=text_to_board_array
+            )
             # Board network I/O goes on the dedicated bounded send pool, never
             # inline on the event loop (#1878).
             success, was_sent = await run_board_send(
@@ -279,15 +313,24 @@ async def send_display(display_type: str, target: str | None = None):
                 step_interval_ms=transition.step_interval_ms,
                 step_size=transition.step_size,
                 device_type=device_type,
+                **rich,
             )
             sent_to_board = was_sent
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to send to board")
+            if was_sent and override_silence:
+                # A newer explicit write beats a message held during silence.
+                from src import silence_queue
+                from src.board_guards import resolve_board_id
+
+                silence_queue.discard(resolve_board_id(None))
 
     return DisplaySendResponse(
         display_type=display_type,
         message=result.formatted,
         sent_to_board=sent_to_board,
         paused=paused,
+        silenced=silenced,
+        held=held,
         target=target or settings_service.get_output_settings().target,
     )

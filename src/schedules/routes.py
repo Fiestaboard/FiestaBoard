@@ -210,7 +210,7 @@ async def get_active_schedule(board_id: str | None = None):
     override_payload = temporary_override_payload(override)
 
     if not settings_service.is_schedule_enabled(board_id=board_id):
-        manual_page_id = settings_service.get_active_page_id()
+        manual_page_id = settings_service.get_active_page_id(board_id=board_id)
         return ActiveScheduleResponse(
             page_id=manual_page_id,
             resolved_page_id=resolve_active_page_id(manual_page_id, get_collection_service),

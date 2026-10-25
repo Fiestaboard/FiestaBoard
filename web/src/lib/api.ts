@@ -16,6 +16,7 @@ import { boardsApi } from "./api/boards";
 import { collectionsApi } from "./api/collections";
 import { miscApi } from "./api/misc";
 import { oauthApi } from "./api/oauth";
+import { outputsApi } from "./api/outputs";
 import { pagesApi } from "./api/pages";
 import { pluginRegistryApi } from "./api/plugin-registry";
 import { pluginsApi } from "./api/plugins";
@@ -24,25 +25,26 @@ import { settingsApi } from "./api/settings";
 import { setupApi } from "./api/setup";
 import { systemApi } from "./api/system";
 import { templatesApi } from "./api/templates";
-import { transitionsApi } from "./api/transitions";
 
 export * from "./api/ai";
 export * from "./api/auth";
 export * from "./api/boards";
+export * from "./api/canvas";
 export * from "./api/collections";
 export * from "./api/core";
 export * from "./api/misc";
 export * from "./api/oauth";
+export * from "./api/outputs";
 export * from "./api/pages";
 export * from "./api/plugin-registry";
 export * from "./api/plugins";
 export * from "./api/schedules";
+export * from "./api/sessions";
 export * from "./api/settings";
 export * from "./api/setup";
 export * from "./api/shared";
 export * from "./api/system";
 export * from "./api/templates";
-export * from "./api/transitions";
 
 // The single typed `api` object, composed from the domain modules. Domains
 // never overlap keys, so spread order carries no meaning.
@@ -55,11 +57,11 @@ export const api = {
   ...schedulesApi,
   ...collectionsApi,
   ...settingsApi,
-  ...transitionsApi,
   ...pluginsApi,
   ...pluginRegistryApi,
   ...aiApi,
   ...authApi,
   ...miscApi,
   ...oauthApi,
+  ...outputsApi,
 };

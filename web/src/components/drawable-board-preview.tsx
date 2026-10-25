@@ -123,7 +123,7 @@ export function DrawableBoardPreview({ active, onStrokePreview, onStrokeCommit, 
       onPointerCancel={(e) => {
         if (e.pointerId === pointerIdRef.current) abortStroke();
       }}
-      className={active ? "cursor-crosshair select-none" : undefined}
+      className={active ? "w-full min-w-0 cursor-crosshair select-none" : "w-full min-w-0"}
       style={active ? { touchAction: "none" } : undefined}
       data-draw-surface={active ? "true" : undefined}
     >

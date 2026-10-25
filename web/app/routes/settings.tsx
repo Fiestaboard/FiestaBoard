@@ -17,50 +17,62 @@ import {
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
-import { Cog, MonitorCog, Plug, Settings, ShieldCheck, User, Wand2, Waves, Wifi, Wrench } from "lucide-react";
+import { CalendarClock, Cog, Settings, ShieldCheck, Sparkles, User, Wand2, Wifi, Wrench } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
+import { Navigate } from "react-router";
 
 import { AccountSection } from "@/components/account-section";
-import { AboutCard } from "@/components/settings/about-card";
 import { AccessibilitySettings } from "@/components/settings/accessibility-settings";
 import { AiSettings } from "@/components/settings/ai-settings";
 import { AnimationSettings } from "@/components/settings/animation-settings";
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
 import { AutoUpdateIntervalCard } from "@/components/settings/auto-update-interval";
 import { BackupSettings } from "@/components/settings/backup-settings";
-import { BetaSettings } from "@/components/settings/beta-settings";
 import { DebugSettings } from "@/components/settings/debug-settings";
-import { DisplaySettings } from "@/components/settings/display-settings";
-import { FiestaPanelSettings } from "@/components/settings/fiestapanel-settings";
 import { InstanceNameCard } from "@/components/settings/instance-name";
 import { LanguageSettingsCard } from "@/components/settings/language-settings";
 import { LocationSettingsCard } from "@/components/settings/location-settings";
 import { McpSettings } from "@/components/settings/mcp-settings";
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
 import { NetworkSettings } from "@/components/settings/network-settings";
-import { PluginSettingsCard } from "@/components/settings/plugin-settings";
 import { ReleaseChannelCard } from "@/components/settings/release-channel";
 import { ScheduleBehavior } from "@/components/settings/schedule-behavior";
 import { SilenceSchedule } from "@/components/settings/silence-schedule";
 import { SystemControls } from "@/components/settings/system-controls";
 import { SystemUpdate } from "@/components/settings/system-update";
 import { TimeAndDateCard } from "@/components/settings/time-and-date";
-import { TransitionSettings } from "@/components/settings/transition-settings";
 import { UpdateIntervals } from "@/components/settings/update-intervals";
 import { useWizard } from "@/components/wizard-provider";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
-type SectionId = "general" | "account" | "hardware" | "network" | "behavior" | "integrations" | "system" | "advanced";
+type SectionId = "general" | "account" | "network" | "scheduling" | "ai" | "system" | "advanced";
+
+/**
+ * The tab boards and FiestaPanels used to live in. Displays have their own
+ * section now (plan D21); an old `?section=hardware` link lands there.
+ */
+const LEGACY_HARDWARE_SECTION = "hardware";
+
+/**
+ * Tabs that were renamed, mapped to the tab that now holds their cards, so a
+ * bookmark or an old docs link still opens the right place. Behavior became
+ * Scheduling; Integrations became AI (its MQTT card moved to General and its
+ * plugin-update card to the Integrations page, but AI is what most of its
+ * links were for — the OAuth return among them).
+ */
+const LEGACY_SECTIONS: Readonly<Record<string, SectionId>> = {
+  behavior: "scheduling",
+  integrations: "ai",
+};
 
 const SECTION_IDS: readonly SectionId[] = [
   "general",
   "account",
-  "hardware",
   "network",
-  "behavior",
-  "integrations",
+  "scheduling",
+  "ai",
   "system",
   "advanced",
 ] as const;
@@ -111,7 +123,8 @@ export default function SettingsPage() {
   const showNetwork = !!wifiCapability?.available;
 
   const requested = searchParams.get("section");
-  let activeSection: SectionId = isSectionId(requested) ? requested : DEFAULT_SECTION;
+  const resolved = requested !== null && requested in LEGACY_SECTIONS ? LEGACY_SECTIONS[requested] : requested;
+  let activeSection: SectionId = isSectionId(resolved) ? resolved : DEFAULT_SECTION;
   // If the URL asks for a tab that isn't currently visible (e.g.
   // ?section=account when auth is off), fall back to the default
   // instead of rendering an empty tab body.
@@ -124,7 +137,7 @@ export default function SettingsPage() {
 
   // Scroll to a hash anchor (e.g. #silence-schedule) when the active tab
   // mounts, and pulse the target card so the user can see what they navigated
-  // to. Driven by deep-links like /settings?section=behavior#silence-schedule.
+  // to. Driven by deep-links like /settings?section=scheduling#silence-schedule.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const hash = window.location.hash.replace(/^#/, "");
@@ -153,10 +166,9 @@ export default function SettingsPage() {
     const all: SectionMeta[] = [
       { id: "general", label: t("sectionGeneral"), icon: User },
       { id: "account", label: t("sectionAccount"), icon: ShieldCheck },
-      { id: "hardware", label: t("sectionHardware"), icon: MonitorCog },
       { id: "network", label: t("sectionNetwork"), icon: Wifi },
-      { id: "behavior", label: t("sectionBehavior"), icon: Waves },
-      { id: "integrations", label: t("sectionIntegrations"), icon: Plug },
+      { id: "scheduling", label: t("sectionScheduling"), icon: CalendarClock },
+      { id: "ai", label: t("sectionAi"), icon: Sparkles },
       { id: "system", label: t("sectionSystem"), icon: Cog },
       { id: "advanced", label: t("sectionAdvanced"), icon: Wrench },
     ];
@@ -166,6 +178,12 @@ export default function SettingsPage() {
       return true;
     });
   }, [t, showAccount, showNetwork]);
+
+  // Settings → Hardware moved to Displays (plan D21): keep old links working.
+  if (requested === LEGACY_HARDWARE_SECTION) {
+    const hash = typeof window === "undefined" ? "" : window.location.hash;
+    return <Navigate to={`/displays${hash}`} replace />;
+  }
 
   return (
     <PageLayout>
@@ -205,6 +223,7 @@ export default function SettingsPage() {
             <LocationSettingsCard />
             <AccessibilitySettings />
             <AnimationSettings />
+            <MqttSettingsCard />
           </TabsContent>
 
           {showAccount && (
@@ -213,29 +232,21 @@ export default function SettingsPage() {
             </TabsContent>
           )}
 
-          <TabsContent value="hardware" className="mt-0">
-            <DisplaySettings />
-            <FiestaPanelSettings />
-          </TabsContent>
-
           {showNetwork && (
             <TabsContent value="network" className="mt-0">
               <NetworkSettings />
             </TabsContent>
           )}
 
-          <TabsContent value="behavior" className="mt-0">
-            <TransitionSettings />
+          <TabsContent value="scheduling" className="mt-0">
             <UpdateIntervals />
             <ScheduleBehavior />
             <SilenceSchedule />
           </TabsContent>
 
-          <TabsContent value="integrations" className="mt-0">
+          <TabsContent value="ai" className="mt-0">
             <AiSettings />
             <McpSettings />
-            <MqttSettingsCard />
-            <PluginSettingsCard />
           </TabsContent>
 
           <TabsContent value="system" className="mt-0">
@@ -258,12 +269,10 @@ export default function SettingsPage() {
                 </Button>
               </CardContent>
             </Card>
-            <AboutCard />
           </TabsContent>
 
           <TabsContent value="advanced" className="mt-0">
             <DebugSettings />
-            <BetaSettings />
           </TabsContent>
         </PageCard>
       </Tabs>

@@ -112,7 +112,12 @@ export function MqttSettingsCard() {
                 {t("disconnected")}
               </Badge>
             ))}
-          <Switch checked={isEnabled} onCheckedChange={handleToggleEnabled} disabled={saveMutation.isPending} />
+          <Switch
+            checked={isEnabled}
+            onCheckedChange={handleToggleEnabled}
+            disabled={saveMutation.isPending}
+            aria-label={t("title")}
+          />
         </Flex>
       }
     >

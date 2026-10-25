@@ -11,7 +11,7 @@
 // (src/ai/page_routes.py) and the request models beside them.
 // tests/test_ai_stream_contract.py holds the two sides together.
 
-import type { DeviceType, GridSize, LineMetadata } from "./api";
+import type { Canvas, DeviceType, GridSize, LineMetadata } from "./api";
 
 // ---------------------------------------------------------------------------
 // Editor-local ops. These never cross the wire any more: the page editor's
@@ -191,7 +191,7 @@ export type DoneReason = "complete" | "awaiting_approval" | "awaiting_input" | "
 // helpers, not a union — an unknown tool's args are still a plain object.
 export type DayPattern = "all" | "weekdays" | "weekends" | "custom";
 export type SettingCategory =
-  "display" | "transitions" | "output" | "polling" | "location" | "silence_schedule" | "active_page" | "ai";
+  "display" | "transitions" | "output" | "polling" | "location" | "silence_schedule" | "active_page" | "ai" | "plugins";
 
 export interface CreatePageArgs {
   name: string;
@@ -205,6 +205,7 @@ export interface CreatePageArgs {
   grid_cols?: number;
   line_metadata?: LineMetadata[];
   transition_strategy?: string | null;
+  canvases?: Canvas[] | null;
 }
 
 export interface UpdatePageArgs {
@@ -219,6 +220,7 @@ export interface UpdatePageArgs {
   grid_cols?: number | null;
   line_metadata?: LineMetadata[] | null;
   transition_strategy?: string | null;
+  canvases?: Canvas[] | null;
 }
 
 export interface CreateScheduleArgs {
@@ -300,6 +302,8 @@ export interface ChatMessage {
   /** The question this entry asked, with the answer once given. */
   elicitation?: Elicitation & { answer?: ElicitationAnswer };
   warnings?: string[];
+  /** A stream that ended before completion, including text-only turns. */
+  finishReason?: "stopped" | "error" | "paused";
   /** True while the server is still working on this entry. */
   pending?: boolean;
   /**
@@ -328,6 +332,15 @@ export type WireMessage =
   | { role: "tool"; tool_call_id: string; name: string; status: WireToolStatus; result: unknown };
 
 export interface CurrentPageSnapshot {
+  board_id?: string;
+  device_type?: DeviceType;
+  notes_wide?: number;
+  notes_tall?: number;
+  grid_rows?: number | null;
+  grid_cols?: number | null;
+  canvases?: Canvas[];
+  duration_seconds?: number;
+  transition_strategy?: string | null;
   /** The saved page's id; absent for an unsaved draft in /pages/new. */
   id?: string;
   name: string;
@@ -388,6 +401,12 @@ export type ChatSurface = "editor" | "global";
 export interface ChatTurnContext {
   deviceType: DeviceType;
   surface: ChatSurface;
+  /**
+   * The board the chat is for (the sidebar's current board). The server
+   * teaches that board's display: an LED board's colours and icons, a pixel
+   * board's canvases. Absent: the split-flap rules.
+   */
+  boardId?: string;
   currentPage?: CurrentPageSnapshot;
   availablePages?: PageRef[];
   installedPlugins?: InstalledPluginRef[];
@@ -410,6 +429,7 @@ export interface ChatRequestBody {
   resume?: ResumePayload;
   approval?: ChatApprovalOptions;
   device_type: DeviceType;
+  board_id?: string;
   surface?: ChatSurface;
   current_page?: CurrentPageSnapshot;
   available_pages?: PageRef[];

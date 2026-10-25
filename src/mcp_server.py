@@ -76,10 +76,13 @@ from __future__ import annotations
 
 import functools
 import inspect
+import json
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from pydantic import Field
+from pydantic import Field, SkipValidation
+
+from .canvas.models import Canvas
 
 # Mutating tools dispatch into the shared operation layer (#1764); the
 # result envelopes live there too, so executors and the read-only tools
@@ -188,7 +191,9 @@ def _mask_settings_block(cm: Any, block: Any) -> Any:
     leaves an unset one empty, so a model can tell "configured" from "not"
     without ever seeing the secret.
     """
-    return cm._mask_sensitive(_serialize(block))
+    from .outputs.description import mask_output_settings
+
+    return cm._mask_sensitive(mask_output_settings(_serialize(block)))
 
 
 def _rest_error(exc: Any) -> Exception:
@@ -223,6 +228,207 @@ def _raise_error_envelope(result: Any) -> Any:
         logger.info("MCP tool error: %s", message)
         raise ToolError(message)
     return result
+
+
+def _charset_check(board_id: str | None) -> Any:
+    """The board-targeted template check ``POST /templates/render`` uses.
+
+    The same object (plan D17/D19): the board's character set decides
+    extended markup and what ``charset_issues`` reports, so a tool and the
+    editor never disagree about one board. Unlike REST, where an unknown
+    board quietly renders as split-flap, an unknown ``board_id`` is a
+    ToolError here, as for every other board-targeting tool: an answer about
+    a board that does not exist is an answer about nothing (#1874 review).
+    """
+    from .board_guards import _find_board
+    from .templates.routes import _CharsetCheck
+
+    if board_id is None:
+        from .settings.service import get_settings_service
+
+        primary = get_settings_service().get_primary_board_id()
+        board_id = primary if isinstance(primary, str) and primary else None
+    if board_id is not None and _find_board(board_id) is None:
+        raise ToolError(f"Board not found: {board_id}")
+    return _CharsetCheck(board_id)
+
+
+_SHAPE_TYPES = frozenset({"rect", "circle", "ellipse", "line", "polygon", "text", "gradient"})
+
+
+def _preview_geometry(
+    check: Any,
+    device_type: str | None,
+    notes_wide: int | None,
+    notes_tall: int | None,
+    grid_rows: int | None,
+    grid_cols: int | None,
+) -> tuple:
+    """Omitted geometry follows the selected display; explicit page geometry wins."""
+    from .devices import DEFAULT_DEVICE_TYPE, geometry_of, resolve_dimensions
+
+    if device_type is None and check.board is not None:
+        base_type, base_wide, base_tall, base_rows, base_cols = geometry_of(check.board)
+    else:
+        base_type, base_wide, base_tall, base_rows, base_cols = device_type or DEFAULT_DEVICE_TYPE, 1, 1, None, None
+    geometry = (
+        device_type or base_type,
+        notes_wide if notes_wide is not None else base_wide,
+        notes_tall if notes_tall is not None else base_tall,
+        grid_rows if grid_rows is not None else base_rows,
+        grid_cols if grid_cols is not None else base_cols,
+    )
+    try:
+        dims = resolve_dimensions(*geometry)
+    except ValueError as exc:
+        raise ToolError(f"Invalid display geometry: {exc}") from exc
+    return (*geometry, dims)
+
+
+def _error_path(loc: tuple[Any, ...]) -> str:
+    """A pydantic error location as ``content.shapes[0].fill``.
+
+    A shape's ``type`` tag (the union branch pydantic names) is left out:
+    the author wrote ``shapes[0].fill``, not ``shapes[0].rect.fill``.
+    """
+    path = ""
+    for i, part in enumerate(loc):
+        if isinstance(part, int):
+            path += f"[{part}]"
+        elif i > 0 and isinstance(loc[i - 1], int) and part in _SHAPE_TYPES:
+            continue
+        else:
+            path += f".{part}" if path else str(part)
+    return path
+
+
+def _canvas_errors(canvases: list[Any], rows: int | None, cols: int | None) -> list[dict[str, str]]:
+    """Every problem with a page's *canvases*, as ``{path, message}``.
+
+    The checks ``PageCreate`` makes (each canvas valid, at most 8, ids
+    unique, every area starting inside the grid), reported one by one so an
+    author can fix them all at once. ``rows``/``cols`` ``None`` skips the
+    area check on that axis (a size the caller did not give).
+    """
+    import re
+
+    from pydantic import ValidationError
+
+    from src.canvas.models import MAX_CANVASES_PER_PAGE, Canvas
+    from src.templates.expressions import validate_expression
+
+    errors: list[dict[str, str]] = []
+
+    def expressions(value: Any, path: str) -> None:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                expressions(item, f"{path}.{key}")
+        elif isinstance(value, list):
+            for idx, item in enumerate(value):
+                expressions(item, f"{path}[{idx}]")
+        elif isinstance(value, str):
+            for match in re.finditer(r"\{\{(.*?)\}\}", value, re.S):
+                body = match.group(1).strip().removeprefix("=").strip()
+                for issue in validate_expression(body):
+                    errors.append({"path": path, "message": f"{issue.code}: {issue.message}"})
+
+    if len(canvases) > MAX_CANVASES_PER_PAGE:
+        errors.append({"path": "canvases", "message": f"a page has at most {MAX_CANVASES_PER_PAGE} canvases"})
+    seen: set[str] = set()
+    for index, raw in enumerate(canvases):
+        where = f"canvases[{index}]"
+        try:
+            canvas = Canvas.model_validate(raw)
+        except ValidationError as exc:
+            for e in exc.errors():
+                sub = _error_path(tuple(e["loc"]))
+                message = str(e["msg"]).removeprefix("Value error, ")
+                errors.append({"path": f"{where}.{sub}" if sub else where, "message": message})
+            continue
+        if canvas.id in seen:
+            errors.append({"path": f"{where}.id", "message": f"canvas id {canvas.id!r} is used twice"})
+        seen.add(canvas.id)
+        expressions(canvas.model_dump(by_alias=True, exclude_none=True), where)
+        area = canvas.area
+        if (rows is not None and area.row > rows) or (cols is not None and area.col > cols):
+            errors.append(
+                {
+                    "path": f"{where}.area",
+                    "message": f"area starts at row {area.row}, col {area.col}, outside the "
+                    f"{rows if rows is not None else '?'} x {cols if cols is not None else '?'} grid "
+                    "(it may run past the edge, but must start inside)",
+                }
+            )
+    return errors
+
+
+def _layers_summary(layers: list[Any], issues: list[Any], *, pixels: bool) -> dict[str, Any]:
+    """A pixel board's canvas layers for a tool result: placement, not pixels.
+
+    ``rgba`` (base64, often kilobytes) only when *pixels* asks for it, so a
+    preview stays small in a model's context.
+    """
+    from src.canvas.schemas import issues_json, layers_json
+
+    shown = layers_json(layers)
+    if not pixels:
+        shown = [{key: layer[key] for key in ("x", "y", "width", "height")} for layer in shown]
+    return {"layer_count": len(shown), "layers": shown, "canvas_issues": issues_json(issues)}
+
+
+def _preview_with_canvases(
+    template_lines: list[str],
+    canvases: list[dict[str, Any]],
+    check: Any,
+    context: dict[str, Any],
+    *,
+    device_type: str,
+    line_metadata: list[dict[str, Any]] | None,
+    size: tuple[Any, Any, Any, Any],
+    pixels: bool,
+) -> dict[str, Any]:
+    """``render_page_preview`` for a template with canvases: an unsaved page
+    rendered exactly as a saved one (text flowed or blanked under the
+    canvases, and for a pixel board the layers the board would draw)."""
+    from pydantic import ValidationError
+
+    from .devices import resolve_dimensions
+    from .pages.models import Page
+    from .pages.service import draws_pixels, get_page_service
+
+    notes_wide, notes_tall, grid_rows, grid_cols = size
+    try:
+        page = Page(
+            name="preview",
+            type="template",
+            template=template_lines or [""],
+            line_metadata=line_metadata,
+            device_type=device_type,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+            grid_rows=grid_rows,
+            grid_cols=grid_cols,
+            canvases=canvases,
+        )
+    except (ValidationError, ValueError) as exc:
+        raise ToolError(f"Invalid page or canvases: {exc}") from exc
+    result = get_page_service().render_page(page, context=context, display=check.display, **check.render_kw)
+    if not result.available:
+        raise ToolError(result.error or "Page rendering failed.")
+    dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
+    out: dict[str, Any] = {
+        "rendered": result.formatted,
+        "device_type": device_type,
+        "rows": dims.rows,
+        "cols": dims.cols,
+        "context_plugins": sorted(context.keys()),
+        **check.result(result.formatted),
+    }
+    if draws_pixels(check.display):
+        out.update(_layers_summary(result.layers, result.canvas_issues, pixels=pixels))
+    else:
+        out["layers"] = None
+    return out
 
 
 def _format_array_entry(
@@ -266,12 +472,15 @@ def _build_mcp_server() -> Any:
     if not _MCP_AVAILABLE:
         return None
 
+    from .templates.canvas_reference import CANVAS_RULES
+
     mcp = MCPServer(
         "FiestaBoard",
         instructions=(
-            "FiestaBoard is open-source software that sends content to Vestaboard\n"
-            "split-flap boards through Vestaboard's official APIs. It is not made by\n"
-            "or affiliated with Vestaboard, Inc. You can:\n"
+            "FiestaBoard sends pages to split-flap, pixel, virtual and plugin-defined displays.\n"
+            "Start with get_display_info(board_id) to learn the selected display's actual geometry,\n"
+            "character set, pixel/canvas support and delivery limits. Never infer these from its name.\n"
+            "list_display_outputs() describes installed outputs, models, settings and actions. You can:\n"
             "  • Manage plugins/integrations (weather, stocks, transit, etc.)\n"
             "  • Create and edit display pages using template variables from plugins\n"
             "  • Schedule which page shows at which time of day\n"
@@ -300,10 +509,7 @@ def _build_mcp_server() -> Any:
             "  • list_staff_picks() + import_staff_pick(pick_id) — the curated gallery.\n"
             "  • get_current_display() — the raw template + line_metadata of the page\n"
             "    a board is showing, to start a new page from.\n"
-            "  • list_formula_functions() — every function usable inside {{= ...}}.\n"
-            "  • Transition Lab (beta, Settings → Beta): list_transition_plugins(),\n"
-            "    test_transition_live(plugin_id, to_page_id) runs one on the real board,\n"
-            "    restore_board() snaps it back to its active page afterwards.\n\n"
+            "  • list_formula_functions() — every function usable inside {{= ...}}.\n\n"
             "PLUGIN MANAGEMENT (everything the Integrations page can do)\n"
             "  • install_plugin(plugin_id) installs from the registry;\n"
             "    install_plugin(repository=<https git URL>, branch=...) is the\n"
@@ -353,10 +559,14 @@ def _build_mcp_server() -> Any:
             "SETTINGS, HARDWARE AND SYSTEM (everything the Settings page can change,\n"
             "except secrets)\n"
             "  • update_setting(category, values) — general (instance_name renames\n"
-            "    the install, timezone, time/date format), display, transitions,\n"
-            "    output, polling, location, silence_schedule, active_page, beta,\n"
-            "    plugins (auto_update), mqtt (no username/password), ai (no\n"
-            "    api_key), release_channel, auto_update, hdmi_kiosk\n"
+            "    the install, timezone, time/date format), display, output,\n"
+            "    polling, location, silence_schedule, active_page, plugins\n"
+            "    (auto_update, transition_plugins_enabled),\n"
+            "    mqtt (no username/password), ai (no api_key), release_channel,\n"
+            "    auto_update, hdmi_kiosk. Each board owns its transition: set it\n"
+            "    with update_board(transition=..., transition_step_interval_ms=...,\n"
+            "    transition_step_size=...); 'transitions' is a deprecated alias for\n"
+            "    the first board's\n"
             "  • Boards: update_board() renames/retypes/resizes a board, sets its\n"
             "    colour, code-62 glyph, API mode or host; add_board(),\n"
             "    remove_board(), detect_board_size(), identify_tile()\n"
@@ -411,7 +621,7 @@ def _build_mcp_server() -> Any:
             "    overflow space for |wrap.\n\n"
             "Available user-invokable PROMPTS: setup_fiestaboard,\n"
             "create_display_page, schedule_my_day, build_a_collection,\n"
-            "troubleshoot_display."
+            "troubleshoot_display." + "\n\n" + CANVAS_RULES
         ),
     )
 
@@ -517,6 +727,8 @@ def _build_mcp_server() -> Any:
         - enabled: whether the plugin is active
         - configured: whether required settings have been filled in
         - description: what the plugin does
+        - plugin_type: 'data', 'output', or 'transition' (deprecated; its
+          'plugin:<id>' is a page or board transition)
         - settings_schema: JSON Schema describing configurable fields
         - config: current configuration (sensitive values masked as '***')
         """
@@ -1056,6 +1268,7 @@ def _build_mcp_server() -> Any:
         transition_step_size: int | None = None,
         grid_rows: int | None = None,
         grid_cols: int | None = None,
+        canvases: list[SkipValidation[Canvas]] | None = None,
     ) -> dict[str, Any]:
         """Create a new template page on FiestaBoard.
 
@@ -1087,12 +1300,12 @@ def _build_mcp_server() -> Any:
             notes_tall: For note_array only — Notes down (1–8). Omitted = 1.
             grid_rows: For panel only (required) — rows, the panel's rows.
             grid_cols: For panel only (required) — columns, the panel's cols.
+            canvases: Optional pixel canvases (LED pixel boards; see the
+                      PIXEL CANVASES rules).
             transition_strategy: Optional per-page transition override —
                                  'column', 'reverse-column', 'edges-to-center',
-                                 'row', 'diagonal', 'random', or the
-                                 'plugin:<id>' string from
-                                 list_transition_plugins(). Omitted = the
-                                 system transition from get_settings_summary().
+                                 'row', 'diagonal', 'random' (or a deprecated
+                                 'plugin:<id>'). Omitted = the board's own.
             transition_interval_ms: Optional per-page step interval (0–5000 ms).
             transition_step_size: Optional per-page step size (≥ 1).
 
@@ -1113,6 +1326,7 @@ def _build_mcp_server() -> Any:
             transition_step_size=transition_step_size,
             grid_rows=grid_rows,
             grid_cols=grid_cols,
+            canvases=canvases,
         )
 
     @_tool(destructive=False, idempotent=True)
@@ -1131,6 +1345,7 @@ def _build_mcp_server() -> Any:
         clear_transition_override: bool = False,
         grid_rows: int | None = None,
         grid_cols: int | None = None,
+        canvases: list[SkipValidation[Canvas]] | None = None,
     ) -> dict[str, Any]:
         """Update any field of an existing page. Only the fields you pass change.
 
@@ -1157,13 +1372,12 @@ def _build_mcp_server() -> Any:
             grid_cols: New panel column count (optional; from list_panels()).
             line_metadata: New per-line alignment/wrap list (optional). Replaces
                            the whole list; one {"alignment", "wrap"} dict per line.
-            transition_strategy: New per-page transition override (optional) —
-                                 a built-in strategy name or a 'plugin:<id>'
-                                 from list_transition_plugins().
+            canvases: New pixel canvases (optional); replaces all, [] removes them.
+            transition_strategy: New per-page transition override (optional).
             transition_interval_ms: New per-page step interval, 0–5000 (optional).
             transition_step_size: New per-page step size, ≥ 1 (optional).
             clear_transition_override: Set True to remove the per-page
-                transition override so the page follows the system
+                transition override so the page follows its board's
                 transition again. Needed because omitting the transition
                 fields means "unchanged".
 
@@ -1185,6 +1399,7 @@ def _build_mcp_server() -> Any:
             clear_transition_override=clear_transition_override,
             grid_rows=grid_rows,
             grid_cols=grid_cols,
+            canvases=canvases,
         )
 
     @_tool(destructive=True)
@@ -1202,12 +1417,15 @@ def _build_mcp_server() -> Any:
     @_tool(read_only=True)
     def render_page_preview(
         template_lines: list[str],
-        device_type: str = "flagship",
+        device_type: str | None = None,
         line_metadata: list[dict[str, Any]] | None = None,
-        notes_wide: int = 1,
-        notes_tall: int = 1,
+        notes_wide: int | None = None,
+        notes_tall: int | None = None,
         grid_rows: int | None = None,
         grid_cols: int | None = None,
+        board_id: str | None = None,
+        canvases: list[SkipValidation[Canvas]] | None = None,
+        include_layer_pixels: bool = False,
     ) -> dict[str, Any]:
         """Render a template to see how it will look BEFORE saving it as a page.
 
@@ -1222,65 +1440,103 @@ def _build_mcp_server() -> Any:
             device_type: 'flagship' (22×6), 'note' (15×3), 'note_array'
                          (15·notes_wide × 3·notes_tall), or 'panel'
                          (grid_cols × grid_rows).
-            line_metadata: Optional per-line dicts with "alignment"
-                           ('left'/'center'/'right') and "wrap" (bool) — the
-                           same metadata saved pages carry. Include it to
-                           preview alignment and wrap faithfully.
+            line_metadata: Optional per-line {"alignment", "wrap"} dicts, as
+                           saved pages carry; include it to preview them.
             notes_wide: For note_array — Notes across (1–8). Ignored otherwise.
             notes_tall: For note_array — Notes down (1–8). Ignored otherwise.
             grid_rows: For panel — rows (from list_panels()). Ignored otherwise.
             grid_cols: For panel — columns (from list_panels()). Ignored otherwise.
+            board_id: Optional board to render for (get_settings_summary()
+                      boards). Its character set decides extended markup
+                      ({{red:HOT}}, icons) and tile widths; adds charset and
+                      charset_issues (cells it draws differently). Geometry
+                      follows this board (or the primary) when device_type
+                      is omitted; explicit geometry overrides it.
+            canvases: Optional pixel canvases. Text under them is blanked (or
+                      flows); for a pixel board_id adds layer_count, layers
+                      ({x, y, width, height}) and canvas_issues.
+            include_layer_pixels: Add each layer's base64 rgba (large).
 
         Returns:
             {
               "rendered": "<grid string with \\n between rows>",
               "device_type": "flagship",
               "rows": 6, "cols": 22,
-              "context_plugins": ["weather", "date_time", ...]
+              "context_plugins": ["weather", "date_time", ...],
+              "charset": "led_5x7", "charset_issues": [...]   (board_id only)
             }
         Unresolved variables render as "???" — that's a sign of a typo or a
         plugin that's disabled/unconfigured. Lines longer than the board width
         will appear truncated in the output, matching real-device behavior.
         """
-        from .devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
+        from .devices import BoardContext
         from .templates.engine import get_template_engine
 
+        check = _charset_check(board_id)
         engine = get_template_engine()
         # Build the plugin context around the real BoardContext — the same
         # construction render_lines performs internally and the saved-page
         # render path (PageService._render_template) relies on — so
         # board-aware plugins see the true geometry. The pre-#1765 call
         # passed no board at all, and every plugin previewed board-blind.
-        # Unknown device types fall back to the default, matching
-        # render_lines' own never-crash fallback. A note_array is sized from
-        # notes_wide × notes_tall, exactly as a saved page's geometry is.
-        render_device_type = device_type or DEFAULT_DEVICE_TYPE
+        # A note_array is sized from notes_wide × notes_tall, exactly as a
+        # saved page's geometry is; unknown types are explicit tool errors.
+        render_device_type, notes_wide, notes_tall, grid_rows, grid_cols, dims = _preview_geometry(
+            check, device_type, notes_wide, notes_tall, grid_rows, grid_cols
+        )
+        # With board_id, the plugins also see what that board draws (its
+        # face included), as the engine's own render does.
+        from .canvas.models import Canvas
+        from .canvas.refs import canvas_plugin_ids
+        from .templates.engine import extract_template_plugin_ids
+
+        template_refs = extract_template_plugin_ids(template_lines)
+        from pydantic import ValidationError
+
         try:
-            dims = resolve_dimensions(render_device_type, notes_wide, notes_tall, grid_rows, grid_cols)
-        except ValueError:
-            render_device_type = DEFAULT_DEVICE_TYPE
-            dims = resolve_dimensions(render_device_type)
-        context = engine._build_context(BoardContext(render_device_type, rows=dims.rows, cols=dims.cols))
+            canvas_refs = canvas_plugin_ids([Canvas.model_validate(c) for c in canvases or []])
+        except ValidationError as exc:
+            raise ToolError(f"Invalid canvases: {exc}") from exc
+        plugin_ids = None if template_refs is None or canvas_refs is None else template_refs | canvas_refs
+        context = engine._build_context(
+            BoardContext(render_device_type, rows=dims.rows, cols=dims.cols, display=check.display),
+            plugin_ids=plugin_ids,
+        )
+        if canvases:
+            return _preview_with_canvases(
+                template_lines,
+                canvases,
+                check,
+                context,
+                device_type=render_device_type,
+                line_metadata=line_metadata,
+                size=(notes_wide, notes_tall, grid_rows, grid_cols),
+                pixels=include_layer_pixels,
+            )
         rendered = engine.render_lines(
             template_lines,
             context=context,
             line_metadata=line_metadata,
-            device_type=device_type,
+            device_type=render_device_type,
             notes_wide=notes_wide,
             notes_tall=notes_tall,
             grid_rows=grid_rows,
             grid_cols=grid_cols,
+            **check.render_kw,
         )
         return {
             "rendered": rendered,
-            "device_type": device_type,
+            "device_type": render_device_type,
             "rows": dims.rows,
             "cols": dims.cols,
             "context_plugins": sorted(context.keys()),
+            **check.result(rendered),
         }
 
     @_tool(read_only=True)
-    def preview_saved_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
+    def preview_saved_page(
+        page_id: str, board_id: str | None = None, include_layer_pixels: bool = False
+    ) -> dict[str, Any]:
         """Render a SAVED page exactly as the display engine would send it.
 
         Complements render_page_preview(), which renders unsaved template
@@ -1294,6 +1550,7 @@ def _build_mcp_server() -> Any:
                       list in get_settings_summary()). Adds fits_board and
                       board_warnings to the response; rendering itself always
                       uses the page's own device geometry.
+            include_layer_pixels: Include each pixel layer's base64 RGBA data.
 
         Returns: {page_id, name, device_type, rendered, rows, line_metadata,
         and — when board_id is given — fits_board, board_warnings}.
@@ -1304,7 +1561,8 @@ def _build_mcp_server() -> Any:
         page = svc.get_page(page_id)
         if page is None:
             raise ToolError(f"Page '{page_id}' not found.")
-        result = svc.preview_page(page_id, force_refresh=True)
+        check = _charset_check(board_id)
+        result = svc.preview_page(page_id, force_refresh=True, **check.lines_kw)
         if result is None:
             raise ToolError(f"Page '{page_id}' not found.")
         if not result.available:
@@ -1317,7 +1575,10 @@ def _build_mcp_server() -> Any:
             "rendered": result.formatted,
             "rows": result.formatted.split("\n"),
             "line_metadata": ([m.model_dump() for m in page.line_metadata] if page.line_metadata else None),
+            **check.result(result.formatted),
         }
+        if check.display is not None and check.display.supports("pixels"):
+            out.update(_layers_summary(result.layers, result.canvas_issues, pixels=include_layer_pixels))
         if board_id is not None:
             # Same roster existence check as the sibling board tools:
             # compatibility against a board that does not exist would come
@@ -1339,9 +1600,13 @@ def _build_mcp_server() -> Any:
     @_tool(read_only=True)
     def validate_template(
         template: list[str] | str,
-        device_type: str = "flagship",
-        notes_wide: int = 1,
+        device_type: str | None = None,
+        notes_wide: int | None = None,
         grid_cols: int | None = None,
+        board_id: str | None = None,
+        canvases: list[SkipValidation[Canvas]] | None = None,
+        notes_tall: int | None = None,
+        grid_rows: int | None = None,
     ) -> dict[str, Any]:
         """Check template syntax without rendering, saving, or touching the board.
 
@@ -1355,29 +1620,45 @@ def _build_mcp_server() -> Any:
                          'flagship' (22 cols), 'note' (15 cols), 'note_array'
                          (15·notes_wide cols), or 'panel' (grid_cols cols).
             notes_wide: For note_array — Notes across (1–8).
+            notes_tall: For note_array — Notes down (1–8).
+            grid_rows: For panel — rows; required for canvas bounds.
             grid_cols: For panel (required) — the panel's cols from list_panels().
+            board_id: Optional board to validate for (from the boards list in
+                      get_settings_summary()). When its character set is rich
+                      (an LED), line length counts the tiles it draws, so
+                      {{red:HOT}} is 3 wide. Adds charset; charset_issues
+                      need a render — use render_page_preview(board_id=...).
+            canvases: Optional pixel canvases to check; their errors carry
+                      a path (canvases[0].content.shapes[2].fill).
 
-        Returns: {valid: bool, errors: [{line, column, message}], device_type}.
+        Returns: {valid: bool, errors: [{line, column, message} or
+        {path, message}], device_type, and — when board_id is given — charset}.
         """
-        from .devices import MIN_GRID_ROWS, resolve_dimensions
+        from .devices import MIN_GRID_ROWS
         from .templates.engine import get_template_engine
 
-        try:
-            # Width only: rows never affect template validation, so a panel's
-            # row count is irrelevant here (any in-range value works).
-            cols = resolve_dimensions(device_type, notes_wide, 1, MIN_GRID_ROWS, grid_cols).cols
-        except Exception as exc:
-            if device_type == "panel":
-                raise ToolError("A panel needs grid_cols (its cols from list_panels())") from exc
-            raise ToolError(f"Unknown device_type: {device_type}") from exc
-
+        check = _charset_check(board_id)
+        if device_type == "panel" and grid_rows is None and check.board is None:
+            if canvases:
+                raise ToolError("Canvas validation for a panel requires grid_rows and grid_cols or a board_id.")
+            grid_rows = MIN_GRID_ROWS
+        device_type, _, _, _, _, dims = _preview_geometry(
+            check, device_type, notes_wide, notes_tall, grid_rows, grid_cols
+        )
+        cols = dims.cols
         text = "\n".join(template) if isinstance(template, list) else template
-        errors = get_template_engine().validate_template(text, cols=cols)
-        return {
-            "valid": len(errors) == 0,
-            "errors": [{"line": e.line, "column": e.column, "message": e.message} for e in errors],
+        errors = get_template_engine().validate_template(text, cols=cols, **check.render_kw)
+        found: list[dict[str, Any]] = [{"line": e.line, "column": e.column, "message": e.message} for e in errors]
+        if canvases:
+            found += _canvas_errors(canvases, dims.rows, cols)
+        out: dict[str, Any] = {
+            "valid": len(found) == 0,
+            "errors": found,
             "device_type": device_type,
         }
+        if check.targeted:
+            out["charset"] = check.charset["id"] if check.charset is not None else None
+        return out
 
     @_tool(read_only=True)
     def list_formula_functions() -> dict[str, Any]:
@@ -1550,88 +1831,8 @@ def _build_mcp_server() -> Any:
             "grid_cols": page.grid_cols,
             "template": template,
             "line_metadata": line_metadata,
+            "canvases": [c.model_dump(by_alias=True, exclude_none=True) for c in page.canvases or []],
         }
-
-    # -----------------------------------------------------------------------
-    # Transition Lab (beta) — the /transitions endpoints. Gated behind
-    # Settings → Beta → transition plugins, exactly like the REST routes.
-    # -----------------------------------------------------------------------
-
-    @_tool(read_only=True)
-    def list_transition_plugins() -> dict[str, Any]:
-        """List installed transition plugins (frame-by-frame board animations).
-
-        Each entry has id, name, description, settings_schema (its config
-        form), transition_settings (its frame/runtime caps), config (its
-        current bound config) and strategy — the 'plugin:<id>' string to
-        store as a page's transition_strategy via update_page(), or as the
-        system transition via update_setting('transitions', ...).
-
-        Transition plugins are a beta: while Settings → Beta has them off
-        this reports an error, the same way the web UI hides the picker.
-        """
-        from .transitions import service as transitions
-
-        refusal = ops_executors._transition_beta_refusal()
-        if refusal is not None:
-            return refusal
-        return {"plugins": _serialize(transitions.list_installed_transition_plugins())}
-
-    @_tool(destructive=False)
-    async def test_transition_live(
-        plugin_id: str,
-        to_page_id: str,
-        from_page_id: str | None = None,
-        config: dict[str, Any] | None = None,
-        board_id: str | None = None,
-    ) -> dict[str, Any]:
-        """Run a transition plugin ONCE on the real board (the Transition Lab).
-
-        Snaps from_page_id onto the board (when given), then animates to
-        to_page_id with the plugin. The board is LEFT showing to_page_id —
-        call restore_board() afterwards, or wait for the display loop to put
-        the active page back. Does not change which page is active.
-
-        A paused board or an active silence window returns status "blocked"
-        (deliberate policy — relay it to the user, don't retry). Beta-gated
-        like list_transition_plugins().
-
-        Args:
-            plugin_id: The transition plugin (from list_transition_plugins()).
-            to_page_id: The page the transition lands on (from list_pages()).
-            from_page_id: Optional page shown first so the animation visibly
-                          starts from it. Omitted = whatever the board shows now.
-            config: Optional per-run overrides merged over the plugin's
-                    current config (keys from its settings_schema).
-            board_id: Board to target on a multi-board install (from the boards
-                      list in get_settings_summary()). Omitted = the primary board.
-
-        Returns: {status, message, sent, plugin_id, from_page_id, to_page_id, board_id}.
-        """
-        return await ops_executors.test_transition_live(
-            plugin_id,
-            to_page_id,
-            from_page_id=from_page_id,
-            config=config,
-            board_id=board_id,
-        )
-
-    @_tool(destructive=False, idempotent=True)
-    async def restore_board(board_id: str | None = None) -> dict[str, Any]:
-        """Snap a board back to its active page after test_transition_live().
-
-        Re-renders the board's active page and sends it plainly (no
-        transition), cancelling any still-running plugin transition. Safe to
-        repeat. A paused board or an active silence window returns status
-        "blocked". Beta-gated like list_transition_plugins().
-
-        Args:
-            board_id: Board to restore on a multi-board install (from the boards
-                      list in get_settings_summary()). Omitted = the primary board.
-
-        Returns: {status, message, page_id, sent, board_id}.
-        """
-        return await ops_executors.restore_board(board_id=board_id)
 
     # -----------------------------------------------------------------------
     # Schedule tools
@@ -2097,8 +2298,9 @@ def _build_mcp_server() -> Any:
           update_setting()
         - silence_schedule: the install-wide quiet-hours config, plus
           by_board overrides keyed by board id
-        - beta: https_enabled, transition_plugins_enabled
-        - plugins: auto_update
+        - plugins: auto_update, transition_plugins_enabled
+        - transitions: deprecated (removed in v11) — the FIRST board's
+          transition; each board's own is on its boards entry
         - mqtt: enabled, broker_host, broker_port, external_url, username and
           password masked as "***" when set
         - ai: enabled, default_provider_id, providers (id, name, protocol,
@@ -2108,7 +2310,8 @@ def _build_mcp_server() -> Any:
         - boards: one entry per configured board with id, name, device_type,
           rows/cols, notes_wide/notes_tall, board_color, code62_glyph,
           api_mode, has_host, has_credentials, primary, enabled, paused,
-          schedule_enabled, active_page_id, and error (why the board failed to
+          schedule_enabled, transition, transition_step_interval_ms,
+          transition_step_size, active_page_id, and error (why the board failed to
           initialize, or null). Use a board's id as the board_id argument to
           board-targeting tools, and its rows/cols to size templates for it.
 
@@ -2127,7 +2330,6 @@ def _build_mcp_server() -> Any:
             ("output", svc.get_output_settings),
             ("transitions", svc.get_transition_settings),
             ("polling", svc.get_polling_settings),
-            ("beta", svc.get_beta_settings),
             ("plugins", svc.get_plugin_settings),
         ):
             try:
@@ -2174,21 +2376,25 @@ def _build_mcp_server() -> Any:
         return summary
 
     @_tool(destructive=False, idempotent=True)
-    async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
+    async def set_active_page(
+        page_id: str, board_id: str | None = None, override_silence: bool = False
+    ) -> dict[str, Any]:
         """Set which page is currently shown on the FiestaBoard display.
 
-        This immediately changes what's visible on the board.
+        This immediately changes what's visible on the board. If silenced,
+        it is saved and shown when silence ends (silenced: true).
 
         Args:
             page_id: The page or collection ID to display (from list_pages() or list_collections()).
             board_id: Board to target on a multi-board install (from the boards
                       list in get_settings_summary()). Omitted = the primary board.
+            override_silence: Show it now even while silenced. Only if the user explicitly asks.
         """
         # The executor delegates to the REST handler rather than
         # reimplementing it (#1559): selecting a page validates the ref,
         # enforces page<->board size compatibility, dismisses active plugin
         # triggers (#856), and renders to the board.
-        return await ops_executors.set_active_page(page_id, board_id=board_id)
+        return await ops_executors.set_active_page(page_id, board_id=board_id, override_silence=override_silence)
 
     @_tool(destructive=False, idempotent=True)
     def set_schedule_mode(enabled: bool, board_id: str | None = None) -> dict[str, Any]:
@@ -2217,7 +2423,7 @@ def _build_mcp_server() -> Any:
         Args:
             category: Which settings group to change. One of 'general',
                 'display', 'transitions', 'output', 'polling', 'location',
-                'silence_schedule', 'schedule_behavior', 'active_page', 'beta',
+                'silence_schedule', 'schedule_behavior', 'active_page',
                 'plugins', 'mqtt', 'ai', 'release_channel', 'auto_update', or
                 'hdmi_kiosk'.
             values: The keys to change within that category — see "Keys
@@ -2235,16 +2441,20 @@ def _build_mcp_server() -> Any:
                   ("on" | "desktop" | "off"), site_animations ("on" | "off"),
                   board_flap_speed ("hardware" | "quick" | "standard" |
                   "relaxed", or a millisecond count).
-                - transitions (how the physical board animates between
-                  pages): strategy (string), step_interval_ms (int),
-                  step_size (int).
+                - transitions: DEPRECATED (removed in v11) — sets the FIRST
+                  board's transition: strategy (string, null = none),
+                  step_interval_ms (int), step_size (int). Every board owns
+                  its transition: set one with update_board(board_id,
+                  transition=..., transition_step_interval_ms=...,
+                  transition_step_size=...) instead.
                 - output: target ("ui" | "board" | "both").
                 - polling: interval_seconds (int) — how often plugins
                   refresh; board_read_interval_local / _cloud (int seconds).
                 - location: latitude (float), longitude (float) — used by
                   sunrise/sunset schedules and location-aware plugins.
                 - silence_schedule: enabled (bool), start_time and end_time
-                  ("HH:MM"), mode ("freeze" | "page" | "indicator"), page_id,
+                  ("HH:MM±HH:MM", e.g. "22:00+00:00"),
+                  mode ("freeze" | "page" | "indicator"), page_id,
                   indicator_text, indicator_position, board_id (optional —
                   writes that board's own override instead of the
                   install-wide schedule; boards without an override follow
@@ -2255,10 +2465,12 @@ def _build_mcp_server() -> Any:
                   switching the board immediately.
                 - active_page: page_id (string), board_id (optional) — the
                   same selection set_active_page() makes.
-                - beta: https_enabled (bool — needs a restart_system() to
-                  take effect), transition_plugins_enabled (bool).
                 - plugins: auto_update (bool — update installed plugins in
-                  the background).
+                  the background), transition_plugins_enabled (bool — let
+                  boards and pages use the deprecated transition plugins).
+                  Display plugins need no opt-in. 'beta' is a deprecated
+                  alias (removed in v11) taking only
+                  transition_plugins_enabled.
                 - mqtt (Home Assistant bridge): enabled (bool), broker_host
                   (string), broker_port (int), external_url (string).
                   username and password are set by the user in the web UI.
@@ -2356,7 +2568,7 @@ def _build_mcp_server() -> Any:
 
     @_tool(read_only=True)
     def get_board_content(board_id: str | None = None) -> dict[str, Any]:
-        """What is currently ON a board — the last known flap content. Read-only.
+        """What is currently ON a board — cached characters, rich cells and pixel layers. Read-only.
 
         Served from FiestaBoard's own caches (background poll / last-sent
         content); never writes to the board and never triggers a live read.
@@ -2367,14 +2579,15 @@ def _build_mcp_server() -> Any:
         Args:
             board_id: Board to read on a multi-board install (from the boards
                       list in get_settings_summary()). Omitted = the primary
-                      board. Secondary boards are served from their runtime
-                      cache — board-state polling is primary-only.
+                      board. Each board is served from its existing runtime
+                      cache; this tool never performs a hardware read.
 
         Returns: {characters (2-D grid of flap codes or null), message
         (formatted string or null), rows, cols, source ('polled' = the
         background poll cache, 'last_sent' = what FiestaBoard last sent,
         'live' = a virtual board read from its own memory — never network
-        I/O — or null when nothing is known), board_id}.
+        I/O — or null when nothing is known), board_id, cells, pixel layer
+        metadata, polled_at and last_sent_at when content is available}.
         """
         # get_service is the DisplayService singleton accessor — the same
         # seam get_system_status uses; no REST handler is called.
@@ -2382,6 +2595,7 @@ def _build_mcp_server() -> Any:
         from .board_chars import characters_to_message
         from .board_guards import _find_board
         from .board_state import read_board_state
+        from .outputs.cells import cells_to_json, frame_layers
 
         service = get_service()
         if not service:
@@ -2396,6 +2610,10 @@ def _build_mcp_server() -> Any:
         return {
             "characters": _serialize(state.characters),
             "message": characters_to_message(state.characters),
+            "cells": cells_to_json(state.cells) if state.cells is not None else None,
+            **_layers_summary(list(frame_layers(state.cells)), [], pixels=False),
+            "polled_at": state.polled_at,
+            "last_sent_at": state.last_sent_at,
             "rows": state.rows,
             "cols": state.cols,
             "source": state.source,
@@ -2403,7 +2621,7 @@ def _build_mcp_server() -> Any:
         }
 
     @_tool(destructive=False)
-    def send_message(text: str, board_id: str | None = None) -> dict[str, Any]:
+    def send_message(text: str, board_id: str | None = None, override_silence: bool = False) -> dict[str, Any]:
         """Send a one-off text message directly to a board.
 
         The text is word-wrapped to the board's width; real newlines are
@@ -2412,7 +2630,8 @@ def _build_mcp_server() -> Any:
         up until the active page next changes or the display refreshes.
 
         A paused board or active silence mode returns status "blocked"
-        (deliberate policy — relay it to the user, don't retry). A message
+        (deliberate policy — relay it to the user, don't retry); held: true
+        means it shows when silence ends. A message
         sent inside the board's minimum send interval is DROPPED by the
         board, not queued: that is an error whose text names the window
         (e.g. "at most one message every 15s") — wait it out, then retry.
@@ -2421,8 +2640,9 @@ def _build_mcp_server() -> Any:
             text: The message text to display.
             board_id: Board to target on a multi-board install (from the boards
                       list in get_settings_summary()). Omitted = the primary board.
+            override_silence: Show it now even while silenced. Only if the user explicitly asks.
         """
-        return ops_executors.send_message(text, board_id=board_id)
+        return ops_executors.send_message(text, board_id=board_id, override_silence=override_silence)
 
     # -----------------------------------------------------------------------
     # Board state tools — the Home page's controls
@@ -2604,8 +2824,12 @@ def _build_mcp_server() -> Any:
         code62_glyph: str | None = None,
         api_mode: str | None = None,
         host: str | None = None,
+        transition: str | None = None,
+        transition_step_interval_ms: int | None = None,
+        transition_step_size: int | None = None,
+        auto_restore: bool | None = None,
     ) -> dict[str, Any]:
-        """Rename, retype, resize or reconfigure one board's non-secret hardware fields.
+        """Rename, retype, resize or reconfigure one board's non-secret hardware fields, or set its transition.
 
         Only the fields you pass change. Read the roster first with
         get_settings_summary() (the boards list). Changing device_type or the
@@ -2625,10 +2849,23 @@ def _build_mcp_server() -> Any:
                 character-62 flap carries (display only; Flagship only).
             api_mode: 'local' (LAN API) or 'cloud' (Vestaboard cloud API).
                 The matching credential must be entered by the user in the
-                web UI.
+                web UI. Deprecated with the flat board fields (removed in v11).
             host: IP address or hostname of the board on the LAN (local API
                 mode). Write-only: the summary reports has_host, never the
-                address.
+                address. Deprecated with the flat board fields (removed in v11).
+            transition: How this board changes its message — every board owns
+                its own (there is no install-wide transition). For a split-flap
+                board, one of 'none', 'column', 'reverse-column', 'edges-to-center',
+                'row', 'diagonal', 'random', or 'plugin:<id>' of an installed
+                transition plugin (needs plugins.transition_plugins_enabled).
+                For an LED board, an LED menu id ('none', 'flip', 'cascade',
+                'slide', 'wipe', 'fade', 'dissolve'). A page's own
+                transition_strategy still wins over it.
+            transition_step_interval_ms: Delay between animation steps in ms,
+                0–5000 (0 = as fast as the board goes), for split-flap strategies.
+            transition_step_size: Columns or rows that move per step (≥ 1).
+            auto_restore: False lets another app keep this board after it
+                overwrites it; True (default) puts FiestaBoard's content back.
         """
         return await ops_executors.update_board(
             board_id,
@@ -2640,6 +2877,10 @@ def _build_mcp_server() -> Any:
             code62_glyph=code62_glyph,
             api_mode=api_mode,
             host=host,
+            transition=transition,
+            transition_step_interval_ms=transition_step_interval_ms,
+            transition_step_size=transition_step_size,
+            auto_restore=auto_restore,
         )
 
     @_tool(destructive=False)
@@ -2662,11 +2903,11 @@ def _build_mcp_server() -> Any:
             device_type: 'flagship', 'note' or 'note_array'.
             name: Display name (default: "My Board", "My Board 2", ...).
             api_mode: 'local' or 'cloud' (default 'local'; note arrays are
-                usually 'cloud').
+                usually 'cloud'). Deprecated with the flat board fields (removed in v11).
             notes_wide: Note-array width in Notes (1–8, note_array only).
             notes_tall: Note-array height in Notes (1–8, note_array only).
             board_color: 'black' or 'white'.
-            host: IP address or hostname on the LAN (local API mode).
+            host: IP address or hostname on the LAN (local API mode). Deprecated with the flat board fields (removed in v11).
         """
         return await ops_executors.add_board(
             device_type,
@@ -2745,7 +2986,8 @@ def _build_mcp_server() -> Any:
         board_id (the virtual board — appears in the boards list too and can
         be targeted like any board), screen_diagonal_inches, screen_aspect_w /
         _h, calibration_scale, animations_enabled, is_display (the panel the
-        FiestaPi HDMI kiosk shows at /p/display), backdrop, auto_dim, and the
+        FiestaPi HDMI kiosk shows at /p/display), backdrop, auto_dim,
+        render_style ('split_flap' or 'led_matrix'), and the
         board's device_type / rows / cols / notes_wide / notes_tall. A panel's
         board is device_type 'panel': size a page for it with device_type
         'panel', grid_rows = rows and grid_cols = cols (notes_wide/notes_tall
@@ -2794,6 +3036,7 @@ def _build_mcp_server() -> Any:
         is_display: bool | None = None,
         backdrop: str | None = None,
         auto_dim: dict[str, Any] | None = None,
+        render_style: Literal["split_flap", "led_matrix"] | None = None,
     ) -> dict[str, Any]:
         """Change a FiestaPanel's display settings. Only the fields you pass change.
 
@@ -2814,6 +3057,10 @@ def _build_mcp_server() -> Any:
             backdrop: 'wall', 'dark' or 'none'.
             auto_dim: Night dimming window as {"enabled": bool,
                 "start": "HH:MM", "end": "HH:MM"} on the TV's local clock.
+            render_style: 'split_flap' (flaps, the default) or 'led_matrix'
+                (a dot-matrix sign whose character set adds colour spans,
+                blocks and icons — check pages with validate_template /
+                render_page_preview using the panel's board_id).
         """
         return await ops_executors.update_panel(
             panel_id,
@@ -2826,6 +3073,7 @@ def _build_mcp_server() -> Any:
             is_display=is_display,
             backdrop=backdrop,
             auto_dim=auto_dim,
+            render_style=render_style,
         )
 
     @_tool(destructive=True)
@@ -2905,7 +3153,7 @@ def _build_mcp_server() -> Any:
         (get_system_status() → update.updater_available).
 
         WARNING: the web UI and this connection drop for ~5 seconds. Needed
-        after enabling HTTPS (beta) or changing the polling interval.
+        after changing the polling interval.
         """
         return await ops_executors.restart_system()
 
@@ -3042,6 +3290,15 @@ def _build_mcp_server() -> Any:
     # MCP Resources
     # -----------------------------------------------------------------------
 
+    from .mcp_displays import register_display_tools
+
+    register_display_tools(_tool, ToolError)
+
+    @mcp.resource("fiestaboard://canvas")
+    def get_canvas_resource() -> str:
+        """Shared pixel canvas authoring rules and complete input schema."""
+        return CANVAS_RULES + "\n\nJSON Schema:\n" + json.dumps(Canvas.model_json_schema(), indent=2)
+
     @mcp.resource("fiestaboard://plugins")
     def get_plugins_resource() -> str:
         """Live list of all installed plugins with status."""
@@ -3082,6 +3339,8 @@ def _build_mcp_server() -> Any:
         Useful for MCP-UI clients that want to fetch a board preview by
         page id without going through the page tools.
         """
+        from html import escape
+
         try:
             from .board_html_renderer import render_page_preview_html
             from .pages.service import get_page_service
@@ -3089,10 +3348,10 @@ def _build_mcp_server() -> Any:
             svc = get_page_service()
             page = svc.get_page(page_id)
             if page is None:
-                return f"<!DOCTYPE html><html><body><p>Page <code>{page_id}</code> not found.</p></body></html>"
-            return render_page_preview_html(page)
+                return f"<!DOCTYPE html><html><body><p>Page <code>{escape(page_id)}</code> not found.</p></body></html>"
+            return render_page_preview_html(page, display=_charset_check(None).display)
         except Exception as exc:
-            return f"<!DOCTYPE html><html><body><p>Error: {exc}</p></body></html>"
+            return f"<!DOCTYPE html><html><body><p>Error: {escape(str(exc))}</p></body></html>"
 
     @mcp.resource("fiestaboard://variables")
     def get_variables_resource() -> str:
@@ -3111,6 +3370,13 @@ def _build_mcp_server() -> Any:
                 lines.append(f"\n## {plugin_id}")
                 for var_name, meta in vars_dict.items():
                     desc = meta.get("description", "")
+                    if meta.get("format") == "canvas":
+                        lines.append(
+                            f"- `{plugin_id}.{var_name}` (CANVAS) — {desc}; use "
+                            f"`{{{{{plugin_id}.{var_name}}}}}` in a canvas `source`, not template text. "
+                            "See fiestaboard://canvas."
+                        )
+                        continue
                     item_fields = [str(f) for f in (meta.get("item_fields") or [])]
                     if meta.get("type") == "array" or item_fields:
                         # An array is not a printable variable: `{{plugin.array}}`

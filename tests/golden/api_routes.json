@@ -90,6 +90,86 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/auth/device/approve",
+      "methods": [
+        "POST"
+      ],
+      "name": "approve",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/authorize",
+      "methods": [
+        "POST"
+      ],
+      "name": "authorize",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/cancel",
+      "methods": [
+        "POST"
+      ],
+      "name": "cancel",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/deny",
+      "methods": [
+        "POST"
+      ],
+      "name": "deny",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/inspect",
+      "methods": [
+        "POST"
+      ],
+      "name": "inspect",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/login",
+      "methods": [
+        "POST"
+      ],
+      "name": "login",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/session",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "revoke_self",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/settings",
+      "methods": [
+        "GET"
+      ],
+      "name": "settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/settings",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/token",
+      "methods": [
+        "POST"
+      ],
+      "name": "exchange",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/auth/disable",
       "methods": [
         "POST"
@@ -143,6 +223,38 @@
         "POST"
       ],
       "name": "auth_preference",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/sessions",
+      "methods": [
+        "GET"
+      ],
+      "name": "sessions",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/sessions/context",
+      "methods": [
+        "GET"
+      ],
+      "name": "context",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/sessions/revoke",
+      "methods": [
+        "POST"
+      ],
+      "name": "revoke_many",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/sessions/{session_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "revoke",
       "kind": "APIRoute"
     },
     {
@@ -207,6 +319,22 @@
         "GET"
       ],
       "name": "get_board_current_message",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/board/external-frame",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "dismiss_external_frame",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/boards/{board_id}/actions/{action}",
+      "methods": [
+        "POST"
+      ],
+      "name": "run_board_action",
       "kind": "APIRoute"
     },
     {
@@ -700,6 +828,54 @@
       "kind": "Route"
     },
     {
+      "path": "/outputs",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_outputs",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/outputs/available",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_available_outputs",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/outputs/catalog",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_output_catalog",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/outputs/{output_id}/actions/{action}",
+      "methods": [
+        "POST"
+      ],
+      "name": "run_output_action",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/outputs/{output_id}/boards",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_board",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/outputs/{output_id}/install",
+      "methods": [
+        "POST"
+      ],
+      "name": "install_an_output",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/pages",
       "methods": [
         "GET"
@@ -865,6 +1041,14 @@
         "POST"
       ],
       "name": "create_panel",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/panels/geometry",
+      "methods": [
+        "POST"
+      ],
+      "name": "preview_panel_geometry",
       "kind": "APIRoute"
     },
     {
@@ -1477,6 +1661,22 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/settings/restore-notice",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "dismiss_settings_restore_notice",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/restore-notice",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_settings_restore_notice",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/settings/silence-schedule",
       "methods": [
         "PUT"
@@ -1522,6 +1722,30 @@
         "PUT"
       ],
       "name": "update_transition_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/wizard",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_wizard_state",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/wizard",
+      "methods": [
+        "PUT"
+      ],
+      "name": "set_wizard_state",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/silence-queue",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "discard_held_send",
       "kind": "APIRoute"
     },
     {
@@ -1602,6 +1826,14 @@
         "POST"
       ],
       "name": "set_release_channel",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/system/markup-compat",
+      "methods": [
+        "GET"
+      ],
+      "name": "system_markup_compat",
       "kind": "APIRoute"
     },
     {
@@ -1725,38 +1957,6 @@
       "kind": "APIRoute"
     },
     {
-      "path": "/transitions/plugins",
-      "methods": [
-        "GET"
-      ],
-      "name": "list_transition_plugins",
-      "kind": "APIRoute"
-    },
-    {
-      "path": "/transitions/preview",
-      "methods": [
-        "POST"
-      ],
-      "name": "preview_transition",
-      "kind": "APIRoute"
-    },
-    {
-      "path": "/transitions/restore",
-      "methods": [
-        "POST"
-      ],
-      "name": "restore_after_transition_test",
-      "kind": "APIRoute"
-    },
-    {
-      "path": "/transitions/test-live",
-      "methods": [
-        "POST"
-      ],
-      "name": "run_live_transition_test",
-      "kind": "APIRoute"
-    },
-    {
       "path": "/triggers",
       "methods": [
         "GET"
@@ -1842,6 +2042,14 @@
         "POST"
       ],
       "name": "send_to_board",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/boards/{board}/restore",
+      "methods": [
+        "POST"
+      ],
+      "name": "restore_board",
       "kind": "APIRoute"
     },
     {

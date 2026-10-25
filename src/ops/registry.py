@@ -124,9 +124,6 @@ OPERATIONS: tuple[Operation, ...] = (
     # spelling for them — the in-app chat reaches them as MCP tools.
     Operation(name="import_page", executor=executors.import_page, mcp_tool="import_page"),
     Operation(name="import_staff_pick", executor=executors.import_staff_pick, mcp_tool="import_staff_pick"),
-    # -- Transition Lab (beta) --------------------------------------------
-    Operation(name="test_transition_live", executor=executors.test_transition_live, mcp_tool="test_transition_live"),
-    Operation(name="restore_board", executor=executors.restore_board, mcp_tool="restore_board"),
     # -- schedules --------------------------------------------------------
     Operation(
         name="create_schedule",

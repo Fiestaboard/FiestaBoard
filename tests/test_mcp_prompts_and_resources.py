@@ -51,6 +51,7 @@ EXPECTED_PROMPTS = {
 }
 
 EXPECTED_RESOURCES = {
+    "fiestaboard://canvas",
     "fiestaboard://plugins",
     "fiestaboard://pages",
     "fiestaboard://variables",
@@ -59,6 +60,14 @@ EXPECTED_RESOURCES = {
 }
 
 EXPECTED_RESOURCE_TEMPLATES = {"fiestaboard://page/{page_id}/preview.html"}
+
+
+def test_html_preview_escapes_missing_page_id(mcp):
+    template = mcp._resource_manager._templates["fiestaboard://page/{page_id}/preview.html"]
+    html = template.fn(page_id="<script>alert('preview')</script>")
+    assert "<script>" not in html
+    assert "&lt;script&gt;" in html
+
 
 FLAGSHIP_TEMPLATE = ["HELLO", "", "", "", "", ""]
 

@@ -19,8 +19,8 @@ Your choice is persisted to `data/auth.json` so you'll never see the
 picker again on this install. You can override it later with the
 `FIESTABOARD_AUTH_ENABLED` env var.
 
-When auth is on, every API endpoint and every page of the web UI requires
-a valid session cookie.
+When auth is on, management endpoints require a valid session. Public health,
+login and panel display endpoints are listed below.
 
 ## Quick start
 
@@ -34,7 +34,7 @@ a valid session cookie.
    cookie. Tick **Keep me logged in** (on by default) to stay signed in
    across browser restarts; clear it on a shared or public computer so the
    session ends when you close the browser. Manage your account (rename,
-   change password, sign out) from the **Profile** page.
+   change password, sign out) from **Settings → Account**.
 
 To skip login entirely on a LAN install, click *Continue without login*
 on the first-run picker — the middleware will short-circuit on every
@@ -52,9 +52,10 @@ future request.
     as *enforced* (secure by default) and surfaces the first-run picker.
 - **Passwords** are hashed with `hashlib.scrypt` (N=2¹⁵, r=8, p=1) and
   stored in `data/auth.json` (mode `0600`).
-- **Sessions** are stateless HMAC-signed tokens (`username.issued.expires.nonce.sig`).
-  The signing key lives in `data/.session_key` (mode `0600`) and is
-  generated automatically the first time auth is used.
+- **Browser sessions** use signed, versioned cookies plus a server-side registry.
+  `data/auth_sessions.sqlite3` stores only credential hashes and sign-in metadata
+  (mode `0600`). The signing key remains in `data/.session_key`. Each sign-in
+  can be revoked independently, including copies of its cookie.
 - **Cookies** are `HttpOnly`, `SameSite=Lax`, and `Secure` when the request
   comes in over HTTPS (FiestaBoard trusts the `X-Forwarded-Proto` header
   set by its bundled nginx).
@@ -78,7 +79,7 @@ future request.
 | `FIESTABOARD_AUTH_ENABLED` | *(unset, first-run picker)* | `true`/`1`/`yes`/`on` force-enables, `false`/`0`/`no`/`off` force-disables. Unset = use stored preference; if none, show the first-run picker. |
 | `FIESTABOARD_SESSION_TTL_SECONDS` | `604800` (7d) | Lifetime for a normal sign-in (without "Keep me logged in"), in seconds. Caps the session-cookie token. |
 | `FIESTABOARD_REMEMBER_ME_TTL_SECONDS` | `2592000` (30d) | Lifetime when "Keep me logged in" is checked, in seconds. Sets both the persistent cookie's `Max-Age` and the token expiry. |
-| `FIESTABOARD_MCP_TOKEN` | *(unset)* | Pre-shared bearer token for `/api/mcp/`. Takes precedence over a token stored from **Settings → Integrations**, and disables the UI's rotate/revoke buttons. See [MCP clients and the bearer token](#mcp-clients-and-the-bearer-token). |
+| `FIESTABOARD_MCP_TOKEN` | *(unset)* | Pre-shared bearer token for `/api/mcp/`. Takes precedence over a token stored from **Settings → AI**, and disables the UI's rotate/revoke buttons. See [MCP clients and the bearer token](#mcp-clients-and-the-bearer-token). |
 | `FIESTABOARD_CORS_ORIGINS` | *(unset, no credentialed cross-origin access)* | Comma-separated list of exact origins allowed to send credentials on cross-origin browser requests. See [Cross-origin browser access](#cross-origin-browser-access-cors). |
 
 ## Public endpoints
@@ -87,8 +88,10 @@ These remain reachable without authentication so health-checks, the login
 page itself, and the OpenAPI docs keep working:
 
 - `GET /`, `GET /health`
-- `GET/POST /auth/*`
+- Login, setup and status under `/auth/*`; device approval and session management
+  explicitly require browser authentication.
 - `GET /openapi.json`, `/internal/openapi.json`, `/docs`, `/redoc`
+- `GET /panel/{panel}` and `GET /panel/{panel}/frame`, the read-only [frame endpoints](/docs/development/output-stream-api) a FiestaPanel TV reads
 
 Everything else (status, config, pages, plugins, etc.) requires a valid
 session cookie.
@@ -98,7 +101,7 @@ session cookie.
 External MCP clients — Claude Desktop, Claude Code — can't drive a
 cookie-based login, so they authenticate to `/api/mcp/` with a pre-shared
 bearer token instead of a session cookie. Configure one in
-**Settings → Integrations**, or by setting `FIESTABOARD_MCP_TOKEN`.
+**Settings → AI**, or by setting `FIESTABOARD_MCP_TOKEN`.
 
 :::warning Behaviour change: a configured token is now enforced in every auth mode
 
@@ -108,7 +111,7 @@ auth was disabled, so a client could reach `/api/mcp/` without sending it.
 
 If an MCP client that used to work starts returning `401`, put the token in
 its config so it sends `Authorization: Bearer <your-token>`. Alternatively,
-clear the token in **Settings → Integrations** if you want `/api/mcp/` to
+clear the token in **Settings → AI** if you want `/api/mcp/` to
 stay open.
 
 **Installs with no token configured are unaffected** — they behave exactly
@@ -133,7 +136,7 @@ must present it as an `Authorization: Bearer` header too, and are refused
 with a `403` otherwise (Fiestaboard/FiestaBoard#1880). Turning the login
 *off* is never gated; it cannot take anything over. If you chose *Continue
 without login* and later want to add one, send the token with the request
-or clear it in **Settings → Integrations** first. A token pinned by
+or clear it in **Settings → AI** first. A token pinned by
 `FIESTABOARD_MCP_TOKEN` is not gated this way because there is nothing to
 hijack: while it is set, both mutating routes refuse with `409` and the
 token cannot be changed over the network at all.
@@ -170,14 +173,15 @@ CORS never applies to them.
 
 ## Managing your account
 
-The **Profile** page has an *Account* card (visible only when auth is
-enabled and you're signed in) with three things:
+**Settings → Account** is available when auth is enabled and you are signed in:
 
 - **Change username** — requires your current password.
 - **Change password** — requires your current password, plus the new one
   twice for confirmation.
-- **Sign out** — clears the session cookie and bounces you back to
-  `/login`.
+- **Sign out** — revokes this browser session, clears its cookie, and opens `/login`.
+- **Signed-in devices** — lists browsers and TVs, including approximate last-active
+  and expiry times. Revoke one, sign out other devices, or sign out everywhere.
+  Device names are descriptive labels, not verified hardware identities.
 
 The corresponding API endpoints are also available:
 
@@ -186,6 +190,46 @@ The corresponding API endpoints are also available:
 | `POST` | `/api/auth/change-username` | `{ "current_password", "new_username" }` |
 | `POST` | `/api/auth/change-password` | `{ "current_password", "new_password" }` |
 | `POST` | `/api/auth/logout` | *(none)* |
+
+## TV sign-in
+
+TV sign-in is enabled by default when account login is configured. No separate
+beta opt-in is needed. Manage it in **Settings → Account**. On a compatible Apple TV or
+Android TV app, choose **Sign in with a phone or computer**:
+
+1. Scan the QR code, or open the displayed `/activate` URL on a desktop or phone
+   and enter the eight-character code.
+2. Sign into that same FiestaBoard instance. Both devices need network access to it.
+3. Check the displayed TV and matching code, then explicitly allow or deny access.
+   Scanning alone never approves a TV. Codes expire after ten minutes.
+
+**Use username and password** remains available on the TV. With TV sign-in enabled,
+it creates the same individually revocable TV credential and does not retain the
+account password after secure storage succeeds. Compatible apps migrate previously
+saved passwords once. Older servers keep their existing password flow.
+
+TV credentials expire after one year and permit panel display and screen presentation
+settings only. They cannot manage accounts, edit content, or access AI/MCP. Revoke a
+TV from **Signed-in devices**; its next authenticated request is rejected. A revoked
+TV asks you to sign in again rather than replaying a saved password.
+
+Turning **TV sign-in** off stops new TV sign-ins and cancels pending codes. Existing
+TV credentials remain valid until revoked or expired. Use the device list to remove
+existing access. Password or username changes revoke all existing browser and TV
+sessions. Public panel URLs remain public even after revoking a TV credential.
+
+### Upgrade and rollback
+
+The first upgrade to the session registry signs existing browsers out once. Sign in
+again to create tracked sessions. Ordinary restarts retain valid sessions. A legacy
+client that still stores the password can create a new session after revocation;
+update that client, or change the password if it should lose future access.
+
+Managed image rollback and **Leave beta** invalidate sessions before switching images.
+Before a manual image downgrade, use **Sign out everywhere** and then stop the
+container. Back up authentication data securely; restoring an older copy of the data
+can restore credentials and their earlier revocation state. Never copy the registry
+or signing key into public diagnostics.
 
 ## Recovering from a lost password
 

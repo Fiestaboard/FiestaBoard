@@ -9,6 +9,8 @@
  * the editor both understand.
  */
 
+import type { DeviceType, PageCreate } from "@/lib/api";
+
 // Vestaboard character codes 0-62. Undefined placeholder slots are blanks.
 const BOARD_CHARS: string[] = [
   " ",
@@ -64,4 +66,40 @@ function codeToCell(code: number): string {
 /** One template line per board row; trailing blanks are trimmed. */
 export function boardCharactersToTemplate(characters: number[][]): string[] {
   return characters.map((row) => row.map(codeToCell).join("").replace(/ +$/, ""));
+}
+
+/**
+ * A board's page geometry: what a template page saved from it must carry to
+ * fit it. The shape ActivePageDisplay derives for the board it shows.
+ */
+export type BoardGeometry = {
+  deviceType: DeviceType;
+  notesWide: number;
+  notesTall: number;
+  gridRows?: number;
+  gridCols?: number;
+};
+
+/**
+ * The create-page body for "Save as page" (issue #1945): a template page whose
+ * lines are *characters* and whose geometry is the board's, so the saved page
+ * fits the board it came from. A note array carries its notes; a panel its
+ * character grid, falling back to the grid's own size when the board has none
+ * stored.
+ */
+export function buildBoardPageCreate(characters: number[][], geometry: BoardGeometry, name: string): PageCreate {
+  return {
+    name,
+    type: "template",
+    device_type: geometry.deviceType,
+    template: boardCharactersToTemplate(characters),
+    ...(geometry.deviceType === "note_array" && {
+      notes_wide: geometry.notesWide,
+      notes_tall: geometry.notesTall,
+    }),
+    ...(geometry.deviceType === "panel" && {
+      grid_rows: geometry.gridRows ?? characters.length,
+      grid_cols: geometry.gridCols ?? characters[0]?.length,
+    }),
+  };
 }

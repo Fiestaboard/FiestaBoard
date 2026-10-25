@@ -81,9 +81,21 @@ interface SidebarSettingsMenuProps {
    * no trigger and the Sidebar dots the hamburger itself.
    */
   notice?: string;
+  /**
+   * Called when a mobile row navigates away — the Sidebar's `closeMenu`. The
+   * drawer is an overlay with no idea these rows navigate: left open, it
+   * covers the page Settings just routed to, and the tap reads as a no-op.
+   * The desktop dropdown closes itself and never calls this.
+   */
+  onSelect?: () => void;
 }
 
-export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", notice }: SidebarSettingsMenuProps) {
+export function SidebarSettingsMenu({
+  collapsed = false,
+  variant = "desktop",
+  notice,
+  onSelect,
+}: SidebarSettingsMenuProps) {
   const t = useTranslations("settingsMenu");
   const { theme, setTheme } = useTheme();
   const router = useRouter();
@@ -132,6 +144,13 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", no
 
   const openSettings = () => router.push("/settings");
 
+  // Mobile rows that leave for another route close the drawer first. About
+  // does not: its dialog opens over the drawer and closes back onto it.
+  const selectThen = (action: () => void) => () => {
+    onSelect?.();
+    action();
+  };
+
   // An update is something you act on, not a fact you read. `SystemUpdate`
   // renders at the top of /settings — above the tab strip, and nothing at all
   // when the install is current — so /settings with no anchor lands the reader
@@ -163,7 +182,7 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", no
             </Flex>
           )}
 
-          <Button variant="ghost" className="h-11 w-full justify-start gap-2 px-2" onClick={openSettings}>
+          <Button variant="ghost" className="h-11 w-full justify-start gap-2 px-2" onClick={selectThen(openSettings)}>
             <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
             {t("settings")}
           </Button>
@@ -204,7 +223,7 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", no
             <Button
               variant="ghost"
               className="h-11 w-full justify-start gap-2 px-2 text-brand-emphasis"
-              onClick={openSettings}
+              onClick={selectThen(openSettings)}
             >
               <ArrowUpCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
               <Text as="span" className="truncate">
@@ -228,7 +247,11 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", no
               </Text>
             </Button>
             {signedIn && (
-              <Button variant="ghost" className="h-11 min-w-0 flex-1 justify-start gap-2 px-2" onClick={handleSignOut}>
+              <Button
+                variant="ghost"
+                className="h-11 min-w-0 flex-1 justify-start gap-2 px-2"
+                onClick={selectThen(handleSignOut)}
+              >
                 <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <Text as="span" className="truncate">
                   {t("signOut")}

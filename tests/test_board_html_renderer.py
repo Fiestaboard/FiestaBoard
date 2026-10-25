@@ -18,11 +18,45 @@ from src.board_html_renderer import (
 from src.devices import resolve_dimensions
 
 
+def test_pixel_html_draws_the_shared_rasterized_canvas():
+    from src.canvas.layer import CanvasLayer
+    from src.fiestaui import builtin_device_models
+    from src.led.charsets import BUILTIN_CHARACTER_SETS
+    from src.outputs.display_profile import _profile
+
+    display = _profile(builtin_device_models()["divoom_pixoo64"], BUILTIN_CHARACTER_SETS["led_3x5"], {}, grid=(10, 16))
+    layer = CanvasLayer(x=0, y=0, w=1, h=1, rgba=bytes([255, 0, 0, 255]))
+    preview = render_board_html("", device_type="panel", grid_rows=10, grid_cols=16, display=display, layers=[layer])
+    assert 'class="pixels"' in preview
+    assert 'viewBox="0 0 64 64"' in preview
+    assert '<rect x="0" y="0" width="1" height="1" fill="#ff0000"/>' in preview
+    # A supplied target profile also supplies the effective character grid.
+    edge = render_board_html("\n" * 9 + " " * 15 + "A", display=display)
+    assert 'aria-label="A"' in edge
+
+
+def test_nonpixel_html_applies_the_custom_alphabet_projection():
+    from src.fiestaui import builtin_device_models
+    from src.led.charsets import materialize_character_set
+    from src.outputs.display_profile import _profile
+
+    charset = materialize_character_set({"id": "digits", "extends": "vestaboard_v2", "chars": ["1"]})
+    display = _profile(builtin_device_models()["vestaboard_flagship"], charset, {}, grid=(6, 22))
+    preview = render_board_html("A1", display=display)
+    assert ">A</span>" not in preview
+    assert ">1</span>" in preview
+
+
 def _count(html: str, needle: str) -> int:
     return html.count(needle)
 
 
 class TestDimensions:
+    def test_panel_uses_explicit_grid(self):
+        preview = render_board_html("HI", device_type="panel", grid_rows=10, grid_cols=16)
+        assert preview.count('class="row"') == 10
+        assert preview.count('class="tile"') == 160
+
     def test_flagship_renders_6_rows(self):
         html = render_board_html("HELLO", device_type="flagship")
         assert _count(html, 'class="row"') == 6
@@ -148,6 +182,19 @@ class TestCharacterRendering:
 
 
 class TestColorTokens:
+    def test_shared_extended_markup_colors_letters_and_background(self):
+        preview = render_board_html("{red:HOT}{black/white:A}")
+        assert ">{</span>" not in preview
+        assert "color:#eb4034" in preview
+        assert "background:#ffffff" in preview
+        assert ">H</span>" in preview
+
+    def test_shared_icon_renders_the_bitmap(self):
+        preview = render_board_html("{icon:sun}")
+        assert 'aria-label="sun"' in preview
+        assert "<svg" in preview
+        assert ">{</span>" not in preview
+
     def test_numeric_color_code_renders_swatch(self):
         html = render_board_html("{63}A", device_type="flagship")
         # Red hex appears as background of a swatch div.
@@ -228,6 +275,14 @@ class TestRenderPagePreviewHtml:
         assert ">E</span>" in html
         # template content was not used
         assert html.count(">I</span>") >= 1
+
+    def test_empty_render_does_not_restore_text_hidden_by_a_canvas(self):
+        page = self._fake_page(template=["HIDDEN"])
+        svc = MagicMock()
+        svc.preview_page.return_value = SimpleNamespace(formatted="")
+        with patch("src.pages.service.get_page_service", return_value=svc):
+            preview = render_page_preview_html(page)
+        assert 'class="char"' not in preview
 
     def test_falls_back_to_template_when_preview_unavailable(self):
         page = self._fake_page(template=["FALLBACK"])

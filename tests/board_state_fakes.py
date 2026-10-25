@@ -15,7 +15,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.virtual_board_client import VirtualBoardClient
+from src.outputs import OutputRuntime
+from src.outputs.plugin_driver import OutputPluginDriver
+from tests.first_party_drivers import panel_driver
 
 FLAGSHIP = (6, 22)
 NOTE = (3, 15)
@@ -27,17 +29,22 @@ def grid(shape: tuple[int, int], code: int) -> list[list[int]]:
 
 
 class PhysicalClient:
-    """A physical board client: last-sent cache plus a scripted live read."""
+    """A physical board client: last-sent cache plus a scripted live read.
+
+    Its last-sent grid lands in the runtime's dedupe cache when a ``Runtime``
+    binds it, the way a real client's sends land there.
+    """
 
     is_virtual = False
 
-    def __init__(self, *, last_sent=None, live=None, use_cloud=False, last_sent_at=None):
-        self._last_characters = last_sent
+    def __init__(self, *, last_sent=None, live=None, use_cloud=False):
+        self._last_sent = last_sent
         self.use_cloud = use_cloud
         self._live = live
         self.live_reads = 0
-        if last_sent_at is not None:
-            self._last_sent_at = last_sent_at
+
+    def set_output_runtime(self, runtime: OutputRuntime) -> None:
+        runtime.frames.characters = self._last_sent
 
     def read_current_message(self, sync_cache: bool = False):
         self.live_reads += 1
@@ -45,10 +52,18 @@ class PhysicalClient:
 
 
 class Runtime:
-    """The three ``BoardRuntime`` fields the reader touches."""
+    """The ``BoardRuntime`` fields the reader touches; binds its client like one.
+
+    Like a real runtime, it knows its board's output: ``fiestapanel`` for a
+    virtual client, ``vestaboard`` otherwise.
+    """
 
     def __init__(self, client=None, polled=None, polled_at=None):
+        output_id = "fiestapanel" if getattr(client, "is_virtual", False) is True else "vestaboard"
+        self.output = OutputRuntime(output_id=output_id if client is not None else None)
         self.client = client
+        if client is not None:
+            client.set_output_runtime(self.output)
         self.polled_characters = polled
         self.polled_at = polled_at
 
@@ -85,19 +100,23 @@ class Service:
         return sum(getattr(rt.client, "live_reads", 0) for rt in self.runtimes.values())
 
 
-def virtual(device_type: str, *, frame=None, displayed=None, sent_at: float | None = None) -> VirtualBoardClient:
-    """An anonymous (instance-local state) virtual client, optionally holding a frame.
+def virtual(device_type: str, *, frame=None, displayed=None, sent_at: float | None = None) -> OutputPluginDriver:
+    """An anonymous FiestaPanel (virtual) driver, optionally holding a frame.
 
     ``displayed`` overrides the displayed frame after the send to simulate a
     re-fit that left an old-shape frame behind; ``sent_at`` fixes the send
     time so ISO timestamps are exact.
     """
-    client = VirtualBoardClient(device_type=device_type)
+    client = panel_driver(device_type)
+    # Bound to a runtime of its own so the seed can be adjusted through the
+    # public store; a ``Runtime`` binding the client later adopts it.
+    seed = OutputRuntime()
+    client.set_output_runtime(seed)
     if frame is not None:
         ok, sent = client.send_characters(frame)
         assert (ok, sent) == (True, True), "seed frame never landed"
         if sent_at is not None:
-            client._state.last_sent_at = sent_at
+            seed.frames.last_sent_at = sent_at
     if displayed is not None:
-        client._state.displayed_characters = displayed
+        seed.frames.last_frame = displayed
     return client

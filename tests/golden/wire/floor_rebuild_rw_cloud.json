@@ -1,0 +1,55 @@
+{
+  "scenario": "floor_rebuild_rw_cloud",
+  "description": "RW Cloud floor is core-owned and keyed by device (a hash of the RW key): a client rebuilt from the same saved board 5 s later is still throttled.",
+  "seam": "two board_client_from_board_dict(...) clients for one board",
+  "steps": [
+    {
+      "action": "t=1000 first client renders ONE",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://rw.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Read-Write-Key": "test_rw_key",
+            "Content-Type": "application/json"
+          },
+          "json": [
+            [15, 14, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          ],
+          "timeout": [5.0, 10.0]
+        }
+      ],
+      "result": {
+        "type": "SendOutcome",
+        "success": true,
+        "was_sent": true,
+        "throttled": false,
+        "retry_after_seconds": null,
+        "floor_seconds": 15,
+        "partial": false,
+        "failed_regions": [],
+        "superseded": false
+      }
+    },
+    {
+      "action": "t=1005 rebuilt client renders TWO",
+      "requests": [],
+      "result": {
+        "type": "SendOutcome",
+        "success": true,
+        "was_sent": false,
+        "throttled": true,
+        "retry_after_seconds": 10,
+        "floor_seconds": 15,
+        "partial": false,
+        "failed_regions": [],
+        "superseded": false
+      }
+    }
+  ]
+}

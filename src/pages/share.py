@@ -35,6 +35,8 @@ _SHARE_FIELDS = (
     "transition_strategy",
     "transition_interval_ms",
     "transition_step_size",
+    # Pixel canvases (stored in their JSON form: ``if`` / ``as`` / ``from``).
+    "canvases",
 )
 
 

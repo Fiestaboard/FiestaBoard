@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -62,9 +62,23 @@ describe("state that must land in the first commit", () => {
 
       // Past the no-flash delay, the gate is showing the waiting splash and
       // the children are still gated.
-      await vi.advanceTimersByTimeAsync(1000);
+      await act(() => vi.advanceTimersByTimeAsync(1000));
       await waitFor(() => expect(screen.queryByTestId("app")).not.toBeInTheDocument());
       expect(screen.getByRole("status")).toBeInTheDocument();
+    });
+
+    it("uses only the loading illustration while waiting, restoring the brand icon on error", async () => {
+      server.use(http.get(`${API_BASE}/health`, () => new HttpResponse(null, { status: 503 })));
+      const { container } = render(<BootGate>app</BootGate>, { wrapper: TestWrapper });
+
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+      expect(container.querySelector('[data-slot="spinner"]')).toBeInTheDocument();
+      expect(container.querySelector('svg[viewBox="0 0 32 32"]')).not.toBeInTheDocument();
+      expect(screen.getByText("Fiesta")).toBeInTheDocument();
+
+      await act(() => vi.advanceTimersByTimeAsync(30_000));
+      expect(container.querySelector('[data-slot="spinner"]')).not.toBeInTheDocument();
+      expect(container.querySelector('svg[viewBox="0 0 32 32"]')).toBeInTheDocument();
     });
   });
 

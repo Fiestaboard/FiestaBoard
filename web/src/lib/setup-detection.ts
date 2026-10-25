@@ -13,8 +13,26 @@ const WIZARD_PROGRESS_KEY = "fiestaboard_wizard_progress";
 
 export interface WizardProgress {
   currentStep: number;
+  /**
+   * The output chosen on the first step (plan D18). Absent in progress saved
+   * by the three-step, Vestaboard-only wizard; see {@link getWizardProgress}.
+   */
+  outputId?: string;
+  /** Its display name, for the step titles after a reload. */
+  outputName?: string;
+  /** The board the wizard created for a TV or an output plugin. */
+  createdBoard?: {
+    outputId: string;
+    boardId: string;
+    name: string;
+    viewerPath?: string;
+    connectionVerified?: boolean;
+  };
   boardConfig?: {
-    api_mode: "local" | "cloud";
+    /** The Vestaboard's connection as its settings screen edits it (the board's `output_config`). */
+    output_config?: Record<string, unknown>;
+    /** Progress saved before the step moved onto the settings screen kept the connection flat. */
+    api_mode?: "local" | "cloud";
     local_api_key?: string;
     cloud_key?: string;
     host?: string;
@@ -24,6 +42,7 @@ export interface WizardProgress {
     code62_glyph?: Code62Glyph;
   };
   plugins?: {
+    registry_selected?: string[];
     date_time?: {
       enabled: boolean;
       timezone: string;
@@ -119,11 +138,25 @@ export function clearWizardCompletion(): void {
 /**
  * Save wizard progress for resuming later.
  *
- * Sensitive credentials (API keys, Wi-Fi passwords) are intentionally
- * stripped before persisting to ``localStorage``: that storage is not a
+ * Sensitive credentials (API keys and tokens, flat or in the board's
+ * `output_config`; Wi-Fi passwords) are intentionally stripped before persisting to ``localStorage``: that storage is not a
  * secure place for secrets and any persisted copy survives sign-out.
  * Users can re-enter the values when resuming the wizard.
  */
+/** A settings key that holds a credential: any output's key, token, secret or password. */
+const CREDENTIAL_KEY = /(key|token|secret|password)$/i;
+
+/** A copy of *value* with every credential-named field dropped, at any depth. */
+function withoutCredentials(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutCredentials);
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => !CREDENTIAL_KEY.test(key))
+      .map(([key, inner]) => [key, withoutCredentials(inner)]),
+  );
+}
+
 export function saveWizardProgress(progress: WizardProgress): void {
   if (typeof window === "undefined") return;
 
@@ -136,6 +169,11 @@ export function saveWizardProgress(progress: WizardProgress): void {
           // Drop the API keys — they're sensitive credentials.
           local_api_key: undefined,
           cloud_key: undefined,
+          // The output's settings screen keeps its own credentials (whatever
+          // the output calls them) in output_config: drop those too.
+          output_config: progress.boardConfig.output_config
+            ? (withoutCredentials(progress.boardConfig.output_config) as Record<string, unknown>)
+            : undefined,
         }
       : undefined,
     plugins: progress.plugins
@@ -163,10 +201,21 @@ export function getWizardProgress(): WizardProgress | null {
   const saved = localStorage.getItem(WIZARD_PROGRESS_KEY);
   if (!saved) return null;
   try {
-    return JSON.parse(saved) as WizardProgress;
+    return upgradeWizardProgress(JSON.parse(saved) as WizardProgress);
   } catch {
     return null;
   }
+}
+
+/**
+ * Progress saved by the Vestaboard-only wizard (no `outputId`) counted its
+ * steps from "Connect"; the wizard now opens on "choose your display". Past
+ * its first step that wizard was a Vestaboard one, so resume it as such, one
+ * step later. On its first step there is nothing to carry over.
+ */
+export function upgradeWizardProgress(progress: WizardProgress): WizardProgress {
+  if (progress.outputId !== undefined || progress.currentStep <= 1) return progress;
+  return { ...progress, outputId: "vestaboard", currentStep: progress.currentStep + 1 };
 }
 
 /**

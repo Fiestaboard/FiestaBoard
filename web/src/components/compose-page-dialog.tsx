@@ -2,6 +2,7 @@
 
 import {
   Button,
+  type DeviceModel,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -15,16 +16,19 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MonitorSmartphone, PencilLine, Save, Send } from "lucide-react";
+import { Clock, MonitorSmartphone, PencilLine, Save, Send } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { DevicePreview } from "@/components/device-preview";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import { SilenceNotice } from "@/components/silence-notice";
+import Link from "@/components/smart-link";
 import { queryKeys } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
-import type { DeviceType, PageCreate, SetTemporaryOverrideRequest } from "@/lib/api";
+import type { BoardLedLayout, DeviceType, PageCreate, SetTemporaryOverrideRequest } from "@/lib/api";
 import { api } from "@/lib/api";
 import { resolveDimensions } from "@/lib/board-dimensions";
 
@@ -52,6 +56,18 @@ interface ComposePageDialogProps {
    * never surprised by which board lights up.
    */
   targetBoardName?: string;
+  /** The destination board's device model: an LED board previews as its LED matrix. */
+  model?: DeviceModel | null;
+  /** The destination board's LED layout choices (`led_layout`), drawn with the model. */
+  ledLayout?: BoardLedLayout | null;
+  /** The destination (primary) board's id; omitted → the primary board. */
+  targetBoardId?: string;
+  /**
+   * The destination board's silence, while it is silenced (#1943, #1944):
+   * when it ends, and whether its schedule holds messages until then. Null or
+   * omitted when the board is not silenced — the dialog is then unchanged.
+   */
+  silence?: { until: string | null; holds: boolean } | null;
 }
 
 /**
@@ -78,6 +94,10 @@ export function ComposePageDialog({
   boardColor = "black",
   code62Glyph,
   targetBoardName,
+  model = null,
+  ledLayout = null,
+  targetBoardId,
+  silence = null,
 }: ComposePageDialogProps) {
   const t = useTranslations("composeDialog");
   const queryClient = useQueryClient();
@@ -148,6 +168,26 @@ export function ComposePageDialog({
     },
   });
 
+  // Hold until silence ends (#1944): POST /v1/boards/{board}/message answers
+  // 202 `held: true` when the board's schedule holds messages. Unlike Send,
+  // this never wakes the board.
+  const holdMutation = useMutation({
+    mutationFn: (holdLines: string[]) => api.sendBoardMessage(targetBoardId, { lines: holdLines }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.silenceStatus() });
+      if (result.held) {
+        toast.success(silence?.until ? t("toastHeld", { time: silence.until }) : t("toastHeldNoTime"));
+      } else {
+        // Silence ended between opening the dialog and pressing Hold.
+        toast.success(t("toastSent"));
+      }
+      onOpenChange(false);
+    },
+    onError: () => {
+      toast.error(t("toastHoldError"));
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: (page: PageCreate) => api.createPage(page),
     onSuccess: (_result, page) => {
@@ -171,6 +211,11 @@ export function ComposePageDialog({
       ...geometryFields,
     });
   }, [canSend, lines, deviceType, geometryFields, sendMutation]);
+
+  const handleHold = useCallback(() => {
+    if (!canSend) return;
+    holdMutation.mutate(lines);
+  }, [canSend, lines, holdMutation]);
 
   const handleSave = useCallback(() => {
     if (isEmpty || pageName.trim() === "") return;
@@ -204,6 +249,29 @@ export function ComposePageDialog({
             </Flex>
           )}
 
+          {silence && (
+            <SilenceNotice
+              variant={silence.holds ? "info" : "warning"}
+              until={silence.until}
+              data-testid="compose-silence"
+              description={
+                silence.holds ? (
+                  t("silenceHold", { time: silence.until ?? "—" })
+                ) : (
+                  <>
+                    {t("silenceNoHold")}{" "}
+                    <Link
+                      href="/settings?section=scheduling#silence-schedule"
+                      className="font-medium underline underline-offset-2 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    >
+                      {t("openSettings")}
+                    </Link>
+                  </>
+                )
+              }
+            />
+          )}
+
           <Stack gap="2">
             <Label htmlFor={messageId}>{t("messageLabel")}</Label>
             <PlainTextEditor
@@ -225,17 +293,19 @@ export function ComposePageDialog({
             <Text size="xs" tone="muted">
               {t("previewLabel")}
             </Text>
-            <ScaledBoardDisplay
-              message={preview?.rendered ?? ""}
-              size="sm"
-              boardType={boardColor}
-              deviceType={deviceType}
-              notesWide={notesWide}
-              notesTall={notesTall}
-              gridRows={panelGrid?.rows}
-              gridCols={panelGrid?.cols}
-              code62Glyph={code62Glyph}
-            />
+            <DevicePreview model={model} ledLayout={ledLayout} message={preview?.rendered ?? ""} size="sm">
+              <ScaledBoardDisplay
+                message={preview?.rendered ?? ""}
+                size="sm"
+                boardType={boardColor}
+                deviceType={deviceType}
+                notesWide={notesWide}
+                notesTall={notesTall}
+                gridRows={panelGrid?.rows}
+                gridCols={panelGrid?.cols}
+                code62Glyph={code62Glyph}
+              />
+            </DevicePreview>
           </Stack>
 
           {showSaveForm && (
@@ -261,8 +331,12 @@ export function ComposePageDialog({
           )}
         </Stack>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={sendMutation.isPending}>
+        <DialogFooter className="flex-wrap">
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={sendMutation.isPending || holdMutation.isPending}
+          >
             {t("cancel")}
           </Button>
           {!showSaveForm && (
@@ -271,10 +345,31 @@ export function ComposePageDialog({
               {t("saveAsPage")}
             </Button>
           )}
-          <Button onClick={handleSend} disabled={!canSend || sendMutation.isPending}>
+          {/* During silence the send is named for what it does: it wakes the
+              board (#949). With holds on, Hold is the primary action, last. */}
+          <Button
+            variant={silence?.holds ? "outline" : "default"}
+            onClick={handleSend}
+            disabled={!canSend || sendMutation.isPending || holdMutation.isPending}
+            data-testid={silence ? "compose-send-anyway" : undefined}
+          >
             <Send className="mr-1.5 h-4 w-4" />
-            {sendMutation.isPending ? t("sending") : t("send")}
+            {sendMutation.isPending ? t("sending") : silence ? t("sendNowAnyway") : t("send")}
           </Button>
+          {silence?.holds && (
+            <Button
+              onClick={handleHold}
+              disabled={!canSend || holdMutation.isPending || sendMutation.isPending}
+              data-testid="compose-hold"
+            >
+              <Clock className="mr-1.5 h-4 w-4" />
+              {holdMutation.isPending
+                ? t("holding")
+                : silence.until
+                  ? t("hold", { time: silence.until })
+                  : t("holdNoTime")}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

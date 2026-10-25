@@ -14,6 +14,14 @@ from pathlib import Path
 from typing import Any
 
 from src.oauth.provider import provider_block_warnings
+from src.outputs.plugin_base import OutputPluginBase
+from src.outputs.plugin_registration import (
+    OutputPluginEntry,
+    register_output_plugin,
+    unregister_output_plugin,
+)
+from src.outputs.registry import FIRST_PARTY_OUTPUTS
+from src.outputs.seed import seed_root, seeded_output
 
 from .base import PluginBase, TransitionPluginBase
 from .install_check import validate_install
@@ -24,8 +32,16 @@ from .sources import (
     remove_external_plugin,
 )
 
-# A loaded plugin instance can be either a data plugin or a transition plugin.
-AnyPlugin = PluginBase | TransitionPluginBase
+# A loaded plugin: a data or transition plugin instance, or -- for an output
+# plugin, which is instantiated per board and never here -- its inert entry.
+AnyPlugin = PluginBase | TransitionPluginBase | OutputPluginEntry
+
+# The base class each plugin_type's code must subclass.
+_BASE_FOR_TYPE: dict[str, type] = {
+    "data": PluginBase,
+    "transition": TransitionPluginBase,
+    "output": OutputPluginBase,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +68,17 @@ def is_safe_plugin_dir_name(plugin_name: str) -> bool:
 
 
 def _get_fiestaboard_version() -> str:
-    """Return the running FiestaBoard version."""
-    from src import __version__
+    """Return the running FiestaBoard version.
 
-    return __version__
+    The same answer the update checker uses: on a beta image that is the
+    build's own version (10.0.0-beta.3), not ``src.__version__``, which on a
+    beta is still the stable number the branch forked from. Comparing a
+    plugin's ``>=10.0.0`` against that stale number reported a v10 plugin as
+    incompatible with the v10 beta it was built for.
+    """
+    from src.system.update_service import running_version
+
+    return running_version()
 
 
 def _parse_version(version_str: str) -> tuple[int, int, int]:
@@ -150,6 +173,7 @@ class PluginLoader:
         plugins_dir: Path | None = None,
         external_dirs: list[Path] | None = None,
         lock: "threading.RLock | None" = None,
+        seed_dir: Path | None = None,
     ):
         """Initialize the plugin loader.
 
@@ -164,6 +188,9 @@ class PluginLoader:
                 The registry passes its own lock so registry->loader call
                 chains re-enter one lock instead of ordering two (#1828).
                 When *None* a private lock is created.
+            seed_dir: The output seed (:mod:`src.outputs.seed`), the last
+                resort for a seeded output plugin whose installed copy cannot
+                run. When *None* the image's seed directory is used.
         """
         if plugins_dir is None:
             project_root = Path(__file__).parent.parent.parent
@@ -183,6 +210,10 @@ class PluginLoader:
         self._plugin_classes: dict[str, type[AnyPlugin]] = {}
         self._load_errors: dict[str, list[str]] = {}
         self._plugin_sources: dict[str, PluginSource] = {}
+        self.seed_dir = Path(seed_dir) if seed_dir is not None else seed_root()
+        # Output plugins running from the seed because their installed copy
+        # cannot: id -> the error shown for it.
+        self._seed_fallbacks: dict[str, str] = {}
 
         logger.info(
             "PluginLoader initialized – built-in: %s, external dirs: %s",
@@ -210,6 +241,13 @@ class PluginLoader:
             items = list(self._loaded_plugins.items())
         return {pid: (inst, m) for pid, (inst, m) in items if isinstance(inst, TransitionPluginBase)}
 
+    @property
+    def output_plugins(self) -> dict[str, tuple[OutputPluginEntry, PluginManifest]]:
+        """Return only loaded *output* plugins (class + manifest, never an instance)."""
+        with self._lock:
+            items = list(self._loaded_plugins.items())
+        return {pid: (entry, m) for pid, (entry, m) in items if isinstance(entry, OutputPluginEntry)}
+
     def get_transition_plugin(self, plugin_id: str) -> TransitionPluginBase | None:
         """Return a loaded transition plugin instance, or None."""
         with self._lock:
@@ -226,6 +264,12 @@ class PluginLoader:
         """Return load errors by plugin directory name."""
         with self._lock:
             return self._load_errors.copy()
+
+    @property
+    def seed_fallbacks(self) -> dict[str, str]:
+        """Output plugins running from the seed, with the reason (plan D8)."""
+        with self._lock:
+            return self._seed_fallbacks.copy()
 
     @property
     def plugin_sources(self) -> dict[str, PluginSource]:
@@ -339,11 +383,58 @@ class PluginLoader:
         # it shells out (importlib and file reads only), so holding the lock
         # for the duration is safe.
         with self._lock:
-            return self._load_plugin_locked(plugin_name)
+            self._seed_fallbacks.pop(plugin_name, None)
+            plugin = self._load_plugin_locked(plugin_name)
+            if plugin is None:
+                # Output plugins only (the seed holds nothing else): an
+                # installed copy that cannot run falls back to the seed.
+                return self._load_seed_fallback_locked(plugin_name)
+            return plugin
 
-    def _load_plugin_locked(self, plugin_name: str) -> AnyPlugin | None:
-        """Body of :meth:`load_plugin`; the caller holds ``self._lock``."""
-        plugin_dir = self._resolve_plugin_dir(plugin_name)
+    def _load_seed_fallback_locked(self, plugin_name: str) -> AnyPlugin | None:
+        """Load the seed's copy of *plugin_name* when its installed copy failed.
+
+        The load-point gate of plan D8: an output plugin's precedence is
+        **valid installed copy → seed**, where valid means its ``output_api``
+        is supported, it imports, and its install self-check passes. Only an
+        *installed* (external) copy falls back: a built-in never does, and a
+        plugin nobody installed is not loaded from the seed (boot installs
+        what boards need, :func:`src.outputs.seed.install_seeded_outputs_for_boards`).
+        The fallback is a last resort, so it is reported as an error in
+        ``GET /plugins/errors`` naming why the installed copy was refused.
+        """
+        copy = seeded_output(plugin_name, self.seed_dir)
+        installed = self._resolve_plugin_dir(plugin_name)
+        if copy is None or installed is None or self._source_for_dir(installed).source_type != "external":
+            return None
+        reasons = list(self._load_errors.get(plugin_name, []))
+        plugin = self._load_plugin_locked(plugin_name, plugin_dir=copy.path, from_seed=True)
+        if plugin is None:
+            seed_errors = self._load_errors.get(plugin_name, [])
+            self._load_errors[plugin_name] = [*reasons, f"The bundled seed copy failed too: {'; '.join(seed_errors)}"]
+            return None
+        # Update, reinstall and uninstall still act on the installed copy.
+        self._plugin_sources[plugin_name] = PluginSource(source_type="external", local_path=str(installed))
+        message = (
+            f"The installed copy of output plugin '{plugin_name}' cannot run ({'; '.join(reasons)}). "
+            f"Running the copy bundled with FiestaBoard (commit {copy.entry.commit[:12]}) instead; "
+            "update or reinstall the plugin."
+        )
+        self._load_errors[plugin_name] = [message]
+        self._seed_fallbacks[plugin_name] = message
+        logger.error(message)
+        return plugin
+
+    def _load_plugin_locked(
+        self, plugin_name: str, *, plugin_dir: Path | None = None, from_seed: bool = False
+    ) -> AnyPlugin | None:
+        """Body of :meth:`load_plugin`; the caller holds ``self._lock``.
+
+        *plugin_dir* loads from that directory instead of resolving the name
+        (the seed copy, *from_seed*).
+        """
+        if plugin_dir is None:
+            plugin_dir = self._resolve_plugin_dir(plugin_name)
         errors: list[str] = []
 
         # Clear previous errors
@@ -354,6 +445,13 @@ class PluginLoader:
             errors.append(f"Plugin directory not found: {plugin_name}")
             self._load_errors[plugin_name] = errors
             return None
+
+        # Vestaboard and FiestaPanel are core's own first-party outputs: their
+        # installed copy is loaded by src.outputs.first_party, which runs it
+        # only when it is valid and newer than the image's seed (and never a
+        # copy from another repository), else the seed's. Nothing here imports it.
+        if plugin_name in FIRST_PARTY_OUTPUTS:
+            return self._load_first_party_locked(plugin_name, plugin_dir)
 
         # Load and validate manifest
         manifest_path = plugin_dir / "manifest.json"
@@ -402,6 +500,16 @@ class PluginLoader:
         # catch on its own.
         for message in install_result.warnings:
             self._load_errors.setdefault(plugin_name, []).append(message)
+        # An installed output plugin that fails its self-check is not a valid
+        # copy when the seed holds one: refuse it here so the load falls back
+        # (plan D8). Without a seed copy it loads as before, errors surfaced.
+        if (
+            install_result.errors
+            and manifest.plugin_type == "output"
+            and not from_seed
+            and seeded_output(plugin_name, self.seed_dir) is not None
+        ):
+            return None
 
         # Check FiestaBoard version compatibility (soft failure -- warn but still load)
         if manifest.fiestaboard_version:
@@ -484,10 +592,16 @@ class PluginLoader:
         expected_type = manifest.plugin_type or "data"
         plugin_class = self._find_plugin_class(module, expected_type)
         if plugin_class is None:
-            base_name = "TransitionPluginBase" if expected_type == "transition" else "PluginBase"
+            base_name = _BASE_FOR_TYPE.get(expected_type, PluginBase).__name__
             errors.append(f"No {base_name} subclass found in {plugin_name} (manifest plugin_type={expected_type!r})")
             self._load_errors[plugin_name] = errors
             return None
+
+        # An output plugin is instantiated once per BOARD, by the output
+        # factory -- never here (plan D2). The loader keeps its class and
+        # manifest and registers it with the output registry.
+        if expected_type == "output":
+            return self._register_output_locked(plugin_name, plugin_dir, plugin_class, manifest)
 
         # Instantiate plugin
         try:
@@ -540,25 +654,88 @@ class PluginLoader:
             logger.exception(f"Error instantiating plugin {plugin_name}")
             return None
 
+    def _load_first_party_locked(self, plugin_name: str, plugin_dir: Path) -> OutputPluginEntry | None:
+        """Load first-party output *plugin_name* whose installed copy is
+        *plugin_dir* (plan D8): the copy that runs (installed or seed) becomes
+        the output registry's first-party entry, and is listed here so the
+        Integrations page shows, checks and updates the installed copy.
+
+        When the installed copy is refused and the seed's runs, that is a load
+        error and a seed fallback, so an update that caused it rolls back.
+        """
+        from src.outputs.first_party import reload_first_party
+
+        try:
+            loaded = reload_first_party(plugin_name, seed_dir=self.seed_dir, external_dir=plugin_dir.parent)
+        except Exception as exc:
+            message = f"The '{plugin_name}' display that ships with FiestaBoard could not be loaded: {exc}"
+            self._load_errors[plugin_name] = [message]
+            logger.error(message)
+            return None
+        entry = OutputPluginEntry(loaded.plugin_class, loaded.manifest)
+        previous = self._loaded_plugins.get(plugin_name)
+        if previous is not None:
+            retire_plugin_object(plugin_name, previous[0], what="replaced instance of plugin")
+        self._loaded_plugins[plugin_name] = (entry, loaded.manifest)
+        self._plugin_classes[plugin_name] = loaded.plugin_class
+        self._plugin_sources[plugin_name] = self._source_for_dir(plugin_dir)
+        if loaded.fallback:
+            self._load_errors[plugin_name] = [loaded.fallback]
+            self._seed_fallbacks[plugin_name] = loaded.fallback
+        logger.info(
+            "Loaded first-party output %s %s (%s copy)", plugin_name, loaded.manifest.version, loaded.source.origin
+        )
+        return entry
+
+    def _register_output_locked(
+        self,
+        plugin_name: str,
+        plugin_dir: Path,
+        plugin_class: type,
+        manifest: PluginManifest,
+    ) -> OutputPluginEntry | None:
+        """Keep an output plugin's class and manifest; register it as an output.
+
+        Every output plugin registers the same way, wherever it came from:
+        display plugins need no opt-in (settings v7).
+        """
+        source = self._source_for_dir(plugin_dir)
+        try:
+            register_output_plugin(plugin_class, manifest)
+        except ValueError as exc:
+            self._load_errors.setdefault(plugin_name, []).append(str(exc))
+            logger.error("Output plugin %s refused: %s", plugin_name, exc)
+            return None
+        entry = OutputPluginEntry(plugin_class, manifest)
+        previous = self._loaded_plugins.get(manifest.id)
+        if previous is not None:
+            retire_plugin_object(manifest.id, previous[0], what="replaced instance of plugin")
+        self._loaded_plugins[manifest.id] = (entry, manifest)
+        self._plugin_classes[manifest.id] = plugin_class
+        self._plugin_sources[manifest.id] = source
+        logger.info("Successfully loaded output plugin: %s v%s", manifest.id, manifest.version)
+        return entry
+
     def _find_plugin_class(self, module: Any, expected_type: str = "data") -> type[AnyPlugin] | None:
         """Find a plugin class in *module* matching *expected_type*.
 
         Args:
             module: Loaded Python module to scan.
-            expected_type: ``"data"`` (look for :class:`PluginBase` subclass)
-                or ``"transition"`` (look for :class:`TransitionPluginBase`).
+            expected_type: ``"data"`` (look for :class:`PluginBase` subclass),
+                ``"transition"`` (:class:`TransitionPluginBase`) or
+                ``"output"`` (:class:`~src.outputs.plugin_base.OutputPluginBase`).
 
         Returns:
             The matching plugin class, or None if not found.
         """
-        base_class: type[AnyPlugin] = TransitionPluginBase if expected_type == "transition" else PluginBase
+        base_class = _BASE_FOR_TYPE.get(expected_type, PluginBase)
 
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
             if not isinstance(attr, type):
                 continue
             # Skip the base classes themselves.
-            if attr is PluginBase or attr is TransitionPluginBase:
+            if attr in _BASE_FOR_TYPE.values():
                 continue
             if issubclass(attr, base_class):
                 logger.debug(f"Found {expected_type} plugin class: {attr_name}")
@@ -667,17 +844,22 @@ class PluginLoader:
         """
         sys.modules.pop(f"plugins.{plugin_id}", None)
 
-        plugin_dir = self._resolve_plugin_dir(plugin_id)
-        if plugin_dir is None:
+        # The installed copy and, for a seeded output plugin, the seed copy
+        # it may have been running from.
+        roots = [self._resolve_plugin_dir(plugin_id)]
+        seeded = seeded_output(plugin_id, self.seed_dir) if is_safe_plugin_dir_name(plugin_id) else None
+        if seeded is not None:
+            roots.append(Path(os.path.realpath(seeded.path)))
+        live_roots = [root for root in roots if root is not None]
+        if not live_roots:
             return
 
         for name, module in list(sys.modules.items()):
             file_path = getattr(module, "__file__", None)
             if not file_path:
                 continue
-            try:
-                Path(os.path.realpath(file_path)).relative_to(plugin_dir)
-            except ValueError:
+            real = Path(os.path.realpath(file_path))
+            if not any(real.is_relative_to(root) for root in live_roots):
                 continue
             del sys.modules[name]
             logger.debug("Evicted stale module %s for plugin %s", name, plugin_id)
@@ -698,6 +880,8 @@ class PluginLoader:
             if plugin_id in self._loaded_plugins:
                 old_plugin, _ = self._loaded_plugins.pop(plugin_id)
                 retire_plugin_object(plugin_id, old_plugin, what="replaced instance of plugin")
+                if isinstance(old_plugin, OutputPluginEntry):
+                    unregister_output_plugin(plugin_id)
 
                 # Remove from sys.modules to force reimport
                 self._evict_plugin_modules(plugin_id)
@@ -721,6 +905,8 @@ class PluginLoader:
             # Plugin-authored cleanup() off the shared lock (#1854).
             plugin, _ = self._loaded_plugins.pop(plugin_id)
             retire_plugin_object(plugin_id, plugin, what="replaced instance of plugin")
+            if isinstance(plugin, OutputPluginEntry):
+                unregister_output_plugin(plugin_id)
 
             # Remove from sys.modules
             self._evict_plugin_modules(plugin_id)
@@ -782,6 +968,9 @@ class PluginLoader:
 
         _, manifest = entry
 
+        if issubclass(plugin_class, OutputPluginBase):
+            # Output plugins are instantiated per board, by the output factory.
+            return OutputPluginEntry(plugin_class, manifest)
         try:
             return plugin_class(manifest.raw)
         except Exception as e:

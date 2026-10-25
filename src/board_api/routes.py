@@ -58,42 +58,48 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
 from src import display_runtime as runtime
-from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice
+from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice, flat_board_fields_notice
 from src.api_errors import errors
 from src.board_chars import characters_to_message
-from src.board_client import board_client_from_board_dict
-from src.board_guards import _board_dims, _require_board, _silence_active, primary_board_entry
+from src.board_guards import (
+    SILENCE_DETAIL,
+    SILENCE_OVERRIDE_HINT,
+    _board_dims,
+    _require_board,
+    primary_board_entry,
+    silence_verdict,
+)
 from src.board_guards import raise_if_paused as _raise_if_paused
 from src.board_guards import raise_if_throttled as _raise_if_throttled
 from src.board_send_executor import run_board_send
 from src.board_state import BoardReadError, read_board_state, read_board_state_live
 from src.config_manager import get_config_manager
 from src.devices import DEFAULT_DEVICE_TYPE, Geometry, geometry_of, resolve_dimensions
+from src.outputs.cells import cells_to_json, project_for_output
+from src.outputs.display_profile import board_layers_json
 from src.send_outcome import SendOutcome
 from src.text_to_board import text_to_board_array
 
-from .models import BoardCurrentMessageResponse, MessageRequest, SendResponse
+from .models import BoardCurrentMessageResponse, MessageRequest, SendResponse, WelcomeMessageRequest
 from .welcome import build_welcome_template
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["board"])
 
-SILENCE_DETAIL = "Manual sends are blocked during silence mode to prevent waking the board."
-
 
 def _raise_if_silenced(board_id: str | None = None) -> None:
-    """The silence window refuses every manual send (issue #1788).
+    """The silence window refuses a manual send that has no override (#1788).
 
     Silence is per board, so the guard resolves the window of the board it is
     about to touch. ``board_id`` omitted resolves the primary board, which is
-    what this path meant before it could target one.
+    what this path meant before it could target one. Routes that accept
+    ``override_silence`` decide through :func:`silence_verdict` themselves.
     """
-    if _silence_active(board_id):
-        logger.info("Silence mode is active - blocking manual send to prevent wake-up")
+    if silence_verdict(board_id, override_silence=False, what="manual send").silenced:
         raise HTTPException(status_code=409, detail=SILENCE_DETAIL)
 
 
@@ -114,7 +120,13 @@ def _primary_geometry(settings_service) -> Geometry:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/board/current-message", response_model=BoardCurrentMessageResponse, responses=errors(404, 503))
+@router.get(
+    "/board/current-message",
+    response_model=BoardCurrentMessageResponse,
+    response_model_exclude_unset=True,
+    responses=errors(404, 503),
+    dependencies=[flat_board_fields_notice()],
+)
 async def get_board_current_message(force: bool = False, board_id: str | None = None):
     """Return the current state of the physical board.
 
@@ -142,12 +154,20 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
     is_primary = board is None or board_id == runtime.get_settings_service().get_primary_board_id()
 
     if is_primary:
+        # A paused board is hands-off — and may be unplugged: never read it
+        # live, serve what is known (a failed read here was a 503 on every
+        # poll, and the web preview's loading animation with it).
+        paused = runtime.get_settings_service().is_paused(board_id=board_id) is True
         try:
-            state = await read_board_state_live(board_id, force=force, service=service)
+            state = await read_board_state_live(board_id, force=force, service=service, paused=paused)
         except BoardReadError:
             raise HTTPException(status_code=503, detail="Failed to read current board message") from None
     else:
         state = read_board_state(board_id, want="board", service=service)
+
+    # Only a board holding a confirmed external frame has these keys (issue
+    # #1945; exclude_unset keeps every other response byte-identical).
+    external = _external_frame_fields(service, board_id)
 
     if state.characters is None:
         # Nothing on this board yet — return its geometry so the UI can
@@ -162,10 +182,19 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
             cached_at=None,
             api_mode=state.api_mode,
             board_id=board_id,
+            **external,
         )
 
     return BoardCurrentMessageResponse(
         characters=state.characters,
+        # Only a frame that carried rich cells has the key (exclude_unset).
+        **({"cells": cells_to_json(state.cells)} if state.cells is not None else {}),
+        # Only a pixel-matrix board has the key: the canvases on that frame.
+        **(
+            {"layers": layers}
+            if (layers := board_layers_json(board or primary_board_entry(), state.cells)) is not None
+            else {}
+        ),
         message=characters_to_message(state.characters),
         rows=state.rows,
         cols=state.cols,
@@ -174,7 +203,73 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
         cached_at=datetime.fromtimestamp(state.polled_at, tz=UTC).isoformat() if state.polled_at is not None else None,
         api_mode=state.api_mode,
         board_id=board_id,
+        **external,
     )
+
+
+def _external_frame_fields(service, board_id: str | None) -> dict:
+    """``external_characters`` / ``external_detected_at`` for *board_id*, or nothing.
+
+    Read through ``DisplayService.external_frame`` (which applies the TTL),
+    never off the runtime. A service without the accessor, or one that
+    answers anything but a ``(grid, time)`` pair, holds no frame.
+    """
+    fields = _overwritten_fields(service, board_id)
+    accessor = getattr(service, "external_frame", None)
+    if not callable(accessor):
+        return fields
+    held = accessor(board_id)
+    if not (isinstance(held, tuple) and len(held) == 2 and isinstance(held[0], list)):
+        return fields
+    characters, detected_at = held
+    if not isinstance(detected_at, (int, float)):
+        return fields
+    return {
+        **fields,
+        "external_characters": characters,
+        "external_detected_at": datetime.fromtimestamp(detected_at, tz=UTC).isoformat(),
+    }
+
+
+def _overwritten_fields(service, board_id: str | None) -> dict:
+    """``overwritten_at`` for *board_id* while a device reports another app wrote it (#2354), or nothing."""
+    accessor = getattr(service, "overwritten_at", None)
+    if not callable(accessor):
+        return {}
+    at = accessor(board_id)
+    if isinstance(at, bool) or not isinstance(at, (int, float)):
+        return {}
+    return {"overwritten_at": datetime.fromtimestamp(at, tz=UTC).isoformat()}
+
+
+@router.delete(
+    "/board/external-frame",
+    status_code=204,
+    response_class=Response,
+    responses=errors(404, 503),
+)
+async def dismiss_external_frame(board_id: str | None = None) -> Response:
+    """Forget the board's remembered external frame (issue #1945).
+
+    The board poll keeps the last frame it confirmed another app wrote, so
+    the web UI can offer "Save as page" even after FiestaBoard painted its
+    page back. This drops it: the user dismissed that offer, or restored
+    their page over it. Idempotent — a board holding no frame answers 204
+    too.
+
+    Args:
+        board_id: The board whose frame to forget; omitted means the primary
+            board. 404 when no such board is configured.
+    """
+    if board_id is not None:
+        _require_board(board_id)
+    service = runtime.get_service()
+    if service is None:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    rt = service.runtime_for(board_id)
+    if rt is not None:
+        rt.external_frame = None
+    return Response(status_code=204)
 
 
 # ---------------------------------------------------------------------------
@@ -192,11 +287,15 @@ async def get_board_current_message(force: bool = False, board_id: str | None = 
 @router.post(
     "/send-message",
     response_model=SendResponse,
-    responses=errors(404, 409, 429, 500, 503),
+    response_model_exclude_none=True,
+    responses={
+        202: {"model": SendResponse, "description": "Held: the board is silenced and will show this when it ends."},
+        **errors(404, 409, 429, 500, 503),
+    },
     deprecated=True,
     dependencies=[deprecation_notice(successor=V1_BOARD_MESSAGE_SUCCESSOR)],
 )
-async def send_message(request: MessageRequest):
+async def send_message(request: MessageRequest, response: Response):
     """Deprecated: use ``POST /v1/boards/{board}/message`` instead.
 
     Send a custom message to a board.
@@ -209,6 +308,11 @@ async def send_message(request: MessageRequest):
     The v1 successor takes the board in the path, so it cannot be forgotten,
     and reports whether flaps actually moved rather than only that the
     request was accepted.
+
+    A silenced board (#1943, #1944): ``override_silence`` writes anyway;
+    otherwise the message is held (202, ``held: true``) when the board's
+    silence schedule holds messages until silence ends, and refused (409)
+    when it does not.
     """
     service = runtime.get_service()
     if not service:
@@ -219,7 +323,18 @@ async def send_message(request: MessageRequest):
     board_id = request.board_id
     board = _require_board(board_id) if board_id is not None else None
 
-    _raise_if_silenced(board_id)
+    from src.silence_queue import HeldSend
+
+    verdict = silence_verdict(
+        board_id,
+        override_silence=request.override_silence,
+        hold=lambda resolved: HeldSend.text(request.text, board_id=resolved),
+    )
+    if verdict.held:
+        response.status_code = 202
+        return SendResponse(message="Held until silence ends", sent=False, held=True)
+    if verdict.silenced:
+        raise HTTPException(status_code=409, detail=SILENCE_DETAIL + SILENCE_OVERRIDE_HINT)
     _raise_if_paused(board_id)
 
     board_client = service.get_board_client(board_id) if board_id is not None else service.vb_client
@@ -228,7 +343,8 @@ async def send_message(request: MessageRequest):
         raise HTTPException(status_code=503, detail=detail)
 
     settings_service = runtime.get_settings_service()
-    transition = settings_service.get_transition_settings()
+    # The target display's own transition (the first display when none is named).
+    transition = settings_service.get_transition_settings(board_id)
     # Size the grid to the board actually being written to, so a manual send
     # to a note array uses its real geometry instead of a default flagship
     # 22×6. With no board_id that is the active (first) board, unchanged.
@@ -279,6 +395,12 @@ async def send_message(request: MessageRequest):
     # is a pull — /force-refresh, MQTT Refresh Display, re-selecting a page,
     # or an actual content change (issue #1794).
     runtime._note_out_of_band_write(board_id)
+    if request.override_silence:
+        # A newer explicit write beats a message held during silence (#1944).
+        from src import silence_queue
+        from src.board_guards import resolve_board_id
+
+        silence_queue.discard(resolve_board_id(board_id))
     # The adaptive post-send refresh polls the PRIMARY board only (board-state
     # polling tracks one board by design, issue #1243), so a send aimed at a
     # secondary must not ask for one. Same rule the executor applies.
@@ -287,38 +409,49 @@ async def send_message(request: MessageRequest):
     return SendResponse(message="Message sent successfully", sent=True)
 
 
-@router.post("/send-welcome-message", response_model=SendResponse, responses=errors(409, 429, 500, 503))
-async def send_welcome_message():
+@router.post(
+    "/send-welcome-message",
+    response_model=SendResponse,
+    response_model_exclude_none=True,
+    responses=errors(404, 409, 429, 500, 503),
+)
+async def send_welcome_message(request: WelcomeMessageRequest | None = None):
     """Send a colorful welcome message to the board.
 
-    Used by the setup wizard to confirm the board is working.
+    Used by the setup wizard to confirm the board is working. The body's
+    ``board_id`` names the board to greet (the one the wizard just created);
+    omitted, the primary board.
 
-    Note: This creates a fresh board client from the settings boards store
-    so any recent credential changes (setup wizard or Settings) are used.
+    Writes through the primary board's LIVE runtime — the same driver,
+    send lock, cancel token, frame cache and floor the engine uses. Saving a
+    board (setup wizard or Settings) rebuilds that runtime before the save
+    returns, so recent credential changes are always the ones used.
     """
+    board_id = request.board_id if request is not None else None
+    if board_id is not None:
+        return await _send_welcome_to(_require_board(board_id))
+
     # Check silence mode for the board this actually writes to (the primary
-    # board — the wizard has no board picker).
+    # board, when the caller names none).
     _raise_if_silenced()
     _raise_if_paused()
 
-    # Create a fresh board client from the primary settings board so recent
-    # credential edits are always used. Board credentials are unified on
-    # settings.json (issue #1760): the legacy config.json copy is never read.
+    # Board credentials are unified on settings.json (issue #1760): the
+    # legacy config.json copy is never read.
     board = runtime._primary_board_entry()
-    try:
-        board_client = board_client_from_board_dict(board) if board is not None else None
-    except ValueError as e:
-        logger.error(f"Failed to create board client: {e}")
-        raise HTTPException(status_code=503, detail=f"Board not configured: {e!s}") from e
+    board_client = runtime.live_driver(board.get("id")) if board is not None else None
     if board_client is None:
-        raise HTTPException(status_code=503, detail="Board not configured: no board with a usable connection")
-    board_client.skip_unchanged = False  # Always send the welcome message
+        # Name why the live runtime could not be built, else say there is no
+        # usable connection at all.
+        reason = runtime.board_build_error(board.get("id")) if board is not None else None
+        detail = f"Board not configured: {reason or 'no board with a usable connection'}"
+        raise HTTPException(status_code=503, detail=detail)
 
     # Use custom welcome message if set, otherwise use the default
     custom_msg = (get_config_manager().get_general().get("welcome_message") or "").strip()
 
     settings_service = runtime.get_settings_service()
-    transition = settings_service.get_transition_settings()
+    transition = settings_service.get_transition_settings(board.get("id"))
 
     # Determine device type and array dimensions from configured boards
     # (defaults to flagship 6×22). Note arrays use notes_wide/notes_tall
@@ -370,4 +503,61 @@ async def send_welcome_message():
         return SendResponse(message="Welcome message unchanged", sent=False)
 
     logger.info("Welcome message sent to board")
+    return SendResponse(message="Welcome message sent to your board!", sent=True)
+
+
+async def _send_welcome_to(board: dict) -> SendResponse:
+    """The welcome message on *board* (one the caller named): its own silence
+    window, pause, geometry and output — an LED board gets its rich cells."""
+    board_id = board.get("id")
+    _raise_if_silenced(board_id)
+    _raise_if_paused(board_id)
+    board_client = runtime.live_driver(board_id)
+    if board_client is None:
+        reason = runtime.board_build_error(board_id)
+        raise HTTPException(status_code=503, detail=f"Board not configured: {reason or 'no usable connection'}")
+
+    custom_msg = (get_config_manager().get_general().get("welcome_message") or "").strip()
+    transition = runtime.get_settings_service().get_transition_settings(board_id)
+    geometry = geometry_of(board)
+    try:
+        dims = resolve_dimensions(*geometry)
+    except ValueError:
+        geometry = Geometry(DEFAULT_DEVICE_TYPE)
+        dims = resolve_dimensions(*geometry)
+    welcome_template = build_welcome_template(
+        geometry.device_type,
+        custom_msg,
+        notes_wide=geometry.notes_wide,
+        notes_tall=geometry.notes_tall,
+        grid_rows=geometry.grid_rows,
+        grid_cols=geometry.grid_cols,
+    )
+    board_array, rich = project_for_output(
+        board_client, "\n".join(welcome_template), dims.rows, dims.cols, flap=text_to_board_array
+    )
+    try:
+        outcome = SendOutcome.of(
+            await run_board_send(
+                board_client.render,
+                board_array,
+                strategy=transition.strategy,
+                step_interval_ms=transition.step_interval_ms,
+                step_size=transition.step_size,
+                force=True,
+                device_type=geometry.device_type,
+                with_outcome=True,
+                **rich,
+            )
+        )
+    except Exception as e:
+        logger.error(f"Error sending welcome message: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send welcome message: {e!s}") from e
+
+    if not outcome.success:
+        raise HTTPException(status_code=500, detail="Failed to send welcome message")
+    if not outcome.was_sent:
+        _raise_if_throttled(outcome)
+        return SendResponse(message="Welcome message unchanged", sent=False)
+    logger.info("Welcome message sent to board %s", board_id)
     return SendResponse(message="Welcome message sent to your board!", sent=True)

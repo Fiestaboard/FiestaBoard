@@ -42,7 +42,7 @@ in `tests/layering_manifest.json`, and only those**:
 | A router may not hold domain logic | `router_no_domain_logic` | A **size proxy**: every module-level function in a transport module stays within 15 body statements and cyclomatic complexity 8 |
 
 Enforced today: **`auth`, `backup`, `config_api`, `mqtt`, `network`, `oauth`,
-`schedules`, `system`, `transitions`, `triggers`**. Everything else —
+`outputs`, `schedules`, `system`, `triggers`**. Everything else —
 including `pages`, `collections`, `panels`, `settings`, `board_api` — is
 **unenforced**, and most of it does not currently comply: the 2026-09 audit
 counted ~1,600 lines of domain logic living in thirteen routers. A domain
@@ -52,7 +52,8 @@ until it passes. The ratchet is a floor that only moves up.
 `config_api`, `system` and `transitions` joined by moving ~790 lines out of
 their routers: `src/config_api/service.py` is new (the domain had no service
 module at all), the transition frame loops and board routing went to
-`src/transitions/service.py`, and the update-apply and rollback workflows went
+`src/transitions/service.py` (the domain left the list when the Transition
+Lab and its router were retired, plan D22), and the update-apply and rollback workflows went
 to `src/system/update_service.py`, which also stopped importing `fastapi`.
 No rule was loosened and no exception was recorded to admit any of them.
 
@@ -139,11 +140,311 @@ Names you will meet:
 
 - **`BoardRuntime`** — per-board state: its client, its worker, its last
   render memo.
+- **`OutputDriver`** (`src/outputs/driver.py`) — the Protocol every board
+  driver satisfies (every board's driver is an `OutputPluginDriver` around
+  its output plugin's instance): the surface the engine and API routes
+  actually use.
+  Reach for a member of it (or the board's `OutputRuntime`), never a
+  client's private attribute; `tests/test_output_driver_protocol.py` holds
+  the count of private peeks at zero.
+- **`OutputRuntime`** (`src/outputs/runtime.py`) — core-owned send policy for
+  one board, created by its `BoardRuntime` and bound to the client. Today it
+  holds the per-board **send lock** (re-entrant) and the **cancel token**: a
+  new send signals the in-flight run's token *before* waiting on the lock,
+  then installs a fresh token, so a running transition is preempted rather
+  than waited out and a stale signal never cancels the next run. The engine
+  calls `preempt()` at enqueue time for the same reason. It also owns the
+  board's **frame cache** (`src/outputs/frames.py`): the device-level dedupe
+  cache every client checks before a write (what the board is known to
+  show), and the **last-frame store** — the grid last actually sent and
+  when, written on every successful write and never cleared by a forced
+  re-send. **External-write detection** (#1946) is `observe_read()` over
+  that cache: two consecutive read-backs that disagree with an unchanged
+  cache mean someone else wrote the board. Sub-unit caches stay in the
+  driver: a local note array keeps one per tile so a retry re-posts only
+  the tiles that failed. And it **drives transitions**
+  (`OutputRuntime.render`; a client's `render()` is a thin delegate). A
+  native transition is a `NativeTransition` (`src/outputs/transitions.py`)
+  forwarded only to a driver that declares the strategy in
+  `native_transitions` — Vestaboard local and local note arrays declare all
+  six; RW Cloud, note-array Cloud and virtual boards declare none and get a
+  plain write. A `plugin:<id>` transition runs only with the beta flag on
+  and a driver whose `animation` capability is not `"none"`: the runtime's
+  `TransitionRunner` sends each frame through the driver's plain send under
+  the run's cancel token, paced by the driver's declared floor. Every driver
+  today is `"stream"` (frame-at-a-time); `"sequence"` (one timed upload)
+  is reserved for the first device that needs it. A driver's plain
+  `send_characters` is a runtime write too (`OutputRuntime.write()`): called
+  from outside a run — a debug blank, an MQTT message, an identify flash —
+  it preempts the in-flight transition and takes the lock; called from
+  inside one (a transition's frames) it only re-enters the lock.
+- **The runtime factory** (`src/outputs/factory.py`) — the only place a
+  driver is built. `build_driver()` is for saved boards and is called only
+  by `DisplayService` when it builds a board's live runtime; every route,
+  executor and integration reaches a saved board through
+  `DisplayService.runtime_for(board_id)` (or `display_runtime.live_driver`),
+  so the welcome message, the live editor, detect-size, identify and the
+  debug probes share the engine's lock, cancel token, frame cache and floor.
+  `draft_driver()` is for connection details that are not saved yet (the
+  credential probe, identify of an unassigned tile): a throwaway on a
+  private runtime. `tests/test_runtime_for_board.py` holds construction
+  sites outside the factory at zero. Both doors resolve the board to an
+  **output** first.
+- **The output registry** (`src/outputs/registry.py`) — every kind of
+  device FiestaBoard drives, by output id. Two are first-party: `vestaboard`
+  (Local API, RW Cloud, note-array Cloud, local note-array tiles) and
+  `fiestapanel` (a TV's in-memory board). Both are **output plugins** in
+  their own repositories (`Fiestaboard/fiestaboard-output--vestaboard`,
+  `--fiestapanel`: root `__init__.py`, `manifest.json`,
+  `output/device-models.json`, `tests/`, README and SETUP), importing core
+  only through `src.plugins` (`tests/test_first_party_output_imports.py`).
+  The image carries them in the **output seed** at the commits
+  `outputs.lock.json` pins, and `src/outputs/first_party.py` loads them from
+  there (as `plugins.<id>`, the seed copy's tree digest checked against the
+  lock on every load; `FIESTABOARD_DEV_OUTPUT_<ID>` points one at a local
+  checkout instead, `docs/internal/development/FIRST_PARTY_OUTPUTS.md`)
+  through the output-plugin path the first time the registry is asked for.
+  Only an id core drives itself and the lock pins as loadable is
+  first-party. Boot also gives each an installed copy (a checkout of its
+  repository) that the Integrations page updates in-app through the three
+  `output_api` gates; it runs only when valid and newer than the seed's
+  pin, else the seed's copy does (a refused newer copy is a surfaced
+  fallback), and no copy from another repository ever runs. They are never
+  beta-gated, never replaceable (`plugin=False`), each instance built from the board's legacy flat fields
+  by the plugin's `config_from_board` (settings v4 moves them), driven by
+  `OutputPluginDriver` in **first-party mode** (inline writes, no budget or
+  breaker, unanticipated errors propagate) with `OutputHttp.for_first_party`
+  (the `requests` module calls the old clients made), so the wire goldens
+  hold byte for byte. `GET /outputs` presents them
+  (`tests/golden/outputs/first_party_presentation.json`) with their
+  manifests' settings screens, which the web renders like any output's
+  (P4d), and their actions, status and `output_config` rules are their
+  plugin classes', asked like any output's (P4e). Each
+  entry carries a builder
+  (only the factory calls it) and the output's **capabilities** —
+  `technology` (`split_flap` | `led_matrix` | `screen`), `delivery`
+  (`push` | `pull`), `animation` and `native_transitions` — the most the
+  output offers in any configuration; a driver narrows them for its own
+  connection. A board's output is **stored** since settings v4 (with its
+  `output_config`; see `PERSISTENCE.md`), written for existing boards by the
+  v3 -> v4 migration with the same rule that resolves a dict naming none:
+  an explicit `output` key wins, then `api_mode == "virtual"` is
+  `fiestapanel` (legacy virtual note-array panels included), else
+  `vestaboard`. An explicit id the registry does not
+  know builds no driver (`UnknownOutputError`, recorded as the board's init
+  error) — never a Vestaboard in its place. `GET /settings/board` and the
+  v1 board summaries expose the derived `output`. Each live runtime knows its
+  output (`OutputRuntime.output_id`), and core decides by the registry's
+  capabilities: the UI-only output target skips every board whose
+  `delivery` is not a literal `"pull"` (an unknown output is hardware —
+  fail closed).
+- **Output hooks** (`src/outputs/hooks.py`) — what core asks an output
+  instead of knowing its device. Per output, on the registry entry:
+  `discover(timeout)` and `diagnostics` (the board section of the network
+  diagnostics plus its advice). Per output, on its plugin class
+  (`OutputDefinition.plugin_class`): `handle_action(ActionContext)` — every
+  board-settings action, core building the instances it uses (a throwaway
+  one, or the board's live one under its send lock via
+  `OutputPluginDriver.run_with_plugin`) and running it on the bounded
+  board-send pool — `board_status(config, board)` → `OutputStatus` (the board
+  card's badge, served as `output_status` on `GET /status`; first-run
+  detection reads it too) and the `output_config` rules
+  (`src/outputs/config_hooks.py`: `normalize_config`, `mask_config`,
+  `restore_config`, `masked_config_paths`, and `legacy_flat_fields`, the
+  defaults of the settings-v3 flat view). Per board, on the
+  driver: `check_connection()` → a `ConnectionCheck` (success, a failure
+  class — `auth`, `unreachable`, `timeout`, `server_error`,
+  `unexpected_status`, `bad_response`, `blocked` — message,
+  troubleshooting), `read_back` (`supported`, `cost`: `cheap` | `network`,
+  `suggested_interval_s`; the board-state poll picks the cloud interval for
+  a `network` read) and `connection_label` (MQTT `board_api_mode`). The
+  Vestaboard answers are all its plugin's (`fiestaboard-output--vestaboard`:
+  discovery, diagnostics, connection verdicts, every action — the
+  `enable_local_api` one with its CodeQL-recognised SSRF block — its status
+  and settings rules); core holds no Vestaboard rules. `fiestapanel`
+  declares no hooks. The legacy routes — `/config/board/scan`,
+  `/config/board/test`, `/config/board/enable-local-api`,
+  `/settings/board/{id}/identify`, `/settings/board/{id}/detect-size`,
+  `/debug/network-diagnostics` — stay and delegate to the vestaboard
+  output's hooks and actions (`src/outputs/actions.py` `execute_action`;
+  each answers the outcome's `detail` in its recorded shape), response
+  shapes and refusals unchanged. The MQTT device `model` is the primary
+  board's output name. `tests/test_vestaboard_output_hooks.py` holds the
+  Vestaboard transport literals anywhere in `src/` at zero (no exemptions;
+  every file type).
+- **Output plugins** (`plugin_type: "output"`, contract v1-beta) — a third
+  plugin kind: a display device. The loader never constructs one; it keeps
+  the class (an `OutputPluginBase` subclass, `src/outputs/plugin_base.py`)
+  and the manifest, and registers an output beside the built-ins
+  (`src/outputs/plugin_registration.py`; a plugin may not take a built-in's
+  id). A board naming the plugin as its `output` gets its own instance,
+  `cls(board_id, output_config)`, opened at build and closed when the board's
+  runtime is dropped; the `OutputPluginDriver` adapter
+  (`src/outputs/plugin_driver.py`) makes it an `OutputDriver`, so the
+  runtime's lock, cancel token, floor (by the plugin's `device_key()`),
+  dedupe and last-frame store apply unchanged, and an `animation: sequence`
+  output receives a frame-driven transition as one `write_sequence` upload.
+  The manifest's `output` block (`src/outputs/output_manifest.py`) declares
+  `output_api` (outside this core's range → refused at load), FiestaUI
+  `device_models` and an optional `character_set` — validated against
+  FiestaUI's vendored JSON Schemas (`src/outputs/fiestaui.py`) and built-in
+  data (vendored once, for outputs and the LED renderer alike, in
+  `src/fiestaui/`; provenance and hashes in its `provenance.json`); a declared set is materialised at load by core's one materialiser,
+  `src.led.charsets.materialize_character_set` — plus the transport facts (`delivery`,
+  `min_interval_ms`, `read_back`, `native_transitions`) and the
+  `settings_schema` of the board's `output_config`, whose `secret` fields are
+  masked in the API and restored on save (`src/outputs/output_config.py`).
+  No opt-in gates an output plugin (settings v7 dropped
+  `plugins.output_plugins_enabled`): every registered one can drive a board,
+  bundled, seeded, from the registry or from a git URL. It still runs behind
+  the write timeout, breaker and network allowlist, and the `output_api` gate
+  at install and load. `GET /outputs/available` and
+  `POST /outputs/{id}/install` (`src/outputs/install.py`) back the setup
+  wizard's first step and the Displays page's Marketplace tab
+  (`web/src/components/displays/display-marketplace.tsx`): installed, then
+  seeded, then registry outputs. Its "Bring your own display" panel side-loads
+  from a git URL through the same `POST /plugins/install` as Integrations
+  (`web/src/components/plugin-git-install.tsx`, shared by both). The
+  published author contract is `docs/development/output-plugins.md` (pull
+  viewers: `output-stream-api.md`; landing page: `integrations-overview.md`).
+- **The output seed and the `output_api` gate** (plan D8) — a board never
+  goes dark because of its plugin. The image carries a read-only seed
+  (`/opt/fiestaboard/seed/outputs`, `FIESTABOARD_OUTPUT_SEED_DIR`) of the
+  first-party outputs pinned in `outputs.lock.json` (repo, commit,
+  `output_api`, tree digest; `loadable: false` = device data only), fetched
+  and verified at **build** time by `scripts/seed_outputs.py`
+  (`src/outputs/seed.py`) — never at runtime. At boot the registry installs
+  from the seed any output a board names that is not installed (offline; a
+  plain git checkout, so it updates normally). `output_api` is enforced at
+  three points: the update check (`check_plugin_update_available` reads the
+  incoming manifest and refuses before anything is pulled; an output plugin
+  is never updated blind), install/update (`update_external_plugin` /
+  `_install_and_verify`: an output plugin's update that fails verification
+  or does not load is reset to its previous commit, and that commit is
+  remembered in `config.json`'s `refused_plugin_updates` so the hourly check
+  does not offer it again until a newer commit appears —
+  `src/plugins/update_refusals.py`), and load (an output
+  plugin's precedence is **valid installed copy → seed**: an installed copy
+  whose `output_api` is unsupported, that does not import, or that fails its
+  install self-check loads the seed copy instead, reported on
+  `GET /plugins/errors`). The seed is never put in `plugins/` — built-ins
+  always win, so a seeded plugin there could never update. Uninstalling an
+  output plugin a board uses is refused (fail closed if the boards cannot be
+  read).
+- **Third-party output safety** (`src/outputs/breaker.py`, Phase 2.4) —
+  applied by `OutputPluginDriver` only; the in-tree drivers are untouched.
+  Each plugin write runs on a thread of its own under a **write timeout**
+  (30 s default; a manifest's `output.write_timeout_ms` may lower it, never
+  raise it): when it runs out core stops waiting, marks the write failed and
+  fires the run's cancel token — threads cannot be killed, the same model as
+  `SEND_WAIT_TIMEOUT`. A **circuit breaker**, keyed by output and
+  `device_key()` like the floor, opens after 3 consecutive failed writes
+  (raised, timed out, or reported failed; a partial write does not count)
+  and refuses writes for 300 s without calling the plugin, then lets one
+  probe through. `OutputPluginDriver.last_write_error` says why, and the
+  engine's and the manual-write executors' failure messages carry it.
+- **Boards for output plugins** (plan D5, Phase 2.5) —
+  `POST /outputs/{output_id}/boards` (`src/outputs/routes.py` →
+  `src/outputs/service.py`) creates a board for an installed output plugin as
+  one of the device models its manifest declares; Vestaboards keep
+  `POST /settings/board/add` and FiestaPanels `POST /panels`. The content
+  grid comes from the model (`src/outputs/geometry.py`): `cells` as
+  declared, `pixels` from the glyph box of FiestaUI's vendored
+  `led-fonts.json` (`(W+spacing)//(glyph+spacing)` per axis; Pixoo 64 at 3x5
+  = 10x16, at 5x7 = 8x10), `panel`/`note_array` from the request. A grid
+  below the model's floor — the 3x15 Note, or 3x10 for a `pixels` model
+  (`grid_floor`) — or above the panel ceiling is **refused** there, before
+  the board's geometry is resolved — `clamp_grid` (which floors at the
+  absolute 3x10) would otherwise inflate a 32x8 matrix's 1x8 to 3x10.
+  FiestaPanel's automatic sizing keeps the 3x15 Note floor. The board is stored with an explicit `output`,
+  `output_config` and `device_model`, as a custom `panel` grid;
+  `BoardInstance` no longer coerces a plugin board's `panel` to `flagship`
+  (a legacy Vestaboard claiming `panel` still falls back, unchanged). Board
+  responses (`GET /settings/board`, `/v1/boards`) carry the resolved FiestaUI
+  `device_model` and `charset` ids (`src/outputs/board_profile.py`; `null`
+  for a FiestaPanel until its per-render-style models are vendored).
+- **Pull delivery** (plan D4) — a pulled board's frame is its runtime's
+  last-frame store. `GET /panel/{id}/frame` serves
+  `OutputRuntime.displayed_frame(rows, cols)` with core's **stale-shape
+  refusal** (a frame whose shape no longer matches the board's configured
+  grid is served as no frame), and deleting or re-fitting a panel
+  **releases** the board's frames (`display_runtime.release_board_frames`)
+  before the rebuild. The virtual client keeps no frame state of its own.
+- **Rich cells: one parse, projected per output** (plan D15/D17/D19,
+  `src/outputs/cells.py`) — the markup string stays canonical (templates,
+  APIs, the dedupe cache and render memo key on it). Each board's driver
+  carries its **resolved character set** (`board_profile.board_character_set`;
+  output plugins only — the built-in drivers carry none). A set is **rich**
+  when it has colour spans, block spans or icons (the LED sets); then, and
+  only then, the engine renders the board's template with
+  `extended_markup=True` (`PageService.preview_page`/`render_page` →
+  `TemplateEngine.render_lines`; such a render skips the preview cache) and
+  `project_message` parses the content once into the 0–71 flap projection
+  plus a `RichCellFrame` (FiestaUI `BoardToken[][]`, every token through the
+  set's `charset_fallback`, tiles normalised to numeric codes). A split-flap
+  board (a Vestaboard set, a FiestaPanel, no set) gets
+  `text_to_board_array` exactly as before, and its render call carries no
+  new keywords. An output plugin opts into rich frames by overriding
+  `OutputPluginBase.write_cells`; core then sends rich frames there and
+  dedupes colour-aware (`FrameCache.matches_frame`, FiestaUI
+  `richTokensEqual`), and a frame-driven transition's landing frame carries
+  the cells (its intermediate frames stay 0–71). `GET /panel/{id}/frame`
+  adds `cells` only for a frame that has them; `POST /templates/render`
+  with `board_id` renders for that board and reports `charset` +
+  `charset_issues` (`src.led.charsets.validate_message`, FiestaUI
+  `validateMessage` parity, proven against `charset-golden.json`). Nothing
+  is cached across renders, so a set whose `version` changes is never
+  projected stale. Every send path projects the same way
+  (`cells.project_for_output` / `extended_markup_kw`): the engine, v1
+  `/message` (text, lines, page_id), `render_message` (`/send-message`, MCP),
+  MQTT `send_message`, `/templates/render/live`, `/pages/{id}/send`, the
+  active-page immediate send and `/displays/{type}/send`. Case: the parse
+  keeps case, and the set's fallback uppercases only what a set without
+  `mixedCase` cannot draw; the flap projection always uppercases, so
+  split-flap output is unchanged. Markup a set lacks stays in the stored
+  template; only the projection falls back.
+- **The output-plugin author API** (`src/plugins/__init__.py`) — one import
+  surface: the contract, `BoardToken` / `cells_from_codes` /
+  `characters_to_message`, and `src.led`'s renderer and transitions.
+  `OutputPluginBase.http` (`src/outputs/http.py`) is the only way a plugin
+  reaches its device: `FIESTABOARD_OUTPUTS_ALLOW_HOSTS` is checked before
+  every request (no socket opens for a fenced host), a request without a
+  timeout gets `(3.05, 10)`, redirects are never followed, and a request
+  after the run's cancel token fired raises `RequestCancelled` (the driver
+  binds the write's token with `http.cancel_scope`). `setup=True` marks a
+  request that is not the board write (reset, brightness). Core binds what
+  it resolved for the board (`bind_board`): `device_model`,
+  `character_set` (materialised), `board_geometry`. A plugin that overrides
+  `write_transition(before, after, transition, *, cancel)` receives every
+  change of its board as before/after rich frames plus
+  `resolve_led_transition(choice, device_model)` — the choice is the write's
+  strategy when it names an LED transition id, else the model's default;
+  `"none"`, no known previous frame or an unchanged frame snap through
+  `write_cells`. Plugins implementing only `write_sequence` are driven as
+  before.
+- **`WriteResult`** (`src/send_outcome.py`; `SendOutcome` is an alias) —
+  a write's verdict: `(success, was_sent)`, the throttle verdict, and
+  `partial` + `failed_regions` for a write that reached only part of the
+  board (a local note array with a failed tile). `POST /v1/boards/{board}/message`
+  answers such a write 502 with the regions in a structured detail
+  (API_CONVENTIONS.md).
+- **The send floor** (`src/outputs/floor.py`) — the minimum spacing between
+  writes to one *device* (15 s for Vestaboard's RW and note-array Cloud
+  APIs; local boards are unfloored). A driver declares the length
+  (`min_send_interval_ms`) and its identity (`device_key()`: host+port, or
+  a hash of the cloud credential — never the credential); core keeps one
+  process-wide registry keyed by that identity. So a board re-save, which
+  rebuilds the client, does not reset the window, and a throwaway client an
+  API route builds for the same board (welcome, live render) sees it too.
+  A slot is reserved before the write and given back if the write fails —
+  except an upstream HTTP 429, which is reported as throttled (with its
+  `Retry-After`, else the floor) and keeps the device closed.
 - **`BoardSendWorker`** — one thread per board with a **latest-wins** queue:
   a newer frame supersedes a queued older one, and callers waiting on the
   superseded frame are adopted onto the newer one. Never bypass it; a direct
   send races the worker.
-- **The dedupe cache** — what each board is currently showing. The tick reads
+- **The dedupe cache** — the engine's own, one level up from the runtime's
+  frame cache: the rendered content and page id each board is showing. The tick reads
   it to decide whether to send at all. It is written by the worker *before*
   the in-flight key is retired, and the tick snapshots the in-flight key set
   once per pass, so a job completing mid-pass can never make both guards read
@@ -292,7 +593,8 @@ ruff ignore set for the same reason.
 
 `src/board_state.py` is the same idea one level up. Four surfaces answer
 "what is on the board" — `GET /board/current-message`, the unauthenticated
-`GET /panel/{panel_id}/frame` a TV polls every 2s, the MCP
+`GET /panel/{panel_id}/frame` a TV polls every 2s (which has since moved to
+the runtime's last-frame store, above), the MCP
 `get_board_content` tool and `GET /v1/boards/{board}` — and each used to
 carry its own copy of the cache selection, drifting in small ways (only one
 could live-read, only one reported a source, only one honoured the virtual

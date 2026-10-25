@@ -8,9 +8,12 @@ import time
 from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import ValidationError
 
+from src.canvas import covered_cells, free_spans, render_canvases_on_grid, scale_area
+from src.canvas.refs import canvas_plugin_ids
 from src.devices import (
     DEFAULT_DEVICE_TYPE,
     GEOMETRY_FIELDS,
@@ -22,9 +25,12 @@ from src.devices import (
     size_key,
 )
 from src.displays.service import DisplayResult, get_display_service
+from src.led.matrix import DEFAULT_LED_FONT, grid_layout
 from src.plugins.manifest import DemoPageSchema
+from src.request_trace import trace_phase
 from src.settings.service import get_settings_service
 from src.templates.engine import extract_template_plugin_ids, get_template_engine
+from src.text_to_board import SPLIT_FLAP_EXTENDED_MARKUP
 
 from .models import LineMetadata, Page, PageCreate, PageUpdate
 from .storage import PageStorage
@@ -76,6 +82,29 @@ DEFAULT_PAGE_TEMPLATES = {
 
 # Backward compatibility alias
 DEFAULT_PAGE_TEMPLATE = DEFAULT_PAGE_TEMPLATES["flagship"]
+
+
+def page_plugin_ids(page: Page) -> set[str] | None:
+    """The plugin ids a page's render reads: its template's and its canvases'.
+
+    ``None`` when either cannot be determined statically (a formula), which
+    callers read as "fetch every enabled plugin" (issue #1751).
+    """
+    template_refs = extract_template_plugin_ids(getattr(page, "template", None))
+    canvases = getattr(page, "canvases", None)
+    canvas_refs = canvas_plugin_ids(canvases) if isinstance(canvases, list) else set()
+    if template_refs is None or canvas_refs is None:
+        return None
+    return template_refs | canvas_refs
+
+
+def draws_pixels(display: Any) -> bool:
+    """Whether *display* (a :class:`~src.outputs.display_profile.DisplayProfile`) is a pixel matrix."""
+    supports = getattr(display, "supports", None)
+    try:
+        return bool(supports and supports("pixels"))
+    except ValueError:
+        return False
 
 
 @dataclass
@@ -179,6 +208,7 @@ class PageService:
             notes_tall=data.notes_tall or 1,
             grid_rows=data.grid_rows,
             grid_cols=data.grid_cols,
+            canvases=data.canvases,
             created_at=datetime.now(UTC),
         )
 
@@ -199,7 +229,9 @@ class PageService:
                 the page config invalid (e.g. a composite row that no longer
                 fits the new geometry)
         """
+        trace_phase("page_update_started")
         updates = data.model_dump(exclude_unset=True)
+        self._scale_canvases_on_retarget(page_id, updates)
 
         # Device/size retarget (issue #1250): re-validate the prospective page
         # before persisting so a retarget can't strand an invalid config.
@@ -221,19 +253,51 @@ class PageService:
                 if errors:
                     raise ValueError(f"Cannot retarget page: {'; '.join(errors)}")
 
+        trace_phase("storage_started")
         updated_page = self.storage.update(page_id, updates)
+        trace_phase("storage_returned")
 
         # Invalidate preview cache for this page
         if updated_page:
+            trace_phase("cache_invalidation_started")
             self._invalidate_cache(page_id)
+            trace_phase("cache_invalidation_returned")
             logger.debug(f"Invalidated preview cache for page {page_id}")
 
+        trace_phase("page_update_returned")
         return updated_page
+
+    def _scale_canvases_on_retarget(self, page_id: str, updates: dict) -> None:
+        """A size retarget that does not send ``canvases`` scales the stored areas.
+
+        Canvas areas are cells of the page grid, so a grid change (a board's
+        text size switch, a FiestaPanel re-fit, the editor's retarget) moves
+        them proportionally (:func:`src.canvas.scale_area`) rather than
+        leaving them where they no longer fit. Explicit ``canvases`` in the
+        same update win: the caller already placed them.
+        """
+        if "canvases" in updates or not any(key in updates for key in GEOMETRY_FIELDS):
+            return
+        existing = self.storage.get(page_id)
+        if existing is None or not existing.canvases:
+            return
+        merged = {**existing.model_dump(), **{k: v for k, v in updates.items() if v is not None}}
+        try:
+            old = dimensions_of(existing)
+            new = dimensions_of(merged)
+        except ValueError:
+            return  # the retarget itself is invalid; update_page reports that
+        if (old.rows, old.cols) == (new.rows, new.cols):
+            return
+        updates["canvases"] = [
+            canvas.model_copy(update={"area": scale_area(canvas.area, (old.rows, old.cols), (new.rows, new.cols))})
+            for canvas in existing.canvases
+        ]
 
     def delete_page(self, page_id: str) -> DeleteResult:
         """Delete a page.
 
-        If this is the last page, a default welcome page is created first
+        If this is the last page, a default welcome page is created
         to ensure there is always at least one page.
 
         If the deleted page is the active display page, the active page will
@@ -250,56 +314,59 @@ class PageService:
         if existing_page is None:
             return DeleteResult(deleted=False)
 
-        # Check if this page is the active display page
+        from src.content_references import check_content_references
+
+        check_content_references(page_id, replace_active=True)
         settings_service = get_settings_service()
-        is_active_page = settings_service.get_active_page_id() == page_id
+        boards = settings_service.get_board_settings().boards
+        active_boards = [b for b in boards if settings_service.get_active_page_id(b["id"]) == page_id]
+        legacy_active = settings_service.get_active_page_id() == page_id
+        was_last = self.storage.count() == 1
 
-        # Check if this is the last page
-        if self.storage.count() == 1:
-            # Delete the original FIRST (persisting that deletion), then create
-            # the default. If creating the default fails after a successful
-            # delete, the user is briefly left with zero pages — a recoverable
-            # state — rather than an orphaned "Welcome" page committed to disk
-            # alongside an original that was never deleted (issue #1314). The
-            # previous create-then-delete order could leave two pages on disk
-            # if the delete's save raised after the default was already saved.
-            self.storage.delete(page_id)
-            self._invalidate_cache(page_id)
-
-            # Create the replacement default. Match the deleted page's
-            # device_type so a note (3x15) board doesn't end up with a
-            # flagship (6x22) welcome page (issue #1307).
-            default_page = self._create_default_page(device_type=existing_page.device_type)
-            logger.info(f"Created default page {default_page.id} after deleting last page {page_id}")
-
-            # If deleted page was active, set the new default as active
-            if is_active_page:
-                settings_service.set_active_page_id(default_page.id)
-                logger.info(f"Active page updated to new default: {default_page.id}")
-
-            return DeleteResult(
-                deleted=True,
-                default_page_created=True,
-                new_page_id=default_page.id,
-                active_page_updated=is_active_page,
-                new_active_page_id=default_page.id if is_active_page else None,
-            )
-
-        # Normal deletion
+        # Persist deletion first: a failed delete must not create an orphan Welcome.
         self.storage.delete(page_id)
-
         self._invalidate_cache(page_id)
-
-        # If deleted page was active, set another page as active
+        default_page = self._create_replacement_page(existing_page) if was_last else None
         new_active_id = None
-        if is_active_page:
-            remaining_pages = self.storage.list_all()
-            if remaining_pages:
-                new_active_id = remaining_pages[0].id
-                settings_service.set_active_page_id(new_active_id)
-                logger.info(f"Active page updated to: {new_active_id}")
+        for board in active_boards:
+            replacement = next((p for p in self.storage.list_all() if pages_compatible_with_board(p, board)), None)
+            if replacement is None:
+                replacement = self._create_replacement_page(board)
+                default_page = default_page or replacement
+            settings_service.set_active_page_id(replacement.id, board["id"])
+            if new_active_id is None or board["id"] == settings_service.get_primary_board_id():
+                new_active_id = replacement.id
+        if legacy_active and not boards:
+            replacement = next(
+                (p for p in self.storage.list_all() if pages_compatible_with_board(p, existing_page)), None
+            )
+            if replacement is None:
+                replacement = self._create_replacement_page(existing_page)
+                default_page = default_page or replacement
+            settings_service.set_active_page_id(replacement.id)
+            new_active_id = replacement.id
+        return DeleteResult(
+            deleted=True,
+            default_page_created=default_page is not None,
+            new_page_id=default_page.id if default_page else None,
+            active_page_updated=bool(active_boards) or legacy_active,
+            new_active_page_id=new_active_id,
+        )
 
-        return DeleteResult(deleted=True, active_page_updated=is_active_page, new_active_page_id=new_active_id)
+    def _create_replacement_page(self, geometry_source: Any) -> Page:
+        """A welcome page retaining the exact geometry of a page or board."""
+        geometry = geometry_of(geometry_source)
+        if geometry.device_type in DEFAULT_PAGE_TEMPLATES:
+            return self._create_default_page(device_type=geometry.device_type)
+        return self.storage.create(
+            Page(
+                name="Welcome",
+                type="template",
+                template=["Welcome"],
+                **geometry._asdict(),
+                created_at=datetime.now(UTC),
+            )
+        )
 
     def _create_default_page(self, device_type: str | None = None) -> Page:
         """Create and save a default welcome page.
@@ -345,14 +412,6 @@ class PageService:
         Returns:
             Tuple of (created_page, was_recreated)
         """
-        recreated = False
-        existing = self.get_demo_page(plugin_id, device_type=demo.device_type)
-        if existing:
-            self.storage.delete(existing.id)
-            self._invalidate_cache(existing.id)
-            recreated = True
-            logger.info(f"Deleted existing demo page {existing.id} for plugin {plugin_id}")
-
         line_metadata = None
         if demo.line_metadata:
             line_metadata = [
@@ -371,8 +430,19 @@ class PageService:
             line_metadata=line_metadata,
             duration_seconds=demo.duration_seconds,
             demo_plugin_id=plugin_id,
+            canvases=getattr(demo, "canvases", None),
             created_at=datetime.now(UTC),
         )
+
+        # Built (and validated) before the old demo goes, so an invalid demo
+        # leaves the existing page in place.
+        recreated = False
+        existing = self.get_demo_page(plugin_id, device_type=demo.device_type)
+        if existing:
+            self.storage.delete(existing.id)
+            self._invalidate_cache(existing.id)
+            recreated = True
+            logger.info(f"Deleted existing demo page {existing.id} for plugin {plugin_id}")
 
         created = self.storage.create(page)
         logger.info(f"Created demo page {created.id} for plugin {plugin_id}")
@@ -389,6 +459,7 @@ class PageService:
         grid_rows: int | None = None,
         grid_cols: int | None = None,
         plugin_ids: Collection[str] | None = None,
+        display: Any = None,
     ) -> dict | None:
         """Get-or-build the per-tick shared template context for one board size.
 
@@ -416,6 +487,10 @@ class PageService:
             return None
         geometry = (device_type or DEFAULT_DEVICE_TYPE, notes_wide or 1, notes_tall or 1, grid_rows, grid_cols)
         key = size_key(*geometry)
+        if display is not None:
+            # One size, two displays (split-flap and LED): plugins that adapt
+            # to the display get a context each.
+            key = f"{key}|{display.key}"
         coverage_key = _CONTEXT_COVERAGE_PREFIX + key
         fingerprint_key = CONTEXT_FINGERPRINT_PREFIX + key
         try:
@@ -424,7 +499,7 @@ class PageService:
             registry = get_plugin_registry()
             context = contexts.get(key)
             if context is None:
-                board = board_context_for(*geometry)
+                board = board_context_for(*geometry, display=display)
                 fingerprints: dict[str, str] = {}
                 if plugin_ids is None:
                     context = registry.build_template_context(board, fingerprints=fingerprints)
@@ -477,7 +552,13 @@ class PageService:
             return None
 
     def render_page(
-        self, page: Page, context: dict | None = None, contexts: dict[str, dict] | None = None
+        self,
+        page: Page,
+        context: dict | None = None,
+        contexts: dict[str, dict] | None = None,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        display: Any = None,
     ) -> DisplayResult:
         """Render a page to formatted text.
 
@@ -487,28 +568,68 @@ class PageService:
             contexts: Optional per-tick shared context cache keyed by board
                 size (see :meth:`shared_context_for`). Consulted only when
                 ``context`` is not given.
+            extended_markup: The target board speaks extended markup (its
+                output's character set is rich; plan D19). Template pages
+                only; the other page types have no template to render.
 
         Returns:
             DisplayResult with formatted text
         """
-        if context is None and contexts is not None and page.type == "template":
+        canvases = page.canvases or []
+        pixels = bool(canvases) and draws_pixels(display)
+        if context is None and contexts is not None and (page.type == "template" or pixels):
             context = self.shared_context_for(
                 contexts,
                 *geometry_of(page),
                 # Demand-driven fetch (issue #1751): only the plugins this
-                # page's template references. None (a formula page) keeps
-                # the fetch-all fallback.
-                plugin_ids=extract_template_plugin_ids(page.template),
+                # page's template and canvases reference. None (a formula
+                # page) keeps the fetch-all fallback.
+                plugin_ids=page_plugin_ids(page),
+                display=display,
+            )
+        if context is None and pixels:
+            # The canvases read the same context the template renders with.
+            context = get_template_engine().build_context(
+                board_context_for(*geometry_of(page), display=display), plugin_ids=page_plugin_ids(page)
             )
         if page.type == "single":
-            return self._render_single(page)
-        if page.type == "composite":
-            return self._render_composite(page)
-        if page.type == "template":
-            return self._render_template(page, context=context)
-        return DisplayResult(
-            display_type="page", formatted="", raw={}, available=False, error=f"Unknown page type: {page.type}"
+            result = self._render_single(page)
+        elif page.type == "composite":
+            result = self._render_composite(page)
+        elif page.type == "template":
+            result = self._render_template(page, context=context, extended_markup=extended_markup, display=display)
+        else:
+            return DisplayResult(
+                display_type="page", formatted="", raw={}, available=False, error=f"Unknown page type: {page.type}"
+            )
+        if canvases and result.available:
+            self._apply_canvases(page, result, context, extended_markup=extended_markup, display=display)
+        return result
+
+    @staticmethod
+    def _apply_canvases(
+        page: Page, result: DisplayResult, context: dict | None, *, extended_markup: bool, display: Any
+    ) -> None:
+        """Design §3: blank the cells under the page's canvases (every board),
+        then, for a pixel-matrix *display*, rasterise them into ``result.layers``.
+
+        ``flow`` canvases already kept text out of their cells
+        (:meth:`_render_template`); this blanks every covered cell, so a
+        ``hide`` canvas's text is gone and a non-template page's too. The
+        layers are drawn on the board's own LED grid (its pixel size and the
+        face its text size chose) with the page's variable *context*.
+        """
+        canvases = page.canvases or []
+        dims = dimensions_of(page)
+        result.formatted = get_template_engine().blank_cells(
+            result.formatted, covered_cells(canvases, dims.rows, dims.cols), extended_markup=extended_markup
         )
+        if not draws_pixels(display):
+            return
+        grid = grid_layout(display.width, display.height, display.font or DEFAULT_LED_FONT)
+        layers, issues = render_canvases_on_grid(canvases, grid, context or {})
+        result.layers = layers
+        result.canvas_issues = issues
 
     @staticmethod
     def _board_for_page(page: Page) -> BoardContext:
@@ -600,7 +721,14 @@ class PageService:
             available=True,
         )
 
-    def _render_template(self, page: Page, context: dict | None = None) -> DisplayResult:
+    def _render_template(
+        self,
+        page: Page,
+        context: dict | None = None,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        display: Any = None,
+    ) -> DisplayResult:
         """Render a template page with variable substitution.
 
         Uses the template engine to:
@@ -629,6 +757,10 @@ class PageService:
             # The template engine already handles tile-aware truncation in render_lines()
             # via _truncate_to_tiles() - color codes like {63} count as 1 tile each
             meta = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
+            spans = None
+            if any(c.text == "flow" for c in page.canvases or ()):
+                dims = dimensions_of(page)
+                spans = free_spans(page.canvases, dims.rows, dims.cols)
             formatted = template_engine.render_lines(
                 page.template,
                 context=context,
@@ -638,6 +770,9 @@ class PageService:
                 notes_tall=page.notes_tall,
                 grid_rows=page.grid_rows,
                 grid_cols=page.grid_cols,
+                extended_markup=extended_markup,
+                display=display,
+                free_spans=spans,
             )
 
             # Note: We do NOT truncate/pad by character count here because:
@@ -667,6 +802,9 @@ class PageService:
         force_refresh: bool = False,
         context: dict | None = None,
         contexts: dict[str, dict] | None = None,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        display: Any = None,
     ) -> DisplayResult | None:
         """Preview a page by ID.
 
@@ -680,6 +818,11 @@ class PageService:
             context: Optional pre-built template context (skips the plugin fan-out)
             contexts: Optional per-tick shared context cache keyed by board
                 size (issue #1752); see :meth:`shared_context_for`
+            extended_markup: Render with extended markup (see
+                :meth:`render_page`). The preview cache holds the default
+                render (:data:`~src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP`),
+                which every board now shares; a render in the other mode
+                neither reads nor writes it.
 
         Returns:
             DisplayResult or None if page not found
@@ -687,6 +830,14 @@ class PageService:
         page = self.get_page(page_id)
         if not page:
             return None
+
+        if extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None:
+            # A render for one display is that display's: the shared preview
+            # cache holds the display-agnostic render and is neither read nor
+            # written.
+            return self.render_page(
+                page, context=context, contexts=contexts, extended_markup=extended_markup, display=display
+            )
 
         # Check cache first if not forcing refresh
         if not force_refresh:
@@ -707,7 +858,13 @@ class PageService:
         return result
 
     def preview_pages_batch(
-        self, page_ids: list[str], force_refresh: bool = False, active_page_id: str | None = None
+        self,
+        page_ids: list[str],
+        force_refresh: bool = False,
+        active_page_id: str | None = None,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        display: Any = None,
     ) -> dict[str, DisplayResult | None]:
         """Preview multiple pages, building template context once for efficiency.
 
@@ -719,12 +876,19 @@ class PageService:
             page_ids: List of page IDs to preview
             force_refresh: If True, bypass cache for all pages
             active_page_id: If set, always force refresh for this page
+            extended_markup: Render with extended markup (see
+                :meth:`preview_page`): a render in the mode the preview cache
+                does not hold renders every page fresh, and the cache is
+                neither read nor written.
 
         Returns:
             Dict mapping page_id to DisplayResult (or None if page not found)
         """
         results: dict[str, DisplayResult | None] = {}
         pages_to_render: list[tuple[str, Page]] = []
+        # A render for one display (or in the other markup mode) is that
+        # display's: the shared preview cache is neither read nor written.
+        uncached_mode = extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None
 
         # First pass: check cache, collect pages that need rendering
         for page_id in page_ids:
@@ -733,7 +897,7 @@ class PageService:
                 results[page_id] = None
                 continue
 
-            should_force = force_refresh or (page_id == active_page_id)
+            should_force = force_refresh or (page_id == active_page_id) or uncached_mode
 
             if not should_force:
                 cached = self._preview_cache.get(page_id)
@@ -756,12 +920,12 @@ class PageService:
         # all) as soon as any page's references cannot be determined.
         ids_by_board: dict[str, Collection[str] | None] = {}
         for _, p in pages_to_render:
-            if p.type != "template":
+            if p.type != "template" and not (p.canvases and draws_pixels(display)):
                 continue
             key = self._board_key(p)
             if key not in boards:
-                boards[key] = board_context_for(*geometry_of(p))
-            refs = extract_template_plugin_ids(p.template)
+                boards[key] = board_context_for(*geometry_of(p), display=display)
+            refs = page_plugin_ids(p)
             if key not in ids_by_board:
                 ids_by_board[key] = set(refs) if refs is not None else None
             elif ids_by_board[key] is not None:
@@ -777,12 +941,12 @@ class PageService:
         # Second pass: render pages that missed cache
         for page_id, page in pages_to_render:
             try:
-                result = self.render_page(page, context=contexts_by_board.get(self._board_key(page)))
-
-                # Cache the result
-                self._preview_cache[page_id] = CachedPreview(
-                    result=result, page_updated_at=page.updated_at, cached_at=time.time()
-                )
+                context = contexts_by_board.get(self._board_key(page))
+                result = self.render_page(page, context=context, extended_markup=extended_markup, display=display)
+                if not uncached_mode:
+                    self._preview_cache[page_id] = CachedPreview(
+                        result=result, page_updated_at=page.updated_at, cached_at=time.time()
+                    )
 
                 results[page_id] = result
             except Exception as e:
