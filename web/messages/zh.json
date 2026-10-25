@@ -1008,7 +1008,7 @@
     "holdPaused": "此显示设备已暂停，在您恢复之前“恢复”不会发送任何内容。",
     "keptTitle": "另一个应用在 {time} 向此 board 写入了内容",
     "keptDetail": "FiestaBoard 之后已放回您的页面。您仍然可以保存另一个应用写入的内容。",
-    "overwrittenDetail": "于 {time} 检测到。FiestaBoard 无法看到此显示屏当前显示的内容，因此没有可保存的内容。点击“恢复”可放回您的页面。",
+    "overwrittenDetail": "检测时间：{time}。FiestaBoard 无法看到此显示设备当前显示的内容，因此没有可保存的内容。点击“恢复”可放回您的页面。",
     "externalPageName": "来自 Board {date}",
     "toastRestored": "Board 已恢复",
     "toastRestoreFailed": "恢复 board 失败",
@@ -1209,7 +1209,7 @@
     },
     "autoRestore": {
       "toggle": "自动恢复",
-      "help": "当另一个应用更改此显示屏时，FiestaBoard 会放回您的页面。关闭此项可让另一个应用保留显示屏。"
+      "help": "当另一个应用更改此显示设备时，FiestaBoard 会放回您的页面。关闭此项可让另一个应用保留显示设备。"
     },
     "initError": {
       "badge": "不可用",

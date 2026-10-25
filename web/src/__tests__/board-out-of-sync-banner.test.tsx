@@ -379,7 +379,11 @@ describe("BoardOutOfSyncBanner", () => {
 
       await user.click(await screen.findByRole("button", { name: "Restore" }));
 
-      await waitFor(() => expect(warning).toHaveBeenCalledWith("Nothing was sent: this display is paused"));
+      await waitFor(() =>
+        expect(warning).toHaveBeenCalledWith("Nothing was sent: this display is paused", {
+          description: "Board is paused — sends are blocked until it is resumed.",
+        }),
+      );
     });
 
     it("says nothing was sent, not that Restore failed, when the board refuses it", async () => {
@@ -393,9 +397,33 @@ describe("BoardOutOfSyncBanner", () => {
 
       await user.click(await screen.findByRole("button", { name: "Restore" }));
 
-      await waitFor(() => expect(warning).toHaveBeenCalledWith("Nothing was sent to the display"));
+      await waitFor(() =>
+        expect(warning).toHaveBeenCalledWith("Nothing was sent to the display", {
+          description: "Board is paused — sends are blocked until it is resumed.",
+        }),
+      );
       expect(error).not.toHaveBeenCalled();
       expect(banner()).toBeInTheDocument();
+    });
+
+    it("passes the server's reason for refusing Restore as the toast description", async () => {
+      const warning = vi.spyOn(toast, "warning");
+      serveBoard(boardState({ characters: hiRed() }));
+      server.use(
+        http.post(`${API}/v1/boards/:board/restore`, () =>
+          HttpResponse.json({ detail: "Silence mode is active until 07:00." }, { status: 409 }),
+        ),
+      );
+      const user = userEvent.setup();
+      renderBanner();
+
+      await user.click(await screen.findByRole("button", { name: "Restore" }));
+
+      await waitFor(() =>
+        expect(warning).toHaveBeenCalledWith("Nothing was sent to the display", {
+          description: "Silence mode is active until 07:00.",
+        }),
+      );
     });
 
     it("says Restore failed when the request fails", async () => {
@@ -594,7 +622,7 @@ describe("BoardOutOfSyncBanner", () => {
       const time = new Intl.DateTimeFormat("en", { timeStyle: "short" }).format(detected);
       expect(
         within(alert).getByText(
-          `Detected at ${time}. FiestaBoard can't see what this display shows now, so there's nothing to save. Restore puts your page back.`,
+          `Detected: ${time}. FiestaBoard can't see what this display shows now, so there's nothing to save. Restore puts your page back.`,
         ),
       ).toBeInTheDocument();
       expect(within(alert).getByRole("button", { name: "Restore" })).toBeEnabled();
@@ -611,15 +639,33 @@ describe("BoardOutOfSyncBanner", () => {
       expect(banner()).toBeNull();
     });
 
-    it("ignores overwritten_at on a board that reads back and shows what FiestaBoard sent", async () => {
-      // A board that reads back says what it shows through `characters`; only
-      // a display with nothing to compare gets this face.
-      const seen = serveBoard(overwritten(new Date(), { characters: EXPECTED, expected_characters: EXPECTED }));
+    it("shows the overwritten face for the shape a no-read-back display actually serves", async () => {
+      // After its first send a Pixoo's GET /board/current-message echoes the
+      // last frame FiestaBoard sent as `characters`, equal to
+      // `expected_characters`; only `overwritten_at` says another app wrote it.
+      serveBoard(overwritten(new Date(), { characters: EXPECTED, expected_characters: EXPECTED }));
       renderBanner();
 
-      await waitFor(() => expect(seen.length).toBeGreaterThan(0));
-      await act(() => new Promise((r) => setTimeout(r, 50)));
-      expect(banner()).toBeNull();
+      const alert = await screen.findByTestId("board-out-of-sync");
+      expect(alert).toHaveAttribute("data-face", "overwritten");
+      expect(within(alert).getByRole("button", { name: "Restore" })).toBeEnabled();
+      expect(within(alert).queryByRole("button", { name: "Save as page" })).toBeNull();
+    });
+
+    it("wins over the kept face when a held frame is also there", async () => {
+      serveBoard(
+        overwritten(new Date(), {
+          characters: EXPECTED,
+          expected_characters: EXPECTED,
+          external_characters: hiRed(),
+          external_detected_at: new Date().toISOString(),
+        }),
+      );
+      renderBanner();
+
+      const alert = await screen.findByTestId("board-out-of-sync");
+      expect(alert).toHaveAttribute("data-face", "overwritten");
+      expect(within(alert).queryByRole("button", { name: "Save as page" })).toBeNull();
     });
 
     it("Restore sends this display's page back and the notice goes", async () => {

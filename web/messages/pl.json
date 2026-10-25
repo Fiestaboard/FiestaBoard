@@ -1008,7 +1008,7 @@
     "holdPaused": "Ten wyświetlacz jest wstrzymany, więc Przywróć niczego nie wyśle, dopóki go nie wznowisz.",
     "keptTitle": "Inna aplikacja zapisała na tym boardzie o {time}",
     "keptDetail": "FiestaBoard przywrócił już Twoją stronę. Nadal możesz zapisać to, co napisała inna aplikacja.",
-    "overwrittenDetail": "Wykryto o {time}. FiestaBoard nie widzi, co ten wyświetlacz teraz pokazuje, więc nie ma czego zapisać. Przywróć przywraca Twoją stronę.",
+    "overwrittenDetail": "Wykryto: {time}. FiestaBoard nie widzi, co ten wyświetlacz teraz pokazuje, więc nie ma czego zapisać. Przywróć przywraca Twoją stronę.",
     "externalPageName": "Z boarda {date}",
     "toastRestored": "Board przywrócony",
     "toastRestoreFailed": "Nie udało się przywrócić boarda",

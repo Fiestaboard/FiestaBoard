@@ -1008,7 +1008,7 @@
     "holdPaused": "Esta pantalla está en pausa, así que Restaurar no enviará nada hasta que la reanudes.",
     "keptTitle": "Otra aplicación escribió en esta pantalla a las {time}",
     "keptDetail": "FiestaBoard ya volvió a mostrar tu página. Aún puedes guardar lo que escribió la otra aplicación.",
-    "overwrittenDetail": "Detectado a las {time}. FiestaBoard no puede ver lo que muestra ahora esta pantalla, así que no hay nada que guardar. Restaurar vuelve a poner tu página.",
+    "overwrittenDetail": "Detectado: {time}. FiestaBoard no puede ver lo que muestra ahora esta pantalla, así que no hay nada que guardar. Restaurar vuelve a poner tu página.",
     "externalPageName": "De la pantalla {date}",
     "toastRestored": "Pantalla restaurada",
     "toastRestoreFailed": "Error al restaurar la pantalla",

@@ -1008,7 +1008,7 @@
     "holdPaused": "Dit scherm is gepauzeerd, dus Herstellen verstuurt niets totdat je het hervat.",
     "keptTitle": "Een andere app heeft om {time} naar dit board geschreven",
     "keptDetail": "FiestaBoard heeft je pagina inmiddels teruggezet. Je kunt nog steeds opslaan wat de andere app schreef.",
-    "overwrittenDetail": "Gedetecteerd om {time}. FiestaBoard kan niet zien wat dit scherm nu toont, dus er is niets om op te slaan. Herstellen zet je pagina terug.",
+    "overwrittenDetail": "Gedetecteerd: {time}. FiestaBoard kan niet zien wat dit scherm nu toont, dus er is niets om op te slaan. Herstellen zet je pagina terug.",
     "externalPageName": "Van het board {date}",
     "toastRestored": "Board hersteld",
     "toastRestoreFailed": "Herstellen van board mislukt",

@@ -1008,7 +1008,7 @@
     "holdPaused": "Bu ekran duraklatıldı, bu yüzden siz sürdürene kadar Geri Yükle hiçbir şey göndermez.",
     "keptTitle": "Başka bir uygulama {time} saatinde bu board’a yazdı",
     "keptDetail": "FiestaBoard o zamandan beri sayfanızı geri koydu. Diğer uygulamanın yazdığını yine de kaydedebilirsiniz.",
-    "overwrittenDetail": "{time} saatinde algılandı. FiestaBoard bu ekranın şu anda ne gösterdiğini göremez, bu yüzden kaydedilecek bir şey yok. Geri Yükle sayfanızı geri koyar.",
+    "overwrittenDetail": "Algılandı: {time}. FiestaBoard bu ekranın şu anda ne gösterdiğini göremez, bu yüzden kaydedilecek bir şey yok. Geri Yükle sayfanızı geri koyar.",
     "externalPageName": "Board’dan {date}",
     "toastRestored": "Board geri yüklendi",
     "toastRestoreFailed": "Board geri yüklenemedi",

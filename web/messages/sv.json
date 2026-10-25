@@ -1008,7 +1008,7 @@
     "holdPaused": "Den här skärmen är pausad, så Återställ skickar inget förrän du återupptar den.",
     "keptTitle": "En annan app skrev till den här boarden kl. {time}",
     "keptDetail": "FiestaBoard har sedan dess satt tillbaka din sida. Du kan fortfarande spara det den andra appen skrev.",
-    "overwrittenDetail": "Upptäcktes {time}. FiestaBoard kan inte se vad den här skärmen visar nu, så det finns inget att spara. Återställ sätter tillbaka din sida.",
+    "overwrittenDetail": "Upptäckt: {time}. FiestaBoard kan inte se vad den här skärmen visar nu, så det finns inget att spara. Återställ sätter tillbaka din sida.",
     "externalPageName": "Från board {date}",
     "toastRestored": "Board återställd",
     "toastRestoreFailed": "Misslyckades återställa board",

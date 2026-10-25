@@ -77,20 +77,24 @@ export function BoardOutOfSyncBanner({ boardId, geometry, paused, suppressed = f
   const isOutOfSync = characters !== null && expected !== null && JSON.stringify(characters) !== expectedKey;
   const externalFrame = boardState.external_characters ?? null;
   const hasKeptFrame = externalFrame !== null && JSON.stringify(externalFrame) !== expectedKey;
-  // Only a display with nothing to compare reports this; a board that reads
-  // back says what it shows through `characters` instead.
-  const hasReadBack = characters !== null && expected !== null;
-  const isOverwritten = !hasReadBack && Boolean(boardState.overwritten_at);
+  // Set only from a no-read-back display's own overwrite report, and cleared
+  // server-side on every FiestaBoard write. Such a display still serves
+  // `characters` (the last frame sent, equal to `expected_characters`), so it
+  // cannot be told apart by them.
+  const isOverwritten = Boolean(boardState.overwritten_at);
 
   // The live faces win: what is on the board now is what the user sees.
   const face: Face | null = isOutOfSync ? "out-of-sync" : isOverwritten ? "overwritten" : hasKeptFrame ? "kept" : null;
   if (face === null) return null;
 
-  const grid = (face === "out-of-sync" ? characters : externalFrame) as number[][];
-  const gridKey = JSON.stringify(grid);
+  // The frame Save keeps: what the board shows, or the held external frame.
+  // The overwritten face has none (nothing was read back), so no Save.
+  const grid: number[][] | null = face === "out-of-sync" ? characters : face === "kept" ? externalFrame : null;
+  const gridKey = grid === null ? null : JSON.stringify(grid);
   const saved = savedPage !== null && savedPage.gridKey === gridKey ? savedPage : null;
 
   const handleSave = async () => {
+    if (grid === null || gridKey === null) return;
     try {
       const page = await save(grid, geometry);
       setSavedPage({ id: page.id, name: page.name, gridKey });
@@ -119,8 +123,8 @@ export function BoardOutOfSyncBanner({ boardId, geometry, paused, suppressed = f
 
   // A live face: the board shows something else now, and Restore is offered.
   const live = face !== "kept";
-  // Only the out-of-sync face has a frame to save.
-  const canSave = face !== "overwritten";
+  // Only a face with a frame can save it.
+  const canSave = grid !== null;
 
   // The one hold line: a paused display holds Restore (live faces only).
   const hold: string | null = live && paused ? t("holdPaused") : null;

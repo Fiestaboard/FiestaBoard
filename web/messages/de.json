@@ -1008,7 +1008,7 @@
     "holdPaused": "Diese Anzeige ist pausiert, daher sendet „Wiederherstellen“ erst wieder, wenn du sie fortsetzt.",
     "keptTitle": "Eine andere App hat um {time} auf dieses Board geschrieben",
     "keptDetail": "FiestaBoard hat deine Seite inzwischen wiederhergestellt. Du kannst trotzdem speichern, was die andere App geschrieben hat.",
-    "overwrittenDetail": "Erkannt um {time}. FiestaBoard kann nicht sehen, was dieses Display gerade zeigt, daher gibt es nichts zu speichern. „Wiederherstellen“ bringt deine Seite zurück.",
+    "overwrittenDetail": "Erkannt: {time}. FiestaBoard kann nicht sehen, was diese Anzeige gerade zeigt, daher gibt es nichts zu speichern. „Wiederherstellen“ bringt deine Seite zurück.",
     "externalPageName": "Vom Board {date}",
     "toastRestored": "Board wiederhergestellt",
     "toastRestoreFailed": "Board konnte nicht wiederhergestellt werden",
@@ -1209,7 +1209,7 @@
     },
     "autoRestore": {
       "toggle": "Automatisch wiederherstellen",
-      "help": "Wenn eine andere App dieses Display ändert, stellt FiestaBoard deine Seite wieder her. Schalte das aus, damit eine andere App das Display behalten kann."
+      "help": "Wenn eine andere App diese Anzeige ändert, stellt FiestaBoard deine Seite wieder her. Schalte das aus, damit eine andere App die Anzeige behalten kann."
     },
     "initError": {
       "badge": "Nicht verfügbar",

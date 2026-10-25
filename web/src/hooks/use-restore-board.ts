@@ -38,20 +38,24 @@ export function useRestoreBoard({ boardId, paused }: { boardId?: string; paused:
     setIsPending(true);
     try {
       let sent: boolean;
+      // The server's own words for a refusal (which hold, until when).
+      let reason: string | null = null;
       try {
         ({ sent } = await api.restoreBoard(boardId));
       } catch (error) {
         // 409 is policy (paused, or silenced since the banner rendered), not breakage.
         if (!(error instanceof ApiError && error.status === 409)) throw error;
         sent = false;
+        reason = error.message || null;
       }
       if (!sent) {
         // No cache write and no refetch: the board still shows the other
         // app's content, and the banner says so.
-        if (paused) {
-          toast.warning(t("toastNotSentPaused"));
+        const title = paused ? t("toastNotSentPaused") : t("toastNotSent");
+        if (reason) {
+          toast.warning(title, { description: reason });
         } else {
-          toast.warning(t("toastNotSent"));
+          toast.warning(title);
         }
         return;
       }

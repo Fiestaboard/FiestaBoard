@@ -47,7 +47,7 @@ import {
   Trash2,
   Tv,
 } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
@@ -374,6 +374,7 @@ export function BoardEditor({
   // The note-array selector's custom inputs and their range error.
   const [customOpen, setCustomOpen] = useState(false);
   const [dimError, setDimError] = useState<string | undefined>(undefined);
+  const autoRestoreHelpId = useId();
   const { boards, updateBoard } = displays;
   const status = displays.statusFor(board.id);
   const isPaused = board.paused === true;
@@ -525,7 +526,7 @@ export function BoardEditor({
               <Text size="xs" weight="medium">
                 {t("autoRestore.toggle")}
               </Text>
-              <Text tone="muted" className="text-[11px]">
+              <Text id={autoRestoreHelpId} tone="muted" className="text-[11px]">
                 {t("autoRestore.help")}
               </Text>
             </Box>
@@ -534,6 +535,7 @@ export function BoardEditor({
             checked={board.auto_restore !== false}
             onCheckedChange={(checked) => update({ auto_restore: checked })}
             aria-label={t("autoRestore.toggle")}
+            aria-describedby={autoRestoreHelpId}
             data-testid="board-auto-restore-switch"
           />
         </Flex>

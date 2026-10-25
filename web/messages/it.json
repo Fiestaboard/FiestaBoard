@@ -1008,7 +1008,7 @@
     "holdPaused": "Questo display è in pausa, quindi Ripristina non invierà nulla finché non lo riprendi.",
     "keptTitle": "Un’altra app ha scritto su questo board alle {time}",
     "keptDetail": "FiestaBoard ha già rimesso la tua pagina. Puoi ancora salvare ciò che ha scritto l’altra app.",
-    "overwrittenDetail": "Rilevato alle {time}. FiestaBoard non può vedere cosa mostra ora questo display, quindi non c’è nulla da salvare. Ripristina rimette la tua pagina.",
+    "overwrittenDetail": "Rilevato: {time}. FiestaBoard non può vedere cosa mostra ora questo display, quindi non c’è nulla da salvare. Ripristina rimette la tua pagina.",
     "externalPageName": "Dal board {date}",
     "toastRestored": "Board ripristinato",
     "toastRestoreFailed": "Impossibile ripristinare il board",
