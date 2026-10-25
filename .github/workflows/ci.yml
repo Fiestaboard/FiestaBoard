@@ -4,7 +4,10 @@ on:
   push:
     branches: [ main, develop ]
   pull_request:
-    # Run on all PRs regardless of target branch (validate before merge)
+    # Run on all PRs regardless of target branch (validate before merge).
+    # `ready_for_review` is not in the default type set; it is needed so
+    # the heavy jobs (gated below on non-draft PRs) run when a draft flips.
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '**' ]
   # Required so the `CI Success` status check reports on the merge-queue
   # SHA. Without this, GitHub waits `check_response_timeout_minutes` for a
@@ -171,71 +174,19 @@ jobs:
           done
           echo "✅ All plugin structures valid"
 
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    # PR-only: the action needs a base/head SHA pair to diff against.
-    if: github.event_name == 'pull_request'
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: write  # allow inline review comments on offending deps
-    steps:
-      - uses: actions/checkout@v7
-      - name: Review new dependencies
-        uses: actions/dependency-review-action@v5
-        with:
-          # Fail on a vulnerable dep being added at moderate or higher.
-          fail-on-severity: moderate
-          # License allow-list lifted from common OSS-friendly choices.
-          # Add to this list if a future dep needs an unlisted license;
-          # do NOT silently allow all licenses.
-          allow-licenses: >-
-            MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD,
-            CC0-1.0, Unlicense, Python-2.0, MPL-2.0, Zlib, BlueOak-1.0.0,
-            CNRI-Python, MIT-CMU
-          # Pillow uses MIT-CMU; retain its notices in the installed wheel.
-          # https://github.com/python-pillow/Pillow/blob/main/LICENSE
-          # Per-package exceptions for deps whose license isn't on the
-          # general allow-list but which we've reviewed and accepted.
-          # - caniuse-lite ships browser-compat *data* under CC-BY-4.0 (the
-          #   code is MIT); it's a transitive dep of browserslist, pulled
-          #   in by tooling across the web build.
-          # - @fontsource-variable/archivo + -spline-sans-mono ship the
-          #   actual font files (woff2) under SIL Open Font License 1.1
-          #   (OFL-1.1). OFL is the standard permissive font license used
-          #   by Google Fonts; the JS wrapper / package metadata is MIT.
-          #   Self-hosted (HA-Ingress-safe) via @fiestaboard/ui, which
-          #   replaced Geist with these faces in v5.0.0.
-          # - regex is dual-licensed under Apache-2.0 and CNRI-Python (the
-          #   historical CNRI Python license used before Python 2.0). Both
-          #   are permissive open-source licenses.
-          # - zeroconf is LGPL-2.1-only. It has shipped in requirements.txt
-          #   since well before this allow-list existed; Dependency Review
-          #   only flags it when the pin moves, because a version change
-          #   reads as a newly-introduced dependency. FiestaBoard imports it
-          #   as an unmodified library from a separate PyPI wheel and does
-          #   not link it statically or modify it, which is the LGPL's
-          #   dynamic-linking case. Listing it records a decision already
-          #   made in practice rather than granting anything new.
-          allow-dependencies-licenses: >-
-            pkg:pypi/zeroconf,
-            pkg:pypi/regex,
-            pkg:npm/caniuse-lite,
-            pkg:npm/%40fontsource-variable/archivo,
-            pkg:npm/%40fontsource-variable/spline-sans-mono
-          comment-summary-in-pr: on-failure
-
   test-platform:
     name: Platform Tests
     runs-on: ubuntu-latest
     needs: detect-changes
     # `e2e_wiring` is here so the spec-reachability guard runs when a workflow
     # or the Playwright config changes, even though no Python changed (#1737).
+    # Draft PRs skip the heavy test fleet; the run on `ready_for_review`
+    # (and every push after it) covers them. Same gate on every heavy job.
     if: >-
-      needs.detect-changes.outputs.api == 'true'
-      || needs.detect-changes.outputs.shared == 'true'
-      || needs.detect-changes.outputs.e2e_wiring == 'true'
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+      && (needs.detect-changes.outputs.api == 'true'
+          || needs.detect-changes.outputs.shared == 'true'
+          || needs.detect-changes.outputs.e2e_wiring == 'true')
     timeout-minutes: 15
     
     steps:
@@ -372,129 +323,17 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  test-plugins:
-    name: Plugin Tests
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.plugins == 'true' || needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 10
-    
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Set up Python deps
-      uses: ./.github/actions/setup-python-deps
-
-    - name: Validate plugin integrity
-      run: |
-        echo "Validating plugin manifests and uniqueness..."
-        python scripts/validate_plugins.py --verbose
-        echo "✅ All plugins validated successfully"
-
-    - name: Validate plugin registry
-      run: |
-        echo "Validating plugin-registry.json repository URLs..."
-        python scripts/validate_plugins.py --registry --verbose
-        echo "✅ All registry repositories are reachable"
-
-    - name: Discover plugins with tests
-      id: discover
-      run: |
-        echo "Discovering plugins with tests..."
-        plugins=$(find plugins -maxdepth 2 -type d -name "tests" | sed 's|/tests||' | sed 's|plugins/||' | grep -v "^_" || true)
-        if [ -z "$plugins" ]; then
-          echo "No plugins with tests found"
-          echo "has_plugins=false" >> $GITHUB_OUTPUT
-        else
-          echo "Found plugins with tests:"
-          echo "$plugins"
-          echo "has_plugins=true" >> $GITHUB_OUTPUT
-        fi
-    
-    - name: Run plugin tests with coverage
-      if: steps.discover.outputs.has_plugins == 'true'
-      run: |
-        python scripts/run_plugin_tests.py --verbose
-        # Combine per-plugin coverage data and generate XML for Codecov.
-        # Failures here mean the test setup is broken — surface them.
-        coverage combine
-        coverage xml -o coverage-plugins.xml
-      env:
-        BOARD_READ_WRITE_KEY: test_key
-        WEATHER_API_KEY: test_key
-
-    - name: Write coverage summary
-      if: always() && steps.discover.outputs.has_plugins == 'true'
-      run: |
-        if [ -f coverage-plugins.xml ]; then
-          python3 scripts/ci/coverage_summary.py \
-            --cobertura coverage-plugins.xml \
-            --title "Plugin Tests" >> "$GITHUB_STEP_SUMMARY"
-        fi
-
-    - name: Upload plugin coverage
-      if: steps.discover.outputs.has_plugins == 'true'
-      uses: codecov/codecov-action@v7
-      with:
-        files: coverage-plugins.xml
-        flags: plugins
-        name: plugin-coverage
-        fail_ci_if_error: false
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  lint-web:
-    name: Lint UI (web)
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 5
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v7
-      with:
-        # Node 24 is the latest Active LTS; react-router 8 needs >= 22.22
-        # (issue #1381) and the Docker image runs Node 26. Docs-site jobs
-        # intentionally stay on Node 20.
-        node-version: '24'
-        cache: 'npm'
-        cache-dependency-path: web/package-lock.json
-
-    - name: Install UI dependencies
-      working-directory: web
-      # `npm ci` once a fresh lockfile is committed post-migration;
-      # `npm install` covers the gap when it isn't.
-      run: |
-        if [ -f package-lock.json ]; then
-          npm ci --legacy-peer-deps --no-audit
-        else
-          npm install --legacy-peer-deps --no-audit
-        fi
-
-    - name: ESLint
-      working-directory: web
-      run: npm run lint
-
-    # Vite transpiles without typechecking, so a wrong call signature or a
-    # dropped export builds clean and only fails when that code path runs.
-    # Without this step 137 errors accumulated on main unnoticed (issue
-    # #1586), including three live runtime defects.
-    - name: Typecheck
-      working-directory: web
-      run: npm run typecheck
-
-    - name: Prettier check
-      working-directory: web
-      run: npm run format:check
-
   test-ui:
     name: UI Tests
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: github.event_name == 'merge_group' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
+    # Draft PRs skip the heavy test fleet (see test-platform); the merge
+    # queue always runs UI Tests regardless of paths.
+    if: >-
+      github.event_name == 'merge_group'
+      || ((github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+          && (needs.detect-changes.outputs.ui == 'true'
+              || needs.detect-changes.outputs.shared == 'true'))
     timeout-minutes: 10
 
     steps:
@@ -554,7 +393,11 @@ jobs:
     name: Accessibility Tests (dark and light)
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true'
+    # Draft PRs skip the heavy test fleet (see test-platform).
+    if: >-
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+      && (needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 25
 
     # Build and serve Storybook once. Both themes remain mandatory and the
@@ -653,9 +496,11 @@ jobs:
     # rebase. `plugins` is in the filter because plugin manifests drive the
     # Integrations routes that integrations.spec.ts covers. Keep this gate
     # identical across build-test-image and both E2E jobs — the image
-    # build must be a superset of everything that consumes it.
+    # build must be a superset of everything that consumes it. Draft PRs
+    # skip the fleet (see test-platform).
     if: >-
       (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
       && (needs.detect-changes.outputs.api == 'true'
           || needs.detect-changes.outputs.ui == 'true'
           || needs.detect-changes.outputs.plugins == 'true'
@@ -725,9 +570,11 @@ jobs:
     # rebase. `plugins` is in the filter because plugin manifests drive the
     # Integrations routes that integrations.spec.ts covers. Keep this gate
     # identical across build-test-image and both E2E jobs — the image
-    # build must be a superset of everything that consumes it.
+    # build must be a superset of everything that consumes it. Draft PRs
+    # skip the fleet (see test-platform).
     if: >-
       (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
       && (needs.detect-changes.outputs.api == 'true'
           || needs.detect-changes.outputs.ui == 'true'
           || needs.detect-changes.outputs.plugins == 'true'
@@ -902,9 +749,11 @@ jobs:
     # rebase. `plugins` is in the filter because plugin manifests drive the
     # Integrations routes that integrations.spec.ts covers. Keep this gate
     # identical across build-test-image and both E2E jobs — the image
-    # build must be a superset of everything that consumes it.
+    # build must be a superset of everything that consumes it. Draft PRs
+    # skip the fleet (see test-platform).
     if: >-
       (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
       && (needs.detect-changes.outputs.api == 'true'
           || needs.detect-changes.outputs.ui == 'true'
           || needs.detect-changes.outputs.plugins == 'true'
@@ -1323,43 +1172,222 @@ jobs:
   # reference goes stale when a *route* changes, not when markdown changes,
   # so gating this job on markdown alone would let every schema change
   # through unchecked.
-  lint-markdown:
-    name: Lint Markdown
+  # One runner for every sub-minute check. These were five separate jobs
+  # (dependency-review, lint-web, test-plugins, lint-markdown, link-check)
+  # that each spent 2-9 minutes queued for a runner slot to do under a
+  # minute of work. The org shares GitHub Free's 20-concurrent-job pool,
+  # so that queue time was the dominant cost of a CI run. Running them
+  # back to back on one runner takes a few minutes, inside the E2E
+  # critical path, and frees four slots per PR push.
+  #
+  # Each check keeps the path gate it had as a job (the RUN_* env below).
+  # `!cancelled()` on every step keeps later checks running after an
+  # earlier one fails, so one run still reports every failure the way the
+  # separate jobs did; the job itself still fails.
+  quick-checks:
+    name: Quick Checks
     runs-on: ubuntu-latest
     needs: detect-changes
     if: >-
-      needs.detect-changes.outputs.markdown == 'true'
+      github.event_name == 'pull_request'
       || needs.detect-changes.outputs.api == 'true'
+      || needs.detect-changes.outputs.ui == 'true'
+      || needs.detect-changes.outputs.plugins == 'true'
+      || needs.detect-changes.outputs.markdown == 'true'
       || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 10
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write  # dependency review leaves inline comments on offending deps
+    env:
+      # Dependency review is PR-only: the action needs a base/head SHA pair.
+      RUN_DEP_REVIEW: ${{ github.event_name == 'pull_request' }}
+      RUN_LINT_WEB: ${{ needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+      RUN_PLUGIN_TESTS: ${{ needs.detect-changes.outputs.plugins == 'true' || needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+      RUN_LINT_MARKDOWN: ${{ needs.detect-changes.outputs.markdown == 'true' || needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+      RUN_LINK_CHECK: ${{ needs.detect-changes.outputs.markdown == 'true' || needs.detect-changes.outputs.shared == 'true' }}
 
     steps:
     - uses: actions/checkout@v7
 
+    # ── Dependency review ──────────────────────────────────────────
+    - name: Review new dependencies
+      if: ${{ !cancelled() && env.RUN_DEP_REVIEW == 'true' }}
+      uses: actions/dependency-review-action@v5
+      with:
+        # Fail on a vulnerable dep being added at moderate or higher.
+        fail-on-severity: moderate
+        # License allow-list lifted from common OSS-friendly choices.
+        # Add to this list if a future dep needs an unlisted license;
+        # do NOT silently allow all licenses.
+        allow-licenses: >-
+          MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD,
+          CC0-1.0, Unlicense, Python-2.0, MPL-2.0, Zlib, BlueOak-1.0.0,
+          CNRI-Python, MIT-CMU
+        # Pillow uses MIT-CMU; retain its notices in the installed wheel.
+        # https://github.com/python-pillow/Pillow/blob/main/LICENSE
+        # Per-package exceptions for deps whose license isn't on the
+        # general allow-list but which we've reviewed and accepted.
+        # - caniuse-lite ships browser-compat *data* under CC-BY-4.0 (the
+        #   code is MIT); it's a transitive dep of browserslist, pulled
+        #   in by tooling across the web build.
+        # - @fontsource-variable/archivo + -spline-sans-mono ship the
+        #   actual font files (woff2) under SIL Open Font License 1.1
+        #   (OFL-1.1). OFL is the standard permissive font license used
+        #   by Google Fonts; the JS wrapper / package metadata is MIT.
+        #   Self-hosted (HA-Ingress-safe) via @fiestaboard/ui, which
+        #   replaced Geist with these faces in v5.0.0.
+        # - regex is dual-licensed under Apache-2.0 and CNRI-Python (the
+        #   historical CNRI Python license used before Python 2.0). Both
+        #   are permissive open-source licenses.
+        # - zeroconf is LGPL-2.1-only. It has shipped in requirements.txt
+        #   since well before this allow-list existed; Dependency Review
+        #   only flags it when the pin moves, because a version change
+        #   reads as a newly-introduced dependency. FiestaBoard imports it
+        #   as an unmodified library from a separate PyPI wheel and does
+        #   not link it statically or modify it, which is the LGPL's
+        #   dynamic-linking case. Listing it records a decision already
+        #   made in practice rather than granting anything new.
+        allow-dependencies-licenses: >-
+          pkg:pypi/zeroconf,
+          pkg:pypi/regex,
+          pkg:npm/caniuse-lite,
+          pkg:npm/%40fontsource-variable/archivo,
+          pkg:npm/%40fontsource-variable/spline-sans-mono
+        comment-summary-in-pr: on-failure
+
+    # ── Toolchains (shared by the checks below) ────────────────────
     - name: Set up Node.js
+      if: ${{ !cancelled() && (env.RUN_LINT_WEB == 'true' || env.RUN_LINT_MARKDOWN == 'true') }}
       uses: actions/setup-node@v7
       with:
+        # Node 24 is the latest Active LTS; react-router 8 needs >= 22.22
+        # (issue #1381) and the Docker image runs Node 26. Docs-site jobs
+        # intentionally stay on Node 20.
         node-version: '24'
         cache: 'npm'
-        cache-dependency-path: package-lock.json
+        cache-dependency-path: |
+          package-lock.json
+          web/package-lock.json
 
+    - name: Set up Python deps
+      if: ${{ !cancelled() && (env.RUN_PLUGIN_TESTS == 'true' || env.RUN_LINT_MARKDOWN == 'true') }}
+      uses: ./.github/actions/setup-python-deps
+
+    # ── Lint UI (web) ──────────────────────────────────────────────
+    - name: Install UI dependencies
+      if: ${{ !cancelled() && env.RUN_LINT_WEB == 'true' }}
+      working-directory: web
+      # `npm ci` once a fresh lockfile is committed post-migration;
+      # `npm install` covers the gap when it isn't.
+      run: |
+        if [ -f package-lock.json ]; then
+          npm ci --legacy-peer-deps --no-audit
+        else
+          npm install --legacy-peer-deps --no-audit
+        fi
+
+    - name: ESLint
+      if: ${{ !cancelled() && env.RUN_LINT_WEB == 'true' }}
+      working-directory: web
+      run: npm run lint
+
+    # Vite transpiles without typechecking, so a wrong call signature or a
+    # dropped export builds clean and only fails when that code path runs.
+    # Without this step 137 errors accumulated on main unnoticed (issue
+    # #1586), including three live runtime defects.
+    - name: Typecheck
+      if: ${{ !cancelled() && env.RUN_LINT_WEB == 'true' }}
+      working-directory: web
+      run: npm run typecheck
+
+    - name: Prettier check
+      if: ${{ !cancelled() && env.RUN_LINT_WEB == 'true' }}
+      working-directory: web
+      run: npm run format:check
+
+    # ── Plugin tests ───────────────────────────────────────────────
+    - name: Validate plugin integrity
+      if: ${{ !cancelled() && env.RUN_PLUGIN_TESTS == 'true' }}
+      run: |
+        echo "Validating plugin manifests and uniqueness..."
+        python scripts/validate_plugins.py --verbose
+        echo "✅ All plugins validated successfully"
+
+    - name: Validate plugin registry
+      if: ${{ !cancelled() && env.RUN_PLUGIN_TESTS == 'true' }}
+      run: |
+        echo "Validating plugin-registry.json repository URLs..."
+        python scripts/validate_plugins.py --registry --verbose
+        echo "✅ All registry repositories are reachable"
+
+    - name: Discover plugins with tests
+      id: discover
+      if: ${{ !cancelled() && env.RUN_PLUGIN_TESTS == 'true' }}
+      run: |
+        echo "Discovering plugins with tests..."
+        plugins=$(find plugins -maxdepth 2 -type d -name "tests" | sed 's|/tests||' | sed 's|plugins/||' | grep -v "^_" || true)
+        if [ -z "$plugins" ]; then
+          echo "No plugins with tests found"
+          echo "has_plugins=false" >> $GITHUB_OUTPUT
+        else
+          echo "Found plugins with tests:"
+          echo "$plugins"
+          echo "has_plugins=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Run plugin tests with coverage
+      if: ${{ !cancelled() && env.RUN_PLUGIN_TESTS == 'true' && steps.discover.outputs.has_plugins == 'true' }}
+      run: |
+        python scripts/run_plugin_tests.py --verbose
+        # Combine per-plugin coverage data and generate XML for Codecov.
+        # Failures here mean the test setup is broken — surface them.
+        coverage combine
+        coverage xml -o coverage-plugins.xml
+      env:
+        BOARD_READ_WRITE_KEY: test_key
+        WEATHER_API_KEY: test_key
+
+    - name: Write coverage summary
+      if: ${{ !cancelled() && env.RUN_PLUGIN_TESTS == 'true' && steps.discover.outputs.has_plugins == 'true' }}
+      run: |
+        if [ -f coverage-plugins.xml ]; then
+          python3 scripts/ci/coverage_summary.py \
+            --cobertura coverage-plugins.xml \
+            --title "Plugin Tests" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Upload plugin coverage
+      if: ${{ !cancelled() && env.RUN_PLUGIN_TESTS == 'true' && steps.discover.outputs.has_plugins == 'true' }}
+      uses: codecov/codecov-action@v7
+      with:
+        files: coverage-plugins.xml
+        flags: plugins
+        name: plugin-coverage
+        fail_ci_if_error: false
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    # ── Lint Markdown ──────────────────────────────────────────────
     - name: Install docs lint tooling
+      if: ${{ !cancelled() && env.RUN_LINT_MARKDOWN == 'true' }}
       run: npm ci
 
     - name: Validate docs frontmatter
+      if: ${{ !cancelled() && env.RUN_LINT_MARKDOWN == 'true' }}
       run: npm run docs:lint:frontmatter
 
     - name: Validate docs contract
+      if: ${{ !cancelled() && env.RUN_LINT_MARKDOWN == 'true' }}
       run: npm run docs:lint:contract
 
     - name: Lint markdown
+      if: ${{ !cancelled() && env.RUN_LINT_MARKDOWN == 'true' }}
       run: npm run docs:lint:markdown
 
     - name: Spell check
+      if: ${{ !cancelled() && env.RUN_LINT_MARKDOWN == 'true' }}
       run: npm run docs:lint:spell
-
-    - name: Set up Python deps
-      uses: ./.github/actions/setup-python-deps
 
     # `--check` the way a formatter's `--check` runs: regenerate
     # docs/reference/api-endpoints.md from `app.openapi()` and fail with a
@@ -1367,28 +1395,21 @@ jobs:
     # script somebody ran once, and the published reference starts rotting
     # again the same day.
     - name: Check the generated API reference is current
+      if: ${{ !cancelled() && env.RUN_LINT_MARKDOWN == 'true' }}
       run: python scripts/generate_api_reference.py --check
       env:
         BOARD_READ_WRITE_KEY: test_key
         WEATHER_API_KEY: test_key
 
-  # Repo-wide broken-link check for the GitHub-rendered markdown
-  # (docs/internal/**, plugins/**, root *.md). The published docs source
-  # (docs/**, outside internal/) uses Docusaurus link semantics (route
-  # paths, extension stripping) that lychee can't model — those links are
-  # validated by the site build (onBrokenLinks: 'throw') when versions are
-  # snapshotted and built. Config: lychee.toml.
-  link-check:
-    name: Check Markdown Links
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.markdown == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 10
-
-    steps:
-    - uses: actions/checkout@v7
-
+    # ── Markdown links ─────────────────────────────────────────────
+    # Repo-wide broken-link check for the GitHub-rendered markdown
+    # (docs/internal/**, plugins/**, root *.md). The published docs source
+    # (docs/**, outside internal/) uses Docusaurus link semantics (route
+    # paths, extension stripping) that lychee can't model — those links are
+    # validated by the site build (onBrokenLinks: 'throw') when versions are
+    # snapshotted and built. Config: lychee.toml.
     - name: Check links with lychee
+      if: ${{ !cancelled() && env.RUN_LINK_CHECK == 'true' }}
       uses: lycheeverse/lychee-action@v2
       with:
         args: >-
@@ -1404,7 +1425,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, test-ui, a11y-tests, build-test-image, e2e-tests, specialized-e2e-tests, lint-markdown, link-check]
+    needs: [detect-changes, quick-checks, test-platform, test-ui, a11y-tests, build-test-image, e2e-tests, specialized-e2e-tests]
     if: always()
     steps:
       - uses: actions/checkout@v7

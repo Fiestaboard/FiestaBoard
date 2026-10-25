@@ -53,7 +53,7 @@ const COLOR_NAMES: Record<number, string> = {
   68: "violet",
   69: "white",
   70: "black",
-  71: "black", // filled tile — closest color is black
+  71: "filled", // Distinct from black (70); preserve the observed flap.
 };
 
 function codeToCell(code: number): string {
