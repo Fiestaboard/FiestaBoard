@@ -41,6 +41,10 @@ Each display has its own grid size, so a page made for one shape won't always fi
 Use **Displays → Add a display** to add hardware. Re-running the setup wizard and choosing Vestaboard currently replaces the saved display list and can remove other displays. Skipping setup can also leave a placeholder named **My Board**; it is not evidence that hardware was found.
 :::
 
+## Sharing a Display With Another App
+
+If another app writes to a display, such as the Vestaboard app or the Divoom app, FiestaBoard puts your page back on its next update. To share a display with another app on purpose, open the display's settings under **Displays** and turn off **Restore automatically**, next to **Pause sends**. It's on by default. See [Saving what another app put on the board](../features/page-editor.md#saving-what-another-app-put-on-the-board) for how FiestaBoard notices and how to save the other app's content.
+
 ## Every Display Is a Plugin
 
 Behind the scenes, each kind of display is an **output plugin**, just like weather or transit data come from data plugins. That includes the Vestaboard. The **Marketplace** tab on the **Displays** page lists every display plugin: install one, update it, or click **Add display** on its card.

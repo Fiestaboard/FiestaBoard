@@ -42,7 +42,7 @@ The board now appears in **Displays** and in the board selector. Give it an acti
 ## Tips
 
 - **Transitions** need the Local API. Set them in the board's settings on its **Displays** page.
-- **Your Vestaboard app keeps working.** FiestaBoard uses the same official API any developer can use. Whatever was sent last wins.
+- **Your Vestaboard app keeps working.** FiestaBoard uses the same official API any developer can use. When the app changes the board, FiestaBoard notices within about a minute (longer on the Cloud API) and puts your page back. To let the app keep the board, turn off **Restore automatically** in the board's settings. See [Saving what another app put on the board](../features/page-editor.md#saving-what-another-app-put-on-the-board).
 - **Characters the board can't show** are left blank, for example accented letters and curly quotes. The page editor highlights them before you send.
 
 ## Troubleshooting
