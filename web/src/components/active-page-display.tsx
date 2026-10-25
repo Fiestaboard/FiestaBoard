@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ActionCard,
   Alert,
   AlertDescription,
   Badge,
@@ -29,7 +30,6 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -1029,58 +1029,25 @@ export function ActivePageDisplay() {
 
           <Stack gap="3" className="py-2">
             {/* Override temporarily */}
-            <button
-              type="button"
+            <ActionCard
+              tone="primary"
+              icon={<Timer />}
+              title={t("changeModeOverrideTitle")}
+              description={t("changeModeOverrideDescription")}
               onClick={() => {
                 setChangeModeOpen(false);
                 setIsSheetOpen(true);
               }}
-              className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <Flex
-                align="center"
-                justify="center"
-                className="h-10 w-10 rounded-full bg-primary/10 flex-shrink-0 group-hover:bg-primary/20 transition-colors"
-              >
-                <Timer className="h-5 w-5 text-primary" />
-              </Flex>
-              <Box className="min-w-0">
-                <Text size="sm" weight="semibold">
-                  {t("changeModeOverrideTitle")}
-                </Text>
-                <Text size="xs" tone="muted" className="mt-0.5 leading-relaxed">
-                  {t("changeModeOverrideDescription")}
-                </Text>
-              </Box>
-            </button>
+            />
 
             {/* Turn off schedule */}
-            <button
-              type="button"
+            <ActionCard
+              icon={<CalendarOff />}
+              title={t("changeModeDisableTitle")}
+              description={t("changeModeDisableDescription")}
+              loading={disableScheduleMutation.isPending}
               onClick={() => disableScheduleMutation.mutate()}
-              disabled={disableScheduleMutation.isPending}
-              className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-muted-foreground/40 hover:bg-muted/40 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Flex
-                align="center"
-                justify="center"
-                className="h-10 w-10 rounded-full bg-muted flex-shrink-0 group-hover:bg-muted/80 transition-colors"
-              >
-                {disableScheduleMutation.isPending ? (
-                  <Spinner size="lg" className="text-muted-foreground" label={null} />
-                ) : (
-                  <CalendarOff className="h-5 w-5 text-muted-foreground" />
-                )}
-              </Flex>
-              <Box className="min-w-0">
-                <Text size="sm" weight="semibold">
-                  {t("changeModeDisableTitle")}
-                </Text>
-                <Text size="xs" tone="muted" className="mt-0.5 leading-relaxed">
-                  {t("changeModeDisableDescription")}
-                </Text>
-              </Box>
-            </button>
+            />
           </Stack>
 
           <DialogFooter>
