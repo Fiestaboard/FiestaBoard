@@ -164,8 +164,11 @@ export function NavigationSidebar() {
       // not the rail's dropdown. Dropping it here is what shipped the desktop
       // shape to mobile.
       // `notice` is `menuNotice` coming back; forwarded, not recomputed.
-      renderSettingsMenu={({ variant, collapsed: isCollapsed, notice }) => (
-        <SidebarSettingsMenu variant={variant} collapsed={isCollapsed} notice={notice} />
+      // `closeMenu` closes the mobile drawer. Its own nav rows do that
+      // themselves; the rows this menu renders into its footer cannot, and
+      // without it Settings navigated underneath a drawer that stayed open.
+      renderSettingsMenu={({ variant, collapsed: isCollapsed, notice, closeMenu }) => (
+        <SidebarSettingsMenu variant={variant} collapsed={isCollapsed} notice={notice} onSelect={closeMenu} />
       )}
       menuNotice={updateAvailable ? tMenu("updateAvailable") : undefined}
       maxWidth={MAX_APP_WIDTH}

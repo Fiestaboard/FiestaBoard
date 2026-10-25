@@ -166,10 +166,29 @@ describe("NavigationSidebar mobile menu", () => {
     const menuButton = screen.getByLabelText("Open menu");
     fireEvent.click(menuButton);
 
+    // Off the menu. A backdrop click inside the menu's box is a tap the
+    // opening reveal let fall through, and FiestaUI hands it to the row under
+    // it; setup.ts gives every element a 100×20 box at (0, 0), so a click
+    // with no coordinates would land "on" the menu, not beside it.
     const backdrop = screen.getByTestId("mobile-backdrop");
-    fireEvent.click(backdrop);
+    fireEvent.click(backdrop, { clientX: 300, clientY: 500 });
 
     expect(screen.getByLabelText("Open menu")).toBeInTheDocument();
+  });
+
+  it("closes the drawer when Settings is chosen from its footer", async () => {
+    // The footer rows are the app's, not the Sidebar's: they reach the
+    // drawer's close through the slot's `closeMenu`. Without it, Settings
+    // routed underneath a drawer that stayed open over the new page.
+    const user = userEvent.setup();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+    const drawer = screen.getByRole("dialog", { name: "Navigation menu" });
+    await user.click(within(drawer).getByRole("button", { name: "Settings" }));
+
+    expect(screen.queryByRole("dialog", { name: "Navigation menu" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open menu" })).toBeInTheDocument();
   });
 
   it("shows collapse/expand sidebar toggle", () => {
