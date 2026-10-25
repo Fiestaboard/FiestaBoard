@@ -285,11 +285,11 @@ Undoes a `POST` to this path. Any timed message is cancelled, the board's conten
 | `500` | [`ErrorResponse`](#schema-errorresponse) | The server could not complete the operation. Deliberately raised, not an unhandled error. |
 | `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
 
-### `POST /v1/boards/{board}/resend` {#post-v1-boards-board-resend}
+### `POST /v1/boards/{board}/restore` {#post-v1-boards-board-restore}
 
-**Resend what a board should show**
+**Restore what a board should show**
 
-Recovery for a board another app or controller overwrote. FiestaBoard remembers what it last sent each board and skips a send that would not change it, so after an outside write it believes the board is already up to date. This forgets that for this one board and runs its display pass, which writes whatever the schedule, timed message or pinned page says belongs there.
+Put a board back after another app or controller overwrote it; the web app's Restore button calls this. FiestaBoard remembers what it last sent each board and skips a send that would not change it, so after an outside write it believes the board is already up to date. This forgets that for this one board and runs its display pass, which writes whatever the schedule, timed message or pinned page says belongs there.
 
 Nothing is changed: no page is pinned or unpinned and a timed message keeps running. A paused or silenced board refuses with 409, and a UI-only install answers `sent: false`.
 
@@ -305,7 +305,7 @@ Nothing is changed: no page is pinned or unpinned and a timed message keeps runn
 
 | Status | Body | Description |
 |--------|------|-------------|
-| `200` | [`ResendResponse`](#schema-resendresponse) | Successful Response |
+| `200` | [`RestoreResponse`](#schema-restoreresponse) | Successful Response |
 
 **Errors**
 
@@ -1989,9 +1989,9 @@ both are present, which is what the pre-conversion handler did.
 | `template` | `string` \| array of `string` | yes | A template string, or one string per board row. A list is padded to the board's height. |
 | `line_metadata` | array of `object` \| `null` | no | Per-line alignment and wrap options, one entry per line. |
 
-### `ResendResponse` {#schema-resendresponse}
+### `RestoreResponse` {#schema-restoreresponse}
 
-The result of re-sending what a board should show (#2354).
+The result of restoring what a board should show (#2354).
 
 Three different things, kept apart on purpose: what FiestaBoard intends
 the board to show (`page_id`), whether that was written (`sent`), and
@@ -2001,10 +2001,10 @@ so `device_observed` is always false.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `board_id` | `string` | yes | The board, with the 'primary' alias already resolved. |
-| `page_id` | `string` \| `null` | no | The page pinned to this board, if any. A schedule or timed message may take precedence over it; resend shows whichever the display loop would. |
+| `page_id` | `string` \| `null` | no | The page pinned to this board, if any. A schedule or timed message may take precedence over it; restore shows whichever the display loop would. |
 | `sent` | `boolean` | yes | True when the board accepted the write. Not proof of what it displays. |
 | `reason` | `string` \| `null` | no | Why nothing was written, when sent is false. Null when sent is true. |
-| `device_observed` | `boolean` | no | Always false: no supported board can read back what it displays, so a successful resend confirms the write was accepted, not that the pixels or flaps changed. (default `false`) |
+| `device_observed` | `boolean` | no | Always false: no supported board can read back what it displays, so a successful restore confirms the write was accepted, not that the pixels or flaps changed. (default `false`) |
 
 ### `RowConfig` {#schema-rowconfig}
 

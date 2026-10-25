@@ -6,32 +6,28 @@ import { toast } from "sonner";
 
 import { queryKeys } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
-import { api, type BoardCurrentMessageResponse } from "@/lib/api";
+import { api, ApiError, type BoardCurrentMessageResponse } from "@/lib/api";
 
 /**
  * Restore the board over what another app wrote (issue #1945), and say what
  * actually happened.
  *
- * `POST /force-refresh` runs the install-wide send pass and answers `sent`:
- * True only when content reached the PRIMARY board. Pause (and silence, during
- * which the banner is hidden) hold the pass, and it then answers `sent: false`
- * — so the banner must stay and the toast must say nothing was sent, naming
- * pause when the client knows it. Writing the optimistic "in sync" frame on a held
- * send made the banner blink away and come back ~4 s later under a green
+ * `POST /v1/boards/{board}/restore` runs this one board's send pass (#2354);
+ * it used to be the install-wide `/force-refresh`, which resent every display.
+ * Pause (and silence, during which the banner is hidden) refuse it with 409,
+ * and a pass that wrote nothing answers `sent: false` — either way the banner
+ * must stay and the toast must say nothing was sent, naming pause when the
+ * client knows it. Writing the optimistic "in sync" frame on a held send made
+ * the banner blink away and come back ~4 s later under a green
  * "Board restored".
  *
  * On a real send the user chose their page over the other app's, so the
  * remembered external frame is forgotten too (no "kept" notice follows).
  */
-export function useRestoreBoard({
-  boardId,
-  paused,
-  isPrimary,
-}: {
-  boardId?: string;
-  paused: boolean;
-  isPrimary: boolean;
-}): { restore: () => Promise<void>; isPending: boolean } {
+export function useRestoreBoard({ boardId, paused }: { boardId?: string; paused: boolean }): {
+  restore: () => Promise<void>;
+  isPending: boolean;
+} {
   const t = useTranslations("boardOutOfSync");
   const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
@@ -39,7 +35,14 @@ export function useRestoreBoard({
   const restore = useCallback(async () => {
     setIsPending(true);
     try {
-      const { sent } = await api.forceRefresh();
+      let sent: boolean;
+      try {
+        ({ sent } = await api.restoreBoard(boardId));
+      } catch (error) {
+        // 409 is policy (paused, or silenced since the banner rendered), not breakage.
+        if (!(error instanceof ApiError && error.status === 409)) throw error;
+        sent = false;
+      }
       if (!sent) {
         // No cache write and no refetch: the board still shows the other
         // app's content, and the banner says so.
@@ -65,13 +68,13 @@ export function useRestoreBoard({
         queryClient.invalidateQueries({ queryKey: queryKeys.boardCurrentMessage() });
       }, 4000);
       api.dismissExternalFrame(boardId).catch(() => {});
-      toast.success(isPrimary ? t("toastRestored") : t("toastRestoredAll"));
+      toast.success(t("toastRestored"));
     } catch {
       toast.error(t("toastRestoreFailed"));
     } finally {
       setIsPending(false);
     }
-  }, [boardId, isPrimary, paused, queryClient, t]);
+  }, [boardId, paused, queryClient, t]);
 
   return { restore, isPending };
 }

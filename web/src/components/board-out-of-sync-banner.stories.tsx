@@ -89,7 +89,7 @@ type StubResponse = { status: number; body?: unknown } | "hang";
 
 interface Stubs {
   createPage?: StubResponse;
-  forceRefresh?: StubResponse;
+  restore?: StubResponse;
   dismiss?: StubResponse;
   /** What GET /board/current-message answers when the banner reads it ("hang": never). */
   refetch?: BoardCurrentMessageResponse | "hang";
@@ -97,7 +97,10 @@ interface Stubs {
 
 const DEFAULT_STUBS: Required<Omit<Stubs, "refetch">> = {
   createPage: { status: 201, body: { id: "new-page", name: SAVED_NAME, type: "template" } },
-  forceRefresh: { status: 200, body: { message: "Display force-refreshed", sent: true } },
+  restore: {
+    status: 200,
+    body: { board_id: "primary", page_id: null, sent: true, reason: null, device_observed: false },
+  },
   dismiss: { status: 204 },
 };
 
@@ -122,7 +125,7 @@ function FetchStub({ stubs, children }: { stubs: Stubs; children: ReactNode }) {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       const method = (init?.method ?? "GET").toUpperCase();
       if (method === "POST" && /\/api\/v1\/pages(\?|$)/.test(url)) return respond(s.createPage);
-      if (method === "POST" && /\/api\/force-refresh(\?|$)/.test(url)) return respond(s.forceRefresh);
+      if (method === "POST" && /\/api\/v1\/boards\/[^/]+\/restore(\?|$)/.test(url)) return respond(s.restore);
       if (method === "DELETE" && /\/api\/board\/external-frame(\?|$)/.test(url)) return respond(s.dismiss);
       if (method === "GET" && /\/api\/board\/current-message/.test(url) && s.refetch)
         return respond(s.refetch === "hang" ? "hang" : { status: 200, body: s.refetch });
@@ -188,8 +191,6 @@ const meta = {
   args: {
     geometry: { deviceType: "flagship", notesWide: 1, notesTall: 1 },
     paused: false,
-    multiBoard: false,
-    isPrimary: true,
   },
 } satisfies Meta<typeof BoardOutOfSyncBanner>;
 
@@ -270,15 +271,15 @@ export const OutOfSyncPausedHold: Story = {
   decorators: [withBanner({ boardState: OUT_OF_SYNC })],
 };
 
-export const OutOfSyncSecondaryBoardMultiBoard: Story = {
-  name: "OutOfSync / SecondaryBoardMultiBoard",
-  args: { boardId: "kitchen", multiBoard: true, isPrimary: false },
+export const OutOfSyncSecondaryBoard: Story = {
+  name: "OutOfSync / SecondaryBoard",
+  args: { boardId: "kitchen" },
   decorators: [withBanner({ boardState: OUT_OF_SYNC, boardId: "kitchen" })],
 };
 
 export const OutOfSyncRestoring: Story = {
   name: "OutOfSync / Restoring",
-  decorators: [withBanner({ boardState: OUT_OF_SYNC, stubs: { forceRefresh: "hang" } })],
+  decorators: [withBanner({ boardState: OUT_OF_SYNC, stubs: { restore: "hang" } })],
   play: async ({ canvasElement }) => {
     const alert = await banner(canvasElement);
     await userEvent.click(within(alert).getByRole("button", { name: "Restore" }));
@@ -499,7 +500,6 @@ const toastStory = (kind: ToastKind, msgKey: string, params?: Record<string, str
 });
 
 export const ToastRestored: Story = { name: "Toasts / Restored", ...toastStory("success", "toastRestored") };
-export const ToastRestoredAll: Story = { name: "Toasts / RestoredAll", ...toastStory("success", "toastRestoredAll") };
 export const ToastNotSentPaused: Story = {
   name: "Toasts / NotSentPaused",
   ...toastStory("warning", "toastNotSentPaused"),

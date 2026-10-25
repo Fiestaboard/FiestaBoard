@@ -24,9 +24,6 @@ export interface BoardOutOfSyncBannerProps {
   paused: boolean;
   /** Render nothing (Live Mode is driving the board from the page editor). */
   suppressed?: boolean;
-  multiBoard: boolean;
-  /** The board is the primary one — `sent` from force-refresh speaks only for it. */
-  isPrimary: boolean;
 }
 
 type Face = "out-of-sync" | "kept";
@@ -50,14 +47,7 @@ type SavedPage = { id: string; name: string; gridKey: string };
  * It owns its data like SilenceImminentBanner: the board-state query the
  * preview already observes (deduped by React Query) and the silence status.
  */
-export function BoardOutOfSyncBanner({
-  boardId,
-  geometry,
-  paused,
-  suppressed = false,
-  multiBoard,
-  isPrimary,
-}: BoardOutOfSyncBannerProps) {
+export function BoardOutOfSyncBanner({ boardId, geometry, paused, suppressed = false }: BoardOutOfSyncBannerProps) {
   const t = useTranslations("boardOutOfSync");
   const locale = useLocale();
   const queryClient = useQueryClient();
@@ -69,7 +59,7 @@ export function BoardOutOfSyncBanner({
   });
 
   const { save, isPending: isSaving } = useSaveBoardAsPage();
-  const { restore, isPending: isRestoring } = useRestoreBoard({ boardId, paused, isPrimary });
+  const { restore, isPending: isRestoring } = useRestoreBoard({ boardId, paused });
   const [savedPage, setSavedPage] = useState<SavedPage | null>(null);
   const [isDismissing, setIsDismissing] = useState(false);
 
@@ -119,12 +109,8 @@ export function BoardOutOfSyncBanner({
     }
   };
 
-  // At most one hold line, live face only, most decisive first.
-  let hold: string | null = null;
-  if (face === "out-of-sync") {
-    if (paused) hold = t("holdPaused");
-    else if (multiBoard && !isPrimary) hold = t("restoreAllDisplays");
-  }
+  // The one hold line: a paused display holds Restore (live face only).
+  const hold: string | null = face === "out-of-sync" && paused ? t("holdPaused") : null;
 
   const live = face === "out-of-sync";
   const Icon = live ? AlertTriangle : History;

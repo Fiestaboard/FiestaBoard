@@ -388,8 +388,8 @@ class ActivePageResponse(BaseModel):
     )
 
 
-class ResendResponse(BaseModel):
-    """The result of re-sending what a board should show (#2354).
+class RestoreResponse(BaseModel):
+    """The result of restoring what a board should show (#2354).
 
     Three different things, kept apart on purpose: what FiestaBoard intends
     the board to show (``page_id``), whether that was written (``sent``), and
@@ -402,7 +402,7 @@ class ResendResponse(BaseModel):
         default=None,
         description=(
             "The page pinned to this board, if any. A schedule or timed message may take precedence over it; "
-            "resend shows whichever the display loop would."
+            "restore shows whichever the display loop would."
         ),
     )
     sent: bool = Field(description="True when the board accepted the write. Not proof of what it displays.")
@@ -413,7 +413,7 @@ class ResendResponse(BaseModel):
     device_observed: bool = Field(
         default=False,
         description=(
-            "Always false: no supported board can read back what it displays, so a successful resend confirms "
+            "Always false: no supported board can read back what it displays, so a successful restore confirms "
             "the write was accepted, not that the pixels or flaps changed."
         ),
     )

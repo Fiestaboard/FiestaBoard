@@ -2045,11 +2045,11 @@
       "kind": "APIRoute"
     },
     {
-      "path": "/v1/boards/{board}/resend",
+      "path": "/v1/boards/{board}/restore",
       "methods": [
         "POST"
       ],
-      "name": "resend_board",
+      "name": "restore_board",
       "kind": "APIRoute"
     },
     {

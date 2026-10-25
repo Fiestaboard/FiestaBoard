@@ -46,7 +46,7 @@ from .models import (
     MessageRequest,
     MessageResponse,
     PartialWriteError,
-    ResendResponse,
+    RestoreResponse,
 )
 from .router import router
 
@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 HELD_REASON = "Held: the board is silenced until {time} UTC; this will show when silence ends."
 UI_ONLY_REASON = "The install's output target is UI only, so nothing was written to the board."
-RESEND_NOTHING_REASON = (
+RESTORE_NOTHING_REASON = (
     "Nothing was written: there is nothing to show on this board right now, or its send limit deferred the write."
 )
 UNCHANGED_REASON = "The board already shows this exact content. Send force=true to write it anyway."
@@ -660,14 +660,14 @@ async def clear_board_message(board: str) -> MessageResponse:
 
 
 @router.post(
-    "/boards/{board}/resend",
-    response_model=ResendResponse,
+    "/boards/{board}/restore",
+    response_model=RestoreResponse,
     responses=errors(404, 409, 500, 503),
-    summary="Resend what a board should show",
+    summary="Restore what a board should show",
     description=(
-        "Recovery for a board another app or controller overwrote. FiestaBoard remembers what it last sent each "
-        "board and skips a send that would not change it, so after an outside write it believes the board is "
-        "already up to date. This forgets that for this one board and runs its display pass, which writes "
+        "Put a board back after another app or controller overwrote it; the web app's Restore button calls this. "
+        "FiestaBoard remembers what it last sent each board and skips a send that would not change it, so after "
+        "an outside write it believes the board is already up to date. This forgets that for this one board and runs its display pass, which writes "
         "whatever the schedule, timed message or pinned page says belongs there.\n\n"
         "Nothing is changed: no page is pinned or unpinned and a timed message keeps running. A paused or "
         "silenced board refuses with 409, and a UI-only install answers `sent: false`.\n\n"
@@ -675,7 +675,7 @@ async def clear_board_message(board: str) -> MessageResponse:
         "`device_observed` is always false — look at the board to confirm."
     ),
 )
-async def resend_board(board: str) -> ResendResponse:
+async def restore_board(board: str) -> RestoreResponse:
     from src import board_guards
     from src.board_send_executor import run_board_send
 
@@ -683,11 +683,11 @@ async def resend_board(board: str) -> ResendResponse:
     settings_service = _settings_service()
     page_id = settings_service.get_active_page_id(board_id=board_id)
 
-    board_guards.raise_if_paused(board_id, what="resend")
-    if board_guards.silence_verdict(board_id, override_silence=False, what="resend").silenced:
+    board_guards.raise_if_paused(board_id, what="restore")
+    if board_guards.silence_verdict(board_id, override_silence=False, what="restore").silenced:
         raise HTTPException(status_code=409, detail=board_guards.SILENCE_DETAIL)
     if not settings_service.should_send_to_board():
-        return ResendResponse(board_id=board_id, page_id=page_id, sent=False, reason=UI_ONLY_REASON)
+        return RestoreResponse(board_id=board_id, page_id=page_id, sent=False, reason=UI_ONLY_REASON)
 
     service = runtime.get_service()
     if not service:
@@ -712,12 +712,12 @@ async def resend_board(board: str) -> ResendResponse:
 
     sent, error = await run_board_send(_work)
     if error:
-        raise HTTPException(status_code=500, detail=f"Failed to resend to board {board_id}: {error}")
-    return ResendResponse(
+        raise HTTPException(status_code=500, detail=f"Failed to restore board {board_id}: {error}")
+    return RestoreResponse(
         board_id=board_id,
         page_id=page_id,
         sent=sent,
-        reason=None if sent else RESEND_NOTHING_REASON,
+        reason=None if sent else RESTORE_NOTHING_REASON,
     )
 
 

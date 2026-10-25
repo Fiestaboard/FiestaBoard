@@ -546,7 +546,24 @@ export interface BoardMessageResponse {
   text: string;
 }
 
+/**
+ * `POST /v1/boards/{board}/restore` (#2354): put back what this one board
+ * should show after another app overwrote it. A paused or silenced board
+ * answers 409, an error to fetchApi. `sent` means the board accepted the
+ * write; no board reports its pixels, so `device_observed` is always false.
+ */
+export interface BoardRestoreResponse {
+  board_id: string;
+  page_id: string | null;
+  sent: boolean;
+  reason: string | null;
+  device_observed: boolean;
+}
+
 export const boardsApi = {
+  /** Omitted board → the primary. */
+  restoreBoard: (boardId?: string | null) =>
+    fetchApi<BoardRestoreResponse>(`/v1/boards/${boardPathSegment(boardId)}/restore`, { method: "POST" }),
   sendBoardMessage: (boardId: string | null | undefined, body: { lines: string[]; override_silence?: boolean }) =>
     fetchApi<BoardMessageResponse>(`/v1/boards/${boardPathSegment(boardId)}/message`, {
       method: "POST",

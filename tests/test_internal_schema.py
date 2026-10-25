@@ -70,7 +70,7 @@ def internal() -> dict:
 
 def test_a_consumer_sees_exactly_thirty_six_operations(published):
     """231 -> 33, then 35 with ``GET``/``PATCH /v1/install`` (#2073), then 36 with
-    ``POST /v1/boards/{board}/resend`` (#2354). A 37th is a decision, not a side effect."""
+    ``POST /v1/boards/{board}/restore`` (#2354). A 37th is a decision, not a side effect."""
     assert len(_operations(published)) == EXPECTED_PUBLISHED_OPERATIONS
 
 

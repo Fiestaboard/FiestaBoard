@@ -5,8 +5,8 @@
  * Two faces: "out-of-sync" while the board shows something FiestaBoard did not
  * send ([Restore] [Save as page]), and "kept" after FiestaBoard repainted but
  * the backend still holds the last confirmed external frame ([Save as page]
- * [Dismiss]). Restore reads `sent` from POST /force-refresh and tells the
- * truth when silence or pause held the send.
+ * [Dismiss]). Restore calls POST /v1/boards/{board}/restore for this one
+ * display (#2354) and tells the truth when silence or pause held the send.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
@@ -95,15 +95,31 @@ function serveSilence(status: Partial<SilenceStatus>) {
   return seen;
 }
 
-function serveForceRefresh(sent: boolean) {
-  const calls: number[] = [];
+/** Answer Restore with `sent`, recording the board path segment of each call. */
+function serveRestore(sent: boolean) {
+  const boards: string[] = [];
   server.use(
-    http.post(`${API}/force-refresh`, () => {
-      calls.push(1);
-      return HttpResponse.json({ message: sent ? "Display force-refreshed" : "Nothing sent", sent });
+    http.post(`${API}/v1/boards/:board/restore`, ({ params }) => {
+      boards.push(String(params.board));
+      return HttpResponse.json({
+        board_id: String(params.board),
+        page_id: null,
+        sent,
+        reason: sent ? null : "Nothing was written",
+        device_observed: false,
+      });
     }),
   );
-  return calls;
+  return boards;
+}
+
+/** Restore refused with 409: the board is paused or silenced. */
+function refuseRestore() {
+  server.use(
+    http.post(`${API}/v1/boards/:board/restore`, () =>
+      HttpResponse.json({ detail: "Board is paused — sends are blocked until it is resumed." }, { status: 409 }),
+    ),
+  );
 }
 
 function recordDismiss() {
@@ -138,7 +154,7 @@ function renderBanner(props: Partial<BoardOutOfSyncBannerProps> = {}) {
   });
   const utils = render(
     <QueryClientProvider client={queryClient}>
-      <BoardOutOfSyncBanner geometry={FLAGSHIP} paused={false} multiBoard={false} isPrimary={true} {...props} />
+      <BoardOutOfSyncBanner geometry={FLAGSHIP} paused={false} {...props} />
     </QueryClientProvider>,
   );
   return { ...utils, queryClient };
@@ -252,29 +268,13 @@ describe("BoardOutOfSyncBanner", () => {
       expect(screen.queryByTestId("board-out-of-sync")).toBeNull();
     });
 
-    it("says Restore resends every display on a secondary board", async () => {
+    it("shows no hold line on a running, unsilenced secondary board", async () => {
+      // Restore touches only this display (#2354), so there is nothing to warn about.
       serveBoard(boardState({ characters: hiRed() }));
-      renderBanner({ boardId: "b2", multiBoard: true, isPrimary: false });
-
-      expect(await screen.findByText("Restore resends pages to every display.")).toBeInTheDocument();
-    });
-
-    it("shows no hold line on the primary board of a running, unsilenced install", async () => {
-      serveBoard(boardState({ characters: hiRed() }));
-      renderBanner({ multiBoard: true, isPrimary: true });
+      renderBanner({ boardId: "b2" });
 
       await screen.findByTestId("board-out-of-sync");
       expect(screen.queryByTestId("board-out-of-sync-hold")).toBeNull();
-    });
-
-    it("shows one hold line at a time, pause first", async () => {
-      serveBoard(boardState({ characters: hiRed() }));
-      renderBanner({ paused: true, boardId: "b2", multiBoard: true, isPrimary: false });
-
-      await screen.findByText(/This display is paused/);
-      await act(() => new Promise((r) => setTimeout(r, 50)));
-      expect(screen.getAllByTestId("board-out-of-sync-hold")).toHaveLength(1);
-      expect(screen.queryByText("Restore resends pages to every display.")).toBeNull();
     });
   });
 
@@ -282,7 +282,7 @@ describe("BoardOutOfSyncBanner", () => {
     it("marks the board in sync, forgets the held frame and says so when the send reached the board", async () => {
       const success = vi.spyOn(toast, "success");
       serveBoard(boardState({ characters: hiRed() }));
-      const refreshes = serveForceRefresh(true);
+      const restored = serveRestore(true);
       const dismissed = recordDismiss();
       const user = userEvent.setup();
       const { queryClient } = renderBanner();
@@ -290,7 +290,7 @@ describe("BoardOutOfSyncBanner", () => {
       await user.click(await screen.findByRole("button", { name: "Restore" }));
 
       await waitFor(() => expect(success).toHaveBeenCalledWith("Board restored"));
-      expect(refreshes).toHaveLength(1);
+      expect(restored).toEqual(["primary"]);
       const cached = queryClient.getQueryData<BoardCurrentMessageResponse>(["board-current-message"]);
       expect(cached?.characters).toEqual(EXPECTED);
       await waitFor(() => expect(dismissed).toHaveLength(1));
@@ -306,7 +306,7 @@ describe("BoardOutOfSyncBanner", () => {
           external_detected_at: new Date().toISOString(),
         }),
       );
-      serveForceRefresh(true);
+      serveRestore(true);
       const user = userEvent.setup();
       renderBanner();
 
@@ -315,12 +315,23 @@ describe("BoardOutOfSyncBanner", () => {
       await waitFor(() => expect(banner()).toBeNull());
     });
 
+    it("restores only the board it is scoped to", async () => {
+      serveBoard(boardState({ characters: hiRed() }));
+      const restored = serveRestore(true);
+      const user = userEvent.setup();
+      renderBanner({ boardId: "b2" });
+
+      await user.click(await screen.findByRole("button", { name: "Restore" }));
+
+      await waitFor(() => expect(restored).toEqual(["b2"]));
+    });
+
     it("forgets the held frame of the board it is scoped to", async () => {
       serveBoard(boardState({ characters: hiRed() }));
-      serveForceRefresh(true);
+      serveRestore(true);
       const dismissed = recordDismiss();
       const user = userEvent.setup();
-      renderBanner({ boardId: "b2", multiBoard: true, isPrimary: true });
+      renderBanner({ boardId: "b2" });
 
       await user.click(await screen.findByRole("button", { name: "Restore" }));
 
@@ -328,23 +339,23 @@ describe("BoardOutOfSyncBanner", () => {
       expect(new URL(dismissed[0]).searchParams.get("board_id")).toBe("b2");
     });
 
-    it("says pages were resent to every display on a secondary board", async () => {
+    it("says the board was restored on a secondary board", async () => {
       const success = vi.spyOn(toast, "success");
       serveBoard(boardState({ characters: hiRed() }));
-      serveForceRefresh(true);
+      serveRestore(true);
       const user = userEvent.setup();
-      renderBanner({ boardId: "b2", multiBoard: true, isPrimary: false });
+      renderBanner({ boardId: "b2" });
 
       await user.click(await screen.findByRole("button", { name: "Restore" }));
 
-      await waitFor(() => expect(success).toHaveBeenCalledWith("Pages resent to every display"));
+      await waitFor(() => expect(success).toHaveBeenCalledWith("Board restored"));
     });
 
     it("leaves the banner up and says nothing was sent when the send did not happen", async () => {
       const warning = vi.spyOn(toast, "warning");
       const success = vi.spyOn(toast, "success");
       serveBoard(boardState({ characters: hiRed() }));
-      serveForceRefresh(false);
+      serveRestore(false);
       const dismissed = recordDismiss();
       const user = userEvent.setup();
       const { queryClient } = renderBanner();
@@ -362,7 +373,7 @@ describe("BoardOutOfSyncBanner", () => {
     it("names pause as the reason nothing was sent", async () => {
       const warning = vi.spyOn(toast, "warning");
       serveBoard(boardState({ characters: hiRed() }));
-      serveForceRefresh(false);
+      refuseRestore();
       const user = userEvent.setup();
       renderBanner({ paused: true });
 
@@ -371,10 +382,28 @@ describe("BoardOutOfSyncBanner", () => {
       await waitFor(() => expect(warning).toHaveBeenCalledWith("Nothing was sent: this display is paused"));
     });
 
+    it("says nothing was sent, not that Restore failed, when the board refuses it", async () => {
+      // A 409 is policy (pause, or silence that began after the banner showed), not breakage.
+      const warning = vi.spyOn(toast, "warning");
+      const error = vi.spyOn(toast, "error");
+      serveBoard(boardState({ characters: hiRed() }));
+      refuseRestore();
+      const user = userEvent.setup();
+      renderBanner();
+
+      await user.click(await screen.findByRole("button", { name: "Restore" }));
+
+      await waitFor(() => expect(warning).toHaveBeenCalledWith("Nothing was sent to the display"));
+      expect(error).not.toHaveBeenCalled();
+      expect(banner()).toBeInTheDocument();
+    });
+
     it("says Restore failed when the request fails", async () => {
       const error = vi.spyOn(toast, "error");
       serveBoard(boardState({ characters: hiRed() }));
-      server.use(http.post(`${API}/force-refresh`, () => HttpResponse.json({ detail: "x" }, { status: 503 })));
+      server.use(
+        http.post(`${API}/v1/boards/:board/restore`, () => HttpResponse.json({ detail: "x" }, { status: 503 })),
+      );
       const user = userEvent.setup();
       renderBanner();
 
@@ -530,7 +559,7 @@ describe("BoardOutOfSyncBanner", () => {
         }),
       );
       const user = userEvent.setup();
-      renderBanner({ boardId: "b2", multiBoard: true, isPrimary: false });
+      renderBanner({ boardId: "b2" });
 
       await user.click(await screen.findByRole("button", { name: "Dismiss" }));
 
