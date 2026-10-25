@@ -10,16 +10,16 @@
     },
     "fiestapanel": {
       "repository": "https://github.com/Fiestaboard/fiestaboard-output--fiestapanel",
-      "commit": "cb4c4727691e60fe660decb74be33de117bc58dd",
+      "commit": "0be90a2ab18f23493e2d5e7355d93d039593d3f5",
       "output_api": 1,
       "tree_sha256": "4c0dda81a08d045849f8c17219bee6ca17f302835bb1e9aece4c8577e8fdb913",
       "loadable": true
     },
     "vestaboard": {
       "repository": "https://github.com/Fiestaboard/fiestaboard-output--vestaboard",
-      "commit": "cdbf409bc6001fe3cfe9f86b4ebcc05ac87854e6",
+      "commit": "be8272b8c0cb6ef14791a17432ff383a3d78b9c6",
       "output_api": 1,
-      "tree_sha256": "55419569efd189ce035987dac4c25f6a5d8d0bd52a51928cd4176d5ed6ede767",
+      "tree_sha256": "53470c9a2ef1269f396d6195fb29c45ab3776ae1e76765f2bdaf282412f84f17",
       "loadable": true
     }
   }
