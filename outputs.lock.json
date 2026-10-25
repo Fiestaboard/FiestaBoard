@@ -3,23 +3,23 @@
   "outputs": {
     "divoom_pixoo": {
       "repository": "https://github.com/Fiestaboard/fiestaboard-output--divoom-pixoo",
-      "commit": "863ab740a23db02e4274e52f23a3b0a815c4526e",
+      "commit": "bccc3e9772db99a33da051c0a70c624a79413a29",
       "output_api": 1,
-      "tree_sha256": "95a618424485f960d458087c660c9a6980bc4fa523097aa30b99d0e60da5491c",
+      "tree_sha256": "a98ceaeeea15b91768d77ba503ba3f12a4d04cb0beb1ded310d377a1576cc948",
       "loadable": true
     },
     "fiestapanel": {
       "repository": "https://github.com/Fiestaboard/fiestaboard-output--fiestapanel",
-      "commit": "cb4c4727691e60fe660decb74be33de117bc58dd",
+      "commit": "0be90a2ab18f23493e2d5e7355d93d039593d3f5",
       "output_api": 1,
       "tree_sha256": "4c0dda81a08d045849f8c17219bee6ca17f302835bb1e9aece4c8577e8fdb913",
       "loadable": true
     },
     "vestaboard": {
       "repository": "https://github.com/Fiestaboard/fiestaboard-output--vestaboard",
-      "commit": "cdbf409bc6001fe3cfe9f86b4ebcc05ac87854e6",
+      "commit": "be8272b8c0cb6ef14791a17432ff383a3d78b9c6",
       "output_api": 1,
-      "tree_sha256": "55419569efd189ce035987dac4c25f6a5d8d0bd52a51928cd4176d5ed6ede767",
+      "tree_sha256": "53470c9a2ef1269f396d6195fb29c45ab3776ae1e76765f2bdaf282412f84f17",
       "loadable": true
     }
   }
