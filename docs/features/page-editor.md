@@ -243,9 +243,9 @@ that display's own page under **Displays**:
   example "Saved from board Oct 17, 2026, 11:42 PM", in your app language. The
   button then reads **Saved as "…"** with an **Open page** link, so you can
   rename or edit the page right away, and a second tap cannot save it twice.
-- **Restore** sends your pages to the board again, over what the other app
-  wrote. On a display that is not your first one, the notice says that Restore
-  sends pages to every display again, because it does.
+- **Restore** sends that display's page to it again, over what the other app
+  wrote. Your other displays are left alone, and Restore doesn't change which
+  page is selected or cancel a timed message.
 
 Restore does not send anything while the display is paused. The notice says
 so before you tap it, and if you tap it anyway, FiestaBoard tells you that
@@ -253,6 +253,13 @@ nothing was sent and why, instead of reporting success. While silence mode is
 on for a display, the notice is hidden: FiestaBoard is leaving that board alone
 on purpose, and the notice comes back when silence ends if the other app's
 content is still there.
+
+Some displays, such as a Pixoo, can't report what they're showing, so this
+notice never appears for them. If another app takes over one of those
+displays, call `POST /v1/boards/{board}/restore` (see the
+[API reference](../reference/api-endpoints.md)). It does the same thing as
+**Restore**. A `sent: true` response means the display accepted the write.
+FiestaBoard can't see the screen itself, so look at the display to confirm.
 
 After FiestaBoard has put your page back, the other app's content is no
 longer on the board, but you can still keep it. A quieter notice stays:

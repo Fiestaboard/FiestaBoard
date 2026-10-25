@@ -291,7 +291,7 @@ Undoes a `POST` to this path. Any timed message is cancelled, the board's conten
 
 Put a board back after another app or controller overwrote it; the web app's Restore button calls this. FiestaBoard remembers what it last sent each board and skips a send that would not change it, so after an outside write it believes the board is already up to date. This forgets that for this one board and runs its display pass, which writes whatever the schedule, timed message or pinned page says belongs there.
 
-Nothing is changed: no page is pinned or unpinned and a timed message keeps running. A paused or silenced board refuses with 409, and a UI-only install answers `sent: false`.
+Restore changes no selection: a timed message keeps running and the pinned page stays pinned (a primary board with nothing pinned falls back to its first page, as the display loop always does). A paused or silenced board refuses with 409, and a UI-only install answers `sent: false`.
 
 `sent` means the board accepted the write. No supported board reports what it actually displays, so `device_observed` is always false — look at the board to confirm.
 

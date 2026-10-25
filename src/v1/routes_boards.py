@@ -669,7 +669,8 @@ async def clear_board_message(board: str) -> MessageResponse:
         "FiestaBoard remembers what it last sent each board and skips a send that would not change it, so after "
         "an outside write it believes the board is already up to date. This forgets that for this one board and runs its display pass, which writes "
         "whatever the schedule, timed message or pinned page says belongs there.\n\n"
-        "Nothing is changed: no page is pinned or unpinned and a timed message keeps running. A paused or "
+        "Restore changes no selection: a timed message keeps running and the pinned page stays pinned (a primary "
+        "board with nothing pinned falls back to its first page, as the display loop always does). A paused or "
         "silenced board refuses with 409, and a UI-only install answers `sent: false`.\n\n"
         "`sent` means the board accepted the write. No supported board reports what it actually displays, so "
         "`device_observed` is always false — look at the board to confirm."
@@ -681,18 +682,24 @@ async def restore_board(board: str) -> RestoreResponse:
 
     board_id, entry = resolve_board(board)
     settings_service = _settings_service()
-    page_id = settings_service.get_active_page_id(board_id=board_id)
 
     board_guards.raise_if_paused(board_id, what="restore")
     if board_guards.silence_verdict(board_id, override_silence=False, what="restore").silenced:
         raise HTTPException(status_code=409, detail=board_guards.SILENCE_DETAIL)
     if not settings_service.should_send_to_board():
-        return RestoreResponse(board_id=board_id, page_id=page_id, sent=False, reason=UI_ONLY_REASON)
+        return RestoreResponse(
+            board_id=board_id,
+            page_id=settings_service.get_active_page_id(board_id=board_id),
+            sent=False,
+            reason=UI_ONLY_REASON,
+        )
 
     service = runtime.get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    rt = service.get_runtime(board_id)
+    # runtime_for, not get_runtime: a legacy install keys the primary's
+    # runtime under a sentinel rather than its settings id.
+    rt = service.runtime_for(board_id)
     if rt is None:
         raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
 
@@ -710,12 +717,20 @@ async def restore_board(board: str) -> RestoreResponse:
             board=entry,
         )
 
-    sent, error = await run_board_send(_work)
+    try:
+        sent, error = await run_board_send(_work)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error restoring board {board_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to restore board {board_id}: {e}") from e
     if error:
         raise HTTPException(status_code=500, detail=f"Failed to restore board {board_id}: {error}")
     return RestoreResponse(
         board_id=board_id,
-        page_id=page_id,
+        # Read after the pass: a primary with nothing pinned falls back to,
+        # and pins, its first page.
+        page_id=settings_service.get_active_page_id(board_id=board_id),
         sent=sent,
         reason=None if sent else RESTORE_NOTHING_REASON,
     )

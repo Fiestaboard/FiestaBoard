@@ -15,6 +15,7 @@ honours pause, silence and the output target exactly like a write does.
 
 from __future__ import annotations
 
+import contextlib
 from unittest.mock import Mock, patch
 
 import pytest
@@ -64,7 +65,7 @@ def test_restore_accepts_the_primary_alias(client, boards, service):  # noqa: F8
     assert service.check_and_send_for_board_with_status.call_args.kwargs["is_primary"] is True
 
 
-def test_restore_reports_the_pinned_page_it_restored(client, boards, service):  # noqa: F811
+def test_restore_reports_the_pinned_page(client, boards, service):  # noqa: F811
     from src.settings.service import get_settings_service
 
     get_settings_service().set_active_page_id("page-abc", board_id=boards[0])
@@ -165,3 +166,97 @@ def test_restore_to_an_unknown_board_is_404(client, boards, service):  # noqa: F
 
     assert response.status_code == 404
     service.check_and_send_for_board_with_status.assert_not_called()
+
+
+def test_restore_finds_a_primary_runtime_keyed_under_the_legacy_sentinel(client, boards, service):  # noqa: F811
+    """Legacy installs key the primary runtime under ``__primary__``; ``runtime_for`` resolves it."""
+    runtime = Mock()
+    service.get_runtime.return_value = None
+    service.runtime_for.return_value = runtime
+
+    response = _restore(client, boards[0])
+
+    assert response.status_code == 200, response.text
+    assert service.check_and_send_for_board_with_status.call_args.args[1] is runtime
+
+
+def test_restore_without_a_board_runtime_is_503(client, boards, service):  # noqa: F811
+    service.get_runtime.return_value = None
+    service.runtime_for.return_value = None
+
+    response = _restore(client)
+
+    assert response.status_code == 503
+    service.check_and_send_for_board_with_status.assert_not_called()
+
+
+def test_restore_reports_the_page_the_pass_pinned(client, boards, service):  # noqa: F811
+    """A primary in manual mode with nothing pinned falls back to (and pins) its first page."""
+    from src.settings.service import get_settings_service
+
+    def _pass(board_id, *_args, **_kwargs):
+        get_settings_service().set_active_page_id("page-first", board_id=board_id)
+        return True, None
+
+    service.check_and_send_for_board_with_status.side_effect = _pass
+
+    body = _restore(client).json()
+
+    assert body["page_id"] == "page-first"
+
+
+def test_restore_that_raises_is_a_500_naming_the_reason(client, boards, service):  # noqa: F811
+    service.check_and_send_for_board_with_status.side_effect = RuntimeError("driver exploded")
+
+    response = _restore(client)
+
+    assert response.status_code == 500
+    assert "driver exploded" in response.json()["detail"]
+
+
+# ── through the real display pass ───────────────────────────────────────────
+
+
+@contextlib.contextmanager
+def _real_engine(engine_boards, *, pages, schedule):
+    """A real DisplayService driving mock clients, with the pass's collaborators stubbed."""
+    from tests.test_per_board_engine import _service_with_runtimes, _settings_service, _time_service
+
+    svc, clients = _service_with_runtimes(engine_boards)
+    with (
+        patch(SERVICE, return_value=svc),
+        patch(RUNTIME_SERVICE, return_value=svc),
+        patch("src.main.get_settings_service", return_value=_settings_service(engine_boards)),
+        patch("src.main.get_page_service", return_value=pages),
+        patch("src.main.get_schedule_service", return_value=schedule),
+        patch("src.main.get_collection_service", return_value=Mock()),
+        patch("src.time_service.get_time_service", return_value=_time_service()),
+        patch("src.main.Config") as cfg,
+        patch.object(svc, "_check_trigger_override", return_value=None),
+        patch.object(svc, "request_board_refresh"),
+    ):
+        cfg.is_silence_mode_active.return_value = False
+        yield svc, clients
+
+
+def test_restore_rewrites_a_board_the_display_loop_had_deduped(client, boards):  # noqa: F811
+    """The #2354 bug end to end: the loop skips unchanged content, so an outside
+    write sticks; restore makes this board's pass write it again, and only this board."""
+    from tests.test_per_board_engine import _board, _page_service, _schedule_service
+
+    primary, second = boards
+    engine_boards = [_board(primary, "Kitchen"), _board(second, "Hallway", device_type="note", port=7001)]
+    pages = _page_service({"pA": {"content": "ALPHA"}, "pB": {"content": "BETA", "device_type": "note"}})
+    schedule = _schedule_service({primary: "pA", second: "pB"})
+
+    with _real_engine(engine_boards, pages=pages, schedule=schedule) as (svc, clients):
+        svc.check_and_send_active_page()
+        svc.check_and_send_active_page()  # unchanged: deduped, as after an outside write
+        assert clients[second].render.call_count == 1
+
+        response = _restore(client, second)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["sent"] is True
+    assert clients[second].render.call_count == 2
+    assert clients[primary].render.call_count == 1
