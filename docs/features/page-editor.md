@@ -229,11 +229,47 @@ Pages that are referenced in schedules should be updated or removed from the sch
 
 ### Saving what another app put on the board
 
-FiestaBoard reads your board back on a timer (every 30 seconds for a board on
-your network, every 3 minutes for a cloud board). When the board shows
-something FiestaBoard did not send, for example a message from the Vestaboard
-app or a script, a notice appears above the board preview on **Home** and on
-that display's own page under **Displays**:
+When another app writes to a display, for example the Vestaboard app, the
+Divoom app, or a script, FiestaBoard notices and puts your page back on its
+next update. You don't have to do anything.
+
+If you share a display with another app on purpose, turn off **Restore
+automatically** in that display's settings under **Displays**, next to
+**Pause sends**. FiestaBoard then leaves the other app's content alone until
+you tap **Restore** or your page changes. The setting is on for every display
+unless you turn it off. Turn it off as well if another app or script keeps
+writing to the display on purpose: with it on, FiestaBoard takes the display
+back every time.
+
+FiestaBoard puts back what it would show right now: the scheduled page, a
+timed message, or the page you picked. A message you sent from FiestaBoard by
+hand that another app then wrote over comes back as that page, not as the
+message.
+
+#### How FiestaBoard notices
+
+- **Vestaboard:** FiestaBoard reads the board back on a timer (every 30
+  seconds for a board on your network, every 3 minutes for a cloud board). It
+  counts a change as another app's after two reads in a row show it.
+- **Divoom Pixoo:** a Pixoo can't report what it's showing, but it does count
+  the pictures sent to it. When that count moves past FiestaBoard's own,
+  another app uploaded a picture. When the count goes back down, the Pixoo
+  restarted or another app reset the count before uploading, which most Pixoo
+  scripts do. FiestaBoard can't tell those two apart, so it always sends your
+  page again, even with **Restore automatically** off.
+
+Some changes don't show up on a Pixoo. If an app switches the Pixoo to another
+channel, such as its clock, without uploading a picture, FiestaBoard can't
+tell, so no notice appears. The same goes for an upload that happens to leave
+the count where FiestaBoard left it. Whether the Divoom app's own uploads move
+the count hasn't been confirmed yet. Call the restore endpoint (see
+[Using the API](#using-the-api)) to put your page back.
+
+#### The notice
+
+When a Vestaboard shows something FiestaBoard did not send, a notice appears
+above the board preview on **Home** and on that display's own page under
+**Displays**:
 
 > **Another app changed this board**
 > FiestaBoard will replace it the next time your page updates. Save it to keep it.
@@ -243,16 +279,22 @@ that display's own page under **Displays**:
   example "Saved from board Oct 17, 2026, 11:42 PM", in your app language. The
   button then reads **Saved as "…"** with an **Open page** link, so you can
   rename or edit the page right away, and a second tap cannot save it twice.
-- **Restore** sends your pages to the board again, over what the other app
-  wrote. On a display that is not your first one, the notice says that Restore
-  sends pages to every display again, because it does.
+- **Restore** sends that display's page to it again, over what the other app
+  wrote. Your other displays are left alone, and Restore doesn't change which
+  page is selected or cancel a timed message.
+
+With **Restore automatically** off, the notice stays until you tap **Restore**
+or your page changes. A Pixoo with **Restore automatically** off gets a notice
+too, but without a preview, because FiestaBoard can't see what's on it. It has
+a **Restore** button.
 
 Restore does not send anything while the display is paused. The notice says
 so before you tap it, and if you tap it anyway, FiestaBoard tells you that
 nothing was sent and why, instead of reporting success. While silence mode is
 on for a display, the notice is hidden: FiestaBoard is leaving that board alone
 on purpose, and the notice comes back when silence ends if the other app's
-content is still there.
+content is still there. Automatic restore also leaves paused and silenced
+displays alone.
 
 After FiestaBoard has put your page back, the other app's content is no
 longer on the board, but you can still keep it. A quieter notice stays:
@@ -263,6 +305,21 @@ longer on the board, but you can still keep it. A quieter notice stays:
 Use **Save as page** to keep it, or **Dismiss** to forget it. The notice stays
 until you save or dismiss it, or for 24 hours at most. Restoring your page
 from the first notice also dismisses it.
+
+#### Using the API
+
+`POST /v1/boards/{board}/restore` does the same thing as **Restore**: it
+restores only that display, and doesn't change the selected page or cancel a
+timed message. A paused or silenced display gets a `409` response and nothing
+is sent. A `sent: true` response means the display accepted the write.
+`device_observed` is always `false`: FiestaBoard doesn't confirm what the
+screen shows, so look at the display to check.
+
+To turn automatic restore off or on, send `PATCH /v1/boards/{board}` with
+`{"auto_restore": false}` or `{"auto_restore": true}`. `GET /v1/boards/{board}`
+reports the current value as `auto_restore`. You can also ask the in-app
+assistant to change it. See the [API reference](../reference/api-endpoints.md)
+for details.
 
 :::note
 FiestaBoard confirms another app's write on its second board read in a row,

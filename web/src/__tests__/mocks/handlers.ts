@@ -1194,6 +1194,7 @@ export const handlers = [
       schedule_enabled?: boolean;
       default_page_id?: string | null;
       name?: string;
+      auto_restore?: boolean;
     };
     return HttpResponse.json({
       id: String(params.board),
@@ -1204,6 +1205,7 @@ export const handlers = [
       is_primary: true,
       paused: body.paused ?? false,
       schedule_enabled: body.schedule_enabled ?? false,
+      auto_restore: body.auto_restore ?? true,
       characters: null,
       text: null,
       read_at: null,

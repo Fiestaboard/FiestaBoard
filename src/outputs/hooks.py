@@ -135,10 +135,15 @@ class DevicePoll:
     the output found out for itself (a device that moved to a new address
     under DHCP), merged into the board's ``output_config`` and saved. A
     changed address counts as a restart too: what the board shows is unknown.
+    ``overwritten``: another client wrote the device since core's last write
+    (a Pixoo whose picture counter moved past core's), so what it shows is not
+    what core sent. Core marks the board overwritten and, unless the board's
+    ``auto_restore`` is off, re-sends its content (#2354).
     """
 
     restarted: bool = False
     config: Mapping[str, Any] | None = None
+    overwritten: bool = False
 
 
 @dataclass(frozen=True)

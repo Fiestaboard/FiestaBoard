@@ -125,7 +125,8 @@ function storeWrite(incoming: BoardRecord, before: BoardRecord | undefined): Boa
  */
 type StatusFor = (stored: BoardRecord) => { state: "connected" | "not_configured"; message: string } | null;
 
-function setupBoard(board: BoardOverride, options: { status?: StatusFor } = {}) {
+/** One stored board from a test's overrides (connection moved into `output_config`). */
+function storedBoard(board: BoardOverride): BoardRecord {
   const seed: BoardRecord = {
     id: "default",
     name: "My Board",
@@ -141,12 +142,15 @@ function setupBoard(board: BoardOverride, options: { status?: StatusFor } = {}) 
     if ((FLAT as readonly string[]).includes(key)) config[key] = value;
     else rest[key] = value;
   }
+  return virtual
+    ? { ...rest, output: "fiestapanel", output_config: {}, name: normalizeBoardName(rest.name) }
+    : { ...rest, output: "vestaboard", output_config: config, name: normalizeBoardName(rest.name) };
+}
+
+/** `options.others` adds more boards after the rendered one (give each an `id`). */
+function setupBoard(board: BoardOverride, options: { status?: StatusFor; others?: BoardOverride[] } = {}) {
   const state: { boards: BoardRecord[] } = {
-    boards: [
-      virtual
-        ? { ...rest, output: "fiestapanel", output_config: {}, name: normalizeBoardName(rest.name) }
-        : { ...rest, output: "vestaboard", output_config: config, name: normalizeBoardName(rest.name) },
-    ],
+    boards: [storedBoard(board), ...(options.others ?? []).map(storedBoard)],
   };
   const put: { body: { boards?: BoardRecord[] } | null; count: number } = { body: null, count: 0 };
 
@@ -1180,6 +1184,110 @@ describe("DisplaySettings — a tile's dialog (tests, identifies, says what it d
     await savedAtOnce(put, 0);
     expect(savedConfig(put).tiles).toEqual([]);
     expect(toast.success).toHaveBeenCalledWith("Tile cleared");
+  });
+});
+
+describe("DisplaySettings — restore automatically (#2354)", () => {
+  const autoRestoreSwitch = (card: HTMLElement) => within(card).getByTestId("board-auto-restore-switch");
+
+  it("is on for a board saved before the setting existed", async () => {
+    setupBoard({ device_type: "flagship" });
+    const card = await renderAndExpand();
+
+    const toggle = autoRestoreSwitch(card);
+    expect(toggle).toHaveAccessibleName("Restore automatically");
+    expect(toggle).toBeChecked();
+    expect(
+      within(card).getByText(
+        "When another app changes this display, FiestaBoard puts your page back. Turn this off to let another app keep the display.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("is off for a board that turned it off", async () => {
+    setupBoard({ device_type: "flagship", auto_restore: false });
+    const card = await renderAndExpand();
+
+    expect(autoRestoreSwitch(card)).not.toBeChecked();
+  });
+
+  it("turning it off saves auto_restore false for that board", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship" });
+    const card = await renderAndExpand(user);
+
+    await user.click(autoRestoreSwitch(card));
+
+    await waitFor(() => expect(put.count).toBe(1));
+    expect(put.body!.boards![0]).toMatchObject({ id: "default", auto_restore: false });
+    await waitFor(() => expect(autoRestoreSwitch(card)).not.toBeChecked());
+  });
+
+  it("turning it back on saves auto_restore true", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship", auto_restore: false });
+    const card = await renderAndExpand(user);
+
+    await user.click(autoRestoreSwitch(card));
+
+    await waitFor(() => expect(put.count).toBe(1));
+    expect(put.body!.boards![0]).toMatchObject({ id: "default", auto_restore: true });
+  });
+
+  it("toggling one board writes only that board's auto_restore and keeps the other board as it was", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard(
+      { device_type: "flagship" },
+      {
+        others: [
+          {
+            id: "kitchen",
+            name: "Kitchen",
+            device_type: "note",
+            board_color: "white",
+            api_mode: "local",
+            host: "192.168.0.40",
+            local_api_key: "***",
+            auto_restore: false,
+          },
+        ],
+      },
+    );
+    const card = await renderAndExpand(user);
+
+    await user.click(autoRestoreSwitch(card));
+
+    await waitFor(() => expect(put.count).toBe(1));
+    const boards = put.body!.boards!;
+    expect(boards.map((b) => b.id)).toEqual(["default", "kitchen"]);
+    expect(boards[0]).toMatchObject({ id: "default", auto_restore: false });
+    expect(boards[1]).toMatchObject({
+      id: "kitchen",
+      name: "Kitchen",
+      device_type: "note",
+      board_color: "white",
+      auto_restore: false,
+      output_config: { api_mode: "local", host: "192.168.0.40" },
+    });
+  });
+
+  it("describes the switch with its help text", async () => {
+    setupBoard({ device_type: "flagship" });
+    const card = await renderAndExpand();
+
+    expect(autoRestoreSwitch(card)).toHaveAccessibleDescription(
+      "When another app changes this display, FiestaBoard puts your page back. Turn this off to let another app keep the display.",
+    );
+  });
+
+  it("is not offered on a FiestaPanel's virtual board, which always shows FiestaBoard's content", async () => {
+    setupBoard({ device_type: "note_array", api_mode: "virtual", notes_wide: 4, notes_tall: 3 });
+    const card = await renderAndExpand();
+
+    expect(within(card).queryByTestId("board-auto-restore-switch")).toBeNull();
+    expect(within(card).queryByText("Restore automatically")).toBeNull();
+    // The pause row it sits under is still there.
+    expect(within(card).getByTestId("board-pause-switch")).toBeInTheDocument();
   });
 });
 

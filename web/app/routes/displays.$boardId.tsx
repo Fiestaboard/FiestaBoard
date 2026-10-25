@@ -44,8 +44,6 @@ export default function DisplayPage() {
                 gridCols: board.grid_cols ?? undefined,
               }}
               paused={board.paused === true}
-              multiBoard={displays.boards.length > 1}
-              isPrimary={displays.boards[0]?.id === board.id}
             />
           </Box>
           <Flex justify="center" className="overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>

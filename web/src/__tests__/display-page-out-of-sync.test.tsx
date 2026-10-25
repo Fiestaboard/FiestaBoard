@@ -123,14 +123,15 @@ beforeEach(() => {
 });
 
 describe("/displays/:boardId out-of-sync banner", () => {
-  it("shows the banner under a secondary board's preview and says Restore resends every display", async () => {
+  it("shows the banner under a secondary board's preview with no every-display warning", async () => {
     serveBoards([LIVING, KITCHEN_WALL], { b2: { rows: 3, cols: 30, external: true } });
     params.boardId = "b2";
     renderPage();
 
     const banner = await screen.findByTestId("board-out-of-sync");
     expect(within(banner).getByText("Another app changed this board")).toBeInTheDocument();
-    expect(within(banner).getByText("Restore resends pages to every display.")).toBeInTheDocument();
+    // Restore touches only this display (#2354), so there is no hold line to show.
+    expect(within(banner).queryByTestId("board-out-of-sync-hold")).toBeNull();
     // Under the "Now showing" preview, before the display's settings.
     const heading = screen.getByText("Now showing");
     const settings = await screen.findByTestId("board-card");

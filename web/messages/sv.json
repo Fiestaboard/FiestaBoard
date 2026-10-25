@@ -1006,12 +1006,11 @@
     "openPage": "Öppna sida",
     "dismiss": "Stäng",
     "holdPaused": "Den här skärmen är pausad, så Återställ skickar inget förrän du återupptar den.",
-    "restoreAllDisplays": "Återställ skickar om sidorna till alla skärmar.",
     "keptTitle": "En annan app skrev till den här boarden kl. {time}",
     "keptDetail": "FiestaBoard har sedan dess satt tillbaka din sida. Du kan fortfarande spara det den andra appen skrev.",
+    "overwrittenDetail": "Upptäckt: {time}. FiestaBoard kan inte se vad den här skärmen visar nu, så det finns inget att spara. Återställ sätter tillbaka din sida.",
     "externalPageName": "Från board {date}",
     "toastRestored": "Board återställd",
-    "toastRestoredAll": "Sidorna skickades om till alla skärmar",
     "toastRestoreFailed": "Misslyckades återställa board",
     "toastNotSentPaused": "Inget skickades: den här skärmen är pausad",
     "toastNotSent": "Inget skickades till skärmen",
@@ -1207,6 +1206,10 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "autoRestore": {
+      "toggle": "Återställ automatiskt",
+      "help": "När en annan app ändrar den här skärmen sätter FiestaBoard tillbaka din sida. Stäng av detta för att låta en annan app behålla skärmen."
     },
     "initError": {
       "badge": "Otillgänglig",
