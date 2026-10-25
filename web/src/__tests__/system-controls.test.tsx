@@ -139,4 +139,38 @@ describe("SystemControls", () => {
       expect(screen.queryByText("Restart FiestaBoard?")).not.toBeInTheDocument();
     });
   });
+
+  // <main> carries `contain: layout` (FiestaUI .content-root), which makes it
+  // the containing block for position:fixed descendants. An overlay rendered
+  // in place stretches over the whole page instead of the viewport and its
+  // spinner lands off-screen, so the overlays must portal out to <body>.
+  it("portals the restarting overlay outside the settings subtree", async () => {
+    withSidecar(true);
+    server.use(http.post(`${API_BASE}/system/restart`, () => HttpResponse.json({ success: true, message: "ok" })));
+    const { container } = render(<SystemControls />, { wrapper: TestWrapper });
+
+    await waitFor(() => screen.getByText("Restart"));
+    fireEvent.click(screen.getByText("Restart"));
+    await waitFor(() => screen.getByText("Restart now"));
+    fireEvent.click(screen.getByText("Restart now"));
+
+    const heading = await screen.findByText("Restarting FiestaBoard…");
+    expect(container).not.toContainElement(heading);
+    expect(document.body).toContainElement(heading);
+  });
+
+  it("portals the shutdown overlay outside the settings subtree", async () => {
+    withSidecar(true);
+    server.use(http.post(`${API_BASE}/system/shutdown`, () => HttpResponse.json({ success: true, message: "ok" })));
+    const { container } = render(<SystemControls />, { wrapper: TestWrapper });
+
+    await waitFor(() => screen.getByText("Shutdown"));
+    fireEvent.click(screen.getByText("Shutdown"));
+    await waitFor(() => screen.getByText("Shut down"));
+    fireEvent.click(screen.getByText("Shut down"));
+
+    const heading = await screen.findByText("Shutting down…");
+    expect(container).not.toContainElement(heading);
+    expect(document.body).toContainElement(heading);
+  });
 });
