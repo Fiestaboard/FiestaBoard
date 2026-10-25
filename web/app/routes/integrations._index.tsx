@@ -19,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
   Code as CodeChip,
+  CopyableCode,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -126,7 +127,6 @@ import {
   Cog,
   Compass,
   Cookie,
-  Copy,
   CopyPlus,
   Cpu,
   Crown,
@@ -617,14 +617,12 @@ function ColorRulesEditor({
   pluginId,
   colorRules,
   onChange,
-  onCopyVar,
-  copiedVar,
+  onVarCopied,
 }: {
   pluginId: string;
   colorRules: ColorRulesConfig;
   onChange: (rules: ColorRulesConfig) => void;
-  onCopyVar: (varName: string) => void;
-  copiedVar: string | null;
+  onVarCopied: (templateVar: string) => void;
 }) {
   const t = useTranslations("integrations");
   const tCommon = useTranslations("common");
@@ -739,17 +737,13 @@ function ColorRulesEditor({
                       </Text>
                     </Flex>
                     <Flex align="center" gap="1">
-                      <button
-                        onClick={() => onCopyVar(`${fieldName}_color`)}
-                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-muted"
+                      <CopyableCode
+                        value={`{{${pluginId}.${fieldName}_color}}`}
+                        onCopied={onVarCopied}
+                        className="bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted"
                       >
-                        {copiedVar === `${fieldName}_color` ? (
-                          <Check className="h-3 w-3 text-success" />
-                        ) : (
-                          <Copy className="h-3 w-3" />
-                        )}
-                        <CodeChip className="bg-transparent px-0 py-0 rounded-none">{fieldName}_color</CodeChip>
-                      </button>
+                        {`${fieldName}_color`}
+                      </CopyableCode>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
@@ -1101,7 +1095,6 @@ function InstalledPluginRow({
   const [isConfigOpen, setIsConfigOpen] = useState(initiallyOpen);
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [isSaving, setIsSaving] = useState(false);
-  const [copiedVar, setCopiedVar] = useState<string | null>(null);
   const [isCreatingDemo, setIsCreatingDemo] = useState(false);
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
   const [showAddInstance, setShowAddInstance] = useState(false);
@@ -1248,12 +1241,8 @@ function InstalledPluginRow({
     }
   };
 
-  // Copy template variable
-  const handleCopyVar = (varName: string) => {
-    const templateVar = `{{${plugin.id}.${varName}}}`;
-    navigator.clipboard.writeText(templateVar);
-    setCopiedVar(varName);
-    setTimeout(() => setCopiedVar(null), 2000);
+  // Confirm a copied template variable
+  const handleVarCopied = (templateVar: string) => {
     toast.success(`Copied ${templateVar}`);
   };
 
@@ -1284,25 +1273,18 @@ function InstalledPluginRow({
       pluginData?.available ? (pluginData.data as Record<string, unknown>) : undefined,
     );
     return (
-      <TableRow
-        key={variable.name}
-        className="hover:bg-muted/30 cursor-pointer transition-colors"
-        onClick={() => handleCopyVar(variable.name)}
-      >
+      <TableRow key={variable.name} className="hover:bg-muted/30 transition-colors">
         <TableCell className="px-3 py-2 align-top">
-          <Flex align="center" gap="1.5">
-            <CodeChip className="text-primary bg-primary/10">
-              {plugin.id}.{variable.name}
-            </CodeChip>
-            {copiedVar === variable.name ? (
-              <Check className="h-3 w-3 text-success" />
-            ) : (
-              <Copy className="h-3 w-3 text-muted-foreground" />
-            )}
-          </Flex>
+          <CopyableCode
+            value={`{{${plugin.id}.${variable.name}}}`}
+            onCopied={handleVarCopied}
+            className="text-primary bg-primary/10 hover:bg-primary/20"
+          >
+            {plugin.id}.{variable.name}
+          </CopyableCode>
         </TableCell>
         <TableCell className="px-3 py-2 text-muted-foreground capitalize align-top">{variable.description}</TableCell>
-        <TableCell className="px-3 py-2 align-top max-w-[200px]" onClick={(e) => e.stopPropagation()}>
+        <TableCell className="px-3 py-2 align-top max-w-[200px]">
           {!plugin.enabled ? (
             <Text as="span" tone="muted">
               —
@@ -1624,8 +1606,7 @@ function InstalledPluginRow({
                 onChange={(newRules) => {
                   setConfigValues((prev) => ({ ...prev, color_rules: newRules }));
                 }}
-                onCopyVar={handleCopyVar}
-                copiedVar={copiedVar}
+                onVarCopied={handleVarCopied}
               />
 
               {/* No config message */}
