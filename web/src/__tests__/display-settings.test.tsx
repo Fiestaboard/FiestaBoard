@@ -1183,6 +1183,64 @@ describe("DisplaySettings — a tile's dialog (tests, identifies, says what it d
   });
 });
 
+describe("DisplaySettings — restore automatically (#2354)", () => {
+  const autoRestoreSwitch = (card: HTMLElement) => within(card).getByTestId("board-auto-restore-switch");
+
+  it("is on for a board saved before the setting existed", async () => {
+    setupBoard({ device_type: "flagship" });
+    const card = await renderAndExpand();
+
+    const toggle = autoRestoreSwitch(card);
+    expect(toggle).toHaveAccessibleName("Restore automatically");
+    expect(toggle).toBeChecked();
+    expect(
+      within(card).getByText(
+        "When another app changes this display, FiestaBoard puts your page back. Turn this off to let another app keep the display.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("is off for a board that turned it off", async () => {
+    setupBoard({ device_type: "flagship", auto_restore: false });
+    const card = await renderAndExpand();
+
+    expect(autoRestoreSwitch(card)).not.toBeChecked();
+  });
+
+  it("turning it off saves auto_restore false for that board", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship" });
+    const card = await renderAndExpand(user);
+
+    await user.click(autoRestoreSwitch(card));
+
+    await waitFor(() => expect(put.count).toBe(1));
+    expect(put.body!.boards![0]).toMatchObject({ id: "default", auto_restore: false });
+    await waitFor(() => expect(autoRestoreSwitch(card)).not.toBeChecked());
+  });
+
+  it("turning it back on saves auto_restore true", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship", auto_restore: false });
+    const card = await renderAndExpand(user);
+
+    await user.click(autoRestoreSwitch(card));
+
+    await waitFor(() => expect(put.count).toBe(1));
+    expect(put.body!.boards![0]).toMatchObject({ id: "default", auto_restore: true });
+  });
+
+  it("is not offered on a FiestaPanel's virtual board, which always shows FiestaBoard's content", async () => {
+    setupBoard({ device_type: "note_array", api_mode: "virtual", notes_wide: 4, notes_tall: 3 });
+    const card = await renderAndExpand();
+
+    expect(within(card).queryByTestId("board-auto-restore-switch")).toBeNull();
+    expect(within(card).queryByText("Restore automatically")).toBeNull();
+    // The pause row it sits under is still there.
+    expect(within(card).getByTestId("board-pause-switch")).toBeInTheDocument();
+  });
+});
+
 describe("DisplaySettings — virtual boards (FiestaPanel)", () => {
   /** A panel's backing virtual board, as created by POST /panels. */
   const VIRTUAL_BOARD: BoardOverride = {

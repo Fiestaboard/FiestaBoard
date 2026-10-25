@@ -1008,6 +1008,7 @@
     "holdPaused": "이 디스플레이가 일시정지되어 있어 다시 시작할 때까지 복원은 아무것도 보내지 않습니다.",
     "keptTitle": "{time}에 다른 앱이 이 보드에 썼습니다",
     "keptDetail": "FiestaBoard가 그 후 페이지를 되돌렸습니다. 다른 앱이 쓴 내용은 지금도 저장할 수 있습니다.",
+    "overwrittenDetail": "{time}에 감지했습니다. FiestaBoard는 이 디스플레이에 지금 표시된 내용을 볼 수 없으므로 저장할 내용이 없습니다. 복원을 누르면 페이지가 되돌아갑니다.",
     "externalPageName": "보드에서 {date}",
     "toastRestored": "보드 복원됨",
     "toastRestoreFailed": "보드 복원 실패",
@@ -1205,6 +1206,10 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "autoRestore": {
+      "toggle": "자동으로 복원",
+      "help": "다른 앱이 이 디스플레이를 변경하면 FiestaBoard가 페이지를 되돌립니다. 다른 앱이 디스플레이를 계속 사용하게 하려면 끄세요."
     },
     "initError": {
       "badge": "사용 불가",

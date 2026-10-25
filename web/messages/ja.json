@@ -1008,6 +1008,7 @@
     "holdPaused": "このディスプレイは一時停止中のため、再開するまで「復元」は何も送信しません。",
     "keptTitle": "{time} に別のアプリがこのボードに書き込みました",
     "keptDetail": "FiestaBoard はその後ページを元に戻しました。別のアプリが書いた内容は今からでも保存できます。",
+    "overwrittenDetail": "{time} に検出しました。FiestaBoard はこのディスプレイの現在の表示を確認できないため、保存できる内容はありません。「復元」でページを元に戻せます。",
     "externalPageName": "ボードから {date}",
     "toastRestored": "ボードを復元しました",
     "toastRestoreFailed": "ボードの復元に失敗しました",
@@ -1205,6 +1206,10 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "autoRestore": {
+      "toggle": "自動的に復元",
+      "help": "別のアプリがこのディスプレイを変更すると、FiestaBoard がページを元に戻します。オフにすると、別のアプリがディスプレイを使い続けられます。"
     },
     "initError": {
       "badge": "利用不可",

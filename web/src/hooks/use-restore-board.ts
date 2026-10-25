@@ -22,7 +22,9 @@ import { api, ApiError, type BoardCurrentMessageResponse } from "@/lib/api";
  * "Board restored".
  *
  * On a real send the user chose their page over the other app's, so the
- * remembered external frame is forgotten too (no "kept" notice follows).
+ * remembered external frame is forgotten too (no "kept" notice follows), and
+ * so is a no-read-back display's "overwritten" mark (#2354), which the
+ * backend clears on that same write.
  */
 export function useRestoreBoard({ boardId, paused }: { boardId?: string; paused: boolean }): {
   restore: () => Promise<void>;
@@ -60,7 +62,12 @@ export function useRestoreBoard({ boardId, paused }: { boardId?: string; paused:
         queryKeys.boardCurrentMessage(boardId),
         (old: BoardCurrentMessageResponse | undefined) => {
           if (!old) return old;
-          const { external_characters: _held, external_detected_at: _heldAt, ...rest } = old;
+          const {
+            external_characters: _held,
+            external_detected_at: _heldAt,
+            overwritten_at: _overwrittenAt,
+            ...rest
+          } = old;
           return { ...rest, characters: old.expected_characters ?? old.characters };
         },
       );

@@ -26,7 +26,7 @@ export interface BoardOutOfSyncBannerProps {
   suppressed?: boolean;
 }
 
-type Face = "out-of-sync" | "kept";
+type Face = "out-of-sync" | "overwritten" | "kept";
 
 type SavedPage = { id: string; name: string; gridKey: string };
 
@@ -38,6 +38,10 @@ type SavedPage = { id: string; name: string; gridKey: string };
  *   send. [Restore] puts the page back; [Save as page] keeps what is there.
  *   A muted hold line says, before the tap, when Restore will not send
  *   (pause, silence) or that it resends every display (a secondary board).
+ * - **overwritten** (warning, #2354): a display that cannot read back what it
+ *   shows (a Divoom Pixoo) reported another app wrote it. There is no frame
+ *   to compare or save, so only [Restore]. With auto-restore on, the backend
+ *   takes the display back on its next pass, so this mostly shows with it off.
  * - **kept** (info): FiestaBoard has since repainted, but the backend still
  *   holds the last confirmed external frame. [Save as page] or [Dismiss].
  *
@@ -73,9 +77,13 @@ export function BoardOutOfSyncBanner({ boardId, geometry, paused, suppressed = f
   const isOutOfSync = characters !== null && expected !== null && JSON.stringify(characters) !== expectedKey;
   const externalFrame = boardState.external_characters ?? null;
   const hasKeptFrame = externalFrame !== null && JSON.stringify(externalFrame) !== expectedKey;
+  // Only a display with nothing to compare reports this; a board that reads
+  // back says what it shows through `characters` instead.
+  const hasReadBack = characters !== null && expected !== null;
+  const isOverwritten = !hasReadBack && Boolean(boardState.overwritten_at);
 
-  // The live face wins: what is on the board now is what the user sees.
-  const face: Face | null = isOutOfSync ? "out-of-sync" : hasKeptFrame ? "kept" : null;
+  // The live faces win: what is on the board now is what the user sees.
+  const face: Face | null = isOutOfSync ? "out-of-sync" : isOverwritten ? "overwritten" : hasKeptFrame ? "kept" : null;
   if (face === null) return null;
 
   const grid = (face === "out-of-sync" ? characters : externalFrame) as number[][];
@@ -109,10 +117,14 @@ export function BoardOutOfSyncBanner({ boardId, geometry, paused, suppressed = f
     }
   };
 
-  // The one hold line: a paused display holds Restore (live face only).
-  const hold: string | null = face === "out-of-sync" && paused ? t("holdPaused") : null;
+  // A live face: the board shows something else now, and Restore is offered.
+  const live = face !== "kept";
+  // Only the out-of-sync face has a frame to save.
+  const canSave = face !== "overwritten";
 
-  const live = face === "out-of-sync";
+  // The one hold line: a paused display holds Restore (live faces only).
+  const hold: string | null = live && paused ? t("holdPaused") : null;
+
   const Icon = live ? AlertTriangle : History;
 
   return (
@@ -130,7 +142,13 @@ export function BoardOutOfSyncBanner({ boardId, geometry, paused, suppressed = f
         <AlertTitle>
           {live ? t("title") : t("keptTitle", { time: formatDetectedAt(boardState.external_detected_at, locale) })}
         </AlertTitle>
-        <AlertDescription>{live ? t("detail") : t("keptDetail")}</AlertDescription>
+        <AlertDescription>
+          {face === "out-of-sync"
+            ? t("detail")
+            : face === "overwritten"
+              ? t("overwrittenDetail", { time: formatDetectedAt(boardState.overwritten_at, locale) })
+              : t("keptDetail")}
+        </AlertDescription>
         {hold && (
           <Text size="xs" className="text-muted-foreground mt-1" data-testid="board-out-of-sync-hold">
             {hold}
@@ -148,7 +166,7 @@ export function BoardOutOfSyncBanner({ boardId, geometry, paused, suppressed = f
             {t("restore")}
           </Button>
         )}
-        {saved ? (
+        {!canSave ? null : saved ? (
           <Flex align="center" gap="1.5" wrap>
             <Text as="span" size="sm" className="inline-flex min-w-0 items-center gap-1.5">
               <Check className="h-3.5 w-3.5 text-success shrink-0" aria-hidden="true" />

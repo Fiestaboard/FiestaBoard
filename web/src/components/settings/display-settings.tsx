@@ -35,7 +35,18 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, Check, LayoutGrid, Monitor, Pause, Smartphone, Trash2, Tv } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  Check,
+  LayoutGrid,
+  Monitor,
+  Pause,
+  RotateCcw,
+  Smartphone,
+  Trash2,
+  Tv,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -502,6 +513,31 @@ export function BoardEditor({
           data-testid="board-pause-switch"
         />
       </Flex>
+
+      {/* Restore automatically (issue #2354): take the display back when
+          another app overwrites it. Not on a FiestaPanel's virtual board — no
+          other app can write to it. */}
+      {!isVirtual && (
+        <Flex align="center" justify="between" className="rounded-md border border-transparent bg-muted/30 px-3 py-2">
+          <Flex align="start" gap="2" className="min-w-0">
+            <RotateCcw className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+            <Box className="min-w-0">
+              <Text size="xs" weight="medium">
+                {t("autoRestore.toggle")}
+              </Text>
+              <Text tone="muted" className="text-[11px]">
+                {t("autoRestore.help")}
+              </Text>
+            </Box>
+          </Flex>
+          <Switch
+            checked={board.auto_restore !== false}
+            onCheckedChange={(checked) => update({ auto_restore: checked })}
+            aria-label={t("autoRestore.toggle")}
+            data-testid="board-auto-restore-switch"
+          />
+        </Flex>
+      )}
 
       {/* Type + Color row (a Vestaboard's or a panel's; an output plugin's
           board is sized by its device model) */}

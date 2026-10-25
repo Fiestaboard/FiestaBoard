@@ -12,7 +12,8 @@ import { BoardOutOfSyncBanner } from "./board-out-of-sync-banner";
 
 /**
  * Issue #1945: what another app put on the board, on Home and on a display's
- * own page. Every state the spec lists has a story here; the in-situ ones
+ * own page. The Overwritten face (#2354) is a display that cannot read back
+ * what it shows (a Divoom Pixoo), so it offers only Restore. Every state the spec lists has a story here; the in-situ ones
  * live in Layout/ActivePageDisplay and Displays/DisplayPage.
  */
 
@@ -70,6 +71,12 @@ function state(overrides: Partial<BoardCurrentMessageResponse> = {}): BoardCurre
 
 const OUT_OF_SYNC = state({ characters: external() });
 const KEPT = state({ external_characters: external(), external_detected_at: todayAt2342().toISOString() });
+/** A display that cannot read back (a Divoom Pixoo) reported another app wrote it (#2354). */
+const OVERWRITTEN = state({
+  characters: null,
+  expected_characters: null,
+  overwritten_at: todayAt2342().toISOString(),
+});
 
 const SILENCE_OFF: SilenceStatus = {
   enabled: false,
@@ -317,6 +324,58 @@ export const OutOfSyncSaved: Story = {
 };
 
 // ---------------------------------------------------------------------------
+// Overwritten (a display that cannot read back, #2354)
+// ---------------------------------------------------------------------------
+
+export const OverwrittenDefault: Story = {
+  name: "Overwritten / Default",
+  decorators: [withBanner({ boardState: OVERWRITTEN })],
+  play: async ({ canvasElement }) => {
+    const alert = await banner(canvasElement);
+    await expect(alert).toHaveAttribute("data-face", "overwritten");
+    await expect(within(alert).getByRole("button", { name: "Restore" })).toBeEnabled();
+    await expect(within(alert).queryByRole("button", { name: "Save as page" })).toBeNull();
+    await expectButtonsNamedByLabel(canvasElement);
+  },
+};
+
+export const OverwrittenPhone: Story = {
+  name: "Overwritten / Phone",
+  globals: { viewport: { value: "phone390", isRotated: false } },
+  parameters: { testViewport: { width: 390, height: 844 } },
+  decorators: [withBanner({ boardState: OVERWRITTEN })],
+  play: async ({ canvasElement }) => {
+    if (window.innerWidth <= 400) await expectActionsBelowTitleInViewport(canvasElement);
+  },
+};
+
+export const OverwrittenPausedHold: Story = {
+  name: "Overwritten / PausedHold",
+  args: { paused: true },
+  decorators: [withBanner({ boardState: OVERWRITTEN })],
+};
+
+export const OverwrittenRestoring: Story = {
+  name: "Overwritten / Restoring",
+  decorators: [withBanner({ boardState: OVERWRITTEN, stubs: { restore: "hang" } })],
+  play: async ({ canvasElement }) => {
+    const alert = await banner(canvasElement);
+    await userEvent.click(within(alert).getByRole("button", { name: "Restore" }));
+    await waitFor(() => expect(within(alert).getByRole("button", { name: "Restore" })).toBeDisabled());
+  },
+};
+
+/** Silenced: FiestaBoard leaves the display alone on purpose, so no banner. */
+export const OverwrittenSilenced: Story = {
+  name: "Overwritten / Silenced",
+  decorators: [withBanner({ boardState: OVERWRITTEN, silence: SILENCE_ON })],
+  play: async ({ canvasElement }) => {
+    await new Promise((r) => setTimeout(r, 300));
+    await expect(within(canvasElement).queryByTestId("board-out-of-sync")).toBeNull();
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Kept (after FiestaBoard repainted)
 // ---------------------------------------------------------------------------
 
@@ -442,6 +501,16 @@ export const LiveWinsOverKept: Story = {
         external_detected_at: todayAt2342().toISOString(),
       }),
     }),
+  ],
+  play: async ({ canvasElement }) => {
+    await expect(await banner(canvasElement)).toHaveAttribute("data-face", "out-of-sync");
+  },
+};
+
+export const OutOfSyncWinsOverOverwritten: Story = {
+  name: "OutOfSyncWinsOverOverwritten",
+  decorators: [
+    withBanner({ boardState: state({ characters: external(), overwritten_at: todayAt2342().toISOString() }) }),
   ],
   play: async ({ canvasElement }) => {
     await expect(await banner(canvasElement)).toHaveAttribute("data-face", "out-of-sync");

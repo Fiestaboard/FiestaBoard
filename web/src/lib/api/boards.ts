@@ -60,6 +60,13 @@ export interface BoardCurrentMessageResponse {
   external_characters?: number[][] | null;
   /** ISO 8601 UTC time of the poll that confirmed `external_characters`. */
   external_detected_at?: string | null;
+  /**
+   * ISO 8601 UTC time a display that cannot read back what it shows (a
+   * Divoom Pixoo) reported another app wrote it (issue #2354). Present ONLY
+   * until FiestaBoard writes the board again; there is no frame to show or
+   * compare, only that it changed.
+   */
+  overwritten_at?: string | null;
 }
 
 // ---- FiestaPanel (mirrors src/panels/models.py) ----
@@ -305,6 +312,11 @@ export interface BoardInstance {
   paused?: boolean;
   /** Per-board schedule mode (issue #1242). Emitted on every GET /settings/board. */
   schedule_enabled?: boolean;
+  /**
+   * Put this board's content back when another app overwrites it (issue
+   * #2354). Absent on boards saved before the setting existed, which means on.
+   */
+  auto_restore?: boolean;
   api_mode: "local" | "cloud" | "virtual";
   host: string;
   /** Local API port (default 7000). */
@@ -396,6 +408,8 @@ export interface BoardDetail {
   is_primary: boolean;
   paused: boolean;
   schedule_enabled: boolean;
+  /** Whether FiestaBoard puts this board's content back when another app overwrites it (#2354). */
+  auto_restore: boolean;
   /** The output that drives this board: `"vestaboard"`, `"fiestapanel"`, or an installed output's id. */
   output: string;
   /** The FiestaUI device model the board is drawn as; `null` when unknown (a FiestaPanel, for now). */

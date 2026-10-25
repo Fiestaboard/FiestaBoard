@@ -1008,6 +1008,7 @@
     "holdPaused": "Cet affichage est en pause : Restaurer n’enverra rien tant que vous ne le reprenez pas.",
     "keptTitle": "Une autre application a écrit sur ce board à {time}",
     "keptDetail": "FiestaBoard a depuis remis votre page. Vous pouvez encore enregistrer ce que l’autre application a écrit.",
+    "overwrittenDetail": "Détecté à {time}. FiestaBoard ne peut pas voir ce que cet écran affiche maintenant, il n’y a donc rien à enregistrer. Restaurer remet votre page.",
     "externalPageName": "Depuis le board {date}",
     "toastRestored": "Board restauré",
     "toastRestoreFailed": "Échec de la restauration du board",
@@ -1205,6 +1206,10 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "autoRestore": {
+      "toggle": "Restaurer automatiquement",
+      "help": "Quand une autre application modifie cet écran, FiestaBoard remet votre page. Désactivez cette option pour laisser une autre application garder l’écran."
     },
     "initError": {
       "badge": "Indisponible",

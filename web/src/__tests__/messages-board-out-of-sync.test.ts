@@ -41,8 +41,8 @@ const MOVED_FROM_ACTIVE_DISPLAY = [
 ];
 
 describe("boardOutOfSync messages", () => {
-  it("defines the banner's 18 strings in English", () => {
-    expect(enKeys).toHaveLength(18);
+  it("defines the banner's 19 strings in English", () => {
+    expect(enKeys).toHaveLength(19);
     expect(enSection.title).toBe("Another app changed this board");
   });
 

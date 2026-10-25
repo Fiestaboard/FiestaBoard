@@ -1008,6 +1008,7 @@
     "holdPaused": "Этот дисплей приостановлен, поэтому «Восстановить» ничего не отправит, пока вы его не возобновите.",
     "keptTitle": "Другое приложение записало на этот board в {time}",
     "keptDetail": "FiestaBoard уже вернул вашу страницу. Вы всё ещё можете сохранить то, что записало другое приложение.",
+    "overwrittenDetail": "Обнаружено в {time}. FiestaBoard не видит, что сейчас показывает этот дисплей, поэтому сохранять нечего. «Восстановить» вернёт вашу страницу.",
     "externalPageName": "С board {date}",
     "toastRestored": "Board восстановлен",
     "toastRestoreFailed": "Не удалось восстановить board",
@@ -1205,6 +1206,10 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "autoRestore": {
+      "toggle": "Восстанавливать автоматически",
+      "help": "Когда другое приложение изменяет этот дисплей, FiestaBoard возвращает вашу страницу. Отключите, чтобы другое приложение могло оставить дисплей за собой."
     },
     "initError": {
       "badge": "Недоступна",

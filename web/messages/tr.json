@@ -1008,6 +1008,7 @@
     "holdPaused": "Bu ekran duraklatıldı, bu yüzden siz sürdürene kadar Geri Yükle hiçbir şey göndermez.",
     "keptTitle": "Başka bir uygulama {time} saatinde bu board’a yazdı",
     "keptDetail": "FiestaBoard o zamandan beri sayfanızı geri koydu. Diğer uygulamanın yazdığını yine de kaydedebilirsiniz.",
+    "overwrittenDetail": "{time} saatinde algılandı. FiestaBoard bu ekranın şu anda ne gösterdiğini göremez, bu yüzden kaydedilecek bir şey yok. Geri Yükle sayfanızı geri koyar.",
     "externalPageName": "Board’dan {date}",
     "toastRestored": "Board geri yüklendi",
     "toastRestoreFailed": "Board geri yüklenemedi",
@@ -1205,6 +1206,10 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "autoRestore": {
+      "toggle": "Otomatik olarak geri yükle",
+      "help": "Başka bir uygulama bu ekranı değiştirdiğinde FiestaBoard sayfanızı geri koyar. Başka bir uygulamanın ekranı tutmasına izin vermek için bunu kapatın."
     },
     "initError": {
       "badge": "Kullanılamıyor",

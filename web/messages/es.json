@@ -1008,6 +1008,7 @@
     "holdPaused": "Esta pantalla está en pausa, así que Restaurar no enviará nada hasta que la reanudes.",
     "keptTitle": "Otra aplicación escribió en esta pantalla a las {time}",
     "keptDetail": "FiestaBoard ya volvió a mostrar tu página. Aún puedes guardar lo que escribió la otra aplicación.",
+    "overwrittenDetail": "Detectado a las {time}. FiestaBoard no puede ver lo que muestra ahora esta pantalla, así que no hay nada que guardar. Restaurar vuelve a poner tu página.",
     "externalPageName": "De la pantalla {date}",
     "toastRestored": "Pantalla restaurada",
     "toastRestoreFailed": "Error al restaurar la pantalla",
@@ -1205,6 +1206,10 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "autoRestore": {
+      "toggle": "Restaurar automáticamente",
+      "help": "Cuando otra aplicación cambia esta pantalla, FiestaBoard vuelve a poner tu página. Desactívalo para que otra aplicación pueda conservar la pantalla."
     },
     "initError": {
       "badge": "No disponible",

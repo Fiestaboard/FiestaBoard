@@ -572,6 +572,109 @@ describe("BoardOutOfSyncBanner", () => {
     });
   });
 
+  describe("overwritten face (a display that cannot read back, #2354)", () => {
+    /** A Pixoo-like board: nothing to compare, only that another app wrote it. */
+    function overwritten(at: Date = new Date(), overrides: Partial<BoardCurrentMessageResponse> = {}) {
+      return boardState({
+        characters: null,
+        expected_characters: null,
+        overwritten_at: at.toISOString(),
+        ...overrides,
+      });
+    }
+
+    it("says another app changed the display, when, and offers Restore but not Save", async () => {
+      const detected = new Date();
+      serveBoard(overwritten(detected));
+      renderBanner();
+
+      const alert = await screen.findByTestId("board-out-of-sync");
+      expect(alert).toHaveAttribute("data-face", "overwritten");
+      expect(within(alert).getByText("Another app changed this board")).toBeInTheDocument();
+      const time = new Intl.DateTimeFormat("en", { timeStyle: "short" }).format(detected);
+      expect(
+        within(alert).getByText(
+          `Detected at ${time}. FiestaBoard can't see what this display shows now, so there's nothing to save. Restore puts your page back.`,
+        ),
+      ).toBeInTheDocument();
+      expect(within(alert).getByRole("button", { name: "Restore" })).toBeEnabled();
+      expect(within(alert).queryByRole("button", { name: "Save as page" })).toBeNull();
+      expect(within(alert).queryByRole("button", { name: "Dismiss" })).toBeNull();
+    });
+
+    it("renders nothing for a display that cannot read back and was not overwritten", async () => {
+      const seen = serveBoard(boardState({ characters: null, expected_characters: null }));
+      renderBanner();
+
+      await waitFor(() => expect(seen.length).toBeGreaterThan(0));
+      await act(() => new Promise((r) => setTimeout(r, 50)));
+      expect(banner()).toBeNull();
+    });
+
+    it("ignores overwritten_at on a board that reads back and shows what FiestaBoard sent", async () => {
+      // A board that reads back says what it shows through `characters`; only
+      // a display with nothing to compare gets this face.
+      const seen = serveBoard(overwritten(new Date(), { characters: EXPECTED, expected_characters: EXPECTED }));
+      renderBanner();
+
+      await waitFor(() => expect(seen.length).toBeGreaterThan(0));
+      await act(() => new Promise((r) => setTimeout(r, 50)));
+      expect(banner()).toBeNull();
+    });
+
+    it("Restore sends this display's page back and the notice goes", async () => {
+      const success = vi.spyOn(toast, "success");
+      serveBoard(overwritten());
+      const restored = serveRestore(true);
+      const user = userEvent.setup();
+      renderBanner({ boardId: "b2" });
+
+      await user.click(await screen.findByRole("button", { name: "Restore" }));
+
+      await waitFor(() => expect(restored).toEqual(["b2"]));
+      await waitFor(() => expect(success).toHaveBeenCalledWith("Board restored"));
+      await waitFor(() => expect(banner()).toBeNull());
+    });
+
+    it("hides itself while the board is silenced", async () => {
+      serveBoard(overwritten());
+      const silence = serveSilence({ active: true });
+      renderBanner();
+
+      await waitFor(() => expect(silence.count).toBeGreaterThan(0));
+      await act(() => new Promise((r) => setTimeout(r, 50)));
+      expect(banner()).toBeNull();
+    });
+
+    it("hides itself while Live Mode drives the board (suppressed)", async () => {
+      const seen = serveBoard(overwritten());
+      renderBanner({ suppressed: true });
+
+      await waitFor(() => expect(seen.length).toBeGreaterThan(0));
+      await act(() => new Promise((r) => setTimeout(r, 50)));
+      expect(banner()).toBeNull();
+    });
+
+    it("says a paused display holds Restore", async () => {
+      serveBoard(overwritten());
+      renderBanner({ paused: true });
+
+      const alert = await screen.findByTestId("board-out-of-sync");
+      expect(within(alert).getByTestId("board-out-of-sync-hold")).toHaveTextContent(
+        "This display is paused, so Restore won't send anything until you resume it.",
+      );
+    });
+
+    it("gives way to the out-of-sync face when the board also differs from what was sent", async () => {
+      serveBoard(overwritten(new Date(), { characters: hiRed(), expected_characters: EXPECTED }));
+      renderBanner();
+
+      const alert = await screen.findByTestId("board-out-of-sync");
+      expect(alert).toHaveAttribute("data-face", "out-of-sync");
+      expect(within(alert).getByRole("button", { name: "Save as page" })).toBeInTheDocument();
+    });
+  });
+
   describe("accessibility", () => {
     it("names every out-of-sync button by its visible label", async () => {
       serveBoard(boardState({ characters: hiRed() }));
