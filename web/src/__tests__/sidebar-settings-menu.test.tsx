@@ -320,6 +320,41 @@ describe("SidebarSettingsMenu on mobile", () => {
     expect(pushMock).toHaveBeenCalledWith("/settings");
   });
 
+  it("closes the drawer when Settings is chosen", async () => {
+    // The drawer is an overlay over the route Settings pushes. Left open, it
+    // hides the page the tap just went to, and the tap reads as a no-op.
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<SidebarSettingsMenu variant="mobile" onSelect={onSelect} />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: "Settings" }));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(pushMock).toHaveBeenCalledWith("/settings");
+  });
+
+  it("closes the drawer when signing out", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<SidebarSettingsMenu variant="mobile" onSelect={onSelect} />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: "Sign out" }));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
+  });
+
+  it("leaves the drawer open behind About, which closes back onto it", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<SidebarSettingsMenu variant="mobile" onSelect={onSelect} />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: "About FiestaBoard" }));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it("states the running version", async () => {
     render(<SidebarSettingsMenu variant="mobile" />, { wrapper: TestWrapper });
     expect(await screen.findByText("8.38.9")).toBeInTheDocument();
@@ -395,6 +430,16 @@ describe("SidebarSettingsMenu update action", () => {
     await user.click(await screen.findByRole("button", { name: /Update to 8\.39\.0/ }));
 
     expect(pushMock).toHaveBeenCalledWith("/settings");
+  });
+
+  it("closes the drawer on the way to the updater", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<SidebarSettingsMenu variant="mobile" onSelect={onSelect} />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: /Update to 8\.39\.0/ }));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
   });
 
   it("offers nothing to click when the install is current", async () => {
