@@ -713,19 +713,12 @@ export function ActivePageDisplay() {
             {liveMessageForBoard ? (
               <Badge
                 variant="destructive"
-                className="text-xs gap-1 animate-pulse pr-1 cursor-pointer hover:opacity-90 focus-within:ring-2 focus-within:ring-ring"
+                className="text-xs animate-pulse"
+                onDismiss={handleDisableLiveMode}
+                dismissLabel={t("turnOffLiveModeAriaLabel")}
               >
-                <Radio className="h-3 w-3" aria-hidden="true" />
+                <Radio className="inline h-3 w-3 mr-1 align-[-2px]" aria-hidden="true" />
                 {t("liveModeBadge")}
-                <button
-                  type="button"
-                  onClick={handleDisableLiveMode}
-                  aria-label={t("turnOffLiveModeAriaLabel")}
-                  title={t("turnOffLiveModeAriaLabel")}
-                  className="ml-0.5 inline-flex items-center justify-center rounded-sm hover:bg-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <X className="h-3 w-3" aria-hidden="true" />
-                </button>
               </Badge>
             ) : overrideActive ? (
               <Badge variant="outline" className="text-xs gap-1 border-primary/50 text-primary pr-1">
