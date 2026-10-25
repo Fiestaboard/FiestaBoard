@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -79,6 +79,29 @@ describe("state that must land in the first commit", () => {
       await act(() => vi.advanceTimersByTimeAsync(30_000));
       expect(container.querySelector('[data-slot="spinner"]')).not.toBeInTheDocument();
       expect(container.querySelector('svg[viewBox="0 0 32 32"]')).toBeInTheDocument();
+    });
+    it("reloads the page from the error screen's Refresh page button", async () => {
+      server.use(http.get(`${API_BASE}/health`, () => new HttpResponse(null, { status: 503 })));
+      const originalLocation = window.location;
+      const reload = vi.fn();
+      Object.defineProperty(window, "location", { configurable: true, value: { ...originalLocation, reload } });
+
+      try {
+        render(
+          <BootGate>
+            <output data-testid="app">app</output>
+          </BootGate>,
+          { wrapper: TestWrapper },
+        );
+
+        // Past the error timeout, the splash gives way to the error screen.
+        await act(() => vi.advanceTimersByTimeAsync(31_000));
+        fireEvent.click(await screen.findByRole("button", { name: "Refresh page" }));
+
+        expect(reload).toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
+      }
     });
   });
 
