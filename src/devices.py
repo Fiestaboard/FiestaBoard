@@ -202,6 +202,11 @@ class BoardInstance:
     # the schedule only affects the schedule-driven rotation.
     paused: bool = False
     schedule_enabled: bool = False  # Per-board: use schedule mode for this board
+    # Put the board's content back when another app overwrites it (#2354).
+    # On by default; off for a display deliberately shared with another app.
+    # Detection is the read-back poll (#1945) or the output's device poll
+    # (``DevicePoll.overwritten``); a device restart is always re-sent.
+    auto_restore: bool = True
     notes_wide: int = 1
     notes_tall: int = 1
     # Explicit grid for device_type == "panel" (FiestaPanel virtual boards are
@@ -255,6 +260,8 @@ class BoardInstance:
             self.enabled = bool(self.enabled)
         if not isinstance(self.paused, bool):
             self.paused = bool(self.paused)
+        if not isinstance(self.auto_restore, bool):
+            self.auto_restore = bool(self.auto_restore)
         self.transition = (self.transition.strip() or None) if isinstance(self.transition, str) else None
         self.transition_step_interval_ms = clamp_transition_speed(
             "transition_step_interval_ms", self.transition_step_interval_ms
@@ -447,6 +454,8 @@ class BoardInstance:
             enabled=data.get("enabled", True),
             paused=data.get("paused", False),
             schedule_enabled=data.get("schedule_enabled", False),
+            # Absent on a board saved before #2354: on, like a new board.
+            auto_restore=data.get("auto_restore", True),
             notes_wide=data.get("notes_wide", 1),
             notes_tall=data.get("notes_tall", 1),
             grid_rows=data.get("grid_rows"),

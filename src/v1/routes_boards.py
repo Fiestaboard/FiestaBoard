@@ -92,6 +92,7 @@ def _summary(board: dict[str, Any], primary_id: str | None) -> BoardSummary:
         is_primary=board_id == primary_id,
         paused=settings_service.is_paused(board_id=board_id) is True,
         schedule_enabled=bool(settings_service.is_schedule_enabled(board_id=board_id)),
+        auto_restore=settings_service.is_auto_restore(board_id=board_id) is not False,
         output=resolve_output_id(board),
         device_model=profile.device_model,
         charset=profile.charset,
@@ -199,8 +200,8 @@ async def get_board(board: str) -> BoardDetail:
     responses=errors(400, 404, 503),
     summary="Change how a board behaves",
     description=(
-        "Rename a board, pause or resume it, turn its schedule on or off, or set the page it falls back to when the "
-        "schedule has a gap. Only the fields you send are applied; omit the rest. Pausing stops every write to the "
+        "Rename a board, pause or resume it, turn its schedule on or off, choose whether FiestaBoard takes it back "
+        "from another app (`auto_restore`), or set the page it falls back to when the schedule has a gap. Only the fields you send are applied; omit the rest. Pausing stops every write to the "
         "board from every code path — the display loop, schedules, plugin triggers, MQTT and this API alike."
     ),
 )
@@ -221,11 +222,14 @@ async def update_board(board: str, request: BoardUpdate) -> BoardDetail:
             _require_page_ref(page_id)
         _schedule_service().set_default_page(page_id, board_id=board_id)
 
-    if "name" in provided and provided["name"] is not None:
+    stored_fields = {
+        key: provided[key] for key in ("name", "auto_restore") if key in provided and provided[key] is not None
+    }
+    if stored_fields:
         boards = [dict(b) for b in (settings_service.get_board_settings().boards or []) if isinstance(b, dict)]
         for candidate in boards:
             if candidate.get("id") == board_id:
-                candidate["name"] = provided["name"]
+                candidate.update(stored_fields)
         try:
             settings_service.set_boards(boards)
         except ValueError as exc:

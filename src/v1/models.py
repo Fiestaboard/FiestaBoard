@@ -46,6 +46,13 @@ class BoardSummary(BaseModel):
     is_primary: bool = Field(description='True for the board that the alias "primary" resolves to.')
     paused: bool = Field(description="While true, FiestaBoard writes nothing to this board from any code path.")
     schedule_enabled: bool = Field(description="Whether this board follows its schedule rather than a fixed page.")
+    auto_restore: bool = Field(
+        default=True,
+        description=(
+            "Whether FiestaBoard puts this board's content back when another app overwrites it. "
+            "Detected by reading the board back, or by a device that reports another client wrote it."
+        ),
+    )
     output: str = Field(
         description=(
             'The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" '
@@ -156,6 +163,13 @@ class BoardUpdate(BaseModel):
     schedule_enabled: StrictBool | None = Field(
         default=None,
         description="Turn this board's schedule on or off.",
+    )
+    auto_restore: StrictBool | None = Field(
+        default=None,
+        description=(
+            "Turn off to let another app keep this board after it overwrites FiestaBoard's content; "
+            "on (the default) puts the content back."
+        ),
     )
     default_page_id: str | None = Field(
         default=None,

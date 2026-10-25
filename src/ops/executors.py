@@ -1975,6 +1975,7 @@ BOARD_PUBLIC_FIELDS: tuple[str, ...] = (
     "enabled",
     "paused",
     "schedule_enabled",
+    "auto_restore",
     "transition",
     "transition_step_interval_ms",
     "transition_step_size",
@@ -2064,6 +2065,7 @@ async def update_board(
     transition: str | None = None,
     transition_step_interval_ms: int | None = None,
     transition_step_size: int | None = None,
+    auto_restore: bool | None = None,
 ) -> dict[str, Any]:
     """Change non-secret hardware fields of one board, or its transition.
 
@@ -2093,6 +2095,7 @@ async def update_board(
                 "transition": transition,
                 "transition_step_interval_ms": transition_step_interval_ms,
                 "transition_step_size": transition_step_size,
+                "auto_restore": auto_restore,
             }.items()
             if value is not None
         }
@@ -2100,7 +2103,7 @@ async def update_board(
             return err(
                 "Nothing to update: pass at least one of name, device_type, notes_wide, notes_tall, "
                 "board_color, code62_glyph, api_mode, host, transition, transition_step_interval_ms, "
-                "transition_step_size."
+                "transition_step_size, auto_restore."
             )
         refusal = _validate_board_fields(**updates)
         if refusal is not None:

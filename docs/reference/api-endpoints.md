@@ -169,7 +169,7 @@ One answer to 'what is this board showing, and why'. It merges what the internal
 
 **Change how a board behaves**
 
-Rename a board, pause or resume it, turn its schedule on or off, or set the page it falls back to when the schedule has a gap. Only the fields you send are applied; omit the rest. Pausing stops every write to the board from every code path — the display loop, schedules, plugin triggers, MQTT and this API alike.
+Rename a board, pause or resume it, turn its schedule on or off, choose whether FiestaBoard takes it back from another app (`auto_restore`), or set the page it falls back to when the schedule has a gap. Only the fields you send are applied; omit the rest. Pausing stops every write to the board from every code path — the display loop, schedules, plugin triggers, MQTT and this API alike.
 
 **Parameters**
 
@@ -184,6 +184,7 @@ Rename a board, pause or resume it, turn its schedule on or off, or set the page
 | `name` | `string` \| `null` | no | Rename the board. (min length 1; max length 100) |
 | `paused` | `boolean` \| `null` | no | Pause or resume the board. While paused nothing is written to it from any code path. |
 | `schedule_enabled` | `boolean` \| `null` | no | Turn this board's schedule on or off. |
+| `auto_restore` | `boolean` \| `null` | no | Turn off to let another app keep this board after it overwrites FiestaBoard's content; on (the default) puts the content back. |
 | `default_page_id` | `string` \| `null` | no | Page shown when the schedule has a gap. Send null to clear it. |
 
 **Responses**
@@ -1245,6 +1246,7 @@ one document, because "what is this board doing" is one question.
 | `is_primary` | `boolean` | yes | True for the board that the alias "primary" resolves to. |
 | `paused` | `boolean` | yes | While true, FiestaBoard writes nothing to this board from any code path. |
 | `schedule_enabled` | `boolean` | yes | Whether this board follows its schedule rather than a fixed page. |
+| `auto_restore` | `boolean` | no | Whether FiestaBoard puts this board's content back when another app overwrites it. Detected by reading the board back, or by a device that reports another client wrote it. (default `true`) |
 | `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
 | `device_model` | `string` \| `null` | no | The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). Null when it is not known (a FiestaPanel, for now). |
 | `charset` | `string` \| `null` | no | The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). Null when it is not known. |
@@ -1300,6 +1302,7 @@ a consumer writing to a board has any use for.
 | `is_primary` | `boolean` | yes | True for the board that the alias "primary" resolves to. |
 | `paused` | `boolean` | yes | While true, FiestaBoard writes nothing to this board from any code path. |
 | `schedule_enabled` | `boolean` | yes | Whether this board follows its schedule rather than a fixed page. |
+| `auto_restore` | `boolean` | no | Whether FiestaBoard puts this board's content back when another app overwrites it. Detected by reading the board back, or by a device that reports another client wrote it. (default `true`) |
 | `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
 | `device_model` | `string` \| `null` | no | The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). Null when it is not known (a FiestaPanel, for now). |
 | `charset` | `string` \| `null` | no | The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). Null when it is not known. |
@@ -1313,6 +1316,7 @@ a consumer writing to a board has any use for.
 | `name` | `string` \| `null` | no | Rename the board. (min length 1; max length 100) |
 | `paused` | `boolean` \| `null` | no | Pause or resume the board. While paused nothing is written to it from any code path. |
 | `schedule_enabled` | `boolean` \| `null` | no | Turn this board's schedule on or off. |
+| `auto_restore` | `boolean` \| `null` | no | Turn off to let another app keep this board after it overwrites FiestaBoard's content; on (the default) puts the content back. |
 | `default_page_id` | `string` \| `null` | no | Page shown when the schedule has a gap. Send null to clear it. |
 
 ### `Canvas` {#schema-canvas}

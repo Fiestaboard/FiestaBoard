@@ -2447,6 +2447,20 @@ class SettingsService:
             return bool(self._board.boards[0].get("paused", False))
         return False
 
+    def is_auto_restore(self, board_id: str | None = None) -> bool:
+        """Whether FiestaBoard puts this board's content back after another app overwrites it (#2354).
+
+        ``board_id=None`` resolves to the first board. A board saved before
+        the setting existed, and an unknown board id, restore — the default.
+        """
+        boards = self._board.boards
+        board = (
+            next((b for b in boards if b.get("id") == board_id), None) if board_id else (boards[0] if boards else None)
+        )
+        if board is None:
+            return True
+        return board.get("auto_restore", True) is not False
+
     @_locked
     def update_board_output_config(self, board_id: str, updates: Mapping[str, Any]) -> bool:
         """Merge *updates* into one board's ``output_config`` and save.
