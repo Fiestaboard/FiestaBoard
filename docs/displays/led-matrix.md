@@ -66,6 +66,16 @@ Pick a transition in the display's settings: flip, slide, wipe, cascade, dissolv
 
 The default **Through black** fade uses six pixel frames over approximately one second. It looks stepped and leaves the device's brightness setting alone while the picture dims. **Blend** cross-fades the two pages. A configured brightness is applied after the new page arrives.
 
+### Using the Divoom App Too
+
+If a script or another tool uploads a picture to the Pixoo, FiestaBoard notices that the Pixoo's picture count moved past its own and sends your page again. Whether the Divoom app's own uploads move that count hasn't been confirmed yet. If the Pixoo restarts, or a tool resets the count before uploading (most Pixoo scripts do), FiestaBoard can't tell the two apart and always sends your page again, even with **Restore automatically** off.
+
+Use one FiestaBoard display per Pixoo. Two displays, or two FiestaBoard installs, pointed at the same Pixoo each see the other as another app.
+
+To let another app keep the Pixoo, turn off **Restore automatically** in the display's settings. FiestaBoard then shows a notice with a **Restore** button instead of taking the Pixoo back.
+
+FiestaBoard can't see every change. If an app switches the Pixoo to another channel, such as its clock, without uploading a picture, no notice appears. Call `POST /v1/boards/{board}/restore` to put your page back. See [Saving what another app put on the board](../features/page-editor.md#saving-what-another-app-put-on-the-board).
+
 ### Mounting
 
 Mounted the Pixoo sideways or upside down? Set **Orientation** in the display's settings to rotate the picture to match.
@@ -77,6 +87,7 @@ Mounted the Pixoo sideways or upside down? Set **Orientation** in the display's 
 | **Find my Pixoo** finds nothing | Make sure the Pixoo is on the same network as FiestaBoard, then type its IP address instead. |
 | The Pixoo shows its clock instead of your page | Nothing has been sent yet. Give the display an active page. |
 | Text is cut off | The page is wider or taller than the grid: 10 columns × 8 rows at Large. Pick this display in the page editor's size picker, or switch to Small. |
+| The Pixoo shows another channel after you used the Divoom app | Switching channels doesn't upload a picture, so FiestaBoard can't tell. Call `POST /v1/boards/{board}/restore` to put your page back. |
 | The display stopped updating | The Pixoo's IP address changed. Reserve a fixed address in your router, then update it in the display's settings. |
 
 ### Discovery and Manual Setup

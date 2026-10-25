@@ -46,6 +46,7 @@ from .models import (
     MessageRequest,
     MessageResponse,
     PartialWriteError,
+    RestoreResponse,
 )
 from .router import router
 
@@ -53,6 +54,9 @@ logger = logging.getLogger(__name__)
 
 HELD_REASON = "Held: the board is silenced until {time} UTC; this will show when silence ends."
 UI_ONLY_REASON = "The install's output target is UI only, so nothing was written to the board."
+RESTORE_NOTHING_REASON = (
+    "Nothing was written: there is nothing to show on this board right now, or its send limit deferred the write."
+)
 UNCHANGED_REASON = "The board already shows this exact content. Send force=true to write it anyway."
 PAUSED_PREVIEW_REASON = "The board is paused, so nothing was written. This is what it would have shown."
 SILENCED_PIN_REASON = (
@@ -88,6 +92,7 @@ def _summary(board: dict[str, Any], primary_id: str | None) -> BoardSummary:
         is_primary=board_id == primary_id,
         paused=settings_service.is_paused(board_id=board_id) is True,
         schedule_enabled=bool(settings_service.is_schedule_enabled(board_id=board_id)),
+        auto_restore=settings_service.is_auto_restore(board_id=board_id) is not False,
         output=resolve_output_id(board),
         device_model=profile.device_model,
         charset=profile.charset,
@@ -195,8 +200,8 @@ async def get_board(board: str) -> BoardDetail:
     responses=errors(400, 404, 503),
     summary="Change how a board behaves",
     description=(
-        "Rename a board, pause or resume it, turn its schedule on or off, or set the page it falls back to when the "
-        "schedule has a gap. Only the fields you send are applied; omit the rest. Pausing stops every write to the "
+        "Rename a board, pause or resume it, turn its schedule on or off, choose whether FiestaBoard takes it back "
+        "from another app (`auto_restore`), or set the page it falls back to when the schedule has a gap. Only the fields you send are applied; omit the rest. Pausing stops every write to the "
         "board from every code path — the display loop, schedules, plugin triggers, MQTT and this API alike."
     ),
 )
@@ -217,11 +222,14 @@ async def update_board(board: str, request: BoardUpdate) -> BoardDetail:
             _require_page_ref(page_id)
         _schedule_service().set_default_page(page_id, board_id=board_id)
 
-    if "name" in provided and provided["name"] is not None:
+    stored_fields = {
+        key: provided[key] for key in ("name", "auto_restore") if key in provided and provided[key] is not None
+    }
+    if stored_fields:
         boards = [dict(b) for b in (settings_service.get_board_settings().boards or []) if isinstance(b, dict)]
         for candidate in boards:
             if candidate.get("id") == board_id:
-                candidate["name"] = provided["name"]
+                candidate.update(stored_fields)
         try:
             settings_service.set_boards(boards)
         except ValueError as exc:
@@ -652,6 +660,83 @@ async def clear_board_message(board: str) -> MessageResponse:
         text="",
         expires_at=None,
         reason=None if refreshed.sent else "Nothing changed on the board — it already showed the scheduled content.",
+    )
+
+
+@router.post(
+    "/boards/{board}/restore",
+    response_model=RestoreResponse,
+    responses=errors(404, 409, 500, 503),
+    summary="Restore what a board should show",
+    description=(
+        "Put a board back after another app or controller overwrote it; the web app's Restore button calls this. "
+        "FiestaBoard remembers what it last sent each board and skips a send that would not change it, so after "
+        "an outside write it believes the board is already up to date. This forgets that for this one board and runs its display pass, which writes "
+        "whatever the schedule, timed message or pinned page says belongs there.\n\n"
+        "Restore changes no selection: a timed message keeps running and the pinned page stays pinned (a primary "
+        "board with nothing pinned falls back to its first page, as the display loop always does). A paused or "
+        "silenced board refuses with 409, and a UI-only install answers `sent: false`.\n\n"
+        "`sent` means the board accepted the write. No supported board reports what it actually displays, so "
+        "`device_observed` is always false — look at the board to confirm."
+    ),
+)
+async def restore_board(board: str) -> RestoreResponse:
+    from src import board_guards
+    from src.board_send_executor import run_board_send
+
+    board_id, entry = resolve_board(board)
+    settings_service = _settings_service()
+
+    board_guards.raise_if_paused(board_id, what="restore")
+    if board_guards.silence_verdict(board_id, override_silence=False, what="restore").silenced:
+        raise HTTPException(status_code=409, detail=board_guards.SILENCE_DETAIL)
+    if not settings_service.should_send_to_board():
+        return RestoreResponse(
+            board_id=board_id,
+            page_id=settings_service.get_active_page_id(board_id=board_id),
+            sent=False,
+            reason=UI_ONLY_REASON,
+        )
+
+    service = runtime.get_service()
+    if not service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    # runtime_for, not get_runtime: a legacy install keys the primary's
+    # runtime under a sentinel rather than its settings id.
+    rt = service.runtime_for(board_id)
+    if rt is None:
+        raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
+
+    def _work() -> tuple[bool, str | None]:
+        # Only this board: an outside write to one board is no reason to
+        # rewrite the others. The pass applies its own dedupe and send floor.
+        service.invalidate_board_content(board_id)
+        return runtime._send_with_status(
+            service,
+            "check_and_send_for_board_with_status",
+            "check_and_send_for_board",
+            board_id,
+            rt,
+            is_primary=board_id == settings_service.get_primary_board_id(),
+            board=entry,
+        )
+
+    try:
+        sent, error = await run_board_send(_work)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error restoring board {board_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to restore board {board_id}: {e}") from e
+    if error:
+        raise HTTPException(status_code=500, detail=f"Failed to restore board {board_id}: {error}")
+    return RestoreResponse(
+        board_id=board_id,
+        # Read after the pass: a primary with nothing pinned falls back to,
+        # and pins, its first page.
+        page_id=settings_service.get_active_page_id(board_id=board_id),
+        sent=sent,
+        reason=None if sent else RESTORE_NOTHING_REASON,
     )
 
 

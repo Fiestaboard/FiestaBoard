@@ -12,7 +12,8 @@ import { BoardOutOfSyncBanner } from "./board-out-of-sync-banner";
 
 /**
  * Issue #1945: what another app put on the board, on Home and on a display's
- * own page. Every state the spec lists has a story here; the in-situ ones
+ * own page. The Overwritten face (#2354) is a display that cannot read back
+ * what it shows (a Divoom Pixoo), so it offers only Restore. Every state the spec lists has a story here; the in-situ ones
  * live in Layout/ActivePageDisplay and Displays/DisplayPage.
  */
 
@@ -70,6 +71,12 @@ function state(overrides: Partial<BoardCurrentMessageResponse> = {}): BoardCurre
 
 const OUT_OF_SYNC = state({ characters: external() });
 const KEPT = state({ external_characters: external(), external_detected_at: todayAt2342().toISOString() });
+/** A display that cannot read back (a Divoom Pixoo) reported another app wrote it (#2354). */
+const OVERWRITTEN = state({
+  characters: null,
+  expected_characters: null,
+  overwritten_at: todayAt2342().toISOString(),
+});
 
 const SILENCE_OFF: SilenceStatus = {
   enabled: false,
@@ -89,7 +96,7 @@ type StubResponse = { status: number; body?: unknown } | "hang";
 
 interface Stubs {
   createPage?: StubResponse;
-  forceRefresh?: StubResponse;
+  restore?: StubResponse;
   dismiss?: StubResponse;
   /** What GET /board/current-message answers when the banner reads it ("hang": never). */
   refetch?: BoardCurrentMessageResponse | "hang";
@@ -97,7 +104,10 @@ interface Stubs {
 
 const DEFAULT_STUBS: Required<Omit<Stubs, "refetch">> = {
   createPage: { status: 201, body: { id: "new-page", name: SAVED_NAME, type: "template" } },
-  forceRefresh: { status: 200, body: { message: "Display force-refreshed", sent: true } },
+  restore: {
+    status: 200,
+    body: { board_id: "primary", page_id: null, sent: true, reason: null, device_observed: false },
+  },
   dismiss: { status: 204 },
 };
 
@@ -122,7 +132,7 @@ function FetchStub({ stubs, children }: { stubs: Stubs; children: ReactNode }) {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       const method = (init?.method ?? "GET").toUpperCase();
       if (method === "POST" && /\/api\/v1\/pages(\?|$)/.test(url)) return respond(s.createPage);
-      if (method === "POST" && /\/api\/force-refresh(\?|$)/.test(url)) return respond(s.forceRefresh);
+      if (method === "POST" && /\/api\/v1\/boards\/[^/]+\/restore(\?|$)/.test(url)) return respond(s.restore);
       if (method === "DELETE" && /\/api\/board\/external-frame(\?|$)/.test(url)) return respond(s.dismiss);
       if (method === "GET" && /\/api\/board\/current-message/.test(url) && s.refetch)
         return respond(s.refetch === "hang" ? "hang" : { status: 200, body: s.refetch });
@@ -188,8 +198,6 @@ const meta = {
   args: {
     geometry: { deviceType: "flagship", notesWide: 1, notesTall: 1 },
     paused: false,
-    multiBoard: false,
-    isPrimary: true,
   },
 } satisfies Meta<typeof BoardOutOfSyncBanner>;
 
@@ -270,15 +278,15 @@ export const OutOfSyncPausedHold: Story = {
   decorators: [withBanner({ boardState: OUT_OF_SYNC })],
 };
 
-export const OutOfSyncSecondaryBoardMultiBoard: Story = {
-  name: "OutOfSync / SecondaryBoardMultiBoard",
-  args: { boardId: "kitchen", multiBoard: true, isPrimary: false },
+export const OutOfSyncSecondaryBoard: Story = {
+  name: "OutOfSync / SecondaryBoard",
+  args: { boardId: "kitchen" },
   decorators: [withBanner({ boardState: OUT_OF_SYNC, boardId: "kitchen" })],
 };
 
 export const OutOfSyncRestoring: Story = {
   name: "OutOfSync / Restoring",
-  decorators: [withBanner({ boardState: OUT_OF_SYNC, stubs: { forceRefresh: "hang" } })],
+  decorators: [withBanner({ boardState: OUT_OF_SYNC, stubs: { restore: "hang" } })],
   play: async ({ canvasElement }) => {
     const alert = await banner(canvasElement);
     await userEvent.click(within(alert).getByRole("button", { name: "Restore" }));
@@ -312,6 +320,58 @@ export const OutOfSyncSaved: Story = {
     );
     await expect(within(alert).queryByRole("button", { name: "Save as page" })).toBeNull();
     await expect(within(alert).getByRole("button", { name: "Restore" })).toBeInTheDocument();
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Overwritten (a display that cannot read back, #2354)
+// ---------------------------------------------------------------------------
+
+export const OverwrittenDefault: Story = {
+  name: "Overwritten / Default",
+  decorators: [withBanner({ boardState: OVERWRITTEN })],
+  play: async ({ canvasElement }) => {
+    const alert = await banner(canvasElement);
+    await expect(alert).toHaveAttribute("data-face", "overwritten");
+    await expect(within(alert).getByRole("button", { name: "Restore" })).toBeEnabled();
+    await expect(within(alert).queryByRole("button", { name: "Save as page" })).toBeNull();
+    await expectButtonsNamedByLabel(canvasElement);
+  },
+};
+
+export const OverwrittenPhone: Story = {
+  name: "Overwritten / Phone",
+  globals: { viewport: { value: "phone390", isRotated: false } },
+  parameters: { testViewport: { width: 390, height: 844 } },
+  decorators: [withBanner({ boardState: OVERWRITTEN })],
+  play: async ({ canvasElement }) => {
+    if (window.innerWidth <= 400) await expectActionsBelowTitleInViewport(canvasElement);
+  },
+};
+
+export const OverwrittenPausedHold: Story = {
+  name: "Overwritten / PausedHold",
+  args: { paused: true },
+  decorators: [withBanner({ boardState: OVERWRITTEN })],
+};
+
+export const OverwrittenRestoring: Story = {
+  name: "Overwritten / Restoring",
+  decorators: [withBanner({ boardState: OVERWRITTEN, stubs: { restore: "hang" } })],
+  play: async ({ canvasElement }) => {
+    const alert = await banner(canvasElement);
+    await userEvent.click(within(alert).getByRole("button", { name: "Restore" }));
+    await waitFor(() => expect(within(alert).getByRole("button", { name: "Restore" })).toBeDisabled());
+  },
+};
+
+/** Silenced: FiestaBoard leaves the display alone on purpose, so no banner. */
+export const OverwrittenSilenced: Story = {
+  name: "Overwritten / Silenced",
+  decorators: [withBanner({ boardState: OVERWRITTEN, silence: SILENCE_ON })],
+  play: async ({ canvasElement }) => {
+    await new Promise((r) => setTimeout(r, 300));
+    await expect(within(canvasElement).queryByTestId("board-out-of-sync")).toBeNull();
   },
 };
 
@@ -447,6 +507,16 @@ export const LiveWinsOverKept: Story = {
   },
 };
 
+export const OutOfSyncWinsOverOverwritten: Story = {
+  name: "OutOfSyncWinsOverOverwritten",
+  decorators: [
+    withBanner({ boardState: state({ characters: external(), overwritten_at: todayAt2342().toISOString() }) }),
+  ],
+  play: async ({ canvasElement }) => {
+    await expect(await banner(canvasElement)).toHaveAttribute("data-face", "out-of-sync");
+  },
+};
+
 export const GermanOutOfSync: Story = {
   name: "German / OutOfSync",
   globals: { locale: "de" },
@@ -499,7 +569,6 @@ const toastStory = (kind: ToastKind, msgKey: string, params?: Record<string, str
 });
 
 export const ToastRestored: Story = { name: "Toasts / Restored", ...toastStory("success", "toastRestored") };
-export const ToastRestoredAll: Story = { name: "Toasts / RestoredAll", ...toastStory("success", "toastRestoredAll") };
 export const ToastNotSentPaused: Story = {
   name: "Toasts / NotSentPaused",
   ...toastStory("warning", "toastNotSentPaused"),

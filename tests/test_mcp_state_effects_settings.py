@@ -1062,3 +1062,14 @@ def test_boundary_backed_read_tools_leave_every_store_untouched(mcp, services, t
 
     changed = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
     assert not changed, f"read-only tools changed persisted state: {changed}"
+
+
+def test_update_board_turns_auto_restore_off_and_the_summary_reports_it(mcp, services, two_boards, runtime):
+    """#2354: the assistant can tell, and change, whether a display is taken back from other apps."""
+    summary = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
+    assert {b["id"]: b["auto_restore"] for b in summary["boards"]} == {"board-main": True, "board-note": True}
+
+    result = assert_ok(call(mcp, "update_board", board_id="board-note", auto_restore=False), "update_board")
+
+    assert _board(two_boards, "board-note")["auto_restore"] is False
+    assert result["board"]["auto_restore"] is False

@@ -10,7 +10,7 @@ describe("boardCharactersToTemplate", () => {
 
   it("maps color tile codes to {{color}} markers", () => {
     expect(boardCharactersToTemplate([[63, 64, 65, 66, 67, 68, 69, 70, 71]])).toEqual([
-      "{{red}}{{orange}}{{yellow}}{{green}}{{blue}}{{violet}}{{white}}{{black}}{{black}}",
+      "{{red}}{{orange}}{{yellow}}{{green}}{{blue}}{{violet}}{{white}}{{black}}{{filled}}",
     ]);
   });
 

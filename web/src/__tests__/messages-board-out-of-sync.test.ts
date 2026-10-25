@@ -41,8 +41,8 @@ const MOVED_FROM_ACTIVE_DISPLAY = [
 ];
 
 describe("boardOutOfSync messages", () => {
-  it("defines the banner's 20 strings in English", () => {
-    expect(enKeys).toHaveLength(20);
+  it("defines the banner's 19 strings in English", () => {
+    expect(enKeys).toHaveLength(19);
     expect(enSection.title).toBe("Another app changed this board");
   });
 
@@ -63,6 +63,14 @@ describe("boardOutOfSync messages", () => {
     for (const key of enKeys) {
       expect(placeholders(section[key]), `${locale}.boardOutOfSync.${key}`).toEqual(placeholders(enSection[key]));
     }
+  });
+
+  // overwritten_at has no TTL and formatDetectedAt gives a full date when it
+  // is not today, so "Detected at {time}" reads "at 24 Oct 2026, 23:42".
+  // A label ("Detected: {time}") fits both a time and a date.
+  it.each(locales)("%s introduces overwrittenDetail's {time} with a label, not a time-of-day preposition", (locale) => {
+    const section = load(locale).boardOutOfSync as Record<string, string>;
+    expect(section.overwrittenDetail).toMatch(/[:：]\s?\{time\}/);
   });
 
   it.each(locales)("%s no longer carries the moved keys in activeDisplay", (locale) => {

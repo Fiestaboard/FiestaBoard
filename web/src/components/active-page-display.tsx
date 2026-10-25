@@ -530,6 +530,16 @@ export function ActivePageDisplay() {
     if (boardState?.rows && boardState?.cols) {
       try {
         const classified = classifyDimensions(boardState.rows, boardState.cols);
+        // Device families stay distinct even when dimensions match: a 1×1
+        // Note array is 3×15 like a Note, but a Note page cannot be selected
+        // on that array, so the board's own family wins (backport of #2333).
+        if (classified.device_type === "note" && currentBoard?.device_type === "note_array") {
+          return {
+            deviceType: "note_array",
+            notesWide: currentBoard.notes_wide ?? 1,
+            notesTall: currentBoard.notes_tall ?? 1,
+          };
+        }
         return {
           deviceType: classified.device_type as DeviceType,
           notesWide: classified.notes_wide ?? 1,
@@ -847,8 +857,6 @@ export function ActivePageDisplay() {
             geometry={activeGeometry}
             paused={isTargetPaused}
             suppressed={!!liveMessageForBoard}
-            multiBoard={isMultiBoard}
-            isPrimary={isPrimaryBoard}
           />
 
           {/* Board Frame — contain: layout style paint isolates the tile grid from

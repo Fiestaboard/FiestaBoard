@@ -648,6 +648,29 @@ export async function setActivePage(id: string | null): Promise<void> {
 }
 
 /**
+ * Turn a board's "Restore automatically" on or off (#2354). On (the default),
+ * the engine writes the page back over another app's content once the poll
+ * confirms the write; specs that drive the live out-of-sync face or the
+ * manual Restore turn it off so the board stays overwritten while they act.
+ * *boardId* may be `primary`.
+ */
+export async function setAutoRestore(boardId: string, enabled: boolean): Promise<void> {
+  const res = await fetch(`${API_URL}/v1/boards/${encodeURIComponent(boardId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ auto_restore: enabled }),
+  });
+  if (!res.ok) throw new Error(`setAutoRestore(${boardId}) failed: ${res.status} ${await res.text()}`);
+}
+
+/** A board's "Restore automatically" setting as the API reports it. */
+export async function getAutoRestore(boardId: string): Promise<boolean> {
+  const res = await fetch(`${API_URL}/v1/boards/${encodeURIComponent(boardId)}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`getAutoRestore(${boardId}) failed: ${res.status} ${await res.text()}`);
+  return (await res.json()).auto_restore;
+}
+
+/**
  * Ensure at least two boards exist (add a Note board if only one).
  * Returns the two board ids for use in tests.
  */

@@ -507,9 +507,15 @@ class OutputPluginBase(ABC):
         when there is none. Keep it cheap — one request — and never raise
         for an unreachable device: that is a failed write's business.
 
+        Report ``overwritten=True`` when another client wrote the device
+        since core's last write (#2354), once per overwrite: resync so the
+        next poll has nothing new and core's next write displays. Core
+        re-sends unless the board's ``auto_restore`` is off; a restart is
+        always re-sent.
+
         An output with read-back (``read_back.supported``) needs none of
         this; it is for devices that cannot say what they show but can say
-        they rebooted. Default: nothing to report.
+        they rebooted or were overwritten. Default: nothing to report.
         """
         return None
 
