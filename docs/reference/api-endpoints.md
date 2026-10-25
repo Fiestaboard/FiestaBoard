@@ -169,7 +169,7 @@ One answer to 'what is this board showing, and why'. It merges what the internal
 
 **Change how a board behaves**
 
-Rename a board, pause or resume it, turn its schedule on or off, or set the page it falls back to when the schedule has a gap. Only the fields you send are applied; omit the rest. Pausing stops every write to the board from every code path — the display loop, schedules, plugin triggers, MQTT and this API alike.
+Rename a board, pause or resume it, turn its schedule on or off, choose whether FiestaBoard takes it back from another app (`auto_restore`), or set the page it falls back to when the schedule has a gap. Only the fields you send are applied; omit the rest. Pausing stops every write to the board from every code path — the display loop, schedules, plugin triggers, MQTT and this API alike.
 
 **Parameters**
 
@@ -184,6 +184,7 @@ Rename a board, pause or resume it, turn its schedule on or off, or set the page
 | `name` | `string` \| `null` | no | Rename the board. (min length 1; max length 100) |
 | `paused` | `boolean` \| `null` | no | Pause or resume the board. While paused nothing is written to it from any code path. |
 | `schedule_enabled` | `boolean` \| `null` | no | Turn this board's schedule on or off. |
+| `auto_restore` | `boolean` \| `null` | no | Turn off to let another app keep this board after it overwrites FiestaBoard's content; on (the default) puts the content back. |
 | `default_page_id` | `string` \| `null` | no | Page shown when the schedule has a gap. Send null to clear it. |
 
 **Responses**
@@ -281,6 +282,38 @@ Undoes a `POST` to this path. Any timed message is cancelled, the board's conten
 | Status | Body | Meaning |
 |--------|------|---------|
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
+| `500` | [`ErrorResponse`](#schema-errorresponse) | The server could not complete the operation. Deliberately raised, not an unhandled error. |
+| `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
+
+### `POST /v1/boards/{board}/restore` {#post-v1-boards-board-restore}
+
+**Restore what a board should show**
+
+Put a board back after another app or controller overwrote it; the web app's Restore button calls this. FiestaBoard remembers what it last sent each board and skips a send that would not change it, so after an outside write it believes the board is already up to date. This forgets that for this one board and runs its display pass, which writes whatever the schedule, timed message or pinned page says belongs there.
+
+Restore changes no selection: a timed message keeps running and the pinned page stays pinned (a primary board with nothing pinned falls back to its first page, as the display loop always does). A paused or silenced board refuses with 409, and a UI-only install answers `sent: false`.
+
+`sent` means the board accepted the write. No supported board reports what it actually displays, so `device_observed` is always false — look at the board to confirm.
+
+**Parameters**
+
+| Name | In | Type | Required | Description |
+|------|----|------|----------|-------------|
+| `board` | path | `string` | yes | — |
+
+**Responses**
+
+| Status | Body | Description |
+|--------|------|-------------|
+| `200` | [`RestoreResponse`](#schema-restoreresponse) | Successful Response |
+
+**Errors**
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `409` | [`ErrorResponse`](#schema-errorresponse) | Conflict — duplicate id, or a resource pinned by the environment. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 | `500` | [`ErrorResponse`](#schema-errorresponse) | The server could not complete the operation. Deliberately raised, not an unhandled error. |
 | `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
@@ -1213,6 +1246,7 @@ one document, because "what is this board doing" is one question.
 | `is_primary` | `boolean` | yes | True for the board that the alias "primary" resolves to. |
 | `paused` | `boolean` | yes | While true, FiestaBoard writes nothing to this board from any code path. |
 | `schedule_enabled` | `boolean` | yes | Whether this board follows its schedule rather than a fixed page. |
+| `auto_restore` | `boolean` | yes | Whether FiestaBoard puts this board's content back when another app overwrites it. Detected by reading the board back, or by a device that reports another client wrote it. |
 | `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
 | `device_model` | `string` \| `null` | no | The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). Null when it is not known (a FiestaPanel, for now). |
 | `charset` | `string` \| `null` | no | The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). Null when it is not known. |
@@ -1268,6 +1302,7 @@ a consumer writing to a board has any use for.
 | `is_primary` | `boolean` | yes | True for the board that the alias "primary" resolves to. |
 | `paused` | `boolean` | yes | While true, FiestaBoard writes nothing to this board from any code path. |
 | `schedule_enabled` | `boolean` | yes | Whether this board follows its schedule rather than a fixed page. |
+| `auto_restore` | `boolean` | yes | Whether FiestaBoard puts this board's content back when another app overwrites it. Detected by reading the board back, or by a device that reports another client wrote it. |
 | `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
 | `device_model` | `string` \| `null` | no | The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). Null when it is not known (a FiestaPanel, for now). |
 | `charset` | `string` \| `null` | no | The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). Null when it is not known. |
@@ -1281,6 +1316,7 @@ a consumer writing to a board has any use for.
 | `name` | `string` \| `null` | no | Rename the board. (min length 1; max length 100) |
 | `paused` | `boolean` \| `null` | no | Pause or resume the board. While paused nothing is written to it from any code path. |
 | `schedule_enabled` | `boolean` \| `null` | no | Turn this board's schedule on or off. |
+| `auto_restore` | `boolean` \| `null` | no | Turn off to let another app keep this board after it overwrites FiestaBoard's content; on (the default) puts the content back. |
 | `default_page_id` | `string` \| `null` | no | Page shown when the schedule has a gap. Send null to clear it. |
 
 ### `Canvas` {#schema-canvas}
@@ -1957,6 +1993,23 @@ both are present, which is what the pre-conversion handler did.
 | `template` | `string` \| array of `string` | yes | A template string, or one string per board row. A list is padded to the board's height. |
 | `line_metadata` | array of `object` \| `null` | no | Per-line alignment and wrap options, one entry per line. |
 
+### `RestoreResponse` {#schema-restoreresponse}
+
+The result of restoring what a board should show (#2354).
+
+Three different things, kept apart on purpose: what FiestaBoard intends
+the board to show (`page_id`), whether that was written (`sent`), and
+what the device actually displays — which no supported board reports back,
+so `device_observed` is always false.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `board_id` | `string` | yes | The board, with the 'primary' alias already resolved. |
+| `page_id` | `string` \| `null` | no | The page pinned to this board, if any. A schedule or timed message may take precedence over it; restore shows whichever the display loop would. |
+| `sent` | `boolean` | yes | True when the board accepted the write. Not proof of what it displays. |
+| `reason` | `string` \| `null` | no | Why nothing was written, when sent is false. Null when sent is true. |
+| `device_observed` | `boolean` | no | Always false: no supported board can read back what it displays, so a successful restore confirms the write was accepted, not that the pixels or flaps changed. (default `false`) |
+
 ### `RowConfig` {#schema-rowconfig}
 
 Configuration for a single row in a composite page.
@@ -2237,7 +2290,7 @@ truthy non-error result selects `page_id` as the active page.
 
 ## Where the rest of the API went
 
-This page documents the 35 operations the app publishes. The other
+This page documents the 36 operations the app publishes. The other
 ~200 paths the app serves are the web UI's private RPC channel: they still
 answer exactly as they always have, but they are undocumented on purpose,
 carry no compatibility promise, and may change in any release. They are

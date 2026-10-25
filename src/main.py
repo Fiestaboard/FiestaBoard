@@ -258,6 +258,13 @@ class BoardRuntime:
         # ``EXTERNAL_FRAME_TTL_SECONDS``.
         self.external_frame: tuple[list[list[int]], float] | None = None
 
+        # When (``time.time()``) a device that cannot read back reported that
+        # another client wrote it (``DevicePoll.overwritten``, #2354), until
+        # FiestaBoard writes the board again. There is no frame to keep — the
+        # device cannot say what it shows — so this is the out-of-sync signal
+        # the web banner shows for it.
+        self.overwritten_at: float | None = None
+
         # Adaptive post-send refresh thread + its cancel event.
         self.refresh_thread: threading.Thread | None = None
         self.refresh_cancel: threading.Event | None = None
@@ -289,6 +296,12 @@ class BoardRuntime:
         # throttled send — invalidates this memo for free, and a future one
         # cannot forget to.
         self.last_render: tuple[str, str, str] | None = None
+
+    def content_delivered(self) -> None:
+        """FiestaBoard just wrote this board: neither out-of-band content
+        (#1831) nor another app's (#2354) is on it any more."""
+        self.showing_out_of_band = False
+        self.overwritten_at = None
 
     @property
     def client(self) -> OutputDriver | None:
@@ -517,6 +530,15 @@ class DisplayService:
             return None
         return held
 
+    def overwritten_at(self, board_id: str | None = None) -> float | None:
+        """When a device without read-back reported another client wrote it (#2354).
+
+        ``None`` means the primary board. None when the board has no runtime
+        or FiestaBoard has written it since.
+        """
+        rt = self.runtime_for(board_id)
+        return rt.overwritten_at if rt is not None else None
+
     def get_last_send_error(self, board_id=None) -> str | None:
         """Failure reason for a board's most recent active-page send attempt.
 
@@ -550,7 +572,9 @@ class DisplayService:
         ``check_and_send_for_board`` next delivers real content to the board.
         """
         if board_id is None:
-            self._ensure_primary_runtime().showing_out_of_band = True
+            rt = self._ensure_primary_runtime()
+            rt.showing_out_of_band = True
+            rt.overwritten_at = None  # FiestaBoard's write replaced the other app's
             return
         rt = self.runtimes.get(board_id)
         if rt is None:
@@ -565,6 +589,7 @@ class DisplayService:
                 rt = self._primary_runtime()
         if rt is not None:
             rt.showing_out_of_band = True
+            rt.overwritten_at = None  # FiestaBoard's write replaced the other app's
 
     def _record_send_error(self, rt: BoardRuntime, board_id, message: str) -> None:
         """Record a send failure on the runtime and in this thread's capture."""
@@ -1326,6 +1351,7 @@ class DisplayService:
             if held is None or held[0] != chars:
                 rt.external_frame = ([row[:] for row in chars], time.time())
             logger.info("Board %s: content changed externally; marking out-of-band", rt.board_id)
+            self._restore_after_overwrite(rt, board_id, settings)
 
     def _poll_output_devices(self) -> None:
         """Ask every board's output whether its device restarted or moved.
@@ -1363,6 +1389,29 @@ class DisplayService:
                     "moved to new settings" if moved else "restarted",
                 )
                 self.invalidate_board_content(key)
+            elif news.overwritten is True:
+                rt.showing_out_of_band = True
+                if rt.overwritten_at is None:
+                    # The first report is the detection: a device may keep
+                    # reporting the same overwrite until core writes it again.
+                    rt.overwritten_at = time.time()
+                    logger.info("Board %s: another client wrote its device", board_id)
+                self._restore_after_overwrite(rt, board_id, settings, key=key)
+
+    def _restore_after_overwrite(self, rt: BoardRuntime, board_id, settings, *, key=None) -> None:
+        """Put a board's content back after another app overwrote it (#2354).
+
+        Forgets what the board was last sent, so the next pass writes it again
+        — the same as the Restore button, on the engine's next tick. A board
+        whose ``auto_restore`` is off is left showing the other app's content,
+        for a display deliberately shared with one. Strict ``is False``: a
+        Mock settings service never turns it off.
+        """
+        if settings.is_auto_restore(board_id=board_id) is False:
+            logger.debug("Board %s: auto-restore is off; leaving the other app's content", board_id)
+            return
+        logger.info("Board %s: restoring its content over the other app's", board_id)
+        self.invalidate_board_content(key if key is not None else board_id)
 
     def _retry_failed_board_inits(self) -> None:
         """Low-frequency recovery pass for boards stuck in ``board_init_errors`` (#1827).
@@ -2496,7 +2545,7 @@ class DisplayService:
                     rt.last_render = (fingerprint, current_content, active_page_id) if fingerprint else None
                     # The engine just painted the page over whatever was on the
                     # board, so any out-of-band content is gone (issue #1831).
-                    rt.showing_out_of_band = False
+                    rt.content_delivered()
                     if was_sent:
                         logger.info(f"Board {board_id}: active page sent: {active_page_id}")
                         # Every hardware board is polled now (issue #1945), so
@@ -2600,7 +2649,7 @@ class DisplayService:
                 rt.last_active_page_id = None
                 # Engine-owned write: the board no longer shows out-of-band
                 # content (issue #1831).
-                rt.showing_out_of_band = False
+                rt.content_delivered()
                 logger.info("Temporary override expired (blank) - board cleared")
                 if was_sent:
                     self.request_board_refresh()
@@ -2814,7 +2863,7 @@ class DisplayService:
                 rt.last_active_page_content = "snoozing"
                 rt.last_active_page_id = "__silence__"
                 # Engine-owned write (issue #1831).
-                rt.showing_out_of_band = False
+                rt.content_delivered()
                 rt.last_silence_mode_active = True
                 rt.snoozing_message_sent = True
                 logger.info("🔇 Silence mode active - further updates blocked until silence ends")
@@ -2948,7 +2997,7 @@ class DisplayService:
                 rt.last_active_page_content = formatted
                 rt.last_active_page_id = f"__silence_page__:{page_ref}"
                 # Engine-owned write (issue #1831).
-                rt.showing_out_of_band = False
+                rt.content_delivered()
                 rt.last_silence_mode_active = True
                 rt.snoozing_message_sent = True
                 logger.info("🔇 Silence page sent - further updates blocked until silence ends")
@@ -3148,7 +3197,7 @@ class DisplayService:
                 rt.last_active_page_content = content
                 rt.last_active_page_id = "__trigger__"
                 # Engine-owned write (issue #1831).
-                rt.showing_out_of_band = False
+                rt.content_delivered()
                 if on_success is not None:
                     on_success()
                 if was_sent:

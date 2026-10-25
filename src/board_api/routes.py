@@ -214,19 +214,32 @@ def _external_frame_fields(service, board_id: str | None) -> dict:
     never off the runtime. A service without the accessor, or one that
     answers anything but a ``(grid, time)`` pair, holds no frame.
     """
+    fields = _overwritten_fields(service, board_id)
     accessor = getattr(service, "external_frame", None)
     if not callable(accessor):
-        return {}
+        return fields
     held = accessor(board_id)
     if not (isinstance(held, tuple) and len(held) == 2 and isinstance(held[0], list)):
-        return {}
+        return fields
     characters, detected_at = held
     if not isinstance(detected_at, (int, float)):
-        return {}
+        return fields
     return {
+        **fields,
         "external_characters": characters,
         "external_detected_at": datetime.fromtimestamp(detected_at, tz=UTC).isoformat(),
     }
+
+
+def _overwritten_fields(service, board_id: str | None) -> dict:
+    """``overwritten_at`` for *board_id* while a device reports another app wrote it (#2354), or nothing."""
+    accessor = getattr(service, "overwritten_at", None)
+    if not callable(accessor):
+        return {}
+    at = accessor(board_id)
+    if isinstance(at, bool) or not isinstance(at, (int, float)):
+        return {}
+    return {"overwritten_at": datetime.fromtimestamp(at, tz=UTC).isoformat()}
 
 
 @router.delete(

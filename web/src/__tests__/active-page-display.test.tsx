@@ -448,7 +448,7 @@ describe("ActivePageDisplay", () => {
     });
   });
 
-  it("calls force-refresh and shows success toast when Restore is clicked", async () => {
+  it("restores the primary board and shows a success toast when Restore is clicked", async () => {
     const toastSpy = vi.spyOn((await import("sonner")).toast, "success");
     const differentChars = Array.from({ length: 6 }, () => Array(22).fill(1));
     const expectedChars = Array.from({ length: 6 }, () => Array(22).fill(2));
@@ -464,8 +464,8 @@ describe("ActivePageDisplay", () => {
           api_mode: "local",
         }),
       ),
-      http.post(`${API_BASE}/force-refresh`, () =>
-        HttpResponse.json({ message: "Display force-refreshed", sent: true }),
+      http.post(`${API_BASE}/v1/boards/primary/restore`, () =>
+        HttpResponse.json({ board_id: "b1", page_id: null, sent: true, reason: null, device_observed: false }),
       ),
     );
 
@@ -485,7 +485,7 @@ describe("ActivePageDisplay", () => {
     toastSpy.mockRestore();
   });
 
-  it("does not hide the banner or claim success when force-refresh reports sent=false", async () => {
+  it("does not hide the banner or claim success when restore reports sent=false", async () => {
     const successSpy = vi.spyOn((await import("sonner")).toast, "success");
     const warningSpy = vi.spyOn((await import("sonner")).toast, "warning");
     server.use(
@@ -500,7 +500,9 @@ describe("ActivePageDisplay", () => {
           api_mode: "local",
         }),
       ),
-      http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ message: "Nothing sent", sent: false })),
+      http.post(`${API_BASE}/v1/boards/primary/restore`, () =>
+        HttpResponse.json({ board_id: "b1", page_id: null, sent: false, reason: "x", device_observed: false }),
+      ),
     );
 
     const user = userEvent.setup();

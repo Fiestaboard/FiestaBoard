@@ -1006,12 +1006,11 @@
     "openPage": "Pagina openen",
     "dismiss": "Sluiten",
     "holdPaused": "Dit scherm is gepauzeerd, dus Herstellen verstuurt niets totdat je het hervat.",
-    "restoreAllDisplays": "Herstellen stuurt de pagina’s opnieuw naar alle schermen.",
     "keptTitle": "Een andere app heeft om {time} naar dit board geschreven",
     "keptDetail": "FiestaBoard heeft je pagina inmiddels teruggezet. Je kunt nog steeds opslaan wat de andere app schreef.",
+    "overwrittenDetail": "Gedetecteerd: {time}. FiestaBoard kan niet zien wat dit scherm nu toont, dus er is niets om op te slaan. Herstellen zet je pagina terug.",
     "externalPageName": "Van het board {date}",
     "toastRestored": "Board hersteld",
-    "toastRestoredAll": "Pagina’s opnieuw naar alle schermen gestuurd",
     "toastRestoreFailed": "Herstellen van board mislukt",
     "toastNotSentPaused": "Niets verstuurd: dit scherm is gepauzeerd",
     "toastNotSent": "Er is niets naar het scherm verstuurd",
@@ -1207,6 +1206,10 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "autoRestore": {
+      "toggle": "Automatisch herstellen",
+      "help": "Als een andere app dit scherm wijzigt, zet FiestaBoard je pagina terug. Zet dit uit om een andere app het scherm te laten houden."
     },
     "initError": {
       "badge": "Niet beschikbaar",

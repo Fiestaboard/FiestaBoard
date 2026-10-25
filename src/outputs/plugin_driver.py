@@ -746,10 +746,10 @@ class OutputPluginDriver:
             lock.release()
         if not isinstance(news, DevicePoll):
             return None
-        if (news.restarted or news.config) and not self.first_party:
+        if (news.restarted or news.config or news.overwritten) and not self.first_party:
             # The device just answered: writes refused while it was booting
-            # (or while core aimed at its old address) must not hold the
-            # re-send back for the rest of a cool-down.
+            # (or while core aimed at its old address, or another client held
+            # it) must not hold the re-send back for the rest of a cool-down.
             output_breakers().record_success(self._breaker_key())
         return news
 
