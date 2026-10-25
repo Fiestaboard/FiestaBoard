@@ -4,16 +4,24 @@
  * The other app is the test runner writing straight to the mock Vestaboard's
  * Local API, exactly as the Vestaboard app or a script would. FiestaBoard
  * notices on its next board read (primed here with ?force=true so the test
- * does not wait for the 30 s poll), and Home shows the out-of-sync banner:
+ * does not wait for the 30 s poll), and Home shows the out-of-sync banner.
+ *
+ * "Restore automatically" (#2354) is on by default: once the poll confirms
+ * the write, the engine paints the page back by itself. Every test here that
+ * drives the live out-of-sync face or the manual Restore turns it off for the
+ * board in beforeEach, so the board stays overwritten while the test acts;
+ * the auto-restore tests turn it back on.
  *
  *   1. Save as page keeps what the other app wrote, then becomes "Saved as".
- *   2. Restore puts the page back and says so.
+ *   2. Restore puts this board's page back (POST /v1/boards/primary/restore).
  *   3. Restore while paused tells the truth: nothing was sent.
  *   4. During silence the notice stays hidden.
  *   5. The frame survives FiestaBoard's repaint (the "kept" notice).
- *   6. The kept notice, driven by a route mock.
- *   7. Phone layout.
- *   8. a11y of both faces.
+ *   6. Auto-restore on: FiestaBoard puts the page back by itself, kept notice.
+ *   7. The "Restore automatically" switch persists.
+ *   8. The kept notice, driven by a route mock.
+ *   9. Phone layout.
+ *  10. a11y of both faces.
  */
 import type { Page } from "@playwright/test";
 import { getViolations, injectAxe } from "axe-playwright";
@@ -25,12 +33,15 @@ import {
   createPage,
   deleteAllPages,
   expect,
+  getAutoRestore,
   getMockBoardState,
   gridToText,
   MOCK_BOARD_URL,
   mockBoardGrid,
+  openDisplay,
   resetMockBoard,
   setActivePage,
+  setAutoRestore,
   setScheduleEnabled,
   suppressWizard,
   test,
@@ -132,6 +143,9 @@ const banner = (page: Page) => page.getByTestId("board-out-of-sync");
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
+  // Keep what another app writes on the board until the test acts on it
+  // (see the header). After configureBoard, which rewrites board settings.
+  await setAutoRestore("primary", false);
   // Manual mode: only the active page is ever painted, so nothing but the
   // test's own sends can paint over what "another app" wrote.
   await setScheduleEnabled(false);
@@ -143,6 +157,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.afterEach(async () => {
+  await setAutoRestore("primary", true);
   await deleteAllPages();
   await resetMockBoard();
 });
@@ -173,7 +188,7 @@ test.describe("Board changed by another app", () => {
     await expect(page).toHaveURL(new RegExp(`/pages/edit/${saved!.id}$`));
   });
 
-  test("Restore puts the page back and says so", async ({ page }) => {
+  test("Restore puts this board's page back and says so", async ({ page }) => {
     await showHelloPage();
     const shownByFiestaBoard = mockBoardGrid(await getMockBoardState());
     await writeFromAnotherApp();
@@ -181,12 +196,22 @@ test.describe("Board changed by another app", () => {
 
     await page.goto("/");
     await expect(banner(page)).toBeVisible({ timeout: 15_000 });
+    await expect(banner(page)).toHaveAttribute("data-face", "out-of-sync");
 
-    const refreshed = page.waitForResponse(
-      (r) => r.url().includes("/api/force-refresh") && r.request().method() === "POST",
+    // This one board's restore, not the install-wide /force-refresh.
+    const restoreRequests: string[] = [];
+    page.on("request", (r) => {
+      if (r.method() === "POST" && /\/api\/(force-refresh|v1\/boards\/[^/]+\/restore)/.test(r.url())) {
+        restoreRequests.push(new URL(r.url()).pathname);
+      }
+    });
+    const restored = page.waitForResponse(
+      (r) => r.url().includes("/api/v1/boards/primary/restore") && r.request().method() === "POST",
     );
     await banner(page).getByRole("button", { name: "Restore" }).click();
-    await refreshed;
+    const response = await restored;
+    expect(response.status()).toBe(200);
+    expect((await response.json()).sent).toBe(true);
 
     await expect(page.getByText("Board restored")).toBeVisible({ timeout: 10_000 });
     await expect
@@ -201,6 +226,7 @@ test.describe("Board changed by another app", () => {
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(2_000);
     await expect(banner(page)).toHaveCount(0);
+    expect(restoreRequests).toEqual(["/api/v1/boards/primary/restore"]);
   });
 
   test.describe("Restore while paused", () => {
@@ -307,6 +333,71 @@ test.describe("Board changed by another app", () => {
       await page.waitForTimeout(2_000);
       await expect(banner(page)).toHaveCount(0);
     });
+  });
+
+  test.describe("with Restore automatically on (the default)", () => {
+    test.afterEach(async () => {
+      await setLocalReadInterval(30);
+    });
+
+    test("FiestaBoard puts the page back by itself, and the kept notice offers Save as page", async ({ page }) => {
+      test.setTimeout(150_000);
+      await setLocalReadInterval(20);
+      await setAutoRestore("primary", true);
+      await showHelloPage();
+      const shownByFiestaBoard = mockBoardGrid(await getMockBoardState());
+      await writeFromAnotherApp();
+      // The other app's write landed: the board shows it, not the page.
+      expect(mockBoardGrid(await getMockBoardState())).toEqual(hiRed());
+
+      // No Restore, no forced read: the poll confirms the write on its second
+      // mismatching read (20 s apart) and the engine's next pass repaints.
+      await expect
+        .poll(async () => mockBoardGrid(await getMockBoardState()), { timeout: 90_000, intervals: [2_000] })
+        .toEqual(shownByFiestaBoard);
+      // ...and still remembers what the other app wrote.
+      const state = await (await fetch(`${API_URL}/board/current-message`, { headers: authHeaders() })).json();
+      expect(state.external_characters).toEqual(hiRed());
+
+      await page.goto("/");
+      const kept = page.locator('[data-testid="board-out-of-sync"][data-face="kept"]');
+      await expect(kept).toBeVisible({ timeout: 15_000 });
+      await expect(kept).toContainText(/Another app wrote to this board at/);
+      // The board is back in sync: no live face, nothing to Restore.
+      await expect(page.locator('[data-testid="board-out-of-sync"][data-face="out-of-sync"]')).toHaveCount(0);
+      await expect(kept.getByRole("button", { name: "Restore" })).toHaveCount(0);
+      await expect(kept.getByRole("button", { name: "Dismiss" })).toBeVisible();
+
+      const created = page.waitForRequest((r) => r.url().includes("/api/v1/pages") && r.method() === "POST");
+      await kept.getByRole("button", { name: "Save as page" }).click();
+      const body = (await created).postDataJSON() as { template: string[] };
+      expect(body.template[0]).toBe("HI{{red}}");
+      await expect(kept.getByRole("link", { name: "Open page" })).toBeVisible({ timeout: 10_000 });
+      // Saving keeps the frame as a page; it never repaints the board.
+      expect(mockBoardGrid(await getMockBoardState())).toEqual(shownByFiestaBoard);
+    });
+  });
+
+  test("the Restore automatically switch on the display's page persists", async ({ page }) => {
+    // beforeEach turned it off.
+    const board = await (await fetch(`${API_URL}/v1/boards/primary`, { headers: authHeaders() })).json();
+    const card = await openDisplay(page, board.name);
+    const toggle = card.getByTestId("board-auto-restore-switch");
+    await expect(toggle).not.toBeChecked();
+
+    await toggle.click();
+    await expect(toggle).toBeChecked();
+    await expect.poll(() => getAutoRestore(board.id), { timeout: 10_000 }).toBe(true);
+
+    await page.reload();
+    const reloaded = page.getByTestId("board-auto-restore-switch");
+    await expect(reloaded).toBeChecked({ timeout: 15_000 });
+    await reloaded.click();
+    await expect(reloaded).not.toBeChecked();
+    await expect.poll(() => getAutoRestore(board.id), { timeout: 10_000 }).toBe(false);
+
+    await page.reload();
+    await expect(page.getByTestId("board-auto-restore-switch")).not.toBeChecked({ timeout: 15_000 });
   });
 
   test("kept notice via route mock offers Save and Dismiss and saves the held frame", async ({ page }) => {
