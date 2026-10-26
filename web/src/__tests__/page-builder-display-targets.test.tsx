@@ -317,6 +317,21 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
   });
 
   describe("a new page's default target", () => {
+    it("authors for the requested board when the sidebar selects a different display", async () => {
+      localStorage.setItem(CURRENT_BOARD_KEY, FLAGSHIP.id);
+      const user = userEvent.setup();
+      const { container } = render(<PageBuilder targetBoardId={PIXOO.id} onClose={vi.fn()} onSave={vi.fn()} />, {
+        wrapper: TestWrapper,
+      });
+      await expectTarget(PIXOO_OPTION);
+      expect(screen.getByRole("img", { name: /10 rows by 16 columns/ })).toBeInTheDocument();
+      expect(container.querySelector('[data-slot="display-preview"]')).toHaveAttribute("data-technology", "led_matrix");
+      const editor = await screen.findByRole("textbox", { name: "Template editor" });
+      await user.type(editor, "Targeted");
+      await waitFor(() => expect(lastRenderBoardId()).toBe("pixoo-1"));
+      expect(localStorage.getItem(CURRENT_BOARD_KEY)).toBe(FLAGSHIP.id);
+    });
+
     it("is the selected LED display, at its exact grid, previewed as LED", async () => {
       localStorage.setItem(CURRENT_BOARD_KEY, "pixoo-1");
       const { container } = renderNew();

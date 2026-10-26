@@ -95,7 +95,9 @@
     "updateAvailable": "Update available",
     "updateTo": "Update to {version}",
     "about": "About FiestaBoard",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "popoverLabel": "Account menu",
+    "account": "Account"
   },
   "aboutDialog": {
     "description": "Version and system information for this FiestaBoard.",
@@ -159,7 +161,11 @@
     "importDialogCancel": "Cancel",
     "importDialogImport": "Import",
     "importDialogImporting": "Importing...",
-    "toastImported": "\"{name}\" added to your pages"
+    "toastImported": "\"{name}\" added to your pages",
+    "displayFilter": "Display filter",
+    "allPages": "All pages",
+    "libraryCount": "{count, plural, one {# page} other {# pages}}",
+    "clearFilter": "Show all pages"
   },
   "collections": {
     "title": "Collections",
@@ -256,7 +262,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "View mode",
+    "gridView": "Tile view",
+    "listView": "List view",
+    "libraryCount": "{count, plural, one {# collection} other {# collections}}",
+    "movePageUp": "Move {name} up",
+    "movePageDown": "Move {name} down",
+    "removePage": "Remove {name}",
+    "moveRuleUp": "Move rule {number} up",
+    "moveRuleDown": "Move rule {number} down",
+    "notFound": "This collection could not be found.",
+    "loadFailed": "Collections could not be loaded. Try again.",
+    "backToCollections": "Back to collections",
+    "discardChangesTitle": "Discard unsaved changes?",
+    "discardChangesDescription": "Your collection has changes that have not been saved.",
+    "keepEditing": "Keep editing",
+    "discardAndLeave": "Discard and leave",
+    "retryButton": "Try again"
   },
   "schedule": {
     "title": "Schedule",
@@ -594,7 +617,13 @@
       "createAction": "Create Demo Page",
       "recreateAction": "Recreate Demo Page",
       "requirementsWarning": "Configure the required settings below before creating a demo page."
-    }
+    },
+    "catalogCount": "{count} integrations",
+    "previousResults": "Previous results",
+    "nextResults": "Next results",
+    "resultsPage": "Page {current} of {total}",
+    "allCategories": "All categories",
+    "categoryFilter": "Integration category"
   },
   "settings": {
     "title": "Settings",
@@ -695,7 +724,15 @@
       "confirmDescription": "You are about to restore <file></file>. Your existing pages, collections, schedules and configuration will be overwritten. A timestamped copy of each existing file is kept alongside the new one so you can roll back manually if needed.",
       "restoringButton": "Restoring…",
       "restoreButton": "Restore backup"
-    }
+    },
+    "groupIdentity": "Instance",
+    "groupAppearance": "Appearance and accessibility",
+    "groupRegional": "Language, time and location",
+    "groupConnections": "Connections",
+    "displaySilenceTitle": "Display silence schedules",
+    "displaySilenceDescription": "Quiet hours belong to each display. Open a display’s Playback tab to change its schedule.",
+    "openDisplayPlayback": "Open {name} playback settings",
+    "openDisplays": "Manage displays"
   },
   "offline": {
     "youreOffline": "You're Offline",
@@ -1122,7 +1159,12 @@
     "liveSilencePreviewOnly": "Live Output is previewing only. The board stays quiet.",
     "liveSendAnyway": "Send to board anyway",
     "liveSilenceOverriding": "Live Output is waking the board during silence.",
-    "liveStopOverriding": "Stop sending"
+    "liveStopOverriding": "Stop sending",
+    "editingSurfaceLabel": "Page content",
+    "textMode": "Text",
+    "canvasesMode": "Canvases",
+    "showPreview": "Show preview and live output",
+    "hidePreview": "Hide preview and live output"
   },
   "displaySettings": {
     "unnamedBoard": "Unnamed Board",
@@ -1227,7 +1269,15 @@
       "speedTitle": "Speed",
       "pluginsDescription": "Frame-by-frame animations such as typewriter and dissolve (deprecated). Applies to all displays.",
       "pluginsSavedToast": "Transition plugins setting saved.",
-      "pluginsSaveFailedToast": "Couldn't save the transition plugins setting: {error}"
+      "pluginsSaveFailedToast": "Couldn't save the transition plugins setting: {error}",
+      "replay": "Replay preview",
+      "nativePreviewNote": "Illustrates tile order and cadence. Hardware appearance may differ.",
+      "pluginPreviewUnavailable": "Preview unavailable for this transition plugin.",
+      "savedUnavailable": "Saved choice: {name} (unavailable)",
+      "reducedMotionNote": "Reduced motion is on. The preview shows the settled message.",
+      "cloudPreviewNote": "This display changes all at once.",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "HELLO WORLD"
     },
     "add": {
       "title": "Add a display",
@@ -1295,7 +1345,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "Overview",
+    "tabSettings": "Settings",
+    "tabPlayback": "Playback",
+    "tabsLabel": "Display sections"
   },
   "systemUpdate": {
     "updateAvailable": "Update Available",
@@ -1697,9 +1751,9 @@
     "accessibilityDescription": "Motion and animation preferences",
     "reduceMotion": "Reduce motion",
     "reduceMotionHint": "Minimizes animations throughout the interface",
-    "animationsTitle": "Animations",
-    "animationsDescription": "Fine-tune motion separately for the board preview and the rest of the app",
-    "boardAnimationsLabel": "Board animations",
+    "animationsTitle": "Graphics and previews",
+    "animationsDescription": "Control motion throughout the app. These preferences apply to every on-screen preview.",
+    "boardAnimationsLabel": "Board previews",
     "boardAnimationsHint": "The split-flap flip when tiles change",
     "boardAnimationsOn": "On",
     "boardAnimationsDesktop": "Desktop only",
@@ -1713,7 +1767,7 @@
     "siteAnimationsOff": "Off",
     "animationsReduceMotionOverride": "Reduce motion is enabled, which overrides these settings.",
     "flapSpeedLabel": "Flip speed",
-    "flapSpeedHint": "How long each tile holds one character while the board settles",
+    "flapSpeedHint": "Choose the cadence used by split-flap previews throughout this app.",
     "flapSpeed_hardware": "Fastest",
     "flapSpeed_quick": "Quick",
     "flapSpeed_standard": "Standard",
@@ -1725,7 +1779,7 @@
     "flapSpeed_relaxedHint": "{ms}ms — a slow, deliberate flip for ambient displays.",
     "flapSpeedPreviewLabel": "Preview",
     "flapSpeedInactive": "Board animations are off, so flip speed has no effect.",
-    "flapSpeedScreenOnlyNote": "This changes the board preview on screen only. How your physical Vestaboard paces its own transitions is set separately, under Scheduling → Board transitions.",
+    "flapSpeedScreenOnlyNote": "This controls the board preview on screen only. Change hardware timing in Displays → Playback → Board transitions.",
     "welcomeTitle": "Welcome Message",
     "welcomeDescription": "The greeting sent to your board from the setup wizard",
     "welcomePlaceholder": "HIYA FROM FIESTABOARD",
@@ -2921,7 +2975,9 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "The canvases were not accepted: {message}",
     "notPixelNotice": "This page has pixel canvases. This board can't draw them, so their areas stay blank. Preview the page on an LED pixel board to edit them.",
-    "markerTitle": "A canvas starts on this row (not part of the text)"
+    "markerTitle": "A canvas starts on this row (not part of the text)",
+    "drawLayerHint": "Draw edits pixels only. The page preview shows the canvas background and shapes.",
+    "drawSourceHint": "This canvas uses a source. Drawing edits its fallback pixels; the preview shows the source when available."
   },
   "silenceNotice": {
     "untilTitle": "Silenced until {time}",
@@ -2984,5 +3040,9 @@
     "confirm": "Confirm",
     "revokeDevice": "Revoke {name}",
     "retry": "Retry"
+  },
+  "plugins": {
+    "communityBadge": "Community",
+    "communityDescription": "Published outside the FiestaBoard GitHub organization."
   }
 }

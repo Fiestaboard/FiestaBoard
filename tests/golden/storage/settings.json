@@ -1,5 +1,5 @@
 {
-  "schema_version": 7,
+  "schema_version": 8,
   "output": {
     "target": "board"
   },
@@ -38,7 +38,11 @@
           "note_array_token": "",
           "tiles": []
         },
-        "transition": "none"
+        "transition": "none",
+        "polling_interval_seconds": 15,
+        "board_read_interval_local": 30,
+        "board_read_interval_cloud": 180,
+        "schedule_defer_on_reenable": false
       }
     ],
     "devices": [

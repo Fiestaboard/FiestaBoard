@@ -69,7 +69,7 @@ export function GlobalAiChatDrawer() {
   const router = useRouter();
   const { getEditorSnapshot, staging: pageStaging } = usePageEditorBridge();
   // The chat teaches this board's display (LED colours, icons, canvases).
-  const { currentBoardId, currentBoard } = useCurrentBoard();
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
   const { staging: scheduleStaging } = useScheduleEditorBridge();
   const spotlight = useSpotlight();
   const tPanel = useTranslations("aiChatPanel");
@@ -84,6 +84,8 @@ export function GlobalAiChatDrawer() {
     () => ({
       navigate: (href) => router.push(href),
       pathname: () => (typeof window === "undefined" ? "/" : window.location.pathname),
+      currentBoardId: () => currentBoardId || undefined,
+      primaryBoardId: () => boards[0]?.id,
       spotlight,
       pageEditor: pageStaging,
       schedule: scheduleStaging,
@@ -91,7 +93,7 @@ export function GlobalAiChatDrawer() {
       label: (call) => labelForTool(call, tPanel),
       reducedMotion,
     }),
-    [router, spotlight, pageStaging, scheduleStaging, tChoreography, tPanel, reducedMotion],
+    [router, currentBoardId, boards, spotlight, pageStaging, scheduleStaging, tChoreography, tPanel, reducedMotion],
   );
   const choreographer = useChoreographer(choreographyCtx);
   const driving = choreographer.driving;

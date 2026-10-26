@@ -21,7 +21,7 @@ A page's template fills the board with characters. A canvas claims a rectangle o
 
 The canvas tools appear in the page builder when the page is being edited for an LED pixel board. For any other board they are hidden; a page that already has canvases shows a short notice that this board leaves canvas areas blank.
 
-1. Open a page in the page builder and find the **Pixel canvases** section under the preview.
+1. Open a page in the page builder and select **Canvases** beside **Text**.
 2. Select **Add canvas**. The new canvas gets an id (lowercase letters, digits, `_` or `-`, up to 16 characters) that you can change.
 3. Set its **area**: the first row and column (counted from 1) and how many rows and columns it covers. You can type the numbers or drag across the small board grid under them to select the cells; every canvas on the page is outlined there.
 4. Choose the canvas options:
@@ -30,14 +30,16 @@ The canvas tools appear in the page builder when the page is being edited for an
    - **Text**: **Hide** blanks the text under the canvas; **Flow** wraps the text around it.
 5. Draw the canvas with one of the three tabs below. The server renders the preview for the board, and any problem it finds (a bad color, a variable with no value) is listed in the canvas section.
 
+An existing canvas opens in the tool that matches its content: **Source** for a plugin source, **Shapes** for shapes without painted pixels, and **Draw** for pixel artwork. Switching tools or canvases keeps your unfinished edits while the page remains open.
+
 To remove a canvas, select **Delete** on it. The plain-text template view shows a read-only `{canvas:<id>}` marker on the canvas's first row so you can see where it sits; the marker is not part of the template text.
 
 The **Rich** editor shows each canvas as a shaded, outlined rectangle labeled
 with its name. The rectangle follows the area set in the canvas controls, so
 blank cells reserved for an image are visible beside your text. These guides
 are not template content: copying, saving, and undoing text edits do not add
-canvas labels to your page. Click a canvas guide to select that canvas and
-scroll to its existing settings; keyboard users can Tab to a guide and press
+canvas labels to your page. Click a canvas guide to switch to **Canvases** and select its
+existing settings; keyboard users can Tab to a guide and press
 Enter or Space. Focus moves to the canvas ID field. Moving, resizing, or
 renaming a canvas keeps its guide and settings in sync.
 
@@ -52,6 +54,7 @@ alignment, and flowing text.
 ### Draw
 
 The **Draw** tab is a pixel pad at the canvas's real pixel size, with zoom.
+It edits the painted pixel layer. Backgrounds and shapes appear in the page preview, so a shape-only canvas can have an empty drawing pad. For a canvas with a plugin source, drawing changes the fallback pixels used when that source is unavailable.
 
 - **Brush** paints one pixel; drag to paint a stroke.
 - **Eraser** makes pixels transparent, so the board shows what is under them.

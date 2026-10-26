@@ -7,7 +7,7 @@
  * there is no install-wide default to fall back to.
  *
  * - An LED display (its model an LED matrix): FiestaUI's transition registry
- *   for that model, via `LedTransitionPicker` — entries the device cannot run
+ *   for that model, in a compact selector — entries the device cannot run
  *   are marked with why, so a device that pushes two frames a second (an
  *   AWTRIX clock) offers only None: it snaps to each message, and says so.
  * - A split-flap display: None, the strategies its output animates natively
@@ -21,23 +21,25 @@ import {
   Alert,
   AlertDescription,
   Badge,
+  Box,
+  defaultTransitionIdForModel,
   Flex,
   Grid,
   Input,
-  isLedTransitionId,
   Label,
-  type LedTransitionId,
-  LedTransitionPicker,
   PageSection,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Stack,
   Switch,
   Text,
-  ToggleCard,
-  ToggleCardGroup,
   transitionsForModel,
 } from "@fiestaboard/ui";
 import { Info, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useOutputs } from "@/components/settings/output-boards";
@@ -48,6 +50,8 @@ import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { BoardInstance } from "@/lib/api";
 import { isLedModel, resolveBoardModel } from "@/lib/device-preview";
+
+import { TransitionPreview } from "./transition-preview";
 
 /** The split-flap strategies, in the menu's order, and their label keys (`transitionSettings.strategies`). */
 const NATIVE_STRATEGIES: ReadonlyArray<{ value: string; key: string }> = [
@@ -91,7 +95,7 @@ export function DisplayTransition({
       {...anchorProps("settings.transitions")}
     >
       {isLedModel(model) ? (
-        <LedTransitions board={board} model={model} onChange={onChange} />
+        <LedTransitions board={board} model={model} onChange={onChange} disabled={disabled} />
       ) : (
         <SplitFlapTransitions board={board} onChange={onChange} disabled={disabled} />
       )}
@@ -99,46 +103,103 @@ export function DisplayTransition({
   );
 }
 
+function TransitionSelector({
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string; disabled?: boolean }[];
+  disabled?: boolean;
+}) {
+  const t = useTranslations("displays.transition");
+  const id = useId();
+  return (
+    <Stack gap="1.5" className="min-w-0">
+      <Label htmlFor={id}>{t("title")}</Label>
+      <Select
+        value={value}
+        onValueChange={(next) => {
+          if (next) onChange(next);
+        }}
+        disabled={disabled}
+      >
+        <SelectTrigger id={id} className="min-w-0 w-full sm:max-w-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Stack>
+  );
+}
+
 function LedTransitions({
   board,
   model,
   onChange,
+  disabled,
 }: {
   board: BoardInstance;
   model: NonNullable<ReturnType<typeof resolveBoardModel>>;
   onChange: (updates: Partial<DisplayTransitionUpdate>) => void;
+  disabled?: boolean;
 }) {
   const t = useTranslations("displays.transition");
   const menu = useMemo(() => transitionsForModel(model), [model]);
-  const runnable = menu.filter((entry) => entry.available);
-  const stored = board.transition;
-  const value: LedTransitionId | undefined = isLedTransitionId(stored) ? stored : undefined;
-  const labels = useMemo(
-    () => ({
-      transitions: t("title"),
-      deviceDefault: t("deviceDefault"),
-      unavailable: t("unavailable"),
-      runsAs: t("runsAs"),
-      previewLabel: (name: string) => t("previewLabel", { name }),
-    }),
-    [t],
+  const value = board.transition || "default";
+  const selected = menu.find(
+    (entry) => entry.id === (value === "default" ? defaultTransitionIdForModel(model) : value),
   );
+  const options: { value: string; label: string; disabled?: boolean }[] = [
+    { value: "default", label: t("deviceDefault") },
+    ...menu.map((entry) => ({ value: entry.id, label: entry.entry.label, disabled: !entry.available })),
+  ];
+  if (!options.some((option) => option.value === value))
+    options.push({ value, label: t("savedUnavailable", { name: value }), disabled: true });
   return (
     <Stack gap="3">
-      {/* Only None runs here (the device pushes too few frames a second): it snaps. */}
-      {runnable.length <= 1 && (
+      {menu.filter((entry) => entry.available).length <= 1 && (
         <Alert data-testid="display-transition-snaps">
           <Info className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>{t("snapNote")}</AlertDescription>
         </Alert>
       )}
-      <LedTransitionPicker
-        model={model}
-        value={value}
-        onValueChange={(id) => onChange({ transition: id })}
-        columns="2"
-        labels={labels}
-      />
+      <Box className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <Stack gap="2" className="min-w-0">
+          <TransitionSelector
+            value={value}
+            options={options}
+            onChange={(id) => onChange({ transition: id === "default" ? null : id })}
+            disabled={disabled}
+          />
+          {selected && (
+            <Text size="sm" tone="muted">
+              {selected.entry.description}
+            </Text>
+          )}
+          {selected?.reason && (
+            <Text size="xs" tone="muted">
+              {selected.available ? t("runsAs") : t("unavailable")}: {selected.reason}
+            </Text>
+          )}
+        </Stack>
+        {selected?.spec && (
+          <TransitionPreview key={`${board.id}:${value}`} value={value} model={model} spec={selected.spec} />
+        )}
+        {!selected && (
+          <Text size="sm" tone="muted">
+            {t("unavailable")}
+          </Text>
+        )}
+      </Box>
     </Stack>
   );
 }
@@ -192,33 +253,52 @@ function SplitFlapTransitions({
           <AlertDescription>{t("cloudNote")}</AlertDescription>
         </Alert>
       )}
-      <ToggleCardGroup
-        columns="2"
-        value={value}
-        onValueChange={(next) => onChange({ transition: next })}
-        aria-label={t("title")}
-        disabled={disabled}
-      >
-        <ToggleCard value={NONE} title={ts("strategies.none.label")} description={ts("strategies.none.description")} />
-        {strategies.map((s) => (
-          <ToggleCard
-            key={s.value}
-            value={s.value}
-            title={ts(`strategies.${s.key}.label`)}
-            description={ts(`strategies.${s.key}.description`)}
+      <Box className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <Stack gap="3" className="min-w-0">
+          <TransitionSelector
+            value={value}
+            onChange={(next) => onChange({ transition: next })}
+            disabled={disabled}
+            options={[
+              { value: NONE, label: ts("strategies.none.label") },
+              ...strategies.map((s) => ({ value: s.value, label: ts(`strategies.${s.key}.label`), disabled: cloud })),
+              ...transitionPlugins.map((p) => ({
+                value: `${PLUGIN_PREFIX}${p.id}`,
+                label: p.name,
+                disabled: !framesRun,
+              })),
+              ...(![
+                NONE,
+                ...strategies.map((s) => s.value),
+                ...transitionPlugins.map((p) => `${PLUGIN_PREFIX}${p.id}`),
+              ].includes(value)
+                ? [{ value, label: t("savedUnavailable", { name: value.replace(PLUGIN_PREFIX, "") }), disabled: true }]
+                : []),
+            ]}
           />
-        ))}
-        {transitionPlugins.map((p) => (
-          <ToggleCard key={p.id} value={`${PLUGIN_PREFIX}${p.id}`} title={p.name} description={p.description} />
-        ))}
-        {orphan && <ToggleCard value={orphan} title={orphan.slice(PLUGIN_PREFIX.length)} disabled />}
-      </ToggleCardGroup>
-      {orphan && (
-        <Text size="xs" tone="muted">
-          {ts("unavailablePluginNote")}
-        </Text>
-      )}
-      {showSpeed && <TransitionSpeed board={board} onChange={onChange} disabled={disabled} />}
+          <Text size="sm" tone="muted">
+            {value === NONE
+              ? ts("strategies.none.description")
+              : strategies.some((s) => s.value === value)
+                ? ts(`strategies.${strategies.find((s) => s.value === value)!.key}.description`)
+                : transitionPlugins.find((p) => `${PLUGIN_PREFIX}${p.id}` === value)?.description}
+          </Text>
+          {orphan && (
+            <Text size="xs" tone="muted">
+              {ts("unavailablePluginNote")}
+            </Text>
+          )}
+          {showSpeed && <TransitionSpeed board={board} onChange={onChange} disabled={disabled} />}
+        </Stack>
+        <TransitionPreview
+          key={`${board.id}:${value}`}
+          value={value}
+          native={native.has(value)}
+          cloud={cloud}
+          interval={board.transition_step_interval_ms ?? 50}
+          size={board.transition_step_size ?? 1}
+        />
+      </Box>
       {framesRun && <TransitionPluginsSwitch boardId={board.id} />}
     </Stack>
   );

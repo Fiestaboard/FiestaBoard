@@ -202,6 +202,10 @@ class BoardInstance:
     # the schedule only affects the schedule-driven rotation.
     paused: bool = False
     schedule_enabled: bool = False  # Per-board: use schedule mode for this board
+    polling_interval_seconds: int = 15
+    board_read_interval_local: int = 30
+    board_read_interval_cloud: int = 180
+    schedule_defer_on_reenable: bool = False
     # Put the board's content back when another app overwrites it (#2354).
     # On by default; off for a display deliberately shared with another app.
     # Detection is the read-back poll (#1945) or the output's device poll
@@ -458,6 +462,10 @@ class BoardInstance:
             enabled=data.get("enabled", True),
             paused=data.get("paused", False),
             schedule_enabled=data.get("schedule_enabled", False),
+            polling_interval_seconds=data.get("polling_interval_seconds", 15),
+            board_read_interval_local=data.get("board_read_interval_local", 30),
+            board_read_interval_cloud=data.get("board_read_interval_cloud", 180),
+            schedule_defer_on_reenable=data.get("schedule_defer_on_reenable", False),
             # Absent on a board saved before #2354: on, like a new board.
             auto_restore=data.get("auto_restore", True),
             notes_wide=data.get("notes_wide", 1),

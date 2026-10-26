@@ -1707,9 +1707,9 @@ class PluginRegistry:
         for plugin_id, source in self._loader.plugin_sources.items():
             if source.source_type != "external" or not source.local_path:
                 continue
-            # Disabled plugins (with no enabled instance) aren't running any
-            # code — don't generate git traffic keeping them fresh. They are
-            # brought up to date when re-enabled instead.
+            # Disabled data plugins (with no enabled instance) wait until
+            # re-enabled. Installed outputs stay current even before the
+            # user has saved their first board.
             if not self._update_check_wanted(plugin_id):
                 continue
             local_path = Path(source.local_path)
@@ -1731,18 +1731,16 @@ class PluginRegistry:
         return results
 
     def _update_check_wanted(self, plugin_id: str) -> bool:
-        """Whether *plugin_id* runs code worth keeping fresh: a data plugin
-        that is enabled (or has an enabled instance); an output plugin that a
-        board uses; a first-party output always (it is never disabled)."""
+        """Keep installed outputs current, including during first-time setup.
+
+        Data plugins are checked only when enabled or when an instance is
+        enabled. First-party outputs are always eligible too.
+        """
         if is_first_party_output(plugin_id):
             return True
         manifest = self.get_manifest(plugin_id)
         if manifest is not None and manifest.plugin_type == "output":
-            try:
-                return bool(boards_using_output(plugin_id))
-            except Exception:
-                logger.exception("Could not read the saved boards; checking output plugin '%s' anyway", plugin_id)
-                return True
+            return True
         return self._plugin_in_use(plugin_id)
 
     def get_update_status(self) -> dict[str, bool]:

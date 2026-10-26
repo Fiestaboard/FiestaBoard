@@ -70,8 +70,8 @@ class TestMigrateV6ToV7:
     def test_it_is_the_registered_v7_migration(self):
         from src.settings.service import CURRENT_SETTINGS_SCHEMA_VERSION, MIGRATIONS, _migrate_v6_to_v7
 
-        assert CURRENT_SETTINGS_SCHEMA_VERSION == 7
-        assert MIGRATIONS[-1] == (7, _migrate_v6_to_v7)
+        assert CURRENT_SETTINGS_SCHEMA_VERSION >= 7
+        assert (7, _migrate_v6_to_v7) in MIGRATIONS
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +92,7 @@ def test_a_v6_file_with_the_opt_in_off_loads_at_v7_without_it(tmp_path, caplog):
     assert "Settings schema migration v6->v7: 1 change(s) applied" in caplog.text
     assert (tmp_path / "settings.json.v6_backup").read_bytes() == v6
     on_disk = json.loads(path.read_text())
-    assert on_disk["schema_version"] == 7
+    assert on_disk["schema_version"] == 8
     assert "output_plugins_enabled" not in on_disk["plugins"]
     assert on_disk["plugins"]["auto_update"] is False
     assert service.get_plugin_settings().auto_update is False

@@ -6,10 +6,13 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Grid,
   PageCard,
   PageHeader,
   PageLayout,
   PageSection,
+  Skeleton,
+  Stack,
   Tabs,
   TabsContent,
   TabsList,
@@ -17,11 +20,12 @@ import {
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
-import { CalendarClock, Cog, Settings, ShieldCheck, Sparkles, User, Wand2, Wifi, Wrench } from "lucide-react";
+import { Cog, Settings, ShieldCheck, Sparkles, User, Wand2, Wifi, Wrench } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
 import { Navigate } from "react-router";
 
 import { AccountSection } from "@/components/account-section";
+import { useCurrentBoard } from "@/components/current-board-context";
 import { AccessibilitySettings } from "@/components/settings/accessibility-settings";
 import { AiSettings } from "@/components/settings/ai-settings";
 import { AnimationSettings } from "@/components/settings/animation-settings";
@@ -36,18 +40,15 @@ import { McpSettings } from "@/components/settings/mcp-settings";
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
 import { NetworkSettings } from "@/components/settings/network-settings";
 import { ReleaseChannelCard } from "@/components/settings/release-channel";
-import { ScheduleBehavior } from "@/components/settings/schedule-behavior";
-import { SilenceSchedule } from "@/components/settings/silence-schedule";
 import { SystemControls } from "@/components/settings/system-controls";
 import { SystemUpdate } from "@/components/settings/system-update";
 import { TimeAndDateCard } from "@/components/settings/time-and-date";
-import { UpdateIntervals } from "@/components/settings/update-intervals";
 import { useWizard } from "@/components/wizard-provider";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
-type SectionId = "general" | "account" | "network" | "scheduling" | "ai" | "system" | "advanced";
+type SectionId = "general" | "account" | "network" | "ai" | "system" | "advanced";
 
 /**
  * The tab boards and FiestaPanels used to live in. Displays have their own
@@ -57,25 +58,15 @@ const LEGACY_HARDWARE_SECTION = "hardware";
 
 /**
  * Tabs that were renamed, mapped to the tab that now holds their cards, so a
- * bookmark or an old docs link still opens the right place. Behavior became
- * Scheduling; Integrations became AI (its MQTT card moved to General and its
+ * bookmark or an old docs link still opens the right place. Integrations became AI (its MQTT card moved to General and its
  * plugin-update card to the Integrations page, but AI is what most of its
  * links were for — the OAuth return among them).
  */
 const LEGACY_SECTIONS: Readonly<Record<string, SectionId>> = {
-  behavior: "scheduling",
   integrations: "ai",
 };
 
-const SECTION_IDS: readonly SectionId[] = [
-  "general",
-  "account",
-  "network",
-  "scheduling",
-  "ai",
-  "system",
-  "advanced",
-] as const;
+const SECTION_IDS: readonly SectionId[] = ["general", "account", "network", "ai", "system", "advanced"] as const;
 
 const DEFAULT_SECTION: SectionId = "general";
 
@@ -94,6 +85,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { triggerWizard } = useWizard();
+  const { boards, currentBoardId, isLoading: boardsLoading } = useCurrentBoard();
 
   // Account tab is visible when:
   //   - auth is on AND the user is signed in (account management UI), or
@@ -135,9 +127,9 @@ export default function SettingsPage() {
     activeSection = DEFAULT_SECTION;
   }
 
-  // Scroll to a hash anchor (e.g. #silence-schedule) when the active tab
+  // Scroll to a hash anchor when the active tab
   // mounts, and pulse the target card so the user can see what they navigated
-  // to. Driven by deep-links like /settings?section=scheduling#silence-schedule.
+  // to. Legacy board scheduling links are redirected below.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const hash = window.location.hash.replace(/^#/, "");
@@ -167,7 +159,6 @@ export default function SettingsPage() {
       { id: "general", label: t("sectionGeneral"), icon: User },
       { id: "account", label: t("sectionAccount"), icon: ShieldCheck },
       { id: "network", label: t("sectionNetwork"), icon: Wifi },
-      { id: "scheduling", label: t("sectionScheduling"), icon: CalendarClock },
       { id: "ai", label: t("sectionAi"), icon: Sparkles },
       { id: "system", label: t("sectionSystem"), icon: Cog },
       { id: "advanced", label: t("sectionAdvanced"), icon: Wrench },
@@ -183,6 +174,21 @@ export default function SettingsPage() {
   if (requested === LEGACY_HARDWARE_SECTION) {
     const hash = typeof window === "undefined" ? "" : window.location.hash;
     return <Navigate to={`/displays${hash}`} replace />;
+  }
+
+  // Timing and schedule behavior belong to a display. Preserve old bookmarks
+  // without exposing controls that could accidentally edit another board.
+  if (requested === "scheduling" || requested === "behavior") {
+    if (boardsLoading) return <Skeleton className="h-40 w-full" />;
+    const explicitId = searchParams.get("board_id");
+    const board = boards.find((candidate) => candidate.id === (explicitId ?? currentBoardId));
+    const hash = typeof window === "undefined" ? "" : window.location.hash;
+    return (
+      <Navigate
+        to={board ? `/displays/${encodeURIComponent(board.id)}?section=playback${hash}` : "/displays"}
+        replace
+      />
+    );
   }
 
   return (
@@ -217,13 +223,38 @@ export default function SettingsPage() {
 
           <TabsContent value="general" className="mt-0">
             <InstanceNameCard />
-            <AppearanceSettings />
-            <LanguageSettingsCard />
-            <TimeAndDateCard />
-            <LocationSettingsCard />
-            <AccessibilitySettings />
+            <PageSection title={t("groupAppearance")}>
+              <Grid
+                cols="1"
+                lg="2"
+                gap="6"
+                className="[&>[data-slot=page-section]]:border-0 [&>[data-slot=page-section]]:p-0"
+              >
+                <AppearanceSettings />
+                <AccessibilitySettings />
+              </Grid>
+            </PageSection>
             <AnimationSettings />
-            <MqttSettingsCard />
+            <PageSection title={t("groupRegional")}>
+              <Grid
+                cols="1"
+                lg="2"
+                gap="6"
+                className="[&>[data-slot=page-section]]:border-0 [&>[data-slot=page-section]]:p-0"
+              >
+                <Stack gap="6" className="[&>[data-slot=page-section]]:border-0 [&>[data-slot=page-section]]:p-0">
+                  <LanguageSettingsCard />
+                  <LocationSettingsCard />
+                </Stack>
+                <TimeAndDateCard />
+              </Grid>
+            </PageSection>
+            <PageSection
+              title={t("groupConnections")}
+              contentClassName="[&>[data-slot=page-section]]:border-0 [&>[data-slot=page-section]]:p-0"
+            >
+              <MqttSettingsCard />
+            </PageSection>
           </TabsContent>
 
           {showAccount && (
@@ -237,12 +268,6 @@ export default function SettingsPage() {
               <NetworkSettings />
             </TabsContent>
           )}
-
-          <TabsContent value="scheduling" className="mt-0">
-            <UpdateIntervals />
-            <ScheduleBehavior />
-            <SilenceSchedule />
-          </TabsContent>
 
           <TabsContent value="ai" className="mt-0">
             <AiSettings />

@@ -55,7 +55,7 @@ def _schedule(**feature):
 
 
 def test_ends_at_utc_is_now_plus_seconds_until_next_change(client, boards):
-    _schedule()
+    _schedule(by_board={boards[0]: {"enabled": True, "start_time": "00:00+00:00", "end_time": "23:59+00:00"}})
     body = client.get("/silence-status").json()
     assert body["enabled"] is True
     current = datetime.fromisoformat(body["ends_at_utc"]) - timedelta(seconds=body["seconds_until_next_change"])

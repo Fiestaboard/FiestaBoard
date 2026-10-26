@@ -298,12 +298,28 @@ describe("/displays section", () => {
 });
 
 describe("/displays/:boardId", () => {
+  it("separates overview, settings and playback without losing the route board", async () => {
+    setup([KITCHEN, DESK]);
+    params.boardId = "desk";
+    renderWith(<DisplayPage />);
+    expect(await screen.findByRole("tab", { name: "Overview", selected: true })).toBeInTheDocument();
+    expect(screen.getByTestId("board-card")).not.toBeVisible();
+    await userEvent.click(screen.getByRole("tab", { name: "Settings" }));
+    expect(await screen.findByTestId("board-name-input")).toHaveValue("Desk Pixoo");
+    await userEvent.click(screen.getByRole("tab", { name: "Playback" }));
+    expect(await screen.findByTestId("display-transition")).toBeInTheDocument();
+    expect(await screen.findByRole("switch", { name: "Silence Schedule" })).toBeInTheDocument();
+    expect(screen.getByTestId("board-card")).not.toBeVisible();
+  });
+
   it("shows that display's settings, preview and transition", async () => {
     setup([KITCHEN, DESK]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
     const card = await screen.findByTestId("board-card");
     expect(within(card).getByTestId("board-name-input")).toHaveValue("Kitchen");
+    await userEvent.click(screen.getByRole("tab", { name: "Playback" }));
     expect(screen.getByTestId("display-transition")).toBeInTheDocument();
     expect(screen.queryByTestId("display-panel-settings")).not.toBeInTheDocument();
   });
@@ -315,17 +331,17 @@ describe("/displays/:boardId", () => {
     expect(await screen.findByTestId("display-not-found")).toBeInTheDocument();
   });
 
-  it("a split-flap display offers None and the strategies its output animates, and no Default", async () => {
+  it("a split-flap selector offers None and the strategies its output animates", async () => {
     setup([KITCHEN]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     const section = await screen.findByTestId("display-transition");
-    const group = within(section).getByRole("radiogroup", { name: "Transition" });
-    await waitFor(() => expect(within(group).getByRole("radio", { name: /Diagonal/ })).toBeInTheDocument());
-    // Settings v6: every display owns its transition; there is no install default to follow.
-    expect(within(group).queryByRole("radio", { name: /Default/ })).not.toBeInTheDocument();
-    // An unset choice runs as no transition, and reads as None.
-    expect(within(group).getByRole("radio", { name: /None/ })).toHaveAttribute("aria-checked", "true");
+    const selector = within(section).getByRole("combobox", { name: "Transition" });
+    expect(selector).toHaveTextContent("None");
+    await userEvent.click(selector);
+    expect(await screen.findByRole("option", { name: "Diagonal" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Default/ })).not.toBeInTheDocument();
     expect(within(section).queryByTestId("display-transition-cloud")).not.toBeInTheDocument();
   });
 
@@ -333,8 +349,10 @@ describe("/displays/:boardId", () => {
     const calls = setup([KITCHEN, DESK]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     const section = await screen.findByTestId("display-transition");
-    await userEvent.click(await within(section).findByRole("radio", { name: /Diagonal/ }));
+    await userEvent.click(within(section).getByRole("combobox", { name: "Transition" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Diagonal" }));
     await waitFor(() => expect(calls.put).toHaveLength(1));
     const boards = calls.put[0].boards;
     expect(boards.find((b) => b.id === "kitchen")?.transition).toBe("diagonal");
@@ -346,8 +364,10 @@ describe("/displays/:boardId", () => {
     const calls = setup([{ ...KITCHEN, transition: "row" }]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     const section = await screen.findByTestId("display-transition");
-    await userEvent.click(within(section).getByRole("radio", { name: /None/ }));
+    await userEvent.click(within(section).getByRole("combobox", { name: "Transition" }));
+    await userEvent.click(await screen.findByRole("option", { name: "None" }));
     await waitFor(() => expect(calls.put).toHaveLength(1));
     expect(calls.put[0].boards[0].transition).toBe("none");
   });
@@ -356,6 +376,7 @@ describe("/displays/:boardId", () => {
     const calls = setup([{ ...KITCHEN, transition: "row", transition_step_size: 2 }, DESK]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     const interval = await screen.findByRole("spinbutton", { name: "Step Interval (ms)" });
     expect(screen.getByRole("spinbutton", { name: "Step Size" })).toHaveValue(2);
     await userEvent.type(interval, "40");
@@ -374,6 +395,7 @@ describe("/displays/:boardId", () => {
     const calls = setup([{ ...KITCHEN, transition: "row", transition_step_size: 3 }]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     const size = await screen.findByRole("spinbutton", { name: "Step Size" });
     await userEvent.clear(size);
     await userEvent.tab();
@@ -385,6 +407,7 @@ describe("/displays/:boardId", () => {
     const calls = setup([{ ...KITCHEN, transition: "row" }]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     const size = await screen.findByRole("spinbutton", { name: "Step Size" });
     await userEvent.type(size, "0");
     await userEvent.tab();
@@ -396,6 +419,7 @@ describe("/displays/:boardId", () => {
     const calls = setup([{ ...KITCHEN, transition: "row" }]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     const interval = await screen.findByRole("spinbutton", { name: "Step Interval (ms)" });
     expect(interval).toHaveAttribute("max", "5000");
     await userEvent.type(interval, "5001");
@@ -408,8 +432,9 @@ describe("/displays/:boardId", () => {
     setup([{ ...KITCHEN, transition: "none" }]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     await screen.findByTestId("display-transition");
-    await waitFor(() => expect(screen.getByRole("radio", { name: /Diagonal/ })).toBeInTheDocument());
+    expect(screen.getByRole("combobox", { name: "Transition" })).toHaveTextContent("None");
     expect(screen.queryByTestId("display-transition-speed")).not.toBeInTheDocument();
   });
 
@@ -427,6 +452,7 @@ describe("/displays/:boardId", () => {
     );
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     const section = await screen.findByTestId("display-transition-plugins");
     expect(section).toHaveTextContent(/all displays/i);
     const toggle = within(section).getByRole("switch", { name: "Transition Plugins" });
@@ -439,6 +465,7 @@ describe("/displays/:boardId", () => {
     setup([{ ...KITCHEN, output_config: { api_mode: "cloud", cloud_key: "***" } }, DESK]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     await screen.findByTestId("display-transition-cloud");
     expect(screen.queryByTestId("display-transition-plugins")).not.toBeInTheDocument();
   });
@@ -447,6 +474,7 @@ describe("/displays/:boardId", () => {
     setup([{ ...KITCHEN, output_config: { api_mode: "cloud", cloud_key: "***" } }]);
     params.boardId = "kitchen";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     expect(await screen.findByTestId("display-transition-cloud")).toBeInTheDocument();
   });
 
@@ -454,46 +482,46 @@ describe("/displays/:boardId", () => {
     setup([KITCHEN, DESK]);
     params.boardId = "desk";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     const section = await screen.findByTestId("display-transition");
     expect(within(section).queryByTestId("display-transition-snaps")).not.toBeInTheDocument();
-    // No split-flap strategies on an LED display.
-    expect(within(section).queryByRole("radio", { name: /Diagonal/ })).not.toBeInTheDocument();
-    const offered = ["none", "flip", "cascade", "slide", "wipe", "fade", "dissolve"];
-    const cards = within(section)
-      .getAllByRole("radio")
-      .map((radio) => radio.closest("[data-transition]") ?? radio);
-    expect(cards.map((card) => card.getAttribute("data-transition"))).toEqual(offered);
-    for (const card of cards) {
-      expect(card).not.toHaveAttribute("aria-disabled", "true");
-      expect(card).toHaveAttribute("data-available");
-    }
-    // Flip runs degraded (200 ms steps, no half-flaps) and is the default.
-    expect(cards[1]).toHaveAttribute("data-degraded");
-    expect(within(section).queryByText(/frames a second; this device's push rate/)).not.toBeInTheDocument();
+    const selector = within(section).getByRole("combobox", { name: "Transition" });
+    expect(selector).toHaveTextContent("Device default");
+    await userEvent.click(selector);
+    expect(screen.queryByRole("option", { name: /Diagonal/ })).not.toBeInTheDocument();
+    await screen.findByRole("option", { name: "Flip" });
+    const offered = ["Device default", "None — change instantly", "Flip", "Cascade", "Slide", "Wipe", "Fade", "Dissolve"];
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(offered);
+    expect(screen.getAllByRole("option").every((option) => !option.hasAttribute("aria-disabled"))).toBe(true);
   });
 
   it("an LED display that only snaps says so", async () => {
     setup([KITCHEN, { ...DESK, device_model: "ulanzi_tc001_awtrix" }]);
     params.boardId = "desk";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     const section = await screen.findByTestId("display-transition");
     expect(within(section).getByTestId("display-transition-snaps")).toBeInTheDocument();
-    expect(within(section).getByRole("radio", { name: /None/ })).toBeInTheDocument();
+    await userEvent.click(within(section).getByRole("combobox", { name: "Transition" }));
+    expect(await screen.findByRole("option", { name: /None/ })).toBeInTheDocument();
   });
 
   it("a faster LED display offers the transitions it can run, without the snap note", async () => {
     setup([KITCHEN, { ...DESK, device_model: "hub75_64x32" }]);
     params.boardId = "desk";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
     const section = await screen.findByTestId("display-transition");
     expect(within(section).queryByTestId("display-transition-snaps")).not.toBeInTheDocument();
-    expect(within(section).getByRole("radio", { name: /Flip/ })).toBeInTheDocument();
+    await userEvent.click(within(section).getByRole("combobox", { name: "Transition" }));
+    expect(await screen.findByRole("option", { name: "Flip" })).toBeInTheDocument();
   });
 
   it("a FiestaPanel's page carries its panel's controls, and only its panel", async () => {
     setup([KITCHEN, TV]);
     params.boardId = "tv";
     renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
     const panel = await screen.findByTestId("display-panel-settings");
     expect(await within(panel).findByText("Living Room")).toBeInTheDocument();
     expect(within(panel).queryByText("Bedroom")).not.toBeInTheDocument();

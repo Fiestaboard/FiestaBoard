@@ -194,6 +194,40 @@ describe("PageBuilder — pixel canvases", () => {
 
     afterEach(() => vi.useRealTimers());
 
+    it("keeps one unsaved draft and editor instance through Text and Canvases mode changes", async () => {
+      vi.mocked(api.updatePage).mockResolvedValue({ page: PIXOO_PAGE, incompatible_references: [] });
+      const user = userEvent.setup();
+      renderExisting();
+      const textMode = await screen.findByRole("button", { name: "Text" });
+      expect(textMode).toHaveAttribute("aria-pressed", "true");
+      expect(screen.queryByRole("button", { name: "Add canvas" })).not.toBeInTheDocument();
+      await screen.findByRole("textbox", { name: "Template editor" });
+      await user.click(screen.getByRole("button", { name: "Plain Text" }));
+      const plainEditor = screen.getByRole("textbox", { name: "" });
+      fireEvent.change(plainEditor, { target: { value: "Draft text" } });
+      await user.click(screen.getByRole("button", { name: "Canvases" }));
+      expect(screen.queryByRole("textbox", { name: "" })).not.toBeInTheDocument();
+      fireEvent.change(screen.getByRole("textbox", { name: "Canvas ID" }), { target: { value: "draft-sky" } });
+      await user.click(screen.getByRole("tab", { name: "Shapes" }));
+      expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled();
+      expect(screen.getByRole("switch", { name: /live/i })).toBeInTheDocument();
+      await user.click(textMode);
+      expect(screen.getByRole("textbox", { name: "" })).toHaveValue("Draft text");
+      await user.click(screen.getByRole("button", { name: "Rich Editor" }));
+      const retainedEditor = screen.getByRole("textbox", { name: "Template editor" });
+      await user.click(screen.getByRole("button", { name: "Canvases" }));
+      expect(screen.getByRole("tab", { name: "Shapes" })).toHaveAttribute("aria-selected", "true");
+      await user.click(textMode);
+      expect(screen.getByRole("textbox", { name: "Template editor" })).toBe(retainedEditor);
+      expect(retainedEditor).toHaveTextContent("Draft text");
+      await user.click(screen.getByRole("button", { name: "Save Page" }));
+      await waitFor(() => expect(api.updatePage).toHaveBeenCalled());
+      expect(vi.mocked(api.updatePage).mock.calls[0][1]).toMatchObject({
+        template: ["Draft text"],
+        canvases: [expect.objectContaining({ id: "draft-sky" })],
+      });
+    });
+
     it.each(["click", "Enter", "Space"])(
       "opens the selected canvas settings with %s without dirtying the page",
       async (activation) => {
@@ -215,8 +249,10 @@ describe("PageBuilder — pixel canvases", () => {
           guide.focus();
           await user.keyboard(activation === "Enter" ? "{Enter}" : " ");
         }
-        expect(screen.getByLabelText("Canvas ID")).toHaveValue("sea");
-        expect(screen.getByLabelText("Canvas ID")).toHaveFocus();
+        expect(screen.getByRole("textbox", { name: "Canvas ID" })).toHaveValue("sea");
+        expect(screen.getByRole("textbox", { name: "Canvas ID" })).toHaveFocus();
+        expect(screen.getByRole("button", { name: "Canvases" })).toHaveAttribute("aria-pressed", "true");
+        expect(screen.queryByRole("textbox", { name: "Template editor" })).not.toBeInTheDocument();
         expect(scroll).toHaveBeenCalledWith({ block: "nearest" });
         expect(editor.textContent).toBe(before);
         expect(ref.current?.hasUnsavedChanges()).toBe(false);
@@ -231,35 +267,44 @@ describe("PageBuilder — pixel canvases", () => {
       const user = userEvent.setup();
       renderExisting();
       await user.click(await screen.findByRole("button", { name: /Edit canvas sea.*rows 4–5/ }, { timeout: 5000 }));
-      fireEvent.change(screen.getByLabelText("Row", { exact: true }), { target: { value: "5" } });
-      fireEvent.change(screen.getByLabelText("Columns", { exact: true }), { target: { value: "6" } });
+      fireEvent.change(screen.getByRole("spinbutton", { name: "Row" }), { target: { value: "5" } });
+      fireEvent.change(screen.getByRole("spinbutton", { name: "Columns" }), { target: { value: "6" } });
+      await user.click(screen.getByRole("button", { name: "Text" }));
       expect(screen.getByRole("button", { name: /Edit canvas sea.*rows 5–6.*columns 1–6/ })).toBeInTheDocument();
-      fireEvent.change(screen.getByLabelText("Canvas ID"), { target: { value: "ocean" } });
+      await user.click(screen.getByRole("button", { name: "Canvases" }));
+      fireEvent.change(screen.getByRole("textbox", { name: "Canvas ID" }), { target: { value: "ocean" } });
       expect(screen.getByTestId("canvas-editor-ocean")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Text" }));
       expect(screen.getByRole("button", { name: /Edit canvas ocean.*rows 5–6/ })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Canvases" }));
       await user.click(screen.getByRole("button", { name: "Add canvas" }));
-      expect(screen.getByLabelText("Canvas ID")).toHaveValue("canvas1");
+      expect(screen.getByRole("textbox", { name: "Canvas ID" })).toHaveValue("canvas1");
+      await user.click(screen.getByRole("button", { name: "Text" }));
       await user.click(screen.getByRole("button", { name: /Edit canvas ocean.*rows 5–6/ }));
       await user.click(screen.getByRole("button", { name: "Delete canvas ocean" }));
-      expect(screen.getByLabelText("Canvas ID")).toHaveValue("sky");
+      expect(screen.getByRole("textbox", { name: "Canvas ID" })).toHaveValue("sky");
+      await user.click(screen.getByRole("button", { name: "Text" }));
       expect(screen.queryByRole("button", { name: /Edit canvas ocean.*rows/ })).not.toBeInTheDocument();
     });
 
     it("shows canvas bounds in the rich editor and follows the existing area controls", async () => {
       const user = userEvent.setup();
       renderExisting();
-      expect(
+      await user.click(
         await screen.findByRole("button", { name: /Edit canvas sky.*rows 1–2.*columns 1–4/ }, { timeout: 5000 }),
-      ).toBeInTheDocument();
-      const row = screen.getByLabelText("Row", { exact: true });
+      );
+      const row = screen.getByRole("spinbutton", { name: "Row" });
       await user.click(row);
       await user.keyboard("{Control>}a{/Control}3");
+      await user.click(screen.getByRole("button", { name: "Text" }));
       expect(await screen.findByRole("button", { name: /Edit canvas sky.*rows 3–4/ })).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Plain Text" }));
       expect(screen.queryByRole("button", { name: /Edit canvas sky.*rows/ })).toBeNull();
       await user.click(screen.getByRole("button", { name: "Rich Editor" }));
       expect(await screen.findByRole("button", { name: /Edit canvas sky.*rows 3–4/ })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Canvases" }));
       await user.click(screen.getByRole("button", { name: "Delete canvas sky" }));
+      await user.click(screen.getByRole("button", { name: "Text" }));
       expect(screen.queryByRole("button", { name: /Edit canvas sky.*rows/ })).toBeNull();
     });
 
@@ -301,6 +346,7 @@ describe("PageBuilder — pixel canvases", () => {
       if (caseName === "aborted") {
         await user.click(toggle);
       } else {
+        await user.click(screen.getByRole("button", { name: "Canvases" }));
         await user.click(screen.getByRole("button", { name: "Add canvas" }));
         await waitFor(() => expect(api.renderTemplateLive).toHaveBeenCalledTimes(2));
       }
@@ -330,6 +376,7 @@ describe("PageBuilder — pixel canvases", () => {
       await user.click(screen.getByRole("switch", { name: /live/i }));
       await waitFor(() => expect(api.renderTemplateLive).toHaveBeenCalledTimes(1));
       const firstSignal = vi.mocked(api.renderTemplateLive).mock.calls[0][6];
+      await user.click(screen.getByRole("button", { name: "Canvases" }));
       await user.click(screen.getByRole("button", { name: "Delete canvas sky" }));
       await waitFor(() => expect(vi.mocked(api.renderTemplateLive).mock.calls.at(-1)?.[8]?.canvases).toEqual([]));
       expect(firstSignal?.aborted).toBe(true);
@@ -372,6 +419,7 @@ describe("PageBuilder — pixel canvases", () => {
       await act(async () => {
         vi.advanceTimersByTime(4 * 60 * 1000);
       });
+      await user.click(screen.getByRole("button", { name: "Canvases" }));
       await user.click(screen.getByRole("button", { name: "Add canvas" }));
       await act(async () => {
         vi.advanceTimersByTime(2 * 60 * 1000);
@@ -407,6 +455,7 @@ describe("PageBuilder — pixel canvases", () => {
       await user.click(screen.getByRole("switch", { name: /live/i }));
       await waitFor(() => expect(vi.mocked(api.renderTemplateLive).mock.calls.at(-1)?.[8]?.canvases).toEqual([SKY]));
       await waitFor(() => expect(displayPreviewLayers.at(-1)).toEqual([liveLayer]));
+      await user.click(screen.getByRole("button", { name: "Canvases" }));
       await user.click(screen.getByRole("button", { name: "Delete canvas sky" }));
       await waitFor(() => expect(vi.mocked(api.renderTemplateLive).mock.calls.at(-1)?.[8]?.canvases).toEqual([]));
       await waitFor(() => expect(devicePreviewProps.at(-1)?.layers).toEqual([]));
@@ -459,6 +508,7 @@ describe("PageBuilder — pixel canvases", () => {
       vi.mocked(api.updatePage).mockResolvedValue({ page: PIXOO_PAGE, incompatible_references: [] });
       const user = userEvent.setup();
       renderExisting();
+      await user.click(await screen.findByRole("button", { name: "Canvases" }));
       await user.click(await screen.findByRole("button", { name: "Add canvas" }, { timeout: 5000 }));
       await waitFor(() => expect(lastRenderCanvases()).toEqual([expect.objectContaining({ id: "canvas1" })]), {
         timeout: 5000,
@@ -474,6 +524,7 @@ describe("PageBuilder — pixel canvases", () => {
       vi.mocked(api.updatePage).mockResolvedValue({ page: PIXOO_PAGE, incompatible_references: [] });
       const user = userEvent.setup();
       renderExisting();
+      await user.click(await screen.findByRole("button", { name: "Canvases" }));
       await user.click(await screen.findByRole("button", { name: "Delete canvas sky" }, { timeout: 5000 }));
       await user.click(screen.getByRole("button", { name: /^Save/ }));
       await waitFor(() => expect(api.updatePage).toHaveBeenCalled());

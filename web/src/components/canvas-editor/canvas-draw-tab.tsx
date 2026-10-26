@@ -27,6 +27,7 @@ const DEFAULT_ZOOM_INDEX = 3;
 
 interface CanvasDrawTabProps {
   content: CanvasContent | null | undefined;
+  source?: string | null;
   /** The pad's pixel size: the content's own `size`, else the canvas's pixel size on the board. */
   width: number;
   height: number;
@@ -34,7 +35,7 @@ interface CanvasDrawTabProps {
 }
 
 /** Draw tab: tool bar + pixel pad. Painting writes `pixels`/`palette` and pins `size` to the pad. */
-export function CanvasDrawTab({ content, width, height, onContentChange }: CanvasDrawTabProps) {
+export function CanvasDrawTab({ content, source, width, height, onContentChange }: CanvasDrawTabProps) {
   const t = useTranslations("canvasEditor");
   const [tool, setTool] = useState<PadTool>("brush");
   const [color, setColor] = useState("#ff0000");
@@ -73,6 +74,11 @@ export function CanvasDrawTab({ content, width, height, onContentChange }: Canva
 
   return (
     <Stack gap="3">
+      {!!(source?.trim() || content?.background || content?.shapes?.length) && (
+        <Text size="xs" tone="muted">
+          {t(source?.trim() ? "drawSourceHint" : "drawLayerHint")}
+        </Text>
+      )}
       <Flex align="center" gap="2" className="flex-wrap">
         <ToggleGroup
           aria-label={t("toolsLabel")}

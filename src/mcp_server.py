@@ -541,8 +541,8 @@ def _build_mcp_server() -> Any:
             "    'sunrise' | 'sunset') with minute offsets, and board_id.\n"
             "  • validate_schedules(board_id) reports overlaps and gaps — run it\n"
             "    after editing. set_default_page(page_id) picks what shows in gaps;\n"
-            "    update_setting('schedule_behavior', {defer_on_reenable}) sets the\n"
-            "    global re-enable behavior.\n"
+            "    update_setting('schedule_behavior', {board_id, defer_on_reenable})\n"
+            "    sets that board's re-enable behavior (omitted id = primary).\n"
             "  • Collections rotate on 'time', pick by 'variable' rules, or shuffle\n"
             "    on 'random'; update_collection() merges mode config, so a single\n"
             "    field (poll_seconds, rules, interval_seconds) can change alone.\n\n"
@@ -2448,8 +2448,10 @@ def _build_mcp_server() -> Any:
                   transition=..., transition_step_interval_ms=...,
                   transition_step_size=...) instead.
                 - output: target ("ui" | "board" | "both").
-                - polling: interval_seconds (int) — how often plugins
-                  refresh; board_read_interval_local / _cloud (int seconds).
+                - polling: board_id (optional, omitted = primary),
+                  interval_seconds (int, 10–3600) — how often that board's
+                  content refreshes; board_read_interval_local / _cloud
+                  (int seconds, 20–3600). Applies live to that board only.
                 - location: latitude (float), longitude (float) — used by
                   sunrise/sunset schedules and location-aware plugins.
                 - silence_schedule: enabled (bool), start_time and end_time
@@ -2459,8 +2461,8 @@ def _build_mcp_server() -> Any:
                   writes that board's own override instead of the
                   install-wide schedule; boards without an override follow
                   the install-wide one).
-                - schedule_behavior: defer_on_reenable (bool) — the
-                  Schedules page's global toggle: when true, turning schedule
+                - schedule_behavior: board_id (optional, omitted = primary),
+                  defer_on_reenable (bool) — when true, turning that board's schedule
                   mode back on waits for the next entry's start instead of
                   switching the board immediately.
                 - active_page: page_id (string), board_id (optional) — the

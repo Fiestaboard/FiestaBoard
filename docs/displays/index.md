@@ -47,7 +47,20 @@ If another app writes to a display, such as the Vestaboard app or the Divoom app
 
 ## Every Display Is a Plugin
 
+Open a display to switch between **Overview** (its live preview), **Settings**
+(connection and display options), and **Playback** (transitions, quiet hours,
+schedule re-enable behavior, and update/read intervals). These scheduling
+preferences belong to the individual display, not the app-wide Settings page.
+The transition selector includes a replayable preview. Split-flap
+previews illustrate the ordering; hardware appearance may differ. Previews do
+not send anything to your display.
+
 Behind the scenes, each kind of display is an **output plugin**, just like weather or transit data come from data plugins. That includes the Vestaboard. The **Marketplace** tab on the **Displays** page lists every display plugin: install one, update it, or click **Add display** on its card.
+
+Search and category controls help browse the catalog as it grows. **Install
+from Git** opens the advanced installation form when needed. A **Community**
+badge identifies a known repository outside the FiestaBoard organization; it
+describes the publisher, not a security review.
 
 This is how FiestaBoard grows to support new hardware without changing FiestaBoard itself. If you build displays, you have three ways to connect one:
 

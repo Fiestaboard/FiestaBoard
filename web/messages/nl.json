@@ -95,7 +95,9 @@
     "updateAvailable": "Update beschikbaar",
     "updateTo": "Bijwerken naar {version}",
     "about": "Over FiestaBoard",
-    "signOut": "Afmelden"
+    "signOut": "Afmelden",
+    "popoverLabel": "Accountmenu",
+    "account": "Account"
   },
   "aboutDialog": {
     "description": "Versie- en systeeminformatie van dit FiestaBoard.",
@@ -203,7 +205,11 @@
     "importDialogCancel": "Annuleren",
     "importDialogImport": "Importeren",
     "importDialogImporting": "Importeren...",
-    "toastImported": "\"{name}\" toegevoegd aan je pagina's"
+    "toastImported": "\"{name}\" toegevoegd aan je pagina's",
+    "displayFilter": "Schermfilter",
+    "allPages": "Alle pagina’s",
+    "libraryCount": "{count, plural, one {# pagina} other {# pagina’s}}",
+    "clearFilter": "Alle pagina’s tonen"
   },
   "collections": {
     "title": "Carrousels",
@@ -300,7 +306,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "Weergavemodus",
+    "gridView": "Tegelweergave",
+    "listView": "Lijstweergave",
+    "libraryCount": "{count, plural, one {# carrousel} other {# carrousels}}",
+    "movePageUp": "{name} omhoog verplaatsen",
+    "movePageDown": "{name} omlaag verplaatsen",
+    "removePage": "{name} verwijderen",
+    "moveRuleUp": "Regel {number} omhoog verplaatsen",
+    "moveRuleDown": "Regel {number} omlaag verplaatsen",
+    "notFound": "Deze carrousel is niet gevonden.",
+    "loadFailed": "De carrousels konden niet worden geladen. Probeer het opnieuw.",
+    "backToCollections": "Terug naar carrousels",
+    "discardChangesTitle": "Niet-opgeslagen wijzigingen verwerpen?",
+    "discardChangesDescription": "Je carrousel bevat niet-opgeslagen wijzigingen.",
+    "keepEditing": "Verder bewerken",
+    "discardAndLeave": "Verwerpen en verlaten",
+    "retryButton": "Opnieuw proberen"
   },
   "schedule": {
     "title": "Planning",
@@ -638,7 +661,13 @@
       "createAction": "Demopagina aanmaken",
       "recreateAction": "Demopagina opnieuw aanmaken",
       "requirementsWarning": "Configureer hieronder de vereiste instellingen voordat je een demopagina aanmaakt."
-    }
+    },
+    "catalogCount": "{count} integraties",
+    "previousResults": "Vorige resultaten",
+    "nextResults": "Volgende resultaten",
+    "resultsPage": "Pagina {current} van {total}",
+    "allCategories": "Alle categorieën",
+    "categoryFilter": "Integratiecategorie"
   },
   "settings": {
     "title": "Instellingen",
@@ -739,7 +768,15 @@
       "confirmDescription": "Je staat op het punt <file></file> terug te zetten. Je bestaande pagina's, carrousels, planningen en configuratie worden overschreven. Van elk bestaand bestand wordt een kopie met tijdstempel bewaard naast het nieuwe, zodat je zo nodig handmatig kunt terugdraaien.",
       "restoringButton": "Terugzetten…",
       "restoreButton": "Back-up terugzetten"
-    }
+    },
+    "groupIdentity": "Instantie",
+    "groupAppearance": "Uiterlijk en toegankelijkheid",
+    "groupRegional": "Taal, tijd en locatie",
+    "groupConnections": "Verbindingen",
+    "displaySilenceTitle": "Stiltetijden van schermen",
+    "displaySilenceDescription": "Elk scherm heeft eigen stiltetijden. Open het tabblad Afspelen van een scherm om het schema te wijzigen.",
+    "openDisplayPlayback": "Afspeelinstellingen voor {name} openen",
+    "openDisplays": "Schermen beheren"
   },
   "offline": {
     "youreOffline": "Je bent offline",
@@ -1166,7 +1203,12 @@
     "liveSilencePreviewOnly": "Live-uitvoer toont alleen een voorbeeld. Het bord blijft stil.",
     "liveSendAnyway": "Toch naar bord sturen",
     "liveSilenceOverriding": "Live-uitvoer maakt het bord wakker tijdens de stilte.",
-    "liveStopOverriding": "Stoppen met sturen"
+    "liveStopOverriding": "Stoppen met sturen",
+    "editingSurfaceLabel": "Pagina-inhoud",
+    "textMode": "Tekst",
+    "canvasesMode": "Canvassen",
+    "showPreview": "Voorbeeld en live-uitvoer tonen",
+    "hidePreview": "Voorbeeld en live-uitvoer verbergen"
   },
   "displaySettings": {
     "unnamedBoard": "Naamloos bord",
@@ -1271,7 +1313,15 @@
       "speedTitle": "Snelheid",
       "pluginsDescription": "Frame-voor-frame-animaties zoals typemachine en oplossen (verouderd). Geldt voor alle schermen.",
       "pluginsSavedToast": "Instelling voor transitieplugins opgeslagen.",
-      "pluginsSaveFailedToast": "Instelling voor transitieplugins opslaan mislukt: {error}"
+      "pluginsSaveFailedToast": "Instelling voor transitieplugins opslaan mislukt: {error}",
+      "replay": "Voorbeeld opnieuw afspelen",
+      "nativePreviewNote": "Toont de volgorde en het ritme van de tegels. De weergave op de hardware kan afwijken.",
+      "pluginPreviewUnavailable": "Geen voorbeeld beschikbaar voor deze overgangsplugin.",
+      "savedUnavailable": "Opgeslagen keuze: {name} (niet beschikbaar)",
+      "reducedMotionNote": "Minder beweging is ingeschakeld. Het voorbeeld toont het uiteindelijke bericht.",
+      "cloudPreviewNote": "Dit scherm verandert alle inhoud in één keer.",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "HALLO WERELD"
     },
     "add": {
       "title": "Scherm toevoegen",
@@ -1339,7 +1389,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "Overzicht",
+    "tabSettings": "Instellingen",
+    "tabPlayback": "Afspelen",
+    "tabsLabel": "Schermsecties"
   },
   "systemUpdate": {
     "updateAvailable": "Update beschikbaar",
@@ -1751,9 +1805,9 @@
     "welcomeSendError": "Versturen mislukt",
     "welcomeDefault": "Laat leeg om de standaardbegroeting te gebruiken",
     "timezoneLabel": "Tijdzone",
-    "animationsTitle": "Animaties",
-    "animationsDescription": "Stel beweging apart in voor de board-preview en de rest van de app",
-    "boardAnimationsLabel": "Board-animaties",
+    "animationsTitle": "Grafische weergave en voorbeelden",
+    "animationsDescription": "Beheer bewegingen in de hele app. Deze voorkeuren gelden voor elk voorbeeld op het scherm.",
+    "boardAnimationsLabel": "Bordvoorbeelden",
     "boardAnimationsHint": "Het omklappen van split-flap-tegels bij wijziging",
     "boardAnimationsOn": "Aan",
     "boardAnimationsDesktop": "Alleen desktop",
@@ -1767,7 +1821,7 @@
     "siteAnimationsOff": "Uit",
     "animationsReduceMotionOverride": "\"Beweging verminderen\" is ingeschakeld en overschrijft deze instellingen.",
     "flapSpeedLabel": "Omklapsnelheid",
-    "flapSpeedHint": "Hoe lang elke tegel één teken toont terwijl het board tot rust komt",
+    "flapSpeedHint": "Kies het ritme voor de voorbeelden van klapborden in deze app.",
     "flapSpeed_hardware": "Snelst",
     "flapSpeed_quick": "Snel",
     "flapSpeed_standard": "Standaard",
@@ -1779,7 +1833,7 @@
     "flapSpeed_relaxedHint": "{ms} ms — een traag, bedachtzaam omklappen voor sfeerschermen.",
     "flapSpeedPreviewLabel": "Voorbeeld",
     "flapSpeedInactive": "Board-animaties staan uit, dus de omklapsnelheid heeft geen effect.",
-    "flapSpeedScreenOnlyNote": "Dit wijzigt alleen het board-voorbeeld op het scherm. Het tempo van de overgangen op je fysieke Vestaboard stel je apart in, onder Planning → Board-overgangen."
+    "flapSpeedScreenOnlyNote": "Dit regelt alleen het bordvoorbeeld op het scherm. Wijzig de timing van de hardware via Schermen → Afspelen → Bordovergangen."
   },
   "monitor": {
     "title": "Monitor",
@@ -2921,7 +2975,9 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "De canvassen zijn niet geaccepteerd: {message}",
     "notPixelNotice": "Deze pagina bevat pixelcanvassen. Dit bord kan ze niet tekenen, dus hun gebieden blijven leeg. Bekijk een voorbeeld van de pagina op een LED-pixelbord om ze te bewerken.",
-    "markerTitle": "Op deze rij begint een canvas (geen onderdeel van de tekst)"
+    "markerTitle": "Op deze rij begint een canvas (geen onderdeel van de tekst)",
+    "drawLayerHint": "Tekenen bewerkt alleen pixels. Het paginavoorbeeld toont de achtergrond en vormen van het canvas.",
+    "drawSourceHint": "Dit canvas gebruikt een bron. Tekenen bewerkt de reservepixels; het voorbeeld toont de bron wanneer deze beschikbaar is."
   },
   "silenceNotice": {
     "untilTitle": "Stil tot {time}",
@@ -2984,5 +3040,9 @@
     "confirm": "Bevestigen",
     "revokeDevice": "Toegang voor {name} intrekken",
     "retry": "Opnieuw proberen"
+  },
+  "plugins": {
+    "communityBadge": "Community",
+    "communityDescription": "Gepubliceerd buiten de FiestaBoard-organisatie op GitHub."
   }
 }

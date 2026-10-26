@@ -19,16 +19,20 @@ Preserve existing beta tags, releases, and versioned Docker images.
 
 `v10.1.0-beta.1` was published after `v10.0.0`. A `10.0.x` patch is older than
 that beta, so it cannot graduate every beta installation through an ordinary
-update. The transition PR carries the `minor` label: the existing stable release
-workflow derives a `10.1.0` release from the committed `10.0.0` version.
+update. The combined enhancement PR targets stable `10.1.1`. Its version files are
+synchronized to `10.1.0` and it carries the `patch` release label, so the existing
+stable workflow increments them to `10.1.1` after merge. The `enhancement` label
+describes the change; it does not select the version bump.
 
-Keep version files at their current stable value in the PR; `release.yml` bumps
-and commits them after merge. Confirm the PR still has `minor` immediately
-before merging, and confirm the released version is newer than all published
-betas before declaring the transition complete.
+Confirm the PR has `patch` and neither `minor` nor `major` immediately before
+merging: those higher-priority labels would change the requested target.
+`release.yml` commits the final version bump after merge. Recheck the version
+base if another release merges first, and confirm the published release is
+`10.1.1` and newer than all published betas before declaring the transition
+complete.
 
 The beta update checker considers stable releases as well as prereleases. When
-`10.1.0` is available, Update Now (or enabled automatic updates) installs that
+`10.1.1` is available, Update Now (or enabled automatic updates) installs that
 exact version, records the stable channel, and clears the beta join snapshot
 reference. The next boot therefore stays on stable without restoring old
 configuration. Installations with automatic updates disabled still need their

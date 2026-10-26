@@ -78,8 +78,11 @@ export function anchorSelectors(id: string): string[] {
  */
 export function resolveAnchor(id: string, root: ParentNode = document): HTMLElement | null {
   for (const selector of anchorSelectors(id)) {
-    const el = root.querySelector<HTMLElement>(selector);
-    if (el) return el;
+    for (const el of root.querySelectorAll<HTMLElement>(selector)) {
+      // Display tabs retain their forms for draft persistence. An existing
+      // anchor is not ready for a spotlight until its panel is active.
+      if (!el.closest("[hidden], [inert], [aria-hidden='true']")) return el;
+    }
   }
   const card = settingCardFor(id);
   return card ? resolveAnchor(card, root) : null;
@@ -113,9 +116,9 @@ export const SETTING_SECTIONS: Record<string, { section: string; card?: string }
   general: { section: "general" },
   location: { section: "general", card: "settings.location" },
   display: { section: "general", card: "settings.display" },
-  polling: { section: "scheduling", card: "settings.polling" },
-  silence_schedule: { section: "scheduling", card: "settings.silence_schedule" },
-  schedule_behavior: { section: "scheduling", card: "settings.schedule_behavior" },
+  polling: { section: DISPLAYS_SECTION, card: "settings.polling" },
+  silence_schedule: { section: DISPLAYS_SECTION, card: "settings.silence_schedule" },
+  schedule_behavior: { section: DISPLAYS_SECTION, card: "settings.schedule_behavior" },
   // Displays have their own section (plan D21), not a settings tab. Each
   // display owns its transition (settings v6); "transitions" is the
   // deprecated alias for the first display's.
@@ -140,7 +143,12 @@ export function settingAnchors(category: string, key: string): { control: string
  * The route that shows `category`: its settings tab, Displays for a board's,
  * or the Integrations page for plugin updates.
  */
-export function settingsHref(category: string): string {
+export function settingsHref(category: string, boardId?: string): string {
+  if (["silence_schedule", "polling", "schedule_behavior"].includes(category)) {
+    return boardId
+      ? `/displays/${encodeURIComponent(boardId)}?section=playback`
+      : "/displays";
+  }
   const owner = SETTING_SECTIONS[category];
   const section = owner?.section ?? "general";
   if (section === DISPLAYS_SECTION) return "/displays";

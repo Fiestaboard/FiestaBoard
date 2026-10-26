@@ -1707,8 +1707,8 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
     endpoints the web Settings page calls), so validation and normalization
     live exactly once. ``active_page`` resolves to the canonical
     :func:`set_active_page` executor shared with MCP; ``schedule_behavior``
-    is ``PUT /schedules/settings`` (the global ``defer_on_reenable`` toggle
-    on the Schedules page).
+    is ``PUT /schedules/settings`` (one board's ``defer_on_reenable`` toggle).
+    Polling and schedule behavior accept ``values.board_id``; omitted is primary.
 
     Unknown keys are refused rather than ignored, and secret keys are refused
     by name — see :data:`SECRET_SETTING_KEYS`.
@@ -1738,11 +1738,17 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
             from src.schedules.models import ScheduleBehaviorUpdate
             from src.schedules.routes import set_schedule_settings
 
+            refusal = _refuse_unknown_keys(category, values, ScheduleBehaviorUpdate.model_fields)
+            if refusal is not None:
+                return refusal
             response = await set_schedule_settings(ScheduleBehaviorUpdate(**values))
+            from src.settings.service import get_settings_service
+
             return ok(
                 "schedule_behavior settings updated.",
                 category=category,
                 defer_on_reenable=response.defer_on_reenable,
+                board_id=values.get("board_id") or get_settings_service().get_primary_board_id(),
             )
 
         import src.settings.models as models
@@ -1834,6 +1840,14 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
     except Exception as exc:
         return err(f"Error updating {category} settings: {exc}")
 
+    if category == "polling":
+        from src.settings.service import get_settings_service
+
+        return ok(
+            f"{category} settings updated.",
+            category=category,
+            board_id=values.get("board_id") or get_settings_service().get_primary_board_id(),
+        )
     return ok(f"{category} settings updated.", category=category)
 
 

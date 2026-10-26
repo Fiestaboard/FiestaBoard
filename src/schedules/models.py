@@ -368,10 +368,11 @@ class ScheduleBehaviorUpdate(BaseModel):
     """
 
     defer_on_reenable: StrictBool
+    board_id: str | None = None
 
 
 class ScheduleBehaviorResponse(BaseModel):
-    """Global schedule behaviour — not per-board (see ``/schedules/enabled``)."""
+    """Schedule behavior for one board (primary when omitted)."""
 
     defer_on_reenable: bool
 

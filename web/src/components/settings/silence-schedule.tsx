@@ -35,7 +35,7 @@ import { localTimeToUTC, utcToLocalTime } from "@/lib/timezone-utils";
 
 type SilenceMode = "indicator" | "freeze" | "page";
 
-export function SilenceSchedule() {
+export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
   const t = useTranslations("generalSettings");
   const tc = useTranslations("common");
   const queryClient = useQueryClient();
@@ -49,8 +49,9 @@ export function SilenceSchedule() {
   // entry, and the entry won key by key. Silence looked off in the UI and
   // stayed on for the board, with no feedback and no recovery short of
   // hand-editing config.json (PR #1801 review, BLOCKER 1).
-  const { currentBoardId, currentBoard } = useCurrentBoard();
-  const scopedBoardId = currentBoardId ?? undefined;
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
+  const scopedBoardId = boardId ?? (currentBoardId || undefined);
+  const scopedBoard = boardId ? boards.find((board) => board.id === boardId) : currentBoard;
 
   const [hasChanges, setHasChanges] = useState(false);
   const [silenceEnabled, setSilenceEnabled] = useState(false);
@@ -132,9 +133,9 @@ export function SilenceSchedule() {
   // existing (possibly stale) choice stays visible instead of vanishing.
   const availablePages = useMemo(() => {
     const pages = pagesData?.pages ?? [];
-    if (!currentBoard) return pages;
-    return pages.filter((p) => p.id === silencePageId || pagesCompatibleWithBoard(p, currentBoard));
-  }, [pagesData?.pages, currentBoard, silencePageId]);
+    if (!scopedBoard) return pages;
+    return pages.filter((p) => p.id === silencePageId || pagesCompatibleWithBoard(p, scopedBoard));
+  }, [pagesData?.pages, scopedBoard, silencePageId]);
 
   const isSaving = updateSilenceMutation.isPending;
 

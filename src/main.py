@@ -246,6 +246,7 @@ class BoardRuntime:
         # back, or two consecutive polls — what external-write detection
         # needs — drift apart.
         self.poll_attempted_at: float | None = None
+        self.device_poll_attempted_at: float | None = None
 
         # The last frame the poll CONFIRMED another writer put on this board,
         # and when (``time.time()``) — issue #1945. Set in the same branch
@@ -280,6 +281,7 @@ class BoardRuntime:
         # of the next collection-boundary check for this board. 0.0 means
         # "check immediately".
         self.next_collection_check: float = 0.0
+        self.last_refresh_at: float | None = None
 
         # Render short-circuit memo (issue #1883): the triple
         # ``(render fingerprint, rendered content, page id)`` from the last
@@ -1202,16 +1204,10 @@ class DisplayService:
     def _board_poll_tick(self, primary_interval: float) -> float:
         """How long the poll loop sleeps between passes.
 
-        The shorter of the primary's interval and the two configured ones: a
-        cloud primary must not stretch the loop past the local interval, or a
-        local secondary would be read every 180 s. A local primary's cadence
-        is exactly what it was.
+        A fast tick notices live settings changes; each board's read-back
+        and device probes have their own cadence gates.
         """
-        try:
-            polling = get_settings_service().get_polling_settings()
-            return min(primary_interval, polling.board_read_interval_local, polling.board_read_interval_cloud)
-        except Exception:
-            return primary_interval
+        return min(1, primary_interval)
 
     def _board_poll_loop(self) -> None:
         """Background thread: periodically read every readable board's state and cache it.
@@ -1275,10 +1271,14 @@ class DisplayService:
         scheduling jitter, so a board due every tick is read every tick.
         One board's failure never skips the rest.
         """
-        polling = get_settings_service().get_polling_settings()
+        settings = get_settings_service()
         now = time.monotonic()
         for rt in self._runtimes_in_poll_order():
             last = rt.poll_attempted_at
+            try:
+                polling = settings.get_polling_settings(board_id=rt.board_id)
+            except ValueError:
+                continue  # settings removal can precede runtime teardown
             if last is not None:
                 interval = _board_read_interval_for(rt.client, polling)
                 if now - last + POLL_CADENCE_SLACK_SECONDS < interval:
@@ -1376,6 +1376,17 @@ class DisplayService:
             board_id = rt.board_id or key
             if settings.is_paused(board_id=board_id) is True:
                 continue
+            try:
+                interval = settings.get_polling_settings(board_id=board_id).board_read_interval_local
+            except ValueError:
+                continue  # settings removal can precede runtime teardown
+            now = time.monotonic()
+            if (
+                rt.device_poll_attempted_at is not None
+                and now - rt.device_poll_attempted_at + POLL_CADENCE_SLACK_SECONDS < interval
+            ):
+                continue
+            rt.device_poll_attempted_at = now
             news = poll()
             if not isinstance(news, DevicePoll):
                 continue
@@ -1899,7 +1910,7 @@ class DisplayService:
     # Per-board display engine (single tick loop)
     # ------------------------------------------------------------------ #
 
-    def check_and_send_active_page(self, *, wait: bool = True) -> bool:
+    def check_and_send_active_page(self, *, wait: bool = True, board_ids: set[str] | None = None) -> bool:
         """Drive every configured board from its schedule/active page.
 
         Back-compat entry point (retained for /refresh, /force-refresh, MQTT,
@@ -1912,6 +1923,8 @@ class DisplayService:
         board's send has actually finished, exactly as when the render ran
         inline. The engine's run loop passes ``wait=False`` so its tick only
         *enqueues* sends on the per-board workers (issue #1755).
+        ``board_ids`` limits an engine cadence pass to the boards due now;
+        omitted means all boards for manual refreshes and explicit wakes.
 
         Returns:
             True if content was sent to the PRIMARY board (``wait=False``:
@@ -1924,14 +1937,18 @@ class DisplayService:
         # consumer in the same pass — other boards of that size, variable-mode
         # collection resolution — reuses it. Keyed by size_key; filled lazily.
         contexts: dict[str, dict] = {}
-        sent = self.check_and_send_for_board(primary_id, rt, is_primary=True, contexts=contexts, wait=wait)
+        sent = False
+        if board_ids is None or primary_id in board_ids:
+            sent = self.check_and_send_for_board(primary_id, rt, is_primary=True, contexts=contexts, wait=wait)
         try:
-            self._drive_secondary_boards(contexts, wait=wait)
+            self._drive_secondary_boards(contexts, wait=wait, board_ids=board_ids)
         except Exception as e:  # secondaries must never break the primary loop
             logger.error(f"Error updating secondary boards: {e}")
         return sent
 
-    def _drive_secondary_boards(self, contexts: dict[str, dict] | None = None, *, wait: bool = True) -> None:
+    def _drive_secondary_boards(
+        self, contexts: dict[str, dict] | None = None, *, wait: bool = True, board_ids: set[str] | None = None
+    ) -> None:
         """Drive every board after the first through the unified per-board path.
 
         Each board raising is isolated so one failure never blocks the others.
@@ -1947,6 +1964,8 @@ class DisplayService:
                 continue
             board_id = board.get("id")
             if not board_id:
+                continue
+            if board_ids is not None and board_id not in board_ids:
                 continue
             rt = self.runtimes.get(board_id)
             if rt is None:
@@ -1964,7 +1983,7 @@ class DisplayService:
 
         Turning schedule mode back on normally repaints the board at once: the
         active page is re-resolved from the clock on every pass, so the board
-        jumps to whichever window is current. With ``schedule.defer_on_reenable``
+        jumps to whichever window is current. With the board's ``schedule_defer_on_reenable``
         on, the re-enable instead records the schedule entry winning right then,
         and the board keeps showing its manual page until a *different* entry
         wins -- the next scheduled time it would have changed anyway.
@@ -1979,7 +1998,7 @@ class DisplayService:
         settings_service = get_settings_service()
         arming = rt.last_schedule_enabled is False and rt.schedule_defer_key is None
         if arming:
-            if not settings_service.get_schedule_settings().defer_on_reenable:
+            if not settings_service.get_schedule_settings(board_id=board_id).defer_on_reenable:
                 return False
         elif rt.schedule_defer_key is None:
             return False
@@ -3239,6 +3258,20 @@ class DisplayService:
             return get_schedule_service().get_active_page_id(now.time(), now.strftime("%A").lower(), board_id=board_id)
         return settings_service.get_active_page_id(board_id=board_id)
 
+    def _boards_due_for_refresh(self, now: float) -> set[str]:
+        """Evaluate every board's live interval without sharing cadence gates."""
+        settings = get_settings_service()
+        due = set()
+        for rt in self.runtimes.values():
+            try:
+                interval = settings.get_polling_interval(board_id=rt.board_id)
+            except ValueError:
+                continue  # settings removal can precede runtime teardown
+            if rt.last_refresh_at is None or now - rt.last_refresh_at >= interval:
+                due.add(rt.board_id)
+                rt.last_refresh_at = now
+        return due
+
     def run(self):
         """Run the main service loop."""
         self.running = True
@@ -3250,32 +3283,33 @@ class DisplayService:
         schedule.clear()
 
         settings_service = get_settings_service()
-        polling_interval = settings_service.get_polling_interval()
 
         # Engine passes are fire-and-forget (issue #1755): the tick only
         # enqueues each board's send on its worker, so one board's long
         # transition cannot stall the other boards, the 1 Hz silence
         # detector, or collection rotation.
-        def engine_pass() -> bool:
-            return self.check_and_send_active_page(wait=False)
-
-        schedule.every(polling_interval).seconds.do(engine_pass)
-        logger.info(f"Active page polling scheduled every {polling_interval} seconds")
+        def engine_pass(board_ids=None) -> bool:
+            if board_ids is None:
+                return self.check_and_send_active_page(wait=False)
+            return self.check_and_send_active_page(wait=False, board_ids=board_ids)
 
         logger.info("Sending initial active page...")
         engine_pass()
+        started = time.time()
+        for rt in self.runtimes.values():
+            rt.last_refresh_at = started
 
         logger.info("Service started, waiting for scheduled updates...")
         try:
             while self.running:
                 schedule.run_pending()
+                refresh_due = self._boards_due_for_refresh(time.time())
+                if refresh_due:
+                    engine_pass(refresh_due)
 
-                # 1-second silence-boundary detector. The schedule library only
-                # fires check_and_send_active_page every polling_interval seconds,
-                # so without this the silence page could appear up to ~15s after
-                # the configured start time (longer if the user raised the poll
-                # interval). A cheap per-board silence check each second lets us
-                # catch the transition within ~1s. Windows are per board
+                # A cheap silence-boundary check each second catches a
+                # transition promptly even when a board's content refresh
+                # interval is long. Windows are per board
                 # (issue #1788), so ANY board flipping forces the update.
                 if self._silence_state_changed():
                     engine_pass()
@@ -3286,12 +3320,15 @@ class DisplayService:
                 # secondary collection never depends on the primary selection.
                 now = time.time()
                 self._ensure_primary_runtime()
-                collection_due = False
+                collection_due = set()
                 for rt in list(self.runtimes.values()):
                     if now < rt.next_collection_check:
                         continue
-                    rt.next_collection_check = now + polling_interval
                     board_id = self._get_first_board_id() if rt is self._primary_runtime() else rt.board_id
+                    try:
+                        rt.next_collection_check = now + settings_service.get_polling_interval(board_id=board_id)
+                    except ValueError:
+                        continue  # removed while runtime workers stop
                     if settings_service.is_paused(board_id=board_id) is True:
                         continue
                     ref_id = self._get_active_ref_id(board_id)
@@ -3299,11 +3336,11 @@ class DisplayService:
                         collection_service = get_collection_service()
                         secs = collection_service.seconds_until_next_check(ref_id, now)
                         if secs is not None:
-                            collection_due = True
+                            collection_due.add(board_id)
                             rt.next_collection_check = now + max(1, secs)
                 # Coalesce coincident boundaries into one shared-context pass.
                 if collection_due:
-                    engine_pass()
+                    engine_pass(collection_due)
                 time.sleep(1)
                 # A page change woke the engine: its pass runs on this step.
                 if self.take_wake():

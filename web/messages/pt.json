@@ -95,7 +95,9 @@
     "updateAvailable": "Atualização disponível",
     "updateTo": "Atualizar para {version}",
     "about": "Sobre o FiestaBoard",
-    "signOut": "Terminar sessão"
+    "signOut": "Terminar sessão",
+    "popoverLabel": "Menu da conta",
+    "account": "Conta"
   },
   "aboutDialog": {
     "description": "Informações de versão e de sistema deste FiestaBoard.",
@@ -203,7 +205,11 @@
     "importDialogCancel": "Cancelar",
     "importDialogImport": "Importar",
     "importDialogImporting": "A importar...",
-    "toastImported": "«{name}» adicionado às suas páginas"
+    "toastImported": "«{name}» adicionado às suas páginas",
+    "displayFilter": "Filtro de ecrã",
+    "allPages": "Todas as páginas",
+    "libraryCount": "{count, plural, one {# página} other {# páginas}}",
+    "clearFilter": "Mostrar todas as páginas"
   },
   "collections": {
     "title": "Carrosséis",
@@ -300,7 +306,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "Modo de visualização",
+    "gridView": "Vista em mosaico",
+    "listView": "Vista de lista",
+    "libraryCount": "{count, plural, one {# carrossel} other {# carrosséis}}",
+    "movePageUp": "Mover {name} para cima",
+    "movePageDown": "Mover {name} para baixo",
+    "removePage": "Remover {name}",
+    "moveRuleUp": "Mover a regra {number} para cima",
+    "moveRuleDown": "Mover a regra {number} para baixo",
+    "notFound": "Não foi possível encontrar este carrossel.",
+    "loadFailed": "Não foi possível carregar os carrosséis. Tente novamente.",
+    "backToCollections": "Voltar aos carrosséis",
+    "discardChangesTitle": "Descartar alterações não guardadas?",
+    "discardChangesDescription": "O seu carrossel contém alterações não guardadas.",
+    "keepEditing": "Continuar a editar",
+    "discardAndLeave": "Descartar e sair",
+    "retryButton": "Tentar novamente"
   },
   "schedule": {
     "title": "Agenda",
@@ -638,7 +661,13 @@
       "createAction": "Criar página de demonstração",
       "recreateAction": "Recriar página de demonstração",
       "requirementsWarning": "Configure as definições obrigatórias abaixo antes de criar uma página de demonstração."
-    }
+    },
+    "catalogCount": "{count} integrações",
+    "previousResults": "Resultados anteriores",
+    "nextResults": "Resultados seguintes",
+    "resultsPage": "Página {current} de {total}",
+    "allCategories": "Todas as categorias",
+    "categoryFilter": "Categoria de integração"
   },
   "settings": {
     "title": "Configurações",
@@ -739,7 +768,15 @@
       "confirmDescription": "Está prestes a restaurar <file></file>. As suas páginas, carrosséis, agendamentos e configuração existentes serão substituídos. É guardada uma cópia com data e hora de cada ficheiro existente junto ao novo, para poder reverter manualmente se for necessário.",
       "restoringButton": "A restaurar…",
       "restoreButton": "Restaurar backup"
-    }
+    },
+    "groupIdentity": "Instância",
+    "groupAppearance": "Aspeto e acessibilidade",
+    "groupRegional": "Idioma, hora e localização",
+    "groupConnections": "Ligações",
+    "displaySilenceTitle": "Horários de silêncio dos ecrãs",
+    "displaySilenceDescription": "Cada ecrã tem o seu próprio horário de silêncio. Abra o separador Reprodução de um ecrã para alterar o horário.",
+    "openDisplayPlayback": "Abrir as definições de reprodução de {name}",
+    "openDisplays": "Gerir ecrãs"
   },
   "offline": {
     "youreOffline": "Você Está Offline",
@@ -1166,7 +1203,12 @@
     "liveSilencePreviewOnly": "A saída ao vivo está só pré-visualizando. O quadro fica em silêncio.",
     "liveSendAnyway": "Enviar ao quadro mesmo assim",
     "liveSilenceOverriding": "A saída ao vivo está acordando o quadro durante o silêncio.",
-    "liveStopOverriding": "Parar de enviar"
+    "liveStopOverriding": "Parar de enviar",
+    "editingSurfaceLabel": "Conteúdo da página",
+    "textMode": "Texto",
+    "canvasesMode": "Telas",
+    "showPreview": "Mostrar pré-visualização e saída ao vivo",
+    "hidePreview": "Ocultar pré-visualização e saída ao vivo"
   },
   "displaySettings": {
     "unnamedBoard": "Painel Sem Nome",
@@ -1271,7 +1313,15 @@
       "speedTitle": "Velocidade",
       "pluginsDescription": "Animações quadro a quadro, como máquina de escrever e dissolver (obsoleto). Aplica-se a todos os ecrãs.",
       "pluginsSavedToast": "Configuração dos plugins de transição guardada.",
-      "pluginsSaveFailedToast": "Não foi possível guardar a configuração dos plugins de transição: {error}"
+      "pluginsSaveFailedToast": "Não foi possível guardar a configuração dos plugins de transição: {error}",
+      "replay": "Repetir pré-visualização",
+      "nativePreviewNote": "Ilustra a ordem e o ritmo dos mosaicos. O aspeto no dispositivo pode variar.",
+      "pluginPreviewUnavailable": "Pré-visualização indisponível para este plugin de transição.",
+      "savedUnavailable": "Escolha guardada: {name} (indisponível)",
+      "reducedMotionNote": "A redução de movimento está ativada. A pré-visualização mostra a mensagem final.",
+      "cloudPreviewNote": "Este ecrã altera todo o conteúdo de uma só vez.",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "OLA MUNDO"
     },
     "add": {
       "title": "Adicionar um ecrã",
@@ -1339,7 +1389,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "Visão geral",
+    "tabSettings": "Configurações",
+    "tabPlayback": "Reprodução",
+    "tabsLabel": "Secções do ecrã"
   },
   "systemUpdate": {
     "updateAvailable": "Atualização Disponível",
@@ -1751,9 +1805,9 @@
     "welcomeSendError": "Falha ao enviar",
     "welcomeDefault": "Deixe vazio para usar a saudação predefinida",
     "timezoneLabel": "Fuso horário",
-    "animationsTitle": "Animações",
-    "animationsDescription": "Ajuste o movimento separadamente para a pré-visualização do board e o resto da aplicação",
-    "boardAnimationsLabel": "Animações do board",
+    "animationsTitle": "Gráficos e prévias",
+    "animationsDescription": "Controle o movimento em toda a aplicação. Estas preferências aplicam-se a todas as pré-visualizações no ecrã.",
+    "boardAnimationsLabel": "Pré-visualizações do painel",
     "boardAnimationsHint": "O virar dos split-flap quando os mosaicos mudam",
     "boardAnimationsOn": "Ativadas",
     "boardAnimationsDesktop": "Apenas computador",
@@ -1767,7 +1821,7 @@
     "siteAnimationsOff": "Desativadas",
     "animationsReduceMotionOverride": "«Reduzir movimento» está ativado, o que substitui estas definições.",
     "flapSpeedLabel": "Velocidade de viragem",
-    "flapSpeedHint": "Quanto tempo cada mosaico mostra um carácter enquanto o board estabiliza",
+    "flapSpeedHint": "Escolha o ritmo das pré-visualizações de painéis de palhetas nesta aplicação.",
     "flapSpeed_hardware": "Mais rápida",
     "flapSpeed_quick": "Rápida",
     "flapSpeed_standard": "Padrão",
@@ -1779,7 +1833,7 @@
     "flapSpeed_relaxedHint": "{ms} ms — uma viragem lenta e deliberada para ecrãs de ambiente.",
     "flapSpeedPreviewLabel": "Pré-visualização",
     "flapSpeedInactive": "As animações do board estão desligadas, por isso a velocidade de viragem não tem efeito.",
-    "flapSpeedScreenOnlyNote": "Isto altera apenas a pré-visualização do board no ecrã. O ritmo das transições do seu Vestaboard físico define-se à parte, em Agendamento → Transições do board."
+    "flapSpeedScreenOnlyNote": "Esta opção controla apenas a pré-visualização do painel no ecrã. Altere os tempos do dispositivo em Ecrãs → Reprodução → Transições do painel."
   },
   "monitor": {
     "title": "Monitor",
@@ -2921,7 +2975,9 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "As telas não foram aceitas: {message}",
     "notPixelNotice": "Esta página tem telas de pixels. Este quadro não consegue desenhá-las, então suas áreas ficam em branco. Visualize a página em um quadro LED de pixels para editá-las.",
-    "markerTitle": "Uma tela começa nesta linha (não faz parte do texto)"
+    "markerTitle": "Uma tela começa nesta linha (não faz parte do texto)",
+    "drawLayerHint": "Desenhar edita apenas os pixels. A prévia da página mostra o fundo e as formas da tela.",
+    "drawSourceHint": "Esta tela usa uma fonte. Ao desenhar, você edita os pixels de reserva; a prévia mostra a fonte quando ela está disponível."
   },
   "silenceNotice": {
     "untilTitle": "Em silêncio até {time}",
@@ -2984,5 +3040,9 @@
     "confirm": "Confirmar",
     "revokeDevice": "Revogar {name}",
     "retry": "Tentar novamente"
+  },
+  "plugins": {
+    "communityBadge": "Comunidade",
+    "communityDescription": "Publicado fora da organização FiestaBoard no GitHub."
   }
 }

@@ -14,10 +14,11 @@ import { server } from "./mocks/server";
 
 // Mock usePathname from next/navigation
 const mockPathname = vi.fn();
+const mockPush = vi.fn();
 vi.mock("@/hooks/use-router", () => ({
   usePathname: () => mockPathname(),
   useRouter: () => ({
-    push: vi.fn(),
+    push: mockPush,
     replace: vi.fn(),
     prefetch: vi.fn(),
     back: vi.fn(),
@@ -252,8 +253,10 @@ describe("NavigationSidebar nav list", () => {
     expect(triggers.length).toBeGreaterThan(0);
     await user.click(triggers[0]);
 
-    const menu = await screen.findByRole("menu");
-    expect(within(menu).getByRole("menuitem", { name: "Settings" })).toBeInTheDocument();
+    const popup = await screen.findByRole("dialog", { name: "Account menu" });
+    mockPush.mockClear();
+    await user.click(within(popup).getByRole("button", { name: "Settings" }));
+    expect(mockPush).toHaveBeenCalledWith("/settings");
   });
 
   it("shows Help & Docs in the nav list", () => {

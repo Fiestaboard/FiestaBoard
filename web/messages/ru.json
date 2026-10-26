@@ -95,7 +95,9 @@
     "updateAvailable": "Доступно обновление",
     "updateTo": "Обновить до {version}",
     "about": "О FiestaBoard",
-    "signOut": "Выйти"
+    "signOut": "Выйти",
+    "popoverLabel": "Меню аккаунта",
+    "account": "Аккаунт"
   },
   "aboutDialog": {
     "description": "Сведения о версии и системе этого FiestaBoard.",
@@ -203,7 +205,11 @@
     "importDialogCancel": "Отмена",
     "importDialogImport": "Импорт",
     "importDialogImporting": "Импорт...",
-    "toastImported": "«{name}» добавлено в ваши страницы"
+    "toastImported": "«{name}» добавлено в ваши страницы",
+    "displayFilter": "Фильтр по дисплею",
+    "allPages": "Все страницы",
+    "libraryCount": "{count, plural, one {Страницы: #} other {Страницы: #}}",
+    "clearFilter": "Показать все страницы"
   },
   "collections": {
     "title": "Карусели",
@@ -300,7 +306,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "Режим просмотра",
+    "gridView": "Плитки",
+    "listView": "Список",
+    "libraryCount": "{count, plural, one {Карусели: #} other {Карусели: #}}",
+    "movePageUp": "Переместить {name} вверх",
+    "movePageDown": "Переместить {name} вниз",
+    "removePage": "Убрать {name}",
+    "moveRuleUp": "Переместить правило {number} вверх",
+    "moveRuleDown": "Переместить правило {number} вниз",
+    "notFound": "Эта карусель не найдена.",
+    "loadFailed": "Не удалось загрузить карусели. Попробуйте ещё раз.",
+    "backToCollections": "Назад к каруселям",
+    "discardChangesTitle": "Отменить несохранённые изменения?",
+    "discardChangesDescription": "В карусели есть несохранённые изменения.",
+    "keepEditing": "Продолжить редактирование",
+    "discardAndLeave": "Отменить и выйти",
+    "retryButton": "Повторить"
   },
   "schedule": {
     "title": "Расписание",
@@ -638,7 +661,13 @@
       "createAction": "Создать демо-страницу",
       "recreateAction": "Пересоздать демо-страницу",
       "requirementsWarning": "Настройте обязательные параметры ниже, прежде чем создавать демо-страницу."
-    }
+    },
+    "catalogCount": "{count} интеграций",
+    "previousResults": "Предыдущие результаты",
+    "nextResults": "Следующие результаты",
+    "resultsPage": "Страница {current} из {total}",
+    "allCategories": "Все категории",
+    "categoryFilter": "Категория интеграции"
   },
   "settings": {
     "title": "Настройки",
@@ -739,7 +768,15 @@
       "confirmDescription": "Сейчас будет восстановлен файл <file></file>. Ваши текущие страницы, карусели, расписания и конфигурация будут перезаписаны. Рядом с новым файлом сохраняется копия каждого существующего файла с меткой времени, чтобы при необходимости вы могли откатиться вручную.",
       "restoringButton": "Восстановление…",
       "restoreButton": "Восстановить из резервной копии"
-    }
+    },
+    "groupIdentity": "Экземпляр",
+    "groupAppearance": "Оформление и доступность",
+    "groupRegional": "Язык, время и местоположение",
+    "groupConnections": "Подключения",
+    "displaySilenceTitle": "Расписания тишины дисплеев",
+    "displaySilenceDescription": "У каждого дисплея свои часы тишины. Чтобы изменить расписание, откройте вкладку «Воспроизведение» нужного дисплея.",
+    "openDisplayPlayback": "Открыть настройки воспроизведения для {name}",
+    "openDisplays": "Управление дисплеями"
   },
   "offline": {
     "youreOffline": "Вы не в сети",
@@ -1166,7 +1203,12 @@
     "liveSilencePreviewOnly": "Живой вывод только показывает предпросмотр. Табло остаётся тихим.",
     "liveSendAnyway": "Всё равно отправить на табло",
     "liveSilenceOverriding": "Живой вывод будит табло во время тишины.",
-    "liveStopOverriding": "Прекратить отправку"
+    "liveStopOverriding": "Прекратить отправку",
+    "editingSurfaceLabel": "Содержимое страницы",
+    "textMode": "Текст",
+    "canvasesMode": "Холсты",
+    "showPreview": "Показать предпросмотр и прямой вывод",
+    "hidePreview": "Скрыть предпросмотр и прямой вывод"
   },
   "displaySettings": {
     "unnamedBoard": "Доска без названия",
@@ -1271,7 +1313,15 @@
       "speedTitle": "Скорость",
       "pluginsDescription": "Покадровые анимации, например «печатная машинка» и «растворение» (устарело). Применяется ко всем дисплеям.",
       "pluginsSavedToast": "Настройка плагинов переходов сохранена.",
-      "pluginsSaveFailedToast": "Не удалось сохранить настройку плагинов переходов: {error}"
+      "pluginsSaveFailedToast": "Не удалось сохранить настройку плагинов переходов: {error}",
+      "replay": "Повторить предпросмотр",
+      "nativePreviewNote": "Показывает порядок и темп смены плиток. На устройстве результат может выглядеть иначе.",
+      "pluginPreviewUnavailable": "Предпросмотр для этого плагина перехода недоступен.",
+      "savedUnavailable": "Сохранённый выбор: {name} (недоступен)",
+      "reducedMotionNote": "Включено уменьшение движения. Предпросмотр показывает итоговое сообщение.",
+      "cloudPreviewNote": "Этот дисплей меняет всё содержимое одновременно.",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "HELLO WORLD"
     },
     "add": {
       "title": "Добавить дисплей",
@@ -1339,7 +1389,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "Обзор",
+    "tabSettings": "Настройки",
+    "tabPlayback": "Воспроизведение",
+    "tabsLabel": "Разделы дисплея"
   },
   "systemUpdate": {
     "updateAvailable": "Доступно обновление",
@@ -1751,9 +1805,9 @@
     "welcomeSendError": "Не удалось отправить",
     "welcomeDefault": "Оставьте пустым, чтобы использовать приветствие по умолчанию",
     "timezoneLabel": "Часовой пояс",
-    "animationsTitle": "Анимации",
-    "animationsDescription": "Настройте движение отдельно для предпросмотра board и остальной части приложения",
-    "boardAnimationsLabel": "Анимации board",
+    "animationsTitle": "Графика и предпросмотр",
+    "animationsDescription": "Управляйте движением во всём приложении. Эти настройки действуют для всех предпросмотров на экране.",
+    "boardAnimationsLabel": "Предпросмотры табло",
     "boardAnimationsHint": "Поворот split-flap при смене плиток",
     "boardAnimationsOn": "Вкл",
     "boardAnimationsDesktop": "Только десктоп",
@@ -1767,7 +1821,7 @@
     "siteAnimationsOff": "Выкл",
     "animationsReduceMotionOverride": "«Уменьшить движение» включено, что переопределяет эти настройки.",
     "flapSpeedLabel": "Скорость переворота",
-    "flapSpeedHint": "Сколько времени каждая плитка показывает один символ, пока board не установится",
+    "flapSpeedHint": "Выберите темп предпросмотров перекидных табло во всём приложении.",
     "flapSpeed_hardware": "Самая быстрая",
     "flapSpeed_quick": "Быстрая",
     "flapSpeed_standard": "Стандартная",
@@ -1779,7 +1833,7 @@
     "flapSpeed_relaxedHint": "{ms} мс — медленный, размеренный переворот для фоновых дисплеев.",
     "flapSpeedPreviewLabel": "Предпросмотр",
     "flapSpeedInactive": "Анимации board отключены, поэтому скорость переворота ни на что не влияет.",
-    "flapSpeedScreenOnlyNote": "Это меняет только предпросмотр board на экране. Темп переходов физического Vestaboard настраивается отдельно, в разделе «Расписание → Переходы board»."
+    "flapSpeedScreenOnlyNote": "Эта настройка управляет только предпросмотром табло на экране. Измените темп устройства в разделе Дисплеи → Воспроизведение → Переходы табло."
   },
   "monitor": {
     "title": "Монитор",
@@ -2921,7 +2975,9 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "Холсты не приняты: {message}",
     "notPixelNotice": "На этой странице есть пиксельные холсты. Это табло не может их рисовать, поэтому их области остаются пустыми. Чтобы редактировать их, откройте предпросмотр страницы на светодиодном пиксельном табло.",
-    "markerTitle": "В этой строке начинается холст (не часть текста)"
+    "markerTitle": "В этой строке начинается холст (не часть текста)",
+    "drawLayerHint": "Рисование изменяет только пиксели. Фон и фигуры холста видны в предпросмотре страницы.",
+    "drawSourceHint": "Этот холст использует источник. Рисование изменяет резервные пиксели; предпросмотр показывает источник, когда он доступен."
   },
   "silenceNotice": {
     "untilTitle": "Тишина до {time}",
@@ -2984,5 +3040,9 @@
     "confirm": "Подтвердить",
     "revokeDevice": "Отозвать доступ: {name}",
     "retry": "Повторить"
+  },
+  "plugins": {
+    "communityBadge": "Сообщество",
+    "communityDescription": "Опубликовано вне организации FiestaBoard на GitHub."
   }
 }
