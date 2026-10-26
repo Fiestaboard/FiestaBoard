@@ -194,6 +194,17 @@ class BackupService:
                 with self._owning_lock(filename):
                     if self._write_json_with_backup(self.data_dir / filename, payload, timestamp):
                         backed_up.append(filename)
+                    if filename == "pages.json":
+                        # Keep the SAME live owner: requests already holding
+                        # this service must not save its pre-restore cache back
+                        # over the restored file. Reload also rotates every
+                        # runtime page revision before releasing the lock.
+                        from src.pages.service import get_page_service
+
+                        pages = get_page_service()
+                        if pages.storage.storage_file.resolve() == (self.data_dir / filename).resolve():
+                            pages.storage._load()
+                            pages.invalidate_preview_cache()
                 restored.append(filename)
 
         plugin_results: dict[str, Any] = {
@@ -524,11 +535,12 @@ def _reload_services() -> list[str]:
         logger.exception("Failed to reload config manager")
         errors.append("config: reload failed (see server logs)")
 
-    # Settings, pages, collections, schedules: drop singletons so the next
+    # Pages were reloaded in place under their owning lock during the write.
+    # Never drop that owner: in-flight requests can still hold its service.
+    # Settings, collections, schedules: drop singletons so the next
     # access re-reads from the freshly written JSON files.
     for module_path, attr in (
         ("src.settings.service", "_settings_service"),
-        ("src.pages.service", "_page_service"),
         ("src.collections.service", "_collection_service"),
         ("src.schedules.service", "_schedule_service"),
         ("src.panels.service", "_panel_service"),

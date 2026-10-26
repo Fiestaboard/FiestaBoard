@@ -97,7 +97,7 @@ async def get_page(page_id: str) -> Page:
 @router.put(
     "/pages/{page_id}",
     response_model=PageUpdateResponse,
-    responses=errors(400, 404),
+    responses=errors(400, 404, 412),
     summary="Update a page",
     description=(
         "Applies the fields you send and leaves the rest alone. The response carries the updated page plus "
@@ -112,7 +112,7 @@ async def update_page(page_id: str, request: PageUpdate) -> PageUpdateResponse:
 @router.delete(
     "/pages/{page_id}",
     response_model=PageDeleteResponse,
-    responses=errors(404, 409),
+    responses=errors(404, 409, 412),
     summary="Delete a page",
     description=(
         "Removes the page and replaces active selections on every board with a compatible page, creating a welcome "
@@ -121,8 +121,8 @@ async def update_page(page_id: str, request: PageUpdate) -> PageUpdateResponse:
         "The response reports whether any selection changed; its single replacement id prefers the primary board."
     ),
 )
-async def delete_page(page_id: str) -> PageDeleteResponse:
-    return await pages_routes.delete_page(page_id)
+async def delete_page(page_id: str, expected_revision: str | None = None) -> PageDeleteResponse:
+    return await pages_routes.delete_page(page_id, expected_revision=expected_revision)
 
 
 # ---------------------------------------------------------------------------

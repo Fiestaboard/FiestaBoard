@@ -215,6 +215,13 @@ class PageService:
         return self.storage.create(page)
 
     def update_page(self, page_id: str, data: PageUpdate) -> Page | None:
+        # Retarget preparation reads existing geometry/canvases; keep it in
+        # the same critical section as the revision check and persisted save.
+        with self.storage.lock:
+            self.storage.check_revision(page_id, data.expected_revision)
+            return self._update_page_locked(page_id, data)
+
+    def _update_page_locked(self, page_id: str, data: PageUpdate) -> Page | None:
         """Update an existing page.
 
         Args:
@@ -231,6 +238,7 @@ class PageService:
         """
         trace_phase("page_update_started")
         updates = data.model_dump(exclude_unset=True)
+        expected_revision = updates.pop("expected_revision", None)
         self._scale_canvases_on_retarget(page_id, updates)
 
         # Device/size retarget (issue #1250): re-validate the prospective page
@@ -254,7 +262,7 @@ class PageService:
                     raise ValueError(f"Cannot retarget page: {'; '.join(errors)}")
 
         trace_phase("storage_started")
-        updated_page = self.storage.update(page_id, updates)
+        updated_page = self.storage.update(page_id, updates, expected_revision=expected_revision)
         trace_phase("storage_returned")
 
         # Invalidate preview cache for this page
@@ -294,7 +302,12 @@ class PageService:
             for canvas in existing.canvases
         ]
 
-    def delete_page(self, page_id: str) -> DeleteResult:
+    def delete_page(self, page_id: str, *, expected_revision: str | None = None) -> DeleteResult:
+        with self.storage.lock:
+            self.storage.check_revision(page_id, expected_revision)
+            return self._delete_page_locked(page_id)
+
+    def _delete_page_locked(self, page_id: str) -> DeleteResult:
         """Delete a page.
 
         If this is the last page, a default welcome page is created

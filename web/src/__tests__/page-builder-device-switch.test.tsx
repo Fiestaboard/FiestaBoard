@@ -10,10 +10,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { act } from "@testing-library/react";
+import { createRef } from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PageBuilder } from "@/components/page-builder";
+import { PageBuilder, type PageBuilderHandle } from "@/components/page-builder";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
 import type { BoardSettings, Page } from "@/lib/api";
@@ -85,6 +87,7 @@ const boardSettings: BoardSettings = {
 
 const existingFlagshipPage: Page = {
   id: "existing-1",
+  revision: "loaded-revision",
   name: "Existing Page",
   type: "template",
   device_type: "flagship",
@@ -126,6 +129,67 @@ describe("Page editor board-size switching", () => {
       line_count: 1,
     });
     vi.mocked(api.getBoardSettings).mockResolvedValue(boardSettings);
+  });
+
+  it("sends the seeded revision when saving after a background refetch", async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
+    vi.mocked(api.updatePage).mockRejectedValue(new Error("Page changed since it was loaded. Reload the page."));
+    const onClose = vi.fn();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ConfigOverridesProvider>
+          <ThemeProvider attribute="class" defaultTheme="light">
+            <PageBuilder pageId="existing-1" onClose={onClose} />
+          </ThemeProvider>
+        </ConfigOverridesProvider>
+      </QueryClientProvider>,
+    );
+    const name = await screen.findByDisplayValue("Existing Page");
+    await user.clear(name);
+    await user.type(name, "Unsaved changes");
+    act(() => {
+      queryClient.setQueryData(["page", "existing-1"], { ...existingFlagshipPage, revision: "other-editor" });
+    });
+    await user.click(screen.getByRole("button", { name: "Save Page" }));
+    await waitFor(() => {
+      expect(api.updatePage).toHaveBeenCalledWith(
+        "existing-1",
+        expect.objectContaining({
+          name: "Unsaved changes",
+          expected_revision: "loaded-revision",
+        }),
+      );
+    });
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("Unsaved changes")).toBeInTheDocument();
+  });
+
+  it("advances the saved revision for repeated imperative saves", async () => {
+    const ref = createRef<PageBuilderHandle>();
+    vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
+    vi.mocked(api.updatePage).mockResolvedValue({
+      page: { ...existingFlagshipPage, revision: "saved-revision" },
+      incompatible_references: [],
+    });
+    render(<PageBuilder ref={ref} pageId="existing-1" onClose={vi.fn()} />, { wrapper: TestWrapper });
+    await screen.findByDisplayValue("Existing Page");
+    await act(async () => {
+      await ref.current!.save();
+    });
+    expect(api.updatePage).toHaveBeenLastCalledWith(
+      "existing-1",
+      expect.objectContaining({ expected_revision: "loaded-revision" }),
+    );
+    await act(async () => {
+      await ref.current!.save();
+    });
+    expect(api.updatePage).toHaveBeenLastCalledWith(
+      "existing-1",
+      expect.objectContaining({ expected_revision: "saved-revision" }),
+    );
   });
 
   it("lets a new page switch from Flagship to Note and resizes the grid to 3 × 15", async () => {

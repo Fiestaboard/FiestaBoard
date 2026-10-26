@@ -123,6 +123,9 @@ class Page(BaseModel):
     """
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    # Runtime generation, assigned by PageStorage; deliberately not persisted.
+    # Reload/restart invalidates edits based on the previous in-memory state.
+    revision: str | None = Field(default=None, json_schema_extra={"readOnly": True})
     name: str = Field(min_length=1, max_length=100)
     type: PageType
 
@@ -302,6 +305,7 @@ class PageCreate(BaseModel):
 class PageUpdate(BaseModel):
     """Request model for updating an existing page."""
 
+    expected_revision: str | None = Field(default=None, min_length=1, max_length=128)
     name: str | None = Field(default=None, min_length=1, max_length=100)
     # Device/size retarget (issue #1250). Converting between geometries is
     # lossy (content that doesn't fit is truncated at render time) — the
