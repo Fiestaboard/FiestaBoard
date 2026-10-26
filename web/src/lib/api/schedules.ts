@@ -237,7 +237,7 @@ export interface SilenceScheduleSettings {
   config?: Partial<SilenceScheduleConfig>;
 }
 
-/** Global schedule behaviour — not per-board (see `/schedules/enabled` for that). */
+/** Schedule re-enabling behavior for one board. */
 export interface ScheduleBehaviorSettings {
   /**
    * When true, turning schedule mode back on leaves the board on its manual
@@ -351,14 +351,20 @@ export const schedulesApi = {
       body: JSON.stringify(data),
     }),
 
-  // Global schedule behaviour (#1950). PUT takes a StrictBool server-side, so
+  // Per-board schedule behavior. Omitted boardId targets the primary board.
+  // PUT takes a StrictBool server-side, so
   // a non-boolean is refused with 422 rather than coerced.
-  getScheduleSettings: () => fetchApi<ScheduleBehaviorSettings>("/schedules/settings"),
+  getScheduleSettings: (boardId?: string) =>
+    fetchApi<ScheduleBehaviorSettings>(
+      typeof boardId === "string" && boardId
+        ? `/schedules/settings?board_id=${encodeURIComponent(boardId)}`
+        : "/schedules/settings",
+    ),
 
-  setScheduleSettings: (settings: ScheduleBehaviorSettings) =>
+  setScheduleSettings: (settings: ScheduleBehaviorSettings, boardId?: string) =>
     fetchApi<ScheduleBehaviorSettings>("/schedules/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
+      body: JSON.stringify({ ...settings, ...(boardId ? { board_id: boardId } : {}) }),
     }),
 };

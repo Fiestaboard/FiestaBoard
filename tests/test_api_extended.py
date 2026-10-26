@@ -123,6 +123,7 @@ def mock_settings_service():
         ss.set_output_target.return_value = output
         ss.set_polling_interval.return_value = polling
         ss.set_board_read_intervals.return_value = polling
+        ss.update_polling_settings.return_value = polling
         ss.set_board_type.return_value = board_settings
         ss.set_devices.return_value = board_settings
         ss.set_boards.return_value = board_settings
@@ -698,19 +699,23 @@ class TestSettingsEndpoints:
     def test_update_polling_interval_seconds(self, client, mock_settings_service):
         response = client.put("/settings/polling", json={"interval_seconds": 120})
         assert response.status_code == 200
-        assert response.json()["requires_restart"] is True
+        assert response.json()["requires_restart"] is False
 
     def test_update_polling_board_read_local(self, client, mock_settings_service):
         response = client.put("/settings/polling", json={"board_read_interval_local": 45})
         assert response.status_code == 200
         assert response.json()["requires_restart"] is False
-        mock_settings_service.set_board_read_intervals.assert_called_once_with(local_seconds=45, cloud_seconds=None)
+        mock_settings_service.update_polling_settings.assert_called_once_with(
+            {"board_read_interval_local": 45}, board_id=None
+        )
 
     def test_update_polling_board_read_cloud(self, client, mock_settings_service):
         response = client.put("/settings/polling", json={"board_read_interval_cloud": 300})
         assert response.status_code == 200
         assert response.json()["requires_restart"] is False
-        mock_settings_service.set_board_read_intervals.assert_called_once_with(local_seconds=None, cloud_seconds=300)
+        mock_settings_service.update_polling_settings.assert_called_once_with(
+            {"board_read_interval_cloud": 300}, board_id=None
+        )
 
     def test_update_polling_empty_body_is_noop(self, client, mock_settings_service):
         """Empty body is valid — returns current settings without modifying anything."""
@@ -721,12 +726,12 @@ class TestSettingsEndpoints:
         mock_settings_service.set_board_read_intervals.assert_not_called()
 
     def test_update_polling_invalid_value(self, client, mock_settings_service):
-        mock_settings_service.set_polling_interval.side_effect = ValueError("Must be >= 10")
+        mock_settings_service.update_polling_settings.side_effect = ValueError("Must be >= 10")
         response = client.put("/settings/polling", json={"interval_seconds": 1})
         assert response.status_code == 400
 
     def test_update_polling_board_read_invalid_value(self, client, mock_settings_service):
-        mock_settings_service.set_board_read_intervals.side_effect = ValueError("Must be >= 20")
+        mock_settings_service.update_polling_settings.side_effect = ValueError("Must be >= 20")
         response = client.put("/settings/polling", json={"board_read_interval_local": 5})
         assert response.status_code == 400
 

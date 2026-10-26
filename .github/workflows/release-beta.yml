@@ -1,6 +1,9 @@
 name: "Release: Publish Beta Image"
 
-# Publishes a beta image from `next` on every merge.
+# Automatic beta publishing is paused: development and releases follow `main`.
+# The workflow is also disabled in GitHub Actions. Keep the manual entry point
+# for a future beta cycle, which requires explicitly re-enabling the workflow.
+# `next` remains frozen; do not sync main back into it during this transition.
 #
 # Deliberately a SEPARATE workflow from release.yml rather than a branch
 # condition inside it. Three reasons, each load-bearing:
@@ -26,17 +29,6 @@ name: "Release: Publish Beta Image"
 # lookup (build-fiestapi.yml:118-120).
 
 on:
-  push:
-    branches: [next]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - ".github/**"
-      - ".devcontainer/**"
-      - ".cursor*"
-      - "images/**"
-      - "LICENSE"
-      - "fiesta-icon.png"
   workflow_dispatch:
     inputs:
       reason:
@@ -54,8 +46,8 @@ concurrency:
 jobs:
   version:
     name: Compute beta version
-    # Never publish from a fork.
-    if: github.repository == 'Fiestaboard/FiestaBoard'
+    # Never publish from a fork or a manual dispatch against main.
+    if: github.repository == 'Fiestaboard/FiestaBoard' && github.ref == 'refs/heads/next'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -102,7 +94,7 @@ jobs:
           # An understated target is not cosmetic — installs graduate off betas
           # by version comparison (#1992), so betas numbered 9.1.0-beta.N ahead
           # of a 10.0.0 release describe the wrong thing to every beta box.
-          BETA_TARGET_OVERRIDE: "10.0.0"
+          BETA_TARGET_OVERRIDE: ""
         run: |
           set -euo pipefail
 

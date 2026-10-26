@@ -51,6 +51,7 @@ test.describe("Add Note Array board", () => {
     await arrayChoice.hover();
     await page.waitForTimeout(700);
     await arrayChoice.click();
+    await page.getByRole("tab", { name: "Settings", exact: true }).click();
 
     // The new board's page opens: a 2×1 note array (3 rows × 30 cols).
     const card = page.getByTestId("board-card").filter({ hasText: "My Board 2" });

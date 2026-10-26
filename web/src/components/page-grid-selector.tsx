@@ -33,6 +33,7 @@ import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } fr
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
+  BoardInstance,
   BoardLedLayout,
   Collection,
   DeviceType,
@@ -264,16 +265,14 @@ const PageButton = memo(
     const TypeIcon = LayoutTemplate;
 
     const buttonClassName = isActive
-      ? "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      : "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+      ? "group relative min-w-0 flex flex-col gap-3 p-4 rounded-xl border border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      : "group relative min-w-0 flex flex-col gap-3 p-4 rounded-xl border border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
     const iconClassName = isActive
       ? "h-4 w-4 shrink-0 text-brand"
       : "h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground";
 
-    const nameClassName = isActive
-      ? "text-sm font-medium truncate text-foreground"
-      : "text-sm font-medium truncate text-muted-foreground group-hover:text-foreground";
+    const nameClassName = "text-sm font-medium truncate text-foreground";
 
     const handleClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -627,6 +626,8 @@ export interface PageGridSelectorProps {
    * global Pages library keeps showing everything.
    */
   filterByCurrentBoardSize?: boolean;
+  /** Library filter: compatibility with a specific configured display. */
+  compatibleBoard?: BoardInstance;
 }
 
 export function PageGridSelector({
@@ -639,6 +640,7 @@ export function PageGridSelector({
   viewMode = "grid",
   showCollections = true,
   filterByCurrentBoardSize = false,
+  compatibleBoard,
 }: PageGridSelectorProps) {
   const t = useTranslations("pageGridSelector");
   const effectiveLabel = label === undefined ? t("selectPageLabel") : label;
@@ -669,8 +671,9 @@ export function PageGridSelector({
     if (filterByCurrentBoardSize && currentBoard) {
       result = result.filter((p) => pagesCompatibleWithBoard(p, currentBoard));
     }
+    if (compatibleBoard) result = result.filter((page) => pagesCompatibleWithBoard(page, compatibleBoard));
     return result;
-  }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard]);
+  }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard, compatibleBoard]);
 
   // The board each page previews as: the current board when the page fits it,
   // else the first board it fits. An LED board's model draws the thumbnail,
@@ -685,7 +688,8 @@ export function PageGridSelector({
     > = {};
     for (const page of pages) {
       const board =
-        currentBoard && pagesCompatibleWithBoard(page, currentBoard) ? currentBoard : boardForShape(boards, [], page);
+        compatibleBoard ??
+        (currentBoard && pagesCompatibleWithBoard(page, currentBoard) ? currentBoard : boardForShape(boards, [], page));
       const model = board === currentBoard ? currentBoardModel : resolveBoardModel(board);
       out[page.id] = {
         model,
@@ -694,22 +698,24 @@ export function PageGridSelector({
       };
     }
     return out;
-  }, [pages, currentBoard, currentBoardModel, boards]);
+  }, [pages, currentBoard, currentBoardModel, boards, compatibleBoard]);
 
   // State for batch preview data — only what the network produced. Both
   // outcomes are kept: a failed entry is still an answer for that page, and
   // `previewsPending` below asks "did every requested id come back?".
-  const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, PagePreviewBatchEntry>>({});
-  const [fetchFailed, setFetchFailed] = useState(false);
+  const [fetchedPreviews, setFetchedPreviews] = useState<
+    Record<string, { preview: PagePreviewBatchEntry; pageUpdatedAt: string }>
+  >({});
+  const [failedFetches, setFailedFetches] = useState<Record<string, string>>({});
 
   // Splitting the cache lookup out of the effect is what removes the
   // set-state-in-effect warnings here (issue #1568): reading localStorage is
   // synchronous, so the cached previews and the "which ones must we fetch"
   // list are plain derived values. Only the network result — which arrives in
   // an async callback, where setState is fine — still needs state.
-  const { cachedPreviews, initialPreviews, pagesToFetch } = useMemo(() => {
+  const { initialPreviews, pagesToFetch } = useMemo(() => {
     if (viewMode === "list" || pages.length === 0) {
-      return { cachedPreviews: {}, initialPreviews: {}, pagesToFetch: [] as string[] };
+      return { initialPreviews: {}, pagesToFetch: [] as string[] };
     }
     const cached = getCachedPreviews();
     const initial: Record<string, PagePreviewResponse> = {};
@@ -722,7 +728,7 @@ export function PageGridSelector({
         toFetch.push(page.id);
       }
     }
-    return { cachedPreviews: cached, initialPreviews: initial, pagesToFetch: toFetch };
+    return { initialPreviews: initial, pagesToFetch: toFetch };
   }, [pages, viewMode, previewTargets]);
 
   // Cache hits render instantly; anything fetched since layers on top. Entries
@@ -730,17 +736,23 @@ export function PageGridSelector({
   // out of the render map instead of being spread in as message-less previews.
   const previews = useMemo(() => {
     const merged: Record<string, PagePreviewResponse> = { ...initialPreviews };
-    for (const [pageId, preview] of Object.entries(fetchedPreviews)) {
-      if (preview.available) {
-        merged[pageId] = preview;
+    for (const page of pages) {
+      const key = previewCacheKey(page.id, previewTargets[page.id]?.richBoardId ?? null);
+      const fetched = fetchedPreviews[key];
+      if (fetched?.pageUpdatedAt === (page.updated_at || "") && fetched.preview.available) {
+        merged[page.id] = fetched.preview;
       }
     }
     return merged;
-  }, [initialPreviews, fetchedPreviews]);
+  }, [initialPreviews, fetchedPreviews, pages, previewTargets]);
 
   // Still waiting only while a page we need has neither a cache hit nor a
   // fetched result, and the fetch hasn't given up.
-  const previewsPending = pagesToFetch.some((id) => !(id in fetchedPreviews)) && !fetchFailed;
+  const previewsPending = pagesToFetch.some((id) => {
+    const key = previewCacheKey(id, previewTargets[id]?.richBoardId ?? null);
+    const updatedAt = pages.find((page) => page.id === id)?.updated_at || "";
+    return fetchedPreviews[key]?.pageUpdatedAt !== updatedAt && failedFetches[key] !== updatedAt;
+  });
 
   // Fetch missing previews in batch
   useEffect(() => {
@@ -765,36 +777,39 @@ export function PageGridSelector({
             result: boardId ? await api.previewPagesBatch(ids, boardId) : await api.previewPagesBatch(ids),
           })),
         );
-        const allPreviews: Record<string, PagePreviewBatchEntry> = {};
-        for (const { result } of results) Object.assign(allPreviews, result.previews ?? {});
-
-        if (mounted) {
-          const newCachedPreviews = { ...cachedPreviews };
-
-          for (const [pageId, preview] of Object.entries(allPreviews)) {
+        // The effect's target snapshot owns these answers. Switching filters
+        // cancels this commit, so a late response cannot populate another target.
+        if (!mounted) return;
+        const newCachedPreviews = getCachedPreviews();
+        const fetched: Record<string, { preview: PagePreviewBatchEntry; pageUpdatedAt: string }> = {};
+        for (const { boardId, result } of results) {
+          for (const [pageId, preview] of Object.entries(result.previews ?? {})) {
+            const page = pages.find((candidate) => candidate.id === pageId);
+            if (!page) continue;
+            const key = previewCacheKey(pageId, boardId);
+            fetched[key] = { preview, pageUpdatedAt: page.updated_at || "" };
             if (preview.available) {
-              const page = pages.find((p) => p.id === pageId);
-              if (page) {
-                newCachedPreviews[previewCacheKey(pageId, previewTargets[pageId]?.richBoardId ?? null)] = {
-                  preview,
-                  pageUpdatedAt: page.updated_at || "",
-                  cachedAt: new Date().toISOString(),
-                };
-              }
+              newCachedPreviews[key] = {
+                preview,
+                pageUpdatedAt: page.updated_at || "",
+                cachedAt: new Date().toISOString(),
+              };
             }
           }
-
-          setCachedPreviews(newCachedPreviews);
-
-          setFetchedPreviews((prev) => ({
-            ...prev,
-            ...allPreviews,
-          }));
         }
+        setCachedPreviews(newCachedPreviews);
+        setFetchedPreviews((prev) => ({ ...prev, ...fetched }));
       } catch (error) {
         console.error("Failed to fetch batch previews:", error);
         if (mounted) {
-          setFetchFailed(true);
+          setFailedFetches((prev) => {
+            const failed = { ...prev };
+            for (const id of pagesToFetch) {
+              const key = previewCacheKey(id, previewTargets[id]?.richBoardId ?? null);
+              failed[key] = pages.find((page) => page.id === id)?.updated_at || "";
+            }
+            return failed;
+          });
         }
       }
     };
@@ -804,7 +819,7 @@ export function PageGridSelector({
     return () => {
       mounted = false;
     };
-  }, [pagesToFetch, cachedPreviews, pages, previewTargets]);
+  }, [pagesToFetch, pages, previewTargets]);
 
   if (isLoadingPages) {
     return (
@@ -835,7 +850,7 @@ export function PageGridSelector({
 
   // All pages exist but none match the current board's size: explain the
   // filter instead of claiming no pages were created (issue #1249).
-  if (pages.length === 0 && allPages.length > 0 && filterByCurrentBoardSize && currentBoard) {
+  if (pages.length === 0 && allPages.length > 0 && ((filterByCurrentBoardSize && currentBoard) || compatibleBoard)) {
     return (
       <Card>
         <CardContent className="py-6">
@@ -845,7 +860,11 @@ export function PageGridSelector({
             description={t("noCompatiblePagesDescription")}
             action={
               <Button asChild variant="brand" size="sm" className="btn-lift">
-                <Link href="/pages/new">{t("createFirstPage")}</Link>
+                <Link
+                  href={compatibleBoard ? `/pages/new?board=${encodeURIComponent(compatibleBoard.id)}` : "/pages/new"}
+                >
+                  {t("createFirstPage")}
+                </Link>
               </Button>
             }
           />

@@ -48,7 +48,7 @@ export const SETTING_QUERY_KEYS: Record<SettingCategory, Keys> = {
   // Deprecated alias for the first display's transition (settings v6), which lives on its board.
   transitions: [["boardSettings"], ["all-settings"]],
   output: [["all-settings"]],
-  polling: [["polling-settings"], ["all-settings"]],
+  polling: [["boardSettings"], ["all-settings"]],
   location: [["location-settings"], ["settings", "location"], ["all-settings"]],
   silence_schedule: [["all-settings"], ["status"]],
   active_page: [["activePage"], ["status"], ["board-current-message"]],

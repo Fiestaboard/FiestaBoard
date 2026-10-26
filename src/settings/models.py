@@ -352,6 +352,7 @@ class PollingSettingsUpdate(BaseModel):
     interval_seconds: int | None = None
     board_read_interval_local: int | None = None
     board_read_interval_cloud: int | None = None
+    board_id: str | None = None
 
 
 # ---------------------------------------------------------------------------

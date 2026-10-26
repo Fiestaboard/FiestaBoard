@@ -111,7 +111,7 @@ Once connected, FiestaBoard appears as a device with **25 entities** — control
 content comes from — the schedule while on, the manually selected page while
 off — so both edges of the switch change the board on the next polling pass.
 To make re-enabling wait until the schedule reaches its next window, turn on
-*Wait for the next scheduled change* in Settings → Scheduling (see
+*Wait for the next scheduled change* in Displays → your board → Playback (see
 [Schedule Mode](/docs/features/schedule)). To leave the board untouched
 entirely while an automation runs, turn on the **Board Paused** switch instead
 of the Schedule switch.

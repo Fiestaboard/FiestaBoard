@@ -136,7 +136,8 @@ def test_collection_variable_rules_and_every_reference_share_one_copy(env):
     collection_schedule = schedule(env, collection.id, board_id="")
     other_schedule = schedule(env, collection.id, board_id="other")
     env.schedules.set_default_page_id(collection.id)  # Legacy default inherited by both boards.
-    env.config.set_feature("silence_schedule", {"mode": "page", "page_id": collection.id})
+    for board_id in ("tv", "other"):
+        env.config.set_silence_schedule_for_board(board_id, {"mode": "page", "page_id": collection.id})
 
     with resize(env.board) as summary:
         pass

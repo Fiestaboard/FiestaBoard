@@ -96,11 +96,15 @@ If **Find my Pixoo** reports a container network such as `172.18.0.0/24`, open F
 
 You can also choose **Enter address manually**, enter the Pixoo's address, complete **Test connection**, and save the display. Entering an address in **Network to search** runs discovery against that address; it does not complete manual setup.
 
+Local discovery probes HTTP port 80 at `/post`. Seeing `:80` in its error does not by itself indicate a browser cache problem. If your device uses a different API endpoint, discovery will not find it: enter the complete address in **Device address**, including its port and path (for example `http://192.168.1.50:9000/divoom_api`), then use **Test connection**. Use the endpoint appropriate to your device; the example is not a guarantee for every Pixoo firmware. Current plugin versions preserve explicit endpoints, while older installed copies may discard the path. Check for a Divoom plugin update if manual setup still contacts the wrong endpoint.
+
 **Ask Divoom's servers** can fill in a device address even when FiestaBoard cannot reach that device locally. Follow it with **Test connection**, save, and send a page. If discovery fails but manual setup works, include that distinction when reporting the problem.
 
 ### Updating an Existing Beta Installation
 
 Updating FiestaBoard's image does not replace an already-installed Divoom plugin. After updating FiestaBoard, open **Integrations**, choose **Check for updates**, and apply the Divoom plugin update if offered. Then send a page and check the display's brightness, including when you interrupt a fade by sending another page.
+
+Installed display plugins are eligible for update checks even before you save your first board. With plugin auto-updates enabled, FiestaBoard checks five minutes after startup and then hourly. Incompatible updates remain held back with an explanation. If the installed FiestaBoard version predates this behavior, a display plugin with no saved board using it may have been skipped.
 
 The cancellation fix is included in the bundled plugin commit `863ab740a23db02e4274e52f23a3b0a815c4526e`. Both the previous bundled copy and this fix declare plugin version `0.6.0`, so that version label alone does not confirm that the fix is installed. Plugin update checks compare repository commits.
 

@@ -669,7 +669,7 @@ export function ActivePageDisplay() {
                 // currently rendering so they can jump straight to that design.
                 <>
                   <Link
-                    href="/collections"
+                    href={`/collections/${encodeURIComponent(activeCollection.id)}`}
                     className="inline-flex items-center text-xs font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                     aria-label={t("editCollection", { collectionName: activeCollection.name })}
                     title={t("editCollection", { collectionName: activeCollection.name })}

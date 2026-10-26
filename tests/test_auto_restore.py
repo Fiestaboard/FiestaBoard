@@ -138,6 +138,7 @@ def _device_service(news: DevicePoll, *, auto_restore: bool = True, board_id: st
     settings = Mock()
     settings.is_paused.return_value = False
     settings.is_auto_restore.return_value = auto_restore
+    settings.get_polling_settings.return_value.board_read_interval_local = 30
     return svc, client, rt, settings
 
 
@@ -248,6 +249,7 @@ def test_a_repeated_overwrite_report_keeps_the_first_detection_time():
 
     with patch("src.main.time") as clock:
         clock.time.side_effect = [100.0, 200.0]
+        clock.monotonic.side_effect = [100.0, 200.0]
         _poll_devices(svc, settings)
         _poll_devices(svc, settings)
 

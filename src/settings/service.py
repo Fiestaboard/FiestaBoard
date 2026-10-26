@@ -841,7 +841,7 @@ class MQTTSettings:
 # pre-migration file is written to ``settings.json.v{N}_backup`` before the
 # first migration runs.
 
-CURRENT_SETTINGS_SCHEMA_VERSION = 7
+CURRENT_SETTINGS_SCHEMA_VERSION = 8
 
 _LEGACY_CAROUSEL_PREFIX = "carousel:"
 _COLLECTION_PREFIX = "collection:"
@@ -1380,6 +1380,40 @@ def _migrate_v6_to_v7(data: dict) -> int:
     return 1
 
 
+def _migrate_v7_to_v8(data: dict) -> int:
+    """Move scheduling preferences onto existing boards, preserving their behavior.
+
+    Legacy sections remain primary-board compatibility mirrors. New boards
+    use BoardInstance defaults, never the legacy values from this migration.
+    """
+    polling = PollingSettings.from_dict(data.get("polling") or {})
+    schedule = ScheduleSettings.from_dict(data.get("schedule") or {})
+    defaults = {
+        "polling_interval_seconds": polling.interval_seconds,
+        "board_read_interval_local": polling.board_read_interval_local,
+        "board_read_interval_cloud": polling.board_read_interval_cloud,
+        "schedule_defer_on_reenable": schedule.defer_on_reenable,
+    }
+    if "board" not in data:
+        # A partial pre-board settings file still represents an existing
+        # install. Seed its first board before moving its legacy preferences.
+        settings = BoardSettings()
+        SettingsService._seed_connection_from_legacy_config(settings)
+        if not isinstance(data.get(PENDING_TRANSITION_KEY), dict):
+            settings.boards[0] = _with_default_transition(settings.boards[0], plugins_enabled=False)
+        settings.boards[0].update(defaults, schedule_enabled=schedule.enabled)
+        data["board"] = settings.to_dict(mask_secrets=False)
+    changed = 0
+    for board in (data.get("board") or {}).get("boards", []):
+        if not isinstance(board, dict):
+            continue
+        for key, value in defaults.items():
+            if key not in board:
+                board[key] = value
+                changed += 1
+    return changed
+
+
 MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (1, _migrate_v0_to_v1),
     (2, _migrate_v1_to_v2),
@@ -1388,6 +1422,7 @@ MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (5, _migrate_v4_to_v5),
     (6, _migrate_v5_to_v6),
     (7, _migrate_v6_to_v7),
+    (8, _migrate_v7_to_v8),
 ]
 
 
@@ -1770,9 +1805,9 @@ class SettingsService:
                 "schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
                 "output": self._output.to_dict(),
                 "active_page": self._active_page.to_dict(),
-                "polling": self._polling.to_dict(),
+                "polling": self.get_polling_settings().to_dict(),
                 "board": self._board.to_dict(mask_secrets=False),
-                "schedule": self._schedule.to_dict(),
+                "schedule": self.get_schedule_settings().to_dict(),
                 "mqtt": self._mqtt.to_dict(mask_secrets=False),
                 "display": self._display.to_dict(),
                 "location": self._location.to_dict(),
@@ -2116,16 +2151,16 @@ class SettingsService:
         return self._active_page
 
     # Polling settings
-    def get_polling_interval(self) -> int:
+    def get_polling_interval(self, board_id: str | None = None) -> int:
         """Get the current polling interval in seconds.
 
         Returns:
             Polling interval in seconds
         """
-        return self._polling.interval_seconds
+        return self.get_polling_settings(board_id).interval_seconds
 
     @_locked
-    def set_polling_interval(self, interval_seconds: int) -> PollingSettings:
+    def set_polling_interval(self, interval_seconds: int, board_id: str | None = None) -> PollingSettings:
         """Set the polling interval.
 
         Args:
@@ -2134,19 +2169,14 @@ class SettingsService:
         Returns:
             Updated PollingSettings
         """
-        if interval_seconds < 10:
-            raise ValueError("Polling interval must be at least 10 seconds")
-
-        self._polling.interval_seconds = interval_seconds
-        self._save_to_file()
-        logger.info(f"Polling interval set to: {interval_seconds} seconds")
-        return self._polling
+        return self.update_polling_settings({"polling_interval_seconds": interval_seconds}, board_id)
 
     @_locked
     def set_board_read_intervals(
         self,
         local_seconds: int | None = None,
         cloud_seconds: int | None = None,
+        board_id: str | None = None,
     ) -> PollingSettings:
         """Set the board state read polling intervals.
 
@@ -2157,24 +2187,70 @@ class SettingsService:
         Returns:
             Updated PollingSettings
         """
+        updates = {}
         if local_seconds is not None:
-            if local_seconds < BOARD_READ_INTERVAL_MIN:
-                raise ValueError(f"Board read interval must be at least {BOARD_READ_INTERVAL_MIN} seconds")
-            self._polling.board_read_interval_local = local_seconds
+            updates["board_read_interval_local"] = local_seconds
         if cloud_seconds is not None:
-            if cloud_seconds < BOARD_READ_INTERVAL_MIN:
-                raise ValueError(f"Board read interval must be at least {BOARD_READ_INTERVAL_MIN} seconds")
-            self._polling.board_read_interval_cloud = cloud_seconds
-        self._save_to_file()
-        return self._polling
+            updates["board_read_interval_cloud"] = cloud_seconds
+        return self.update_polling_settings(updates, board_id)
 
-    def get_polling_settings(self) -> PollingSettings:
+    def get_polling_settings(self, board_id: str | None = None) -> PollingSettings:
         """Get current polling settings.
 
         Returns:
             PollingSettings instance
         """
-        return self._polling
+        board = self._scheduling_board(board_id)
+        if board is None:
+            return self._polling
+        return PollingSettings(
+            interval_seconds=board.get("polling_interval_seconds", 15),
+            board_read_interval_local=board.get("board_read_interval_local", 30),
+            board_read_interval_cloud=board.get("board_read_interval_cloud", 180),
+        )
+
+    def _scheduling_board(self, board_id: str | None) -> dict | None:
+        """Resolve omitted ids to primary; refuse explicit unknown ids."""
+        bid = board_id if board_id is not None else self.get_primary_board_id()
+        if bid is None:
+            return None
+        board = next((b for b in self._board.boards if b.get("id") == bid), None)
+        if board is None:
+            raise ValueError(f"Board '{bid}' not found")
+        return board
+
+    @staticmethod
+    def _check_scheduling_preferences(board: dict) -> None:
+        for key, minimum in (
+            ("polling_interval_seconds", 10),
+            ("board_read_interval_local", 20),
+            ("board_read_interval_cloud", 20),
+        ):
+            if key in board and type(board[key]) is int and board[key] < minimum:
+                label = "Polling interval" if key == "polling_interval_seconds" else "Board read interval"
+                raise ValueError(f"{label} must be at least {minimum} seconds")
+            if key in board and (type(board[key]) is not int or not minimum <= board[key] <= 3600):
+                raise ValueError(f"{key} must be an integer between {minimum} and 3600 seconds")
+        if "schedule_defer_on_reenable" in board and type(board["schedule_defer_on_reenable"]) is not bool:
+            raise ValueError("schedule_defer_on_reenable must be a boolean")
+
+    @_locked
+    def update_polling_settings(self, updates: dict, board_id: str | None = None) -> PollingSettings:
+        """Validate the whole partial write before mutating one board."""
+        self._check_scheduling_preferences(updates)
+        board = self._scheduling_board(board_id)
+        if board is not None:
+            board.update(updates)
+        if board_id is None or board_id == self.get_primary_board_id():
+            mapping = {
+                "polling_interval_seconds": "interval_seconds",
+                "board_read_interval_local": "board_read_interval_local",
+                "board_read_interval_cloud": "board_read_interval_cloud",
+            }
+            for key, value in updates.items():
+                setattr(self._polling, mapping[key], value)
+        self._save_to_file()
+        return self.get_polling_settings(board_id)
 
     # Board settings
     def get_board_settings(self) -> BoardSettings:
@@ -2264,6 +2340,10 @@ class SettingsService:
                     )
                 )
 
+        old_ids = {b.get("id") for b in self._board.boards}
+        for board in new_boards:
+            if board.get("id") not in old_ids:
+                self._seed_board_silence_defaults(board["id"])
         self._board.boards = new_boards
         self._save_to_file()
         logger.info(f"Configured devices set to: {valid_devices}")
@@ -2295,6 +2375,22 @@ class SettingsService:
         validated = []
         for b in boards:
             existing = existing_by_id.get(b.get("id"))
+            if existing is not None:
+                # Pre-v8 clients do not know these fields. Omitting them
+                # must not undo preferences they previously never touched.
+                b = {
+                    **{
+                        key: existing[key]
+                        for key in (
+                            "polling_interval_seconds",
+                            "board_read_interval_local",
+                            "board_read_interval_cloud",
+                            "schedule_defer_on_reenable",
+                        )
+                        if key in existing
+                    },
+                    **b,
+                }
             restore_masked_board_secrets(b, existing or {})
             if existing is None:
                 # A new display owns its transition from the start (settings v6).
@@ -2306,6 +2402,9 @@ class SettingsService:
             self._check_board_write(merged, existing)
             validated.append(BoardInstance.from_dict(merged).to_dict())
 
+        for board in validated:
+            if board.get("id") not in existing_by_id:
+                self._seed_board_silence_defaults(board["id"])
         self._board.boards = validated
         # Keep board_type in sync with the first board's color
         first_color = validated[0].get("board_color") if validated else None
@@ -2333,6 +2432,7 @@ class SettingsService:
         board = _with_derived_grid(self._with_default_transition(board))
         self._check_board_write(board, None)
         instance = BoardInstance.from_dict(board)
+        self._seed_board_silence_defaults(instance.id)
         self._board.boards.append(instance.to_dict())
         self._save_to_file()
         logger.info(f"Added board: {instance.name} ({instance.device_type})")
@@ -2343,6 +2443,20 @@ class SettingsService:
         names one (:func:`default_board_transition`)."""
         return _with_default_transition(board, plugins_enabled=self._plugins.transition_plugins_enabled)
 
+    @staticmethod
+    def _seed_board_silence_defaults(board_id: str) -> None:
+        """A newly added display starts with its own disabled silence window."""
+        from src.config_manager import DEFAULT_CONFIG, SILENCE_SCHEDULE_KEYS, get_config_manager
+        from src.time_service import get_time_service
+
+        defaults = DEFAULT_CONFIG["features"]["silence_schedule"]
+        values = {key: defaults[key] for key in SILENCE_SCHEDULE_KEYS}
+        manager = get_config_manager()
+        timezone = manager.get_general().get("timezone") or "America/Los_Angeles"
+        for key in ("start_time", "end_time"):
+            values[key] = get_time_service().local_to_utc_iso(values[key], timezone)
+        manager.set_silence_schedule_for_board(board_id, values)
+
     def _check_board_write(self, board: dict, stored: dict | None) -> None:
         """Refuse a board write whose transition no menu offers, a newly
         chosen transition plugin while they are off, or a speed out of
@@ -2350,6 +2464,14 @@ class SettingsService:
         drop it. Only the fields the write changes are checked: what is
         already stored never blocks a write."""
         from src.devices import TRANSITION_SPEED_BOUNDS, transition_speed_error
+
+        self._check_scheduling_preferences(
+            {
+                key: value
+                for key, value in board.items()
+                if stored is None or value != stored.get(key) or type(value) is not type(stored.get(key))
+            }
+        )
 
         stored = stored or {}
         choice = board.get("transition")
@@ -2510,13 +2632,19 @@ class SettingsService:
         return paused
 
     # Schedule settings
-    def get_schedule_settings(self) -> ScheduleSettings:
+    def get_schedule_settings(self, board_id: str | None = None) -> ScheduleSettings:
         """Get current schedule settings.
 
         Returns:
             ScheduleSettings instance
         """
-        return self._schedule
+        board = self._scheduling_board(board_id)
+        if board is None:
+            return self._schedule
+        return ScheduleSettings(
+            enabled=board.get("schedule_enabled", False),
+            defer_on_reenable=board.get("schedule_defer_on_reenable", False),
+        )
 
     def is_schedule_enabled(self, board_id: str | None = None) -> bool:
         """Check if schedule mode is enabled for a board.
@@ -2565,16 +2693,21 @@ class SettingsService:
         logger.info(f"Schedule mode (global, no boards): {'enabled' if enabled else 'disabled'}")
         return self._schedule
 
-    def set_schedule_defer_on_reenable(self, defer: bool) -> ScheduleSettings:
+    @_locked
+    def set_schedule_defer_on_reenable(self, defer: bool, board_id: str | None = None) -> ScheduleSettings:
         """Set whether re-enabling schedule mode waits for the next window.
 
-        Unlike ``schedule_enabled`` this is a single global preference: it
-        describes how the toggle behaves, not what any one board is showing.
+        An omitted board id addresses the primary board.
         """
-        self._schedule.defer_on_reenable = bool(defer)
+        self._check_scheduling_preferences({"schedule_defer_on_reenable": defer})
+        board = self._scheduling_board(board_id)
+        if board is not None:
+            board["schedule_defer_on_reenable"] = defer
+        if board_id is None or board_id == self.get_primary_board_id():
+            self._schedule.defer_on_reenable = defer
         self._save_to_file()
         logger.info(f"Schedule defer-on-reenable: {'on' if defer else 'off'}")
-        return self._schedule
+        return self.get_schedule_settings(board_id)
 
     def get_mqtt_settings(self) -> "MQTTSettings":
         """Return current MQTT integration settings."""

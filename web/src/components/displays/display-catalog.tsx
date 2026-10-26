@@ -4,6 +4,7 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Box,
   Button,
   Flex,
   Input,
@@ -97,39 +98,43 @@ export function DisplayCatalogBrowser({
   };
   return (
     <Stack gap="3">
-      <Stack gap="2">
-        <Label htmlFor={`${id}-search`}>{t("search")}</Label>
-        <Input
-          id={`${id}-search`}
-          type="search"
-          placeholder={t("searchPlaceholder")}
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(0);
-          }}
-        />
-        <Label htmlFor={`${id}-category`}>{t("category")}</Label>
-        <Select
-          value={category ? `category:${category}` : "all"}
-          onValueChange={(value) => {
-            setCategory(value?.startsWith("category:") ? value.slice(9) : "");
-            setPage(0);
-          }}
-        >
-          <SelectTrigger id={`${id}-category`}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("all")}</SelectItem>
-            {categories.map((item) => (
-              <SelectItem key={item} value={`category:${item}`}>
-                {item}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Stack>
+      <Box className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)]">
+        <Stack gap="1.5">
+          <Label htmlFor={`${id}-search`}>{t("search")}</Label>
+          <Input
+            id={`${id}-search`}
+            type="search"
+            placeholder={t("searchPlaceholder")}
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(0);
+            }}
+          />
+        </Stack>
+        <Stack gap="1.5">
+          <Label htmlFor={`${id}-category`}>{t("category")}</Label>
+          <Select
+            value={category ? `category:${category}` : "all"}
+            onValueChange={(value) => {
+              setCategory(value?.startsWith("category:") ? value.slice(9) : "");
+              setPage(0);
+            }}
+          >
+            <SelectTrigger id={`${id}-category`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("all")}</SelectItem>
+              {categories.map((item) => (
+                <SelectItem key={item} value={`category:${item}`}>
+                  {item}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Stack>
+      </Box>
       {selected && (
         <Text size="sm" weight="medium" className="rounded-md bg-muted p-3">
           {t("selected", { name: selected.name })}

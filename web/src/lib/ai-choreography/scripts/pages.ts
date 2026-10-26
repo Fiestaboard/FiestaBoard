@@ -136,6 +136,8 @@ const updatePage: ChoreographyScript = {
     if (editorHasIt && ctx.pageEditor.hasUnsavedChanges()) {
       // Never type over what the user is editing; point and say so.
       return [
+        { kind: "run", run: (c) => c.pageEditor.revealText() },
+        { kind: "waitFor", anchor: "page-editor.template", timeoutMs: 1500 },
         { kind: "spotlight", anchor: "page-editor.template", caption: ctx.t("updatingBehindEdits"), controls: "stop" },
       ];
     }
@@ -145,7 +147,11 @@ const updatePage: ChoreographyScript = {
           { kind: "navigate", href: `/pages/edit/${a.page_id}` },
           { kind: "waitBridge", bridge: "page-editor", timeoutMs: 4000 },
         ];
-    steps.push({ kind: "run", run: (c) => c.pageEditor.begin() });
+    steps.push(
+      { kind: "run", run: (c) => c.pageEditor.revealText() },
+      { kind: "waitFor", anchor: "page-editor.template", timeoutMs: 1500 },
+      { kind: "run", run: (c) => c.pageEditor.begin() },
+    );
     if (a.device_type) {
       steps.push({
         kind: "spotlight",
@@ -169,7 +175,7 @@ const updatePage: ChoreographyScript = {
       });
       a.template_lines.forEach((line, i) => steps.push(typeLine(i, line)));
     }
-    if (steps.length === 1) {
+    if (!a.device_type && !a.name && !a.template_lines) {
       steps.push({
         kind: "spotlight",
         anchor: "page-editor.name",

@@ -1051,21 +1051,29 @@ async def dismiss_settings_restore_notice():
     return SettingsRestoreNoticeResponse(notice=None)
 
 
-@router.get("/settings/polling", response_model=PollingSettings)
-async def get_polling_settings():
-    """Get current polling interval settings."""
+@router.get("/settings/polling", response_model=PollingSettings, responses={**ERROR_404})
+async def get_polling_settings(board_id: str | None = None):
+    """Get one board's polling intervals; omitted id means primary."""
     settings_service = get_settings_service()
-    polling = settings_service.get_polling_settings()
+    try:
+        polling = (
+            settings_service.get_polling_settings(board_id=board_id)
+            if board_id is not None
+            else settings_service.get_polling_settings()
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return polling.to_dict()
 
 
-@router.put("/settings/polling", response_model=PollingSettingsResponse, responses={**ERROR_400})
+@router.put("/settings/polling", response_model=PollingSettingsResponse, responses={**ERROR_400, **ERROR_404})
 async def update_polling_settings(request: PollingSettingsUpdate):
     """
     Update polling interval settings.
 
     Accepted body fields:
-    - interval_seconds: How often FiestaBoard checks active page (min 10, requires restart)
+    - board_id: The board to update (omitted means primary)
+    - interval_seconds: How often FiestaBoard checks active page (10–3600)
     - board_read_interval_local: How often to read board state in local mode (min 20)
     - board_read_interval_cloud: How often to read board state in cloud mode (min 20)
 
@@ -1073,25 +1081,21 @@ async def update_polling_settings(request: PollingSettingsUpdate):
     """
     settings_service = get_settings_service()
     provided = request.model_dump(exclude_unset=True)
-    requires_restart = False
-
+    board_id = provided.pop("board_id", None)
     try:
-        if "interval_seconds" in provided:
-            settings_service.set_polling_interval(int(provided["interval_seconds"]))
-            requires_restart = True
-
-        if "board_read_interval_local" in provided or "board_read_interval_cloud" in provided:
-            local = provided.get("board_read_interval_local")
-            cloud = provided.get("board_read_interval_cloud")
-            settings_service.set_board_read_intervals(
-                local_seconds=int(local) if local is not None else None,
-                cloud_seconds=int(cloud) if cloud is not None else None,
-            )
+        if board_id is not None:
+            settings_service.get_polling_settings(board_id=board_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    updates = {
+        ("polling_interval_seconds" if key == "interval_seconds" else key): value for key, value in provided.items()
+    }
+    try:
+        polling = settings_service.update_polling_settings(updates, board_id=board_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    polling = settings_service.get_polling_settings()
-    return {**polling.to_dict(), "requires_restart": requires_restart}
+    return {**polling.to_dict(), "requires_restart": False}
 
 
 @router.get("/settings/board", response_model=BoardSettingsResponse, dependencies=[flat_board_fields_notice()])

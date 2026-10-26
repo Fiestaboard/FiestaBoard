@@ -31,7 +31,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Flex,
-  ScrollArea,
   Select,
   SelectContent,
   SelectGroup,
@@ -152,6 +151,8 @@ const CharsetTemplateEditor = lazy(() =>
 interface PageBuilderProps {
   pageId?: string; // If provided, edit existing page
   deviceType?: DeviceType; // Device type for new pages
+  /** Explicit display chosen in the Pages filter; takes precedence over the sidebar for new pages. */
+  targetBoardId?: string;
   skipDraft?: boolean; // If true, ignore and clear any saved draft
   onClose: () => void;
   onSave?: () => void;
@@ -176,6 +177,8 @@ export interface PageBuilderHandle {
   undo: () => void;
   canUndo: () => boolean;
   hasUnsavedChanges: () => boolean;
+  /** Reveal the text surface without modifying the draft or beginning staging. */
+  revealText: () => void;
   /**
    * The AI walkthrough types a page in for real while the server writes
    * it. Staging takes one snapshot, suspends the draft autosave and locks
@@ -277,7 +280,15 @@ interface DraftData {
 }
 
 export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(function PageBuilder(
-  { pageId, deviceType: deviceTypeProp, skipDraft = false, onClose, onSave, embedded = false },
+  {
+    pageId,
+    deviceType: deviceTypeProp,
+    targetBoardId: targetBoardIdProp,
+    skipDraft = false,
+    onClose,
+    onSave,
+    embedded = false,
+  },
   ref,
 ) {
   const t = useTranslations("pageBuilder");
@@ -294,7 +305,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const { data: boardSettings } = useBoardSettings();
   const { currentBoardId, currentBoard } = useCurrentBoard();
 
-  // Device type: from prop (new pages), the sidebar's current board (a new
+  // Device type: from prop (new pages), the requested or sidebar board (a new
   // page that asked for no device — see below), or the existing page (editing)
   const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp ?? "flagship");
   // Note-array grid dimensions. Only meaningful when deviceType === "note_array";
@@ -321,30 +332,35 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const otherDisplayTargets = useMemo(() => panelTargets.filter((p) => p.kind === "display"), [panelTargets]);
   // The board the page is being authored for, when that is known: the display
   // picked by name in the size picker, or — for a new page — the display
-  // selected in the sidebar. Not stored on the page (the grid is the whole
+  // requested by the Pages filter or selected in the sidebar. Not stored on the page (the grid is the whole
   // relationship); it only decides which of several same-shaped boards the
   // editor previews and checks against, and which name the picker shows.
   const [targetBoardId, setTargetBoardId] = useState<string | null>(null);
 
   // A NEW page that asked for no particular device (`/pages/new`) starts on
-  // the display selected in the sidebar's board selector — with one display,
+  // the explicitly requested display, else the sidebar's selection — with one display,
   // that display: its device type and its exact geometry (an LED matrix's
   // custom grid included), so it previews and checks as that board from the
   // first keystroke. Taken once; the user can still retarget, and an
   // existing page keeps its own shape. Adjusted during render rather than in
   // an effect so the editor never paints a flagship first (issue #1568).
   const [adoptedCurrentBoard, setAdoptedCurrentBoard] = useState(false);
-  if (!pageId && !deviceTypeProp && !adoptedCurrentBoard && currentBoard) {
+  const initialTargetBoard = targetBoardIdProp
+    ? (boardSettings?.boards?.find((board) => board.id === targetBoardIdProp) ??
+      (boardSettings ? currentBoard : undefined))
+    : currentBoard;
+  const adoptingBoard = !pageId && !deviceTypeProp && !adoptedCurrentBoard ? initialTargetBoard : undefined;
+  if (adoptingBoard) {
     setAdoptedCurrentBoard(true);
-    setDeviceType(currentBoard.device_type);
-    if (currentBoard.device_type === "note_array") {
-      setNotesWide(currentBoard.notes_wide ?? 1);
-      setNotesTall(currentBoard.notes_tall ?? 1);
-    } else if (currentBoard.device_type === "panel" && currentBoard.grid_rows && currentBoard.grid_cols) {
-      setGridRows(currentBoard.grid_rows);
-      setGridCols(currentBoard.grid_cols);
+    setDeviceType(adoptingBoard.device_type);
+    if (adoptingBoard.device_type === "note_array") {
+      setNotesWide(adoptingBoard.notes_wide ?? 1);
+      setNotesTall(adoptingBoard.notes_tall ?? 1);
+    } else if (adoptingBoard.device_type === "panel" && adoptingBoard.grid_rows && adoptingBoard.grid_cols) {
+      setGridRows(adoptingBoard.grid_rows);
+      setGridCols(adoptingBoard.grid_cols);
     }
-    setTargetBoardId(currentBoard.id);
+    setTargetBoardId(adoptingBoard.id);
     // The board's own shape is the choice: the generic seeding below must not
     // replace it with another board's.
     setPanelSizedGrid(true);
@@ -387,7 +403,31 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [isTransitioning, setIsTransitioning] = useState(false); // Track if we're transitioning between previews
   const [_pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+  // Settings can arrive after the initial six-row form has mounted. Seed its
+  // untouched blank document together with the adopted geometry; user content
+  // and restored drafts retain their own rows, including overflow.
+  if (
+    adoptingBoard &&
+    !hasRestoredDraft &&
+    templateLines.every((line) => line === "") &&
+    lineAlignments.every((alignment) => alignment === "left") &&
+    lineWrapEnabled.every((wrap) => !wrap)
+  ) {
+    const rows = resolveDimensions(
+      adoptingBoard.device_type,
+      adoptingBoard.notes_wide ?? 1,
+      adoptingBoard.notes_tall ?? 1,
+      adoptingBoard.grid_rows,
+      adoptingBoard.grid_cols,
+    ).rows;
+    setTemplateLines(Array.from({ length: rows }, () => ""));
+    setLineAlignments(Array.from({ length: rows }, () => "left"));
+    setLineWrapEnabled(Array.from({ length: rows }, () => false));
+  }
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
+  const [editingSurface, setEditingSurface] = useState<"text" | "canvases">("text");
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(true);
 
   // Per-page transition override. `null` means "inherit the display's transition"
   // — the backend clears a stored override only when it is sent an explicit
@@ -695,6 +735,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     [],
   );
 
+  const revealText = useCallback(() => setEditingSurface("text"), []);
+
   const beginStaging = useCallback(() => {
     if (stagingSnapshotRef.current) return;
     stagingSnapshotRef.current = takeSnapshot();
@@ -733,6 +775,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, [applySnapshot, pageId]);
 
   const reloadFromServer = useCallback(async () => {
+    // A dirty editor never entered staging: the walkthrough only showed a
+    // notice. Its successful server update must not replace this local draft.
+    if (!stagingSnapshotRef.current && hasUnsavedChangesRef.current) return;
     stagingSnapshotRef.current = null;
     setStagingActive(false);
     if (!pageId) return;
@@ -744,6 +789,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     ref,
     (): PageBuilderHandle => ({
       hasUnsavedChanges: () => hasUnsavedChangesRef.current,
+      revealText,
       beginStaging,
       stageName,
       stageLine,
@@ -817,6 +863,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       undoVersion,
       pageId,
       queryClient,
+      revealText,
       beginStaging,
       stageName,
       stageLine,
@@ -1253,6 +1300,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               setCanvases(draft.canvases ?? []);
               setDebouncedCanvases(draft.canvases ?? []);
               setDraftRestored(true);
+              setHasRestoredDraft(true);
 
               // Auto-dismiss the alert after 5 seconds
               setTimeout(() => setDraftRestored(false), 5000);
@@ -1734,11 +1782,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           setLastPreview(data.rendered);
         }
       }
-
-      if (needsRePreview.current) {
-        needsRePreview.current = false;
-        previewMutation.mutate();
-      }
     },
     onError: (error: Error) => {
       setPreview(null);
@@ -1747,7 +1790,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setCanvasIssues([]);
       // With canvases, a refusal is most likely theirs (a 422 naming the field).
       setCanvasError(debouncedCanvases.length > 0 ? error.message : null);
-      needsRePreview.current = false;
+    },
+    onSettled: () => {
+      // Canvas-only responses have blank rendered text and return early above.
+      // Drain edits on every completion, including failures, using the latest
+      // mutation closure so queued canvases and board changes are not lost.
+      if (needsRePreview.current) {
+        needsRePreview.current = false;
+        previewMutationRef.current.mutate();
+      }
     },
   });
 
@@ -2156,16 +2207,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   return (
     <>
-      <Box className="flex-1 min-h-0 w-full max-w-full overflow-x-hidden">
+      <Box className="min-w-0 w-full max-w-full overflow-x-clip">
         {/* Main Editor */}
         <Card
           className={cn(
-            "flex flex-col min-h-0 w-full max-w-full overflow-x-hidden",
+            "flex flex-col min-h-0 w-full max-w-full overflow-x-clip",
             embedded && "rounded-none border-0 bg-transparent shadow-none",
           )}
         >
-          <CardHeader className="pb-1 flex-shrink-0 px-4 sm:px-6">
-            <Flex align="center" justify="between">
+          <CardHeader className="sticky top-0 z-10 bg-background/95 pb-2 flex-shrink-0 px-4 sm:px-6">
+            <Flex align="center" justify="between" className="flex-wrap gap-2">
               <Flex align="center" gap="2" className="min-w-0">
                 {!embedded && (
                   <Button
@@ -2199,7 +2250,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                *  time to settle on the new layout before any new
                *  tooltip pops. */}
               <TooltipProvider skipDelayDuration={0}>
-                <Flex align="center" gap="1.5">
+                <Flex align="center" gap="1.5" className="flex-wrap justify-end">
                   {/* Per-page transition override. Null (the default) inherits
                    *  the global setting; the trigger carries a dot when this
                    *  page overrides it. */}
@@ -2385,13 +2436,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           </CardHeader>
 
           <CardContent className="flex flex-col flex-1 min-h-0 px-3 sm:px-4 md:px-6 pt-2">
-            <ScrollArea className="flex-1 min-h-0 space-y-4">
+            <Box className="space-y-4">
               {/* Draft restored notification */}
               {draftRestored && (
-                // mb-4 by hand: the parent ScrollArea's space-y-4 spaces its
-                // viewport wrapper, not the content siblings inside it, so
-                // without this the banner sat flush against the name field.
-                <Alert className="bg-info/10 border-info/20 mb-4">
+                <Alert className="bg-info/10 border-info/20">
                   <AlertDescription className="text-sm">{t("draftRestored")}</AlertDescription>
                 </Alert>
               )}
@@ -2411,200 +2459,243 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 />
               </Stack>
 
-              {/* Template line editors */}
-              <Stack gap="3">
-                <Flex align="center" justify="between">
-                  <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
-                  <Flex
-                    align="center"
-                    role="group"
-                    aria-label={t("editorModeAriaLabel")}
-                    className="border rounded-md overflow-hidden"
-                  >
+              <Flex align="center" justify="between" gap="2" className="flex-wrap">
+                {pixelBoard && (
+                  <Flex role="group" aria-label={t("editingSurfaceLabel")} className="rounded-lg border p-1" gap="1">
                     <Button
                       size="sm"
-                      variant="ghost"
-                      onClick={() => handleEditorModeChange("rich")}
-                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
-                      aria-label={t("richEditorAriaLabel")}
-                      aria-pressed={editorMode === "rich"}
+                      variant={editingSurface === "text" ? "secondary" : "ghost"}
+                      aria-pressed={editingSurface === "text"}
+                      onClick={() => setEditingSurface("text")}
                     >
-                      {t("richEditor")}
+                      {t("textMode")}
                     </Button>
                     <Button
                       size="sm"
-                      variant="ghost"
-                      onClick={() => handleEditorModeChange("plain")}
-                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
-                      aria-label={t("plainTextAriaLabel")}
-                      aria-pressed={editorMode === "plain"}
+                      variant={editingSurface === "canvases" ? "secondary" : "ghost"}
+                      aria-pressed={editingSurface === "canvases"}
+                      onClick={() => setEditingSurface("canvases")}
                     >
-                      {t("plainEditor")}
+                      {t("canvasesMode")}
                     </Button>
                   </Flex>
-                </Flex>
-                {editorMode === "rich" ? (
-                  <Box {...anchorProps("page-editor.template")}>
-                    {/* Template editor with device-specific dimensions */}
-                    <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
-                      {editorCharset ? (
-                        // An LED target: its own character set decides what the
-                        // editor reads, offers and keeps (spans, icons, case).
-                        // No draw mode — it paints flap tiles.
-                        <CharsetTemplateEditor
-                          canvasRegions={pixelBoard ? canvases : undefined}
-                          onCanvasActivate={(id) => canvasesPanelRef.current?.activateCanvas(id)}
-                          charset={editorCharset}
-                          value={templateLines.join("\n")}
-                          onChange={handleRichEditorChange}
-                          lineAlignments={lineAlignments}
-                          lineWrapEnabled={lineWrapEnabled}
-                          onLineAlignmentChange={(lineIndex, alignment) => {
-                            setLineAlignments((prev) => {
-                              const next = [...prev];
-                              next[lineIndex] = alignment;
-                              return next;
-                            });
-                          }}
-                          onLineWrapChange={(lineIndex, wrapEnabled) => {
-                            setLineWrapEnabled((prev) => {
-                              const next = [...prev];
-                              next[lineIndex] = wrapEnabled;
-                              return next;
-                            });
-                          }}
-                          placeholder={t("richEditorPlaceholder")}
-                          boardWidth={dims.cols}
-                          boardLines={numLines}
-                          deviceType={deviceType}
-                          code62Glyph={effectiveCode62Glyph}
-                          onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                          syncFromBoardPending={syncFromBoardMutation.isPending}
-                        />
-                      ) : (
-                        <TipTapTemplateEditor
-                          ref={tipTapRef}
-                          value={templateLines.join("\n")}
-                          onChange={handleRichEditorChange}
-                          lineAlignments={lineAlignments}
-                          lineWrapEnabled={lineWrapEnabled}
-                          onLineAlignmentChange={(lineIndex, alignment) => {
-                            setLineAlignments((prev) => {
-                              const newAlignments = [...prev];
-                              newAlignments[lineIndex] = alignment;
-                              return newAlignments;
-                            });
-                          }}
-                          onLineWrapChange={(lineIndex, wrapEnabled) => {
-                            setLineWrapEnabled((prev) => {
-                              const newWrapStates = [...prev];
-                              newWrapStates[lineIndex] = wrapEnabled;
-                              return newWrapStates;
-                            });
-                          }}
-                          placeholder={t("richEditorPlaceholder")}
-                          showAlignmentControls={true}
-                          showToolbar={true}
-                          boardWidth={dims.cols}
-                          boardLines={numLines}
-                          deviceType={deviceType}
-                          code62Glyph={effectiveCode62Glyph}
-                          onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                          syncFromBoardPending={syncFromBoardMutation.isPending}
-                          drawMode={drawMode}
-                          onDrawModeToggle={() => setDrawMode((v) => !v)}
-                          drawBrush={drawBrush}
-                          onDrawBrushChange={setDrawBrush}
-                          onDrawHistoryEvent={handleDrawHistoryEvent}
-                        />
-                      )}
-                    </Suspense>
-                  </Box>
-                ) : (
-                  <Box {...anchorProps("page-editor.template")}>
-                    <PlainTextEditor
-                      lineMarkers={pixelBoard ? canvasMarkers(canvases, numLines) : undefined}
-                      lineMarkerTitle={tCanvas("markerTitle")}
-                      value={templateLines.join("\n")}
-                      onChange={(newValue) => {
-                        setTemplateLines(newValue.split("\n"));
-                      }}
-                      placeholder={t("plainEditorPlaceholder")}
-                      boardLines={numLines}
-                      boardWidth={dims.cols}
-                    />
-                  </Box>
                 )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="lg:hidden"
+                  aria-expanded={mobilePreviewOpen}
+                  aria-controls="page-editor-preview"
+                  onClick={() => setMobilePreviewOpen((open) => !open)}
+                >
+                  {t(mobilePreviewOpen ? "hidePreview" : "showPreview")}
+                </Button>
+              </Flex>
 
-                {/* Line count validation warning */}
-                {lineCount > numLines && (
-                  <Flex
-                    align="start"
-                    gap="2"
-                    className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
-                  >
-                    <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
-                      {t("warningLabel")}
-                    </Text>
-                    <Text as="span" size="xs" tone="warning">
-                      {t("lineCountWarning", { lineCount, maxLines: numLines })}
-                    </Text>
-                  </Flex>
-                )}
+              <Box className="grid min-w-0 grid-cols-1 items-start gap-5">
+                {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
+                <Box hidden={!!pixelBoard && editingSurface !== "text"} className="order-1 min-w-0">
+                  <Stack gap="3" className="min-w-0">
+                    <Flex align="center" justify="between">
+                      <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
+                      <Flex
+                        align="center"
+                        role="group"
+                        aria-label={t("editorModeAriaLabel")}
+                        className="border rounded-md overflow-hidden"
+                      >
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditorModeChange("rich")}
+                          className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+                          aria-label={t("richEditorAriaLabel")}
+                          aria-pressed={editorMode === "rich"}
+                        >
+                          {t("richEditor")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditorModeChange("plain")}
+                          className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+                          aria-label={t("plainTextAriaLabel")}
+                          aria-pressed={editorMode === "plain"}
+                        >
+                          {t("plainEditor")}
+                        </Button>
+                      </Flex>
+                    </Flex>
+                    {editorMode === "rich" ? (
+                      <Box {...anchorProps("page-editor.template")}>
+                        {/* Template editor with device-specific dimensions */}
+                        <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
+                          {editorCharset ? (
+                            // An LED target: its own character set decides what the
+                            // editor reads, offers and keeps (spans, icons, case).
+                            // No draw mode — it paints flap tiles.
+                            <CharsetTemplateEditor
+                              canvasRegions={pixelBoard ? canvases : undefined}
+                              onCanvasActivate={(id) => {
+                                setEditingSurface("canvases");
+                                canvasesPanelRef.current?.activateCanvas(id);
+                              }}
+                              charset={editorCharset}
+                              value={templateLines.join("\n")}
+                              onChange={handleRichEditorChange}
+                              lineAlignments={lineAlignments}
+                              lineWrapEnabled={lineWrapEnabled}
+                              onLineAlignmentChange={(lineIndex, alignment) => {
+                                setLineAlignments((prev) => {
+                                  const next = [...prev];
+                                  next[lineIndex] = alignment;
+                                  return next;
+                                });
+                              }}
+                              onLineWrapChange={(lineIndex, wrapEnabled) => {
+                                setLineWrapEnabled((prev) => {
+                                  const next = [...prev];
+                                  next[lineIndex] = wrapEnabled;
+                                  return next;
+                                });
+                              }}
+                              placeholder={t("richEditorPlaceholder")}
+                              boardWidth={dims.cols}
+                              boardLines={numLines}
+                              deviceType={deviceType}
+                              code62Glyph={effectiveCode62Glyph}
+                              onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                              syncFromBoardPending={syncFromBoardMutation.isPending}
+                            />
+                          ) : (
+                            <TipTapTemplateEditor
+                              ref={tipTapRef}
+                              value={templateLines.join("\n")}
+                              onChange={handleRichEditorChange}
+                              lineAlignments={lineAlignments}
+                              lineWrapEnabled={lineWrapEnabled}
+                              onLineAlignmentChange={(lineIndex, alignment) => {
+                                setLineAlignments((prev) => {
+                                  const newAlignments = [...prev];
+                                  newAlignments[lineIndex] = alignment;
+                                  return newAlignments;
+                                });
+                              }}
+                              onLineWrapChange={(lineIndex, wrapEnabled) => {
+                                setLineWrapEnabled((prev) => {
+                                  const newWrapStates = [...prev];
+                                  newWrapStates[lineIndex] = wrapEnabled;
+                                  return newWrapStates;
+                                });
+                              }}
+                              placeholder={t("richEditorPlaceholder")}
+                              showAlignmentControls={true}
+                              showToolbar={true}
+                              boardWidth={dims.cols}
+                              boardLines={numLines}
+                              deviceType={deviceType}
+                              code62Glyph={effectiveCode62Glyph}
+                              onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                              syncFromBoardPending={syncFromBoardMutation.isPending}
+                              drawMode={drawMode}
+                              onDrawModeToggle={() => setDrawMode((v) => !v)}
+                              drawBrush={drawBrush}
+                              onDrawBrushChange={setDrawBrush}
+                              onDrawHistoryEvent={handleDrawHistoryEvent}
+                            />
+                          )}
+                        </Suspense>
+                      </Box>
+                    ) : (
+                      <Box {...anchorProps("page-editor.template")}>
+                        <PlainTextEditor
+                          lineMarkers={pixelBoard ? canvasMarkers(canvases, numLines) : undefined}
+                          lineMarkerTitle={tCanvas("markerTitle")}
+                          value={templateLines.join("\n")}
+                          onChange={(newValue) => {
+                            setTemplateLines(newValue.split("\n"));
+                          }}
+                          placeholder={t("plainEditorPlaceholder")}
+                          boardLines={numLines}
+                          boardWidth={dims.cols}
+                        />
+                      </Box>
+                    )}
 
-                {/* Wrap budget warnings */}
-                {wrapBudgetWarnings.map((lineNumber) => (
-                  <Flex
-                    key={`wrap-budget-${lineNumber}`}
-                    align="start"
-                    gap="2"
-                    className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
-                  >
-                    <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
-                      {t("warningLabel")}
-                    </Text>
-                    <Text as="span" size="xs" tone="warning">
-                      {t("wrapBudgetWarning", { lineNumber })}
-                    </Text>
-                  </Flex>
-                ))}
-
-                {/* Cells the target board's character set draws differently
-                    (the server's charset_issues for the rendered page). */}
-                {charsetIssues.length > 0 && (
-                  <Flex
-                    align="start"
-                    gap="2"
-                    data-testid="charset-issues"
-                    className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
-                  >
-                    <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
-                      {t("warningLabel")}
-                    </Text>
-                    <Stack gap="1">
-                      {charsetIssues.slice(0, MAX_CHARSET_ISSUES_SHOWN).map((issue) => (
-                        <Text as="span" size="xs" tone="warning" key={`${issue.row}-${issue.col}`}>
-                          {t("charsetIssue", {
-                            line: issue.row + 1,
-                            column: issue.col + 1,
-                            written: charsetTokenText(issue.token),
-                            shown: charsetTokenText(issue.fallback),
-                          })}
+                    {/* Line count validation warning */}
+                    {lineCount > numLines && (
+                      <Flex
+                        align="start"
+                        gap="2"
+                        className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                      >
+                        <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
+                          {t("warningLabel")}
                         </Text>
-                      ))}
-                      {charsetIssues.length > MAX_CHARSET_ISSUES_SHOWN && (
                         <Text as="span" size="xs" tone="warning">
-                          {t("charsetIssuesMore", { count: charsetIssues.length - MAX_CHARSET_ISSUES_SHOWN })}
+                          {t("lineCountWarning", { lineCount, maxLines: numLines })}
                         </Text>
-                      )}
-                    </Stack>
-                  </Flex>
-                )}
+                      </Flex>
+                    )}
 
-                {/* Live preview */}
-                <Box className="mt-4">
-                  <Flex align="center" justify="between" className="flex-wrap gap-y-1 mb-2">
-                    <Flex align="center" gap="2">
+                    {/* Wrap budget warnings */}
+                    {wrapBudgetWarnings.map((lineNumber) => (
+                      <Flex
+                        key={`wrap-budget-${lineNumber}`}
+                        align="start"
+                        gap="2"
+                        className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                      >
+                        <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
+                          {t("warningLabel")}
+                        </Text>
+                        <Text as="span" size="xs" tone="warning">
+                          {t("wrapBudgetWarning", { lineNumber })}
+                        </Text>
+                      </Flex>
+                    ))}
+
+                    {/* Cells the target board's character set draws differently
+                    (the server's charset_issues for the rendered page). */}
+                    {charsetIssues.length > 0 && (
+                      <Flex
+                        align="start"
+                        gap="2"
+                        data-testid="charset-issues"
+                        className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                      >
+                        <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
+                          {t("warningLabel")}
+                        </Text>
+                        <Stack gap="1">
+                          {charsetIssues.slice(0, MAX_CHARSET_ISSUES_SHOWN).map((issue) => (
+                            <Text as="span" size="xs" tone="warning" key={`${issue.row}-${issue.col}`}>
+                              {t("charsetIssue", {
+                                line: issue.row + 1,
+                                column: issue.col + 1,
+                                written: charsetTokenText(issue.token),
+                                shown: charsetTokenText(issue.fallback),
+                              })}
+                            </Text>
+                          ))}
+                          {charsetIssues.length > MAX_CHARSET_ISSUES_SHOWN && (
+                            <Text as="span" size="xs" tone="warning">
+                              {t("charsetIssuesMore", { count: charsetIssues.length - MAX_CHARSET_ISSUES_SHOWN })}
+                            </Text>
+                          )}
+                        </Stack>
+                      </Flex>
+                    )}
+                  </Stack>
+                </Box>
+
+                {/* Preview is shared by both modes; phones can collapse it into the main scroll. */}
+                <Box
+                  id="page-editor-preview"
+                  className={cn("order-2 min-w-0 rounded-lg border p-3", !mobilePreviewOpen && "hidden lg:block")}
+                >
+                  <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
+                    <Flex align="center" gap="2" className="flex-wrap">
                       <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
                       <BoardSizeIndicator
                         deviceType={deviceType}
@@ -2814,7 +2905,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   )}
 
                   {/* Live output controls */}
-                  <Flex align="center" justify="between" gap="3" className="mt-3 rounded-lg border px-3 py-2">
+                  <Flex align="center" justify="between" gap="3" className="mt-3 flex-wrap rounded-lg border px-3 py-2">
                     <Flex align="center" gap="2">
                       <Switch
                         id="live-output-toggle"
@@ -2879,7 +2970,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 {/* Pixel canvases: edited for an LED pixel board; on any other
                     board a page that has them says why their areas are blank. */}
                 {pixelBoard ? (
-                  <Box className="mt-2 border-t pt-4">
+                  <Box hidden={editingSurface !== "canvases"} className="order-1 min-w-0">
                     <CanvasesPanel
                       ref={canvasesPanelRef}
                       canvases={canvases}
@@ -2898,8 +2989,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Alert>
                   )
                 )}
-              </Stack>
-            </ScrollArea>
+              </Box>
+            </Box>
           </CardContent>
         </Card>
       </Box>

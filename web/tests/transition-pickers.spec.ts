@@ -9,7 +9,7 @@
  * precisely "the control exists but nothing reaches the backend".
  *
  * Every display owns its transition (settings v6), so the "global" picker is
- * now each display's Transition section on its page. Every test forces the
+ * now each display's Transition section in its Playback tab. Every test forces the
  * transition-plugins beta on, since both pickers hide their plugin groups
  * when it is off, and restores the prior state after.
  */
@@ -73,9 +73,11 @@ test.describe("transition pickers", () => {
 
   test("a display's picker saves a transition plugin as plugin:<id>", async ({ page }) => {
     await page.goto(`/displays/${await firstBoardId()}`);
+    await page.getByRole("tab", { name: "Playback", exact: true }).click();
     const section = page.getByTestId("display-transition");
 
-    const option = section.getByRole("radio", { name: new RegExp(PLUGIN_NAME) });
+    await section.getByRole("combobox", { name: "Transition", exact: true }).click();
+    const option = page.getByRole("option", { name: PLUGIN_NAME, exact: true });
     await expect(option, "transition plugin missing from the display's Transition").toBeVisible({ timeout: 15_000 });
     await option.click();
 
@@ -87,31 +89,34 @@ test.describe("transition pickers", () => {
   test("a display's picker hides plugin options when the beta is off", async ({ page }) => {
     await setTransitionPlugins(false);
     await page.goto(`/displays/${await firstBoardId()}`);
+    await page.getByRole("tab", { name: "Playback", exact: true }).click();
     const section = page.getByTestId("display-transition");
 
     // The built-in strategies must still be there -- only the plugins go.
     // "Wave" is the display label for the `column` strategy.
-    await expect(section.getByRole("radio", { name: /^wave/i })).toBeVisible({ timeout: 15_000 });
-    await expect(section.getByRole("radio", { name: new RegExp(PLUGIN_NAME) })).toHaveCount(0);
+    await section.getByRole("combobox", { name: "Transition", exact: true }).click();
+    await expect(page.getByRole("option", { name: /^wave/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("option", { name: PLUGIN_NAME, exact: true })).toHaveCount(0);
   });
 
   test("the display's transition plugins switch turns them on for every display", async ({ page }) => {
     await setTransitionPlugins(false);
     await page.goto(`/displays/${await firstBoardId()}`);
+    await page.getByRole("tab", { name: "Playback", exact: true }).click();
     const plugins = page.getByTestId("display-transition-plugins");
     await expect(plugins).toContainText(/all displays/i, { timeout: 15_000 });
 
     await plugins.getByRole("switch", { name: "Transition Plugins" }).click();
 
     await expect.poll(pluginsEnabled, { timeout: 10_000 }).toBe(true);
-    await expect(
-      page.getByTestId("display-transition").getByRole("radio", { name: new RegExp(PLUGIN_NAME) }),
-    ).toBeVisible();
+    await page.getByTestId("display-transition").getByRole("combobox", { name: "Transition", exact: true }).click();
+    await expect(page.getByRole("option", { name: PLUGIN_NAME, exact: true })).toBeVisible();
   });
 
   test("a display's step interval saves with its board", async ({ page }) => {
     await setDisplayTransition({ transition: "column", transition_step_interval_ms: null });
     await page.goto(`/displays/${await firstBoardId()}`);
+    await page.getByRole("tab", { name: "Playback", exact: true }).click();
 
     const interval = page.getByRole("spinbutton", { name: "Step Interval (ms)" });
     await interval.fill("40");

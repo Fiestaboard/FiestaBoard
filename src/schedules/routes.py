@@ -303,22 +303,37 @@ async def set_schedule_enabled(request: ScheduleEnabledUpdate):
     return ScheduleEnabledResponse(enabled=request.enabled)
 
 
-@router.get("/schedules/settings", response_model=ScheduleBehaviorResponse)
-async def get_schedule_settings():
-    """Global schedule behaviour settings."""
+@router.get("/schedules/settings", response_model=ScheduleBehaviorResponse, responses=errors(404))
+async def get_schedule_settings(board_id: str | None = None):
+    """One board's schedule behavior; omitted id means primary."""
     settings_service = get_settings_service()
-    return ScheduleBehaviorResponse(defer_on_reenable=settings_service.get_schedule_settings().defer_on_reenable)
+    try:
+        schedule = (
+            settings_service.get_schedule_settings(board_id=board_id)
+            if board_id is not None
+            else settings_service.get_schedule_settings()
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    return ScheduleBehaviorResponse(defer_on_reenable=schedule.defer_on_reenable)
 
 
 @router.put(
     "/schedules/settings",
     response_model=ScheduleBehaviorResponse,
-    responses=errors(422),
+    responses=errors(404, 422),
 )
 async def set_schedule_settings(request: ScheduleBehaviorUpdate):
-    """Update global schedule behaviour. Body: defer_on_reenable."""
+    """Update one board's schedule behavior. Body: defer_on_reenable, board_id."""
     settings_service = get_settings_service()
-    schedule = settings_service.set_schedule_defer_on_reenable(request.defer_on_reenable)
+    try:
+        schedule = (
+            settings_service.set_schedule_defer_on_reenable(request.defer_on_reenable, board_id=request.board_id)
+            if request.board_id is not None
+            else settings_service.set_schedule_defer_on_reenable(request.defer_on_reenable)
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return ScheduleBehaviorResponse(defer_on_reenable=schedule.defer_on_reenable)
 
 

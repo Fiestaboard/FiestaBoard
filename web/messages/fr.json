@@ -95,7 +95,9 @@
     "updateAvailable": "Mise à jour disponible",
     "updateTo": "Mettre à jour vers {version}",
     "about": "À propos de FiestaBoard",
-    "signOut": "Se déconnecter"
+    "signOut": "Se déconnecter",
+    "popoverLabel": "Menu du compte",
+    "account": "Compte"
   },
   "aboutDialog": {
     "description": "Informations de version et de système de ce FiestaBoard.",
@@ -203,7 +205,11 @@
     "importDialogCancel": "Annuler",
     "importDialogImport": "Importer",
     "importDialogImporting": "Importation…",
-    "toastImported": "« {name} » ajouté à vos pages"
+    "toastImported": "« {name} » ajouté à vos pages",
+    "displayFilter": "Filtre par écran",
+    "allPages": "Toutes les pages",
+    "libraryCount": "{count, plural, one {# page} other {# pages}}",
+    "clearFilter": "Afficher toutes les pages"
   },
   "collections": {
     "title": "Carrousels",
@@ -300,7 +306,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "Mode d’affichage",
+    "gridView": "Vue en tuiles",
+    "listView": "Vue en liste",
+    "libraryCount": "{count, plural, one {# carrousel} other {# carrousels}}",
+    "movePageUp": "Déplacer {name} vers le haut",
+    "movePageDown": "Déplacer {name} vers le bas",
+    "removePage": "Retirer {name}",
+    "moveRuleUp": "Monter la règle {number}",
+    "moveRuleDown": "Descendre la règle {number}",
+    "notFound": "Ce carrousel est introuvable.",
+    "loadFailed": "Impossible de charger les carrousels. Réessayez.",
+    "backToCollections": "Retour aux carrousels",
+    "discardChangesTitle": "Abandonner les modifications non enregistrées ?",
+    "discardChangesDescription": "Votre carrousel contient des modifications non enregistrées.",
+    "keepEditing": "Continuer à modifier",
+    "discardAndLeave": "Abandonner et quitter",
+    "retryButton": "Réessayer"
   },
   "schedule": {
     "title": "Planification",
@@ -638,7 +661,13 @@
       "createAction": "Créer une page de démonstration",
       "recreateAction": "Recréer la page de démonstration",
       "requirementsWarning": "Configurez les paramètres obligatoires ci-dessous avant de créer une page de démonstration."
-    }
+    },
+    "catalogCount": "{count} intégrations",
+    "previousResults": "Résultats précédents",
+    "nextResults": "Résultats suivants",
+    "resultsPage": "Page {current} sur {total}",
+    "allCategories": "Toutes les catégories",
+    "categoryFilter": "Catégorie d’intégration"
   },
   "settings": {
     "title": "Paramètres",
@@ -739,7 +768,15 @@
       "confirmDescription": "Vous êtes sur le point de restaurer <file></file>. Vos pages, carrousels, planifications et configuration actuels seront écrasés. Une copie horodatée de chaque fichier existant est conservée à côté du nouveau, pour pouvoir revenir en arrière manuellement si nécessaire.",
       "restoringButton": "Restauration…",
       "restoreButton": "Restaurer la sauvegarde"
-    }
+    },
+    "groupIdentity": "Instance",
+    "groupAppearance": "Apparence et accessibilité",
+    "groupRegional": "Langue, heure et localisation",
+    "groupConnections": "Connexions",
+    "displaySilenceTitle": "Plages de silence des écrans",
+    "displaySilenceDescription": "Chaque écran possède ses propres plages de silence. Ouvrez l’onglet Lecture d’un écran pour modifier ses horaires.",
+    "openDisplayPlayback": "Ouvrir les paramètres de lecture de {name}",
+    "openDisplays": "Gérer les écrans"
   },
   "offline": {
     "youreOffline": "Vous êtes hors ligne",
@@ -1166,7 +1203,12 @@
     "liveSilencePreviewOnly": "La sortie en direct n'affiche qu'un aperçu. Le tableau reste silencieux.",
     "liveSendAnyway": "Envoyer au tableau quand même",
     "liveSilenceOverriding": "La sortie en direct réveille le tableau pendant le silence.",
-    "liveStopOverriding": "Arrêter l'envoi"
+    "liveStopOverriding": "Arrêter l'envoi",
+    "editingSurfaceLabel": "Contenu de la page",
+    "textMode": "Texte",
+    "canvasesMode": "Canevas",
+    "showPreview": "Afficher l’aperçu et la sortie en direct",
+    "hidePreview": "Masquer l’aperçu et la sortie en direct"
   },
   "displaySettings": {
     "unnamedBoard": "Tableau sans nom",
@@ -1271,7 +1313,15 @@
       "speedTitle": "Vitesse",
       "pluginsDescription": "Animations image par image, comme machine à écrire et fondu (obsolète). S'applique à tous les écrans.",
       "pluginsSavedToast": "Paramètre des plugins de transition enregistré.",
-      "pluginsSaveFailedToast": "Impossible d'enregistrer le paramètre des plugins de transition : {error}"
+      "pluginsSaveFailedToast": "Impossible d'enregistrer le paramètre des plugins de transition : {error}",
+      "replay": "Relancer l’aperçu",
+      "nativePreviewNote": "Illustre l’ordre et la cadence des tuiles. Le rendu sur le matériel peut différer.",
+      "pluginPreviewUnavailable": "Aperçu indisponible pour ce plugin de transition.",
+      "savedUnavailable": "Choix enregistré : {name} (indisponible)",
+      "reducedMotionNote": "La réduction des animations est activée. L’aperçu montre le message final.",
+      "cloudPreviewNote": "Cet écran change tout son contenu en une seule fois.",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "BONJOUR"
     },
     "add": {
       "title": "Ajouter un écran",
@@ -1339,7 +1389,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "Vue d’ensemble",
+    "tabSettings": "Paramètres",
+    "tabPlayback": "Lecture",
+    "tabsLabel": "Sections de l’écran"
   },
   "systemUpdate": {
     "updateAvailable": "Mise à jour disponible",
@@ -1751,9 +1805,9 @@
     "welcomeSendError": "Échec de l'envoi",
     "welcomeDefault": "Laisser vide pour utiliser le message par défaut",
     "timezoneLabel": "Fuseau horaire",
-    "animationsTitle": "Animations",
-    "animationsDescription": "Ajustez le mouvement séparément pour l'aperçu du board et le reste de l'application",
-    "boardAnimationsLabel": "Animations du board",
+    "animationsTitle": "Graphismes et aperçus",
+    "animationsDescription": "Réglez les animations dans toute l’application. Ces préférences s’appliquent à tous les aperçus à l’écran.",
+    "boardAnimationsLabel": "Aperçus du tableau",
     "boardAnimationsHint": "Le basculement des split-flaps lorsque les tuiles changent",
     "boardAnimationsOn": "Activées",
     "boardAnimationsDesktop": "Bureau uniquement",
@@ -1767,7 +1821,7 @@
     "siteAnimationsOff": "Désactivées",
     "animationsReduceMotionOverride": "« Réduire les animations » est activé, ce qui remplace ces paramètres.",
     "flapSpeedLabel": "Vitesse de basculement",
-    "flapSpeedHint": "Durée pendant laquelle chaque tuile affiche un caractère le temps que le board se stabilise",
+    "flapSpeedHint": "Choisissez la cadence des aperçus de tableaux à volets dans toute l’application.",
     "flapSpeed_hardware": "La plus rapide",
     "flapSpeed_quick": "Rapide",
     "flapSpeed_standard": "Standard",
@@ -1779,7 +1833,7 @@
     "flapSpeed_relaxedHint": "{ms} ms — un basculement lent et posé pour les affichages d'ambiance.",
     "flapSpeedPreviewLabel": "Aperçu",
     "flapSpeedInactive": "Les animations du board sont désactivées : la vitesse de basculement n'a aucun effet.",
-    "flapSpeedScreenOnlyNote": "Cela ne modifie que l'aperçu du board à l'écran. La cadence des transitions de votre Vestaboard physique se règle séparément, dans Planification → Transitions du board."
+    "flapSpeedScreenOnlyNote": "Ce réglage contrôle uniquement l’aperçu du tableau à l’écran. Modifiez la cadence du matériel dans Écrans → Lecture → Transitions du tableau."
   },
   "monitor": {
     "title": "Moniteur",
@@ -2921,7 +2975,9 @@
     "issue": "{canvas} · {path} : {message}",
     "serverError": "Les canevas n'ont pas été acceptés : {message}",
     "notPixelNotice": "Cette page contient des canevas de pixels. Ce tableau ne peut pas les dessiner, leurs zones restent donc vides. Prévisualisez la page sur un tableau LED à pixels pour les modifier.",
-    "markerTitle": "Un canevas commence sur cette ligne (ne fait pas partie du texte)"
+    "markerTitle": "Un canevas commence sur cette ligne (ne fait pas partie du texte)",
+    "drawLayerHint": "Le dessin ne modifie que les pixels. L’aperçu de la page affiche le fond et les formes du canevas.",
+    "drawSourceHint": "Ce canevas utilise une source. Le dessin modifie les pixels de secours ; l’aperçu affiche la source lorsqu’elle est disponible."
   },
   "silenceNotice": {
     "untilTitle": "En silence jusqu'à {time}",
@@ -2984,5 +3040,9 @@
     "confirm": "Confirmer",
     "revokeDevice": "Révoquer {name}",
     "retry": "Réessayer"
+  },
+  "plugins": {
+    "communityBadge": "Communauté",
+    "communityDescription": "Publié en dehors de l’organisation FiestaBoard sur GitHub."
   }
 }
