@@ -137,7 +137,8 @@ observed failing before their covered production behavior was implemented.
   preview issues, and `setup-wizard-choose-output` failed Vestaboard test flow.
   With the fixture correctly mounted, all four affected files passed in
   isolation (59 tests) both on the pristine base and on this patch. The initial
-  failures were not reproduced; this is not a clean full-web-suite result.
+  failures were not reproduced; that initial run was not a clean full-web-suite
+  result.
 
 ### Review corrections
 
@@ -154,3 +155,19 @@ The revised focused Python run passed 523 tests, including all 15 revision
 tests, the JSON storage kernel, and panel content resizing. Changed-file Ruff
 and `git diff --check` passed. No complete Python rerun was attempted after the
 OOM event.
+
+### Final corrected web validation
+
+After mounting the shared fixture and limiting concurrency to two workers, the
+complete web suite passed: **259 files, 3,060 tests passed, seven skipped** in
+184.51 seconds. This replaces the unresolved full-web result above; the initial
+failure history and the incomplete Python full-suite/OOM result remain recorded.
+The test run used the exact-lockfile dependency image with no network access.
+Run from the repository root:
+
+```sh
+docker run --rm --name fiestaboard-ios-api-web-corrected --network none \
+  --mount "type=bind,src=$PWD,dst=/source,readonly" \
+  --entrypoint sh fiestaboard-ios-api-node:10.1.2 \
+  -c 'cp -R /source/web/. /web/ && ln -s /source/tests /tests && npm run test:run -- --maxWorkers=2'
+```
