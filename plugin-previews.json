@@ -488,7 +488,7 @@
           ]
         },
         {
-          "label": "Note Array 2×2 (panel)",
+          "label": "Note Array 2\u00d72 (panel)",
           "device_type": "note_array",
           "notes_wide": 2,
           "notes_tall": 2,
@@ -502,7 +502,7 @@
           ]
         },
         {
-          "label": "Note Array 4×1 (wide)",
+          "label": "Note Array 4\u00d71 (wide)",
           "device_type": "note_array",
           "notes_wide": 4,
           "notes_tall": 1,
@@ -2512,7 +2512,7 @@
           "notes_wide": 2,
           "notes_tall": 1,
           "rows": [
-            "   SAN FRANCISCO   54°F",
+            "   SAN FRANCISCO   54\u00b0F",
             "  PARTLY CLOUDY  HI 62 LO 48",
             "  WIND 12MPH  HUMIDITY 68%"
           ]
@@ -2674,7 +2674,7 @@
             "ILVL 251  M+ 2457",
             "WEEK +10",
             "3/8 H",
-            "RAIDER.IO"
+            "RIO 2026-10-01"
           ]
         },
         {
