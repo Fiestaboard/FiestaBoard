@@ -13,6 +13,7 @@ import {
   Box,
   Button,
   Code,
+  CopyButton,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -30,7 +31,7 @@ import {
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Bot, Check, Copy, KeyRound, Lock, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, Bot, Check, KeyRound, Lock, RefreshCw, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -100,7 +101,6 @@ export function McpSettings() {
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [confirmingRotate, setConfirmingRotate] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
-  const [copied, setCopied] = useState<"token" | "config" | null>(null);
   const [tokenInput, setTokenInput] = useState("");
 
   // On auth-disabled installs the backend gates token management behind
@@ -193,14 +193,8 @@ export function McpSettings() {
     },
   });
 
-  const handleCopy = async (text: string, which: "token" | "config") => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(which);
-      setTimeout(() => setCopied(null), 1500);
-    } catch {
-      toast.error(t("toastCopyFailed"));
-    }
+  const handleCopyError = () => {
+    toast.error(t("toastCopyFailed"));
   };
 
   const configSnippet = useMemo(() => (revealedToken ? buildClaudeDesktopConfig(revealedToken) : ""), [revealedToken]);
@@ -401,15 +395,15 @@ export function McpSettings() {
                 <Text as="span" size="sm" weight="medium">
                   {t("tokenLabel")}
                 </Text>
-                <Button
+                <CopyButton
+                  value={revealedToken ?? ""}
                   size="sm"
-                  variant="ghost"
-                  onClick={() => revealedToken && handleCopy(revealedToken, "token")}
+                  labels={{ copy: t("copyButton"), copied: t("copiedButton") }}
+                  onCopyError={handleCopyError}
                   className="h-7 gap-1.5"
                 >
-                  {copied === "token" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied === "token" ? t("copiedButton") : t("copyButton")}
-                </Button>
+                  {t("copyButton")}
+                </CopyButton>
               </Flex>
               <Code className="block w-full break-all rounded bg-muted px-3 py-2 font-mono text-xs">
                 {revealedToken}
@@ -421,15 +415,15 @@ export function McpSettings() {
                 <Text as="span" size="sm" weight="medium">
                   {t("configSnippetLabel")}
                 </Text>
-                <Button
+                <CopyButton
+                  value={configSnippet}
                   size="sm"
-                  variant="ghost"
-                  onClick={() => handleCopy(configSnippet, "config")}
+                  labels={{ copy: t("copyButton"), copied: t("copiedButton") }}
+                  onCopyError={handleCopyError}
                   className="h-7 gap-1.5"
                 >
-                  {copied === "config" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied === "config" ? t("copiedButton") : t("copyButton")}
-                </Button>
+                  {t("copyButton")}
+                </CopyButton>
               </Flex>
               <Text size="xs" tone="muted" className="mb-2">
                 {t.rich("configSnippetDescription", {

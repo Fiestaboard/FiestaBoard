@@ -18,6 +18,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CopyButton,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -49,7 +50,7 @@ import {
   TooltipTrigger,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Copy, Radio, Save, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Radio, Save, Sparkles, Trash2, Upload } from "lucide-react";
 import {
   forwardRef,
   lazy,
@@ -528,7 +529,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Export dialog
   const [exportOpen, setExportOpen] = useState(false);
   const [exportShareString, setExportShareString] = useState("");
-  const [exportCopied, setExportCopied] = useState(false);
 
   // Shrinking-retarget confirmation (issue #1250). Converting a saved page
   // to a smaller geometry is lossy, so the save is gated behind a confirm.
@@ -2413,7 +2413,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             try {
                               const res = await api.getPageShareString(pageId);
                               setExportShareString(res.share_string);
-                              setExportCopied(false);
                               setExportOpen(true);
                             } catch {
                               toast.error(t("exportFailed"));
@@ -3010,17 +3009,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               className="h-28 pr-10 text-xs font-mono bg-muted resize-none"
               onFocus={(e) => e.target.select()}
             />
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(exportShareString);
-                setExportCopied(true);
-                setTimeout(() => setExportCopied(false), 2000);
-              }}
-              className="absolute top-2 right-2 p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-              aria-label={t("exportCopyAriaLabel")}
-            >
-              {exportCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-            </button>
+            <CopyButton
+              value={exportShareString}
+              size="icon-sm"
+              labels={{ copy: t("exportCopyAriaLabel") }}
+              className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+            />
           </Box>
         </DialogContent>
       </Dialog>
