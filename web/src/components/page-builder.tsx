@@ -349,21 +349,18 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     ? (boardSettings?.boards?.find((board) => board.id === targetBoardIdProp) ??
       (boardSettings ? currentBoard : undefined))
     : currentBoard;
-  if (!pageId && !deviceTypeProp && !adoptedCurrentBoard && initialTargetBoard) {
+  const adoptingBoard = !pageId && !deviceTypeProp && !adoptedCurrentBoard ? initialTargetBoard : undefined;
+  if (adoptingBoard) {
     setAdoptedCurrentBoard(true);
-    setDeviceType(initialTargetBoard.device_type);
-    if (initialTargetBoard.device_type === "note_array") {
-      setNotesWide(initialTargetBoard.notes_wide ?? 1);
-      setNotesTall(initialTargetBoard.notes_tall ?? 1);
-    } else if (
-      initialTargetBoard.device_type === "panel" &&
-      initialTargetBoard.grid_rows &&
-      initialTargetBoard.grid_cols
-    ) {
-      setGridRows(initialTargetBoard.grid_rows);
-      setGridCols(initialTargetBoard.grid_cols);
+    setDeviceType(adoptingBoard.device_type);
+    if (adoptingBoard.device_type === "note_array") {
+      setNotesWide(adoptingBoard.notes_wide ?? 1);
+      setNotesTall(adoptingBoard.notes_tall ?? 1);
+    } else if (adoptingBoard.device_type === "panel" && adoptingBoard.grid_rows && adoptingBoard.grid_cols) {
+      setGridRows(adoptingBoard.grid_rows);
+      setGridCols(adoptingBoard.grid_cols);
     }
-    setTargetBoardId(initialTargetBoard.id);
+    setTargetBoardId(adoptingBoard.id);
     // The board's own shape is the choice: the generic seeding below must not
     // replace it with another board's.
     setPanelSizedGrid(true);
@@ -406,6 +403,28 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [isTransitioning, setIsTransitioning] = useState(false); // Track if we're transitioning between previews
   const [_pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+  // Settings can arrive after the initial six-row form has mounted. Seed its
+  // untouched blank document together with the adopted geometry; user content
+  // and restored drafts retain their own rows, including overflow.
+  if (
+    adoptingBoard &&
+    !hasRestoredDraft &&
+    templateLines.every((line) => line === "") &&
+    lineAlignments.every((alignment) => alignment === "left") &&
+    lineWrapEnabled.every((wrap) => !wrap)
+  ) {
+    const rows = resolveDimensions(
+      adoptingBoard.device_type,
+      adoptingBoard.notes_wide ?? 1,
+      adoptingBoard.notes_tall ?? 1,
+      adoptingBoard.grid_rows,
+      adoptingBoard.grid_cols,
+    ).rows;
+    setTemplateLines(Array.from({ length: rows }, () => ""));
+    setLineAlignments(Array.from({ length: rows }, () => "left"));
+    setLineWrapEnabled(Array.from({ length: rows }, () => false));
+  }
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
   const [editingSurface, setEditingSurface] = useState<"text" | "canvases">("text");
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(true);
@@ -1281,6 +1300,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               setCanvases(draft.canvases ?? []);
               setDebouncedCanvases(draft.canvases ?? []);
               setDraftRestored(true);
+              setHasRestoredDraft(true);
 
               // Auto-dismiss the alert after 5 seconds
               setTimeout(() => setDraftRestored(false), 5000);
