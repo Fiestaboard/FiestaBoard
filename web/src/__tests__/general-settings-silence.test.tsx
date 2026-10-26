@@ -34,9 +34,18 @@ import { GeneralSettings } from "@/components/general-settings";
 import type { BoardInstance } from "@/lib/api";
 
 const board = {
-  id: "default", name: "Flagship", device_type: "flagship", board_color: "black",
-  enabled: true, api_mode: "local", host: "", local_api_key: "", cloud_key: "",
-  polling_interval_seconds: 300, board_read_interval_local: 30, board_read_interval_cloud: 180,
+  id: "default",
+  name: "Flagship",
+  device_type: "flagship",
+  board_color: "black",
+  enabled: true,
+  api_mode: "local",
+  host: "",
+  local_api_key: "",
+  cloud_key: "",
+  polling_interval_seconds: 300,
+  board_read_interval_local: 30,
+  board_read_interval_cloud: 180,
 } satisfies BoardInstance;
 
 const API_BASE = "/api";

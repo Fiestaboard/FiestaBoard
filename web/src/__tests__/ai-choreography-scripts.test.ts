@@ -175,9 +175,7 @@ describe("homeFor", () => {
       anchor: "settings.mqtt",
     });
     expect(homeFor({ name: "update_setting", args: { category: "ai" } }).href).toBe("/settings?section=ai");
-    expect(homeFor({ name: "update_setting", args: { category: "polling" } }).href).toBe(
-      "/displays",
-    );
+    expect(homeFor({ name: "update_setting", args: { category: "polling" } }).href).toBe("/displays");
     // Plugin updates moved out of Settings onto the Integrations page.
     expect(homeFor({ name: "update_setting", args: { category: "plugins" } }).href).toBe("/integrations");
     expect(homeFor({ name: "update_setting", args: {} }).href).toBe("/settings?section=general");
@@ -235,7 +233,15 @@ describe("anchors", () => {
   });
 
   it("maps every setting category to a tab, or a board's to Displays", () => {
-    const boards = new Set(["boards", "output", "hdmi_kiosk", "transitions", "polling", "schedule_behavior", "silence_schedule"]);
+    const boards = new Set([
+      "boards",
+      "output",
+      "hdmi_kiosk",
+      "transitions",
+      "polling",
+      "schedule_behavior",
+      "silence_schedule",
+    ]);
     const tabs = new Set(["general", "account", "network", "ai", "system", "advanced"]);
     for (const category of Object.keys(SETTING_SECTIONS)) {
       if (boards.has(category)) expect(settingsHref(category), category).toBe("/displays");
@@ -371,17 +377,20 @@ describe("scripts", () => {
     expect(kinds(settle)).toContain("pulse");
   });
 
-  it.each(["silence_schedule", "polling", "schedule_behavior"])("routes a %s write to its explicit board before waiting for the control", (category) => {
-    const call = {
-      ...BASE,
-      name: "update_setting",
-      args: { category, values: { board_id: "note/2", enabled: true } },
-    };
-    const steps = getScript(call.name).narrate(call, ctxWith({ currentBoardId: () => "sidebar-board" }));
-    expect(steps[0]).toEqual({ kind: "navigate", href: "/displays/note%2F2?section=playback" });
-    expect(steps[1]).toMatchObject({ kind: "waitFor", anchor: `settings.${category}.enabled` });
-    expect(steps.filter((step) => step.kind === "ghost")).toHaveLength(1);
-  });
+  it.each(["silence_schedule", "polling", "schedule_behavior"])(
+    "routes a %s write to its explicit board before waiting for the control",
+    (category) => {
+      const call = {
+        ...BASE,
+        name: "update_setting",
+        args: { category, values: { board_id: "note/2", enabled: true } },
+      };
+      const steps = getScript(call.name).narrate(call, ctxWith({ currentBoardId: () => "sidebar-board" }));
+      expect(steps[0]).toEqual({ kind: "navigate", href: "/displays/note%2F2?section=playback" });
+      expect(steps[1]).toMatchObject({ kind: "waitFor", anchor: `settings.${category}.enabled` });
+      expect(steps.filter((step) => step.kind === "ghost")).toHaveLength(1);
+    },
+  );
 
   it("uses the current board only for a legacy silence write with no operation board", () => {
     const call = { ...BASE, name: "update_setting", args: { category: "silence_schedule", values: { enabled: true } } };
@@ -390,22 +399,31 @@ describe("scripts", () => {
     ]);
   });
 
-  it.each(["polling", "schedule_behavior"])("uses the API's primary-board default for an unscoped %s write", (category) => {
-    const call = { ...BASE, name: "update_setting", args: { category, values: { interval_seconds: 60 } } };
-    const steps = getScript(call.name).narrate(call, ctxWith({
-      currentBoardId: () => "sidebar-board",
-      primaryBoardId: () => "primary-board",
-    }));
-    expect(navigations(steps)).toEqual(["/displays/primary-board?section=playback"]);
-  });
+  it.each(["polling", "schedule_behavior"])(
+    "uses the API's primary-board default for an unscoped %s write",
+    (category) => {
+      const call = { ...BASE, name: "update_setting", args: { category, values: { interval_seconds: 60 } } };
+      const steps = getScript(call.name).narrate(
+        call,
+        ctxWith({
+          currentBoardId: () => "sidebar-board",
+          primaryBoardId: () => "primary-board",
+        }),
+      );
+      expect(navigations(steps)).toEqual(["/displays/primary-board?section=playback"]);
+    },
+  );
 
-  it.each(["silence_schedule", "polling", "schedule_behavior"])("does not ghost %s controls when no board can be resolved", (category) => {
-    const call = { ...BASE, name: "update_setting", args: { category, values: { enabled: true } } };
-    const steps = getScript(call.name).narrate(call, ctxWith());
-    expect(navigations(steps)).toEqual(["/displays"]);
-    expect(steps[1]).toMatchObject({ kind: "waitFor", anchor: "settings.boards" });
-    expect(steps.filter((step) => step.kind === "ghost")).toEqual([]);
-  });
+  it.each(["silence_schedule", "polling", "schedule_behavior"])(
+    "does not ghost %s controls when no board can be resolved",
+    (category) => {
+      const call = { ...BASE, name: "update_setting", args: { category, values: { enabled: true } } };
+      const steps = getScript(call.name).narrate(call, ctxWith());
+      expect(navigations(steps)).toEqual(["/displays"]);
+      expect(steps[1]).toMatchObject({ kind: "waitFor", anchor: "settings.boards" });
+      expect(steps.filter((step) => step.kind === "ghost")).toEqual([]);
+    },
+  );
 
   it("the fallback shows every writer where it lands and says when it is done", () => {
     const ctx = ctxWith();

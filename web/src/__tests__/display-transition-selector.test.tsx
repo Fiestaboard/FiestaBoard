@@ -37,7 +37,11 @@ describe("compact display transition", () => {
   it("demonstrates a native selection once without needing Replay", async () => {
     setup();
     const preview = await screen.findByTestId("transition-preview");
-    await waitFor(() => expect(preview.querySelector("[data-native-strategy='row'] span")).toHaveStyle({animation:"display-order-reveal 180ms both"}));
+    await waitFor(() =>
+      expect(preview.querySelector("[data-native-strategy='row'] span")).toHaveStyle({
+        animation: "display-order-reveal 180ms both",
+      }),
+    );
   });
 
   it("honors reduced motion with a settled preview and disabled replay", async () => {

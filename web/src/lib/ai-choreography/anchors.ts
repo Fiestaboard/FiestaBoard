@@ -145,9 +145,7 @@ export function settingAnchors(category: string, key: string): { control: string
  */
 export function settingsHref(category: string, boardId?: string): string {
   if (["silence_schedule", "polling", "schedule_behavior"].includes(category)) {
-    return boardId
-      ? `/displays/${encodeURIComponent(boardId)}?section=playback`
-      : "/displays";
+    return boardId ? `/displays/${encodeURIComponent(boardId)}?section=playback` : "/displays";
   }
   const owner = SETTING_SECTIONS[category];
   const section = owner?.section ?? "general";

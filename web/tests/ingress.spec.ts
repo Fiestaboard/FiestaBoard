@@ -138,7 +138,7 @@ test.describe("HA Ingress", () => {
           // `aside [...]`, not `.first()`: the mobile copy of the trigger is
           // in the DOM and invisible above `lg`.
           await page.locator('aside [data-slot="sidebar-account-trigger"]').click();
-          await page.getByRole("menuitem", { name: "Settings" }).click();
+          await page.getByRole("button", { name: "Settings", exact: true }).click();
         },
         heading: "Settings",
         path: "settings",

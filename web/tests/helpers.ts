@@ -881,6 +881,7 @@ export function displayCard(page: Page, name: string): Locator {
 export async function openDisplay(page: Page, name: string): Promise<Locator> {
   await openDisplays(page);
   await page.getByRole("link", { name: `Open settings for ${name}`, exact: true }).click();
+  await page.getByRole("tab", { name: "Settings", exact: true }).click();
   const card = page.getByTestId("board-card");
   await expect(card).toBeVisible({ timeout: 15_000 });
   return card;

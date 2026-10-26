@@ -42,7 +42,8 @@ export function homeFor(
     const category = id("category") ?? "general";
     const values = args.values as Record<string, unknown> | undefined;
     const boardId =
-      id("board_id") ?? (typeof values?.board_id === "string" ? values.board_id : undefined) ??
+      id("board_id") ??
+      (typeof values?.board_id === "string" ? values.board_id : undefined) ??
       (["polling", "schedule_behavior"].includes(category) ? primaryBoardId : currentBoardId);
     if (!boardId && ["silence_schedule", "polling", "schedule_behavior"].includes(category)) {
       return { href: "/displays", anchor: "settings.boards" };

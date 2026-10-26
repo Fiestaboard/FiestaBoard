@@ -51,7 +51,7 @@ Open a display to switch between **Overview** (its live preview), **Settings**
 (connection and display options), and **Playback** (transitions, quiet hours,
 schedule re-enable behavior, and update/read intervals). These scheduling
 preferences belong to the individual display, not the app-wide Settings page.
-The transition selector includes a replayable preview. Split-flap
+The transition selector includes a preview you can replay. Split-flap
 previews illustrate the ordering; hardware appearance may differ. Previews do
 not send anything to your display.
 

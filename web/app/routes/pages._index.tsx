@@ -221,12 +221,7 @@ export default function PagesPage() {
                 <List className="h-4 w-4" />
               </Button>
             </Flex>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setImportOpen(true)}
-              className="h-9 px-3"
-            >
+            <Button variant="ghost" size="sm" onClick={() => setImportOpen(true)} className="h-9 px-3">
               <Download className="h-4 w-4 mr-1" />
               {t("importPage")}
             </Button>

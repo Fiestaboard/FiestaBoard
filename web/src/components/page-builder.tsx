@@ -2474,10 +2474,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
               <Box className="grid min-w-0 grid-cols-1 items-start gap-5">
                 {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
-                <Box
-                  hidden={!!pixelBoard && editingSurface !== "text"}
-                  className="order-1 min-w-0"
-                >
+                <Box hidden={!!pixelBoard && editingSurface !== "text"} className="order-1 min-w-0">
                   <Stack gap="3" className="min-w-0">
                     <Flex align="center" justify="between">
                       <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
@@ -2675,10 +2672,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 {/* Preview is shared by both modes; phones can collapse it into the main scroll. */}
                 <Box
                   id="page-editor-preview"
-                  className={cn(
-                    "order-2 min-w-0 rounded-lg border p-3",
-                    !mobilePreviewOpen && "hidden lg:block",
-                  )}
+                  className={cn("order-2 min-w-0 rounded-lg border p-3", !mobilePreviewOpen && "hidden lg:block")}
                 >
                   <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
                     <Flex align="center" gap="2" className="flex-wrap">

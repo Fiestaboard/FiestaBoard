@@ -88,7 +88,7 @@
 
 Tasks 1–5 are implemented on `codex/ux-refresh-v10`, based on `2ced809c8` (v10.0.0). The user's final workflow preference was “Implement, then review the result.” GPT-6.1 Sol workers handled implementation and localization; Astra reviewed the design and final integration.
 
-The implementation includes compact display and integration catalogs, Community provenance, replayable transition previews, display detail tabs, configured-display page filtering, Collections tile/list views and full detail routes, focused Text/Canvases editing, grouped settings, and the account popover. The Collections stack follows the CardStack motif in the sibling media project's `studio/src/videos/h4-collections/helpkit.tsx`. All new copy was integrated into English and 13 other supported locales.
+The implementation includes compact display and integration catalogs, Community provenance, transition previews with replay controls, display detail tabs, configured-display page filtering, Collections tile/list views and full detail routes, focused Text/Canvases editing, grouped settings, and the account popover. The Collections stack follows the CardStack motif in the sibling media project's `studio/src/videos/h4-collections/helpkit.tsx`. All new copy was integrated into English and 13 other supported locales.
 
 Independent review fixes cover preview cache identity when switching displays, uninterrupted LED Replay, AI navigation to moved settings, and visible AI page updates with dirty-draft preservation. Astra's scoped re-review found no outstanding material issue. Subsequent phone-width visual QA identified a transition grid sizing issue; the two-file CSS fix passed 10 focused tests, lint and a fresh build, then was visually confirmed at 390×844 in Safari.
 

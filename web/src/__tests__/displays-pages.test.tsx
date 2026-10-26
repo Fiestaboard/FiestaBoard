@@ -490,7 +490,16 @@ describe("/displays/:boardId", () => {
     await userEvent.click(selector);
     expect(screen.queryByRole("option", { name: /Diagonal/ })).not.toBeInTheDocument();
     await screen.findByRole("option", { name: "Flip" });
-    const offered = ["Device default", "None — change instantly", "Flip", "Cascade", "Slide", "Wipe", "Fade", "Dissolve"];
+    const offered = [
+      "Device default",
+      "None — change instantly",
+      "Flip",
+      "Cascade",
+      "Slide",
+      "Wipe",
+      "Fade",
+      "Dissolve",
+    ];
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(offered);
     expect(screen.getAllByRole("option").every((option) => !option.hasAttribute("aria-disabled"))).toBe(true);
   });

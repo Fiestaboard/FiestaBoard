@@ -24,7 +24,10 @@ const updateSetting: ChoreographyScript = {
     const values = a.values ?? {};
     const keys = Object.keys(values).filter((key) => key !== "board_id");
     const destination = homeFor(call, ctx.currentBoardId?.(), ctx.primaryBoardId?.());
-    if (["silence_schedule", "polling", "schedule_behavior"].includes(a.category) && !destination.href.startsWith("/displays/")) {
+    if (
+      ["silence_schedule", "polling", "schedule_behavior"].includes(a.category) &&
+      !destination.href.startsWith("/displays/")
+    ) {
       return [
         { kind: "navigate", href: destination.href },
         { kind: "waitFor", anchor: destination.anchor, timeoutMs: 2500 },
@@ -67,9 +70,12 @@ const updateSetting: ChoreographyScript = {
     const a = call.args as unknown as UpdateSettingArgs;
     const keys = Object.keys(a.values ?? {}).filter((key) => key !== "board_id");
     const destination = homeFor(call, ctx.currentBoardId?.(), ctx.primaryBoardId?.());
-    const anchor = destination.anchor === "settings.boards"
-      ? destination.anchor
-      : keys[0] ? settingAnchors(a.category, keys[0]).card : `settings.${a.category}`;
+    const anchor =
+      destination.anchor === "settings.boards"
+        ? destination.anchor
+        : keys[0]
+          ? settingAnchors(a.category, keys[0]).card
+          : `settings.${a.category}`;
     // Keep the ghosts a beat so the real value's arrival reads as the same
     // thing landing, then let the pulse take over.
     return [{ kind: "pause", ms: 500 }, ...landed(anchor, ctx.t("settingSaved"))];

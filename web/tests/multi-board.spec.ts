@@ -18,6 +18,7 @@ import {
   deleteAllPages,
   deletePagesByDevice,
   expect,
+  openDisplay,
   openDisplays,
   resetToSingleBoard,
   suppressWizard,
@@ -106,6 +107,7 @@ test.describe("Displays – Board Instance CRUD", () => {
   test("can add a Note board via Add a display", async ({ page }) => {
     // Displays → Add a display → Vestaboard → Note: lands on the new display's page
     await addVestaboardDisplay(page, "Note");
+    await page.getByRole("tab", { name: "Settings", exact: true }).click();
 
     // Verify Note dimensions appear
     await expect(page.getByText("3 × 15").first()).toBeVisible({
@@ -138,7 +140,7 @@ test.describe("Displays – Board Instance CRUD", () => {
     await openDisplays(page);
 
     // Open the board's own page
-    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
+    await openDisplay(page, "My Board");
 
     // Open the device-type Select (grouped flagship/note + note-array presets)
     const typeSelect = page.getByRole("combobox", { name: "Board type and size" }).first();
@@ -163,7 +165,7 @@ test.describe("Displays – Board Instance CRUD", () => {
     await openDisplays(page);
 
     // Open the board's own page
-    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
+    await openDisplay(page, "My Board");
 
     // Open the type Select and pick the "4 side-by-side" note-array preset
     const typeSelect = page.getByRole("combobox", { name: "Board type and size" }).first();
@@ -227,7 +229,7 @@ test.describe("Displays – Board Instance CRUD", () => {
     });
 
     // Open the board's page and click Auto-detect.
-    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
+    await openDisplay(page, "My Board");
     const detectBtn = page.getByRole("button", { name: "Auto-detect from board" }).first();
     await expect(detectBtn).toBeVisible({ timeout: 5_000 });
     await detectBtn.click();
@@ -246,7 +248,7 @@ test.describe("Displays – Board Instance CRUD", () => {
     await openDisplays(page);
 
     // Open the board's own page
-    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
+    await openDisplay(page, "My Board");
     await expect(page.getByText("Color").first()).toBeVisible({
       timeout: 5_000,
     });
@@ -283,7 +285,7 @@ test.describe("Displays – Board Instance CRUD", () => {
     expect(dataBefore.boards.length).toBe(2);
 
     // Open the Note board's page (the second board, "My Board 2")
-    await page.getByRole("link", { name: "Open settings for My Board 2", exact: true }).click();
+    await openDisplay(page, "My Board 2");
 
     // Click Remove Board
     const removeBtn = page.getByRole("button", { name: /Remove Board/i });
@@ -305,7 +307,7 @@ test.describe("Displays – Board Instance CRUD", () => {
     expect(data.boards.length).toBe(1);
 
     // Open the board's page
-    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
+    await openDisplay(page, "My Board");
 
     const removeBtn = page.getByRole("button", { name: /Remove Board/i });
     await expect(removeBtn).toBeVisible({ timeout: 5_000 });
@@ -560,74 +562,76 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await resetToSingleBoard();
   });
 
-  test("adding Note board enables Note tab in pages list", async ({ page }) => {
+  test("adding a Note board adds its display filter and shows matching pages", async ({ page }) => {
     await page.goto("/pages");
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Note tab should NOT be visible with only Flagship
-    await expect(page.getByRole("tab", { name: "Note", exact: true })).toHaveCount(0, {
-      timeout: 3_000,
-    });
+    const filter = page.getByRole("combobox", { name: "Display filter" });
+    await filter.click();
+    await expect(page.getByRole("option", { name: "My Board", exact: true })).toBeVisible();
+    await expect(page.getByRole("option", { name: "E2E Note Display", exact: true })).toHaveCount(0);
+    await page.keyboard.press("Escape");
 
     // Add a Note board via API
-    await fetch(`${API_URL}/settings/board/add`, {
+    const added = await fetch(`${API_URL}/settings/board/add`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ device_type: "note" }),
+      body: JSON.stringify({ device_type: "note", name: "E2E Note Display" }),
     });
+    expect(added.status).toBe(201);
+    await createPage("Note filter probe", ["NOTE", "", ""], "note");
 
     await page.reload();
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole("tab", { name: "Note", exact: true })).toBeVisible({
-      timeout: 5_000,
-    });
-    await expect(page.getByRole("tab", { name: "Flagship" })).toBeVisible();
+    await filter.click();
+    await expect(page.getByRole("option", { name: "My Board", exact: true })).toBeVisible();
+    await page.getByRole("option", { name: "E2E Note Display", exact: true }).click();
+    await expect(filter).toHaveText("E2E Note Display");
+    await expect(page.getByText("Note filter probe", { exact: true })).toBeVisible();
   });
 
-  test("removing Note board hides Note tab in pages list", async ({ page }) => {
+  test("removing a Note board removes its display filter", async ({ page }) => {
     // Start with both device types
     await fetch(`${API_URL}/settings/board/add`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ device_type: "note" }),
+      body: JSON.stringify({ device_type: "note", name: "E2E Note Display" }),
     });
 
     await page.goto("/pages");
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole("tab", { name: "Note", exact: true })).toBeVisible({
-      timeout: 5_000,
-    });
+    const filter = page.getByRole("combobox", { name: "Display filter" });
+    await filter.click();
+    await page.getByRole("option", { name: "E2E Note Display", exact: true }).click();
+    await expect(filter).toHaveText("E2E Note Display");
 
     // Remove Note by resetting to single Flagship board
     await resetToSingleBoard();
 
-    // Removing the BOARD isn't enough on its own: note-typed PAGES keep the
-    // Note tab alive by design (issue #943 — orphan pages stay reachable),
-    // and any earlier spec's cleanup can leave a note-typed auto-Welcome
-    // behind. Anchor a flagship page (so the store never empties), then
-    // clear lingering note pages — the tab's only remaining reason to exist.
-    await createPage(`Note Tab Anchor ${Date.now() % 1_000_000}`);
-    await deletePagesByDevice("note");
-
     await page.reload();
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole("tab", { name: "Note", exact: true })).toHaveCount(0, {
-      timeout: 3_000,
-    });
+    await expect(filter).toHaveText("All pages");
+    await filter.click();
+    await expect(page.getByRole("option", { name: "E2E Note Display", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("option", { name: "My Board", exact: true })).toBeVisible();
   });
 
   test("Note page editor loads 3-line layout when Note device exists", async ({ page }) => {
     // Add a Note board
-    await fetch(`${API_URL}/settings/board/add`, {
+    const added = await fetch(`${API_URL}/settings/board/add`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ device_type: "note" }),
     });
+    expect(added.status).toBe(201);
+    const data = (await added.json()) as { boards: Array<{ id: string; device_type: string }> };
+    const noteBoard = data.boards.find((board) => board.device_type === "note");
+    expect(noteBoard).toBeDefined();
 
-    await page.goto("/pages/new?device=note");
+    await page.goto(`/pages/new?board=${noteBoard!.id}`);
     await expect(page.getByText("Create Page")).toBeVisible({
       timeout: 15_000,
     });
