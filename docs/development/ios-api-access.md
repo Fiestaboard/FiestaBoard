@@ -49,7 +49,14 @@ accepting edits based on an earlier process generation.
 
 The service uses the storage's existing reentrant lock around precondition
 checks, geometry/canvas retarget preparation, validation, and mutation. Direct
-storage mutations use that same lock. Backup restore writes and reloads the
+storage mutations use that same lock. Deletion takes the established outer
+lock order (`settings`, `config`, `pages`, `collections`, `schedules`) before
+checking its precondition and references and updating dependent selections.
+This matches panel content resizing and avoids a page/config lock inversion.
+Update/retarget preparation and default/replacement page construction use
+model-only geometry validation and storage operations; they do not acquire
+outer settings/config locks from inside a page-only critical section.
+Backup restore writes and reloads the
 same live page storage while holding its owning lock, before releasing it;
 cached service references therefore see the restored generation too. The page
 singleton is retained rather than replaced later during service reload.
@@ -57,6 +64,9 @@ If a restored page document cannot be loaded (for example, a future schema),
 the restore raises and its pre-restore pages are removed from the live cache;
 cached requests cannot keep reading or saving that obsolete document. Restore
 remains nontransactional across files, as documented by the backup service.
+A subsequent successful explicit load of a supported document clears the JSON
+store's future-schema refusal. Failed loads, absent-file loads, and attempted
+writes while the future document remains in place keep the refusal latched.
 
 These guarantees rely on FiestaBoard's existing single Python process and one
 live page service per data directory. `supervisord.conf` starts one uvicorn
@@ -128,3 +138,19 @@ observed failing before their covered production behavior was implemented.
   With the fixture correctly mounted, all four affected files passed in
   isolation (59 tests) both on the pristine base and on this patch. The initial
   failures were not reproduced; this is not a clean full-web-suite result.
+
+### Review corrections
+
+Independent review identified and reproduced a cross-store delete/resize
+deadlock and a future-schema refusal that survived a later compatible restore.
+New tests first failed against the reviewed implementation: the controlled
+resize/delete schedule produced bounded lock-acquisition timeouts, and the
+recovery sequence raised `SchemaTooNewError` even after restoring schema 6.
+The lock-order and successful-reload corrections preserve the same live owner
+and keep the revision check atomic with deletion. The recovery test checks
+future-file write refusal before compatible restore, then successful
+conditional service update and deletion afterward.
+The revised focused Python run passed 523 tests, including all 15 revision
+tests, the JSON storage kernel, and panel content resizing. Changed-file Ruff
+and `git diff --check` passed. No complete Python rerun was attempted after the
+OOM event.

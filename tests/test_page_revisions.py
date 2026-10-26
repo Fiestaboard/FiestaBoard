@@ -2,8 +2,9 @@
 
 import json
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
-from unittest.mock import patch
+from threading import Barrier, Event, RLock, Thread, current_thread
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -114,6 +115,123 @@ def test_unreadable_restored_schema_does_not_leave_old_live_pages(storage, page,
     assert service.get_page(page.id) is None
     assert service.update_page(page.id, PageUpdate(name="stale", expected_revision=page.revision)) is None
     assert json.loads(storage.storage_file.read_text())["schema_version"] == 999
+
+
+def test_valid_restore_recovers_same_owner_after_future_schema_refusal(storage, page, monkeypatch):
+    service = PageService(storage=storage)
+    monkeypatch.setattr("src.pages.service.get_page_service", lambda: service)
+    backup = BackupService(data_dir=storage.storage_file.parent)
+    valid = {
+        BACKUP_FILE_MARKER: True,
+        "schema_version": BACKUP_SCHEMA_VERSION,
+        "data": {"pages": json.loads(storage.storage_file.read_text())},
+    }
+    future = {**valid, "data": {"pages": {"schema_version": 999, "pages": []}}}
+    with pytest.raises(SchemaTooNewError):
+        backup.import_from_dict(future, reinstall_plugins=False)
+    # A refused future document remains protected until explicitly replaced
+    # and successfully loaded, even through unconditional legacy writes.
+    with pytest.raises(SchemaTooNewError):
+        storage.create(Page(name="Cannot overwrite future data", type="template", template=["guard"]))
+    assert json.loads(storage.storage_file.read_text())["schema_version"] == 999
+    with patch("src.backup.service._reload_services", return_value=[]):
+        result = backup.import_from_dict(valid, reinstall_plugins=False)
+    assert result["status"] == "success"
+    restored = service.get_page(page.id)
+    saved = service.update_page(page.id, PageUpdate(name="Recovered", expected_revision=restored.revision))
+    assert saved.name == "Recovered"
+    assert service.delete_page(page.id, expected_revision=saved.revision).deleted
+    assert all(p["id"] != page.id for p in json.loads(storage.storage_file.read_text())["pages"])
+
+
+def test_conditional_delete_and_panel_resize_follow_same_outer_lock_order(storage, page, monkeypatch):
+    """Force resize's outer locks to overlap deletion; timeouts bound failures."""
+    from src.devices import DeviceDimensions
+    from src.panels.content_resize import panel_content_resize
+
+    resize_at_pages = Event()
+    delete_at_outer_lock = Event()
+    failures = []
+
+    class BoundedLock:
+        def __init__(self, real=None, *, pages=False):
+            self.real = real or RLock()
+            self.pages = pages
+
+        def __enter__(self):
+            if self.pages and current_thread().name == "resize":
+                resize_at_pages.set()
+                if not delete_at_outer_lock.wait(2):
+                    raise TimeoutError("delete did not reach an outer lock")
+            if not self.pages and current_thread().name == "delete":
+                delete_at_outer_lock.set()
+            if not self.real.acquire(timeout=2):
+                raise TimeoutError("inverted page/outer lock acquisition")
+            return self
+
+        def __exit__(self, *args):
+            self.real.release()
+
+    monkeypatch.setattr(storage._store, "_lock", BoundedLock(storage.lock, pages=True))
+    service = PageService(storage=storage)
+    settings = Mock(lock=BoundedLock())
+    settings.get_board_settings.return_value = SimpleNamespace(boards=[{"id": "board"}])
+    settings.get_active_page_id.return_value = None
+    settings.get_active_page_settings.return_value = SimpleNamespace()
+    settings.peek_temporary_override.return_value = None
+    config_lock = BoundedLock()
+
+    def get_feature(_name):
+        with config_lock:
+            return {}
+
+    config = SimpleNamespace(lock=config_lock, get_feature=get_feature, _config={})
+    schedules = Mock()
+    schedules.storage.lock = BoundedLock()
+    schedules.storage.list_all.return_value = []
+    schedules.storage.get_default_page_id.return_value = None
+    schedules.storage._default_page_by_board = {}
+    schedules.get_default_page.return_value = None
+    schedules.list_schedules.return_value = []
+    collections = Mock()
+    collections.storage.lock = BoundedLock()
+    collections.list_collections.return_value = []
+    for module in ("src.settings.service", "src.pages.service", "src.panels.content_resize"):
+        monkeypatch.setattr(module + ".get_settings_service", lambda: settings)
+    for module in ("src.config_manager", "src.panels.content_resize"):
+        monkeypatch.setattr(module + ".get_config_manager", lambda: config)
+    for module in ("src.schedules.service", "src.panels.content_resize"):
+        monkeypatch.setattr(module + ".get_schedule_service", lambda: schedules)
+    for module in ("src.collections.service", "src.panels.content_resize"):
+        monkeypatch.setattr(module + ".get_collection_service", lambda: collections)
+    monkeypatch.setattr("src.panels.content_resize.get_page_service", lambda: service)
+    monkeypatch.setattr("src.panels.content_resize.prepare_resize_journal", lambda *a, **kw: None)
+    monkeypatch.setattr("src.panels.content_resize.commit_resize_journal", lambda journal: None)
+    monkeypatch.setattr("src.panels.content_resize.discard_resize_journal", lambda journal: None)
+
+    def resize():
+        with panel_content_resize({"id": "board"}, DeviceDimensions(6, 22), True):
+            pass
+
+    def delete():
+        assert service.delete_page(page.id, expected_revision=page.revision).deleted
+
+    def capture(action):
+        try:
+            action()
+        except BaseException as exc:
+            failures.append(exc)
+
+    resize_thread = Thread(name="resize", target=capture, args=(resize,), daemon=True)
+    delete_thread = Thread(name="delete", target=capture, args=(delete,), daemon=True)
+    resize_thread.start()
+    assert resize_at_pages.wait(2)
+    delete_thread.start()
+    for thread in (resize_thread, delete_thread):
+        thread.join(timeout=6)
+    assert not resize_thread.is_alive() and not delete_thread.is_alive()
+    assert failures == []
+    assert storage.get(page.id) is None
 
 
 def test_backup_restore_reloads_live_storage_before_releasing_owner_lock(storage, page, monkeypatch):

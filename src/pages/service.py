@@ -6,6 +6,7 @@ Provides high-level operations on pages including preview and send.
 import logging
 import time
 from collections.abc import Collection
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -303,7 +304,20 @@ class PageService:
         ]
 
     def delete_page(self, page_id: str, *, expected_revision: str | None = None) -> DeleteResult:
-        with self.storage.lock:
+        from src.collections.service import get_collection_service
+        from src.config_manager import get_config_manager
+        from src.schedules.service import get_schedule_service
+
+        # Match panel_content_resize's established cross-store order. Reference
+        # checks and active/default replacement read or write these owners;
+        # entering them after the page lock would invert resize's lock order.
+        settings = get_settings_service()
+        config = get_config_manager()
+        collections = get_collection_service().storage
+        schedules = get_schedule_service().storage
+        with ExitStack() as locks:
+            for lock in (settings.lock, config.lock, self.storage.lock, collections.lock, schedules.lock):
+                locks.enter_context(lock)
             self.storage.check_revision(page_id, expected_revision)
             return self._delete_page_locked(page_id)
 
