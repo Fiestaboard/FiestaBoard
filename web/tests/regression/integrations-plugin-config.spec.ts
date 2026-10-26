@@ -22,6 +22,19 @@ import {
 const TEST_PLUGIN_ID = "date_time";
 const TEST_PLUGIN_NAME = "Date & Time";
 
+// Chromium exposes the real Clipboard API only on secure/trusted origins.
+// CI uses HTTP bridge IPs for its isolated app containers; trust only those
+// configured test origins in this spec's browser, without changing the app.
+const clipboardOrigins = (process.env.WORKER_URLS || process.env.BASE_URL || "http://localhost:4420")
+  .split(",")
+  .map((url) => new URL(url).origin)
+  .join(",");
+test.use({
+  // Full Chromium honors the origin allowlist; headless-shell does not.
+  channel: "chromium",
+  launchOptions: { args: [`--unsafely-treat-insecure-origin-as-secure=${clipboardOrigins}`] },
+});
+
 // Track demo page IDs to clean up after tests
 const createdDemoPageIds = new Set<string>();
 
