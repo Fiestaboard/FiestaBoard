@@ -271,7 +271,13 @@ export function GlobalAiChatDrawer() {
   }, [isOpen, isMinimized, aiSettings, close]);
 
   const getTurnContext = useCallback((): ChatTurnContext => {
-    const pages = pagesData?.pages?.map((p) => ({ id: p.id, name: p.name }));
+    const pages = pagesData?.pages?.map((p) => ({
+      id: p.id,
+      name: p.name,
+      revision: p.revision,
+      edit_protocol: p.edit_protocol,
+      document_protocol: p.document_protocol,
+    }));
     const plugins = pluginsData?.plugins?.map((p) => ({
       id: p.id,
       name: p.name,
@@ -280,6 +286,8 @@ export function GlobalAiChatDrawer() {
     }));
     const schedules = schedulesData?.schedules?.map((s) => ({
       id: s.id,
+      revision: s.revision,
+      edit_protocol: s.edit_protocol,
       page_id: s.page_id,
       start_time: s.start_time,
       end_time: s.end_time ?? null,
@@ -288,6 +296,8 @@ export function GlobalAiChatDrawer() {
     }));
     const collections = collectionsData?.collections?.map((c) => ({
       id: c.id,
+      revision: c.revision,
+      edit_protocol: c.edit_protocol,
       name: c.name,
       page_ids: c.page_ids,
       selection_mode: c.selection_mode,

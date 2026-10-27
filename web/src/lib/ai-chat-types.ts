@@ -355,6 +355,9 @@ export interface CurrentPageSnapshot {
 export interface PageRef {
   id: string;
   name: string;
+  revision?: string | null;
+  edit_protocol?: string | null;
+  document_protocol?: string | null;
 }
 
 export interface InstalledPluginRef {
@@ -373,6 +376,8 @@ export interface RegistryPluginRef {
 
 export interface ScheduleRef {
   id: string;
+  revision?: string;
+  edit_protocol?: string;
   page_id: string;
   start_time: string;
   end_time?: string | null;
@@ -382,6 +387,8 @@ export interface ScheduleRef {
 
 export interface CollectionRef {
   id: string;
+  revision?: string;
+  edit_protocol?: string;
   name: string;
   page_ids: string[];
   selection_mode: "time" | "variable" | "random";

@@ -21,7 +21,7 @@ import { GlobalAiPanelProvider, useGlobalAiPanel } from "@/components/global-ai-
 import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
 import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridge-context";
 import { SidebarProvider } from "@/components/sidebar-context";
-import type { ChatTurnContext } from "@/lib/ai-chat-types";
+import type { ChatRequestBody, ChatTurnContext } from "@/lib/ai-chat-types";
 import type { StreamChatHandlers } from "@/lib/api-stream";
 
 import { server } from "./mocks/server";
@@ -32,13 +32,15 @@ vi.mock("@/hooks/use-router", () => ({
 }));
 
 const transport = vi.hoisted(() => ({
+  body: null as ChatRequestBody | null,
   handlers: null as StreamChatHandlers | null,
   finish: null as (() => void) | null,
   signal: null as AbortSignal | null,
 }));
 vi.mock("@/lib/api-stream", () => ({
-  streamChat: (_body: unknown, handlers: StreamChatHandlers, signal: AbortSignal) =>
+  streamChat: (body: ChatRequestBody, handlers: StreamChatHandlers, signal: AbortSignal) =>
     new Promise<void>((resolve) => {
+      transport.body = body;
       transport.handlers = handlers;
       transport.finish = resolve;
       transport.signal = signal;
@@ -146,6 +148,65 @@ it("uses the selected panel type in the next chat turn", async () => {
   );
   renderDrawer();
   await waitFor(() => expect(chatContext.get?.()).toMatchObject({ deviceType: "panel", boardId: "pixels" }));
+});
+
+it("carries the loaded content generations and protocols into the outgoing chat request", async () => {
+  const user = userEvent.setup();
+  transport.body = null;
+  const page = {
+    id: "page-original",
+    name: "Original page",
+    revision: "page-original-generation",
+    edit_protocol: "page-revision-v1",
+    document_protocol: "page-document-v1",
+  };
+  const schedule = {
+    id: "schedule-original",
+    page_id: page.id,
+    start_time: "07:00",
+    end_time: "09:00",
+    day_pattern: "weekdays",
+    enabled: false,
+    revision: "schedule-original-generation",
+    edit_protocol: "schedule-revision-v1",
+  };
+  const collection = {
+    id: "collection:original",
+    name: "Original collection",
+    page_ids: [page.id],
+    selection_mode: "time",
+    time: { interval_seconds: 45 },
+    variable: null,
+    random: null,
+    revision: "collection-original-generation",
+    edit_protocol: "collection-revision-v1",
+  };
+  server.use(
+    http.get("/api/v1/pages", () => HttpResponse.json({ pages: [page], total: 1 })),
+    http.get("/api/v1/schedules", () =>
+      HttpResponse.json({ schedules: [schedule], total: 1, default_page_id: null, enabled: true }),
+    ),
+    http.get("/api/v1/collections", () => HttpResponse.json({ collections: [collection], total: 1 })),
+  );
+  renderDrawer();
+  act(() => openPanel());
+  await waitFor(() => {
+    const context = chatContext.get?.();
+    expect(context?.availablePages?.[0]?.id).toBe(page.id);
+    expect(context?.availableSchedules?.[0]?.id).toBe(schedule.id);
+    expect(context?.availableCollections?.[0]?.id).toBe(collection.id);
+  });
+  await user.type(await screen.findByRole("textbox", { name: "Message" }), "Review these saved items");
+  await user.click(screen.getByRole("button", { name: "Send" }));
+  await waitFor(() => expect(transport.body).not.toBeNull());
+  expect(transport.body).toEqual(
+    expect.objectContaining({
+      available_pages: [page],
+      available_schedules: [schedule],
+      available_collections: [collection],
+    }),
+  );
+  await user.click(screen.getByRole("button", { name: "Stop" }));
 });
 
 it("minimizes and restores the same draft without reserving page space", async () => {
