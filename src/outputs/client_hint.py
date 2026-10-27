@@ -32,11 +32,14 @@ runs as it did before.
 from __future__ import annotations
 
 import ipaddress
+import logging
 import platform
 from pathlib import Path
 from typing import Any
 
 from .hooks import lan_hint
+
+logger = logging.getLogger(__name__)
 
 #: Where a scan's network hint came from, as logged (never the address).
 HINT_SOURCE_BROWSER = "browser"
@@ -82,14 +85,18 @@ def parse_route_table(text: str) -> tuple[ipaddress.IPv4Network, ...]:
 def interface_networks() -> tuple[ipaddress.IPv4Network, ...]:
     """The networks this container (or host) is directly on; none off Linux."""
     try:
-        return parse_route_table(_ROUTE_TABLE.read_text(encoding="ascii"))
+        # Interface names may hold any byte; only the hex fields matter.
+        return parse_route_table(_ROUTE_TABLE.read_bytes().decode("ascii", errors="replace"))
     except OSError:
         return ()
 
 
 def _docker_desktop() -> bool:
-    """Whether this is Docker Desktop's VM (its kernel is LinuxKit)."""
-    return "linuxkit" in platform.release().lower()
+    """Whether this is Docker Desktop's VM: LinuxKit on macOS, or the WSL2
+    backend's Microsoft kernel on Windows. Both NAT published ports to
+    192.168.65.1."""
+    release = platform.release().lower()
+    return "linuxkit" in release or "microsoft" in release
 
 
 def _is_loopback(host: str) -> bool:
@@ -126,7 +133,18 @@ def _unwrapped(address: str) -> str:
 
 def client_lan_hint(request: Any) -> str | None:
     """The requesting browser's address as a network hint, or ``None`` when
-    it says nothing useful about the user's LAN (see the module docstring)."""
+    it says nothing useful about the user's LAN (see the module docstring).
+
+    Never raises: every board action works this out, and a hint that cannot
+    be worked out is no hint — the scan runs as it did before."""
+    try:
+        return _client_lan_hint(request)
+    except Exception:
+        logger.debug("Could not work out a network hint from the client address", exc_info=True)
+        return None
+
+
+def _client_lan_hint(request: Any) -> str | None:
     if request is None or request.headers.get("x-ingress-path") is not None:
         return None
     address = client_address(request)

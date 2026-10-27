@@ -117,6 +117,23 @@ def test_docker_desktops_vm_network_is_not_a_hint():
         assert client_lan_hint(_request("127.0.0.1", {"X-Real-IP": "192.168.65.1"})) is None
 
 
+@pytest.mark.parametrize(
+    "release",
+    ["6.10.14-linuxkit", "5.15.167.4-microsoft-standard-WSL2", "6.6.87.2-microsoft-standard-WSL2"],
+    ids=["mac-linuxkit", "windows-wsl2", "windows-wsl2-newer"],
+)
+def test_docker_desktop_is_detected_on_macos_and_windows(release):
+    """Docker Desktop's WSL2 backend (the Windows default) runs a Microsoft
+    kernel, not LinuxKit, and still NATs published ports to 192.168.65.1."""
+    with mock.patch.object(client_hint.platform, "release", return_value=release):
+        assert client_hint._docker_desktop()
+
+
+def test_a_raspberry_pi_kernel_is_not_docker_desktop():
+    with mock.patch.object(client_hint.platform, "release", return_value="6.6.51+rpt-rpi-v8"):
+        assert not client_hint._docker_desktop()
+
+
 def test_192_168_65_is_an_ordinary_lan_off_docker_desktop(bridge_mode):
     assert client_lan_hint(_request("127.0.0.1", {"X-Real-IP": "192.168.65.40"})) == "192.168.65.40"
 
@@ -164,6 +181,23 @@ def test_the_route_table_names_the_directly_connected_networks():
 
 def test_an_unreadable_route_table_names_no_networks():
     assert parse_route_table("garbage\nnot a route\n") == ()
+
+
+def test_a_route_table_that_is_not_ascii_names_no_networks(tmp_path):
+    """Linux allows any byte but / and whitespace in an interface name."""
+    table = tmp_path / "route"
+    table.write_bytes(_ROUTES.encode() + b"wl\xc3\xa9\t0000A8C0\t00000000\t0001\t0\t0\t0\t00FFFFFF\t0\t0\t0\n")
+    with mock.patch.object(client_hint, "_ROUTE_TABLE", table):
+        networks = client_hint.interface_networks()
+    # The other lines still count: the Docker bridge is still refused.
+    assert ipaddress.IPv4Network("172.17.0.0/16") in networks
+
+
+def test_a_failure_while_working_out_the_hint_is_no_hint_not_an_error(caplog):
+    """The contract is "a refused address means no hint": every board action
+    computes the hint, so an unexpected error must never fail the action."""
+    with mock.patch.object(client_hint, "interface_networks", side_effect=RuntimeError("boom")):
+        assert client_lan_hint(_request("127.0.0.1", {"X-Real-IP": "192.168.0.91"})) is None
 
 
 # --- the action input check: the fallback ----------------------------------------------------
