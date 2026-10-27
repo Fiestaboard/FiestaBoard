@@ -344,6 +344,12 @@ export function GlobalAiChatDrawer() {
         return;
       }
       const payload = (result.result ?? {}) as Record<string, unknown>;
+      // Undo is a delayed editor too: retain the generation produced by this
+      // action. Reading a fresh token at click time would overwrite later edits.
+      const resultingRevision =
+        payload.edit_protocol === "schedule-revision-v1" && typeof payload.revision === "string"
+          ? payload.revision
+          : undefined;
       switch (call.name) {
         case "create_schedule": {
           const createdId = payload.schedule_id;
@@ -354,9 +360,10 @@ export function GlobalAiChatDrawer() {
                     label: t("toast.undo"),
                     onClick: () => {
                       void (async () => {
-                        await api.deleteSchedule(createdId);
+                        if (resultingRevision) await api.deleteSchedule(createdId, resultingRevision);
+                        else await api.deleteSchedule(createdId);
                         await refreshSchedules();
-                      })();
+                      })().catch((error: Error) => toast.error(error.message));
                     },
                   }
                 : undefined,
@@ -372,15 +379,17 @@ export function GlobalAiChatDrawer() {
                   onClick: () => {
                     void (async () => {
                       await api.updateSchedule(previousSchedule.id, {
+                        ...previousSchedule,
                         page_id: previousSchedule.page_id,
                         start_time: previousSchedule.start_time,
                         end_time: previousSchedule.end_time ?? null,
                         day_pattern: previousSchedule.day_pattern,
                         custom_days: previousSchedule.custom_days,
                         enabled: previousSchedule.enabled,
+                        ...(resultingRevision ? { expected_revision: resultingRevision } : {}),
                       });
                       await refreshSchedules();
-                    })();
+                    })().catch((error: Error) => toast.error(error.message));
                   },
                 }
               : undefined,

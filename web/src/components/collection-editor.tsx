@@ -21,7 +21,7 @@ import { CollectionForm } from "@/components/collection-form";
 import { queryKeys, useCollections, usePages } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useTranslations } from "@/i18n/translations";
-import type { CollectionCreate, CollectionUpdate } from "@/lib/api";
+import type { Collection, CollectionCreate, CollectionUpdate } from "@/lib/api";
 import { api } from "@/lib/api";
 
 export function CollectionEditor({ collectionId }: { collectionId?: string }) {
@@ -31,7 +31,15 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
   const queryClient = useQueryClient();
   const { data, isLoading, isError } = useCollections();
   const { data: pagesData, isLoading: pagesLoading, isError: pagesError } = usePages();
-  const collection = data?.collections.find((item) => item.id === collectionId);
+  const loadedCollection = data?.collections.find((item) => item.id === collectionId);
+  // A background query refresh must not replace the original generation
+  // while the form still contains the draft initialized from that generation.
+  const [original, setOriginal] = useState<{ id?: string; value?: Collection }>({ id: collectionId });
+  if (original.id !== collectionId || (loadedCollection && !original.value)) {
+    setOriginal({ id: collectionId, value: loadedCollection });
+  }
+  const collection = original.id === collectionId ? (original.value ?? loadedCollection) : loadedCollection;
+  const expectedRevision = collection?.edit_protocol === "collection-revision-v1" ? collection.revision : undefined;
   const dirty = useRef(false);
   const leavingAfterSave = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +65,12 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
   };
   const save = useMutation({
     mutationFn: (value: CollectionCreate | CollectionUpdate) =>
-      collectionId ? api.updateCollection(collectionId, value) : api.createCollection(value as CollectionCreate),
+      collectionId
+        ? api.updateCollection(collectionId, {
+            ...value,
+            ...(expectedRevision && { expected_revision: expectedRevision }),
+          })
+        : api.createCollection(value as CollectionCreate),
     onSuccess: () => {
       leavingAfterSave.current = true;
       refresh();
@@ -69,7 +82,8 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
     },
   });
   const remove = useMutation({
-    mutationFn: () => api.deleteCollection(collectionId!),
+    mutationFn: () =>
+      expectedRevision ? api.deleteCollection(collectionId!, expectedRevision) : api.deleteCollection(collectionId!),
     onSuccess: () => {
       leavingAfterSave.current = true;
       refresh();

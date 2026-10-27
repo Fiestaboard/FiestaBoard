@@ -10,6 +10,7 @@ import logging
 import os
 import shutil
 import threading
+import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -1584,7 +1585,19 @@ class SettingsService:
             label="Settings",
         )
         self.settings_file = self._store.path
+        # Runtime only. Default-page conditional editing conservatively uses
+        # this generation so primary-board A -> B -> A never revives a token.
+        self.runtime_revision = str(uuid.uuid4())
 
+        self.reload()
+
+        logger.info(f"SettingsService initialized (file: {self.settings_file})")
+
+    @_locked
+    def reload(self) -> None:
+        """Reload this live owner after restore without changing its lock."""
+        self.runtime_revision = str(uuid.uuid4())
+        self._needs_seed_save = False
         # Run ordered schema migrations on the raw settings file BEFORE any
         # subsystem reads, so every _load_* sees fully migrated values. This
         # includes the legacy carousel:->collection: rewrite (folded into the
@@ -1622,8 +1635,6 @@ class SettingsService:
                 # the caller as a 5xx.
                 logger.error(f"Could not persist seeded settings at startup: {e}")
             self._needs_seed_save = False
-
-        logger.info(f"SettingsService initialized (file: {self.settings_file})")
 
     @property
     def lock(self) -> threading.RLock:
@@ -1765,6 +1776,7 @@ class SettingsService:
         except OSError as e:
             logger.warning(f"Could not write migrated settings: {e}")
 
+    @_locked
     def _atomic_write_json(self, data: dict) -> None:
         """Write *data* to ``settings_file`` atomically via the storage kernel.
 
@@ -1772,6 +1784,7 @@ class SettingsService:
         file — it stays untouched until the staged file is fully written and
         renamed over it (see #1304).
         """
+        self.runtime_revision = str(uuid.uuid4())
         self._store.save(data)
 
     def _load_from_file(self) -> dict:
@@ -1800,6 +1813,9 @@ class SettingsService:
         seed save and the override expiry GC — catch ``OSError`` at their
         own call site, each with a comment saying why.
         """
+        # State may already have changed even when persistence fails. Never
+        # revive the generation held by an editor of the earlier state.
+        self.runtime_revision = str(uuid.uuid4())
         try:
             data = {
                 "schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,

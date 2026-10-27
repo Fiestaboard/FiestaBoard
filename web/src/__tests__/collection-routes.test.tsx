@@ -43,7 +43,7 @@ function renderRoute(path: string) {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return router;
+  return Object.assign(router, { queryClient: client });
 }
 describe("Collection routes", () => {
   beforeEach(() => {
@@ -104,6 +104,47 @@ describe("Collection routes", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Save failed");
     expect(name).toHaveValue("Keep this draft");
     expect(router.state.location.pathname).toBe("/collections/collection%3Arotation");
+  });
+  it("keeps the original revision and dirty draft when a background refresh precedes a conflict", async () => {
+    const user = userEvent.setup();
+    let body: unknown;
+    server.use(
+      http.get("/api/v1/collections", () =>
+        HttpResponse.json({
+          collections: [
+            {
+              ...collection,
+              revision: "original",
+              edit_protocol: "collection-revision-v1",
+            },
+          ],
+        }),
+      ),
+      http.put("/api/v1/collections/collection:rotation", async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ detail: "Collection changed. Reload before saving." }, { status: 412 });
+      }),
+    );
+    const router = renderRoute("/collections/collection%3Arotation");
+    const name = await screen.findByLabelText("Name");
+    await user.clear(name);
+    await user.type(name, "My draft");
+    await act(async () => {
+      router.queryClient.setQueryData(["collections"], {
+        collections: [
+          {
+            ...collection,
+            name: "Other writer",
+            revision: "newer",
+            edit_protocol: "collection-revision-v1",
+          },
+        ],
+      });
+    });
+    await user.click(screen.getByRole("button", { name: "Update Collection" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Collection changed");
+    expect(body).toEqual(expect.objectContaining({ name: "My draft", expected_revision: "original" }));
+    expect(name).toHaveValue("My draft");
   });
   it("guards history back and preserves edits when Keep editing is chosen", async () => {
     const user = userEvent.setup();

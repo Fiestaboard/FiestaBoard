@@ -68,7 +68,10 @@ def snapshot(env):
     return {
         "pages": [p.model_dump(mode="json") for p in env.pages.list_all()],
         "collections": [c.model_dump(mode="json") for c in env.collections.list_all()],
-        "schedules": [s.model_dump(mode="json") for s in env.schedules.list_all(board_id="*")],
+        "schedules": [
+            s.model_dump(mode="json", exclude={"revision", "edit_protocol"})
+            for s in env.schedules.list_all(board_id="*")
+        ],
         "defaults": deepcopy(env.schedules._default_page_by_board),
         "legacy_default": env.schedules._default_page_id,
         "active": deepcopy(env.settings.get_active_page_settings().to_dict()),
@@ -190,7 +193,8 @@ def test_failure_in_caller_restores_all_references_and_removes_copies(env):
     original = page(env)
     collection = env.collections.create(Collection(name="Shared", page_ids=[original.id]))
     env.settings.set_active_page_id(collection.id, "tv")
-    schedule(env, original.id)
+    entry = schedule(env, original.id)
+    default_revision = env.schedules.default_revision
     env.schedules.set_default_page_id(collection.id)
     env.config.set_feature("silence_schedule", {"page_id": original.id, "mode": "page"})
     before = snapshot(env)
@@ -198,6 +202,11 @@ def test_failure_in_caller_restores_all_references_and_removes_copies(env):
         with resize(env.board):
             raise RuntimeError("board save failed")
     assert snapshot(env) == before
+    from src.pages.storage import PageRevisionConflict
+
+    assert env.schedules.default_revision != default_revision
+    with pytest.raises(PageRevisionConflict):
+        env.schedules.update(entry.id, {"enabled": False}, expected_revision=entry.revision)
 
 
 @pytest.mark.parametrize("boundary", ["page", "collection", "schedule", "active", "default", "silence"])
@@ -381,7 +390,14 @@ def test_startup_recovers_interrupted_conversion_and_preserves_copies(env, phase
         assert panels.get(panel.id).matrix_layout == "screen"
     else:
         assert env.settings.get_active_page_id("tv") == original.id
-        assert env.schedules.get(entry.id).model_dump(mode="json") == before["schedules"][0]
+        assert (
+            env.schedules.get(entry.id).model_dump(mode="json", exclude={"revision", "edit_protocol"})
+            == before["schedules"][0]
+        )
+        from src.pages.storage import PageRevisionConflict
+
+        with pytest.raises(PageRevisionConflict):
+            env.schedules.update(entry.id, {"enabled": False}, expected_revision=entry.revision)
         assert panels.get(panel.id).model_dump(mode="json") == panel.model_dump(mode="json")
         assert env.settings.get_board_settings().boards[0] == old_board
 
