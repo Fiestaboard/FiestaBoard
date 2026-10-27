@@ -5,6 +5,8 @@ visiting ``/api/docs`` the embedded Swagger UI must reference
 ``/api/openapi.json`` (not ``/openapi.json``) for the spec to load.
 """
 
+import pytest
+from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 
 from src.api_server import app
@@ -178,3 +180,41 @@ def test_docs_page_loads_the_standalone_preset_its_layout_needs():
     assert preset != -1, "the standalone preset script is never loaded"
     assert binding != -1, "the preset is never bound where the presets list reads it"
     assert preset < binding < config, "the preset must be loaded and bound before Swagger UI starts"
+
+
+def test_swagger_ui_assets_are_pinned_to_one_exact_version():
+    """The bundle and the standalone preset must be the same release: a
+    floating ``@5`` resolves each URL on its own, so jsDelivr can briefly
+    hand out a mismatched pair during an upstream release."""
+    from src.v1 import visibility
+
+    urls = (visibility.SWAGGER_JS_URL, visibility.SWAGGER_CSS_URL, visibility.SWAGGER_STANDALONE_PRESET_URL)
+    assert all("swagger-ui-dist@5." in u and u.count(".") >= 4 for u in urls), urls
+    assert len({u.rsplit("/", 1)[0] for u in urls}) == 1, "all three assets must come from one pinned version"
+
+
+@pytest.mark.parametrize(
+    "dropped",
+    ['<script src="https://cdn.jsdelivr.net', "SwaggerUIBundle.SwaggerUIStandalonePreset"],
+    ids=["bundle-tag", "presets-reference"],
+)
+def test_a_changed_fastapi_template_fails_at_mount_not_on_a_visit(monkeypatch, dropped):
+    """The page relies on two details of FastAPI's Swagger UI template: how it
+    loads the bundle, and that its ``presets`` list reads
+    ``SwaggerUIBundle.SwaggerUIStandalonePreset``. If a FastAPI upgrade drops
+    either, the layout cannot load and the page is blank, so building the app
+    must fail loudly instead of serving that page."""
+    from fastapi import FastAPI
+    from fastapi.openapi import docs as fastapi_docs
+
+    from src.v1 import visibility
+
+    real = fastapi_docs.get_swagger_ui_html
+
+    def changed_template(**kwargs):
+        page = real(**kwargs)
+        return HTMLResponse(page.body.decode().replace(dropped, "", 1))
+
+    monkeypatch.setattr(visibility, "get_swagger_ui_html", changed_template)
+    with pytest.raises(RuntimeError, match="Swagger UI"):
+        visibility.offer_internal_schema_in_docs(FastAPI(docs_url=None))

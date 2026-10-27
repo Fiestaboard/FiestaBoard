@@ -205,8 +205,10 @@ def mount_internal_schema(app: Any) -> None:
 PUBLIC_DOCS_NAME = "FiestaBoard API (v1)"
 INTERNAL_DOCS_NAME = "Internal web UI API (unstable, no compatibility promise)"
 
-#: Swagger UI assets, pinned to the same major FastAPI's own page loads.
-_SWAGGER_DIST = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5"
+#: Swagger UI assets, pinned to one exact release (the major FastAPI's own
+#: page loads): the bundle and the standalone preset must match, and a floating
+#: ``@5`` resolves each URL on its own.
+_SWAGGER_DIST = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.0"
 SWAGGER_JS_URL = f"{_SWAGGER_DIST}/swagger-ui-bundle.js"
 SWAGGER_CSS_URL = f"{_SWAGGER_DIST}/swagger-ui.css"
 SWAGGER_STANDALONE_PRESET_URL = f"{_SWAGGER_DIST}/swagger-ui-standalone-preset.js"
@@ -243,8 +245,7 @@ def offer_internal_schema_in_docs(app: Any) -> None:
         "layout": "StandaloneLayout",
     }
 
-    async def swagger_ui_html(request: Any) -> HTMLResponse:
-        root = request.scope.get("root_path", "").rstrip("/")
+    def render(root: str) -> str:
         page = get_swagger_ui_html(
             openapi_url=root + app.openapi_url,
             title=f"{app.title} - Swagger UI",
@@ -262,16 +263,25 @@ def offer_internal_schema_in_docs(app: Any) -> None:
         )
         bundle_tag = f'<script src="{SWAGGER_JS_URL}"></script>'
         html = page.body.decode()
-        if bundle_tag not in html:
-            raise RuntimeError("FastAPI's Swagger UI page no longer loads the bundle the way this route expects")
-        html = html.replace(
+        # The two details of FastAPI's template the layout depends on: where
+        # the bundle is loaded, and the presets list reading the preset off
+        # SwaggerUIBundle. Without either the page renders blank.
+        if bundle_tag not in html or "SwaggerUIBundle.SwaggerUIStandalonePreset" not in html:
+            raise RuntimeError("FastAPI's Swagger UI page no longer has the shape the /docs route patches")
+        return html.replace(
             bundle_tag,
             f"{bundle_tag}\n"
             f'    <script src="{SWAGGER_STANDALONE_PRESET_URL}"></script>\n'
             "    <script>SwaggerUIBundle.SwaggerUIStandalonePreset = SwaggerUIStandalonePreset;</script>",
             1,
         )
-        return HTMLResponse(html)
+
+    # Render once now, so a FastAPI upgrade that changes the template fails
+    # the app's startup (and CI) rather than serving a blank page.
+    render("")
+
+    async def swagger_ui_html(request: Any) -> HTMLResponse:
+        return HTMLResponse(render(request.scope.get("root_path", "").rstrip("/")))
 
     async def swagger_ui_redirect(request: Any) -> HTMLResponse:
         return get_swagger_ui_oauth2_redirect_html()
