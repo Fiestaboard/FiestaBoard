@@ -68,6 +68,15 @@ maintenance clients without pretending an unconditional writer cannot
 overwrite newer data. Schedule-mode enablement and other immediate settings or
 hardware controls remain separate APIs, not schedule-entry document edits.
 
+Plugin demo creation is also a distinct operation. The tool's default
+`recreate: false` preserves an existing edited demo. Explicit `recreate: true`
+resets it from the current server template and discards edits, as its tool
+description warns; it is not a draft update and does not carry a draft
+precondition. The legacy demo REST action also resets existing demos. Reset
+invalidates earlier page identity/revision, so an older native draft cannot
+silently save over the replacement. Native clients must present reset as an
+explicit destructive action, separate from saving a page draft.
+
 Revision checks and dependent mutations share the owning locks. Cross-store
 operations use settings → config → pages → collections → schedules order.
 The contract relies on the existing one-process deployment with one live owner
