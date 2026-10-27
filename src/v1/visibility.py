@@ -44,8 +44,9 @@ from collections.abc import Iterator
 from typing import Any
 
 from fastapi import routing as fastapi_routing
+from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
 from fastapi.routing import APIRoute
-from starlette.responses import JSONResponse
+from starlette.responses import HTMLResponse, JSONResponse
 
 from .openapi import build_openapi
 
@@ -197,3 +198,83 @@ def mount_internal_schema(app: Any) -> None:
         name="internal_openapi",
         include_in_schema=False,
     )
+
+
+#: Names in the ``/api/docs`` definition dropdown. The internal one says what
+#: it is in the dropdown itself, before anyone reads its front page.
+PUBLIC_DOCS_NAME = "FiestaBoard API (v1)"
+INTERNAL_DOCS_NAME = "Internal web UI API (unstable, no compatibility promise)"
+
+#: Swagger UI assets, pinned to the same major FastAPI's own page loads.
+_SWAGGER_DIST = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5"
+SWAGGER_JS_URL = f"{_SWAGGER_DIST}/swagger-ui-bundle.js"
+SWAGGER_CSS_URL = f"{_SWAGGER_DIST}/swagger-ui.css"
+SWAGGER_STANDALONE_PRESET_URL = f"{_SWAGGER_DIST}/swagger-ui-standalone-preset.js"
+
+#: Where Swagger UI is served. Behind nginx that is ``/api/docs``.
+DOCS_PATH = "/docs"
+DOCS_OAUTH2_REDIRECT_PATH = "/docs/oauth2-redirect"
+
+
+def offer_internal_schema_in_docs(app: Any) -> None:
+    """Let Swagger UI at ``/api/docs`` switch to the internal document (#2367).
+
+    Hiding the internal operations from ``/api/openapi.json`` left ``/api/docs``
+    able to show only that document, so ~200 routes that still answer had no
+    page anywhere: users upgrading from v8 saw a fraction of the API they knew
+    and only a sentence in the description saying where the rest went.
+
+    Swagger UI's ``urls`` option puts a definition dropdown in its top bar.
+    The published document stays first and is the default, so a newcomer still
+    lands on ``/v1``; the internal one is a deliberate pick, labelled as having
+    no promise. Neither document changes, only which ones the page can load.
+
+    ``urls`` is rendered only by ``StandaloneLayout``, whose top bar ships in
+    ``swagger-ui-standalone-preset.js``. FastAPI's page loads only the bundle
+    and reads the preset from ``SwaggerUIBundle.SwaggerUIStandalonePreset``,
+    which the bundle does not define, so this route loads the preset and binds
+    it there before Swagger UI starts. The app is built with ``docs_url=None``
+    and this replaces FastAPI's two routes (the page and its OAuth2
+    redirect) under the same paths and names, so the route table is unchanged.
+    """
+    app.swagger_ui_parameters = {
+        **(app.swagger_ui_parameters or {}),
+        "urls.primaryName": PUBLIC_DOCS_NAME,
+        "layout": "StandaloneLayout",
+    }
+
+    async def swagger_ui_html(request: Any) -> HTMLResponse:
+        root = request.scope.get("root_path", "").rstrip("/")
+        page = get_swagger_ui_html(
+            openapi_url=root + app.openapi_url,
+            title=f"{app.title} - Swagger UI",
+            oauth2_redirect_url=root + DOCS_OAUTH2_REDIRECT_PATH,
+            init_oauth=app.swagger_ui_init_oauth,
+            swagger_js_url=SWAGGER_JS_URL,
+            swagger_css_url=SWAGGER_CSS_URL,
+            swagger_ui_parameters={
+                **app.swagger_ui_parameters,
+                "urls": [
+                    {"url": root + app.openapi_url, "name": PUBLIC_DOCS_NAME},
+                    {"url": root + INTERNAL_SCHEMA_PATH, "name": INTERNAL_DOCS_NAME},
+                ],
+            },
+        )
+        bundle_tag = f'<script src="{SWAGGER_JS_URL}"></script>'
+        html = page.body.decode()
+        if bundle_tag not in html:
+            raise RuntimeError("FastAPI's Swagger UI page no longer loads the bundle the way this route expects")
+        html = html.replace(
+            bundle_tag,
+            f"{bundle_tag}\n"
+            f'    <script src="{SWAGGER_STANDALONE_PRESET_URL}"></script>\n'
+            "    <script>SwaggerUIBundle.SwaggerUIStandalonePreset = SwaggerUIStandalonePreset;</script>",
+            1,
+        )
+        return HTMLResponse(html)
+
+    async def swagger_ui_redirect(request: Any) -> HTMLResponse:
+        return get_swagger_ui_oauth2_redirect_html()
+
+    app.add_route(DOCS_PATH, swagger_ui_html, name="swagger_ui_html", include_in_schema=False)
+    app.add_route(DOCS_OAUTH2_REDIRECT_PATH, swagger_ui_redirect, name="swagger_ui_redirect", include_in_schema=False)
