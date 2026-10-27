@@ -5,7 +5,8 @@ export const MAX_NOTES_PER_AXIS = 8;
 /**
  * Panel grid bounds (mirror src/devices.py). A "panel" (FiestaPanel, a virtual
  * board on a TV) is sized per character, so its grid is any rows × cols in
- * this range — never smaller than one Note.
+ * this range — never smaller than one Note. An LED panel may go down to the
+ * MIN_LED_GRID_* floor below (ABSOLUTE_MIN_GRID_* is the lower of the two).
  */
 export const MIN_GRID_ROWS = NOTE_ROWS;
 export const MIN_GRID_COLS = NOTE_COLS;
