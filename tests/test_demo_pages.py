@@ -318,14 +318,14 @@ class TestPageDemoField:
         page = Page(name="Test", type="template", template=["L1"])
         assert page.demo_plugin_id is None
 
-    def test_page_create_includes_demo_plugin_id(self):
+    def test_page_create_ignores_caller_demo_plugin_id(self):
         pc = PageCreate(
             name="Demo",
             type="template",
             template=["L1"],
             demo_plugin_id="weather",
         )
-        assert pc.demo_plugin_id == "weather"
+        assert pc.demo_plugin_id is None
 
     def test_page_serialization_includes_demo_plugin_id(self):
         page = Page(

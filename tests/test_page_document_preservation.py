@@ -348,3 +348,48 @@ def test_persisted_runtime_metadata_is_ignored_before_validation(tmp_path, docum
     storage.update(page.id, {"name": "Saved"})
     stored = json.loads(path.read_text())["pages"][0]
     assert not {"revision", "expected_revision", "edit_protocol", "document_protocol"} & stored.keys()
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        {"type": "rect", "x": 0, "y": 0, "w": 1, "h": 1, "color": "future-extension"},
+        {"type": "text", "x": 0, "y": 0, "text": "hi", "color": "red", "fill": "future-extension"},
+        {"type": "rect", "x": 0, "y": 0, "w": 1, "h": 1, "to": "future-extension"},
+    ],
+)
+def test_other_shape_color_names_remain_opaque_extensions(shape):
+    from src.canvas.evaluate import resolve_content
+
+    page = Page(
+        name="Opaque color extension",
+        type="template",
+        template=["hello"],
+        canvases=[
+            {
+                "id": "art",
+                "area": {"row": 1, "col": 1, "rows": 1, "cols": 1},
+                "content": {"shapes": [shape]},
+            }
+        ],
+    )
+    assert page.model_dump(mode="json")["canvases"][0]["content"]["shapes"] == [shape]
+    resolved, issues = resolve_content(page.canvases[0].content, {})
+    assert issues == []
+    assert resolved.shapes[0].type == shape["type"]
+    assert canvas_plugin_ids(page.canvases) == set()
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        {"type": "rect", "x": 0, "y": 0, "w": 1, "h": 1, "fill": "missing-color"},
+        {"type": "text", "x": 0, "y": 0, "text": "hi", "color": "missing-color"},
+        {"type": "gradient", "from": "missing-color", "to": "red"},
+    ],
+)
+def test_declared_shape_color_fields_still_require_valid_colors(shape):
+    from src.pages.document import DocumentContent
+
+    with pytest.raises(ValueError):
+        DocumentContent(shapes=[shape])
