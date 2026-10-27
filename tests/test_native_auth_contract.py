@@ -80,7 +80,9 @@ def test_native_session_management_requires_origin_and_current_session_csrf(nati
     path = prefix + "/auth/sessions/" + session_id
     assert client.delete(path).status_code == 403
     assert client.delete(path, headers={"Origin": "https://board.example"}).status_code == 403
-    assert client.delete(path, headers={"Origin": "https://unrelated.example", "X-CSRF-Token": nonce}).status_code == 403
+    assert (
+        client.delete(path, headers={"Origin": "https://unrelated.example", "X-CSRF-Token": nonce}).status_code == 403
+    )
     assert client.get(prefix + "/v1/pages").status_code == 200
     response = client.delete(path, headers={"Origin": "https://board.example", "X-CSRF-Token": nonce})
     assert response.status_code == 200, response.text
