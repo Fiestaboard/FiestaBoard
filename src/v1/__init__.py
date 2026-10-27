@@ -27,7 +27,12 @@ from __future__ import annotations
 from . import routes_boards, routes_content, routes_install, routes_meta, routes_plugins
 from .openapi import install_security_scheme
 from .router import router
-from .visibility import build_internal_openapi, hide_internal_operations, mount_internal_schema
+from .visibility import (
+    build_internal_openapi,
+    hide_internal_operations,
+    mount_internal_schema,
+    offer_internal_schema_in_docs,
+)
 
 
 def mount_v1(app) -> None:
@@ -39,7 +44,8 @@ def mount_v1(app) -> None:
     2. declare the security schemes, so the document says the API is
        authenticated;
     3. mount ``/internal/openapi.json``, so the full document has somewhere
-       to live *before* anything is taken out of the published one;
+       to live *before* anything is taken out of the published one, and
+       offer it in the ``/docs`` dropdown so hidden is not unfindable (#2367);
     4. hide every non-``/v1`` operation. Last, because it sweeps the whole
        route table — every router this module's caller included, plus the
        internal-schema route added in step 3.
@@ -47,6 +53,7 @@ def mount_v1(app) -> None:
     app.include_router(router)
     install_security_scheme(app)
     mount_internal_schema(app)
+    offer_internal_schema_in_docs(app)
     hide_internal_operations(app)
 
 

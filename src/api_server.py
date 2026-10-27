@@ -482,8 +482,10 @@ This document is the API to build against: 33 operations. The app serves
 ~200 more, but they are the web UI's private RPC channel — undocumented on
 purpose, with no compatibility promise, and liable to change in any release.
 They are published separately at `/api/internal/openapi.json` for the UI's
-own contract checks. Two flat legacy operations, `POST /send-message` and
-`POST /refresh`, remain here because earlier documentation named them; both
+own contract checks, and can be browsed at `/api/docs` by picking
+**Internal web UI API** in the definition dropdown at the top of the page.
+Two flat legacy operations, `POST /send-message` and `POST /refresh`,
+remain here because earlier documentation named them; both
 are deprecated and both name their `/v1` replacement in a `Link` header.
 
 ### Deprecated board fields
@@ -565,6 +567,9 @@ app = FastAPI(
     # / ReDoc to reference /api/openapi.json so the docs page at /api/docs
     # can load its API definition through the proxy.
     root_path="/api",
+    # Swagger UI is served by src/v1/visibility.py::offer_internal_schema_in_docs,
+    # which adds the public/internal definition dropdown (#2367).
+    docs_url=None,
 )
 
 CORS_ORIGINS_ENV = "FIESTABOARD_CORS_ORIGINS"
