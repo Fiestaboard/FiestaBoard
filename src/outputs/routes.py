@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from src.api_errors import errors
 from src.display_runtime import reinitialize_board_clients
 
 from .actions import list_outputs, run_draft_action, run_saved_action
+from .client_hint import client_lan_hint
 from .errors import (
     BoardNotFoundError,
     BuiltinOutputError,
@@ -180,7 +181,9 @@ async def install_an_output(output_id: str, response: Response) -> OutputSummary
         '`"***"` is refused (nothing is stored to restore it from). ' + _ACTION_RESULT_NOTE
     ),
 )
-async def run_output_action(output_id: str, action: str, request: DraftActionRequest) -> ActionResult:
+async def run_output_action(
+    output_id: str, action: str, request: DraftActionRequest, http_request: Request
+) -> ActionResult:
     try:
         result = await run_draft_action(
             output_id,
@@ -188,6 +191,7 @@ async def run_output_action(output_id: str, action: str, request: DraftActionReq
             output_config=request.output_config,
             inputs=request.input,
             device_model=request.device_model,
+            client_hint=client_lan_hint(http_request),
         )
     except _ACTION_ERRORS as exc:
         raise _as_http(exc) from exc
@@ -205,9 +209,21 @@ async def run_output_action(output_id: str, action: str, request: DraftActionReq
         + _ACTION_RESULT_NOTE
     ),
 )
-async def run_board_action(board_id: str, action: str, request: SavedBoardActionRequest) -> ActionResult:
+async def run_board_action(
+    board_id: str, action: str, request: SavedBoardActionRequest, http_request: Request
+) -> ActionResult:
+    return await board_action(board_id, action, request, client_hint=client_lan_hint(http_request))
+
+
+async def board_action(
+    board_id: str, action: str, request: SavedBoardActionRequest, *, client_hint: str | None = None
+) -> ActionResult:
+    """:func:`run_board_action` without the HTTP request: the MCP tool's door,
+    which has no browser to take a network hint from."""
     try:
-        result = await run_saved_action(board_id, action, inputs=request.input, output_config=request.output_config)
+        result = await run_saved_action(
+            board_id, action, inputs=request.input, output_config=request.output_config, client_hint=client_hint
+        )
     except _ACTION_ERRORS as exc:
         raise _as_http(exc) from exc
     return ActionResult(**result)

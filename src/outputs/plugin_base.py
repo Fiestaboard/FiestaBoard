@@ -534,10 +534,12 @@ class OutputPluginBase(ABC):
         ``port``. Default: none.
 
         Declare it ``discover(cls, timeout, hint=None)`` to be handed the
-        network hint: the private IPv4 address the user opened FiestaBoard
-        at (:data:`~src.outputs.hooks.HINT_HOST`), ``None`` when the browser
-        gave none. Search its network first — in Docker bridge mode this
-        host's own address is a container network, not the LAN."""
+        network hint (:data:`~src.outputs.hooks.HINT_HOST`): the private IPv4
+        address the user opened FiestaBoard at, else the address the browser
+        connected from when that names a LAN (not a Docker gateway, Home
+        Assistant ingress, IPv6 …), else ``None``. Search its network first —
+        in Docker bridge mode this host's own address is a container network,
+        not the LAN."""
         return []
 
     def identify(self) -> None:  # noqa: B027 - optional hook
