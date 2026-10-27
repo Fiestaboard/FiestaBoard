@@ -56,11 +56,11 @@ Owner: tool contract agent. Files: `src/ops/**`, `src/mcp_server.py`, applicable
 
 ## Task A — Authentication/OAuth and native boundary verification
 
-Assigned after a slot is free. Own dedicated contract tests and documentation; coordinate any concrete production fix before editing shared files.
+Root implemented isolated contract verification in `2078e10b5`; no production authentication change was needed. Contract: `native-client-authentication.md`. All 703 selected auth/OAuth tests passed, including 16 new native sequence cases.
 
-- [ ] Exercise cookie login/protected reads/logout, session CSRF/origin enforcement and root/prefixed native request shapes using isolated clients.
-- [ ] Verify authorize/status/manual-complete/disconnect and applicable four OAuth flow state/expiry/denial/replay behavior with mock providers. Establish whether native clients need any backend handoff changes; implement only evidence-backed gaps with regression tests.
-- [ ] State supported direct/proxy/HA topology boundaries honestly. Do not represent a path-rewrite simulator as real HA authentication.
+- [x] Exercise cookie login/protected reads/logout, session CSRF/origin enforcement and root/prefixed native request shapes using isolated clients.
+- [x] Verify authorize/status/manual-complete/disconnect and applicable four OAuth flow state/expiry/denial/replay behavior with mock providers. Establish whether native clients need any backend handoff changes; implement only evidence-backed gaps with regression tests.
+- [x] State supported direct/proxy/HA topology boundaries honestly. Do not represent a path-rewrite simulator as real HA authentication.
 
 ## Integration and handoff
 
@@ -68,3 +68,9 @@ Assigned after a slot is free. Own dedicated contract tests and documentation; c
 - [ ] Run meaningful focused Python checks and the full web suite. Partition the Python suite into bounded groups if necessary to avoid the previously observed monolithic OOM, recording any unresolved failures accurately.
 - [ ] Astra review each substantive track and combined branch; fix actionable findings with original owners and re-review.
 - [ ] Refresh the single PR title/body around final scope and verification; resolve base conflicts if present, push, and update native TASKS.md. Leave the PR draft and unmerged for user review.
+
+## Recorded implementation decisions
+
+- Document preservation uses page-scoped tolerant subclasses, keeping the standalone canvas DSL strict. `PageUpdate` remains a sparse known-field update, with supplied lists replacing the complete field. Create/share/import carry opaque extensions while filtering server metadata. `document_protocol: page-document-v1` advertises the bounded value-preserving contract separately from optimistic editing. Jev advised validated extension retention over a parallel raw shadow; source inspection established the narrower page-only scope.
+- Default-page revisions conservatively include settings generations so changing the primary board away and back cannot revive an old effective-default token. Schedule-mode controls remain separate settings operations.
+- Upstream main version 10.1.3 and preview refresh were merged before final integration.
