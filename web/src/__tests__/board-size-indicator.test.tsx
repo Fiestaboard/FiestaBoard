@@ -103,6 +103,20 @@ describe("BoardSizeIndicator", () => {
       expect(el).toHaveTextContent("Panel");
       expect(el).toHaveAttribute("aria-label", "12 rows by 29 columns, Panel");
     });
+
+    // #2369: an LED output board's grid can be narrower than a Note (floor
+    // 3 × 10, src/devices.py). A 3 × 13 AWTRIX board was labelled 3 × 15.
+    it("labels an LED panel narrower than a Note with its own grid (#2369)", () => {
+      render(<BoardSizeIndicator deviceType="panel" gridRows={3} gridCols={13} />);
+      const el = screen.getByRole("img");
+      expect(el).toHaveTextContent("3 × 13 · Panel");
+      expect(el).toHaveAttribute("aria-label", "3 rows by 13 columns, Panel");
+    });
+
+    it("labels the smallest LED panel, 8 × 10, as 8 × 10", () => {
+      render(<BoardSizeIndicator deviceType="panel" gridRows={8} gridCols={10} />);
+      expect(screen.getByRole("img")).toHaveTextContent("8 × 10 · Panel");
+    });
   });
 
   // ── className prop forwarding ─────────────────────────────────────────────────
