@@ -1,6 +1,10 @@
+---
+description: Historical page editing foundation and verification for native FiestaBoard clients.
+---
+
 # Native iOS API access — page foundation record
 
-The current combined native-client contract is [native-client-content.md](native-client-content.md), with session/OAuth access in [native-client-authentication.md](native-client-authentication.md). The milestone text below records the earlier bounded page foundation; its deferred collection/schedule/tool/document items are being completed in the same draft PR #2373.
+The current combined native-client contract is [native-client-content.md](native-client-content.md), with session/OAuth access in [native-client-authentication.md](native-client-authentication.md). The milestone text below records the earlier bounded page foundation; its deferred collection/schedule/tool/document items were completed in the same draft PR #2373; see [the combined verification record](native-client-readiness-verification.md).
 
 This is the implementation record for one ongoing draft pull request against
 FiestaBoard 10.1.2. The first milestone is safe optimistic page editing through
@@ -51,7 +55,7 @@ and resubmitting an old draft defeats the protection.
 
 The web page editor carries its seeded revision through button saves,
 imperative saves, and deletes. A dirty draft keeps that token during background
-refetches; successful imperative saves advance it. Other AI/internal/legacy
+refreshes; successful imperative saves advance it. Other AI/internal/legacy
 writers remain unconditional. Consequently this milestone protects editors
 that supply preconditions and does not claim every first-party writer uses CAS.
 
@@ -85,7 +89,7 @@ singleton is retained rather than replaced later during service reload.
 If a restored page document cannot be loaded (for example, a future schema),
 the restore raises and its pre-restore pages are removed from the live cache;
 cached requests cannot keep reading or saving that obsolete document. Restore
-remains nontransactional across files, as documented by the backup service.
+is not transactional across files, as documented by the backup service.
 A subsequent successful explicit load of a supported document clears the JSON
 store's future-schema refusal. Failed loads, absent-file loads, and attempted
 writes while the future document remains in place keep the refusal latched.
@@ -119,7 +123,7 @@ native editing of those fields can be enabled. A native client can preserve
 unknown fields in its local raw document while sending only changed supported
 fields, but cannot infer that the backend preserves arbitrary unknown data on
 disk. Parsed known models are distinct from invalid raw entries that storage
-already preserves to avoid deleting unparseable pages.
+already preserves to avoid deleting pages that cannot be parsed.
 
 The synthetic boundary fixture
 `tests/fixtures/page-editing/page-revision-v1.json` provides complete read/save
@@ -225,4 +229,4 @@ Changed-file Ruff checks, formatting, and `git diff --check` passed. Existing
 FastAPI/datetime deprecation warnings remain. This wave ran no full Python or
 web suite and makes no hardware-delivery claim. Containers used the existing
 `fiestaboard-ios-contract:clean` image, read-only source/root filesystems,
-writable tmpfs, no hardware mounts, and `--network none`.
+writable `tmpfs`, no hardware mounts, and `--network none`.

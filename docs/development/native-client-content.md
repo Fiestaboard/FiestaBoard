@@ -1,3 +1,7 @@
+---
+description: Shared content editing, revision, and rich document contracts for native clients.
+---
+
 # Content APIs for native clients
 
 Draft PR [#2373](https://github.com/Fiestaboard/FiestaBoard/pull/2373) combines
@@ -107,7 +111,7 @@ An editor replacing a nested list must carry all fields it intends to retain,
 including extensions it does not understand. Omitting an element from a
 replacement removes it; preservation never resurrects it. Opaque extension
 strings do not acquire template execution or plugin-fetch behavior. Non-JSON
-objects and nonfinite extension numbers are rejected.
+objects and non-finite extension numbers are rejected.
 
 The page store also retains unknown outer document members while keeping the
 schema version check authoritative. A future unsupported schema must not be

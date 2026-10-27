@@ -1,3 +1,7 @@
+---
+description: Session authentication, OAuth flows, and deployment paths for native clients.
+---
+
 # Native client authentication and OAuth
 
 Native clients use the existing HTTP APIs. No additional mobile token, custom
@@ -8,7 +12,7 @@ through an external gateway remains a separate authentication step.
 ## Session lifecycle
 
 Start with `GET /api/auth/status`. Respect `enabled`, `setup_required`,
-`first_run`, and `authenticated`; an unprovisioned protected deployment returns
+`first_run`, and `authenticated`; a protected deployment without an administrator account returns
 409 instead of behaving as an anonymous installation. Sign in using
 `POST /api/auth/login` with `username`, `password`, and an explicit
 `remember_me` choice. Retain the returned `fiestaboard_session` cookie in an
