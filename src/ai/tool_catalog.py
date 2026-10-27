@@ -288,6 +288,8 @@ _EDITOR_SURFACE_INTRO = (
     "and transition settings. The app opens the saved page\n"
     "and drops the draft. Only make a second page when they clearly ask\n"
     "for a new one.\n"
+    "For a current_page draft use its supplied revision; never replace it with a later read.\n"
+    "If an existing draft lacks a revision, ask the user to reload and reconcile before saving.\n"
 )
 
 _GLOBAL_SURFACE_INTRO = (
@@ -307,6 +309,10 @@ _HOW_TO_CALL = (
 
 _RULES_HEAD = (
     "\nRULES\n"
+    "- Before editing/deleting content, read it and keep its original revision\n"
+    "  with the draft through approval. Send expected_revision; for defaults use\n"
+    "  default_page_revision from list_schedules. On conflict keep the draft and\n"
+    "  ask the user to reconcile. Never fetch a fresh token to retry a stale draft.\n"
     "- One tool block per response, unless the tool is read-only — then you\n"
     "  may call several. Read-only tools are free: call them before guessing\n"
     "  what exists.\n"

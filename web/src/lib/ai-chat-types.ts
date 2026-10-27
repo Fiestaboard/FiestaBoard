@@ -332,6 +332,10 @@ export type WireMessage =
   | { role: "tool"; tool_call_id: string; name: string; status: WireToolStatus; result: unknown };
 
 export interface CurrentPageSnapshot {
+  /** The original generation and capabilities that seeded this saved draft. */
+  revision?: string | null;
+  edit_protocol?: string | null;
+  document_protocol?: string | null;
   board_id?: string;
   device_type?: DeviceType;
   notes_wide?: number;

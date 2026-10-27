@@ -159,6 +159,8 @@ def mock_page_service():
     svc = create_autospec(PageService, instance=True)
     page = MagicMock()
     page.id = "page-001"
+    page.revision = "original-generation"
+    page.edit_protocol = "page-revision-v1"
     page.name = "Weather"
     page.type = "template"
     page.device_type = "flagship"
@@ -196,6 +198,8 @@ def mock_schedule_service():
     svc = create_autospec(ScheduleService, instance=True)
     entry = MagicMock()
     entry.id = "sched-001"
+    entry.revision = "original-generation"
+    entry.edit_protocol = "schedule-revision-v1"
     entry.page_id = "page-001"
     entry.start_time = "08:00"
     entry.end_time = None
@@ -213,6 +217,7 @@ def mock_schedule_service():
     svc.create_schedule.return_value = entry
     svc.update_schedule.return_value = entry
     svc.get_default_page.return_value = None
+    svc.get_default_page_state.return_value = {"default_page_id": None, "revision": "default-original"}
     return svc
 
 
@@ -224,6 +229,8 @@ def mock_collection_service():
     svc = create_autospec(CollectionService, instance=True)
     c = MagicMock()
     c.id = "collection-001"
+    c.revision = "original-generation"
+    c.edit_protocol = "collection-revision-v1"
     c.name = "Daily"
     c.page_ids = ["page-001", "page-002"]
     c.model_dump.return_value = {
@@ -865,7 +872,9 @@ class TestCreatePage:
 class TestUpdatePage:
     def test_update_name(self, mcp, mock_page_service):
         with patch("src.pages.service.get_page_service", return_value=mock_page_service):
-            result = _call_tool(mcp, "update_page", page_id="page-001", name="New Name")
+            result = _call_tool(
+                mcp, "update_page", expected_revision="original-generation", page_id="page-001", name="New Name"
+            )
         data = result
         assert data["status"] == "success"
 
@@ -873,14 +882,16 @@ class TestUpdatePage:
         mock_svc = MagicMock()
         mock_svc.update_page.return_value = None
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
-            message = _call_tool_expect_error(mcp, "update_page", page_id="missing", name="x")
+            message = _call_tool_expect_error(
+                mcp, "update_page", expected_revision="original-generation", page_id="missing", name="x"
+            )
         assert "not found" in message
 
 
 class TestDeletePage:
     def test_delete_success(self, mcp, mock_page_service):
         with patch("src.pages.service.get_page_service", return_value=mock_page_service):
-            result = _call_tool(mcp, "delete_page", page_id="page-001")
+            result = _call_tool(mcp, "delete_page", expected_revision="original-generation", page_id="page-001")
         assert "deleted successfully" in result["message"]
 
     def test_delete_failure(self, mcp):
@@ -898,7 +909,9 @@ class TestDeletePage:
         mock_svc = create_autospec(PageService, instance=True)
         mock_svc.delete_page.return_value = DeleteResult(deleted=False)
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
-            message = _call_tool_expect_error(mcp, "delete_page", page_id="page-001")
+            message = _call_tool_expect_error(
+                mcp, "delete_page", expected_revision="original-generation", page_id="page-001"
+            )
         assert "not deleted" in message
 
     def test_delete_reports_default_page_creation(self, mcp):
@@ -910,7 +923,7 @@ class TestDeletePage:
             deleted=True, default_page_created=True, new_page_id="page-new"
         )
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
-            result = _call_tool(mcp, "delete_page", page_id="page-001")
+            result = _call_tool(mcp, "delete_page", expected_revision="original-generation", page_id="page-001")
         assert result["default_page_created"] is True
         assert result["new_page_id"] == "page-new"
 
@@ -991,7 +1004,9 @@ class TestCreateSchedule:
 class TestUpdateSchedule:
     def test_update_success(self, mcp, mock_schedule_service):
         with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
-            result = _call_tool(mcp, "update_schedule", schedule_id="sched-001", enabled=False)
+            result = _call_tool(
+                mcp, "update_schedule", expected_revision="original-generation", schedule_id="sched-001", enabled=False
+            )
         data = result
         assert data["status"] == "success"
 
@@ -999,14 +1014,18 @@ class TestUpdateSchedule:
         mock_svc = MagicMock()
         mock_svc.update_schedule.return_value = None
         with patch("src.schedules.service.get_schedule_service", return_value=mock_svc):
-            message = _call_tool_expect_error(mcp, "update_schedule", schedule_id="missing")
+            message = _call_tool_expect_error(
+                mcp, "update_schedule", expected_revision="original-generation", schedule_id="missing"
+            )
         assert "not found" in message
 
 
 class TestDeleteSchedule:
     def test_delete_success(self, mcp, mock_schedule_service):
         with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
-            result = _call_tool(mcp, "delete_schedule", schedule_id="sched-001")
+            result = _call_tool(
+                mcp, "delete_schedule", expected_revision="original-generation", schedule_id="sched-001"
+            )
         assert "deleted successfully" in result["message"]
 
 
@@ -1042,7 +1061,13 @@ class TestCreateCollection:
 class TestUpdateCollection:
     def test_update_success(self, mcp, mock_collection_service):
         with patch("src.collections.service.get_collection_service", return_value=mock_collection_service):
-            result = _call_tool(mcp, "update_collection", collection_id="collection-001", name="Renamed")
+            result = _call_tool(
+                mcp,
+                "update_collection",
+                expected_revision="original-generation",
+                collection_id="collection-001",
+                name="Renamed",
+            )
         data = result
         assert data["status"] == "success"
 
@@ -1050,14 +1075,18 @@ class TestUpdateCollection:
         mock_svc = MagicMock()
         mock_svc.update_collection.return_value = None
         with patch("src.collections.service.get_collection_service", return_value=mock_svc):
-            message = _call_tool_expect_error(mcp, "update_collection", collection_id="missing")
+            message = _call_tool_expect_error(
+                mcp, "update_collection", expected_revision="original-generation", collection_id="missing"
+            )
         assert "not found" in message
 
 
 class TestDeleteCollection:
     def test_delete_success(self, mcp, mock_collection_service):
         with patch("src.collections.service.get_collection_service", return_value=mock_collection_service):
-            result = _call_tool(mcp, "delete_collection", collection_id="collection-001")
+            result = _call_tool(
+                mcp, "delete_collection", expected_revision="original-generation", collection_id="collection-001"
+            )
         assert "deleted successfully" in result["message"]
 
 
@@ -1578,7 +1607,7 @@ class TestProtocolIsError:
         mock_svc = MagicMock()
         mock_svc.update_schedule.return_value = None
         with patch("src.schedules.service.get_schedule_service", return_value=mock_svc):
-            result = rpc("update_schedule", {"schedule_id": "missing"})
+            result = rpc("update_schedule", {"schedule_id": "missing", "expected_revision": "original-generation"})
 
         assert result.get("isError") is True, f"error flag not set: {result}"
         assert "not found" in self._text(result)

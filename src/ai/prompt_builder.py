@@ -329,7 +329,13 @@ def _format_available_pages(pages: list[dict[str, Any]]) -> str:
     """Render a compact list of pages the user can navigate to."""
     if not pages:
         return "(no pages yet)"
-    return "\n".join(f'  - "{p.get("name", "Untitled")}" (id: {p.get("id", "?")})' for p in pages)
+    return "\n".join(f'  - "{p.get("name", "Untitled")}" (id: {p.get("id", "?")}){_revision_hint(p)}' for p in pages)
+
+
+def _revision_hint(content: dict[str, Any]) -> str:
+    """Keep generation metadata attached to content taught in prompt context."""
+    keys = ("revision", "edit_protocol", "document_protocol")
+    return "".join(f" | {key}: {content[key]}" for key in keys if content.get(key))
 
 
 def _summarize_schema(schema: dict[str, Any] | None) -> str:
@@ -401,7 +407,7 @@ def _format_available_schedules(schedules: list[dict[str, Any]]) -> str:
         enabled = "enabled" if s.get("enabled", True) else "disabled"
         page_id = s.get("page_id", "?")
         sid = s.get("id", "?")
-        lines.append(f"  - id: {sid} | page: {page_id} | {start}-{end} | {pattern} | {enabled}")
+        lines.append(f"  - id: {sid} | page: {page_id} | {start}-{end} | {pattern} | {enabled}{_revision_hint(s)}")
     return "\n".join(lines)
 
 
@@ -422,7 +428,7 @@ def _format_available_collections(collections: list[dict[str, Any]]) -> str:
             poll = (c.get("variable") or {}).get("poll_seconds", 10)
             n_rules = len((c.get("variable") or {}).get("rules", []))
             tail = f"variable mode, {n_rules} rule(s), polls every {poll}s"
-        lines.append(f'  - "{name}" (id: {cid}) | {len(pages)} pages | {tail}')
+        lines.append(f'  - "{name}" (id: {cid}) | {len(pages)} pages | {tail}{_revision_hint(c)}')
     return "\n".join(lines)
 
 

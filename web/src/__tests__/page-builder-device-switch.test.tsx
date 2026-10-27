@@ -192,6 +192,86 @@ describe("Page editor board-size switching", () => {
     );
   });
 
+  it("keeps the AI snapshot's original revision and protocols after a dirty background refresh", async () => {
+    const user = userEvent.setup();
+    const ref = createRef<PageBuilderHandle>();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const original = {
+      ...existingFlagshipPage,
+      edit_protocol: "page-revision-v1",
+      document_protocol: "page-document-v1",
+    };
+    vi.mocked(api.getPage).mockResolvedValue(original);
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ConfigOverridesProvider>
+          <ThemeProvider attribute="class" defaultTheme="light">
+            <PageBuilder ref={ref} pageId="existing-1" onClose={vi.fn()} />
+          </ThemeProvider>
+        </ConfigOverridesProvider>
+      </QueryClientProvider>,
+    );
+    const name = await screen.findByDisplayValue("Existing Page");
+    await user.clear(name);
+    await user.type(name, "My draft");
+    act(() => {
+      queryClient.setQueryData(["page", "existing-1"], {
+        ...original,
+        revision: "other-editor",
+        edit_protocol: "future-edit-protocol",
+        document_protocol: "future-document-protocol",
+      });
+    });
+    expect(ref.current!.getCurrentPage()).toEqual(
+      expect.objectContaining({
+        id: "existing-1",
+        name: "My draft",
+        revision: "loaded-revision",
+        edit_protocol: "page-revision-v1",
+        document_protocol: "page-document-v1",
+      }),
+    );
+  });
+
+  it("advances AI snapshot metadata from a successful imperative save", async () => {
+    const ref = createRef<PageBuilderHandle>();
+    vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
+    vi.mocked(api.updatePage).mockResolvedValue({
+      page: {
+        ...existingFlagshipPage,
+        revision: "saved-revision",
+        edit_protocol: "page-revision-v1",
+        document_protocol: "page-document-v1",
+      },
+      incompatible_references: [],
+    });
+    render(<PageBuilder ref={ref} pageId="existing-1" onClose={vi.fn()} />, { wrapper: TestWrapper });
+    await screen.findByDisplayValue("Existing Page");
+    await act(async () => {
+      await ref.current!.save();
+    });
+    expect(ref.current!.getCurrentPage()).toEqual(
+      expect.objectContaining({
+        revision: "saved-revision",
+        edit_protocol: "page-revision-v1",
+        document_protocol: "page-document-v1",
+      }),
+    );
+  });
+
+  it("keeps an unsaved new page's AI snapshot free of stored generation metadata", async () => {
+    const user = userEvent.setup();
+    const ref = createRef<PageBuilderHandle>();
+    render(<PageBuilder ref={ref} onClose={vi.fn()} />, { wrapper: TestWrapper });
+    await user.type(await screen.findByLabelText(/page name/i), "New draft");
+    const snapshot = ref.current!.getCurrentPage()!;
+    expect(snapshot.name).toBe("New draft");
+    expect(snapshot).not.toHaveProperty("id");
+    expect(snapshot).not.toHaveProperty("revision");
+    expect(snapshot).not.toHaveProperty("edit_protocol");
+    expect(snapshot).not.toHaveProperty("document_protocol");
+  });
+
   it("lets a new page switch from Flagship to Note and resizes the grid to 3 × 15", async () => {
     const user = userEvent.setup();
     render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });

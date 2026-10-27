@@ -45,6 +45,7 @@ import logging
 from typing import Any
 
 from src.outputs.breaker import write_failure_reason
+from src.pages.storage import PageRevisionConflict
 from src.plugins.errors import PluginError
 from src.request_trace import trace_phase
 from src.send_outcome import SendOutcome
@@ -52,6 +53,30 @@ from src.send_outcome import SendOutcome
 from .results import err, ok, plugin_detail, rest_detail, serialize
 
 logger = logging.getLogger(__name__)
+
+
+def _revision_required(expected_revision: str | None) -> dict[str, Any] | None:
+    """First-party edits require the generation originally read for the draft.
+
+    Services/storage deliberately retain optional preconditions for scoped
+    maintenance writers. Tools never use that compatibility path or obtain a
+    replacement token on a caller's behalf.
+    """
+    if not isinstance(expected_revision, str) or not expected_revision.strip():
+        return err(
+            "expected_revision is required: use the original revision read for this draft. "
+            "Read the content before drafting; never fetch a fresh revision to resubmit an old draft.",
+            error_code="revision_required",
+        )
+    return None
+
+
+def _revision_conflict(exc: PageRevisionConflict) -> dict[str, Any]:
+    return err(
+        f"{exc} Keep the unsaved draft, reload the changed content and explicitly reconcile before retrying. "
+        "Do not automatically retry with a fresh revision.",
+        error_code="revision_conflict",
+    )
 
 
 def _plugin_service() -> Any:
@@ -319,6 +344,11 @@ def create_plugin_demo_page(
     here ``recreate`` defaults to False so an assistant does not replace a
     demo page the user has since edited — an existing page is reported
     back with ``created=False`` instead.
+
+    ``recreate=True`` is an explicit maintenance reset from the plugin's
+    current manifest, not a saved client draft. It replaces the demo page
+    and invalidates editors of the removed page. Ordinary draft edits must
+    use :func:`update_page` with their original revision.
     """
     try:
         result = _plugin_service().create_demo_page(plugin_id, device_type, recreate=recreate)
@@ -340,6 +370,9 @@ def create_plugin_demo_page(
     return ok(
         message,
         page_id=page.id,
+        revision=page.revision,
+        edit_protocol=page.edit_protocol,
+        document_protocol=page.document_protocol,
         name=page.name,
         device_type=result["device_type"],
         created=result["created"],
@@ -430,6 +463,8 @@ def create_page(
         return ok(
             f"Page '{name}' created with id '{page.id}'.",
             page_id=page.id,
+            revision=page.revision,
+            edit_protocol=page.edit_protocol,
             name=page.name,
             device_type=page.device_type,
         )
@@ -453,6 +488,7 @@ def update_page(
     grid_rows: int | None = None,
     grid_cols: int | None = None,
     canvases: list[dict[str, Any]] | None = None,
+    expected_revision: str | None = None,
 ) -> dict[str, Any]:
     """Update any of the fields the page editor saves. Only supplied fields change.
 
@@ -473,6 +509,9 @@ def update_page(
     point this page at a board it no longer fits. Warn-only — nothing is
     mutated — so the caller must relay the list rather than a bare success.
     """
+    refusal = _revision_required(expected_revision)
+    if refusal is not None:
+        return refusal
     try:
         from src.devices import geometry_of, size_key
         from src.pages.models import PageUpdate
@@ -513,7 +552,7 @@ def update_page(
             )
 
         existing = svc.get_page(page_id)
-        page = svc.update_page(page_id, PageUpdate(**fields))
+        page = svc.update_page(page_id, PageUpdate(**fields, expected_revision=expected_revision))
         if page is None:
             return err(f"Page '{page_id}' not found.")
 
@@ -536,7 +575,11 @@ def update_page(
             name=page.name,
             device_type=page.device_type,
             incompatible_references=serialize(incompatible),
+            revision=page.revision,
+            edit_protocol=page.edit_protocol,
         )
+    except PageRevisionConflict as exc:
+        return _revision_conflict(exc)
     except Exception as exc:
         return err(f"Error updating page '{page_id}': {exc}")
 
@@ -559,7 +602,7 @@ def import_page(share_string: str) -> dict[str, Any]:
         except ValueError as exc:
             return err(str(exc))
         try:
-            page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+            page_create = PageCreate(**page_data)
         except Exception as exc:
             return err(f"Invalid share string — {exc}")
 
@@ -608,13 +651,16 @@ def import_staff_pick(pick_id: str) -> dict[str, Any]:
         return err(f"Error importing staff pick '{pick_id}': {exc}")
 
 
-def delete_page(page_id: str) -> dict[str, Any]:
+def delete_page(page_id: str, *, expected_revision: str | None = None) -> dict[str, Any]:
     """Delete a page permanently."""
+    refusal = _revision_required(expected_revision)
+    if refusal is not None:
+        return refusal
     try:
         from src.pages.service import get_page_service
 
         svc = get_page_service()
-        result = svc.delete_page(page_id)
+        result = svc.delete_page(page_id, expected_revision=expected_revision)
         if not result.deleted:
             return err(f"Page '{page_id}' was not deleted (it may not exist).")
         return ok(
@@ -624,6 +670,8 @@ def delete_page(page_id: str) -> dict[str, Any]:
             new_page_id=result.new_page_id,
             active_page_updated=result.active_page_updated,
         )
+    except PageRevisionConflict as exc:
+        return _revision_conflict(exc)
     except Exception as exc:
         return err(f"Error deleting page '{page_id}': {exc}")
 
@@ -1205,6 +1253,8 @@ def create_schedule(
         return ok(
             f"Schedule created: page '{page_id}' from {start_time} on {day_pattern} days.",
             schedule_id=entry.id,
+            revision=entry.revision,
+            edit_protocol=entry.edit_protocol,
         )
     except Exception as exc:
         return err(f"Error creating schedule: {exc}")
@@ -1232,6 +1282,7 @@ def update_schedule(
     end_sun_offset: int | None = None,
     clear_annual_end_date: bool = False,
     clear_one_off_end_date: bool = False,
+    expected_revision: str | None = None,
 ) -> dict[str, Any]:
     """Update an existing schedule entry. Only supplied fields change.
 
@@ -1251,6 +1302,9 @@ def update_schedule(
     for the optional end of a date range. REST is unaffected: its PATCH
     body distinguishes absent from null natively.
     """
+    refusal = _revision_required(expected_revision)
+    if refusal is not None:
+        return refusal
     try:
         from src.schedules.models import ScheduleUpdate
         from src.schedules.service import get_schedule_service
@@ -1291,24 +1345,36 @@ def update_schedule(
         # the pre-#1764 tool always called the service — the "not found" reply
         # for an unknown id (pinned by tests/test_mcp_server.py) depends on it.
 
-        entry = svc.update_schedule(schedule_id, ScheduleUpdate(**fields))
+        entry = svc.update_schedule(schedule_id, ScheduleUpdate(**fields, expected_revision=expected_revision))
         if entry is None:
             return err(f"Schedule '{schedule_id}' not found.")
-        return ok(f"Schedule '{schedule_id}' updated.", schedule_id=entry.id)
+        return ok(
+            f"Schedule '{schedule_id}' updated.",
+            schedule_id=entry.id,
+            revision=entry.revision,
+            edit_protocol=entry.edit_protocol,
+        )
+    except PageRevisionConflict as exc:
+        return _revision_conflict(exc)
     except Exception as exc:
         return err(f"Error updating schedule '{schedule_id}': {exc}")
 
 
-def delete_schedule(schedule_id: str) -> dict[str, Any]:
+def delete_schedule(schedule_id: str, *, expected_revision: str | None = None) -> dict[str, Any]:
     """Delete a schedule entry permanently."""
+    refusal = _revision_required(expected_revision)
+    if refusal is not None:
+        return refusal
     try:
         from src.schedules.service import get_schedule_service
 
         svc = get_schedule_service()
         # #1742: delete_schedule() returns False when the id does not exist.
-        if not svc.delete_schedule(schedule_id):
+        if not svc.delete_schedule(schedule_id, expected_revision=expected_revision):
             return err(f"Schedule '{schedule_id}' not found.")
         return ok(f"Schedule '{schedule_id}' deleted successfully.", schedule_id=schedule_id)
+    except PageRevisionConflict as exc:
+        return _revision_conflict(exc)
     except Exception as exc:
         return err(f"Error deleting schedule '{schedule_id}': {exc}")
 
@@ -1357,13 +1423,18 @@ def resolve_board_id(board_id: str | None) -> str | None:
     return get_settings_service().get_primary_board_id()
 
 
-def set_default_page(page_id: str | None, board_id: str | None = None) -> dict[str, Any]:
+def set_default_page(
+    page_id: str | None, board_id: str | None = None, *, expected_revision: str | None = None
+) -> dict[str, Any]:
     """Set (or with ``None`` clear) the page a board falls back to in schedule gaps.
 
     Mirrors ``PATCH /v1/boards/{board}`` with ``default_page_id``: the ref
     must name an existing page or collection, the board must exist, and the
     value is stored per board under the board's concrete id.
     """
+    refusal = _revision_required(expected_revision)
+    if refusal is not None:
+        return refusal
     try:
         from src.collections.models import is_collection_id
         from src.collections.service import get_collection_service
@@ -1381,10 +1452,16 @@ def set_default_page(page_id: str | None, board_id: str | None = None) -> dict[s
                 return err(f"Page not found: {page_id}")
 
         target = resolve_board_id(board_id)
-        get_schedule_service().set_default_page(page_id, board_id=target)
-        if page_id is None:
-            return ok("Default page cleared.", default_page_id=None, board_id=target)
-        return ok(f"Default page set to '{page_id}'.", default_page_id=page_id, board_id=target)
+        state = get_schedule_service().set_default_page(page_id, board_id=board_id, expected_revision=expected_revision)
+        return ok(
+            "Default page cleared." if page_id is None else f"Default page set to '{page_id}'.",
+            default_page_id=state["default_page_id"],
+            board_id=target,
+            default_page_revision=state["revision"],
+            default_page_edit_protocol="schedule-default-revision-v1",
+        )
+    except PageRevisionConflict as exc:
+        return _revision_conflict(exc)
     except Exception as exc:
         return err(f"Error setting default page: {exc}")
 
@@ -1480,6 +1557,8 @@ def create_collection(
         return ok(
             f"Collection '{name}' created with {len(page_ids)} pages in {selection_mode} mode.",
             collection_id=collection.id,
+            revision=collection.revision,
+            edit_protocol=collection.edit_protocol,
             name=collection.name,
         )
     except Exception as exc:
@@ -1495,6 +1574,7 @@ def update_collection(
     rules: list[dict[str, str]] | None = None,
     default_page_id: str | None = None,
     poll_seconds: int | None = None,
+    expected_revision: str | None = None,
 ) -> dict[str, Any]:
     """Update a collection's name, page list, or selection config.
 
@@ -1507,6 +1587,9 @@ def update_collection(
     ``selection_mode`` explicitly. In ``random`` mode ``interval_seconds``
     lands in the ``random`` block instead, the same way the form saves it.
     """
+    refusal = _revision_required(expected_revision)
+    if refusal is not None:
+        return refusal
     try:
         from src.collections.models import (
             CollectionUpdate,
@@ -1554,35 +1637,51 @@ def update_collection(
                 poll_seconds=poll_seconds if poll_seconds is not None else (base.poll_seconds if base else 10),
             )
 
+        fields = {
+            "name": name,
+            "page_ids": page_ids,
+            "selection_mode": selection_mode,
+            "time": time_cfg,
+            "variable": variable_cfg,
+            "random": random_cfg,
+        }
         data = CollectionUpdate(
-            name=name,
-            page_ids=page_ids,
-            selection_mode=selection_mode,  # type: ignore[arg-type]
-            time=time_cfg,
-            variable=variable_cfg,
-            random=random_cfg,
+            **{key: value for key, value in fields.items() if value is not None},
+            expected_revision=expected_revision,
         )
         collection = svc.update_collection(collection_id, data)
         if collection is None:
             return err(f"Collection '{collection_id}' not found.")
-        return ok(f"Collection '{collection_id}' updated.", collection_id=collection.id)
+        return ok(
+            f"Collection '{collection_id}' updated.",
+            collection_id=collection.id,
+            revision=collection.revision,
+            edit_protocol=collection.edit_protocol,
+        )
+    except PageRevisionConflict as exc:
+        return _revision_conflict(exc)
     except Exception as exc:
         return err(f"Error updating collection '{collection_id}': {exc}")
 
 
-def delete_collection(collection_id: str) -> dict[str, Any]:
+def delete_collection(collection_id: str, *, expected_revision: str | None = None) -> dict[str, Any]:
     """Delete a collection permanently."""
+    refusal = _revision_required(expected_revision)
+    if refusal is not None:
+        return refusal
     try:
         from src.collections.service import get_collection_service
 
         svc = get_collection_service()
         # #1742: same as delete_schedule above — the boolean was dropped.
-        if not svc.delete_collection(collection_id):
+        if not svc.delete_collection(collection_id, expected_revision=expected_revision):
             return err(f"Collection '{collection_id}' not found.")
         return ok(
             f"Collection '{collection_id}' deleted successfully.",
             collection_id=collection_id,
         )
+    except PageRevisionConflict as exc:
+        return _revision_conflict(exc)
     except Exception as exc:
         return err(f"Error deleting collection '{collection_id}': {exc}")
 

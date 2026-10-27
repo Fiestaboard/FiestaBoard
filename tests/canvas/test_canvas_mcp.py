@@ -96,19 +96,19 @@ def test_create_page_refuses_an_invalid_canvas_and_says_why(mcp, pages):
 def test_update_page_replaces_the_canvases(mcp, pages):
     page_id = _call(mcp, "create_page", name="Sun", template_lines=["HELLO"], canvases=[CANVAS], **PANEL)["page_id"]
     moon = {**CANVAS, "id": "moon"}
-    _call(mcp, "update_page", page_id=page_id, canvases=[moon])
+    _call(mcp, "update_page", expected_revision=pages.get_page(page_id).revision, page_id=page_id, canvases=[moon])
     assert [c.id for c in pages.get_page(page_id).canvases] == ["moon"]
 
 
 def test_update_page_with_an_empty_list_removes_every_canvas(mcp, pages):
     page_id = _call(mcp, "create_page", name="Sun", template_lines=["HELLO"], canvases=[CANVAS], **PANEL)["page_id"]
-    _call(mcp, "update_page", page_id=page_id, canvases=[])
+    _call(mcp, "update_page", expected_revision=pages.get_page(page_id).revision, page_id=page_id, canvases=[])
     assert not pages.get_page(page_id).canvases
 
 
 def test_update_page_without_canvases_leaves_them_alone(mcp, pages):
     page_id = _call(mcp, "create_page", name="Sun", template_lines=["HELLO"], canvases=[CANVAS], **PANEL)["page_id"]
-    _call(mcp, "update_page", page_id=page_id, name="Renamed")
+    _call(mcp, "update_page", expected_revision=pages.get_page(page_id).revision, page_id=page_id, name="Renamed")
     assert [c.id for c in pages.get_page(page_id).canvases] == ["sun"]
 
 

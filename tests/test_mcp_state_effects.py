@@ -544,7 +544,16 @@ def test_update_page_changes_the_stored_name(mcp, services):
     )
     page_id = created["page_id"]
 
-    assert_ok(call(mcp, "update_page", page_id=page_id, name="After"), "update_page")
+    assert_ok(
+        call(
+            mcp,
+            "update_page",
+            expected_revision=services["pages"].get_page(page_id).revision,
+            page_id=page_id,
+            name="After",
+        ),
+        "update_page",
+    )
 
     refetched = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
     assert refetched["name"] == "After", "update_page reported success but the name did not change"
@@ -566,7 +575,16 @@ def test_update_page_name_only_does_not_wipe_the_template(mcp, services):
     )
     page_id = created["page_id"]
 
-    assert_ok(call(mcp, "update_page", page_id=page_id, name="After"), "update_page (name only)")
+    assert_ok(
+        call(
+            mcp,
+            "update_page",
+            expected_revision=services["pages"].get_page(page_id).revision,
+            page_id=page_id,
+            name="After",
+        ),
+        "update_page (name only)",
+    )
 
     page = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
     assert page["name"] == "After"
@@ -580,7 +598,16 @@ def test_update_page_duration_only_does_not_wipe_the_template(mcp, services):
     )
     page_id = created["page_id"]
 
-    assert_ok(call(mcp, "update_page", page_id=page_id, duration_seconds=90), "update_page (duration only)")
+    assert_ok(
+        call(
+            mcp,
+            "update_page",
+            expected_revision=services["pages"].get_page(page_id).revision,
+            page_id=page_id,
+            duration_seconds=90,
+        ),
+        "update_page (duration only)",
+    )
 
     page = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
     assert page["duration_seconds"] == 90
@@ -593,7 +620,12 @@ def test_update_page_with_no_fields_is_reported_not_silently_ignored(mcp, servic
         call(mcp, "create_page", name="Untouched", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
         "create_page",
     )
-    message = call_expect_error(mcp, "update_page", page_id=created["page_id"])
+    message = call_expect_error(
+        mcp,
+        "update_page",
+        expected_revision=services["pages"].get_page(created["page_id"]).revision,
+        page_id=created["page_id"],
+    )
     assert "Nothing to update" in message, "a no-op update should say so, not report success"
 
 
@@ -604,7 +636,10 @@ def test_delete_page_removes_it_from_list_pages(mcp, services):
     )
     page_id = created["page_id"]
 
-    assert_ok(call(mcp, "delete_page", page_id=page_id), "delete_page")
+    assert_ok(
+        call(mcp, "delete_page", expected_revision=services["pages"].get_page(page_id).revision, page_id=page_id),
+        "delete_page",
+    )
 
     remaining = assert_ok(call(mcp, "list_pages"), "list_pages")
     assert page_id not in {p["id"] for p in remaining}
@@ -662,7 +697,16 @@ def test_update_schedule_changes_the_stored_start_time(mcp, services):
     )
     schedule_id = created["schedule_id"]
 
-    assert_ok(call(mcp, "update_schedule", schedule_id=schedule_id, start_time="09:30"), "update_schedule")
+    assert_ok(
+        call(
+            mcp,
+            "update_schedule",
+            expected_revision=services["schedules"].get_schedule(schedule_id).revision,
+            schedule_id=schedule_id,
+            start_time="09:30",
+        ),
+        "update_schedule",
+    )
 
     after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
     stored = next(s for s in after["schedules"] if s["id"] == schedule_id)
@@ -679,7 +723,16 @@ def test_update_schedule_preserves_end_time_on_partial_update(mcp, services):
     )
     schedule_id = created["schedule_id"]
 
-    assert_ok(call(mcp, "update_schedule", schedule_id=schedule_id, start_time="09:30"), "update_schedule")
+    assert_ok(
+        call(
+            mcp,
+            "update_schedule",
+            expected_revision=services["schedules"].get_schedule(schedule_id).revision,
+            schedule_id=schedule_id,
+            start_time="09:30",
+        ),
+        "update_schedule",
+    )
 
     after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
     stored = next(s for s in after["schedules"] if s["id"] == schedule_id)
@@ -702,7 +755,13 @@ def test_update_schedule_clear_end_time_makes_the_entry_open_ended(mcp, services
     schedule_id = created["schedule_id"]
 
     assert_ok(
-        call(mcp, "update_schedule", schedule_id=schedule_id, clear_end_time=True),
+        call(
+            mcp,
+            "update_schedule",
+            expected_revision=services["schedules"].get_schedule(schedule_id).revision,
+            schedule_id=schedule_id,
+            clear_end_time=True,
+        ),
         "update_schedule",
     )
 
@@ -731,7 +790,14 @@ def test_update_schedule_clear_custom_days_drops_the_stale_day_list(mcp, service
     schedule_id = created["schedule_id"]
 
     assert_ok(
-        call(mcp, "update_schedule", schedule_id=schedule_id, day_pattern="all", clear_custom_days=True),
+        call(
+            mcp,
+            "update_schedule",
+            expected_revision=services["schedules"].get_schedule(schedule_id).revision,
+            schedule_id=schedule_id,
+            day_pattern="all",
+            clear_custom_days=True,
+        ),
         "update_schedule",
     )
 
@@ -749,7 +815,15 @@ def test_delete_schedule_removes_it(mcp, services):
     )
     schedule_id = created["schedule_id"]
 
-    assert_ok(call(mcp, "delete_schedule", schedule_id=schedule_id), "delete_schedule")
+    assert_ok(
+        call(
+            mcp,
+            "delete_schedule",
+            expected_revision=services["schedules"].get_schedule(schedule_id).revision,
+            schedule_id=schedule_id,
+        ),
+        "delete_schedule",
+    )
 
     after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
     assert schedule_id not in {s["id"] for s in after["schedules"]}
@@ -777,7 +851,16 @@ def test_update_collection_changes_the_stored_name(mcp, services):
     created = assert_ok(call(mcp, "create_collection", name="Before", page_ids=[page_id]), "create_collection")
     collection_id = created["collection_id"]
 
-    assert_ok(call(mcp, "update_collection", collection_id=collection_id, name="After"), "update_collection")
+    assert_ok(
+        call(
+            mcp,
+            "update_collection",
+            expected_revision=services["collections"].get_collection(collection_id).revision,
+            collection_id=collection_id,
+            name="After",
+        ),
+        "update_collection",
+    )
 
     after = assert_ok(call(mcp, "list_collections"), "list_collections")
     stored = next(c for c in after if c["id"] == collection_id)
@@ -789,7 +872,15 @@ def test_delete_collection_removes_it(mcp, services):
     created = assert_ok(call(mcp, "create_collection", name="Doomed", page_ids=[page_id]), "create_collection")
     collection_id = created["collection_id"]
 
-    assert_ok(call(mcp, "delete_collection", collection_id=collection_id), "delete_collection")
+    assert_ok(
+        call(
+            mcp,
+            "delete_collection",
+            expected_revision=services["collections"].get_collection(collection_id).revision,
+            collection_id=collection_id,
+        ),
+        "delete_collection",
+    )
 
     after = assert_ok(call(mcp, "list_collections"), "list_collections")
     assert collection_id not in {c["id"] for c in after}
@@ -1172,12 +1263,16 @@ def test_plugin_configured_over_mcp_survives_a_container_recreate(mcp, plugins):
 
 
 def test_delete_schedule_reports_an_error_for_an_unknown_id(mcp, services):
-    message = call_expect_error(mcp, "delete_schedule", schedule_id="no-such-schedule")
+    message = call_expect_error(
+        mcp, "delete_schedule", expected_revision="original-generation", schedule_id="no-such-schedule"
+    )
     assert "not found" in message, f"deleting a schedule that does not exist reported success: {message}"
 
 
 def test_delete_collection_reports_an_error_for_an_unknown_id(mcp, services):
-    message = call_expect_error(mcp, "delete_collection", collection_id="no-such-collection")
+    message = call_expect_error(
+        mcp, "delete_collection", expected_revision="original-generation", collection_id="no-such-collection"
+    )
     assert "not found" in message, f"deleting a collection that does not exist reported success: {message}"
 
 
@@ -1659,14 +1754,19 @@ def test_create_plugin_demo_page_honours_device_type(mcp, plugins, services):
 
 
 def test_create_plugin_demo_page_keeps_an_existing_page_unless_told_to_recreate(mcp, plugins, services):
+    from src.pages.storage import PageRevisionConflict
+
     _configure_harness(mcp)
     first = assert_ok(call(mcp, "create_plugin_demo_page", plugin_id=PLUGIN_ID), "create_plugin_demo_page")
-    services["pages"].update_page(first["page_id"], _page_update(name="Edited By Hand"))
+    edited = services["pages"].update_page(first["page_id"], _page_update(name="Edited By Hand"))
 
     kept = assert_ok(call(mcp, "create_plugin_demo_page", plugin_id=PLUGIN_ID), "create_plugin_demo_page")
 
     assert kept["created"] is False
     assert kept["page_id"] == first["page_id"]
+    assert kept["revision"] == edited.revision
+    assert kept["edit_protocol"] == "page-revision-v1"
+    assert kept["document_protocol"] == "page-document-v1"
     assert services["pages"].get_page(first["page_id"]).name == "Edited By Hand", (
         "a second call without recreate=True must not replace the user's edited demo page"
     )
@@ -1677,6 +1777,17 @@ def test_create_plugin_demo_page_keeps_an_existing_page_unless_told_to_recreate(
     assert rebuilt["created"] is True
     assert rebuilt["recreated"] is True
     assert rebuilt["page_id"] != first["page_id"]
+    assert rebuilt["revision"] != edited.revision
+    assert (
+        services["pages"].update_page(
+            edited.id, _page_update(name="Stale original draft", expected_revision=edited.revision)
+        )
+        is None
+    )
+    with pytest.raises(PageRevisionConflict):
+        services["pages"].update_page(
+            rebuilt["page_id"], _page_update(name="Stale replacement draft", expected_revision=edited.revision)
+        )
     assert services["pages"].get_page(first["page_id"]) is None
     assert len([p for p in services["pages"].list_pages() if p.demo_plugin_id == PLUGIN_ID]) == 1
 
@@ -2507,7 +2618,14 @@ def test_update_page_retargets_device_type_and_get_page_reads_it_back(mcp, servi
     page_id = created["page_id"]
 
     result = assert_ok(
-        call(mcp, "update_page", page_id=page_id, device_type="note", template_lines=NOTE_TEMPLATE),
+        call(
+            mcp,
+            "update_page",
+            expected_revision=services["pages"].get_page(page_id).revision,
+            page_id=page_id,
+            device_type="note",
+            template_lines=NOTE_TEMPLATE,
+        ),
         "update_page (device_type)",
     )
     assert result["incompatible_references"] == [], "no board references this page yet"
@@ -2528,6 +2646,7 @@ def test_update_page_sets_note_array_geometry(mcp, services):
         call(
             mcp,
             "update_page",
+            expected_revision=services["pages"].get_page(page_id).revision,
             page_id=page_id,
             device_type="note_array",
             notes_wide=2,
@@ -2550,7 +2669,16 @@ def test_update_page_persists_line_metadata(mcp, services):
     page_id = created["page_id"]
 
     metadata = [{"alignment": "center", "wrap": True}] + [{"alignment": "left", "wrap": False}] * 5
-    assert_ok(call(mcp, "update_page", page_id=page_id, line_metadata=metadata), "update_page (line_metadata)")
+    assert_ok(
+        call(
+            mcp,
+            "update_page",
+            expected_revision=services["pages"].get_page(page_id).revision,
+            page_id=page_id,
+            line_metadata=metadata,
+        ),
+        "update_page (line_metadata)",
+    )
 
     page = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
     assert page["line_metadata"] == metadata, "line_metadata was not persisted"
@@ -2568,6 +2696,7 @@ def test_update_page_persists_a_per_page_transition_override(mcp, services):
         call(
             mcp,
             "update_page",
+            expected_revision=services["pages"].get_page(page_id).revision,
             page_id=page_id,
             transition_strategy="row",
             transition_interval_ms=120,
@@ -2601,7 +2730,16 @@ def test_update_page_clear_transition_override_restores_the_system_default(mcp, 
     page_id = created["page_id"]
     assert assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")["transition_strategy"] == "row"
 
-    assert_ok(call(mcp, "update_page", page_id=page_id, clear_transition_override=True), "update_page (clear)")
+    assert_ok(
+        call(
+            mcp,
+            "update_page",
+            expected_revision=services["pages"].get_page(page_id).revision,
+            page_id=page_id,
+            clear_transition_override=True,
+        ),
+        "update_page (clear)",
+    )
 
     page = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
     assert page["transition_strategy"] is None, "the override was not cleared"
@@ -2622,7 +2760,14 @@ def test_update_page_reports_the_references_a_retarget_leaves_incompatible(mcp, 
     two_boards.set_active_page_id(page_id, board_id="board-main")
 
     result = assert_ok(
-        call(mcp, "update_page", page_id=page_id, device_type="note", template_lines=NOTE_TEMPLATE),
+        call(
+            mcp,
+            "update_page",
+            expected_revision=services["pages"].get_page(page_id).revision,
+            page_id=page_id,
+            device_type="note",
+            template_lines=NOTE_TEMPLATE,
+        ),
         "update_page (retarget)",
     )
 
@@ -2934,6 +3079,7 @@ def test_update_schedule_changes_recurrence_and_sun_fields(mcp, services):
         call(
             mcp,
             "update_schedule",
+            expected_revision=services["schedules"].get_schedule(schedule_id).revision,
             schedule_id=schedule_id,
             recurrence_type="annual_date",
             annual_date="01-01",
@@ -2965,7 +3111,16 @@ def test_update_schedule_clear_annual_end_date_makes_it_a_single_day(mcp, servic
     )
     schedule_id = created["schedule_id"]
 
-    assert_ok(call(mcp, "update_schedule", schedule_id=schedule_id, clear_annual_end_date=True), "update_schedule")
+    assert_ok(
+        call(
+            mcp,
+            "update_schedule",
+            expected_revision=services["schedules"].get_schedule(schedule_id).revision,
+            schedule_id=schedule_id,
+            clear_annual_end_date=True,
+        ),
+        "update_schedule",
+    )
 
     stored = _stored_schedule(services, schedule_id)
     assert stored.annual_end_date is None, "clear_annual_end_date=True left the range end behind"
@@ -2988,7 +3143,16 @@ def test_update_schedule_clear_one_off_end_date_makes_it_a_single_day(mcp, servi
     )
     schedule_id = created["schedule_id"]
 
-    assert_ok(call(mcp, "update_schedule", schedule_id=schedule_id, clear_one_off_end_date=True), "update_schedule")
+    assert_ok(
+        call(
+            mcp,
+            "update_schedule",
+            expected_revision=services["schedules"].get_schedule(schedule_id).revision,
+            schedule_id=schedule_id,
+            clear_one_off_end_date=True,
+        ),
+        "update_schedule",
+    )
 
     assert _stored_schedule(services, schedule_id).one_off_end_date is None
 
@@ -2998,7 +3162,15 @@ def test_update_schedule_clear_one_off_end_date_makes_it_a_single_day(mcp, servi
 
 def test_list_schedules_reports_the_boards_default_page_and_schedule_mode(mcp, services, two_boards):
     page_id = _make_page(mcp)
-    assert_ok(call(mcp, "set_default_page", page_id=page_id), "set_default_page")
+    assert_ok(
+        call(
+            mcp,
+            "set_default_page",
+            expected_revision=services["schedules"].get_default_page_revision(board_id=None),
+            page_id=page_id,
+        ),
+        "set_default_page",
+    )
     assert_ok(call(mcp, "set_schedule_mode", enabled=True), "set_schedule_mode")
 
     result = assert_ok(call(mcp, "list_schedules"), "list_schedules")
@@ -3033,7 +3205,15 @@ def test_list_schedules_resolves_a_sunrise_entry_to_todays_time(mcp, services, t
 
 def test_list_schedules_for_every_board_has_no_per_board_fields(mcp, services, two_boards):
     page_id = _make_page(mcp)
-    assert_ok(call(mcp, "set_default_page", page_id=page_id), "set_default_page")
+    assert_ok(
+        call(
+            mcp,
+            "set_default_page",
+            expected_revision=services["schedules"].get_default_page_revision(board_id=None),
+            page_id=page_id,
+        ),
+        "set_default_page",
+    )
 
     result = assert_ok(call(mcp, "list_schedules", board_id="*"), "list_schedules")
 
@@ -3089,8 +3269,25 @@ def test_set_default_page_is_stored_per_board(mcp, services, two_boards):
         "create_page",
     )
 
-    assert_ok(call(mcp, "set_default_page", page_id=page_id), "set_default_page (primary)")
-    assert_ok(call(mcp, "set_default_page", page_id=note["page_id"], board_id="board-note"), "set_default_page")
+    assert_ok(
+        call(
+            mcp,
+            "set_default_page",
+            expected_revision=services["schedules"].get_default_page_revision(board_id=None),
+            page_id=page_id,
+        ),
+        "set_default_page (primary)",
+    )
+    assert_ok(
+        call(
+            mcp,
+            "set_default_page",
+            expected_revision=services["schedules"].get_default_page_revision(board_id="board-note"),
+            page_id=note["page_id"],
+            board_id="board-note",
+        ),
+        "set_default_page",
+    )
 
     assert services["schedules"].get_default_page(board_id="board-main") == page_id
     assert services["schedules"].get_default_page(board_id="board-note") == note["page_id"]
@@ -3098,9 +3295,25 @@ def test_set_default_page_is_stored_per_board(mcp, services, two_boards):
 
 def test_set_default_page_null_clears_it(mcp, services, two_boards):
     page_id = _make_page(mcp)
-    assert_ok(call(mcp, "set_default_page", page_id=page_id), "set_default_page")
+    assert_ok(
+        call(
+            mcp,
+            "set_default_page",
+            expected_revision=services["schedules"].get_default_page_revision(board_id=None),
+            page_id=page_id,
+        ),
+        "set_default_page",
+    )
 
-    result = assert_ok(call(mcp, "set_default_page", page_id=None), "set_default_page (clear)")
+    result = assert_ok(
+        call(
+            mcp,
+            "set_default_page",
+            expected_revision=services["schedules"].get_default_page_revision(board_id=None),
+            page_id=None,
+        ),
+        "set_default_page (clear)",
+    )
 
     assert result["default_page_id"] is None
     assert services["schedules"].get_default_page(board_id="board-main") is None
@@ -3111,13 +3324,26 @@ def test_set_default_page_accepts_a_collection(mcp, services, two_boards):
     page_id = _make_page(mcp)
     coll = assert_ok(call(mcp, "create_collection", name="Gaps", page_ids=[page_id]), "create_collection")
 
-    assert_ok(call(mcp, "set_default_page", page_id=coll["collection_id"]), "set_default_page")
+    assert_ok(
+        call(
+            mcp,
+            "set_default_page",
+            expected_revision=services["schedules"].get_default_page_revision(board_id=None),
+            page_id=coll["collection_id"],
+        ),
+        "set_default_page",
+    )
 
     assert services["schedules"].get_default_page(board_id="board-main") == coll["collection_id"]
 
 
 def test_set_default_page_rejects_an_unknown_page_and_stores_nothing(mcp, services, two_boards):
-    message = call_expect_error(mcp, "set_default_page", page_id="no-such-page")
+    message = call_expect_error(
+        mcp,
+        "set_default_page",
+        expected_revision=services["schedules"].get_default_page_revision(board_id=None),
+        page_id="no-such-page",
+    )
 
     assert "no-such-page" in message
     assert services["schedules"].get_default_page(board_id="board-main") is None
@@ -3125,7 +3351,13 @@ def test_set_default_page_rejects_an_unknown_page_and_stores_nothing(mcp, servic
 
 def test_set_default_page_reports_an_unknown_board(mcp, services, two_boards):
     page_id = _make_page(mcp)
-    message = call_expect_error(mcp, "set_default_page", page_id=page_id, board_id="no-such-board")
+    message = call_expect_error(
+        mcp,
+        "set_default_page",
+        expected_revision=services["schedules"].get_default_page_revision(board_id="no-such-board"),
+        page_id=page_id,
+        board_id="no-such-board",
+    )
     assert "no-such-board" in message
 
 
@@ -3207,7 +3439,16 @@ def test_update_collection_poll_seconds_alone_keeps_rules_and_default_page(mcp, 
     the form lets you change the poll cadence by itself."""
     collection_id, p1, p2 = _variable_collection(mcp, services)
 
-    assert_ok(call(mcp, "update_collection", collection_id=collection_id, poll_seconds=30), "update_collection")
+    assert_ok(
+        call(
+            mcp,
+            "update_collection",
+            expected_revision=services["collections"].get_collection(collection_id).revision,
+            collection_id=collection_id,
+            poll_seconds=30,
+        ),
+        "update_collection",
+    )
 
     stored = _stored_collection(services, collection_id)
     assert stored.variable.poll_seconds == 30
@@ -3219,7 +3460,13 @@ def test_update_collection_rules_alone_keeps_default_page_and_poll(mcp, services
     collection_id, _p1, p2 = _variable_collection(mcp, services)
 
     assert_ok(
-        call(mcp, "update_collection", collection_id=collection_id, rules=[{"expression": "0", "page_id": p2}]),
+        call(
+            mcp,
+            "update_collection",
+            expected_revision=services["collections"].get_collection(collection_id).revision,
+            collection_id=collection_id,
+            rules=[{"expression": "0", "page_id": p2}],
+        ),
         "update_collection",
     )
 
@@ -3237,7 +3484,16 @@ def test_update_collection_switch_to_random_carries_the_interval_over(mcp, servi
         "create_collection",
     )
 
-    assert_ok(call(mcp, "update_collection", collection_id=created["collection_id"], selection_mode="random"), "update")
+    assert_ok(
+        call(
+            mcp,
+            "update_collection",
+            expected_revision=services["collections"].get_collection(created["collection_id"]).revision,
+            collection_id=created["collection_id"],
+            selection_mode="random",
+        ),
+        "update",
+    )
 
     stored = _stored_collection(services, created["collection_id"])
     assert stored.selection_mode == "random"
@@ -3252,7 +3508,16 @@ def test_update_collection_interval_in_random_mode_updates_the_random_block(mcp,
         "create_collection",
     )
 
-    assert_ok(call(mcp, "update_collection", collection_id=created["collection_id"], interval_seconds=90), "update")
+    assert_ok(
+        call(
+            mcp,
+            "update_collection",
+            expected_revision=services["collections"].get_collection(created["collection_id"]).revision,
+            collection_id=created["collection_id"],
+            interval_seconds=90,
+        ),
+        "update",
+    )
 
     stored = _stored_collection(services, created["collection_id"])
     assert stored.selection_mode == "random"
@@ -3264,7 +3529,11 @@ def test_update_collection_switch_to_variable_still_needs_a_default_page(mcp, se
     created = assert_ok(call(mcp, "create_collection", name="Rot", page_ids=[p1]), "create_collection")
 
     message = call_expect_error(
-        mcp, "update_collection", collection_id=created["collection_id"], selection_mode="variable"
+        mcp,
+        "update_collection",
+        expected_revision=services["collections"].get_collection(created["collection_id"]).revision,
+        collection_id=created["collection_id"],
+        selection_mode="variable",
     )
 
     assert "default_page_id" in message

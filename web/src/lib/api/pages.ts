@@ -55,6 +55,9 @@ export interface Page {
   id: string;
   /** Opaque live generation; reloads/restarts invalidate old editor saves. */
   revision?: string | null;
+  /** Runtime edit and rich-document capabilities advertised by the server. */
+  edit_protocol?: string | null;
+  document_protocol?: string | null;
   name: string;
   type: PageType;
   device_type: DeviceType;
