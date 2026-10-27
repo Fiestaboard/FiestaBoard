@@ -67,6 +67,8 @@ schedule_service.create_schedule.return_value = sample
 schedule_service.update_schedule.return_value = sample
 schedule_service.delete_schedule.return_value = True
 schedule_service.get_default_page.return_value = "p1"
+schedule_service.get_default_page_state.return_value = {"default_page_id": "p1", "revision": "default-original"}
+schedule_service.set_default_page.return_value = {"default_page_id": "p1", "revision": "default-after-write"}
 schedule_service.get_active_page_id.return_value = "p1"
 schedule_service.validate_schedules.return_value = ScheduleValidationResult(valid=True, overlaps=[], gaps=[])
 
@@ -97,6 +99,7 @@ with (
     assert listed.total == 1, listed
     assert listed.schedules[0].id == "sched-1"
     assert listed.default_page_id == "p1"
+    assert listed.default_page_revision == "default-original"
     assert listed.enabled is True
 
     wildcard = call(routes.list_schedules(board_id="*"))
@@ -123,9 +126,13 @@ with (
 
     default_page = call(routes.get_default_page())
     assert default_page.default_page_id == "p1", default_page
+    assert default_page.revision == "default-original", default_page
 
-    set_default = call(routes.set_default_page(DefaultPageUpdate(page_id="p1", board_id="board-1")))
+    set_default = call(routes.set_default_page(DefaultPageUpdate(
+        page_id="p1", board_id="board-1", expected_revision="default-original",
+    )))
     assert set_default.default_page_id == "p1", set_default
+    assert set_default.revision == "default-after-write", set_default
 
     enabled = call(routes.get_schedule_enabled())
     assert enabled.enabled is True, enabled
@@ -150,7 +157,11 @@ schedule_service.create_schedule.assert_called_once()
 schedule_service.get_schedule.assert_called_once_with("sched-1")
 schedule_service.update_schedule.assert_called_once()
 schedule_service.delete_schedule.assert_called_once_with("sched-1")
-schedule_service.set_default_page.assert_called_once_with("p1", board_id="board-1")
+assert schedule_service.get_default_page_state.call_count == 2
+schedule_service.get_default_page_state.assert_called_with(None)
+schedule_service.set_default_page.assert_called_once_with(
+    "p1", board_id="board-1", expected_revision="default-original",
+)
 schedule_service.validate_schedules.assert_called_once_with(board_id="board-1")
 schedule_service.get_active_page_id.assert_called_once()
 settings_service.set_schedule_enabled.assert_called_once_with(True, board_id="board-1")
