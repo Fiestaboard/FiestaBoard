@@ -8,6 +8,8 @@ import logging
 from dataclasses import dataclass
 from datetime import date, time, timedelta
 
+# Public service error contract: adapters need no persistence-layer import.
+from src.pages.storage import PageRevisionConflict as PageRevisionConflict
 from src.settings.service import get_settings_service
 
 from .models import (

@@ -40,7 +40,6 @@ from src.collections.service import (
     resolve_next_check_seconds,
 )
 from src.pages.service import check_ref_board_compatibility, get_page_service
-from src.pages.storage import PageRevisionConflict
 from src.settings.service import get_settings_service, temporary_override_payload
 from src.time_service import get_time_service
 
@@ -61,7 +60,7 @@ from .models import (
     ScheduleValidationResult,
     ScheduleWriteResponse,
 )
-from .service import get_schedule_service
+from .service import PageRevisionConflict, get_schedule_service
 
 router = APIRouter(tags=["schedules"])
 
@@ -269,22 +268,20 @@ async def get_default_page(board_id: str | None = None):
 )
 async def set_default_page(request: DefaultPageUpdate):
     """Set the default page ID for schedule gaps. Body: page_id, optional board_id."""
-    page_id = request.page_id
-    board_id = request.board_id
-    _validate_board(board_id)
-    if page_id is not None:
-        if is_collection_id(page_id):
+    _validate_board(request.board_id)
+    if request.page_id is not None:
+        if is_collection_id(request.page_id):
             collection_service = get_collection_service()
-            if not collection_service.get_collection(page_id):
-                raise HTTPException(status_code=404, detail=f"Collection not found: {page_id}")
+            if not collection_service.get_collection(request.page_id):
+                raise HTTPException(status_code=404, detail=f"Collection not found: {request.page_id}")
         else:
             page_service = get_page_service()
-            if not page_service.get_page(page_id):
-                raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+            if not page_service.get_page(request.page_id):
+                raise HTTPException(status_code=404, detail=f"Page not found: {request.page_id}")
     schedule_service = get_schedule_service()
     try:
         state = schedule_service.set_default_page(
-            page_id, board_id=board_id, expected_revision=request.expected_revision
+            request.page_id, board_id=request.board_id, expected_revision=request.expected_revision
         )
     except PageRevisionConflict as exc:
         raise HTTPException(status_code=412, detail=str(exc)) from exc
