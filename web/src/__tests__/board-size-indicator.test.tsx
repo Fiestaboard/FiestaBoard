@@ -113,9 +113,16 @@ describe("BoardSizeIndicator", () => {
       expect(el).toHaveAttribute("aria-label", "3 rows by 13 columns, Panel");
     });
 
-    it("labels the smallest LED panel, 8 × 10, as 8 × 10", () => {
+    it("labels a Pixoo 64's 8 × 10 grid as 8 × 10", () => {
       render(<BoardSizeIndicator deviceType="panel" gridRows={8} gridCols={10} />);
-      expect(screen.getByRole("img")).toHaveTextContent("8 × 10 · Panel");
+      const el = screen.getByRole("img");
+      expect(el).toHaveTextContent("8 × 10 · Panel");
+      expect(el).toHaveAttribute("aria-label", "8 rows by 10 columns, Panel");
+    });
+
+    it("labels the smallest LED panel, 3 × 10, as 3 × 10", () => {
+      render(<BoardSizeIndicator deviceType="panel" gridRows={3} gridCols={10} />);
+      expect(screen.getByRole("img")).toHaveTextContent("3 × 10 · Panel");
     });
   });
 
