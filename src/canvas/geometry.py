@@ -181,4 +181,4 @@ def scale_area(area: CanvasArea, old_grid: tuple[int, int], new_grid: tuple[int,
 
     row, rows = axis(area.row, area.rows, old_rows, new_rows)
     col, cols = axis(area.col, area.cols, old_cols, new_cols)
-    return CanvasArea(row=row, col=col, rows=rows, cols=cols)
+    return area.model_copy(update={"row": row, "col": col, "rows": rows, "cols": cols})

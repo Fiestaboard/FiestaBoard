@@ -12,7 +12,6 @@ from typing import Any, Literal
 
 from pydantic import (
     BaseModel,
-    ConfigDict,
     Field,
     FieldSerializationInfo,
     computed_field,
@@ -21,7 +20,8 @@ from pydantic import (
     model_validator,
 )
 
-from src.canvas.models import Canvas, validate_page_canvases
+from src.canvas.models import Canvas as StrictCanvas
+from src.canvas.models import validate_page_canvases
 from src.canvas.schemas import CanvasIssueModel, CanvasLayerModel
 from src.devices import (
     ABSOLUTE_MIN_GRID_COLS,
@@ -34,6 +34,8 @@ from src.devices import (
     DeviceType,
     resolve_dimensions,
 )
+from src.pages.document import PAGE_SHARE_EXCLUDED, ExtensibleDocument
+from src.pages.document import DocumentCanvas as Canvas
 from src.settings.service import VALID_OUTPUT_TARGETS
 
 PageType = Literal["single", "composite", "template"]
@@ -49,7 +51,11 @@ def _check_canvas_list(value: Any) -> Any:
     """Every canvas valid, at most 8, ids unique (:func:`validate_page_canvases`)."""
     if value is None:
         return None
-    return validate_page_canvases(value)
+    items = [
+        Canvas.model_validate(c.model_dump(by_alias=True, exclude_unset=True) if isinstance(c, StrictCanvas) else c)
+        for c in value
+    ]
+    return validate_page_canvases(items)
 
 
 def _check_canvases_fit(
@@ -83,13 +89,13 @@ def _dump_canvases(canvases: list[Canvas] | None, info: FieldSerializationInfo) 
     """
     if canvases is None:
         return None
-    return [c.model_dump(mode=info.mode, by_alias=True, exclude_none=True) for c in canvases]
+    return [c.model_dump(mode=info.mode, by_alias=True, exclude_unset=True) for c in canvases]
 
 
 LineAlignment = Literal["left", "center", "right"]
 
 
-class LineMetadata(BaseModel):
+class LineMetadata(ExtensibleDocument):
     """Per-line formatting metadata for template pages.
 
     Stores alignment and wrap settings that were previously encoded as
@@ -100,7 +106,7 @@ class LineMetadata(BaseModel):
     wrap: bool = False
 
 
-class RowConfig(BaseModel):
+class RowConfig(ExtensibleDocument):
     """Configuration for a single row in a composite page.
 
     Specifies which row from which source should be placed at which position.
@@ -112,7 +118,7 @@ class RowConfig(BaseModel):
     target_row: int = Field(ge=0)  # Where to place in output
 
 
-class Page(BaseModel):
+class Page(ExtensibleDocument):
     """A saved page configuration.
 
     Pages can be one of three types:
@@ -133,6 +139,12 @@ class Page(BaseModel):
     def edit_protocol(self) -> Literal["page-revision-v1"]:
         """Runtime support for conditional sparse page saves; never caller input."""
         return "page-revision-v1"
+
+    @computed_field
+    @property
+    def document_protocol(self) -> Literal["page-document-v1"]:
+        """Validated known content with opaque JSON extension preservation."""
+        return "page-document-v1"
 
     name: str = Field(min_length=1, max_length=100)
     type: PageType
@@ -190,10 +202,14 @@ class Page(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime | None = None
 
-    model_config = ConfigDict(
-        # Pydantic V2 uses serialization_mode_json for custom serializers
-        # datetime is automatically serialized to ISO format in V2
-    )
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_computed_metadata(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                k: v for k, v in value.items() if k not in {"edit_protocol", "document_protocol", "expected_revision"}
+            }
+        return value
 
     @model_validator(mode="after")
     def _normalize_grid(self) -> "Page":
@@ -211,7 +227,7 @@ class Page(BaseModel):
         )
         return self
 
-    @field_validator("canvases")
+    @field_validator("canvases", mode="before")
     @classmethod
     def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
         return _check_canvas_list(value)
@@ -261,8 +277,15 @@ class Page(BaseModel):
         return len(self.validate_config()) == 0
 
 
-class PageCreate(BaseModel):
-    """Request model for creating a new page."""
+class PageCreate(ExtensibleDocument):
+    """Create author content; server-assigned identity and timestamps are ignored."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_server_metadata(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {k: v for k, v in value.items() if k not in PAGE_SHARE_EXCLUDED}
+        return value
 
     name: str = Field(min_length=1, max_length=100)
     type: PageType
@@ -298,7 +321,7 @@ class PageCreate(BaseModel):
         )
         return self
 
-    @field_validator("canvases")
+    @field_validator("canvases", mode="before")
     @classmethod
     def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
         return _check_canvas_list(value)
@@ -311,7 +334,12 @@ class PageCreate(BaseModel):
 
 
 class PageUpdate(BaseModel):
-    """Request model for updating an existing page."""
+    """Sparse known-field patch. Supplied lists replace the complete field.
+
+    Omitted fields survive, including opaque top-level extensions. Nullable
+    content fields accept explicit null to remove them; nested lists are never
+    merged by position or guessed identity.
+    """
 
     expected_revision: str | None = Field(default=None, min_length=1, max_length=128)
     name: str | None = Field(default=None, min_length=1, max_length=100)
@@ -343,7 +371,7 @@ class PageUpdate(BaseModel):
     # new grid.
     canvases: list[Canvas] | None = None
 
-    @field_validator("canvases")
+    @field_validator("canvases", mode="before")
     @classmethod
     def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
         return _check_canvas_list(value)
@@ -430,13 +458,20 @@ class PageImportRequest(BaseModel):
     share_string: str
 
 
-class PageImportPreview(BaseModel):
+class PageImportPreview(ExtensibleDocument):
     """``POST /pages/import/preview`` — the decoded page, not yet persisted.
 
     Exactly the content fields ``src/pages/share.py`` puts in the envelope:
     no ``id``, ``created_at``, ``updated_at`` or ``demo_plugin_id``, because a
     preview has not been created yet.
     """
+
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_server_metadata(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {k: v for k, v in value.items() if k not in PAGE_SHARE_EXCLUDED}
+        return value
 
     name: str
     type: PageType

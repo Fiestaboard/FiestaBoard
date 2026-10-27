@@ -11,39 +11,16 @@ itself changes.
 import base64
 import json
 
+from .document import PAGE_SHARE_EXCLUDED
 from .models import Page
 
 SHARE_VERSION = 1
-
-# Fields included in the share envelope (excludes runtime-only fields:
-# id, created_at, updated_at, demo_plugin_id).
-_SHARE_FIELDS = (
-    "name",
-    "type",
-    "device_type",
-    # Geometry beyond the device family: without these a shared note-array
-    # or panel page imported as the family's default size.
-    "notes_wide",
-    "notes_tall",
-    "grid_rows",
-    "grid_cols",
-    "display_type",
-    "rows",
-    "template",
-    "line_metadata",
-    "duration_seconds",
-    "transition_strategy",
-    "transition_interval_ms",
-    "transition_step_size",
-    # Pixel canvases (stored in their JSON form: ``if`` / ``as`` / ``from``).
-    "canvases",
-)
 
 
 def encode_page(page: Page) -> str:
     """Encode a Page into a portable share string."""
     data = page.model_dump()
-    page_content = {k: data[k] for k in _SHARE_FIELDS if k in data}
+    page_content = {k: v for k, v in data.items() if k not in PAGE_SHARE_EXCLUDED}
     envelope = {"v": SHARE_VERSION, "page": page_content}
     json_bytes = json.dumps(envelope, separators=(",", ":")).encode()
     # Strip padding — urlsafe_b64decode accepts unpadded strings when we re-add it.

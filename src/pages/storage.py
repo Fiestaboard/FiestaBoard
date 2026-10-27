@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from src.storage.json_store import JsonStore
 from src.text_utils import extract_alignment_from_line as _extract_alignment_from_line
 
-from .models import Page
+from .models import Page, PageUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -289,6 +289,7 @@ class PageStorage:
         # bug in a migration, a renamed enum value) never silently deletes a
         # user's page from disk.
         self._failed_entries: list[dict] = []
+        self._document_extras: dict = {}
 
         # Load existing pages (runs migrations if needed)
         self._load()
@@ -311,6 +312,7 @@ class PageStorage:
         # cannot be read, never leave the pre-restore document live in memory.
         self._pages = {}
         self._failed_entries = []
+        self._document_extras = {}
         try:
             data = self._store.load()
             if data is None:
@@ -318,6 +320,7 @@ class PageStorage:
                 self._failed_entries = []
                 return
 
+            self._document_extras = {k: v for k, v in data.items() if k not in {"schema_version", "pages"}}
             needs_save = self._store.migrated
 
             self._pages = {}
@@ -328,6 +331,13 @@ class PageStorage:
                 raw_snapshot = dict(page_data) if isinstance(page_data, dict) else page_data
                 try:
                     if isinstance(page_data, dict):
+                        # Runtime metadata is allocated by this live owner,
+                        # never restored from caller-controlled disk values.
+                        page_data = {
+                            k: v
+                            for k, v in page_data.items()
+                            if k not in {"revision", "expected_revision", "edit_protocol", "document_protocol"}
+                        }
                         if "created_at" in page_data and isinstance(page_data["created_at"], str):
                             page_data["created_at"] = datetime.fromisoformat(page_data["created_at"])
                         if "updated_at" in page_data and isinstance(page_data["updated_at"], str):
@@ -368,7 +378,9 @@ class PageStorage:
         try:
             pages_out: list[dict] = []
             for page in self._pages.values():
-                page_data = page.model_dump(exclude={"revision", "edit_protocol"})
+                page_data = page.model_dump(
+                    exclude={"revision", "expected_revision", "edit_protocol", "document_protocol"}
+                )
                 # Convert datetime objects to ISO strings for JSON serialization
                 if isinstance(page_data.get("created_at"), datetime):
                     page_data["created_at"] = page_data["created_at"].isoformat()
@@ -381,6 +393,7 @@ class PageStorage:
             pages_out.extend(self._failed_entries)
 
             data = {
+                **self._document_extras,
                 "schema_version": CURRENT_SCHEMA_VERSION,
                 "pages": pages_out,
             }
@@ -491,8 +504,8 @@ class PageStorage:
         }
         for key, value in updates.items():
             if (
-                key not in {"revision", "edit_protocol"}
-                and key in page_dict
+                key in PageUpdate.model_fields
+                and key != "expected_revision"
                 and (value is not None or key in nullable_fields)
             ):
                 page_dict[key] = value

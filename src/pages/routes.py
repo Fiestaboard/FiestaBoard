@@ -342,7 +342,7 @@ async def preview_page_import(body: PageImportRequest):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     try:
-        page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+        page_create = PageCreate(**page_data)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=f"Invalid share string — {e}") from e
 
@@ -372,7 +372,7 @@ async def import_page(body: PageImportRequest):
         raise HTTPException(status_code=422, detail=str(e)) from e
 
     try:
-        page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+        page_create = PageCreate(**page_data)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Invalid share string — {e}") from e
 

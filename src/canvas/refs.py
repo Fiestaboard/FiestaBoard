@@ -15,6 +15,8 @@ import re
 from collections.abc import Iterable
 from typing import Any
 
+from pydantic import BaseModel
+
 from src.templates.expressions import expression_plugin_ids
 
 from .models import Canvas
@@ -27,6 +29,9 @@ _EXPR = re.compile(r"\{\{(.*?)\}\}", re.S)
 def _strings(value: Any) -> Iterable[str]:
     if isinstance(value, str):
         yield value
+    elif isinstance(value, BaseModel):
+        for name in type(value).model_fields:
+            yield from _strings(getattr(value, name))
     elif isinstance(value, dict):
         for item in value.values():
             yield from _strings(item)
@@ -43,7 +48,7 @@ def canvas_plugin_ids(canvases: Iterable[Canvas] | None) -> set[str] | None:
     """
     refs: set[str] = set()
     for canvas in canvases or ():
-        for text in _strings(canvas.model_dump(by_alias=True, exclude_none=True)):
+        for text in _strings(canvas):
             for match in _EXPR.finditer(text):
                 body = match.group(1).strip()
                 if body.startswith("="):

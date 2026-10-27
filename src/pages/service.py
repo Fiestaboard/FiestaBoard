@@ -211,6 +211,7 @@ class PageService:
             grid_cols=data.grid_cols,
             canvases=data.canvases,
             created_at=datetime.now(UTC),
+            **(data.model_extra or {}),
         )
 
         return self.storage.create(page)
