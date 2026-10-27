@@ -2,6 +2,7 @@
 
 import json
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from threading import Barrier, Event, RLock, Thread, current_thread
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -31,6 +32,35 @@ def test_read_revision_is_opaque_and_not_a_stored_page_field(storage, page):
     assert storage.get(page.id).revision == page.revision
     assert storage.list_all()[0].revision == page.revision
     assert "revision" not in json.loads(storage.storage_file.read_text())["pages"][0]
+
+
+def test_stored_pages_advertise_runtime_edit_protocol_without_persisting_it(storage, page):
+    assert storage.get(page.id).model_dump()["edit_protocol"] == "page-revision-v1"
+    assert storage.list_all()[0].model_dump()["edit_protocol"] == "page-revision-v1"
+    saved = storage.update(page.id, {"name": "Saved"}, expected_revision=page.revision)
+    assert saved.model_dump()["edit_protocol"] == "page-revision-v1"
+    assert "edit_protocol" not in json.loads(storage.storage_file.read_text())["pages"][0]
+    restarted = PageStorage(str(storage.storage_file))
+    assert restarted.get(page.id).model_dump()["edit_protocol"] == "page-revision-v1"
+
+
+def test_page_input_cannot_override_runtime_edit_protocol(storage):
+    supplied = Page(name="Protocol override", type="template", template=["hello"], edit_protocol="future-protocol")
+    created = storage.create(supplied)
+    assert created.model_dump()["edit_protocol"] == "page-revision-v1"
+    saved = storage.update(created.id, {"edit_protocol": "future-protocol"}, expected_revision=created.revision)
+    assert saved.model_dump()["edit_protocol"] == "page-revision-v1"
+    assert "edit_protocol" not in json.loads(storage.storage_file.read_text())["pages"][0]
+
+
+def test_persisted_input_cannot_override_runtime_edit_protocol(storage, page):
+    document = json.loads(storage.storage_file.read_text())
+    document["pages"][0]["edit_protocol"] = "future-protocol"
+    storage.storage_file.write_text(json.dumps(document))
+    storage._load()
+    assert storage.get(page.id).model_dump()["edit_protocol"] == "page-revision-v1"
+    storage.update(page.id, {"name": "Saved"})
+    assert "edit_protocol" not in json.loads(storage.storage_file.read_text())["pages"][0]
 
 
 @pytest.mark.parametrize("first,second", [("native", "web"), ("web", "native")])
@@ -270,3 +300,78 @@ def test_http_update_and_delete_reject_stale_revision(prefix, storage, page, mon
     deleted = client.delete(f"{prefix}/pages/{page.id}", params={"expected_revision": revision})
     assert deleted.status_code == 412
     assert client.get(f"{prefix}/pages/{page.id}").json()["name"] == "first"
+
+
+@pytest.mark.parametrize("prefix", ["", "/v1"])
+def test_http_reads_and_save_receipts_advertise_exact_edit_protocol(prefix, storage, page, monkeypatch):
+    from src.api_server import app
+
+    monkeypatch.setattr("src.pages.routes.get_page_service", lambda: PageService(storage=storage))
+    client = TestClient(app)
+    fetched = client.get(f"{prefix}/pages/{page.id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["edit_protocol"] == "page-revision-v1"
+    listed = client.get(f"{prefix}/pages")
+    assert listed.status_code == 200
+    assert listed.json()["pages"][0]["edit_protocol"] == "page-revision-v1"
+    created = client.post(
+        f"{prefix}/pages",
+        json={"name": "Created", "type": "template", "template": ["NEW"], "edit_protocol": "caller-value"},
+    )
+    assert created.status_code == 201
+    assert created.json()["edit_protocol"] == "page-revision-v1"
+    saved = client.put(
+        f"{prefix}/pages/{page.id}",
+        json={"name": "Saved", "expected_revision": fetched.json()["revision"], "edit_protocol": "caller-value"},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["page"]["edit_protocol"] == "page-revision-v1"
+    assert saved.json()["page"]["revision"] != fetched.json()["revision"]
+    assert saved.json()["incompatible_references"] == []
+
+
+@pytest.mark.parametrize("prefix", ["", "/v1"])
+def test_http_sparse_page_put_preserves_untouched_fields_without_hardware_delivery(prefix, storage, monkeypatch):
+    from src.api_server import app
+
+    fixture = json.loads((Path(__file__).parent / "fixtures/page-editing/page-revision-v1.json").read_text())
+    page = storage.create(Page(**fixture["read"]))
+    monkeypatch.setattr("src.pages.routes.get_page_service", lambda: PageService(storage=storage))
+
+    def forbidden_delivery(*args, **kwargs):
+        pytest.fail("page PUT must not access the hardware display service")
+
+    monkeypatch.setattr("src.pages.routes.get_service", forbidden_delivery)
+    monkeypatch.setattr("src.display_runtime.get_service", forbidden_delivery)
+    client = TestClient(app)
+    before = client.get(f"{prefix}/pages/{page.id}").json()
+    assert before == {**fixture["read"], "revision": before["revision"]}
+    lines = fixture["request"]["template"]
+    response = client.put(
+        f"{prefix}/pages/{page.id}",
+        json={**fixture["request"], "expected_revision": before["revision"]},
+    )
+    assert response.status_code == 200
+    saved = response.json()["page"]
+    assert saved["revision"] != before["revision"]
+    assert saved["updated_at"] is not None
+    assert response.json() == {
+        **fixture["save"],
+        "page": {**fixture["save"]["page"], "revision": saved["revision"], "updated_at": saved["updated_at"]},
+    }
+    assert saved["template"] == lines
+    for key, value in before.items():
+        if key not in {"template", "revision", "updated_at"}:
+            assert saved[key] == value
+    # Legacy precondition-free writes remain compatible and invalidate old drafts.
+    legacy = client.put(f"{prefix}/pages/{page.id}", json={"name": "Legacy rename"})
+    assert legacy.status_code == 200
+    assert legacy.json()["page"]["template"] == lines
+    assert legacy.json()["page"]["revision"] != saved["revision"]
+    stale = client.put(
+        f"{prefix}/pages/{page.id}",
+        json={"name": "Stale", "expected_revision": saved["revision"]},
+    )
+    assert stale.status_code == 412
+    assert stale.json() == fixture["conflict"]
+    assert client.get(f"{prefix}/pages/{page.id}").json()["name"] == "Legacy rename"

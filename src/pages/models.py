@@ -15,6 +15,7 @@ from pydantic import (
     ConfigDict,
     Field,
     FieldSerializationInfo,
+    computed_field,
     field_serializer,
     field_validator,
     model_validator,
@@ -126,6 +127,13 @@ class Page(BaseModel):
     # Runtime generation, assigned by PageStorage; deliberately not persisted.
     # Reload/restart invalidates edits based on the previous in-memory state.
     revision: str | None = Field(default=None, json_schema_extra={"readOnly": True})
+
+    @computed_field
+    @property
+    def edit_protocol(self) -> Literal["page-revision-v1"]:
+        """Runtime support for conditional sparse page saves; never caller input."""
+        return "page-revision-v1"
+
     name: str = Field(min_length=1, max_length=100)
     type: PageType
 

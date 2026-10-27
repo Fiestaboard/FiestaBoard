@@ -368,7 +368,7 @@ class PageStorage:
         try:
             pages_out: list[dict] = []
             for page in self._pages.values():
-                page_data = page.model_dump(exclude={"revision"})
+                page_data = page.model_dump(exclude={"revision", "edit_protocol"})
                 # Convert datetime objects to ISO strings for JSON serialization
                 if isinstance(page_data.get("created_at"), datetime):
                     page_data["created_at"] = page_data["created_at"].isoformat()
@@ -490,7 +490,11 @@ class PageStorage:
             "canvases",
         }
         for key, value in updates.items():
-            if key != "revision" and key in page_dict and (value is not None or key in nullable_fields):
+            if (
+                key not in {"revision", "edit_protocol"}
+                and key in page_dict
+                and (value is not None or key in nullable_fields)
+            ):
                 page_dict[key] = value
 
         # Update timestamp

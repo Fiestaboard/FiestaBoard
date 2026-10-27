@@ -3,13 +3,25 @@
 This is the implementation record for one ongoing draft pull request against
 FiestaBoard 10.1.2. The first milestone is safe optimistic page editing through
 the existing shared page API. Collections, schedules, and the remaining native
-parity work are followups; this milestone does not enable native remote saving.
+parity work are followups. The page contract below enables bounded native page
+saving when the client explicitly opts in and verifies its support conditions.
 
 ## Accepted page contract
 
 `GET /v1/pages`, `GET /v1/pages/{id}`, page creation, and successful page updates
-expose a nonempty opaque `revision` on each stored page. The legacy `/pages`
-routes expose the same model and use the same service and storage.
+expose a nonempty opaque `revision` and exactly
+`"edit_protocol": "page-revision-v1"` on each stored page. Successful updates
+return `{"page": <stored page>, "incompatible_references": [...]}`. The legacy
+`/pages` routes expose the same model and use the same service and storage.
+
+`page-revision-v1` identifies this page editing feature contract independently
+of mutable package/build versions. Its bounded native use is a sparse update
+of changed `name` and/or fixed-slot `template` fields, with the original
+`expected_revision`. Omit unchanged fields and retain template slot order,
+empty strings, Unicode, markup, geometry, line metadata, and other content.
+This protocol does not add rich, canvas, collection, or geometry editing to a
+native adapter. Other existing `PageUpdate` fields remain available to existing
+clients; this advertisement does not narrow the server's legacy API.
 
 - Update: `PUT /v1/pages/{id}` with the usual partial `PageUpdate` body plus
   `"expected_revision": "<revision read for this page>"`.
@@ -22,6 +34,13 @@ routes expose the same model and use the same service and storage.
 - Preconditions are optional for compatibility. Existing unconditional writers
   still succeed, and every successful storage update generates a new token,
   even if the content is identical. They invalidate previously read tokens.
+- `edit_protocol` is computed response metadata. Supplied values in create,
+  update, or stored page input are ignored and cannot change the advertisement.
+- Page PUT stores the page and invalidates its preview cache. It does not
+  directly send to hardware, select the active page, or acknowledge board
+  delivery. A running display may later render saved content through its
+  normal display cycle. Board controls retain separate authorization and
+  compatibility checks.
 
 Clients must retain their draft's original revision, send it when saving or
 deleting, and retain unsaved content after 412. They must fetch the changed page
@@ -37,9 +56,10 @@ that supply preconditions and does not claim every first-party writer uses CAS.
 ## Generation and atomicity
 
 Revisions are random UUID generations assigned by `PageStorage` on load, create,
-and every update. They are runtime metadata and are excluded from `pages.json`;
-the persisted schema remains version 6. They are not timestamps or content
-hashes. Identical-content ABA and deletion followed by recreation of the same
+and every update. Both `revision` and `edit_protocol` are runtime metadata and
+are excluded from `pages.json`; the persisted schema remains version 6.
+Revisions are not timestamps or content hashes. Identical-content ABA and
+deletion followed by recreation of the same
 ID cannot revive an old generation.
 
 Restarting or reloading the store deliberately invalidates **all** previous
@@ -77,10 +97,14 @@ backup restore flow rather than editing the live file.
 
 ## Native compatibility and remaining gaps
 
-A nonempty revision on a read is a discovery hint for the conditional page
-contract. It is not blanket permission for a native client to write to an
-unknown FiestaBoard release. Native remote save remains disabled until an
-audited release adapter verifies the rest of the page contract.
+A native page adapter must require the exact known `page-revision-v1` protocol,
+a nonempty original revision attached to its loaded draft, and explicit
+session opt-in before issuing page PUT. Missing/unknown protocols and old
+servers remain read-only. A revision alone is insufficient. The protocol is
+feature discovery, not authentication or universal native write permission;
+the normal authentication middleware still applies. Page support must not
+broaden access to board controls, which retain their separate exact-version
+gate.
 
 The existing API returns typed Pydantic `Page` data, not an arbitrary lossless
 raw JSON document. `Page`, `PageUpdate`, and nested models currently ignore
@@ -89,8 +113,21 @@ an unknown-field-preserving whole-document round trip through these routes.
 This milestone retains partial updates for supported fields and does not
 silently establish a new raw-document endpoint. Unknown nested canvas/row
 extensions and future page fields require a separately audited contract before
-native save can be enabled. Parsed known models are distinct from invalid raw
-entries that storage already preserves to avoid deleting unparseable pages.
+native editing of those fields can be enabled. A native client can preserve
+unknown fields in its local raw document while sending only changed supported
+fields, but cannot infer that the backend preserves arbitrary unknown data on
+disk. Parsed known models are distinct from invalid raw entries that storage
+already preserves to avoid deleting unparseable pages.
+
+The synthetic boundary fixture
+`tests/fixtures/page-editing/page-revision-v1.json` provides complete read/save
+shapes, a sparse request, and a 412 body for native tests. Its revisions and
+timestamps are illustrative, never recorded hardware data. The HTTP test
+checks both route families against it, substituting only runtime revisions and
+the save timestamp. The panel is a supported 3×15 grid. Native legacy fixtures
+with no revision/protocol remain read-only; a permissive native 2×4 read fixture
+is below the backend's current minimum grid dimensions and must not be used as
+proof of a server-valid save request.
 
 Remaining work in this ongoing PR, where required by native parity:
 
@@ -171,3 +208,19 @@ docker run --rm --name fiestaboard-ios-api-web-corrected --network none \
   --entrypoint sh fiestaboard-ios-api-node:10.1.2 \
   -c 'cp -R /source/web/. /web/ && ln -s /source/tests /tests && npm run test:run -- --maxWorkers=2'
 ```
+
+### Page protocol advertisement validation
+
+The bounded `page-revision-v1` addition passed 435 focused Python tests and
+87 additional response/schema/HTTP contract tests, including all 22 revision
+tests. Five new advertisement cases first failed with missing `edit_protocol`;
+the sparse-save/hardware-access regression cases already passed against the
+existing behavior. A disposable mutation that removed only the persistence
+exclusion failed the new disk-absence assertion. No mutation touched the host
+checkout. The page response-shape golden was repinned with only the intended
+`revision` and `edit_protocol` keys; its previous fixture predated both fields.
+Changed-file Ruff checks, formatting, and `git diff --check` passed. Existing
+FastAPI/datetime deprecation warnings remain. This wave ran no full Python or
+web suite and makes no hardware-delivery claim. Containers used the existing
+`fiestaboard-ios-contract:clean` image, read-only source/root filesystems,
+writable tmpfs, no hardware mounts, and `--network none`.
