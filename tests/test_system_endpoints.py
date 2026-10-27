@@ -1081,6 +1081,9 @@ class TestSystemUpdateRollback:
         assert r.status_code == 400
 
     def test_settings_only_happy_path(self, client, tmp_path, monkeypatch):
+        import json as _json
+
+        from src.settings.service import SettingsService
         from src.system import update_service as api
 
         snap_dir = tmp_path / "snaps"
@@ -1092,14 +1095,20 @@ class TestSystemUpdateRollback:
 
         bs = backup_service.BackupService(data_dir=tmp_path / "data")
         monkeypatch.setattr(backup_service, "_backup_service", bs)
-        # Seed a settings file so the snapshot has something to capture.
+        # Seed the supported current shape. Restore reloads the live settings
+        # owner immediately, so a legacy partial document would be migrated
+        # and seeded rather than remaining byte-for-byte equal to the snapshot.
         (tmp_path / "data").mkdir()
-        (tmp_path / "data" / "settings.json").write_text('{"k":"v"}')
+        settings_path = tmp_path / "data" / "settings.json"
+        SettingsService(str(settings_path))._save_to_file()
+        original = _json.loads(settings_path.read_text())
+        original["k"] = "v"
+        settings_path.write_text(_json.dumps(original))
 
         # Take a snapshot, then mutate the on-disk file.
         meta = api._take_settings_snapshot()
         assert meta is not None
-        (tmp_path / "data" / "settings.json").write_text('{"k":"NEW"}')
+        settings_path.write_text(_json.dumps({**original, "k": "NEW"}))
 
         # Stub the post-restore service-reload helpers — the real reloads
         # touch global singletons we don't want to mess with from tests.
@@ -1114,11 +1123,10 @@ class TestSystemUpdateRollback:
         assert body["snapshot"] == meta["name"]
         assert body["image_rollback"] is None
         assert "settings.json" in body["settings_rollback"]["restored_files"]
-        # The original value is back.
-        import json as _json
-
-        with (tmp_path / "data" / "settings.json").open() as fh:
-            assert _json.load(fh) == {"k": "v"}
+        # The entire original document is restored exactly, including its
+        # unknown extension.
+        with settings_path.open() as fh:
+            assert _json.load(fh) == original
 
     def test_image_rollback_calls_sidecar_with_snapshot_metadata(self, client, tmp_path, monkeypatch):
         """When ``restore_image=True``, the sidecar /rollback is called
