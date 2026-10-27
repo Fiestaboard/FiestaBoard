@@ -5,6 +5,8 @@ visiting ``/api/docs`` the embedded Swagger UI must reference
 ``/api/openapi.json`` (not ``/openapi.json``) for the spec to load.
 """
 
+import pytest
+from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 
 from src.api_server import app
@@ -91,3 +93,128 @@ def test_the_internal_schema_is_served_at_its_documented_path():
     response = TestClient(app).get("/internal/openapi.json")
     assert response.status_code == 200
     assert response.json()["info"]["title"] == "FiestaBoard Internal API"
+
+
+# --- #2367: /api/docs must reach every route, not only the 36 published ones ---
+#
+# Since v9.0.0 (#1935) ``/api/openapi.json`` publishes only ``/v1`` plus two
+# legacy operations, deliberately. The rest moved to
+# ``/api/internal/openapi.json``, but Swagger UI at ``/api/docs`` could only
+# load the first, so ~200 working routes were invisible on the docs page and
+# the one pointer to them was a sentence in the description. These tests pin
+# that the docs page offers both documents, public first.
+
+#: Route groups a v8 user browsed in /api/docs. Each is a path the web UI
+#: calls today, so the internal document must keep carrying them.
+KEY_INTERNAL_ROUTE_GROUPS = (
+    "/pages",
+    "/plugins",
+    "/schedules",
+    "/collections",
+    "/settings",
+    "/displays",
+    "/templates",
+    "/system",
+)
+
+
+def _docs_definitions() -> list[dict]:
+    """The ``urls`` list Swagger UI at ``/docs`` is configured with."""
+    import json
+    import re
+
+    response = TestClient(app).get("/docs")
+    assert response.status_code == 200
+    match = re.search(r'"urls": (\[.*?\]),\n', response.text)
+    assert match, "Swagger UI at /docs offers no definition selector (no `urls` config)"
+    return json.loads(match.group(1))
+
+
+def test_docs_page_offers_public_and_internal_documents():
+    """The selector lists the published document and the internal one."""
+    urls = [definition["url"] for definition in _docs_definitions()]
+    assert urls == ["/api/openapi.json", "/api/internal/openapi.json"]
+
+
+def test_docs_page_opens_on_the_public_document():
+    """The consumer API stays the default; the internal one is opt-in."""
+    response = TestClient(app).get("/docs")
+    first = _docs_definitions()[0]
+    assert f'"urls.primaryName": "{first["name"]}"' in response.text
+    # `urls` is only rendered by the standalone layout's top bar.
+    assert '"layout": "StandaloneLayout"' in response.text
+
+
+def test_internal_document_is_labelled_as_unstable():
+    """A reader picking it in the dropdown is told it carries no promise."""
+    internal = _docs_definitions()[1]
+    assert "internal" in internal["name"].lower()
+    assert "unstable" in internal["name"].lower()
+
+
+def test_docs_page_reaches_key_route_groups():
+    """Every key route group is in a document the docs page can show."""
+    client = TestClient(app)
+    paths: set[str] = set()
+    for definition in _docs_definitions():
+        served = definition["url"].removeprefix(app.root_path)
+        paths |= set(client.get(served).json()["paths"])
+    missing = [group for group in KEY_INTERNAL_ROUTE_GROUPS if not any(p.startswith(group) for p in paths)]
+    assert not missing, f"route groups unreachable from /docs: {missing}"
+    assert len(paths) > 150, f"/docs reaches only {len(paths)} paths"
+
+
+def test_docs_page_loads_the_standalone_preset_its_layout_needs():
+    """``StandaloneLayout`` and its top bar ship in a separate script.
+
+    FastAPI's page loads only ``swagger-ui-bundle.js`` and lists
+    ``SwaggerUIBundle.SwaggerUIStandalonePreset``, which that bundle does not
+    define. Asking for the layout without loading the preset renders
+    'No layout defined for "StandaloneLayout"' and no operations at all,
+    which a browser showed and the tests above did not.
+    """
+    html = TestClient(app).get("/docs").text
+    preset = html.find("swagger-ui-standalone-preset.js")
+    binding = html.find("SwaggerUIBundle.SwaggerUIStandalonePreset = SwaggerUIStandalonePreset")
+    config = html.find("const ui = SwaggerUIBundle(")
+    assert preset != -1, "the standalone preset script is never loaded"
+    assert binding != -1, "the preset is never bound where the presets list reads it"
+    assert preset < binding < config, "the preset must be loaded and bound before Swagger UI starts"
+
+
+def test_swagger_ui_assets_are_pinned_to_one_exact_version():
+    """The bundle and the standalone preset must be the same release: a
+    floating ``@5`` resolves each URL on its own, so jsDelivr can briefly
+    hand out a mismatched pair during an upstream release."""
+    from src.v1 import visibility
+
+    urls = (visibility.SWAGGER_JS_URL, visibility.SWAGGER_CSS_URL, visibility.SWAGGER_STANDALONE_PRESET_URL)
+    assert all("swagger-ui-dist@5." in u and u.count(".") >= 4 for u in urls), urls
+    assert len({u.rsplit("/", 1)[0] for u in urls}) == 1, "all three assets must come from one pinned version"
+
+
+@pytest.mark.parametrize(
+    "dropped",
+    ['<script src="https://cdn.jsdelivr.net', "SwaggerUIBundle.SwaggerUIStandalonePreset"],
+    ids=["bundle-tag", "presets-reference"],
+)
+def test_a_changed_fastapi_template_fails_at_mount_not_on_a_visit(monkeypatch, dropped):
+    """The page relies on two details of FastAPI's Swagger UI template: how it
+    loads the bundle, and that its ``presets`` list reads
+    ``SwaggerUIBundle.SwaggerUIStandalonePreset``. If a FastAPI upgrade drops
+    either, the layout cannot load and the page is blank, so building the app
+    must fail loudly instead of serving that page."""
+    from fastapi import FastAPI
+    from fastapi.openapi import docs as fastapi_docs
+
+    from src.v1 import visibility
+
+    real = fastapi_docs.get_swagger_ui_html
+
+    def changed_template(**kwargs):
+        page = real(**kwargs)
+        return HTMLResponse(page.body.decode().replace(dropped, "", 1))
+
+    monkeypatch.setattr(visibility, "get_swagger_ui_html", changed_template)
+    with pytest.raises(RuntimeError, match="Swagger UI"):
+        visibility.offer_internal_schema_in_docs(FastAPI(docs_url=None))
