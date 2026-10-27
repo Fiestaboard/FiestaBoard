@@ -1,4 +1,6 @@
-# Native iOS API access
+# Native iOS API access — page foundation record
+
+The current combined native-client contract is [native-client-content.md](native-client-content.md), with session/OAuth access in [native-client-authentication.md](native-client-authentication.md). The milestone text below records the earlier bounded page foundation; its deferred collection/schedule/tool/document items are being completed in the same draft PR #2373.
 
 This is the implementation record for one ongoing draft pull request against
 FiestaBoard 10.1.2. The first milestone is safe optimistic page editing through
