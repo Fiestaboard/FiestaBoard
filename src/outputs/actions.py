@@ -20,7 +20,9 @@ An action must be **declared** by the output; its ``input`` is checked
 against the declared ``input_schema`` (hidden fields not validated). One
 input is generic: ``hint_host`` (:data:`~src.outputs.hooks.HINT_HOST`), the
 private IPv4 address the user opened FiestaBoard at, which the web UI sends
-with every scan. Any action accepts it; ``discover`` receives it (a
+with every scan; when it sends none, a scan gets the requesting browser's own
+address instead, when usable (:mod:`src.outputs.client_hint`, passed in by
+the route as ``client_hint``). Any action accepts it; ``discover`` receives it (a
 non-private value is refused), an action that declares it receives it as its
 schema checks it, and any other action never sees it. Every
 output answers through its plugin class's
@@ -58,6 +60,7 @@ from typing import Any
 
 from src.output_allowlist import flush_refusal_summary
 
+from .client_hint import HINT_SOURCE_BROWSER, HINT_SOURCE_CLIENT, HINT_SOURCE_NONE
 from .errors import BoardNotFoundError, InvalidActionInputError, InvalidOutputConfigError, OutputNotInstalledError
 from .hooks import (
     HINT_HOST,
@@ -101,23 +104,44 @@ def _declares(spec: OutputActionSpec, name: str) -> bool:
 
 
 def _checked_input(
-    spec: OutputActionSpec, inputs: dict[str, Any], board: Mapping[str, Any] | None = None
+    spec: OutputActionSpec,
+    inputs: dict[str, Any],
+    board: Mapping[str, Any] | None = None,
+    *,
+    client_hint: str | None = None,
 ) -> dict[str, Any]:
     # The network hint (HINT_HOST) is a generic input every action accepts:
     # the web UI sends it with every scan, for every output. An action that
     # declares it gets it as its schema checks it; ``discover`` gets it as a
-    # private IPv4 address; any other action never sees it.
+    # private IPv4 address; any other action never sees it. When the browser
+    # sent none, a scan gets *client_hint* (the requesting browser's own
+    # address, :func:`~src.outputs.client_hint.client_lan_hint`) instead: the
+    # browser's always wins.
     hint = inputs.pop(HINT_HOST, None)
+    source = HINT_SOURCE_NONE
     if _declares(spec, HINT_HOST):
-        if hint is not None:
+        if hint not in (None, ""):
+            inputs[HINT_HOST] = hint
+            source = HINT_SOURCE_BROWSER
+        elif client_hint is not None:
+            inputs[HINT_HOST] = client_hint
+            source = HINT_SOURCE_CLIENT
+        elif hint is not None:
             inputs[HINT_HOST] = hint
         hint = None
     elif hint not in (None, ""):
         hint = lan_hint(hint)
         if hint is None:
             raise InvalidActionInputError(f"{HINT_HOST} must be a private IPv4 address")
+        source = HINT_SOURCE_BROWSER
+    elif spec.id == "discover" and client_hint is not None:
+        hint = client_hint
+        source = HINT_SOURCE_CLIENT
     else:
         hint = None
+    if spec.id == "discover" or _declares(spec, HINT_HOST):
+        # Which source, never the address.
+        logger.debug("Action %s: network hint from %s", spec.id, source)
     if spec.input_schema is None:
         if inputs:
             raise InvalidActionInputError(f"Action '{spec.id}' takes no input")
@@ -408,8 +432,11 @@ async def run_draft_action(
     output_config: dict[str, Any],
     inputs: dict[str, Any],
     device_model: str | None = None,
+    client_hint: str | None = None,
 ) -> dict[str, Any]:
     """Run *action* of output *output_id* on draft settings (no board yet).
+    *client_hint* is the scan's network hint when the browser sent none
+    (:func:`_checked_input`).
 
     Raises:
         OutputNotInstalledError, UnknownOutputAction,
@@ -426,7 +453,8 @@ async def run_draft_action(
     if device_model is not None and definition.plugin and device_model not in definition.offered_device_models:
         raise InvalidOutputConfigError(f"Output '{output_id}' declares no device model '{device_model}'")
     board = draft_board(definition, dict(output_config), device_model)
-    return await _run(definition, spec, board=board, board_id=None, inputs=_checked_input(spec, dict(inputs), board))
+    inputs = _checked_input(spec, dict(inputs), board, client_hint=client_hint)
+    return await _run(definition, spec, board=board, board_id=None, inputs=inputs)
 
 
 def saved_board(board_id: str, output_config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -460,9 +488,16 @@ def saved_board(board_id: str, output_config: dict[str, Any] | None = None) -> d
 
 
 async def run_saved_action(
-    board_id: str, action: str, *, inputs: dict[str, Any], output_config: dict[str, Any] | None = None
+    board_id: str,
+    action: str,
+    *,
+    inputs: dict[str, Any],
+    output_config: dict[str, Any] | None = None,
+    client_hint: str | None = None,
 ) -> dict[str, Any]:
     """Run *action* on saved board *board_id*, optionally with edited settings.
+    *client_hint* is the scan's network hint when the browser sent none
+    (:func:`_checked_input`).
 
     Raises:
         BoardNotFoundError, OutputNotInstalledError,
@@ -472,9 +507,8 @@ async def run_saved_action(
     board = saved_board(board_id, output_config)
     definition = _definition(resolve_output_id(board))
     spec = _spec(definition, action)
-    return await _run(
-        definition, spec, board=board, board_id=board_id, inputs=_checked_input(spec, dict(inputs), board)
-    )
+    inputs = _checked_input(spec, dict(inputs), board, client_hint=client_hint)
+    return await _run(definition, spec, board=board, board_id=board_id, inputs=inputs)
 
 
 # --- GET /outputs -----------------------------------------------------------------------------------

@@ -259,7 +259,8 @@ def output_name_for(board: Mapping) -> str:
 
 def discover_devices(output_id: str, timeout: float, hint: str | None = None) -> list[dict]:
     """Run *output_id*'s ``discover`` hook; ``[]`` when it declares none.
-    *hint* (the browser's private IPv4 address; anything else is dropped)
+    *hint* (a private IPv4 address naming the browser's LAN — the caller's
+    :func:`~src.outputs.client_hint.client_lan_hint`; anything else is dropped)
     reaches a hook that takes one (:func:`~src.outputs.hooks.call_discover`).
 
     Raises:

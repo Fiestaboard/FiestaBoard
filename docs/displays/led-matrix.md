@@ -92,7 +92,7 @@ Mounted the Pixoo sideways or upside down? Set **Orientation** in the display's 
 
 ### Discovery and Manual Setup
 
-If **Find my Pixoo** reports a container network such as `172.18.0.0/24`, open FiestaBoard using the Pi's LAN IP address, or enter your LAN network in **Network to search**. Opening FiestaBoard through a hostname such as `fiestapi.local` does not supply an IP-based network hint.
+If **Find my Pixoo** reports a container network such as `172.18.0.0/24`, open FiestaBoard using the Pi's LAN IP address, or enter your LAN network in **Network to search**. Opening FiestaBoard through a hostname such as `fiestapi.local` makes FiestaBoard fall back to the address your browser connected from. That address is hidden when the browser runs on the same machine as Docker, under Docker Desktop, or through Home Assistant ingress.
 
 You can also choose **Enter address manually**, enter the Pixoo's address, complete **Test connection**, and save the display. Entering an address in **Network to search** runs discovery against that address; it does not complete manual setup.
 

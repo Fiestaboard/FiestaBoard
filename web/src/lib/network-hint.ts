@@ -6,7 +6,9 @@
  * address (`172.x`) names a container network, not the LAN the device is on.
  * The address the user typed to open FiestaBoard does name it — when that is
  * a private IPv4 address. A hostname (`fiestaboard.local`), `localhost`, a
- * public address or IPv6 says nothing reliable, so no hint is sent.
+ * public address or IPv6 says nothing reliable, so no hint is sent — and the
+ * server falls back to the address the browser connected from, when that
+ * names a LAN (`src/outputs/client_hint.py`). A hint sent here always wins.
  */
 import type { OutputActionDescriptor } from "@/lib/api";
 
