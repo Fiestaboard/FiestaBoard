@@ -51,7 +51,7 @@ mcp>=2.3.0
 # Schemas (src/outputs/fiestaui.py); `referencing` (a jsonschema dependency)
 # resolves their $refs by $id, offline. Already installed via mcp; pinned
 # here because core now imports it directly.
-jsonschema>=4.18.0
+jsonschema>=4.26.0
 
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0
