@@ -28,11 +28,11 @@
     "@codemirror/commands": "^6.11.1",
     "@codemirror/language": "^6.13.1",
     "@codemirror/state": "^6.7.5",
-    "@codemirror/view": "^6.43.14",
+    "@codemirror/view": "^6.43.15",
     "@fiestaboard/ui": "8.14.2",
     "@lezer/highlight": "^1.2.5",
     "@microsoft/fetch-event-source": "^2.0.1",
-    "@react-router/fs-routes": "^8.4.0",
+    "@react-router/fs-routes": "^8.5.0",
     "@react-router/node": "^8.3.0",
     "@react-router/serve": "^8.3.0",
     "@tanstack/react-query": "^5.104.4",
@@ -43,7 +43,7 @@
     "date-fns": "^4.4.0",
     "date-fns-tz": "^3.2.0",
     "i18next": "^26.5.2",
-    "i18next-browser-languagedetector": "^8.2.0",
+    "i18next-browser-languagedetector": "^8.2.2",
     "isbot": "^5.2.2",
     "lucide-react": "^1.59.0",
     "qrcode.react": "^4.2.0",
@@ -57,8 +57,8 @@
     "sonner": "^2.0.8"
   },
   "optionalDependencies": {
-    "@rolldown/binding-linux-x64-gnu": "1.2.14",
-    "@swc/core-linux-x64-gnu": "1.16.18",
+    "@rolldown/binding-linux-x64-gnu": "1.2.15",
+    "@swc/core-linux-x64-gnu": "1.16.20",
     "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",
     "lightningcss-linux-x64-gnu": "1.33.0"
   },
@@ -104,7 +104,7 @@
     "tailwindcss": "^4",
     "typescript": "6.0.3",
     "typescript-eslint": "^8.71.2",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vite-plugin-pwa": "^2.0.0",
     "vitest": "^5.0.0"
   }
