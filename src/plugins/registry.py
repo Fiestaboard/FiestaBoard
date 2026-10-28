@@ -2148,25 +2148,6 @@ class PluginRegistry:
             )
         )
 
-        # Circuit-breaker gate (issue #1884): a quarantined plugin is dropped
-        # from this build entirely — not submitted, and crucially not WAITED
-        # on. Skipping the wait is what removes the per-render
-        # CONTEXT_BUILD_TIMEOUT_SECONDS stall a single wedged referenced
-        # plugin used to impose on every tick.
-        now = time.monotonic()
-        with self._inflight_lock:
-            quarantined = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) > now]
-            if quarantined:
-                to_fetch = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) <= now]
-        if quarantined:
-            logger.debug(
-                "Skipping %d quarantined plugin(s) this render (fetch circuit breaker open): %s",
-                len(quarantined),
-                quarantined,
-            )
-        if not to_fetch:
-            return context
-
         # Calling-thread fast path for already-cached plugins. Dispatching a
         # fetch whose own cache is fresh costs a Future allocation, a queue
         # put, a worker wakeup, a condvar wait, a done-callback and three lock
@@ -2177,9 +2158,11 @@ class PluginRegistry:
         # to. ``get_cached_plugin_data`` runs no plugin code and cannot block,
         # which is what makes it safe on the single service thread.
         #
-        # Deliberately AFTER the breaker gate: a quarantined plugin stays
-        # dropped from the build whether or not it has stale-but-fresh-enough
-        # data lying around.
+        # Deliberately BEFORE the breaker gate: a slow plugin (an AI call that
+        # takes tens of seconds against a 5 s budget) can run up its streak on
+        # the one fetch every tick joins and get quarantined, then land a
+        # moment later. Its answer is in the cache; hiding it for the whole
+        # cooldown kept the board on the previous result for minutes.
         still_to_fetch: list[str] = []
         answered: list[str] = []
         for plugin_id in to_fetch:
@@ -2196,11 +2179,32 @@ class PluginRegistry:
             # Cached data is PROOF the plugin answered — a fetch this build
             # abandoned at the timeout still landed and filled the cache. Ending
             # its streak here is what keeps a merely slow data source out of the
-            # quarantine the breaker reserves for wedged ones.
+            # quarantine the breaker reserves for wedged ones — and lifts that
+            # quarantine if the streak already opened it.
             with self._inflight_lock:
                 for plugin_id in answered:
                     self._fetch_timeouts.pop((plugin_id, board_key), None)
+                    self._fetch_breaker_until.pop((plugin_id, board_key), None)
         to_fetch = still_to_fetch
+        if not to_fetch:
+            return context
+
+        # Circuit-breaker gate (issue #1884): a quarantined plugin with nothing
+        # cached is dropped from this build entirely — not submitted, and
+        # crucially not WAITED on. Skipping the wait is what removes the
+        # per-render CONTEXT_BUILD_TIMEOUT_SECONDS stall a single wedged
+        # referenced plugin used to impose on every tick.
+        now = time.monotonic()
+        with self._inflight_lock:
+            quarantined = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) > now]
+            if quarantined:
+                to_fetch = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) <= now]
+        if quarantined:
+            logger.debug(
+                "Skipping %d quarantined plugin(s) this render (fetch circuit breaker open): %s",
+                len(quarantined),
+                quarantined,
+            )
         if not to_fetch:
             return context
 
