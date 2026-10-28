@@ -9,7 +9,7 @@ import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
 import { useTranslations } from "@/i18n/translations";
-import { FIESTABOARD_COLORS } from "@/lib/board-colors";
+import { FIESTABOARD_COLORS, getBoardColor } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
 
 /** Attributes ColorTileNode declares (see extensions/color-tile-node.ts). */
@@ -22,7 +22,11 @@ export function ColorTileNodeView({ node }: ReactNodeViewProps) {
   const t = useTranslations("templateEditor");
   const { color, code } = node.attrs as ColorTileAttrs;
   const colorKey = color.toLowerCase() as keyof typeof FIESTABOARD_COLORS;
-  const bgColor = FIESTABOARD_COLORS[colorKey] || FIESTABOARD_COLORS.red;
+  // `filled` (code 71) is not a palette key — it has no hex of its own. Resolve
+  // by code so it renders as its closest flap (black) instead of the red
+  // fallback (issue #2359); getBoardColor also returns black for anything else
+  // unrecognized.
+  const bgColor = FIESTABOARD_COLORS[colorKey] || getBoardColor(String(code));
 
   // Match board display styling with 3D effect
   const boxShadow = `
