@@ -746,12 +746,14 @@ function ColorRulesEditor({
                       </CopyableCode>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => handleDeleteField(fieldName)}
-                            className="p-1 text-destructive hover:bg-destructive/10 rounded"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash2 className="h-3 w-3" />
-                          </button>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent>
                           <Text>{t("colorRules.deleteFieldTooltip")}</Text>
@@ -849,12 +851,14 @@ function ColorRulesEditor({
                           />
 
                           {/* Delete button */}
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => handleDeleteRule(fieldName, idx)}
-                            className="p-1 text-destructive hover:bg-destructive/10 rounded ml-auto"
+                            className="ml-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash2 className="h-3 w-3" />
-                          </button>
+                          </Button>
                         </Flex>
                       );
                     })}
