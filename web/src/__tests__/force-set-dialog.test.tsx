@@ -51,22 +51,22 @@ describe("ForceSetDialog", () => {
 
   it("shows all duration presets", () => {
     renderDialog();
-    expect(screen.getByRole("button", { name: /^5 min$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^15 min$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^30 min$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^1 hr$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^custom$/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^5 min$/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^15 min$/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^30 min$/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^1 hr$/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^custom$/i })).toBeInTheDocument();
   });
 
   it("5 min is selected by default", () => {
     renderDialog();
-    const btn5 = screen.getByRole("button", { name: /^5 min$/i });
-    expect(btn5.className).toContain("bg-primary");
+    const btn5 = screen.getByRole("radio", { name: /^5 min$/i });
+    expect(btn5).toHaveAttribute("aria-checked", "true");
   });
 
   it("shows custom input when Custom is selected", async () => {
     renderDialog();
-    fireEvent.click(screen.getByRole("button", { name: /custom/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /custom/i }));
     await waitFor(() => expect(screen.getByPlaceholderText(/1.?480/i)).toBeInTheDocument());
   });
 
