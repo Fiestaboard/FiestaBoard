@@ -507,11 +507,28 @@ export async function deletePagesByDevice(deviceType: string): Promise<void> {
 }
 
 /** Delete pages; strict fixture setup reports rejected cleanup instead of hiding it.
- * deleteSchedules unlinks all-board schedule entries before deleting their pages.
- * Other reference types (collections, defaults, silence) must be removed by their owner.
+ * deleteSchedules unlinks all-board schedule entries and defaults before deleting their pages.
+ * Other reference types (collections, silence) must be removed by their owner.
  */
 export async function deleteAllPages(options: { strict?: boolean; deleteSchedules?: boolean } = {}): Promise<void> {
-  if (options.deleteSchedules) await deleteAllSchedules({ strict: options.strict });
+  if (options.deleteSchedules) {
+    await deleteAllSchedules({ strict: options.strict });
+    const boards = await fetch(`${API_URL}/v1/boards`, { headers: authHeaders() });
+    if (!boards.ok) {
+      if (options.strict) throw new Error(`GET /v1/boards cleanup failed (${boards.status}): ${await boards.text()}`);
+    } else {
+      for (const board of (await boards.json()).boards) {
+        const cleared = await fetch(`${API_URL}/v1/boards/${board.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({ default_page_id: null }),
+        });
+        if (options.strict && !cleared.ok) {
+          throw new Error(`PATCH /v1/boards/${board.id} cleanup failed (${cleared.status}): ${await cleared.text()}`);
+        }
+      }
+    }
+  }
   const res = await fetch(`${API_URL}/v1/pages`, { headers: authHeaders() });
   if (!res.ok) {
     if (options.strict) throw new Error(`GET /v1/pages cleanup failed (${res.status}): ${await res.text()}`);

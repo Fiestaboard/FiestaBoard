@@ -9,7 +9,6 @@ import {
   configureBoard,
   createPage,
   deleteAllPages,
-  deleteAllSchedules,
   deletePage,
   expect,
   setActivePage,
@@ -253,10 +252,9 @@ test.describe("Sync from Board", () => {
     //
     // The loop's rule is guarded on manual mode, and GET /pages/current-display
     // resolves through the schedule when schedule mode is on. So schedule mode
-    // with zero schedules is a *stable* no-active-display state that neither
+    // with zero schedules or default pages is a *stable* no-active-display state that neither
     // side will promote out from under us.
-    await deleteAllPages();
-    await deleteAllSchedules();
+    await deleteAllPages({ strict: true, deleteSchedules: true });
     await setScheduleEnabled(true);
 
     try {
