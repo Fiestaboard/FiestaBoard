@@ -700,12 +700,12 @@ function ColorRulesEditor({
         {/* Add new field input */}
         {showAddField && (
           <Flex gap="2" className="p-2 rounded-md border bg-muted/30">
-            <input
+            <Input
               type="text"
               value={newFieldName}
               onChange={(e) => setNewFieldName(e.target.value)}
               placeholder={t("colorRules.fieldPlaceholder")}
-              className="flex-1 h-8 px-2 text-xs rounded border bg-background"
+              className="flex-1 h-8 px-2 text-xs rounded bg-background shadow-none"
             />
             <Button size="sm" className="h-8 text-xs" onClick={handleAddField}>
               {tCommon("add")}
@@ -746,12 +746,14 @@ function ColorRulesEditor({
                       </CopyableCode>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => handleDeleteField(fieldName)}
-                            className="p-1 text-destructive hover:bg-destructive/10 rounded"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash2 className="h-3 w-3" />
-                          </button>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent>
                           <Text>{t("colorRules.deleteFieldTooltip")}</Text>
@@ -833,7 +835,7 @@ function ColorRulesEditor({
                           </Select>
 
                           {/* Value input */}
-                          <input
+                          <Input
                             type="text"
                             value={rule.value}
                             onChange={(e) => {
@@ -844,17 +846,19 @@ function ColorRulesEditor({
                                 value: isNaN(numVal) ? val : numVal,
                               });
                             }}
-                            className="w-20 h-7 px-2 rounded border bg-background text-xs font-mono"
+                            className="w-20 h-7 px-2 rounded bg-background text-xs font-mono shadow-none"
                             placeholder={t("colorRules.valuePlaceholder")}
                           />
 
                           {/* Delete button */}
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => handleDeleteRule(fieldName, idx)}
-                            className="p-1 text-destructive hover:bg-destructive/10 rounded ml-auto"
+                            className="ml-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash2 className="h-3 w-3" />
-                          </button>
+                          </Button>
                         </Flex>
                       );
                     })}
