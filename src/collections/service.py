@@ -81,16 +81,34 @@ class CollectionService:
         return self.storage.create(collection)
 
     def update_collection(self, collection_id: str, data: CollectionUpdate) -> Collection | None:
-        updates = data.model_dump(exclude_unset=True)
-        return self.storage.update(collection_id, updates)
+        updates = data.model_dump(exclude_unset=True, exclude={"expected_revision"})
+        return self.storage.update(collection_id, updates, expected_revision=data.expected_revision)
 
-    def delete_collection(self, collection_id: str) -> bool:
+    def delete_collection(self, collection_id: str, *, expected_revision: str | None = None) -> bool:
+        from contextlib import ExitStack
+
+        from src.config_manager import get_config_manager
         from src.content_references import check_content_references
+        from src.pages.service import get_page_service
+        from src.schedules.service import get_schedule_service
+        from src.settings.service import get_settings_service
 
-        if not self.storage.exists(collection_id):
-            return False
-        check_content_references(collection_id)
-        return self.storage.delete(collection_id)
+        # Match resize/deletion lock order. Check the generation before any
+        # reference work and hold the owner through the dependent deletion.
+        with ExitStack() as locks:
+            for lock in (
+                get_settings_service().lock,
+                get_config_manager().lock,
+                get_page_service().storage.lock,
+                self.storage.lock,
+                get_schedule_service().storage.lock,
+            ):
+                locks.enter_context(lock)
+            self.storage.check_revision(collection_id, expected_revision)
+            if not self.storage.exists(collection_id):
+                return False
+            check_content_references(collection_id)
+            return self.storage.delete(collection_id, expected_revision=expected_revision)
 
     def exists(self, collection_id: str) -> bool:
         return self.storage.exists(collection_id)

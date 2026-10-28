@@ -221,8 +221,14 @@ def panel_content_resize(
                         settings._active_page = active_snapshot
                         settings._save_to_file()
                     elif surface == "schedules":
-                        schedules._schedules.update(schedule_snapshot)
+                        schedules._schedules.update(
+                            {
+                                sid: entry.model_copy(update={"revision": str(uuid4())})
+                                for sid, entry in schedule_snapshot.items()
+                            }
+                        )
                         schedules._default_page_by_board = defaults_snapshot
+                        schedules.default_revision = str(uuid4())
                         schedules._save()
                     else:
                         features = config._config.setdefault("features", {})

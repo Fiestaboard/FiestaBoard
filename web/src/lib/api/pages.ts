@@ -53,6 +53,11 @@ export interface SetActivePageResponse {
 
 export interface Page {
   id: string;
+  /** Opaque live generation; reloads/restarts invalidate old editor saves. */
+  revision?: string | null;
+  /** Runtime edit and rich-document capabilities advertised by the server. */
+  edit_protocol?: string | null;
+  document_protocol?: string | null;
   name: string;
   type: PageType;
   device_type: DeviceType;
@@ -109,6 +114,7 @@ export interface PageCreate {
 }
 
 export interface PageUpdate {
+  expected_revision?: string | null;
   name?: string;
   /** Device/size retarget (issue #1250) — converting geometries is lossy. */
   device_type?: DeviceType;
@@ -259,7 +265,11 @@ export const pagesApi = {
       method: "PUT",
       body: JSON.stringify(page),
     }),
-  deletePage: (pageId: string) => fetchApi<PageDeleteResponse>(`/v1/pages/${pageId}`, { method: "DELETE" }),
+  deletePage: (pageId: string, expectedRevision?: string | null) =>
+    fetchApi<PageDeleteResponse>(
+      `/v1/pages/${pageId}${expectedRevision ? `?expected_revision=${encodeURIComponent(expectedRevision)}` : ""}`,
+      { method: "DELETE" },
+    ),
   previewPage: (pageId: string) => fetchApi<PagePreviewResponse>(`/pages/${pageId}/preview`, { method: "POST" }),
   /** `boardId`: the board the previews are for — an LED board's renders its spans and icons and answers `cells`. */
   previewPagesBatch: (pageIds: string[], boardId?: string) =>

@@ -97,7 +97,7 @@ async def get_page(page_id: str) -> Page:
 @router.put(
     "/pages/{page_id}",
     response_model=PageUpdateResponse,
-    responses=errors(400, 404),
+    responses=errors(400, 404, 412),
     summary="Update a page",
     description=(
         "Applies the fields you send and leaves the rest alone. The response carries the updated page plus "
@@ -112,7 +112,7 @@ async def update_page(page_id: str, request: PageUpdate) -> PageUpdateResponse:
 @router.delete(
     "/pages/{page_id}",
     response_model=PageDeleteResponse,
-    responses=errors(404, 409),
+    responses=errors(404, 409, 412),
     summary="Delete a page",
     description=(
         "Removes the page and replaces active selections on every board with a compatible page, creating a welcome "
@@ -121,8 +121,8 @@ async def update_page(page_id: str, request: PageUpdate) -> PageUpdateResponse:
         "The response reports whether any selection changed; its single replacement id prefers the primary board."
     ),
 )
-async def delete_page(page_id: str) -> PageDeleteResponse:
-    return await pages_routes.delete_page(page_id)
+async def delete_page(page_id: str, expected_revision: str | None = None) -> PageDeleteResponse:
+    return await pages_routes.delete_page(page_id, expected_revision=expected_revision)
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +178,7 @@ async def get_schedule(schedule_id: str) -> ScheduleResponse:
 @router.put(
     "/schedules/{schedule_id}",
     response_model=ScheduleWriteResponse,
-    responses=errors(400, 404),
+    responses=errors(400, 404, 412),
     summary="Update a schedule entry",
     description=(
         "Applies only the fields you send, so a partial update cannot silently clear the ones you left out. "
@@ -192,15 +192,15 @@ async def update_schedule(schedule_id: str, request: ScheduleUpdate) -> Schedule
 @router.delete(
     "/schedules/{schedule_id}",
     response_model=ScheduleDeleteResponse,
-    responses=errors(404),
+    responses=errors(404, 412),
     summary="Delete a schedule entry",
     description=(
         "Removes this schedule rule. The page it pointed at is untouched, and the board falls back to its "
         "remaining rules — or to its gap page when none of them match."
     ),
 )
-async def delete_schedule(schedule_id: str) -> ScheduleDeleteResponse:
-    return await schedules_routes.delete_schedule(schedule_id)
+async def delete_schedule(schedule_id: str, expected_revision: str | None = None) -> ScheduleDeleteResponse:
+    return await schedules_routes.delete_schedule(schedule_id, expected_revision=expected_revision)
 
 
 # ---------------------------------------------------------------------------
@@ -256,7 +256,7 @@ async def get_collection(collection_id: str) -> Collection:
 @router.put(
     "/collections/{collection_id}",
     response_model=Collection,
-    responses=errors(400, 404),
+    responses=errors(400, 404, 412),
     summary="Update a collection",
     description=(
         "Applies only the fields you send. Every page id in `page_ids` must exist, and a `variable` rule may only "
@@ -270,7 +270,7 @@ async def update_collection(collection_id: str, request: CollectionUpdate) -> Co
 @router.delete(
     "/collections/{collection_id}",
     response_model=CollectionDeleteResponse,
-    responses=errors(404, 409),
+    responses=errors(404, 409, 412),
     summary="Delete a collection",
     description=(
         "Removes an unreferenced collection, leaving its member pages untouched. Returns 409 with references "
@@ -278,5 +278,5 @@ async def update_collection(collection_id: str, request: CollectionUpdate) -> Co
         "still uses it. A refused deletion changes nothing."
     ),
 )
-async def delete_collection(collection_id: str) -> CollectionDeleteResponse:
-    return await collections_routes.delete_collection(collection_id)
+async def delete_collection(collection_id: str, expected_revision: str | None = None) -> CollectionDeleteResponse:
+    return await collections_routes.delete_collection(collection_id, expected_revision=expected_revision)

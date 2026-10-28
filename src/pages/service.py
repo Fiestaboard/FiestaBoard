@@ -6,6 +6,7 @@ Provides high-level operations on pages including preview and send.
 import logging
 import time
 from collections.abc import Collection
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -210,11 +211,19 @@ class PageService:
             grid_cols=data.grid_cols,
             canvases=data.canvases,
             created_at=datetime.now(UTC),
+            **(data.model_extra or {}),
         )
 
         return self.storage.create(page)
 
     def update_page(self, page_id: str, data: PageUpdate) -> Page | None:
+        # Retarget preparation reads existing geometry/canvases; keep it in
+        # the same critical section as the revision check and persisted save.
+        with self.storage.lock:
+            self.storage.check_revision(page_id, data.expected_revision)
+            return self._update_page_locked(page_id, data)
+
+    def _update_page_locked(self, page_id: str, data: PageUpdate) -> Page | None:
         """Update an existing page.
 
         Args:
@@ -231,6 +240,7 @@ class PageService:
         """
         trace_phase("page_update_started")
         updates = data.model_dump(exclude_unset=True)
+        expected_revision = updates.pop("expected_revision", None)
         self._scale_canvases_on_retarget(page_id, updates)
 
         # Device/size retarget (issue #1250): re-validate the prospective page
@@ -254,7 +264,7 @@ class PageService:
                     raise ValueError(f"Cannot retarget page: {'; '.join(errors)}")
 
         trace_phase("storage_started")
-        updated_page = self.storage.update(page_id, updates)
+        updated_page = self.storage.update(page_id, updates, expected_revision=expected_revision)
         trace_phase("storage_returned")
 
         # Invalidate preview cache for this page
@@ -294,7 +304,25 @@ class PageService:
             for canvas in existing.canvases
         ]
 
-    def delete_page(self, page_id: str) -> DeleteResult:
+    def delete_page(self, page_id: str, *, expected_revision: str | None = None) -> DeleteResult:
+        from src.collections.service import get_collection_service
+        from src.config_manager import get_config_manager
+        from src.schedules.service import get_schedule_service
+
+        # Match panel_content_resize's established cross-store order. Reference
+        # checks and active/default replacement read or write these owners;
+        # entering them after the page lock would invert resize's lock order.
+        settings = get_settings_service()
+        config = get_config_manager()
+        collections = get_collection_service().storage
+        schedules = get_schedule_service().storage
+        with ExitStack() as locks:
+            for lock in (settings.lock, config.lock, self.storage.lock, collections.lock, schedules.lock):
+                locks.enter_context(lock)
+            self.storage.check_revision(page_id, expected_revision)
+            return self._delete_page_locked(page_id)
+
+    def _delete_page_locked(self, page_id: str) -> DeleteResult:
         """Delete a page.
 
         If this is the last page, a default welcome page is created

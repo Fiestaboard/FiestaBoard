@@ -421,10 +421,18 @@ test.describe("MCP", () => {
       );
       const pageId = created.page_id as string;
 
-      expectNoToolError(
-        await callTool(request, sessionId, "update_page", { page_id: pageId, name: "Chain After" }, 103),
+      const renamed = expectNoToolError(
+        await callTool(
+          request,
+          sessionId,
+          "update_page",
+          { page_id: pageId, name: "Chain After", expected_revision: created.revision },
+          103,
+        ),
         "update_page (name only)",
       );
+      expect(created.revision).toEqual(expect.any(String));
+      expect(renamed.revision).not.toBe(created.revision);
 
       const page = expectNoToolError(
         await callTool(request, sessionId, "get_page", { page_id: pageId }, 104),
@@ -481,10 +489,19 @@ test.describe("MCP", () => {
       expect(collections.some((c) => c.id === collectionId)).toBe(true);
 
       expectNoToolError(
-        await callTool(request, sessionId, "delete_collection", { collection_id: collectionId }, 108),
+        await callTool(
+          request,
+          sessionId,
+          "delete_collection",
+          { collection_id: collectionId, expected_revision: collection.revision },
+          108,
+        ),
         "delete_collection",
       );
-      expectNoToolError(await callTool(request, sessionId, "delete_page", { page_id: b.page_id }, 109), "delete_page");
+      expectNoToolError(
+        await callTool(request, sessionId, "delete_page", { page_id: b.page_id, expected_revision: b.revision }, 109),
+        "delete_page",
+      );
 
       const afterCollections = (await callTool(request, sessionId, "list_collections", {}, 110)) as Array<
         Record<string, unknown>

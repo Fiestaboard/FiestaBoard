@@ -549,6 +549,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // (called from the AI chat panel) can read it synchronously without
   // closure staleness across React renders.
   const nameRef = useRef(name);
+  // Bind edits to the generation that seeded this draft. A background query
+  // refetch must not silently authorize overwriting another editor's save.
+  const seededRevisionRef = useRef<string | null | undefined>(undefined);
+  const seededProtocolsRef = useRef<Pick<Page, "edit_protocol" | "document_protocol">>({});
   const templateLinesRef = useRef(templateLines);
   const lineAlignmentsRef = useRef(lineAlignments);
   const lineWrapEnabledRef = useRef(lineWrapEnabled);
@@ -708,7 +712,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     return {
       // The id tells the assistant whether update_page can target this
       // page; an unsaved draft has none and is created instead.
-      ...(pageId ? { id: pageId } : {}),
+      ...(pageId ? { id: pageId, revision: seededRevisionRef.current, ...seededProtocolsRef.current } : {}),
       name: nameRef.current,
       device_type: deviceTypeRef.current,
       ...geometryFields(deviceTypeRef.current, notesWideRef.current, notesTallRef.current, panelGridRef.current),
@@ -819,6 +823,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           const saved: Page = pageId
             ? (
                 await api.updatePage(pageId, {
+                  expected_revision: seededRevisionRef.current,
                   name: nameRef.current,
                   device_type: deviceTypeRef.current,
                   template: cleanedLines,
@@ -838,6 +843,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 canvases: draftDisplayRef.current.canvases,
                 transition_strategy: draftDisplayRef.current.transitionStrategy,
               });
+          seededRevisionRef.current = saved.revision;
+          seededProtocolsRef.current = {
+            edit_protocol: saved.edit_protocol,
+            document_protocol: saved.document_protocol,
+          };
           // Invalidate the pages list and this page's preview, but don't close.
           queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
           queryClient.invalidateQueries({
@@ -1206,6 +1216,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       }
       forceReseedRef.current = false;
       seededPageIdRef.current = existingPage.id;
+      seededRevisionRef.current = existingPage.revision;
+      seededProtocolsRef.current = {
+        edit_protocol: existingPage.edit_protocol,
+        document_protocol: existingPage.document_protocol,
+      };
       durationRef.current = existingPage.duration_seconds;
       // Clear draft when loading existing page
       const draftKey = getDraftKey(pageId);
@@ -1530,6 +1545,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
       if (pageId) {
         const payload: PageUpdate = {
+          expected_revision: seededRevisionRef.current,
           name,
           device_type: deviceType,
           template: cleanedLines,
@@ -1622,7 +1638,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: () => api.deletePage(pageId!),
+    mutationFn: () => api.deletePage(pageId!, seededRevisionRef.current),
     onSuccess: (data) => {
       // Clear preview cache for deleted page
       if (pageId) {

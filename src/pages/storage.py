@@ -8,13 +8,14 @@ import json
 import logging
 import re
 import threading
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 
 from src.storage.json_store import JsonStore
 from src.text_utils import extract_alignment_from_line as _extract_alignment_from_line
 
-from .models import Page
+from .models import Page, PageUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -253,6 +254,13 @@ def _adapt_migration(fn: Callable[[list[dict]], int]) -> Callable[[dict], int]:
     return lambda data: fn(data.get("pages", []))
 
 
+class PageRevisionConflict(ValueError):
+    """The editor's page generation no longer matches the live page."""
+
+    def __init__(self):
+        super().__init__("Page changed since it was loaded. Reload the page before saving or deleting.")
+
+
 class PageStorage:
     """JSON file-based storage for pages.
 
@@ -281,6 +289,7 @@ class PageStorage:
         # bug in a migration, a renamed enum value) never silently deletes a
         # user's page from disk.
         self._failed_entries: list[dict] = []
+        self._document_extras: dict = {}
 
         # Load existing pages (runs migrations if needed)
         self._load()
@@ -295,6 +304,15 @@ class PageStorage:
 
     def _load(self) -> None:
         """Load pages from storage file, running migrations if needed."""
+        with self.lock:
+            self._load_locked()
+
+    def _load_locked(self) -> None:
+        # A restore has already replaced the file. Even if the new schema
+        # cannot be read, never leave the pre-restore document live in memory.
+        self._pages = {}
+        self._failed_entries = []
+        self._document_extras = {}
         try:
             data = self._store.load()
             if data is None:
@@ -302,6 +320,7 @@ class PageStorage:
                 self._failed_entries = []
                 return
 
+            self._document_extras = {k: v for k, v in data.items() if k not in {"schema_version", "pages"}}
             needs_save = self._store.migrated
 
             self._pages = {}
@@ -312,12 +331,20 @@ class PageStorage:
                 raw_snapshot = dict(page_data) if isinstance(page_data, dict) else page_data
                 try:
                     if isinstance(page_data, dict):
+                        # Runtime metadata is allocated by this live owner,
+                        # never restored from caller-controlled disk values.
+                        page_data = {
+                            k: v
+                            for k, v in page_data.items()
+                            if k not in {"revision", "expected_revision", "edit_protocol", "document_protocol"}
+                        }
                         if "created_at" in page_data and isinstance(page_data["created_at"], str):
                             page_data["created_at"] = datetime.fromisoformat(page_data["created_at"])
                         if "updated_at" in page_data and isinstance(page_data["updated_at"], str):
                             page_data["updated_at"] = datetime.fromisoformat(page_data["updated_at"])
 
                     page = Page(**page_data)
+                    page.revision = str(uuid.uuid4())
                     self._pages[page.id] = page
                 except Exception as e:
                     page_id = raw_snapshot.get("id", "<unknown>") if isinstance(raw_snapshot, dict) else "<unknown>"
@@ -351,7 +378,9 @@ class PageStorage:
         try:
             pages_out: list[dict] = []
             for page in self._pages.values():
-                page_data = page.model_dump()
+                page_data = page.model_dump(
+                    exclude={"revision", "expected_revision", "edit_protocol", "document_protocol"}
+                )
                 # Convert datetime objects to ISO strings for JSON serialization
                 if isinstance(page_data.get("created_at"), datetime):
                     page_data["created_at"] = page_data["created_at"].isoformat()
@@ -364,6 +393,7 @@ class PageStorage:
             pages_out.extend(self._failed_entries)
 
             data = {
+                **self._document_extras,
                 "schema_version": CURRENT_SCHEMA_VERSION,
                 "pages": pages_out,
             }
@@ -420,13 +450,21 @@ class PageStorage:
             if errors:
                 raise ValueError(f"Invalid page configuration: {errors}")
 
+            page = page.model_copy(update={"revision": str(uuid.uuid4())})
             self._pages[page.id] = page
             self._save()
 
         logger.info(f"Created page: {page.id} ({page.name})")
         return page
 
-    def update(self, page_id: str, updates: dict) -> Page | None:
+    def check_revision(self, page_id: str, expected_revision: str | None) -> None:
+        """Check under the mutation lock; callers may extend the critical section."""
+        with self.lock:
+            page = self._pages.get(page_id)
+            if page is not None and expected_revision is not None and page.revision != expected_revision:
+                raise PageRevisionConflict()
+
+    def update(self, page_id: str, updates: dict, *, expected_revision: str | None = None) -> Page | None:
         """Update an existing page.
 
         Args:
@@ -437,6 +475,7 @@ class PageStorage:
             Updated page if found, None otherwise
         """
         with self._store.lock:
+            self.check_revision(page_id, expected_revision)
             return self._update_locked(page_id, updates)
 
     def _update_locked(self, page_id: str, updates: dict) -> Page | None:
@@ -464,11 +503,16 @@ class PageStorage:
             "canvases",
         }
         for key, value in updates.items():
-            if key in page_dict and (value is not None or key in nullable_fields):
+            if (
+                key in PageUpdate.model_fields
+                and key != "expected_revision"
+                and (value is not None or key in nullable_fields)
+            ):
                 page_dict[key] = value
 
         # Update timestamp
         page_dict["updated_at"] = datetime.now(UTC)
+        page_dict["revision"] = str(uuid.uuid4())
 
         # Recreate page with updates
         updated_page = Page(**page_dict)
@@ -483,7 +527,7 @@ class PageStorage:
         logger.info(f"Updated page: {page_id}")
         return updated_page
 
-    def delete(self, page_id: str) -> bool:
+    def delete(self, page_id: str, *, expected_revision: str | None = None) -> bool:
         """Delete a page.
 
         Args:
@@ -493,6 +537,7 @@ class PageStorage:
             True if deleted, False if not found
         """
         with self._store.lock:
+            self.check_revision(page_id, expected_revision)
             if page_id not in self._pages:
                 return False
 

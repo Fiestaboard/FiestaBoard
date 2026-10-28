@@ -334,7 +334,11 @@ def test_execute_update_schedule_via_chat_name_changes_only_supplied_fields(serv
     assert created["status"] == "success"
 
     updated = _run(
-        execute("update_schedule", {"schedule_id": created["schedule_id"], "start_time": "08:00"}, grammar="chat")
+        execute(
+            "update_schedule",
+            {"schedule_id": created["schedule_id"], "start_time": "08:00", "expected_revision": created["revision"]},
+            grammar="chat",
+        )
     )
     assert updated["status"] == "success"
 

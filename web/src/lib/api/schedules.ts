@@ -43,6 +43,8 @@ export type RecurrenceType = "weekly" | "annual_date" | "one_off_date";
 
 export interface ScheduleEntry {
   id: string;
+  revision?: string;
+  edit_protocol?: "schedule-revision-v1";
   board_id?: string; // Optional; "" or omitted = default board
   page_id: string;
   start_time: string; // HH:MM format
@@ -89,6 +91,7 @@ export interface ScheduleCreate {
 }
 
 export interface ScheduleUpdate {
+  expected_revision?: string;
   board_id?: string;
   page_id?: string;
   start_time?: string;
@@ -113,6 +116,8 @@ export interface SchedulesResponse {
   // Both per-board fields are null on the cross-board listing
   // (`board_id=*`), which has no single board to answer for.
   default_page_id: string | null;
+  default_page_revision?: string;
+  default_page_edit_protocol?: "schedule-default-revision-v1";
   enabled: boolean | null;
 }
 
@@ -277,10 +282,13 @@ export const schedulesApi = {
       body: JSON.stringify(data),
     }),
 
-  deleteSchedule: (scheduleId: string) =>
-    fetchApi<ScheduleDeleteResponse>(`/v1/schedules/${scheduleId}`, {
-      method: "DELETE",
-    }),
+  deleteSchedule: (scheduleId: string, expectedRevision?: string) =>
+    fetchApi<ScheduleDeleteResponse>(
+      `/v1/schedules/${scheduleId}${expectedRevision ? `?expected_revision=${encodeURIComponent(expectedRevision)}` : ""}`,
+      {
+        method: "DELETE",
+      },
+    ),
 
   getActiveSchedule: (boardId?: string) =>
     fetchApi<ActiveScheduleResponse>(
@@ -299,11 +307,19 @@ export const schedulesApi = {
   // (and the same page-exists 404) that the /schedules setters did. The
   // response widens from `{default_page_id}` / `{enabled}` to the whole
   // BoardDetail; no caller read the old body.
-  setDefaultPage: (pageId: string | null, boardId?: string) =>
-    fetchApi<BoardDetail>(`/v1/boards/${boardPathSegment(boardId)}`, {
-      method: "PATCH",
-      body: JSON.stringify({ default_page_id: pageId }),
-    }),
+  setDefaultPage: async (pageId: string | null, boardId?: string, expectedRevision?: string) =>
+    expectedRevision
+      ? fetchApi<{ default_page_id: string | null; revision: string; edit_protocol: "schedule-default-revision-v1" }>(
+          "/schedules/default-page",
+          {
+            method: "PUT",
+            body: JSON.stringify({ page_id: pageId, board_id: boardId, expected_revision: expectedRevision }),
+          },
+        )
+      : fetchApi<BoardDetail>(`/v1/boards/${boardPathSegment(boardId)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ default_page_id: pageId }),
+        }),
 
   setScheduleEnabled: (enabled: boolean, boardId?: string) =>
     fetchApi<BoardDetail>(`/v1/boards/${boardPathSegment(boardId)}`, {

@@ -266,6 +266,11 @@ def mock_schedule_service():
         ss.update_schedule.return_value = mock_schedule
         ss.delete_schedule.return_value = True
         ss.get_default_page.return_value = "page1"
+        ss.get_default_page_state.return_value = {"default_page_id": "page1", "revision": "default-generation"}
+        ss.set_default_page.side_effect = lambda page_id, board_id=None, expected_revision=None: {
+            "default_page_id": page_id,
+            "revision": "default-after-write",
+        }
         ss.get_active_page_id.return_value = "page1"
         from src.schedules.models import ScheduleValidationResult
 
@@ -1374,6 +1379,8 @@ class TestScheduleEndpoints:
         data = response.json()
         assert "schedules" in data
         assert data["total"] == 1
+        assert data["default_page_id"] == "page1"
+        assert data["default_page_revision"] == "default-generation"
 
     def test_list_schedules_all_boards(self, client, mock_schedule_service, mock_settings_service):
         response = client.get("/schedules?board_id=*")
@@ -1449,10 +1456,24 @@ class TestScheduleEndpoints:
         response = client.get("/schedules/default-page")
         assert response.status_code == 200
         assert response.json()["default_page_id"] == "page1"
+        assert response.json()["revision"] == "default-generation"
+        mock_schedule_service.get_default_page_state.assert_called_once_with(None)
 
     def test_set_default_page(self, client, mock_schedule_service, mock_page_service):
-        response = client.put("/schedules/default-page", json={"page_id": "page1"})
+        response = client.put(
+            "/schedules/default-page", json={"page_id": "page1", "expected_revision": "default-generation"}
+        )
         assert response.status_code == 200
+        assert response.json() == {
+            "default_page_id": "page1",
+            "revision": "default-after-write",
+            "edit_protocol": "schedule-default-revision-v1",
+        }
+        mock_schedule_service.set_default_page.assert_called_once_with(
+            "page1",
+            board_id=None,
+            expected_revision="default-generation",
+        )
 
     def test_set_default_page_missing_param(self, client, mock_schedule_service):
         # 422 since the conventions pass: the body is a Pydantic model, so a
@@ -1468,6 +1489,9 @@ class TestScheduleEndpoints:
     def test_set_default_page_null(self, client, mock_schedule_service, mock_page_service):
         response = client.put("/schedules/default-page", json={"page_id": None})
         assert response.status_code == 200
+        assert response.json()["default_page_id"] is None
+        assert response.json()["revision"] == "default-after-write"
+        mock_schedule_service.set_default_page.assert_called_once_with(None, board_id=None, expected_revision=None)
 
     def test_get_schedule_enabled(self, client, mock_settings_service):
         response = client.get("/schedules/enabled")
