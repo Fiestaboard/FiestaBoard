@@ -332,3 +332,31 @@ class TestSlowIsNotWedged:
         assert contexts[-1] == {"slow_honest": {"value": "LATE"}}, "late data never reached the board"
         assert registry.get_fetch_breaker_status() == {}, "a slow-but-answering plugin was quarantined"
         assert plugin.fetches == 1, "the cached answer was refetched instead of served"
+
+    def test_a_quarantined_plugin_serves_its_answer_once_it_lands(self, registry):
+        """A fetch slow enough to trip the breaker still reaches the board.
+
+        An AI-backed plugin (generative art) takes tens of seconds against a
+        5 s budget, so ticks that join its one in-flight fetch run up the
+        streak and quarantine it. That fetch then lands and fills the cache;
+        the quarantine must not hide that answer for the whole cooldown —
+        the board would keep showing the previous piece for minutes.
+        """
+        plugin = _SlowButHonestPlugin(delay=TIMEOUT * 6)
+        registry._plugins["slow_honest"] = plugin
+        registry._enabled["slow_honest"] = True
+
+        for _ in range(registry_module.PLUGIN_FETCH_BREAKER_THRESHOLD):
+            registry.build_template_context(plugin_ids=["slow_honest"])
+        assert registry.get_fetch_breaker_status()["slow_honest"]["quarantined"] is True
+
+        deadline = time.monotonic() + TIMEOUT * 20
+        context: dict = {}
+        while time.monotonic() < deadline and not context:
+            context = registry.build_template_context(plugin_ids=["slow_honest"])
+            if not context:
+                time.sleep(TIMEOUT / 5)
+
+        assert context == {"slow_honest": {"value": "LATE"}}, "the landed answer stayed hidden by the quarantine"
+        assert registry.get_fetch_breaker_status() == {}, "an answer that landed did not lift the quarantine"
+        assert plugin.fetches == 1, "the cached answer was refetched instead of served"
