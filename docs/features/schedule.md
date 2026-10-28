@@ -65,7 +65,7 @@ FiestaBoard automatically validates your schedule and provides real-time feedbac
 
 - **Overlap Detection** - Warns if two schedules overlap on the same day/time
 - **Gap Detection** - Shows unscheduled time periods
-- **Active Page Resolution** - The system checks at your configured polling interval (default: 15 seconds) which page should be displayed based on the current time
+- **Active Page Resolution** - Each board checks at its configured polling interval (default: 15 seconds) which page should be displayed based on the current time
 
 :::info
 When no schedule is active, FiestaBoard displays the default page. You can set the default page in Settings.
@@ -73,7 +73,7 @@ When no schedule is active, FiestaBoard displays the default page. You can set t
 
 ## How Page Resolution Works
 
-At your configured polling interval (default: 15 seconds), the display service:
+At each board's configured polling interval (default: 15 seconds), the display service:
 
 1. Checks the current local time and day of week
 2. Looks for enabled schedule entries that match the current time
@@ -81,6 +81,8 @@ At your configured polling interval (default: 15 seconds), the display service:
 4. If no match is found, displays the default page
 
 > **Note:** Schedules can cross midnight (e.g., 11 PM to 1 AM). The system handles the rollover automatically.
+
+Set update and board-read intervals in **Displays → your board → Playback → Update Intervals**. Changes apply to that board immediately, without restarting the service. Each board keeps its own values; there is no global-defaults control. Existing boards retain their saved intervals when upgrading.
 
 ## Turning the Schedule Off and On
 
@@ -92,13 +94,13 @@ whichever window is current.
 
 If you drive the switch from an automation (say, turning the schedule off
 while a film is playing), you may prefer the board to stay put until it would
-have changed on its own. Turn on **Settings → Behavior → Schedule toggle →
+have changed on its own. Turn on **Displays → your board → Playback → Schedule toggle →
 "Wait for the next scheduled change"**. Re-enabling then records the schedule
 entry winning at that moment and keeps the board on its manual page until a
 different entry takes over. Gaps between entries count as a window of their
 own, so the toggle never repaints the board by itself.
 
-The setting is off by default and applies to every board.
+The setting is off by default and applies only to the board you are editing. Existing boards retain their saved behavior when upgrading.
 
 > **Tip:** To leave the board completely untouched — rather than switching it
 > to the manual page — pause the board or turn off the Display Service switch,

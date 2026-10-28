@@ -1,0 +1,169 @@
+{
+  "schema_version": 3,
+  "transitions": {
+    "strategy": null,
+    "step_interval_ms": null,
+    "step_size": null
+  },
+  "output": {
+    "target": "board"
+  },
+  "active_page": {
+    "page_id": "00000000-0000-4000-8000-000000000601",
+    "by_board": {
+      "00000000-0000-4000-8000-000000000007": "00000000-0000-4000-8000-000000000601",
+      "00000000-0000-4000-8000-000000000010": "00000000-0000-4000-8000-000000000602"
+    }
+  },
+  "polling": {
+    "interval_seconds": 15,
+    "board_read_interval_local": 30,
+    "board_read_interval_cloud": 180
+  },
+  "board": {
+    "board_type": "black",
+    "boards": [
+      {
+        "id": "00000000-0000-4000-8000-000000000007",
+        "name": "Living Room",
+        "device_type": "flagship",
+        "board_color": "black",
+        "code62_glyph": "degree",
+        "enabled": true,
+        "paused": false,
+        "schedule_enabled": false,
+        "api_mode": "local",
+        "host": "192.168.0.10",
+        "port": 7000,
+        "local_api_key": "test_local_key",
+        "cloud_key": "",
+        "note_array_token": "",
+        "notes_wide": 1,
+        "notes_tall": 1,
+        "grid_rows": null,
+        "grid_cols": null,
+        "tiles": []
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000008",
+        "name": "Office",
+        "device_type": "flagship",
+        "board_color": "black",
+        "code62_glyph": "degree",
+        "enabled": true,
+        "paused": false,
+        "schedule_enabled": false,
+        "api_mode": "cloud",
+        "host": "",
+        "port": 7000,
+        "local_api_key": "",
+        "cloud_key": "test_rw_key",
+        "note_array_token": "",
+        "notes_wide": 1,
+        "notes_tall": 1,
+        "grid_rows": null,
+        "grid_cols": null,
+        "tiles": []
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000009",
+        "name": "Hallway Array",
+        "device_type": "note_array",
+        "board_color": "black",
+        "code62_glyph": "degree",
+        "enabled": true,
+        "paused": false,
+        "schedule_enabled": false,
+        "api_mode": "cloud",
+        "host": "",
+        "port": 7000,
+        "local_api_key": "",
+        "cloud_key": "",
+        "note_array_token": "test_array_token",
+        "notes_wide": 2,
+        "notes_tall": 1,
+        "grid_rows": null,
+        "grid_cols": null,
+        "tiles": []
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000010",
+        "name": "Kitchen Note",
+        "device_type": "note",
+        "board_color": "white",
+        "code62_glyph": "degree",
+        "enabled": true,
+        "paused": false,
+        "schedule_enabled": false,
+        "api_mode": "local",
+        "host": "192.168.0.11",
+        "port": 7000,
+        "local_api_key": "test_note_key",
+        "cloud_key": "",
+        "note_array_token": "",
+        "notes_wide": 1,
+        "notes_tall": 1,
+        "grid_rows": null,
+        "grid_cols": null,
+        "tiles": []
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000011",
+        "name": "Den TV",
+        "device_type": "panel",
+        "board_color": "black",
+        "code62_glyph": "degree",
+        "enabled": true,
+        "paused": false,
+        "schedule_enabled": false,
+        "api_mode": "virtual",
+        "host": "",
+        "port": 7000,
+        "local_api_key": "",
+        "cloud_key": "",
+        "note_array_token": "",
+        "notes_wide": 1,
+        "notes_tall": 1,
+        "grid_rows": 12,
+        "grid_cols": 29,
+        "tiles": []
+      }
+    ],
+    "devices": [
+      "flagship",
+      "note",
+      "note_array",
+      "panel"
+    ]
+  },
+  "schedule": {
+    "enabled": false,
+    "defer_on_reenable": false
+  },
+  "mqtt": {
+    "enabled": false,
+    "broker_host": "localhost",
+    "broker_port": 1883,
+    "username": "",
+    "password": "",
+    "external_url": ""
+  },
+  "display": {
+    "reduce_motion": false,
+    "board_animations": "on",
+    "site_animations": "on",
+    "board_flap_speed": "standard"
+  },
+  "location": {
+    "latitude": 40.7128,
+    "longitude": -74.006
+  },
+  "beta": {
+    "https_enabled": false,
+    "transition_plugins_enabled": false
+  },
+  "plugins": {
+    "auto_update": true
+  },
+  "temporary_override": null
+}

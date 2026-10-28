@@ -1,10 +1,5 @@
 {
-  "schema_version": 3,
-  "transitions": {
-    "strategy": null,
-    "step_interval_ms": null,
-    "step_size": null
-  },
+  "schema_version": 8,
   "output": {
     "target": "board"
   },
@@ -31,15 +26,23 @@
         "enabled": true,
         "paused": false,
         "schedule_enabled": false,
-        "api_mode": "local",
-        "host": "192.0.2.10",
-        "port": 7000,
-        "local_api_key": "test_key_golden",
-        "cloud_key": "",
-        "note_array_token": "",
         "notes_wide": 1,
         "notes_tall": 1,
-        "tiles": []
+        "output": "vestaboard",
+        "output_config": {
+          "api_mode": "local",
+          "host": "192.0.2.10",
+          "port": 7000,
+          "local_api_key": "test_key_golden",
+          "cloud_key": "",
+          "note_array_token": "",
+          "tiles": []
+        },
+        "transition": "none",
+        "polling_interval_seconds": 15,
+        "board_read_interval_local": 30,
+        "board_read_interval_cloud": 180,
+        "schedule_defer_on_reenable": false
       }
     ],
     "devices": [
@@ -68,12 +71,9 @@
     "latitude": null,
     "longitude": null
   },
-  "beta": {
-    "https_enabled": false,
-    "transition_plugins_enabled": false
-  },
   "plugins": {
-    "auto_update": true
+    "auto_update": true,
+    "transition_plugins_enabled": false
   },
   "temporary_override": null
 }

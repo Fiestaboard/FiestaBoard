@@ -1,21 +1,25 @@
 """One reader for "what is on the board" (issue #1912).
 
-Four surfaces answer the same question — the grid of flap codes a board is
+Three surfaces answer the same question — the grid of flap codes a board is
 showing — from the same caches:
 
 * ``GET /board/current-message`` (``src/board_api/routes.py``), which may
   also read the board live;
-* ``GET /panel/{panel_id}/frame`` (``src/panels/routes.py``), the
-  unauthenticated TV viewer, which must never read a physical board live;
 * the MCP ``get_board_content`` tool (``src/mcp_server.py``), which reports
   which cache answered;
 * ``GET /v1/boards/{board}`` (``src/v1/routes_boards.py``).
+
+(The unauthenticated TV viewer, ``GET /panel/{panel_id}/frame``, used to be
+a fourth; it now reads the board runtime's last-frame store directly —
+``OutputRuntime.displayed_frame`` — and the ``want="sent"`` intent below
+keeps its semantics for any caller that asks it.)
 
 Each used to carry its own copy of the selection, and the copies had
 drifted. This module is the single implementation. The routes and the tool
 decide *presentation* (field names, error transport, which timestamp their
 contract publishes); the *selection* lives here, and nothing outside this
-module reads ``_polled_characters`` / ``_last_characters``.
+module reads the poll cache or the board's frame cache
+(``rt.output.frames``).
 
 Two intents
 -----------
@@ -81,8 +85,8 @@ class BoardState:
     """What one board shows, and where that answer came from.
 
     ``polled_at`` is set only when the poll cache answered (``source ==
-    "polled"``). ``last_sent_at`` is when the client last stored a frame
-    (only virtual clients track one) and is published whatever answered,
+    "polled"``). ``last_sent_at`` is when the board's runtime last stored a
+    frame (published for virtual boards only) and is published whatever answered,
     because the panel viewer reports it regardless. ``expected_characters``
     is what the client last sent — the other half of drift detection.
     """
@@ -94,6 +98,11 @@ class BoardState:
     last_sent_at: float | None
     expected_characters: list[list[int]] | None
     api_mode: Literal["local", "cloud"]
+    #: The rich cells of ``characters`` (FiestaUI ``BoardToken`` rows), when
+    #: ``characters`` is the frame FiestaBoard last sent and that write
+    #: carried cells (an output that takes them). ``None`` otherwise — a poll
+    #: or read-back of something else has no cells to describe it.
+    cells: Any = None
 
     @property
     def rows(self) -> int:
@@ -117,7 +126,7 @@ def _empty(board_id: str | None) -> BoardState:
 
 
 def _is_virtual(client: Any) -> bool:
-    # ``VirtualBoardClient`` sets ``is_virtual = True``; a hardware client
+    # A FiestaPanel (pull) driver reports ``is_virtual = True``; a hardware driver
     # has no such attribute. Tested with ``is True`` (main.py's convention)
     # so a Mock or proxy client's auto-attribute never earns a memory read.
     return getattr(client, "is_virtual", False) is True
@@ -146,16 +155,33 @@ def _prime(rt: Any, characters: list[list[int]], at: float) -> None:
     rt.polled_at = at
 
 
+def _with_cells(rt: Any, state: BoardState) -> BoardState:
+    """*state* with the last write's rich cells, when its characters are that write."""
+    frames = rt.output.frames if rt.client is not None else None
+    cells = getattr(frames, "cells", None)
+    if not isinstance(cells, list) or state.characters is None or state.characters != frames.characters:
+        return replace(state, cells=None) if state.cells is not None else state
+    return replace(state, cells=cells)
+
+
 def _select(rt: Any, board_id: str | None, *, want: Want, skip_poll_cache: bool = False) -> BoardState:
     """The selection order above, over one resolved runtime. No I/O."""
+    return _with_cells(rt, _select_codes(rt, board_id, want=want, skip_poll_cache=skip_poll_cache))
+
+
+def _select_codes(rt: Any, board_id: str | None, *, want: Want, skip_poll_cache: bool) -> BoardState:
     client = rt.client
+    frames = rt.output.frames if client is not None else None
     base = BoardState(
         board_id=board_id,
         characters=None,
         source="empty",
         polled_at=None,
-        last_sent_at=getattr(client, "_last_sent_at", None) if client is not None else None,
-        expected_characters=getattr(client, "_last_characters", None) if client is not None else None,
+        # The runtime stores a send time for every board, but only a virtual
+        # board's is published here today; serving every board's last frame
+        # (and its time) from the runtime is a later layer's change.
+        last_sent_at=frames.last_sent_at if frames is not None and _is_virtual(client) else None,
+        expected_characters=frames.characters if frames is not None else None,
         api_mode="cloud" if getattr(client, "use_cloud", False) else "local",
     )
 
@@ -202,9 +228,16 @@ def read_board_state(board_id: str | None, *, want: Want, service: Any) -> Board
     return _select(rt, board_id, want=want)
 
 
-async def read_board_state_live(board_id: str | None, *, force: bool = False, service: Any) -> BoardState:
+async def read_board_state_live(
+    board_id: str | None, *, force: bool = False, service: Any, paused: bool = False
+) -> BoardState:
     """``want="board"``, plus a live read of a physical board where the poll
     cache cannot answer.
+
+    A *paused* board is never read live, ``force`` or not: pause is
+    hands-off (issue #970), and a paused board may well be unplugged, where
+    a read would only wait on the network and fail on every request. It is
+    served from what is known — the poll cache, then what was last sent.
 
     The network read runs on a worker thread, and only when it happens: a
     populated poll cache (unless ``force``) and a virtual board's memory are
@@ -223,17 +256,22 @@ async def read_board_state_live(board_id: str | None, *, force: bool = False, se
     if rt is None:
         return _empty(board_id)
 
-    state = _select(rt, board_id, want="board", skip_poll_cache=force)
+    state = _select(rt, board_id, want="board", skip_poll_cache=force and not paused)
     client = rt.client
-    if state.source == "polled" or client is None:
+    if state.source == "polled" or client is None or paused:
         return state
     if _is_virtual(client):
         if state.characters is not None:
             _prime(rt, state.characters, time.time())
+        return state
+    if getattr(getattr(client, "read_back", None), "supported", None) is False:
+        # The device cannot be read back (an output declaring read_back
+        # none, like a Pixoo): what was last sent is all anyone can know,
+        # and a "live read" would only ever answer nothing.
         return state
 
     characters = await asyncio.to_thread(client.read_current_message)
     if characters is None:
         raise BoardReadError(board_id)
     _prime(rt, characters, time.time())
-    return replace(state, characters=characters, source="live", polled_at=None)
+    return _with_cells(rt, replace(state, characters=characters, source="live", polled_at=None))

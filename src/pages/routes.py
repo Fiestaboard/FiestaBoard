@@ -23,18 +23,25 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_dims, _board_is_paused, _require_board, _silence_active
+from src.board_guards import _board_dims, _board_is_paused, _find_board, _require_board, silence_verdict
+from src.canvas.schemas import issues_json, layers_json
 from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service
-from src.devices import geometry_of, resolve_dimensions, size_key
+from src.devices import board_context_for, geometry_of, resolve_dimensions, size_key
 from src.display_runtime import get_service
+from src.led.charsets import has_extended_markup
+from src.outputs.board_profile import board_character_set
+from src.outputs.cells import cells_to_json, project_for_output, project_message
+from src.outputs.display_profile import display_profile_for_board, render_kw
+from src.outputs.transitions import driver_runs_strategy
 from src.schedules.service import get_schedule_service
-from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service
+from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service, page_transition
 from src.text_to_board import text_to_board_array
 
 from .models import (
@@ -58,8 +65,9 @@ from .models import (
     ShareStringResponse,
 )
 from .models import Page as PageModel
-from .service import find_incompatible_references, get_page_service
+from .service import draws_pixels, find_incompatible_references, get_page_service
 from .share import decode_page, encode_page
+from .storage import PageRevisionConflict
 
 logger = logging.getLogger(__name__)
 
@@ -85,13 +93,13 @@ def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
     if not strategy.startswith(TRANSITION_PLUGIN_PREFIX):
         return
     settings_service = get_settings_service()
-    if not settings_service.get_beta_settings().transition_plugins_enabled:
+    if not settings_service.get_plugin_settings().transition_plugins_enabled:
         raise HTTPException(
             status_code=400,
             detail=(
-                "Transition plugins are an experimental beta. Enable them "
-                "in Settings → Beta before assigning a 'plugin:<id>' "
-                "strategy to a page."
+                "Transition plugins are an experimental beta. Turn them on "
+                "in a display's Transition section before assigning a "
+                "'plugin:<id>' strategy to a page."
             ),
         )
 
@@ -227,7 +235,7 @@ async def get_page(page_id: str):
 @router.put(
     "/pages/{page_id}",
     response_model=PageUpdateResponse,
-    responses=errors(400, 404),
+    responses=errors(400, 404, 412),
     dependencies=[superseded_by_v1("PUT /pages/{page_id}")],
 )
 async def update_page(page_id: str, page_data: PageUpdate):
@@ -245,6 +253,8 @@ async def update_page(page_id: str, page_data: PageUpdate):
 
     try:
         page = page_service.update_page(page_id, page_data)
+    except PageRevisionConflict as e:
+        raise HTTPException(status_code=412, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     if not page:
@@ -262,10 +272,10 @@ async def update_page(page_id: str, page_data: PageUpdate):
 @router.delete(
     "/pages/{page_id}",
     response_model=PageDeleteResponse,
-    responses=errors(404),
+    responses=errors(404, 409, 412),
     dependencies=[superseded_by_v1("DELETE /pages/{page_id}")],
 )
-async def delete_page(page_id: str):
+async def delete_page(page_id: str, expected_revision: str | None = None):
     """Delete a page.
 
     If this is the last page, a default welcome page is automatically created
@@ -276,7 +286,18 @@ async def delete_page(page_id: str):
     """
     page_service = get_page_service()
 
-    result = page_service.delete_page(page_id)
+    from src.content_references import ContentInUseError
+
+    try:
+        result = (
+            page_service.delete_page(page_id)
+            if expected_revision is None
+            else page_service.delete_page(page_id, expected_revision=expected_revision)
+        )
+    except PageRevisionConflict as exc:
+        raise HTTPException(status_code=412, detail=str(exc)) from exc
+    except ContentInUseError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     if not result.deleted:
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
@@ -320,6 +341,12 @@ async def preview_page_import(body: PageImportRequest):
         page_data = decode_page(body.share_string)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
+    try:
+        page_create = PageCreate(**page_data)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Invalid share string — {e}") from e
+
+    _reject_plugin_strategy_when_beta_off(page_create.transition_strategy)
     return page_data
 
 
@@ -345,7 +372,7 @@ async def import_page(body: PageImportRequest):
         raise HTTPException(status_code=422, detail=str(e)) from e
 
     try:
-        page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+        page_create = PageCreate(**page_data)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Invalid share string — {e}") from e
 
@@ -411,6 +438,7 @@ async def preview_page(
 @router.post(
     "/pages/preview/batch",
     response_model=PagePreviewBatchResponse,
+    response_model_exclude_unset=True,
     responses=errors(422),
 )
 async def preview_pages_batch(request: PagePreviewBatchRequest):
@@ -425,8 +453,18 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
     A per-page render failure is reported inside ``previews`` with
     ``available: false`` — the request itself still succeeded. Only a
     malformed body (``page_ids`` that is not a list of strings) is a 422.
+
+    ``board_id`` names the board the previews are for: one whose output
+    draws a rich character set (an LED output) renders colour spans and icons
+    and answers each preview's ``cells`` (plan D19, as the template render
+    does). Omitted, unknown, or a split-flap board: unchanged.
     """
     page_ids = request.page_ids
+    board = _find_board(request.board_id) if request.board_id else None
+    charset = board_character_set(board) if board is not None else None
+    rich = has_extended_markup(charset)
+    # What the board draws, so a display-aware plugin previews as it will show.
+    display = display_profile_for_board(board) if board is not None else None
 
     page_service = get_page_service()
     settings_service = get_settings_service()
@@ -443,7 +481,10 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
         page_ids,
         force_refresh=request.force_refresh,
         active_page_id=active_page_id,
+        **({"extended_markup": True} if rich else {}),
+        **({"display": display} if display is not None else {}),
     )
+    dims = board_context_for(*geometry_of(board)) if rich else None
 
     for page_id in page_ids:
         result = batch_results.get(page_id)
@@ -460,6 +501,13 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
                 "raw": result.raw,
                 "available": True,
             }
+            if dims is not None:
+                cells = project_message(result.formatted, dims.rows, dims.cols, charset).cells
+                results[page_id]["cells"] = cells_to_json(cells) if cells is not None else None
+            if draws_pixels(display):
+                # A pixel-matrix board: the page's canvases, drawn over the cells.
+                results[page_id]["layers"] = layers_json(result.layers)
+                results[page_id]["canvas_issues"] = issues_json(result.canvas_issues)
 
     return PagePreviewBatchResponse(
         previews=results,
@@ -523,6 +571,10 @@ async def send_page(
     target: str | None = None,
     board_id: str | None = None,
     payload: PageSendRequest | None = None,
+    override_silence: bool = False,
+    force: Annotated[
+        bool, Query(deprecated=True, description="Deprecated alias of override_silence (shipped in v10.0.0-beta.26).")
+    ] = False,
 ):
     """
     Send a page to the configured target.
@@ -534,11 +586,18 @@ async def send_page(
         board_id: Optional board to send to (query param, or
             ``{"board_id": ...}`` in the JSON body). Omitted → primary
             board, legacy behavior (issue #1244).
+        override_silence: Query param. ``true`` explicitly overrides the
+            target board's silence window for this one send (issue #1943).
+            Defaults to ``false``: during silence the board is left untouched
+            (``silenced: true``), and the page is held to show when silence
+            ends when the board's schedule holds sends (``held: true``).
+            Pause is never overridden.
     """
     if target is None and payload:
         target = payload.target
     if board_id is None and payload:
         board_id = payload.board_id
+    override_silence = override_silence or force
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
 
@@ -572,8 +631,12 @@ async def send_page(
         if not page:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
-        # Render the page - always force fresh render when sending to board
-        result = page_service.preview_page(page_id, force_refresh=True)
+        # Render the page - always force fresh render when sending to board.
+        # A board whose output draws a rich character set renders it with its
+        # extended markup (plan D19); every other board's call is unchanged.
+        kw = render_kw(board_client)
+        result = page_service.preview_page(page_id, force_refresh=True, **kw)
+        pixel_board = draws_pixels(kw.get("display"))
 
         if result is None:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
@@ -589,29 +652,35 @@ async def send_page(
 
         sent_to_board = False
         paused = False
+        silenced = False
+        held = False
         if send_to_board:
             # CRITICAL: Block ALL manual sends during silence mode to prevent
-            # wake-ups — for the board this send targets (issue #1788).
-            if _silence_active(board_id):
-                logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
-                sent_to_board = False
-                # Don't raise error, just skip sending
-            elif _board_is_paused(board_id):
-                # Block when the target (or first) board is paused (issue #970).
+            # wake-ups — for the board this send targets (issue #1788) —
+            # unless the caller explicitly overrides it (#1943). The page is
+            # held as an intent when the board's schedule holds sends (#1944).
+            from src.silence_queue import HeldSend
+
+            verdict = silence_verdict(
+                board_id,
+                override_silence=override_silence,
+                hold=lambda resolved: HeldSend.page(page_id, board_id=resolved),
+                what="page send (pass override_silence=true to override)",
+            )
+            silenced, held = verdict.silenced, verdict.held
+            # Pause is evaluated (and reported) even when silence won: both
+            # flags tell the truth. It is never overridden (issue #970).
+            if _board_is_paused(board_id):
                 logger.info("Board is paused - blocking manual page send")
                 paused = True
-            else:
-                # Use page-level transitions if set, otherwise fall back to system defaults
-                system_transition = settings_service.get_transition_settings()
-                strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-                interval_ms = (
-                    page.transition_interval_ms
-                    if page.transition_interval_ms is not None
-                    else system_transition.step_interval_ms
+            if not silenced and not paused:
+                # The page's own transition where it sets one, else the target display's.
+                resolved = page_transition(
+                    settings_service.get_transition_settings(board.get("id") if board is not None else None),
+                    page,
+                    runs=lambda s: driver_runs_strategy(board_client, s),
                 )
-                step_size = (
-                    page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-                )
+                strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
                 # Size the grid to the explicit target board when given (issue
                 # #1244); otherwise keep sizing to the page's device type.
@@ -619,15 +688,18 @@ async def send_page(
                     dims = _board_dims(board)
                 else:
                     dims = resolve_dimensions(*geometry_of(page))
-                board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
+                board_array, rich = project_for_output(
+                    board_client, result.formatted, dims.rows, dims.cols, flap=text_to_board_array, layers=result.layers
+                )
                 # render() serializes concurrent senders via the client's
-                # per-board _send_lock, so worker threads can't interleave.
+                # per-board send lock, so worker threads can't interleave.
                 success, was_sent = board_client.render(
                     board_array,
                     strategy=strategy,
                     step_interval_ms=interval_ms,
                     step_size=step_size,
                     device_type=(board.get("device_type") if board is not None else page.device_type),
+                    **rich,
                 )
                 sent_to_board = was_sent
                 if not success:
@@ -644,6 +716,12 @@ async def send_page(
                     # no rule saw a routine 500 that no route declared.
                     logger.error(f"Failed to send page {page_id} to board (offline or unreachable)")
                     raise HTTPException(status_code=500, detail="Failed to send to board")
+                if was_sent and override_silence:
+                    # A newer explicit write beats a message held during silence.
+                    from src import silence_queue
+                    from src.board_guards import resolve_board_id
+
+                    silence_queue.discard(resolve_board_id(board_id))
                 if was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
                     # Adaptive post-send refresh polls the primary board only.
                     service.request_board_refresh()
@@ -653,8 +731,12 @@ async def send_page(
             message=result.formatted,
             sent_to_board=sent_to_board,
             paused=paused,
+            silenced=silenced,
+            held=held,
             target=target or settings_service.get_output_settings().target,
             board_id=board_id,
+            layers=layers_json(result.layers) if pixel_board else None,
+            canvas_issues=issues_json(result.canvas_issues) if pixel_board else None,
         )
 
     # Board network I/O goes on the dedicated bounded send pool, never the

@@ -87,7 +87,12 @@ class TestAiProviders:
             "approval_mode": "ask",
             "max_model_calls": None,
             "max_tool_calls": None,
+            "tv_chat_supported": True,
         }
+
+    def test_tv_chat_capability_is_server_owned(self, client):
+        assert client.put("/settings/ai", json={"tv_chat_supported": False}).json()["tv_chat_supported"] is True
+        assert client.get("/settings/ai").json()["tv_chat_supported"] is True
 
     def test_put_that_removes_a_signed_in_provider_forgets_its_tokens(self, client, monkeypatch):
         from src.ai import sign_in
@@ -306,11 +311,13 @@ class TestActivePage:
         # CHANGED (conventions): "status" dropped, and "warnings" is now
         # always present — it used to be omitted whenever the list was empty,
         # so "no warnings" and "this build does not report warnings" were the
-        # same payload.
+        # same payload. CHANGED (#1943): "silenced" reports a send held by the
+        # board's silence window, independently of "paused".
         assert response.json() == {
             "page_id": None,
             "sent_to_board": False,
             "paused": False,
+            "silenced": False,
             "board_id": None,
             "error": None,
             "warnings": [],
@@ -420,7 +427,7 @@ class TestPolling:
             "board_read_interval_cloud": 180,
         }
 
-    def test_put_returns_the_saved_intervals_and_the_restart_hint(self, client):
+    def test_put_returns_the_saved_intervals_applied_without_restart(self, client):
         response = client.put("/settings/polling", json={"interval_seconds": 60})
         assert response.status_code == 200
         # CHANGED (conventions, bare bodies): the settings are inlined and
@@ -430,7 +437,7 @@ class TestPolling:
             "interval_seconds": 60,
             "board_read_interval_local": 30,
             "board_read_interval_cloud": 180,
-            "requires_restart": True,
+            "requires_restart": False,
         }
 
     def test_put_without_interval_seconds_does_not_require_a_restart(self, client):
@@ -600,7 +607,7 @@ class TestBoardDetectSize:
         board_id = _primary_board_id(client)
         board_client = Mock()
         board_client.read_current_message.return_value = None
-        with patch("src.api_server.board_client_from_board_dict", return_value=board_client):
+        with patch("src.settings.routes._live_board_driver", return_value=board_client):
             response = client.post(f"/settings/board/{board_id}/detect-size")
         assert response.status_code == 422
         assert response.json() == {"detail": f"Board {board_id} returned no layout — board may be blank or unreachable"}
@@ -609,7 +616,7 @@ class TestBoardDetectSize:
         board_id = _primary_board_id(client)
         board_client = Mock()
         board_client.read_current_message.return_value = [[0] * 22 for _ in range(6)]
-        with patch("src.api_server.board_client_from_board_dict", return_value=board_client):
+        with patch("src.settings.routes._live_board_driver", return_value=board_client):
             response = client.post(f"/settings/board/{board_id}/detect-size")
         assert response.status_code == 200
         body = response.json()
@@ -711,66 +718,28 @@ class TestLocation:
 
 
 # ---------------------------------------------------------------------------
-# Beta
+# Beta (gone in settings v6)
 # ---------------------------------------------------------------------------
 
 
 class TestBeta:
-    def test_get_reports_the_settings_and_the_cert_status(self, client):
-        with (
-            patch("src.system.update_service._updater_token", return_value=""),
-            patch("src.system.update_service._updater_probe", return_value=False),
-        ):
-            body = client.get("/settings/beta").json()
-        assert body["settings"]["https_enabled"] is False
-        assert body["https"]["cert_present"] is False
-        assert body["https"]["updater_available"] is False
+    def test_get_reads_the_plugin_flags(self, client):
+        # CHANGED (settings v6): a deprecated alias (until v11) for the two
+        # flags /settings/plugins now carries; it sends a Deprecation notice.
+        # CHANGED (settings v7): output_plugins_enabled always reads true.
+        response = client.get("/settings/beta")
+        assert response.json() == {"settings": {"transition_plugins_enabled": False, "output_plugins_enabled": True}}
+        assert response.headers["Deprecation"] == "true"
 
-    def test_put_returns_the_settings_the_status_and_the_restart_hint(self, client):
-        with (
-            patch("src.system.update_service._updater_token", return_value=""),
-            patch("src.system.update_service._updater_probe", return_value=False),
-        ):
-            response = client.put("/settings/beta", json={"transition_plugins_enabled": True})
+    def test_put_returns_the_settings(self, client):
+        response = client.put("/settings/beta", json={"transition_plugins_enabled": True})
         assert response.status_code == 200
-        body = response.json()
-        # CHANGED (conventions, bare bodies): "status" dropped. There is no
-        # "cert_error" key any more either — a certificate failure is now a
-        # 500, so a 200 body never has to carry one.
-        assert body["settings"]["transition_plugins_enabled"] is True
-        assert body["restart_required"] is False
-        assert "cert_error" not in body
+        assert response.json() == {"settings": {"transition_plugins_enabled": True, "output_plugins_enabled": True}}
 
-    def test_put_enabling_https_generates_a_cert_and_asks_for_a_restart(self, client):
-        with (
-            patch("src.system.https_certs.generate_cert", return_value=("c", "k")) as generate,
-            patch("src.system.update_service._updater_token", return_value=""),
-            patch("src.system.update_service._updater_probe", return_value=False),
-        ):
-            response = client.put("/settings/beta", json={"https_enabled": True})
+    def test_put_ignores_the_retired_https_flag(self, client):
+        response = client.put("/settings/beta", json={"https_enabled": True})
         assert response.status_code == 200
-        assert generate.call_count == 1
-        assert response.json()["restart_required"] is True
-
-    def test_put_500s_when_certificate_generation_fails(self, client):
-        with (
-            patch("src.system.https_certs.generate_cert", side_effect=OSError("boom")),
-            patch("src.system.update_service._updater_token", return_value=""),
-            patch("src.system.update_service._updater_probe", return_value=False),
-        ):
-            response = client.put("/settings/beta", json={"https_enabled": True})
-        # CHANGED (conventions, no_200_on_failure): was 200 with
-        # {"status": "warning", "cert_error": "..."} — the user asked for
-        # HTTPS, did not get it, and the API answered success. The preference
-        # is still persisted before the raise (asserted below), so the next
-        # container start honours the choice.
-        assert response.status_code == 500
-        assert response.json() == {"detail": "Certificate generation failed — check the server logs for details."}
-        with (
-            patch("src.system.update_service._updater_token", return_value=""),
-            patch("src.system.update_service._updater_probe", return_value=False),
-        ):
-            assert client.get("/settings/beta").json()["settings"]["https_enabled"] is True
+        assert response.json() == {"settings": {"transition_plugins_enabled": False, "output_plugins_enabled": True}}
 
 
 # ---------------------------------------------------------------------------
@@ -782,21 +751,47 @@ class TestPluginSettings:
     def test_get_returns_the_plugin_settings(self, client):
         # CHANGED (conventions, bare bodies): the bare PluginSettings, was
         # {"settings": {...}}.
-        assert client.get("/settings/plugins").json() == {"auto_update": True}
+        # CHANGED (settings v6): carries the two flags /settings/beta had.
+        # CHANGED (settings v7): output_plugins_enabled is deprecated and
+        # always true — display plugins need no opt-in.
+        assert client.get("/settings/plugins").json() == {
+            "auto_update": True,
+            "transition_plugins_enabled": False,
+            "output_plugins_enabled": True,
+        }
 
     def test_put_returns_the_saved_plugin_settings(self, client):
         response = client.put("/settings/plugins", json={"auto_update": False})
         assert response.status_code == 200
         # CHANGED (conventions, bare bodies): the bare PluginSettings.
-        assert response.json() == {"auto_update": False}
-        assert client.get("/settings/plugins").json() == {"auto_update": False}
+        assert response.json() == {
+            "auto_update": False,
+            "transition_plugins_enabled": False,
+            "output_plugins_enabled": True,
+        }
+        assert client.get("/settings/plugins").json() == {
+            "auto_update": False,
+            "transition_plugins_enabled": False,
+            "output_plugins_enabled": True,
+        }
 
     def test_put_refuses_a_non_boolean_auto_update(self, client):
         response = client.put("/settings/plugins", json={"auto_update": "yes"})
         # CHANGED (conventions, StrictBool): was a 200 that reached
         # bool("yes") -> True and silently enabled background plugin updates.
         assert response.status_code == 422
-        assert client.get("/settings/plugins").json() == {"auto_update": True}
+        assert client.get("/settings/plugins").json()["auto_update"] is True
+
+    def test_put_toggles_a_plugin_flag(self, client):
+        # CHANGED (settings v7): toggles transition_plugins_enabled; the
+        # output flag it used to toggle is deprecated and ignored.
+        response = client.put("/settings/plugins", json={"transition_plugins_enabled": True})
+        assert response.status_code == 200
+        assert response.json() == {
+            "auto_update": True,
+            "transition_plugins_enabled": True,
+            "output_plugins_enabled": True,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -940,7 +935,7 @@ class TestAllSettings:
             "mqtt",
             "display",
             "location",
-            "beta",
+            # CHANGED (settings v6): "beta" dropped; its flags are in "plugins".
             "plugins",
             # Added when #1950 (schedule hold-on-re-enable) was ported onto
             # this trunk: the settings page reads `schedule.defer_on_reenable`
@@ -961,10 +956,51 @@ class TestAllSettings:
         assert body["mqtt"]["password"] == ""
         assert body["display"]["board_flap_speed"] == "standard"
         assert body["location"] == {"latitude": None, "longitude": None}
-        assert body["plugins"] == {"auto_update": True}
+        # CHANGED (settings v7): output_plugins_enabled is deprecated, always true.
+        assert body["plugins"] == {
+            "auto_update": True,
+            "transition_plugins_enabled": False,
+            "output_plugins_enabled": True,
+        }
         assert body["status"] == {"running": False}
         assert body["silence_schedule"]["config"]["mode"] == "freeze"
 
     def test_reflects_a_write_made_through_a_sibling_endpoint(self, client):
         client.put("/settings/output", json={"target": "both"})
         assert client.get("/settings/all").json()["output"]["target"] == "both"
+
+
+@pytest.mark.parametrize("board_scoped", [False, True])
+@pytest.mark.parametrize("enabled", [False, True])
+@pytest.mark.parametrize("field", ["start_time", "end_time"])
+@pytest.mark.parametrize("invalid", ["not-a-time", "25:99+00:00", "", "12:00+99:99", "12:00+00:60", "12:00", "12:00Z"])
+def test_silence_rejects_invalid_times_without_writing(client, board_scoped, enabled, field, invalid):
+    from src.config_manager import get_config_manager
+
+    payload = {"enabled": True, "start_time": "04:00+00:00", "end_time": "05:00+00:00"}
+    if board_scoped:
+        payload["board_id"] = _primary_board_id(client)
+    assert client.put("/settings/silence-schedule", json=payload).status_code == 200
+    manager = get_config_manager()
+    before = manager.get_all()
+
+    response = client.put("/settings/silence-schedule", json={**payload, "enabled": enabled, field: invalid})
+
+    assert response.status_code == 422, response.text
+    assert any(error["loc"] == ["body", field] for error in response.json()["detail"])
+    assert manager.get_all() == before
+
+
+@pytest.mark.parametrize("start,end", [("00:00+00:00", "23:59+00:00"), ("20:00-08:00", "14:30+05:30")])
+def test_silence_preserves_valid_offset_times(client, start, end):
+    response = client.put(
+        "/settings/silence-schedule",
+        json={
+            "enabled": False,
+            "start_time": start,
+            "end_time": end,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["config"]["start_time"] == start
+    assert response.json()["config"]["end_time"] == end

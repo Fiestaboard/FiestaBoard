@@ -1,6 +1,6 @@
 "use client";
 
-import { PageSection, ToggleCard, ToggleCardGroup } from "@fiestaboard/ui";
+import { PageSection, SegmentedControl, SegmentedControlItem } from "@fiestaboard/ui";
 import { Monitor, Moon, Sun } from "lucide-react";
 
 import { useTheme } from "@/hooks/use-theme";
@@ -32,9 +32,8 @@ export function AppearanceSettings() {
       {/* One-of-three, so a radiogroup rather than three independent
           `aria-pressed` buttons: one tab stop, arrow keys move the choice,
           and the selected tile announces its position in the set. */}
-      <ToggleCardGroup
-        columns="3"
-        align="center"
+      <SegmentedControl
+        size="md"
         value={theme}
         onValueChange={(value) => {
           if (isThemeValue(value)) setTheme(value);
@@ -43,9 +42,12 @@ export function AppearanceSettings() {
         className="max-w-sm"
       >
         {THEMES.map(({ value, Icon }) => (
-          <ToggleCard key={value} value={value} icon={<Icon className="size-5" />} title={labels[value]} />
+          <SegmentedControlItem key={value} value={value}>
+            <Icon className="size-4" aria-hidden="true" />
+            {labels[value]}
+          </SegmentedControlItem>
         ))}
-      </ToggleCardGroup>
+      </SegmentedControl>
     </PageSection>
   );
 }

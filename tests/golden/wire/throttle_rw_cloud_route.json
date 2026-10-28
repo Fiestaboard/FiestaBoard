@@ -1,0 +1,76 @@
+{
+  "scenario": "throttle_rw_cloud_route",
+  "description": "RW Cloud 15 s floor at the route: a second send 5 s later is dropped (no request) -> 429 + Retry-After.",
+  "seam": "POST /send-message (frozen floor clock)",
+  "steps": [
+    {
+      "action": "t=1000 send FIRST",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://rw.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Read-Write-Key": "test_rw_key",
+            "Content-Type": "application/json"
+          },
+          "json": [
+            [6, 9, 18, 19, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          ],
+          "timeout": [5.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "message": "Message sent successfully",
+          "sent": true
+        }
+      }
+    },
+    {
+      "action": "t=1005 send SECOND",
+      "requests": [],
+      "result": {
+        "status": 429,
+        "body": {
+          "detail": "Send skipped: the board accepts at most one message every 15s. Retry in 10s."
+        },
+        "retry_after_header": "10"
+      }
+    },
+    {
+      "action": "t=1015 send SECOND",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://rw.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Read-Write-Key": "test_rw_key",
+            "Content-Type": "application/json"
+          },
+          "json": [
+            [19, 5, 3, 15, 14, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          ],
+          "timeout": [5.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "message": "Message sent successfully",
+          "sent": true
+        }
+      }
+    }
+  ]
+}

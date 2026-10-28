@@ -161,7 +161,7 @@ def _token_expires_at_ms(token: str) -> int:
     Token layout is ``<user_b64>.<issued>.<expires>.<nonce>.<signature>``.
     """
     payload, _sig = token.rsplit(".", 1)
-    _user_b64, _issued, expires_s, _nonce = payload.split(".")
+    _version, _user_b64, _issued, expires_s, _nonce = payload.split(".")
     return int(expires_s)
 
 

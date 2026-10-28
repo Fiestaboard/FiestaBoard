@@ -1,0 +1,47 @@
+{
+  "scenario": "floor_throwaway_rw_cloud_welcome",
+  "description": "The welcome route builds its own client for the board; the floor is the device's, so 5 s after the engine's send it is throttled -> 429 + Retry-After, no request.",
+  "seam": "POST /send-message, then POST /send-welcome-message (frozen floor clock)",
+  "steps": [
+    {
+      "action": "t=1000 send FIRST",
+      "requests": [
+        {
+          "method": "POST",
+          "url": "https://rw.vestaboard.com/",
+          "headers": {
+            "X-Vestaboard-Read-Write-Key": "test_rw_key",
+            "Content-Type": "application/json"
+          },
+          "json": [
+            [6, 9, 18, 19, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          ],
+          "timeout": [5.0, 10.0]
+        }
+      ],
+      "result": {
+        "status": 200,
+        "body": {
+          "message": "Message sent successfully",
+          "sent": true
+        }
+      }
+    },
+    {
+      "action": "t=1005 send the welcome message",
+      "requests": [],
+      "result": {
+        "status": 429,
+        "body": {
+          "detail": "Send skipped: the board accepts at most one message every 15s. Retry in 10s."
+        },
+        "retry_after_header": "10"
+      }
+    }
+  ]
+}

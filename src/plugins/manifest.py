@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from src.oauth.provider import validate_provider_block
+from src.outputs.output_manifest import OutputManifest, parse_output_block
 
 from .previews import (
     MAX_PREVIEW_NOTES_PER_AXIS,
@@ -29,8 +30,24 @@ from .previews import (
     validate_previews,
     validate_teaser,
 )
+from .settings_ui import (
+    DEVICE_PICKER_UI_OPTIONS_KEYS,
+    DEVICE_PICKER_WIDGET,
+    MODE_CARDS_UI_OPTIONS_KEYS,
+    MODE_CARDS_WIDGET,
+    SECTIONS,
+    TILE_GRID_UI_OPTIONS_KEYS,
+    TILE_GRID_WIDGET,
+    VISIBLE_WHEN,
+    condition_errors,
+    sections_errors,
+    widget_errors,
+)
 
 logger = logging.getLogger(__name__)
+
+#: The plugin kinds: data sources, frame-driven transitions, and display outputs.
+PLUGIN_TYPES = ("data", "transition", "output")
 
 # Ceiling on transition_settings.max_runtime_seconds for NON-interruptible
 # transitions (#1868 review). An interruptible transition is preempted at
@@ -145,6 +162,14 @@ def parse_data_files(raw: Any) -> list[str]:
     return cleaned
 
 
+#: The core board-setup widgets (src/plugins/settings_ui.py) and their
+#: ``ui:options`` vocabularies.
+CORE_WIDGET_UI_OPTIONS_KEYS: dict[str, frozenset[str]] = {
+    MODE_CARDS_WIDGET: MODE_CARDS_UI_OPTIONS_KEYS,
+    TILE_GRID_WIDGET: TILE_GRID_UI_OPTIONS_KEYS,
+    DEVICE_PICKER_WIDGET: DEVICE_PICKER_UI_OPTIONS_KEYS,
+}
+
 # ``ui:widget`` values the settings form knows how to render. An unrecognised
 # value is a *warning*, never an error: several installed plugins declare
 # picker widgets core never implemented, and load_manifest() returns None on
@@ -152,6 +177,9 @@ def parse_data_files(raw: Any) -> list[str]:
 KNOWN_SETTINGS_WIDGETS = frozenset(
     {
         "datetime",
+        DEVICE_PICKER_WIDGET,
+        MODE_CARDS_WIDGET,
+        TILE_GRID_WIDGET,
         JSON_PATH_MAPPER_DEPRECATED_WIDGET,
         JSON_PATH_MAPPER_WIDGET,
         "page-picker",
@@ -176,7 +204,7 @@ def _ui_options_keys_for(widget: Any) -> frozenset[str] | None:
         return UI_OPTIONS_KEYS
     if widget in (JSON_PATH_MAPPER_WIDGET, JSON_PATH_MAPPER_DEPRECATED_WIDGET):
         return JSON_PATH_MAPPER_UI_OPTIONS_KEYS
-    return None
+    return CORE_WIDGET_UI_OPTIONS_KEYS.get(widget) if isinstance(widget, str) else None
 
 
 def _inject_trigger_page_id(settings_schema: dict[str, Any]) -> dict[str, Any]:
@@ -292,14 +320,22 @@ MANIFEST_SCHEMA = {
         "icon": {"type": "string", "description": "Icon name from Lucide icons"},
         "category": {
             "type": "string",
-            "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home", "transition"],
+            "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home", "transition", "output"],
             "description": "Plugin category for organization",
         },
         "plugin_type": {
             "type": "string",
-            "enum": ["data", "transition"],
+            "enum": ["data", "transition", "output"],
             "default": "data",
-            "description": "Plugin kind. 'data' (default) returns template variables; 'transition' produces frame-by-frame board animations.",
+            "description": "Plugin kind. 'data' (default) returns template variables; 'transition' produces frame-by-frame board animations; 'output' drives a display device (one instance per board).",
+        },
+        "output": {
+            "type": "object",
+            "description": (
+                "Output plugins only: the device the plugin drives -- output_api, device_models, "
+                "character_set, delivery, min_interval_ms, read_back, native_transitions and the "
+                "board settings_schema. Validated by src/outputs/output_manifest.py."
+            ),
         },
         "transition_settings": {
             "type": "object",
@@ -472,6 +508,10 @@ class VariableMetadata:
     max_length: int | None = None
     group: str = ""
     example: str = ""
+    # "text" (default): the value is data and is neutralised before it reaches
+    # the board; "markup": it passes through as markup (plan D19); "canvas": a
+    # pixel-canvas content object for a canvas source (empty text in a line).
+    format: str = "text"
 
 
 def _metadata_from_dict(meta_dict: dict[str, Any]) -> VariableMetadata:
@@ -481,6 +521,7 @@ def _metadata_from_dict(meta_dict: dict[str, Any]) -> VariableMetadata:
         max_length=meta_dict.get("max_length"),
         group=meta_dict.get("group", ""),
         example=meta_dict.get("example", ""),
+        format=meta_dict.get("format", "text"),
     )
 
 
@@ -516,6 +557,11 @@ class DemoPageSchema:
     device_type: str = "flagship"
     line_metadata: list[dict[str, Any]] | None = None
     duration_seconds: int = 300
+    #: Pixel canvases for the demo page, as page JSON (validated when the page
+    #: is created). Areas may run past the grid's edge: they are clamped to
+    #: the board the page renders on, so ``{"row": 1, "col": 1, "rows": 96,
+    #: "cols": 128}`` is "the whole board" on every size.
+    canvases: list[dict[str, Any]] | None = None
 
 
 @dataclass
@@ -649,8 +695,11 @@ class PluginManifest:
     demo: dict[str, DemoPageSchema] | None = None  # keyed by device_type
     teaser: str = ""
     previews: list[BoardPreview] = field(default_factory=list)
-    plugin_type: str = "data"  # "data" or "transition"
+    plugin_type: str = "data"  # "data", "transition" or "output"
     transition_settings: dict[str, Any] = field(default_factory=dict)
+    # The parsed ``output`` block of an output plugin, its $ref files
+    # resolved (load_manifest() fills it; see src/outputs/output_manifest.py).
+    output: OutputManifest | None = None
     # Data files the plugin must be able to read, relative to its own
     # directory. Declared so an install can be rejected before the plugin
     # ever runs, rather than serving "???" for every variable. See
@@ -759,6 +808,7 @@ class PluginManifest:
                     device_type=demo_raw.get("device_type", "flagship"),
                     line_metadata=demo_raw.get("line_metadata"),
                     duration_seconds=demo_raw.get("duration_seconds", 300),
+                    canvases=demo_raw.get("canvases"),
                 )
                 demo = {schema.device_type: schema}
             else:
@@ -772,6 +822,7 @@ class PluginManifest:
                             device_type=dt,
                             line_metadata=entry.get("line_metadata"),
                             duration_seconds=entry.get("duration_seconds", 300),
+                            canvases=entry.get("canvases"),
                         )
                 if not demo:
                     demo = None
@@ -840,6 +891,7 @@ class PluginManifest:
             "supports_triggers": self.supports_triggers,
             "plugin_type": self.plugin_type,
             "transition_settings": self.transition_settings,
+            **({"output": self.raw.get("output")} if self.plugin_type == "output" else {}),
             "screenshots": [
                 {
                     "src": s.src,
@@ -871,6 +923,8 @@ class PluginManifest:
                     "max_length": m.max_length,
                     "group": m.group,
                     "example": m.example,
+                    # Only when set, so existing manifests serialise as before.
+                    **({"format": m.format} if m.format != "text" else {}),
                 }
                 for name, m in self.variables.metadata.items()
             }
@@ -1060,8 +1114,19 @@ def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
     for warning in settings_schema_ui_warnings(settings_schema):
         logger.warning("%s", warning)
 
+    if SECTIONS in settings_schema:
+        errors.extend(sections_errors(settings_schema[SECTIONS], root_properties))
+
     for field_path, prop, siblings in _iter_settings_fields(settings_schema):
         widget = prop.get("ui:widget")
+        if VISIBLE_WHEN in prop:
+            errors.extend(
+                f"settings_schema.{field_path}: ui:visible_when {problem}"
+                for problem in condition_errors(prop[VISIBLE_WHEN], siblings)
+            )
+        if widget in CORE_WIDGET_UI_OPTIONS_KEYS:
+            errors.extend(widget_errors(field_path, prop, siblings, settings_schema))
+            continue
         if widget in (JSON_PATH_MAPPER_WIDGET, JSON_PATH_MAPPER_DEPRECATED_WIDGET):
             errors.extend(_json_path_mapper_errors(field_path, prop))
             continue
@@ -1180,6 +1245,65 @@ def _validate_item_fields(item_fields: Any, path: str) -> list[str]:
     return [f"{path}.item_fields must be an array of strings or an object"]
 
 
+#: Values a variable's ``format`` may take. ``text`` (the default): the value
+#: is data, and any brace that is not a base-grammar tile is neutralised.
+#: ``markup``: the value passes through as markup (plan D19, rule 2).
+#: ``canvas``: the value is a pixel-canvas content object (a dict) for a
+#: canvas ``source`` (``docs/internal/reference/PIXEL_CANVAS.md``); a canvas
+#: reads it natively, and a template line draws it as empty text.
+VARIABLE_FORMATS = ("text", "markup", "canvas")
+
+
+def reserved_plugin_id_error(plugin_id: str) -> str | None:
+    """An error if *plugin_id* is one the template grammar reserves (plan D19)."""
+    from src.markup import RESERVED_PLUGIN_IDS
+
+    if plugin_id in RESERVED_PLUGIN_IDS:
+        return (
+            f"Plugin id '{plugin_id}' is reserved: colour names, tile codes 63-71 and 'icon' "
+            "are template markup ({{red:HOT}}, {{icon:sun}})"
+        )
+    return None
+
+
+def variable_format_errors(variables: Any) -> list[str]:
+    """Errors for any variable metadata whose ``format`` is not a known value.
+
+    Walks ``variables.simple`` (dict form) and every array's and sub-array's
+    ``item_fields`` (dict form).
+    """
+    if not isinstance(variables, dict):
+        return []
+    found: list[tuple[str, Any]] = []
+
+    def collect(fields: Any, path: str) -> None:
+        if isinstance(fields, dict):
+            for name, meta in fields.items():
+                if isinstance(meta, dict) and "format" in meta:
+                    found.append((f"{path}.{name}", meta["format"]))
+
+    collect(variables.get("simple"), "variables.simple")
+    arrays = variables.get("arrays")
+    if isinstance(arrays, dict):
+        for array_name, schema in arrays.items():
+            if not isinstance(schema, dict):
+                continue
+            collect(schema.get("item_fields"), f"variables.arrays.{array_name}.item_fields")
+            subs = schema.get("sub_arrays")
+            if isinstance(subs, dict):
+                for sub_name, sub in subs.items():
+                    if isinstance(sub, dict):
+                        collect(
+                            sub.get("item_fields"),
+                            f"variables.arrays.{array_name}.sub_arrays.{sub_name}.item_fields",
+                        )
+    return [
+        f"{path}.format must be one of {', '.join(VARIABLE_FORMATS)}, got {value!r}"
+        for path, value in found
+        if value not in VARIABLE_FORMATS
+    ]
+
+
 def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
     """Validate a manifest dictionary against the schema.
 
@@ -1207,6 +1331,8 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
         errors.append("Plugin id must start with a lowercase letter")
     elif not all(c.islower() or c.isdigit() or c == "_" for c in plugin_id):
         errors.append("Plugin id must contain only lowercase letters, numbers, and underscores")
+    elif reserved := reserved_plugin_id_error(plugin_id):
+        errors.append(reserved)
 
     # Validate version format
     version = data.get("version", "")
@@ -1248,6 +1374,7 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
             simple = variables.get("simple", [])
             if not isinstance(simple, list | dict):
                 errors.append("variables.simple must be an array or object")
+            errors.extend(variable_format_errors(variables))
 
             # Validate groups if present
             groups = variables.get("groups", {})
@@ -1290,8 +1417,25 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
 
     # Validate plugin_type if present
     plugin_type = data.get("plugin_type", "data")
-    if plugin_type not in ("data", "transition"):
-        errors.append(f"plugin_type must be 'data' or 'transition', got '{plugin_type}'")
+    if plugin_type not in PLUGIN_TYPES:
+        errors.append(f"plugin_type must be one of {list(PLUGIN_TYPES)}, got '{plugin_type}'")
+
+    # The output block belongs to output plugins, and every output plugin has
+    # one. Its $ref files are checked by load_manifest(), which knows the
+    # plugin directory; here the shape and every inline object are.
+    if plugin_type == "output":
+        if "output" not in data:
+            errors.append("output plugins require an 'output' block (output_api, device_models, ...)")
+        else:
+            _, output_errors = parse_output_block(
+                data["output"], base_dir=None, data_files=parse_data_files(data.get("data_files"))
+            )
+            errors.extend(output_errors)
+        for key in ("variables", "transition_settings", "supports_triggers", "demo", "color_rules_schema"):
+            if data.get(key):
+                errors.append(f"{key} is not supported for output plugins — they display content, not produce it")
+    elif "output" in data:
+        errors.append("output is only supported for output plugins (plugin_type 'output')")
 
     # Validate transition_settings if present
     transition_settings = data.get("transition_settings")
@@ -1373,6 +1517,8 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
     if "oauth" in data:
         if data.get("plugin_type", "data") == "transition":
             errors.append("oauth is not supported for transition plugins — they fetch no data")
+        elif data.get("plugin_type", "data") == "output":
+            errors.append("oauth is not supported for output plugins yet — sign-in per board is a later contract")
         else:
             errors.extend(validate_provider_block(data["oauth"], data.get("settings_schema")))
 
@@ -1383,17 +1529,18 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
     # that has not yet adopted them from loading at all. Absence means "not
     # migrated"; only malformed values are errors. The authoring lane enforces
     # presence via validate_preview_completeness().
-    is_transition = data.get("plugin_type", "data") == "transition"
+    # Transitions and outputs have no board content of their own to preview.
+    no_content = data.get("plugin_type") if data.get("plugin_type") in ("transition", "output") else None
 
     if "teaser" in data:
-        if is_transition:
-            errors.append("teaser is not supported for transition plugins — they have no board content to preview")
+        if no_content:
+            errors.append(f"teaser is not supported for {no_content} plugins — they have no board content to preview")
         else:
             errors.extend(validate_teaser(data["teaser"]))
 
     if "previews" in data:
-        if is_transition:
-            errors.append("previews is not supported for transition plugins — they have no board content to preview")
+        if no_content:
+            errors.append(f"previews is not supported for {no_content} plugins — they have no board content to preview")
         else:
             errors.extend(validate_previews(data["previews"]))
 
@@ -1409,12 +1556,12 @@ def validate_preview_completeness(data: dict[str, Any]) -> list[str]:
     registry, or shipped in this repo, is expected to carry both so the docs site
     can render it without a screenshot.
 
-    Transition plugins are exempt: they have no data to display, and their whole
-    purpose is animation, which previews deliberately do not render.
+    Transition and output plugins are exempt: they have no data to display —
+    a transition animates, an output shows other plugins' content.
 
     Returns a list of human-readable errors (empty when complete).
     """
-    if data.get("plugin_type", "data") == "transition":
+    if data.get("plugin_type", "data") in ("transition", "output"):
         return []
 
     errors: list[str] = []
@@ -1454,6 +1601,17 @@ def load_manifest(manifest_path: Path) -> tuple[PluginManifest | None, list[str]
     # Parse
     try:
         manifest = PluginManifest.from_dict(data)
-        return manifest, []
     except Exception as e:
         return None, [f"Failed to parse manifest: {e}"]
+
+    # An output plugin's block, its $ref files read from the plugin's own
+    # directory. Any error refuses the load (fail closed): a device described
+    # wrongly is a board that draws the wrong thing.
+    if manifest.plugin_type == "output":
+        output, output_errors = parse_output_block(
+            data["output"], base_dir=manifest_path.parent, data_files=manifest.data_files
+        )
+        if output_errors or output is None:
+            return None, output_errors or ["output block could not be resolved"]
+        manifest.output = output
+    return manifest, []

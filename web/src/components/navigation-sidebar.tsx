@@ -2,7 +2,7 @@
 
 import { BoardSelector, Sidebar, type SidebarLinkProps, type SidebarNavItem } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Award, Calendar, FileText, FlaskConical, GalleryHorizontalEnd, HelpCircle, Home, Puzzle } from "lucide-react";
+import { Award, Calendar, FileText, GalleryHorizontalEnd, HelpCircle, Home, Monitor, Puzzle } from "lucide-react";
 
 import { useCurrentBoard } from "@/components/current-board-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
@@ -24,17 +24,17 @@ interface NavItemDef {
   external?: boolean;
 }
 
+// Displays sits right under Home: the hardware is what everything else is
+// for, so it leads the places you set up, ahead of what goes on it.
 const primaryItems: NavItemDef[] = [
   { key: "home", href: "/", icon: Home },
+  // Every board and screen FiestaBoard shows on (plan D21).
+  { key: "displays", href: "/displays", icon: Monitor },
   { key: "pages", href: "/pages", icon: FileText },
   { key: "collections", href: "/collections", icon: GalleryHorizontalEnd },
   { key: "schedule", href: "/schedule", icon: Calendar },
   { key: "integrations", href: "/integrations", icon: Puzzle },
 ];
-
-// Shown only while the transition-plugins beta flag is on (see
-// `showTransitionsLab` below) — the whole feature is invisible otherwise.
-const transitionsLabItem: NavItemDef = { key: "transitions", href: "/transitions", icon: FlaskConical };
 
 // Settings is NOT here. It lives in the footer twice over — a gear beside the
 // assistant (`settings` below) and an item of the account menu, which is also
@@ -47,7 +47,7 @@ const secondaryItems: NavItemDef[] = [
 
 /**
  * App wiring around the design system's presentational <Sidebar> — routes,
- * i18n labels, board context, collapse persistence and AI/beta feature flags
+ * i18n labels, board context, collapse persistence and the AI feature flag
  * all live here; every pixel lives in @fiestaboard/ui.
  */
 export function NavigationSidebar() {
@@ -71,19 +71,11 @@ export function NavigationSidebar() {
   });
   const hasAiProviders = (aiSettings?.enabled ?? false) && (aiSettings?.providers?.length ?? 0) > 0;
 
-  const { data: betaData } = useQuery({
-    queryKey: ["settings", "beta"],
-    queryFn: () => api.getBetaSettings(),
-    enabled: !chromeless,
-  });
-  const showTransitionsLab = betaData?.settings.transition_plugins_enabled ?? false;
-
   // Decided here, once, because `menuNotice` is one prop for both
   // breakpoints: the Sidebar hands it back to the rail's account trigger and
   // puts it on the mobile hamburger itself. The "Update to X.Y.Z" item was
   // always in the menu; nothing on the closed button said to open it.
   const updateAvailable = useAvailableUpdate({ enabled: !chromeless });
-  const navPrimaryItems = showTransitionsLab ? [...primaryItems, transitionsLabItem] : primaryItems;
 
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't
   // navigating anywhere until they sign in) and the FiestaPanel TV viewer
@@ -131,7 +123,7 @@ export function NavigationSidebar() {
       // One flat list, in reading order. `primaryItems`/`secondaryItems` are
       // deprecated in @fiestaboard/ui and expressed a split the rail stopped
       // rendering several releases ago.
-      items={[...navPrimaryItems, ...secondaryItems].map(toNavItem)}
+      items={[...primaryItems, ...secondaryItems].map(toNavItem)}
       renderLink={renderLink}
       collapsed={collapsed}
       transitioning={transitioning}
@@ -172,8 +164,11 @@ export function NavigationSidebar() {
       // not the rail's dropdown. Dropping it here is what shipped the desktop
       // shape to mobile.
       // `notice` is `menuNotice` coming back; forwarded, not recomputed.
-      renderSettingsMenu={({ variant, collapsed: isCollapsed, notice }) => (
-        <SidebarSettingsMenu variant={variant} collapsed={isCollapsed} notice={notice} />
+      // `closeMenu` closes the mobile drawer. Its own nav rows do that
+      // themselves; the rows this menu renders into its footer cannot, and
+      // without it Settings navigated underneath a drawer that stayed open.
+      renderSettingsMenu={({ variant, collapsed: isCollapsed, notice, closeMenu }) => (
+        <SidebarSettingsMenu variant={variant} collapsed={isCollapsed} notice={notice} onSelect={closeMenu} />
       )}
       menuNotice={updateAvailable ? tMenu("updateAvailable") : undefined}
       maxWidth={MAX_APP_WIDTH}

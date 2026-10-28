@@ -6,7 +6,7 @@
 # ============================================================
 
 # --- Stage 1: Build Python dependencies ---
-FROM python:3.14-slim AS python-builder
+FROM python:3.15-slim AS python-builder
 
 WORKDIR /app
 
@@ -64,7 +64,7 @@ RUN --mount=type=cache,target=/app/node_modules/.vite \
 # --- Stage 3: Shared runtime base (API + static UI + nginx) ---
 # This stage holds everything common to production and dev. The concrete
 # `runtime` (production) and `runtime-dev` stages below both build FROM it.
-FROM python:3.14-slim AS runtime-base
+FROM python:3.15-slim AS runtime-base
 
 ARG VERSION=dev
 ENV VERSION=${VERSION}
@@ -93,12 +93,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gosu \
     network-manager \
     nginx \
-    openssl \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages from builder
-COPY --from=python-builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
+COPY --from=python-builder /usr/local/lib/python3.15/site-packages /usr/local/lib/python3.15/site-packages
 COPY --from=python-builder /usr/local/bin /usr/local/bin
 
 # Copy application code (API)
@@ -110,6 +109,22 @@ COPY plugin-registry.json ./plugin-registry.json
 # Rendered board previews for registry plugins that aren't installed, so the
 # marketplace can show a plugin's board before you install it.
 COPY plugin-previews.json ./plugin-previews.json
+
+# The output seed (plan D8): first-party output plugins at the commits pinned
+# in outputs.lock.json, fetched HERE at build time — FiestaBoard never fetches
+# them at runtime. Vestaboard and FiestaPanel load straight from it (their
+# code lives only here: src/outputs/first_party.py), and a board's other
+# seeded output plugin installs from it offline. The script verifies each
+# commit and tree digest and fails the build on a mismatch; the app checks the
+# digest again whenever it loads one. Bytecode is compiled into each tree's
+# __pycache__ (outside the digest) so the read-only seed imports fast.
+# The seed lives outside /app (whose ownership moves to appuser below) and is
+# made read-only: the app reads and copies from it, never writes to it.
+COPY outputs.lock.json ./outputs.lock.json
+COPY scripts/seed_outputs.py ./scripts/seed_outputs.py
+RUN python scripts/seed_outputs.py build --lock outputs.lock.json --dest /opt/fiestaboard/seed/outputs \
+    && (python -m compileall -q /opt/fiestaboard/seed/outputs || true) \
+    && chmod -R a-w /opt/fiestaboard/seed
 
 # Precompile the Python sources into the image (issue #1955).
 #
@@ -135,10 +150,8 @@ RUN python -m compileall -q /app/src /app/plugins || true
 COPY --from=ui-builder /app/build/client /app/web/build/client
 COPY --from=ui-builder /app/public /app/web/public
 
-# Copy nginx configuration (default HTTP) and the alternate HTTPS template.
+# Copy nginx configuration.
 COPY nginx.conf /etc/nginx/nginx.conf
-COPY nginx.conf /app/nginx.http.conf
-COPY nginx.https.conf /app/nginx.https.conf
 
 # Copy "please wait" static page served by nginx while the API is starting up
 RUN mkdir -p /app/static

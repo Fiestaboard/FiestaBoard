@@ -204,7 +204,7 @@ Restart the container after making changes.
 
 **In FiestaBoard:**
 
-- Go to **Settings → Home Assistant (MQTT)**
+- Go to **Settings → General → Home Assistant (MQTT)**
 - The status should show **MQTT Connected**
 
 **In Home Assistant:**

@@ -14,6 +14,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, StrictBool, StrictInt, model_validator
 
+from src.canvas.schemas import CanvasLayerModel
+
 #: Highest valid flap code. 0-71 covers blank, the alphabet, digits,
 #: punctuation and the eight colour tiles.
 MAX_CHARACTER_CODE = 71
@@ -44,6 +46,32 @@ class BoardSummary(BaseModel):
     is_primary: bool = Field(description='True for the board that the alias "primary" resolves to.')
     paused: bool = Field(description="While true, FiestaBoard writes nothing to this board from any code path.")
     schedule_enabled: bool = Field(description="Whether this board follows its schedule rather than a fixed page.")
+    auto_restore: bool = Field(
+        description=(
+            "Whether FiestaBoard puts this board's content back when another app overwrites it. "
+            "Detected by reading the board back, or by a device that reports another client wrote it."
+        ),
+    )
+    output: str = Field(
+        description=(
+            'The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" '
+            "(a FiestaPanel TV). More outputs may appear as they are installed."
+        )
+    )
+    device_model: str | None = Field(
+        default=None,
+        description=(
+            'The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). '
+            "Null when it is not known (a FiestaPanel, for now)."
+        ),
+    )
+    charset: str | None = Field(
+        default=None,
+        description=(
+            'The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). '
+            "Null when it is not known."
+        ),
+    )
 
 
 class BoardListResponse(BaseModel):
@@ -113,6 +141,14 @@ class BoardDetail(BoardSummary):
         default=None,
         description="When the active timed message expires (ISO 8601), or null if none is running.",
     )
+    layers: list[CanvasLayerModel] | None = Field(
+        default=None,
+        description=(
+            "A pixel-matrix board only: the page's pixel canvases on the frame it shows, drawn over "
+            "``characters`` (``{x, y, width, height, rgba}``, rgba base64 RGBA; ``[]`` for none). Null on any "
+            "other board."
+        ),
+    )
 
 
 class BoardUpdate(BaseModel):
@@ -126,6 +162,13 @@ class BoardUpdate(BaseModel):
     schedule_enabled: StrictBool | None = Field(
         default=None,
         description="Turn this board's schedule on or off.",
+    )
+    auto_restore: StrictBool | None = Field(
+        default=None,
+        description=(
+            "Turn off to let another app keep this board after it overwrites FiestaBoard's content; "
+            "on (the default) puts the content back."
+        ),
     )
     default_page_id: str | None = Field(
         default=None,
@@ -205,11 +248,21 @@ class MessageRequest(BaseModel):
     )
     transition: TransitionOverride | None = Field(
         default=None,
-        description="Override the install's transition animation for this one send.",
+        description="Override the board's own transition animation for this one send.",
     )
     force: StrictBool = Field(
         default=False,
-        description="Send even when the board already shows this exact content, which is normally skipped.",
+        description=(
+            "Send even when the board already shows this exact content, which is normally skipped. "
+            "Does not override silence; that is `override_silence`."
+        ),
+    )
+    override_silence: StrictBool = Field(
+        default=False,
+        description=(
+            "Write even while the board is silenced. Default false: a silenced board answers 409, or 202 with "
+            "`held: true` when its silence schedule holds messages until silence ends. Never overrides pause."
+        ),
     )
     if_paused: IfPaused = Field(
         default="reject",
@@ -263,6 +316,47 @@ class MessageResponse(BaseModel):
         default=None,
         description="Why nothing was written, when sent is false. Null when sent is true.",
     )
+    silenced: bool = Field(
+        default=False,
+        description="True when the board's silence window kept this write off the board.",
+    )
+    held: bool = Field(
+        default=False,
+        description="True when the write is held and will be shown when silence ends (HTTP 202).",
+    )
+
+
+class FailedRegion(BaseModel):
+    """A rectangle of flaps that did not take a write, in board cells (0-based)."""
+
+    row: int = Field(description="First row of the rectangle.")
+    col: int = Field(description="First column of the rectangle.")
+    rows: int = Field(description="Height in rows.")
+    cols: int = Field(description="Width in columns.")
+
+
+class PartialWriteDetail(BaseModel):
+    """Why a write left the board half-updated."""
+
+    message: str = Field(description="What happened, in a sentence a person can act on.")
+    partial: Literal[True] = Field(
+        description="Always true: part of the board shows the new content and part still shows the old."
+    )
+    failed_regions: list[FailedRegion] = Field(
+        description="The cells that did not update — for a local note array, each failed Note's 3×15 tile."
+    )
+
+
+class PartialWriteError(BaseModel):
+    """The 502 a board write answers when only part of the board updated.
+
+    A local note array is several devices; one tile can fail while the rest
+    take their slice. That is neither a success nor a write that changed
+    nothing, so the body says exactly which cells did not update. Sending
+    the same content again retries only those.
+    """
+
+    detail: PartialWriteDetail
 
 
 class ActivePageRequest(BaseModel):
@@ -270,6 +364,13 @@ class ActivePageRequest(BaseModel):
 
     page_id: str | None = Field(
         description="Page or collection to pin to this board. Send null to unpin and fall back to the schedule.",
+    )
+    override_silence: StrictBool = Field(
+        default=False,
+        description=(
+            "Show the page now even while the board is silenced. Default false: the page is pinned and appears "
+            "when silence ends."
+        ),
     )
 
 
@@ -279,6 +380,14 @@ class ActivePageResponse(BaseModel):
     board_id: str
     page_id: str | None = Field(description="What is now pinned. Null means nothing is.")
     sent: bool = Field(description="Whether the new page reached the board immediately.")
+    silenced: bool = Field(
+        default=False,
+        description="True when the board's silence window held the immediate send. The page shows when it ends.",
+    )
+    reason: str | None = Field(
+        default=None,
+        description="Why nothing was written although nothing failed (e.g. silence). Null when sent is true.",
+    )
     error: str | None = Field(
         default=None,
         description=(
@@ -289,6 +398,37 @@ class ActivePageResponse(BaseModel):
     warnings: list[str] = Field(
         default_factory=list,
         description="Non-fatal problems, e.g. collection members that do not fit this board.",
+    )
+
+
+class RestoreResponse(BaseModel):
+    """The result of restoring what a board should show (#2354).
+
+    Three different things, kept apart on purpose: what FiestaBoard intends
+    the board to show (``page_id``), whether that was written (``sent``), and
+    what the device actually displays — which no supported board reports back,
+    so ``device_observed`` is always false.
+    """
+
+    board_id: str = Field(description="The board, with the 'primary' alias already resolved.")
+    page_id: str | None = Field(
+        default=None,
+        description=(
+            "The page pinned to this board, if any. A schedule or timed message may take precedence over it; "
+            "restore shows whichever the display loop would."
+        ),
+    )
+    sent: bool = Field(description="True when the board accepted the write. Not proof of what it displays.")
+    reason: str | None = Field(
+        default=None,
+        description="Why nothing was written, when sent is false. Null when sent is true.",
+    )
+    device_observed: bool = Field(
+        default=False,
+        description=(
+            "Always false: no supported board can read back what it displays, so a successful restore confirms "
+            "the write was accepted, not that the pixels or flaps changed."
+        ),
     )
 
 

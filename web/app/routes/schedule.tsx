@@ -75,6 +75,7 @@ import {
   type SilenceMode,
 } from "@/lib/api";
 import { extractTimeFromDate, getDayNameFromDate, type ResolvedSilenceSchedule } from "@/lib/schedule-calendar";
+import { resolveSilenceConfig } from "@/lib/silence-config";
 import { utcToLocalTime } from "@/lib/timezone-utils";
 import { cn } from "@/lib/utils";
 
@@ -167,6 +168,7 @@ export default function SchedulePage() {
   const [showForm, setShowForm] = useState(urlPrefill !== null);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEntry | null>(null);
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null);
+  const deleteRevision = useRef<string | undefined>(undefined);
 
   // Board selection is shared app-wide via the sidebar selector so Schedule and
   // Dashboard stay in sync and the choice persists across reloads (#1248).
@@ -267,9 +269,10 @@ export default function SchedulePage() {
     queryFn: api.getAllSettings,
   });
 
+  const timezone = allSettings?.general?.timezone ?? "America/Los_Angeles";
   const resolvedSilenceSchedule = useMemo<ResolvedSilenceSchedule | null>(() => {
-    const config = allSettings?.silence_schedule?.config;
-    const timezone = allSettings?.general?.timezone ?? "America/Los_Angeles";
+    // Silence settings are board-scoped even for single-board installs.
+    const config = resolveSilenceConfig(allSettings?.silence_schedule?.config, currentBoardId || undefined);
     if (!config || !config.start_time || !config.end_time) return null;
     const startLocal = utcToLocalTime(config.start_time, timezone);
     const endLocal = utcToLocalTime(config.end_time, timezone);
@@ -284,10 +287,10 @@ export default function SchedulePage() {
       indicatorText: config.indicator_text ?? null,
       pageId: config.page_id ?? null,
     };
-  }, [allSettings]);
+  }, [allSettings, currentBoardId, timezone]);
 
   const handleSilenceClick = useCallback(() => {
-    router.push("/settings?section=behavior#silence-schedule");
+    router.push("/settings?section=scheduling#silence-schedule");
   }, [router]);
 
   // Toggle schedule (per board when multi-board)
@@ -344,7 +347,8 @@ export default function SchedulePage() {
 
   // Delete schedule
   const deleteSchedule = useMutation({
-    mutationFn: (id: string) => api.deleteSchedule(id),
+    mutationFn: (id: string) =>
+      deleteRevision.current ? api.deleteSchedule(id, deleteRevision.current) : api.deleteSchedule(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
@@ -353,14 +357,22 @@ export default function SchedulePage() {
       toast.success(t("toastDeleted"));
       setDeleteScheduleId(null);
     },
-    onError: () => {
-      toast.error(t("toastDeleteFailed"));
+    onError: (error: Error) => {
+      toast.error(error.message || t("toastDeleteFailed"));
     },
   });
 
   // Set default page (per board when multi-board)
   const setDefaultPage = useMutation({
-    mutationFn: (pageId: string | null) => api.setDefaultPage(pageId, effectiveBoardId || undefined),
+    mutationFn: (pageId: string | null) => {
+      const revision =
+        schedulesData?.default_page_edit_protocol === "schedule-default-revision-v1"
+          ? schedulesData.default_page_revision
+          : undefined;
+      return revision
+        ? api.setDefaultPage(pageId, effectiveBoardId || undefined, revision)
+        : api.setDefaultPage(pageId, effectiveBoardId || undefined);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
@@ -368,14 +380,22 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(t("toastDefaultPageUpdated"));
     },
-    onError: () => {
-      toast.error(t("toastDefaultPageFailed"));
+    onError: (error: Error) => {
+      toast.error(error.message || t("toastDefaultPageFailed"));
     },
   });
 
   const handleSubmit = async (data: ScheduleCreate | ScheduleUpdate) => {
     if (editingSchedule) {
-      await updateSchedule.mutateAsync({ id: editingSchedule.id, data });
+      await updateSchedule.mutateAsync({
+        id: editingSchedule.id,
+        data: {
+          ...data,
+          ...(editingSchedule.edit_protocol === "schedule-revision-v1" && editingSchedule.revision
+            ? { expected_revision: editingSchedule.revision }
+            : {}),
+        },
+      });
     } else {
       await createSchedule.mutateAsync(data as ScheduleCreate);
     }
@@ -387,12 +407,18 @@ export default function SchedulePage() {
     setShowForm(true);
   }, []);
 
-  const handleDelete = useCallback((id: string) => {
-    setDeleteScheduleId(id);
-  }, []);
+  const handleDelete = useCallback(
+    (id: string) => {
+      const schedule = schedulesData?.schedules.find((entry) => entry.id === id);
+      deleteRevision.current = schedule?.edit_protocol === "schedule-revision-v1" ? schedule.revision : undefined;
+      setDeleteScheduleId(id);
+    },
+    [schedulesData],
+  );
 
   const toggleScheduleEnabled = useMutation({
-    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => api.updateSchedule(id, { enabled }),
+    mutationFn: ({ id, enabled, revision }: { id: string; enabled: boolean; revision?: string }) =>
+      api.updateSchedule(id, { enabled, ...(revision ? { expected_revision: revision } : {}) }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
@@ -400,14 +426,18 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(variables.enabled ? t("toastEntryEnabled") : t("toastEntryDisabled"));
     },
-    onError: () => {
-      toast.error(t("toastUpdateFailed"));
+    onError: (error: Error) => {
+      toast.error(error.message || t("toastUpdateFailed"));
     },
   });
 
   const handleToggleEnabled = useCallback(
     (schedule: ScheduleEntry, enabled: boolean) => {
-      toggleScheduleEnabled.mutate({ id: schedule.id, enabled });
+      toggleScheduleEnabled.mutate({
+        id: schedule.id,
+        enabled,
+        revision: schedule.edit_protocol === "schedule-revision-v1" ? schedule.revision : undefined,
+      });
     },
     [toggleScheduleEnabled],
   );
@@ -519,7 +549,7 @@ export default function SchedulePage() {
             // header chrome on mobile so the calendar isn't squeezed.
             isCalendarMode && "py-2 sm:py-4 mb-2 sm:mb-5",
           )}
-          description={t("descriptionWithTimezone", { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })}
+          description={t("descriptionWithTimezone", { timezone })}
         />
 
         {/* ── Compact toolbar: everything in one row ── */}
@@ -840,6 +870,8 @@ export default function SchedulePage() {
                 editingSchedule
                   ? () => {
                       const id = editingSchedule.id;
+                      deleteRevision.current =
+                        editingSchedule.edit_protocol === "schedule-revision-v1" ? editingSchedule.revision : undefined;
                       handleCloseForm();
                       setDeleteScheduleId(id);
                     }

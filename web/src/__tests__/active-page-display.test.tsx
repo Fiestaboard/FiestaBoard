@@ -181,7 +181,7 @@ describe("ActivePageDisplay", () => {
 
     // Collection name links to the collections editor.
     const collectionLink = screen.getByRole("link", { name: /Edit collection "Test Collection"/i });
-    expect(collectionLink).toHaveAttribute("href", "/collections");
+    expect(collectionLink).toHaveAttribute("href", "/collections/collection%3Atest-collection-id");
 
     // The member page the collection is currently rendering links to its editor.
     const pageLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
@@ -443,12 +443,12 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Board was changed by another app")).toBeInTheDocument();
+      expect(screen.getByText("Another app changed this board")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Restore/i })).toBeInTheDocument();
     });
   });
 
-  it("calls force-refresh and shows success toast when Restore is clicked", async () => {
+  it("restores the primary board and shows a success toast when Restore is clicked", async () => {
     const toastSpy = vi.spyOn((await import("sonner")).toast, "success");
     const differentChars = Array.from({ length: 6 }, () => Array(22).fill(1));
     const expectedChars = Array.from({ length: 6 }, () => Array(22).fill(2));
@@ -463,6 +463,9 @@ describe("ActivePageDisplay", () => {
           cached_at: null,
           api_mode: "local",
         }),
+      ),
+      http.post(`${API_BASE}/v1/boards/primary/restore`, () =>
+        HttpResponse.json({ board_id: "b1", page_id: null, sent: true, reason: null, device_observed: false }),
       ),
     );
 
@@ -480,6 +483,41 @@ describe("ActivePageDisplay", () => {
     });
 
     toastSpy.mockRestore();
+  });
+
+  it("does not hide the banner or claim success when restore reports sent=false", async () => {
+    const successSpy = vi.spyOn((await import("sonner")).toast, "success");
+    const warningSpy = vi.spyOn((await import("sonner")).toast, "warning");
+    server.use(
+      http.get(`${API_BASE}/board/current-message`, () =>
+        HttpResponse.json({
+          characters: Array.from({ length: 6 }, () => Array(22).fill(1)),
+          message: "",
+          rows: 6,
+          cols: 22,
+          expected_characters: Array.from({ length: 6 }, () => Array(22).fill(2)),
+          cached_at: null,
+          api_mode: "local",
+        }),
+      ),
+      http.post(`${API_BASE}/v1/boards/primary/restore`, () =>
+        HttpResponse.json({ board_id: "b1", page_id: null, sent: false, reason: "x", device_observed: false }),
+      ),
+    );
+
+    const user = userEvent.setup();
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: /Restore/i }));
+
+    await waitFor(() => {
+      expect(warningSpy).toHaveBeenCalledWith("Nothing was sent to the display");
+    });
+    expect(successSpy).not.toHaveBeenCalledWith("Board restored");
+    expect(screen.getByText("Another app changed this board")).toBeInTheDocument();
+
+    successSpy.mockRestore();
+    warningSpy.mockRestore();
   });
 
   it("saves the externally set board content as a new template page", async () => {
@@ -522,9 +560,11 @@ describe("ActivePageDisplay", () => {
       type: "template",
       template: ["HI{{red}}", "", "", "", "", ""],
     });
-    expect(String(createdBody!.name)).toMatch(/^Saved from board /);
+    expect(String(createdBody!.name)).toMatch(/^From board /);
     await waitFor(() => {
-      expect(toastSpy).toHaveBeenCalledWith(expect.stringMatching(/^Saved ".*" as a page$/));
+      expect(toastSpy).toHaveBeenCalledWith(expect.stringMatching(/^Saved “From board .*” as a page$/), {
+        action: expect.objectContaining({ label: "Open" }),
+      });
     });
 
     toastSpy.mockRestore();

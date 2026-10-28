@@ -2,22 +2,24 @@
  * FiestaPanel settings-flow E2E.
  *
  * Covers the app-side lifecycle the viewer spec (panel.spec.ts) doesn't:
- *  - Creating a panel from Settings → Hardware and how its virtual board
- *    then appears in "Your Boards" — the FiestaPanel badge, never the
- *    red "Not configured" credentials prompt (the reported bug).
+ *  - Creating a panel from Displays → Add a display and how its virtual
+ *    board then appears — the FiestaPanel badge, never the red "Not
+ *    configured" credentials prompt (the reported bug).
  *  - The virtual board card offering no credential/type controls and
  *    refusing removal while the panel exists (409 from the API too).
  *  - Editing the TV size: the board grid re-fits and the public frame
  *    endpoint never serves a stale-shaped frame afterwards.
- *  - Deleting the panel removes its virtual board card.
+ *  - Deleting the panel (from its display's page) removes its display.
  */
 import {
   API_URL,
   authHeaders,
   configureBoard,
+  displayCard,
   ensureAuthForFetch,
   expect,
-  openSettingsTab,
+  openDisplay,
+  openDisplays,
   resetToSingleBoard,
   suppressWizard,
   test,
@@ -73,30 +75,32 @@ test.describe("FiestaPanel settings flow", () => {
   });
 
   test("creating a panel shows a FiestaPanel board card, never 'Not configured'", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await openSettingsTab(page, "Hardware");
+    await openDisplays(page);
+    await page.getByRole("button", { name: "Add a display" }).click();
+    await page.getByRole("radio", { name: /FiestaPanel/ }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await page.getByLabel("TV name").fill("E2E Wall TV");
+    await page.getByLabel(/Screen size/).fill("55");
+    await page.getByRole("button", { name: "Create TV board" }).click();
 
-    await page.getByRole("button", { name: "Create panel" }).click();
-    await page.getByLabel("Panel name").fill("E2E Wall TV");
-    await page.getByRole("button", { name: '55"' }).click();
-    await page.getByRole("button", { name: "Create", exact: true }).click();
+    // The new display's page opens, its panel's controls (viewer URL, QR,
+    // TV size) on it.
+    await expect(page).toHaveURL(/\/displays\/[^/]+$/, { timeout: 15_000 });
+    await page.getByRole("tab", { name: "Settings", exact: true }).click();
+    const panel = page.getByTestId("display-panel-settings");
+    await expect(panel.getByText("E2E Wall TV", { exact: true })).toBeVisible({ timeout: 10_000 });
 
-    // Panel row appears in the FiestaPanel section with its viewer URL.
-    await expect(page.getByText("E2E Wall TV", { exact: true })).toBeVisible({ timeout: 10_000 });
-
-    // Its virtual board shows up under "Your Boards" with the FiestaPanel
-    // badge — the reported bug rendered this as a red "Not configured"
-    // card asking for API credentials.
+    // Its virtual board shows the FiestaPanel badge — the reported bug
+    // rendered this as a red "Not configured" card asking for API
+    // credentials.
     const card = page.locator('[data-testid="board-card"]', { hasText: "E2E Wall TV (Panel)" });
     await expect(card).toBeVisible({ timeout: 10_000 });
     await expect(card.getByTestId("board-virtual-badge")).toBeVisible();
     await expect(card.getByText("Not configured")).toHaveCount(0);
 
-    // Expand the card: no credentials form, no API-mode toggle, no type
-    // selector — just the virtual-board explanation, and Remove is blocked
-    // while the panel exists.
-    await card.getByText("E2E Wall TV (Panel)").click();
+    // No credentials form, no API-mode toggle, no type selector — just the
+    // virtual-board explanation, and Remove is blocked while the panel
+    // exists.
     await expect(card.getByTestId("virtual-board-hint")).toBeVisible();
     await expect(card.getByRole("radio", { name: /Local API/ })).toHaveCount(0);
     await expect(card.getByText("Cloud API Token")).toHaveCount(0);
@@ -120,9 +124,7 @@ test.describe("FiestaPanel settings flow", () => {
     const panel = await createPanelViaApi("E2E Resize TV", 43);
     await driveBoard(panel.board_id, ["BEFORE RESIZE", "", ""]);
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await openSettingsTab(page, "Hardware");
+    await openDisplay(page, "E2E Resize TV (Panel)");
     await expect(page.getByText("E2E Resize TV", { exact: true })).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("button", { name: "Edit panel" }).click();
@@ -159,20 +161,49 @@ test.describe("FiestaPanel settings flow", () => {
     expect(refreshed.message).toContain("AFTER RESIZE");
   });
 
-  test("deleting a panel removes its virtual board card", async ({ page }) => {
+  test("converts a legacy LED panel with the server preview and an explicit content-copy choice", async ({ page }) => {
+    const panel = await createPanelViaApi("E2E LED Layout");
+    const switched = await fetch(`${API_URL}/panels/${panel.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ render_style: "led_matrix", matrix_layout: "legacy" }),
+    });
+    expect(switched.ok).toBe(true);
+    await openDisplay(page, "E2E LED Layout (Panel)");
+    await page.getByRole("button", { name: "Edit panel" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("button", { name: "Keep existing grid" })).toHaveAttribute("aria-pressed", "true");
+    await dialog.getByRole("button", { name: "Fit screen shape" }).click();
+    await expect(dialog.getByText("32 × 13 characters", { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "Small (3 × 5)" }).click();
+    await expect(dialog.getByText("48 × 18 characters", { exact: true })).toBeVisible();
+    await expect(dialog.locator('[data-slot="led-matrix-display"]')).toHaveAttribute("data-matrix-height", "108");
+    await expect(dialog.getByRole("checkbox", { name: "Copy this panel’s content to the new grid" })).not.toBeChecked();
+    await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    const config = await (await fetch(`${API_URL}/panel/${panel.id}`)).json();
+    expect(config).toMatchObject({
+      rows: 18,
+      cols: 48,
+      matrix_layout: "screen",
+      matrix_font: "3x5",
+      matrix_sizing: "fill_tv",
+    });
+    expect(config.device_model_spec.geometry).toMatchObject({ width: 192, height: 108 });
+    expect(config.device_model_spec.charset).toBe("led_3x5");
+  });
+
+  test("deleting a panel removes its display", async ({ page }) => {
     await createPanelViaApi("E2E Doomed Panel");
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await openSettingsTab(page, "Hardware");
-
-    const card = page.locator('[data-testid="board-card"]', { hasText: "E2E Doomed Panel (Panel)" });
-    await expect(card).toBeVisible({ timeout: 10_000 });
+    const card = await openDisplay(page, "E2E Doomed Panel (Panel)");
+    await expect(card).toContainText("E2E Doomed Panel (Panel)");
 
     await page.getByRole("button", { name: "Delete panel" }).click();
     await page.getByRole("button", { name: "Delete", exact: true }).click();
 
-    await expect(page.getByText("E2E Doomed Panel", { exact: true })).toHaveCount(0, { timeout: 10_000 });
-    await expect(card).toHaveCount(0);
+    // Back on Displays, without it.
+    await expect(page).toHaveURL(/\/displays$/, { timeout: 10_000 });
+    await expect(displayCard(page, "E2E Doomed Panel (Panel)")).toHaveCount(0, { timeout: 10_000 });
   });
 });

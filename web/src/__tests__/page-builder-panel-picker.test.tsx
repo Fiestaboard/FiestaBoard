@@ -245,6 +245,9 @@ describe("PageBuilder size picker — FiestaPanels", () => {
         expect.anything(),
         expect.anything(),
         { rows: 12, cols: 29 },
+        // The board the page is checked against (A26): none here — no
+        // configured board is a 12 × 29 panel, so no charset is borrowed.
+        null,
       ),
     );
   });
@@ -264,7 +267,7 @@ describe("PageBuilder size picker — FiestaPanels", () => {
 
     await openSizePicker(user);
     await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
-    await screen.findByText("12 × 29");
+    expect(await screen.findByRole("img", { name: "12 rows by 29 columns, Panel" })).toHaveTextContent("12 × 29");
 
     // 6 × 22 → 12 × 29 grows on both axes, so no confirmation gate.
     await user.click(screen.getByRole("button", { name: "Save Page" }));

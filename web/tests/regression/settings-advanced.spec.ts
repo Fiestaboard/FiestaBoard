@@ -19,22 +19,22 @@ test.describe("regression: settings.advanced", () => {
    * Route: /settings (Advanced tab)
    * Expected (missing from current coverage):
    *   - log-level Select exercised
-   *   - BetaSettings beta-channel toggle tested
    *   - download-diagnostics action clicked
    * See also: web/tests/settings.spec.ts:59; settings-full.spec.ts:259,281
    * Coverage status: partial
    *
    * Implementation note: the coverage doc references a few controls that
-   * don't (currently) live on this tab — the Advanced tab today hosts
-   * `DebugSettings` (collapsible) and `BetaSettings` (HTTPS toggle). This
-   * test exercises what is actually rendered: the Debug Tools collapsible
-   * with its Fill-Board character Select, and the Beta HTTPS toggle. If
+   * don't (currently) live on this tab — the Advanced tab today hosts only
+   * `DebugSettings` (collapsible). The Beta card is gone (settings v6): the
+   * transition plugins switch moved to each display's Transition section,
+   * the output plugins switch to the Integrations page, and HTTPS (Beta)
+   * was removed in settings v5. This test exercises what is actually
+   * rendered: the Debug Tools collapsible with its Fill-Board character
+   * Select, and that no beta switch is left here. If
    * the missing controls (log-level / download-diagnostics) are added
    * later, extend this test rather than create a new one.
    */
-  test("settings.tab-advanced — debug collapsible, fill-board select, and beta HTTPS toggle render", async ({
-    page,
-  }) => {
+  test("settings.tab-advanced — debug collapsible and fill-board select render, no beta toggles", async ({ page }) => {
     await page.goto("/settings?section=advanced");
 
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
@@ -43,14 +43,11 @@ test.describe("regression: settings.advanced", () => {
     // but click it defensively in case the default falls back.
     await page.getByRole("tab", { name: "Advanced", exact: true }).click();
 
-    // Beta Settings — HTTPS toggle is the load-bearing control on this tab.
-    const httpsSwitch = page.getByRole("switch", { name: /https/i });
-    await expect(httpsSwitch).toBeVisible({ timeout: 10_000 });
-    // State-distinguishing assertion: the switch reports an aria-checked
-    // value (true|false), not undefined. Confirms it's bound to data, not
-    // stuck loading.
-    const checked = await httpsSwitch.getAttribute("aria-checked");
-    expect(checked === "true" || checked === "false").toBe(true);
+    // Advanced = Debug only (settings v6): no beta switch is left here.
+    await expect(page.getByText("Debug Tools").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("switch", { name: "Transition Plugins" })).toHaveCount(0);
+    await expect(page.getByRole("switch", { name: /output plugins/i })).toHaveCount(0);
+    await expect(page.getByRole("switch", { name: /https/i })).toHaveCount(0);
 
     // Debug Tools collapsible — expand it and verify the Fill-Board
     // Select (the only Select on this tab) is exercisable.

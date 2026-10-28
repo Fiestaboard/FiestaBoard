@@ -291,14 +291,14 @@ class TestDeclaredVocabularies:
         [
             ("AddBoardRequest", "device_type", ["flagship", "note", "note_array"]),
             # "panel" (FiestaPanel's per-character grid) renders, previews and
-            # overrides like any shape; it is not hardware, so the two
-            # hardware surfaces (AddBoardRequest, DetectBoardSizeResponse)
-            # do not publish it.
+            # overrides like any shape. Detection also reports configured
+            # plugin/virtual grids; only legacy hardware creation omits it.
             ("TemplateRenderRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
             ("TemplateRenderLiveRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
             ("TemporaryOverrideRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
-            ("TransitionPreviewRequest", "device_type", ["flagship", "note", "note_array", "panel"]),
-            ("DetectBoardSizeResponse", "device_type", ["flagship", "note", "note_array"]),
+            # CHANGED: output-aware detection reports configured plugin/panel geometry.
+            ("DetectBoardSizeResponse", "device_type", ["flagship", "note", "note_array", "panel"]),
+            ("DetectBoardSizeResponse", "source", ["detected", "configured"]),
             ("PageSendRequest", "target", ["ui", "board", "both"]),
             ("OutputSettingsUpdate", "target", ["ui", "board", "both"]),
             ("BoardConfigUpdate", "api_mode", ["local", "cloud", "virtual"]),
@@ -387,14 +387,14 @@ class TestVocabulariesAreEnforcedNotJustDocumented:
     def test_silence_schedule_rejects_an_unknown_mode(self, client):
         response = client.put(
             "/settings/silence-schedule",
-            json={"enabled": True, "start_time": "22:00", "end_time": "07:00", "mode": "bogus"},
+            json={"enabled": True, "start_time": "22:00+00:00", "end_time": "07:00+00:00", "mode": "bogus"},
         )
         assert response.status_code == 422
 
     def test_silence_schedule_still_accepts_indicator(self, client):
         response = client.put(
             "/settings/silence-schedule",
-            json={"enabled": True, "start_time": "22:00", "end_time": "07:00", "mode": "indicator"},
+            json={"enabled": True, "start_time": "22:00+00:00", "end_time": "07:00+00:00", "mode": "indicator"},
         )
         assert response.status_code == 200
         assert response.json()["config"]["mode"] == "indicator"
@@ -424,24 +424,6 @@ class TestVocabulariesAreEnforcedNotJustDocumented:
         assert response.status_code == 200
         assert response.json()["target"] == "ui"
 
-    def test_transition_preview_still_400s_on_an_unknown_device_type(self, client):
-        """NOT re-pinned, for the same reason plus a recorded one.
-
-        ``src/transitions/models.py`` states outright that its request models
-        keep the endpoints' own 400s rather than letting Pydantic widen them
-        into 422s. Publishing the vocabulary does not overturn that.
-        """
-        client.put("/settings/beta", json={"transition_plugins_enabled": True})
-        response = client.post(
-            "/transitions/preview",
-            json={"plugin_id": "nope", "device_type": "bogus"},
-        )
-        # 404 (unknown plugin) is checked before device_type; the point is
-        # simply that Pydantic did not reject the body first.
-        assert response.status_code in (400, 404)
-        assert "detail" in response.json()
-        assert isinstance(response.json()["detail"], str)
-
 
 # ---------------------------------------------------------------------------
 # 4. The 422 the /settings router declared had an empty schema
@@ -451,7 +433,6 @@ class TestVocabulariesAreEnforcedNotJustDocumented:
 SEVEN_STRAGGLERS = [
     ("put", "/settings/mqtt"),
     ("put", "/settings/ai"),
-    ("put", "/settings/beta"),
     ("post", "/settings/temporary-override"),
     ("post", "/settings/board/{board_id}/pause"),
     ("post", "/settings/board/{board_id}/detect-size"),

@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
+import { useBoardSettings } from "@/hooks/use-board";
 import { api } from "@/lib/api";
 import type { PanelTarget } from "@/lib/panel-page-fit";
-import { panelTargets } from "@/lib/panel-page-fit";
+import { displayTargets, panelTargets } from "@/lib/panel-page-fit";
 
 /**
  * The one panel-list cache key. DisplaySettings and FiestaPanelSettings import
@@ -30,4 +31,21 @@ export function usePanelTargets(): PanelTarget[] {
     staleTime: 60_000,
   });
   return useMemo(() => panelTargets(data?.panels), [data?.panels]);
+}
+
+/**
+ * Every display a page can be sized to: the FiestaPanels, then every other
+ * board with a custom character grid (an output plugin's, such as an LED
+ * matrix) — see `displayTargets`. Read from the same cached panel list and
+ * board settings the rest of the app uses; an install with neither gets an
+ * empty array and renders exactly as before.
+ */
+export function useDisplayTargets(): PanelTarget[] {
+  const { data } = useQuery({
+    queryKey: PANELS_QUERY_KEY,
+    queryFn: () => api.listPanels(),
+    staleTime: 60_000,
+  });
+  const { data: boardSettings } = useBoardSettings();
+  return useMemo(() => displayTargets(data?.panels, boardSettings?.boards), [data?.panels, boardSettings?.boards]);
 }

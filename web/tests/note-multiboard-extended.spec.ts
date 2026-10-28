@@ -27,7 +27,7 @@ import {
   expect,
   MOCK_BOARD_PORT,
   MOCK_BOARD_PORT_2,
-  openSettingsTab,
+  openDisplays,
   resetToSingleBoard,
   suppressWizard,
   test,
@@ -236,15 +236,12 @@ test.describe("Multi-Board — One Board Offline", () => {
       body: JSON.stringify({ boards: updatedBoards }),
     });
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    await openDisplays(page);
 
-    await openSettingsTab(page, "Hardware");
-
-    // Both board cards should still render (offline one may show error badge).
-    // Boards are rendered as Collapsible elements with data-testid="board-card".
+    // Both display cards should still render (offline one may show error badge).
+    // Displays are rendered as cards with data-testid="display-card".
     // Wait for board data to load (populated from an async fetch after heading renders).
-    const boardCards = page.locator("[data-testid='board-card']");
+    const boardCards = page.locator("[data-testid='display-card']");
     await expect(boardCards.first()).toBeVisible({ timeout: 10_000 });
     const count = await boardCards.count();
     // At minimum one card; with two boards at least two
@@ -447,10 +444,10 @@ test.describe("Note UI — Display Rendering", () => {
     }
   });
 
-  test("pages list shows Note tab when Note pages exist", async ({ page }) => {
-    // The Note tab is only shown when the board config has multiple device types.
-    // Ensure we have both a flagship board and a note board configured.
-    await ensureTwoBoards();
+  test("pages list can filter for a configured Note display", async ({ page }) => {
+    const { board2Id } = await ensureTwoBoards();
+    const settings = await (await fetch(`${API_URL}/settings/board`)).json();
+    const note = settings.boards.find((board: { id: string }) => board.id === board2Id);
 
     // Create both a flagship and a note page
     await createPage("Flagship Page", ["LINE 1", "LINE 2", "LINE 3", "LINE 4", "LINE 5", "LINE 6"]);
@@ -459,8 +456,11 @@ test.describe("Note UI — Display Rendering", () => {
     await page.goto("/pages");
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Note tab should appear when a Note board is configured alongside a Flagship board
-    const noteTab = page.getByRole("tab", { name: "Note" });
-    await expect(noteTab).toBeVisible({ timeout: 10_000 });
+    const filter = page.getByRole("combobox", { name: "Display filter" });
+    await filter.click();
+    await page.getByRole("option", { name: note.name, exact: true }).click();
+    await expect(filter).toHaveText(note.name);
+    await expect(page.getByText("Note Page", { exact: true })).toBeVisible();
+    await expect(page.getByText("Flagship Page", { exact: true })).toBeHidden();
   });
 });

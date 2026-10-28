@@ -32,6 +32,7 @@ import ipaddress
 import logging
 import re
 import socket
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import HTTPException
@@ -156,6 +157,169 @@ def _silence_active(board_id: str | None = None) -> bool:
             logger.debug("Could not resolve primary board for silence check: %s", e)
             resolved = None
     return Config.is_silence_mode_active(resolved)
+
+
+# ---------------------------------------------------------------------------
+# Silence verdict — "may this write wake the board?" (issues #1943, #1944)
+#
+# Every write surface (the active-page PUTs, v1 message, /send-message, MCP,
+# MQTT, page/display sends, live render) asks the same question the same way,
+# so the copy, the logging and the hold-until-silence-ends queue cannot drift.
+# ---------------------------------------------------------------------------
+
+#: The bare 409 detail for a write silence refused.
+SILENCE_DETAIL = "Manual sends are blocked while the board is silenced."
+#: Appended to :data:`SILENCE_DETAIL` only on routes that accept the override.
+SILENCE_OVERRIDE_HINT = (
+    " Send override_silence=true to write anyway, or turn on show_queued_on_exit to hold it until silence ends."
+)
+
+
+def resolve_board_id(board_id: str | None) -> str | None:
+    """*board_id*, or the primary board's id when it is ``None``. Never raises."""
+    if board_id is not None:
+        return board_id
+    try:
+        primary = get_settings_service().get_primary_board_id()
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("Could not resolve primary board: %s", e)
+        return None
+    return primary if isinstance(primary, str) and primary else None
+
+
+@dataclass(frozen=True)
+class SilenceTiming:
+    """Where one board's silence window stands right now."""
+
+    active: bool
+    #: ``HH:MM+00:00`` of the next active/inactive boundary.
+    next_change_utc: str
+    #: Wall-clock seconds to that boundary; ``None`` when silence is disabled.
+    seconds_until_next_change: int | None
+    #: ISO-8601 instant of that boundary (now + seconds); ``None`` when disabled.
+    next_change_at: str | None
+
+
+def silence_timing(silence_config: dict) -> SilenceTiming:
+    """Resolve a board's silence window against the clock.
+
+    The one copy of the arithmetic ``GET /silence-status`` reports and every
+    "silenced until 7:00" message quotes, so the UI and the API never
+    disagree about when the window ends.
+    """
+    from datetime import timedelta
+
+    from src.time_service import get_time_service
+
+    time_service = get_time_service()
+    enabled = bool(silence_config.get("enabled"))
+    start_time = silence_config.get("start_time")
+    end_time = silence_config.get("end_time")
+    active = time_service.is_time_in_window(start_time, end_time) if enabled else False
+    next_change_utc = end_time if active else start_time
+    seconds: int | None = None
+    at: str | None = None
+    if enabled:
+        current_utc = time_service.get_current_utc()
+        next_change_dt = time_service.parse_iso_time(next_change_utc)
+        if next_change_dt is not None:
+            delta_seconds = int((next_change_dt - current_utc).total_seconds())
+            # next_change_dt is anchored to "today" in UTC, so a negative value
+            # means the boundary already passed today and will recur tomorrow.
+            if delta_seconds < 0:
+                delta_seconds += 86_400
+            seconds = delta_seconds
+            at = (current_utc + timedelta(seconds=delta_seconds)).isoformat()
+    return SilenceTiming(
+        active=active, next_change_utc=next_change_utc, seconds_until_next_change=seconds, next_change_at=at
+    )
+
+
+def silence_window_end(board_id: str | None) -> str | None:
+    """ISO-8601 instant the board's current silence window ends, or ``None``.
+
+    ``None`` when the board is not silenced or the window cannot be resolved.
+    Never raises: a message that cannot name the time still says the rest.
+    """
+    try:
+        timing = silence_timing(Config.silence_config_for(resolve_board_id(board_id)))
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("Could not resolve the silence window end: %s", e)
+        return None
+    return timing.next_change_at if timing.active else None
+
+
+def silence_ends_hhmm(ends_at_utc: str | None) -> str:
+    """``HH:MM`` (UTC) of an :func:`silence_window_end` instant, for API copy."""
+    if ends_at_utc:
+        from datetime import datetime
+
+        try:
+            return datetime.fromisoformat(ends_at_utc).strftime("%H:%M")
+        except ValueError:
+            pass
+    return "the end of the window"
+
+
+@dataclass(frozen=True)
+class SilenceVerdict:
+    """What silence says about one write."""
+
+    silenced: bool
+    held: bool = False
+    ends_at_utc: str | None = None
+
+    @property
+    def ends_hhmm(self) -> str:
+        return silence_ends_hhmm(self.ends_at_utc)
+
+
+def silence_verdict(
+    board_id: str | None,
+    *,
+    override_silence: bool,
+    hold: Any = None,
+    what: str | None = None,
+) -> SilenceVerdict:
+    """Decide whether silence blocks a write to *board_id* (primary when ``None``).
+
+    * ``override_silence`` true — the caller explicitly asked to wake the
+      board: never silenced. Pause is NOT this function's business; every
+      caller checks it afterwards and it is never overridden.
+    * Otherwise, when the board's window is active the write is silenced. If
+      the caller offered a :class:`~src.silence_queue.HeldSend` (or a
+      callable building one from the resolved board id) and the board's
+      resolved ``show_queued_on_exit`` is on, it is held for delivery when
+      the window ends (``held``).
+
+    One log line per outcome, naming the board and the end of the window.
+    """
+    if override_silence:
+        return SilenceVerdict(silenced=False)
+    if not _silence_active(board_id):
+        return SilenceVerdict(silenced=False)
+
+    resolved = resolve_board_id(board_id)
+    ends_at = silence_window_end(resolved)
+    kind = what or (getattr(hold, "kind", None) and f"{hold.kind} send") or "manual send"
+    holds = False
+    try:
+        holds = Config.silence_config_for(resolved).get("show_queued_on_exit") is True
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("Could not resolve show_queued_on_exit: %s", e)
+    if callable(hold) and resolved:
+        # A factory: the caller did not resolve "the primary board" itself.
+        hold = hold(resolved)
+    if hold is not None and not callable(hold) and holds:
+        from src import silence_queue
+
+        silence_queue.hold(hold)
+        logger.info("Silence active - holding %s for board %s until %s", kind, resolved, silence_ends_hhmm(ends_at))
+        return SilenceVerdict(silenced=True, held=True, ends_at_utc=ends_at)
+    logger.info(
+        "Silence active - refusing %s for board %s (pass override_silence=true to write anyway)", kind, resolved
+    )
+    return SilenceVerdict(silenced=True, held=False, ends_at_utc=ends_at)
 
 
 # ---------------------------------------------------------------------------

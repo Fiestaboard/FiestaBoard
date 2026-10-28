@@ -184,6 +184,46 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
     );
   });
 
+  it.each(["board-1", "board-2"])(
+    "opening and switching away from unpinned %s does not persist a page",
+    async (selectedBoard) => {
+      const puts: unknown[] = [];
+      useTwoBoards();
+      server.use(
+        http.get(`${API_BASE}/settings/active-page`, () => HttpResponse.json({ page_id: null })),
+        http.put(`${API_BASE}/settings/active-page`, async ({ request }) => {
+          puts.push(await request.json());
+          return HttpResponse.json({ status: "success", sent_to_board: true });
+        }),
+      );
+      localStorage.setItem("fiestaboard_current_board", selectedBoard);
+      const otherBoard = selectedBoard === "board-1" ? "board-2" : "board-1";
+      const user = userEvent.setup();
+      render(
+        <>
+          <ActivePageDisplay />
+          <SwitchBoardButton to={otherBoard} />
+        </>,
+        { wrapper: TestWrapper },
+      );
+
+      await screen.findByTestId("active-display-board-name");
+      await user.click(screen.getByRole("button", { name: /Change Page/i }));
+      await screen.findByText("Custom Template");
+      expect(puts).toEqual([]);
+      await user.keyboard("{Escape}");
+      await user.click(screen.getByRole("button", { name: `switch-board-${otherBoard}` }));
+      await waitFor(() =>
+        expect(screen.getByTestId("active-display-board-name")).toHaveTextContent(
+          otherBoard === "board-1" ? "Showing Living Room" : "Showing Kitchen",
+        ),
+      );
+      await user.click(screen.getByRole("button", { name: /Change Page/i }));
+      await screen.findByText("Custom Template");
+      expect(puts).toEqual([]);
+    },
+  );
+
   it("Change Page sets the active page for the selected board only", async () => {
     let putBody: { page_id?: string | null; board_id?: string } | null = null;
     useTwoBoards();

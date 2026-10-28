@@ -1,1 +1,1 @@
-"""System management: self-update service + routes, HTTPS certs, mDNS discovery."""
+"""System management: self-update service + routes, mDNS discovery."""

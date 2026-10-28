@@ -10,12 +10,12 @@ as before and hands the finished send to the worker as a :class:`SendJob`.
 Queue discipline is **latest-wins**: a worker holds at most ONE pending job,
 and a new submission replaces it — the board should always end up showing the
 newest frame, never play back a backlog of stale ones. The job that is
-*currently executing* is preempted through the existing client machinery: the
-service signals the client's ``_cancel_transition`` event at enqueue time
-(mirroring what ``render()`` itself does first-thing), so an in-flight
-interruptible transition winds down promptly and the worker picks up the
-replacement. Per-board serialization is unchanged — every send still funnels
-through the client's ``_send_lock`` inside ``render()``.
+*currently executing* is preempted through the board's
+:class:`~src.outputs.OutputRuntime`: the service signals its cancel token at
+enqueue time (mirroring what ``render()`` itself does first-thing), so an
+in-flight interruptible transition winds down promptly and the worker picks up
+the replacement. Per-board serialization is unchanged — every send still
+funnels through the runtime's send lock inside ``render()``.
 
 A job replaced while still pending never runs; its waiters are adopted by the
 replacement so a caller in ``wait=True`` mode (the ``*_with_status`` API

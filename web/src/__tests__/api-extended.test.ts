@@ -25,6 +25,37 @@ describe("API Extended Tests", () => {
       );
       await expect(api.getConfig()).rejects.toThrow("API error: 404 Not Found");
     });
+
+    // A structured detail — e.g. the 502 a partial board write answers:
+    // {"detail": {"message", "partial", "failed_regions"}} — must read as its
+    // message, not as raw JSON shown to the user.
+    it("reads the message out of an object detail", async () => {
+      server.use(
+        http.get(`${API_BASE}/v1/status`, () =>
+          HttpResponse.json(
+            {
+              detail: {
+                message: "Only part of the board was written",
+                partial: true,
+                failed_regions: [{ row: 0, col: 1, rows: 3, cols: 15 }],
+              },
+            },
+            { status: 502 },
+          ),
+        ),
+      );
+      await expect(api.getStatus()).rejects.toMatchObject({
+        message: "Only part of the board was written",
+        status: 502,
+      });
+    });
+
+    it("serializes an object detail that carries no message", async () => {
+      server.use(
+        http.get(`${API_BASE}/v1/status`, () => HttpResponse.json({ detail: { reason: "busy" } }, { status: 409 })),
+      );
+      await expect(api.getStatus()).rejects.toMatchObject({ message: '{"reason":"busy"}', status: 409 });
+    });
   });
 
   describe("generateAiPage error handling", () => {
@@ -178,6 +209,18 @@ describe("API Extended Tests", () => {
       const result = await api.deletePage("page-1");
       // The envelope's "status" is gone; the deleted id is the contract now.
       expect(result.id).toBe("page-1");
+    });
+
+    it("deletePage sends the revision as a query precondition", async () => {
+      let revision: string | null = null;
+      server.use(
+        http.delete(`${API_BASE}/v1/pages/:id`, ({ request }) => {
+          revision = new URL(request.url).searchParams.get("expected_revision");
+          return HttpResponse.json({ id: "page-1" });
+        }),
+      );
+      await api.deletePage("page-1", "loaded revision/1");
+      expect(revision).toBe("loaded revision/1");
     });
 
     it("previewPage sends POST", async () => {

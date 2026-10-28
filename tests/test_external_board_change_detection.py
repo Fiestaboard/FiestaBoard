@@ -8,7 +8,7 @@ out-of-band so MQTT/Home Assistant stops reporting the stale page —
 mirroring what the web UI already shows from the same cache.
 
 Clearing the flag stays with the engine's own page sends: a read that
-matches ``_last_characters`` only proves the board shows whatever we
+matches the runtime's dedupe cache only proves the board shows whatever we
 last wrote (which may itself be an out-of-band manual message), so the
 poll never clears the flag.
 """
@@ -21,11 +21,17 @@ SENT = [[1, 2, 3]]
 EXTERNAL = [[7, 7, 7]]
 
 
+def _sent(svc, characters):
+    """FiestaBoard sent *characters*: the board runtime's frame cache records it."""
+    svc._primary_runtime().output.frames.record_sent(characters)
+
+
 def _make_service(last_chars):
     svc = DisplayService()
     client = Mock()
-    client._last_characters = last_chars
     svc.vb_client = client
+    if last_chars is not None:
+        _sent(svc, last_chars)
     return svc, client
 
 
@@ -72,7 +78,7 @@ class TestExternalChangeDetection:
         client.read_current_message.return_value = EXTERNAL
 
         svc._poll_board_state_once()
-        client._last_characters = new_sent  # engine sent between polls
+        _sent(svc, new_sent)  # engine sent between polls
         svc._poll_board_state_once()
 
         assert svc.is_showing_out_of_band() is False
@@ -128,7 +134,7 @@ class TestExternalChangeDetection:
 
         def read_and_race():
             # A concurrent send replaces the baseline mid-read.
-            client._last_characters = new_sent
+            _sent(svc, new_sent)
             return SENT  # the read reflects the pre-send board
 
         client.read_current_message.side_effect = read_and_race
@@ -149,3 +155,33 @@ class TestExternalChangeDetection:
         svc._poll_board_state_once()
 
         assert svc.is_showing_out_of_band() is True
+
+
+class TestPausedBoardIsNotPolled:
+    """A paused board is hands-off (issue #970): the state poll must not
+    reach for its hardware either — it may be unplugged in a box."""
+
+    def test_poll_skips_a_paused_primary_board(self, monkeypatch):
+        svc, client = _make_service(SENT)
+        client.read_current_message.return_value = EXTERNAL
+        settings = Mock()
+        settings.get_primary_board_id.return_value = "b1"
+        settings.is_paused.return_value = True
+        monkeypatch.setattr("src.main.get_settings_service", lambda: settings)
+
+        svc._poll_board_state_once()
+
+        client.read_current_message.assert_not_called()
+        settings.is_paused.assert_called_with(board_id="b1")
+
+    def test_poll_reads_an_unpaused_primary_board(self, monkeypatch):
+        svc, client = _make_service(SENT)
+        client.read_current_message.return_value = SENT
+        settings = Mock()
+        settings.get_primary_board_id.return_value = "b1"
+        settings.is_paused.return_value = False
+        monkeypatch.setattr("src.main.get_settings_service", lambda: settings)
+
+        svc._poll_board_state_once()
+
+        client.read_current_message.assert_called()

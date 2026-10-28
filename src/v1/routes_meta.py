@@ -158,8 +158,9 @@ async def health() -> HealthResponse:
     summary="Read the display loop's state, board by board",
     description=(
         "What the instance is doing: whether the display loop is running, a summary of the resolved configuration, "
-        "and per board whether it has a working connection, whether it is paused, which page it is showing, and "
-        "why it failed to start if it did."
+        "and per board whether it has a working connection, whether it is paused, which page it is showing, "
+        "why it failed to start if it did, and its output's summary of its connection settings "
+        "(`output_status`: connected or not_configured)."
     ),
 )
 async def status() -> StatusResponse:

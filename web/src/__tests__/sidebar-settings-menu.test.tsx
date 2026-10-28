@@ -68,7 +68,7 @@ function mockAuth(payload: typeof SIGNED_IN | typeof AUTH_OFF) {
 async function openMenu(user: ReturnType<typeof userEvent.setup>) {
   const trigger = document.querySelector<HTMLElement>('[data-slot="sidebar-account-trigger"]')!;
   await user.click(trigger);
-  return await screen.findByRole("menu");
+  return await screen.findByRole("dialog", { name: "Account menu" });
 }
 
 describe("SidebarSettingsMenu trigger", () => {
@@ -149,6 +149,30 @@ describe("SidebarSettingsMenu contents", () => {
     expect(within(menu).getAllByText("Settings")).toHaveLength(1);
   });
 
+  it("opens account settings directly", async () => {
+    const user = userEvent.setup();
+    mockAuth(SIGNED_IN);
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+    const popup = await openMenu(user);
+    await user.click(within(popup).getByRole("button", { name: "Account" }));
+    expect(pushMock).toHaveBeenCalledWith("/settings?section=account");
+  });
+
+  it("opens with the keyboard and restores focus on Escape", async () => {
+    const user = userEvent.setup();
+    mockAuth(SIGNED_IN);
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    const trigger = await screen.findByRole("button", { name: "casa" });
+    trigger.focus();
+    await user.keyboard("{Enter}");
+    const popup = await screen.findByRole("dialog", { name: "Account menu" });
+    expect(popup).toContainElement(document.activeElement as HTMLElement);
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(popup).not.toBeInTheDocument());
+    expect(trigger).toHaveFocus();
+  });
+
   it("navigates to Settings", async () => {
     const user = userEvent.setup();
     mockAuth(SIGNED_IN);
@@ -156,7 +180,7 @@ describe("SidebarSettingsMenu contents", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitem", { name: "Settings" }));
+    await user.click(within(menu).getByRole("button", { name: "Settings" }));
 
     expect(pushMock).toHaveBeenCalledWith("/settings");
   });
@@ -170,9 +194,9 @@ describe("SidebarSettingsMenu contents", () => {
     const menu = await openMenu(user);
     // The toggle this replaces had two states and the app has three; a
     // fresh install defaults to System, which the toggle could not say.
-    expect(within(menu).getByRole("menuitemradio", { name: "System" })).toBeChecked();
-    expect(within(menu).getByRole("menuitemradio", { name: "Light" })).not.toBeChecked();
-    expect(within(menu).getByRole("menuitemradio", { name: "Dark" })).not.toBeChecked();
+    expect(within(menu).getByRole("radio", { name: "System" })).toBeChecked();
+    expect(within(menu).getByRole("radio", { name: "Light" })).not.toBeChecked();
+    expect(within(menu).getByRole("radio", { name: "Dark" })).not.toBeChecked();
   });
 
   it("applies Dark when Dark is chosen", async () => {
@@ -182,7 +206,7 @@ describe("SidebarSettingsMenu contents", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitemradio", { name: "Dark" }));
+    await user.click(within(menu).getByRole("radio", { name: "Dark" }));
 
     await waitFor(() => {
       expect(document.documentElement).toHaveClass("dark");
@@ -198,7 +222,7 @@ describe("SidebarSettingsMenu contents", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitemradio", { name: "Light" }));
+    await user.click(within(menu).getByRole("radio", { name: "Light" }));
 
     await waitFor(() => {
       expect(document.documentElement).not.toHaveClass("dark");
@@ -214,7 +238,7 @@ describe("SidebarSettingsMenu contents", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitemradio", { name: "System" }));
+    await user.click(within(menu).getByRole("radio", { name: "System" }));
 
     // jsdom's matchMedia stub reports no dark preference, so "follow the
     // system" resolves to light here — the point is that it stopped being
@@ -239,7 +263,7 @@ describe("SidebarSettingsMenu contents", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitem", { name: "Sign out" }));
+    await user.click(within(menu).getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => expect(loggedOut).toBe(true));
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
@@ -252,7 +276,7 @@ describe("SidebarSettingsMenu contents", () => {
     await screen.findByRole("button", { name: "More" });
 
     const menu = await openMenu(user);
-    expect(within(menu).queryByRole("menuitem", { name: "Sign out" })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
   });
 });
 
@@ -320,6 +344,41 @@ describe("SidebarSettingsMenu on mobile", () => {
     expect(pushMock).toHaveBeenCalledWith("/settings");
   });
 
+  it("closes the drawer when Settings is chosen", async () => {
+    // The drawer is an overlay over the route Settings pushes. Left open, it
+    // hides the page the tap just went to, and the tap reads as a no-op.
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<SidebarSettingsMenu variant="mobile" onSelect={onSelect} />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: "Settings" }));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(pushMock).toHaveBeenCalledWith("/settings");
+  });
+
+  it("closes the drawer when signing out", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<SidebarSettingsMenu variant="mobile" onSelect={onSelect} />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: "Sign out" }));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
+  });
+
+  it("leaves the drawer open behind About, which closes back onto it", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<SidebarSettingsMenu variant="mobile" onSelect={onSelect} />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: "About FiestaBoard" }));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it("states the running version", async () => {
     render(<SidebarSettingsMenu variant="mobile" />, { wrapper: TestWrapper });
     expect(await screen.findByText("8.38.9")).toBeInTheDocument();
@@ -345,7 +404,7 @@ describe("SidebarSettingsMenu on mobile", () => {
     // The desktop rail has one narrow footer slot and a working arrow-key
     // contract; only the mobile drawer changes shape.
     const menu = await openMenu(user);
-    expect(within(menu).getByRole("menuitemradio", { name: "Dark" })).toBeInTheDocument();
+    expect(within(menu).getByRole("radio", { name: "Dark" })).toBeInTheDocument();
   });
 });
 
@@ -383,7 +442,7 @@ describe("SidebarSettingsMenu update action", () => {
     // A badge that announces 8.39.0 and then leaves you to go find the
     // updater yourself is a dead end; SystemUpdate renders at the top of
     // /settings whenever one is waiting.
-    await user.click(await within(menu).findByRole("menuitem", { name: /Update to 8\.39\.0/ }));
+    await user.click(await within(menu).findByRole("button", { name: /Update to 8\.39\.0/ }));
 
     expect(pushMock).toHaveBeenCalledWith("/settings");
   });
@@ -395,6 +454,16 @@ describe("SidebarSettingsMenu update action", () => {
     await user.click(await screen.findByRole("button", { name: /Update to 8\.39\.0/ }));
 
     expect(pushMock).toHaveBeenCalledWith("/settings");
+  });
+
+  it("closes the drawer on the way to the updater", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<SidebarSettingsMenu variant="mobile" onSelect={onSelect} />, { wrapper: TestWrapper });
+
+    await user.click(await screen.findByRole("button", { name: /Update to 8\.39\.0/ }));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
   });
 
   it("offers nothing to click when the install is current", async () => {
@@ -410,7 +479,7 @@ describe("SidebarSettingsMenu update action", () => {
 
     const menu = await openMenu(user);
     await within(menu).findByText("8.38.9");
-    expect(within(menu).queryByRole("menuitem", { name: /Update to/ })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole("button", { name: /Update to/ })).not.toBeInTheDocument();
   });
 
   it("offers nothing to click when an external supervisor owns updates", async () => {
@@ -427,7 +496,7 @@ describe("SidebarSettingsMenu update action", () => {
 
     const menu = await openMenu(user);
     await within(menu).findByText("8.38.9");
-    expect(within(menu).queryByRole("menuitem", { name: /Update to/ })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole("button", { name: /Update to/ })).not.toBeInTheDocument();
   });
 });
 
@@ -475,7 +544,7 @@ describe("SidebarSettingsMenu trigger notice", () => {
     // Wait for the update to land (the menu item proves it did) before
     // asserting the trigger stayed quiet.
     const menu = await openMenu(user);
-    await within(menu).findByRole("menuitem", { name: /Update to 8\.39\.0/ });
+    await within(menu).findByRole("button", { name: /Update to 8\.39\.0/ });
     expect(trigger()).toHaveAccessibleDescription("");
   });
 });
@@ -564,7 +633,7 @@ describe("SidebarSettingsMenu About box", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitem", { name: "About FiestaBoard" }));
+    await user.click(within(menu).getByRole("button", { name: "About FiestaBoard" }));
 
     const dialog = await screen.findByRole("dialog");
     // The real number off /api/version, not a build-time constant.
@@ -578,7 +647,7 @@ describe("SidebarSettingsMenu About box", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitem", { name: "About FiestaBoard" }));
+    await user.click(within(menu).getByRole("button", { name: "About FiestaBoard" }));
 
     const dialog = await screen.findByRole("dialog");
     expect(await within(dialog).findByText("Raspberry Pi 4 Model B")).toBeInTheDocument();
@@ -591,11 +660,29 @@ describe("SidebarSettingsMenu About box", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitem", { name: "About FiestaBoard" }));
+    await user.click(within(menu).getByRole("button", { name: "About FiestaBoard" }));
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("MIT License")).toBeInTheDocument();
     expect(within(dialog).getByText("© 2026 Fiestaboard contributors")).toBeInTheDocument();
+  });
+
+  it("links to the documentation", async () => {
+    // Settings → System used to carry an About card whose one unique fact was
+    // this link; the card is gone, so the About box has to carry it.
+    const user = userEvent.setup();
+    mockAuth(SIGNED_IN);
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("button", { name: "About FiestaBoard" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("link", { name: "Documentation" })).toHaveAttribute(
+      "href",
+      "https://fiestaboard.app/docs/intro",
+    );
   });
 
   it("closes on Escape", async () => {
@@ -605,7 +692,7 @@ describe("SidebarSettingsMenu About box", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitem", { name: "About FiestaBoard" }));
+    await user.click(within(menu).getByRole("button", { name: "About FiestaBoard" }));
     await screen.findByRole("dialog");
 
     await user.keyboard("{Escape}");
@@ -635,7 +722,7 @@ describe("SidebarSettingsMenu About box", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitem", { name: "About FiestaBoard" }));
+    await user.click(within(menu).getByRole("button", { name: "About FiestaBoard" }));
 
     const dialog = await screen.findByRole("dialog");
     await within(dialog).findByText("8.38.0");

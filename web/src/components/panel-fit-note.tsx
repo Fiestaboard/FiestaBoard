@@ -1,6 +1,6 @@
 import { Text } from "@fiestaboard/ui";
 
-import { usePanelTargets } from "@/hooks/use-panel-targets";
+import { useDisplayTargets } from "@/hooks/use-panel-targets";
 import { useTranslations } from "@/i18n/translations";
 import { panelsFittingGrid } from "@/lib/panel-page-fit";
 
@@ -16,7 +16,8 @@ interface PanelFitNoteProps {
 }
 
 /**
- * A quiet line naming the FiestaPanel a page's grid fits.
+ * A quiet line naming the display (a FiestaPanel, or any other board with a
+ * custom grid, such as an LED matrix) a page's grid fits.
  *
  * Panels are the one board shape whose dimensions nobody chose — they are
  * auto-fit from a TV's diagonal — so "3 × 30" tells a user nothing about
@@ -33,7 +34,7 @@ export function PanelFitNote({
   className,
 }: PanelFitNoteProps) {
   const t = useTranslations("fiestaPanels");
-  const targets = usePanelTargets();
+  const targets = useDisplayTargets();
   const matches = panelsFittingGrid(targets, deviceType, notesWide, notesTall, gridRows, gridCols);
   if (matches.length === 0) return null;
   const [first, ...rest] = matches;

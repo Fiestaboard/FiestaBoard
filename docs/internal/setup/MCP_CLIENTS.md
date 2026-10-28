@@ -7,7 +7,7 @@ schedules through conversation rather than the web UI.
 
 This page walks through wiring each client up to a self-hosted FiestaBoard.
 
-> **Where to get your token:** **Settings → Integrations → MCP / external
+> **Where to get your token:** **Settings → AI → MCP / external
 > clients → Generate token** (or **Rotate token**). The plaintext value is
 > shown exactly once — copy it into your client config immediately.
 
@@ -41,7 +41,7 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 
 > **Note:** When `FIESTABOARD_MCP_TOKEN` is set it takes precedence over any
 > token stored by the Settings UI, and the **Generate / Rotate token** buttons
-> in **Settings → Integrations** are disabled. To manage the token from the UI
+> in **Settings → AI** are disabled. To manage the token from the UI
 > again, unset the variable and restart the container.
 
 > **Once a token exists, `/api/mcp/` requires it** — in every auth mode,
@@ -60,7 +60,7 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 > current token as an `Authorization: Bearer` header, and anonymous
 > requests get a 401. Only the first mint stays open, by design — until a
 > token exists the whole REST surface is open, so gating it would protect
-> nothing, and it keeps **Settings → Integrations** rendering without a
+> nothing, and it keeps **Settings → AI** rendering without a
 > login-redirect loop. (Earlier releases left these routes fully anonymous
 > on such installs, so anyone who could reach the port could mint or
 > revoke the token — fixed in Fiestaboard/FiestaBoard#1825.)
@@ -73,7 +73,7 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 > as an `Authorization: Bearer` header and are refused with a `403`
 > otherwise (Fiestaboard/FiestaBoard#1880). Disabling the login is never
 > gated. To add a login later on such an install, send the token with the
-> request or clear it in **Settings → Integrations** first.
+> request or clear it in **Settings → AI** first.
 > `FIESTABOARD_MCP_TOKEN` is not gated this way because there is nothing
 > to hijack: while it is set, the mutating routes refuse with `409` even
 > for a caller presenting the token, so it cannot be rotated or revoked
@@ -111,7 +111,7 @@ Desktop's launch environment. On macOS with Homebrew Node that usually
 "just works"; with `nvm` you may need to use the absolute path (see
 [Troubleshooting](#troubleshooting)).
 
-1. In FiestaBoard's web UI, open **Settings → Integrations → MCP / external
+1. In FiestaBoard's web UI, open **Settings → AI → MCP / external
    clients** and click **Generate token** (or **Rotate token**). Keep the
    reveal dialog open — it shows the token and a Desktop config snippet.
 2. Open the Claude Desktop config file and merge in the `fiestaboard` entry
@@ -317,6 +317,28 @@ until it opts back in, by naming the fields it wants:
 carries only the fields you name, plus `id`, which is always included. Naming
 a field no entry has is an error that lists the valid ones.
 
+### 5. Transitions are per display, and the `beta` category is deprecated
+
+FiestaBoard 10 (settings schema v6) drops the install-wide transition: each
+display owns its own.
+
+- `update_board` takes `transition`, `transition_step_interval_ms` and
+  `transition_step_size` — the display's strategy (a built-in name,
+  `plugin:<id>`, or `null` for none) and its speed (interval 0–5000 ms,
+  step size 1 or more).
+- `update_setting("transitions", ...)` is a deprecated alias that reads and
+  sets the **first** board's transition. It is removed in v11; move to
+  `update_board`.
+- `transition_plugins_enabled` and `output_plugins_enabled` now belong to
+  the `plugins` category, next to `auto_update`. `update_setting("beta", ...)`
+  still sets those two flags as a deprecated alias, removed in v11.
+  (Settings v7 then dropped `output_plugins_enabled`: display plugins need no
+  opt-in, so setting it is accepted and does nothing.)
+  `get_settings_summary()` has no `beta` block.
+
+A page's own `transition_strategy` / `transition_interval_ms` /
+`transition_step_size` still wins over the display's, field by field.
+
 ### Also new: tool annotations
 
 Every tool now carries the standard MCP annotations (`readOnlyHint`,
@@ -339,7 +361,7 @@ change. Read current values with `get_settings_summary()` first.
 `send_message`, and `validate_template` were added in the same release.
 Nothing was removed or renamed.
 
-### Page-editor parity: every editor control, share strings, staff picks, the Transition Lab
+### Page-editor parity: every editor control, share strings, staff picks
 
 The in-app AI chat drives FiestaBoard through this same server, so
 everything the web page editor can save has to be reachable as a tool.
@@ -360,6 +382,12 @@ additions are all optional.
   Warn-only; nothing is mutated.
 - **`render_page_preview(notes_wide, notes_tall)`** previews a `note_array`
   at its real size and now reports `rows` / `cols`.
+- **`render_page_preview(board_id)`** and **`validate_template(board_id)`**
+  check a template for one board, as `POST /templates/render` and
+  `/templates/validate` do with a `board_id`: the board's character set
+  decides extended markup and widths count drawn tiles. The preview adds
+  `charset` and `charset_issues`; validation adds `charset`. An unknown
+  board is an error.
 - **`export_page(page_id)`** → the portable share string
   (`GET /pages/{id}/share`); **`import_page(share_string)`** creates a new
   page from one (`POST /pages/import`). Read-only and non-destructive
@@ -372,20 +400,17 @@ additions are all optional.
   `board_id` the REST route lacks).
 - **`list_formula_functions()`** — the `{{= ...}}` function reference
   (`GET /v1/functions`).
-- **Transition Lab** (beta; errors until Settings → Beta enables transition
-  plugins, exactly like the REST routes): **`list_transition_plugins()`**
-  (`GET /transitions/plugins`), **`test_transition_live(plugin_id,
-  to_page_id, from_page_id?, config?, board_id?)`** (`POST
-  /transitions/test-live`) and **`restore_board(board_id?)`** (`POST
-  /transitions/restore`). A paused board or an active silence window comes
-  back as `status: "blocked"`, the same policy result `send_message`
-  returns.
+- **Transition Lab** tools — `list_transition_plugins()`,
+  `test_transition_live()` and `restore_board()` — shipped here and were
+  later **removed** with the Transition Lab and its `/transitions/*` API
+  (plan D22). Transition plugins are deprecated; `list_installed_plugins()`
+  reports each one with `plugin_type: "transition"`, and its `plugin:<id>`
+  is still a valid `transition_strategy`.
 
-Annotations: `export_page`, `list_staff_picks`, `get_current_display`,
-`list_transition_plugins` and `list_formula_functions` are read-only;
-`import_page`, `import_staff_pick` and `test_transition_live` are writes
-but not destructive (a client should not ask for confirmation);
-`restore_board` is additionally idempotent. Nothing here is destructive.
+Annotations: `export_page`, `list_staff_picks`, `get_current_display` and
+`list_formula_functions` are read-only; `import_page` and
+`import_staff_pick` are writes but not destructive (a client should not ask
+for confirmation). Nothing here is destructive.
 
 ### Also new: the rest of the Integrations page
 
@@ -512,8 +537,9 @@ external client can do the same things a person can there:
 
 - `update_setting(category, values)` gained the categories `general`
   (`instance_name` — how you rename the install — `timezone`,
-  `time_format`, `date_format`, `welcome_message`), `beta`, `plugins`
-  (`auto_update`), `mqtt` (broker address and `external_url`; not the
+  `time_format`, `date_format`, `welcome_message`), `plugins`
+  (`auto_update`, `transition_plugins_enabled`, `output_plugins_enabled`;
+  these two flags were a separate `beta` category until settings v6), `mqtt` (broker address and `external_url`; not the
   username/password), `ai` (enabled, default provider, and each provider's
   non-secret fields; never `api_key`), `release_channel`, `auto_update`
   (interval) and `hdmi_kiosk`. `silence_schedule` and `active_page` accept
@@ -523,7 +549,7 @@ external client can do the same things a person can there:
   code-62 glyph, API mode, host), `add_board`, `remove_board`,
   `detect_board_size`, `identify_tile`.
 - FiestaPanels: `list_panels`, `create_panel`, `update_panel` (including
-  `is_display`), `delete_panel`.
+  `is_display` and `render_style`), `delete_panel`.
 - Network (FiestaPi): `disconnect_wifi`, `forget_wifi_network`. No scan or
   connect — joining needs a passphrase.
 - System: `check_for_update`, `trigger_system_update` (previously a
@@ -574,7 +600,7 @@ inherit your PATH.
   `C:\Program Files\nodejs\npx.cmd`.
 
 **`401 Unauthorized`** — the token is wrong or was rotated. Generate a
-new one in **Settings → Integrations** and update the `Authorization`
+new one in **Settings → AI** and update the `Authorization`
 header.
 
 **Tools call succeeds but the page-preview image doesn't render

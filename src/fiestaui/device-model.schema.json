@@ -1,0 +1,265 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fiestaboard.app/schemas/device-model.schema.json",
+  "title": "DeviceModel",
+  "description": "A display device model: technology → family (the protocol an adapter speaks) → model. FiestaUI's src/lib/devices.ts is the source of truth (validateDeviceModel mirrors this schema and is tested to agree with it); a FiestaBoard output plugin declares one in its manifest and owns the transport.",
+  "type": "object",
+  "required": ["id", "label", "technology", "family", "geometry", "color", "charset", "animation"],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "technology": { "const": "led_matrix" } } },
+      "then": {
+        "properties": {
+          "geometry": {
+            "type": "object",
+            "properties": { "kind": { "const": "pixels" } },
+            "description": "An led_matrix model is measured in pixels."
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["layoutOptions"],
+        "properties": { "layoutOptions": { "type": "object", "required": ["font"], "properties": { "font": true } } }
+      },
+      "then": {
+        "required": ["font"],
+        "properties": { "font": true },
+        "description": "A model offering a face choice declares its own face."
+      }
+    },
+    {
+      "if": {
+        "required": ["font", "layoutOptions"],
+        "properties": {
+          "font": { "const": "3x5" },
+          "layoutOptions": { "type": "object", "required": ["font"], "properties": { "font": true } }
+        }
+      },
+      "then": {
+        "properties": {
+          "charset": { "const": "led_3x5" },
+          "layoutOptions": {
+            "type": "object",
+            "properties": {
+              "font": {
+                "type": "object",
+                "properties": { "allowed": { "type": "array", "contains": { "const": "3x5" } } }
+              }
+            }
+          }
+        },
+        "description": "A 3x5 model offering a face choice draws led_3x5, and offers its own face."
+      }
+    },
+    {
+      "if": {
+        "required": ["font", "layoutOptions"],
+        "properties": {
+          "font": { "const": "5x7" },
+          "layoutOptions": { "type": "object", "required": ["font"], "properties": { "font": true } }
+        }
+      },
+      "then": {
+        "properties": {
+          "charset": { "const": "led_5x7" },
+          "layoutOptions": {
+            "type": "object",
+            "properties": {
+              "font": {
+                "type": "object",
+                "properties": { "allowed": { "type": "array", "contains": { "const": "5x7" } } }
+              }
+            }
+          }
+        },
+        "description": "A 5x7 model offering a face choice draws led_5x7, and offers its own face."
+      }
+    },
+    {
+      "if": { "properties": { "technology": { "const": "split_flap" } } },
+      "then": {
+        "properties": { "layoutOptions": false },
+        "description": "A split-flap board has no LED layout, so it declares no layoutOptions."
+      }
+    }
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "label": { "type": "string", "minLength": 1 },
+    "technology": { "enum": ["split_flap", "led_matrix"] },
+    "family": { "type": "string", "minLength": 1 },
+    "geometry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "rows", "cols"],
+          "properties": {
+            "kind": { "const": "cells" },
+            "rows": { "type": "integer", "minimum": 1 },
+            "cols": { "type": "integer", "minimum": 1 }
+          }
+        },
+        { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "note_array" } } },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "panel" },
+            "rows": { "type": "integer", "minimum": 1 },
+            "cols": { "type": "integer", "minimum": 1 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "width", "height"],
+          "properties": {
+            "kind": { "const": "pixels" },
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 }
+          }
+        }
+      ]
+    },
+    "color": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "bitDepth"],
+          "properties": { "kind": { "const": "rgb" }, "bitDepth": { "const": 24 } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "color", "bitDepth"],
+          "properties": {
+            "kind": { "const": "monochrome" },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "bitDepth": { "enum": [1, 8] }
+          }
+        },
+        { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "tiles" } } }
+      ]
+    },
+    "charset": { "$ref": "#/definitions/charsetRef" },
+    "charsetByCode62": {
+      "type": "object",
+      "description": "For a model whose code-62 flap varies by board: the set per glyph.",
+      "required": ["degree", "heart"],
+      "properties": {
+        "degree": { "$ref": "#/definitions/charsetRef" },
+        "heart": { "$ref": "#/definitions/charsetRef" }
+      }
+    },
+    "animation": {
+      "type": "object",
+      "required": ["delivery", "maxFps"],
+      "properties": {
+        "delivery": { "enum": ["stream", "sequence", "none"] },
+        "maxFps": { "type": "number", "minimum": 0 },
+        "maxFrames": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Hard budget for a sequence player: a transition is compressed into at most this many frames, first to final inclusive."
+        },
+        "minFrameMs": { "type": "number", "exclusiveMinimum": 0 },
+        "notes": {
+          "type": "string",
+          "description": "Research prose: what the API does and its risks. Fixture and plugin data carry it; FiestaUI's runtime built-ins leave it out."
+        },
+        "sources": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "font": { "enum": ["3x5", "5x7"] },
+    "layoutOptions": {
+      "type": "object",
+      "description": "LED only. CHANGES DEVICE BYTES (unlike appearance): which values of the LED layout options a board on this model may choose, and its default. A tileGap or blockPadding left out is unrestricted — every value allowed, the renderer's default (tileGap \"gap\", blockPadding 0) — so a plugin published before the options existed renders exactly as before. `default` must be one of `allowed`; left out, it is the renderer's default when allowed, else the first allowed value. tileGap \"fill\" lights the 1-px gutter between two same-colour lit fields (tiles, blocks); blockPadding 1 extends a block's field one pixel into the gutters and margin. The exact pixel rules are the design spec's §7.6 and FiestaUI's layoutLedCells.",
+      "additionalProperties": false,
+      "properties": {
+        "tileGap": {
+          "type": "object",
+          "required": ["allowed"],
+          "additionalProperties": false,
+          "properties": {
+            "allowed": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["gap", "fill"] } },
+            "default": { "enum": ["gap", "fill"] }
+          }
+        },
+        "blockPadding": {
+          "type": "object",
+          "required": ["allowed"],
+          "additionalProperties": false,
+          "properties": {
+            "allowed": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": [0, 1] } },
+            "default": { "enum": [0, 1] }
+          }
+        },
+        "font": {
+          "type": "object",
+          "description": "The faces a board may be set in (FiestaBoard's per-board text size: 5x7 Large, 3x5 Small). Unlike tileGap and blockPadding, leaving it out allows only the model's own `font`. Declared, `allowed` must include the model's `font`, the model must declare `font`, and its `charset` must be the built-in set drawn in that face (led_5x7 for 5x7, led_3x5 for 3x5): a board's set is derived from its face, so an inline or custom set cannot offer a choice. `default` is the face a NEW board gets and may differ from the model's `font`, which stays the face an older consumer (or a board that chose nothing) draws in.",
+          "required": ["allowed"],
+          "additionalProperties": false,
+          "properties": {
+            "allowed": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["3x5", "5x7"] } },
+            "default": { "enum": ["3x5", "5x7"] }
+          }
+        }
+      }
+    },
+    "appearance": {
+      "type": "object",
+      "description": "PREVIEW-ONLY: how the device looks in a preview. Nothing here ever reaches the bytes a device is sent — font, letter case and monochrome are layout options, not appearance. The plugin owns the defaults; a board may override only the fields `options` lists.",
+      "additionalProperties": false,
+      "properties": {
+        "pixelShape": {
+          "enum": ["round", "square"],
+          "description": "LED: how a lit pixel reads — a bare LED is round, a diffused face square."
+        },
+        "dotRatio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "LED: the lit dot's diameter as a fraction of the pixel pitch."
+        },
+        "offColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "LED: an unlit LED." },
+        "substrateColor": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "The panel substrate (soldermask) or board face behind the pixels or flaps."
+        },
+        "bezel": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "The bezel around the display. Unset: the preview's theme bezel."
+        },
+        "boardColors": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Split-flap: the housing colours the board ships in; the first is the default."
+        },
+        "options": {
+          "type": "object",
+          "description": "The fields a board may override, each with its allowed values, e.g. { \"board_color\": [\"black\", \"white\"] }. Keys are the board setting names.",
+          "additionalProperties": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "legacy": {
+      "type": "object",
+      "properties": {
+        "deviceType": { "enum": ["flagship", "note", "note_array", "panel"] },
+        "preset": { "type": "string" }
+      }
+    }
+  },
+  "definitions": {
+    "charsetRef": {
+      "description": "A built-in set id, or an embedded CharacterSet.",
+      "oneOf": [
+        { "enum": ["vestaboard_v1", "vestaboard_v2", "led_5x7", "led_3x5"] },
+        { "$ref": "character-set.schema.json" }
+      ]
+    }
+  }
+}

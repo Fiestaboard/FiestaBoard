@@ -224,11 +224,3 @@ class TestAbsoluteContainerPathsGoThroughTheSeam:
         assert api_server._log_dir() == get_data_dir() / "logs"
         assert api_server._log_file() == get_data_dir() / "logs" / "app.log"
         assert not api_server._log_dir().resolve().is_relative_to(REPO_ROOT)
-
-    def test_cert_dir_follows_the_data_dir_seam(self, monkeypatch):
-        from src.paths import get_data_dir
-        from src.system import https_certs
-
-        monkeypatch.delenv("FIESTABOARD_CERT_DIR", raising=False)
-        assert https_certs._cert_dir() == get_data_dir() / "certs"
-        assert not https_certs._cert_dir().resolve().is_relative_to(REPO_ROOT)

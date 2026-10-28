@@ -44,6 +44,8 @@ SILENCE_SCHEDULE_KEYS = (
     "page_id",
     "indicator_text",
     "indicator_position",
+    # Issue #1944. Missing from this list, a board-scoped write dropped it.
+    "show_queued_on_exit",
 )
 
 # Mapping from legacy feature keys to plugin IDs.
@@ -437,6 +439,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "indicator_position": "center",
             # Page id to display when mode == "page" (variables are frozen at silence-start)
             "page_id": None,
+            # Issue #1944: hold a send refused during the window and show it
+            # when the window ends. MUST stay in DEFAULT_CONFIG for the same
+            # reason as by_board below: set_feature() drops unknown keys, and
+            # did drop this one until it was listed here.
+            "show_queued_on_exit": False,
             # Per-board overrides (issue #1788): board_id -> partial dict of the
             # seven keys above. A board with no entry inherits the values above,
             # which act as the install-wide default. MUST stay in DEFAULT_CONFIG:
@@ -1331,7 +1338,11 @@ class ConfigManager:
     #: model call, so the floor is 1.
     _AI_TURN_CAP_MIN = 1
     _AI_TURN_CAP_MAX = 10_000
-    _warned_bad_turn_cap: set[str] = set()
+    #: Immutable on purpose: a class-level mutable ``set`` would be shared by
+    #: every ConfigManager in the process, so one instance's warning silenced
+    #: all later ones (an xdist ordering flake in the "logged once" test,
+    #: #2031). Each instance rebinds its own copy, like the bool flag above.
+    _warned_bad_turn_cap: frozenset[str] = frozenset()
 
     def _coerce_turn_cap(self, key: str, value: Any) -> int | None:
         """``value`` clamped into the cap bounds, or None when unset/unusable.
@@ -1346,7 +1357,7 @@ class ConfigManager:
         if isinstance(value, bool) or not isinstance(value, int):
             if key not in self._warned_bad_turn_cap:
                 logger.warning("ai_providers.%s %r is not an integer; ignoring it", key, value)
-                self._warned_bad_turn_cap.add(key)
+                self._warned_bad_turn_cap = self._warned_bad_turn_cap | {key}
             return None
         return max(self._AI_TURN_CAP_MIN, min(value, self._AI_TURN_CAP_MAX))
 
@@ -1536,11 +1547,32 @@ class ConfigManager:
         # startup retry loop with the legacy-config validation errors above,
         # even though the UI's /config/validate endpoint considers them
         # configured. (issue #1102)
-        if errors and self._has_configured_board_instance():
+        #
+        # Board credentials live on settings.boards (#1760): the legacy block
+        # is never read to build a client, so once any board exists there it
+        # must not gate startup either once a board is set up — a board whose
+        # output is a plugin (a Pixoo) never fills it, and one misconfigured
+        # board is that board's own error (#1813), not the whole service's.
+        if errors and (self._has_board_instance() or self._has_configured_board_instance()):
             board_error_prefixes = ("Board cloud_key", "Board local_api_key", "Board host")
             errors = [e for e in errors if not e.startswith(board_error_prefixes)]
 
         return (len(errors) == 0, errors)
+
+    @staticmethod
+    def _has_board_instance() -> bool:
+        """Return True if any board in the multi-board settings service is set
+        up (:func:`~src.devices.board_is_set_up`): configured, or with
+        connection details entered — not the empty placeholder a fresh
+        install seeds."""
+        try:
+            from .devices import board_is_set_up
+            from .settings.service import get_settings_service
+
+            boards = get_settings_service().get_board_settings().boards or []
+        except Exception:
+            return False
+        return any(board_is_set_up(board) for board in boards)
 
     @staticmethod
     def _has_configured_board_instance() -> bool:
@@ -2207,6 +2239,49 @@ class ConfigManager:
                 self._config.pop("removed_plugins", None)
             self._save_internal()
         logger.info("Cleared deliberate-removal tombstone for plugin '%s'", plugin_id)
+
+    # ── refused releases (output plugins, plan D8) ────────────────────────────
+    #
+    # An output plugin's release that failed verification or did not load is
+    # rolled back; its commit is recorded here so the hourly update check
+    # does not offer it again (src/plugins/update_refusals.py). A top-level
+    # ``refused_plugin_updates`` map, absent until something is refused.
+
+    def get_refused_plugin_update(self, plugin_id: str) -> dict[str, str] | None:
+        """``{"sha", "reason"}`` of *plugin_id*'s refused release, or ``None``."""
+        with self._file_lock:
+            raw = self._config.get("refused_plugin_updates")
+            entry = raw.get(plugin_id) if isinstance(raw, dict) else None
+            if not isinstance(entry, dict) or not isinstance(entry.get("sha"), str) or not entry["sha"]:
+                return None
+            reason = entry.get("reason")
+            return {"sha": entry["sha"], "reason": reason if isinstance(reason, str) else ""}
+
+    def set_refused_plugin_update(self, plugin_id: str, sha: str, reason: str) -> None:
+        """Persist that release *sha* of *plugin_id* was refused."""
+        with self._file_lock:
+            raw = self._config.get("refused_plugin_updates")
+            refused = dict(raw) if isinstance(raw, dict) else {}
+            entry = {"sha": sha, "reason": reason}
+            if refused.get(plugin_id) == entry:
+                return
+            refused[plugin_id] = entry
+            self._config["refused_plugin_updates"] = refused
+            self._save_internal()
+        logger.info("Plugin '%s': release %s refused and will not be offered again", plugin_id, sha[:12])
+
+    def clear_refused_plugin_update(self, plugin_id: str) -> None:
+        """Forget *plugin_id*'s refused release."""
+        with self._file_lock:
+            raw = self._config.get("refused_plugin_updates")
+            if not isinstance(raw, dict) or plugin_id not in raw:
+                return
+            refused = {k: v for k, v in raw.items() if k != plugin_id}
+            if refused:
+                self._config["refused_plugin_updates"] = refused
+            else:
+                self._config.pop("refused_plugin_updates", None)
+            self._save_internal()
 
 
 # Global instance getter

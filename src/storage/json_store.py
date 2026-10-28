@@ -72,7 +72,7 @@ class SchemaTooNewError(RuntimeError):
     data came from somewhere newer.
     """
 
-    def __init__(self, *, label: str, path: Path, found: int, supported: int):
+    def __init__(self, *, label: str, path: Path, found: int, supported: int, remedy: str | None = None):
         self.label = label
         self.path = path
         self.found = found
@@ -81,7 +81,7 @@ class SchemaTooNewError(RuntimeError):
             f"{label}: {path} is schema_version {found}, but this build only understands "
             f"up to {supported}. It was written by a newer version of FiestaBoard. "
             f"Refusing to read it rather than risk misinterpreting the data. "
-            f"Restore a backup taken before the upgrade, or reinstall the newer version."
+            + (remedy or "Restore a backup taken before the upgrade, or reinstall the newer version.")
         )
 
 
@@ -168,6 +168,10 @@ class JsonStore:
                 self._run_migrations(data)
                 self.migrated = True
             self._data = data
+            # An explicit successful reload is the recovery boundary after
+            # restoring a supported document over a refused future schema.
+            # Failed/absent-file loads and cached saves keep the refusal latched.
+            self._refused_future_schema = False
             return data
 
     def save(self, data: Any) -> None:

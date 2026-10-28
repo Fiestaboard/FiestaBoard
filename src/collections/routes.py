@@ -20,6 +20,7 @@ from fastapi import APIRouter, HTTPException
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.pages.service import get_page_service
+from src.pages.storage import PageRevisionConflict
 from src.templates.engine import get_template_engine
 from src.templates.expressions import validate_expression
 
@@ -134,7 +135,7 @@ async def get_collection(collection_id: str):
 @router.put(
     "/collections/{collection_id}",
     response_model=CollectionResponse,
-    responses=errors(400, 404),
+    responses=errors(400, 404, 412),
     dependencies=[superseded_by_v1("PUT /collections/{collection_id}")],
 )
 async def update_collection(collection_id: str, data: CollectionUpdate):
@@ -146,6 +147,8 @@ async def update_collection(collection_id: str, data: CollectionUpdate):
 
     try:
         collection = collection_service.update_collection(collection_id, data)
+    except PageRevisionConflict as e:
+        raise HTTPException(status_code=412, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     if not collection:
@@ -156,13 +159,24 @@ async def update_collection(collection_id: str, data: CollectionUpdate):
 @router.delete(
     "/collections/{collection_id}",
     response_model=CollectionDeleteResponse,
-    responses=errors(404),
+    responses=errors(404, 409, 412),
     dependencies=[superseded_by_v1("DELETE /collections/{collection_id}")],
 )
-async def delete_collection(collection_id: str):
+async def delete_collection(collection_id: str, expected_revision: str | None = None):
     """Delete a collection."""
     collection_service = get_collection_service()
-    deleted = collection_service.delete_collection(collection_id)
+    from src.content_references import ContentInUseError
+
+    try:
+        deleted = (
+            collection_service.delete_collection(collection_id)
+            if expected_revision is None
+            else collection_service.delete_collection(collection_id, expected_revision=expected_revision)
+        )
+    except PageRevisionConflict as exc:
+        raise HTTPException(status_code=412, detail=str(exc)) from exc
+    except ContentInUseError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
     return CollectionDeleteResponse(id=collection_id)

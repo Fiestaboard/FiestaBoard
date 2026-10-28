@@ -98,7 +98,7 @@ COLLECTIONS_ROUTES = {
 }
 
 # The /plugins family issue #1757 moves. Deliberately excluded, other domains:
-# /transitions/plugins (transitions), /settings/plugins (settings), /triggers.
+# /settings/plugins (settings), /triggers.
 # The system-update family issue #1758 moves: update check / status / apply /
 # rollback / auto-toggle, the sidecar-proxied restart + shutdown actions, and
 # the version endpoint. Deliberately excluded, other domains: /system/wifi/*

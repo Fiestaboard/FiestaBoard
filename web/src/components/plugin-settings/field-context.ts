@@ -1,5 +1,7 @@
 import { createContext, useContext } from "react";
 
+import type { BoardFacts } from "@/lib/visible-when";
+
 /**
  * Which plugin the surrounding {@link SchemaForm} is configuring.
  *
@@ -39,4 +41,22 @@ export const FieldScopeContext = createContext<FieldScope>({ scope: {}, root: {}
 
 export function useFieldScope(): FieldScope {
   return useContext(FieldScopeContext);
+}
+
+/**
+ * The board a board settings screen (plan D13) is for: its facts, which
+ * `ui:visible_when` reads by their `@` names, and its tile layout, which
+ * sizes a `tile-grid` declared with `ui:options.layout: "board"`. Empty
+ * outside a board settings screen (a plugin's settings sheet).
+ */
+export interface BoardScreen {
+  facts: BoardFacts;
+  /** Devices down × across (a note array's notes_tall × notes_wide). */
+  layout: { rows: number; cols: number } | null;
+}
+
+export const BoardScreenContext = createContext<BoardScreen>({ facts: {}, layout: null });
+
+export function useBoardScreen(): BoardScreen {
+  return useContext(BoardScreenContext);
 }

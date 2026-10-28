@@ -1,8 +1,10 @@
 // Pages domain: page CRUD, previews, sharing, staff picks, and the
 // active-page setting.
 
+import type { Canvas, CanvasIssue, CanvasLayerJson } from "./canvas";
 import { fetchApi } from "./core";
 import type { DeviceType, LineMetadata, PageType, RowConfig } from "./shared";
+import type { BoardTokenJson } from "./templates";
 
 export interface PageDeleteResponse {
   /** The id of the page that was deleted. */
@@ -33,6 +35,12 @@ export interface SetActivePageResponse {
   page_id: string | null;
   sent_to_board: boolean;
   paused: boolean;
+  /**
+   * True when the board's silence window held the immediate send (#1943).
+   * The selection is saved and the page appears when silence ends. Reported
+   * independently of `paused` (a silenced, paused board says both).
+   */
+  silenced: boolean;
   board_id: string | null;
   // Render/send failure reason when the page was persisted but never reached
   // the board (issue #1791). Null when the send succeeded or was skipped
@@ -45,6 +53,11 @@ export interface SetActivePageResponse {
 
 export interface Page {
   id: string;
+  /** Opaque live generation; reloads/restarts invalidate old editor saves. */
+  revision?: string | null;
+  /** Runtime edit and rich-document capabilities advertised by the server. */
+  edit_protocol?: string | null;
+  document_protocol?: string | null;
   name: string;
   type: PageType;
   device_type: DeviceType;
@@ -69,6 +82,8 @@ export interface Page {
   grid_rows?: number | null;
   /** Columns of characters (panel device_type only; required for a panel). */
   grid_cols?: number | null;
+  /** Pixel canvases (up to 8). `null` in an update removes them all. */
+  canvases?: Canvas[] | null;
 }
 
 export interface PageCreate {
@@ -94,9 +109,12 @@ export interface PageCreate {
   grid_rows?: number | null;
   /** Columns of characters (panel device_type only; required for a panel). */
   grid_cols?: number | null;
+  /** Pixel canvases (up to 8). `null` in an update removes them all. */
+  canvases?: Canvas[] | null;
 }
 
 export interface PageUpdate {
+  expected_revision?: string | null;
   name?: string;
   /** Device/size retarget (issue #1250) — converting geometries is lossy. */
   device_type?: DeviceType;
@@ -117,6 +135,8 @@ export interface PageUpdate {
   grid_rows?: number | null;
   /** Columns of characters (panel device_type only; required for a panel). */
   grid_cols?: number | null;
+  /** Pixel canvases (up to 8). `null` in an update removes them all. */
+  canvases?: Canvas[] | null;
 }
 
 export interface PagesResponse {
@@ -163,6 +183,19 @@ export interface PagePreviewResponse {
   lines: string[];
   display_type: string;
   raw: Record<string, unknown>;
+  /**
+   * The render as rich cells (FiestaUI `BoardToken[][]`): only in a batch
+   * preview asked for a board that draws a rich character set (an LED board).
+   */
+  cells?: BoardTokenJson[][];
+  /**
+   * The page's pixel canvases rasterised for the batch's board: only when
+   * that board is a pixel matrix (`[]` for a page without canvases). Drawn
+   * over `cells`.
+   */
+  layers?: CanvasLayerJson[];
+  /** Problems drawing those canvases; present exactly when `layers` is. */
+  canvas_issues?: CanvasIssue[];
 }
 
 /**
@@ -204,12 +237,15 @@ export const pagesApi = {
         ? `/settings/active-page?board_id=${encodeURIComponent(boardId)}`
         : "/settings/active-page",
     ),
-  setActivePage: (pageId: string | null, boardId?: string) =>
+  // `overrideSilence` shows the page now even while the board is silenced
+  // (#1943). Only sent when set, so every other call's body is unchanged.
+  setActivePage: (pageId: string | null, boardId?: string, opts?: { overrideSilence?: boolean }) =>
     fetchApi<SetActivePageResponse>("/settings/active-page", {
       method: "PUT",
       body: JSON.stringify({
         page_id: pageId,
         ...(typeof boardId === "string" && boardId && { board_id: boardId }),
+        ...(opts?.overrideSilence === true && { override_silence: true }),
       }),
     }),
   // Pages CRUD lives on /v1 (issue #1930). `/v1/pages*` delegates to the very
@@ -229,12 +265,17 @@ export const pagesApi = {
       method: "PUT",
       body: JSON.stringify(page),
     }),
-  deletePage: (pageId: string) => fetchApi<PageDeleteResponse>(`/v1/pages/${pageId}`, { method: "DELETE" }),
+  deletePage: (pageId: string, expectedRevision?: string | null) =>
+    fetchApi<PageDeleteResponse>(
+      `/v1/pages/${pageId}${expectedRevision ? `?expected_revision=${encodeURIComponent(expectedRevision)}` : ""}`,
+      { method: "DELETE" },
+    ),
   previewPage: (pageId: string) => fetchApi<PagePreviewResponse>(`/pages/${pageId}/preview`, { method: "POST" }),
-  previewPagesBatch: (pageIds: string[]) =>
+  /** `boardId`: the board the previews are for — an LED board's renders its spans and icons and answers `cells`. */
+  previewPagesBatch: (pageIds: string[], boardId?: string) =>
     fetchApi<PagePreviewBatchResponse>("/pages/preview/batch", {
       method: "POST",
-      body: JSON.stringify({ page_ids: pageIds }),
+      body: JSON.stringify(boardId ? { page_ids: pageIds, board_id: boardId } : { page_ids: pageIds }),
     }),
   getPageShareString: (pageId: string) => fetchApi<{ share_string: string }>(`/pages/${pageId}/share`),
   /** 201 with the created page itself — no envelope, same as createPage. */

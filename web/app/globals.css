@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "@fiestaboard/ui/fonts.css";
 @import "@fiestaboard/ui/theme.css";
+@import "@fiestaboard/ui/editor.css";
 @source "../node_modules/@fiestaboard/ui/dist";
 
 /* AI sparkle icon — big star gets the sweeping gradient, small elements pulse independently */
@@ -58,6 +59,25 @@
   transform-origin: center;
   animation: sparkle-small-pulse 2.4s ease-in-out infinite;
   animation-delay: 0.9s;
+}
+
+/* The sparkle lives in the AI drawer, which is mounted on every route and only
+   slid off-screen when closed. `background-position` and SVG transforms cannot
+   run on the compositor, so a running sparkle forces a full main-thread frame
+   (style, paint, layerize) 60 times a second for the whole page — cheap on an
+   empty page, ~15-20% of the main thread on pages full of board tiles
+   (/displays, /pages, home). Stop it whenever nobody can see it. */
+[data-ai-drawer="closed"] .ai-sparkle-icon,
+[data-ai-drawer="closed"] .sparkle-cross,
+[data-ai-drawer="closed"] .sparkle-circ {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-sparkle-icon,
+  .sparkle-cross,
+  .sparkle-circ {
+    animation: none;
+  }
 }
 
 /* Interactive card hover feedback */
@@ -203,14 +223,9 @@
   scroll-behavior: auto !important;
 }
 
-/* Bridge FiestaUI's Spinner to the app's own motion kill switches. The
-   component swaps its animated three-quarter arc for a complete static ring
-   under `motion-reduce:`, which compiles to the OS-level
-   `prefers-reduced-motion` media query only. `.reduce-motion` and
-   `.site-animations-off` are settings-driven classes that media query never
-   sees, and the rules above merely zero the animation — which would freeze the
-   arc mid-rotation and read as a rendering glitch. Drive the same swap from
-   them instead. `data-slot` is the component's stable public hook.
+/* Bridge FiestaUI's hopping taco to the app's motion settings. Both
+   settings show the still artwork and hide the animated mark, just like the
+   operating-system reduced-motion preference. Keep the stable data-slot hooks.
 
    The `.site-animations-off` arm carries the same `[data-board-preview]`
    exclusion as the rule above it, so a spinner inside the board preview keeps
@@ -329,4 +344,70 @@
    --------------------------------------------------------------------------- */
 :root {
   --z-spotlight: 138;
+}
+
+/* A matrix preview supplies the whole TV screen, including its margins.
+   Override TvFrame's board-fit transform so Fill TV and physical pitch match
+   the full-screen viewer. The frame still owns dimming and offline state. */
+.panel-matrix-tv [data-slot="tv-frame-board"] {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100%;
+  transform: none !important;
+}
+
+/* FiestaBot app composition: a quiet identity, with motion only during work. */
+.fiestabot-mark {
+  color: var(--brand-emphasis);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--brand-emphasis) 14%, var(--card)),
+    color-mix(in oklch, var(--accent) 55%, var(--card))
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--brand-emphasis) 18%, transparent);
+}
+.fiestabot-mark::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  box-shadow: 0 0 14px color-mix(in oklch, var(--brand-emphasis) 23%, transparent);
+  opacity: 0;
+}
+.fiestabot-mark[data-active]::before {
+  animation: fiestabot-breathe 2.4s ease-in-out infinite;
+}
+@keyframes fiestabot-breathe {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.fiestabot-header {
+  background: linear-gradient(115deg, color-mix(in oklch, var(--brand-emphasis) 5%, var(--card)), var(--card) 75%);
+}
+.fiestabot-panel {
+  box-shadow: var(--elevation-card-hover);
+}
+.fiestabot-dock[data-state="approval"],
+.fiestabot-dock[data-state="input"],
+.fiestabot-dock[data-state="paused"] {
+  border-color: var(--brand-emphasis);
+}
+.fiestabot-dock[data-state="error"] {
+  border-color: var(--destructive);
+}
+[data-ai-drawer="closed"] .fiestabot-mark::before {
+  animation: none;
+}
+.reduce-motion .fiestabot-mark[data-active]::before {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fiestabot-mark[data-active]::before {
+    animation: none;
+  }
 }

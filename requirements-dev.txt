@@ -6,6 +6,8 @@ pytest>=8.0.0
 pytest-cov>=6.0.0
 pytest-asyncio>=0.24.0
 pytest-xdist>=3.6.0
+# Network fence: pyproject's --allow-hosts blocks non-loopback connections in tests
+pytest-socket>=0.7.0
 coverage>=7.6.0
 
 # Linting
@@ -13,5 +15,5 @@ coverage>=7.6.0
 # began reformatting code blocks inside Markdown), so an unpinned range makes
 # `ruff format --check` in CI nondeterministic — a new release can turn CI red
 # on unchanged code. Bump this deliberately and reformat in the same commit.
-ruff==0.17.0
+ruff==0.17.1
 

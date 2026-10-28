@@ -23,6 +23,8 @@ import threading
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+from plugins.vestaboard import VestaboardOutput
+
 from src.main import DisplayService
 from tests.engine_harness import (
     GoldenRecordingClient,
@@ -37,10 +39,11 @@ T0 = datetime(2026, 7, 15, 9, 0, tzinfo=UTC)
 
 
 class _NoLegacyBoardClient:
-    """Stand-in for the legacy-Config BoardClient constructor: always fails.
+    """A Vestaboard connection constructor that always fails.
 
-    Keeps the all-boards-failed startup path deterministic regardless of any
-    BOARD_* env vars present in the environment running the tests.
+    Keeps the all-boards-failed startup path deterministic: every board is
+    built by the stubbed factory, and nothing else may construct a
+    Vestaboard (the plugin's constructor refuses).
     """
 
     def __init__(self, *args, **kwargs):
@@ -48,7 +51,7 @@ class _NoLegacyBoardClient:
 
 
 def _make_service(monkeypatch, clock, boards, factory, *, poll_interval=30, active_page_ids=None):
-    """A DisplayService wired to stubs, with ``board_client_from_board_dict``
+    """A DisplayService wired to stubs, with ``build_driver`` (the runtime factory)
     replaced by ``factory`` and every clock seam on ``clock``."""
     service = DisplayService()
     settings = make_settings_service(
@@ -64,8 +67,8 @@ def _make_service(monkeypatch, clock, boards, factory, *, poll_interval=30, acti
     monkeypatch.setattr("src.config.get_config_manager", lambda: cm)
     monkeypatch.setattr("src.config_manager.get_config_manager", lambda: cm)
     monkeypatch.setattr("src.main.get_settings_service", lambda: settings)
-    monkeypatch.setattr("src.main.board_client_from_board_dict", factory)
-    monkeypatch.setattr("src.main.BoardClient", _NoLegacyBoardClient)
+    monkeypatch.setattr("src.main.build_driver", factory)
+    monkeypatch.setattr(VestaboardOutput, "__init__", _NoLegacyBoardClient.__init__)
     monkeypatch.setattr(DisplayService, "_attach_transition_runner", staticmethod(lambda client: None))
     monkeypatch.setattr(service, "request_board_refresh", lambda *a, **k: None)
     return service, settings

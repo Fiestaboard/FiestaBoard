@@ -68,12 +68,9 @@ const mockAllSettings: AllSettingsResponse = {
     latitude: 40.7128,
     longitude: -74.006,
   },
-  beta: {
-    https_enabled: false,
-    transition_plugins_enabled: false,
-  },
   plugins: {
     auto_update: true,
+    transition_plugins_enabled: false,
   },
   schedule: {
     defer_on_reenable: false,
@@ -104,6 +101,7 @@ const createQueryClient = (overrides?: Partial<AllSettingsResponse>) => {
 const meta = {
   title: "Settings/GeneralSettings",
   component: GeneralSettings,
+  args: { board: mockAllSettings.board.boards[0] },
   parameters: {
     layout: "padded",
     nextjs: {

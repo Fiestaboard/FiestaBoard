@@ -652,12 +652,44 @@ def test_plugin_sources_returns_loaded_sources(tmp_path):
 # --- _get_fiestaboard_version ---
 
 
-def test_get_fiestaboard_version_matches_package_version():
-    """_get_fiestaboard_version returns the same value as src.__version__."""
+def test_get_fiestaboard_version_matches_package_version(monkeypatch):
+    """Off a beta build, _get_fiestaboard_version is src.__version__."""
     import src
     import src.plugins.loader as loader_mod
 
+    monkeypatch.delenv("VERSION", raising=False)
     assert loader_mod._get_fiestaboard_version() == src.__version__
+
+
+def test_get_fiestaboard_version_is_the_beta_build_version(monkeypatch):
+    """A beta image's own version is the build's VERSION; src.__version__ is
+    still the stable number the branch forked from (10.0.0-beta.3 shipped
+    __version__ 9.14.0)."""
+    import src.plugins.loader as loader_mod
+
+    monkeypatch.setattr("src.__version__", "9.14.0")
+    monkeypatch.setattr("src.system.update_service.__version__", "9.14.0")
+    monkeypatch.setenv("VERSION", "10.0.0-beta.3")
+    assert loader_mod._get_fiestaboard_version() == "10.0.0-beta.3"
+
+
+def test_a_v10_plugin_loads_clean_on_a_v10_beta(tmp_path, monkeypatch):
+    """A plugin requiring >=10.0.0 on the 10.0.0-beta.3 image: no "running
+    version is 9.14.0" incompatibility recorded against it."""
+    import json
+
+    monkeypatch.setattr("src.__version__", "9.14.0")
+    monkeypatch.setattr("src.system.update_service.__version__", "9.14.0")
+    monkeypatch.setenv("VERSION", "10.0.0-beta.3")
+    plugin_dir = create_valid_plugin_dir(tmp_path, "test_plugin")
+    manifest = json.loads((plugin_dir / "manifest.json").read_text())
+    manifest["fiestaboard_version"] = ">=10.0.0"
+    (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+
+    loader = _loader_for_tests(tmp_path)
+    loader.load_plugin("test_plugin")
+
+    assert not [e for e in loader.load_errors.get("test_plugin", []) if "Version incompatibility" in e]
 
 
 # --- default external dir comes from sources.get_external_plugins_dir ---

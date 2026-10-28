@@ -1,0 +1,103 @@
+{
+  "header": {
+    "description": "Icon registry for {icon:NAME} markup, vendored from FiestaUI scripts/ci/tests/fixtures/board-icons.json. Do not edit by hand: regenerate with scripts/markup_fixtures/generate.sh.",
+    "fiestaui": {
+      "branch": "feat/board-extended-markup",
+      "commit": "530231c96919ea51f3c55b88f8b7ff17ce1079bb",
+      "dirty": false,
+      "sources_sha256": {
+        "src/lib/board-characters.ts": "2bb333a35d68d9be769b7f36a1304ebff0f56b94f7d287749d648c91aa6c8315",
+        "src/lib/board-icons.ts": "03aeca77c589296f973f7d8c7fbdc3edc2d355d231b65b23456424f8d71898d7",
+        "src/lib/board-colors.ts": "f9e3e2402bdb5cb62327793e9792210cefbbb12c49676fa6aee35560ccd22ce3",
+        "scripts/ci/tests/fixtures/board-icons.json": "d8d2aacfc3b12445db5dea4c38b7c0f7e46deb51ae14b546698eb76fb8f5ec6e"
+      },
+      "note": "commit 530231c (FiestaUI PR #324, Task 1, on Task 0 @ 5364439; unmerged, stack pending owner review); exported with git archive, not a working tree"
+    }
+  },
+  "icons": {
+    "sun": {
+      "label": "sun",
+      "color": "#f8e71c",
+      "fallback": "65"
+    },
+    "cloud": {
+      "label": "cloud",
+      "color": "#ffffff",
+      "fallback": "69"
+    },
+    "rain": {
+      "label": "rain",
+      "color": "#4a90d9",
+      "fallback": "67"
+    },
+    "snow": {
+      "label": "snow",
+      "color": "#ffffff",
+      "fallback": "68"
+    },
+    "bolt": {
+      "label": "lightning",
+      "color": "#f8e71c",
+      "fallback": "64"
+    },
+    "check": {
+      "label": "check",
+      "color": "#7ed321",
+      "fallback": "66"
+    },
+    "cross": {
+      "label": "cross",
+      "color": "#eb4034",
+      "fallback": "63"
+    },
+    "up": {
+      "label": "up",
+      "color": "#7ed321",
+      "fallback": "+"
+    },
+    "down": {
+      "label": "down",
+      "color": "#eb4034",
+      "fallback": "-"
+    },
+    "star": {
+      "label": "star",
+      "color": "#f8e71c",
+      "fallback": "65"
+    },
+    "bus": {
+      "label": "bus",
+      "color": "#f5a623",
+      "fallback": null
+    },
+    "train": {
+      "label": "train",
+      "color": "#4a90d9",
+      "fallback": null
+    },
+    "music": {
+      "label": "music",
+      "color": "#9b59b6",
+      "fallback": null
+    },
+    "bell": {
+      "label": "bell",
+      "color": "#f8e71c",
+      "fallback": null
+    },
+    "fog": {
+      "label": "fog",
+      "color": "#ffffff",
+      "fallback": "-"
+    },
+    "partly": {
+      "label": "partly cloudy",
+      "color": "#f8e71c",
+      "fallback": "69"
+    }
+  },
+  "aliases": {
+    "storm": "bolt",
+    "x": "cross"
+  }
+}

@@ -207,6 +207,9 @@ class CountdownPlugin(PluginBase):
             minutes = data.get("minutes", "0")
 
             header = "TIME SINCE" if is_count_up else "COUNTDOWN UNTIL"
+            if len(header) > width:
+                # A 10-wide LED board (a Pixoo 64 in its large 5x7 face).
+                header = header.split()[0]
             lines = [
                 header.center(width),
                 event_name[:width].upper().center(width),

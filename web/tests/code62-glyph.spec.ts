@@ -14,6 +14,7 @@ import {
   API_URL,
   authHeaders,
   BOARD_HOST,
+  chooseVestaboardInWizard,
   clearBoardConfig,
   configureBoard,
   createPage,
@@ -22,7 +23,7 @@ import {
   expect,
   getMockBoardState,
   lastMockMessage,
-  openSettingsTab,
+  openDisplay,
   resetMockBoard,
   resetToSingleBoard,
   setActivePage,
@@ -88,14 +89,9 @@ function tile(page: import("@playwright/test").Page, col: number) {
   return page.locator(`[data-testid="char-tile-0-${col}"]`).first();
 }
 
-/** Expand the (collapsed) board card on Settings → Hardware. */
+/** Open the (single) board's page from Displays and return its settings card. */
 async function openBoardCard(page: import("@playwright/test").Page) {
-  await page.goto("/settings");
-  await openSettingsTab(page, "Hardware");
-  const card = page.locator("[data-testid=board-card]").first();
-  await expect(card).toBeVisible({ timeout: 15_000 });
-  await card.getByRole("button").first().click();
-  return card;
+  return openDisplay(page, "My Board");
 }
 
 test.describe("Character code 62 — per-board glyph", () => {
@@ -250,9 +246,10 @@ test.describe("Character code 62 — setup wizard", () => {
       localStorage.removeItem("fiestaboard_wizard_complete");
     });
     await page.goto("/");
+    await chooseVestaboardInWizard(page);
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
-    await page.getByText("Local API").click();
+    await page.getByRole("radio", { name: /Local API/ }).click();
     await page.getByLabel("Board IP Address").fill(BOARD_HOST);
     await page.getByLabel("Local API Key").fill("test-key");
 
@@ -278,6 +275,7 @@ test.describe("Character code 62 — setup wizard", () => {
       localStorage.removeItem("fiestaboard_wizard_complete");
     });
     await page.goto("/");
+    await chooseVestaboardInWizard(page);
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     await expect(page.locator("[data-testid=wizard-code62-heart]")).toHaveCount(1);

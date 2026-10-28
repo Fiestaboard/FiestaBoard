@@ -1,13 +1,29 @@
 "use client";
 
-import { BoardDisplay, Box, type Code62Glyph, type DeviceType } from "@fiestaboard/ui";
+import {
+  type BoardCellGrid,
+  BoardDisplay,
+  Box,
+  type Code62Glyph,
+  type DeviceModel,
+  type DeviceType,
+  DisplayPreview,
+} from "@fiestaboard/ui";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { PanelMatrix } from "@/components/panel/panel-matrix";
 import { useTranslations } from "@/i18n/translations";
+import type { CanvasLayerJson, MatrixSizing } from "@/lib/api";
+import { isLedModel, ledLayerProps, ledLetterCase } from "@/lib/device-preview";
 import { NOTE_COL_PITCH_IN, PANEL_PHYSICAL_WIDTH_IN, panelAutofitScale } from "@/lib/panel-scale";
 
 interface PanelBoardProps {
   message: string | null;
+  /** The frame as rich cells, when the frame has them; they win over `message`. */
+  cells?: BoardCellGrid;
+  layers?: CanvasLayerJson[];
+  /** The panel's render-style model (`device_model_spec`); an LED model draws as an LED matrix. */
+  model?: DeviceModel | null;
   animationsEnabled: boolean;
   deviceType: DeviceType;
   notesWide: number;
@@ -21,30 +37,15 @@ interface PanelBoardProps {
   code62Glyph: Code62Glyph;
   diagonalInches: number;
   calibration: number;
-}
-
-interface GridRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  matrixSizing?: MatrixSizing | null;
+  matrixPitch?: number;
 }
 
 /** How long to keep the board hidden while waiting for a first measurement. */
 const MEASURE_GRACE_MS = 1500;
 
-/** Transform-free offset of `el` relative to the positioned `container`. */
-function offsetWithin(el: HTMLElement, container: HTMLElement): { x: number; y: number } {
-  let x = 0;
-  let y = 0;
-  let node: HTMLElement | null = el;
-  while (node && node !== container) {
-    x += node.offsetLeft;
-    y += node.offsetTop;
-    node = node.offsetParent as HTMLElement | null;
-  }
-  return { x, y };
-}
+/** The LED board's margin to the screen edge, as a fraction of the shorter side (TvFrame's). */
+const LED_SCREEN_MARGIN = 0.04;
 
 /** Physical column pitch in inches for the board's device family. */
 function colPitchIn(deviceType: DeviceType): number {
@@ -56,17 +57,26 @@ function colPitchIn(deviceType: DeviceType): number {
 }
 
 /**
- * Borderless board at true flap scale.
+ * The board as the TV shows it, filling the screen.
  *
- * The package board is rendered normally, then cropped to its tile grid
- * (bezel and padding fall outside an overflow-hidden window) and scaled so
- * each flap lands at real-world size — with a gentle ≤10% stretch toward
- * the nearest screen edge (see panelAutofitScale). Measurement uses
- * offset* geometry, which ignores CSS transforms, so the scale never feeds
- * back into itself.
+ * Split-flap: only the flaps (`bezel={false}` — no housing, as the Apple TV
+ * app draws FiestaPanel), so the board element *is* the tile grid and is
+ * measured directly; scaled so each flap lands at real-world size, with a
+ * gentle ≤10% stretch toward the nearest screen edge (panelAutofitScale).
+ * This replaces rendering the housed board and cropping it to its tiles
+ * through an overflow window positioned from measured tile offsets.
+ *
+ * LED matrix: the panel's LED model through `DisplayPreview`, scaled to fit
+ * the screen — an LED face has no physical size to be true to.
+ *
+ * Measurement uses offset* geometry, which ignores CSS transforms, so the
+ * scale never feeds back into itself.
  */
 export function PanelBoard({
   message,
+  cells,
+  layers,
+  model,
   animationsEnabled,
   deviceType,
   notesWide,
@@ -79,48 +89,54 @@ export function PanelBoard({
   code62Glyph,
   diagonalInches,
   calibration,
+  matrixSizing,
+  matrixPitch,
 }: PanelBoardProps) {
   const t = useTranslations("boardDisplay");
   const wrapRef = useRef<HTMLDivElement>(null);
-  const [grid, setGrid] = useState<GridRect | null>(null);
+  const [measured, setMeasured] = useState(false);
   const [scale, setScale] = useState(1);
   // Safety valve: the pre-measurement state hides the board (opacity 0 avoids
-  // a flash of unscaled content). If measurement never succeeds — e.g. the
-  // config's rows/cols disagree with the rendered grid so the corner tiles
-  // aren't found — the TV must NOT stay pure black forever; after a grace
-  // period the board shows uncropped and unscaled instead.
+  // a flash of unscaled content). If measurement never succeeds — a TV
+  // browser that lays the board out at zero size — the TV must NOT stay pure
+  // black forever; after a grace period the board shows unscaled instead.
   const [measureTimedOut, setMeasureTimedOut] = useState(false);
+  const led = isLedModel(model);
 
   const messageLabel = useCallback((m: string) => t("withMessage", { message: m }), [t]);
 
   useLayoutEffect(() => {
     const wrapper = wrapRef.current;
-    const board = wrapper?.querySelector<HTMLElement>("[data-board-preview]");
-    if (!wrapper || !board) return;
+    // DisplayPreview's outer wrapper uses display: contents, so it has no
+    // measurable box. Measure the LED surface itself to keep edge pixels
+    // inside the viewport on panels using the default sizing.
+    const board = wrapper?.querySelector<HTMLElement>(
+      led ? '[data-slot="led-matrix-display"]' : "[data-board-preview]",
+    );
+    if (!wrapper || !(board instanceof HTMLElement)) return;
 
     const measure = () => {
-      const first = board.querySelector<HTMLElement>('[data-testid="char-tile-0-0"]');
-      const last = board.querySelector<HTMLElement>(`[data-testid="char-tile-${rows - 1}-${cols - 1}"]`);
-      if (!first || !last) return;
-      const firstPos = offsetWithin(first, wrapper);
-      const lastPos = offsetWithin(last, wrapper);
-      const rect: GridRect = {
-        x: firstPos.x,
-        y: firstPos.y,
-        width: lastPos.x + last.offsetWidth - firstPos.x,
-        height: lastPos.y + last.offsetHeight - firstPos.y,
-      };
-      if (rect.width <= 0 || rect.height <= 0) return;
-      setGrid(rect);
+      const width = board.offsetWidth;
+      const height = board.offsetHeight;
+      if (width <= 0 || height <= 0) return;
+      setMeasured(true);
       try {
+        if (led) {
+          const screenW = window.innerWidth;
+          const screenH = window.innerHeight;
+          const inset = LED_SCREEN_MARGIN * Math.min(screenW, screenH);
+          const fit = Math.min((screenW - 2 * inset) / width, (screenH - 2 * inset) / height);
+          setScale(Number.isFinite(fit) && fit > 0 ? fit : 1);
+          return;
+        }
         setScale(
           panelAutofitScale({
             screenWidthPx: window.screen.width,
             screenHeightPx: window.screen.height,
             diagonalInches,
             cols,
-            gridWidthPx: rect.width,
-            gridHeightPx: rect.height,
+            gridWidthPx: width,
+            gridHeightPx: height,
             calibration,
             colPitchIn: colPitchIn(deviceType),
           }),
@@ -135,13 +151,31 @@ export function PanelBoard({
     const observer = new ResizeObserver(measure);
     observer.observe(board);
     return () => observer.disconnect();
-  }, [diagonalInches, deviceType, calibration, rows, cols]);
+  }, [led, diagonalInches, deviceType, calibration, rows, cols, matrixSizing]);
 
   useEffect(() => {
-    if (grid) return;
+    if (measured) return;
     const timer = setTimeout(() => setMeasureTimedOut(true), MEASURE_GRACE_MS);
     return () => clearTimeout(timer);
-  }, [grid]);
+  }, [measured]);
+
+  if (led && model && matrixSizing) {
+    return (
+      <Box className="absolute inset-0">
+        <PanelMatrix
+          model={model}
+          message={message}
+          cells={cells}
+          layers={layers}
+          sizing={matrixSizing}
+          diagonal={diagonalInches}
+          spacing={matrixPitch}
+          calibration={calibration}
+          physicalScreen
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -150,13 +184,28 @@ export function PanelBoard({
       style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
     >
       <Box
-        data-testid="panel-board-crop"
-        className="panel-seamless relative overflow-hidden"
-        style={grid ? { width: grid.width, height: grid.height } : measureTimedOut ? undefined : { opacity: 0 }}
+        ref={wrapRef}
+        data-testid="panel-board-fit"
+        className="panel-seamless"
+        style={measured || measureTimedOut ? undefined : { opacity: 0 }}
       >
-        <Box ref={wrapRef} className="absolute" style={grid ? { left: -grid.x, top: -grid.y } : undefined}>
+        {led ? (
+          <DisplayPreview
+            model={model}
+            message={message}
+            cells={cells}
+            {...ledLayerProps(layers)}
+            size="lg"
+            letterCase={ledLetterCase(model)}
+            announceUpdates
+            messageLabel={messageLabel}
+            emptyLabel={t("empty")}
+          />
+        ) : (
           <BoardDisplay
             message={message}
+            cells={cells}
+            bezel={false}
             size="lg"
             boardType={boardColor}
             deviceType={deviceType}
@@ -172,7 +221,7 @@ export function PanelBoard({
             emptyLabel={t("empty")}
             messageLabel={messageLabel}
           />
-        </Box>
+        )}
       </Box>
     </Box>
   );

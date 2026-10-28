@@ -12,11 +12,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
-from src.devices import DeviceType, get_dimensions
-from src.ops.teaching import TEMPLATE_FILTERS, construct_lines, dimensions_phrase
+from src.devices import DeviceType, geometry_of, resolve_dimensions
+from src.ops.teaching import TEMPLATE_FILTERS, construct_lines
+from src.templates.canvas_reference import CANVAS_RULES as CANVAS_RULES
 from src.templates.expressions import function_signatures
+
+if TYPE_CHECKING:
+    from src.outputs.display_profile import DisplayProfile
 
 # Which caller is building the prompt. The shared core (device limits,
 # character set, syntax, available variables, exemplars) is identical
@@ -230,6 +234,14 @@ def _format_variables(
             max_len = meta.get("max_length")
             item_fields = [str(f) for f in (meta.get("item_fields") or [])]
 
+            variable_format = meta.get("format")
+            if variable_format == "canvas":
+                lines.append(
+                    f"  {plugin_id}.{var_name} (format: canvas) — {desc} "
+                    f'— use as canvas source: "{{{{{plugin_id}.{var_name}}}}}"; not printable template text.'
+                )
+                continue
+
             if meta.get("type") == "array" or item_fields:
                 # An array is not a printable variable — teach it as the thing
                 # the array functions consume, with the fields an item has.
@@ -250,6 +262,8 @@ def _format_variables(
             if desc:
                 parts.append(f"— {desc}")
             extras: list[str] = []
+            if variable_format:
+                extras.append(f"format: {variable_format}")
             if example:
                 extras.append(f"example: {example}")
             if max_len:
@@ -315,7 +329,13 @@ def _format_available_pages(pages: list[dict[str, Any]]) -> str:
     """Render a compact list of pages the user can navigate to."""
     if not pages:
         return "(no pages yet)"
-    return "\n".join(f'  - "{p.get("name", "Untitled")}" (id: {p.get("id", "?")})' for p in pages)
+    return "\n".join(f'  - "{p.get("name", "Untitled")}" (id: {p.get("id", "?")}){_revision_hint(p)}' for p in pages)
+
+
+def _revision_hint(content: dict[str, Any]) -> str:
+    """Keep generation metadata attached to content taught in prompt context."""
+    keys = ("revision", "edit_protocol", "document_protocol")
+    return "".join(f" | {key}: {content[key]}" for key in keys if content.get(key))
 
 
 def _summarize_schema(schema: dict[str, Any] | None) -> str:
@@ -387,7 +407,7 @@ def _format_available_schedules(schedules: list[dict[str, Any]]) -> str:
         enabled = "enabled" if s.get("enabled", True) else "disabled"
         page_id = s.get("page_id", "?")
         sid = s.get("id", "?")
-        lines.append(f"  - id: {sid} | page: {page_id} | {start}-{end} | {pattern} | {enabled}")
+        lines.append(f"  - id: {sid} | page: {page_id} | {start}-{end} | {pattern} | {enabled}{_revision_hint(s)}")
     return "\n".join(lines)
 
 
@@ -408,7 +428,7 @@ def _format_available_collections(collections: list[dict[str, Any]]) -> str:
             poll = (c.get("variable") or {}).get("poll_seconds", 10)
             n_rules = len((c.get("variable") or {}).get("rules", []))
             tail = f"variable mode, {n_rules} rule(s), polls every {poll}s"
-        lines.append(f'  - "{name}" (id: {cid}) | {len(pages)} pages | {tail}')
+        lines.append(f'  - "{name}" (id: {cid}) | {len(pages)} pages | {tail}{_revision_hint(c)}')
     return "\n".join(lines)
 
 
@@ -424,6 +444,9 @@ def build_prompt(
     available_collections: list[dict[str, Any]] | None = None,
     registry_plugins: list[dict[str, Any]] | None = None,
     mode: PromptMode = "generate",
+    display: DisplayProfile | None = None,
+    target_board: dict[str, Any] | None = None,
+    interaction_mode: str | None = None,
 ) -> PromptContext:
     """Build the system + user messages for the LLM.
 
@@ -449,17 +472,83 @@ def build_prompt(
             ``src.ai.chat`` for any structured actions. The two modes
             share every other section (variables, examples, layout
             rules) so the model sees consistent constraints.
+        display: What the board the chat targets draws, when known. An
+            LED board's own brief (:meth:`DisplayProfile.ai_brief`:
+            lowercase, colours, hex, icons) replaces the Vestaboard
+            character rules; a pixel board's chat also learns canvases.
+            ``None``: the legacy Vestaboard rules. Every resolved profile,
+            including custom split-flap displays, supplies its own rules.
+        target_board: Server-resolved board identity and geometry for chat.
+            Overrides the legacy request device_type; never includes credentials.
+        interaction_mode: "tv" asks for concise, remote-friendly questions.
 
     Returns:
         A ``PromptContext`` with the rendered system prompt and the
         captured inputs.
     """
-    dims = get_dimensions(device_type)
+    # A chat's board comes from server settings, never arbitrary client
+    # geometry. Keep the legacy generate/request vocabulary unchanged.
+    target_rules = ""
+    if mode == "chat" and target_board is not None:
+        geometry = geometry_of(target_board)
+        device_type = geometry.device_type
+        dims = resolve_dimensions(*geometry)
+        target = {"board_id": target_board["id"], "device_type": device_type}
+        if device_type == "panel":
+            target.update(grid_rows=dims.rows, grid_cols=dims.cols)
+        elif device_type == "note_array":
+            target.update(notes_wide=geometry.notes_wide, notes_tall=geometry.notes_tall)
+        target_rules = (
+            "\nCURRENT TARGET BOARD\n"
+            + json.dumps(target)
+            + "\nUse this board_id explicitly for board actions unless the user selects another board.\n"
+            "Create pages using this device_type and geometry. Reuse current_page when editing it.\n"
+            "Do not disable schedules unless the user explicitly asks for a fixed page or to disable them.\n"
+            "Creating a page does not display it: the client offers an explicit Show page action.\n"
+            "A paused or failed send is not a successful display; report the tool's actual result.\n"
+        )
+    else:
+        geometry = geometry_of({**(current_page or {}), "device_type": device_type})
+        if display is not None and display.rows and display.cols and not current_page:
+            # A resolved display is authoritative even for legacy callers
+            # still sending flagship as the request default.
+            dims = resolve_dimensions("panel", grid_rows=display.rows, grid_cols=display.cols)
+        else:
+            dims = resolve_dimensions(*geometry)
     rows, cols = dims.rows, dims.cols
+    if mode == "chat" and interaction_mode == "tv":
+        target_rules += (
+            "\nTV INTERACTION\n"
+            "Keep replies concise and readable from across a room. Avoid unnecessary questions.\n"
+            "When clarification is needed, use ask_user with 2–4 short, mutually distinct choices.\n"
+            "Set allow_free_text=true so the user can answer with the native keyboard or dictation.\n"
+            "Do not assume voice input is available; choices and typed answers must both work.\n"
+            "A current_page containing only an id/name identifies a saved page, not an empty template.\n"
+            "Call get_page with that id before editing when its template is missing; preserve existing content.\n"
+        )
     vars_dict = variables or {}
     demos = plugin_demos or []
 
     exemplars = _select_exemplars(device_type, demos)
+    if display is not None:
+        exemplars = [
+            ex
+            for ex in exemplars
+            if ex.get("device_type") == device_type
+            and len(ex.get("template", [])) == rows
+            and not display.check("\n".join(ex.get("template", [])))
+        ]
+        if not exemplars:
+            text = "HELLO" if all(ch in display.chars for ch in "HELLO") else display.chars.strip()[:5]
+            exemplars = [
+                {
+                    "name": "Static display example",
+                    "device_type": device_type,
+                    "template": [text[:cols]] + [""] * (rows - 1),
+                    "line_metadata": [{"alignment": "left", "wrap": False} for _ in range(rows)],
+                    "duration_seconds": 300,
+                }
+            ]
 
     char_rules = (
         "CHARACTER SET\n"
@@ -486,8 +575,29 @@ def build_prompt(
         "  the Vestaboard character set.\n"
     )
 
+    if display is not None:
+        char_rules = "CHARACTER SET\n" + display.ai_brief() + "\n"
+        forms = []
+        if display.tiles:
+            forms.append("`{{red}}`")
+        if display.color_spans:
+            forms.append("`{{red:HOT}}`")
+        if display.icons:
+            forms.append("`{{icon:" + display.icons[0] + "}}`")
+        if forms:
+            char_rules += "- Template forms: " + ", ".join(forms) + ".\n"
+    canvas_rules = "\n" + CANVAS_RULES if mode == "chat" and display is not None and display.supports("pixels") else ""
+    audience = "the user's board (see CHARACTER SET)" if display is not None else "a Vestaboard split-flap display"
+
+    tile_examples = display is None or display.tiles
+    fill_kind = "char or color" if tile_examples else "supported character"
+    fill_example = (
+        "`Title{{filled:.}}99` or `{{filled:red}}`"
+        if tile_examples
+        else "`{{filled:X}}` with X from the supported charset"
+    )
     layout_rules = (
-        f"DEVICE: {device_type} ({dimensions_phrase(device_type)}).\n"
+        f"DEVICE: {device_type} ({cols} columns x {rows} rows).\n"
         f"- Output exactly {rows} entries in `template` (use empty\n"
         f"  strings to leave a row blank).\n"
         f"- Each line's rendered width must be <= {cols} columns. If a\n"
@@ -506,8 +616,8 @@ def build_prompt(
         f"  Prefer setting `alignment` over manually padding with spaces.\n"
         f"  Use `{{{{fill_space}}}}` for left/right edges on the SAME\n"
         f"  line (e.g. `Left{{{{fill_space}}}}Right`); use\n"
-        f"  `{{{{filled:X}}}}` to fill with a repeated char or color\n"
-        f"  (e.g. `Title{{{{filled:.}}}}99` or `{{{{filled:red}}}}`).\n"
+        f"  `{{{{filled:X}}}}` to fill with a repeated {fill_kind}\n"
+        f"  (e.g. {fill_example}).\n"
         f"- Variable substitutions ({{{{plugin.field}}}}) expand at\n"
         f"  render time; their character widths are listed below so you\n"
         f"  can budget for them.\n"
@@ -536,6 +646,14 @@ def build_prompt(
         "      extra characters: `{{filled:blue}}` not `{{filled:blue.}}`.\n"
     )
 
+    if display is not None and not display.tiles:
+        template_syntax = (
+            "TEMPLATE SYNTAX\n"
+            "- Use {{plugin.field}}, {{fill_space}}, {{filled:X}} for a supported text character X.\n"
+            "- Filters:\n" + _format_filters(indent="    ") + "\n"
+            "- Color tile constructs and plugin color suffixes are unsupported on this display.\n"
+        )
+
     expression_syntax = (
         "EXPRESSIONS / FORMULAS\n"
         "- Inline formula syntax: `{{= expression }}`. The expression is\n"
@@ -562,8 +680,8 @@ def build_prompt(
         '    `{{= ROUND(weather.temperature) & "F" }}`\n'
         '    `{{= IFERROR(weather.temperature, "--") }}`\n'
         "    `{{= UPPER(LEFT(weather.condition, 6)) }}`\n"
-        '    `{{= COLOR(IF(weather.temperature > 80, "red", "blue")) }}`\n'
-        "- ARRAYS. When a plugin exposes an array, do NOT write one line\n"
+        + ('    `{{= COLOR(IF(weather.temperature > 80, "red", "blue")) }}`\n' if tile_examples else "")
+        + "- ARRAYS. When a plugin exposes an array, do NOT write one line\n"
         "  per possible item guarded by `IF`. Use the array functions:\n"
         "    `{{= COUNT(mlb.games) }}` — how many items there are\n"
         '    `{{= AT(mlb.games, 0, "team1") }}` — one item, blank if absent\n'
@@ -693,13 +811,15 @@ def build_prompt(
 
     system_prompt = (
         "You are FiestaBoard's page-generation assistant. You design\n"
-        "short, glanceable pages for a Vestaboard split-flap display\n"
+        f"short, glanceable pages for {audience}\n"
         "based on the user's natural-language request.\n\n"
         + scope_rules
         + "\n"
         + layout_rules
+        + target_rules
         + "\n"
         + char_rules
+        + canvas_rules
         + "\n"
         + template_syntax
         + "\n"

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 description: "Call a language model from a FiestaBoard plugin with ai_complete(): it uses the AI providers set up in Settings, including signed-in OpenRouter, Hugging Face and ChatGPT, so the plugin carries no AI setup of its own."
 keywords: [FiestaBoard AI plugin, ai_complete, FiestaBot providers, LLM plugin, generative plugin, ai_providers picker, plugin development]
 ---

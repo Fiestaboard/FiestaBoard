@@ -299,3 +299,14 @@ describe("AccountSection", () => {
     expect(replaceMock).toHaveBeenCalledWith("/");
   });
 });
+
+it("does not pretend to sign out when server revocation fails", async () => {
+  replaceMock.mockReset();
+  mockAuthStatus(authStatusAuthenticated);
+  server.use(http.post("/api/auth/logout", () => HttpResponse.json({ detail: "Unavailable" }, { status: 503 })));
+  render(<AccountSection />, { wrapper: TestWrapper });
+  await screen.findByText("Signed in");
+  await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+  await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+  expect(replaceMock).not.toHaveBeenCalled();
+});

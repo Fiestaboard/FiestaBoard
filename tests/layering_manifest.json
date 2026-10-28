@@ -7,9 +7,9 @@
     "mqtt",
     "network",
     "oauth",
+    "outputs",
     "schedules",
     "system",
-    "transitions",
     "triggers"
   ],
   "exceptions": []

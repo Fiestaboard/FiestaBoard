@@ -70,6 +70,7 @@ _DESCRIPTIONS: dict[int, str] = {
     404: "Resource not found.",
     405: "The resource exists but does not implement this operation.",
     409: "Conflict — duplicate id, or a resource pinned by the environment.",
+    412: "Precondition failed — the resource changed since it was loaded. Reload before editing.",
     422: "Request body failed validation.",
     429: "Rate-limited — the request arrived inside a minimum interval; see Retry-After.",
     500: "The server could not complete the operation. Deliberately raised, not an unhandled error.",
@@ -92,9 +93,21 @@ def _model_for(code: int) -> type[BaseModel]:
     return HTTPValidationError if code == 422 else ErrorResponse
 
 
-def errors(*status_codes: int) -> dict[int | str, dict[str, Any]]:
-    """Build the ``responses=`` block for the given failure codes."""
+def errors(*status_codes: int, models: dict[int, type[BaseModel]] | None = None) -> dict[int | str, dict[str, Any]]:
+    """Build the ``responses=`` block for the given failure codes.
+
+    ``models`` overrides the body model of a code whose ``detail`` is
+    structured — an object with a ``message`` string plus named fields
+    (API_CONVENTIONS.md, "Error contract") — instead of the plain string.
+    """
     unknown = [code for code in status_codes if code not in _DESCRIPTIONS]
     if unknown:
         raise ValueError(f"No canonical description for status code(s) {unknown}; add one to src/api_errors.py")
-    return {code: {"model": _model_for(code), "description": _DESCRIPTIONS[code]} for code in status_codes}
+    overrides = models or {}
+    stray = sorted(set(overrides) - set(status_codes))
+    if stray:
+        raise ValueError(f"Model override(s) for undeclared status code(s) {stray}")
+    return {
+        code: {"model": overrides.get(code, _model_for(code)), "description": _DESCRIPTIONS[code]}
+        for code in status_codes
+    }

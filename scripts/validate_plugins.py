@@ -41,14 +41,17 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # Board-preview rules are imported rather than re-implemented here. The rest of
 # this script duplicates manifest validation so it can run standalone, but tile
 # counting and device geometry are exactly the logic that must not drift between
-# the authoring lane and the runtime lane.
+# the authoring lane and the runtime lane. The same goes for the ids the
+# template grammar reserves and the variable `format` field (plan D19): one
+# definition, shared with the runtime manifest validator.
+from src.plugins.manifest import reserved_plugin_id_error, variable_format_errors  # noqa: E402
 from src.plugins.previews import (  # noqa: E402
     validate_previews,
     validate_teaser,
 )
 
 # Directories to skip
-SKIP_DIRECTORIES = {"_template", "_template_transition", "__pycache__"}
+SKIP_DIRECTORIES = {"_template", "_template_transition", "_template_output", "__pycache__"}
 
 
 class ValidationResult:
@@ -142,6 +145,8 @@ def validate_manifest_schema(manifest: dict, plugin_dir_name: str) -> list[str]:
         errors.append("Plugin id must start with a lowercase letter")
     elif not all(c.islower() or c.isdigit() or c == "_" for c in plugin_id):
         errors.append("Plugin id must contain only lowercase letters, numbers, and underscores")
+    elif reserved := reserved_plugin_id_error(plugin_id):
+        errors.append(reserved)
 
     # Validate ID matches directory name
     if plugin_id != plugin_dir_name:
@@ -179,6 +184,7 @@ def validate_manifest_schema(manifest: dict, plugin_dir_name: str) -> list[str]:
     variables = manifest.get("variables", {})
     if variables and not isinstance(variables, dict):
         errors.append("variables must be an object")
+    errors.extend(variable_format_errors(variables))
 
     # Validate max_lengths if present
     max_lengths = manifest.get("max_lengths", {})
@@ -205,6 +211,7 @@ def validate_manifest_schema(manifest: dict, plugin_dir_name: str) -> list[str]:
         "utility",
         "home",
         "transition",
+        "output",
     ]
     category = manifest.get("category", "")
     if category and category not in valid_categories:
@@ -212,11 +219,11 @@ def validate_manifest_schema(manifest: dict, plugin_dir_name: str) -> list[str]:
 
     # Board previews. Transition plugins are exempt — they have no board
     # content to preview, and their whole purpose is animation.
-    is_transition = manifest.get("plugin_type", "data") == "transition"
-    if is_transition:
+    kind = manifest.get("plugin_type", "data")
+    if kind in ("transition", "output"):
         for field_name in ("teaser", "previews"):
             if field_name in manifest:
-                errors.append(f"{field_name} is not supported for transition plugins")
+                errors.append(f"{field_name} is not supported for {kind} plugins")
     else:
         if "teaser" in manifest:
             errors.extend(validate_teaser(manifest["teaser"]))
@@ -233,7 +240,7 @@ def validate_preview_presence(manifest: dict) -> list[str]:
     keep validating (and loading) until they are backfilled. ``--strict`` turns
     it into a failure, which is what the registry-submission lane should use.
     """
-    if manifest.get("plugin_type", "data") == "transition":
+    if manifest.get("plugin_type", "data") in ("transition", "output"):
         return []
 
     warnings = []
@@ -376,8 +383,9 @@ def validate_unique_ids(plugins: list[Path]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 REGISTRY_FILE = PROJECT_ROOT / "plugin-registry.json"
-REGISTRY_PREFIX = "fiestaboard-plugin--"
-REGISTRY_NAME_RE = re.compile(r"^fiestaboard-plugin--[a-z][a-z0-9-]*$")
+# One naming convention, the runtime's: data, transition and output prefixes.
+from src.plugins.sources import REGISTRY_NAME_RE, REGISTRY_PREFIXES  # noqa: E402
+
 SEMVER_CONSTRAINT_RE = re.compile(r"^(>=|>|<=|<|==|!=)\s*\d+\.\d+\.\d+$")
 
 
@@ -389,8 +397,9 @@ def _repo_name_from_url(url: str) -> str:
 
 
 def _plugin_id_from_repo_name(repo_name: str) -> str:
-    if repo_name.startswith(REGISTRY_PREFIX):
-        return repo_name[len(REGISTRY_PREFIX) :].replace("-", "_")
+    for prefix in REGISTRY_PREFIXES:
+        if repo_name.startswith(prefix):
+            return repo_name[len(prefix) :].replace("-", "_")
     return repo_name.replace("-", "_")
 
 
@@ -406,12 +415,17 @@ def validate_registry_entry(entry: dict, verbose: bool) -> list[str]:
     if not repo_url:
         errors.append(f"[{plugin_id}] Missing 'repository' field")
         return errors
+    if reserved := reserved_plugin_id_error(plugin_id):
+        # A hard stop: no point probing the repository of an id that can never load.
+        errors.append(f"[{plugin_id}] {reserved}")
+        return errors
 
     # 1. Naming convention
     repo_name = _repo_name_from_url(repo_url)
     if not REGISTRY_NAME_RE.match(repo_name):
         errors.append(
-            f"[{plugin_id}] Repository name '{repo_name}' does not follow '{REGISTRY_PREFIX}{{name}}' convention"
+            f"[{plugin_id}] Repository name '{repo_name}' does not follow the "
+            f"{' / '.join(p + '{name}' for p in REGISTRY_PREFIXES)} convention"
         )
 
     # 2. ID consistency with repo name

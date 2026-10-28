@@ -5,8 +5,11 @@ and validation (overlap and gap detection).
 """
 
 import logging
-from datetime import date, time
+from dataclasses import dataclass
+from datetime import date, time, timedelta
 
+# Public service error contract: adapters need no persistence-layer import.
+from src.pages.storage import PageRevisionConflict as PageRevisionConflict
 from src.settings.service import get_settings_service
 
 from .models import (
@@ -19,7 +22,7 @@ from .models import (
     ScheduleUpdate,
     ScheduleValidationResult,
 )
-from .storage import ScheduleStorage
+from .storage import DefaultPageRevisionConflict, ScheduleStorage
 from .sun_times import (
     get_effective_timezone,
     get_today_in_timezone,
@@ -27,6 +30,14 @@ from .sun_times import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _ResolvedWindow:
+    """Resolved clock times plus the endpoint's date relative to the start."""
+
+    schedule: ScheduleEntry
+    end_day_offset: int
 
 
 class ScheduleService:
@@ -125,13 +136,31 @@ class ScheduleService:
             ValueError: If the (possibly updated) page is size-incompatible
                 with the (possibly updated) board (issue #1245)
         """
-        updates = data.model_dump(exclude_unset=True)
-        existing = self.storage.get(schedule_id)
-        if existing is not None and ("page_id" in updates or "board_id" in updates):
-            effective_page_id = updates.get("page_id", existing.page_id)
-            effective_board_id = updates.get("board_id", existing.board_id)
-            self._validate_page_size(effective_page_id, effective_board_id)
-        return self.storage.update(schedule_id, updates)
+        from contextlib import ExitStack
+
+        from src.collections.service import get_collection_service
+        from src.config_manager import get_config_manager
+        from src.pages.service import get_page_service
+
+        updates = data.model_dump(exclude_unset=True, exclude={"expected_revision"})
+        with ExitStack() as locks:
+            for lock in (
+                get_settings_service().lock,
+                get_config_manager().lock,
+                get_page_service().storage.lock,
+                get_collection_service().storage.lock,
+                self.storage.lock,
+            ):
+                locks.enter_context(lock)
+            self.storage.check_revision(schedule_id, data.expected_revision)
+            existing = self.storage.get(schedule_id)
+            if existing is not None and ("page_id" in updates or "board_id" in updates):
+                effective_page_id = updates.get("page_id") or existing.page_id
+                effective_board_id = updates.get("board_id")
+                if effective_board_id is None:
+                    effective_board_id = existing.board_id
+                self._validate_page_size(effective_page_id, effective_board_id)
+            return self.storage.update(schedule_id, updates, expected_revision=data.expected_revision)
 
     @staticmethod
     def _validate_page_size(page_ref: str | None, board_id: str | None) -> None:
@@ -147,7 +176,7 @@ class ScheduleService:
         if not result.ok:
             raise ValueError(result.error)
 
-    def delete_schedule(self, schedule_id: str) -> bool:
+    def delete_schedule(self, schedule_id: str, *, expected_revision: str | None = None) -> bool:
         """Delete a schedule.
 
         Args:
@@ -156,7 +185,7 @@ class ScheduleService:
         Returns:
             True if deleted, False if not found
         """
-        return self.storage.delete(schedule_id)
+        return self.storage.delete(schedule_id, expected_revision=expected_revision)
 
     # Active page resolution
 
@@ -175,9 +204,8 @@ class ScheduleService:
         if entry is not None:
             return entry.page_id
 
-        bid = board_id or DEFAULT_BOARD_ID
         time_str = current_time.strftime("%H:%M")
-        default_page_id = self.storage.get_default_page_id(board_id=bid)
+        default_page_id = self.get_default_page(board_id=board_id)
         if default_page_id:
             logger.debug(f"No schedule match for {current_day} {time_str}, using default: {default_page_id}")
         else:
@@ -221,30 +249,42 @@ class ScheduleService:
         location = self._get_location()
         today = get_today_in_timezone(location[2])
 
-        tiers: dict[str, list[ScheduleEntry]] = {
+        tiers: dict[str, list[tuple[int, ScheduleEntry]]] = {
             "one_off_date": [],
             "annual_date": [],
             "weekly": [],
         }
         for schedule in schedules:
-            effective_schedule = self._resolve_effective_times(schedule, today, location)
-            if not effective_schedule.applies_to_date(today):
-                continue
-            if effective_schedule.recurrence_type == "weekly" and not effective_schedule.applies_to_day(current_day):
-                continue
-            if not effective_schedule.applies_to_time(time_str):
-                continue
-            tiers[schedule.recurrence_type].append(effective_schedule)
+            # A window is owned by the date/day on which it starts. Consider
+            # yesterday only for the portion of a window that crosses midnight.
+            for days_ago in (0, 1):
+                start_date = today - timedelta(days=days_ago)
+                window = self._resolve_effective_times(schedule, start_date, location)
+                effective_schedule = window.schedule
+                start = self._time_to_minutes(effective_schedule.start_time)
+                end = (
+                    self._time_to_minutes(effective_schedule.end_time) + 1440 * window.end_day_offset
+                    if effective_schedule.end_time is not None
+                    else 1440
+                )
+                current = self._time_to_minutes(time_str) + 1440 * days_ago
+                matches_time = start <= current < end
+                if not matches_time or not effective_schedule.applies_to_date(start_date):
+                    continue
+                start_day = VALID_DAYS[(VALID_DAYS.index(current_day.lower()) - days_ago) % 7]
+                if schedule.recurrence_type == "weekly" and not schedule.applies_to_day(start_day):
+                    continue
+                tiers[schedule.recurrence_type].append((current - start, effective_schedule))
 
         for tier_name in ("one_off_date", "annual_date", "weekly"):
             tier_matches = tiers[tier_name]
             if tier_matches:
-                tier_matches.sort(key=lambda s: (s.minutes_since_start(time_str), -s.created_at.timestamp()))
+                tier_matches.sort(key=lambda match: (match[0], -match[1].created_at.timestamp()))
+                winner = tier_matches[0][1]
                 logger.debug(
-                    f"Active schedule: {tier_matches[0].id} ({tier_name}) "
-                    f"for {today.isoformat()} {time_str} (board={bid})"
+                    f"Active schedule: {winner.id} ({tier_name}) for {today.isoformat()} {time_str} (board={bid})"
                 )
-                return tier_matches[0]
+                return winner
 
         return None
 
@@ -263,14 +303,12 @@ class ScheduleService:
         schedule: ScheduleEntry,
         target_date: date,
         location: tuple[float | None, float | None, str],
-    ) -> ScheduleEntry:
-        """Return a schedule with sun-based times resolved for the given date.
-
-        If the schedule uses only fixed times, returns it unchanged.
-        Otherwise creates a shallow copy with resolved start/end times.
-        """
+    ) -> _ResolvedWindow:
+        """Resolve an occurrence without losing the endpoint's calendar date."""
         if schedule.start_type == "fixed" and schedule.end_type == "fixed":
-            return schedule
+            return _ResolvedWindow(
+                schedule, int(schedule.end_time is not None and schedule.end_time <= schedule.start_time)
+            )
 
         lat, lon, tz = location
         resolved_start, resolved_end = resolve_schedule_sun_times(
@@ -286,23 +324,82 @@ class ScheduleService:
             timezone_str=tz,
         )
 
+        end_day_offset = int(resolved_end is not None and resolved_end <= resolved_start)
+        if end_day_offset and schedule.end_type != "fixed":
+            # An overnight sun endpoint occurs on the next calendar date.
+            _, resolved_end = resolve_schedule_sun_times(
+                start_type=schedule.start_type,
+                start_sun_offset=schedule.start_sun_offset,
+                start_time_fallback=schedule.start_time,
+                end_type=schedule.end_type,
+                end_sun_offset=schedule.end_sun_offset,
+                end_time_fallback=schedule.end_time,
+                latitude=lat,
+                longitude=lon,
+                target_date=target_date + timedelta(days=1),
+                timezone_str=tz,
+            )
+
         # Build a copy with resolved times (model_copy available in Pydantic v2)
-        return schedule.model_copy(
-            update={
-                "start_time": resolved_start,
-                "end_time": resolved_end,
-            }
+        return _ResolvedWindow(
+            schedule.model_copy(update={"start_time": resolved_start, "end_time": resolved_end}),
+            end_day_offset,
         )
 
     # Default page management
 
+    # The primary board's default page has two names: its real board id (what
+    # ``PATCH /v1/boards/primary`` and the display loop use) and the legacy
+    # ``""`` slot (what an id-less ``GET /schedules`` reads). They are one
+    # setting, the same way ``list_schedules`` treats ``""`` rows as the
+    # primary's. Reads resolve an id-less request to the primary, so they find
+    # what a write to the primary stored. A write to the primary also empties
+    # the legacy slot: the primary's own entry now answers for it, and a stale
+    # legacy value would otherwise reappear (storage falls back to it) the
+    # moment that entry is cleared.
+
     def get_default_page(self, board_id: str | None = None) -> str | None:
         """Get the default page ID for schedule gaps for the given board."""
-        return self.storage.get_default_page_id(board_id=board_id)
+        return self.get_default_page_state(board_id)["default_page_id"]
 
-    def set_default_page(self, page_id: str | None, board_id: str | None = None) -> None:
+    def _default_page_state_locked(self, settings, board_id: str | None) -> dict:
+        bid = board_id or settings.get_primary_board_id() or DEFAULT_BOARD_ID
+        return {
+            "default_page_id": self.storage.get_default_page_id(bid),
+            "revision": f"{self.storage.default_revision}:{settings.runtime_revision}",
+        }
+
+    def get_default_page_revision(self, board_id: str | None = None) -> str:
+        """Conservative token for all defaults and primary-fallback identity.
+
+        All default writes and persisted settings changes invalidate it, even
+        unrelated writes. Settings generation prevents primary-board ABA reuse.
+        The owning settings lock precedes the schedules lock.
+        """
+        return self.get_default_page_state(board_id)["revision"]
+
+    def get_default_page_state(self, board_id: str | None = None) -> dict:
+        settings = get_settings_service()
+        with settings.lock, self.storage.lock:
+            return self._default_page_state_locked(settings, board_id)
+
+    def set_default_page(
+        self, page_id: str | None, board_id: str | None = None, *, expected_revision: str | None = None
+    ) -> dict:
         """Set the default page ID for schedule gaps for the given board."""
-        self.storage.set_default_page_id(page_id, board_id=board_id)
+        settings = get_settings_service()
+        with settings.lock, self.storage.lock:
+            if (
+                expected_revision is not None
+                and expected_revision != self._default_page_state_locked(settings, board_id)["revision"]
+            ):
+                raise DefaultPageRevisionConflict()
+            primary_id = settings.get_primary_board_id()
+            bid = board_id or primary_id or DEFAULT_BOARD_ID
+            self.storage.set_default_page_id(page_id, board_id=bid)
+            if primary_id and bid == primary_id:
+                self.storage.set_default_page_id(None, board_id=DEFAULT_BOARD_ID)
+            return self._default_page_state_locked(settings, board_id)
 
     # Validation
 
@@ -334,7 +431,7 @@ class ScheduleService:
 
         return ScheduleValidationResult(valid=len(overlaps) == 0, overlaps=overlaps, gaps=gaps)
 
-    def _detect_overlaps(self, schedules: list[ScheduleEntry]) -> list[Overlap]:
+    def _detect_overlaps(self, schedules: list[_ResolvedWindow]) -> list[Overlap]:
         """Detect overlapping schedules.
 
         Two schedules overlap if they have:
@@ -350,20 +447,17 @@ class ScheduleService:
         overlaps = []
 
         # Check each pair of schedules
-        for i, schedule1 in enumerate(schedules):
-            for schedule2 in schedules[i + 1 :]:
-                # Get days each schedule applies to
-                days1 = set(schedule1.get_days())
-                days2 = set(schedule2.get_days())
-
-                # Check if days overlap
-                common_days = days1 & days2
-                if not common_days:
-                    continue  # No day overlap
-
-                if self._times_overlap(
-                    schedule1.start_time, schedule1.end_time, schedule2.start_time, schedule2.end_time
-                ):
+        for i, window1 in enumerate(schedules):
+            for window2 in schedules[i + 1 :]:
+                schedule1, schedule2 = window1.schedule, window2.schedule
+                intervals1 = self._daily_intervals(window1)
+                intervals2 = self._daily_intervals(window2)
+                common_days = {
+                    day
+                    for day in VALID_DAYS
+                    if any(a < d and c < b for a, b in intervals1[day] for c, d in intervals2[day])
+                }
+                if common_days:
                     # Build description
                     days_str = ", ".join(sorted(common_days))
                     end1_str = schedule1.end_time or "open"
@@ -424,7 +518,22 @@ class ScheduleService:
         # Overlap if range2 intersects [s1, 1440) or [0, e1)
         return s2 < e1 or e2 > s1
 
-    def _detect_gaps(self, schedules: list[ScheduleEntry]) -> list[Gap]:
+    def _daily_intervals(self, window: _ResolvedWindow) -> dict[str, list[tuple[int, int]]]:
+        """Split weekly windows onto the calendar days they actually cover."""
+        schedule = window.schedule
+        intervals = {day: [] for day in VALID_DAYS}
+        start = self._time_to_minutes(schedule.start_time)
+        end = self._time_to_minutes(schedule.end_time) if schedule.end_time is not None else 1440
+        for day in schedule.get_days():
+            if window.end_day_offset:
+                intervals[day].append((start, 1440))
+                next_day = VALID_DAYS[(VALID_DAYS.index(day) + 1) % 7]
+                intervals[next_day].append((0, end))
+            else:
+                intervals[day].append((start, end))
+        return intervals
+
+    def _detect_gaps(self, schedules: list[_ResolvedWindow]) -> list[Gap]:
         """Detect gaps in schedule coverage.
 
         For each day of the week, find time periods with no scheduled page.
@@ -441,35 +550,13 @@ class ScheduleService:
         TOTAL_MINUTES = 24 * 60  # 1440 minutes in a day
         gaps = []
 
-        # Check each day of the week
+        intervals = [self._daily_intervals(schedule) for schedule in schedules]
         for day in VALID_DAYS:
-            day_schedules = [s for s in schedules if s.applies_to_day(day)]
-
-            if not day_schedules:
-                # Entire day is a gap
-                gaps.append(Gap(start_time="00:00", end_time="23:59", days=[day]))
-                continue
-
-            # Build a coverage bitmap for the day (True = covered)
             covered = [False] * TOTAL_MINUTES
-            for sched in day_schedules:
-                s = self._time_to_minutes(sched.start_time)
-                if sched.end_time is None:
-                    # Open-ended: covers from start to end of day
-                    for m in range(s, TOTAL_MINUTES):
-                        covered[m] = True
-                else:
-                    e = self._time_to_minutes(sched.end_time)
-                    if e <= s:
-                        # Wraparound: covers [s, 1440) and [0, e)
-                        for m in range(s, TOTAL_MINUTES):
-                            covered[m] = True
-                        for m in range(e):
-                            covered[m] = True
-                    else:
-                        # Normal: covers [s, e)
-                        for m in range(s, e):
-                            covered[m] = True
+            for schedule_intervals in intervals:
+                for start, end in schedule_intervals[day]:
+                    for minute in range(start, end):
+                        covered[minute] = True
 
             # Find uncovered ranges
             gap_start = None

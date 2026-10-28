@@ -12,9 +12,21 @@
   <a href="https://discord.gg/2GAqKnRF6h"><img src="https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-**FiestaBoard is free, open-source software for Vestaboard and split-flap displays.** It gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you - weather, stocks, transit, sports, surf conditions, and more - and display it on your board. Compatible with Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas).
+<p align="center"><strong>Your data, out in the real world.</strong></p>
 
-You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
+**FiestaBoard turns live data into something you can glance at from across the room** — your morning commute, the markets, the surf, a little Star Trek wisdom — on the displays around you: split-flap boards like Vestaboard, LED matrices like the Divoom Pixoo 64, or any TV with a browser. Pick from 60+ plugins, design pages in a visual editor, schedule what shows when, and build your own plugins. Free, open source, and self-hosted in Docker.
+
+**Works with:**
+
+- **Split-flap:** Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas)
+- **LED matrix:** Divoom Pixoo 64, and [Ulanzi TC002](https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002) running AWTRIX NG (community plugin)
+- **TV:** [FiestaPanel](docs/displays/tv.md) turns any TV or screen with a web browser into a life-size board. Native Apple TV and Android TV apps are coming soon.
+
+Every display is an [output plugin](docs/development/output-plugins.md), so support for new hardware can be added without changing FiestaBoard. See [Supported Displays](docs/displays/index.md).
+
+**Version availability:** Divoom Pixoo 64 support and the output-plugin setup described here target v10 (`next` / beta). Stable v9 does not include them. Native TV apps are coming soon; browser viewing is available.
+
+You bring the display and the API keys for the services you care about. FiestaBoard handles the rest.
 
 **[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/2GAqKnRF6h)**
 
@@ -93,13 +105,13 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 ### After Setup
 
-1. Open **http://localhost:4420** — the setup wizard will guide you through connecting your board
-2. The display service starts automatically once your board is connected
-3. Go to **Integrations** to enable plugins (weather, stocks, etc.)
-4. Go to **Pages** to create and design what your board displays
-5. Go to **Schedule** to automate when different pages show up
+1. Open **http://localhost:4420** on the computer running Docker, or **http://fiestapi.local:4420** for a FiestaPi on your network.
+2. Choose where your content will appear: a **Vestaboard**, **FiestaPanel** for a TV or browser, or another supported display. The wizard guides you through saving its connection. For FiestaPanel, open the viewer address on your TV and leave its browser open.
+3. Optionally choose **Integrations**, which supply live information such as the time or weather. Start with Date & Time; some integrations need a location, event date, or API key configured later.
+4. Choose **Save & create my first page**. A page is the layout of text, colors, and information you want to show. Preview it in the editor before sending it to your display. The welcome test message is optional; your integration choices save either way.
+5. Later, use **Schedule** to decide when pages appear, **Displays** to manage connections, and **Integrations** to configure or add live data.
 
-> **Tip:** Many plugins need no API key at all - Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, Sun Art, and more work right out of the box. Start with those while you gather API keys for others.
+> **No display yet?** Choose **I'll add a display later** to explore FiestaBoard and create page previews. You can connect a display whenever you are ready.
 
 > **Use `http://`, not `https://`.** FiestaBoard runs on your local network and is served over plain HTTP — it has no SSL certificate. Type the address with `http://` (for example `http://localhost:4420`). If your browser shows a "connection is not secure" or `ERR_SSL_PROTOCOL_ERROR` page, it upgraded the address to `https://`; delete the `s` and reload. See [Can't reach the web UI](#cant-reach-the-web-ui) if it keeps happening.
 
@@ -111,7 +123,7 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 ## What Can You Display?
 
-FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit, sports, entertainment, and home automation. Here's what they look like:
+FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit, sports, entertainment, and home automation. Here's what they look like:
 
 **Weather** - Temperature, UV index, precipitation, high/low, sunset time
 
@@ -207,14 +219,15 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Wildfire Monitor](https://github.com/Fiestaboard/fiestaboard-plugin--wildfire) | Active wildfires from NIFC | No |
 | [Word Clock](https://github.com/Fiestaboard/fiestaboard-plugin--word-clock) | Time spelled out in words, QLOCKTWO style | No |
 | [Word of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--word-of-day) | Word, pronunciation, and definition | No |
+| [World of Warcraft](https://github.com/Fiestaboard/fiestaboard-plugin--wow) | Retail character gear, Mythic+ scores, weekly keys, and raid progress from Raider.IO | No |
 | [WSDOT Ferries](https://github.com/Fiestaboard/fiestaboard-plugin--wsdot) | WA State ferry schedules and alerts | Yes (free) |
 | [YouTube Stats](https://github.com/Fiestaboard/fiestaboard-plugin--youtube-stats) | Show a YouTube channel's subscribers, total views and video count. Uses your own free YouTube Data API key; no sign-in needed | Yes (free) |
 
-### Transition Plugins (Beta)
+### Transition Plugins (Beta, Deprecated)
 
-> ⚠️ **Experimental.** Enable in Settings → Beta. The plugin SDK is not yet stable — APIs and manifest fields may change before general availability.
+> ⚠️ **Deprecated.** Enable with the **Transition Plugins** switch in a display's Transition section (Displays → a display → Transition). The transition plugin SDK will not reach general availability; see [Transitions](./docs/features/transitions.md).
 
-Transition plugins drive **frame-by-frame board animations** that go beyond the built-in flip patterns offered by Vestaboard's Local API. They're picked per-page (or as the system default) and animate the change from one display to the next. Preview any transition without a real board at `/transitions` (Transition Lab).
+Transition plugins drive **frame-by-frame board animations** that go beyond the built-in flip patterns offered by Vestaboard's Local API. They're picked per page (or as a display's transition) and animate the change from one display to the next. Transition plugins are **deprecated**: existing pages keep working, and removal is being considered for v11.
 
 <!-- Sorted alphabetically -->
 | Plugin | What It Does |
@@ -307,7 +320,7 @@ Five preset sizes are available, plus a custom size up to **8 × 8 Notes**:
 | 4 stacked | 1 × 4 | 15 × 12 |
 | 2×2 grid | 2 × 2 | 30 × 6 |
 
-Note arrays connect two ways: through the **Vestaboard Cloud API** using an `X-Vestaboard-Token` (from your Vestaboard Cloud API subscription — not the Read/Write key), or in **local mode**, where FiestaBoard drives each Note directly over your network with its own IP and Local API key — no cloud subscription, no rate limit, and transitions work. Configure the board type, size, and connection in **Settings → Hardware**: paste the token (cloud), or assign each Note to its slot in the tile grid (local) and use **Identify** to flash position numbers on the wall and verify the layout. **Auto-detect from board** can read the array and pick the size for you.
+Note arrays connect two ways: through the **Vestaboard Cloud API** using an `X-Vestaboard-Token` (from your Vestaboard Cloud API subscription — not the Read/Write key), or in **local mode**, where FiestaBoard drives each Note directly over your network with its own IP and Local API key — no cloud subscription, no rate limit, and transitions work. Configure the board type, size, and connection on its page in **Displays**: paste the token (cloud), or assign each Note to its slot in the tile grid (local) and use **Identify** to flash position numbers on the wall and verify the layout. **Auto-detect from board** can read the array and pick the size for you.
 
 **→ [Note Array setup guide](docs/internal/setup/NOTE_ARRAYS.md)** for the full walkthrough, and the [Note Arrays reference](docs/internal/reference/NOTE_ARRAYS.md) for the dimensions model and API details.
 
@@ -388,7 +401,7 @@ FiestaBoard exposes a built-in **MCP (Model Context Protocol) server** at `/api/
 
 ### Connecting Claude Desktop
 
-Claude Desktop only accepts stdio MCP entries, so connect via the `mcp-remote` proxy. First generate a bearer token in **Settings → Integrations → MCP / external clients**, then add to your `claude_desktop_config.json`:
+Claude Desktop only accepts stdio MCP entries, so connect via the `mcp-remote` proxy. First generate a bearer token in **Settings → AI → MCP / external clients**, then add to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -428,7 +441,7 @@ The MCP server exposes 28 tools covering the full FiestaBoard API:
 | Collections | `list_collections`, `create_collection`, `update_collection`, `delete_collection` |
 | System | `get_system_status`, `get_settings_summary`, `set_active_page`, `set_schedule_mode` |
 
-The MCP server requires a bearer token for all requests. Generate one in **Settings → Integrations → MCP / external clients**. See [MCP Clients Setup](docs/internal/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
+The MCP server requires a bearer token for all requests. Generate one in **Settings → AI → MCP / external clients**. See [MCP Clients Setup](docs/internal/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
 
 ---
 

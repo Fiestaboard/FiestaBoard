@@ -2398,6 +2398,19 @@
         }
       ]
     },
+    "ulanzi_tc002": {
+      "teaser": "ULANZI TC002",
+      "previews": [
+        {
+          "device_type": "note",
+          "rows": [
+            "  ULANZI TC002 ",
+            "   AWTRIX NG   ",
+            "    {63}{64}{65}{66}{67}{68}{69}    "
+          ]
+        }
+      ]
+    },
     "uv_index": {
       "teaser": "UV 7.2 HIGH",
       "previews": [
@@ -2659,6 +2672,30 @@
             "{68}{68} WORD OF DAY",
             "EPHEMERAL",
             "ADJ. FLEETING"
+          ]
+        }
+      ]
+    },
+    "wow": {
+      "teaser": "WOW M+ 2457",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "EXAMPLE",
+            "RESTORATION DRUID",
+            "ILVL 251  M+ 2457",
+            "WEEK +10",
+            "3/8 H",
+            "RIO 2026-10-01"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "EXAMPLE",
+            "ILVL 251",
+            "M+ 2457"
           ]
         }
       ]

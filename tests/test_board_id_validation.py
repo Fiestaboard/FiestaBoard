@@ -207,9 +207,10 @@ class TestReadsDeliberatelyFallBack:
         by_board = {"board-1": [self._schedule_for("board-1")]}
         schedule_service = Mock()
         schedule_service.list_schedules.side_effect = lambda board_id=None: by_board.get(board_id, [])
-        schedule_service.get_default_page.side_effect = lambda board_id=None: (
-            "page-1" if board_id == "board-1" else None
-        )
+        schedule_service.get_default_page_state.side_effect = lambda board_id=None: {
+            "default_page_id": "page-1" if board_id == "board-1" else None,
+            "revision": "default-generation",
+        }
         with patch("src.schedules.routes.get_schedule_service", return_value=schedule_service):
             known = client.get("/schedules", params={"board_id": "board-1"})
             unknown = client.get("/schedules", params={"board_id": "ghost-board"})
@@ -217,9 +218,14 @@ class TestReadsDeliberatelyFallBack:
         # Control: the store is not empty, and a board-scoped read can see it.
         assert known.status_code == 200
         assert [s["id"] for s in known.json()["schedules"]] == ["sched-1"]
+        assert known.json()["default_page_id"] == "page-1"
         # The unknown board falls back to the empty list instead of 404ing.
         assert unknown.status_code == 200
         assert unknown.json()["schedules"] == []
+        assert unknown.json()["default_page_id"] is None
+        assert unknown.json()["default_page_revision"] == "default-generation"
+        schedule_service.get_default_page_state.assert_any_call("board-1")
+        schedule_service.get_default_page_state.assert_any_call("ghost-board")
 
     def test_get_schedule_enabled_returns_false_for_an_unknown_board(self, client, one_board):
         one_board.is_schedule_enabled.side_effect = lambda board_id=None: board_id == "board-1"

@@ -63,9 +63,23 @@ This document is the API to build against: 33 operations. The app serves
 ~200 more, but they are the web UI's private RPC channel — undocumented on
 purpose, with no compatibility promise, and liable to change in any release.
 They are published separately at `/api/internal/openapi.json` for the UI's
-own contract checks. Two flat legacy operations, `POST /send-message` and
-`POST /refresh`, remain here because earlier documentation named them; both
+own contract checks, and can be browsed at `/api/docs` by picking
+**Internal web UI API** in the definition dropdown at the top of the page.
+Two flat legacy operations, `POST /send-message` and `POST /refresh`,
+remain here because earlier documentation named them; both
 are deprecated and both name their `/v1` replacement in a `Link` header.
+
+## Deprecated board fields
+
+Since settings v4, a board's connection lives in its `output_config`, read
+alongside its `output`. The flat connection fields that board responses
+still carry (`api_mode`, `host`, `port`, `local_api_key`, `cloud_key`,
+`note_array_token`, `tiles`, and the `board_api_mode`, `board_host` and
+`board_key_set` summary fields) are copies of it, kept for compatibility
+through v10 and removed in v11. Every response that carries them sends
+`Deprecation: true` and a `Link` with `rel="deprecation"` pointing here,
+and the schema marks the typed ones `deprecated`. The same fields leave the
+MQTT `board_api_mode` entity and the MCP board tools in v11.
 
 ## Authentication
 
@@ -157,7 +171,7 @@ One answer to 'what is this board showing, and why'. It merges what the internal
 
 **Change how a board behaves**
 
-Rename a board, pause or resume it, turn its schedule on or off, or set the page it falls back to when the schedule has a gap. Only the fields you send are applied; omit the rest. Pausing stops every write to the board from every code path — the display loop, schedules, plugin triggers, MQTT and this API alike.
+Rename a board, pause or resume it, turn its schedule on or off, choose whether FiestaBoard takes it back from another app (`auto_restore`), or set the page it falls back to when the schedule has a gap. Only the fields you send are applied; omit the rest. Pausing stops every write to the board from every code path — the display loop, schedules, plugin triggers, MQTT and this API alike.
 
 **Parameters**
 
@@ -172,6 +186,7 @@ Rename a board, pause or resume it, turn its schedule on or off, or set the page
 | `name` | `string` \| `null` | no | Rename the board. (min length 1; max length 100) |
 | `paused` | `boolean` \| `null` | no | Pause or resume the board. While paused nothing is written to it from any code path. |
 | `schedule_enabled` | `boolean` \| `null` | no | Turn this board's schedule on or off. |
+| `auto_restore` | `boolean` \| `null` | no | Turn off to let another app keep this board after it overwrites FiestaBoard's content; on (the default) puts the content back. |
 | `default_page_id` | `string` \| `null` | no | Page shown when the schedule has a gap. Send null to clear it. |
 
 **Responses**
@@ -199,6 +214,8 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 
 `sent` in the response tells you whether flaps actually moved. It is false, with a `reason`, when the install's output target is UI-only and when the board already showed this exact content. A board that is paused or inside its silence window refuses the write with 409 rather than lying about it. Send `if_paused: "preview"` to get a 200 instead for a paused board: `sent` is false, `reason` says the board is paused, and `characters` is what it would have shown. Nothing is written.
 
+A write superseded by a newer write returns 409: its content did not reach the board. A silenced board is left alone. When its silence schedule holds messages (`show_queued_on_exit`) the write is accepted for later: 202, `sent: false`, `held: true`, and it shows when silence ends. Otherwise it is a 409. Send `override_silence: true` to write anyway. A board made of several devices (a local note array) that takes the write on only some of them answers 502, and `detail.failed_regions` names the cells that did not update; sending again retries only those.
+
 **Parameters**
 
 | Name | In | Type | Required | Description |
@@ -219,8 +236,9 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 | `duration_minutes` | `integer` \| `null` | no | Show this for N minutes, then revert. Omit for a message that stays until something else replaces it. (1–480) |
 | `revert_mode` | `"schedule"` \| `"page"` \| `"blank"` \| `null` | no | What to show when a timed message expires. Requires duration_minutes. Defaults to "schedule". |
 | `revert_page_id` | `string` \| `null` | no | The page to revert to. Required when revert_mode is "page". |
-| `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the install's transition animation for this one send. |
-| `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. (default `false`) |
+| `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the board's own transition animation for this one send. |
+| `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. Does not override silence; that is `override_silence`. (default `false`) |
+| `override_silence` | `boolean` | no | Write even while the board is silenced. Default false: a silenced board answers 409, or 202 with `held: true` when its silence schedule holds messages until silence ends. Never overrides pause. (default `false`) |
 | `if_paused` | `"reject"` \| `"preview"` | no | What to do when the board is paused. "reject" (the default) answers 409. "preview" answers 200 with `sent: false`, a `reason`, and the grid that would have been shown, without writing anything. (default `"reject"`) |
 
 **Responses**
@@ -228,6 +246,7 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 | Status | Body | Description |
 |--------|------|-------------|
 | `200` | [`MessageResponse`](#schema-messageresponse) | Successful Response |
+| `202` | [`MessageResponse`](#schema-messageresponse) | Held: the board is silenced and will show this when it ends. |
 
 **Errors**
 
@@ -239,6 +258,7 @@ Add `duration_minutes` to make it temporary — it reverts to your schedule, a c
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 | `429` | [`ErrorResponse`](#schema-errorresponse) | Rate-limited — the request arrived inside a minimum interval; see Retry-After. |
 | `500` | [`ErrorResponse`](#schema-errorresponse) | The server could not complete the operation. Deliberately raised, not an unhandled error. |
+| `502` | [`PartialWriteError`](#schema-partialwriteerror) | An upstream the server called on your behalf failed. |
 | `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
 
 ### `DELETE /v1/boards/{board}/message` {#delete-v1-boards-board-message}
@@ -268,6 +288,38 @@ Undoes a `POST` to this path. Any timed message is cancelled, the board's conten
 | `500` | [`ErrorResponse`](#schema-errorresponse) | The server could not complete the operation. Deliberately raised, not an unhandled error. |
 | `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
 
+### `POST /v1/boards/{board}/restore` {#post-v1-boards-board-restore}
+
+**Restore what a board should show**
+
+Put a board back after another app or controller overwrote it; the web app's Restore button calls this. FiestaBoard remembers what it last sent each board and skips a send that would not change it, so after an outside write it believes the board is already up to date. This forgets that for this one board and runs its display pass, which writes whatever the schedule, timed message or pinned page says belongs there.
+
+Restore changes no selection: a timed message keeps running and the pinned page stays pinned (a primary board with nothing pinned falls back to its first page, as the display loop always does). A paused or silenced board refuses with 409, and a UI-only install answers `sent: false`.
+
+`sent` means the board accepted the write. No supported board reports what it actually displays, so `device_observed` is always false — look at the board to confirm.
+
+**Parameters**
+
+| Name | In | Type | Required | Description |
+|------|----|------|----------|-------------|
+| `board` | path | `string` | yes | — |
+
+**Responses**
+
+| Status | Body | Description |
+|--------|------|-------------|
+| `200` | [`RestoreResponse`](#schema-restoreresponse) | Successful Response |
+
+**Errors**
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `409` | [`ErrorResponse`](#schema-errorresponse) | Conflict — duplicate id, or a resource pinned by the environment. |
+| `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
+| `500` | [`ErrorResponse`](#schema-errorresponse) | The server could not complete the operation. Deliberately raised, not an unhandled error. |
+| `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
+
 ### `PUT /v1/boards/{board}/active-page` {#put-v1-boards-board-active-page}
 
 **Pin a page to a board**
@@ -275,6 +327,8 @@ Undoes a `POST` to this path. Any timed message is cancelled, the board's conten
 Sets the page (or collection) this board shows until something changes it — the sticky selection a schedule falls back from. The page is rendered and sent immediately. Send `null` to unpin, after which the board follows its schedule again. Pinning a page whose size does not match the board is rejected.
 
 The selection is stored whether or not the send succeeded, so check `sent` — and `error`, which names the render or send failure when it is false.
+
+While the board is silenced the page is pinned but not shown: `sent` is false, `silenced` is true and `reason` says when it will appear. Send `override_silence: true` to show it now anyway.
 
 **Parameters**
 
@@ -287,6 +341,7 @@ The selection is stored whether or not the send succeeded, so check `sent` — a
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `page_id` | `string` \| `null` | yes | Page or collection to pin to this board. Send null to unpin and fall back to the schedule. |
+| `override_silence` | `boolean` | no | Show the page now even while the board is silenced. Default false: the page is pinned and appears when silence ends. (default `false`) |
 
 **Responses**
 
@@ -346,7 +401,8 @@ Saves a new page and answers with it, including the generated `id` you refer to 
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 15–128 |
+| `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
 
 **Responses**
 
@@ -402,6 +458,7 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `name` | `string` \| `null` | no | min length 1; max length 100 |
 | `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` \| `null` | no | — |
 | `display_type` | `string` \| `null` | no | — |
@@ -415,7 +472,8 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 15–128 |
+| `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
 
 **Responses**
 
@@ -429,19 +487,21 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 |--------|------|---------|
 | `400` | [`ErrorResponse`](#schema-errorresponse) | Invalid request — the payload references something that does not exist or violates a rule. |
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `DELETE /v1/pages/{page_id}` {#delete-v1-pages-page-id}
 
 **Delete a page**
 
-Removes the page. If it was the last page, or was the one a board was showing, the response says what was put in its place so nothing is left pointing at a page that no longer exists.
+Removes the page and replaces active selections on every board with a compatible page, creating a welcome page when needed. Returns 409 with references to change first if a collection, schedule, schedule default, silence setting, or temporary override still uses the page. A refused deletion changes nothing. The response reports whether any selection changed; its single replacement id prefers the primary board.
 
 **Parameters**
 
 | Name | In | Type | Required | Description |
 |------|----|------|----------|-------------|
 | `page_id` | path | `string` | yes | — |
+| `expected_revision` | query | `string` \| `null` | no | — |
 
 **Responses**
 
@@ -454,6 +514,8 @@ Removes the page. If it was the last page, or was the one a board was showing, t
 | Status | Body | Meaning |
 |--------|------|---------|
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `409` | [`ErrorResponse`](#schema-errorresponse) | Conflict — duplicate id, or a resource pinned by the environment. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `GET /v1/schedules` {#get-v1-schedules}
@@ -563,6 +625,7 @@ Applies only the fields you send, so a partial update cannot silently clear the 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `board_id` | `string` \| `null` | no | min length 0 |
 | `page_id` | `string` \| `null` | no | min length 1 |
 | `start_time` | `string` \| `null` | no | — |
@@ -592,6 +655,7 @@ Applies only the fields you send, so a partial update cannot silently clear the 
 |--------|------|---------|
 | `400` | [`ErrorResponse`](#schema-errorresponse) | Invalid request — the payload references something that does not exist or violates a rule. |
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `DELETE /v1/schedules/{schedule_id}` {#delete-v1-schedules-schedule-id}
@@ -605,6 +669,7 @@ Removes this schedule rule. The page it pointed at is untouched, and the board f
 | Name | In | Type | Required | Description |
 |------|----|------|----------|-------------|
 | `schedule_id` | path | `string` | yes | — |
+| `expected_revision` | query | `string` \| `null` | no | — |
 
 **Responses**
 
@@ -617,6 +682,7 @@ Removes this schedule rule. The page it pointed at is untouched, and the board f
 | Status | Body | Meaning |
 |--------|------|---------|
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `GET /v1/collections` {#get-v1-collections}
@@ -708,6 +774,7 @@ Applies only the fields you send. Every page id in `page_ids` must exist, and a 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `name` | `string` \| `null` | no | min length 1; max length 100 |
 | `page_ids` | array of `string` \| `null` | no | — |
 | `selection_mode` | `"time"` \| `"variable"` \| `"random"` \| `null` | no | — |
@@ -727,19 +794,21 @@ Applies only the fields you send. Every page id in `page_ids` must exist, and a 
 |--------|------|---------|
 | `400` | [`ErrorResponse`](#schema-errorresponse) | Invalid request — the payload references something that does not exist or violates a rule. |
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `DELETE /v1/collections/{collection_id}` {#delete-v1-collections-collection-id}
 
 **Delete a collection**
 
-Removes the collection. Its member pages are untouched, but anything still referring to the collection id — a schedule rule, a board's pinned selection — will stop resolving.
+Removes an unreferenced collection, leaving its member pages untouched. Returns 409 with references to change first if a board selection, schedule, schedule default, silence setting, or temporary override still uses it. A refused deletion changes nothing.
 
 **Parameters**
 
 | Name | In | Type | Required | Description |
 |------|----|------|----------|-------------|
 | `collection_id` | path | `string` | yes | — |
+| `expected_revision` | query | `string` \| `null` | no | — |
 
 **Responses**
 
@@ -752,6 +821,8 @@ Removes the collection. Its member pages are untouched, but anything still refer
 | Status | Body | Meaning |
 |--------|------|---------|
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `409` | [`ErrorResponse`](#schema-errorresponse) | Conflict — duplicate id, or a resource pinned by the environment. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `GET /v1/install` {#get-v1-install}
@@ -891,7 +962,7 @@ Answers 200 whenever the process is serving. `service_running` reports whether t
 
 **Read the display loop's state, board by board**
 
-What the instance is doing: whether the display loop is running, a summary of the resolved configuration, and per board whether it has a working connection, whether it is paused, which page it is showing, and why it failed to start if it did.
+What the instance is doing: whether the display loop is running, a summary of the resolved configuration, and per board whether it has a working connection, whether it is paused, which page it is showing, why it failed to start if it did, and its output's summary of its connection settings (`output_status`: connected or not_configured).
 
 **Responses**
 
@@ -1112,18 +1183,25 @@ The v1 successor takes the board in the path, so it cannot be forgotten,
 and reports whether flaps actually moved rather than only that the
 request was accepted.
 
+A silenced board (#1943, #1944): `override_silence` writes anyway;
+otherwise the message is held (202, `held: true`) when the board's
+silence schedule holds messages until silence ends, and refused (409)
+when it does not.
+
 **Request body** (required) — [`MessageRequest (board_api)`](#schema-src-board-api-models-messagerequest)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `text` | `string` | yes | — |
 | `board_id` | `string` \| `null` | no | — |
+| `override_silence` | `boolean` | no | default `false` |
 
 **Responses**
 
 | Status | Body | Description |
 |--------|------|-------------|
 | `200` | [`SendResponse`](#schema-sendresponse) | Successful Response |
+| `202` | [`SendResponse`](#schema-sendresponse) | Held: the board is silenced and will show this when it ends. |
 
 **Errors**
 
@@ -1147,6 +1225,7 @@ Every model the operations above name, expanded once.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `page_id` | `string` \| `null` | yes | Page or collection to pin to this board. Send null to unpin and fall back to the schedule. |
+| `override_silence` | `boolean` | no | Show the page now even while the board is silenced. Default false: the page is pinned and appears when silence ends. (default `false`) |
 
 ### `ActivePageResponse` {#schema-activepageresponse}
 
@@ -1157,6 +1236,8 @@ The result of pinning a page to a board.
 | `board_id` | `string` | yes | — |
 | `page_id` | `string` \| `null` | yes | What is now pinned. Null means nothing is. |
 | `sent` | `boolean` | yes | Whether the new page reached the board immediately. |
+| `silenced` | `boolean` | no | True when the board's silence window held the immediate send. The page shows when it ends. (default `false`) |
+| `reason` | `string` \| `null` | no | Why nothing was written although nothing failed (e.g. silence). Null when sent is true. |
 | `error` | `string` \| `null` | no | Why the page did not reach the board, when `sent` is false. The selection is stored either way, so a 200 here is not on its own proof that anything was displayed (#1791). |
 | `warnings` | array of `string` | no | Non-fatal problems, e.g. collection members that do not fit this board. |
 
@@ -1179,6 +1260,10 @@ one document, because "what is this board doing" is one question.
 | `is_primary` | `boolean` | yes | True for the board that the alias "primary" resolves to. |
 | `paused` | `boolean` | yes | While true, FiestaBoard writes nothing to this board from any code path. |
 | `schedule_enabled` | `boolean` | yes | Whether this board follows its schedule rather than a fixed page. |
+| `auto_restore` | `boolean` | yes | Whether FiestaBoard puts this board's content back when another app overwrites it. Detected by reading the board back, or by a device that reports another client wrote it. |
+| `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
+| `device_model` | `string` \| `null` | no | The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). Null when it is not known (a FiestaPanel, for now). |
+| `charset` | `string` \| `null` | no | The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). Null when it is not known. |
 | `characters` | array of array of `integer` \| `null` | no | The flap codes currently on the board, or null if nothing has been sent to it yet. |
 | `text` | `string` \| `null` | no | `characters` decoded back to text, for reading. Null when `characters` is null. |
 | `expected_characters` | array of array of `integer` \| `null` | no | The flap grid FiestaBoard last sent to this board. When it differs from `characters` the board has drifted from what was sent — a flap that did not turn, or something else writing to the board. Null until this instance has sent anything. |
@@ -1190,6 +1275,7 @@ one document, because "what is this board doing" is one question.
 | `source` | `"manual"` \| `"schedule"` \| `"none"` | yes | Where `resolved_page_id` came from. |
 | `default_page_id` | `string` \| `null` | no | The page shown when the schedule has a gap. |
 | `override_expires_at` | `string` \| `null` | no | When the active timed message expires (ISO 8601), or null if none is running. |
+| `layers` | array of [`CanvasLayerModel`](#schema-canvaslayermodel) \| `null` | no | A pixel-matrix board only: the page's pixel canvases on the frame it shows, drawn over `characters` (`{x, y, width, height, rgba}`, rgba base64 RGBA; `[]` for none). Null on any other board. |
 
 ### `BoardListResponse` {#schema-boardlistresponse}
 
@@ -1210,6 +1296,7 @@ Per-board runtime state (issue #1244).
 | `paused` | `boolean` | yes | — |
 | `active_page_id` | `string` \| `null` | no | — |
 | `error` | `string` \| `null` | no | — |
+| `output_status` | [`OutputStatusSummary`](#schema-outputstatussummary) \| `null` | no | — |
 
 ### `BoardSummary` {#schema-boardsummary}
 
@@ -1229,6 +1316,10 @@ a consumer writing to a board has any use for.
 | `is_primary` | `boolean` | yes | True for the board that the alias "primary" resolves to. |
 | `paused` | `boolean` | yes | While true, FiestaBoard writes nothing to this board from any code path. |
 | `schedule_enabled` | `boolean` | yes | Whether this board follows its schedule rather than a fixed page. |
+| `auto_restore` | `boolean` | yes | Whether FiestaBoard puts this board's content back when another app overwrites it. Detected by reading the board back, or by a device that reports another client wrote it. |
+| `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
+| `device_model` | `string` \| `null` | no | The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). Null when it is not known (a FiestaPanel, for now). |
+| `charset` | `string` \| `null` | no | The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). Null when it is not known. |
 
 ### `BoardUpdate` {#schema-boardupdate}
 
@@ -1239,7 +1330,20 @@ a consumer writing to a board has any use for.
 | `name` | `string` \| `null` | no | Rename the board. (min length 1; max length 100) |
 | `paused` | `boolean` \| `null` | no | Pause or resume the board. While paused nothing is written to it from any code path. |
 | `schedule_enabled` | `boolean` \| `null` | no | Turn this board's schedule on or off. |
+| `auto_restore` | `boolean` \| `null` | no | Turn off to let another app keep this board after it overwrites FiestaBoard's content; on (the default) puts the content back. |
 | `default_page_id` | `string` \| `null` | no | Page shown when the schedule has a gap. Send null to clear it. |
+
+### `CanvasLayerModel` {#schema-canvaslayermodel}
+
+One canvas drawn in panel pixels (FiestaUI `LedBitmapLayer`).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `x` | `integer` | yes | Panel x of the layer's left column. |
+| `y` | `integer` | yes | Panel y of the layer's top row. |
+| `width` | `integer` | yes | Pixels across. |
+| `height` | `integer` | yes | Pixels down. |
+| `rgba` | `string` | yes | Base64 of width x height x 4 bytes of straight-alpha RGBA, row-major. A pixel with alpha > 0 overwrites what the cells drew; alpha 0 is transparent. |
 
 ### `Collection` {#schema-collection}
 
@@ -1248,6 +1352,7 @@ A collection – an ordered set of pages plus a selection mode.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | no | — |
+| `revision` | `string` \| `null` | no | — |
 | `name` | `string` | yes | min length 1; max length 100 |
 | `page_ids` | array of `string` | yes | — |
 | `selection_mode` | `"time"` \| `"variable"` \| `"random"` | no | default `"time"` |
@@ -1256,6 +1361,7 @@ A collection – an ordered set of pages plus a selection mode.
 | `random` | [`RandomModeConfig`](#schema-randommodeconfig) \| `null` | no | — |
 | `created_at` | `date-time` | no | — |
 | `updated_at` | `date-time` \| `null` | no | — |
+| `edit_protocol` | `string` | yes | — |
 
 ### `CollectionCreate` {#schema-collectioncreate}
 
@@ -1297,12 +1403,145 @@ Request model for updating an existing collection.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `name` | `string` \| `null` | no | min length 1; max length 100 |
 | `page_ids` | array of `string` \| `null` | no | — |
 | `selection_mode` | `"time"` \| `"variable"` \| `"random"` \| `null` | no | — |
 | `time` | [`TimeModeConfig`](#schema-timemodeconfig) \| `null` | no | — |
 | `variable` | [`VariableModeConfig`](#schema-variablemodeconfig) \| `null` | no | — |
 | `random` | [`RandomModeConfig`](#schema-randommodeconfig) \| `null` | no | — |
+
+### `DocumentArea` {#schema-documentarea}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `row` | `integer` | yes | min 1 |
+| `col` | `integer` | yes | min 1 |
+| `rows` | `integer` | yes | min 1 |
+| `cols` | `integer` | yes | min 1 |
+
+### `DocumentCanvas` {#schema-documentcanvas}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes | — |
+| `area` | [`DocumentArea`](#schema-documentarea) | yes | — |
+| `bleed` | array of `"top"` \| `"left"` \| `"right"` \| `"bottom"` \| `"all"` | no | — |
+| `scale` | `integer` | no | 1–8; default `1` |
+| `text` | `"hide"` \| `"flow"` | no | default `"hide"` |
+| `content` | [`DocumentContent`](#schema-documentcontent) \| `null` | no | — |
+| `source` | `string` \| `null` | no | — |
+
+### `DocumentCircle` {#schema-documentcircle}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `cx` | `number` \| `integer` \| `string` | yes | — |
+| `cy` | `number` \| `integer` \| `string` | yes | — |
+| `r` | `number` \| `integer` \| `string` | yes | — |
+| `fill` | `string` \| `null` | no | — |
+| `stroke` | `string` \| `null` | no | — |
+
+### `DocumentContent` {#schema-documentcontent}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `size` | array of `any` \| `null` | no | — |
+| `background` | `string` \| `null` | no | — |
+| `palette` | object of `string` | no | — |
+| `shapes` | array of [`DocumentRect`](#schema-documentrect) \| [`DocumentCircle`](#schema-documentcircle) \| [`DocumentEllipse`](#schema-documentellipse) \| [`DocumentLine`](#schema-documentline) \| [`DocumentPolygon`](#schema-documentpolygon) \| [`DocumentText`](#schema-documenttext) \| [`DocumentGradient`](#schema-documentgradient) | no | — |
+| `pixels` | array of `string` | no | — |
+
+### `DocumentEllipse` {#schema-documentellipse}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `cx` | `number` \| `integer` \| `string` | yes | — |
+| `cy` | `number` \| `integer` \| `string` | yes | — |
+| `rx` | `number` \| `integer` \| `string` | yes | — |
+| `ry` | `number` \| `integer` \| `string` | yes | — |
+| `fill` | `string` \| `null` | no | — |
+| `stroke` | `string` \| `null` | no | — |
+
+### `DocumentGradient` {#schema-documentgradient}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `y` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `w` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `h` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `from` | `string` | yes | — |
+| `to` | `string` | yes | — |
+| `angle` | `number` \| `integer` \| `string` | no | default `90` |
+
+### `DocumentLine` {#schema-documentline}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x1` | `number` \| `integer` \| `string` | yes | — |
+| `y1` | `number` \| `integer` \| `string` | yes | — |
+| `x2` | `number` \| `integer` \| `string` | yes | — |
+| `y2` | `number` \| `integer` \| `string` | yes | — |
+| `stroke` | `string` | yes | — |
+| `width` | `number` \| `integer` \| `string` | no | default `1` |
+
+### `DocumentPolygon` {#schema-documentpolygon}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `points` | array of array of `any` \| `string` | yes | — |
+| `fill` | `string` \| `null` | no | — |
+| `stroke` | `string` \| `null` | no | — |
+
+### `DocumentRect` {#schema-documentrect}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x` | `number` \| `integer` \| `string` | yes | — |
+| `y` | `number` \| `integer` \| `string` | yes | — |
+| `w` | `number` \| `integer` \| `string` | yes | — |
+| `h` | `number` \| `integer` \| `string` | yes | — |
+| `fill` | `string` \| `null` | no | — |
+| `stroke` | `string` \| `null` | no | — |
+
+### `DocumentText` {#schema-documenttext}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x` | `number` \| `integer` \| `string` | yes | — |
+| `y` | `number` \| `integer` \| `string` | yes | — |
+| `text` | `string` | yes | max length 256 |
+| `color` | `string` | yes | — |
+| `font` | `"3x5"` \| `"5x7"` | no | default `"5x7"` |
 
 ### `ErrorResponse` {#schema-errorresponse}
 
@@ -1311,6 +1550,17 @@ The single error body the API serves.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `detail` | `string` | yes | — |
+
+### `FailedRegion` {#schema-failedregion}
+
+A rectangle of flaps that did not take a write, in board cells (0-based).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `row` | `integer` | yes | First row of the rectangle. |
+| `col` | `integer` | yes | First column of the rectangle. |
+| `rows` | `integer` | yes | Height in rows. |
+| `cols` | `integer` | yes | Width in columns. |
 
 ### `FormulaFunctionEntry` {#schema-formulafunctionentry}
 
@@ -1379,6 +1629,10 @@ Warn-only: the backend never mutates or removes the reference.
 | `schedule_enabled` | `boolean` \| `null` | no | Turn the install's schedule on or off. |
 | `default_page_id` | `string` \| `null` | no | Install-wide page shown when the schedule has a gap. Send null to clear it. |
 
+### `JsonValue` {#schema-jsonvalue}
+
+_No fields._
+
 ### `LineMetadata` {#schema-linemetadata}
 
 Per-line formatting metadata for template pages.
@@ -1405,6 +1659,7 @@ what every existing caller gets today.
 |-------|------|----------|-------------|
 | `text` | `string` | yes | — |
 | `board_id` | `string` \| `null` | no | — |
+| `override_silence` | `boolean` | no | default `false` |
 
 ### `MessageRequest (v1)` {#schema-src-v1-models-messagerequest}
 
@@ -1426,8 +1681,9 @@ long and how.
 | `duration_minutes` | `integer` \| `null` | no | Show this for N minutes, then revert. Omit for a message that stays until something else replaces it. (1–480) |
 | `revert_mode` | `"schedule"` \| `"page"` \| `"blank"` \| `null` | no | What to show when a timed message expires. Requires duration_minutes. Defaults to "schedule". |
 | `revert_page_id` | `string` \| `null` | no | The page to revert to. Required when revert_mode is "page". |
-| `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the install's transition animation for this one send. |
-| `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. (default `false`) |
+| `transition` | [`TransitionOverride`](#schema-transitionoverride) \| `null` | no | Override the board's own transition animation for this one send. |
+| `force` | `boolean` | no | Send even when the board already shows this exact content, which is normally skipped. Does not override silence; that is `override_silence`. (default `false`) |
+| `override_silence` | `boolean` | no | Write even while the board is silenced. Default false: a silenced board answers 409, or 202 with `held: true` when its silence schedule holds messages until silence ends. Never overrides pause. (default `false`) |
 | `if_paused` | `"reject"` \| `"preview"` | no | What to do when the board is paused. "reject" (the default) answers 409. "preview" answers 200 with `sent: false`, a `reason`, and the grid that would have been shown, without writing anything. (default `"reject"`) |
 
 ### `MessageResponse` {#schema-messageresponse}
@@ -1447,6 +1703,18 @@ loop rather than written on the spot. `reason` names which.
 | `text` | `string` | yes | `characters` decoded back to text, for logs and confirmations. |
 | `expires_at` | `string` \| `null` | no | When a timed message reverts (ISO 8601). Null for a message with no duration. |
 | `reason` | `string` \| `null` | no | Why nothing was written, when sent is false. Null when sent is true. |
+| `silenced` | `boolean` | no | True when the board's silence window kept this write off the board. (default `false`) |
+| `held` | `boolean` | no | True when the write is held and will be shown when silence ends (HTTP 202). (default `false`) |
+
+### `OutputStatusSummary` {#schema-outputstatussummary}
+
+A board's connection summary, as its output reads the board's
+settings: what the board card's Connected / Not configured badge shows.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `state` | `"connected"` \| `"not_configured"` | yes | connected: the board has the details its output needs; not_configured: it does not. |
+| `message` | `string` | no | The output's own words about it, if any. (default `""`) |
 
 ### `Page` {#schema-page}
 
@@ -1463,6 +1731,7 @@ Each page targets a specific device type (flagship: 22x6, note: 15x3).
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | no | — |
+| `revision` | `string` \| `null` | no | — |
 | `name` | `string` | yes | min length 1; max length 100 |
 | `type` | `"single"` \| `"composite"` \| `"template"` | yes | — |
 | `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` | no | default `"flagship"` |
@@ -1478,13 +1747,16 @@ Each page targets a specific device type (flagship: 22x6, note: 15x3).
 | `notes_wide` | `integer` | no | 1–8; default `1` |
 | `notes_tall` | `integer` | no | 1–8; default `1` |
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 15–128 |
+| `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
 | `created_at` | `date-time` | no | — |
 | `updated_at` | `date-time` \| `null` | no | — |
+| `edit_protocol` | `string` | yes | Runtime support for conditional sparse page saves; never caller input. |
+| `document_protocol` | `string` | yes | Validated known content with opaque JSON extension preservation. |
 
 ### `PageCreate` {#schema-pagecreate}
 
-Request model for creating a new page.
+Create author content; server-assigned identity and timestamps are ignored.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -1503,7 +1775,8 @@ Request model for creating a new page.
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 15–128 |
+| `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
 
 ### `PageDeleteResponse` {#schema-pagedeleteresponse}
 
@@ -1533,10 +1806,15 @@ the client can follow without re-fetching everything.
 
 ### `PageUpdate` {#schema-pageupdate}
 
-Request model for updating an existing page.
+Sparse known-field patch. Supplied lists replace the complete field.
+
+Omitted fields survive, including opaque top-level extensions. Nullable
+content fields accept explicit null to remove them; nested lists are never
+merged by position or guessed identity.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `name` | `string` \| `null` | no | min length 1; max length 100 |
 | `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` \| `null` | no | — |
 | `display_type` | `string` \| `null` | no | — |
@@ -1550,7 +1828,8 @@ Request model for updating an existing page.
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 15–128 |
+| `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
 
 ### `PageUpdateResponse` {#schema-pageupdateresponse}
 
@@ -1565,6 +1844,29 @@ did not change the page's size.
 |-------|------|----------|-------------|
 | `page` | [`Page`](#schema-page) | yes | — |
 | `incompatible_references` | array of [`IncompatibleReference`](#schema-incompatiblereference) | no | — |
+
+### `PartialWriteDetail` {#schema-partialwritedetail}
+
+Why a write left the board half-updated.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `message` | `string` | yes | What happened, in a sentence a person can act on. |
+| `partial` | `boolean` | yes | Always true: part of the board shows the new content and part still shows the old. |
+| `failed_regions` | array of [`FailedRegion`](#schema-failedregion) | yes | The cells that did not update — for a local note array, each failed Note's 3×15 tile. |
+
+### `PartialWriteError` {#schema-partialwriteerror}
+
+The 502 a board write answers when only part of the board updated.
+
+A local note array is several devices; one tile can fail while the rest
+take their slice. That is neither a success nor a write that changed
+nothing, so the body says exactly which cells did not update. Sending
+the same content again retries only those.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `detail` | [`PartialWriteDetail`](#schema-partialwritedetail) | yes | — |
 
 ### `PluginData` {#schema-plugindata}
 
@@ -1728,6 +2030,23 @@ both are present, which is what the pre-conversion handler did.
 | `template` | `string` \| array of `string` | yes | A template string, or one string per board row. A list is padded to the board's height. |
 | `line_metadata` | array of `object` \| `null` | no | Per-line alignment and wrap options, one entry per line. |
 
+### `RestoreResponse` {#schema-restoreresponse}
+
+The result of restoring what a board should show (#2354).
+
+Three different things, kept apart on purpose: what FiestaBoard intends
+the board to show (`page_id`), whether that was written (`sent`), and
+what the device actually displays — which no supported board reports back,
+so `device_observed` is always false.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `board_id` | `string` | yes | The board, with the 'primary' alias already resolved. |
+| `page_id` | `string` \| `null` | no | The page pinned to this board, if any. A schedule or timed message may take precedence over it; restore shows whichever the display loop would. |
+| `sent` | `boolean` | yes | True when the board accepted the write. Not proof of what it displays. |
+| `reason` | `string` \| `null` | no | Why nothing was written, when sent is false. Null when sent is true. |
+| `device_observed` | `boolean` | no | Always false: no supported board can read back what it displays, so a successful restore confirms the write was accepted, not that the pixels or flaps changed. (default `false`) |
+
 ### `RowConfig` {#schema-rowconfig}
 
 Configuration for a single row in a composite page.
@@ -1785,6 +2104,8 @@ to answer for.
 | `schedules` | array of [`ScheduleResponse`](#schema-scheduleresponse) | yes | — |
 | `total` | `integer` | yes | — |
 | `default_page_id` | `string` \| `null` | no | — |
+| `default_page_revision` | `string` \| `null` | no | — |
+| `default_page_edit_protocol` | `string` | no | default `"schedule-default-revision-v1"` |
 | `enabled` | `boolean` \| `null` | no | — |
 
 ### `ScheduleResponse` {#schema-scheduleresponse}
@@ -1798,6 +2119,7 @@ install's location to render the window.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | no | — |
+| `revision` | `string` \| `null` | no | — |
 | `board_id` | `string` | no | min length 0; default `""` |
 | `page_id` | `string` | yes | min length 1 |
 | `start_time` | `string` | yes | — |
@@ -1818,6 +2140,7 @@ install's location to render the window.
 | `updated_at` | `date-time` \| `null` | no | — |
 | `resolved_start_time` | `string` | yes | — |
 | `resolved_end_time` | `string` \| `null` | no | — |
+| `edit_protocol` | `string` | yes | — |
 
 ### `ScheduleUpdate` {#schema-scheduleupdate}
 
@@ -1825,6 +2148,7 @@ Request model for updating an existing schedule entry.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `board_id` | `string` \| `null` | no | min length 0 |
 | `page_id` | `string` \| `null` | no | min length 1 |
 | `start_time` | `string` \| `null` | no | — |
@@ -1855,6 +2179,7 @@ doesn't report warnings"; it is now always present and empty when clean.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | no | — |
+| `revision` | `string` \| `null` | no | — |
 | `board_id` | `string` | no | min length 0; default `""` |
 | `page_id` | `string` | yes | min length 1 |
 | `start_time` | `string` | yes | — |
@@ -1876,6 +2201,7 @@ doesn't report warnings"; it is now always present and empty when clean.
 | `resolved_start_time` | `string` | yes | — |
 | `resolved_end_time` | `string` \| `null` | no | — |
 | `warnings` | array of `string` | no | — |
+| `edit_protocol` | `string` | yes | — |
 
 ### `SendResponse` {#schema-sendresponse}
 
@@ -1890,6 +2216,7 @@ a status code, not a flag.
 |-------|------|----------|-------------|
 | `message` | `string` | yes | — |
 | `sent` | `boolean` | yes | — |
+| `held` | `boolean` \| `null` | no | — |
 
 ### `StatusResponse` {#schema-statusresponse}
 
@@ -1993,7 +2320,7 @@ truthy non-error result selects `page_id` as the active page.
 
 ## Where the rest of the API went
 
-This page documents the 35 operations the app publishes. The other
+This page documents the 36 operations the app publishes. The other
 ~200 paths the app serves are the web UI's private RPC channel: they still
 answer exactly as they always have, but they are undocumented on purpose,
 carry no compatibility promise, and may change in any release. They are

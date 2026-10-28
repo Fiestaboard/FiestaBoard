@@ -35,6 +35,73 @@ from .mcp_bridge import ToolDescriptor
 
 ChatSurface = Literal["editor", "global"]
 
+# The native TV trial is content control, not an administration console.
+# An allowlist keeps newly added MCP administration tools out by default.
+TV_TOOLS = frozenset(
+    {
+        "ask_user",
+        "list_pages",
+        "get_page",
+        "create_page",
+        "update_page",
+        "delete_page",
+        "render_page_preview",
+        "preview_saved_page",
+        "validate_template",
+        "list_formula_functions",
+        "list_installed_plugins",
+        "get_template_variables",
+        "get_plugin_data",
+        "get_plugin_demo_page",
+        "list_panels",
+        "get_display_info",
+        "get_current_display",
+        "get_active_page",
+        "get_board_content",
+        "get_silence_status",
+        "list_schedules",
+        "validate_schedules",
+        "create_schedule",
+        "update_schedule",
+        "delete_schedule",
+        "set_default_page",
+        "set_schedule_mode",
+        "list_collections",
+        "create_collection",
+        "update_collection",
+        "delete_collection",
+        "set_active_page",
+        "send_message",
+        "pause_board",
+        "resume_board",
+        "blank_board",
+        "fill_board",
+    }
+)
+TV_BOARD_TOOLS = frozenset(
+    {
+        "render_page_preview",
+        "preview_saved_page",
+        "get_display_info",
+        "get_current_display",
+        "get_active_page",
+        "get_board_content",
+        "get_silence_status",
+        "list_schedules",
+        "validate_schedules",
+        "create_schedule",
+        "update_schedule",
+        "set_default_page",
+        "set_schedule_mode",
+        "set_active_page",
+        "send_message",
+        "pause_board",
+        "resume_board",
+        "blank_board",
+        "fill_board",
+    }
+)
+
 #: Names the chat used to accept and the model may still emit from habit.
 #: Listed once in the addendum and named in the validator's rejection so the
 #: closest-match hint has something to point at.
@@ -74,6 +141,9 @@ _SURFACE_OMITTED_TOOLS: dict[ChatSurface, frozenset[str]] = {
             "disconnect_wifi",
             "forget_wifi_network",
             "run_network_diagnostics",
+            "create_display",
+            "configure_display",
+            "run_display_action",
         }
     ),
 }
@@ -103,7 +173,8 @@ class ParsedToolCall:
 class ToolCatalog:
     """The tools one chat turn may call."""
 
-    def __init__(self, descriptors: Iterable[ToolDescriptor]) -> None:
+    def __init__(self, descriptors: Iterable[ToolDescriptor], *, target_board_id: str | None = None) -> None:
+        self._target_board_id = target_board_id
         self._by_name: dict[str, ToolDescriptor] = {}
         for descriptor in descriptors:
             self._by_name[descriptor.name] = descriptor
@@ -118,7 +189,12 @@ class ToolCatalog:
     def for_surface(self, surface: ChatSurface) -> ToolCatalog:
         """The tools ``surface`` teaches, and so the only ones its parser accepts."""
         omitted = _SURFACE_OMITTED_TOOLS.get(surface, frozenset())
-        return ToolCatalog(d for name, d in self._by_name.items() if name not in omitted)
+        return ToolCatalog(
+            (d for name, d in self._by_name.items() if name not in omitted), target_board_id=self._target_board_id
+        )
+
+    def for_tv(self, board_id: str) -> ToolCatalog:
+        return ToolCatalog((d for name, d in self._by_name.items() if name in TV_TOOLS), target_board_id=board_id)
 
     # -- validation ---------------------------------------------------------
 
@@ -137,6 +213,13 @@ class ToolCatalog:
             args = {}
         if not isinstance(args, dict):
             raise ToolCallValidationError("'args' must be a JSON object.")
+        args = dict(args)
+        if self._target_board_id is not None and name in TV_BOARD_TOOLS:
+            if args.get("board_id") not in (None, self._target_board_id):
+                raise ToolCallValidationError(
+                    "This action must target the selected TV board; select another TV to change it."
+                )
+            args["board_id"] = self._target_board_id
 
         schema = descriptor.input_schema or {}
         properties = schema.get("properties") or {}
@@ -201,9 +284,12 @@ _EDITOR_SURFACE_INTRO = (
     "editing one page, sent above as `current_page`. If it has an `id`, the\n"
     "page is saved: call update_page with that id to change it. If it has\n"
     "no `id`, it is an unsaved draft: call create_page with the whole\n"
-    "template (their draft plus your change) — the app opens the saved page\n"
+    "draft plus your change: template, geometry, canvases, formatting, duration\n"
+    "and transition settings. The app opens the saved page\n"
     "and drops the draft. Only make a second page when they clearly ask\n"
     "for a new one.\n"
+    "For a current_page draft use its supplied revision; never replace it with a later read.\n"
+    "If an existing draft lacks a revision, ask the user to reload and reconcile before saving.\n"
 )
 
 _GLOBAL_SURFACE_INTRO = (
@@ -217,12 +303,16 @@ _GLOBAL_SURFACE_INTRO = (
 _HOW_TO_CALL = (
     "\nTo act, emit a fenced JSON block with the language tag `fiestaboard`:\n\n"
     "```fiestaboard\n"
-    '{"op": "create_page", "args": {"name": "Morning", "template_lines": ["HELLO"]}}\n'
+    '{"op": "create_page", "args": {"name": "Morning", "template_lines": [""]}}\n'
     "```\n"
 )
 
 _RULES_HEAD = (
     "\nRULES\n"
+    "- Before editing/deleting content, read it and keep its original revision\n"
+    "  with the draft through approval. Send expected_revision; for defaults use\n"
+    "  default_page_revision from list_schedules. On conflict keep the draft and\n"
+    "  ask the user to reconcile. Never fetch a fresh token to retry a stale draft.\n"
     "- One tool block per response, unless the tool is read-only — then you\n"
     "  may call several. Read-only tools are free: call them before guessing\n"
     "  what exists.\n"
@@ -258,6 +348,8 @@ _RULES_TAIL = (
     # A FiestaPanel's grid is auto-fit from a TV's diagonal, so the model
     # cannot know it — and the flagship default silently authors a page that
     # renders one Note wide on the panel.
+    "- Read get_display_info for the target board's actual geometry, character set,\n"
+    "  markup and canvas support before authoring; follow those capabilities.\n"
     "- A page is authored for one board shape. For a FiestaPanel, take that\n"
     "  shape from list_panels first — never the flagship default.\n"
     "- Use ask_user when a request is ambiguous instead of guessing.\n"
@@ -267,15 +359,15 @@ _RULES_TAIL = (
 
 def _render_tool(d: ToolDescriptor, skip_destructive_pause: bool = False) -> str:
     if d.read_only:
-        marker = "[read-only: runs immediately]"
+        marker = "[read-only]"
     elif d.requires_approval and d.name in SYSTEM_GATED:
-        marker = "[DESTRUCTIVE, SYSTEM: the user must approve before it runs, in every mode]"
+        marker = "[DESTRUCTIVE, SYSTEM: user must approve]"
     elif d.requires_approval and skip_destructive_pause:
-        marker = "[DESTRUCTIVE: runs immediately — the user chose not to be asked; they see it happen]"
+        marker = "[DESTRUCTIVE: runs immediately]"
     elif d.requires_approval:
-        marker = "[DESTRUCTIVE: the user must approve before it runs]"
+        marker = "[DESTRUCTIVE: user must approve]"
     else:
-        marker = "[writes: runs immediately; the user sees it happen]"
+        marker = "[writes: runs immediately]"
     description = _compact_description(d.description)
     signature = _signature_line(d.input_schema)
     lines = [f"### {d.name}" if _title_restates_the_name(d) else f"### {d.name} — {d.title}", marker]
@@ -363,6 +455,11 @@ def _signature_line(schema: dict[str, Any]) -> str:
 
 
 def _type_name(spec: dict[str, Any]) -> str:
+    ref = spec.get("$ref")
+    if isinstance(ref, str) and ref.startswith("#/$defs/"):
+        # Name structured arguments without repeating their large definitions
+        # on every turn. Pixel displays learn Canvas from the shared reference.
+        return ref.rsplit("/", 1)[-1].replace("~1", "/").replace("~0", "~")
     if "enum" in spec:
         return " | ".join(json.dumps(v) for v in spec["enum"])
     type_ = spec.get("type")
@@ -372,6 +469,9 @@ def _type_name(spec: dict[str, Any]) -> str:
     if isinstance(type_, list):
         return " | ".join(str(t) for t in type_ if t != "null") or "any"
     if isinstance(type_, str):
+        title = spec.get("title")
+        if type_ == "object" and isinstance(title, str) and re.fullmatch(r"[A-Z][A-Za-z0-9_]*", title):
+            return title
         return type_
     any_of = spec.get("anyOf")
     if isinstance(any_of, list):

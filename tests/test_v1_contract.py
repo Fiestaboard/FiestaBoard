@@ -25,10 +25,12 @@ future change is most likely to unpick:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import ANY, MagicMock, Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+
+from src.outputs import OutputRuntime
 
 #: The executor resolves the DisplayService through ``src.api_server``; the
 #: routes resolve it through ``src.display_runtime``. conftest's autouse
@@ -70,8 +72,14 @@ def _board_client(*, render=(True, True), throttled=False):
     client.render.return_value = render
     client.last_send_throttled = throttled
     client.min_send_interval_ms = 15000
-    client._last_characters = None
     return client
+
+
+def _output(last_sent=None) -> OutputRuntime:
+    """A board's core runtime whose dedupe cache holds what FiestaBoard last sent."""
+    output = OutputRuntime()
+    output.frames.characters = last_sent
+    return output
 
 
 @pytest.fixture
@@ -82,6 +90,7 @@ def board_client():
     service.get_board_client.return_value = client
     service.vb_client = client
     runtime = Mock()
+    runtime.output = _output()
     runtime.polled_characters = None
     runtime.polled_at = None
     runtime.client = client
@@ -109,8 +118,12 @@ def _seed_page(client: TestClient, name: str = "Contract Page") -> str:
 # ── the surface itself ──────────────────────────────────────────────────────
 
 
-def test_v1_publishes_exactly_thirty_three_operations():
-    """The contract is 33 operations. A 34th is a decision, not a side effect."""
+def test_v1_publishes_exactly_thirty_four_operations():
+    """The contract is 34 operations. A 35th is a decision, not a side effect.
+
+    The 34th, ``POST /v1/boards/{board}/restore``, was that decision (#2354):
+    recovering a board another client overwrote had no board-scoped path.
+    """
     from tests.test_route_inventory import build_route_inventory
 
     operations = [
@@ -127,6 +140,7 @@ def test_v1_publishes_exactly_thirty_three_operations():
             "PATCH /v1/boards/{board}",
             "POST /v1/boards/{board}/message",
             "DELETE /v1/boards/{board}/message",
+            "POST /v1/boards/{board}/restore",
             "PUT /v1/boards/{board}/active-page",
             "GET /v1/install",
             "PATCH /v1/install",
@@ -212,6 +226,10 @@ def test_list_boards_projects_the_fields_a_consumer_needs(client, boards):
         "is_primary": True,
         "paused": False,
         "schedule_enabled": False,
+        "auto_restore": True,
+        "output": "vestaboard",
+        "device_model": "vestaboard_flagship",
+        "charset": "vestaboard_v1",
     }
     assert body["boards"][1]["id"] == secondary_id
     assert body["boards"][1]["is_primary"] is False
@@ -232,6 +250,10 @@ def test_list_boards_never_serves_board_credentials(client, boards):
             "is_primary",
             "paused",
             "schedule_enabled",
+            "auto_restore",
+            "output",
+            "device_model",
+            "charset",
         }
 
 
@@ -283,7 +305,10 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
     # from what the board shows is detectable at all) and
     # ``resolved_next_check_seconds`` (a rotating collection's own re-poll
     # cadence, #1513). Both are published by the internal reads this route
-    # merges and were dropped on the way through.
+    # merges and were dropped on the way through. RE-PINNED again: gained
+    # ``layers`` (a pixel-matrix board's canvases on its frame; null on any
+    # other board, as here).
+    assert body["layers"] is None
     assert set(body) == {
         "id",
         "name",
@@ -293,6 +318,10 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
         "is_primary",
         "paused",
         "schedule_enabled",
+        "auto_restore",
+        "output",
+        "device_model",
+        "charset",
         "characters",
         "text",
         "expected_characters",
@@ -304,6 +333,7 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
         "source",
         "default_page_id",
         "override_expires_at",
+        "layers",
     }
 
 
@@ -311,6 +341,7 @@ def test_get_board_reports_the_flaps_currently_on_it(client, boards):
     grid = [[63] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
     service = Mock()
     runtime = Mock()
+    runtime.output = _output()
     runtime.polled_characters = grid
     runtime.polled_at = 1_700_000_000.0
     runtime.client = _board_client()
@@ -332,8 +363,7 @@ def test_get_board_answers_the_primary_by_its_own_id_on_a_sentinel_keyed_install
     primary_id, _ = boards
     sent = [[63] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
     board_client = _board_client()
-    board_client._last_characters = sent
-    runtime = Mock(client=board_client, polled_characters=None, polled_at=None)
+    runtime = Mock(client=board_client, output=_output(sent), polled_characters=None, polled_at=None)
     service = Mock()
     service.get_runtime.return_value = None  # nothing keyed under the settings id
     service.runtime_for.return_value = runtime  # DisplayService.runtime_for resolves the sentinel
@@ -374,6 +404,31 @@ def test_patch_sets_the_schedule_gap_page(client, boards):
     assert response.json()["default_page_id"] == page_id
 
 
+def test_the_gap_page_set_on_the_primary_reads_back_without_a_board_id(client, boards):
+    """The single-board schedule screen saves through ``PATCH /v1/boards/primary``
+    and reads back through ``GET /schedules`` with no ``board_id``. The write
+    landed under the primary's real id while the read looked under the legacy
+    ``""`` slot, so the picker snapped back to "No default" after every save."""
+    page_id = _seed_page(client)
+
+    assert client.patch("/v1/boards/primary", json={"default_page_id": page_id}).status_code == 200
+
+    assert client.get("/schedules").json()["default_page_id"] == page_id
+    assert client.get("/schedules/default-page").json()["default_page_id"] == page_id
+
+
+def test_clearing_the_primarys_gap_page_does_not_resurrect_a_legacy_one(client, boards):
+    """A default saved by the id-less ``PUT /schedules/default-page`` lives in
+    the legacy slot. Clearing it through v1 must clear it, not reveal it."""
+    page_id = _seed_page(client)
+    assert client.put("/schedules/default-page", json={"page_id": page_id}).status_code == 200
+
+    response = client.patch("/v1/boards/primary", json={"default_page_id": None})
+
+    assert response.json()["default_page_id"] is None
+    assert client.get("/schedules").json()["default_page_id"] is None
+
+
 def test_patch_with_an_unknown_default_page_is_a_404(client, boards):
     response = client.patch("/v1/boards/primary", json={"default_page_id": "nope"})
 
@@ -391,6 +446,7 @@ def test_patch_rejects_a_coerced_boolean(client, boards):
 def test_get_install_answers_the_board_less_reads(client, boards):
     """GET /v1/install answers exactly what the board-less internal routes answer."""
     page_id = _seed_page(client)
+    original_revision = client.get("/schedules/default-page").json()["revision"]
     client.put("/schedules/default-page", json={"page_id": page_id})
     client.put("/schedules/enabled", json={"enabled": True})
 
@@ -399,7 +455,14 @@ def test_get_install_answers_the_board_less_reads(client, boards):
     assert response.status_code == 200
     assert response.json() == {"schedule_enabled": True, "default_page_id": page_id}
     assert client.get("/schedules/enabled").json() == {"enabled": True}
-    assert client.get("/schedules/default-page").json() == {"default_page_id": page_id}
+    default = client.get("/schedules/default-page").json()
+    assert default == {
+        "default_page_id": page_id,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
+    assert isinstance(default["revision"], str) and default["revision"]
+    assert default["revision"] != original_revision
 
 
 def test_get_install_works_on_an_install_with_no_boards(client):
@@ -411,13 +474,21 @@ def test_get_install_works_on_an_install_with_no_boards(client):
 
 def test_patch_install_writes_what_the_board_less_routes_read(client, boards):
     page_id = _seed_page(client)
+    original_revision = client.get("/schedules/default-page").json()["revision"]
 
     response = client.patch("/v1/install", json={"schedule_enabled": True, "default_page_id": page_id})
 
     assert response.status_code == 200
     assert response.json() == {"schedule_enabled": True, "default_page_id": page_id}
     assert client.get("/schedules/enabled").json() == {"enabled": True}
-    assert client.get("/schedules/default-page").json() == {"default_page_id": page_id}
+    default = client.get("/schedules/default-page").json()
+    assert default == {
+        "default_page_id": page_id,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
+    assert isinstance(default["revision"], str) and default["revision"]
+    assert default["revision"] != original_revision
 
 
 def test_patch_install_applies_only_the_fields_sent(client, boards):
@@ -433,12 +504,20 @@ def test_patch_install_applies_only_the_fields_sent(client, boards):
 def test_patch_install_with_null_clears_the_default_page(client, boards):
     page_id = _seed_page(client)
     client.patch("/v1/install", json={"default_page_id": page_id})
+    original_revision = client.get("/schedules/default-page").json()["revision"]
 
     response = client.patch("/v1/install", json={"default_page_id": None})
 
     assert response.status_code == 200
     assert response.json()["default_page_id"] is None
-    assert client.get("/schedules/default-page").json() == {"default_page_id": None}
+    default = client.get("/schedules/default-page").json()
+    assert default == {
+        "default_page_id": None,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
+    assert isinstance(default["revision"], str) and default["revision"]
+    assert default["revision"] != original_revision
 
 
 def test_patch_install_with_an_unknown_default_page_is_a_404(client, boards):
@@ -613,6 +692,33 @@ def test_a_per_send_transition_overrides_the_stored_settings(client, boards, boa
     assert kwargs["step_size"] == 3
 
 
+def test_a_send_without_a_transition_runs_the_boards_own_choice(client, boards, board_client):
+    from src.settings.service import get_settings_service
+
+    settings = get_settings_service()
+    rows = [dict(b) for b in settings.get_board_settings().boards]
+    rows[0]["transition"] = "row"
+    settings.set_boards(rows)
+
+    client.post("/v1/boards/primary/message", json={"text": "Hello"})
+
+    assert board_client.render.call_args.kwargs["strategy"] == "row"
+
+
+def test_the_deprecated_send_message_also_runs_the_named_boards_own_transition(client, boards, board_client):
+    from src.settings.service import get_settings_service
+
+    primary_id, _ = boards
+    settings = get_settings_service()
+    rows = [dict(b) for b in settings.get_board_settings().boards]
+    rows[0]["transition"] = "row"
+    settings.set_boards(rows)
+
+    client.post("/send-message", json={"text": "Hello", "board_id": primary_id})
+
+    assert board_client.render.call_args.kwargs["strategy"] == "row"
+
+
 # ── boards: the gates, observed through v1 ──────────────────────────────────
 
 
@@ -634,7 +740,10 @@ def test_the_silence_window_refuses_the_write(client, boards, board_client):
         response = client.post("/v1/boards/primary/message", json={"text": "Hello"})
 
     assert response.status_code == 409
-    assert response.json() == {"detail": "Manual sends blocked during silence mode to prevent wake-ups"}
+    assert response.json() == {
+        "detail": "Manual sends are blocked while the board is silenced. Send override_silence=true to write "
+        "anyway, or turn on show_queued_on_exit to hold it until silence ends."
+    }
     board_client.render.assert_not_called()
 
 
@@ -819,10 +928,15 @@ def test_pinning_a_page_sets_it_and_reports_delivery(client, boards, board_clien
     # so a 200 that never reached the board is detectable. Null here because
     # this send worked; test_pinning_a_page_that_did_not_reach_the_board_says_why
     # is the case that made it necessary.
+    # RE-PINNED (#1943): gained ``silenced`` and ``reason`` — a silenced board
+    # pins the page without writing it, and ``reason`` says when it will show
+    # (tests/test_silence_active_page.py). False/null here: not silenced.
     assert response.json() == {
         "board_id": primary_id,
         "page_id": page_id,
         "sent": True,
+        "silenced": False,
+        "reason": None,
         "error": None,
         "warnings": [],
     }
@@ -1214,9 +1328,9 @@ def test_get_board_reports_what_was_sent_next_to_what_is_shown(client, boards):
     sent = [[63] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
     shown = [[0] * FLAGSHIP_COLS for _ in range(FLAGSHIP_ROWS)]
     board_client = _board_client()
-    board_client._last_characters = sent
     service = Mock()
     runtime = Mock()
+    runtime.output = _output(sent)
     runtime.polled_characters = shown
     runtime.polled_at = 1_700_000_000.0
     runtime.client = board_client
@@ -1423,3 +1537,75 @@ def test_plugin_id_form_503s_when_the_plugin_has_no_data(client, boards, board_c
     assert response.status_code == 503
     assert response.json()["detail"] == "API down"
     board_client.render.assert_not_called()
+
+
+@pytest.mark.parametrize("timed", [False, True])
+def test_overlapping_forced_writes_report_superseded_not_unchanged(client, boards, monkeypatch, timed):
+    """The replacement clears driver flags before the first request settles."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    from src.outputs.plugin_driver import OutputPluginDriver
+    from tests.test_output_preempted_write import Clock, SlowPanel
+
+    board_id, _ = boards
+
+    class SlowLedPanel(SlowPanel):
+        def write_transition(self, before, after, transition, *, cancel):
+            assert transition.spec.kind == "flip"
+            result = self.write(after, native=None, cancel=cancel)
+            # Older plugins can still return the original two-tuple.
+            return (result.success, result.was_sent)
+
+    from src.fiestaui import builtin_device_models
+
+    plugin = SlowLedPanel()
+    plugin.bind_board(device_model=builtin_device_models()["divoom_pixoo64"])
+    driver = OutputPluginDriver(plugin, clock=Clock())
+    driver._frames.record_sent(BLANK_FLAGSHIP)
+    service = Mock()
+    service.get_board_client.return_value = driver
+    service.vb_client = driver
+    monkeypatch.setattr(SERVICE, lambda: service)
+    monkeypatch.setattr(RUNTIME_SERVICE, lambda: service)
+    replacement_done = threading.Event()
+    real_render = driver.render
+
+    def render_then_settle(characters, **kwargs):
+        result = real_render(characters, **kwargs)
+        if any(1 in row for row in characters):
+            assert replacement_done.wait(5)
+        return result
+
+    monkeypatch.setattr(driver, "render", render_then_settle)
+
+    def send(fill):
+        return client.post(
+            f"/v1/boards/{board_id}/message",
+            json={
+                "lines": ["A" if fill == 1 else "B"],
+                "force": True,
+                "transition": {"strategy": "flip"},
+                **({"duration_minutes": 5} if timed and fill == 1 else {}),
+            },
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(send, 1)
+        try:
+            assert driver.plugin.started.wait(5)
+            replacement = send(2)
+        finally:
+            replacement_done.set()
+        superseded = first.result(timeout=5)
+
+    assert replacement.status_code == 200, replacement.text
+    assert replacement.json()["sent"] is True
+    assert driver.last_send_preempted is False
+    assert superseded.status_code == 409, superseded.text
+    assert "superseded" in superseded.json()["detail"].lower()
+    assert "force=true" not in superseded.json()["detail"]
+
+    stored = client.get("/settings/temporary-override").json()
+    assert stored["active"] is False
+    assert stored["template"] is None

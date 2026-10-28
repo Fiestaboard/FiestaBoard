@@ -61,7 +61,8 @@ from fastapi.testclient import TestClient
 
 from src import __version__
 from src.api_server import app
-from src.board_client import BoardClient
+from src.outputs import OutputRuntime
+from tests.first_party_drivers import cloud_driver
 
 # --- Seam targets ----------------------------------------------------------
 # Written as constants so the seam-retirement commit changes these lines and
@@ -74,11 +75,14 @@ PAUSED = "src.display_runtime._board_is_paused"
 #: binds its own settings service — stubbing only the display_runtime one
 #: leaves a paused board reading as running.
 GUARD_SETTINGS_SERVICE = "src.board_guards.get_settings_service"
-SILENCE_ACTIVE = "src.board_api.routes._silence_active"
+#: Every send surface decides silence through ``silence_verdict`` (#1943),
+#: which reads this.
+SILENCE_ACTIVE = "src.board_guards._silence_active"
 REQUIRE_BOARD = "src.service_api.routes._require_board"
 BOARD_REQUIRE_BOARD = "src.board_api.routes._require_board"
 PRIMARY_BOARD_ENTRY = "src.display_runtime._primary_board_entry"
-BOARD_CLIENT_FACTORY = "src.board_api.routes.board_client_from_board_dict"
+# The welcome writes through the primary board's LIVE driver (runtime_for).
+LIVE_DRIVER = "src.display_runtime.live_driver"
 RUN_BOARD_SEND = "src.service_api.routes.run_board_send"
 
 
@@ -181,6 +185,7 @@ def test_status_reports_the_flag_the_instance_and_the_active_page(client):
         "paused": False,
         "active_page_id": "page-1",
         "error": None,
+        "output_status": {"state": "not_configured", "message": ""},
     }
 
 
@@ -348,6 +353,7 @@ SILENCE_OFF = {
     "page_id": None,
     "indicator_text": None,
     "indicator_position": None,
+    "show_queued_on_exit": False,
 }
 
 
@@ -369,6 +375,10 @@ def test_silence_status_reports_the_window_and_the_board_it_describes(client):
     assert body["indicator_position"] is None
     # Omitted board_id means "the board you drive by default" (#1788).
     assert body["board_id"] == "b1"
+    # #1943/#1944: when silence ends, whether sends are held, and what is.
+    assert body["ends_at_utc"] is None
+    assert body["holds_blocked_sends"] is False
+    assert body["held"] is None
     # Disabled: there is no next transition to count down to.
     assert body["seconds_until_next_change"] is None
     assert body["current_time_utc"].endswith("+00:00")
@@ -404,17 +414,27 @@ def _grid(rows: int = 6, cols: int = 22, code: int = 0) -> list[list[int]]:
     return [[code] * cols for _ in range(rows)]
 
 
-def _service(vb_client, *, polled=None, polled_at=None):
+def _output(last_sent=None) -> OutputRuntime:
+    """A board's core runtime whose dedupe cache holds what FiestaBoard last sent."""
+    output = OutputRuntime()
+    output.frames.characters = last_sent
+    return output
+
+
+def _service(vb_client, *, last_sent=None, polled=None, polled_at=None):
     """A stubbed DisplayService whose primary runtime holds *vb_client* and the poll cache."""
     service = Mock()
     service.vb_client = vb_client
-    service.runtime_for.return_value = Mock(client=vb_client, polled_characters=polled, polled_at=polled_at)
+    service.runtime_for.return_value = Mock(
+        client=vb_client, output=_output(last_sent), polled_characters=polled, polled_at=polled_at
+    )
     return service
 
 
 def test_current_message_serves_the_poll_cache_with_its_timestamp(client):
     service = _service(
-        Mock(use_cloud=False, is_virtual=False, _last_characters=_grid(code=1)),
+        Mock(use_cloud=False, is_virtual=False),
+        last_sent=_grid(code=1),
         polled=_grid(code=2),
         polled_at=1_700_000_000.0,
     )
@@ -434,7 +454,7 @@ def test_current_message_serves_the_poll_cache_with_its_timestamp(client):
 
 def test_current_message_force_reads_the_board_and_primes_the_cache(client):
     live = _grid(code=3)
-    vb_client = Mock(use_cloud=True, is_virtual=False, _last_characters=None)
+    vb_client = Mock(use_cloud=True, is_virtual=False)
     vb_client.read_current_message.return_value = live
     service = _service(vb_client, polled=_grid(code=2), polled_at=1_700_000_000.0)
     with patch(SERVICE, return_value=service):
@@ -446,7 +466,7 @@ def test_current_message_force_reads_the_board_and_primes_the_cache(client):
 
 
 def test_current_message_is_503_when_the_live_read_fails(client):
-    vb_client = Mock(use_cloud=False, is_virtual=False, _last_characters=None)
+    vb_client = Mock(use_cloud=False, is_virtual=False)
     vb_client.read_current_message.return_value = None
     service = _service(vb_client)
     with patch(SERVICE, return_value=service):
@@ -466,9 +486,9 @@ def test_current_message_is_503_when_no_board_client_exists(client):
 
 def test_current_message_returns_a_secondary_boards_geometry_before_its_first_send(client):
     """A never-written secondary board answers nulls plus its dimensions (#1247)."""
-    service = _service(Mock(use_cloud=False, is_virtual=False, _last_characters=None))
+    service = _service(Mock(use_cloud=False, is_virtual=False))
     service.runtime_for.return_value = Mock(
-        client=Mock(use_cloud=False, is_virtual=False, _last_characters=None), polled_characters=None, polled_at=None
+        client=Mock(use_cloud=False, is_virtual=False), output=_output(), polled_characters=None, polled_at=None
     )
     ss = _settings_service()
     ss.get_primary_board_id.return_value = "b1"
@@ -506,7 +526,7 @@ def now():
 @pytest.fixture
 def cloud(now):
     """A REAL RW Cloud board client on a controllable clock (the send floor)."""
-    return BoardClient(api_key="test_key", use_cloud=True, _time_func=lambda: now["t"])
+    return cloud_driver("test_key", clock=lambda: now["t"])
 
 
 @pytest.fixture
@@ -522,7 +542,7 @@ def wired(cloud):
         patch("src.api_server.Config.is_silence_mode_active", return_value=False),
         patch(PAUSED, return_value=False),
         patch(SILENCE_ACTIVE, return_value=False),
-        patch("src.board_client.requests.post") as post,
+        patch("requests.post") as post,
     ):
         post.return_value = _ok_response()
         yield post
@@ -559,7 +579,10 @@ def test_send_message_refuses_during_silence_mode(client, wired):
         resp = client.post("/send-message", json={"text": "HELLO"})
     # Re-pinned: a refusal is a status code, not a word at 200.
     assert resp.status_code == 409
-    assert resp.json()["detail"] == "Manual sends are blocked during silence mode to prevent waking the board."
+    assert resp.json()["detail"] == (
+        "Manual sends are blocked while the board is silenced. Send override_silence=true to write anyway, "
+        "or turn on show_queued_on_exit to hold it until silence ends."
+    )
     assert wired.call_count == 0
 
 
@@ -593,11 +616,11 @@ def welcome_wired(cloud):
     with (
         patch(SETTINGS_SERVICE, return_value=_settings_service()),
         patch(PRIMARY_BOARD_ENTRY, return_value={"id": "b1", "device_type": "flagship"}),
-        patch(BOARD_CLIENT_FACTORY, return_value=cloud),
+        patch(LIVE_DRIVER, return_value=cloud),
         patch("src.api_server.Config.is_silence_mode_active", return_value=False),
         patch(PAUSED, return_value=False),
         patch(SILENCE_ACTIVE, return_value=False),
-        patch("src.board_client.requests.post") as post,
+        patch("requests.post") as post,
     ):
         post.return_value = _ok_response()
         yield post
@@ -614,7 +637,7 @@ def test_welcome_message_refuses_during_silence_mode(client, welcome_wired):
     with patch(SILENCE_ACTIVE, return_value=True):
         resp = client.post("/send-welcome-message")
     assert resp.status_code == 409
-    assert resp.json()["detail"] == "Manual sends are blocked during silence mode to prevent waking the board."
+    assert resp.json()["detail"] == "Manual sends are blocked while the board is silenced."
     assert welcome_wired.call_count == 0
 
 

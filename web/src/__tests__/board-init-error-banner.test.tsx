@@ -100,7 +100,7 @@ describe("BoardInitErrorBanner", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("navigates to hardware settings from the alert's action", async () => {
+  it("opens the failing display's page from the alert's action", async () => {
     const user = userEvent.setup();
     setupHandlers({
       boardsStatus: {
@@ -112,6 +112,6 @@ describe("BoardInitErrorBanner", () => {
     await screen.findByTestId("board-init-error-banner");
     await user.click(screen.getByRole("button", { name: "Open board settings" }));
 
-    expect(mockPush).toHaveBeenCalledWith("/settings?section=hardware");
+    expect(mockPush).toHaveBeenCalledWith("/displays/board-1");
   });
 });

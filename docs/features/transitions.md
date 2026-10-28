@@ -1,7 +1,7 @@
 ---
 sidebar_position: 6
-description: "Animate how your FiestaBoard changes between messages — built-in Vestaboard flip strategies and beta transition plugins like typewriter, dissolve, and slot machine."
-keywords: [FiestaBoard transitions, Vestaboard transition, flip animation, transition plugins, typewriter transition, dissolve transition, split-flap animation, Transition Lab]
+description: "Animate how your FiestaBoard changes between messages — built-in Vestaboard flip strategies and the deprecated transition plugins like typewriter, dissolve, and slot machine."
+keywords: [FiestaBoard transitions, Vestaboard transition, flip animation, transition plugins, typewriter transition, dissolve transition, split-flap animation]
 ---
 
 # Transitions
@@ -12,20 +12,20 @@ Transitions control how your board gets from the message it is showing now to th
 
 FiestaBoard has **two different kinds of transitions**, and they behave differently. Knowing which one you are looking at explains most of the surprises people run into.
 
-| | Built-in flip strategies | Transition plugins (beta) |
+| | Built-in flip strategies | Transition plugins (beta, deprecated) |
 |---|---|---|
 | **Who animates** | The board, via the Vestaboard Local API | FiestaBoard, by sending many frames |
-| **Works on** | Local API connections only | Any board connection (Local or Cloud) |
+| **Works on** | Local API connections only | Local API connections; a Cloud API board shows the new message at once |
 | **Examples** | Wave, Drift, Curtain, Row, Diagonal, Random | Typewriter, Simple Dissolve, Slot Machine, Quiet Library |
-| **Where to turn on** | Always available | **Settings → Advanced → Beta Features → Transition Plugins** |
+| **Where to turn on** | Always available | **Displays → (a display) → Transition → Transition Plugins** |
 | **Step Interval / Step Size** | Supported | Not used — plugins set their own pacing |
-| **Stability** | Stable | Experimental; behavior and settings may change |
+| **Stability** | Stable | Deprecated; removal is being considered for v11 |
 
 ## Built-in Flip Strategies
 
 Built-in strategies are a **Vestaboard Local API** feature. FiestaBoard sends the new message plus the name of a flip pattern through the API, and the board handles the animation.
 
-Set the default in **Settings → Behavior → Board Transitions**:
+Pick one for each display in **Displays → (choose a display) → Transition**:
 
 | Name in the UI | API value | What it looks like |
 |---|---|---|
@@ -37,18 +37,26 @@ Set the default in **Settings → Behavior → Board Transitions**:
 | **Diagonal** | `diagonal` | Flips in a diagonal wave, corner to corner |
 | **Random** | `random` | Flips tiles in a random order |
 
-Two optional settings tune the built-in strategies:
+The list shows only the strategies that display can run. With a built-in strategy selected, the same section shows **Speed**, with two optional settings:
 
-- **Step Interval (ms)** — delay between animation steps. Leave empty for the board default.
+- **Step Interval (ms)** — delay between animation steps, from 0 to 5000. Leave empty for the board default.
 - **Step Size** — how many rows or columns animate at once. Leave empty for the board default.
+
+LED displays have no split-flap strategies; their **Transition** section offers the effects the device itself supports, such as **None** and **Flip**.
 
 :::info
 Built-in strategies only work over the **Local API**. If your board is configured for the Cloud API, FiestaBoard still sends your message, but the strategy is dropped and the board flips all tiles at once. Note-array boards also ignore built-in strategies and their step settings.
 :::
 
-## Transition Plugins (Beta)
+## Transition Plugins (Beta, Deprecated)
 
-Transition plugins are animated by FiestaBoard, not by the board. The plugin generates a sequence of complete board frames, and FiestaBoard sends them one after another. Because each frame is an ordinary board update, plugin transitions work on **any** connection type — including Cloud API boards that cannot use the built-in strategies.
+:::warning Deprecated
+Transition plugins are deprecated. Pages and settings that already use one keep working, and installed transition plugins are still offered in the pickers while the beta is on, but no new work is planned for them and removal of the plugin kind is being considered for v11. The **Integrations** page badges every transition plugin **Deprecated**. The Transition Lab preview page has been removed.
+:::
+
+Transition plugins are animated by FiestaBoard, not by the board. The plugin generates a sequence of complete board frames, and FiestaBoard sends them one after another, each as an ordinary board update.
+
+On a Cloud API board, a transition plugin skips its frames and shows the new message at once. The Cloud API accepts one message every 15 seconds, so even a short transition would take minutes to finish. Use the Local API to see transitions animate.
 
 FiestaBoard ships with four:
 
@@ -61,14 +69,16 @@ FiestaBoard ships with four:
 
 ### Turning the beta on
 
-1. Open **Settings → Advanced → Beta Features**.
-2. Enable **Transition Plugins**. The change takes effect immediately — no restart.
-3. **Transition Lab** appears in the sidebar, and installed transition plugins appear in every transition picker.
+1. Open **Displays** and choose a split-flap display (a Vestaboard or a FiestaPanel).
+2. In its **Transition** section, turn on **Transition Plugins** (marked **Beta**). The change takes effect immediately — no restart.
+3. Installed transition plugins appear in every transition picker.
 
-There is no separate enable step for an individual transition plugin. Installing one is opting in: any installed transition plugin is selectable as soon as the beta flag is on. On the **Integrations** page they show up badged **Transition**, with no on/off toggle.
+**Transition Plugins** is one switch for the whole install: turning it on from any display turns it on for all of them. It appears only on displays that can play frame-by-frame transitions, so a Vestaboard connected through the Cloud API does not show it.
+
+There is no separate enable step for an individual transition plugin. Installing one is opting in: any installed transition plugin is selectable as soon as the beta flag is on. On the **Integrations** page they show up badged **Transition** and **Deprecated**, with no on/off toggle.
 
 :::warning This is genuinely experimental
-Every frame of a plugin transition is a real send to your board, so plugin transitions are bound by the board's send pacing. On some connections and some boards an animation will look less smooth than the preview does, or will take longer than you expect. The plugin SDK is experimental and its APIs, settings, and behavior may change before general availability.
+Every frame of a plugin transition is a real send to your board, so plugin transitions are bound by the board's send pacing. On some connections and some boards an animation will look less smooth than you expect, or will take longer. The plugin SDK is deprecated and will not reach general availability.
 :::
 
 FiestaBoard enforces per-plugin caps so a runaway animation cannot take your board hostage — a maximum frame count (default 500), a maximum runtime (default 120 seconds), and a minimum interval between frames (default 50 ms). When a run hits a cap, FiestaBoard snaps the board to the final message and stops.
@@ -77,70 +87,67 @@ FiestaBoard enforces per-plugin caps so a runaway animation cannot take your boa
 
 There are two places to choose a transition, and the more specific one wins.
 
-### Global default
+### Per display
 
-**Settings → Behavior → Board Transitions** sets the default for every board update. When the beta is on, the picker lists the built-in strategies under **Built-in** and your installed transition plugins under **Transition Plugins**.
+Every display owns its transition. Set it in **Displays → (choose a display) → Transition**. A split-flap display offers **None**, the built-in strategies it supports, and — when the beta is on — your installed transition plugins. There is no install-wide default: a display's choice applies to every update sent to that display.
+
+A new display starts with **None**. If `BOARD_TRANSITION_STRATEGY`, `BOARD_TRANSITION_INTERVAL_MS` or `BOARD_TRANSITION_STEP_SIZE` are set in the environment, a new split-flap display starts with those values instead (see [Environment Variables](/docs/reference/environment-variables)).
 
 ### Per page
 
 The page editor's header toolbar has a **Transition** dropdown. It offers:
 
-- **Use global default** — the page inherits whatever is set in Settings
+- **Use the display's transition** — the page uses whatever the display it is sent to has set
 - Any built-in strategy
 - Any installed transition plugin, when the beta is on
 
-Picking anything other than **Use global default** creates a page-level override that applies whenever that page is sent. Switching back to **Use global default** clears the override.
+Picking anything other than **Use the display's transition** creates a page-level override that applies whenever that page is sent, on any display. Switching back to **Use the display's transition** clears the override.
 
 ### Resolution order
 
-1. The page's own transition, if it has one
-2. Otherwise, the global default from Settings
+1. The page's own transition, setting by setting (strategy, step interval, step size)
+2. Otherwise, the transition of the display the page is sent to
+
+A page's transition only counts on a display that can run it. Sent to a display that cannot, such as a built-in flip strategy on an LED display, the page uses that display's own transition instead.
 
 :::note
-Transitions cannot currently be set per collection or per schedule entry. A scheduled page uses its own page-level transition if it has one, and the global default otherwise.
+Transitions cannot currently be set per collection or per schedule entry. A scheduled page uses its own page-level transition if it has one, and the display's transition otherwise.
 :::
 
-## Transition Lab
+### Upgrading to FiestaBoard 10
 
-The **Transition Lab** (`/transitions`) is a preview harness for plugin transitions. It appears in the sidebar only while the Transition Plugins beta is on.
-
-In the Lab you can:
-
-- Pick a transition plugin and two of your real pages to transition between
-- Choose the device shape — Flagship, Note, or a note array
-- Override the plugin's settings for a single run with a JSON config
-- Play, pause, step frame by frame, or scrub the generated sequence
-
-Previews are generated in FiestaBoard and rendered in your browser. Nothing is sent to your board, so you can iterate as much as you like.
-
-When you want to see it on real tiles, **Test live on board** runs the transition once on your actual board, and **Restore board** snaps it back to its active page. (The normal display loop would restore it on its own too.) Live tests are blocked while silence mode is active or the board is paused, so a quiet-hours board stays quiet.
+Before FiestaBoard 10, one install-wide transition under **Settings → Scheduling → Board Transitions** applied to every display. That setting is gone. On upgrade, FiestaBoard copies the old transition (strategy, step interval and step size) onto each display that had no transition of its own. A display that already had its own style keeps it and picks up the old step interval and step size.
 
 ## Troubleshooting
 
 ### Nothing animates — the whole board just changes at once
 
-Most often this is a Cloud API board with a built-in strategy selected. Built-in strategies are a Local API feature. Either switch the board to the Local API (see [API Keys](/docs/setup/api-keys)), or use a transition plugin, which works on any connection.
+Most often this is a Cloud API board. Built-in strategies and transition plugins both animate only over the Local API: on a Cloud API board the new message appears at once. Switch the board to the Local API (see [API Keys](/docs/setup/api-keys)) to see transitions.
 
 Note-array boards do not support built-in strategies at all.
 
-### No Transition Lab in the sidebar, and no plugins in the transition pickers
+### No plugins in the transition pickers
 
-Plugin transitions stay hidden until the beta is on. Enable **Settings → Advanced → Beta Features → Transition Plugins** — the Transition Lab and the plugin entries appear immediately. Built-in strategies do not need the beta flag; they are always listed in Settings and in the page editor's **Transition** dropdown.
+Plugin transitions stay hidden until the beta is on. Open **Displays**, choose a split-flap display, and turn on **Transition Plugins** in its **Transition** section — the plugin entries appear immediately. The switch is missing on a Cloud API Vestaboard; turn it on from a display that uses the Local API, or from a FiestaPanel. Built-in strategies do not need the beta flag; they are always listed in a display's **Transition** section and in the page editor's **Transition** dropdown.
 
-### A plugin transition looks choppy or slower than the preview
+### A plugin transition looks choppy or slow
 
-The preview runs entirely in FiestaBoard; a live run sends every frame to the board and is limited by the board's send pacing. Increasing the plugin's frame interval usually looks better than fighting for a faster one. This is a known limitation of animating a physical split-flap over an API.
+Every frame is a real send to the board, so a run is limited by the board's send pacing. Increasing the plugin's frame interval usually looks better than fighting for a faster one. This is a known limitation of animating a physical split-flap over an API.
 
 ### Step Interval and Step Size seem to do nothing
 
 They only apply to built-in strategies. Transition plugins pace themselves through their own settings — for example Typewriter's `chars_per_frame` and `frame_interval_ms`.
 
-### A transition endpoint returns 404
+### A `/transitions/*` endpoint returns 404
 
-The `/transitions/*` API endpoints are gated behind the beta flag and respond `404` while it is off. They are part of the web UI's internal surface rather than the published API, so they appear in `/api/internal/openapi.json` rather than in the [API Endpoints](/docs/reference/api-endpoints) reference.
+The Transition Lab's endpoints (`GET /transitions/plugins`, `POST /transitions/preview`, `POST /transitions/test-live`, `POST /transitions/restore`) were removed with the Lab. To find installed transition plugins, read `GET /plugins` and keep the entries whose `plugin_type` is `transition`; set one by storing `plugin:<id>` as a page's `transition_strategy`, or as a display's `transition` through `PUT /settings/board`. `GET`/`PUT /settings/transitions` still answers but is deprecated and will be removed in v11: it reads and sets only the first display's transition.
+
+### A page ignores the display's transition
+
+That page has its own transition set. Open it in the page editor and pick **Use the display's transition** from the **Transition** dropdown.
 
 ## Next Steps
 
 - [Page Editor](/docs/features/page-editor) - Set a per-page transition while you build a page
-- [Plugin Development Guide](/docs/development/plugin-guide) - Build your own transition plugin
+- [Plugin Development Guide](/docs/development/plugin-guide) - The plugin kinds, including the deprecated transition kind
 - [API Endpoints](/docs/reference/api-endpoints) - The published REST API reference

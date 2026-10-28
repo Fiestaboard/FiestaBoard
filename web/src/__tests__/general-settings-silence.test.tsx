@@ -31,6 +31,22 @@ vi.mock("@/hooks/use-router", () => ({
 }));
 
 import { GeneralSettings } from "@/components/general-settings";
+import type { BoardInstance } from "@/lib/api";
+
+const board = {
+  id: "default",
+  name: "Flagship",
+  device_type: "flagship",
+  board_color: "black",
+  enabled: true,
+  api_mode: "local",
+  host: "",
+  local_api_key: "",
+  cloud_key: "",
+  polling_interval_seconds: 300,
+  board_read_interval_local: 30,
+  board_read_interval_cloud: 180,
+} satisfies BoardInstance;
 
 const API_BASE = "/api";
 
@@ -117,7 +133,7 @@ describe("GeneralSettings - silence indicator controls visibility", () => {
   afterEach(() => server.resetHandlers());
 
   it("shows indicator text + position inputs when mode is 'indicator'", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // The config already has mode=indicator and silence enabled, so controls
     // should appear after load.
@@ -130,7 +146,7 @@ describe("GeneralSettings - silence indicator controls visibility", () => {
 
   it("hides indicator text + position inputs when mode is 'freeze'", async () => {
     server.use(http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettingsResponse({ mode: "freeze" }))));
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Silence enabled, mode=freeze — text/position controls must be absent
     await screen.findByRole("combobox", { name: /While Silenced/i });
@@ -140,7 +156,7 @@ describe("GeneralSettings - silence indicator controls visibility", () => {
 
   it("hides indicator controls when silence is disabled", async () => {
     server.use(http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettingsResponse({ enabled: false }))));
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Silence disabled — entire silence section including indicator is hidden
     await screen.findByRole("switch", { name: /Silence Schedule/i });
@@ -159,7 +175,7 @@ describe("GeneralSettings - indicator text input behaviour", () => {
     server.use(
       http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettingsResponse({ indicator_text: "BEDTIME" }))),
     );
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     const input = (await screen.findByLabelText(/message text/i)) as HTMLInputElement;
     expect(input.value).toBe("BEDTIME");
@@ -167,7 +183,7 @@ describe("GeneralSettings - indicator text input behaviour", () => {
 
   it("uppercases typed text automatically", async () => {
     const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     const input = (await screen.findByLabelText(/message text/i)) as HTMLInputElement;
     await user.clear(input);
@@ -177,7 +193,7 @@ describe("GeneralSettings - indicator text input behaviour", () => {
   });
 
   it("enforces maxLength of 22", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     const input = (await screen.findByLabelText(/message text/i)) as HTMLInputElement;
     expect(input.maxLength).toBe(22);
@@ -197,7 +213,7 @@ describe("GeneralSettings - indicator position select", () => {
         HttpResponse.json(allSettingsResponse({ indicator_position: "bottom-right" })),
       ),
     );
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     const user = userEvent.setup();
     // Open the position select to verify it exists and has the right value
@@ -233,7 +249,7 @@ describe("GeneralSettings - save includes indicator fields", () => {
 
   it("PUT body contains indicator_text and indicator_position", async () => {
     const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Change indicator text to trigger auto-save
     const textInput = await screen.findByLabelText(/message text/i);

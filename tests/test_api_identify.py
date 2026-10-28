@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 from fastapi.testclient import TestClient
 
 from src.api_server import app
@@ -40,6 +41,14 @@ def _array_board(board_id="board-1", api_mode="local", tiles=None, notes_wide=2,
     }
 
 
+def _response(status: int) -> requests.Response:
+    """A real Local API answer: 200 takes the slice, 500 refuses it."""
+    resp = requests.models.Response()
+    resp.status_code = status
+    resp._content = b"{}"
+    return resp
+
+
 def _board_settings_mock(boards):
     bs = MagicMock()
     bs.boards = boards
@@ -50,11 +59,27 @@ def _patch_settings(mock_ss, boards):
     mock_ss.return_value.get_board_settings.return_value = _board_settings_mock(boards)
 
 
+def _live(mock_service, board):
+    """Give the stubbed service a live runtime for *board*, built by the runtime factory.
+
+    Saved tiles are flashed through the board's LIVE driver
+    (``DisplayService.runtime_for``), never a client the route builds.
+    """
+    from types import SimpleNamespace
+
+    from src.outputs.factory import build_driver
+
+    service = mock_service.return_value
+    service.runtime_for.return_value = SimpleNamespace(client=build_driver(board))
+    return service
+
+
 class TestIdentifySuccess:
     @patch("src.api_server.get_service")
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.send_characters", return_value=(True, True))
+    @patch("requests.post", return_value=_response(200))
     def test_identify_single_tile(self, mock_send, mock_ss, mock_service, client):
+        _live(mock_service, _array_board())
         _patch_settings(mock_ss, [_array_board()])
 
         resp = client.post(
@@ -65,15 +90,21 @@ class TestIdentifySuccess:
         assert resp.status_code == 200
         assert resp.json()["results"] == [{"row": 0, "col": 1, "success": True}]
         assert mock_send.call_count == 1
-        pattern = mock_send.call_args.args[0]
+        assert mock_send.call_args.args[0] == "http://192.168.0.11:7000/local-api/message"
+        pattern = mock_send.call_args.kwargs["json"]["characters"]
         assert len(pattern) == NOTE_ROWS
         assert all(len(r) == NOTE_COLS for r in pattern)
-        assert mock_send.call_args.kwargs["force"] is True
+
+        # Forced: the same flash again reaches the tile again, although the
+        # tile already shows exactly that pattern.
+        client.post("/settings/board/board-1/identify", json={"target": "tile", "row": 0, "col": 1})
+        assert mock_send.call_count == 2
 
     @patch("src.api_server.get_service")
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.send_characters", return_value=(True, True))
+    @patch("requests.post", return_value=_response(200))
     def test_identify_all_flashes_every_configured_tile(self, mock_send, mock_ss, mock_service, client):
+        _live(mock_service, _array_board())
         _patch_settings(mock_ss, [_array_board()])
 
         resp = client.post("/settings/board/board-1/identify", json={"target": "all"})
@@ -87,7 +118,7 @@ class TestIdentifySuccess:
 
     @patch("src.api_server.get_service")
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.send_characters", return_value=(True, True))
+    @patch("requests.post", return_value=_response(200))
     def test_identify_unsaved_override(self, mock_send, mock_ss, mock_service, client):
         """The assign dialog can identify a board before its tile is saved."""
         _patch_settings(mock_ss, [_array_board(tiles=[])])
@@ -108,11 +139,12 @@ class TestIdentifySuccess:
 
     @patch("src.api_server.get_service")
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.send_characters", return_value=(True, True))
+    @patch("requests.post", return_value=_response(200))
     def test_identify_invalidates_board_content(self, mock_send, mock_ss, mock_service, client):
         _patch_settings(mock_ss, [_array_board()])
         service = MagicMock()
         mock_service.return_value = service
+        _live(mock_service, _array_board())
 
         client.post("/settings/board/board-1/identify", json={"target": "all"})
 
@@ -120,8 +152,9 @@ class TestIdentifySuccess:
 
     @patch("src.api_server.get_service")
     @patch("src.api_server.get_settings_service")
-    @patch("src.board_client.BoardClient.send_characters", return_value=(False, False))
+    @patch("requests.post", return_value=_response(500))
     def test_tile_failure_reported_per_tile(self, mock_send, mock_ss, mock_service, client):
+        _live(mock_service, _array_board(tiles=[_tile(0, 0)]))
         _patch_settings(mock_ss, [_array_board(tiles=[_tile(0, 0)])])
 
         resp = client.post("/settings/board/board-1/identify", json={"target": "all"})

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 description: "End-to-end guide to creating, testing, and submitting a FiestaBoard plugin - from initial idea to merged pull request."
 keywords: [FiestaBoard plugin development, create plugin, plugin API, custom plugin, developer guide, Python plugin, PluginBase, manifest.json]
 ---
@@ -11,6 +11,16 @@ This guide walks you through creating a FiestaBoard plugin from scratch - from i
 ## What Is a Plugin?
 
 A FiestaBoard plugin is a self-contained Python package that fetches data from an external source (an API, a local service, or computed values) and exposes that data as **template variables**. Users reference those variables in the page editor to build dynamic displays for their split-flap board.
+
+That is a **data** plugin, the kind this guide builds. A plugin's `plugin_type` in `manifest.json` makes it one of three kinds:
+
+| Kind | `plugin_type` | What it does | Guide |
+|------|---------------|--------------|-------|
+| **Data** | `"data"` (the default) | Fetches data and exposes it as template variables | This guide |
+| **Transition** | `"transition"` | Animates the change from one page to the next, frame by frame. **Deprecated**: existing plugins keep running, removal is being considered for v11, so do not start a new one. | [Transitions](/docs/features/transitions) |
+| **Output** | `"output"` | Drives a display device: an LED matrix, a sign. One instance per board. Beta, FiestaBoard 10.0.0 and later. | [Writing an Output Plugin](/docs/development/output-plugins) |
+
+To see every way to build on FiestaBoard, including reading frames and the API, start at [Building on FiestaBoard](/docs/development/integrations-overview).
 
 Every plugin has four required components:
 
@@ -93,6 +103,8 @@ plugins/my_plugin/
 
 :::warning Important
 The plugin directory name **must** match the `id` field in `manifest.json`. If your directory is `plugins/my_plugin/`, then `manifest.json` must have `"id": "my_plugin"`.
+
+Some ids are reserved because templates use them as markup (`{{red:HOT}}`, `{{icon:sun}}`). A plugin can't use a color name (`red`, `orange`, `yellow`, `green`, `blue`, `violet`, `purple`, `white`, `black`, `filled`) or `icon` as its id. Validation rejects them.
 :::
 
 ---
@@ -438,6 +450,29 @@ For data like transit stops that contain multiple lines. Users reference them as
 }
 ```
 
+#### Variable Values Are Data {#variable-format}
+
+FiestaBoard treats the value a variable substitutes into a template as **data**, not as markup. A value can carry these markers:
+
+- color tiles: `{63}` to `{71}`, `{red}` to `{black}`, and `{filled}`
+- end tags: `{/}` and `{/red}`, and so on
+
+Any other brace is drawn as a parenthesis. A value of `{x}` shows as `(x)`. A value of `{icon:sun}` shows as `(icon:sun)` and never becomes an icon. This keeps text from an API, such as a song title or a headline, from changing how the board renders.
+
+A plugin that builds its display out of markup can opt out per variable with `"format": "markup"`. Art plugins that emit colored spans or icons are an example:
+
+```json
+"variables": {
+  "simple": {
+    "row_1": { "description": "First row of the flag", "format": "markup" }
+  }
+}
+```
+
+`format` is `"text"` (the default), `"markup"`, or `"canvas"`. It works in `simple` and in array `item_fields`. Rows of color tiles, such as `{red}{red}{orange}`, are fine without it.
+
+`"canvas"` marks a variable whose value is a drawing for a page's pixel canvas: a plain object (a dict in Python) with optional `size`, `background`, `palette`, `shapes`, and `pixels`. A canvas reads it through its `source`, such as `"{{my_plugin.canvas}}"`. A pixel-matrix board draws it; used in a template line it draws as nothing.
+
 ### Max Lengths
 
 Every variable should have a corresponding max-length entry. This helps the page editor validate that content fits the board's 22-character-wide display.
@@ -547,6 +582,7 @@ Your plugin inherits these from `PluginBase`:
 | `get_oauth_token()` | method | Returns the current access token for the provider in the manifest's `oauth` block, or `None` if the user is not signed in. Call it on every fetch (see [Signing In with OAuth](/docs/development/plugin-oauth)). |
 | `ai_complete(messages, *, provider_id=None, model=None, temperature=None, max_tokens=None, json=False)` | method | **9.11.0.** Asks one of the AI providers set up in Settings → AI Providers and returns an `AICompletion` (`.text`, `.data`, ...). Raises `AINotConfiguredError`, `AIRejectedError`, or `AIProviderError`. See [Using FiestaBoard's AI Providers](/docs/development/plugin-ai). |
 | `ai_providers()` | method | **9.11.0.** The AI providers set up in Settings, without keys or tokens. A settings field with `"options_id": "ai_providers"` gets them as a picker with no code. |
+| `board` | property | The board this render is for: a `BoardContext` with `rows`, `cols`, `device_type` and (**10.0.0**) `display`. `None` outside a board-scoped render. See [Knowing the Board and Its Display](#knowing-the-board-and-its-display). |
 
 ### PluginResult
 
@@ -582,6 +618,121 @@ You can also fall back to environment variables:
 ```python
 api_key = self.config.get("api_key") or os.getenv("MY_PLUGIN_API_KEY")
 ```
+
+### Knowing the Board and Its Display
+
+A user can show your plugin on very different hardware: a Vestaboard
+(split-flap, capitals, eight color tiles), a Divoom Pixoo (a full-color LED
+pixel display with lowercase, colored text and icons) or a TV. Read
+`self.board` inside `fetch_data()` instead of assuming any of them:
+
+- `self.board.rows` / `self.board.cols`: the grid you are filling, in tiles.
+- `self.board.display` (**10.0.0**): what that display can draw, as its output
+  plugin declares it. `None` when no board is in hand (unit tests, a size-only
+  preview); treat `None` as a split-flap board.
+
+| `display.` | Meaning |
+|---|---|
+| `technology` | `"split_flap"`, `"led_matrix"` or `"screen"` |
+| `device_model` | The device, e.g. `"vestaboard_flagship"`, `"divoom_pixoo64"` |
+| `color` | `"tiles"` (a flap's fixed colors), `"rgb"` or `"mono"` |
+| `supports(feature)` | `"lowercase"`, `"color_text"` (`{green:63F}`), `"background"` (`{yellow/black:AQI}`), `"tiles"`, `"icons"` (`{icon:sun}`), `"rgb"`, `"solid_shapes"` (same-colored tiles join into one filled area), `"pixels"` (a pixel-matrix display that draws [pixel canvases](#pixel-canvases)) |
+| `width` / `height` | A pixel-matrix display's size in pixels; `None` on any other display |
+| `icons` | The icon names this display draws |
+| `font` (**10.0.0**) | An LED board's text face: `"5x7"` (Large) or `"3x5"` (Small); `None` on a split-flap |
+| `key` | Identity for caches: two displays with equal keys draw identically |
+| `ai_brief()` | Ready-made text for an AI prompt: the board's size, its text face, and the markup this display draws and nothing it cannot |
+| `check(text)` | What in `text` the display cannot draw, and what it shows instead |
+
+```python
+def fetch_data(self) -> PluginResult:
+    display = self.board.display if self.board else None
+    if display is not None and display.supports("color_text"):
+        temperature = f"{{green:{reading}F}}"   # colored on an LED
+    else:
+        temperature = f"{reading}F"             # plain on a split-flap
+    ...
+```
+
+A plugin that writes board text with an AI model should put
+`display.ai_brief()` in its prompt instead of describing the board itself, so
+it learns every new display FiestaBoard supports without a change.
+
+#### The board's size can change at runtime
+
+Never assume a board keeps the size you last rendered for. A user can switch
+an LED board's text size (**10.0.0**): a Divoom Pixoo 64 shows 10 rows of 16
+characters in the Small (3×5) face and 8 rows of 10 in the Large (5×7) face,
+under the same board and the same `device_type` (`"panel"`). FiestaBoard moves
+the board's pages to the new size, and your plugin sees the new
+`self.board.rows` / `self.board.cols` and `self.board.display.font` on the
+very next render. Write rows that fit `cols`: an LED board can be as narrow
+as 10 columns.
+
+Results FiestaBoard caches for you (`refresh_seconds`) are keyed on the
+board's size and display, so a result rendered for the old size is never
+reused for the new one. If you keep your own per-board state (a cache, a
+rotation index, a layout), key it on `self.board.key`, which is exactly that
+key, never on `device_type` alone:
+
+```python
+def fetch_data(self) -> PluginResult:
+    key = self.board.key if self.board else "default"
+    layout = self._layouts.get(key)
+    if layout is None:
+        layout = self._layouts[key] = self._build_layout(self.board)
+    ...
+```
+
+### Drawing Pixel Canvases {#pixel-canvases}
+
+A page can hold [pixel canvases](../features/pixel-canvases.md): areas of the
+board that an LED pixel display draws as a picture instead of characters. A
+plugin draws one by exposing a variable with `"format": "canvas"` and returning
+a **content object** for it: a plain dict with any of `size`, `background`,
+`palette`, `shapes`, and `pixels`, in the format the
+[Pixel Canvases](../features/pixel-canvases.md#content) page describes.
+
+```json
+"variables": {
+  "simple": {
+    "canvas": { "description": "A picture for a pixel canvas", "format": "canvas" }
+  }
+}
+```
+
+```python
+def fetch_data(self) -> PluginResult:
+    display = self.board.display if self.board else None
+    data = {"art": self._tile_art()}  # text for every board
+    if display is not None and display.supports("pixels"):
+        width, height = display.width, display.height
+        data["canvas"] = {
+            "size": [width, height],
+            "background": "#000000",
+            "shapes": [
+                {"type": "gradient", "from": "#002244", "to": "#ff8800"},
+                {"type": "circle", "cx": width / 2, "cy": height / 2, "r": 8, "fill": "#ffee66"},
+            ],
+        }
+    return PluginResult(available=True, data=data)
+```
+
+- **The user places it.** A page's canvas names your variable in its `source`
+  (`"{{my_plugin.canvas}}"`), and the page decides where it sits and how big
+  it is. Draw at any `size` (up to 128×128): FiestaBoard scales the drawing to
+  the canvas area, keeping its aspect, so 64×64 works without knowing the
+  area. The display's `width` and `height` are a good default.
+- **Only pixel displays draw it.** Check `display.supports("pixels")` before
+  building a picture you would throw away. Used in a template line, a canvas
+  variable draws as nothing, so keep a text variable for split-flap boards.
+- **Keep it valid.** An invalid content object is reported as a canvas issue
+  in the page preview, and the canvas falls back to the page's own drawing, or
+  stays empty. Colors are `#rgb`, `#rrggbb`, palette keys or board color names.
+- **Demo pages can use it.** A manifest demo page (`demo.<device>`) can carry
+  `canvases` in page JSON. Areas are clamped to the board the page renders on,
+  so `{"row": 1, "col": 1, "rows": 96, "cols": 128}` covers the whole board on
+  every size.
 
 ### Constructor
 

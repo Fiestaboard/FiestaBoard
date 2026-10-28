@@ -18,6 +18,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CopyButton,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -25,14 +26,12 @@ import {
   DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Flex,
-  ScrollArea,
   Select,
   SelectContent,
   SelectGroup,
@@ -51,7 +50,7 @@ import {
   TooltipTrigger,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Copy, Radio, Save, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Radio, Save, Sparkles, Trash2, Upload } from "lucide-react";
 import {
   forwardRef,
   lazy,
@@ -66,9 +65,12 @@ import {
 import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
+import { CanvasesPanel, type CanvasesPanelHandle } from "@/components/canvas-editor/canvases-panel";
 import { useCurrentBoard } from "@/components/current-board-context";
+import { DevicePreview } from "@/components/device-preview";
 import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
+import { LiveOutputSilenceStrip } from "@/components/live-output-silence-strip";
 import { PanelFitNote } from "@/components/panel-fit-note";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
@@ -90,13 +92,20 @@ import {
   resolveCode62Glyph,
   useBoardSettings,
 } from "@/hooks/use-board";
-import { usePanelTargets } from "@/hooks/use-panel-targets";
-import { useRouter } from "@/hooks/use-router";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useDisplayTargets } from "@/hooks/use-panel-targets";
+import { usePluginSettings } from "@/hooks/use-plugin-settings";
+import { useSilence } from "@/hooks/use-silence";
+import { useTransitionPlugins } from "@/hooks/use-transition-plugins";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
   BoardInstance,
+  Canvas,
+  CanvasIssue,
+  CanvasLayerJson,
+  CharsetIssue,
   DeviceType,
   GridSize,
   LineAlignment,
@@ -106,14 +115,19 @@ import type {
   PageType,
   PageUpdate,
   PageUpdateResponse,
+  TemplateRenderResponse,
 } from "@/lib/api";
 import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
+import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
+import { charsetTokenText } from "@/lib/charset-issues";
+import { boardForShape, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
-import { panelsFittingGrid } from "@/lib/panel-page-fit";
+import { panelsFittingGrid, targetValue } from "@/lib/panel-page-fit";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
+import { cn } from "@/lib/utils";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
 // barrel push this module past 500 kB minified on their own (see #1575).
@@ -128,12 +142,27 @@ const TipTapTemplateEditor = lazy(() =>
   })),
 );
 
+// The rich editor for a board whose character set draws more than flaps (an
+// LED matrix): colour/block spans, icons, mixed case. Split out the same way,
+// and only ever loaded when such a board is the target.
+const CharsetTemplateEditor = lazy(() =>
+  import("@/components/charset-template-editor").then((m) => ({ default: m.CharsetTemplateEditor })),
+);
+
 interface PageBuilderProps {
   pageId?: string; // If provided, edit existing page
   deviceType?: DeviceType; // Device type for new pages
+  /** Explicit display chosen in the Pages filter; takes precedence over the sidebar for new pages. */
+  targetBoardId?: string;
   skipDraft?: boolean; // If true, ignore and clear any saved draft
   onClose: () => void;
   onSave?: () => void;
+  /**
+   * Rendered inside the Pages section (section-shell.tsx): the section's
+   * breadcrumb is the way back, so the back arrow goes, and the editor sits
+   * in the section's card as a block instead of a second card inside it.
+   */
+  embedded?: boolean;
 }
 
 /**
@@ -149,6 +178,8 @@ export interface PageBuilderHandle {
   undo: () => void;
   canUndo: () => boolean;
   hasUnsavedChanges: () => boolean;
+  /** Reveal the text surface without modifying the draft or beginning staging. */
+  revealText: () => void;
   /**
    * The AI walkthrough types a page in for real while the server writes
    * it. Staging takes one snapshot, suspends the draft autosave and locks
@@ -184,6 +215,9 @@ interface StrokeMetaSnapshot {
 }
 
 const UNDO_STACK_LIMIT = 5;
+
+/** Charset issues listed one by one; the rest are counted. */
+const MAX_CHARSET_ISSUES_SHOWN = 5;
 
 // 1..MAX_NOTES_PER_AXIS choices for the note-array W×H selectors.
 const NOTE_AXIS_OPTIONS = Array.from({ length: MAX_NOTES_PER_AXIS }, (_, i) => i + 1);
@@ -242,29 +276,39 @@ interface DraftData {
   templateLines: string[];
   lineAlignments: LineAlignment[];
   lineWrapEnabled?: boolean[]; // Optional for backward compatibility
+  canvases?: Canvas[];
   timestamp: number;
 }
 
 export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(function PageBuilder(
-  { pageId, deviceType: deviceTypeProp = "flagship", skipDraft = false, onClose, onSave },
+  {
+    pageId,
+    deviceType: deviceTypeProp,
+    targetBoardId: targetBoardIdProp,
+    skipDraft = false,
+    onClose,
+    onSave,
+    embedded = false,
+  },
   ref,
 ) {
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
+  const tCanvas = useTranslations("canvasEditor");
   const tDisplaySettings = useTranslations("displaySettings");
   const tPanels = useTranslations("fiestaPanels");
   // Shared with the global transition settings card so both surfaces label the
   // built-in strategies identically.
   const tTransitions = useTranslations("transitionSettings");
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
-  const { currentBoardId } = useCurrentBoard();
+  const { currentBoardId, currentBoard } = useCurrentBoard();
 
-  // Device type: from prop (new pages) or from existing page (editing)
-  const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp);
+  // Device type: from prop (new pages), the requested or sidebar board (a new
+  // page that asked for no device — see below), or the existing page (editing)
+  const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp ?? "flagship");
   // Note-array grid dimensions. Only meaningful when deviceType === "note_array";
   // flagship/note always stay 1×1 so they resolve to their fixed device sizes.
   // Sourced from the existing page (editing), the configured note_array board
@@ -282,7 +326,46 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // must not overwrite it with the selected board's shape. Cleared again when
   // a generic device is chosen, so the seed is back in charge.
   const [panelSizedGrid, setPanelSizedGrid] = useState(false);
-  const panelTargets = usePanelTargets();
+  // Every display a page can be sized to by name: FiestaPanels, then any other
+  // board with a custom grid (an output plugin's LED matrix, ...).
+  const panelTargets = useDisplayTargets();
+  const fiestaPanelTargets = useMemo(() => panelTargets.filter((p) => p.kind !== "display"), [panelTargets]);
+  const otherDisplayTargets = useMemo(() => panelTargets.filter((p) => p.kind === "display"), [panelTargets]);
+  // The board the page is being authored for, when that is known: the display
+  // picked by name in the size picker, or — for a new page — the display
+  // requested by the Pages filter or selected in the sidebar. Not stored on the page (the grid is the whole
+  // relationship); it only decides which of several same-shaped boards the
+  // editor previews and checks against, and which name the picker shows.
+  const [targetBoardId, setTargetBoardId] = useState<string | null>(null);
+
+  // A NEW page that asked for no particular device (`/pages/new`) starts on
+  // the explicitly requested display, else the sidebar's selection — with one display,
+  // that display: its device type and its exact geometry (an LED matrix's
+  // custom grid included), so it previews and checks as that board from the
+  // first keystroke. Taken once; the user can still retarget, and an
+  // existing page keeps its own shape. Adjusted during render rather than in
+  // an effect so the editor never paints a flagship first (issue #1568).
+  const [adoptedCurrentBoard, setAdoptedCurrentBoard] = useState(false);
+  const initialTargetBoard = targetBoardIdProp
+    ? (boardSettings?.boards?.find((board) => board.id === targetBoardIdProp) ??
+      (boardSettings ? currentBoard : undefined))
+    : currentBoard;
+  const adoptingBoard = !pageId && !deviceTypeProp && !adoptedCurrentBoard ? initialTargetBoard : undefined;
+  if (adoptingBoard) {
+    setAdoptedCurrentBoard(true);
+    setDeviceType(adoptingBoard.device_type);
+    if (adoptingBoard.device_type === "note_array") {
+      setNotesWide(adoptingBoard.notes_wide ?? 1);
+      setNotesTall(adoptingBoard.notes_tall ?? 1);
+    } else if (adoptingBoard.device_type === "panel" && adoptingBoard.grid_rows && adoptingBoard.grid_cols) {
+      setGridRows(adoptingBoard.grid_rows);
+      setGridCols(adoptingBoard.grid_cols);
+    }
+    setTargetBoardId(adoptingBoard.id);
+    // The board's own shape is the choice: the generic seeding below must not
+    // replace it with another board's.
+    setPanelSizedGrid(true);
+  }
   const dims = resolveDimensions(deviceType, notesWide, notesTall, gridRows, gridCols);
   const numLines = dims.rows;
   // The grid a panel render/save needs (the API refuses a panel without one).
@@ -321,12 +404,46 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [isTransitioning, setIsTransitioning] = useState(false); // Track if we're transitioning between previews
   const [_pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+  // Settings can arrive after the initial six-row form has mounted. Seed its
+  // untouched blank document together with the adopted geometry; user content
+  // and restored drafts retain their own rows, including overflow.
+  if (
+    adoptingBoard &&
+    !hasRestoredDraft &&
+    templateLines.every((line) => line === "") &&
+    lineAlignments.every((alignment) => alignment === "left") &&
+    lineWrapEnabled.every((wrap) => !wrap)
+  ) {
+    const rows = resolveDimensions(
+      adoptingBoard.device_type,
+      adoptingBoard.notes_wide ?? 1,
+      adoptingBoard.notes_tall ?? 1,
+      adoptingBoard.grid_rows,
+      adoptingBoard.grid_cols,
+    ).rows;
+    setTemplateLines(Array.from({ length: rows }, () => ""));
+    setLineAlignments(Array.from({ length: rows }, () => "left"));
+    setLineWrapEnabled(Array.from({ length: rows }, () => false));
+  }
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
+  const [editingSurface, setEditingSurface] = useState<"text" | "canvases">("text");
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(true);
 
-  // Per-page transition override. `null` means "inherit the global default"
+  // Per-page transition override. `null` means "inherit the display's transition"
   // — the backend clears a stored override only when it is sent an explicit
   // null, so this always goes out on the wire (see the save mutation).
   const [transitionStrategy, setTransitionStrategy] = useState<string | null>(null);
+
+  // Pixel canvases (design PIXEL_CANVAS.md §5): stored beside the template,
+  // edited only for an LED pixel board, previewed by the server's render
+  // (`layers` + `canvas_issues` for the preview board, or its refusal).
+  const [canvases, setCanvases] = useState<Canvas[]>([]);
+  const canvasesPanelRef = useRef<CanvasesPanelHandle>(null);
+  const [debouncedCanvases, setDebouncedCanvases] = useState<Canvas[]>([]);
+  const [previewLayers, setPreviewLayers] = useState<CanvasLayerJson[] | null>(null);
+  const [canvasIssues, setCanvasIssues] = useState<CanvasIssue[]>([]);
+  const [canvasError, setCanvasError] = useState<string | null>(null);
 
   // Pencil draw-mode state — see handleStrokeCommit / drawPreviewMessage
   // below for how a painted stroke flows back into templateLines.
@@ -337,16 +454,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   /**
    * The size picker offers two kinds of choice: a generic device type, and a
-   * FiestaPanel by name (``panel:<id>``). A panel resolves to a ``panel`` page
-   * plus that panel's character grid (``grid_rows`` × ``grid_cols``) — nothing
-   * is stored on the page to say which panel it was made for. The grid is the
-   * whole relationship. (A legacy panel whose board is still a Note-block
-   * array resolves to a note_array page of its grid, as before.)
+   * display by name — a FiestaPanel (``panel:<id>``) or any other board with a
+   * custom grid, such as an output plugin's LED matrix (``display:<board id>``).
+   * Either resolves to a ``panel`` page plus that display's character grid
+   * (``grid_rows`` × ``grid_cols``) — nothing is stored on the page to say
+   * which display it was made for. The grid is the whole relationship. (A
+   * legacy panel whose board is still a Note-block array resolves to a
+   * note_array page of its grid, as before.)
    */
   const handleSizeChange = useCallback(
     (value: string) => {
-      const panel = value.startsWith("panel:") ? panelTargets.find((p) => `panel:${p.id}` === value) : undefined;
+      const panel = panelTargets.find((p) => targetValue(p) === value);
       if (panel) {
+        setTargetBoardId(panel.boardId ?? null);
         if (panel.deviceType === "panel") {
           setDeviceType("panel");
           setGridRows(panel.rows);
@@ -359,6 +479,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         setPanelSizedGrid(true);
       } else {
         setDeviceType(value as DeviceType);
+        setTargetBoardId(null);
         setPanelSizedGrid(false);
       }
       setDrawMode(false);
@@ -374,11 +495,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
    * panel whose board this grid matches is also simply truer — that IS the
    * page's shape. A panel page no panel matches any more (its TV was resized
    * or the panel deleted) shows as the bare "panel" option at its own grid.
+   * Of several displays with the same grid, the one the page is being
+   * authored for wins, then the board selected in the sidebar.
    */
   const sizeSelectValue = useMemo(() => {
-    const [fit] = panelsFittingGrid(panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols);
-    return fit ? `panel:${fit.id}` : deviceType;
-  }, [panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols]);
+    const fits = panelsFittingGrid(panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols);
+    const fit =
+      (targetBoardId ? fits.find((p) => p.boardId === targetBoardId) : undefined) ??
+      fits.find((p) => !!p.boardId && p.boardId === currentBoardId) ??
+      fits[0];
+    return fit ? targetValue(fit) : deviceType;
+  }, [panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols, targetBoardId, currentBoardId]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
   // Metadata history keyed to stroke boundaries: done/undone mirror the
   // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
@@ -390,16 +517,18 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Snapshot of the page state as loaded from the server, used to detect unsaved changes.
   const [savedSnapshot, setSavedSnapshot] = useState<{
     name: string;
+    deviceType: DeviceType;
+    geometry: string;
     templateLines: string[];
     lineAlignments: LineAlignment[];
     lineWrapEnabled: boolean[];
     transitionStrategy: string | null;
+    canvases: Canvas[];
   } | null>(null);
 
   // Export dialog
   const [exportOpen, setExportOpen] = useState(false);
   const [exportShareString, setExportShareString] = useState("");
-  const [exportCopied, setExportCopied] = useState(false);
 
   // Shrinking-retarget confirmation (issue #1250). Converting a saved page
   // to a smaller geometry is lossy, so the save is gated behind a confirm.
@@ -420,6 +549,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // (called from the AI chat panel) can read it synchronously without
   // closure staleness across React renders.
   const nameRef = useRef(name);
+  // Bind edits to the generation that seeded this draft. A background query
+  // refetch must not silently authorize overwriting another editor's save.
+  const seededRevisionRef = useRef<string | null | undefined>(undefined);
+  const seededProtocolsRef = useRef<Pick<Page, "edit_protocol" | "document_protocol">>({});
   const templateLinesRef = useRef(templateLines);
   const lineAlignmentsRef = useRef(lineAlignments);
   const lineWrapEnabledRef = useRef(lineWrapEnabled);
@@ -427,6 +560,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const notesWideRef = useRef(notesWide);
   const notesTallRef = useRef(notesTall);
   const panelGridRef = useRef(panelGrid);
+  const durationRef = useRef(300);
+  const draftDisplayRef = useRef({ canvases, transitionStrategy, targetBoardId });
+  useEffect(() => {
+    draftDisplayRef.current = { canvases, transitionStrategy, targetBoardId };
+  }, [canvases, transitionStrategy, targetBoardId]);
   useEffect(() => {
     nameRef.current = name;
   }, [name]);
@@ -453,15 +591,31 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, [panelGrid]);
 
   const hasUnsavedChanges = useMemo(() => {
-    if (!savedSnapshot) return true;
+    if (!savedSnapshot) return !pageId;
     return (
       name !== savedSnapshot.name ||
+      deviceType !== savedSnapshot.deviceType ||
+      JSON.stringify(geometryFields(deviceType, notesWide, notesTall, panelGrid)) !== savedSnapshot.geometry ||
       JSON.stringify(templateLines) !== JSON.stringify(savedSnapshot.templateLines) ||
       JSON.stringify(lineAlignments) !== JSON.stringify(savedSnapshot.lineAlignments) ||
       JSON.stringify(lineWrapEnabled) !== JSON.stringify(savedSnapshot.lineWrapEnabled) ||
-      transitionStrategy !== savedSnapshot.transitionStrategy
+      transitionStrategy !== savedSnapshot.transitionStrategy ||
+      JSON.stringify(canvases) !== JSON.stringify(savedSnapshot.canvases)
     );
-  }, [savedSnapshot, name, templateLines, lineAlignments, lineWrapEnabled, transitionStrategy]);
+  }, [
+    savedSnapshot,
+    pageId,
+    name,
+    deviceType,
+    notesWide,
+    notesTall,
+    panelGrid,
+    templateLines,
+    lineAlignments,
+    lineWrapEnabled,
+    transitionStrategy,
+    canvases,
+  ]);
 
   const pushUndoSnapshot = useCallback(() => {
     const snap: PageSnapshot = {
@@ -553,13 +707,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   const getCurrentPageSnapshot = useCallback((): CurrentPageSnapshot | undefined => {
     const lines = templateLinesRef.current;
-    if (!nameRef.current && !lines.some((l) => l)) return undefined;
+    const draft = draftDisplayRef.current;
+    if (!nameRef.current && !lines.some((l) => l) && !draft.canvases.length) return undefined;
     return {
       // The id tells the assistant whether update_page can target this
       // page; an unsaved draft has none and is created instead.
-      ...(pageId ? { id: pageId } : {}),
+      ...(pageId ? { id: pageId, revision: seededRevisionRef.current, ...seededProtocolsRef.current } : {}),
       name: nameRef.current,
-      template: lines,
+      device_type: deviceTypeRef.current,
+      ...geometryFields(deviceTypeRef.current, notesWideRef.current, notesTallRef.current, panelGridRef.current),
+      ...(draft.targetBoardId ? { board_id: draft.targetBoardId } : {}),
+      canvases: structuredClone(draft.canvases),
+      duration_seconds: durationRef.current,
+      transition_strategy: draft.transitionStrategy,
+      template: [...lines],
       line_metadata: lines.map((_, i) => ({
         alignment: (lineAlignmentsRef.current[i] ?? "left") as LineMetadata["alignment"],
         wrap: lineWrapEnabledRef.current[i] ?? false,
@@ -577,6 +738,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     }),
     [],
   );
+
+  const revealText = useCallback(() => setEditingSurface("text"), []);
 
   const beginStaging = useCallback(() => {
     if (stagingSnapshotRef.current) return;
@@ -616,6 +779,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, [applySnapshot, pageId]);
 
   const reloadFromServer = useCallback(async () => {
+    // A dirty editor never entered staging: the walkthrough only showed a
+    // notice. Its successful server update must not replace this local draft.
+    if (!stagingSnapshotRef.current && hasUnsavedChangesRef.current) return;
     stagingSnapshotRef.current = null;
     setStagingActive(false);
     if (!pageId) return;
@@ -627,6 +793,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     ref,
     (): PageBuilderHandle => ({
       hasUnsavedChanges: () => hasUnsavedChangesRef.current,
+      revealText,
       beginStaging,
       stageName,
       stageLine,
@@ -656,11 +823,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           const saved: Page = pageId
             ? (
                 await api.updatePage(pageId, {
+                  expected_revision: seededRevisionRef.current,
                   name: nameRef.current,
                   device_type: deviceTypeRef.current,
                   template: cleanedLines,
                   line_metadata: metadata,
                   ...noteArrayDims,
+                  canvases: draftDisplayRef.current.canvases.length ? draftDisplayRef.current.canvases : null,
+                  transition_strategy: draftDisplayRef.current.transitionStrategy,
                 })
               ).page
             : await api.createPage({
@@ -670,7 +840,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 template: cleanedLines,
                 line_metadata: metadata,
                 ...noteArrayDims,
+                canvases: draftDisplayRef.current.canvases,
+                transition_strategy: draftDisplayRef.current.transitionStrategy,
               });
+          seededRevisionRef.current = saved.revision;
+          seededProtocolsRef.current = {
+            edit_protocol: saved.edit_protocol,
+            document_protocol: saved.document_protocol,
+          };
           // Invalidate the pages list and this page's preview, but don't close.
           queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
           queryClient.invalidateQueries({
@@ -696,6 +873,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       undoVersion,
       pageId,
       queryClient,
+      revealText,
       beginStaging,
       stageName,
       stageLine,
@@ -719,7 +897,50 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Live output mode state
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
-  const [selectedBoardId, setSelectedBoardId] = useState<string>("");
+  const [chosenLiveBoardId, setChosenLiveBoardId] = useState<string>("");
+  // The board this page is previewed as: the live-output target, else the
+  // board in context, when the page fits it; else any board it fits. Its
+  // model draws the preview (an LED board as an LED matrix) and its
+  // character set is what the render is checked against.
+  const previewBoard = useMemo(
+    () =>
+      boardForShape(boardSettings?.boards, [targetBoardId, chosenLiveBoardId, currentBoardId], {
+        device_type: deviceType,
+        notes_wide: notesWide,
+        notes_tall: notesTall,
+        grid_rows: panelGrid?.rows ?? null,
+        grid_cols: panelGrid?.cols ?? null,
+      }),
+    [
+      boardSettings?.boards,
+      targetBoardId,
+      chosenLiveBoardId,
+      currentBoardId,
+      deviceType,
+      notesWide,
+      notesTall,
+      panelGrid,
+    ],
+  );
+  const previewBoardId = previewBoard?.id ?? null;
+  // Follow the compatible preview until the user chooses a live target or
+  // starts sending. Deriving this during render also handles late settings
+  // and sidebar context without first selecting the primary board.
+  const selectedBoardId = chosenLiveBoardId || previewBoardId || "";
+  const liveTargetPaused = boardSettings?.boards?.find((board) => board.id === selectedBoardId)?.paused === true;
+  const previewModel = useMemo(() => resolveBoardModel(previewBoard), [previewBoard]);
+  // An LED target's character set: the rich editor then reads and offers that
+  // set's extended markup and keeps its case. null for a split-flap target.
+  const editorCharset = useMemo(() => ledEditorCharacterSet(previewBoard, previewModel), [previewBoard, previewModel]);
+  // The preview board as a pixel matrix (its size and face), when it is one:
+  // only then are the page's canvases drawn, and so edited.
+  const pixelBoard = useMemo(
+    () => pixelBoardOf(previewModel, previewBoard?.led_layout),
+    [previewModel, previewBoard?.led_layout],
+  );
+  // Cells of the last render that board's character set draws differently
+  // (POST /templates/render with board_id); [] when none or no board.
+  const [charsetIssues, setCharsetIssues] = useState<CharsetIssue[]>([]);
   const lastLiveSentPreview = useRef<string | null>(null);
   // Ref-tracked copy of lastPreview so the liveOutputEnabled effect can read it
   // synchronously without a stale closure (avoids adding lastPreview as a dep).
@@ -727,15 +948,36 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const liveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const liveOutputEnabledRef = useRef(false);
   const liveAbortRef = useRef<AbortController | null>(null);
+  const liveCanvasAttemptedRef = useRef(false);
   const liveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const LIVE_OUTPUT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
+  // Silence (#1943): live renders leave a silenced board alone unless the
+  // user explicitly chose "Send to board anyway" for this Live Output session.
+  const liveSilence = useSilence(selectedBoardId || undefined);
+  const [liveOverrideSilence, setLiveOverrideSilence] = useState(false);
+  // The last live render came back `silenced: true` (the board was left alone).
+  const [liveSilenced, setLiveSilenced] = useState(false);
+  const liveOverrideSilenceRef = useRef(false);
+  liveOverrideSilenceRef.current = liveOverrideSilence;
+  const liveSilenceActiveRef = useRef(false);
+  liveSilenceActiveRef.current = liveSilence.active;
+
   const disableLiveOutput = useCallback(() => {
     setLiveOutputEnabled(false);
+    setLiveOverrideSilence(false);
     lastLiveSentPreview.current = null;
     toast.info(t("toastLiveOutputOff"));
   }, [t]);
+
+  // Turning Live Output off — from any path: the switch, the timeout, another
+  // tab's kill switch — ends the override too, so the next session starts
+  // honouring silence again. A render-phase reset (react-hooks/set-state-in-effect).
+  if (useDepsChanged([liveOutputEnabled]) && !liveOutputEnabled) {
+    setLiveOverrideSilence(false);
+    setLiveSilenced(false);
+  }
 
   // Debounced state (for expensive operations)
   const [debouncedTemplateLines, setDebouncedTemplateLines] = useState<string[]>(emptyLines());
@@ -765,6 +1007,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     };
   }, [
     liveOutputEnabled,
+    canvases,
     debouncedTemplateLines,
     debouncedLineAlignments,
     debouncedLineWrapEnabled,
@@ -787,7 +1030,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (!liveOutputEnabledRef.current && liveOutputEnabled) {
       // Live output just enabled — prime the Home page cache with the current
       // page preview so there is no gap between enabling and first live render.
-      if (lastPreviewRef.current) {
+      // Not while the board is silenced: Home's Live Mode badge must never
+      // claim a frame the board does not show (#1943).
+      if (lastPreviewRef.current && (!liveSilenceActiveRef.current || liveOverrideSilenceRef.current)) {
         queryClient.setQueryData(["liveOutputMessage"], lastPreviewRef.current);
         writeLiveOutputMessage(lastPreviewRef.current);
       }
@@ -839,6 +1084,58 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Track if we're manually updating wrap to prevent onChange from overwriting state
   const isUpdatingWrap = useRef(false);
 
+  // The rich editor's change handler (either editor): new lines, plus the
+  // per-line alignment and wrap arrays kept in step when lines are added or
+  // removed in the middle.
+  const handleRichEditorChange = (newValue: string) => {
+    if (isUpdatingWrap.current) {
+      return;
+    }
+    const lines = newValue.split("\n");
+    setTemplateLines(lines);
+
+    const oldLen = templateLines.length;
+    const newLen = lines.length;
+    if (newLen !== oldLen) {
+      let prefixMatch = 0;
+      while (prefixMatch < Math.min(newLen, oldLen) && lines[prefixMatch] === templateLines[prefixMatch]) {
+        prefixMatch++;
+      }
+      let suffixMatch = 0;
+      while (
+        suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
+        lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]
+      ) {
+        suffixMatch++;
+      }
+
+      const updatedAlignments = [...lineAlignments];
+      const updatedWrap = [...lineWrapEnabled];
+
+      if (newLen < oldLen) {
+        const deleteCount = oldLen - newLen;
+        const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
+        updatedAlignments.splice(deleteStart, deleteCount);
+        updatedWrap.splice(deleteStart, deleteCount);
+      } else {
+        const insertCount = newLen - oldLen;
+        const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
+        for (let i = 0; i < insertCount; i++) {
+          updatedAlignments.splice(insertStart + i, 0, "left");
+          updatedWrap.splice(insertStart + i, 0, false);
+        }
+      }
+
+      while (updatedAlignments.length < newLen) updatedAlignments.push("left");
+      while (updatedWrap.length < newLen) updatedWrap.push(false);
+      updatedAlignments.length = newLen;
+      updatedWrap.length = newLen;
+
+      setLineAlignments(updatedAlignments);
+      setLineWrapEnabled(updatedWrap);
+    }
+  };
+
   // Track if content was cleared while a mutation is in flight (to ignore stale responses)
   const shouldIgnoreNextResponse = useRef(false);
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -850,25 +1147,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     enabled: !!pageId,
   });
 
-  // Transition plugins (beta): the /transitions/plugins endpoint 404s while
-  // the flag is off, so only fetch once the flag is known to be on. Query keys
-  // match the Transition Lab route so both share one cache entry.
-  const { data: betaSettings } = useQuery({
-    queryKey: ["settings", "beta"],
-    queryFn: () => api.getBetaSettings(),
-  });
-  const transitionPluginsEnabled = betaSettings?.settings.transition_plugins_enabled ?? false;
-
-  const { data: transitionPluginsData } = useQuery({
-    queryKey: ["transition-plugins"],
-    queryFn: () => api.listTransitionPlugins(),
-    enabled: transitionPluginsEnabled,
-  });
-  const transitionPlugins = useMemo(() => transitionPluginsData?.plugins ?? [], [transitionPluginsData]);
+  // Transition plugins (beta, deprecated): offered only while the flag is on,
+  // since the backend refuses a `plugin:` strategy otherwise. The installed
+  // ones come from the plugin listing, filtered to plugin_type "transition".
+  const { data: pluginSettings } = usePluginSettings();
+  const transitionPluginsEnabled = pluginSettings?.transition_plugins_enabled ?? false;
+  const transitionPlugins = useTransitionPlugins(transitionPluginsEnabled);
 
   // A `plugin:<id>` override whose plugin isn't in the list — the beta is off,
   // or the plugin was uninstalled. Surface it under its raw id rather than
-  // silently showing "Use global default"; the user's setting is never cleared
+  // silently showing "Use the display's transition"; the user's setting is never cleared
   // behind their back.
   const unknownPluginStrategy = useMemo(() => {
     if (!transitionStrategy?.startsWith(PLUGIN_STRATEGY_PREFIX)) return null;
@@ -878,7 +1166,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Human-readable name for the currently selected transition, for the tooltip.
   const transitionLabel = useMemo(() => {
-    if (!transitionStrategy) return t("transitionUseGlobalDefault");
+    if (!transitionStrategy) return t("transitionUseDisplayTransition");
     if (unknownPluginStrategy) return unknownPluginStrategy;
     if (transitionStrategy.startsWith(PLUGIN_STRATEGY_PREFIX)) {
       const id = transitionStrategy.slice(PLUGIN_STRATEGY_PREFIX.length);
@@ -928,6 +1216,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       }
       forceReseedRef.current = false;
       seededPageIdRef.current = existingPage.id;
+      seededRevisionRef.current = existingPage.revision;
+      seededProtocolsRef.current = {
+        edit_protocol: existingPage.edit_protocol,
+        document_protocol: existingPage.document_protocol,
+      };
+      durationRef.current = existingPage.duration_seconds;
       // Clear draft when loading existing page
       const draftKey = getDraftKey(pageId);
       localStorage.removeItem(draftKey);
@@ -970,15 +1264,30 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setDebouncedLineAlignments(alignments);
       setDebouncedLineWrapEnabled(wrapStates);
       setDebouncedTemplateLines(contents);
-      // Per-page transition override (null = inherit the global default).
+      // Per-page transition override (null = inherit the display's transition).
       const savedTransition = existingPage.transition_strategy ?? null;
       setTransitionStrategy(savedTransition);
+      const savedCanvases = existingPage.canvases ?? [];
+      setCanvases(savedCanvases);
+      setDebouncedCanvases(savedCanvases);
       setSavedSnapshot({
         name: pageName,
+        deviceType: existingPage.device_type ?? "flagship",
+        geometry: JSON.stringify(
+          geometryFields(
+            existingPage.device_type ?? "flagship",
+            existingPage.notes_wide ?? 1,
+            existingPage.notes_tall ?? 1,
+            existingPage.grid_rows && existingPage.grid_cols
+              ? { rows: existingPage.grid_rows, cols: existingPage.grid_cols }
+              : null,
+          ),
+        ),
         templateLines: contents,
         lineAlignments: alignments,
         lineWrapEnabled: wrapStates,
         transitionStrategy: savedTransition,
+        canvases: savedCanvases,
       });
     } else if (!pageId && !loadingPage) {
       const draftKey = getDraftKey();
@@ -1003,7 +1312,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               setDebouncedTemplateLines(restoredLines);
               setDebouncedLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
               setDebouncedLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
+              setCanvases(draft.canvases ?? []);
+              setDebouncedCanvases(draft.canvases ?? []);
               setDraftRestored(true);
+              setHasRestoredDraft(true);
 
               // Auto-dismiss the alert after 5 seconds
               setTimeout(() => setDraftRestored(false), 5000);
@@ -1053,6 +1365,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (board?.grid_rows && board.grid_cols) {
       setGridRows(board.grid_rows);
       setGridCols(board.grid_cols);
+      setTargetBoardId(board.id);
       return;
     }
     const target = panelTargets.find((p) => p.deviceType === "panel");
@@ -1083,6 +1396,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     return () => clearTimeout(timeoutId);
   }, [lineWrapEnabled]);
 
+  // Canvases preview a little later than text: a paint stroke sends many edits.
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedCanvases(canvases);
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [canvases]);
+
   // Auto-save draft to localStorage (debounced)
   useEffect(() => {
     const draftKey = getDraftKey(pageId);
@@ -1104,6 +1425,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           templateLines,
           lineAlignments,
           lineWrapEnabled,
+          ...(canvases.length > 0 && { canvases }),
           timestamp: Date.now(),
         };
         localStorage.setItem(draftKey, JSON.stringify(draft));
@@ -1114,7 +1436,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     }, 1000); // Save draft 1 second after last change
 
     return () => clearTimeout(timeoutId);
-  }, [name, templateLines, lineAlignments, lineWrapEnabled, pageId, existingPage, stagingActive]);
+  }, [name, templateLines, lineAlignments, lineWrapEnabled, canvases, pageId, existingPage, stagingActive]);
 
   // Auto-resize textareas when content changes
   useEffect(() => {
@@ -1223,15 +1545,18 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
       if (pageId) {
         const payload: PageUpdate = {
+          expected_revision: seededRevisionRef.current,
           name,
           device_type: deviceType,
           template: cleanedLines,
           line_metadata: metadata,
           // Always sent, even when null: the API clears a stored override only
           // for keys it actually receives, so omitting this would silently keep
-          // a previous per-page transition after the user chose "global default".
+          // a previous per-page transition after the user chose "Use the display's transition".
           transition_strategy: transitionStrategy,
           ...geometryFields(deviceType, notesWide, notesTall, panelGrid),
+          // Always sent: null clears canvases the user deleted.
+          canvases: canvases.length > 0 ? canvases : null,
         };
         return api.updatePage(pageId, payload);
       } else {
@@ -1243,6 +1568,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           line_metadata: metadata,
           transition_strategy: transitionStrategy,
           ...geometryFields(deviceType, notesWide, notesTall, panelGrid),
+          ...(canvases.length > 0 && { canvases }),
         };
         const created = await api.createPage(payload);
         return { page: created, incompatible_references: [] };
@@ -1300,6 +1626,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         toast.warning(t("retargetIncompatibleWarning", { list }), { duration: 10000 });
       }
 
+      // Navigation runs synchronously, before a dirty-state effect can update.
+      hasUnsavedChangesRef.current = false;
       onSave?.();
       onClose();
     },
@@ -1310,7 +1638,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: () => api.deletePage(pageId!),
+    mutationFn: () => api.deletePage(pageId!, seededRevisionRef.current),
     onSuccess: (data) => {
       // Clear preview cache for deleted page
       if (pageId) {
@@ -1342,6 +1670,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       } else {
         toast.success(t("toastPageDeleted"));
       }
+      hasUnsavedChangesRef.current = false;
       onClose();
     },
     onError: () => {
@@ -1400,7 +1729,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         debouncedLineWrapEnabled,
       );
 
-      const hasContent = cleanedLines.some((line) => line.trim().length > 0);
+      const hasCanvases = debouncedCanvases.length > 0;
+      const hasContent = hasCanvases || cleanedLines.some((line) => line.trim().length > 0);
 
       if (!hasContent) {
         const emptyCount = dims.rows;
@@ -1411,15 +1741,33 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         };
       }
 
-      return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall, panelGrid);
+      // Canvases ride along only when there are some: every other render's
+      // request is exactly what it always was.
+      if (hasCanvases) {
+        return api.renderTemplate(
+          cleanedLines,
+          metadata,
+          deviceType,
+          notesWide,
+          notesTall,
+          panelGrid,
+          previewBoardId,
+          debouncedCanvases,
+        );
+      }
+      return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall, panelGrid, previewBoardId);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: TemplateRenderResponse) => {
       if (shouldIgnoreNextResponse.current) {
         shouldIgnoreNextResponse.current = false;
         return;
       }
+      setCharsetIssues(data.charset_issues ?? []);
+      setPreviewLayers(data.layers ?? null);
+      setCanvasIssues(data.canvas_issues ?? []);
+      setCanvasError(null);
 
-      const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+      const hasContent = debouncedCanvases.length > 0 || debouncedTemplateLines.some((line) => line.trim().length > 0);
       if (!hasContent) {
         setPreview(null);
         return;
@@ -1450,15 +1798,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           setLastPreview(data.rendered);
         }
       }
-
+    },
+    onError: (error: Error) => {
+      setPreview(null);
+      setCharsetIssues([]);
+      setPreviewLayers(null);
+      setCanvasIssues([]);
+      // With canvases, a refusal is most likely theirs (a 422 naming the field).
+      setCanvasError(debouncedCanvases.length > 0 ? error.message : null);
+    },
+    onSettled: () => {
+      // Canvas-only responses have blank rendered text and return early above.
+      // Drain edits on every completion, including failures, using the latest
+      // mutation closure so queued canvases and board changes are not lost.
       if (needsRePreview.current) {
         needsRePreview.current = false;
-        previewMutation.mutate();
+        previewMutationRef.current.mutate();
       }
-    },
-    onError: () => {
-      setPreview(null);
-      needsRePreview.current = false;
     },
   });
 
@@ -1487,10 +1843,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       return;
     }
 
-    const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+    const hasCanvases = debouncedCanvases.length > 0;
+    const hasContent = hasCanvases || debouncedTemplateLines.some((line) => line.trim().length > 0);
 
     if (!hasContent) {
       setPreview(null);
+      setPreviewLayers(null);
+      setCanvasIssues([]);
+      setCanvasError(null);
       needsRePreview.current = false;
       if (previewMutationRef.current.isPending) {
         shouldIgnoreNextResponse.current = true;
@@ -1506,7 +1866,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     const debounceMs = skipNextPreviewDebounceRef.current ? 0 : 200;
     skipNextPreviewDebounceRef.current = false;
     const timeoutId = setTimeout(() => {
-      const stillHasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+      const stillHasContent = hasCanvases || debouncedTemplateLines.some((line) => line.trim().length > 0);
 
       if (!stillHasContent) {
         setPreview(null);
@@ -1537,71 +1897,30 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     debouncedTemplateLines,
     debouncedLineAlignments,
     debouncedLineWrapEnabled,
+    debouncedCanvases,
     liveOutputEnabled,
     notesWide,
     notesTall,
     gridRows,
     gridCols,
+    // Another target board is another character set to check against.
+    previewBoardId,
   ]);
 
-  // Live output mutation - sends rendered preview to the board
+  // Track request status for the sending indicator; the fast path below is
+  // the only trigger, so enabling Live on an existing preview sends once.
   const liveSendMutation = useMutation({
-    mutationFn: async (_rendered: string) => {
-      const { cleanedLines, metadata } = processLinesWithPrefixes(
-        debouncedTemplateLines,
-        debouncedLineAlignments,
-        debouncedLineWrapEnabled,
-      );
-      return api.renderTemplateLive(
-        cleanedLines,
-        selectedBoardId || undefined,
-        metadata,
-        deviceType,
-        notesWide,
-        notesTall,
-        undefined,
-        panelGrid,
-      );
-    },
-    onSuccess: (data) => {
-      if (data.sent_to_board) {
-        lastLiveSentPreview.current = preview;
-        // Broadcast to the Home page so its virtual board reflects the live content.
-        queryClient.setQueryData(["liveOutputMessage"], data.rendered);
-        writeLiveOutputMessage(data.rendered);
-      }
-    },
-    onError: (error: Error) => {
-      console.error("[LiveOutput] Send failed:", error.message);
-      toast.error(t("toastLiveSendFailed"));
-    },
+    mutationFn: (args: Parameters<typeof api.renderTemplateLive>) => api.renderTemplateLive(...args),
   });
-
-  // Same react-query identity-churn concern as previewMutationRef above.
   const liveSendMutationRef = useRef(liveSendMutation);
   liveSendMutationRef.current = liveSendMutation;
-
-  // Legacy live send path — only used as fallback when fast path hasn't handled the update.
-  // The fast path sets lastLiveSentPreview to match preview, so this is effectively a no-op
-  // when live mode is active. Kept for safety if the fast path request fails.
-  useEffect(() => {
-    if (!liveOutputEnabled || !preview || preview === lastLiveSentPreview.current) {
-      return;
-    }
-
-    const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-    if (!hasContent) return;
-
-    if (!liveSendMutationRef.current.isPending) {
-      liveSendMutationRef.current.mutate(preview);
-    }
-  }, [preview, liveOutputEnabled, debouncedTemplateLines]);
 
   // Live edit fast path: single 100ms debounce → single API call → preview + board update.
   // Bypasses the normal double-debounce (150ms + 200ms) and double API call chain.
   // Uses IMMEDIATE state (not debounced) and AbortController to cancel stale requests.
   useEffect(() => {
     if (!liveOutputEnabled) {
+      liveCanvasAttemptedRef.current = false;
       if (liveDebounceRef.current) {
         clearTimeout(liveDebounceRef.current);
         liveDebounceRef.current = null;
@@ -1613,7 +1932,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       return;
     }
 
-    const hasContent = templateLines.some((line) => line.trim().length > 0);
+    // A cancelled fetch may already have written its canvas to the board.
+    // Clear removed layers locally while the replacement request is pending.
+    if (canvases.length === 0) {
+      setPreviewLayers([]);
+      setCanvasIssues([]);
+      setCanvasError(null);
+    }
+
+    const hasContent =
+      templateLines.some((line) => line.trim().length > 0) ||
+      canvases.length > 0 ||
+      lastLiveSentPreview.current !== null ||
+      liveCanvasAttemptedRef.current;
     if (!hasContent) {
       if (liveAbortRef.current) {
         liveAbortRef.current.abort();
@@ -1639,7 +1970,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       try {
         const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
 
-        const data = await api.renderTemplateLive(
+        if (canvases.length > 0) liveCanvasAttemptedRef.current = true;
+        const data = await liveSendMutationRef.current.mutateAsync([
           cleanedLines,
           selectedBoardId || undefined,
           metadata,
@@ -1648,23 +1980,42 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           notesTall,
           controller.signal,
           panelGrid,
-        );
+          { overrideSilence: liveOverrideSilence, canvases },
+        ]);
 
         if (controller.signal.aborted) return;
 
+        setPreviewLayers(data.layers ?? null);
+        setCanvasIssues(data.canvas_issues ?? []);
+        setCanvasError(null);
         setPreview(data.rendered);
         if (data.rendered) {
           setLastPreview(data.rendered);
         }
+        // Remember the rendered content even during silence, so deleting
+        // the final content can still render an explicitly empty page.
         lastLiveSentPreview.current = data.rendered;
-        // Broadcast to the Home page (same tab and other tabs) so navigating there shows this content.
-        queryClient.setQueryData(["liveOutputMessage"], data.rendered);
-        writeLiveOutputMessage(data.rendered);
+        setLiveSilenced(data.silenced === true);
+        if (data.sent_to_board) {
+          // Broadcast to the Home page (same tab and other tabs) so navigating
+          // there shows this content — only a frame the board really shows.
+          queryClient.setQueryData(["liveOutputMessage"], data.rendered);
+          writeLiveOutputMessage(data.rendered);
+        } else if (data.silenced && queryClient.getQueryData(["liveOutputMessage"]) != null) {
+          // A frame primed before silence was known: take the claim back.
+          queryClient.setQueryData(["liveOutputMessage"], null);
+          writeLiveOutputMessage(null);
+        }
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
+        if (
+          controller.signal.aborted ||
+          liveAbortRef.current !== controller ||
+          (error instanceof DOMException && error.name === "AbortError")
+        ) {
           return;
         }
         console.error("[LiveFastPath] Error:", error);
+        toast.error(t("toastLiveSendFailed"));
       }
     }, 100);
 
@@ -1679,6 +2030,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     };
   }, [
     liveOutputEnabled,
+    canvases,
     templateLines,
     lineAlignments,
     lineWrapEnabled,
@@ -1688,14 +2040,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     notesTall,
     panelGrid,
     queryClient,
+    // Choosing "Send to board anyway" re-sends the current preview at once.
+    liveOverrideSilence,
+    t,
   ]);
-
-  // Initialize selected board to first board when settings load
-  useEffect(() => {
-    if (boardSettings?.boards?.length && !selectedBoardId) {
-      setSelectedBoardId(boardSettings.boards[0].id);
-    }
-  }, [boardSettings?.boards, selectedBoardId]);
 
   // Draw mode: a committed stroke is applied straight to the editor's live
   // ProseMirror doc (one undo step), which fires onChange -> setTemplateLines
@@ -1855,24 +2203,57 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     );
   }
 
+  // What the live preview shows. Keeps the previous message visible during
+  // loading/transition, so tiles cycle through characters (like a real board)
+  // instead of flashing empty.
+  const editorPreviewMessage = drawMode
+    ? drawPreviewMessage
+    : (() => {
+        const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+        const isPending = previewMutation.isPending;
+        const shouldIgnore = shouldIgnoreNextResponse.current;
+
+        if (isTransitioning && lastPreview) return lastPreview;
+        if (preview !== null) return preview;
+        if (!hasContent && !isPending && !shouldIgnore) return "";
+        if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
+        if (isPending && hasContent && !shouldIgnore) return "";
+        return null;
+      })();
+
   return (
     <>
-      <Box className="flex-1 min-h-0 w-full max-w-full overflow-x-hidden">
+      <Box className="min-w-0 w-full max-w-full overflow-x-clip">
         {/* Main Editor */}
-        <Card className="flex flex-col min-h-0 w-full max-w-full overflow-x-hidden">
-          <CardHeader className="pb-1 flex-shrink-0 px-4 sm:px-6">
-            <Flex align="center" justify="between">
+        <Card
+          className={cn(
+            "flex flex-col min-h-0 w-full max-w-full overflow-x-clip",
+            embedded && "rounded-none border-0 bg-transparent shadow-none",
+          )}
+        >
+          <CardHeader className="sticky top-0 z-10 bg-background/95 pb-2 flex-shrink-0 px-4 sm:px-6">
+            <Flex align="center" justify="between" className="flex-wrap gap-2">
               <Flex align="center" gap="2" className="min-w-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  onClick={onClose}
-                  aria-label={t("backToPages")}
+                {!embedded && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={onClose}
+                    aria-label={t("backToPages")}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                )}
+                {/* Embedded, the page's name is the section's h2 just above; this
+                    row is the editor's own label, so it steps down to a quiet
+                    caption instead of reading as a second heading of equal rank. */}
+                <CardTitle
+                  className={cn(
+                    "text-base sm:text-lg truncate",
+                    embedded && "text-sm font-medium text-muted-foreground sm:text-sm",
+                  )}
                 >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <CardTitle className="text-base sm:text-lg truncate">
                   {pageId ? t("editPage") : t("createPage")}
                 </CardTitle>
               </Flex>
@@ -1885,7 +2266,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                *  time to settle on the new layout before any new
                *  tooltip pops. */}
               <TooltipProvider skipDelayDuration={0}>
-                <Flex align="center" gap="1.5">
+                <Flex align="center" gap="1.5" className="flex-wrap justify-end">
                   {/* Per-page transition override. Null (the default) inherits
                    *  the global setting; the trigger carries a dot when this
                    *  page overrides it. */}
@@ -1929,7 +2310,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                          *  Save. Picking a transition is a one-shot choice,
                          *  so every item closes the menu. */}
                         <DropdownMenuRadioItem value={TRANSITION_INHERIT} className="text-xs" closeOnClick>
-                          {t("transitionUseGlobalDefault")}
+                          {t("transitionUseDisplayTransition")}
                         </DropdownMenuRadioItem>
                         <DropdownMenuLabel className="text-[11px] text-muted-foreground">
                           {t("transitionBuiltInGroup")}
@@ -1965,10 +2346,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           </DropdownMenuRadioItem>
                         )}
                       </DropdownMenuRadioGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-xs" onClick={() => router.push("/transitions")}>
-                        {t("transitionOpenLab")}
-                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   {/* Delete button - only show when editing */}
@@ -2052,7 +2429,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             try {
                               const res = await api.getPageShareString(pageId);
                               setExportShareString(res.share_string);
-                              setExportCopied(false);
                               setExportOpen(true);
                             } catch {
                               toast.error(t("exportFailed"));
@@ -2075,13 +2451,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           </CardHeader>
 
           <CardContent className="flex flex-col flex-1 min-h-0 px-3 sm:px-4 md:px-6 pt-2">
-            <ScrollArea className="flex-1 min-h-0 space-y-4">
+            <Box className="space-y-4">
               {/* Draft restored notification */}
               {draftRestored && (
-                // mb-4 by hand: the parent ScrollArea's space-y-4 spaces its
-                // viewport wrapper, not the content siblings inside it, so
-                // without this the banner sat flush against the name field.
-                <Alert className="bg-info/10 border-info/20 mb-4">
+                <Alert className="bg-info/10 border-info/20">
                   <AlertDescription className="text-sm">{t("draftRestored")}</AlertDescription>
                 </Alert>
               )}
@@ -2101,180 +2474,243 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 />
               </Stack>
 
-              {/* Template line editors */}
-              <Stack gap="3">
-                <Flex align="center" justify="between">
-                  <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
-                  <Flex
-                    align="center"
-                    role="group"
-                    aria-label={t("editorModeAriaLabel")}
-                    className="border rounded-md overflow-hidden"
-                  >
+              <Flex align="center" justify="between" gap="2" className="flex-wrap">
+                {pixelBoard && (
+                  <Flex role="group" aria-label={t("editingSurfaceLabel")} className="rounded-lg border p-1" gap="1">
                     <Button
                       size="sm"
-                      variant="ghost"
-                      onClick={() => handleEditorModeChange("rich")}
-                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
-                      aria-label={t("richEditorAriaLabel")}
-                      aria-pressed={editorMode === "rich"}
+                      variant={editingSurface === "text" ? "secondary" : "ghost"}
+                      aria-pressed={editingSurface === "text"}
+                      onClick={() => setEditingSurface("text")}
                     >
-                      {t("richEditor")}
+                      {t("textMode")}
                     </Button>
                     <Button
                       size="sm"
-                      variant="ghost"
-                      onClick={() => handleEditorModeChange("plain")}
-                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
-                      aria-label={t("plainTextAriaLabel")}
-                      aria-pressed={editorMode === "plain"}
+                      variant={editingSurface === "canvases" ? "secondary" : "ghost"}
+                      aria-pressed={editingSurface === "canvases"}
+                      onClick={() => setEditingSurface("canvases")}
                     >
-                      {t("plainEditor")}
+                      {t("canvasesMode")}
                     </Button>
                   </Flex>
-                </Flex>
-                {editorMode === "rich" ? (
-                  <Box {...anchorProps("page-editor.template")}>
-                    {/* Template editor with device-specific dimensions */}
-                    <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
-                      <TipTapTemplateEditor
-                        ref={tipTapRef}
-                        value={templateLines.join("\n")}
-                        onChange={(newValue) => {
-                          if (isUpdatingWrap.current) {
-                            return;
-                          }
-                          const lines = newValue.split("\n");
-                          setTemplateLines(lines);
-
-                          const oldLen = templateLines.length;
-                          const newLen = lines.length;
-                          if (newLen !== oldLen) {
-                            let prefixMatch = 0;
-                            while (
-                              prefixMatch < Math.min(newLen, oldLen) &&
-                              lines[prefixMatch] === templateLines[prefixMatch]
-                            ) {
-                              prefixMatch++;
-                            }
-                            let suffixMatch = 0;
-                            while (
-                              suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
-                              lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]
-                            ) {
-                              suffixMatch++;
-                            }
-
-                            const updatedAlignments = [...lineAlignments];
-                            const updatedWrap = [...lineWrapEnabled];
-
-                            if (newLen < oldLen) {
-                              const deleteCount = oldLen - newLen;
-                              const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
-                              updatedAlignments.splice(deleteStart, deleteCount);
-                              updatedWrap.splice(deleteStart, deleteCount);
-                            } else {
-                              const insertCount = newLen - oldLen;
-                              const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
-                              for (let i = 0; i < insertCount; i++) {
-                                updatedAlignments.splice(insertStart + i, 0, "left");
-                                updatedWrap.splice(insertStart + i, 0, false);
-                              }
-                            }
-
-                            while (updatedAlignments.length < newLen) updatedAlignments.push("left");
-                            while (updatedWrap.length < newLen) updatedWrap.push(false);
-                            updatedAlignments.length = newLen;
-                            updatedWrap.length = newLen;
-
-                            setLineAlignments(updatedAlignments);
-                            setLineWrapEnabled(updatedWrap);
-                          }
-                        }}
-                        lineAlignments={lineAlignments}
-                        lineWrapEnabled={lineWrapEnabled}
-                        onLineAlignmentChange={(lineIndex, alignment) => {
-                          setLineAlignments((prev) => {
-                            const newAlignments = [...prev];
-                            newAlignments[lineIndex] = alignment;
-                            return newAlignments;
-                          });
-                        }}
-                        onLineWrapChange={(lineIndex, wrapEnabled) => {
-                          setLineWrapEnabled((prev) => {
-                            const newWrapStates = [...prev];
-                            newWrapStates[lineIndex] = wrapEnabled;
-                            return newWrapStates;
-                          });
-                        }}
-                        placeholder={t("richEditorPlaceholder")}
-                        showAlignmentControls={true}
-                        showToolbar={true}
-                        boardWidth={dims.cols}
-                        boardLines={numLines}
-                        deviceType={deviceType}
-                        code62Glyph={effectiveCode62Glyph}
-                        onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                        syncFromBoardPending={syncFromBoardMutation.isPending}
-                        drawMode={drawMode}
-                        onDrawModeToggle={() => setDrawMode((v) => !v)}
-                        drawBrush={drawBrush}
-                        onDrawBrushChange={setDrawBrush}
-                        onDrawHistoryEvent={handleDrawHistoryEvent}
-                      />
-                    </Suspense>
-                  </Box>
-                ) : (
-                  <Box {...anchorProps("page-editor.template")}>
-                    <PlainTextEditor
-                      value={templateLines.join("\n")}
-                      onChange={(newValue) => {
-                        setTemplateLines(newValue.split("\n"));
-                      }}
-                      placeholder={t("plainEditorPlaceholder")}
-                      boardLines={numLines}
-                      boardWidth={dims.cols}
-                    />
-                  </Box>
                 )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="lg:hidden"
+                  aria-expanded={mobilePreviewOpen}
+                  aria-controls="page-editor-preview"
+                  onClick={() => setMobilePreviewOpen((open) => !open)}
+                >
+                  {t(mobilePreviewOpen ? "hidePreview" : "showPreview")}
+                </Button>
+              </Flex>
 
-                {/* Line count validation warning */}
-                {lineCount > numLines && (
-                  <Flex
-                    align="start"
-                    gap="2"
-                    className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
-                  >
-                    <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
-                      {t("warningLabel")}
-                    </Text>
-                    <Text as="span" size="xs" tone="warning">
-                      {t("lineCountWarning", { lineCount, maxLines: numLines })}
-                    </Text>
-                  </Flex>
-                )}
+              <Box className="grid min-w-0 grid-cols-1 items-start gap-5">
+                {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
+                <Box hidden={!!pixelBoard && editingSurface !== "text"} className="order-1 min-w-0">
+                  <Stack gap="3" className="min-w-0">
+                    <Flex align="center" justify="between">
+                      <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
+                      <Flex
+                        align="center"
+                        role="group"
+                        aria-label={t("editorModeAriaLabel")}
+                        className="border rounded-md overflow-hidden"
+                      >
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditorModeChange("rich")}
+                          className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+                          aria-label={t("richEditorAriaLabel")}
+                          aria-pressed={editorMode === "rich"}
+                        >
+                          {t("richEditor")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditorModeChange("plain")}
+                          className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+                          aria-label={t("plainTextAriaLabel")}
+                          aria-pressed={editorMode === "plain"}
+                        >
+                          {t("plainEditor")}
+                        </Button>
+                      </Flex>
+                    </Flex>
+                    {editorMode === "rich" ? (
+                      <Box {...anchorProps("page-editor.template")}>
+                        {/* Template editor with device-specific dimensions */}
+                        <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
+                          {editorCharset ? (
+                            // An LED target: its own character set decides what the
+                            // editor reads, offers and keeps (spans, icons, case).
+                            // No draw mode — it paints flap tiles.
+                            <CharsetTemplateEditor
+                              canvasRegions={pixelBoard ? canvases : undefined}
+                              onCanvasActivate={(id) => {
+                                setEditingSurface("canvases");
+                                canvasesPanelRef.current?.activateCanvas(id);
+                              }}
+                              charset={editorCharset}
+                              value={templateLines.join("\n")}
+                              onChange={handleRichEditorChange}
+                              lineAlignments={lineAlignments}
+                              lineWrapEnabled={lineWrapEnabled}
+                              onLineAlignmentChange={(lineIndex, alignment) => {
+                                setLineAlignments((prev) => {
+                                  const next = [...prev];
+                                  next[lineIndex] = alignment;
+                                  return next;
+                                });
+                              }}
+                              onLineWrapChange={(lineIndex, wrapEnabled) => {
+                                setLineWrapEnabled((prev) => {
+                                  const next = [...prev];
+                                  next[lineIndex] = wrapEnabled;
+                                  return next;
+                                });
+                              }}
+                              placeholder={t("richEditorPlaceholder")}
+                              boardWidth={dims.cols}
+                              boardLines={numLines}
+                              deviceType={deviceType}
+                              code62Glyph={effectiveCode62Glyph}
+                              onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                              syncFromBoardPending={syncFromBoardMutation.isPending}
+                            />
+                          ) : (
+                            <TipTapTemplateEditor
+                              ref={tipTapRef}
+                              value={templateLines.join("\n")}
+                              onChange={handleRichEditorChange}
+                              lineAlignments={lineAlignments}
+                              lineWrapEnabled={lineWrapEnabled}
+                              onLineAlignmentChange={(lineIndex, alignment) => {
+                                setLineAlignments((prev) => {
+                                  const newAlignments = [...prev];
+                                  newAlignments[lineIndex] = alignment;
+                                  return newAlignments;
+                                });
+                              }}
+                              onLineWrapChange={(lineIndex, wrapEnabled) => {
+                                setLineWrapEnabled((prev) => {
+                                  const newWrapStates = [...prev];
+                                  newWrapStates[lineIndex] = wrapEnabled;
+                                  return newWrapStates;
+                                });
+                              }}
+                              placeholder={t("richEditorPlaceholder")}
+                              showAlignmentControls={true}
+                              showToolbar={true}
+                              boardWidth={dims.cols}
+                              boardLines={numLines}
+                              deviceType={deviceType}
+                              code62Glyph={effectiveCode62Glyph}
+                              onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                              syncFromBoardPending={syncFromBoardMutation.isPending}
+                              drawMode={drawMode}
+                              onDrawModeToggle={() => setDrawMode((v) => !v)}
+                              drawBrush={drawBrush}
+                              onDrawBrushChange={setDrawBrush}
+                              onDrawHistoryEvent={handleDrawHistoryEvent}
+                            />
+                          )}
+                        </Suspense>
+                      </Box>
+                    ) : (
+                      <Box {...anchorProps("page-editor.template")}>
+                        <PlainTextEditor
+                          lineMarkers={pixelBoard ? canvasMarkers(canvases, numLines) : undefined}
+                          lineMarkerTitle={tCanvas("markerTitle")}
+                          value={templateLines.join("\n")}
+                          onChange={(newValue) => {
+                            setTemplateLines(newValue.split("\n"));
+                          }}
+                          placeholder={t("plainEditorPlaceholder")}
+                          boardLines={numLines}
+                          boardWidth={dims.cols}
+                        />
+                      </Box>
+                    )}
 
-                {/* Wrap budget warnings */}
-                {wrapBudgetWarnings.map((lineNumber) => (
-                  <Flex
-                    key={`wrap-budget-${lineNumber}`}
-                    align="start"
-                    gap="2"
-                    className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
-                  >
-                    <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
-                      {t("warningLabel")}
-                    </Text>
-                    <Text as="span" size="xs" tone="warning">
-                      {t("wrapBudgetWarning", { lineNumber })}
-                    </Text>
-                  </Flex>
-                ))}
+                    {/* Line count validation warning */}
+                    {lineCount > numLines && (
+                      <Flex
+                        align="start"
+                        gap="2"
+                        className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                      >
+                        <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
+                          {t("warningLabel")}
+                        </Text>
+                        <Text as="span" size="xs" tone="warning">
+                          {t("lineCountWarning", { lineCount, maxLines: numLines })}
+                        </Text>
+                      </Flex>
+                    )}
 
-                {/* Live preview */}
-                <Box className="mt-4">
-                  <Flex align="center" justify="between" className="flex-wrap gap-y-1 mb-2">
-                    <Flex align="center" gap="2">
+                    {/* Wrap budget warnings */}
+                    {wrapBudgetWarnings.map((lineNumber) => (
+                      <Flex
+                        key={`wrap-budget-${lineNumber}`}
+                        align="start"
+                        gap="2"
+                        className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                      >
+                        <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
+                          {t("warningLabel")}
+                        </Text>
+                        <Text as="span" size="xs" tone="warning">
+                          {t("wrapBudgetWarning", { lineNumber })}
+                        </Text>
+                      </Flex>
+                    ))}
+
+                    {/* Cells the target board's character set draws differently
+                    (the server's charset_issues for the rendered page). */}
+                    {charsetIssues.length > 0 && (
+                      <Flex
+                        align="start"
+                        gap="2"
+                        data-testid="charset-issues"
+                        className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                      >
+                        <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
+                          {t("warningLabel")}
+                        </Text>
+                        <Stack gap="1">
+                          {charsetIssues.slice(0, MAX_CHARSET_ISSUES_SHOWN).map((issue) => (
+                            <Text as="span" size="xs" tone="warning" key={`${issue.row}-${issue.col}`}>
+                              {t("charsetIssue", {
+                                line: issue.row + 1,
+                                column: issue.col + 1,
+                                written: charsetTokenText(issue.token),
+                                shown: charsetTokenText(issue.fallback),
+                              })}
+                            </Text>
+                          ))}
+                          {charsetIssues.length > MAX_CHARSET_ISSUES_SHOWN && (
+                            <Text as="span" size="xs" tone="warning">
+                              {t("charsetIssuesMore", { count: charsetIssues.length - MAX_CHARSET_ISSUES_SHOWN })}
+                            </Text>
+                          )}
+                        </Stack>
+                      </Flex>
+                    )}
+                  </Stack>
+                </Box>
+
+                {/* Preview is shared by both modes; phones can collapse it into the main scroll. */}
+                <Box
+                  id="page-editor-preview"
+                  className={cn("order-2 min-w-0 rounded-lg border p-3", !mobilePreviewOpen && "hidden lg:block")}
+                >
+                  <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
+                    <Flex align="center" gap="2" className="flex-wrap">
                       <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
                       <BoardSizeIndicator
                         deviceType={deviceType}
@@ -2309,16 +2745,42 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                               generic Notes-wide/tall selects below. Absent on an
                               install with no panels, leaving the picker exactly
                               the three sizes it has always been. */}
-                          {panelTargets.length > 0 && (
+                          {fiestaPanelTargets.length > 0 && (
                             <SelectGroup>
                               <SelectLabel>{tPanels("yourPanelsGroupLabel")}</SelectLabel>
-                              {panelTargets.map((panel) => (
-                                <SelectItem key={panel.id} value={`panel:${panel.id}`} className="text-xs">
+                              {fiestaPanelTargets.map((panel) => (
+                                <SelectItem key={panel.id} value={targetValue(panel)} className="text-xs">
                                   {tPanels("panelSizeOption", {
                                     name: panel.name,
                                     cols: panel.cols,
                                     rows: panel.rows,
                                   })}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
+                          {/* Every other display with a custom grid — an output
+                              plugin's board, such as an LED matrix — named for
+                              its board and model, so a page can be authored
+                              for it. Driven by the board list alone. */}
+                          {otherDisplayTargets.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>{tPanels("yourDisplaysGroupLabel")}</SelectLabel>
+                              {otherDisplayTargets.map((display) => (
+                                <SelectItem key={display.id} value={targetValue(display)} className="text-xs">
+                                  {tPanels(
+                                    display.modelLabel
+                                      ? display.led
+                                        ? "displaySizeOptionLed"
+                                        : "displaySizeOption"
+                                      : "panelSizeOption",
+                                    {
+                                      name: display.name,
+                                      model: display.modelLabel ?? "",
+                                      cols: display.cols,
+                                      rows: display.rows,
+                                    },
+                                  )}
                                 </SelectItem>
                               ))}
                             </SelectGroup>
@@ -2408,56 +2870,47 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       onStrokePreview={setStrokePreviewCells}
                       onStrokeCommit={handleStrokeCommit}
                     >
-                      <ScaledBoardDisplay
-                        message={
-                          drawMode
-                            ? drawPreviewMessage
-                            : (() => {
-                                // Use new loading pattern: keep previous message visible during loading/transition
-                                // This allows tiles to cycle through characters (like real FiestaBoard)
-                                // instead of showing legacy FlipTiles
-
-                                const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                                const isPending = previewMutation.isPending;
-                                const shouldIgnore = shouldIgnoreNextResponse.current;
-
-                                if (isTransitioning && lastPreview) return lastPreview;
-                                if (preview !== null) return preview;
-                                if (!hasContent && !isPending && !shouldIgnore) return "";
-                                if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
-                                if (isPending && hasContent && !shouldIgnore) return "";
-                                return null;
-                              })()
-                        }
-                        isLoading={
-                          drawMode
-                            ? false
-                            : (() => {
-                                const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                                const isPending = previewMutation.isPending;
-                                const shouldIgnore = shouldIgnoreNextResponse.current;
-
-                                if (isTransitioning) return true;
-                                if (preview !== null) return false;
-                                if (!hasContent) return false;
-                                if (shouldIgnore) return false;
-                                return isPending && hasContent;
-                              })()
-                        }
-                        isStatic={drawMode}
+                      {/* An LED target board previews as its LED matrix; draw
+                          mode hit-tests flap tiles, so it stays on the flaps. */}
+                      <DevicePreview
+                        model={drawMode ? null : previewModel}
+                        ledLayout={previewBoard?.led_layout}
+                        layers={drawMode ? undefined : previewLayers}
+                        message={editorPreviewMessage}
                         size="md"
-                        boardType={effectiveBoardColor}
-                        deviceType={deviceType}
-                        code62Glyph={effectiveCode62Glyph}
-                        notesWide={notesWide}
-                        notesTall={notesTall}
-                        gridRows={panelGrid?.rows}
-                        gridCols={panelGrid?.cols}
-                        // DrawableBoardPreview hit-tests strokes through the
-                        // tiles' data-row/data-col attributes; only this
-                        // editor preview opts into emitting them.
-                        emitCellMetadata
-                      />
+                      >
+                        <ScaledBoardDisplay
+                          message={editorPreviewMessage}
+                          isLoading={
+                            drawMode
+                              ? false
+                              : (() => {
+                                  const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+                                  const isPending = previewMutation.isPending;
+                                  const shouldIgnore = shouldIgnoreNextResponse.current;
+
+                                  if (isTransitioning) return true;
+                                  if (preview !== null) return false;
+                                  if (!hasContent) return false;
+                                  if (shouldIgnore) return false;
+                                  return isPending && hasContent;
+                                })()
+                          }
+                          isStatic={drawMode}
+                          size="md"
+                          boardType={effectiveBoardColor}
+                          deviceType={deviceType}
+                          code62Glyph={effectiveCode62Glyph}
+                          notesWide={notesWide}
+                          notesTall={notesTall}
+                          gridRows={panelGrid?.rows}
+                          gridCols={panelGrid?.cols}
+                          // DrawableBoardPreview hit-tests strokes through the
+                          // tiles' data-row/data-col attributes; only this
+                          // editor preview opts into emitting them.
+                          emitCellMetadata
+                        />
+                      </DevicePreview>
                     </DrawableBoardPreview>
                   </Flex>
                   {drawMode && (
@@ -2467,12 +2920,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   )}
 
                   {/* Live output controls */}
-                  <Flex align="center" justify="between" gap="3" className="mt-3 rounded-lg border px-3 py-2">
+                  <Flex align="center" justify="between" gap="3" className="mt-3 flex-wrap rounded-lg border px-3 py-2">
                     <Flex align="center" gap="2">
                       <Switch
                         id="live-output-toggle"
                         checked={liveOutputEnabled}
-                        onCheckedChange={setLiveOutputEnabled}
+                        disabled={!selectedBoardId}
+                        aria-describedby={liveTargetPaused ? "live-output-paused-notice" : undefined}
+                        onCheckedChange={(enabled) => {
+                          // Starting live output commits the displayed target;
+                          // later preview/context changes must not redirect it.
+                          if (enabled) setChosenLiveBoardId(selectedBoardId);
+                          setLiveOutputEnabled(enabled);
+                        }}
                         aria-label={t("liveOutputAriaLabel")}
                       />
                       <label
@@ -2492,7 +2952,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Flex>
 
                     {boardSettings?.boards && boardSettings.boards.length > 1 && (
-                      <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
+                      <Select value={selectedBoardId} onValueChange={setChosenLiveBoardId}>
                         <SelectTrigger className="h-7 w-[140px] text-xs" aria-label={t("selectBoardAriaLabel")}>
                           <SelectValue placeholder={t("selectBoardPlaceholder")} />
                         </SelectTrigger>
@@ -2506,9 +2966,46 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       </Select>
                     )}
                   </Flex>
+                  {liveTargetPaused && (
+                    <Alert id="live-output-paused-notice" className="mt-2">
+                      <AlertDescription>{t("livePausedNotice")}</AlertDescription>
+                    </Alert>
+                  )}
+                  <LiveOutputSilenceStrip
+                    liveOutputEnabled={liveOutputEnabled}
+                    lastSilenced={liveSilenced}
+                    silenceActive={liveSilence.active}
+                    overriding={liveOverrideSilence}
+                    until={liveSilence.until}
+                    onSendAnyway={() => setLiveOverrideSilence(true)}
+                    onStopOverriding={() => setLiveOverrideSilence(false)}
+                  />
                 </Box>
-              </Stack>
-            </ScrollArea>
+
+                {/* Pixel canvases: edited for an LED pixel board; on any other
+                    board a page that has them says why their areas are blank. */}
+                {pixelBoard ? (
+                  <Box hidden={editingSurface !== "canvases"} className="order-1 min-w-0">
+                    <CanvasesPanel
+                      ref={canvasesPanelRef}
+                      canvases={canvases}
+                      onChange={setCanvases}
+                      gridRows={dims.rows}
+                      gridCols={dims.cols}
+                      board={pixelBoard}
+                      issues={canvasIssues}
+                      error={canvasError}
+                    />
+                  </Box>
+                ) : (
+                  canvases.length > 0 && (
+                    <Alert data-testid="canvas-not-pixel-notice">
+                      <AlertDescription>{tCanvas("notPixelNotice")}</AlertDescription>
+                    </Alert>
+                  )
+                )}
+              </Box>
+            </Box>
           </CardContent>
         </Card>
       </Box>
@@ -2528,17 +3025,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               className="h-28 pr-10 text-xs font-mono bg-muted resize-none"
               onFocus={(e) => e.target.select()}
             />
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(exportShareString);
-                setExportCopied(true);
-                setTimeout(() => setExportCopied(false), 2000);
-              }}
-              className="absolute top-2 right-2 p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-              aria-label={t("exportCopyAriaLabel")}
-            >
-              {exportCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-            </button>
+            <CopyButton
+              value={exportShareString}
+              size="icon-sm"
+              labels={{ copy: t("exportCopyAriaLabel") }}
+              className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+            />
           </Box>
         </DialogContent>
       </Dialog>

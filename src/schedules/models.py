@@ -9,7 +9,7 @@ import uuid
 from datetime import UTC, date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, computed_field
 
 from src.settings.service import TemporaryOverrideStatus
 
@@ -41,6 +41,14 @@ class ScheduleEntry(BaseModel):
     """
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    # Runtime only: storage assigns a fresh generation on create/load/write.
+    revision: str | None = Field(default=None, json_schema_extra={"readOnly": True})
+
+    @computed_field
+    @property
+    def edit_protocol(self) -> Literal["schedule-revision-v1"]:
+        return "schedule-revision-v1"
+
     board_id: str = Field(default=DEFAULT_BOARD_ID, min_length=0)  # "" = default board
     page_id: str = Field(min_length=1)
     start_time: str = Field(pattern=r"^\d{2}:\d{2}$")  # HH:MM format
@@ -266,6 +274,8 @@ class ScheduleCreate(BaseModel):
 class ScheduleUpdate(BaseModel):
     """Request model for updating an existing schedule entry."""
 
+    expected_revision: str | None = Field(default=None, min_length=1, max_length=128)
+
     board_id: str | None = Field(default=None, min_length=0)
     page_id: str | None = Field(default=None, min_length=1)
     start_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
@@ -298,6 +308,7 @@ class DefaultPageUpdate(BaseModel):
     """
 
     page_id: str | None
+    expected_revision: str | None = Field(default=None, min_length=1, max_length=256)
     board_id: str | None = None
 
 
@@ -350,6 +361,10 @@ class ScheduleListResponse(BaseModel):
     schedules: list[ScheduleResponse]
     total: int
     default_page_id: str | None = None
+    default_page_revision: str | None = None
+    default_page_edit_protocol: Literal["schedule-default-revision-v1"] = Field(
+        default="schedule-default-revision-v1", json_schema_extra={"readOnly": True}
+    )
     enabled: bool | None = None
 
 
@@ -368,16 +383,22 @@ class ScheduleBehaviorUpdate(BaseModel):
     """
 
     defer_on_reenable: StrictBool
+    board_id: str | None = None
 
 
 class ScheduleBehaviorResponse(BaseModel):
-    """Global schedule behaviour — not per-board (see ``/schedules/enabled``)."""
+    """Schedule behavior for one board (primary when omitted)."""
 
     defer_on_reenable: bool
 
 
 class DefaultPageResponse(BaseModel):
     """The default page shown when no schedule window is active."""
+
+    revision: str | None = Field(default=None, json_schema_extra={"readOnly": True})
+    edit_protocol: Literal["schedule-default-revision-v1"] = Field(
+        default="schedule-default-revision-v1", json_schema_extra={"readOnly": True}
+    )
 
     default_page_id: str | None = None
 

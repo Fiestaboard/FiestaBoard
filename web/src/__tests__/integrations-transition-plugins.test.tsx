@@ -6,7 +6,8 @@
  * usual enable/disable Switch for one therefore promises control the backend
  * does not honour. These tests pin the corrected presentation: transition
  * plugins get a "Transition" badge instead of a toggle and instead of an
- * enabled/disabled status, while ordinary data plugins keep both.
+ * enabled/disabled status, while ordinary data plugins keep both. Transition
+ * plugins are deprecated (plan D22), so both lists also badge that state.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -33,6 +34,7 @@ interface MockRegistryEntry {
   name: string;
   category: string;
   plugin_type?: "data" | "transition";
+  repository?: string;
 }
 
 function mockPlugins(plugins: MockPlugin[]) {
@@ -129,6 +131,14 @@ describe("Integrations page — transition plugins", () => {
     expect(within(row).getByText("Transition")).toBeInTheDocument();
   });
 
+  it("badges an installed transition plugin as Deprecated", async () => {
+    mockPlugins([{ id: "typewriter", name: "Typewriter", category: "transition", plugin_type: "transition" }]);
+    renderPage();
+
+    const row = await rowFor("Typewriter");
+    expect(within(row).getByText("Deprecated")).toBeInTheDocument();
+  });
+
   it("shows no enabled/disabled status for a transition plugin", async () => {
     mockPlugins([
       {
@@ -163,6 +173,7 @@ describe("Integrations page — transition plugins", () => {
     const row = await rowFor("Weather");
     expect(within(row).getByRole("switch")).toBeInTheDocument();
     expect(within(row).queryByText("Transition")).not.toBeInTheDocument();
+    expect(within(row).queryByText("Deprecated")).not.toBeInTheDocument();
   });
 
   it("treats a plugin with no plugin_type as a data plugin", async () => {
@@ -200,6 +211,15 @@ describe("Integrations page — transition plugins in the Marketplace", () => {
     expect(within(row).getByText("Transition")).toBeInTheDocument();
   });
 
+  it("badges a transition registry entry as Deprecated", async () => {
+    mockRegistry([{ id: "typewriter", name: "Typewriter", category: "transition", plugin_type: "transition" }]);
+    renderPage();
+    await openMarketplaceList();
+
+    const row = await rowFor("Typewriter");
+    expect(within(row).getByText("Deprecated")).toBeInTheDocument();
+  });
+
   it("does not badge a registry entry that declares no plugin_type", async () => {
     mockRegistry([{ id: "weather", name: "Weather", category: "weather" }]);
     renderPage();
@@ -210,6 +230,7 @@ describe("Integrations page — transition plugins in the Marketplace", () => {
     const row = await rowFor("Weather");
     expect(within(row).getByRole("button", { name: /install/i })).toBeInTheDocument();
     expect(within(row).queryByText("Transition")).not.toBeInTheDocument();
+    expect(within(row).queryByText("Deprecated")).not.toBeInTheDocument();
   });
 
   it("labels a transition category group with its translated name", async () => {
@@ -222,5 +243,39 @@ describe("Integrations page — transition plugins in the Marketplace", () => {
     const heading = await screen.findByRole("heading", { name: /transitions/i });
     expect(within(heading).getByText("Transitions")).toBeInTheDocument();
     expect(within(heading).queryByText("transition")).not.toBeInTheDocument();
+  });
+});
+
+describe("integration marketplace browsing", () => {
+  it("bounds marketplace results and reaches later entries without changing filters", async () => {
+    mockRegistry(
+      Array.from({ length: 25 }, (_, i) => ({
+        id: `demo_${i}`,
+        name: `Demo ${String(i).padStart(2, "0")}`,
+        category: "utility",
+      })),
+    );
+    renderPage();
+    await userEvent.click(await screen.findByRole("tab", { name: /marketplace/i }));
+    expect(await screen.findAllByRole("heading", { level: 3, name: /^Demo / })).toHaveLength(12);
+    await userEvent.click(screen.getByRole("button", { name: "Next results" }));
+    expect(await screen.findByRole("heading", { name: "Demo 12" })).toBeInTheDocument();
+  });
+
+  it("marks external repository ownership as Community regardless of author text", async () => {
+    mockRegistry([
+      { id: "external", name: "External", category: "utility", repository: "https://github.com/Example/plugin" },
+      { id: "official", name: "Official", category: "utility", repository: "https://github.com/Fiestaboard/plugin" },
+    ]);
+    renderPage();
+    await userEvent.click(await screen.findByRole("tab", { name: /marketplace/i }));
+    const heading = await screen.findByRole("heading", { name: "External" });
+    expect(
+      within(heading.closest("[data-slot='plugin-card']") as HTMLElement).getByText("Community"),
+    ).toBeInTheDocument();
+    const official = screen.getByRole("heading", { name: "Official" });
+    expect(
+      within(official.closest("[data-slot='plugin-card']") as HTMLElement).queryByText("Community"),
+    ).not.toBeInTheDocument();
   });
 });

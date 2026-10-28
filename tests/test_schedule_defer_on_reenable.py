@@ -135,7 +135,7 @@ def loop():
     settings_service.consume_temporary_override.return_value = None
     settings_service.get_active_page_id.return_value = "page-manual"
     settings_service.is_schedule_enabled.side_effect = lambda board_id=None: state["schedule_enabled"]
-    settings_service.get_schedule_settings.side_effect = lambda: ScheduleSettings(
+    settings_service.get_schedule_settings.side_effect = lambda board_id=None: ScheduleSettings(
         enabled=state["schedule_enabled"], defer_on_reenable=state["defer_on_reenable"]
     )
     board_settings = Mock()
@@ -196,6 +196,16 @@ def loop():
             entry.page_id = page_id
             state["entry"] = entry
 
+        def set_override(self, page_id):
+            override = None
+            if page_id:
+                override = Mock(page_id=page_id, is_inline=False)
+                override.is_expired.return_value = False
+            settings_service.consume_temporary_override.return_value = override
+
+        def cadence_reference(self):
+            return svc._get_active_ref_id()
+
         def tick(self):
             """Run one polling pass; return the page id the loop rendered."""
             page_service.preview_page.reset_mock()
@@ -212,6 +222,25 @@ def loop():
 
 
 class TestDeferOnReenable:
+    def test_cadence_during_override_does_not_consume_reenable_edge(self, loop):
+        loop.state["defer_on_reenable"] = True
+        loop.set_entry("window-a", "page-a")
+        assert loop.tick() == "page-manual"
+        loop.set_override("page-override")
+        assert loop.tick() == "page-override"
+
+        loop.state["schedule_enabled"] = True
+        assert loop.tick() == "page-override"
+        loop.cadence_reference()
+
+        # The override outlives window A. Only the first real source pass
+        # after it ends may arm the deferral, against window B.
+        loop.set_entry("window-b", "page-b")
+        loop.set_override(None)
+        assert loop.tick() == "page-manual"
+        loop.set_entry("window-c", "page-c")
+        assert loop.tick() == "page-c"
+
     def test_reenable_holds_the_manual_page_until_the_entry_changes(self, loop):
         """The Discord report: re-enabling mid-window must not repaint."""
         loop.set_entry("entry-evening", "page-evening")

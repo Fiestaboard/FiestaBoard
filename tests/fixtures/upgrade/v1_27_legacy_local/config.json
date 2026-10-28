@@ -1,0 +1,45 @@
+{
+  "board": {
+    "api_mode": "local",
+    "local_api_key": "test_local_key",
+    "cloud_key": "",
+    "host": "192.168.0.10",
+    "transition_strategy": null,
+    "transition_interval_ms": null,
+    "transition_step_size": null
+  },
+  "features": {
+    "weather": {
+      "enabled": true,
+      "api_key": "test_weather_key",
+      "provider": "weatherapi",
+      "location": "New York, NY",
+      "refresh_seconds": 300,
+      "color_rules": {
+        "temp": [
+          {
+            "condition": ">=",
+            "value": 90,
+            "color": "red"
+          },
+          {
+            "condition": "<",
+            "value": 45,
+            "color": "violet"
+          }
+        ]
+      }
+    },
+    "date_time": {
+      "enabled": true,
+      "timezone": "America/New_York",
+      "color_rules": {}
+    }
+  },
+  "general": {
+    "timezone": "America/New_York",
+    "refresh_interval_seconds": 300,
+    "output_target": "board"
+  },
+  "plugins": {}
+}

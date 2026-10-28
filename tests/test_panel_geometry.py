@@ -59,8 +59,13 @@ class TestResolveDimensions:
         with pytest.raises(ValueError):
             resolve_dimensions("panel", grid_rows=True, grid_cols=29)
 
-    def test_panel_grid_is_clamped_to_one_note_minimum(self):
-        assert resolve_dimensions("panel", grid_rows=1, grid_cols=5) == (MIN_GRID_ROWS, MIN_GRID_COLS)
+    def test_panel_grid_is_clamped_to_the_3x10_led_minimum(self):
+        # The absolute floor any board reaches: an LED board in pixels may be
+        # 3x10 (FiestaPanel autofit and Vestaboards still hold 3x15).
+        assert resolve_dimensions("panel", grid_rows=1, grid_cols=5) == (3, 10)
+
+    def test_an_8x10_panel_grid_is_kept(self):
+        assert resolve_dimensions("panel", grid_rows=8, grid_cols=10) == (8, 10)
 
     def test_panel_grid_is_clamped_to_the_maximum(self):
         assert resolve_dimensions("panel", grid_rows=500, grid_cols=500) == (MAX_GRID_ROWS, MAX_GRID_COLS)
@@ -90,7 +95,9 @@ class TestGeometryOf:
         assert geometry_of(board) == Geometry("panel", 1, 1, 12, 29)
 
     def test_reads_an_object(self):
-        board = BoardInstance(device_type="panel", api_mode="virtual", grid_rows=12, grid_cols=29)
+        board = BoardInstance.from_dict(
+            {"device_type": "panel", "api_mode": "virtual", "grid_rows": 12, "grid_cols": 29}
+        )
         assert geometry_of(board) == Geometry("panel", 1, 1, 12, 29)
 
     def test_defaults_for_an_empty_dict(self):
@@ -123,7 +130,9 @@ class TestBoardContext:
 
 class TestBoardInstance:
     def test_round_trips_the_grid(self):
-        data = BoardInstance(device_type="panel", api_mode="virtual", grid_rows=12, grid_cols=29).to_dict()
+        data = BoardInstance.from_dict(
+            {"device_type": "panel", "api_mode": "virtual", "grid_rows": 12, "grid_cols": 29}
+        ).to_dict()
         restored = BoardInstance.from_dict(data)
         assert (restored.grid_rows, restored.grid_cols) == (12, 29)
 
@@ -142,14 +151,14 @@ class TestBoardInstance:
 
     def test_a_panel_grid_is_clamped(self):
         board = BoardInstance.from_dict({**VIRTUAL_PANEL, "grid_rows": 1000, "grid_cols": 2})
-        assert (board.grid_rows, board.grid_cols) == (MAX_GRID_ROWS, MIN_GRID_COLS)
+        assert (board.grid_rows, board.grid_cols) == (MAX_GRID_ROWS, 10)
 
     def test_non_panel_boards_drop_a_stale_grid(self):
         board = BoardInstance.from_dict({"device_type": "flagship", "grid_rows": 12, "grid_cols": 29})
         assert (board.grid_rows, board.grid_cols) == (None, None)
 
     def test_panel_draws_the_heart(self):
-        board = BoardInstance(
-            device_type="panel", api_mode="virtual", grid_rows=12, grid_cols=29, code62_glyph="degree"
+        board = BoardInstance.from_dict(
+            {"device_type": "panel", "api_mode": "virtual", "grid_rows": 12, "grid_cols": 29, "code62_glyph": "degree"}
         )
         assert board.effective_code62_glyph == "heart"

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Box,
   Flex,
   Grid,
   Input,
@@ -34,7 +35,7 @@ import { localTimeToUTC, utcToLocalTime } from "@/lib/timezone-utils";
 
 type SilenceMode = "indicator" | "freeze" | "page";
 
-export function SilenceSchedule() {
+export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
   const t = useTranslations("generalSettings");
   const tc = useTranslations("common");
   const queryClient = useQueryClient();
@@ -48,8 +49,9 @@ export function SilenceSchedule() {
   // entry, and the entry won key by key. Silence looked off in the UI and
   // stayed on for the board, with no feedback and no recovery short of
   // hand-editing config.json (PR #1801 review, BLOCKER 1).
-  const { currentBoardId, currentBoard } = useCurrentBoard();
-  const scopedBoardId = currentBoardId ?? undefined;
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
+  const scopedBoardId = boardId ?? (currentBoardId || undefined);
+  const scopedBoard = boardId ? boards.find((board) => board.id === boardId) : currentBoard;
 
   const [hasChanges, setHasChanges] = useState(false);
   const [silenceEnabled, setSilenceEnabled] = useState(false);
@@ -59,6 +61,8 @@ export function SilenceSchedule() {
   const [silencePageId, setSilencePageId] = useState<string>("");
   const [silenceIndicatorText, setSilenceIndicatorText] = useState<string>("SNOOZING");
   const [silenceIndicatorPosition, setSilenceIndicatorPosition] = useState<string>("center");
+  // Issue #1944: hold sends refused during silence and show them when it ends.
+  const [showHeldOnExit, setShowHeldOnExit] = useState(false);
 
   const { data: allSettings, isLoading } = useQuery({
     queryKey: ["all-settings"],
@@ -99,6 +103,7 @@ export function SilenceSchedule() {
       setSilencePageId(((config.page_id as string) ?? "") || "");
       setSilenceIndicatorText(((config.indicator_text as string) ?? "") || "SNOOZING");
       setSilenceIndicatorPosition(((config.indicator_position as string) ?? "") || "center");
+      setShowHeldOnExit(config.show_queued_on_exit === true);
 
       setHasChanges(false);
       setInitializedFor(seedKey);
@@ -128,9 +133,9 @@ export function SilenceSchedule() {
   // existing (possibly stale) choice stays visible instead of vanishing.
   const availablePages = useMemo(() => {
     const pages = pagesData?.pages ?? [];
-    if (!currentBoard) return pages;
-    return pages.filter((p) => p.id === silencePageId || pagesCompatibleWithBoard(p, currentBoard));
-  }, [pagesData?.pages, currentBoard, silencePageId]);
+    if (!scopedBoard) return pages;
+    return pages.filter((p) => p.id === silencePageId || pagesCompatibleWithBoard(p, scopedBoard));
+  }, [pagesData?.pages, scopedBoard, silencePageId]);
 
   const isSaving = updateSilenceMutation.isPending;
 
@@ -165,6 +170,11 @@ export function SilenceSchedule() {
     setHasChanges(true);
   };
 
+  const handleShowHeldOnExitChange = (checked: boolean) => {
+    setShowHeldOnExit(checked);
+    setHasChanges(true);
+  };
+
   const handleSave = async () => {
     const timezone = generalConfig?.timezone ?? "America/Los_Angeles";
     const startUtc = localTimeToUTC(silenceStartTime, timezone);
@@ -182,6 +192,9 @@ export function SilenceSchedule() {
         page_id: silencePageId || null,
         indicator_text: silenceIndicatorText || null,
         indicator_position: silenceIndicatorPosition || null,
+        // Always sent: the server keeps the stored value when the key is
+        // omitted, but this form is the source of truth for it (#1944).
+        show_queued_on_exit: showHeldOnExit,
         // Always target the selected board so the layer written here is the
         // layer the engine reads. Only an install with no board at all (the
         // context has not resolved one yet) falls back to install-wide.
@@ -206,6 +219,7 @@ export function SilenceSchedule() {
     silencePageId,
     silenceIndicatorText,
     silenceIndicatorPosition,
+    showHeldOnExit,
     hasChanges,
   ]);
 
@@ -364,6 +378,25 @@ export function SilenceSchedule() {
                   </Text>
                 </Stack>
               )}
+
+              {/* Applies to every mode (#1944). Same Switch-plus-hint pattern
+                  as Schedule behavior. */}
+              <Flex align="start" gap="3">
+                <Switch
+                  id="silence-show-held"
+                  checked={showHeldOnExit}
+                  onCheckedChange={handleShowHeldOnExitChange}
+                  disabled={isSaving}
+                />
+                <Box>
+                  <label htmlFor="silence-show-held" className="text-sm font-medium cursor-pointer">
+                    {t("silenceShowHeldLabel")}
+                  </label>
+                  <Text size="xs" tone="muted" className="mt-0.5">
+                    {t("silenceShowHeldHelp")}
+                  </Text>
+                </Box>
+              </Flex>
             </Stack>
           )}
 

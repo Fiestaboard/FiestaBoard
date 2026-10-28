@@ -1,8 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import React from "react";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InstallPrompt } from "@/components/install-prompt";
+import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
 
 const pushSpy = vi.fn();
@@ -88,7 +90,12 @@ describe("browser state read on the first render", () => {
     it("mounts the page builder on the first render when ?id is in the URL", () => {
       window.history.replaceState({}, "", "/pages/edit?id=abc123");
 
-      render(<EditPage />);
+      const router = createMemoryRouter([{ path: "*", element: <EditPage /> }]);
+      render(
+        <PageEditorBridgeProvider>
+          <RouterProvider router={router} />
+        </PageEditorBridgeProvider>,
+      );
 
       // Never the "Loading..." placeholder — the id was in the URL all along.
       expect(screen.getByTestId("page-builder").textContent).toBe("abc123");
@@ -97,9 +104,16 @@ describe("browser state read on the first render", () => {
     it("redirects to the pages list when ?id is missing", () => {
       window.history.replaceState({}, "", "/pages/edit");
 
-      render(<EditPage />);
+      const router = createMemoryRouter([{ path: "*", element: <EditPage /> }]);
+      render(
+        <PageEditorBridgeProvider>
+          <RouterProvider router={router} />
+        </PageEditorBridgeProvider>,
+      );
 
-      expect(pushSpy).toHaveBeenCalledWith("/pages", { transitionType: "slide-down" });
+      // A plain push: within the Pages section the editor collapses back
+      // into the list, so there is no whole-<main> slide to ask for.
+      expect(pushSpy).toHaveBeenCalledWith("/pages");
     });
   });
 

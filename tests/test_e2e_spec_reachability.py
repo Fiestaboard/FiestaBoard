@@ -53,6 +53,7 @@ class Invocation(NamedTuple):
     specs: tuple[str, ...]  # explicit file args; empty means "the whole suite"
     env: dict[str, str]
     runs_on_merge_queue: bool
+    config: Path = PLAYWRIGHT_CONFIG
 
 
 # --------------------------------------------------------------------------
@@ -64,7 +65,7 @@ def _quoted_strings(fragment: str) -> list[str]:
     return re.findall(r'"([^"]+)"', fragment)
 
 
-def parse_ignore_rules() -> tuple[list[str], dict[str, list[str]], list[str]]:
+def parse_ignore_rules(config: Path = PLAYWRIGHT_CONFIG) -> tuple[list[str], dict[str, list[str]], list[str]]:
     """Return (always-in-CI ignores, {env gate: globs}, always ignores).
 
     * *always-in-CI ignores* come from the initial ``const ciIgnore = [...]``.
@@ -73,7 +74,7 @@ def parse_ignore_rules() -> tuple[list[str], dict[str, list[str]], list[str]]:
     * *always ignores* are the literal globs in ``testIgnore``, applied
       regardless of ``CI``.
     """
-    source = PLAYWRIGHT_CONFIG.read_text(encoding="utf-8")
+    source = config.read_text(encoding="utf-8")
 
     base_match = re.search(r"const ciIgnore\s*=\s*\[([^\]]*)\]", source)
     base = _quoted_strings(base_match.group(1)) if base_match else []
@@ -127,11 +128,20 @@ def _spec_args(command: str) -> tuple[str, ...]:
     if not match:
         return ()
     args = []
-    for token in match.group("rest").split():
+    tokens = iter(match.group("rest").split())
+    for token in tokens:
+        if token in ("--config", "-c"):
+            next(tokens, None)
+            continue
         if token.startswith("-"):
             continue
         args.append(token)
     return tuple(args)
+
+
+def _invocation_config(command: str) -> Path:
+    match = re.search(r"(?:--config(?:=|\s+)|-c\s+)([^\s]+)", command)
+    return REPO_ROOT / "web" / match.group(1) if match else PLAYWRIGHT_CONFIG
 
 
 def collect_invocations() -> list[Invocation]:
@@ -154,6 +164,11 @@ def collect_invocations() -> list[Invocation]:
                 command = str(step.get("run") or "")
                 if "playwright test" not in command:
                     continue
+                config = _invocation_config(command)
+                # Documentation captures are an authoring workflow, not a test gate.
+                # Keep its dedicated config out of regression-test reachability.
+                if config.name == "playwright-screenshots.config.ts":
+                    continue
                 env = dict(job_env)
                 env.update({str(k): str(v) for k, v in (step.get("env") or {}).items()})
                 invocations.append(
@@ -164,6 +179,7 @@ def collect_invocations() -> list[Invocation]:
                         specs=_spec_args(command),
                         env=env,
                         runs_on_merge_queue=job_admits and _admits_merge_group(step.get("if")),
+                        config=config,
                     )
                 )
     return invocations
@@ -175,7 +191,7 @@ def collect_invocations() -> list[Invocation]:
 
 
 def _ignored_globs_for(invocation: Invocation) -> list[str]:
-    base, gates, always = parse_ignore_rules()
+    base, gates, always = parse_ignore_rules(invocation.config)
     ignored = list(always)
     # Workflow steps always run with CI set, so the CI-only list applies.
     ignored += base
@@ -186,6 +202,12 @@ def _ignored_globs_for(invocation: Invocation) -> list[str]:
 
 
 def _runs(spec_rel: str, invocation: Invocation) -> bool:
+    source = invocation.config.read_text(encoding="utf-8")
+    test_dir = re.search(r'testDir:\s*"([^"]+)"', source)
+    assert test_dir, f"No testDir parsed from {invocation.config}"
+    root = (invocation.config.parent / test_dir.group(1)).resolve()
+    if not (SPEC_DIR / spec_rel).resolve().is_relative_to(root):
+        return False
     if any(_matches(spec_rel, glob) for glob in _ignored_globs_for(invocation)):
         return False
     if not invocation.specs:
@@ -269,6 +291,20 @@ def test_every_spec_is_gated_on_the_merge_queue():
     )
 
 
+def test_config_arguments_are_not_spec_filters():
+    assert _spec_args("npx playwright test --config tests/layout/playwright.config.ts") == ()
+
+
+def test_layout_spec_is_reached_only_through_its_own_config():
+    invocations = collect_invocations()
+    layout = [inv for inv in invocations if inv.step == "Browser layout regressions"]
+    assert len(layout) == 1
+    assert _runs("layout/preview.spec.ts", layout[0])
+    assert not _runs("draw-mode.spec.ts", layout[0])
+    regular = [inv for inv in invocations if inv.step != "Browser layout regressions"]
+    assert not any(_runs("layout/preview.spec.ts", inv) for inv in regular)
+
+
 def test_readiness_guards_do_not_hide_merge_queue_tests():
     assert _admits_merge_group("${{ !cancelled() && steps.ai_ready_2.outcome == 'success' }}")
     assert not _admits_merge_group("github.event_name == 'pull_request'")
@@ -276,3 +312,14 @@ def test_readiness_guards_do_not_hide_merge_queue_tests():
         "!cancelled() && steps.ai_ready_2.outcome == 'success' && github.event_name == 'pull_request'"
     )
     assert not _admits_merge_group("env.UNKNOWN_GATE == '1'")
+
+
+def test_device_sign_in_has_a_dedicated_merge_queue_gate():
+    invocations = collect_invocations()
+    device = [inv for inv in invocations if inv.config.name == "playwright.device.config.ts"]
+    assert len(device) == 1
+    assert device[0].runs_on_merge_queue
+    assert _runs("device-sign-in.spec.ts", device[0])
+    assert not any(
+        _runs("device-sign-in.spec.ts", inv) for inv in invocations if inv.config.name != "playwright.device.config.ts"
+    )

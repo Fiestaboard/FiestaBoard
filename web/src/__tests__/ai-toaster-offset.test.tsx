@@ -18,6 +18,12 @@ function OpenTheDrawer() {
 }
 
 /** Puts a walkthrough on screen, the way the choreography engine starts one. */
+function MinimizeTheDrawer() {
+  const { minimize } = useGlobalAiPanel();
+  useEffect(() => minimize(), [minimize]);
+  return null;
+}
+
 function StartWalkthrough() {
   const { show } = useSpotlight();
   useEffect(() => show({ anchor: "#page-name", caption: "Naming the page…" }), [show]);
@@ -112,6 +118,17 @@ describe("Toaster beside the FiestaBot drawer", () => {
     // only way out of a walkthrough.
     expect(element).toHaveAttribute("data-y-position", "top");
     expect(element.style.getPropertyValue("--offset-right")).toBe(DEFAULT_OFFSET);
+  });
+
+  it("keeps notifications clear of the minimized FiestaBot controls", async () => {
+    render(
+      <GlobalAiPanelProvider>
+        <MinimizeTheDrawer />
+        <Toaster />
+      </GlobalAiPanelProvider>,
+    );
+    const element = await toaster();
+    expect(element).toHaveAttribute("data-y-position", "top");
   });
 
   it("renders without a drawer context at all", () => {

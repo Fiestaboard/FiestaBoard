@@ -1,0 +1,518 @@
+"""Choosing an output before it is installed (plan D18).
+
+The setup wizard's first step lists every output the user can pick — even
+one not installed yet — and installs the chosen one. Pinned here:
+
+- **listing** ``GET /outputs/available``: the installed outputs (built-ins
+  first), then the seed's loadable first-party outputs, then registry
+  entries whose ``plugin_type`` is ``output``; never the same id twice, never
+  a data-only seed entry or a data plugin; an unreadable registry leaves the
+  installed and seeded ones;
+- **install** ``POST /outputs/{output_id}/install``: from the seed with no
+  network at all, from the registry through the normal install path (so the
+  ``output_api`` gate refuses a plugin this core cannot run), idempotent
+  (200 with the same entry once installed), 404 for an id nothing offers,
+  503 when the registry's repository cannot be fetched;
+- **no opt-in** (settings v7): a seeded output and a marketplace (registry)
+  output are both offered as available, install, and take a board on a
+  fresh install; there is no setting that gates them.
+
+Tests never reach the network: a registry "clone" copies the fixture plugin.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from src.outputs.registry import output_registry
+from src.outputs.seed import LOCKFILE, build_seed, tree_digest
+from src.plugins import sources
+from src.plugins.loader import PluginLoader
+from src.plugins.sources import RegistryEntry
+
+FIXTURE = Path(__file__).parent / "fixtures" / "plugins" / "recording_output"
+PLUGIN_ID = "recording_output"
+REAL_LOAD_REGISTRY = sources.load_registry
+REPO_URL = "https://github.com/Fiestaboard/fiestaboard-output--recording-output"
+
+_GIT_ENV = {
+    "GIT_CONFIG_GLOBAL": os.devnull,
+    "GIT_CONFIG_SYSTEM": os.devnull,
+    "GIT_AUTHOR_NAME": "Test",
+    "GIT_AUTHOR_EMAIL": "test@example.com",
+    "GIT_COMMITTER_NAME": "Test",
+    "GIT_COMMITTER_EMAIL": "test@example.com",
+    "GIT_TERMINAL_PROMPT": "0",
+}
+
+
+def _git(cwd: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True, env={**os.environ, **_GIT_ENV}
+    )
+    return result.stdout.strip()
+
+
+def _build_seed(tmp_path: Path, *, loadable: bool = True) -> Path:
+    """A seed holding the recording output, built from a local repo."""
+    repo = tmp_path / "origin" / "fiestaboard-output--recording-output"
+    shutil.copytree(FIXTURE, repo, ignore=shutil.ignore_patterns("__pycache__"))
+    _git(repo, "init", "--quiet", "--initial-branch=main")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "--quiet", "-m", "initial")
+    head = _git(repo, "rev-parse", "HEAD")
+    lock = tmp_path / LOCKFILE
+    lock.write_text(
+        json.dumps(
+            {
+                "lock_version": 1,
+                "outputs": {
+                    PLUGIN_ID: {
+                        "repository": REPO_URL,
+                        "commit": head,
+                        "output_api": 1,
+                        "tree_sha256": tree_digest(repo),
+                        "loadable": loadable,
+                    }
+                },
+            }
+        ),
+        "utf-8",
+    )
+    root = tmp_path / "seed"
+    build_seed(lock, root, repositories={PLUGIN_ID: repo.as_uri()})
+    return root
+
+
+def _registry_entry(plugin_type: str = "output", plugin_id: str = PLUGIN_ID) -> RegistryEntry:
+    return RegistryEntry(
+        plugin_id=plugin_id,
+        name="Recording Sign",
+        description="A sign from the registry.",
+        repository=REPO_URL if plugin_type == "output" else "https://github.com/x/fiestaboard-plugin--weather_x",
+        icon="lightbulb",
+        plugin_type=plugin_type,
+    )
+
+
+@pytest.fixture
+def plugins(tmp_path, monkeypatch):
+    """A live plugin registry with nothing installed, and no seed or registry entries."""
+    import src.plugins.registry as registry_module
+    from src.plugins.registry import PluginRegistry
+
+    # Load the built-ins from the verified test seed before this fixture
+    # hides it. Otherwise this file only passes after another test has
+    # initialized the process-wide output registry.
+    output_registry()
+    monkeypatch.setenv("FIESTABOARD_OUTPUT_SEED_DIR", str(tmp_path / "no-seed"))
+    loader = PluginLoader(plugins_dir=tmp_path / "builtin", external_dirs=[], seed_dir=tmp_path / "no-seed")
+    registry = PluginRegistry(plugins_dir=tmp_path / "builtin")
+    monkeypatch.setattr(registry, "_loader", loader)
+    registry.initialize()
+    monkeypatch.setattr(registry_module, "_registry", registry)
+    set_registry([])
+    yield registry
+    loader.unload_plugin(PLUGIN_ID)
+    output_registry().remove_plugin(PLUGIN_ID)
+
+
+_REGISTRY: list[RegistryEntry] = []
+
+
+class TestOutputCatalog:
+    def test_registry_metadata_survives_local_precedence(self, client, seeded):
+        entry = _registry_entry()
+        entry.display = {"category": "Ambient sculptures", "manufacturer": "Acme", "models": ["Orb 2"]}
+        set_registry([entry])
+        response = client.get("/outputs/catalog")
+        assert response.status_code == 200
+        catalog = response.json()
+        assert catalog["registry_status"] == "available"
+        output = next(o for o in catalog["outputs"] if o["id"] == PLUGIN_ID)
+        assert output["source"] == "seed"
+        assert output["display"]["category"] == "Ambient sculptures"
+        assert "Orb 2" in output["display"]["models"]
+        assert "Recording sign" in output["display"]["models"]
+        assert client.post(f"/outputs/{PLUGIN_ID}/install").status_code == 201
+        output = next(o for o in client.get("/outputs/catalog").json()["outputs"] if o["id"] == PLUGIN_ID)
+        assert output["installed"] is True
+        assert output["display"]["manufacturer"] == "Acme"
+
+    def test_unreadable_registry_preserves_local_choices_and_reports_status(self, client, seeded, monkeypatch):
+        def broken(*args, **kwargs):
+            raise OSError("registry unavailable")
+
+        monkeypatch.setattr(sources, "load_registry", broken)
+        catalog = client.get("/outputs/catalog").json()
+        assert catalog["registry_status"] == "unavailable"
+        assert PLUGIN_ID in [o["id"] for o in catalog["outputs"]]
+
+    def test_valid_empty_registry_is_not_an_outage(self, client, plugins):
+        catalog = client.get("/outputs/catalog").json()
+        assert catalog["registry_status"] == "available"
+        assert "vestaboard" in [o["id"] for o in catalog["outputs"]]
+
+    def test_malformed_optional_metadata_does_not_hide_plugin(self, client, plugins):
+        entry = RegistryEntry.from_dict(
+            {
+                "id": "odd_sign",
+                "name": "Odd Sign",
+                "repository": REPO_URL,
+                "plugin_type": "output",
+                "display": {"category": [], "models": ["Model A", 42], "keywords": "bad"},
+            }
+        )
+        set_registry([entry])
+        response = client.get("/outputs/catalog")
+        assert response.status_code == 200
+        output = next(o for o in response.json()["outputs"] if o["id"] == "odd_sign")
+        assert output["display"] == {"category": "", "manufacturer": "", "models": ["Model A"], "keywords": []}
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            None,
+            {"id": ["bad"], "repository": REPO_URL, "plugin_type": "output"},
+            {"id": "bad", "name": None, "repository": REPO_URL, "plugin_type": "output"},
+        ],
+    )
+    def test_malformed_registry_entry_retains_local_choices(self, client, seeded, tmp_path, monkeypatch, bad):
+        path = tmp_path / "catalog.json"
+        path.write_text(json.dumps({"plugins": [bad]}), encoding="utf-8")
+        monkeypatch.setattr(sources, "load_registry", lambda **kwargs: REAL_LOAD_REGISTRY(path, **kwargs))
+        response = client.get("/outputs/catalog")
+        assert response.status_code == 200
+        catalog = response.json()
+        assert catalog["registry_status"] == "unavailable"
+        assert PLUGIN_ID in [output["id"] for output in catalog["outputs"]]
+
+    def test_installed_model_exposes_geometry_for_generic_setup(self, client, seeded):
+        assert client.post(f"/outputs/{PLUGIN_ID}/install").status_code == 201
+        output = next(o for o in client.get("/outputs").json() if o["id"] == PLUGIN_ID)
+        assert output["device_models"][0]["geometry"] == {"kind": "cells", "rows": 6, "cols": 22}
+
+    def test_strict_registry_reader_distinguishes_missing_corrupt_and_empty(self, tmp_path, monkeypatch):
+        # Exercise the disk reader without undoing other fixtures.
+        path = tmp_path / "registry.json"
+        with pytest.raises(OSError):
+            REAL_LOAD_REGISTRY(path, strict=True)
+        path.write_text("{broken", encoding="utf-8")
+        with pytest.raises(ValueError):
+            REAL_LOAD_REGISTRY(path, strict=True)
+        path.write_text('{"plugins": []}', encoding="utf-8")
+        assert REAL_LOAD_REGISTRY(path, strict=True) == []
+
+
+def set_registry(entries: list[RegistryEntry]) -> None:
+    _REGISTRY[:] = entries
+
+
+@pytest.fixture(autouse=True)
+def _registry_file(monkeypatch):
+    """``plugin-registry.json`` as the test says it is (both readers of it)."""
+    import src.plugins.registry as registry_module
+
+    monkeypatch.setattr(sources, "load_registry", lambda *a, **k: list(_REGISTRY))
+    monkeypatch.setattr(registry_module, "load_registry", lambda *a, **k: list(_REGISTRY))
+
+
+@pytest.fixture
+def seeded(plugins, tmp_path, monkeypatch):
+    root = _build_seed(tmp_path)
+    monkeypatch.setenv("FIESTABOARD_OUTPUT_SEED_DIR", str(root))
+    monkeypatch.setattr(plugins._loader, "seed_dir", root)
+    return root
+
+
+@pytest.fixture
+def no_network(monkeypatch):
+    """Any git fetch fails the test: the seed install must not need one."""
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("the seed install reached for the network")
+
+    monkeypatch.setattr(sources, "clone_or_update_repo", refuse)
+
+
+def fake_clone(monkeypatch, *, output_api: int = 1) -> list[str]:
+    """Make a registry "clone" copy the fixture plugin; returns the URLs cloned."""
+    cloned: list[str] = []
+
+    def clone(repo_url, plugin_id, branch="", *, external_dir=None):
+        cloned.append(repo_url)
+        target = Path(external_dir or sources.get_external_plugins_dir()) / plugin_id
+        shutil.copytree(FIXTURE, target, ignore=shutil.ignore_patterns("__pycache__"))
+        manifest = json.loads((target / "manifest.json").read_text("utf-8"))
+        manifest["output"]["output_api"] = output_api
+        (target / "manifest.json").write_text(json.dumps(manifest), "utf-8")
+        return True, ""
+
+    monkeypatch.setattr(sources, "clone_or_update_repo", clone)
+    return cloned
+
+
+@pytest.fixture
+def client():
+    from src.api_server import app
+
+    return TestClient(app)
+
+
+def _available(client) -> list[dict]:
+    resp = client.get("/outputs/available")
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+# --- the listing ------------------------------------------------------------------------------------
+
+
+class TestListing:
+    def test_the_installed_built_ins_come_first(self, client, plugins):
+        listed = _available(client)
+        assert [(o["id"], o["source"], o["installed"]) for o in listed[:2]] == [
+            ("vestaboard", "installed", True),
+            ("fiestapanel", "installed", True),
+        ]
+        assert listed[0]["builtin"] is True and listed[0]["available"] is True
+
+    def test_a_seeded_output_is_offered_before_it_is_installed(self, client, seeded):
+        entry = next(o for o in _available(client) if o["id"] == PLUGIN_ID)
+        assert entry["source"] == "seed"
+        assert entry["installed"] is False
+        assert entry["needs_network"] is False
+        # Name, description and icon come from the seed's own manifest.
+        assert (entry["name"], entry["icon"]) == ("Recording Output", "monitor")
+        assert entry["description"].startswith("Test-only output plugin")
+        assert entry["output_api"] == 1
+        assert (entry["builtin"], entry["beta_gated"]) == (False, False)
+
+    def test_a_seeded_output_is_available(self, client, seeded):
+        assert next(o for o in _available(client) if o["id"] == PLUGIN_ID)["available"] is True
+
+    def test_a_registry_output_is_available_with_no_opt_in(self, client, plugins):
+        """Display plugins need no opt-in (settings v7): a marketplace entry
+        is offered as usable, and the deprecated ``beta_gated`` reads false."""
+        set_registry([_registry_entry()])
+        entry = next(o for o in _available(client) if o["id"] == PLUGIN_ID)
+        assert (entry["beta_gated"], entry["available"]) == (False, True)
+
+    def test_a_data_only_seed_entry_is_not_offered(self, client, plugins, tmp_path, monkeypatch):
+        root = _build_seed(tmp_path, loadable=False)
+        monkeypatch.setenv("FIESTABOARD_OUTPUT_SEED_DIR", str(root))
+        assert PLUGIN_ID not in [o["id"] for o in _available(client)]
+
+    def test_registry_outputs_are_offered_and_data_plugins_are_not(self, client, plugins):
+        set_registry([_registry_entry(), _registry_entry("data", "weather_x")])
+        listed = _available(client)
+        entry = next(o for o in listed if o["id"] == PLUGIN_ID)
+        assert (entry["source"], entry["installed"], entry["needs_network"]) == ("registry", False, True)
+        assert (entry["name"], entry["icon"]) == ("Recording Sign", "lightbulb")
+        assert entry["output_api"] is None
+        assert "weather_x" not in [o["id"] for o in listed]
+
+    def test_the_seed_wins_over_the_registry_for_the_same_id(self, client, seeded):
+        set_registry([_registry_entry()])
+        entries = [o for o in _available(client) if o["id"] == PLUGIN_ID]
+        assert [o["source"] for o in entries] == ["seed"]
+
+    def test_an_installed_output_is_listed_once_as_installed(self, client, seeded):
+        assert client.post(f"/outputs/{PLUGIN_ID}/install").status_code == 201
+        set_registry([_registry_entry()])
+        entries = [o for o in _available(client) if o["id"] == PLUGIN_ID]
+        assert [(o["source"], o["installed"]) for o in entries] == [("installed", True)]
+
+    def test_an_unreadable_registry_still_lists_installed_and_seeded(self, client, seeded, monkeypatch):
+        def broken(*args, **kwargs):
+            raise OSError("registry unreachable")
+
+        monkeypatch.setattr(sources, "load_registry", broken)
+        ids = [o["id"] for o in _available(client)]
+        assert ids[:2] == ["vestaboard", "fiestapanel"]
+        assert PLUGIN_ID in ids
+
+
+# --- install -------------------------------------------------------------------------------------------
+
+
+class TestInstallFromSeed:
+    def test_installs_offline_and_answers_the_output(self, client, seeded, no_network):
+        resp = client.post(f"/outputs/{PLUGIN_ID}/install")
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["id"] == PLUGIN_ID
+        assert body["available"] is True
+        assert body["device_models"], "the installed output carries its device models"
+        assert (sources.get_external_plugins_dir() / PLUGIN_ID / "manifest.json").is_file()
+        assert output_registry().get(PLUGIN_ID) is not None
+        assert PLUGIN_ID in [o["id"] for o in client.get("/outputs").json()]
+
+    def test_a_second_install_answers_200_with_the_same_output(self, client, seeded, no_network):
+        first = client.post(f"/outputs/{PLUGIN_ID}/install")
+        second = client.post(f"/outputs/{PLUGIN_ID}/install")
+        assert (first.status_code, second.status_code) == (201, 200)
+        assert second.json() == first.json()
+
+    @pytest.mark.parametrize("still_seeded", [True, False])
+    def test_a_first_request_after_restart_recognizes_an_installed_output(
+        self, client, seeded, no_network, plugins, monkeypatch, tmp_path, still_seeded
+    ):
+        import src.plugins.registry as registry_module
+
+        first = client.post(f"/outputs/{PLUGIN_ID}/install")
+        assert first.status_code == 201
+        installed = sources.get_external_plugins_dir() / PLUGIN_ID
+        original_tree = tree_digest(installed)
+
+        # Simulate process startup: the files persist, but plugins have not
+        # been loaded yet. Exercise the real lazy singleton initialization.
+        plugins._loader.unload_plugin(PLUGIN_ID)
+        assert output_registry().get(PLUGIN_ID) is None
+        plugins._initialized = False
+        monkeypatch.setattr(registry_module, "_registry", None)
+        monkeypatch.setattr(registry_module, "PluginRegistry", lambda: plugins)
+        if not still_seeded:
+            monkeypatch.setenv("FIESTABOARD_OUTPUT_SEED_DIR", str(tmp_path / "no-seed"))
+            monkeypatch.setattr(plugins._loader, "seed_dir", tmp_path / "no-seed")
+
+        # No preliminary GET /outputs to warm the registry. Even a plugin
+        # no longer offered by the seed/catalog remains installed.
+        second = client.post(f"/outputs/{PLUGIN_ID}/install")
+        assert second.status_code == 200, second.text
+        assert second.json() == first.json()
+        assert tree_digest(installed) == original_tree
+
+    def test_installs_with_no_opt_in(self, client, seeded, no_network):
+        resp = client.post(f"/outputs/{PLUGIN_ID}/install")
+        assert resp.status_code == 201, resp.text
+        assert (resp.json()["beta_gated"], resp.json()["available"]) == (False, True)
+        assert output_registry().get(PLUGIN_ID) is not None
+
+    def test_a_board_is_created_on_it(self, client, seeded, no_network):
+        assert client.post(f"/outputs/{PLUGIN_ID}/install").status_code == 201
+        body = {"name": "Kitchen sign", "device_model": "divoom_pixoo64", "output_config": {"host": "192.0.2.50"}}
+        resp = client.post(f"/outputs/{PLUGIN_ID}/boards", json=body)
+        assert resp.status_code == 201, resp.text
+
+
+class TestInstallFromRegistry:
+    def test_installs_through_the_normal_install_path(self, client, plugins, monkeypatch):
+        set_registry([_registry_entry()])
+        cloned = fake_clone(monkeypatch)
+        resp = client.post(f"/outputs/{PLUGIN_ID}/install")
+        assert resp.status_code == 201, resp.text
+        assert cloned == [REPO_URL]
+        assert resp.json()["id"] == PLUGIN_ID
+        assert output_registry().get(PLUGIN_ID) is not None
+
+    def test_the_output_api_gate_refuses_a_plugin_this_core_cannot_run(self, client, plugins, monkeypatch):
+        set_registry([_registry_entry()])
+        fake_clone(monkeypatch, output_api=99)
+        resp = client.post(f"/outputs/{PLUGIN_ID}/install")
+        assert resp.status_code == 400
+        assert "output_api 99" in resp.json()["detail"]
+        assert not (sources.get_external_plugins_dir() / PLUGIN_ID).exists()
+        assert output_registry().get(PLUGIN_ID) is None
+
+    def test_a_marketplace_output_installs_and_drives_a_board_with_no_opt_in(self, client, plugins, monkeypatch):
+        """No opt-in exists (settings v7): installing from the marketplace and
+        adding a board on it both work on a fresh install."""
+        set_registry([_registry_entry()])
+        fake_clone(monkeypatch)
+        assert client.post(f"/outputs/{PLUGIN_ID}/install").status_code == 201
+        body = {"name": "Kitchen sign", "device_model": "divoom_pixoo64", "output_config": {"host": "192.0.2.50"}}
+        resp = client.post(f"/outputs/{PLUGIN_ID}/boards", json=body)
+        assert resp.status_code == 201, resp.text
+
+    def test_an_unreachable_repository_is_a_503(self, client, plugins, monkeypatch):
+        set_registry([_registry_entry()])
+        monkeypatch.setattr(
+            sources,
+            "clone_or_update_repo",
+            lambda *a, **k: (False, "git clone failed: fatal: unable to access: Could not resolve host"),
+        )
+        resp = client.post(f"/outputs/{PLUGIN_ID}/install")
+        assert resp.status_code == 503
+        assert "Could not resolve host" in resp.json()["detail"]
+
+    def test_a_data_plugin_in_the_registry_is_not_installed_here(self, client, plugins, monkeypatch):
+        set_registry([_registry_entry("data", "weather_x")])
+        cloned = fake_clone(monkeypatch)
+        assert client.post("/outputs/weather_x/install").status_code == 404
+        assert cloned == []
+
+
+class TestInstallOther:
+    def test_an_id_nothing_offers_is_a_404(self, client, plugins):
+        resp = client.post("/outputs/no_such_sign/install")
+        assert resp.status_code == 404
+        assert "no_such_sign" in resp.json()["detail"]
+
+    def test_a_built_in_is_already_installed(self, client, plugins):
+        resp = client.post("/outputs/vestaboard/install")
+        assert resp.status_code == 200
+        assert resp.json()["id"] == "vestaboard"
+
+
+# --- side-loading from a git URL (Displays → Marketplace) ----------------------------------------
+
+
+class TestInstallFromGitUrl:
+    """A display plugin pasted as a git URL (``POST /plugins/install``, what
+    Integrations and Displays → Marketplace both call) becomes an output a
+    board can use, with no opt-in (settings v7) — behind the same fences."""
+
+    GIT_URL = "https://github.com/example/fiestaboard-output--recording-output.git"
+
+    def test_a_git_installed_output_is_listed_installed_and_takes_a_board(self, client, plugins, monkeypatch):
+        cloned = fake_clone(monkeypatch)
+        resp = client.post("/plugins/install", json={"repository": self.GIT_URL, "plugin_id": PLUGIN_ID})
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["plugin_id"] == PLUGIN_ID
+        assert cloned == [self.GIT_URL]
+
+        assert PLUGIN_ID in [o["id"] for o in client.get("/outputs").json()]
+        entry = next(o for o in _available(client) if o["id"] == PLUGIN_ID)
+        assert (entry["source"], entry["installed"]) == ("installed", True)
+
+        body = {"name": "Garage sign", "device_model": "divoom_pixoo64", "output_config": {"host": "192.0.2.50"}}
+        board = client.post(f"/outputs/{PLUGIN_ID}/boards", json=body)
+        assert board.status_code == 201, board.text
+
+    def test_it_runs_behind_the_safety_fences(self, client, plugins, monkeypatch):
+        from src.outputs.factory import build_driver
+        from src.outputs.plugin_driver import OutputPluginDriver
+        from src.outputs.plugin_registration import release_driver
+
+        fake_clone(monkeypatch)
+        assert (
+            client.post("/plugins/install", json={"repository": self.GIT_URL, "plugin_id": PLUGIN_ID}).status_code
+            == 201
+        )
+        driver = build_driver(
+            {
+                "id": "g",
+                "name": "G",
+                "device_type": "panel",
+                "output": PLUGIN_ID,
+                "output_config": {"host": "192.0.2.50"},
+            }
+        )
+        assert isinstance(driver, OutputPluginDriver)
+        assert driver.first_party is False
+        release_driver(driver)
+
+    def test_an_output_api_this_core_cannot_run_is_refused_with_the_reason(self, client, plugins, monkeypatch):
+        fake_clone(monkeypatch, output_api=99)
+        resp = client.post("/plugins/install", json={"repository": self.GIT_URL, "plugin_id": PLUGIN_ID})
+        assert resp.status_code == 400
+        assert "output_api 99" in resp.json()["detail"]
+        assert PLUGIN_ID not in [o["id"] for o in client.get("/outputs").json()]

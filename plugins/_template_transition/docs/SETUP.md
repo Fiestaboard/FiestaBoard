@@ -6,13 +6,13 @@ How to enable and use this transition plugin.
 
 **What it does**: (one-line description)
 
-**Prerequisites**: The **Transition Plugins** beta must be enabled first (Settings → Advanced → Beta Features). List any API keys / accounts your plugin needs here.
+**Prerequisites**: The **Transition Plugins** beta must be enabled first (Displays → choose a split-flap display → Transition → **Transition Plugins**; one switch for the whole install). List any API keys / accounts your plugin needs here.
 
 ## Quick Setup
 
-1. **Enable** — Open the Integrations page, find this plugin under "Transition Plugins", and toggle it on.
+1. **Enable** — Turn on the **Transition Plugins** beta in a display's **Transition** section. Installed transition plugins have no enable step of their own.
 2. **Configure** — Adjust the settings to your taste.
-3. **Apply** — Set it as a page's transition (or as the global default in Settings → Board Transitions).
+3. **Apply** — Set it as a page's transition, or as a display's transition in Displays → (a display) → Transition.
 4. **View** — Watch the next page transition use your effect.
 
 ## Template Variables

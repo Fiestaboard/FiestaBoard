@@ -26,6 +26,22 @@ vi.mock("@/hooks/use-router", () => ({
 }));
 
 import { GeneralSettings } from "@/components/general-settings";
+import type { BoardInstance } from "@/lib/api";
+
+const board = {
+  id: "default",
+  name: "Flagship",
+  device_type: "flagship",
+  board_color: "black",
+  enabled: true,
+  api_mode: "local",
+  host: "",
+  local_api_key: "",
+  cloud_key: "",
+  polling_interval_seconds: 300,
+  board_read_interval_local: 30,
+  board_read_interval_cloud: 180,
+} satisfies BoardInstance;
 
 const API_BASE = "/api";
 
@@ -94,7 +110,7 @@ describe("GeneralSettings - silence interaction handlers", () => {
 
   it("triggers handleSilenceTimeChange for start when TimePicker hour is selected", async () => {
     const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     const startPicker = await screen.findByLabelText(/Start Time/i);
     await user.click(startPicker);
@@ -106,7 +122,7 @@ describe("GeneralSettings - silence interaction handlers", () => {
 
   it("triggers handleSilenceTimeChange for end when TimePicker hour is selected", async () => {
     const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     const endPicker = await screen.findByLabelText(/End Time/i);
     await user.click(endPicker);
@@ -118,7 +134,7 @@ describe("GeneralSettings - silence interaction handlers", () => {
 
   it("triggers handleSilenceModeChange when mode select changes to freeze", async () => {
     const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     const modeSelect = await screen.findByRole("combobox", { name: /While Silenced/i });
     await user.click(modeSelect);
@@ -137,7 +153,7 @@ describe("GeneralSettings - silence interaction handlers", () => {
     );
 
     const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Wait for the silence page select to appear
     const pageSelect = await screen.findByRole("combobox", { name: /Silence Page/i });

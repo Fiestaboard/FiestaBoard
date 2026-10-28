@@ -13,6 +13,7 @@ import {
   Box,
   Button,
   Code,
+  CopyButton,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -28,8 +29,9 @@ import {
   Text,
   TextLink,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Bot, Check, Copy, KeyRound, Loader2, Lock, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, Bot, Check, KeyRound, Lock, RefreshCw, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -99,7 +101,6 @@ export function McpSettings() {
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [confirmingRotate, setConfirmingRotate] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
-  const [copied, setCopied] = useState<"token" | "config" | null>(null);
   const [tokenInput, setTokenInput] = useState("");
 
   // On auth-disabled installs the backend gates token management behind
@@ -192,14 +193,8 @@ export function McpSettings() {
     },
   });
 
-  const handleCopy = async (text: string, which: "token" | "config") => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(which);
-      setTimeout(() => setCopied(null), 1500);
-    } catch {
-      toast.error(t("toastCopyFailed"));
-    }
+  const handleCopyError = () => {
+    toast.error(t("toastCopyFailed"));
   };
 
   const configSnippet = useMemo(() => (revealedToken ? buildClaudeDesktopConfig(revealedToken) : ""), [revealedToken]);
@@ -223,7 +218,7 @@ export function McpSettings() {
               disabled={unlockMutation.isPending || !tokenInput.trim()}
               className="gap-2"
             >
-              {unlockMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {unlockMutation.isPending ? <Spinner label={null} className="h-4 w-4" /> : null}
               {t("unlockButton")}
             </Button>
           </Flex>
@@ -310,7 +305,7 @@ export function McpSettings() {
               className="gap-2"
             >
               {rotateMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner label={null} className="h-4 w-4" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
@@ -324,7 +319,7 @@ export function McpSettings() {
                 className="gap-2"
               >
                 {clearMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Spinner label={null} className="h-4 w-4" />
                 ) : (
                   <Trash2 className="h-4 w-4" />
                 )}
@@ -348,7 +343,7 @@ export function McpSettings() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={rotateMutation.isPending}>{tCommon("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => rotateMutation.mutate()} disabled={rotateMutation.isPending}>
-              {rotateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {rotateMutation.isPending ? <Spinner label={null} className="h-4 w-4" /> : null}
               {hasToken ? t("rotateConfirmButton") : t("generateConfirmButton")}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -368,7 +363,7 @@ export function McpSettings() {
               disabled={clearMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {clearMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {clearMutation.isPending ? <Spinner label={null} className="h-4 w-4" /> : null}
               {t("revokeConfirmButton")}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -400,15 +395,15 @@ export function McpSettings() {
                 <Text as="span" size="sm" weight="medium">
                   {t("tokenLabel")}
                 </Text>
-                <Button
+                <CopyButton
+                  value={revealedToken ?? ""}
                   size="sm"
-                  variant="ghost"
-                  onClick={() => revealedToken && handleCopy(revealedToken, "token")}
+                  labels={{ copy: t("copyButton"), copied: t("copiedButton") }}
+                  onCopyError={handleCopyError}
                   className="h-7 gap-1.5"
                 >
-                  {copied === "token" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied === "token" ? t("copiedButton") : t("copyButton")}
-                </Button>
+                  {t("copyButton")}
+                </CopyButton>
               </Flex>
               <Code className="block w-full break-all rounded bg-muted px-3 py-2 font-mono text-xs">
                 {revealedToken}
@@ -420,15 +415,15 @@ export function McpSettings() {
                 <Text as="span" size="sm" weight="medium">
                   {t("configSnippetLabel")}
                 </Text>
-                <Button
+                <CopyButton
+                  value={configSnippet}
                   size="sm"
-                  variant="ghost"
-                  onClick={() => handleCopy(configSnippet, "config")}
+                  labels={{ copy: t("copyButton"), copied: t("copiedButton") }}
+                  onCopyError={handleCopyError}
                   className="h-7 gap-1.5"
                 >
-                  {copied === "config" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied === "config" ? t("copiedButton") : t("copyButton")}
-                </Button>
+                  {t("copyButton")}
+                </CopyButton>
               </Flex>
               <Text size="xs" tone="muted" className="mb-2">
                 {t.rich("configSnippetDescription", {

@@ -600,6 +600,17 @@
       "added": "2026-07-18"
     },
     {
+      "id": "wow",
+      "name": "World of Warcraft",
+      "description": "Track a Retail character\u2019s item level, Mythic+ score, weekly keys, and raid progress with Raider.IO.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--wow",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=9.0.0",
+      "icon": "swords",
+      "category": "data",
+      "added": "2026-10-18"
+    },
+    {
       "id": "wsdot",
       "name": "WSDOT",
       "description": "Washington State Ferries: schedules, vessel names, car spots, and alerts",
@@ -917,6 +928,31 @@
       "icon": "crown",
       "category": "entertainment",
       "added": "2026-10-24"
+    },
+    {
+      "id": "ulanzi_tc002",
+      "name": "Ulanzi TC002 (AWTRIX NG)",
+      "description": "Show your FiestaBoard pages on a Ulanzi TC002 running AWTRIX NG, as an app in its rotation, over your local network. 3 rows of 13 in the 3x5 font, colours and LED transitions.",
+      "repository": "https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002",
+      "author": "Oliver Rummeyer",
+      "fiestaboard_version": ">=10.0.0",
+      "icon": "grid-3x3",
+      "category": "output",
+      "plugin_type": "output",
+      "display": {
+        "category": "LED matrices",
+        "manufacturer": "Ulanzi",
+        "models": [
+          "TC002"
+        ],
+        "keywords": [
+          "AWTRIX",
+          "AWTRIX NG",
+          "pixel clock",
+          "LED matrix"
+        ]
+      },
+      "added": "2026-10-26"
     }
   ]
 }

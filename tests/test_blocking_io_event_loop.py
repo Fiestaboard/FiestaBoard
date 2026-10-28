@@ -252,7 +252,7 @@ async def test_a_slow_page_send_does_not_block_the_event_loop():
             patch("src.pages.routes.get_settings_service", return_value=settings),
             patch("src.pages.routes.get_page_service", return_value=page_service),
             patch("src.pages.routes.get_service", return_value=service),
-            patch("src.pages.routes._silence_active", return_value=False),
+            patch("src.board_guards._silence_active", return_value=False),
             patch("src.pages.routes._board_is_paused", return_value=False),
         ):
             return await ac.post("/pages/p1/send?target=board")
@@ -264,17 +264,16 @@ async def test_a_slow_page_send_does_not_block_the_event_loop():
 def test_concurrent_renders_on_one_client_serialize():
     """Two threads calling ``render`` on one client never overlap their sends.
 
-    Off-loop handlers (#1826) can now hit the same ``BoardClient`` from two
+    Off-loop handlers (#1826) can now hit the same board driver from two
     worker threads at once; the event loop used to serialize them for free.
-    ``TransitionRenderMixin.render`` holds ``_send_lock`` around the whole
+    ``render`` (the board's ``OutputRuntime``) holds the send lock around the whole
     send (including the ``_last_characters`` read-then-write inside
     ``send_characters``), so no new lock is required — this test pins that
     guarantee so it cannot be refactored away silently.
     """
-    from src.board_client import BoardClient
+    from tests.first_party_drivers import local_driver
 
-    client = BoardClient.__new__(BoardClient)
-    client._init_transition_state()
+    client = local_driver("test_key", "board.invalid")
 
     active = threading.Semaphore(1)
     overlaps: list[str] = []
@@ -314,16 +313,22 @@ def test_concurrent_direct_send_characters_and_render_serialize():
     ``_last_characters`` writes and a double-posted note-array throttle
     window.  ``send_characters`` therefore takes ``_send_lock`` itself
     (re-entrant, so render → send_characters nesting stays safe).
-    """
-    from src.board_client import BoardClient
 
-    # A real client, not a hand-built ``__new__`` shell: the send path also
-    # reads the throttle state the constructor sets up (``_throttle_lock``,
-    # ``_last_send_monotonic``, ``_request_timeout``), and a partial fake
-    # would fail on an attribute rather than on the property under test.
-    # Local mode has no min-send-interval floor, so the throttle never fires
-    # and every send reaches the patched POST.
-    client = BoardClient(api_key="test_key", host="board.invalid", use_cloud=False, skip_unchanged=True)
+    Every write also preempts the one before it, so a write still waiting to
+    send when the next thread arrives is refused before its request
+    (``RequestCancelled``) rather than posted: latest wins. Each of the four
+    writes therefore either posts or is cancelled, never both and never
+    alongside another. Counting posts alone assumed no write was ever
+    preempted, which only held while the threads happened not to interleave
+    (CI hit ``assert 3 == 4`` with a cancelled write in the log).
+    """
+    from src.outputs.http import RequestCancelled
+    from tests.first_party_drivers import local_driver
+
+    # A real driver (the Vestaboard plugin on the Local API), not a shell:
+    # local mode has no min-send-interval floor, so the floor never fires and
+    # every send reaches the patched POST.
+    client = local_driver("test_key", "board.invalid")
 
     active = threading.Semaphore(1)
     overlaps: list[str] = []
@@ -341,8 +346,18 @@ def test_concurrent_direct_send_characters_and_render_serialize():
         response.raise_for_status = Mock()
         return response
 
+    cancelled: list[str] = []
+    refuse = RequestCancelled.__init__
+
+    def _counted_refusal(self, url):
+        cancelled.append(url)
+        refuse(self, url)
+
     grid = [[0] * 22 for _ in range(6)]
-    with patch("src.board_client.requests.post", side_effect=_instrumented_post):
+    with (
+        patch("requests.post", side_effect=_instrumented_post),
+        patch.object(RequestCancelled, "__init__", _counted_refusal),
+    ):
         threads = [
             threading.Thread(target=client.send_characters, args=(grid,), kwargs={"force": True}),
             threading.Thread(target=client.render, args=(grid,), kwargs={"force": True}),
@@ -354,7 +369,8 @@ def test_concurrent_direct_send_characters_and_render_serialize():
         for t in threads:
             t.join()
 
-    assert len(posts) == 4
+    assert len(posts) + len(cancelled) == 4, (posts, cancelled)
+    assert posts, "at least the last write must reach the board"
     assert overlaps == [], overlaps
 
 

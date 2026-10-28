@@ -27,11 +27,13 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 
 pytest.importorskip("mcp", reason="mcp package not installed")
 
 from src.panels.service import PanelService
 from src.panels.storage import PanelStorage
+from src.settings.board_shape import board_view
 from tests import test_mcp_state_effects as sibling
 from tests.test_mcp_state_effects import (
     _FakeClient,
@@ -120,7 +122,8 @@ def debug_engine(engine):
 
 
 def _board(svc, board_id: str) -> dict[str, Any]:
-    return next(b for b in svc.get_board_settings().boards if b.get("id") == board_id)
+    """The board as the flat view (settings v4 stores the connection in output_config)."""
+    return board_view(next(b for b in svc.get_board_settings().boards if b.get("id") == board_id))
 
 
 # ---------------------------------------------------------------------------
@@ -161,10 +164,51 @@ def test_update_setting_refuses_unknown_keys_instead_of_ignoring_them(mcp, servi
     assert two_boards.get_display_settings().reduce_motion is False, "a refused call must change nothing"
 
 
-def test_update_setting_beta_transition_plugins_flag_persists(mcp, services, two_boards):
-    assert two_boards.get_beta_settings().transition_plugins_enabled is False
+def test_update_setting_plugins_transition_plugins_flag_persists(mcp, services, two_boards):
+    """Settings v6 moved the flag from the retired 'beta' category to 'plugins'."""
+    assert two_boards.get_plugin_settings().transition_plugins_enabled is False
+    assert_ok(call(mcp, "update_setting", category="plugins", values={"transition_plugins_enabled": True}), "plugins")
+    assert two_boards.get_plugin_settings().transition_plugins_enabled is True
+
+
+def test_update_setting_beta_is_a_deprecated_alias_for_the_plugin_flags(mcp, services, two_boards):
     assert_ok(call(mcp, "update_setting", category="beta", values={"transition_plugins_enabled": True}), "beta")
-    assert two_boards.get_beta_settings().transition_plugins_enabled is True
+    assert two_boards.get_plugin_settings().transition_plugins_enabled is True
+
+
+def test_update_setting_beta_takes_only_the_two_flags(mcp, services, two_boards):
+    call_expect_error(mcp, "update_setting", category="beta", values={"auto_update": False})
+    assert two_boards.get_plugin_settings().auto_update is True
+
+
+def test_update_board_sets_that_board_transition(mcp, services, two_boards):
+    board_id = two_boards.get_board_settings().boards[1]["id"]
+    result = assert_ok(
+        call(
+            mcp,
+            "update_board",
+            board_id=board_id,
+            transition="row",
+            transition_step_interval_ms=30,
+            transition_step_size=2,
+        ),
+        "update_board",
+    )
+    assert (
+        result["board"]["transition"],
+        result["board"]["transition_step_interval_ms"],
+        result["board"]["transition_step_size"],
+    ) == ("row", 30, 2)
+    resolved = two_boards.get_transition_settings(board_id)
+    assert (resolved.strategy, resolved.step_interval_ms, resolved.step_size) == ("row", 30, 2)
+    first = two_boards.get_board_settings().boards[0]["id"]
+    assert two_boards.get_transition_settings(first).strategy != "row"
+
+
+def test_update_board_refuses_a_bad_transition_speed(mcp, services, two_boards):
+    board_id = two_boards.get_board_settings().boards[0]["id"]
+    message = call_expect_error(mcp, "update_board", board_id=board_id, transition_step_size=0)
+    assert "transition_step_size" in message
 
 
 def test_update_setting_plugins_auto_update_persists(mcp, services, two_boards):
@@ -367,7 +411,7 @@ def test_update_setting_silence_schedule_with_board_id_writes_that_boards_overri
             mcp,
             "update_setting",
             category="silence_schedule",
-            values={"enabled": True, "start_time": "22:00", "end_time": "07:00", "board_id": "board-note"},
+            values={"enabled": True, "start_time": "22:00+00:00", "end_time": "07:00+00:00", "board_id": "board-note"},
         ),
         "silence_schedule",
     )
@@ -491,7 +535,7 @@ def test_detect_board_size_classifies_the_live_grid(mcp, services, two_boards, r
         def read_current_message(self):
             return [[0] * 15 for _ in range(3)]
 
-    with patch("src.api_server.board_client_from_board_dict", return_value=_Probe()):
+    with patch("src.settings.routes._live_board_driver", return_value=_Probe()):
         result = assert_ok(call(mcp, "detect_board_size", board_id="board-main"), "detect_board_size")
 
     assert (result["device_type"], result["rows"], result["cols"]) == ("note", 3, 15)
@@ -537,15 +581,23 @@ def test_identify_tile_flashes_the_configured_tile(mcp, services, two_boards, ru
     )
     flashed: list[tuple[str, list[list[int]]]] = []
 
-    class _TileClient:
-        def __init__(self, api_key, host, **_kwargs):
-            self.host = host
+    def _tile_post(url, **kwargs):
+        # The tile's Local API answers; record which tile, and what it showed.
+        flashed.append((url.split("//")[1].split(":")[0], kwargs["json"]["characters"]))
+        ok = requests.models.Response()
+        ok.status_code = 200
+        ok._content = b"{}"
+        return ok
 
-        def send_characters(self, pattern, force=False):
-            flashed.append((self.host, pattern))
-            return (True, True)
+    # Saved tiles are flashed through the board's LIVE driver: build it the
+    # way the service does (the runtime factory); the tiles are on the wire.
+    from src.outputs.factory import build_driver
 
-    with patch("src.board_client.BoardClient", _TileClient):
+    live = build_driver(_board(two_boards, "board-array"))
+    with (
+        patch("src.settings.routes._live_board_driver", return_value=live),
+        patch("requests.post", side_effect=_tile_post),
+    ):
         result = assert_ok(call(mcp, "identify_tile", board_id="board-array", row=0, col=1), "identify_tile")
 
     assert [host for host, _ in flashed] == ["192.0.2.22"]
@@ -625,6 +677,23 @@ def test_update_panel_screen_size_refits_the_virtual_board(mcp, services, two_bo
     after = _board(two_boards, created["board_id"])
     assert (before["grid_rows"], before["grid_cols"]) == (7, 17)
     assert (after["grid_rows"], after["grid_cols"]) == (18, 45)
+
+
+def test_update_panel_sets_the_render_style_and_list_panels_reads_it_back(mcp, services, two_boards, runtime):
+    created = assert_ok(call(mcp, "create_panel", name="Den TV"), "create_panel")
+    assert created["panel"]["render_style"] == "split_flap"
+
+    assert_ok(call(mcp, "update_panel", panel_id=created["panel_id"], render_style="led_matrix"), "update_panel")
+
+    assert runtime.panels.get_panel(created["panel_id"]).render_style == "led_matrix"
+    (listed,) = assert_ok(call(mcp, "list_panels"), "list_panels")["panels"]
+    assert listed["render_style"] == "led_matrix"
+
+
+def test_update_panel_rejects_an_unknown_render_style(mcp, services, two_boards, runtime):
+    created = assert_ok(call(mcp, "create_panel", name="Den TV"), "create_panel")
+    call_expect_error(mcp, "update_panel", panel_id=created["panel_id"], render_style="hologram")
+    assert runtime.panels.get_panel(created["panel_id"]).render_style == "split_flap"
 
 
 def test_update_panel_reports_an_unknown_panel(mcp, services, two_boards, runtime):
@@ -895,8 +964,8 @@ def test_run_network_diagnostics_diagnoses_the_primary_boards_connection(mcp, se
     )
     seen: list[dict[str, Any]] = []
 
-    def _run(**kwargs):
-        seen.append(kwargs)
+    def _run(board):
+        seen.append(board)
         return {
             "dns": {"ok": True},
             "internet": {"ok": True},
@@ -908,7 +977,7 @@ def test_run_network_diagnostics_diagnoses_the_primary_boards_connection(mcp, se
     with patch("src.network_diagnostics.run_full_diagnostics", side_effect=_run):
         result = assert_ok(call(mcp, "run_network_diagnostics"), "run_network_diagnostics")
 
-    assert seen[0]["board_host"] == "192.0.2.10" and seen[0]["use_cloud"] is False
+    assert seen[0]["host"] == "192.0.2.10" and seen[0].get("api_mode", "local") == "local"
     assert result["overall_ok"] is True
 
 
@@ -936,7 +1005,9 @@ def test_get_settings_summary_reports_every_update_setting_category(mcp, service
     summary = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
     for block in ("general", "display", "transitions", "output", "polling", "location", "silence_schedule"):
         assert block in summary, f"{block} missing from the summary"
-    assert summary["beta"]["transition_plugins_enabled"] is False
+    assert "beta" not in summary
+    assert set(summary["transitions"]) == {"strategy", "step_interval_ms", "step_size"}, "nothing extra serialized"
+    assert summary["plugins"]["transition_plugins_enabled"] is False
     assert "auto_update" in summary["plugins"]
     assert set(summary["general"]) == {"instance_name", "timezone", "time_format", "date_format", "welcome_message"}
 
@@ -973,12 +1044,12 @@ def test_boundary_backed_read_tools_leave_every_store_untouched(mcp, services, t
     async def _probe(provider, model=None):
         return AiTestResponse(ok=True, message="ok", model_used=None)
 
-    def _diag(**_kwargs):
+    def _diag(_board):
         return {"dns": {"ok": True}, "internet": {"ok": True}, "vestaboard": {"ok": True}, "overall_ok": True}
 
     before = _persisted_files(tmp_path)
     with (
-        patch("src.api_server.board_client_from_board_dict", return_value=_Probe()),
+        patch("src.settings.routes._live_board_driver", return_value=_Probe()),
         patch("src.system.update_service._perform_update_check", side_effect=_check),
         patch("src.ai.generator.test_provider", side_effect=_probe),
         patch("src.network_diagnostics.run_full_diagnostics", side_effect=_diag),
@@ -991,3 +1062,14 @@ def test_boundary_backed_read_tools_leave_every_store_untouched(mcp, services, t
 
     changed = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
     assert not changed, f"read-only tools changed persisted state: {changed}"
+
+
+def test_update_board_turns_auto_restore_off_and_the_summary_reports_it(mcp, services, two_boards, runtime):
+    """#2354: the assistant can tell, and change, whether a display is taken back from other apps."""
+    summary = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
+    assert {b["id"]: b["auto_restore"] for b in summary["boards"]} == {"board-main": True, "board-note": True}
+
+    result = assert_ok(call(mcp, "update_board", board_id="board-note", auto_restore=False), "update_board")
+
+    assert _board(two_boards, "board-note")["auto_restore"] is False
+    assert result["board"]["auto_restore"] is False

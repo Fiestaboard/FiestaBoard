@@ -369,9 +369,23 @@ def test_parity_schedule_lifecycle(tmp_path, mcp):
             "create_schedule",
             {"page_id": ctx["page_id"], "start_time": "07:00", "end_time": "09:00", "day_pattern": "weekdays"},
         )
-        chat("update_schedule", {"schedule_id": created["schedule_id"], "start_time": "08:00", "enabled": False})
+        chat(
+            "update_schedule",
+            {
+                "expected_revision": env.schedules.get_schedule(created["schedule_id"]).revision,
+                "schedule_id": created["schedule_id"],
+                "start_time": "08:00",
+                "enabled": False,
+            },
+        )
         doomed = chat("create_schedule", {"page_id": ctx["page_id"], "start_time": "10:00", "day_pattern": "all"})
-        chat("delete_schedule", {"schedule_id": doomed["schedule_id"]})
+        chat(
+            "delete_schedule",
+            {
+                "expected_revision": env.schedules.get_schedule(doomed["schedule_id"]).revision,
+                "schedule_id": doomed["schedule_id"],
+            },
+        )
 
     def mcp_steps(env):
         created = mcp_call(
@@ -382,9 +396,21 @@ def test_parity_schedule_lifecycle(tmp_path, mcp):
             end_time="09:00",
             day_pattern="weekdays",
         )
-        mcp_call(mcp, "update_schedule", schedule_id=created["schedule_id"], start_time="08:00", enabled=False)
+        mcp_call(
+            mcp,
+            "update_schedule",
+            expected_revision=env.schedules.get_schedule(created["schedule_id"]).revision,
+            schedule_id=created["schedule_id"],
+            start_time="08:00",
+            enabled=False,
+        )
         doomed = mcp_call(mcp, "create_schedule", page_id=ctx["page_id"], start_time="10:00", day_pattern="all")
-        mcp_call(mcp, "delete_schedule", schedule_id=doomed["schedule_id"])
+        mcp_call(
+            mcp,
+            "delete_schedule",
+            expected_revision=env.schedules.get_schedule(doomed["schedule_id"]).revision,
+            schedule_id=doomed["schedule_id"],
+        )
 
     assert_parity(tmp_path, chat_steps, mcp_steps, setup=setup)
 
@@ -418,10 +444,23 @@ def test_parity_update_collection_interval_on_variable_mode(tmp_path, mcp):
         ctx["collection_id"] = collection.id
 
     def chat_steps(env):
-        chat("update_collection", {"collection_id": ctx["collection_id"], "interval_seconds": 45})
+        chat(
+            "update_collection",
+            {
+                "expected_revision": env.collections.get_collection(ctx["collection_id"]).revision,
+                "collection_id": ctx["collection_id"],
+                "interval_seconds": 45,
+            },
+        )
 
     def mcp_steps(env):
-        mcp_call(mcp, "update_collection", collection_id=ctx["collection_id"], interval_seconds=45)
+        mcp_call(
+            mcp,
+            "update_collection",
+            expected_revision=env.collections.get_collection(ctx["collection_id"]).revision,
+            collection_id=ctx["collection_id"],
+            interval_seconds=45,
+        )
 
     assert_parity(tmp_path, chat_steps, mcp_steps, setup=setup)
 
@@ -440,7 +479,12 @@ def test_parity_collection_create_and_update(tmp_path, mcp):
         )
         chat(
             "update_collection",
-            {"collection_id": created["collection_id"], "page_ids": [ctx["p2"], ctx["p1"]], "interval_seconds": 45},
+            {
+                "expected_revision": env.collections.get_collection(created["collection_id"]).revision,
+                "collection_id": created["collection_id"],
+                "page_ids": [ctx["p2"], ctx["p1"]],
+                "interval_seconds": 45,
+            },
         )
 
     def mcp_steps(env):
@@ -450,6 +494,7 @@ def test_parity_collection_create_and_update(tmp_path, mcp):
         mcp_call(
             mcp,
             "update_collection",
+            expected_revision=env.collections.get_collection(created["collection_id"]).revision,
             collection_id=created["collection_id"],
             page_ids=[ctx["p2"], ctx["p1"]],
             interval_seconds=45,
@@ -592,10 +637,10 @@ def test_a_write_the_send_floor_dropped_is_refused_on_both_surfaces(tmp_path, mc
     from mcp.server.mcpserver.exceptions import ToolError
 
     from src.api_server import app
-    from src.board_client import BoardClient
+    from tests.first_party_drivers import cloud_driver
 
     now = {"t": 1000.0}
-    cloud = BoardClient(api_key="test_key", use_cloud=True, _time_func=lambda: now["t"])
+    cloud = cloud_driver("test_key", clock=lambda: now["t"])
     service = Mock()
     service.vb_client = cloud
     service.get_board_client.return_value = cloud
@@ -603,7 +648,7 @@ def test_a_write_the_send_floor_dropped_is_refused_on_both_surfaces(tmp_path, mc
 
     with (
         patch("src.api_server.get_service", return_value=service),
-        patch("src.board_client.requests.post") as post,
+        patch("requests.post") as post,
     ):
         post.return_value = Mock(raise_for_status=Mock())
         rest = TestClient(app)

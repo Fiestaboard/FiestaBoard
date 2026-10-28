@@ -1,0 +1,511 @@
+[
+  {
+    "id": "vestaboard",
+    "name": "Vestaboard",
+    "description": "A Vestaboard Flagship, Note or Note array, over the Local API or the cloud.",
+    "icon": "layout-grid",
+    "builtin": true,
+    "beta_gated": false,
+    "available": true,
+    "version": "1.5.0",
+    "output_api": 1,
+    "capabilities": {
+      "technology": "split_flap",
+      "delivery": "push",
+      "animation": "stream",
+      "native_transitions": ["column", "diagonal", "edges-to-center", "random", "reverse-column", "row"],
+      "charset": null,
+      "min_interval_ms": 0,
+      "read_back": null,
+      "write_timeout_ms": null,
+      "max_frames": null
+    },
+    "device_models": [
+      {
+        "id": "vestaboard_flagship",
+        "label": "Vestaboard Flagship",
+        "technology": "split_flap",
+        "family": "vestaboard",
+        "geometry": {
+          "kind": "cells",
+          "rows": 6,
+          "cols": 22
+        },
+        "color": {
+          "kind": "tiles"
+        },
+        "charset": "vestaboard_v1",
+        "charsetByCode62": {
+          "degree": "vestaboard_v1",
+          "heart": "vestaboard_v2"
+        },
+        "animation": {
+          "delivery": "stream",
+          "maxFps": 1,
+          "notes": "Frames are written by FiestaBoard one at a time (transition plugins step frame-by-frame); the board's own flap cascade animates each write. ~1 frame/s is the practical ceiling for legible flap motion on the local API. Cloud connections are additionally floored by FiestaBoard at one write per 15 s (transport policy, not device capability).",
+          "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
+        },
+        "appearance": {
+          "boardColors": ["black", "white"],
+          "options": {
+            "board_color": ["black", "white"]
+          }
+        },
+        "legacy": {
+          "deviceType": "flagship"
+        }
+      },
+      {
+        "id": "vestaboard_note",
+        "label": "Vestaboard Note",
+        "technology": "split_flap",
+        "family": "vestaboard",
+        "geometry": {
+          "kind": "cells",
+          "rows": 3,
+          "cols": 15
+        },
+        "color": {
+          "kind": "tiles"
+        },
+        "charset": "vestaboard_v2",
+        "animation": {
+          "delivery": "stream",
+          "maxFps": 1,
+          "notes": "Frames are written by FiestaBoard one at a time (transition plugins step frame-by-frame); the board's own flap cascade animates each write. ~1 frame/s is the practical ceiling for legible flap motion on the local API. Cloud connections are additionally floored by FiestaBoard at one write per 15 s (transport policy, not device capability).",
+          "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
+        },
+        "appearance": {
+          "boardColors": ["black", "white"],
+          "options": {
+            "board_color": ["black", "white"]
+          }
+        },
+        "legacy": {
+          "deviceType": "note"
+        }
+      },
+      {
+        "id": "vestaboard_note_array",
+        "label": "Vestaboard Note array",
+        "technology": "split_flap",
+        "family": "vestaboard",
+        "geometry": {
+          "kind": "note_array"
+        },
+        "color": {
+          "kind": "tiles"
+        },
+        "charset": "vestaboard_v2",
+        "animation": {
+          "delivery": "stream",
+          "maxFps": 1,
+          "notes": "Frames are written by FiestaBoard one at a time (transition plugins step frame-by-frame); the board's own flap cascade animates each write. ~1 frame/s is the practical ceiling for legible flap motion on the local API. Cloud connections are additionally floored by FiestaBoard at one write per 15 s (transport policy, not device capability).",
+          "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
+        },
+        "appearance": {
+          "boardColors": ["black", "white"],
+          "options": {
+            "board_color": ["black", "white"]
+          }
+        },
+        "legacy": {
+          "deviceType": "note_array"
+        }
+      }
+    ],
+    "character_set": null,
+    "settings_schema": {
+      "type": "object",
+      "properties": {
+        "api_mode": {
+          "type": "string",
+          "title": "Connection",
+          "enum": ["local", "cloud"],
+          "default": "local",
+          "ui:widget": "mode-cards",
+          "ui:options": {
+            "cards": [
+              {
+                "value": "local",
+                "title": "Local API",
+                "description": "Direct connection on your network"
+              },
+              {
+                "value": "cloud",
+                "title": "Cloud API",
+                "description": "Through Vestaboard's cloud"
+              }
+            ]
+          }
+        },
+        "host": {
+          "type": "string",
+          "title": "Board IP Address",
+          "description": "Enter the address yourself, or find the board on your network.",
+          "ui:placeholder": "192.168.1.100",
+          "ui:widget": "device-picker",
+          "ui:options": {
+            "action": "discover",
+            "value_key": "ip",
+            "label_key": "hostname"
+          },
+          "ui:visible_when": {
+            "api_mode": "local",
+            "@device_type": ["flagship", "note"]
+          }
+        },
+        "local_api_key": {
+          "type": "string",
+          "title": "Local API Key",
+          "description": "No key yet? Use Get API Key from Board with the enablement token from vestaboard.com/local-api.",
+          "ui:placeholder": "Your local API key",
+          "secret": true,
+          "ui:visible_when": {
+            "api_mode": "local",
+            "@device_type": ["flagship", "note"]
+          }
+        },
+        "cloud_key": {
+          "type": "string",
+          "title": "Read/Write API Key",
+          "description": "Found in the Vestaboard app under Settings → Read/Write API.",
+          "ui:placeholder": "Enter R/W API key",
+          "secret": true,
+          "ui:visible_when": {
+            "api_mode": "cloud",
+            "@device_type": ["flagship", "note"]
+          }
+        },
+        "note_array_token": {
+          "type": "string",
+          "title": "Cloud API Token",
+          "description": "The X-Vestaboard-Token for this Note array, from your Vestaboard Cloud API subscription.",
+          "ui:placeholder": "Enter X-Vestaboard-Token",
+          "secret": true,
+          "ui:visible_when": {
+            "api_mode": "cloud",
+            "@device_type": "note_array"
+          }
+        },
+        "tiles": {
+          "type": "array",
+          "title": "Board tiles",
+          "description": "Click a slot to connect the Note that sits at that position on your wall. Use Identify to flash a slot number on a Note and confirm it is in the right place.",
+          "ui:widget": "tile-grid",
+          "ui:options": {
+            "layout": "board",
+            "item_actions": ["test_tile", "identify", "enable_local_api"],
+            "unique_fields": ["host", "port"]
+          },
+          "ui:visible_when": {
+            "api_mode": "local",
+            "@device_type": "note_array"
+          },
+          "items": {
+            "type": "object",
+            "required": ["host", "local_api_key"],
+            "properties": {
+              "row": {
+                "type": "integer",
+                "title": "Row",
+                "minimum": 0
+              },
+              "col": {
+                "type": "integer",
+                "title": "Column",
+                "minimum": 0
+              },
+              "host": {
+                "type": "string",
+                "title": "Board IP Address",
+                "description": "Enter the address yourself, or find the board on your network.",
+                "ui:placeholder": "192.168.1.100",
+                "ui:widget": "device-picker",
+                "ui:options": {
+                  "action": "discover",
+                  "value_key": "ip",
+                  "label_key": "hostname"
+                }
+              },
+              "port": {
+                "type": "integer",
+                "title": "Local API port",
+                "minimum": 1,
+                "maximum": 65535,
+                "default": 7000
+              },
+              "local_api_key": {
+                "type": "string",
+                "title": "Local API Key",
+                "description": "No key yet? Use Get API Key from Board with the enablement token from vestaboard.com/local-api.",
+                "ui:placeholder": "Your local API key",
+                "secret": true
+              },
+              "enabled": {
+                "type": "boolean",
+                "title": "Enabled",
+                "default": true
+              }
+            }
+          }
+        },
+        "port": {
+          "type": "integer",
+          "title": "Local API port",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 7000,
+          "ui:visible_when": {
+            "api_mode": "local",
+            "@device_type": ["flagship", "note"]
+          }
+        }
+      },
+      "required": ["host", "local_api_key", "cloud_key", "note_array_token", "tiles"],
+      "ui:sections": [
+        {
+          "id": "advanced",
+          "title": "Advanced",
+          "fields": ["port"],
+          "collapsible": true,
+          "collapsed": true
+        }
+      ]
+    },
+    "actions": [
+      {
+        "id": "test_connection",
+        "label": "Test Connection",
+        "description": "",
+        "builtin": true,
+        "input_schema": null,
+        "result_fields": {},
+        "visible_when": null,
+        "auto_apply": false
+      },
+      {
+        "id": "discover",
+        "label": "Scan network",
+        "description": "Find Vestaboards with the Local API on this network.",
+        "builtin": true,
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "timeout": {
+              "type": "number",
+              "title": "Scan seconds",
+              "minimum": 1.0,
+              "maximum": 15.0,
+              "default": 4.0
+            }
+          }
+        },
+        "result_fields": {},
+        "visible_when": {
+          "api_mode": "local"
+        },
+        "auto_apply": false
+      },
+      {
+        "id": "test_tile",
+        "label": "Test",
+        "description": "Check that this Note's address and key reach its Local API.",
+        "builtin": false,
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "row": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "col": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "local_api_key": {
+              "type": "string",
+              "secret": true
+            }
+          }
+        },
+        "result_fields": {},
+        "visible_when": {
+          "api_mode": "local",
+          "@device_type": "note_array"
+        },
+        "auto_apply": false
+      },
+      {
+        "id": "identify",
+        "label": "Identify",
+        "description": "Flash each note-array tile's position on it.",
+        "builtin": true,
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "target": {
+              "type": "string",
+              "enum": ["tile", "all"],
+              "default": "tile"
+            },
+            "row": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "col": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "local_api_key": {
+              "type": "string",
+              "secret": true
+            }
+          }
+        },
+        "result_fields": {},
+        "visible_when": {
+          "api_mode": "local",
+          "@device_type": "note_array"
+        },
+        "auto_apply": false
+      },
+      {
+        "id": "detect_geometry",
+        "label": "Auto-detect from board",
+        "description": "Read the board's current layout and set its type and size to match.",
+        "builtin": true,
+        "input_schema": null,
+        "result_fields": {},
+        "visible_when": {
+          "not": {
+            "api_mode": "local",
+            "@device_type": "note_array"
+          }
+        },
+        "auto_apply": true
+      },
+      {
+        "id": "enable_local_api",
+        "label": "Get API Key from Board",
+        "description": "Exchange a Local API enablement token (from vestaboard.com/local-api) for a Local API key.",
+        "builtin": false,
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "enablement_token": {
+              "type": "string",
+              "title": "Enablement Token",
+              "ui:placeholder": "Token from vestaboard.com/local-api",
+              "secret": true,
+              "minLength": 1
+            },
+            "host": {
+              "type": "string",
+              "title": "Board IP Address",
+              "ui:placeholder": "192.168.1.100"
+            }
+          },
+          "required": ["enablement_token"]
+        },
+        "result_fields": {
+          "api_key": {
+            "secret": true,
+            "fills": "local_api_key"
+          }
+        },
+        "visible_when": {
+          "api_mode": "local"
+        },
+        "auto_apply": false
+      }
+    ],
+    "declaration_revision": "a227b1e42cffa636783c68a3630d1eb62db624f631a811209ce3e7d48f9b3c50"
+  },
+  {
+    "id": "fiestapanel",
+    "name": "FiestaPanel",
+    "description": "Any TV or browser: a full-screen board FiestaBoard draws itself.",
+    "icon": "monitor",
+    "builtin": true,
+    "beta_gated": false,
+    "available": true,
+    "version": "1.0.1",
+    "output_api": 1,
+    "capabilities": {
+      "technology": "screen",
+      "delivery": "pull",
+      "animation": "stream",
+      "native_transitions": [],
+      "charset": null,
+      "min_interval_ms": 0,
+      "read_back": null,
+      "write_timeout_ms": null,
+      "max_frames": null
+    },
+    "device_models": [
+      {
+        "id": "vestaboard_panel",
+        "label": "Virtual panel",
+        "technology": "split_flap",
+        "family": "vestaboard",
+        "geometry": {
+          "kind": "panel"
+        },
+        "color": {
+          "kind": "tiles"
+        },
+        "charset": "vestaboard_v2",
+        "animation": {
+          "delivery": "stream",
+          "maxFps": 0.5,
+          "notes": "Virtual board shown by a browser or TV app that polls frames every ~2 s. A client sends one message at a time; the virtual flaps cascade each change.",
+          "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
+        },
+        "appearance": {
+          "boardColors": ["black", "white"],
+          "options": {
+            "board_color": ["black", "white"]
+          }
+        },
+        "legacy": {
+          "deviceType": "panel"
+        }
+      }
+    ],
+    "character_set": null,
+    "settings_schema": {
+      "type": "object",
+      "properties": {}
+    },
+    "actions": [
+      {
+        "id": "test_connection",
+        "label": "Test connection",
+        "description": "",
+        "builtin": true,
+        "input_schema": null,
+        "result_fields": {},
+        "visible_when": null,
+        "auto_apply": false
+      }
+    ],
+    "declaration_revision": "a72e9e9d6f0db8988e89bbb89953c09c877510852772c990e79a570698095eff"
+  }
+]

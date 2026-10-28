@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>Open-source self-hosted platform for controlling split-flap displays</strong>
+  <strong>Your data, out in the real world.</strong>
 </p>
 
 <p align="center">
@@ -18,9 +18,13 @@
 
 ## What is FiestaBoard?
 
-FiestaBoard is a free, open-source server that connects to your Vestaboard or compatible split-flap display and lets you control what it shows. Compatible with Vestaboard Flagship (22x6) and Note (15x3). Use built-in plugins to display weather, stocks, sports scores, transit times, surf conditions, and more.
+FiestaBoard turns live data into something you can glance at from across the room — your morning commute, the markets, the surf, a little Star Trek wisdom — on the displays around you: split-flap boards like Vestaboard, LED matrices like the Divoom Pixoo 64, or any TV with a browser. Pick from 60+ plugins, design pages in a visual editor, schedule what shows when, and build your own plugins. Free, open source, and self-hosted in Docker.
 
-You bring the board and the API keys for the services you care about. FiestaBoard handles the rest.
+Works with Vestaboard Flagship (22x6), Note (15x3), and Note arrays; the Divoom Pixoo 64 LED matrix; and any TV or screen with a web browser through [FiestaPanel](https://github.com/Fiestaboard/FiestaBoard/blob/a0ec7db1d29fdf4388c234a3d4f83bf11804c0b5/docs/displays/tv.md). Native Apple TV and Android TV apps are coming soon. See [Supported Displays](https://github.com/Fiestaboard/FiestaBoard/blob/a0ec7db1d29fdf4388c234a3d4f83bf11804c0b5/docs/displays/index.md).
+
+**Version availability:** Divoom Pixoo 64 support and the output-plugin setup described here target v10 (`next` / beta). Stable v9 does not include them. Native TV apps are coming soon; browser viewing is available.
+
+You bring the display and the API keys for the services you care about. FiestaBoard handles the rest.
 
 ## Quick Start
 
@@ -53,7 +57,7 @@ Then open **http://localhost:4420** to connect your board and start the service.
 
 ## What You Can Display
 
-FiestaBoard has a catalog of **50+ plugins**. Many work without any API key at all:
+FiestaBoard has a catalog of **60+ plugins**. Many work without any API key at all:
 
 | Plugin | Description | API Key? |
 |--------|-------------|----------|
@@ -68,13 +72,13 @@ FiestaBoard has a catalog of **50+ plugins**. Many work without any API key at a
 | Last.fm | Currently playing music | Yes (free) |
 | Visual Clock | Large pixel-art clock | No |
 | Star Trek Quotes | Quotes from TNG, Voyager, DS9 | No |
-| And 40+ more... | Transit, aircraft, ferries, WiFi, sun art, countdown, etc. | Varies |
+| And 50+ more... | Transit, aircraft, ferries, WiFi, sun art, countdown, etc. | Varies |
 
 ## Key Features
 
 - **WYSIWYG Page Editor** - Design pages visually with real-time preview
 - **Schedule Mode** - Automate which pages show at which times
-- **Multi-Device Support** - Vestaboard Flagship (22x6) and Note (15x3)
+- **Multi-Device Support** - Vestaboard Flagship (22x6), Note (15x3), Note arrays, and FiestaPanel virtual boards on any TV
 - **Silence Schedule** - Set quiet hours so the board doesn't flip at night
 - **Plugin Architecture** - Extend with your own custom data sources
 
@@ -103,7 +107,7 @@ Full documentation at **[fiestaboard.app](https://fiestaboard.app)**:
 
 - [Beginner's Guide](https://fiestaboard.app/docs/setup/beginners-guide) - Step-by-step for new users
 - [Your First 10 Minutes](https://fiestaboard.app/docs/setup/first-10-minutes) - What to do after setup
-- [Plugin Configuration](https://fiestaboard.app/docs/plugins/configuration) - Enable and configure data sources
+- [Plugin Directory](https://fiestaboard.app/plugins) - Browse and enable data sources
 - [Raspberry Pi Deployment](https://fiestaboard.app/docs/deployment/raspberry-pi) - Always-on setup
 - [Troubleshooting](https://fiestaboard.app/docs/troubleshooting) - Common issues and solutions
 

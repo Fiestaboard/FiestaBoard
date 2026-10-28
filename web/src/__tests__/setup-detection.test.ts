@@ -159,6 +159,27 @@ describe("setup-detection", () => {
       expect(saved.boardConfig.api_mode).toBe("local");
     });
 
+    it("never persists a credential inside the board's output_config", () => {
+      saveWizardProgress({
+        currentStep: 2,
+        boardConfig: {
+          output_config: {
+            api_mode: "local",
+            host: "192.168.1.1",
+            local_api_key: "example_local_key",
+            cloud_key: "example_cloud_key",
+            note_array_token: "example_token",
+            tiles: [{ row: 0, col: 0, host: "192.168.1.2", local_api_key: "example_tile_key" }],
+          },
+        },
+      });
+      const raw = localStorage.getItem(WIZARD_PROGRESS_KEY)!;
+      expect(raw).not.toMatch(/example_/);
+      const saved = JSON.parse(raw);
+      expect(saved.boardConfig.output_config.host).toBe("192.168.1.1");
+      expect(saved.boardConfig.output_config.tiles[0].host).toBe("192.168.1.2");
+    });
+
     it("does nothing when window is undefined (SSR)", () => {
       const originalWindow = globalThis.window;
       vi.stubGlobal("window", undefined);
@@ -174,7 +195,9 @@ describe("setup-detection", () => {
     });
 
     it("returns parsed progress", () => {
-      const progress: WizardProgress = { currentStep: 3 };
+      // Progress with no outputId predates the choose-a-display step and is
+      // upgraded on read (see wizard-default-board.test.ts).
+      const progress: WizardProgress = { currentStep: 3, outputId: "vestaboard" };
       localStorage.setItem(WIZARD_PROGRESS_KEY, JSON.stringify(progress));
       const result = getWizardProgress();
       expect(result).not.toBeNull();

@@ -1,52 +1,15 @@
 "use client";
 
-/**
- * The rail footer's account menu — the app half of FiestaUI's
- * `renderSettingsMenu` slot.
- *
- * Everything in here is app knowledge the design system has no business
- * holding: who is signed in, where `/settings` is, which theme is active,
- * and what the build number is. FiestaUI owns the trigger's paint
- * (`SidebarAccountTrigger` — avatar, name, chevrons) and the footer's
- * layout; this owns the contents.
- *
- * Settings is an item in here AND a gear beside the trigger (the Sidebar's
- * `settings` prop, wired in `navigation-sidebar.tsx`). Both on purpose: the
- * menu is where you look for it, the gear is where you reach for it.
- *
- * It replaces three separate rail affordances — the version string, the
- * theme toggle, and the sign-out row — none of which was worth the width it
- * took, and one of which (the version) could only render wrongly on the
- * collapsed rail.
- *
- * **Two shapes, one set of facts.** On the desktop rail the footer slot is a
- * narrow column, so the contents belong in a dropdown. In the mobile drawer
- * they do not: the drawer is already an overlay, its footer trigger is
- * full-width, and a 224px popup hanging off it — a second thing to dismiss,
- * over a panel the user just opened — was the whole of what "doesn't look
- * great on mobile" meant. So `variant="mobile"` renders the same facts as
- * inline rows instead. FiestaUI has always passed the variant into this slot;
- * the app simply threw it away.
- *
- * Inline rows are not a menu, which is why the mobile theme control can be a
- * real `SegmentedControl` while the desktop one stays three
- * `DropdownMenuRadioItem`s: inside a menu, arrow keys move between items, and
- * a radiogroup embedded there would break that contract.
- */
+/** App-owned identity, appearance and navigation in the sidebar footer. */
 
 import {
   Avatar,
+  Box,
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Flex,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   SegmentedControl,
   SegmentedControlItem,
   SidebarAccountTrigger,
@@ -81,14 +44,27 @@ interface SidebarSettingsMenuProps {
    * no trigger and the Sidebar dots the hamburger itself.
    */
   notice?: string;
+  /**
+   * Called when a mobile row navigates away — the Sidebar's `closeMenu`. The
+   * drawer is an overlay with no idea these rows navigate: left open, it
+   * covers the page Settings just routed to, and the tap reads as a no-op.
+   * The desktop dropdown closes itself and never calls this.
+   */
+  onSelect?: () => void;
 }
 
-export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", notice }: SidebarSettingsMenuProps) {
+export function SidebarSettingsMenu({
+  collapsed = false,
+  variant = "desktop",
+  notice,
+  onSelect,
+}: SidebarSettingsMenuProps) {
   const t = useTranslations("settingsMenu");
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const { data: authStatus } = useQuery({
     queryKey: ["auth-status"],
@@ -131,6 +107,18 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", no
   };
 
   const openSettings = () => router.push("/settings");
+  const openAccount = () => router.push("/settings?section=account");
+  const selectDesktop = (action: () => void) => () => {
+    setMenuOpen(false);
+    action();
+  };
+
+  // Mobile rows that leave for another route close the drawer first. About
+  // does not: its dialog opens over the drawer and closes back onto it.
+  const selectThen = (action: () => void) => () => {
+    onSelect?.();
+    action();
+  };
 
   // An update is something you act on, not a fact you read. `SystemUpdate`
   // renders at the top of /settings — above the tab strip, and nothing at all
@@ -163,7 +151,14 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", no
             </Flex>
           )}
 
-          <Button variant="ghost" className="h-11 w-full justify-start gap-2 px-2" onClick={openSettings}>
+          {signedIn && (
+            <Button variant="ghost" className="h-11 w-full justify-start gap-2 px-2" onClick={selectThen(openAccount)}>
+              <Avatar size="sm" name={username ?? undefined} />
+              {t("account")}
+            </Button>
+          )}
+
+          <Button variant="ghost" className="h-11 w-full justify-start gap-2 px-2" onClick={selectThen(openSettings)}>
             <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
             {t("settings")}
           </Button>
@@ -204,7 +199,7 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", no
             <Button
               variant="ghost"
               className="h-11 w-full justify-start gap-2 px-2 text-brand-emphasis"
-              onClick={openSettings}
+              onClick={selectThen(openSettings)}
             >
               <ArrowUpCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
               <Text as="span" className="truncate">
@@ -228,7 +223,11 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", no
               </Text>
             </Button>
             {signedIn && (
-              <Button variant="ghost" className="h-11 min-w-0 flex-1 justify-start gap-2 px-2" onClick={handleSignOut}>
+              <Button
+                variant="ghost"
+                className="h-11 min-w-0 flex-1 justify-start gap-2 px-2"
+                onClick={selectThen(handleSignOut)}
+              >
                 <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <Text as="span" className="truncate">
                   {t("signOut")}
@@ -245,102 +244,97 @@ export function SidebarSettingsMenu({ collapsed = false, variant = "desktop", no
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+        <PopoverTrigger asChild>
           <SidebarAccountTrigger label={label} anonymous={!username} collapsed={collapsed} notice={notice} />
-        </DropdownMenuTrigger>
-        {/* side="top": the trigger is the bottom-most thing on the rail, so
-            the menu has nowhere to go but up. align="start" keeps its left
-            edge on the trigger's, which on the collapsed rail is what stops
-            it opening off the left of the screen. */}
-        <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-56">
+        </PopoverTrigger>
+        <PopoverContent
+          side="top"
+          align="start"
+          sideOffset={8}
+          label={t("popoverLabel")}
+          className="w-[304px] max-w-[calc(100vw-24px)] max-h-[var(--available-height)] overflow-y-auto p-0"
+        >
           {username && (
-            <>
-              {/* Text only — the avatar is on the trigger this menu hangs
-                  off. break-words, not truncate: the trigger shortens a long
-                  name and the collapsed rail shows none of it, so this is the
-                  one place it is always spelled out in full. */}
-              <DropdownMenuLabel className="break-words">{username}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-            </>
+            <Flex align="center" gap="3" className="border-b p-3">
+              <Avatar size="md" name={username} />
+              <Box className="min-w-0 flex-1">
+                <Text size="sm" weight="medium" className="break-words">
+                  {username}
+                </Text>
+                <Button variant="link" className="h-auto p-0 text-xs" onClick={selectDesktop(openAccount)}>
+                  {t("account")}
+                  <ChevronRight className="size-3" aria-hidden="true" />
+                </Button>
+              </Box>
+            </Flex>
           )}
-
-          <DropdownMenuItem onClick={() => router.push("/settings")}>
-            <Settings aria-hidden="true" />
-            {t("settings")}
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>{t("appearance")}</DropdownMenuLabel>
-            {/* Three choices with the current one checked, not a two-state
-                toggle. The toggle this replaces could not express "follow
-                the system", which is the default the app actually ships —
-                so a fresh install showed a sun-or-moon button that disagreed
-                with the theme on screen. */}
-            <DropdownMenuRadioGroup
+          <Stack gap="2" className="border-b p-3">
+            <Text size="xs" tone="muted">
+              {t("appearance")}
+            </Text>
+            <SegmentedControl
+              aria-label={t("appearance")}
+              size="md"
+              className="w-full"
               value={theme}
               onValueChange={(value) => setTheme(value as "light" | "dark" | "system")}
             >
-              <DropdownMenuRadioItem value="light">
+              <SegmentedControlItem value="light">
                 <Sun aria-hidden="true" />
                 {t("light")}
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="dark">
+              </SegmentedControlItem>
+              <SegmentedControlItem value="dark">
                 <Moon aria-hidden="true" />
                 {t("dark")}
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="system">
+              </SegmentedControlItem>
+              <SegmentedControlItem value="system">
                 <Monitor aria-hidden="true" />
                 {t("system")}
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuGroup>
-
-          <DropdownMenuSeparator />
-
-          {/* The version, stated here rather than only inside About. About
-              is one click further away, and the build number is the thing
-              people come to this menu to read — so it earns its line even
-              though About repeats it. #2038 moved the version off the rail
-              (where the collapsed state could only render it wrongly); this
-              puts it back where there is room for it. */}
-          {versionLine && (
-            <DropdownMenuLabel className="font-normal text-muted-foreground">
-              <Text as="span" className="truncate">
+              </SegmentedControlItem>
+            </SegmentedControl>
+          </Stack>
+          <Stack gap="0.5" className="p-1.5">
+            <Button variant="ghost" className="w-full justify-start gap-2" onClick={selectDesktop(openSettings)}>
+              <Settings className="size-4" aria-hidden="true" />
+              {t("settings")}
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={selectDesktop(() => setAboutOpen(true))}
+            >
+              <Info className="size-4" aria-hidden="true" />
+              {t("about")}
+            </Button>
+            {versionLine && (
+              <Text size="xs" tone="muted" className="px-3 py-1">
                 {versionLine}
               </Text>
-            </DropdownMenuLabel>
-          )}
-
-          {/* The version line above states what is running; this states what
-              to do about it. It replaced a badge on that line which named the
-              waiting version and went nowhere — two mentions of 8.39.0 in a
-              224px menu, neither of them clickable. */}
-          {updateLabel && (
-            <DropdownMenuItem onClick={openSettings} className="text-brand-emphasis">
-              <ArrowUpCircle aria-hidden="true" />
-              {updateLabel}
-            </DropdownMenuItem>
-          )}
-
-          <DropdownMenuItem onClick={() => setAboutOpen(true)}>
-            <Info aria-hidden="true" />
-            {t("about")}
-          </DropdownMenuItem>
-
+            )}
+            {updateLabel && (
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2 text-brand-emphasis"
+                onClick={selectDesktop(openSettings)}
+              >
+                <ArrowUpCircle className="size-4 shrink-0" aria-hidden="true" />
+                <Text as="span" className="truncate">
+                  {updateLabel}
+                </Text>
+              </Button>
+            )}
+          </Stack>
           {signedIn && (
-            <DropdownMenuItem onClick={handleSignOut}>
-              <LogOut aria-hidden="true" />
-              {t("signOut")}
-            </DropdownMenuItem>
+            <Box className="border-t p-1.5">
+              <Button variant="ghost" className="w-full justify-start gap-2" onClick={selectDesktop(handleSignOut)}>
+                <LogOut className="size-4" aria-hidden="true" />
+                {t("signOut")}
+              </Button>
+            </Box>
           )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Outside the menu, deliberately: the menu unmounts as it closes, and
-          a dialog mounted inside it would go with it. */}
+        </PopoverContent>
+      </Popover>
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
     </>
   );

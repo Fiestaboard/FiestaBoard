@@ -44,19 +44,21 @@ import {
   TextLink,
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
-import { Loader2, Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
+import { Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { AuthStatusResponse } from "@/lib/api";
 import { apiUrl } from "@/lib/base-path";
+import { safeRedirect } from "@/lib/safe-redirect";
 
 type AuthStatus = AuthStatusResponse;
 
 async function fetchAuthStatus(): Promise<AuthStatus> {
   const res = await fetch(apiUrl("/auth/status"), {
     credentials: "include",
+    cache: "no-store",
     headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) {
@@ -72,6 +74,7 @@ async function postJson(
   const res = await fetch(apiUrl(path), {
     method: "POST",
     credentials: "include",
+    cache: "no-store",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -90,7 +93,7 @@ async function postJson(
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/";
+  const redirectTo = safeRedirect(searchParams.get("redirect"));
   const t = useTranslations("login");
   const tCommon = useTranslations("common");
 
@@ -272,6 +275,7 @@ export default function LoginPage() {
     return (
       <CenteredCard
         tCommon={tCommon}
+        loading
         icon={<Spinner size="lg" className="size-6" label={null} />}
         title={t("loadingTitle")}
       >
@@ -285,6 +289,7 @@ export default function LoginPage() {
     return (
       <CenteredCard
         tCommon={tCommon}
+        loading
         icon={<Spinner size="lg" className="size-6" label={null} />}
         title={t("redirectingTitle")}
       >
@@ -316,7 +321,7 @@ export default function LoginPage() {
           <Button type="button" variant="outline" className="w-full" onClick={handleSkipAuth} disabled={submitting}>
             {submitting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" /> {t("disablingButton")}
+                <Spinner label={null} className="h-4 w-4" /> {t("disablingButton")}
               </>
             ) : (
               t("protectSkipButton")
@@ -398,7 +403,7 @@ export default function LoginPage() {
           <Button type="submit" variant="brand" className="w-full" disabled={submitting}>
             {submitting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" /> {t("creatingButton")}
+                <Spinner label={null} className="h-4 w-4" /> {t("creatingButton")}
               </>
             ) : (
               t("createButton")
@@ -465,7 +470,7 @@ export default function LoginPage() {
         <Button type="submit" variant="brand" className="w-full" disabled={submitting}>
           {submitting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" /> {t("submittingButton")}
+              <Spinner label={null} className="h-4 w-4" /> {t("submittingButton")}
             </>
           ) : (
             t("submitButton")
@@ -484,18 +489,20 @@ function CenteredCard({
   description,
   children,
   tCommon,
+  loading = false,
 }: {
   icon: React.ReactNode;
   title: string;
   description?: string;
   children: React.ReactNode;
   tCommon: ReturnType<typeof useTranslations>;
+  loading?: boolean;
 }) {
   const t = useTranslations("login");
   return (
     <Flex direction="col" align="center" justify="center" className="min-h-screen bg-background p-4">
       <Flex align="center" gap="3" className="mb-6">
-        <FiestaIcon size={36} className="flex-shrink-0" />
+        {!loading && <FiestaIcon size={36} className="flex-shrink-0" />}
         <FiestaLogo className="text-2xl" />
       </Flex>
       <Card className="w-full max-w-md">

@@ -3,8 +3,9 @@
 A :class:`TransitionRunner` is constructed once with a resolver callable
 that maps a plugin id to a loaded
 :class:`~src.plugins.base.TransitionPluginBase` instance.  At runtime the
-:class:`~src.board_client.BoardClient` invokes :meth:`TransitionRunner.run`
-with the target grid and a cancellation event.  The runner:
+board's :class:`~src.outputs.runtime.OutputRuntime` (which drives every
+transition) invokes :meth:`TransitionRunner.run` with the target grid, a
+frame sink over the board's driver, and the run's cancel token.  The runner:
 
 1. Resolves the plugin and reads its ``transition_settings`` caps.
 2. Determines the "from" grid (current board state or a blank fallback).
@@ -49,12 +50,7 @@ def unpack_frame(frame: Any) -> tuple[list[list[int]] | None, int]:
     Accepts ``(grid, delay)`` tuples and bare grids (treated as zero delay).
     Returns ``(None, 0)`` on shapes we can't make sense of, leaving the caller
     to decide what that means — :meth:`TransitionRunner._drive_generator`
-    aborts the run, while ``/transitions/preview`` skips the frame.
-
-    Module level, not a method, because both callers are outside this class:
-    ``src/transitions/service.py`` open-coded a byte-for-byte copy of this
-    coercion until the router→service move gave the two loops one definition
-    of what a frame is.
+    aborts the run.
     """
     if isinstance(frame, tuple) and len(frame) == 2:
         grid, delay = frame
@@ -152,16 +148,18 @@ class TransitionRunner:
         Args:
             plugin_id: Transition plugin id to invoke.
             to_grid: Target grid the transition should end on.
-            board_client: Object with ``send_characters(grid, strategy=None,
-                force=False)`` and optional ``read_current_message()``.
+            board_client: Where frames go: an object with
+                ``send_characters(grid, strategy=None, force=False)`` and
+                ``min_send_interval_ms`` (the device's declared send floor,
+                which paces frames). The runtime passes a sink over the
+                board's driver.
             cancel_event: Threading event that, when set, asks the runner
                 to wind down at the next delay boundary.
             device_type: Optional ``"flagship"`` / ``"note"`` hint used to
                 resolve dimensions.  Defaults to the grid's shape.
-            from_grid: Optional explicit starting grid.  When *None* the
-                runner reads from ``board_client._last_characters`` (the
-                cache populated by previous sends), falling back to
-                ``read_current_message()`` and finally a blank grid.
+            from_grid: Starting grid — what the board is known to show.
+                ``render()`` passes the board runtime's dedupe cache.  When
+                *None* the transition starts from a blank grid.
             config: Optional plugin config override.  When *None* the
                 runner uses the plugin's currently bound ``config`` dict.
 
@@ -180,7 +178,7 @@ class TransitionRunner:
             return board_client.send_characters(to_grid, strategy=None, force=True)
 
         device = self._resolve_device(to_grid, device_type)
-        from_grid_resolved = self._resolve_from_grid(board_client, to_grid, from_grid)
+        from_grid_resolved = self._resolve_from_grid(to_grid, from_grid)
         config_resolved = dict(config) if config is not None else dict(plugin.config or {})
         caps = plugin.transition_settings
 
@@ -242,6 +240,62 @@ class TransitionRunner:
         was_sent = bool(result.frames_sent) or snap_sent
         return (snap_success, was_sent)
 
+    def collect_frames(
+        self,
+        plugin_id: str,
+        to_grid: list[list[int]],
+        cancel_event: Event | None = None,
+        device_type: str | None = None,
+        from_grid: list[list[int]] | None = None,
+        config: dict | None = None,
+    ) -> list[tuple[list[list[int]], int]] | None:
+        """*plugin_id*'s frames toward *to_grid*, collected rather than sent.
+
+        For a device that takes a whole timed sequence in one upload
+        (``animation: sequence``): the board's runtime hands the result to
+        the driver's ``write_sequence``. Each entry is ``(grid, duration_ms)``,
+        the duration clamped to the plugin's ``min_interval_ms`` exactly as
+        :meth:`run` paces sends. The manifest caps (``max_frames``,
+        ``max_runtime_seconds``) and interruptibility hold; nothing sleeps.
+        The last entry is always *to_grid*, so the device lands on the exact
+        target whatever the generator did.
+
+        Returns ``None`` when the run was cancelled: a newer frame has its
+        own target, and uploading this one would flash the wrong content.
+        """
+        plugin = self._resolver(plugin_id)
+        if plugin is None:
+            logger.warning("TransitionRunner: plugin %r not found; sequence is the target alone", plugin_id)
+            return [(to_grid, 0)]
+        caps = plugin.transition_settings
+        min_interval_ms = int(caps.get("min_interval_ms", 50))
+        max_frames = int(caps.get("max_frames", 500))
+        max_runtime_s = int(caps.get("max_runtime_seconds", 120))
+        respect_cancel = bool(caps.get("interruptible", True))
+        device = self._resolve_device(to_grid, device_type)
+        config_resolved = dict(config) if config is not None else dict(plugin.config or {})
+        frames: list[tuple[list[list[int]], int]] = []
+        started = time.monotonic()
+        try:
+            generator = plugin.generate_frames(
+                self._resolve_from_grid(to_grid, from_grid), to_grid, device, config_resolved
+            )
+            for frame in generator:
+                if respect_cancel and cancel_event is not None and cancel_event.is_set():
+                    return None
+                if len(frames) >= max_frames or time.monotonic() - started >= max_runtime_s:
+                    break
+                grid, delay_ms = unpack_frame(frame)
+                if grid is None:
+                    break
+                frames.append((grid, max(int(delay_ms or 0), min_interval_ms)))
+        except Exception as exc:
+            logger.exception("TransitionRunner: plugin %s raised while collecting frames: %s", plugin_id, exc)
+        if respect_cancel and cancel_event is not None and cancel_event.is_set():
+            return None
+        frames.append((to_grid, 0))
+        return frames
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -272,15 +326,14 @@ class TransitionRunner:
 
     def _resolve_from_grid(
         self,
-        board_client: Any,
         to_grid: list[list[int]],
         explicit: list[list[int]] | None,
     ) -> list[list[int]]:
         """Pick a starting grid for the transition.
 
-        Priority: explicit override → cached ``_last_characters`` → blank
-        grid sized like ``to_grid``.  We deliberately do *not* fall back to
-        a live ``read_current_message()`` call: that's a network round-trip
+        Priority: explicit grid (``render()`` passes the runtime's dedupe
+        cache) → blank grid sized like ``to_grid``.  We deliberately do *not*
+        fall back to a live ``read_current_message()`` call: that's a network round-trip
         under the send lock, and historically it returns text rather than
         a grid (so the result is rejected anyway).  A blank from-grid is a
         safe default — the runner's final snap (or the next non-cancelled
@@ -289,13 +342,9 @@ class TransitionRunner:
         rows = len(to_grid)
         cols = len(to_grid[0]) if rows else 0
 
-        source = explicit
-        if source is None:
-            cached = getattr(board_client, "_last_characters", None)
-            source = cached if isinstance(cached, list) and cached else None
-        if source is None:
+        if explicit is None:
             return [[0] * cols for _ in range(rows)]
-        return _fit_grid(source, rows, cols)
+        return _fit_grid(explicit, rows, cols)
 
     def _drive_generator(
         self,

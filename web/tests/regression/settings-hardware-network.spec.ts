@@ -1,6 +1,6 @@
 /**
  * Auto-generated regression stubs from .claude/ux-coverage.json.
- * Subarea: settings.tab-hardware + settings.tab-network
+ * Subarea: settings.tab-hardware (now Displays, plan D21) + settings.tab-network
  */
 import type { Page } from "@playwright/test";
 
@@ -12,6 +12,8 @@ import {
   ensureTwoBoards,
   expect,
   loginIfNeeded,
+  openDisplay,
+  openDisplays,
   openSettingsTab,
   resetToSingleBoard,
   test,
@@ -29,7 +31,7 @@ test.beforeEach(async ({ context, page }) => {
 test.describe("regression: settings.hardware", () => {
   /**
    * UX node: settings.tab-hardware
-   * Route: /settings (Hardware tab)
+   * Route: /displays/:boardId (was /settings, Hardware tab)
    * Expected (missing from current coverage):
    *   - enablement-token toggle mode exercised in UI
    *   - FiestaBoard cloud registry boards path tested
@@ -37,21 +39,18 @@ test.describe("regression: settings.hardware", () => {
    * Coverage status: partial
    */
   test("settings.tab-hardware — enablement token mode + cloud registry boards", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    // The board's own page on Displays holds its connection form
+    await openDisplay(page, "My Board");
 
-    await openSettingsTab(page, "Hardware");
-
-    // Expand the board card to reveal connection form
-    await page.getByText("My Board").first().click();
-
-    // Toggle to enablement_token mode and assert the token-specific UI surfaces
-    const tokenToggle = page.getByRole("button", { name: /Enablement Token/i }).first();
-    await expect(tokenToggle).toBeVisible({ timeout: 10_000 });
-    await tokenToggle.click();
-
-    // "Get API Key from Board" button appears in token mode
-    await expect(page.getByRole("button", { name: /Get API Key from Board/i })).toBeVisible({ timeout: 10_000 });
+    // "Get API Key from Board" (the manifest's enable_local_api action) asks
+    // for the enablement token in a dialog.
+    const getKey = page.getByRole("button", { name: /Get API Key from Board/i }).first();
+    await expect(getKey).toBeVisible({ timeout: 10_000 });
+    await getKey.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByLabel(/Enablement Token/i)).toBeVisible({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
 
     // Now switch to cloud API mode (the FiestaBoard cloud registry path).
     // The mode picker is a radiogroup, and each tile's accessible name is its
@@ -69,7 +68,7 @@ test.describe("regression: settings.hardware", () => {
 
   /**
    * UX node: settings.hardware.remove-board-confirm
-   * Route: /settings (Hardware tab)
+   * Route: /displays/:boardId (was /settings, Hardware tab)
    * Expected (missing from current coverage):
    *   - 'atLeastOneBoard' toast asserted by exact i18n key
    *   - 'boardRemoved' success toast verified by text
@@ -79,14 +78,13 @@ test.describe("regression: settings.hardware", () => {
   test("settings.hardware.remove-board-confirm — exact i18n toasts on remove guard + success", async ({ page }) => {
     await ensureTwoBoards();
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    await openDisplays(page);
 
-    await openSettingsTab(page, "Hardware");
-
-    // Expand the Note board (3 × 15) to access its Remove button
-    await expect(page.getByText("3 × 15").first()).toBeVisible({ timeout: 10_000 });
-    await page.getByText("3 × 15").first().click();
+    // Open the Note board's (3 × 15) page to access its Remove button
+    const noteCard = page.getByTestId("display-card").filter({ hasText: "3 × 15" });
+    await expect(noteCard).toBeVisible({ timeout: 10_000 });
+    await noteCard.getByRole("link", { name: /^Open settings for / }).click();
+    await page.getByRole("tab", { name: "Settings", exact: true }).click();
 
     const removeBtn = page.getByRole("button", { name: /Remove Board/i }).first();
     await expect(removeBtn).toBeEnabled({ timeout: 10_000 });
@@ -102,9 +100,10 @@ test.describe("regression: settings.hardware", () => {
     const data = await res.json();
     expect(data.boards.length).toBe(1);
 
-    // Now the remaining board's Remove button is disabled (atLeastOneBoard guard)
-    // Expand the last remaining board (My Board) by clicking its name
-    await page.getByText("My Board").first().click();
+    // Removing it went back to Displays. Now the remaining board's Remove
+    // button is disabled (atLeastOneBoard guard) on its own page.
+    await expect(page).toHaveURL(/\/displays$/, { timeout: 10_000 });
+    await openDisplay(page, "My Board");
     const lastRemoveBtn = page.getByRole("button", { name: /Remove Board/i });
     await expect(lastRemoveBtn).toBeDisabled({ timeout: 10_000 });
 
@@ -113,44 +112,42 @@ test.describe("regression: settings.hardware", () => {
 
   /**
    * UX node: settings.hardware.enabling
-   * Route: /settings (Hardware tab)
+   * Route: /displays/:boardId (was /settings, Hardware tab)
    * Preconditions: enable-mutation:pending
    * Expected: 'Enabling...' label on enablement-token button; button disabled
    * Source refs: web/src/components/settings/hardware/*
    * Coverage status: uncovered
    */
   test.fixme("settings.hardware.enabling — enablement-token pending state", async ({ page }) => {
-    // Stall the enable-local-api endpoint so the button stays in pending state
-    await page.route("**/api/board/enable-local-api", async (route) => {
+    // Stall the board's enable_local_api action so the button stays in pending state
+    await page.route("**/boards/*/actions/enable_local_api", async (route) => {
       await new Promise((r) => setTimeout(r, 4_000));
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ success: true, api_key: "test-from-enable" }),
+        body: JSON.stringify({
+          status: "ok",
+          message: "Local API enabled.",
+          guidance: [],
+          geometry: null,
+          devices: null,
+          fields: { api_key: { value: "test-from-enable", secret: true, fills: "local_api_key" } },
+        }),
       });
     });
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await openSettingsTab(page, "Hardware");
+    await openDisplay(page, "My Board");
 
-    // Expand the board card
-    await page.getByText("My Board").first().click();
-
-    // Switch to enablement_token mode
-    await page
-      .getByRole("button", { name: /Enablement Token/i })
-      .first()
-      .click();
-
-    // Fill the token field (board host is already set by configureBoard)
-    const tokenInput = page.locator("input[placeholder*='vestaboard.com/local-api']").first();
-    await expect(tokenInput).toBeVisible({ timeout: 10_000 });
-    await tokenInput.fill("test-enable-token");
-
+    // Ask for a key (board host is already set by configureBoard)
     const getKeyBtn = page.getByRole("button", { name: /Get API Key from Board/i });
     await expect(getKeyBtn).toBeEnabled({ timeout: 10_000 });
     await getKeyBtn.click();
+
+    // Fill the token in the action's dialog and run it
+    const tokenInput = page.locator("input[placeholder*='vestaboard.com/local-api']").first();
+    await expect(tokenInput).toBeVisible({ timeout: 10_000 });
+    await tokenInput.fill("test-enable-token");
+    await page.getByRole("dialog").getByRole("button", { name: "Next" }).click();
 
     // While the mocked request is in-flight, the button becomes disabled.
     // Label may be "Enabling..." or stay as "Get API Key" — assert the
@@ -188,8 +185,8 @@ test.describe("regression: settings.network", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Hardware tab is always present; Network tab must NOT be present.
-    await expect(page.getByRole("tab", { name: "Hardware", exact: true })).toBeVisible();
+    // General tab is always present; Network tab must NOT be present.
+    await expect(page.getByRole("tab", { name: "General", exact: true })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Network", exact: true })).toHaveCount(0);
   });
 

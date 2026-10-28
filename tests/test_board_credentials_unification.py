@@ -24,10 +24,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
+import requests
 from fastapi.testclient import TestClient
+
+from src.settings.board_shape import board_view
+from tests.first_party_drivers import vestaboards_built
 
 # Clearly-fake test credentials (never real keys).
 LIVE_KEY = "test_live_settings_key"
@@ -136,14 +140,14 @@ class TestLegacyCredentialMigration:
 
         svc = _new_settings_service()
 
-        first = svc.get_board_settings().boards[0]
+        first = board_view(svc.get_board_settings().boards[0])
         assert first["local_api_key"] == STALE_KEY
         assert first["host"] == STALE_HOST
 
         on_disk = _settings_on_disk(data_dir)
         assert CURRENT_SETTINGS_SCHEMA_VERSION >= 3, "board-credential migration must bump the settings schema"
         assert on_disk["schema_version"] == CURRENT_SETTINGS_SCHEMA_VERSION
-        assert on_disk["board"]["boards"][0]["local_api_key"] == STALE_KEY
+        assert on_disk["board"]["boards"][0]["output_config"]["local_api_key"] == STALE_KEY
 
     def test_migration_is_gated_on_schema_version_not_heuristics(self, data_dir):
         """A settings file already at the current schema version is never
@@ -159,7 +163,7 @@ class TestLegacyCredentialMigration:
 
         svc = _new_settings_service()
 
-        first = svc.get_board_settings().boards[0]
+        first = board_view(svc.get_board_settings().boards[0])
         assert first.get("local_api_key", "") == "", "stale config.json credentials were re-copied heuristically"
         assert first.get("host", "") == ""
 
@@ -173,13 +177,13 @@ class TestLegacyCredentialMigration:
         _write_settings(data_dir, [_board(local_api_key=LIVE_KEY, host=LIVE_HOST)], schema_version=2)
 
         svc = _new_settings_service()
-        first = svc.get_board_settings().boards[0]
+        first = board_view(svc.get_board_settings().boards[0])
         assert first["local_api_key"] == LIVE_KEY
         assert first["host"] == LIVE_HOST
 
         # Idempotent re-run: a second boot leaves everything as-is.
         svc2 = _new_settings_service()
-        first2 = svc2.get_board_settings().boards[0]
+        first2 = board_view(svc2.get_board_settings().boards[0])
         assert first2["local_api_key"] == LIVE_KEY
         assert first2["host"] == LIVE_HOST
         assert _settings_on_disk(data_dir)["schema_version"] == CURRENT_SETTINGS_SCHEMA_VERSION
@@ -191,7 +195,7 @@ class TestLegacyCredentialMigration:
 
         svc = _new_settings_service()
 
-        first = svc.get_board_settings().boards[0]
+        first = board_view(svc.get_board_settings().boards[0])
         assert first["local_api_key"] == STALE_KEY
         assert first["host"] == STALE_HOST
 
@@ -202,7 +206,7 @@ class TestLegacyCredentialMigration:
 
         svc = _new_settings_service()
 
-        first = svc.get_board_settings().boards[0]
+        first = board_view(svc.get_board_settings().boards[0])
         assert first["cloud_key"] == "test_key"
 
     def test_devices_era_settings_still_import_legacy_credentials(self, data_dir):
@@ -227,13 +231,13 @@ class TestLegacyCredentialMigration:
 
         svc = _new_settings_service()
 
-        first = svc.get_board_settings().boards[0]
+        first = board_view(svc.get_board_settings().boards[0])
         assert first["local_api_key"] == STALE_KEY, "devices-era install stranded its credentials in config.json"
         assert first["host"] == STALE_HOST
 
         on_disk = _settings_on_disk(data_dir)
         assert on_disk["schema_version"] == CURRENT_SETTINGS_SCHEMA_VERSION
-        assert on_disk["board"]["boards"][0]["local_api_key"] == STALE_KEY
+        assert on_disk["board"]["boards"][0]["output_config"]["local_api_key"] == STALE_KEY
 
     def test_virtual_primary_is_never_clobbered_by_stale_credentials(self, data_dir):
         """A FiestaPanel primary (api_mode="virtual") carries no credential
@@ -248,7 +252,7 @@ class TestLegacyCredentialMigration:
 
         svc = _new_settings_service()
 
-        first = svc.get_board_settings().boards[0]
+        first = board_view(svc.get_board_settings().boards[0])
         assert first["api_mode"] == "virtual", "stale physical credentials flipped a virtual primary"
         assert first.get("local_api_key", "") == ""
         assert first.get("host", "") == ""
@@ -273,7 +277,7 @@ class TestLegacyCredentialMigration:
         )
 
         svc = _new_settings_service()
-        assert svc.get_board_settings().boards[0]["local_api_key"] == STALE_KEY
+        assert board_view(svc.get_board_settings().boards[0])["local_api_key"] == STALE_KEY
         from src.settings.service import CURRENT_SETTINGS_SCHEMA_VERSION
 
         assert _settings_on_disk(data_dir)["schema_version"] == CURRENT_SETTINGS_SCHEMA_VERSION
@@ -291,7 +295,7 @@ class TestLegacyCredentialMigration:
 
         svc = _new_settings_service()
 
-        first = svc.get_board_settings().boards[0]
+        first = board_view(svc.get_board_settings().boards[0])
         assert first.get("note_array_token", "") == "", "a note-array token was seeded onto a flagship board"
         assert not BoardInstance.from_dict(first).has_connection_attempt, (
             "token-only seed suppressed the setup wizard with no buildable client"
@@ -305,7 +309,7 @@ class TestLegacyCredentialMigration:
 
         svc = _new_settings_service()
 
-        assert svc.get_board_settings().boards[0]["note_array_token"] == "test_na_token"
+        assert board_view(svc.get_board_settings().boards[0])["note_array_token"] == "test_na_token"
 
     def test_migrated_credentials_drive_client_construction(self, data_dir):
         """Upgrade acceptance: after the migration, the board runtime is built
@@ -321,7 +325,7 @@ class TestLegacyCredentialMigration:
 
         assert "b1" in service.runtimes
         client = service.runtimes["b1"].client
-        assert client.api_key == STALE_KEY
+        assert client.plugin.connection.key == STALE_KEY
 
 
 # ── 2. divergence: every reader sees the settings copy ──────────────────────
@@ -347,16 +351,17 @@ class TestDivergedReadersSeeSettings:
     reader must see A."""
 
     def test_welcome_message_uses_settings_credentials(self, diverged, client):
-        with patch("src.board_client.BoardClient") as mock_bc:
-            instance = MagicMock()
-            instance.render.return_value = (True, True)
-            mock_bc.return_value = instance
+        ok = requests.models.Response()
+        ok.status_code = 200
+        ok._content = b"{}"
+        with vestaboards_built() as built, patch("requests.post", return_value=ok) as post:
             response = client.post("/send-welcome-message")
 
         assert response.status_code == 200
-        kwargs = mock_bc.call_args.kwargs
-        assert kwargs["api_key"] == LIVE_KEY
-        assert kwargs["host"] == LIVE_HOST
+        assert built[-1]["local_api_key"] == LIVE_KEY
+        assert built[-1]["host"] == LIVE_HOST
+        assert post.call_args.args[0].startswith(f"http://{LIVE_HOST}:")
+        assert post.call_args.kwargs["headers"]["X-Vestaboard-Local-Api-Key"] == LIVE_KEY
 
     def test_board_client_build_uses_settings_credentials(self, diverged):
         from src.main import DisplayService
@@ -366,8 +371,8 @@ class TestDivergedReadersSeeSettings:
 
         assert "b1" in service.runtimes
         client = service.runtimes["b1"].client
-        assert client.api_key == LIVE_KEY
-        assert STALE_KEY not in {getattr(rt.client, "api_key", None) for rt in service.runtimes.values()}
+        assert client.plugin.connection.key == LIVE_KEY
+        assert STALE_KEY not in {rt.client.plugin.connection.key for rt in service.runtimes.values()}
 
     def test_get_config_board_returns_settings_view(self, diverged, client):
         response = client.get("/config/board")
@@ -397,9 +402,9 @@ class TestDivergedReadersSeeSettings:
         with patch("src.network_diagnostics.run_full_diagnostics", return_value=verdict) as diag:
             response = client.get("/debug/network-diagnostics")
         assert response.status_code == 200
-        kwargs = diag.call_args.kwargs
-        assert kwargs["board_host"] == LIVE_HOST
-        assert kwargs["board_api_key"] == LIVE_KEY
+        board = diag.call_args.args[0]
+        assert board["host"] == LIVE_HOST
+        assert board["local_api_key"] == LIVE_KEY
 
 
 class TestNoStaleConfigFallback:
@@ -419,10 +424,10 @@ class TestNoStaleConfigFallback:
 
         self._cleared(data_dir)
         service = DisplayService()
-        with patch("src.main.BoardClient") as legacy_client:
+        with vestaboards_built() as legacy_built:
             service._build_board_clients(sync_cache=False)
 
-        legacy_client.assert_not_called()
+        assert legacy_built == []
         assert service.board_clients == {}
 
     def test_system_info_without_boards_never_reads_stale_config(self, client):
@@ -515,8 +520,8 @@ class TestConfigBoardShim:
         settings_view = client.get("/settings/board").json()
         assert settings_view["boards"][0]["host"] == "192.0.2.50"
         on_disk = _settings_on_disk(diverged)
-        assert on_disk["board"]["boards"][0]["local_api_key"] == "test_new_key"
-        assert on_disk["board"]["boards"][0]["host"] == "192.0.2.50"
+        assert on_disk["board"]["boards"][0]["output_config"]["local_api_key"] == "test_new_key"
+        assert on_disk["board"]["boards"][0]["output_config"]["host"] == "192.0.2.50"
 
         # …and the config.json board block was not touched: it keeps the
         # stale values as a vestigial rollback copy for older versions.
@@ -531,7 +536,7 @@ class TestConfigBoardShim:
         response = client.put("/config/board", json={"host": "192.0.2.50", "local_api_key": "***"})
         assert response.status_code == 200
         on_disk = _settings_on_disk(diverged)
-        assert on_disk["board"]["boards"][0]["local_api_key"] == LIVE_KEY
+        assert on_disk["board"]["boards"][0]["output_config"]["local_api_key"] == LIVE_KEY
 
 
 class TestFirstRunDetectionAfterUnification:

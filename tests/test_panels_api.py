@@ -8,16 +8,28 @@ where the router binds them. ``tests/test_panels_contract.py`` pins the same
 contract by value.
 """
 
+from threading import RLock
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from src.outputs import OutputRuntime
 from src.panels.models import Panel
 from src.panels.service import PanelService
 from src.panels.storage import PanelStorage
-from src.virtual_board_client import VirtualBoardClient
+from tests.first_party_drivers import panel_driver
+
+
+def _runtime(client):
+    """A board runtime as ``runtime_for`` returns it: the client bound to its OutputRuntime,
+    which knows the board's output (``fiestapanel`` for a virtual client)."""
+    output = OutputRuntime(output_id="fiestapanel" if getattr(client, "is_virtual", False) is True else "vestaboard")
+    bind = getattr(client, "set_output_runtime", None)
+    if bind is not None:
+        bind(output)
+    return SimpleNamespace(client=client, output=output, polled_characters=None, polled_at=None)
 
 
 @pytest.fixture
@@ -31,6 +43,7 @@ def client():
 def mock_panel_service():
     with patch("src.panels.routes.get_panel_service") as mock:
         service = Mock()
+        service.storage.lock = RLock()
         mock.return_value = service
         yield service
 
@@ -69,11 +82,12 @@ class TestPanelCrudEndpoints:
         assert response.json()["panels"][0]["board_missing"] is True
 
     def test_patch_unknown_panel_404s(self, client, mock_panel_service):
-        mock_panel_service.update_panel.return_value = None
+        mock_panel_service.get_panel.return_value = None
         response = client.patch("/panels/nope", json={"name": "X"})
         assert response.status_code == 404
 
     def test_patch_updates_panel(self, client, mock_panel_service):
+        mock_panel_service.get_panel.return_value = _panel()
         mock_panel_service.update_panel.return_value = _panel(name="Bedroom TV")
         response = client.patch("/panels/abc", json={"name": "Bedroom TV"})
         assert response.status_code == 200
@@ -137,12 +151,12 @@ class TestPublicPanelEndpoints:
 
     def test_frame_returns_sent_grid(self, client, mock_panel_service):
         mock_panel_service.get_panel_by_ref.return_value = _panel()
-        vclient = VirtualBoardClient(device_type="note")
+        vclient = panel_driver("note")
         grid = [[7] * 15 for _ in range(3)]
         vclient.send_characters(grid)
         board = {"id": "vboard-1", "device_type": "note", "api_mode": "virtual"}
         display = Mock()
-        display.runtime_for.return_value = SimpleNamespace(client=vclient, polled_characters=None, polled_at=None)
+        display.runtime_for.return_value = _runtime(vclient)
         with (
             patch("src.panels.routes._find_board", return_value=board),
             patch("src.panels.routes.get_service", return_value=display),
@@ -157,10 +171,10 @@ class TestPublicPanelEndpoints:
 
     def test_frame_empty_board_returns_nulls_with_dims(self, client, mock_panel_service):
         mock_panel_service.get_panel_by_ref.return_value = _panel()
-        vclient = VirtualBoardClient(device_type="flagship")
+        vclient = panel_driver("flagship")
         board = {"id": "vboard-1", "device_type": "flagship", "api_mode": "virtual"}
         display = Mock()
-        display.runtime_for.return_value = SimpleNamespace(client=vclient, polled_characters=None, polled_at=None)
+        display.runtime_for.return_value = _runtime(vclient)
         with (
             patch("src.panels.routes._find_board", return_value=board),
             patch("src.panels.routes.get_service", return_value=display),
@@ -177,10 +191,9 @@ class TestPublicPanelEndpoints:
         """A panel misconfigured onto a physical board must not trigger live reads."""
         mock_panel_service.get_panel_by_ref.return_value = _panel()
         board = {"id": "vboard-1", "device_type": "flagship", "api_mode": "local"}
-        physical = Mock(spec=["read_current_message", "_last_characters"])
-        physical._last_characters = None
+        physical = Mock(spec=["read_current_message"])
         display = Mock()
-        display.runtime_for.return_value = SimpleNamespace(client=physical, polled_characters=None, polled_at=None)
+        display.runtime_for.return_value = _runtime(physical)
         with (
             patch("src.panels.routes._find_board", return_value=board),
             patch("src.panels.routes.get_service", return_value=display),
@@ -230,6 +243,7 @@ class TestPanelOrchestration:
             boards[:] = [BoardInstance.from_dict(dict(b)).to_dict() for b in new_boards]
 
         return SimpleNamespace(
+            lock=RLock(),
             add_board=add_board,
             remove_board=remove_board,
             set_boards=set_boards,
@@ -341,57 +355,7 @@ class TestPanelOrchestration:
         assert [b["id"] for b in fake_settings.boards] == ["physical-1"]
         assert real_service.get_panel(created["id"]) is None
 
-    def test_delete_panel_releases_the_boards_virtual_frame_state(self, client, tmp_path):
-        """The shared in-memory 'glass' must not outlive the panel's board."""
-        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
-        fake_settings = self._fake_settings_service(
-            initial_boards=[{"id": "physical-1", "device_type": "flagship", "api_mode": "local"}]
-        )
-        with (
-            patch("src.panels.routes.get_panel_service", return_value=real_service),
-            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
-            patch("src.panels.routes.reinitialize_board_clients"),
-        ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
-            vclient = VirtualBoardClient(device_type="panel", board_id=created["board_id"], grid_rows=9, grid_cols=22)
-            vclient.send_characters([[1] * 22 for _ in range(9)])
-            client.delete(f"/panels/{created['id']}")
-
-        fresh = VirtualBoardClient(device_type="panel", board_id=created["board_id"], grid_rows=9, grid_cols=22)
-        assert fresh.read_current_message() is None
-
-    def test_resize_drops_the_old_shape_frame(self, client, tmp_path):
-        """A TV-size change must not leave the previous grid readable.
-
-        ``read_current_message`` refuses to serve a frame whose shape no
-        longer matches the board, but ``_last_characters`` is read unguarded
-        by ``/board/current-message`` — both the secondary-board branch and
-        the primary's ``expected_characters``. Without releasing the shared
-        state on reshape, the app dashboard keeps rendering the old grid.
-        """
-        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
-        fake_settings = self._fake_settings_service()
-        with (
-            patch("src.panels.routes.get_panel_service", return_value=real_service),
-            patch("src.panels.routes.get_settings_service", return_value=fake_settings),
-            patch("src.panels.routes.reinitialize_board_clients"),
-        ):
-            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()
-            board_id = created["board_id"]
-            # 43" auto-fits 9 rows x 22 cols. Seed a frame at exactly that
-            # shape so the send lands (a mismatched seed would make this test
-            # pass vacuously).
-            old = VirtualBoardClient(device_type="panel", board_id=board_id, grid_rows=9, grid_cols=22)
-            old.send_characters([[1] * 22 for _ in range(9)])
-            assert old.read_current_message() is not None, "seed frame never landed"
-
-            assert client.patch(f"/panels/{created['id']}", json={"screen_diagonal_inches": 85}).status_code == 200
-
-        # 85" re-fits to 18 rows x 45 cols. Neither the displayed frame nor
-        # the dedupe cache may still carry the 9x22 grid.
-        fresh = VirtualBoardClient(device_type="panel", board_id=board_id, grid_rows=18, grid_cols=45)
-        assert fresh.read_current_message() is None
-        assert fresh._last_characters is None
+    # Release on delete / re-fit is core's now: tests/test_panel_frame_store.py.
 
     def test_delete_last_panel_swaps_in_a_default_board(self, client, tmp_path):
         """Deleting the only panel when its virtual board is the only board

@@ -42,8 +42,12 @@ test.describe("Integrations Page", () => {
     await expect(page.getByRole("tab", { name: /installed/i })).toBeVisible({ timeout: 15_000 });
 
     // At least one known plugin name from the default installation
-    // should be visible on the page
-    const pluginLocator = page
+    // should be visible in the Installed list. Scoped to the tab panel: a
+    // page-wide substring match also finds the sidebar's collapsed "Update
+    // to x.y.z" item ("Date" in "Update"), which is hidden whenever a newer
+    // release exists, and `.first()` then resolves to it.
+    const installed = page.getByRole("tabpanel", { name: /installed/i });
+    const pluginLocator = installed
       .getByText("Weather", { exact: false })
       .or(page.getByText("Date", { exact: false }))
       .or(page.getByText("Stocks", { exact: false }))
@@ -158,11 +162,77 @@ test.describe("Integrations Page", () => {
 // ---------------------------------------------------------------------------
 
 test.describe("Check for Updates", () => {
-  test("shows the Check for Updates button on the Installed tab", async ({ page }) => {
+  test("saves the auto-update switch from the page toolbar", async ({ page }) => {
+    // Plugin updates moved here from Settings in 10.0.
     await page.goto("/integrations");
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole("button", { name: /check for updates/i })).toBeVisible({ timeout: 5_000 });
+    // It rides with the Installed tab on the toolbar row, not in the header.
+    const toolbar = page.locator("[data-slot=page-toolbar]");
+    const toggle = toolbar.getByRole("switch", { name: "Auto-update plugins" });
+    await expect(toggle).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("[data-slot=page-header]").getByRole("switch")).toHaveCount(0);
+    const wasOn = (await toggle.getAttribute("aria-checked")) === "true";
+
+    const save = page.waitForResponse(
+      (resp) => resp.url().includes("/settings/plugins") && resp.request().method() === "PUT",
+      { timeout: 10_000 },
+    );
+    await toggle.click();
+    expect((await save).status()).toBe(200);
+    await expect(toggle).toHaveAttribute("aria-checked", wasOn ? "false" : "true", { timeout: 5_000 });
+
+    // Put it back.
+    const restore = page.waitForResponse(
+      (resp) => resp.url().includes("/settings/plugins") && resp.request().method() === "PUT",
+      { timeout: 10_000 },
+    );
+    await toggle.click();
+    expect((await restore).status()).toBe(200);
+    await expect(toggle).toHaveAttribute("aria-checked", wasOn ? "true" : "false", { timeout: 5_000 });
+  });
+
+  test("hides the auto-update switch on the Marketplace tab", async ({ page }) => {
+    await page.goto("/integrations");
+    const toggle = page.getByRole("switch", { name: "Auto-update plugins" });
+    await expect(toggle).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("tab", { name: /marketplace/i }).click();
+
+    await expect(toggle).toHaveCount(0);
+  });
+
+  test("keeps the auto-update switch on one line on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/integrations");
+    const toggle = page.getByRole("switch", { name: "Auto-update plugins" });
+    await expect(toggle).toBeVisible({ timeout: 15_000 });
+    // Measure both elements in the same browser frame. Layout transitions can
+    // move the row between separate boundingBox calls and report a false offset.
+    await expect(async () => {
+      const boxes = await toggle.evaluate((control) => {
+        const label = (control as HTMLButtonElement).labels?.[0];
+        if (!label) throw new Error("Auto-update switch has no associated label");
+        const sw = control.getBoundingClientRect();
+        const lb = label.getBoundingClientRect();
+        return {
+          switchHeight: sw.height,
+          labelHeight: lb.height,
+          centerOffset: Math.abs(lb.y + lb.height / 2 - (sw.y + sw.height / 2)),
+        };
+      });
+      // One line: the label sits beside the switch and does not wrap.
+      expect(boxes.labelHeight).toBeLessThan(boxes.switchHeight + 8);
+      expect(boxes.centerOffset).toBeLessThan(4);
+    }).toPass({ timeout: 5_000 });
+  });
+
+  test("shows Check for updates as the section header's action", async ({ page }) => {
+    await page.goto("/integrations");
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
+
+    const header = page.locator("[data-slot=page-header]");
+    await expect(header.getByRole("button", { name: /check for updates/i })).toBeVisible({ timeout: 5_000 });
   });
 
   test("shows all-up-to-date toast when no updates are found", async ({ page }) => {

@@ -20,10 +20,14 @@ from fastapi import APIRouter, HTTPException
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_client import board_client_from_board_dict
-from src.board_guards import _board_is_paused, _require_board
+from src.board_guards import _board_is_paused, _find_board, _require_board, silence_verdict
 from src.board_send_executor import run_board_preview
 from src.devices import geometry_of, resolve_dimensions
+from src.display_runtime import live_driver
+from src.led.charsets import has_extended_markup, validate_message
+from src.outputs.board_profile import board_character_set
+from src.outputs.cells import extended_markup_kw, project_for_output
+from src.outputs.display_profile import display_profile_for_board, display_profile_for_client
 from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
 from src.text_to_board import text_to_board_array
@@ -33,10 +37,10 @@ from .expressions import function_signatures
 from .filters import TEMPLATE_FILTERS
 from .models import (
     FormulaFunctionsResponse,
+    TemplateRenderCheckedResponse,
     TemplateRenderLiveRequest,
     TemplateRenderLiveResponse,
     TemplateRenderRequest,
-    TemplateRenderResponse,
     TemplateValidateRequest,
     TemplateValidationResponse,
     TemplateVariablesResponse,
@@ -133,6 +137,8 @@ async def validate_template(request: TemplateValidateRequest):
 
     Body should include:
     - template: Template string or list of lines to validate
+    - board_id: Optional board to validate for; a board whose character set
+      is rich measures line length in the tiles it draws (extended markup)
 
     Returns validation errors if any.
     """
@@ -143,7 +149,7 @@ async def validate_template(request: TemplateValidateRequest):
         template = "\n".join(template)
 
     template_engine = get_template_engine()
-    problems = template_engine.validate_template(template)
+    problems = template_engine.validate_template(template, **_CharsetCheck(request.board_id).render_kw)
 
     return TemplateValidationResponse(
         valid=len(problems) == 0,
@@ -171,7 +177,14 @@ async def get_formula_functions():
     return FormulaFunctionsResponse.model_validate({"functions": function_signatures()})
 
 
-@router.post("/templates/render", response_model=TemplateRenderResponse, responses=errors(400, 422))
+@router.post(
+    "/templates/render",
+    response_model=TemplateRenderCheckedResponse,
+    # `charset` / `charset_issues` are set only for a board-targeted render,
+    # so every other response is exactly what it always was.
+    response_model_exclude_unset=True,
+    responses=errors(400, 422),
+)
 async def render_template(request: TemplateRenderRequest):
     """
     Render a template with current data.
@@ -179,14 +192,16 @@ async def render_template(request: TemplateRenderRequest):
     Body should include:
     - template: Template string or list of lines to render
 
+    Optional ``board_id``: render for that board — with extended markup when
+    its output's character set is rich — and report ``charset`` and
+    ``charset_issues``, every cell of the result that set draws differently
+    (FiestaUI ``validateMessage`` parity), for the editor's warnings.
+
     Useful for previewing template output before saving as a page.
     """
     template = request.template
-    device_type = request.device_type
-    notes_wide = request.notes_wide
-    notes_tall = request.notes_tall
-    grid_rows = request.grid_rows
-    grid_cols = request.grid_cols
+    check = _CharsetCheck(request.board_id)
+    device_type, notes_wide, notes_tall, grid_rows, grid_cols = _render_geometry(request, check.board)
 
     # Row count must come from the same geometry ``render_lines`` renders at.
     # A ``DEVICE_DIMENSIONS`` lookup cannot: it has no ``note_array`` key, so
@@ -199,8 +214,15 @@ async def render_template(request: TemplateRenderRequest):
     dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
     num_rows = dims.rows
 
+    if request.canvases:
+        return await render_template_with_canvases(
+            request, check, (device_type, notes_wide, notes_tall, grid_rows, grid_cols)
+        )
+
     # Early return for empty templates to avoid unnecessary processing
-    blank = TemplateRenderResponse(rendered="\n".join([""] * num_rows), lines=[""] * num_rows, line_count=num_rows)
+    blank = TemplateRenderCheckedResponse(
+        rendered="\n".join([""] * num_rows), lines=[""] * num_rows, line_count=num_rows, **check.result(None)
+    )
     if isinstance(template, list):
         if not template or all(not line.strip() for line in template):
             return blank
@@ -225,16 +247,131 @@ async def render_template(request: TemplateRenderRequest):
                 notes_tall=notes_tall,
                 grid_rows=grid_rows,
                 grid_cols=grid_cols,
+                **check.lines_kw,
             )
         else:
             logger.info(f"Rendering template string: {template}")
-            rendered = await asyncio.to_thread(template_engine.render, template)
+            rendered = await asyncio.to_thread(template_engine.render, template, **check.render_kw)
 
         lines = rendered.split("\n")
-        return TemplateRenderResponse(rendered=rendered, lines=lines, line_count=len(lines))
+        return TemplateRenderCheckedResponse(
+            rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered)
+        )
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
+
+
+async def render_template_with_canvases(request: TemplateRenderRequest, check: _CharsetCheck, geometry: tuple):
+    """``POST /templates/render`` for a template with pixel canvases (the page editor's preview).
+
+    Renders exactly as the page would: an unsaved template page with these
+    canvases through :meth:`PageService.render_page` — text flows around
+    ``flow`` canvases, every covered cell is blank — and, for a pixel-matrix
+    target board, the canvases' ``layers`` and ``canvas_issues``. An area
+    that starts outside the grid is a 422, as it is on a page save.
+    """
+    from src.pages.service import draws_pixels
+
+    result = await _render_canvas_page(request, geometry, check.display, check.render_kw)
+    rendered = result.formatted
+    lines = rendered.split("\n")
+    extra: dict = {}
+    if draws_pixels(check.display):
+        extra = {
+            "layers": [layer.to_json() for layer in result.layers or ()],
+            "canvas_issues": [issue.to_json() for issue in result.canvas_issues or ()],
+        }
+    return TemplateRenderCheckedResponse(
+        rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered), **extra
+    )
+
+
+async def _render_canvas_page(request, geometry, display, render_kw):
+    """Render an unsaved page through the same canvas layout as saved pages."""
+    from src.devices import DEFAULT_DEVICE_TYPE
+    from src.pages.models import Page
+    from src.pages.service import get_page_service
+
+    device_type, notes_wide, notes_tall, grid_rows, grid_cols = geometry
+    template = request.template if isinstance(request.template, list) else request.template.split("\n")
+    try:
+        page = Page(
+            name="preview",
+            type="template",
+            template=template,
+            line_metadata=request.line_metadata,
+            device_type=device_type or DEFAULT_DEVICE_TYPE,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+            grid_rows=grid_rows,
+            grid_cols=grid_cols,
+            canvases=request.canvases,
+        )
+    except ValueError as e:  # pydantic ValidationError included
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    result = await asyncio.to_thread(get_page_service().render_page, page, display=display, **render_kw)
+    if not result.available:
+        raise HTTPException(status_code=400, detail=f"Template rendering failed: {result.error}")
+    return result
+
+
+def _render_geometry(request, board: dict | None) -> tuple:
+    """``(device_type, notes_wide, notes_tall, grid_rows, grid_cols)`` to render at.
+
+    The request's own geometry when it names a device type; otherwise the
+    target board's grid — a render for a 10x16 panel is 10x16, not the
+    Flagship default (the engine already sends the board's grid).
+    """
+    if request.device_type is None and board is not None:
+        return tuple(geometry_of(board))
+    return (request.device_type, request.notes_wide, request.notes_tall, request.grid_rows, request.grid_cols)
+
+
+class _CharsetCheck:
+    """A render targeted at a board: how to render, and what to report.
+
+    Every render speaks extended markup (plan D19; split-flap boards too
+    since the Task 12 flip, :func:`src.outputs.cells.charset_extended_markup`).
+    No board named: no extra fields. A board named: its resolved character
+    set (plan D17) decides the issues reported. The effective profile limits
+    authoring to what its writer delivers, including integer-only viewers.
+    A board whose set is unavailable reports ``charset: null``.
+    """
+
+    def __init__(self, board_id: str | None) -> None:
+        self.targeted = board_id is not None
+        board = _find_board(board_id) if board_id is not None else None
+        #: The board named, when it exists.
+        self.board = board
+        #: What the board draws (its size and face included), for the
+        #: plugins a board-sized render fetches; ``None`` with no board.
+        self.display = display_profile_for_board(board) if board is not None else None
+        # The model can describe an LED appearance while its output accepts
+        # only integer character frames. Match the shared delivery profile.
+        self.charset = (
+            dict(self.display.character_set)
+            if self.display is not None and self.display.character_set is not None
+            else board_character_set(board)
+            if board is not None
+            else None
+        )
+        self.render_kw: dict = {"extended_markup": True} if has_extended_markup(self.charset) else {}
+
+    @property
+    def lines_kw(self) -> dict:
+        """:attr:`render_kw` plus ``display``, for ``render_lines`` (which
+        builds the plugins' :class:`~src.devices.BoardContext`)."""
+        return {**self.render_kw, "display": self.display} if self.display is not None else dict(self.render_kw)
+
+    def result(self, rendered: str | None) -> dict:
+        if not self.targeted:
+            return {}
+        if self.charset is None:
+            return {"charset": None, "charset_issues": None}
+        issues = validate_message(rendered or "", self.charset).issues
+        return {"charset": self.charset["id"], "charset_issues": [i.to_dict() for i in issues]}
 
 
 @router.post("/templates/render/live", response_model=TemplateRenderLiveResponse, responses=errors(400, 404, 422))
@@ -246,7 +383,12 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     - template: Template string or list of lines to render
     - board_id: Optional board ID to target (defaults to first configured board)
 
-    Returns the rendered result plus whether it was sent to the board.
+    - override_silence: Send even while the board is silenced (default false)
+
+    Returns the rendered result plus whether it was sent to the board. During
+    silence the render is still returned (the editor preview keeps working)
+    but nothing is written unless override_silence is true (issue #1943);
+    ``silenced`` says so. Live output is never held for later.
     """
     template = request.template
     board_id = request.board_id
@@ -254,11 +396,20 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     template_engine = get_template_engine()
     settings_service = get_settings_service()
     line_metadata = request.line_metadata
-    device_type = request.device_type
-    notes_wide = request.notes_wide
-    notes_tall = request.notes_tall
-    grid_rows = request.grid_rows
-    grid_cols = request.grid_cols
+
+    # The target board, resolved before rendering: a board whose output draws
+    # a rich character set renders with its extended markup (plan D19), and
+    # a request that names no geometry renders at the board's grid.
+    # (An unknown board_id is a 404 only once there is something to send: a
+    # blank template answers blank rows and touches no board.)
+    board_settings = settings_service.get_board_settings()
+    boards = board_settings.boards if board_settings else []
+    target_board = None
+    if board_id:
+        target_board = _find_board(board_id)
+    elif boards:
+        target_board = boards[0]
+    device_type, notes_wide, notes_tall, grid_rows, grid_cols = _render_geometry(request, target_board)
 
     # Same note-array-aware resolution as ``render_template`` above (#2032):
     # ``DEVICE_DIMENSIONS`` has no ``note_array`` key, so the blank path used
@@ -268,73 +419,98 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
     num_rows = dims.rows
 
-    # Render the template
-    try:
-        if isinstance(template, list):
-            if not template or all(not line.strip() for line in template):
-                return TemplateRenderLiveResponse(
-                    rendered="\n".join([""] * num_rows),
-                    lines=[""] * num_rows,
-                    line_count=num_rows,
-                    sent_to_board=False,
-                    board_id=board_id,
+    # A blank template answers blank rows and touches no board.
+    if isinstance(template, list):
+        blank = not template or all(not line.strip() for line in template)
+    else:
+        blank = not template.strip()
+    if blank and request.canvases is None:
+        return TemplateRenderLiveResponse(
+            rendered="\n".join([""] * num_rows),
+            lines=[""] * num_rows,
+            line_count=num_rows,
+            sent_to_board=False,
+            board_id=board_id,
+        )
+
+    if board_id and target_board is None:
+        _require_board(board_id)
+    client = live_driver(target_board.get("id")) if target_board else None
+    render_kw = extended_markup_kw(client)
+    # The plugins see the board the render is sent to: its size and face.
+    display = display_profile_for_client(client) if client is not None else None
+    if display is None and target_board is not None:
+        display = display_profile_for_board(target_board)
+
+    # Explicit [] also renders/sends an empty page to clear removed canvases.
+    layers = ()
+    canvas_extra = {}
+    if request.canvases is not None:
+        from src.pages.service import draws_pixels
+
+        result = await _render_canvas_page(
+            request, (device_type, notes_wide, notes_tall, grid_rows, grid_cols), display, render_kw
+        )
+        rendered = result.formatted
+        layers = result.layers or ()
+        if draws_pixels(display):
+            canvas_extra = {
+                "layers": [layer.to_json() for layer in layers],
+                "canvas_issues": [issue.to_json() for issue in result.canvas_issues or ()],
+            }
+
+    else:
+        # Preserve the text-only render path for callers without canvases.
+        try:
+            if isinstance(template, list):
+                rendered = await asyncio.to_thread(
+                    template_engine.render_lines,
+                    template,
+                    line_metadata=line_metadata,
+                    device_type=device_type,
+                    notes_wide=notes_wide,
+                    notes_tall=notes_tall,
+                    grid_rows=grid_rows,
+                    grid_cols=grid_cols,
+                    **render_kw,
+                    **({"display": display} if display is not None else {}),
                 )
-            rendered = await asyncio.to_thread(
-                template_engine.render_lines,
-                template,
-                line_metadata=line_metadata,
-                device_type=device_type,
-                notes_wide=notes_wide,
-                notes_tall=notes_tall,
-                grid_rows=grid_rows,
-                grid_cols=grid_cols,
-            )
-        else:
-            if not template.strip():
-                return TemplateRenderLiveResponse(
-                    rendered="\n".join([""] * num_rows),
-                    lines=[""] * num_rows,
-                    line_count=num_rows,
-                    sent_to_board=False,
-                    board_id=board_id,
-                )
-            rendered = await asyncio.to_thread(template_engine.render, template)
-    except Exception as e:
-        logger.error(f"Template rendering error: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
-
-    # Find the target board
-    board_settings = settings_service.get_board_settings()
-    boards = board_settings.boards if board_settings else []
-
-    target_board = None
-    if board_id:
-        target_board = _require_board(board_id)
-    elif boards:
-        target_board = boards[0]
-
+            else:
+                rendered = await asyncio.to_thread(template_engine.render, template, **render_kw)
+        except Exception as e:
+            logger.error(f"Template rendering error: {e}", exc_info=True)
+            raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
     sent_to_board = False
     paused = False
+    silenced = False
     if target_board:
-        # Block when the target board is paused (issue #970). Render is still
-        # returned to the caller so the live editor preview keeps updating.
+        # Silence first (issue #1943), then pause (issue #970) — each reported
+        # on its own. The render is still returned to the caller so the live
+        # editor preview keeps updating; only the board write is skipped.
+        silenced = silence_verdict(
+            target_board.get("id"), override_silence=request.override_silence, what="live template send"
+        ).silenced
         if _board_is_paused(board_id=target_board.get("id")):
             logger.info("Board %s is paused - skipping live template send", target_board.get("id"))
             paused = True
-        else:
-            client = board_client_from_board_dict(target_board)
+        if not silenced and not paused:
+            # The board's LIVE driver: a live edit is a write of the board's
+            # runtime — it preempts a running transition, shares the engine's
+            # send lock and floor, and lands in the frame cache, so the engine
+            # knows the board now shows the edit.
             if client:
                 geometry = geometry_of(target_board)
                 device_type = geometry.device_type
                 dims = resolve_dimensions(*geometry)
-                board_array = text_to_board_array(rendered, rows=dims.rows, cols=dims.cols)
+                board_array, rich = project_for_output(
+                    client, rendered, dims.rows, dims.cols, flap=text_to_board_array, layers=layers
+                )
 
-                transition_settings = settings_service.get_transition_settings()
+                transition_settings = settings_service.get_transition_settings(target_board.get("id"))
                 # Live editor sends are rapid-fire; a "plugin:<id>" system
-                # default would run a multi-second frame animation per edit
-                # (and this ad-hoc client has no transition runner attached).
+                # default would run a multi-second frame animation per edit.
                 # Fall back to an instant send for plugin strategies.
-                from src.board_client import TRANSITION_PLUGIN_PREFIX
+                from src.outputs.transitions import TRANSITION_PLUGIN_PREFIX
 
                 live_strategy = transition_settings.strategy
                 if isinstance(live_strategy, str) and live_strategy.startswith(TRANSITION_PLUGIN_PREFIX):
@@ -344,14 +520,20 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                     # rapid-fire keystroke sends must not occupy the workers
                     # /refresh, /force-refresh and POST /pages/{id}/send need.
                     success, was_sent = await run_board_preview(
-                        client.send_characters,
+                        client.render,
                         board_array,
                         strategy=live_strategy,
                         step_interval_ms=transition_settings.step_interval_ms,
                         step_size=transition_settings.step_size,
                         force=True,
+                        **rich,
                     )
                     sent_to_board = was_sent
+                    if was_sent and request.override_silence:
+                        # A newer explicit write beats a message held during silence.
+                        from src import silence_queue
+
+                        silence_queue.discard(target_board.get("id"))
                 except Exception as e:
                     logger.error(f"Live send to board failed: {e}", exc_info=True)
 
@@ -362,5 +544,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
         line_count=len(lines),
         sent_to_board=sent_to_board,
         paused=paused,
+        silenced=silenced,
         board_id=target_board.get("id") if target_board else None,
+        **canvas_extra,
     )

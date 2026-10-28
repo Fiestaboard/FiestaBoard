@@ -316,6 +316,8 @@ class CreateCollectionOp(BaseModel):
 class UpdateCollectionArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
+    expected_revision: str = Field(..., min_length=1, description="Original revision read for this draft.")
+
     collection_id: str = Field(..., description="ID of the collection to update.")
     name: str | None = Field(default=None, min_length=1, max_length=100)
     page_ids: list[str] | None = None
@@ -359,6 +361,8 @@ class CreateScheduleOp(BaseModel):
 class UpdateScheduleArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
+    expected_revision: str = Field(..., min_length=1, description="Original revision read for this draft.")
+
     schedule_id: str = Field(..., description="ID of the schedule entry to update.")
     page_id: str | None = None
     start_time: str | None = None
@@ -377,6 +381,8 @@ class UpdateScheduleOp(BaseModel):
 
 class DeleteScheduleArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
+
+    expected_revision: str = Field(..., min_length=1, description="Original revision read for this draft.")
 
     schedule_id: str = Field(..., description="ID of the schedule entry to delete.")
 

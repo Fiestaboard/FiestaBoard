@@ -1,8 +1,9 @@
 "use client";
 
 import { Box, Button, Flex, Grid, Input, Label, PageSection, Stack, Text } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, LocateFixed, MapPin } from "lucide-react";
+import { LocateFixed, MapPin } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -166,7 +167,7 @@ export function LocationSettingsCard() {
               size="sm"
             >
               {isGeolocating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner label={null} className="mr-2 h-4 w-4" />
               ) : (
                 <LocateFixed className="mr-2 h-4 w-4" />
               )}

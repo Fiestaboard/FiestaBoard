@@ -78,10 +78,11 @@ test.describe("Plugin board previews", () => {
     await expect(showcase).toBeVisible({ timeout: 15_000 });
     await expect(showcase.locator("[data-slot='static-board-display']")).toBeVisible();
 
-    // The hero sits above the header card, the way the public directory leads.
+    // The hero leads the plugin's page: the first block under its name
+    // (the h2 the Integrations section's breadcrumb row puts above it).
     const showcaseBox = await showcase.boundingBox();
-    const headingBox = await page.getByRole("heading", { level: 1 }).first().boundingBox();
-    expect(showcaseBox!.y).toBeLessThan(headingBox!.y);
+    const headingBox = await page.getByRole("heading", { level: 2 }).first().boundingBox();
+    expect(showcaseBox!.y).toBeGreaterThan(headingBox!.y);
 
     // Board colour is a two-state toggle, seeded from the user's own board.
     const whiteBoard = showcase.getByRole("button", { name: /white/i });

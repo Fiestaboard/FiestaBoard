@@ -10,7 +10,7 @@ Design notes
 * **Password hashing.** :func:`hashlib.scrypt` from the standard library.
   No new wheel deps; parameters (``N=2**15, r=8, p=1``) follow OWASP's
   current recommendation for interactive logins.
-* **Session tokens.** Stateless HMAC-signed tokens (``payload.signature``),
+* **Session tokens.** Versioned HMAC-signed tokens plus a revocation registry,
   not JWTs. Avoids "alg: none" footguns and an extra dependency.
 * **Storage.** ``data/auth.json`` with ``0600`` perms, written atomically
   via a temp file + ``os.replace`` to avoid torn writes.
@@ -34,6 +34,9 @@ from typing import Any
 
 from src.atomic_io import write_json_atomic
 from src.paths import get_data_dir
+
+from .session_models import SessionRecord
+from .session_store import SessionStore, digest_secret
 
 logger = logging.getLogger(__name__)
 
@@ -332,7 +335,7 @@ class SessionToken:
         # Embedded in the payload, not the header, so an attacker can't
         # selectively shorten / extend the session.
         nonce = _b64e(secrets.token_bytes(8))
-        return f"{_b64e(self.username.encode('utf-8'))}.{self.issued_at}.{self.expires_at}.{nonce}"
+        return f"v2.{_b64e(self.username.encode('utf-8'))}.{self.issued_at}.{self.expires_at}.{nonce}"
 
 
 def _now_ms() -> int:
@@ -368,6 +371,17 @@ class AuthService:
         self._last_ms = 0
         self._data: dict[str, Any] = {"version": 1, "users": []}
         self._load()
+        self.sessions = SessionStore(self._path.parent / "auth_sessions.sqlite3", clock_ms=_now_ms)
+        if self._data.get("session_registry_version") != 1:
+            for user in self._data.get("users", []):
+                self._last_ms = max(self._last_ms, int(user.get("sessions_valid_after_ms", 0)))
+                user["sessions_valid_after_ms"] = self._monotonic_ms()
+            self._data["session_registry_version"] = 1
+            if self._path.exists():
+                self._save()
+        # Resume the clock above all persisted cutoffs after a restart.
+        for user in self._data.get("users", []):
+            self._last_ms = max(self._last_ms, int(user.get("sessions_valid_after_ms", 0)))
 
     def _monotonic_ms(self) -> int:
         """Strictly-monotonic millisecond clock for token issuance.
@@ -537,6 +551,7 @@ class AuthService:
                     u["updated_at"] = int(time.time())
                     u["sessions_valid_after_ms"] = self._monotonic_ms()
                     self._save()
+                    self.sessions.revoke_sessions(current_username)
                     return new_username
             raise InvalidCredentials("Unknown user")
 
@@ -556,6 +571,7 @@ class AuthService:
                     # returns satisfies ``issued_at >= cutoff``.
                     u["sessions_valid_after_ms"] = self._monotonic_ms()
                     self._save()
+                    self.sessions.revoke_sessions(username)
                     return
             raise InvalidCredentials("Unknown user")
 
@@ -579,65 +595,96 @@ class AuthService:
                     self._data["users"] = [other for other in users if other is not u]
                     self._data["auth_pref"] = "disabled"
                     self._save()
+                    self.sessions.revoke_sessions(username)
                     return
             raise InvalidCredentials("Unknown user")
 
     # -- auth flow ---------------------------------------------------------
 
-    def authenticate(self, username: str, password: str, *, remember: bool = False) -> str:
-        """Verify *username*/*password* and return a signed session token.
-
-        When *remember* is true the token is minted with the longer
-        "Keep me logged in" TTL; otherwise it uses the default session TTL.
-        """
+    def verify_credentials(self, username: str, password: str) -> dict[str, Any]:
+        """Verify a password without creating a browser session."""
         if not self.has_user():
             raise SetupRequired("No user has been provisioned")
         user = self.get_user(username)
-        # Always do a hash comparison even on unknown user to keep timing flat.
         stored = user.get("password_hash") if user else ""
         ok = verify_password(password, stored or "")
         if not user or not ok:
             raise InvalidCredentials("Invalid username or password")
-        now_ms = self._monotonic_ms()
-        ttl_seconds = _remember_me_ttl_seconds() if remember else _session_ttl_seconds()
-        token = SessionToken(
-            username=username,
-            issued_at=now_ms,
-            expires_at=now_ms + ttl_seconds * 1000,
-        )
-        return self._sign(token.encode())
+        return user
 
-    def verify_session(self, raw: str | None) -> str | None:
-        """Return the username if *raw* is a valid, unexpired session token."""
-        if not raw or not isinstance(raw, str):
+    def authenticate(self, username: str, password: str, *, remember: bool = False) -> str:
+        """Issue a signed, individually revocable browser session."""
+        with self._lock:
+            user = self.verify_credentials(username, password)
+            now_ms = self._monotonic_ms()
+            ttl_seconds = _remember_me_ttl_seconds() if remember else _session_ttl_seconds()
+            expires_ms = now_ms + ttl_seconds * 1000
+            token = self._sign(SessionToken(username, now_ms, expires_ms).encode())
+            self.sessions.create_session(
+                SessionRecord(
+                    id=secrets.token_urlsafe(16),
+                    digest=digest_secret(token),
+                    username=username,
+                    account_generation=int(user.get("sessions_valid_after_ms", 0)),
+                    kind="browser",
+                    device_name="Web browser",
+                    client_id="",
+                    app_version="",
+                    method="password",
+                    created_ms=now_ms,
+                    expires_ms=expires_ms,
+                    last_active_ms=now_ms,
+                )
+            )
+            return token
+
+    def resolve_browser_session(self, raw: str | None) -> SessionRecord | None:
+        if not raw or not isinstance(raw, str) or len(raw) > 4096:
             return None
         try:
             payload, sig = raw.rsplit(".", 1)
-        except ValueError:
-            return None
-        expected = self._sign_payload(payload)
-        if not hmac.compare_digest(sig, expected):
-            return None
-        try:
-            user_b64, issued_s, expires_s, _nonce = payload.split(".")
+            if not hmac.compare_digest(sig, self._sign_payload(payload)):
+                return None
+            version, user_b64, issued_s, expires_s, _nonce = payload.split(".")
+            if version != "v2":
+                return None
             username = _b64d(user_b64).decode("utf-8")
-            issued_at_ms = int(issued_s)
-            expires_at_ms = int(expires_s)
+            issued_at_ms, expires_at_ms = int(issued_s), int(expires_s)
         except (ValueError, UnicodeDecodeError):
             return None
-        now_ms = _now_ms()
-        if now_ms >= expires_at_ms:
+        if _now_ms() >= expires_at_ms:
             return None
-        # Ensure the user still exists (in case it was deleted/rotated) and
-        # that the token wasn't minted before the user's last password
-        # rotation — stolen cookies are revoked when the password changes.
-        user = self.get_user(username)
-        if not user:
-            return None
-        cutoff = int(user.get("sessions_valid_after_ms", 0) or 0)
-        if issued_at_ms < cutoff:
-            return None
-        return username
+        with self._lock:
+            user = self.get_user(username)
+            if not user:
+                return None
+            cutoff = int(user.get("sessions_valid_after_ms", 0) or 0)
+            if issued_at_ms < cutoff:
+                return None
+            session = self.sessions.find_active(digest_secret(raw), cutoff)
+            if session is None or session.kind not in ("browser", "legacy"):
+                return None
+            return session
+
+    def verify_session(self, raw: str | None) -> str | None:
+        session = self.resolve_browser_session(raw)
+        return session.username if session else None
+
+    def invalidate_all_sessions(self, username: str) -> None:
+        """Advance the persisted cutoff first so database failure stays safe."""
+        with self._lock:
+            for user in self._data.get("users", []):
+                if user.get("username") == username:
+                    user["sessions_valid_after_ms"] = self._monotonic_ms()
+                    self._save()
+                    self.sessions.revoke_sessions(username)
+                    return
+
+    def invalidate_all_accounts(self) -> None:
+        """Invalidate before a managed downgrade to stateless-cookie code."""
+        with self._lock:
+            for username in [u["username"] for u in self._data.get("users", [])]:
+                self.invalidate_all_sessions(username)
 
     # -- signing -----------------------------------------------------------
 

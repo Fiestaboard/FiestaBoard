@@ -3,6 +3,9 @@
 import {
   Box,
   Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Flex,
   Grid,
   Input,
@@ -17,16 +20,19 @@ import {
   Text,
   Textarea,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
-import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronRight, MapPin, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
+import { type BoardFacts, isVisible } from "@/lib/visible-when";
 
-import { FieldScopeContext, SchemaFormPluginContext, useFieldScope } from "./field-context";
+import { DevicePickerField, ModeCardsField, TileGridField } from "./board-widgets";
+import { FieldScopeContext, SchemaFormPluginContext, useBoardScreen, useFieldScope } from "./field-context";
 import { isJsonPathMapper, JsonPathMapperField, type JsonPathMapperUiOptions } from "./json-path-mapper-field";
 import { PagePickerField } from "./page-picker-field";
 import { RemoteOptionsField, type RemoteOptionsUiOptions } from "./remote-options-field";
@@ -52,15 +58,62 @@ interface SchemaProperty {
   items?: SchemaProperty;
   properties?: Record<string, SchemaProperty>;
   required?: string[];
+  /** A credential (output settings): rendered as a secret input, masked as "***" once saved. */
+  secret?: boolean;
   "ui:widget"?: string;
   "ui:placeholder"?: string;
-  "ui:options"?: RemoteOptionsUiOptions & JsonPathMapperUiOptions;
+  "ui:options"?: RemoteOptionsUiOptions & JsonPathMapperUiOptions & BoardWidgetUiOptions;
+  /** Show the field only when its siblings match (src/plugins/settings_ui.py; `@/lib/visible-when`). */
+  "ui:visible_when"?: unknown;
+}
+
+/** `ui:options` of the core board-setup widgets (mode-cards, tile-grid, device-picker). */
+interface BoardWidgetUiOptions {
+  cards?: { value: string; title?: string; description?: string }[];
+  rows_field?: string;
+  cols_field?: string;
+  /** `"board"`: a tile-grid sized by the board's own tile layout. */
+  layout?: string;
+  /** Declared actions run on one tile from its dialog. */
+  item_actions?: string[];
+  /** Item properties that together should not repeat across tiles. */
+  unique_fields?: string[];
+  action?: string;
+  value_key?: string;
+  label_key?: string;
+}
+
+/** A root `ui:sections` entry: a titled group of properties, optionally collapsible. */
+interface SchemaSection {
+  id: string;
+  title: string;
+  description?: string;
+  fields: string[];
+  collapsible?: boolean;
+  collapsed?: boolean;
 }
 
 interface JSONSchema {
   type: "object";
   properties: Record<string, SchemaProperty>;
   required?: string[];
+  "ui:sections"?: SchemaSection[];
+}
+
+function isEmptyValue(value: unknown): boolean {
+  return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+}
+
+/** The properties of an object that are visible for its current *values* (and the board's *facts*). */
+function visibleEntries(
+  properties: Record<string, SchemaProperty> | undefined,
+  values: Record<string, unknown> | null | undefined,
+  facts?: BoardFacts,
+): [string, SchemaProperty][] {
+  const props = properties ?? {};
+  return Object.entries(props).filter(([, prop]) =>
+    isVisible(prop["ui:visible_when"], values ?? {}, props as Record<string, unknown>, facts),
+  );
 }
 
 /**
@@ -72,6 +125,7 @@ interface JSONSchema {
 export function asJSONSchema(value: Record<string, unknown> | undefined | null): JSONSchema {
   const properties = value?.properties;
   const required = value?.required;
+  const sections = value?.["ui:sections"];
   return {
     type: "object",
     properties:
@@ -79,6 +133,11 @@ export function asJSONSchema(value: Record<string, unknown> | undefined | null):
         ? (properties as Record<string, SchemaProperty>)
         : {},
     required: Array.isArray(required) ? required.filter((name): name is string => typeof name === "string") : undefined,
+    "ui:sections": Array.isArray(sections)
+      ? (sections as SchemaSection[]).filter(
+          (s) => s && typeof s === "object" && typeof s.id === "string" && Array.isArray(s.fields),
+        )
+      : undefined,
   };
 }
 
@@ -103,6 +162,17 @@ interface SchemaFormProps {
    * plugin to ask for a catalog and degrade to a disabled control without it.
    */
   pluginId?: string;
+  /**
+   * Prefix for every field's element id. A page that renders several forms
+   * at once (one per board in Settings → Hardware) passes a distinct one so
+   * each label still points at its own input.
+   */
+  idPrefix?: string;
+  /**
+   * Say on each required field still empty that it is needed (read with its
+   * input), instead of the host listing what is missing somewhere else.
+   */
+  requiredHints?: boolean;
 }
 
 // Individual field components
@@ -124,6 +194,8 @@ interface FieldProps {
   onChange: (value: unknown, siblings?: Record<string, unknown>) => void;
   required?: boolean;
   disabled?: boolean;
+  /** Ids of the field's hint lines (its "Required" line), read with its input. */
+  describedBy?: string;
 }
 
 interface EnumSelectFieldProps {
@@ -189,10 +261,9 @@ function EnumSelectField({
   );
 }
 
-function StringField({ name, property, value, onChange, required, disabled }: FieldProps) {
-  const tSecret = useTranslations("schemaForm");
+function StringField({ name, property, value, onChange, required, disabled, describedBy }: FieldProps) {
   const [_timezoneValid, setTimezoneValid] = useState(true);
-  const isPassword = property["ui:widget"] === "password";
+  const isPassword = property["ui:widget"] === "password" || property.secret === true;
   const isTextarea = property["ui:widget"] === "textarea";
   const isTimezone = property["ui:widget"] === "timezone";
   const isPagePicker = property["ui:widget"] === "page-picker";
@@ -268,6 +339,7 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
         placeholder={property["ui:placeholder"] || property.description}
         disabled={disabled}
         required={required}
+        aria-describedby={describedBy}
         className="min-h-[80px]"
       />
     );
@@ -291,15 +363,14 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
 
   if (isPassword) {
     return (
-      <SecretInput
-        id={name}
-        value={String(value || "")}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
-        placeholder={property["ui:placeholder"] || property.description}
-        disabled={disabled}
+      <SecretField
+        name={name}
+        property={property}
+        value={value}
+        onChange={onChange}
         required={required}
-        showLabel={tSecret("showSecret")}
-        hideLabel={tSecret("hideSecret")}
+        disabled={disabled}
+        describedBy={describedBy}
       />
     );
   }
@@ -313,9 +384,42 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
       placeholder={property["ui:placeholder"] || property.description}
       disabled={disabled}
       required={required}
+      aria-describedby={describedBy}
     />
   );
 }
+
+/**
+ * A credential. A saved one reads back masked (`"***"`): the input shows
+ * empty with a "saved" placeholder and cannot be revealed (there is nothing
+ * to reveal), typing replaces it, and clearing what was typed puts the
+ * saved one back — so the form never sends an empty string for a key the
+ * user only looked at, and never sends three asterisks as a new key.
+ */
+function SecretField({ name, property, value, onChange, required, disabled, describedBy }: FieldProps) {
+  const t = useTranslations("schemaForm");
+  const [wasSaved] = useState(value === MASKED_SECRET);
+  const masked = value === MASKED_SECRET;
+  return (
+    <SecretInput
+      id={name}
+      value={masked ? "" : String(value || "")}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+        onChange(e.target.value === "" && wasSaved ? MASKED_SECRET : e.target.value)
+      }
+      placeholder={masked ? t("secretSaved") : property["ui:placeholder"] || property.description}
+      revealDisabled={masked}
+      disabled={disabled}
+      required={required && !masked}
+      aria-describedby={describedBy}
+      showLabel={t("showSecret")}
+      hideLabel={t("hideSecret")}
+    />
+  );
+}
+
+/** What the API answers for a secret that is set. */
+const MASKED_SECRET = "***";
 
 interface NumberFieldProps extends FieldProps {
   onLocationRequest?: (lat: number, lon: number) => void;
@@ -358,6 +462,7 @@ function NumberField(props: NumberFieldProps) {
     onChange,
     required,
     disabled,
+    describedBy,
     onLocationRequest,
     showLocationButton,
     isLocationLoading,
@@ -553,6 +658,7 @@ function NumberField(props: NumberFieldProps) {
         max={property.maximum}
         disabled={disabled}
         required={required}
+        aria-describedby={describedBy}
         className={showLocationButton ? "pr-10" : undefined}
       />
       {showLocationButton && (
@@ -567,7 +673,7 @@ function NumberField(props: NumberFieldProps) {
           title={t("useMyCurrentLocation")}
         >
           {isGettingLocation || isLocationLoading ? (
-            <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+            <Spinner label={null} className="h-4 w-4 text-muted-foreground" />
           ) : (
             <MapPin className="h-4 w-4 text-muted-foreground" />
           )}
@@ -588,6 +694,7 @@ interface ArrayFieldProps extends FieldProps {
 function ArrayField({ name, property, value, onChange, disabled, itemSchema }: ArrayFieldProps) {
   const t = useTranslations("schemaForm");
   const { root } = useFieldScope();
+  const { facts } = useBoardScreen();
   const rawItems = Array.isArray(value) ? value : [];
 
   // Track items with stable IDs so React doesn't reuse component instances
@@ -678,26 +785,28 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
                 }}
               >
                 <Grid gap="3" className="p-3 border rounded-lg bg-muted/30">
-                  {Object.entries(itemSchema.properties).map(([key, propSchema]) => (
-                    <Grid key={key} gap="1.5">
-                      <Label htmlFor={`${name}-${index}-${key}`} className="text-xs">
-                        {propSchema.title || key}
-                      </Label>
-                      <FormField
-                        name={`${name}-${index}-${key}`}
-                        property={propSchema}
-                        value={(item as Record<string, unknown>)?.[key]}
-                        onChange={(val, siblings) => {
-                          const newItem = { ...(item as Record<string, unknown>), ...siblings, [key]: val };
-                          handleItemChange(index, newItem);
-                        }}
-                        disabled={disabled}
-                        onLocationRequest={undefined}
-                        showLocationButton={false}
-                        isLocationLoading={false}
-                      />
-                    </Grid>
-                  ))}
+                  {visibleEntries(itemSchema.properties, item as Record<string, unknown>, facts).map(
+                    ([key, propSchema]) => (
+                      <Grid key={key} gap="1.5">
+                        <Label htmlFor={`${name}-${index}-${key}`} className="text-xs">
+                          {propSchema.title || key}
+                        </Label>
+                        <FormField
+                          name={`${name}-${index}-${key}`}
+                          property={propSchema}
+                          value={(item as Record<string, unknown>)?.[key]}
+                          onChange={(val, siblings) => {
+                            const newItem = { ...(item as Record<string, unknown>), ...siblings, [key]: val };
+                            handleItemChange(index, newItem);
+                          }}
+                          disabled={disabled}
+                          onLocationRequest={undefined}
+                          showLocationButton={false}
+                          isLocationLoading={false}
+                        />
+                      </Grid>
+                    ),
+                  )}
                 </Grid>
               </FieldScopeContext.Provider>
             ) : (
@@ -737,6 +846,8 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
 }
 
 interface FormFieldProps extends FieldProps {
+  /** The property's own key (`name` is its DOM id, prefixed). */
+  fieldKey?: string;
   onLocationRequest?: (lat: number, lon: number) => void;
   showLocationButton?: boolean;
   isLocationLoading?: boolean;
@@ -750,6 +861,8 @@ function FormField({
   onChange,
   required,
   disabled,
+  describedBy,
+  fieldKey,
   onLocationRequest,
   showLocationButton,
   isLocationLoading,
@@ -757,6 +870,7 @@ function FormField({
 }: FormFieldProps) {
   const t = useTranslations("schemaForm");
   const { root } = useFieldScope();
+  const { facts, layout } = useBoardScreen();
 
   // The generic remote-options widget serves every declared type — a scalar
   // field is single-select, an array field with `ui:options.multiple` is
@@ -764,6 +878,102 @@ function FormField({
   // deliberately only one widget name for this capability.
   if (property["ui:widget"] === "remote-options") {
     return <RemoteOptionsField name={name} property={property} value={value} onChange={onChange} disabled={disabled} />;
+  }
+
+  // The core board-setup widgets (plan D13), a closed set.
+  const options = property["ui:options"];
+  if (property["ui:widget"] === "mode-cards" && Array.isArray(property.enum) && property.enum.length > 0) {
+    return (
+      <ModeCardsField
+        name={name}
+        label={property.title || name}
+        options={property.enum}
+        cards={options?.cards}
+        enumNames={property.enumNames}
+        value={value}
+        defaultValue={property.default}
+        onChange={onChange}
+        disabled={disabled}
+      />
+    );
+  }
+  if (property["ui:widget"] === "device-picker") {
+    return (
+      <DevicePickerField
+        name={name}
+        label={property.title || name}
+        value={value}
+        onChange={onChange}
+        placeholder={property["ui:placeholder"] || property.description}
+        action={options?.action}
+        valueKey={options?.value_key}
+        labelKey={options?.label_key}
+        field={fieldKey}
+        describedBy={describedBy}
+        disabled={disabled}
+        required={required}
+      />
+    );
+  }
+  if (property["ui:widget"] === "tile-grid" && property.items?.properties) {
+    const tileProperties = Object.fromEntries(
+      Object.entries(property.items.properties).filter(([key]) => key !== "row" && key !== "col"),
+    );
+    const tileRequired = property.items.required ?? [];
+    const byBoard = options?.layout === "board";
+    return (
+      <TileGridField
+        name={name}
+        label={property.title || name}
+        value={value}
+        onChange={onChange}
+        rows={byBoard ? (layout?.rows ?? 1) : Number(root[options?.rows_field ?? ""] ?? 1) || 1}
+        cols={byBoard ? (layout?.cols ?? 1) : Number(root[options?.cols_field ?? ""] ?? 1) || 1}
+        itemProperties={tileProperties}
+        itemRequired={tileRequired}
+        itemActions={options?.item_actions ?? []}
+        uniqueFields={options?.unique_fields ?? []}
+        disabled={disabled}
+        renderActionInput={(action, inputSchema, input, onInput) => (
+          <SchemaForm
+            schema={asJSONSchema(inputSchema)}
+            values={input}
+            onChange={onInput}
+            idPrefix={`${name}-tile-action-${action.id}-`}
+          />
+        )}
+        renderTileFields={(tile, onTileChange) => (
+          <FieldScopeContext.Provider value={{ scope: tile, root, titles: titlesOf(tileProperties) }}>
+            {visibleEntries(tileProperties, tile, facts).map(([key, propSchema]) => (
+              <Grid key={key} gap="1.5">
+                <Label htmlFor={`${name}-tile-${key}`}>
+                  {propSchema.title || key}
+                  {tileRequired.includes(key) && (
+                    <Text as="span" tone="destructive" className="ml-1">
+                      *
+                    </Text>
+                  )}
+                </Label>
+                <FormField
+                  name={`${name}-tile-${key}`}
+                  fieldKey={key}
+                  property={propSchema}
+                  value={tile[key]}
+                  onChange={(val, siblings) => onTileChange({ ...tile, ...siblings, [key]: val })}
+                  required={tileRequired.includes(key)}
+                  disabled={disabled}
+                />
+                {propSchema.description && (
+                  <Text size="xs" tone="muted">
+                    {propSchema.description}
+                  </Text>
+                )}
+              </Grid>
+            ))}
+          </FieldScopeContext.Provider>
+        )}
+      />
+    );
   }
 
   switch (property.type) {
@@ -776,6 +986,7 @@ function FormField({
           onChange={onChange}
           required={required}
           disabled={disabled}
+          describedBy={describedBy}
         />
       );
     case "number":
@@ -788,6 +999,7 @@ function FormField({
           onChange={onChange}
           required={required}
           disabled={disabled}
+          describedBy={describedBy}
           onLocationRequest={onLocationRequest}
           showLocationButton={showLocationButton}
           isLocationLoading={isLocationLoading}
@@ -843,7 +1055,7 @@ function FormField({
             }}
           >
             <Grid gap="4" className="p-4 border rounded-lg">
-              {Object.entries(property.properties).map(([key, propSchema]) => (
+              {visibleEntries(property.properties, value as Record<string, unknown>, facts).map(([key, propSchema]) => (
                 <Grid key={key} gap="1.5">
                   <Label htmlFor={`${name}-${key}`}>
                     {propSchema.title || key}
@@ -895,8 +1107,18 @@ function FormField({
  * - Array fields (add/remove items)
  * - Nested object fields
  */
-export function SchemaForm({ schema, values, onChange, disabled, className, pluginId }: SchemaFormProps) {
+export function SchemaForm({
+  schema,
+  values,
+  onChange,
+  disabled,
+  className,
+  pluginId,
+  idPrefix = "",
+  requiredHints = false,
+}: SchemaFormProps) {
   const t = useTranslations("schemaForm");
+  const { facts } = useBoardScreen();
   // Top-level fields resolve `depends_on` against the whole config: at this
   // depth the sibling scope and the root are the same object.
   const rootScope = React.useMemo(
@@ -930,62 +1152,93 @@ export function SchemaForm({ schema, values, onChange, disabled, className, plug
     return <Text tone="muted">{t("noSchemaProperties")}</Text>;
   }
 
+  // `ui:visible_when` hides a field until its siblings match; `ui:sections`
+  // groups the rest. Fields in no section render first, in schema order.
+  const visible = visibleEntries(schema.properties, values, facts).filter(([name]) => name !== "enabled");
+  const visibleByName = new Map(visible);
+  const sections = schema["ui:sections"] ?? [];
+  const sectioned = new Set(sections.flatMap((section) => section.fields));
+  const ungrouped = visible.filter(([name]) => !sectioned.has(name));
+
+  const renderField = ([name, property]: [string, SchemaProperty]) => {
+    const isRequired = schema.required?.includes(name);
+    const isLocationField = hasLocationFields && (name === "latitude" || name === "longitude");
+    const showLocationButton = isLocationField && !!navigator.geolocation;
+
+    // Disable digit_color when color_pattern is not "solid" (visual_clock plugin)
+    const isDigitColorField = name === "digit_color";
+    const colorPattern = values["color_pattern"] || schema.properties["color_pattern"]?.default || "solid";
+    const shouldDisableDigitColor = isDigitColorField && colorPattern !== "solid";
+    const fieldDisabled = disabled || shouldDisableDigitColor;
+    const id = `${idPrefix}${name}`;
+    const requiredHintId = `${id}-required`;
+    const showRequired = requiredHints && isRequired && isEmptyValue(values[name]);
+
+    return (
+      <Grid key={name} gap="1.5">
+        <Label htmlFor={`${idPrefix}${name}`} className="flex items-center gap-1">
+          {property.title || name}
+          {isRequired && (
+            <Text as="span" tone="destructive">
+              *
+            </Text>
+          )}
+        </Label>
+        <FormField
+          name={id}
+          fieldKey={name}
+          property={property}
+          value={values[name]}
+          onChange={(val, siblings) => handleFieldChange(name, val, siblings)}
+          required={isRequired}
+          disabled={fieldDisabled}
+          describedBy={showRequired ? requiredHintId : undefined}
+          onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
+          showLocationButton={showLocationButton}
+          isLocationLoading={false}
+          allValues={values}
+        />
+        {property.description && (
+          <Text size="xs" tone="muted">
+            {property.description}
+          </Text>
+        )}
+        {showRequired && (
+          <Flex align="center" gap="1" id={requiredHintId} data-testid="field-required" data-field={name}>
+            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-destructive" aria-hidden="true" />
+            <Text as="span" size="xs">
+              {t("fieldRequired")}
+            </Text>
+          </Flex>
+        )}
+        {showLocationButton && (
+          <Text size="xs" tone="muted">
+            {t("clickLocationIcon")}
+          </Text>
+        )}
+        {shouldDisableDigitColor && (
+          <Text size="xs" tone="muted">
+            {t("digitColorNotUsed")}
+          </Text>
+        )}
+      </Grid>
+    );
+  };
+
   return (
     <SchemaFormPluginContext.Provider value={pluginId ?? null}>
       <FieldScopeContext.Provider value={rootScope}>
         <Grid gap="4" className={className}>
-          {Object.entries(schema.properties).map(([name, property]) => {
-            // Skip the 'enabled' field as it's handled separately
-            if (name === "enabled") return null;
-
-            const isRequired = schema.required?.includes(name);
-            const isLocationField = hasLocationFields && (name === "latitude" || name === "longitude");
-            const showLocationButton = isLocationField && !!navigator.geolocation;
-
-            // Disable digit_color when color_pattern is not "solid" (visual_clock plugin)
-            const isDigitColorField = name === "digit_color";
-            const colorPattern = values["color_pattern"] || schema.properties["color_pattern"]?.default || "solid";
-            const shouldDisableDigitColor = isDigitColorField && colorPattern !== "solid";
-            const fieldDisabled = disabled || shouldDisableDigitColor;
-
+          {ungrouped.map(renderField)}
+          {sections.map((section) => {
+            const fields = section.fields
+              .filter((name) => visibleByName.has(name))
+              .map((name) => [name, visibleByName.get(name)!] as [string, SchemaProperty]);
+            if (fields.length === 0) return null;
             return (
-              <Grid key={name} gap="1.5">
-                <Label htmlFor={name} className="flex items-center gap-1">
-                  {property.title || name}
-                  {isRequired && (
-                    <Text as="span" tone="destructive">
-                      *
-                    </Text>
-                  )}
-                </Label>
-                <FormField
-                  name={name}
-                  property={property}
-                  value={values[name]}
-                  onChange={(val, siblings) => handleFieldChange(name, val, siblings)}
-                  required={isRequired}
-                  disabled={fieldDisabled}
-                  onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
-                  showLocationButton={showLocationButton}
-                  isLocationLoading={false}
-                  allValues={values}
-                />
-                {property.description && (
-                  <Text size="xs" tone="muted">
-                    {property.description}
-                  </Text>
-                )}
-                {showLocationButton && (
-                  <Text size="xs" tone="muted">
-                    {t("clickLocationIcon")}
-                  </Text>
-                )}
-                {shouldDisableDigitColor && (
-                  <Text size="xs" tone="muted">
-                    {t("digitColorNotUsed")}
-                  </Text>
-                )}
-              </Grid>
+              <SchemaFormSection key={section.id} section={section}>
+                {fields.map(renderField)}
+              </SchemaFormSection>
             );
           })}
         </Grid>
@@ -994,4 +1247,51 @@ export function SchemaForm({ schema, values, onChange, disabled, className, plug
   );
 }
 
-export type { JSONSchema, SchemaProperty };
+/** One `ui:sections` group: a fieldset, or a disclosure when collapsible. */
+function SchemaFormSection({ section, children }: { section: SchemaSection; children: React.ReactNode }) {
+  const headingId = `schema-section-${section.id}`;
+  if (section.collapsible) {
+    return (
+      <Collapsible
+        defaultOpen={!section.collapsed}
+        className="rounded-lg border"
+        data-testid={`schema-section-${section.id}`}
+      >
+        <CollapsibleTrigger className="flex w-full items-center gap-2 p-3 text-left text-sm font-medium hover:bg-muted/40 [&[data-panel-open]>svg:first-child]:hidden [&:not([data-panel-open])>svg:last-child]:hidden">
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          {section.title}
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <Grid gap="4" className="border-t p-3">
+            {section.description && (
+              <Text size="xs" tone="muted">
+                {section.description}
+              </Text>
+            )}
+            {children}
+          </Grid>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
+  return (
+    <fieldset
+      className="grid gap-4 rounded-lg border p-3"
+      aria-labelledby={headingId}
+      data-testid={`schema-section-${section.id}`}
+    >
+      <legend id={headingId} className="px-1 text-sm font-medium">
+        {section.title}
+      </legend>
+      {section.description && (
+        <Text size="xs" tone="muted">
+          {section.description}
+        </Text>
+      )}
+      {children}
+    </fieldset>
+  );
+}
+
+export type { JSONSchema, SchemaProperty, SchemaSection };

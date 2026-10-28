@@ -67,15 +67,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/pages/ai", tags=["ai"])
 
-#: The two board geometries the AI prompt builder knows how to target. Note
-#: arrays are deliberately absent: the prompt carries a fixed rows x cols
-#: grid and there is no exemplar corpus for a multi-note canvas.
+#: Legacy request/default geometries. Chat resolves an explicit board_id's
+#: actual geometry server-side, including panels and note arrays.
 AIDeviceType = Literal["flagship", "note"]
 
 #: Which chat panel is calling — "editor" (inline panel inside the page
 #: editor) vs "global" (global drawer). Steers the AI between in-place page
 #: edits and navigation. Old clients that omit it get "global".
 ChatSurface = Literal["editor", "global"]
+ChatDeviceType = Literal["flagship", "note", "note_array", "panel"]
 
 
 # ---------------------------------------------------------------------------
@@ -238,8 +238,11 @@ class AIChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1)
     resume: ChatResumeDecision | None = None
     approval: ChatApprovalOptions | None = None
-    device_type: AIDeviceType = "flagship"
+    device_type: ChatDeviceType = "flagship"
     surface: ChatSurface = "global"
+    interaction_mode: Literal["tv"] | None = Field(
+        default=None, description="Native TV interaction: concise choices and a board-scoped content tool catalog."
+    )
     current_page: dict[str, Any] | None = None
     available_pages: list[dict[str, Any]] | None = None
     installed_plugins: list[dict[str, Any]] | None = None
@@ -248,6 +251,12 @@ class AIChatRequest(BaseModel):
     registry_plugins: list[dict[str, Any]] | None = None
     provider_id: str | None = None
     model: str | None = None
+    board_id: str | None = Field(
+        default=None,
+        description="The board the chat is for. The prompt then teaches what that board draws (an LED board's "
+        "lowercase, colours and icons; a pixel board's canvases) and actual geometry. TV chat rejects unknown IDs; "
+        "ordinary web chat retains its default display rules for unknown IDs.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -560,7 +569,7 @@ def _tool_backend():
             "description": _CHAT_STREAM_DESCRIPTION,
             "content": {"text/event-stream": {"schema": {"type": "string"}}},
         },
-        **errors(400, 422),
+        **errors(400, 404, 422),
     },
     summary="Stream a multi-turn AI chat as Server-Sent Events",
 )
@@ -654,7 +663,11 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
     # client's, which would let a caller raise its own ceiling.
     limits = TurnLimits.from_providers_block(providers_block)
 
+    target_board = _chat_board_context(request.board_id, strict=request.interaction_mode == "tv")
+    if request.interaction_mode == "tv" and target_board is None:
+        raise HTTPException(status_code=400, detail="Select a TV panel before chatting with FiestaBot.")
     backend = _tool_backend()
+    display = _display_for_board(request.board_id)
 
     async def event_source():
         """Render the normalized event stream as SSE bytes."""
@@ -680,6 +693,9 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
                 approval_mode=approval_mode,
                 auto_approve_destructive=auto_approve_destructive,
                 limits=limits,
+                display=display,
+                target_board=target_board,
+                interaction_mode=request.interaction_mode,
             ):
                 yield _format_sse_event(evt["event"], evt["data"])
         except Exception:
@@ -698,6 +714,44 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
             "Connection": "keep-alive",
         },
     )
+
+
+def _chat_board_context(board_id: str | None, *, strict: bool = True) -> dict[str, Any] | None:
+    """Resolve identity/geometry without putting connection secrets in a prompt."""
+    if board_id is None:
+        return None
+    from src.board_guards import _find_board
+    from src.devices import geometry_of, resolve_dimensions
+
+    board = _find_board(board_id)
+    if board is None:
+        if not strict:
+            return None  # Preserve ordinary web chat's unknown-board fallback.
+        raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+    try:
+        resolve_dimensions(*geometry_of(board))
+    except ValueError as exc:
+        if not strict:
+            return None
+        raise HTTPException(status_code=400, detail=f"Board geometry is unavailable: {board_id}") from exc
+    return {
+        key: board[key]
+        for key in ("id", "name", "device_type", "grid_rows", "grid_cols", "notes_wide", "notes_tall")
+        if key in board
+    }
+
+
+def _display_for_board(board_id: str | None) -> Any:
+    """The :class:`~src.outputs.display_profile.DisplayProfile` of a board, or
+    ``None`` (no board named, an unknown board, or one whose device model is
+    unknown): the chat then teaches the Vestaboard rules, as before."""
+    if not board_id:
+        return None
+    from src.board_guards import _find_board
+    from src.outputs.display_profile import display_profile_for_board
+
+    board = _find_board(board_id)
+    return display_profile_for_board(board) if board is not None else None
 
 
 def _format_sse_event(event: str, data: dict[str, Any]) -> bytes:

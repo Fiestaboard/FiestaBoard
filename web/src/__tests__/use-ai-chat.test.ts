@@ -2,9 +2,16 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { deriveChatActivity } from "@/lib/ai-chat-activity";
 import type { ChatMessage, ToolCall, ToolResult } from "@/lib/ai-chat-types";
 import type * as apiStreamModule from "@/lib/api-stream";
-import { computeAppliedSnapshot, CONVERSATION_ID_STORAGE_KEY, toWireMessages, useAiChat } from "@/lib/use-ai-chat";
+import {
+  computeAppliedSnapshot,
+  CONVERSATION_ID_STORAGE_KEY,
+  settleSavedTranscript,
+  toWireMessages,
+  useAiChat,
+} from "@/lib/use-ai-chat";
 
 import { server } from "./mocks/server";
 
@@ -117,6 +124,16 @@ describe("useAiChat", () => {
     expect(last).toMatchObject({ role: "assistant", pending: true });
     expect(lastBody().messages).toEqual([{ role: "user", content: "hello" }]);
     expect(lastBody().resume).toBeUndefined();
+  });
+
+  it("send() names the board the chat is for, so the server teaches that board's display", () => {
+    const { result } = renderHook(() =>
+      useAiChat(makeOpts({ getTurnContext: () => ({ deviceType: "panel", surface: "editor", boardId: "pixoo-1" }) })),
+    );
+    act(() => {
+      result.current.send("draw a sunset");
+    });
+    expect((lastBody() as { board_id?: string }).board_id).toBe("pixoo-1");
   });
 
   it("send() trims whitespace and ignores blank input", () => {
@@ -478,6 +495,18 @@ describe("useAiChat", () => {
       result.current.answer("q1", { action: "decline" });
     });
     expect(lastBody().resume).toEqual({ tool_call_id: "q1", decision: "answer", answer: { action: "decline" } });
+  });
+
+  it("clears thinking when a new text delta starts the reply", async () => {
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    act(() => result.current.send("hello"));
+    act(() => capturedHandlers?.onStatus?.({ phase: "thinking", tool_call_id: null, message: "Thinking", step: 0 }));
+    act(() => capturedHandlers?.onText?.("Here is the answer"));
+    expect(result.current.messages.at(-1)?.status).toBeUndefined();
+    await act(async () => {
+      capturedHandlers?.onDone?.({ ...DONE, reason: "complete", pending_tool_call_id: null });
+      resolveStream?.();
+    });
   });
 
   it("stop() marks running calls stopped and reports them", async () => {
@@ -1150,6 +1179,55 @@ describe("useAiChat: pausing at a per-turn cap", () => {
     await waitFor(() => expect(result.current.pausedAtLimit).toBe(true));
   });
 
+  it("saves the paused outcome so history and earlier turns stay paused after a later request", async () => {
+    const result = turnEndingWith("step_limit");
+    await waitFor(() => expect(result.current.status).toBe("idle"));
+    await waitFor(() => expect(savedBodies.length).toBeGreaterThan(0));
+    const saved = savedBodies.at(-1)!.body.messages as ChatMessage[];
+    expect(deriveChatActivity(settleSavedTranscript(saved), "idle").state).toBe("paused");
+
+    act(() => result.current.send("Now tell me about the weather"));
+    act(() => {
+      capturedHandlers?.onText?.("It is sunny.");
+      capturedHandlers?.onDone?.({ ...DONE, reason: "complete", pending_tool_call_id: null });
+      resolveStream?.();
+    });
+    await waitFor(() => expect(result.current.status).toBe("idle"));
+    expect(result.current.pausedAtLimit).toBe(false);
+    expect(deriveChatActivity(result.current.messages.slice(0, 2), "idle").state).toBe("paused");
+    expect(deriveChatActivity(result.current.messages, "idle").state).toBe("complete");
+  });
+
+  it("restores the continuation offer when loading a saved turn that reached the cap", async () => {
+    const id = "paused-conversation";
+    server.use(
+      http.get(`${API_BASE}/ai/conversations/${id}`, () =>
+        HttpResponse.json({
+          id,
+          title: "Unfinished artwork",
+          created_at: "",
+          updated_at: "",
+          approval: false,
+          messages: [
+            { role: "user", content: "Make artwork" },
+            { role: "assistant", content: "More to do", finishReason: "paused" },
+          ],
+        }),
+      ),
+    );
+    const { result } = renderHook(() => useAiChat(makeOpts()));
+    await act(async () => {
+      await result.current.loadConversation(id);
+    });
+    expect(result.current.pausedAtLimit).toBe(true);
+    act(() => result.current.continueTurn());
+    expect(result.current.pausedAtLimit).toBe(false);
+    expect(lastBody().messages).toEqual([
+      { role: "user", content: "Make artwork" },
+      { role: "assistant", content: "More to do" },
+    ]);
+  });
+
   it("does not flag a turn that finished normally", async () => {
     const result = turnEndingWith("complete");
     await waitFor(() => expect(result.current.status).toBe("idle"));
@@ -1204,5 +1282,56 @@ describe("useAiChat: pausing at a per-turn cap", () => {
       result.current.newConversation();
     });
     expect(result.current.pausedAtLimit).toBe(false);
+  });
+});
+
+describe("complete page preview snapshots", () => {
+  const canvases = [{ id: "sky", area: { row: 1, col: 1, rows: 2, cols: 4 }, content: { background: "#ff0000" } }];
+  it("preserves geometry, artwork and supplied line formatting on creation", () => {
+    const args = {
+      name: "Art",
+      template_lines: ["A"],
+      line_metadata: [{ alignment: "right", wrap: true }],
+      device_type: "panel",
+      grid_rows: 10,
+      grid_cols: 16,
+      canvases,
+      duration_seconds: 50,
+      transition_strategy: "none",
+    };
+    expect(computeAppliedSnapshot({ name: "create_page", args }, undefined)).toMatchObject({
+      name: "Art",
+      template: ["A"],
+      line_metadata: args.line_metadata,
+      device_type: "panel",
+      grid_rows: 10,
+      grid_cols: 16,
+      canvases,
+      duration_seconds: 50,
+      transition_strategy: "none",
+    });
+  });
+  it("preserves omitted draft artwork and applies explicit canvas removals", () => {
+    const base = {
+      id: "p",
+      name: "Art",
+      template: ["A"],
+      line_metadata: [{ alignment: "left" as const, wrap: false }],
+      device_type: "note_array" as const,
+      notes_wide: 2,
+      notes_tall: 2,
+      canvases,
+    };
+    expect(computeAppliedSnapshot({ name: "update_page", args: { page_id: "p", name: "New" } }, base)).toMatchObject({
+      canvases,
+      notes_wide: 2,
+      notes_tall: 2,
+    });
+    expect(
+      computeAppliedSnapshot({ name: "update_page", args: { page_id: "p", canvases: [] } }, base)?.canvases,
+    ).toEqual([]);
+    expect(
+      computeAppliedSnapshot({ name: "update_page", args: { page_id: "p", canvases: null } }, base)?.canvases,
+    ).toEqual([]);
   });
 });

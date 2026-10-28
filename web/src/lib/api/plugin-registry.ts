@@ -23,11 +23,12 @@ export interface RegistryEntry {
    */
   added?: string;
   /**
-   * "data" (a plugin that publishes template variables) or "transition" (a
-   * frame-by-frame board animation). Absent on registry payloads that predate
-   * the field — treat missing as "data".
+   * "data" (a plugin that publishes template variables), "transition" (a
+   * frame-by-frame board animation) or "output" (a display device a board
+   * can drive). Absent on registry payloads that predate the field — treat
+   * missing as "data".
    */
-  plugin_type: "data" | "transition";
+  plugin_type: "data" | "transition" | "output";
   /**
    * One-line board strip for the marketplace card, at most 15 tiles. Empty for
    * plugins that predate the previews contract.

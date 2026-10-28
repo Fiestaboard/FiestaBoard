@@ -1,0 +1,291 @@
+{
+  "vestaboard_flagship": {
+    "id": "vestaboard_flagship",
+    "label": "Vestaboard Flagship",
+    "technology": "split_flap",
+    "family": "vestaboard",
+    "geometry": { "kind": "cells", "rows": 6, "cols": 22 },
+    "color": { "kind": "tiles" },
+    "charset": "vestaboard_v1",
+    "charsetByCode62": { "degree": "vestaboard_v1", "heart": "vestaboard_v2" },
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 1,
+      "notes": "Frames are written by FiestaBoard one at a time (transition plugins step frame-by-frame); the board's own flap cascade animates each write. ~1 frame/s is the practical ceiling for legible flap motion on the local API. Cloud connections are additionally floored by FiestaBoard at one write per 15 s (transport policy, not device capability).",
+      "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
+    },
+    "appearance": { "boardColors": ["black", "white"], "options": { "board_color": ["black", "white"] } },
+    "legacy": { "deviceType": "flagship" }
+  },
+  "vestaboard_note": {
+    "id": "vestaboard_note",
+    "label": "Vestaboard Note",
+    "technology": "split_flap",
+    "family": "vestaboard",
+    "geometry": { "kind": "cells", "rows": 3, "cols": 15 },
+    "color": { "kind": "tiles" },
+    "charset": "vestaboard_v2",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 1,
+      "notes": "Frames are written by FiestaBoard one at a time (transition plugins step frame-by-frame); the board's own flap cascade animates each write. ~1 frame/s is the practical ceiling for legible flap motion on the local API. Cloud connections are additionally floored by FiestaBoard at one write per 15 s (transport policy, not device capability).",
+      "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
+    },
+    "appearance": { "boardColors": ["black", "white"], "options": { "board_color": ["black", "white"] } },
+    "legacy": { "deviceType": "note" }
+  },
+  "vestaboard_note_array": {
+    "id": "vestaboard_note_array",
+    "label": "Vestaboard Note array",
+    "technology": "split_flap",
+    "family": "vestaboard",
+    "geometry": { "kind": "note_array" },
+    "color": { "kind": "tiles" },
+    "charset": "vestaboard_v2",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 1,
+      "notes": "Frames are written by FiestaBoard one at a time (transition plugins step frame-by-frame); the board's own flap cascade animates each write. ~1 frame/s is the practical ceiling for legible flap motion on the local API. Cloud connections are additionally floored by FiestaBoard at one write per 15 s (transport policy, not device capability).",
+      "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
+    },
+    "appearance": { "boardColors": ["black", "white"], "options": { "board_color": ["black", "white"] } },
+    "legacy": { "deviceType": "note_array" }
+  },
+  "vestaboard_panel": {
+    "id": "vestaboard_panel",
+    "label": "Virtual panel",
+    "technology": "split_flap",
+    "family": "vestaboard",
+    "geometry": { "kind": "panel" },
+    "color": { "kind": "tiles" },
+    "charset": "vestaboard_v2",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 0.5,
+      "notes": "Virtual board shown by a browser or TV app that polls frames every ~2 s. A client sends one message at a time; the virtual flaps cascade each change.",
+      "sources": ["FiestaBoard core transition runner and send floor (fiestaboard#2190)"]
+    },
+    "appearance": { "boardColors": ["black", "white"], "options": { "board_color": ["black", "white"] } },
+    "legacy": { "deviceType": "panel" }
+  },
+  "divoom_pixoo64": {
+    "id": "divoom_pixoo64",
+    "label": "Divoom Pixoo 64",
+    "technology": "led_matrix",
+    "family": "divoom",
+    "geometry": { "kind": "pixels", "width": 64, "height": 64 },
+    "color": { "kind": "rgb", "bitDepth": 24 },
+    "charset": "led_3x5",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 5,
+      "notes": "Verified on a Pixoo 64 (hardware 92), camera-timed, in two labs (2026-10-04 and 2026-10-05). FiestaBoard STREAMS on this device: every frame is its own single-frame Draw/SendHttpGif push (PicNum 1), which plays once with no overlay and no loop, and the last frame always lands cleanly. maxFps 5 is the measured stream rate: each push takes ~0.19 s whatever the frame size (64 px and 32 px alike); paced at 5 fps, 19 of 20 frames displayed (12 of 12 at 4 fps); back-to-back pushes reach ~4.2-5 fps with an occasional dropped middle frame; 6 fps cannot be sent. Two requests in flight drop frames, and Draw/CommandList shows only its last frame and is no faster, so frames go one at a time in order. Core-planned flip, slide, wipe, cascade, dissolve and fade, streamed at 5 fps, all displayed as intended (lab 2). Channel/SetBrightness answers in ~75 ms, so a fade through black (dim, swap, brighten) takes ~1.1 s. Why not an uploaded animation (lab 1): Draw/SendHttpGif uploads (one POST per frame, PicNum frames, PicOffset index, PicSpeed ms per frame, PicData base64 RGB888 row-major from the top left, PicWidth 64) LOOP FOREVER with no play-once flag; any upload longer than ~1.2 s (more than ~3 frames) shows a LOADING overlay; landing on a still after an animation keeps the old loop running with frame 0 replaced for ~5 s. PicID: a push displays only if PicID > the last accepted one (skipping ahead is fine); a reused or lower PicID still answers error_code 0 but is silently ignored. Draw/GetHttpGifId returns the next id (0 right after a reset). Draw/ResetHttpGifId does not clear the screen and needs no wait afterwards. Not verified: the community report of a freeze after ~300 pushes without a reset (the plugin resets every 32), and behaviour on other firmware. mDNS: the device advertises nothing.",
+      "sources": [
+        "FiestaBoard hardware lab on a Pixoo 64, 2026-10-04 (camera-timed; fiestaboard-output--divoom-pixoo PR #1)",
+        "FiestaBoard hardware lab 2 on a Pixoo 64, 2026-10-05 (camera-timed single-frame streaming, brightness ramps, core-planned transitions)",
+        "https://doc.divoom-gz.com/web/#/12?page_id=93 (Draw/SendHttpGif; read via the ShowDoc JSON API)",
+        "https://doc.divoom-gz.com/web/#/12?page_id=192 (Draw/GetHttpGifId)",
+        "https://doc.divoom-gz.com/web/#/12?page_id=236 (Draw/ResetHttpGifId)",
+        "https://raw.githubusercontent.com/cyanheads/pixoo-toolkit/main/AGENTS.md",
+        "https://github.com/SomethingWithComputers/pixoo",
+        "https://github.com/gickowtf/pixoo-homeassistant/pull/158"
+      ]
+    },
+    "font": "3x5",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 },
+      "font": { "allowed": ["5x7", "3x5"], "default": "5x7" }
+    },
+    "appearance": { "pixelShape": "square", "dotRatio": 0.82, "offColor": "#171717", "substrateColor": "#0a0a0a" },
+    "legacy": { "preset": "pixoo64" }
+  },
+  "ulanzi_tc001_awtrix": {
+    "id": "ulanzi_tc001_awtrix",
+    "label": "AWTRIX / Ulanzi TC001 (32×8)",
+    "technology": "led_matrix",
+    "family": "awtrix",
+    "geometry": { "kind": "pixels", "width": 32, "height": 8 },
+    "color": { "kind": "rgb", "bitDepth": 24 },
+    "charset": "led_3x5",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 2,
+      "notes": "Custom apps take `draw` ops (dp/dl/dr/df/dc/dfc/dt/db) over HTTP or MQTT; `db` with a full 8×32 bitmap returned ErrorParsingJson (#214). TSPEED (app transition) defaults to 500 ms, ATIME 7 s. No stated rate limit; the push rate is UNMEASURED (no test device), so the model is held at a nominal 2 fps — below every animated entry's minimum — and stays on snap, letting the firmware's own Slide transition carry the change.",
+      "sources": [
+        "https://raw.githubusercontent.com/Blueforcer/awtrix3/main/docs/api.md",
+        "https://github.com/Blueforcer/awtrix3/issues/214"
+      ]
+    },
+    "font": "3x5",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
+    "appearance": { "pixelShape": "square", "dotRatio": 0.82, "offColor": "#171717", "substrateColor": "#0a0a0a" },
+    "legacy": { "preset": "awtrix" }
+  },
+  "wled_32x32": {
+    "id": "wled_32x32",
+    "label": "WLED 32×32",
+    "technology": "led_matrix",
+    "family": "wled",
+    "geometry": { "kind": "pixels", "width": 32, "height": 32 },
+    "color": { "kind": "rgb", "bitDepth": 24 },
+    "charset": "led_3x5",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 40,
+      "notes": "DDP on UDP 4048 (480 RGB pixels per 1440-byte datagram; 1024 LEDs = 3 datagrams a frame) holds 25–40 fps on an ESP32; E1.31 is documented at '25 ms (40 fps)' for ≤ 510 LEDs; WLED_FPS default 42. The JSON `seg.i` route is HTTP + parse per call and not for this.",
+      "sources": [
+        "https://kno.wled.ge/interfaces/ddp/",
+        "https://kno.wled.ge/interfaces/e1.31-dmx/",
+        "https://kno.wled.ge/interfaces/udp-realtime/",
+        "https://wled.discourse.group/t/esp32-288leds-fps/3046"
+      ]
+    },
+    "font": "3x5",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
+    "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
+    "legacy": { "preset": "wled_32x32" }
+  },
+  "hub75_64x32": {
+    "id": "hub75_64x32",
+    "label": "HUB75 64×32",
+    "technology": "led_matrix",
+    "family": "hub75",
+    "geometry": { "kind": "pixels", "width": 64, "height": 32 },
+    "color": { "kind": "rgb", "bitDepth": 24 },
+    "charset": "led_5x7",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 60,
+      "notes": "rpi-rgb-led-matrix refreshes 'typically in the hundreds of Hertz' (three 128×64 panels: 410 Hz); a Pi daemon fed over the network (flaschen-taschen style) holds 30–60 fps.",
+      "sources": ["https://github.com/hzeller/rpi-rgb-led-matrix"]
+    },
+    "font": "5x7",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
+    "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
+    "legacy": { "preset": "hub75_64x32" }
+  },
+  "hub75_64x64": {
+    "id": "hub75_64x64",
+    "label": "HUB75 64×64",
+    "technology": "led_matrix",
+    "family": "hub75",
+    "geometry": { "kind": "pixels", "width": 64, "height": 64 },
+    "color": { "kind": "rgb", "bitDepth": 24 },
+    "charset": "led_5x7",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 60,
+      "notes": "As hub75_64x32.",
+      "sources": ["https://github.com/hzeller/rpi-rgb-led-matrix"]
+    },
+    "font": "5x7",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
+    "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
+    "legacy": { "preset": "hub75_64x64" }
+  },
+  "hub75_128x64": {
+    "id": "hub75_128x64",
+    "label": "HUB75 128×64",
+    "technology": "led_matrix",
+    "family": "hub75",
+    "geometry": { "kind": "pixels", "width": 128, "height": 64 },
+    "color": { "kind": "rgb", "bitDepth": 24 },
+    "charset": "led_5x7",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 60,
+      "notes": "As hub75_64x32; a 128×64 chain still refreshes above 100 Hz on a Pi 4.",
+      "sources": ["https://github.com/hzeller/rpi-rgb-led-matrix"]
+    },
+    "font": "5x7",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
+    "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
+    "legacy": { "preset": "hub75_128x64" }
+  },
+  "max7219_4in1": {
+    "id": "max7219_4in1",
+    "label": "MAX7219 4-in-1 (32×8, red)",
+    "technology": "led_matrix",
+    "family": "max7219",
+    "geometry": { "kind": "pixels", "width": 32, "height": 8 },
+    "color": { "kind": "monochrome", "color": "#ff3b1f", "bitDepth": 1 },
+    "charset": "led_3x5",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 50,
+      "notes": "A 32×8 frame is 32 bytes over SPI; MD_Parola's setSpeed() runs animations at any ms interval ('zero to run as fast as possible'). Hundreds of fps locally (unverified figure); the bridge from a host to the module is custom, so the figure assumes you own it.",
+      "sources": ["https://luma-led-matrix.readthedocs.io/en/latest/", "https://github.com/MajicDesigns/MD_Parola/wiki"]
+    },
+    "font": "3x5",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
+    "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
+    "legacy": { "preset": "max7219" }
+  },
+  "p10_hub12_32x16": {
+    "id": "p10_hub12_32x16",
+    "label": "P10 DMD (32×16, red)",
+    "technology": "led_matrix",
+    "family": "p10",
+    "geometry": { "kind": "pixels", "width": 32, "height": 16 },
+    "color": { "kind": "monochrome", "color": "#ff3b1f", "bitDepth": 1 },
+    "charset": "led_5x7",
+    "animation": {
+      "delivery": "stream",
+      "maxFps": 50,
+      "notes": "HUB12 modules are scanned by the host microcontroller (DMD32 / DMD_STM32, 30–70 µs row on-time); a frame over serial is 64 bytes. No standard host protocol, so the figure assumes you own the bridge.",
+      "sources": ["https://github.com/board707/DMD_STM32"]
+    },
+    "font": "5x7",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
+    "appearance": { "pixelShape": "round", "dotRatio": 0.72, "offColor": "#171717", "substrateColor": "#0a0a0a" },
+    "legacy": { "preset": "p10_32x16" }
+  },
+  "tidbyt_tronbyt": {
+    "id": "tidbyt_tronbyt",
+    "label": "Tidbyt / Tronbyt (64×32)",
+    "technology": "led_matrix",
+    "family": "tronbyt",
+    "geometry": { "kind": "pixels", "width": 64, "height": 32 },
+    "color": { "kind": "rgb", "bitDepth": 24 },
+    "charset": "led_5x7",
+    "animation": {
+      "delivery": "sequence",
+      "maxFps": 20,
+      "minFrameMs": 50,
+      "notes": "Tronbyt server: POST /v0/devices/{id}/push with a base64 WebP, displayTimeSec default 30; devices poll /next and loop the animation. Pixlet render.Root(delay=ms) sets the frame time (50 ms default — unverified). Tidbyt's cloud is rate-limited with no published number. One WebP per message change, so a flip is a sequence at 80 ms per step with no half-flaps.",
+      "sources": [
+        "https://raw.githubusercontent.com/tronbyt/server/main/API.md",
+        "https://raw.githubusercontent.com/tidbyt/pixlet/main/docs/widgets.md"
+      ]
+    },
+    "font": "5x7",
+    "layoutOptions": {
+      "tileGap": { "allowed": ["gap", "fill"], "default": "gap" },
+      "blockPadding": { "allowed": [0, 1], "default": 0 }
+    },
+    "appearance": { "pixelShape": "square", "dotRatio": 0.82, "offColor": "#171717", "substrateColor": "#0a0a0a" },
+    "legacy": { "preset": "tronbyt" }
+  }
+}

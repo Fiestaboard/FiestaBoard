@@ -75,9 +75,8 @@ class TestSettingsService:
     @pytest.fixture
     def service(self, temp_settings_file):
         """Create a settings service with temp file."""
-        with patch.object(SettingsService, "_load_transition_settings", return_value=TransitionSettings()):
-            with patch.object(SettingsService, "_load_output_settings", return_value=OutputSettings()):
-                return SettingsService(settings_file=temp_settings_file)
+        with patch.object(SettingsService, "_load_output_settings", return_value=OutputSettings()):
+            return SettingsService(settings_file=temp_settings_file)
 
     def test_get_transition_settings(self, service):
         """Test getting transition settings."""
@@ -147,11 +146,10 @@ class TestSettingsService:
     def test_settings_persistence(self, temp_settings_file):
         """Test that settings persist across service restarts."""
         # First service instance - use real loading which will use defaults
-        with patch.object(SettingsService, "_load_transition_settings", return_value=TransitionSettings()):
-            with patch.object(SettingsService, "_load_output_settings", return_value=OutputSettings()):
-                service1 = SettingsService(settings_file=temp_settings_file)
-                service1.update_transition_settings(strategy="diagonal", step_interval_ms=1000)
-                service1.set_output_target("both")
+        with patch.object(SettingsService, "_load_output_settings", return_value=OutputSettings()):
+            service1 = SettingsService(settings_file=temp_settings_file)
+            service1.update_transition_settings(strategy="diagonal", step_interval_ms=1000)
+            service1.set_output_target("both")
 
         # Second service instance - load from file
         service2 = SettingsService(settings_file=temp_settings_file)

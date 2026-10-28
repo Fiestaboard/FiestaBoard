@@ -53,6 +53,12 @@ describe("MqttSettingsCard", () => {
     });
   });
 
+  it("names the enable toggle for assistive tech", async () => {
+    render(<MqttSettingsCard />, { wrapper: TestWrapper });
+
+    expect(await screen.findByRole("switch", { name: "Home Assistant (MQTT)" })).toBeInTheDocument();
+  });
+
   it("shows description text", async () => {
     render(<MqttSettingsCard />, { wrapper: TestWrapper });
 

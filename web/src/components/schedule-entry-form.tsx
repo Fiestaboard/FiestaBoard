@@ -138,6 +138,9 @@ export const ScheduleEntryForm = forwardRef<ScheduleFormHandle, ScheduleEntryFor
   const t = useTranslations("schedule");
   const tc = useTranslations("common");
   const isEdit = Boolean(schedule);
+  const [originalRevision] = useState(() =>
+    schedule?.edit_protocol === "schedule-revision-v1" ? schedule.revision : undefined,
+  );
 
   // Board the schedule targets: the app-wide current board (issue #1249).
   // Single-board installs see no change — every page for that board matches.
@@ -394,7 +397,7 @@ export const ScheduleEntryForm = forwardRef<ScheduleFormHandle, ScheduleEntryFor
         };
       }
 
-      await onSubmit(data);
+      await onSubmit({ ...data, ...(originalRevision ? { expected_revision: originalRevision } : {}) });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("scheduleEntryForm.submitError"));
       setIsSubmitting(false);

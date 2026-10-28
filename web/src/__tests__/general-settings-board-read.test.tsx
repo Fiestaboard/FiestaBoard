@@ -23,6 +23,23 @@ vi.mock("@/hooks/use-router", () => ({
 }));
 
 import { GeneralSettings } from "@/components/general-settings";
+import type { BoardInstance } from "@/lib/api";
+
+const board = {
+  output: "custom-display",
+  id: "default",
+  name: "Flagship",
+  device_type: "flagship",
+  board_color: "black",
+  enabled: true,
+  api_mode: "local",
+  host: "",
+  local_api_key: "",
+  cloud_key: "",
+  polling_interval_seconds: 300,
+  board_read_interval_local: 30,
+  board_read_interval_cloud: 180,
+} satisfies BoardInstance;
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({
@@ -47,7 +64,7 @@ describe("GeneralSettings — board read intervals", () => {
   });
 
   it("renders board-read-local and board-read-cloud inputs with values from API", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(document.getElementById("board-read-local")).toBeInTheDocument();
@@ -61,7 +78,7 @@ describe("GeneralSettings — board read intervals", () => {
   });
 
   it("onChange updates local interval when value is a valid number", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Wait for the input AND for useDeferredValue to settle on the API value (30)
     // before firing the change, so a late deferred update can't overwrite it.
@@ -85,7 +102,7 @@ describe("GeneralSettings — board read intervals", () => {
   });
 
   it("onChange updates cloud interval when value is a valid number", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Wait for the input AND for useDeferredValue to settle on the API value (180)
     // before firing the change, so a late deferred update can't overwrite it.
@@ -108,7 +125,7 @@ describe("GeneralSettings — board read intervals", () => {
   });
 
   it("shows warning when cloud interval is below 60 seconds", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Wait for the API value to load (180) before firing the change,
     // then flush deferred updates so a late React re-render can't overwrite it.
@@ -130,7 +147,7 @@ describe("GeneralSettings — board read intervals", () => {
   });
 
   it("does not show warning when cloud interval is 60 or above", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => expect(document.getElementById("board-read-cloud")).toBeInTheDocument());
 
@@ -151,7 +168,7 @@ describe("GeneralSettings — board read intervals", () => {
       }),
     );
 
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Wait for the deferred polling settings to fully load and sync to state
     const input = await waitFor(() => {
@@ -184,7 +201,7 @@ describe("GeneralSettings — board read intervals", () => {
       }),
     );
 
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => expect(document.getElementById("board-read-cloud")).toBeInTheDocument());
 
@@ -202,7 +219,7 @@ describe("GeneralSettings — board read intervals", () => {
     });
   });
 
-  it("onBlur clamps local interval to minimum 20 if below", async () => {
+  it("does not save a local interval below the minimum of 20", async () => {
     let capturedBody: unknown;
     server.use(
       http.put(`${API_BASE}/settings/polling`, async ({ request }) => {
@@ -215,7 +232,7 @@ describe("GeneralSettings — board read intervals", () => {
       }),
     );
 
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => expect(document.getElementById("board-read-local")).toBeInTheDocument());
 
@@ -225,8 +242,7 @@ describe("GeneralSettings — board read intervals", () => {
     await act(async () => {});
     fireEvent.blur(input);
 
-    await waitFor(() => {
-      expect(capturedBody).toMatchObject({ board_read_interval_local: 20 });
-    });
+    expect(input).toBeInvalid();
+    expect(capturedBody).toBeUndefined();
   });
 });

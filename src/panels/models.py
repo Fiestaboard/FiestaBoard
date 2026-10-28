@@ -8,9 +8,11 @@ physical scale: screen size, calibration nudge, backdrop, and auto-dim.
 import re
 import secrets
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
+
+from src.canvas.schemas import CanvasLayerModel
 
 # Panel ids go in unauthenticated URLs; long random slugs keep them
 # unguessable-by-accident (they are NOT treated as secrets).
@@ -19,6 +21,15 @@ _PANEL_ID_BYTES = 9  # token_urlsafe(9) -> 12 chars
 _TIME_RE = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 
 BackdropStyle = Literal["wall", "dark", "none"]
+
+# How the TV draws the board: split-flap tiles (the look every panel had
+# before this setting existed, so the default) or an LED matrix. Each style
+# is one FiestaUI device model FiestaBoard declares for its own display,
+# ``fiestapanel_<style>`` (src.fiestaui.fiestapanel_device_models).
+RenderStyle = Literal["split_flap", "led_matrix"]
+MatrixSizing = Literal["fill_tv", "fit_panel", "true_size"]
+MatrixLayout = Literal["legacy", "screen"]
+MatrixFont = Literal["5x7", "3x5"]
 
 
 def _generate_panel_id() -> str:
@@ -66,6 +77,15 @@ class Panel(BaseModel):
     is_display: bool = False
     backdrop: BackdropStyle = "wall"
     auto_dim: AutoDim = Field(default_factory=AutoDim)
+    # Additive: a panel stored before it existed loads as split_flap, and a
+    # viewer that predates it ignores the key.
+    render_style: RenderStyle = "split_flap"
+    # None preserves legacy viewers and the native TV's local preference.
+    matrix_sizing: MatrixSizing | None = None
+    matrix_pitch_mm: float = Field(default=6.0, ge=1.0, le=20.0, allow_inf_nan=False)
+    # Missing on stored panels: keep authored pages until an explicit conversion.
+    matrix_layout: MatrixLayout = "legacy"
+    matrix_font: MatrixFont = "5x7"
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -81,6 +101,8 @@ class PanelCreate(BaseModel):
     screen_diagonal_inches: float = Field(default=55.0, ge=3.0, le=200.0)
     screen_aspect_w: float = Field(default=16.0, ge=1.0, le=100.0)
     screen_aspect_h: float = Field(default=9.0, ge=1.0, le=100.0)
+    render_style: RenderStyle = "split_flap"
+    matrix_font: MatrixFont = "5x7"
 
 
 class PanelUpdate(BaseModel):
@@ -95,6 +117,33 @@ class PanelUpdate(BaseModel):
     is_display: bool | None = None
     backdrop: BackdropStyle | None = None
     auto_dim: AutoDim | None = None
+    render_style: RenderStyle | None = None
+    matrix_sizing: MatrixSizing | None = None
+    matrix_pitch_mm: float | None = Field(default=None, ge=1.0, le=20.0, allow_inf_nan=False)
+    matrix_layout: MatrixLayout | None = None
+    matrix_font: MatrixFont | None = None
+    copy_content: bool = False
+
+
+class PanelGeometryRequest(BaseModel):
+    """A read-only settings preview, optionally based on a saved panel."""
+
+    panel_id: str | None = None
+    render_style: RenderStyle = "split_flap"
+    matrix_layout: MatrixLayout = "screen"
+    matrix_font: MatrixFont = "5x7"
+    screen_diagonal_inches: float = Field(default=55.0, ge=3.0, le=200.0, allow_inf_nan=False)
+    screen_aspect_w: float = Field(default=16.0, ge=1.0, le=100.0, allow_inf_nan=False)
+    screen_aspect_h: float = Field(default=9.0, ge=1.0, le=100.0, allow_inf_nan=False)
+
+
+class PanelGeometryResponse(BaseModel):
+    """Resolved geometry shared by saved panels and unsaved previews."""
+
+    rows: int
+    cols: int
+    device_model_spec: dict
+    geometry_key: str
 
 
 # ---------------------------------------------------------------------------
@@ -159,6 +208,7 @@ class PanelUpdateResponse(PanelResponse):
     """
 
     incompatible_references: list[IncompatiblePanelReference] | None = None
+    content_copies: dict[str, Any] | None = None
 
 
 class PanelDeleteResponse(BaseModel):
@@ -177,6 +227,15 @@ class PanelPublicResponse(PanelResponse):
 
     board_color: str | None = None
     code62_glyph: str | None = None
+    #: The FiestaUI device model the panel's render style draws as
+    #: (``fiestapanel_split_flap`` / ``fiestapanel_led_matrix``), and that
+    #: model's document: FiestaUI does not build FiestaPanel's models in, so a
+    #: viewer renders from the document (``DisplayPreview model={spec}``).
+    #: Present even for an orphaned panel -- the style is the panel's.
+    device_model: str | None = None
+    device_model_spec: dict[str, Any] | None = None
+    geometry_key: str | None = None
+    geometry_error: str | None = None
 
 
 class PanelFrameResponse(BaseModel):
@@ -188,7 +247,20 @@ class PanelFrameResponse(BaseModel):
     """
 
     characters: list[list[int]] | None = None
+    #: The same frame as rich cells, FiestaUI's ``BoardToken[][]`` JSON
+    #: (``{"type": "char", "value": "A"}`` / ``{"type": "color", "code":
+    #: "63"}``, plus ``color`` / ``background`` / ``icon`` when set), for a
+    #: viewer that draws colour (a ``led_matrix`` render style). Additive and
+    #: present ONLY when the frame has rich cells (its board's output took
+    #: them, :mod:`src.outputs.cells`); otherwise the key is absent and the
+    #: response is exactly what it always was. ``characters`` and
+    #: ``message`` are unchanged either way.
+    cells: list[list[dict[str, Any]]] | None = None
+    #: Ordered pixel canvases for LED matrices, painted over cells. An empty
+    #: list clears the previous frame's canvases; non-pixel boards omit it.
+    layers: list[CanvasLayerModel] | None = None
     message: str | None = None
     rows: int
     cols: int
     updated_at: str | None = None
+    geometry_key: str | None = None

@@ -7,7 +7,7 @@
  *  - UI: editor shows 3 lines (not 6)
  *  - UI: editing an existing Note page
  *  - UI: preview renders 3×15 grid
- *  - UI: pages list tabs filter by device type
+ *  - UI: pages list filters by configured display compatibility
  *  - Alignment: center/right justify uses 15-column width (not 22)
  */
 import {
@@ -16,10 +16,12 @@ import {
   createNotePage,
   createPage,
   deleteAllPages,
+  ensureTwoBoards,
   expect,
   getMockBoardState,
   lastMockMessage,
   MOCK_BOARD_URL,
+  resetToSingleBoard,
   test,
 } from "./helpers";
 
@@ -193,33 +195,44 @@ test.describe("Note pages – UI", () => {
     await expect(page.locator('[data-testid="char-tile-0-15"]')).toHaveCount(0);
   });
 
-  test("pages list tabs filter by device type", async ({ page }) => {
+  test("pages list display filter shows compatible pages and keeps all pages reachable", async ({ page }) => {
+    await resetToSingleBoard();
+    const { board1Id, board2Id } = await ensureTwoBoards();
+    const settings = await (await fetch(`${API_URL}/settings/board`)).json();
+    const flagship = settings.boards.find((board: { id: string }) => board.id === board1Id);
+    const note = settings.boards.find((board: { id: string }) => board.id === board2Id);
     const flagshipName = `Flagship ${Date.now()}`;
     const noteName = `Note ${Date.now()}`;
+    try {
+      await createPage(flagshipName);
+      await createNotePage(noteName);
 
-    await createPage(flagshipName);
-    await createNotePage(noteName);
+      await page.goto("/pages");
+      await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.goto("/pages");
-    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    // Both tabs should be visible since we configured flagship + note
-    const flagshipTab = page.getByRole("tab", { name: "Flagship" });
-    const noteTab = page.getByRole("tab", { name: "Note" });
-    await expect(flagshipTab).toBeVisible({ timeout: 5_000 });
-    await expect(noteTab).toBeVisible();
-
-    // Flagship tab should show the flagship page
-    await flagshipTab.click();
-    await expect(page.getByText(flagshipName).first()).toBeVisible({
-      timeout: 5_000,
-    });
-
-    // Note tab should show the note page
-    await noteTab.click();
-    await expect(page.getByText(noteName).first()).toBeVisible({
-      timeout: 5_000,
-    });
+      const filter = page.getByRole("combobox", { name: "Display filter" });
+      await expect(filter).toHaveText("All pages");
+      await expect(page.getByText(flagshipName, { exact: true })).toBeVisible();
+      await expect(page.getByText(noteName, { exact: true })).toBeVisible();
+      await filter.click();
+      await page.getByRole("option", { name: flagship.name, exact: true }).click();
+      await expect(page.getByText(flagshipName).first()).toBeVisible({
+        timeout: 5_000,
+      });
+      await expect(page.getByText(noteName, { exact: true })).toBeHidden();
+      await filter.click();
+      await page.getByRole("option", { name: note.name, exact: true }).click();
+      await expect(page.getByText(noteName).first()).toBeVisible({
+        timeout: 5_000,
+      });
+      await expect(page.getByText(flagshipName, { exact: true })).toBeHidden();
+      await filter.click();
+      await page.getByRole("option", { name: "All pages", exact: true }).click();
+      await expect(page.getByText(flagshipName, { exact: true })).toBeVisible();
+      await expect(page.getByText(noteName, { exact: true })).toBeVisible();
+    } finally {
+      await resetToSingleBoard();
+    }
   });
 });
 

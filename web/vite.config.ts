@@ -78,49 +78,27 @@ export default defineConfig({
     // does by setting `window.__vite_plugin_react_preamble_installed__`
     // inline in Layout's `<head>` before the route module imports.
     reactRouter(),
+    // The service worker is retired. Since the React Router migration (#919)
+    // the plugin wrote sw.js to `dist/`, which nothing serves, so /sw.js
+    // 404'd on every load and the app never had a working one. A real one
+    // buys no speed here (hashed /assets/ are already `immutable` for a year)
+    // and would re-download the whole bundle after every nightly update.
+    // Our retirement worker unregisters itself after awaiting deletion of its
+    // owned caches, which also evicts any Next.js-era worker controlling a
+    // long-lived tab with a stale precache. Once those are gone (a few
+    // releases), this plugin and public/registerSW references can go too.
     VitePWA({
-      registerType: "autoUpdate",
-      strategies: "generateSW",
+      strategies: "injectManifest",
+      srcDir: "public",
+      filename: "sw.js",
+      injectManifest: { injectionPoint: undefined },
       injectRegister: "auto",
-      workbox: {
-        navigateFallback: "/offline",
-        // A new SW that ships in a deploy takes over immediately
-        // instead of waiting for every controlled tab to close
-        // (otherwise users on long-lived tabs stay on the old build
-        // until they fully quit the app). cleanupOutdatedCaches sheds
-        // precaches from prior workbox revisions so storage doesn't
-        // accumulate stale assets.
-        skipWaiting: true,
-        clientsClaim: true,
-        cleanupOutdatedCaches: true,
-        // NetworkFirst with a 10s timeout and a 200-entry / 7-day
-        // expiration for everything EXCEPT top-level navigation HTML.
-        // Caching the document under NetworkFirst means a transient
-        // slow network (>10s) serves a stale index.html whose hashed
-        // /assets/<old>.js chunks may not exist in the current build
-        // → white screen until a hard refresh. The document is already
-        // covered by precache + navigateFallback for the offline case,
-        // so the safe move is to keep it out of this runtime cache and
-        // always go to the network for navigations.
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }) => request.destination !== "document",
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "offlineCache",
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 7,
-              },
-              networkTimeoutSeconds: 10,
-            },
-          },
-        ],
-      },
+      // React Router's client build dir; the plugin's default (`dist/`) is
+      // never served.
+      outDir: "build/client",
       // We ship our own /public/manifest.json — don't let the plugin
       // generate or overwrite it.
       manifest: false,
-      includeAssets: ["favicon.ico", "icons/*.png", "manifest.json"],
       devOptions: { enabled: false },
     }),
     process.env.ANALYZE === "true" &&
@@ -148,6 +126,9 @@ export default defineConfig({
     },
   },
   build: {
-    sourcemap: true,
+    // Emitted for debugging builds locally, but without the
+    // `sourceMappingURL` comment, and nginx refuses to serve *.map: a
+    // production instance should not hand its full source to any visitor.
+    sourcemap: "hidden",
   },
 });

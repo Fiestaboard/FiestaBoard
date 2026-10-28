@@ -144,6 +144,7 @@ With this format, the editor shows:
 | `max_length` | integer | Max characters this variable can produce |
 | `group` | string | Group ID to organize this variable under |
 | `example` | string | Example value shown in documentation |
+| `format` | string | `"text"` (default): the value is data, and braces other than color tiles and end tags draw as `(`/`)`. `"markup"`: the value passes through as markup (plan D19). `"canvas"`: the value is a pixel-canvas content object (a dict) for a canvas `source`; it is empty text in a template line |
 
 All fields are optional. You can mix and match — add just `description` if that's all you need.
 
@@ -258,6 +259,8 @@ def fetch_data(self) -> PluginResult:
 | `device_type` | `"flagship"`, `"note"`, `"note_array"`, `"panel"` |
 | `cols` / `width` | board width in tiles (aliases) |
 | `rows` / `height` | board height in tiles (aliases) |
+| `display` | what the display can draw (`src.outputs.display_profile.DisplayProfile`): technology, colour, lowercase, coloured text, backgrounds, tiles, icons, an LED board's text face (`font`: `"5x7"` / `"3x5"`), plus `supports()`, `ai_brief()` and `check()`. `None` without a board; treat as split-flap |
+| `key` | identity for per-board state: size plus `display.key`, exactly what `get_data()` caches on |
 
 ### Rules
 
@@ -276,10 +279,19 @@ def fetch_data(self) -> PluginResult:
 - **Don't ask the user for the board size.** A settings field for device type
   or width is always wrong: the platform already knows, and one config has to
   serve every board the user owns.
-- **Key any cache of your own by geometry.** `PluginBase.get_data()` already
-  caches results per geometry (`note_array:{cols}x{rows}`, `panel:{cols}x{rows}`), but a cache or
-  simulation state you hold yourself must include rows and cols, or one board's
-  frame is served to another.
+- **Adapt to the display, not just its size.** `board.display` says whether
+  the board is split-flap or LED, and what markup it draws. An AI plugin puts
+  `board.display.ai_brief()` in its prompt; never hard-code "split-flap" or
+  "uppercase only".
+- **Key any cache of your own on `board.key`.** `PluginBase.get_data()`
+  already caches results on it (size plus `display.key`), but a cache or
+  simulation state you hold yourself must use it too, or one board's frame is
+  served to another. Never key on `device_type` alone: a board's size can
+  change at runtime (an LED board's text size moves a Pixoo between 10x16 and
+  8x10 under `device_type` `"panel"`), and two boards of one size (a
+  split-flap panel and an LED panel) draw differently.
+- **Fit 10 columns.** An LED board in its large face is as narrow as 10x4;
+  the conformance suite renders every plugin at 10x8 and 10x4.
 
 ### Prove it with the conformance suite
 
@@ -1161,6 +1173,153 @@ Screenshots in `screenshots[]` are still used for anything that is not a board �
 | `min_refresh_seconds` | Hard floor for refresh interval |
 | `live_data` | When `true`, bypasses caching entirely — `fetch_data()` is called on every render tick. Use for clocks, animations, or anything driven by the current time. Defaults to `false`. |
 | `screenshots` | Array of screenshot entries for galleries, docs, and the registry (see Documentation Standards) |
+| `plugin_type` | `data` (default), `transition`, or `output` (beta — see below) |
+
+#### Output plugins (`plugin_type: "output"`, beta)
+
+An output plugin drives a display device instead of producing content. It
+subclasses `OutputPluginBase` (`from src.plugins import OutputPluginBase`),
+is instantiated **once per board** (`cls(board_id, output_config)`), and
+implements at least `write(frame, *, native, cancel) -> WriteResult`; core
+keeps the send lock, floor (keyed by your `device_key()`), dedupe and
+transitions. The manifest carries an `output` block — `output_api` (currently
+`1`), `device_models` (FiestaUI DeviceModel objects or built-in ids, inline or
+`{"$ref": "output/device-models.json"}` listed in `data_files`), an optional
+`character_set`, `delivery`, `min_interval_ms`, `read_back`,
+`native_transitions`, and the `settings_schema` of each board's settings
+(mark credentials `"secret": true`). Output plugins declare no `variables`,
+`teaser` or `previews`; registry repos use the `fiestaboard-output--` prefix.
+No opt-in gates an output plugin: since settings v7 every installed one can
+drive a board, and the **Displays** page's **Marketplace** tab lists them all
+(installed, bundled with the image, and registry entries with
+`"plugin_type": "output"`). The
+in-repo test kit is `tests/fixtures/plugins/recording_output`; the contract
+is described in `src/outputs/plugin_base.py` and
+`src/outputs/output_manifest.py`. The published author guide is
+`docs/development/output-plugins.md` (with `output-stream-api.md` for pull
+viewers and `integrations-overview.md` as the landing page): keep it in step
+when the contract changes.
+
+Talk to the device **only** through `self.http` (`get`/`post`/`put`/
+`delete`, the `requests` keywords you know): it refuses hosts outside
+`FIESTABOARD_OUTPUTS_ALLOW_HOSTS` before a socket opens, applies `(connect,
+read)` timeouts when you give none, never follows redirects, and stops at
+the next request once the write is cancelled. Pass `setup=True` for a
+request that is not the board write itself (a reset, a brightness command).
+The conformance suite fails a plugin that opens its own connections.
+
+What core resolved for the board is on the instance: `self.device_model`
+(the FiestaUI model dict), `self.character_set` (materialised) and
+`self.board_geometry` (`(rows, cols)`). Everything you need to render comes
+from `src.plugins`: `BoardToken`, `cells_from_codes`, `layout_message`,
+`rasterize`, `plan_transition`, `transition_frames`,
+`resolve_led_transition`, `led_flip_seed`, `led_spec_for_model`. An LED
+plugin overrides `write_cells` to receive rich frames and
+`write_transition(before, after, transition, *, cancel)` to animate each
+change with the board's resolved LED transition — the flip FiestaUI
+previews.
+
+`output_api` is a hard gate, applied three times: the update check never
+offers a commit whose manifest declares an `output_api` this core does not
+implement; an update that fails verification or does not load is **rolled
+back** to the commit it replaced (data plugins stay installed and report
+the error); and at load, an installed copy that cannot run falls back to the
+image's seed copy, if FiestaBoard ships one, with an error on
+`GET /plugins/errors`. An output plugin a board uses cannot be uninstalled.
+A release that was rolled back is remembered by commit and not offered again
+until a newer commit appears.
+
+Core does not trust a write to return. Each `write`/`write_sequence` gets 30 s
+(lower it with `output.write_timeout_ms`; it cannot be raised): past that,
+core stops waiting, fails the write and fires `cancel` — so honour `cancel` in
+every wait. Three failed writes in a row (raised, timed out, or
+`success=False`; a partial write does not count) open a circuit breaker for
+that device (`device_key()`): writes are refused for 300 s without calling
+the plugin, and the board's send error says why.
+
+Boards for an output plugin are created with
+`POST /outputs/{output_id}/boards` — `{"device_model": "<one you declare>",
+"output_config": {...}, "name": "...", "geometry": {...}}`. The board's
+character grid comes from the device model: a `pixels` model fits as many
+glyphs of its LED font as the matrix holds (a 64×64 Pixoo at 3×5 is 10×16); a
+`panel` or `note_array` model takes `geometry` (`rows`/`cols`, or
+`notes_wide`/`notes_tall`). A model below its floor — the 3×15 Note, or
+3×10 for a `pixels` model (a 64×64 Pixoo at 5×7 is 8×10) — is refused (400),
+never enlarged, so declare only models that reach it.
+
+**The board settings screen** is rendered from the manifest, never from
+plugin JS. The `settings_schema` may group fields and hide them, with three
+core widgets on top of the usual ones:
+
+- `"ui:sections": [{"id", "title", "fields": [...], "collapsible"?, "collapsed"?}]`
+  on the schema root groups properties (each in at most one section; the
+  rest render first).
+- `"ui:visible_when"` on a property shows it only when its siblings match.
+  The whole grammar: `{"field": value}` (equals), `{"field": [v1, v2]}` (one
+  of), several pairs (all hold), `{"not": cond}`, `{"any": [cond, ...]}`.
+  Values are JSON scalars compared without coercion (`true` is not `1`); an
+  absent field reads as its `default`, else `null`. A hidden field is not
+  validated. A name starting with `@` reads the board, not a sibling:
+  `@device_type`, `@device_model` (`null` with no board). Python
+  (`src/plugins/settings_ui.py`) and the web
+  (`web/src/lib/visible-when.ts`) run the same vectors
+  (`web/src/lib/visible-when.cases.json`).
+- `"ui:widget": "mode-cards"` (a string `enum` as selectable cards;
+  `ui:options.cards: [{value, title, description}]`), `"tile-grid"` (an
+  array of `{row, col, ...}` items; `ui:options.rows_field`/`cols_field` name
+  the integer properties that size it, or `layout: "board"` the board's own
+  tile layout; `item_actions` run on one tile from its dialog;
+  `unique_fields` warn on repeats) and `"device-picker"` (a string filled
+  from a discovery; `ui:options.action` defaults to `discover`,
+  `value_key` to `ip`; its button is named by that action's `label`. Every
+  other scalar a found device carries (a Pixoo's `host`, `mac`) reaches the
+  web UI under the device's `fields`: `value_key` is read there first, and
+  picking the device also fills the same-named settings).
+
+An output may use only the widgets of its `output_api` major (an unknown one
+is an error, not a warning). `output.actions` declares the screen's buttons:
+`[{"id", "label", "description"?, "input_schema"?, "result_fields"?,
+"visible_when"?, "auto_apply"?}]` (`visible_when` in the field grammar;
+`auto_apply` applies a detected geometry without asking).
+`test_connection`, `discover`, `identify` and `detect_geometry` call your
+`check_connection()`, `discover(timeout)`, `identify()` and
+`detect_geometry()`; any other id calls `action_<id>(inputs)` (or override
+`run_action(action, inputs)`; an output that needs more overrides the class
+method `handle_action(ctx)`, whose `ActionContext` lends a throwaway
+instance, the board's live one under its send lock, a reader and a
+re-send — see `docs/development/output-plugins.md`). Return an `ActionOutcome(status, message,
+guidance, fields, geometry, devices)`; mark a credential you hand back
+`ActionField(value, secret=True)` and declare it in `result_fields`
+(`{"token": {"secret": true, "fills": "token"}}`) — core never logs it.
+Actions run on a throwaway instance (closed afterwards) through
+`POST /outputs/{output_id}/actions/{action}` (draft settings, before the board
+exists) or `POST /boards/{board_id}/actions/{action}` (a saved board; `"***"`
+in edited settings is restored from storage). `GET /outputs` lists every
+installed output with its schema and actions; `GET /outputs/available` adds
+the seed's loadable outputs and the registry's `plugin_type: "output"`
+entries, and `POST /outputs/{output_id}/install` installs one (offline from
+the seed, else through the registry install path) — the setup wizard's first
+step uses both (`src/outputs/install.py`).
+
+Every output plugin repo runs the shared conformance suite in its CI:
+`OutputConformanceSuite(plugin_dir, factory, config).assert_conformant()`
+from `src/outputs/conformance.py`, where `factory(board_id, config,
+transport)` just builds the plugin: the suite routes its `self.http` to the
+suite's `FakeTransport`. It checks the manifest and character set, the
+geometry floor (3×15; 3×10 for a `pixels` model), no network at import, a stable credential-free
+`device_key()`, the send floor, that device traffic goes through
+`self.http`, `WriteResult` shapes (including partial writes; `setup=True`
+requests are not counted as the board write), cancellation, sequence
+uploads and `check_connection()`. The
+module docstring has a complete example; core runs it against the test kit
+in `tests/test_output_conformance.py`.
+
+First-party outputs are pinned in `outputs.lock.json` (repo URL, commit,
+`output_api`, tree digest; `"loadable": false` for a repo carried for its
+device data only) and baked into the image's read-only seed by
+`scripts/seed_outputs.py` (`src/outputs/seed.py`). To bump a pin: check out
+the new commit cleanly, run `python scripts/seed_outputs.py digest <dir>` for
+`tree_sha256`, update the entry, and let CI's image build fetch and verify it.
 
 #### `live_data` vs `min_refresh_seconds`
 
@@ -1690,7 +1849,7 @@ logger.error("Failed to fetch data")
 
 External plugins installed from the registry or a git URL are updated automatically. A background task in `src/api_server.py` polls every hour, calls `registry.check_for_updates()`, and — when the user's **Auto-update plugins** setting is on — silently pulls the latest commit for any plugin that has changed.
 
-The behaviour is controlled by **Settings → Plugin Updates**. Users can choose between automatic application and a manual flow that surfaces the available update on the Integrations page (per-plugin update button or the bulk "Apply all updates" action).
+The behaviour is controlled by the **Auto-update plugins** switch in the Integrations page header (beside **Check for updates**; it was a Settings card before 10.0). Users can choose between automatic application and a manual flow that surfaces the available update on the Integrations page (per-plugin update button or the bulk "Apply all updates" action).
 
 For plugin authors this means users on the default settings will receive fixes and new variables shortly after changes land on the plugin's default branch. Keep the default branch stable — breaking changes should be gated behind a version bump in `manifest.json`.
 

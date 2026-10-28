@@ -14,14 +14,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
+from src.canvas.models import Canvas, validate_page_canvases
+from src.canvas.schemas import CanvasIssueModel, CanvasLayerModel
 from src.devices import (
+    ABSOLUTE_MIN_GRID_COLS,
+    ABSOLUTE_MIN_GRID_ROWS,
     MAX_GRID_COLS,
     MAX_GRID_ROWS,
     MAX_NOTES_PER_AXIS,
-    MIN_GRID_COLS,
-    MIN_GRID_ROWS,
     DeviceType,
 )
 
@@ -55,9 +57,16 @@ class FormulaFunctionsResponse(BaseModel):
 
 
 class TemplateValidateRequest(BaseModel):
-    """``POST /templates/validate`` request body."""
+    """``POST /templates/validate`` request body.
+
+    ``board_id`` validates for that board: line length is measured in the
+    tiles it draws, so extended markup (spans, blocks, icons) counts by its
+    cells when the board's character set is rich (plan D19). An unknown board
+    validates as split-flap, exactly as with no ``board_id``.
+    """
 
     template: str | list[str]
+    board_id: str | None = None
 
 
 class TemplateValidationError(BaseModel):
@@ -100,15 +109,31 @@ class TemplateRenderRequest(BaseModel):
     ``grid_rows``/``grid_cols`` size a ``panel`` (a FiestaPanel's explicit
     per-character grid) and are required for one: a panel has no implied
     size, so rendering without them would silently answer flagship geometry.
+
+    ``board_id`` renders for that board: with extended markup when its
+    output's character set is rich (plan D19), and — on ``/templates/render``
+    — checked against that set (see :class:`TemplateRenderResponse`). It
+    does not choose the geometry; the fields above do. An unknown board is a
+    read's safe default: rendered as split-flap, nothing checked.
     """
 
     template: str | list[str]
+    board_id: str | None = None
     device_type: DeviceType | None = None
     notes_wide: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
     notes_tall: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
-    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
-    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
+    grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
     line_metadata: list[dict[str, Any]] | None = None
+    #: The page's pixel canvases for preview and live rendering. Their cells are blanked (or text flows around a
+    #: ``flow`` canvas) on every board; for a pixel-matrix ``board_id`` the
+    #: response also carries their ``layers`` and ``canvas_issues``.
+    canvases: list[Canvas] | None = None
+
+    @field_validator("canvases")
+    @classmethod
+    def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
+        return None if value is None else validate_page_canvases(value)
 
     @model_validator(mode="after")
     def _panel_needs_a_grid(self) -> TemplateRenderRequest:
@@ -125,10 +150,48 @@ class TemplateRenderResponse(BaseModel):
     line_count: int
 
 
+class CharsetIssue(BaseModel):
+    """One cell the target board's character set cannot draw as written
+    (FiestaUI ``CharsetValidationIssue``; tokens in its ``BoardToken`` JSON).
+
+    ``reason`` is ``char``, ``case``, ``tile``, ``icon``, ``colorSpan`` or
+    ``blockSpan``; ``fallback`` is what the board draws there instead.
+    """
+
+    row: int
+    col: int
+    token: dict[str, Any]
+    reason: str
+    fallback: dict[str, Any]
+
+
+class TemplateRenderCheckedResponse(TemplateRenderResponse):
+    """``POST /templates/render``, as the editor's warnings read it.
+
+    ``charset`` / ``charset_issues`` are present only when the request named
+    a ``board_id`` (the response is otherwise exactly what it always was):
+    the board's character set id and every cell of the rendered message
+    that set draws differently (``validateMessage`` parity, plan D17). Both
+    are null when the board is unknown or its set is (a FiestaPanel):
+    nothing was checked.
+    """
+
+    charset: str | None = None
+    charset_issues: list[CharsetIssue] | None = None
+    #: The request's canvases rasterised for its ``board_id`` when that board
+    #: is a pixel matrix. Present ONLY then; draw them over the cells.
+    layers: list[CanvasLayerModel] | None = None
+    #: Problems drawing those canvases. Present exactly when ``layers`` is.
+    canvas_issues: list[CanvasIssueModel] | None = None
+
+
 class TemplateRenderLiveRequest(TemplateRenderRequest):
     """``POST /templates/render/live`` request body."""
 
     board_id: str | None = None
+    #: Send to the board even while it is silenced (issue #1943). Default
+    #: false: during silence the render is returned but the board is left alone.
+    override_silence: bool = False
 
 
 class TemplateRenderLiveResponse(TemplateRenderResponse):
@@ -139,6 +202,11 @@ class TemplateRenderLiveResponse(TemplateRenderResponse):
     is paused" apart from "nothing was sent because there is no board".
     """
 
+    layers: list[CanvasLayerModel] | None = None
+    canvas_issues: list[CanvasIssueModel] | None = None
     sent_to_board: bool
     paused: bool = False
+    #: True when the board's silence window kept this render off the board
+    #: (issue #1943). Reported independently of ``paused``.
+    silenced: bool = False
     board_id: str | None = None

@@ -1,10 +1,11 @@
 "use client";
 
-import { Box, Flex, Heading, Text } from "@fiestaboard/ui";
+import { Box, Button, Flex, Heading, Text } from "@fiestaboard/ui";
 import { Download, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
+import { isPanelPath } from "@/lib/chromeless";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -97,8 +98,10 @@ export function InstallPrompt() {
     localStorage.setItem("pwa-install-dismissed", Date.now().toString());
   };
 
-  // Don't render anything if already installed or not visible
-  if (isInstalled || !isVisible || !deferredPrompt) {
+  // Don't render anything if already installed or not visible — nor on the
+  // FiestaPanel viewer: a TV showing a board is chromeless, and a toast
+  // would sit on the board until someone walks up to dismiss it.
+  if (isInstalled || !isVisible || !deferredPrompt || isPanelPath(window.location.pathname)) {
     return null;
   }
 
@@ -123,29 +126,25 @@ export function InstallPrompt() {
             </Text>
 
             <Flex gap="2">
-              <button
-                onClick={handleInstallClick}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                <Download className="h-3 w-3" />
+              <Button size="sm" onClick={handleInstallClick} className="flex-1 text-xs">
+                <Download className="size-3" />
                 {t("installButton")}
-              </button>
-              <button
-                onClick={handleDismiss}
-                className="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              >
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleDismiss} className="text-xs text-muted-foreground">
                 {t("notNow")}
-              </button>
+              </Button>
             </Flex>
           </Box>
 
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={handleDismiss}
-            className="flex-shrink-0 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="text-muted-foreground"
             aria-label={t("dismissAriaLabel")}
           >
-            <X className="h-4 w-4" />
-          </button>
+            <X className="size-4" />
+          </Button>
         </Flex>
       </Box>
     </Box>

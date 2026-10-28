@@ -1,44 +1,37 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 interface GlobalAiPanelContextValue {
   isOpen: boolean;
+  isMinimized: boolean;
   open: () => void;
   close: () => void;
+  minimize: () => void;
 }
 
 const GlobalAiPanelContext = createContext<GlobalAiPanelContextValue | null>(null);
 
 export function GlobalAiPanelProvider({ children }: { children: React.ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <GlobalAiPanelContext.Provider
-      value={{
-        isOpen,
-        open: () => setIsOpen(true),
-        close: () => setIsOpen(false),
-      }}
-    >
-      {children}
-    </GlobalAiPanelContext.Provider>
+  const [mode, setMode] = useState<"closed" | "open" | "minimized">("closed");
+  const open = useCallback(() => setMode("open"), []);
+  const close = useCallback(() => setMode("closed"), []);
+  const minimize = useCallback(() => setMode("minimized"), []);
+  const value = useMemo(
+    () => ({ isOpen: mode === "open", isMinimized: mode === "minimized", open, close, minimize }),
+    [mode, open, close, minimize],
   );
+
+  return <GlobalAiPanelContext.Provider value={value}>{children}</GlobalAiPanelContext.Provider>;
 }
 
-/**
- * The panel state where there may not be a provider — the Toaster reads it
- * to step out of the drawer's way, and it is also rendered on its own in
- * Storybook. Returns null rather than throwing.
- */
+/** Optional for app chrome also rendered independently in Storybook. */
 export function useOptionalGlobalAiPanel(): GlobalAiPanelContextValue | null {
   return useContext(GlobalAiPanelContext);
 }
 
 export function useGlobalAiPanel(): GlobalAiPanelContextValue {
   const ctx = useContext(GlobalAiPanelContext);
-  if (!ctx) {
-    throw new Error("useGlobalAiPanel must be used within GlobalAiPanelProvider");
-  }
+  if (!ctx) throw new Error("useGlobalAiPanel must be used within GlobalAiPanelProvider");
   return ctx;
 }

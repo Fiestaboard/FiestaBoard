@@ -506,16 +506,26 @@ export async function deletePagesByDevice(deviceType: string): Promise<void> {
   }
 }
 
-/** Delete every page via the API. */
-export async function deleteAllPages(): Promise<void> {
+/** Delete pages; strict fixture setup reports rejected cleanup instead of hiding it.
+ * deleteSchedules unlinks all-board schedule entries before deleting their pages.
+ * Other reference types (collections, defaults, silence) must be removed by their owner.
+ */
+export async function deleteAllPages(options: { strict?: boolean; deleteSchedules?: boolean } = {}): Promise<void> {
+  if (options.deleteSchedules) await deleteAllSchedules({ strict: options.strict });
   const res = await fetch(`${API_URL}/v1/pages`, { headers: authHeaders() });
-  if (!res.ok) return;
+  if (!res.ok) {
+    if (options.strict) throw new Error(`GET /v1/pages cleanup failed (${res.status}): ${await res.text()}`);
+    return;
+  }
   const data = await res.json();
   for (const p of data.pages) {
-    await fetch(`${API_URL}/v1/pages/${p.id}`, {
+    const deleted = await fetch(`${API_URL}/v1/pages/${p.id}`, {
       method: "DELETE",
       headers: authHeaders(),
     });
+    if (options.strict && !deleted.ok) {
+      throw new Error(`DELETE /v1/pages/${p.id} cleanup failed (${deleted.status}): ${await deleted.text()}`);
+    }
   }
 }
 
@@ -556,15 +566,22 @@ export async function deleteSchedule(id: string): Promise<void> {
 }
 
 /** Delete every schedule via the API (across all boards). */
-export async function deleteAllSchedules(): Promise<void> {
+export async function deleteAllSchedules(options: { strict?: boolean } = {}): Promise<void> {
   const res = await fetch(`${API_URL}/v1/schedules?board_id=*`, { headers: authHeaders() });
-  if (!res.ok) return;
+  if (!res.ok) {
+    if (options.strict)
+      throw new Error(`GET /v1/schedules?board_id=* cleanup failed (${res.status}): ${await res.text()}`);
+    return;
+  }
   const data = await res.json();
   for (const s of data.schedules) {
-    await fetch(`${API_URL}/v1/schedules/${s.id}`, {
+    const deleted = await fetch(`${API_URL}/v1/schedules/${s.id}`, {
       method: "DELETE",
       headers: authHeaders(),
     });
+    if (options.strict && !deleted.ok) {
+      throw new Error(`DELETE /v1/schedules/${s.id} cleanup failed (${deleted.status}): ${await deleted.text()}`);
+    }
   }
 }
 
@@ -628,6 +645,29 @@ export async function setActivePage(id: string | null): Promise<void> {
     body: JSON.stringify({ page_id: id }),
   });
   if (!res.ok) throw new Error(`setActivePage failed: ${res.status}`);
+}
+
+/**
+ * Turn a board's "Restore automatically" on or off (#2354). On (the default),
+ * the engine writes the page back over another app's content once the poll
+ * confirms the write; specs that drive the live out-of-sync face or the
+ * manual Restore turn it off so the board stays overwritten while they act.
+ * *boardId* may be `primary`.
+ */
+export async function setAutoRestore(boardId: string, enabled: boolean): Promise<void> {
+  const res = await fetch(`${API_URL}/v1/boards/${encodeURIComponent(boardId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ auto_restore: enabled }),
+  });
+  if (!res.ok) throw new Error(`setAutoRestore(${boardId}) failed: ${res.status} ${await res.text()}`);
+}
+
+/** A board's "Restore automatically" setting as the API reports it. */
+export async function getAutoRestore(boardId: string): Promise<boolean> {
+  const res = await fetch(`${API_URL}/v1/boards/${encodeURIComponent(boardId)}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`getAutoRestore(${boardId}) failed: ${res.status} ${await res.text()}`);
+  return (await res.json()).auto_restore;
 }
 
 /**
@@ -741,6 +781,51 @@ export async function resetToSingleBoard() {
   });
 }
 
+/** A display's own transition (settings v6): its board's three transition fields. */
+export interface DisplayTransitionFields {
+  transition?: string | null;
+  transition_step_interval_ms?: number | null;
+  transition_step_size?: number | null;
+}
+
+async function storedBoards(): Promise<Record<string, unknown>[]> {
+  const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`GET /settings/board failed: ${res.status} ${await res.text()}`);
+  return (await res.json()).boards as Record<string, unknown>[];
+}
+
+/** The first display's transition fields (every display owns its transition since settings v6). */
+export async function getDisplayTransition(): Promise<DisplayTransitionFields> {
+  const [first] = await storedBoards();
+  return {
+    transition: (first?.transition as string | undefined) ?? null,
+    transition_step_interval_ms: (first?.transition_step_interval_ms as number | undefined) ?? null,
+    transition_step_size: (first?.transition_step_size as number | undefined) ?? null,
+  };
+}
+
+/** Save the first display's transition fields with its board, as the display page does. */
+export async function setDisplayTransition(fields: DisplayTransitionFields): Promise<void> {
+  const boards = await storedBoards();
+  boards[0] = { ...boards[0], ...fields };
+  const res = await fetch(`${API_URL}/settings/board`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ boards }),
+  });
+  if (!res.ok) throw new Error(`setDisplayTransition failed: ${res.status} ${await res.text()}`);
+}
+
+/** Turn transition plugins (beta, deprecated) on or off for every display: `plugins.transition_plugins_enabled`. */
+export async function setTransitionPlugins(enabled: boolean): Promise<void> {
+  const res = await fetch(`${API_URL}/settings/plugins`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ transition_plugins_enabled: enabled }),
+  });
+  if (!res.ok) throw new Error(`setTransitionPlugins failed: ${res.status} ${await res.text()}`);
+}
+
 /** Suppress the setup wizard by injecting localStorage before navigation. */
 export function suppressWizard(page: Page) {
   return page.addInitScript(() => {
@@ -749,17 +834,75 @@ export function suppressWizard(page: Page) {
 }
 
 /**
+ * The setup wizard opens on "What do you want to show FiestaBoard on?"
+ * (plan D18). Choose the Vestaboard card and continue to its connect step.
+ */
+export async function chooseVestaboardInWizard(page: Page) {
+  await page.getByRole("heading", { name: "What do you want to show FiestaBoard on?" }).waitFor({ timeout: 30_000 });
+  await page.getByRole("radio", { name: /Vestaboard/ }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+}
+
+/**
  * Open a tab on the redesigned Settings page. The page splits its content
- * across tabs (General, Hardware, Behavior, Integrations, System, Advanced),
- * so tests that look for tab-scoped content must click the right tab first.
+ * across tabs (General, Scheduling, AI, System, Advanced), so tests
+ * that look for tab-scoped content must click the right tab first. Boards
+ * and FiestaPanels are no longer a tab: see {@link openDisplays}.
  */
 export async function openSettingsTab(
   page: Page,
-  tab: "General" | "Account" | "Hardware" | "Network" | "Behavior" | "Integrations" | "System" | "Advanced",
+  tab: "General" | "Account" | "Network" | "Scheduling" | "AI" | "System" | "Advanced",
 ) {
   const trigger = page.getByRole("tab", { name: tab, exact: true });
   await trigger.waitFor({ state: "visible", timeout: 15_000 });
   await trigger.click();
+}
+
+/**
+ * Open Displays (plan D21; was Settings → Hardware): one card per display
+ * (`display-card`) with its live preview, output, state and a link to its
+ * page, and "Add a display".
+ */
+export async function openDisplays(page: Page) {
+  await page.goto("/displays");
+  await expect(page.getByRole("heading", { name: "Displays", level: 1 })).toBeVisible({ timeout: 15_000 });
+}
+
+/** The card for display *name* on /displays. */
+export function displayCard(page: Page, name: string): Locator {
+  return page.getByTestId("display-card").filter({ has: page.getByText(name, { exact: true }) });
+}
+
+/**
+ * Open display *name*'s page from /displays and return its settings card
+ * (`board-card`: name, pause, type, colour, connection, Remove Board) —
+ * what each collapsible board card on Settings → Hardware used to hold.
+ */
+export async function openDisplay(page: Page, name: string): Promise<Locator> {
+  await openDisplays(page);
+  await page.getByRole("link", { name: `Open settings for ${name}`, exact: true }).click();
+  await page.getByRole("tab", { name: "Settings", exact: true }).click();
+  const card = page.getByTestId("board-card");
+  await expect(card).toBeVisible({ timeout: 15_000 });
+  return card;
+}
+
+/**
+ * Displays → Add a display → Vestaboard → *shape*: adds that board and lands
+ * on its page. Returns the new board's id.
+ */
+export async function addVestaboardDisplay(page: Page, shape: "Flagship" | "Note" | "Note Array"): Promise<string> {
+  await openDisplays(page);
+  await page.getByRole("button", { name: "Add a display" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add a display" });
+  await dialog.getByRole("radio", { name: /Vestaboard/ }).click();
+  await dialog.getByRole("button", { name: "Next", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Add a Vestaboard" })
+    .getByRole("button", { name: shape, exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/displays\/[^/]+$/, { timeout: 15_000 });
+  return decodeURIComponent(new URL(page.url()).pathname.split("/").pop() ?? "");
 }
 
 /**

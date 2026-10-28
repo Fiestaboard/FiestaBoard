@@ -17,8 +17,9 @@ import {
   Switch,
   Text,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Database, Download, Loader2, Upload } from "lucide-react";
+import { AlertTriangle, Database, Download, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -143,7 +144,7 @@ export function BackupSettings() {
             onClick={() => fileInputRef.current?.click()}
             disabled={importMutation.isPending}
           >
-            {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {importMutation.isPending ? <Spinner label={null} className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
             {t("importButton")}
           </Button>
           <input
@@ -199,7 +200,7 @@ export function BackupSettings() {
             <AlertDialogAction onClick={handleConfirmImport} disabled={importMutation.isPending}>
               {importMutation.isPending ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Spinner label={null} className="h-4 w-4 mr-2" />
                   {t("restoringButton")}
                 </>
               ) : (

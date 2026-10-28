@@ -26,6 +26,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.afterEach(async () => {
+  // Remove owned references while both board identities still exist.
+  await deleteAllSchedules({ strict: true });
   await resetToSingleBoard();
 });
 

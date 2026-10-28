@@ -32,21 +32,19 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import UTC
-from typing import Any
 
 import requests
 from fastapi import APIRouter, HTTPException
 
-from src.board_guards import (
-    validate_board_host as _validate_board_host,
-)
-from src.board_guards import (
-    validate_board_host_is_local_network as _validate_board_host_is_local_network,
-)
+from src.api_deprecation import deprecation_notice, flat_board_fields_notice
+from src.api_errors import errors
 from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
 from src.devices import classify_dimensions, geometry_of
-from src.display_runtime import reinitialize_board_clients
+from src.display_runtime import reinitialize_board_clients, release_board_frames
+from src.outputs.cells import project_for_output
+from src.outputs.display_profile import render_kw
+from src.outputs.transitions import driver_runs_strategy
 
 from .models import (
     ERROR_400,
@@ -64,13 +62,13 @@ from .models import (
     AllSettingsResponse,
     BetaSettingsResponse,
     BetaSettingsUpdate,
-    BetaSettingsUpdateResponse,
     BoardIdentifyRequest,
     BoardIdentifyResponse,
     BoardPauseRequest,
     BoardPauseResponse,
     BoardSettingsResponse,
     BoardSettingsUpdate,
+    BoardSettingsUpdateResponse,
     ClearTemporaryOverrideResponse,
     DetectBoardSizeResponse,
     DisplaySettingsResponse,
@@ -92,6 +90,7 @@ from .models import (
     PollingSettingsUpdate,
     SetActivePageRequest,
     SetActivePageResponse,
+    SettingsRestoreNoticeResponse,
     SilenceScheduleRequest,
     SilenceScheduleResponse,
     SunTimesResponse,
@@ -101,8 +100,9 @@ from .models import (
     TransitionSettings,
     TransitionSettingsResponse,
     TransitionSettingsUpdate,
+    WizardStateBody,
 )
-from .service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES
+from .service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, page_transition
 from .service import temporary_override_payload as _temporary_override_payload
 
 logger = logging.getLogger(__name__)
@@ -145,6 +145,7 @@ get_service = _seam("get_service")
 # Helpers whose only home is ``api_server`` today.
 _require_board = _seam("_require_board")
 _board_is_paused = _seam("_board_is_paused")
+silence_verdict = _seam("silence_verdict")
 _board_dims = _seam("_board_dims")
 _apply_mqtt_config = _seam("_apply_mqtt_config")
 
@@ -179,7 +180,21 @@ check_ref_board_compatibility = _seam("check_ref_board_compatibility")
 is_collection_id = _seam("is_collection_id")
 resolve_dimensions = _seam("resolve_dimensions")
 text_to_board_array = _seam("text_to_board_array")
-board_client_from_board_dict = _seam("board_client_from_board_dict")
+
+
+def _live_board_driver(board_id: str):
+    """The board's LIVE driver (``DisplayService.runtime_for``), or ``None``."""
+    service = get_service()
+    rt = service.runtime_for(board_id) if service is not None else None
+    return rt.client if rt is not None else None
+
+
+def _invalidate_board_content(board_id: str) -> None:
+    """Have the display loop re-send *board_id*'s content (after an
+    out-of-band write such as an identify flash)."""
+    service = get_service()
+    if service is not None:
+        service.invalidate_board_content(board_id)
 
 
 @router.get("/settings/mqtt", response_model=MqttSettingsResponse)
@@ -211,7 +226,7 @@ async def update_mqtt_settings(request: MqttSettingsUpdate):
 async def get_ai_settings():
     """Return AI provider configuration with each provider's api_key masked."""
     cm = get_config_manager()
-    return cm.get_ai_providers_masked()
+    return {**cm.get_ai_providers_masked(), "tv_chat_supported": True}
 
 
 @router.put("/settings/ai", response_model=AiProvidersResponse)
@@ -380,6 +395,25 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         if not compat.ok:
             raise HTTPException(status_code=400, detail=compat.error)
 
+    # Omitted show_queued_on_exit keeps the effective stored value (#1944):
+    # the board's own entry, else the install-wide value it resolves to. An
+    # install-wide write reads the single board's resolved value BEFORE the
+    # prune below drops the board layer that holds it.
+    show_queued_on_exit = request.show_queued_on_exit
+    if show_queued_on_exit is None:
+        from src.config import resolve_silence_schedule
+
+        carry_board = board_id
+        if carry_board is None:
+            try:
+                stored_boards = get_settings_service().get_board_settings().boards or []
+            except Exception:  # pragma: no cover - defensive
+                stored_boards = []
+            if len(stored_boards) == 1 and isinstance(stored_boards[0], dict):
+                carry_board = stored_boards[0].get("id")
+        feature = config_manager.get_feature("silence_schedule")
+        show_queued_on_exit = resolve_silence_schedule(feature, carry_board)["show_queued_on_exit"]
+
     updated = {
         "enabled": request.enabled,
         "start_time": request.start_time,
@@ -388,6 +422,7 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         "page_id": page_id,
         "indicator_text": indicator_text,
         "indicator_position": indicator_position,
+        "show_queued_on_exit": show_queued_on_exit,
     }
 
     if board_id is not None:
@@ -418,7 +453,7 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
 
     logger.info(
         "Silence schedule updated for board=%s: enabled=%s, start=%s, end=%s, mode=%s, page_id=%s, "
-        "indicator_text=%s, indicator_position=%s",
+        "indicator_text=%s, indicator_position=%s, show_queued_on_exit=%s",
         board_id or "(install-wide)",
         request.enabled,
         request.start_time,
@@ -427,6 +462,7 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         page_id,
         indicator_text,
         indicator_position,
+        show_queued_on_exit,
     )
 
     if board_id is not None:
@@ -442,9 +478,26 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
     }
 
 
-@router.get("/settings/transitions", response_model=TransitionSettingsResponse)
+#: A display's transition is saved with its board (settings v6).
+_TRANSITIONS_SUCCESSOR = "/api/settings/board"
+#: The beta flags moved into the plugin settings (settings v6).
+_BETA_SUCCESSOR = "/api/settings/plugins"
+
+
+@router.get(
+    "/settings/transitions",
+    response_model=TransitionSettingsResponse,
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_TRANSITIONS_SUCCESSOR)],
+)
 async def get_transition_settings():
-    """Get current transition animation settings."""
+    """The FIRST display's transition. Deprecated: removed in v11.
+
+    Settings v6 gives every display its own transition (the board's
+    ``transition``, ``transition_step_interval_ms`` and
+    ``transition_step_size`` in ``GET /settings/board``); there is no
+    install-wide one any more.
+    """
     settings_service = get_settings_service()
     transition = settings_service.get_transition_settings()
     return {
@@ -455,14 +508,21 @@ async def get_transition_settings():
     }
 
 
-@router.put("/settings/transitions", response_model=TransitionSettings, responses={**ERROR_400})
+@router.put(
+    "/settings/transitions",
+    response_model=TransitionSettings,
+    responses={**ERROR_400},
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_TRANSITIONS_SUCCESSOR)],
+)
 async def update_transition_settings(request: TransitionSettingsUpdate):
     """
-    Update transition animation settings.
+    Set the FIRST display's transition. Deprecated: removed in v11; set a
+    display's own through ``PUT /settings/board`` instead.
 
     Body can include:
     - strategy: One of column, reverse-column, edges-to-center, row, diagonal, random,
-                "plugin:<id>" to drive a transition plugin, or null to disable.
+                "plugin:<id>" to drive a transition plugin, or null for none.
     - step_interval_ms: Delay between animation steps (ms), or null for default
     - step_size: How many columns/rows animate at once, or null for default
 
@@ -563,12 +623,18 @@ async def set_active_page(request: SetActivePageRequest):
     - board_id: Optional board to target. Omitted → primary board,
       legacy behavior (issue #1244).
 
+    - override_silence: Show the page now even while the board is silenced
+      (issue #1943). Default false.
+
     When a page is set, it will be immediately rendered and sent to the board.
+    During silence the immediate send is held unless override_silence is
+    true; the page appears when silence ends.
 
     Response: ``sent_to_board`` reports whether content actually reached the
     board, and ``error`` carries the render/send failure reason (null when the
-    send succeeded or was skipped benignly — paused board, UI-only output,
-    unchanged content). The page selection itself is persisted either way.
+    send succeeded or was skipped benignly — silenced or paused board, UI-only
+    output, unchanged content). ``silenced`` and ``paused`` are reported
+    independently. The page selection itself is persisted either way.
     """
     settings_service = get_settings_service()
     page_service = get_page_service()
@@ -613,7 +679,7 @@ async def set_active_page(request: SetActivePageRequest):
     # unit so the event loop keeps serving requests (#1826). The settings
     # write itself is not internally locked yet — per-store locking is
     # Track A2's job (#1848).
-    def _work() -> tuple[bool, bool, str | None]:
+    def _work() -> tuple[bool, bool, bool, str | None]:
         # Dismiss any active plugin triggers so the user's explicit page change
         # actually sticks. Without this, a plugin re-emitting the same trigger
         # every display loop tick (e.g. calendar_sub during a countdown window)
@@ -642,28 +708,34 @@ async def set_active_page(request: SetActivePageRequest):
         # must be reported, not silently swallowed (issue #1791).
         sent_to_board = False
         paused = False
+        silenced = False
         send_error: str | None = None
         if render_page_id and page and send_client and settings_service.should_send_to_board():
+            # Silence holds the immediate send unless the caller explicitly
+            # overrides it (issue #1943). The selection is persisted above, and
+            # the engine repaints the saved page when the window ends.
+            silenced = silence_verdict(
+                board_id, override_silence=request.override_silence, what="active-page send"
+            ).silenced
             # Skip immediate send when the board is paused (issue #970). The
             # active-page selection is still persisted so it takes effect when
-            # the user later resumes the board.
+            # the user later resumes the board. Evaluated separately from
+            # silence (not an elif) so both flags are reported truthfully.
             if _board_is_paused(board_id):
                 logger.info("Board is paused - skipping immediate active-page send")
                 paused = True
-            else:
-                result = page_service.preview_page(render_page_id, force_refresh=True)
+            if not silenced and not paused:
+                result = page_service.preview_page(render_page_id, force_refresh=True, **render_kw(send_client))
                 if result and result.available:
-                    system_transition = settings_service.get_transition_settings()
-                    strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-                    interval_ms = (
-                        page.transition_interval_ms
-                        if page.transition_interval_ms is not None
-                        else system_transition.step_interval_ms
+                    resolved = page_transition(
+                        settings_service.get_transition_settings(board_id or settings_service.get_primary_board_id()),
+                        page,
+                        runs=lambda s: driver_runs_strategy(send_client, s),
                     )
-                    step_size = (
-                        page.transition_step_size
-                        if page.transition_step_size is not None
-                        else system_transition.step_size
+                    strategy, interval_ms, step_size = (
+                        resolved.strategy,
+                        resolved.step_interval_ms,
+                        resolved.step_size,
                     )
 
                     # Size the grid to the explicit target board when given
@@ -672,32 +744,52 @@ async def set_active_page(request: SetActivePageRequest):
                         dims = _board_dims(board)
                     else:
                         dims = resolve_dimensions(*geometry_of(page))
-                    board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
+                    board_array, rich = project_for_output(
+                        send_client,
+                        result.formatted,
+                        dims.rows,
+                        dims.cols,
+                        flap=text_to_board_array,
+                        layers=result.layers,
+                    )
                     # render() serializes concurrent senders via the client's
-                    # per-board _send_lock, so worker threads can't interleave.
+                    # per-board send lock, so worker threads can't interleave.
                     success, was_sent = send_client.render(
                         board_array,
                         strategy=strategy,
                         step_interval_ms=interval_ms,
                         step_size=step_size,
                         device_type=(board.get("device_type") if board is not None else page.device_type),
+                        **rich,
                     )
                     sent_to_board = was_sent
+                    if was_sent and request.override_silence:
+                        # A newer explicit write beats a message held during
+                        # silence (issue #1944).
+                        from src import silence_queue
+
+                        silence_queue.discard(board_id or settings_service.get_primary_board_id())
                     if not success:
                         send_error = f"Failed to send page to board: {page_id}"
                         logger.warning(f"Failed to send active page to board: {page_id}")
-                    elif was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
-                        # Adaptive post-send refresh polls the primary board only.
-                        service.request_board_refresh()
+                    elif was_sent and getattr(send_client, "is_virtual", False) is not True:
+                        # Every hardware board's state is polled (issue #1945):
+                        # catch THIS board's read cache up with its own send,
+                        # or its out-of-sync banner flashes until the next poll.
+                        service.request_board_refresh(board_id)
                 else:
                     # A network/plugin failure surfaces here as an unavailable
                     # render — report it instead of skipping silently (#1791).
                     render_error = getattr(result, "error", None) if result else None
                     send_error = render_error or f"Failed to render page: {render_page_id}"
                     logger.warning(f"Active page set but render unavailable, not sent: {render_page_id}")
-        return sent_to_board, paused, send_error
+        return sent_to_board, paused, silenced, send_error
 
-    sent_to_board, paused, send_error = await run_board_send(_work)
+    sent_to_board, paused, silenced, send_error = await run_board_send(_work)
+    # The engine catches every board up now (it records what the board shows,
+    # and sends where the immediate send above could not), not a poll tick later.
+    if service is not None:
+        service.wake()
 
     # The page selection itself was persisted; a render/send problem is
     # reported via error + sent_to_board=False, the same partial-failure
@@ -708,6 +800,7 @@ async def set_active_page(request: SetActivePageRequest):
         "page_id": page_id,
         "sent_to_board": sent_to_board,
         "paused": paused,
+        "silenced": silenced,
         "board_id": board_id,
         "error": send_error,
         "warnings": compat_warnings,
@@ -753,13 +846,13 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
     from datetime import datetime, timedelta
 
     from src.devices import (
+        ABSOLUTE_MIN_GRID_COLS,
+        ABSOLUTE_MIN_GRID_ROWS,
         DEFAULT_DEVICE_TYPE,
         DEVICE_TYPES,
         MAX_GRID_COLS,
         MAX_GRID_ROWS,
         MAX_NOTES_PER_AXIS,
-        MIN_GRID_COLS,
-        MIN_GRID_ROWS,
     )
 
     from .service import (
@@ -820,8 +913,9 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
 
         if device_type == "panel":
             for key, raw, low, high in (
-                ("grid_rows", request.grid_rows, MIN_GRID_ROWS, MAX_GRID_ROWS),
-                ("grid_cols", request.grid_cols, MIN_GRID_COLS, MAX_GRID_COLS),
+                # Any grid a board can have, down to an LED board's 3x10.
+                ("grid_rows", request.grid_rows, ABSOLUTE_MIN_GRID_ROWS, MAX_GRID_ROWS),
+                ("grid_cols", request.grid_cols, ABSOLUTE_MIN_GRID_COLS, MAX_GRID_COLS),
             ):
                 if raw is None:
                     raise HTTPException(status_code=422, detail=f"{key} is required for a panel")
@@ -921,21 +1015,65 @@ async def clear_temporary_override():
     return {"revert_mode": revert_mode}
 
 
-@router.get("/settings/polling", response_model=PollingSettings)
-async def get_polling_settings():
-    """Get current polling interval settings."""
+# ---------------------------------------------------------------------------
+# Downgrade bridge notice (output-plugins plan D8)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/settings/restore-notice", response_model=SettingsRestoreNoticeResponse)
+async def get_settings_restore_notice():
+    """Whether this boot restored the pre-upgrade settings snapshot.
+
+    Set when a rollback found settings.json written by a newer FiestaBoard and
+    stepped back onto ``settings.json.v{N}_backup``. The notice names the file
+    the newer settings were moved to, so the web UI can tell the user where
+    changes made since the upgrade went. Stays set until dismissed.
+    """
+    return SettingsRestoreNoticeResponse(notice=get_settings_service().get_restore_notice())
+
+
+@router.delete(
+    "/settings/restore-notice",
+    response_model=SettingsRestoreNoticeResponse,
+    responses=errors(500),
+)
+async def dismiss_settings_restore_notice():
+    """Dismiss the restore notice. Idempotent; the set-aside file is kept.
+
+    Raises:
+        500 when the notice could not be removed from the data directory.
+    """
+    try:
+        get_settings_service().dismiss_restore_notice()
+    except OSError as e:
+        logger.error(f"Could not dismiss the settings restore notice: {e}")
+        raise HTTPException(status_code=500, detail="Could not dismiss the settings restore notice.") from e
+    return SettingsRestoreNoticeResponse(notice=None)
+
+
+@router.get("/settings/polling", response_model=PollingSettings, responses={**ERROR_404})
+async def get_polling_settings(board_id: str | None = None):
+    """Get one board's polling intervals; omitted id means primary."""
     settings_service = get_settings_service()
-    polling = settings_service.get_polling_settings()
+    try:
+        polling = (
+            settings_service.get_polling_settings(board_id=board_id)
+            if board_id is not None
+            else settings_service.get_polling_settings()
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return polling.to_dict()
 
 
-@router.put("/settings/polling", response_model=PollingSettingsResponse, responses={**ERROR_400})
+@router.put("/settings/polling", response_model=PollingSettingsResponse, responses={**ERROR_400, **ERROR_404})
 async def update_polling_settings(request: PollingSettingsUpdate):
     """
     Update polling interval settings.
 
     Accepted body fields:
-    - interval_seconds: How often FiestaBoard checks active page (min 10, requires restart)
+    - board_id: The board to update (omitted means primary)
+    - interval_seconds: How often FiestaBoard checks active page (10–3600)
     - board_read_interval_local: How often to read board state in local mode (min 20)
     - board_read_interval_cloud: How often to read board state in cloud mode (min 20)
 
@@ -943,28 +1081,24 @@ async def update_polling_settings(request: PollingSettingsUpdate):
     """
     settings_service = get_settings_service()
     provided = request.model_dump(exclude_unset=True)
-    requires_restart = False
-
+    board_id = provided.pop("board_id", None)
     try:
-        if "interval_seconds" in provided:
-            settings_service.set_polling_interval(int(provided["interval_seconds"]))
-            requires_restart = True
-
-        if "board_read_interval_local" in provided or "board_read_interval_cloud" in provided:
-            local = provided.get("board_read_interval_local")
-            cloud = provided.get("board_read_interval_cloud")
-            settings_service.set_board_read_intervals(
-                local_seconds=int(local) if local is not None else None,
-                cloud_seconds=int(cloud) if cloud is not None else None,
-            )
+        if board_id is not None:
+            settings_service.get_polling_settings(board_id=board_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    updates = {
+        ("polling_interval_seconds" if key == "interval_seconds" else key): value for key, value in provided.items()
+    }
+    try:
+        polling = settings_service.update_polling_settings(updates, board_id=board_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    polling = settings_service.get_polling_settings()
-    return {**polling.to_dict(), "requires_restart": requires_restart}
+    return {**polling.to_dict(), "requires_restart": False}
 
 
-@router.get("/settings/board", response_model=BoardSettingsResponse)
+@router.get("/settings/board", response_model=BoardSettingsResponse, dependencies=[flat_board_fields_notice()])
 async def get_board_settings():
     """Get current board settings (display type, boards array, devices)."""
     settings_service = get_settings_service()
@@ -972,7 +1106,12 @@ async def get_board_settings():
     return board.to_dict()
 
 
-@router.put("/settings/board", response_model=BoardSettingsResponse, responses={**ERROR_400})
+@router.put(
+    "/settings/board",
+    response_model=BoardSettingsUpdateResponse,
+    responses={**ERROR_400},
+    dependencies=[flat_board_fields_notice()],
+)
 async def update_board_settings(request: BoardSettingsUpdate):
     """
     Update board settings.
@@ -986,6 +1125,12 @@ async def update_board_settings(request: BoardSettingsUpdate):
     board_type — unchanged from before the conventions pass. The list-shape
     checks the handler used to hand-roll are now the request model's job, so
     a non-list `devices` is a 422 rather than a 400.
+
+    A `boards` save that resizes a board in place (an LED board's text size
+    moves a Pixoo between 10 x 16 and 8 x 10) drops the board's old-shape
+    frames before its client is rebuilt, moves an output-plugin board's
+    pages sized for the old grid onto the new one (`retargeted_pages`), and
+    reports the references that still do not fit (`incompatible_references`).
     """
     settings_service = get_settings_service()
     provided = request.model_dump(exclude_unset=True)
@@ -996,9 +1141,16 @@ async def update_board_settings(request: BoardSettingsUpdate):
             reinitialize_board_clients()
             return board.to_dict()
         if "boards" in provided:
+            before = [dict(b) for b in (settings_service.get_board_settings().boards or []) if isinstance(b, dict)]
             board = settings_service.set_boards(provided["boards"])
+            resized = _resized_boards(before, board.boards)
+            # Drop each resized board's old-shape frames BEFORE rebuilding
+            # its client (as PATCH /panels does on a re-fit): the stale frame
+            # must never be drawn, or transitioned from, on the new grid.
+            for _old, new in resized:
+                release_board_frames(new.get("id"))
             reinitialize_board_clients()
-            return board.to_dict()
+            return {**board.to_dict(), **_follow_resized_boards(resized, board.boards)}
         if "board_type" in provided:
             board = settings_service.set_board_type(provided["board_type"])
             return board.to_dict()
@@ -1011,11 +1163,50 @@ async def update_board_settings(request: BoardSettingsUpdate):
     )
 
 
+def _resized_boards(before: list[dict], after: list[dict]) -> list[tuple[dict, dict]]:
+    """``(old, new)`` for each board kept across a save whose grid changed."""
+    from src.devices import size_key
+
+    old_by_id = {b.get("id"): b for b in before}
+    resized = []
+    for new in after:
+        old = old_by_id.get(new.get("id"))
+        if old is not None and size_key(*geometry_of(old)) != size_key(*geometry_of(new)):
+            resized.append((old, dict(new)))
+    return resized
+
+
+def _follow_resized_boards(resized: list[tuple[dict, dict]], boards: list[dict]) -> dict[str, list[dict]]:
+    """Retarget pages after a resize; the references that still do not fit.
+
+    Only an output-plugin board's pages follow it: its grid is set by its
+    device model and text size, which the user just chose. A Vestaboard or
+    FiestaPanel resize stays warn-only (issue #1250), as it was.
+    """
+    from src.devices import BUILTIN_OUTPUT_IDS, size_key
+    from src.outputs.registry import resolve_output_id
+    from src.pages.retarget import add_resize, retarget_pages
+    from src.pages.service import find_incompatible_board_references
+
+    resizes: dict = {}
+    for old, new in resized:
+        if resolve_output_id(new) not in BUILTIN_OUTPUT_IDS:
+            add_resize(resizes, old, new)
+    moved = retarget_pages(resizes, {size_key(*geometry_of(b)) for b in boards}, allow_shrink=True) if resizes else []
+    incompatible = [
+        {"board_id": new.get("id") or "", "board_name": new.get("name") or "", **ref}
+        for _old, new in resized
+        for ref in find_incompatible_board_references(new)
+    ]
+    return {"retargeted_pages": moved, "incompatible_references": incompatible}
+
+
 @router.post(
     "/settings/board/add",
     response_model=BoardSettingsResponse,
     status_code=201,
     responses={**ERROR_400},
+    dependencies=[flat_board_fields_notice()],
 )
 async def add_board_instance(request: AddBoardRequest):
     """Add a new board instance. Body: device_type, optional name and other board fields.
@@ -1038,6 +1229,7 @@ async def add_board_instance(request: AddBoardRequest):
     "/settings/board/{board_id}",
     response_model=BoardSettingsResponse,
     responses={**ERROR_400, **ERROR_409},
+    dependencies=[flat_board_fields_notice()],
 )
 async def remove_board_instance(board_id: str):
     """Remove a board instance by ID.
@@ -1095,6 +1287,38 @@ async def set_board_paused(board_id: str, request: BoardPauseRequest):
     }
 
 
+async def _legacy_board_action(board_id: str, action: str, inputs: dict):
+    """Run the ``vestaboard`` output's board-settings *action* on saved board
+    *board_id*, for the two legacy routes below (plan D8: they stay, pinned in
+    ``tests/golden/api_routes.json``, and delegate). 404 for an unknown
+    board; the action's refusals as their status and detail.
+    """
+    from src.devices import BoardInstance
+    from src.outputs.actions import execute_action
+    from src.outputs.hooks import OutputActionError
+    from src.outputs.registry import output_registry, resolve_output_id
+
+    boards = get_settings_service().get_board_settings().boards or []
+    stored = next((b for b in boards if b.get("id") == board_id), None)
+    if stored is None:
+        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
+    definition = output_registry().get(resolve_output_id(stored))
+    if definition is None:
+        raise HTTPException(status_code=503, detail="The board's output is not installed.")
+    try:
+        return await execute_action(
+            definition,
+            action,
+            board=BoardInstance.from_dict(stored).to_dict(),
+            board_id=board_id,
+            inputs=inputs,
+            live_driver=_live_board_driver,
+            invalidate=_invalidate_board_content,
+        )
+    except OutputActionError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
 @router.post(
     "/settings/board/{board_id}/detect-size",
     response_model=DetectBoardSizeResponse,
@@ -1103,167 +1327,106 @@ async def set_board_paused(board_id: str, request: BoardPauseRequest):
 async def detect_board_size(board_id: str):
     """Auto-detect a board's device type and dimensions from its live layout.
 
-    Reads the board's current message over its own transport (local / cloud /
-    note-array, via ``board_client_from_board_dict``) and classifies the grid
-    shape with :func:`classify_dimensions`.
+    Runs the saved board's output-defined ``detect_geometry`` action. An
+    output without that action returns the board's configured grid, with
+    ``source: configured``. Vestaboards read their current layout through
+    the live driver's own transport and classify that grid.
 
     Returns ``device_type``, ``rows``, ``cols`` and — for note arrays —
-    ``notes_wide``, ``notes_tall`` and ``matched_preset``.
+    ``notes_wide``, ``notes_tall`` and ``matched_preset``, plus the geometry's
+    ``source`` (``detected`` or ``configured``).
 
-    Errors: 404 (unknown board), 400 (board not configured), 422 (board
-    returned no layout, or an unclassifiable grid).
+    Errors: 404 (unknown board), 400 (board not configured, or a local-mode
+    note array, whose size its tile assignments define), 422 (board returned
+    no layout, or an unclassifiable grid).
     """
-    settings_service = get_settings_service()
-    boards = settings_service.get_board_settings().boards or []
+    from src.devices import dimensions_of
+    from src.outputs.registry import output_registry, resolve_output_id
 
-    board_dict = next((b for b in boards if b.get("id") == board_id), None)
-    if board_dict is None:
+    boards = get_settings_service().get_board_settings().boards or []
+    board = next((item for item in boards if item.get("id") == board_id), None)
+    if board is None:
         raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
-
-    from src.devices import BoardInstance
-
-    # A local-mode array's shape is DEFINED by its tile assignments — a local
-    # read can only re-stitch the configured W×H (or fail on a partial array),
-    # so "detection" would be a tautology. Only the Cloud API knows an array's
-    # real shape; reject clearly instead of echoing the configuration back.
-    if BoardInstance.from_dict(board_dict).uses_local_tiles:
-        raise HTTPException(
-            status_code=400,
-            detail="Auto-detect is not available for local-mode note arrays — "
-            "the array's size is defined by its tile assignments",
-        )
-
-    client = board_client_from_board_dict(board_dict)
-    if client is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Board {board_id} is not configured (missing credentials)",
-        )
-
-    # A board READ is board network I/O like any other; it belongs on the
-    # bounded send pool, not inline on the event loop (#1878).
-    grid = await run_board_send(client.read_current_message)
-    if grid is None:
+    definition = output_registry().get(resolve_output_id(board))
+    if definition is None:
+        raise HTTPException(status_code=503, detail="The board's output is not installed.")
+    if not any(action.id == "detect_geometry" for action in definition.actions):
+        dims = dimensions_of(board)
+        return {
+            "device_type": board["device_type"],
+            "rows": dims.rows,
+            "cols": dims.cols,
+            "notes_wide": board.get("notes_wide"),
+            "notes_tall": board.get("notes_tall"),
+            "source": "configured",
+        }
+    outcome = await _legacy_board_action(board_id, "detect_geometry", {})
+    if outcome.geometry is not None:
+        return dict(outcome.geometry)
+    rows, cols = outcome.detail.get("rows"), outcome.detail.get("cols")
+    if rows is None or cols is None:
         raise HTTPException(
             status_code=422,
             detail=f"Board {board_id} returned no layout — board may be blank or unreachable",
         )
-
-    rows = len(grid)
-    cols = len(grid[0]) if rows > 0 else 0
     try:
-        return classify_dimensions(rows, cols)
+        classify_dimensions(rows, cols)
+        reason = "not a Vestaboard size"
     except ValueError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Board {board_id} returned an unclassifiable grid ({rows}×{cols}): {exc}",
-        ) from exc
+        reason = str(exc)
+    raise HTTPException(
+        status_code=422,
+        detail=f"Board {board_id} returned an unclassifiable grid ({rows}×{cols}): {reason}",
+    )
 
 
 @router.post(
     "/settings/board/{board_id}/identify",
     response_model=BoardIdentifyResponse,
-    responses={**ERROR_400, **ERROR_404},
+    responses={**ERROR_400, **ERROR_404, **errors(503)},
 )
 async def identify_board_tiles(board_id: str, request: BoardIdentifyRequest):
     """Flash slot positions onto local note-array tiles (monitor-arrangement style).
 
-    Sends each targeted tile a 3×15 pattern labeling its slot so the user
-    can see which physical board answers for which grid position. The real
-    frame is restored automatically on the next display-loop cycle (the
-    board's content dedupe and client caches are invalidated here); on a
-    paused board the pattern persists until the board is resumed.
+    The ``vestaboard`` output's ``identify`` action: each targeted tile shows
+    a 3×15 pattern labeling its slot so the user can see which physical board
+    answers for which grid position. The real frame is restored
+    automatically on the next display-loop cycle (the board's content dedupe
+    and client caches are invalidated); on a paused board the pattern
+    persists until the board is resumed.
+
+    Saved tiles are flashed through the board's live driver, as a write of
+    its runtime; an unsaved tile (the credential override) through a
+    throwaway instance on a private runtime.
 
     Errors: 404 (unknown board), 400 (not a note array in local mode, bad
-    target, or missing/unknown tile).
+    target, or missing/unknown tile), 503 (the board has no live
+    connection to flash its saved tiles through).
     """
-    from src.devices import BoardInstance, identify_pattern, is_note_array
+    inputs = request.model_dump(exclude_none=True)
+    outcome = await _legacy_board_action(board_id, "identify", inputs)
+    return {"board_id": board_id, "results": list(outcome.detail.get("results", []))}
 
-    settings_service = get_settings_service()
-    boards = settings_service.get_board_settings().boards or []
-    board_dict = next((b for b in boards if b.get("id") == board_id), None)
-    if board_dict is None:
-        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
 
-    instance = BoardInstance.from_dict(board_dict)
-    if not is_note_array(instance.device_type) or instance.api_mode != "local":
-        raise HTTPException(
-            status_code=400,
-            detail="Identify is only available for note arrays in local API mode",
-        )
+@router.get("/settings/wizard", response_model=WizardStateBody, responses={**ERROR_400})
+async def get_wizard_state():
+    """How the setup wizard ended on this install: ``completed``, ``skipped`` or ``null``."""
+    return WizardStateBody(state=get_settings_service().get_wizard_state())
 
-    if request.target not in ("tile", "all"):
-        raise HTTPException(status_code=400, detail='target must be "tile" or "all"')
 
-    # Resolve the set of (row, col, host, port, key) endpoints to flash
-    targets: list[dict] = []
-    if request.host is not None or request.local_api_key is not None:
-        # Unsaved-tile override from the assign dialog
-        if request.target != "tile" or request.row is None or request.col is None:
-            raise HTTPException(
-                status_code=400,
-                detail="Credential override requires target='tile' with row and col",
-            )
-        if not request.host or not request.local_api_key:
-            raise HTTPException(status_code=400, detail="host and local_api_key are both required")
-        _validate_board_host(request.host)
-        _validate_board_host_is_local_network(request.host)
-        targets.append(
-            {
-                "row": request.row,
-                "col": request.col,
-                "host": request.host,
-                "port": request.port or 7000,
-                "local_api_key": request.local_api_key,
-            }
-        )
-    else:
-        configured = instance.configured_tiles()
-        if request.target == "all":
-            targets = configured
-        else:
-            if request.row is None or request.col is None:
-                raise HTTPException(status_code=400, detail="row and col are required for target='tile'")
-            tile = next(
-                (t for t in configured if t["row"] == request.row and t["col"] == request.col),
-                None,
-            )
-            if tile is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"No configured tile at row={request.row}, col={request.col}",
-                )
-            targets = [tile]
-        if not targets:
-            raise HTTPException(status_code=400, detail="Board has no configured tiles to identify")
+@router.put("/settings/wizard", response_model=WizardStateBody, responses={**ERROR_400})
+async def set_wizard_state(request: WizardStateBody):
+    """Record how the setup wizard ended (plan D18).
 
-    def flash_tile(tile: dict) -> dict:
-        from src.board_client import BoardClient
-
-        pattern = identify_pattern(tile["row"], tile["col"], instance.notes_wide)
-        try:
-            client = BoardClient(
-                api_key=tile["local_api_key"],
-                host=tile["host"],
-                use_cloud=False,
-                skip_unchanged=False,
-                port=tile.get("port") or None,
-            )
-            success, _ = client.send_characters(pattern, force=True)
-        except Exception as exc:  # noqa: BLE001 — per-tile failure must not abort the rest
-            logger.error(f"Identify failed for tile ({tile['row']},{tile['col']}): {exc}")
-            success = False
-        return {"row": tile["row"], "col": tile["col"], "success": success}
-
-    results = await asyncio.gather(*(asyncio.to_thread(flash_tile, t) for t in targets))
-
-    # Restore: invalidate the display loop's dedupe + client caches so the
-    # next cycle re-sends the real frame over the identify pattern.
-    service = get_service()
-    if service is not None:
-        service.invalidate_board_content(board_id)
-
-    return {"board_id": board_id, "results": list(results)}
+    ``completed`` or ``skipped`` keeps the wizard away from every browser:
+    first run is "no board has a usable output AND the wizard was neither
+    completed nor skipped". ``null`` clears it.
+    """
+    try:
+        settings = get_settings_service().set_wizard_state(request.state)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return WizardStateBody(state=settings.state)
 
 
 @router.get("/settings/display", response_model=DisplaySettingsResponse)
@@ -1410,107 +1573,48 @@ async def get_location_sun_times_week(week_start: str):
     return {"location_configured": True, "dates": result}
 
 
-def _beta_https_status() -> dict[str, Any]:
-    """Return the runtime status of the HTTPS beta feature.
-
-    Reports whether the cert files currently exist on disk and whether
-    the fiestaupdater sidecar is reachable for one-click restarts.
-    """
-    from src.system import https_certs
-
-    cert_path, key_path = https_certs.cert_paths()
+def _beta_view() -> dict:
+    flags = get_settings_service().get_plugin_settings()
     return {
-        "cert_present": https_certs.cert_exists(),
-        "cert_path": str(cert_path),
-        "key_path": str(key_path),
-        "updater_available": bool(_updater_token()) and _updater_probe(),
+        "settings": {
+            "transition_plugins_enabled": flags.transition_plugins_enabled,
+            # Deprecated: display plugins need no opt-in since settings v7.
+            "output_plugins_enabled": True,
+        }
     }
 
 
-@router.get("/settings/beta", response_model=BetaSettingsResponse)
+@router.get(
+    "/settings/beta",
+    response_model=BetaSettingsResponse,
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_BETA_SUCCESSOR)],
+)
 async def get_beta_settings():
-    """Get opt-in beta-feature settings + runtime status."""
-    settings_service = get_settings_service()
-    settings = settings_service.get_beta_settings()
-    status = await asyncio.to_thread(_beta_https_status)
-    return {
-        "settings": settings.to_dict(),
-        "https": status,
-    }
+    """The two plugin flags. Deprecated: removed in v11, read
+    ``GET /settings/plugins`` (settings v6 moved them there)."""
+    return _beta_view()
 
 
 @router.put(
     "/settings/beta",
-    response_model=BetaSettingsUpdateResponse,
+    response_model=BetaSettingsResponse,
     responses={**ERROR_500},
+    deprecated=True,
+    dependencies=[deprecation_notice(successor=_BETA_SUCCESSOR)],
 )
 async def update_beta_settings(request: BetaSettingsUpdate):
-    """Update beta-feature settings.
+    """Set the two plugin flags. Deprecated: removed in v11, write
+    ``PUT /settings/plugins`` (settings v6 moved them there).
 
-    Body may include:
-    - https_enabled: bool — enable/disable the HTTPS (Beta) feature.
-    - transition_plugins_enabled: bool — enable/disable the experimental
-      transition-plugin system (frame-by-frame board animations). Takes
-      effect immediately; no restart required.
-
-    Side effects:
-    - When https_enabled flips to ``true``, a self-signed certificate is
-      generated under ``data/certs/`` (if not already present). nginx
-      will switch to HTTPS the next time the container starts.
-    - When https_enabled flips to ``false``, the cert files are removed
-      so the next container start reverts to HTTP.
-
-    Returns the updated settings, the cert status, and a hint about
-    whether a restart is required for the change to take effect.
-
-    Certificate generation failing is a 500, not a 200 with a warning: the
-    user asked for HTTPS and did not get it. The preference is persisted
-    first either way, so the next container start (or a manual cert drop)
-    still honours the choice, and the message stays generic — the raw
-    exception can carry paths and config internals (CodeQL
-    py/stack-trace-exposure).
+    Body may include ``transition_plugins_enabled``; any other key is
+    ignored, ``output_plugins_enabled`` included (settings v7: display
+    plugins need no opt-in, and it reads ``true``).
     """
-    from src.system import https_certs
-
-    provided = request.model_dump(exclude_unset=True)
-    settings_service = get_settings_service()
-    previous = settings_service.get_beta_settings().https_enabled
-    requested = provided.get("https_enabled", previous)
-
-    cert_error: str | None = None
-    if "https_enabled" in provided:
-        if requested and not previous:
-            # User just turned HTTPS on -> generate cert eagerly so nginx
-            # finds it on the next restart.
-            try:
-                await asyncio.to_thread(https_certs.generate_cert)
-            except Exception:  # noqa: BLE001 - reported as a 500 below
-                logger.exception("Failed to generate HTTPS certificate")
-                cert_error = "Certificate generation failed — check the server logs for details."
-        elif previous and not requested:
-            # User just turned HTTPS off -> remove the cert so nginx
-            # falls back to HTTP on next restart.
-            try:
-                await asyncio.to_thread(https_certs.remove_cert)
-            except Exception as e:  # noqa: BLE001
-                logger.warning("Failed to remove HTTPS certificate: %s", e)
-
-    updated = settings_service.update_beta_settings(provided)
-
-    if cert_error:
-        # The preference above is already persisted; the failure is still a
-        # failure and must not be served as a 200.
-        raise HTTPException(status_code=500, detail=cert_error)
-
-    status = await asyncio.to_thread(_beta_https_status)
-
-    # A restart is required whenever the on/off state changed, since
-    # nginx only re-reads its config on container start.
-    return {
-        "settings": updated.to_dict(),
-        "https": status,
-        "restart_required": updated.https_enabled != previous,
-    }
+    provided = {k: v for k, v in request.model_dump(exclude_unset=True).items() if v is not None}
+    if provided:
+        get_settings_service().update_plugin_settings(provided)
+    return _beta_view()
 
 
 @router.get("/settings/plugins", response_model=PluginSettingsResponse)
@@ -1526,9 +1630,17 @@ async def update_plugin_settings(request: PluginSettingsUpdate):
 
     Body may include:
     - auto_update: bool — when true, plugins are updated automatically in the background.
+    - transition_plugins_enabled: bool — let displays and pages use the
+      experimental (deprecated) transition plugins. Takes effect at once.
+    - output_plugins_enabled: deprecated and ignored (removed in v11).
+      Display plugins need no opt-in since settings v7, and the field
+      always reads ``true``.
 
-    ``auto_update`` is a ``StrictBool``: ``"yes"`` is a 422, not a silent
-    opt-in to background plugin updates.
+    ``transition_plugins_enabled`` was ``PUT /settings/beta`` until
+    settings v6.
+
+    Every flag is a ``StrictBool``: ``"yes"`` is a 422, not a silent
+    opt-in.
     """
     settings_service = get_settings_service()
     updated = settings_service.update_plugin_settings(request.model_dump(exclude_unset=True))
@@ -1544,7 +1656,7 @@ async def get_all_settings():
     - general config (timezone, etc.)
     - silence_schedule plugin config
     - polling interval settings
-    - transitions settings
+    - transitions: the first display's transition (deprecated, until v11)
     - output settings
     - board settings
     - mqtt integration settings
@@ -1566,7 +1678,6 @@ async def get_all_settings():
     mqtt = settings_service.get_mqtt_settings()
     display = settings_service.get_display_settings()
     location = settings_service.get_location_settings()
-    beta = settings_service.get_beta_settings()
     plugins = settings_service.get_plugin_settings()
     schedule = settings_service.get_schedule_settings()
 
@@ -1580,7 +1691,6 @@ async def get_all_settings():
         "mqtt": mqtt.to_dict(mask_secrets=True),
         "display": display.to_dict(),
         "location": location.to_dict(),
-        "beta": beta.to_dict(),
         "plugins": plugins.to_dict(),
         "schedule": schedule.to_dict(),
         "status": {

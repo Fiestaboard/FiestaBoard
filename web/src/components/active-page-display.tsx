@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  ActionCard,
   Alert,
   AlertDescription,
   Badge,
+  type BoardCellGrid,
   Box,
   Button,
   CardTitle,
@@ -28,7 +30,6 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -37,26 +38,26 @@ import {
   CalendarOff,
   ChevronRight,
   GalleryHorizontalEnd,
-  Loader2,
   Moon,
   MoreVertical,
   Pause,
   PencilLine,
   Play,
   Radio,
-  Save,
   Timer,
-  UploadCloud,
   X,
 } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { BoardOutOfSyncBanner } from "@/components/board-out-of-sync-banner";
 import { ComposePageDialog } from "@/components/compose-page-dialog";
 import { useCurrentBoard } from "@/components/current-board-context";
+import { DevicePreview } from "@/components/device-preview";
 import { ForceSetDialog } from "@/components/force-set-dialog";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import { SilenceNotice } from "@/components/silence-notice";
 import Link from "@/components/smart-link";
 import {
   collectionPollMs,
@@ -73,12 +74,14 @@ import {
   useSetActivePage,
 } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useSilence } from "@/hooks/use-silence";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { BoardCurrentMessageResponse, Collection, DeviceType, SilenceStatus } from "@/lib/api";
+import type { Collection, DeviceType, SetActivePageResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
-import { boardCharactersToTemplate } from "@/lib/board-characters-to-template";
+import type { BoardGeometry } from "@/lib/board-characters-to-template";
 import { classifyDimensions, pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { resolveBoardModel } from "@/lib/device-preview";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
 
 export function ActivePageDisplay() {
@@ -88,7 +91,7 @@ export function ActivePageDisplay() {
 
   // Current board selection (issue #1247). Queries are board-scoped only in
   // multi-board installs so single-board behavior is completely unchanged.
-  const { currentBoardId, currentBoard, boards, isLoading: isLoadingBoards } = useCurrentBoard();
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
   const isMultiBoard = boards.length > 1;
   const scopedBoardId = isMultiBoard && currentBoardId ? currentBoardId : undefined;
   // Live board polling (and Live Output) only track the primary board.
@@ -105,8 +108,6 @@ export function ActivePageDisplay() {
   const [shouldPreRender, setShouldPreRender] = useState(false);
   // Show content after animation completes
   const [showSheetContent, setShowSheetContent] = useState(false);
-  // Resend-to-board loading state
-  const [isSyncing, setIsSyncing] = useState(false);
   // Force-set dialog state
   const [forceSetDialogOpen, setForceSetDialogOpen] = useState(false);
   const [forceSetPageId, setForceSetPageId] = useState<string | null>(null);
@@ -179,13 +180,14 @@ export function ActivePageDisplay() {
     overrideActive && temporaryOverride?.remaining_seconds ? Math.floor(temporaryOverride.remaining_seconds / 60) : 0;
 
   // Fetch manual active page setting for the selected board
-  const { data: activePageData, isLoading: isLoadingActivePage } = useActivePage(scopedBoardId);
+  const { data: activePageData } = useActivePage(scopedBoardId);
 
-  // Fetch silence mode status to show snoozing indicator
-  const { data: silenceStatus } = useQuery<SilenceStatus>({
-    queryKey: queryKeys.silenceStatus(scopedBoardId),
-    queryFn: () => api.getSilenceStatus(scopedBoardId),
-  });
+  // Silence for the selected board (the indicator, the Home alert, the page
+  // pick toasts) and for the PRIMARY board, which Force Set and Compose write
+  // to — the temporary-override store is primary-only (#1943).
+  const silence = useSilence(scopedBoardId);
+  const silenceStatus = silence.status;
+  const primarySilence = useSilence(undefined);
 
   // Fetch live board state so the Home display reflects what was last sent
   // via Live Output in the page editor. The query is seeded from localStorage
@@ -257,31 +259,6 @@ export function ActivePageDisplay() {
     },
   });
 
-  const handleResendToBoard = useCallback(async () => {
-    setIsSyncing(true);
-    try {
-      await api.forceRefresh();
-      // Optimistically mark as in-sync so the alert disappears immediately.
-      // The backend schedules a ~3 s deferred board read after each send;
-      // we update the cache now and do a real refetch after 4 s to confirm.
-      queryClient.setQueryData(
-        queryKeys.boardCurrentMessage(scopedBoardId),
-        (old: BoardCurrentMessageResponse | undefined) => {
-          if (!old) return old;
-          return { ...old, characters: old.expected_characters ?? old.characters };
-        },
-      );
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.boardCurrentMessage() });
-      }, 4000);
-      toast.success(t("toastResendSuccess"));
-    } catch {
-      toast.error(t("toastResendFailed"));
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [queryClient, scopedBoardId, t]);
-
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
 
@@ -320,6 +297,43 @@ export function ActivePageDisplay() {
   // Set active page mutation — targets the selected board only
   const setActivePageMutation = useSetActivePage(scopedBoardId);
 
+  // "Show now" (#1943): the one explicit way to wake a silenced board with
+  // the page you picked. Pause still wins, and the toast says so.
+  const showPageNow = useCallback(
+    (pageId: string, pageName: string) => {
+      setActivePageMutation.mutate(
+        { pageId, overrideSilence: true },
+        {
+          onSuccess: (result: SetActivePageResponse) => {
+            if (result.error) {
+              toast.error(t("toastSwitchNotSent"));
+            } else if (result.paused) {
+              toast.info(t("toastSwitchPaused", { pageName }));
+            } else {
+              toast.success(t("toastShownNow", { pageName }));
+            }
+          },
+          onError: () => {
+            toast.error(t("toastSwitchFailed"));
+          },
+        },
+      );
+    },
+    [setActivePageMutation, t],
+  );
+
+  // Discard the message held until silence ends (#1944).
+  const discardHeldMutation = useMutation({
+    mutationFn: () => api.discardHeldSend(scopedBoardId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.silenceStatus() });
+      toast.success(t("toastHeldDiscarded"));
+    },
+    onError: () => {
+      toast.error(t("toastHeldDiscardFailed"));
+    },
+  });
+
   // currentBoard (destructured above from useCurrentBoard()) is also used to
   // filter the page picker to size-compatible pages and to warn about
   // partially-fitting collections (issue #1249).
@@ -336,57 +350,10 @@ export function ActivePageDisplay() {
   // This makes clicking feel more responsive
   const deferredActivePageId = useDeferredValue(activePageId);
 
-  // Fetch all pages for default page selection and sheet display
-  const { data: pagesData, isLoading: isLoadingPages } = usePages();
-
-  // Default to the first page if no active page is set (only in manual mode)
+  // Viewing an unpinned board must not persist a page selection. Pages are
+  // loaded for the selector; only an explicit user choice changes the pin.
+  const { data: pagesData } = usePages();
   const pages = useMemo(() => pagesData?.pages || [], [pagesData]);
-  // One attempt per board: without this, a failing auto-select re-fires on
-  // every render (the mutation object's identity changes) — with an
-  // incompatible page that meant an endless 400 retry loop and a stream of
-  // "Failed to set default page" toasts.
-  const autoDefaultAttemptedForRef = useRef<string | null>(null);
-  useEffect(() => {
-    // Only auto-select a page in manual mode, not in schedule mode.
-    // In schedule mode, null activePageId means a gap with no default (intentional)
-    if (scheduleEnabled || isLoadingActivePage || isLoadingPages || activePageId || pages.length === 0) return;
-    // Until the board list lands there is no current board to check pages
-    // against, and pages[0] would be sent with no board_id. The flag comes
-    // from the board context, not this component's own useBoardSettings():
-    // the two observers can update in different renders, and only the
-    // context's flag is in step with `currentBoard`.
-    if (isLoadingBoards) return;
-    const attemptKey = scopedBoardId ?? "";
-    if (autoDefaultAttemptedForRef.current === attemptKey) return;
-
-    // Only a page that actually fits the selected board can be auto-set —
-    // pages[0] on e.g. a FiestaPanel's auto-fit note-array board was the
-    // flagship Welcome page, which the backend rightly refuses (issue
-    // #1249 size compatibility). No fitting page → leave the board idle.
-    const defaultPage = currentBoard ? pages.find((p) => pagesCompatibleWithBoard(p, currentBoard)) : pages[0];
-    if (!defaultPage) return;
-
-    autoDefaultAttemptedForRef.current = attemptKey;
-    setActivePageMutation.mutate(defaultPage.id, {
-      onSuccess: (_result) => {
-        toast.success(t("toastSetActivePage", { pageName: defaultPage.name }));
-      },
-      onError: () => {
-        toast.error(t("toastSetDefaultFailed"));
-      },
-    });
-  }, [
-    scheduleEnabled,
-    isLoadingActivePage,
-    isLoadingPages,
-    isLoadingBoards,
-    activePageId,
-    pages,
-    currentBoard,
-    scopedBoardId,
-    setActivePageMutation,
-    t,
-  ]);
 
   // Handle page selection with debouncing and optimistic updates
   const handleSelectPage = useCallback(
@@ -429,6 +396,10 @@ export function ActivePageDisplay() {
 
       // Manual mode (or after the user chose to disable schedule): switch immediately.
       setOpenSheetAsManual(false);
+      const pickedName =
+        pages.find((p) => p.id === pageId)?.name ??
+        collectionsData?.collections?.find((c: Collection) => c.id === pageId)?.name ??
+        pageId;
       setActivePageMutation.mutate(pageId, {
         onSuccess: (result) => {
           setIsSheetOpen(false);
@@ -438,6 +409,24 @@ export function ActivePageDisplay() {
           // contract page-builder consumes (issue #1791).
           if (result.error) {
             toast.error(t("toastSwitchNotSent"));
+            return;
+          }
+          if (result.paused) {
+            toast.info(t("toastSwitchPaused", { pageName: pickedName }));
+            return;
+          }
+          if (result.silenced) {
+            // Saved, not shown (#1943): say when it will be, and offer the
+            // explicit override right in the toast.
+            toast.info(
+              silence.until
+                ? t("toastSwitchHeld", { pageName: pickedName, time: silence.until })
+                : t("toastSwitchHeldNoTime", { pageName: pickedName }),
+              {
+                duration: 8000,
+                action: { label: t("showNow"), onClick: () => showPageNow(pageId, pickedName) },
+              },
+            );
             return;
           }
           startTransition(() => {
@@ -459,6 +448,8 @@ export function ActivePageDisplay() {
       collectionsData,
       pages,
       t,
+      silence.until,
+      showPageNow,
     ],
   );
 
@@ -526,13 +517,7 @@ export function ActivePageDisplay() {
   // generally no Note multiple and classifyDimensions() cannot name it (it
   // throws for 12×29). Its family comes from the board itself; the grid from
   // the live state when there is one, else the board's stored grid.
-  const activeGeometry = useMemo((): {
-    deviceType: DeviceType;
-    notesWide: number;
-    notesTall: number;
-    gridRows?: number;
-    gridCols?: number;
-  } => {
+  const activeGeometry = useMemo((): BoardGeometry => {
     if (currentBoard?.device_type === "panel") {
       return {
         deviceType: "panel",
@@ -545,6 +530,16 @@ export function ActivePageDisplay() {
     if (boardState?.rows && boardState?.cols) {
       try {
         const classified = classifyDimensions(boardState.rows, boardState.cols);
+        // Device families stay distinct even when dimensions match: a 1×1
+        // Note array is 3×15 like a Note, but a Note page cannot be selected
+        // on that array, so the board's own family wins (backport of #2333).
+        if (classified.device_type === "note" && currentBoard?.device_type === "note_array") {
+          return {
+            deviceType: "note_array",
+            notesWide: currentBoard.notes_wide ?? 1,
+            notesTall: currentBoard.notes_tall ?? 1,
+          };
+        }
         return {
           deviceType: classified.device_type as DeviceType,
           notesWide: classified.notes_wide ?? 1,
@@ -568,46 +563,12 @@ export function ActivePageDisplay() {
   // actual board state, then the active-page render fallback for a secondary
   // board with no cached content. Falls back to null (skeleton).
   const displayMessage = liveMessageForBoard ?? boardState?.message ?? fallbackPreview?.message ?? null;
-
-  // Save the observed board grid, independently of the expected page or live
-  // editor preview. The selected board supplies both the frame and its size.
-  const saveExternalAsPageMutation = useMutation({
-    mutationFn: () => {
-      const characters = boardState?.characters;
-      if (!characters) throw new Error("No board content to save");
-      // Device families remain distinct even when dimensions match (a 1×1
-      // Note array is 3×15, but a Note page cannot be selected on that array).
-      const deviceType = currentBoard?.device_type ?? activeGeometry.deviceType;
-      return api.createPage({
-        name: t("externalPageName", { date: new Date().toLocaleString() }),
-        type: "template",
-        device_type: deviceType,
-        template: boardCharactersToTemplate(characters),
-        ...(deviceType === "note_array" && {
-          notes_wide: currentBoard?.notes_wide ?? activeGeometry.notesWide,
-          notes_tall: currentBoard?.notes_tall ?? activeGeometry.notesTall,
-        }),
-        ...(deviceType === "panel" && {
-          grid_rows: activeGeometry.gridRows ?? characters.length,
-          grid_cols: activeGeometry.gridCols ?? characters[0]?.length,
-        }),
-      });
-    },
-    onSuccess: (page) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.pages });
-      toast.success(t("toastSaveAsPageSuccess", { pageName: page.name }));
-    },
-    onError: () => {
-      toast.error(t("toastSaveAsPageFailed"));
-    },
-  });
-
-  // Out-of-sync: the board was updated externally if its current state differs
-  // from what FiestaBoard last sent.
-  const isOutOfSync = useMemo(() => {
-    if (!boardState?.expected_characters || !boardState?.characters) return false;
-    return JSON.stringify(boardState.characters) !== JSON.stringify(boardState.expected_characters);
-  }, [boardState]);
+  // A rich board's frame as its cells (colour, case, icons), when the board
+  // state is what is drawn and FiestaBoard sent it with them.
+  const displayCells =
+    !liveMessageForBoard && boardState?.message != null ? (boardState.cells as BoardCellGrid | undefined) : undefined;
+  // A pixel board's canvases on that same frame (drawn over the cells).
+  const displayLayers = displayCells ? boardState?.layers : undefined;
 
   return (
     <>
@@ -708,7 +669,7 @@ export function ActivePageDisplay() {
                 // currently rendering so they can jump straight to that design.
                 <>
                   <Link
-                    href="/collections"
+                    href={`/collections/${encodeURIComponent(activeCollection.id)}`}
                     className="inline-flex items-center text-xs font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                     aria-label={t("editCollection", { collectionName: activeCollection.name })}
                     title={t("editCollection", { collectionName: activeCollection.name })}
@@ -752,19 +713,12 @@ export function ActivePageDisplay() {
             {liveMessageForBoard ? (
               <Badge
                 variant="destructive"
-                className="text-xs gap-1 animate-pulse pr-1 cursor-pointer hover:opacity-90 focus-within:ring-2 focus-within:ring-ring"
+                className="text-xs animate-pulse"
+                onDismiss={handleDisableLiveMode}
+                dismissLabel={t("turnOffLiveModeAriaLabel")}
               >
-                <Radio className="h-3 w-3" aria-hidden="true" />
+                <Radio className="inline h-3 w-3 mr-1 align-[-2px]" aria-hidden="true" />
                 {t("liveModeBadge")}
-                <button
-                  type="button"
-                  onClick={handleDisableLiveMode}
-                  aria-label={t("turnOffLiveModeAriaLabel")}
-                  title={t("turnOffLiveModeAriaLabel")}
-                  className="ml-0.5 inline-flex items-center justify-center rounded-sm hover:bg-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <X className="h-3 w-3" aria-hidden="true" />
-                </button>
               </Badge>
             ) : overrideActive ? (
               <Badge variant="outline" className="text-xs gap-1 border-primary/50 text-primary pr-1">
@@ -824,6 +778,53 @@ export function ActivePageDisplay() {
         </Stack>
 
         <Box className="space-y-4">
+          {/* Silence (#1943): what is on hold and what happens when it ends. */}
+          {silence.active && (
+            <SilenceNotice
+              until={silence.until}
+              data-testid="silence-alert"
+              description={
+                <>
+                  <Text as="span" size="sm" className="block">
+                    {scheduleEnabled
+                      ? t("silenceSchedule")
+                      : activeCollection || activePage
+                        ? t("silenceManual", { pageName: activeCollection?.name ?? activePage?.name ?? "" })
+                        : t("silenceNoPage")}
+                  </Text>
+                  {silence.held && (
+                    <Text as="span" size="sm" className="mt-1 block" data-testid="silence-held">
+                      {t("silenceHeld", { preview: silence.held.preview })}
+                    </Text>
+                  )}
+                </>
+              }
+            >
+              {!scheduleEnabled && activePage && !activeCollection ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => showPageNow(activePage.id, activePage.name)}
+                  disabled={setActivePageMutation.isPending}
+                  data-testid="silence-show-now"
+                >
+                  {t("showNow")}
+                </Button>
+              ) : null}
+              {silence.held ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => discardHeldMutation.mutate()}
+                  disabled={discardHeldMutation.isPending}
+                  data-testid="silence-discard-held"
+                >
+                  {t("discardHeld")}
+                </Button>
+              ) : null}
+            </SilenceNotice>
+          )}
+
           {/* Schedule gap warning */}
           {scheduleEnabled && !activePageId && (
             <Alert variant="default" className="border-warning/50 bg-warning/10">
@@ -841,67 +842,50 @@ export function ActivePageDisplay() {
             </Alert>
           )}
 
-          {/* Out-of-sync warning: board was changed by another app */}
-          {isOutOfSync && !liveMessageForBoard && (
-            <Alert variant="default" className="border-warning/50 bg-warning/10">
-              <AlertTriangle className="h-4 w-4 text-warning" />
-              <AlertDescription className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-                <Text as="span" size="sm">
-                  {t("updatedExternally")}
-                </Text>
-                <Flex align="center" gap="2" wrap>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleResendToBoard}
-                    disabled={isSyncing}
-                    className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
-                  >
-                    {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
-                    {t("resendToBoard")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => saveExternalAsPageMutation.mutate()}
-                    disabled={saveExternalAsPageMutation.isPending}
-                    className="shrink-0 gap-1.5 border-warning/50 text-warning hover:bg-warning/10 hover:text-warning"
-                  >
-                    {saveExternalAsPageMutation.isPending ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Save className="h-3 w-3" />
-                    )}
-                    {t("saveAsPage")}
-                  </Button>
-                </Flex>
-              </AlertDescription>
-            </Alert>
-          )}
+          {/* Another app wrote to the board (issue #1945): Restore or keep it.
+              The same banner a display's own page shows. Live Mode drives the
+              primary, so it suppresses the banner there. */}
+          <BoardOutOfSyncBanner
+            boardId={scopedBoardId}
+            geometry={activeGeometry}
+            paused={isTargetPaused}
+            suppressed={!!liveMessageForBoard}
+          />
 
           {/* Board Frame — contain: layout style paint isolates the tile grid from
               any layout changes in ancestor elements (e.g. sidebar padding snap).
               ScaledBoardDisplay shrinks the board to fit narrow (mobile) cards —
               BoardDisplay's breakpoint tile sizes alone overflow phone widths. */}
           <Flex justify="center" className="overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
-            <ScaledBoardDisplay
+            {/* The board's device model draws it: an LED board as its LED
+                matrix; a split-flap board exactly as before. */}
+            <DevicePreview
+              model={resolveBoardModel(currentBoard ?? boardSettings?.boards?.[0])}
+              ledLayout={(currentBoard ?? boardSettings?.boards?.[0])?.led_layout}
               message={displayMessage}
-              isLoading={!boardState && !liveMessageForBoard}
+              cells={displayCells}
+              layers={displayLayers}
               size="md"
-              boardType={currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
-              deviceType={activeGeometry.deviceType}
-              notesWide={activeGeometry.notesWide}
-              notesTall={activeGeometry.notesTall}
-              gridRows={activeGeometry.gridRows}
-              gridCols={activeGeometry.gridCols}
-              // Which code-62 flap this board carries (issue #1657) — the
-              // preview has to draw what is on the wall, and only the owner
-              // can tell a heart-era Flagship from a degree-era one.
-              code62Glyph={resolveCode62Glyph(
-                activeGeometry.deviceType,
-                currentBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
-              )}
-            />
+            >
+              <ScaledBoardDisplay
+                message={displayMessage}
+                isLoading={!boardState && !liveMessageForBoard}
+                size="md"
+                boardType={currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
+                deviceType={activeGeometry.deviceType}
+                notesWide={activeGeometry.notesWide}
+                notesTall={activeGeometry.notesTall}
+                gridRows={activeGeometry.gridRows}
+                gridCols={activeGeometry.gridCols}
+                // Which code-62 flap this board carries (issue #1657) — the
+                // preview has to draw what is on the wall, and only the owner
+                // can tell a heart-era Flagship from a degree-era one.
+                code62Glyph={resolveCode62Glyph(
+                  activeGeometry.deviceType,
+                  currentBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
+                )}
+              />
+            </DevicePreview>
           </Flex>
         </Box>
       </Box>
@@ -932,6 +916,16 @@ export function ActivePageDisplay() {
           <SheetHeader>
             <SheetTitle>{t("selectPageTitle")}</SheetTitle>
             <SheetDescription>{t("selectPageDescription")}</SheetDescription>
+            {/* Picking during silence saves the page; it does not wake the
+                board (#1943). Said before the tap, not only after it. */}
+            <SilenceNotice
+              compact
+              active={silence.active}
+              until={silence.until}
+              description={t("selectPageSilence")}
+              className="mt-2"
+              data-testid="select-page-silence"
+            />
             {/* The one-off escape hatch (issue #1787). It lives in the sheet
                 header rather than the change-mode dialog because the sheet is
                 reachable in both schedule and manual mode, while the dialog
@@ -996,12 +990,16 @@ export function ActivePageDisplay() {
         notesTall={composeTargetBoard?.notes_tall ?? 1}
         gridRows={composeTargetBoard?.grid_rows}
         gridCols={composeTargetBoard?.grid_cols}
+        model={resolveBoardModel(composeTargetBoard)}
+        ledLayout={composeTargetBoard?.led_layout}
         boardColor={composeTargetBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
         code62Glyph={resolveCode62Glyph(
           composeTargetBoard?.device_type ?? getEffectiveDeviceType(boardSettings),
           composeTargetBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
         )}
         targetBoardName={composeTargetsAnotherBoard ? composeTargetBoard?.name : undefined}
+        targetBoardId={composeTargetBoard?.id}
+        silence={primarySilence.active ? { until: primarySilence.until, holds: primarySilence.holds } : null}
       />
 
       {/* Force Set dialog — opened when user picks a page while in schedule mode */}
@@ -1010,6 +1008,8 @@ export function ActivePageDisplay() {
         onOpenChange={setForceSetDialogOpen}
         pageId={forceSetPageId}
         pageName={pages.find((p) => p.id === forceSetPageId)?.name ?? ""}
+        silenced={primarySilence.active}
+        silencedUntil={primarySilence.until}
       />
 
       {/* Schedule mode choice dialog — shown before page selector when schedule is active */}
@@ -1022,58 +1022,25 @@ export function ActivePageDisplay() {
 
           <Stack gap="3" className="py-2">
             {/* Override temporarily */}
-            <button
-              type="button"
+            <ActionCard
+              tone="primary"
+              icon={<Timer />}
+              title={t("changeModeOverrideTitle")}
+              description={t("changeModeOverrideDescription")}
               onClick={() => {
                 setChangeModeOpen(false);
                 setIsSheetOpen(true);
               }}
-              className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <Flex
-                align="center"
-                justify="center"
-                className="h-10 w-10 rounded-full bg-primary/10 flex-shrink-0 group-hover:bg-primary/20 transition-colors"
-              >
-                <Timer className="h-5 w-5 text-primary" />
-              </Flex>
-              <Box className="min-w-0">
-                <Text size="sm" weight="semibold">
-                  {t("changeModeOverrideTitle")}
-                </Text>
-                <Text size="xs" tone="muted" className="mt-0.5 leading-relaxed">
-                  {t("changeModeOverrideDescription")}
-                </Text>
-              </Box>
-            </button>
+            />
 
             {/* Turn off schedule */}
-            <button
-              type="button"
+            <ActionCard
+              icon={<CalendarOff />}
+              title={t("changeModeDisableTitle")}
+              description={t("changeModeDisableDescription")}
+              loading={disableScheduleMutation.isPending}
               onClick={() => disableScheduleMutation.mutate()}
-              disabled={disableScheduleMutation.isPending}
-              className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-muted-foreground/40 hover:bg-muted/40 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Flex
-                align="center"
-                justify="center"
-                className="h-10 w-10 rounded-full bg-muted flex-shrink-0 group-hover:bg-muted/80 transition-colors"
-              >
-                {disableScheduleMutation.isPending ? (
-                  <Spinner size="lg" className="text-muted-foreground" label={null} />
-                ) : (
-                  <CalendarOff className="h-5 w-5 text-muted-foreground" />
-                )}
-              </Flex>
-              <Box className="min-w-0">
-                <Text size="sm" weight="semibold">
-                  {t("changeModeDisableTitle")}
-                </Text>
-                <Text size="xs" tone="muted" className="mt-0.5 leading-relaxed">
-                  {t("changeModeDisableDescription")}
-                </Text>
-              </Box>
-            </button>
+            />
           </Stack>
 
           <DialogFooter>

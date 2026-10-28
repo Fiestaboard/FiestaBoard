@@ -20,7 +20,7 @@ import pytest
 
 from src.main import SEND_WAIT_TIMEOUT
 
-CONFIGS = ("nginx.conf", "nginx.https.conf", "nginx-dev.conf")
+CONFIGS = ("nginx.conf", "nginx-dev.conf")
 API_LOCATIONS = ("/api/mcp", "/api/")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

@@ -64,6 +64,19 @@ describe("AnimationSettings — board flip speed", () => {
     });
   });
 
+  it("supports arrow-key selection while saving the global preview preference", async () => {
+    withDisplaySettings({ board_flap_speed: "quick" });
+    const bodies = captureDisplayUpdate();
+    const user = userEvent.setup();
+    render(<AnimationSettings />, { wrapper: TestWrapper });
+    const quick = await screen.findByRole("radio", { name: "Quick" });
+    await waitFor(() => expect(quick).toBeChecked());
+    quick.focus();
+    await user.keyboard("{ArrowRight}");
+    await waitFor(() => expect(bodies).toContainEqual({ board_flap_speed: "standard" }));
+    expect(bodies.every((body) => !("board_id" in body))).toBe(true);
+  });
+
   it("marks Standard as the default even when another preset is selected", async () => {
     // The per-preset hint below the group says "the default" — but only for
     // whichever preset is currently selected, so a user on Relaxed has no way
@@ -100,7 +113,7 @@ describe("AnimationSettings — board flip speed", () => {
   it("says in so many words that this is the on-screen board, not the hardware", async () => {
     render(<AnimationSettings />, { wrapper: TestWrapper });
 
-    // Users have a second, unrelated speed control under Behavior -> Board
+    // Users have a second, unrelated speed control under Scheduling -> Board
     // transitions. Without this line the two read as the same setting twice.
     const note = await screen.findByText(/board preview on screen only/i);
     expect(note).toBeInTheDocument();

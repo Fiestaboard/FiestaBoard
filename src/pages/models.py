@@ -8,20 +8,34 @@ Pages can be:
 
 import uuid
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    FieldSerializationInfo,
+    computed_field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
+from src.canvas.models import Canvas as StrictCanvas
+from src.canvas.models import validate_page_canvases
+from src.canvas.schemas import CanvasIssueModel, CanvasLayerModel
 from src.devices import (
+    ABSOLUTE_MIN_GRID_COLS,
+    ABSOLUTE_MIN_GRID_ROWS,
     DEFAULT_DEVICE_TYPE,
     MAX_GRID_COLS,
     MAX_GRID_ROWS,
     MAX_NOTES_PER_AXIS,
-    MIN_GRID_COLS,
-    MIN_GRID_ROWS,
+    MAX_TRANSITION_STEP_INTERVAL_MS,
     DeviceType,
     resolve_dimensions,
 )
+from src.pages.document import PAGE_SHARE_EXCLUDED, ExtensibleDocument
+from src.pages.document import DocumentCanvas as Canvas
 from src.settings.service import VALID_OUTPUT_TARGETS
 
 PageType = Literal["single", "composite", "template"]
@@ -33,10 +47,55 @@ def _require_panel_grid(device_type, grid_rows, grid_cols) -> None:
         raise ValueError("A panel page needs grid_rows and grid_cols")
 
 
+def _check_canvas_list(value: Any) -> Any:
+    """Every canvas valid, at most 8, ids unique (:func:`validate_page_canvases`)."""
+    if value is None:
+        return None
+    items = [
+        Canvas.model_validate(c.model_dump(by_alias=True, exclude_unset=True) if isinstance(c, StrictCanvas) else c)
+        for c in value
+    ]
+    return validate_page_canvases(items)
+
+
+def _check_canvases_fit(
+    canvases: list[Canvas] | None, device_type, notes_wide, notes_tall, grid_rows, grid_cols
+) -> None:
+    """Every canvas area starts inside the page's character grid.
+
+    An area may run past the grid's right or bottom edge: it is clamped to
+    the grid when the page renders (:func:`src.canvas.geometry.clamp_area`),
+    so ``{"row": 1, "col": 1, "rows": 96, "cols": 128}`` means "the whole
+    board" on every board size. One that starts outside the grid cannot be
+    clamped and is refused.
+    """
+    if not canvases:
+        return
+    dims = resolve_dimensions(device_type, notes_wide or 1, notes_tall or 1, grid_rows, grid_cols)
+    for canvas in canvases:
+        area = canvas.area
+        if area.row > dims.rows or area.col > dims.cols:
+            raise ValueError(
+                f"canvas {canvas.id!r} area starts at row {area.row}, col {area.col}, outside the page's "
+                f"{dims.rows} x {dims.cols} grid (an area may run past the grid's edge, but must start inside it)"
+            )
+
+
+def _dump_canvases(canvases: list[Canvas] | None, info: FieldSerializationInfo) -> Any:
+    """Canvases as their JSON form: ``if`` / ``as`` / ``from`` (not ``if_``…), unset fields left out.
+
+    Used by every dump of a page (storage, share strings, API responses), so
+    what is stored is exactly what an author writes and validates back.
+    """
+    if canvases is None:
+        return None
+    return [c.model_dump(mode=info.mode, by_alias=True, exclude_unset=True) for c in canvases]
+
+
 LineAlignment = Literal["left", "center", "right"]
 
 
-class LineMetadata(BaseModel):
+class LineMetadata(ExtensibleDocument):
     """Per-line formatting metadata for template pages.
 
     Stores alignment and wrap settings that were previously encoded as
@@ -47,7 +106,7 @@ class LineMetadata(BaseModel):
     wrap: bool = False
 
 
-class RowConfig(BaseModel):
+class RowConfig(ExtensibleDocument):
     """Configuration for a single row in a composite page.
 
     Specifies which row from which source should be placed at which position.
@@ -59,7 +118,7 @@ class RowConfig(BaseModel):
     target_row: int = Field(ge=0)  # Where to place in output
 
 
-class Page(BaseModel):
+class Page(ExtensibleDocument):
     """A saved page configuration.
 
     Pages can be one of three types:
@@ -71,6 +130,22 @@ class Page(BaseModel):
     """
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    # Runtime generation, assigned by PageStorage; deliberately not persisted.
+    # Reload/restart invalidates edits based on the previous in-memory state.
+    revision: str | None = Field(default=None, json_schema_extra={"readOnly": True})
+
+    @computed_field
+    @property
+    def edit_protocol(self) -> Literal["page-revision-v1"]:
+        """Runtime support for conditional sparse page saves; never caller input."""
+        return "page-revision-v1"
+
+    @computed_field
+    @property
+    def document_protocol(self) -> Literal["page-document-v1"]:
+        """Validated known content with opaque JSON extension preservation."""
+        return "page-document-v1"
+
     name: str = Field(min_length=1, max_length=100)
     type: PageType
 
@@ -94,13 +169,13 @@ class Page(BaseModel):
     # Rotation settings
     duration_seconds: int = Field(default=300, ge=10, le=3600)  # 10s to 1h
 
-    # Transition settings (per-page override, None means use system defaults).
+    # Transition settings (per-page override, None means use the display's own).
     # Valid strategies: column, reverse-column, edges-to-center, row, diagonal,
     # random, or "plugin:<id>" to drive a frame-by-frame transition plugin
     # (e.g. "plugin:typewriter").  Pydantic stores any string; the strategy
     # is validated lazily at send-time by board_client.render().
     transition_strategy: str | None = None
-    transition_interval_ms: int | None = Field(default=None, ge=0, le=5000)
+    transition_interval_ms: int | None = Field(default=None, ge=0, le=MAX_TRANSITION_STEP_INTERVAL_MS)
     transition_step_size: int | None = Field(default=None, ge=1)
 
     # Plugin demo page tracking (singleton per plugin)
@@ -115,17 +190,26 @@ class Page(BaseModel):
     # rows × cols, because a FiestaPanel is sized per character from its TV
     # and need not be a Note multiple. Named grid_* because ``rows`` is the
     # composite row config.
-    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
-    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
+    grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
+
+    # Pixel canvases (design PIXEL_CANVAS.md §1): drawings over cell areas of
+    # the page grid. Drawn on pixel-matrix boards; every board blanks the
+    # cells under them (or flows text around a ``text: "flow"`` canvas).
+    canvases: list[Canvas] | None = None
 
     # Metadata
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime | None = None
 
-    model_config = ConfigDict(
-        # Pydantic V2 uses serialization_mode_json for custom serializers
-        # datetime is automatically serialized to ISO format in V2
-    )
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_computed_metadata(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                k: v for k, v in value.items() if k not in {"edit_protocol", "document_protocol", "expected_revision"}
+            }
+        return value
 
     @model_validator(mode="after")
     def _normalize_grid(self) -> "Page":
@@ -138,7 +222,21 @@ class Page(BaseModel):
         if self.device_type != "panel":
             self.grid_rows = None
             self.grid_cols = None
+        _check_canvases_fit(
+            self.canvases, self.device_type, self.notes_wide, self.notes_tall, self.grid_rows, self.grid_cols
+        )
         return self
+
+    @field_validator("canvases", mode="before")
+    @classmethod
+    def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
+        return _check_canvas_list(value)
+
+    @field_serializer("canvases")
+    def _canvases_dump(
+        self, value: list[Canvas] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_canvases(value, info)
 
     def validate_config(self) -> list[str]:
         """Validate that page configuration is complete and consistent.
@@ -179,8 +277,15 @@ class Page(BaseModel):
         return len(self.validate_config()) == 0
 
 
-class PageCreate(BaseModel):
-    """Request model for creating a new page."""
+class PageCreate(ExtensibleDocument):
+    """Create author content; server-assigned identity and timestamps are ignored."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_server_metadata(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {k: v for k, v in value.items() if k not in PAGE_SHARE_EXCLUDED}
+        return value
 
     name: str = Field(min_length=1, max_length=100)
     type: PageType
@@ -192,7 +297,7 @@ class PageCreate(BaseModel):
     duration_seconds: int = Field(default=300, ge=10, le=3600)
     # Transition settings (per-page override)
     transition_strategy: str | None = None
-    transition_interval_ms: int | None = Field(default=None, ge=0, le=5000)
+    transition_interval_ms: int | None = Field(default=None, ge=0, le=MAX_TRANSITION_STEP_INTERVAL_MS)
     transition_step_size: int | None = Field(default=None, ge=1)
     # Plugin demo page tracking
     demo_plugin_id: str | None = None
@@ -203,18 +308,40 @@ class PageCreate(BaseModel):
     # rows × cols, because a FiestaPanel is sized per character from its TV
     # and need not be a Note multiple. Named grid_* because ``rows`` is the
     # composite row config.
-    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
-    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
+    grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
+    # Pixel canvases (see Page.canvases); every area must fit the page grid.
+    canvases: list[Canvas] | None = None
 
     @model_validator(mode="after")
     def _check_panel_grid(self) -> "PageCreate":
         _require_panel_grid(self.device_type, self.grid_rows, self.grid_cols)
+        _check_canvases_fit(
+            self.canvases, self.device_type, self.notes_wide, self.notes_tall, self.grid_rows, self.grid_cols
+        )
         return self
+
+    @field_validator("canvases", mode="before")
+    @classmethod
+    def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
+        return _check_canvas_list(value)
+
+    @field_serializer("canvases")
+    def _canvases_dump(
+        self, value: list[Canvas] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_canvases(value, info)
 
 
 class PageUpdate(BaseModel):
-    """Request model for updating an existing page."""
+    """Sparse known-field patch. Supplied lists replace the complete field.
 
+    Omitted fields survive, including opaque top-level extensions. Nullable
+    content fields accept explicit null to remove them; nested lists are never
+    merged by position or guessed identity.
+    """
+
+    expected_revision: str | None = Field(default=None, min_length=1, max_length=128)
     name: str | None = Field(default=None, min_length=1, max_length=100)
     # Device/size retarget (issue #1250). Converting between geometries is
     # lossy (content that doesn't fit is truncated at render time) — the
@@ -227,7 +354,7 @@ class PageUpdate(BaseModel):
     duration_seconds: int | None = Field(default=None, ge=10, le=3600)
     # Transition settings (per-page override, use ... sentinel to leave unchanged)
     transition_strategy: str | None = None
-    transition_interval_ms: int | None = Field(default=None, ge=0, le=5000)
+    transition_interval_ms: int | None = Field(default=None, ge=0, le=MAX_TRANSITION_STEP_INTERVAL_MS)
     transition_step_size: int | None = Field(default=None, ge=1)
     # Note-array dimensions (only used when device_type is "note_array")
     notes_wide: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)
@@ -236,8 +363,24 @@ class PageUpdate(BaseModel):
     # rows × cols, because a FiestaPanel is sized per character from its TV
     # and need not be a Note multiple. Named grid_* because ``rows`` is the
     # composite row config.
-    grid_rows: int | None = Field(default=None, ge=MIN_GRID_ROWS, le=MAX_GRID_ROWS)
-    grid_cols: int | None = Field(default=None, ge=MIN_GRID_COLS, le=MAX_GRID_COLS)
+    grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
+    # Pixel canvases (see Page.canvases). ``null`` removes them all. Areas are
+    # checked against the page's grid when the update is applied. A size
+    # retarget that does not send canvases scales the existing areas to the
+    # new grid.
+    canvases: list[Canvas] | None = None
+
+    @field_validator("canvases", mode="before")
+    @classmethod
+    def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
+        return _check_canvas_list(value)
+
+    @field_serializer("canvases")
+    def _canvases_dump(
+        self, value: list[Canvas] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_canvases(value, info)
 
 
 # ---------------------------------------------------------------------------
@@ -315,13 +458,20 @@ class PageImportRequest(BaseModel):
     share_string: str
 
 
-class PageImportPreview(BaseModel):
+class PageImportPreview(ExtensibleDocument):
     """``POST /pages/import/preview`` — the decoded page, not yet persisted.
 
     Exactly the content fields ``src/pages/share.py`` puts in the envelope:
     no ``id``, ``created_at``, ``updated_at`` or ``demo_plugin_id``, because a
     preview has not been created yet.
     """
+
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_server_metadata(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {k: v for k, v in value.items() if k not in PAGE_SHARE_EXCLUDED}
+        return value
 
     name: str
     type: PageType
@@ -338,6 +488,13 @@ class PageImportPreview(BaseModel):
     transition_strategy: str | None = None
     transition_interval_ms: int | None = None
     transition_step_size: int | None = None
+    canvases: list[Canvas] | None = None
+
+    @field_serializer("canvases")
+    def _canvases_dump(
+        self, value: list[Canvas] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_canvases(value, info)
 
 
 class PagePreviewResponse(BaseModel):
@@ -359,6 +516,16 @@ class PagePreviewBatchSuccess(BaseModel):
     lines: list[str]
     display_type: str
     raw: dict
+    #: The render as rich cells (FiestaUI ``BoardToken[][]`` JSON) for the
+    #: request's ``board_id`` when that board draws a rich character set (an
+    #: LED output). Present ONLY then.
+    cells: list[list[dict[str, Any]]] | None = None
+    #: The page's pixel canvases rasterised for the request's ``board_id``
+    #: when that board is a pixel matrix (``[]`` for a page without
+    #: canvases). Present ONLY then; draw them over ``cells``.
+    layers: list[CanvasLayerModel] | None = None
+    #: Problems drawing those canvases. Present exactly when ``layers`` is.
+    canvas_issues: list[CanvasIssueModel] | None = None
 
 
 class PagePreviewBatchError(BaseModel):
@@ -378,6 +545,12 @@ class PagePreviewBatchRequest(BaseModel):
 
     page_ids: list[str] = Field(default_factory=list)
     force_refresh: bool = False
+    board_id: str | None = Field(
+        default=None,
+        description="The board the previews are for. A board whose output draws a rich character set (an LED "
+        "output) gets its colour spans and icons rendered, and each preview's `cells`; omitted or any other "
+        "board: the split-flap previews, unchanged.",
+    )
 
 
 class PagePreviewBatchResponse(BaseModel):
@@ -431,15 +604,23 @@ class PageSendResponse(BaseModel):
     """``POST /pages/{page_id}/send`` — what was rendered and where it went.
 
     ``sent_to_board`` is False for a UI-only target, a silenced board, or a
-    paused board (``paused`` tells those last two apart from the first).
+    paused board. ``silenced`` and ``paused`` say which (both can be true);
+    ``held`` says silence is holding the page to show when the window ends.
     """
 
     page_id: str
     message: str
     sent_to_board: bool
     paused: bool = False
+    silenced: bool = False
+    held: bool = False
     target: str
     board_id: str | None = None
+    #: The page's pixel canvases as rendered for the target board, when that
+    #: board is a pixel matrix (``[]`` for a page without canvases); else null.
+    layers: list[CanvasLayerModel] | None = None
+    #: Problems drawing those canvases; null exactly when ``layers`` is.
+    canvas_issues: list[CanvasIssueModel] | None = None
 
 
 class PageSendFailure(BaseModel):

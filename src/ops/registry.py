@@ -124,9 +124,6 @@ OPERATIONS: tuple[Operation, ...] = (
     # spelling for them — the in-app chat reaches them as MCP tools.
     Operation(name="import_page", executor=executors.import_page, mcp_tool="import_page"),
     Operation(name="import_staff_pick", executor=executors.import_staff_pick, mcp_tool="import_staff_pick"),
-    # -- Transition Lab (beta) --------------------------------------------
-    Operation(name="test_transition_live", executor=executors.test_transition_live, mcp_tool="test_transition_live"),
-    Operation(name="restore_board", executor=executors.restore_board, mcp_tool="restore_board"),
     # -- schedules --------------------------------------------------------
     Operation(
         name="create_schedule",
@@ -149,6 +146,7 @@ OPERATIONS: tuple[Operation, ...] = (
         mcp_tool="update_schedule",
         adapt_chat_args=lambda a: {
             "schedule_id": a.schedule_id,
+            "expected_revision": a.expected_revision,
             **_model_fields(a, "page_id", "start_time", "end_time", "day_pattern", "custom_days", "enabled"),
         },
     ),
@@ -157,7 +155,7 @@ OPERATIONS: tuple[Operation, ...] = (
         executor=executors.delete_schedule,
         chat_name="delete_schedule",
         mcp_tool="delete_schedule",
-        adapt_chat_args=lambda a: {"schedule_id": a.schedule_id},
+        adapt_chat_args=lambda a: {"schedule_id": a.schedule_id, "expected_revision": a.expected_revision},
     ),
     Operation(name="set_schedule_mode", executor=executors.set_schedule_mode, mcp_tool="set_schedule_mode"),
     # The schedule-gap fallback page — PATCH /v1/boards/{board} default_page_id.
@@ -202,6 +200,7 @@ OPERATIONS: tuple[Operation, ...] = (
         mcp_tool="update_collection",
         adapt_chat_args=lambda a: {
             "collection_id": a.collection_id,
+            "expected_revision": a.expected_revision,
             **_model_fields(a, "name", "page_ids", "interval_seconds"),
         },
     ),

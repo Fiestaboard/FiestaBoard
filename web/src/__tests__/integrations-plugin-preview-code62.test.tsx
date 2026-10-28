@@ -66,7 +66,7 @@ function mockBoard(glyph?: Code62Glyph) {
 }
 
 /** One uninstalled registry plugin whose teaser and previews put code 62 on the board. */
-function mockWeatherRegistry() {
+function mockWeatherRegistry(teaser = "52 °F CLEAR") {
   server.use(
     http.get(`${API_BASE}/plugins`, () =>
       HttpResponse.json({ plugins: [], plugin_system_enabled: true, total: 0, enabled_count: 0 }),
@@ -85,8 +85,8 @@ function mockWeatherRegistry() {
             fiestaboard_version: ">=8.0.0",
             icon: "puzzle",
             installed: false,
-            teaser: "52 °F CLEAR",
-            previews: [{ device_type: "flagship", rows: ["52 °F CLEAR"] }],
+            teaser,
+            previews: [{ device_type: "flagship", rows: [teaser] }],
           },
         ],
       }),
@@ -149,5 +149,34 @@ describe("Integrations plugin previews — code-62 flap", () => {
 
     const board = await screen.findByRole("img", { name: /split-flap board/i });
     expect(board).toHaveTextContent("52°FCLEAR");
+  });
+});
+
+/**
+ * A teaser written in extended markup draws its split-flap degradation
+ * (FiestaUI #336): the span's letters without the colour, the icon as its
+ * fallback tile, which has no letters to name. Before, the strip spelled the
+ * markers out ("{RED:52} ... {ICON:SUN}").
+ */
+describe("Integrations plugin previews — extended markup on a split-flap board", () => {
+  it("draws a span's letters and an icon's tile in the marketplace teaser", async () => {
+    mockBoard("heart");
+    mockWeatherRegistry("{red:52} °F {icon:sun}");
+    renderWithQueryClient(<IntegrationsPage />);
+
+    await openMarketplaceCards();
+
+    const strip = await screen.findByRole("img", { name: /52 ♥F/ });
+    expect(strip).not.toHaveAccessibleName(/RED|ICON/);
+  });
+
+  it("draws a span's letters in the plugin detail showcase", async () => {
+    mockBoard("heart");
+    mockWeatherRegistry("{red:52} °F {icon:sun}");
+    renderWithQueryClient(<PluginDetailPage />);
+
+    const board = await screen.findByRole("img", { name: /split-flap board/i });
+    expect(board).toHaveTextContent("52♥F");
+    expect(board).not.toHaveTextContent(/RED|ICON/);
   });
 });

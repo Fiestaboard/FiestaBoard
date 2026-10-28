@@ -12,6 +12,8 @@ from src.devices import NOTE_COLS, NOTE_ROWS, BoardContext
 from src.plugins.base import PluginBase, PluginResult
 from src.plugins.geometry_conformance import (
     GROWTH_LADDER,
+    LED_GEOMETRIES,
+    PANEL_GEOMETRIES,
     STANDARD_GEOMETRIES,
     assert_board_conformance,
     check_growth,
@@ -231,8 +233,9 @@ class TestUnboundBoard:
 
 class TestTileCounting:
     def test_colour_markers_count_as_one_tile(self):
-        # 15 markers is 60 characters but exactly 15 tiles, so it fits a Note.
-        report = run_conformance(lambda: ColourMarkerPlugin(15))
+        # 10 markers is 40 characters but exactly 10 tiles, so it fits the
+        # narrowest board (an LED board in its large face, 10 wide).
+        report = run_conformance(lambda: ColourMarkerPlugin(10))
         assert "ROW_TOO_WIDE" not in codes(report)
 
     def test_too_many_markers_still_overflows(self):
@@ -276,9 +279,22 @@ class TestGeometryMatrix:
             for d in range(3, 201)
             for aw, ah in ((16, 9), (9, 16), (21, 9), (4, 3))
         }
-        for g in STANDARD_GEOMETRIES:
-            if g.board.device_type == "panel":
-                assert (g.rows, g.cols) in fits, g.label
+        for g in PANEL_GEOMETRIES:
+            assert (g.rows, g.cols) in fits, g.label
+
+    def test_matrix_led_grids_are_real_led_boards_in_the_large_face(self):
+        """Every LED geometry is what a real LED model shows in 5x7, and both are in the matrix."""
+        from src.fiestaui import builtin_device_models
+        from src.led.matrix import model_with_led_font
+        from src.outputs.geometry import model_cell_grid
+
+        models = builtin_device_models()
+        real = {
+            model_cell_grid(model_with_led_font(models["divoom_pixoo64"], "5x7")),
+            model_cell_grid(models["hub75_64x32"]),
+        }
+        assert {(g.rows, g.cols) for g in LED_GEOMETRIES} == real == {(8, 10), (4, 10)}
+        assert set(LED_GEOMETRIES) <= set(STANDARD_GEOMETRIES)
 
     def test_panel_helper_builds_a_panel_context(self):
         assert panel(12, 29) == BoardContext("panel", rows=12, cols=29)

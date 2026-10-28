@@ -7,10 +7,12 @@ import type {
   DisplaySettings,
   GeneralConfig,
   OutputSettings,
+  OutputSummary,
   Page,
   PageCreate,
   PagesResponse,
   PluginDetailResponse,
+  PluginSettings,
   PreviewResponse,
   SetTemporaryOverrideRequest,
   SilenceStatus,
@@ -20,7 +22,18 @@ import type {
   TransitionSettings,
 } from "@/lib/api";
 
+import firstPartyOutputs from "./first-party-outputs.json";
+
 const API_BASE = "/api";
+
+/**
+ * `GET /outputs` with only the first-party outputs installed: a copy of what
+ * the seeded Vestaboard and FiestaPanel serve (`tests/golden/outputs/
+ * first_party_presentation.json`, kept in step by
+ * `tests/test_vestaboard_settings_screen.py`) — so the web suite renders the
+ * Vestaboard's real settings screen.
+ */
+export const mockOutputs = firstPartyOutputs as unknown as OutputSummary[];
 
 // Type-safe mock data
 export const mockStatus: StatusResponse = {
@@ -49,6 +62,11 @@ export const mockConfig: ConfigSummary = {
   guest_wifi_enabled: false,
   star_trek_quotes_enabled: true,
   rotation_enabled: true,
+};
+
+export const mockPluginSettings: PluginSettings = {
+  auto_update: true,
+  transition_plugins_enabled: false,
 };
 
 export const mockTransitionSettings: TransitionSettings = {
@@ -259,7 +277,6 @@ export const mockSilenceSchedulePlugin: PluginDetailResponse = {
 // Store for tracking request bodies in tests
 export const requestStore: {
   lastPageCreate?: PageCreate;
-  lastTransitionUpdate?: Partial<TransitionSettings>;
   lastOutputUpdate?: { target: string };
   lastLiveRender?: { template: string | string[]; board_id?: string };
   lastTemporaryOverride?: SetTemporaryOverrideRequest;
@@ -321,14 +338,16 @@ export const handlers = [
     return HttpResponse.json(mockStatus);
   }),
 
-  // Beta settings — queried by the navigation sidebar on every render.
-  // Both flags default off; tests exercising beta features override via
-  // server.use().
-  http.get(`${API_BASE}/settings/beta`, () => {
-    return HttpResponse.json({
-      settings: { https_enabled: false, transition_plugins_enabled: false },
-      https: { cert_present: false, cert_path: "", key_path: "", updater_available: false },
-    });
+  // Plugin settings: auto-update and the transition / output plugin flags
+  // (/settings/beta until settings v6). Both flags default off; tests
+  // exercising them override via server.use().
+  http.get(`${API_BASE}/settings/plugins`, () => {
+    return HttpResponse.json(mockPluginSettings);
+  }),
+
+  http.put(`${API_BASE}/settings/plugins`, async ({ request }) => {
+    const body = (await request.json()) as Partial<PluginSettings>;
+    return HttpResponse.json({ ...mockPluginSettings, ...body });
   }),
 
   http.get(`${API_BASE}/preview`, () => {
@@ -372,27 +391,6 @@ export const handlers = [
   }),
 
   // Settings endpoints
-  http.get(`${API_BASE}/settings/transitions`, () => {
-    return HttpResponse.json(mockTransitionSettings);
-  }),
-
-  http.put(`${API_BASE}/settings/transitions`, async ({ request }) => {
-    const body = (await request.json()) as Partial<TransitionSettings>;
-    requestStore.lastTransitionUpdate = body;
-    // Key presence, not nullishness: the real handler treats an explicit
-    // null as "clear this field" and an absent key as "leave it alone"
-    // (PUT /settings/transitions, exclude_unset). `??` collapsed the two,
-    // so a reset test could not tell them apart.
-    const response: TransitionSettings = {
-      strategy: "strategy" in body ? (body.strategy ?? null) : mockTransitionSettings.strategy,
-      step_interval_ms:
-        "step_interval_ms" in body ? (body.step_interval_ms ?? null) : mockTransitionSettings.step_interval_ms,
-      step_size: "step_size" in body ? (body.step_size ?? null) : mockTransitionSettings.step_size,
-      available_strategies: mockTransitionSettings.available_strategies,
-    };
-    return HttpResponse.json(response);
-  }),
-
   http.get(`${API_BASE}/settings/output`, () => {
     return HttpResponse.json(mockOutputSettings);
   }),
@@ -445,6 +443,9 @@ export const handlers = [
       api_mode: "local",
     });
   }),
+
+  // Forget the board's remembered external frame (issue #1945): 204, no body.
+  http.delete(`${API_BASE}/board/external-frame`, () => new HttpResponse(null, { status: 204 })),
 
   http.get(`${API_BASE}/v1/pages/:id`, ({ params }) => {
     const { id } = params;
@@ -662,6 +663,7 @@ export const handlers = [
       line_count: template ? template.split("\n").length : 1,
       sent_to_board: true,
       paused: false,
+      silenced: false,
       board_id: body.board_id || "default",
     });
   }),
@@ -901,6 +903,7 @@ export const handlers = [
       polling: { interval_seconds: 300, board_read_interval_local: 30, board_read_interval_cloud: 180 },
       transitions: mockTransitionSettings,
       output: mockOutputSettings,
+      plugins: mockPluginSettings,
       board: {
         board_type: "black",
         boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
@@ -1048,6 +1051,49 @@ export const handlers = [
     });
   }),
 
+  // Installed outputs (GET /outputs): the two built-ins, no plugins.
+  http.get(`${API_BASE}/outputs`, () => HttpResponse.json(mockOutputs)),
+  // Outputs the wizard can offer (GET /outputs/available): the installed built-ins only.
+  http.get(`${API_BASE}/outputs/available`, () =>
+    HttpResponse.json(
+      mockOutputs.map(({ id, name, description, icon, builtin, beta_gated, available, output_api }) => ({
+        id,
+        name,
+        description,
+        icon,
+        source: "installed",
+        installed: true,
+        builtin,
+        beta_gated,
+        available,
+        needs_network: false,
+        output_api,
+      })),
+    ),
+  ),
+  http.get(`${API_BASE}/outputs/catalog`, () =>
+    HttpResponse.json({
+      registry_status: "available",
+      outputs: mockOutputs.map(({ id, name, description, icon, builtin, beta_gated, available, output_api }) => ({
+        id,
+        name,
+        description,
+        icon,
+        source: "installed",
+        installed: true,
+        builtin,
+        beta_gated,
+        available,
+        needs_network: false,
+        output_api,
+      })),
+    }),
+  ),
+
+  // Setup wizard outcome
+  http.get(`${API_BASE}/settings/wizard`, () => HttpResponse.json({ state: null })),
+  http.put(`${API_BASE}/settings/wizard`, async ({ request }) => HttpResponse.json(await request.json())),
+
   // Config validation endpoint
   http.get(`${API_BASE}/config/validate`, () => {
     return HttpResponse.json({
@@ -1148,6 +1194,7 @@ export const handlers = [
       schedule_enabled?: boolean;
       default_page_id?: string | null;
       name?: string;
+      auto_restore?: boolean;
     };
     return HttpResponse.json({
       id: String(params.board),
@@ -1158,6 +1205,7 @@ export const handlers = [
       is_primary: true,
       paused: body.paused ?? false,
       schedule_enabled: body.schedule_enabled ?? false,
+      auto_restore: body.auto_restore ?? true,
       characters: null,
       text: null,
       read_at: null,
@@ -1250,6 +1298,11 @@ export const handlers = [
 
   // FiestaPanel panels: DisplaySettings queries the list to guard removal of
   // a panel's virtual board. Default: no panels; tests override per-case.
+  // A panel's public config / frame (the viewer's, and Settings' live
+  // preview of it). Default: no such panel; tests override per-case.
+  http.get(`${API_BASE}/panel/:panelId`, () => HttpResponse.json({ detail: "Panel not found" }, { status: 404 })),
+  http.get(`${API_BASE}/panel/:panelId/frame`, () => HttpResponse.json({ detail: "Panel not found" }, { status: 404 })),
+  http.post(`${API_BASE}/panels/geometry`, () => HttpResponse.json({ detail: "Not found" }, { status: 404 })),
   http.get(`${API_BASE}/panels`, () => {
     return HttpResponse.json({ panels: [], total: 0 });
   }),
