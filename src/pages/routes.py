@@ -29,7 +29,14 @@ from fastapi import APIRouter, HTTPException, Query
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_dims, _board_is_paused, _find_board, _require_board, silence_verdict
+from src.board_guards import (
+    _board_dims,
+    _board_is_paused,
+    _find_board,
+    _require_board,
+    primary_board_entry,
+    silence_verdict,
+)
 from src.canvas.schemas import issues_json, layers_json
 from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service
@@ -661,8 +668,11 @@ async def send_page(
         # extended markup (plan D19); every other board's call is unchanged.
         kw = render_kw(board_client)
         # At the text size the page needs on the target board (design
-        # section 7): a face page's layers are one full-frame layer.
-        result, layers_to_send, fit = render_page_for_board(page_service, page_id, board, kw)
+        # section 7): a face page's layers are one full-frame layer. The
+        # legacy call (no board_id) sends to the primary board's client, so
+        # it fits the page to the primary board the same way.
+        fit_board = board if board is not None else primary_board_entry()
+        result, layers_to_send, fit = render_page_for_board(page_service, page_id, fit_board, kw)
         pixel_board = draws_pixels(kw.get("display"))
 
         if result is None:
@@ -713,9 +723,13 @@ async def send_page(
                     strategy = strategy_for_full_frame(strategy)
 
                 # Size the grid to the explicit target board when given (issue
-                # #1244); otherwise keep sizing to the page's device type.
+                # #1244), or to the board a face page was fitted to (its text
+                # goes under the full frame at the board's own grid);
+                # otherwise keep sizing to the page's device type.
                 if board is not None:
                     dims = _board_dims(board)
+                elif fit.face:
+                    dims = _board_dims(fit_board)
                 else:
                     dims = resolve_dimensions(*geometry_of(page))
                 board_array, rich = project_for_output(

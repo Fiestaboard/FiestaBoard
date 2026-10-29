@@ -33,6 +33,10 @@ PIXOO_5X7 = model_with_led_font(PIXOO, "5x7")
 BOARD = _board(grid_rows=8, grid_cols=10, output_config={"host": "192.0.2.50", "font": "5x7"})
 CANVAS = {"id": "art", "area": {"row": 1, "col": 1, "rows": 1, "cols": 2}, "content": {"background": "#ff0000"}}
 ENDPOINTS = ["message", "active-page", "pages-send"]
+#: The legacy primary-board calls (no ``board_id``), which the web app's
+#: ``PUT /settings/active-page`` still makes: they fit the page to the
+#: primary board just as the explicit-board calls do.
+LEGACY_ENDPOINTS = ["active-page-legacy", "pages-send-legacy"]
 
 
 class Sign(_Sign):
@@ -81,6 +85,10 @@ def _send(client, endpoint: str, page_id: str, strategy: str = "none"):  # noqa:
         response = client.post(f"/v1/boards/{BOARD['id']}/message", json=body)
     elif endpoint == "active-page":
         response = client.put(f"/v1/boards/{BOARD['id']}/active-page", json={"page_id": page_id})
+    elif endpoint == "active-page-legacy":
+        response = client.put("/settings/active-page", json={"page_id": page_id})
+    elif endpoint == "pages-send-legacy":
+        response = client.post(f"/pages/{page_id}/send", params={"target": "board"})
     else:
         response = client.post(f"/pages/{page_id}/send", params={"board_id": BOARD["id"], "target": "board"})
     assert response.status_code == 200, response.text
@@ -91,7 +99,7 @@ def _last_cells(plugin):
     return plugin.calls[-1][-1]
 
 
-@pytest.mark.parametrize("endpoint", ENDPOINTS)
+@pytest.mark.parametrize("endpoint", ENDPOINTS + LEGACY_ENDPOINTS)
 def test_a_10x16_page_sent_to_an_8x10_board_arrives_as_one_full_frame(client, board, endpoint):  # noqa: F811
     plugin, _ = board
     _send(client, endpoint, _page())
@@ -99,7 +107,7 @@ def test_a_10x16_page_sent_to_an_8x10_board_arrives_as_one_full_frame(client, bo
     assert len(layers) == 1 and is_full_frame_layer(layers[0], 64, 64)
 
 
-@pytest.mark.parametrize("endpoint", ENDPOINTS)
+@pytest.mark.parametrize("endpoint", ENDPOINTS + LEGACY_ENDPOINTS)
 def test_the_cells_under_the_full_frame_carry_the_page_text_at_the_boards_grid(client, board, endpoint):  # noqa: F811
     plugin, _ = board
     _send(client, endpoint, _page())
@@ -108,14 +116,14 @@ def test_the_cells_under_the_full_frame_carry_the_page_text_at_the_boards_grid(c
     assert "".join(t.value or "" for t in cells[0]).startswith("HELLO")
 
 
-@pytest.mark.parametrize("endpoint", ENDPOINTS)
+@pytest.mark.parametrize("endpoint", ENDPOINTS + LEGACY_ENDPOINTS)
 def test_a_page_at_the_boards_own_size_is_sent_as_cells_only(client, board, endpoint):  # noqa: F811
     plugin, _ = board
     _send(client, endpoint, _page(8, 10))
     assert _last_cells(plugin).layers == ()
 
 
-@pytest.mark.parametrize("endpoint", ENDPOINTS)
+@pytest.mark.parametrize("endpoint", ENDPOINTS + LEGACY_ENDPOINTS)
 def test_a_flip_into_a_face_page_is_sent_as_a_fade(client, board, endpoint):  # noqa: F811
     _, render = board
     _send(client, endpoint, _page(transition_strategy="flip"), strategy="flip")

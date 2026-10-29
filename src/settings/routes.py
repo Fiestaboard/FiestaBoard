@@ -727,10 +727,14 @@ async def set_active_page(request: SetActivePageRequest):
             if not silenced and not paused:
                 # At the text size the page needs on this board (design
                 # section 7): a face page's layers are one full-frame layer.
+                # The legacy call (no board_id) sends to the primary board's
+                # client, so it fits the page to the primary board the same way.
+                from src.board_guards import primary_board_entry
                 from src.pages.board_render import render_page_for_board
 
+                fit_board = board if board is not None else primary_board_entry()
                 result, layers_to_send, fit = render_page_for_board(
-                    page_service, render_page_id, board, render_kw(send_client)
+                    page_service, render_page_id, fit_board, render_kw(send_client)
                 )
                 if result and result.available:
                     resolved = page_transition(
@@ -748,9 +752,13 @@ async def set_active_page(request: SetActivePageRequest):
                         strategy = strategy_for_full_frame(strategy)
 
                     # Size the grid to the explicit target board when given
-                    # (issue #1244); otherwise keep the page's device type.
+                    # (issue #1244), or to the board a face page was fitted to
+                    # (its text goes under the full frame at the board's own
+                    # grid); otherwise keep the page's device type.
                     if board is not None:
                         dims = _board_dims(board)
+                    elif fit.face:
+                        dims = _board_dims(fit_board)
                     else:
                         dims = resolve_dimensions(*geometry_of(page))
                     board_array, rich = project_for_output(
