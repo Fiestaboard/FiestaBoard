@@ -28,7 +28,7 @@ from .displays.send_worker import BoardSendWorker, SendJob
 from .outputs import OutputDriver, OutputRuntime
 from .outputs.breaker import write_failure_reason
 from .outputs.cells import output_character_set, project_message
-from .outputs.display_profile import render_kw
+from .outputs.display_profile import display_for_face, render_kw
 from .outputs.factory import build_driver
 from .outputs.hooks import DevicePoll
 from .outputs.plugin_registration import release_driver
@@ -37,6 +37,7 @@ from .pages.models import LineMetadata, Page
 from .pages.service import (
     CONTEXT_FINGERPRINT_PREFIX,
     CONTEXT_RENDER_MEMO_PREFIX,
+    draws_pixels,
     get_page_service,
     page_plugin_ids,
 )
@@ -1763,7 +1764,8 @@ class DisplayService:
     # memo recorded by an older build can never be mistaken for a match.
     # v2: plugin payloads enter the hash as their own precomputed hashes
     # rather than as re-serialised payloads.
-    _RENDER_FINGERPRINT_VERSION = 2
+    # v3: the LED face (text size) a page is drawn at enters the hash.
+    _RENDER_FINGERPRINT_VERSION = 3
 
     # Stands in for a referenced plugin that contributed no data to the
     # context. Never collides with a payload hash (which is hex).
@@ -1792,7 +1794,14 @@ class DisplayService:
 
     @staticmethod
     def _render_fingerprint(
-        page, active_page_id, page_service, contexts, *, override_active: bool, display: Any = None
+        page,
+        active_page_id,
+        page_service,
+        contexts,
+        *,
+        override_active: bool,
+        display: Any = None,
+        face: str | None = None,
     ) -> str | None:
         """Hash every input a template render reads, or None if not computable.
 
@@ -1814,7 +1823,10 @@ class DisplayService:
           only through a config save, which bumps ``config_generation``;
         * which branch of the pass we are on, so a tick that resolves the same
           page through a temporary override is never confused with one that
-          resolved it normally.
+          resolved it normally;
+        * the LED *face* (text size) the page is drawn at. On a pixel display
+          the context is fetched for ``display_for_face``'s profile, exactly
+          as ``render_page(face=)`` fetches it, so both share one build.
 
         Returns None — meaning "render, do not short-circuit" — whenever any
         of that cannot be established: no per-pass context cache (the direct
@@ -1858,6 +1870,11 @@ class DisplayService:
                 return None  # cannot see config writes -> cannot skip a render
 
             size = size_key(*geometry_of(page))
+            if face and draws_pixels(display):
+                # The profile render_page(face=) renders (and keys its
+                # context) with, so the fingerprint reads the same context.
+                dims = dimensions_of(page)
+                display = display_for_face(display, face, (dims.rows, dims.cols))
             if display is not None:
                 # The same key shared_context_for files the render's context
                 # (and its payload hashes) under.
@@ -1874,6 +1891,7 @@ class DisplayService:
                 bool(override_active),
                 generation,
                 sorted_refs,
+                face,
             )
             memo = contexts.get(CONTEXT_RENDER_MEMO_PREFIX + size)
             if isinstance(memo, dict):
@@ -1900,6 +1918,7 @@ class DisplayService:
                     "page_id": active_page_id,
                     "page": dump(),
                     "override": bool(override_active),
+                    "face": face,
                     "generation": generation,
                     "data": DisplayService._fingerprint_data_part(contexts, size, context, sorted_refs),
                 },
