@@ -25,6 +25,7 @@ boards = canvas_fixtures.boards
 pages = canvas_fixtures.pages
 
 FLEX = {"name": "Flex", "type": "flexible", "blocks": [{"id": "t", "kind": "text", "text": "HI"}]}
+HALL_GEOMETRY = {"device_type": "flagship", "notes_wide": 1, "notes_tall": 1, "grid_rows": None, "grid_cols": None}
 PIXOO_GEOMETRY = {"device_type": "panel", "notes_wide": 1, "notes_tall": 1, "grid_rows": 10, "grid_cols": 16}
 
 
@@ -81,6 +82,31 @@ def test_mcp_get_active_page_of_a_flexible_page_on_a_pixoo_is_not_flagship(mcp, 
     active = _call(mcp, "get_active_page", board_id="pixoo-1")
     assert active["page"]["id"] == page.id
     assert active["page"]["device_type"] == "panel"
+
+
+@pytest.mark.usefixtures("stub_expand", "stub_refs")
+def test_mcp_get_current_display_of_a_flexible_page_on_a_secondary_board_has_that_boards_geometry(
+    mcp, pixoo_primary, pages
+):
+    page = _flex_page(pages)
+    settings = get_settings_service()
+    settings.set_schedule_enabled(False, board_id="hall-1")
+    settings.set_active_page_id(page.id, board_id="hall-1")
+    current = _call(mcp, "get_current_display", board_id="hall-1")
+    assert current["page_id"] == page.id
+    assert {key: current[key] for key in HALL_GEOMETRY} == HALL_GEOMETRY
+    assert len(current["template"]) == 6  # laid out at the flagship's 6 rows, not the Pixoo's 10
+
+
+def test_mcp_get_active_page_of_a_flexible_page_on_a_secondary_board_has_that_boards_device_type(
+    mcp, pixoo_primary, pages
+):
+    page = _flex_page(pages)
+    settings = get_settings_service()
+    settings.set_schedule_enabled(False, board_id="hall-1")
+    settings.set_active_page_id(page.id, board_id="hall-1")
+    active = _call(mcp, "get_active_page", board_id="hall-1")
+    assert active["page"]["device_type"] == "flagship"
 
 
 @pytest.mark.usefixtures("stub_expand", "stub_refs")
