@@ -1057,8 +1057,9 @@ class PageService:
                 with its own context, outside the shared per-size build.
             board: The board flexible pages lay out for (see
                 :meth:`render_page`). Flexible pages share one context per
-                that board's size and *display*; a batch for a given board is
-                uncached, like one for a display.
+                that board's size and *display*. The preview cache does not know
+                the board, so a flexible page previewed for one is rendered
+                fresh and not cached; a grid page keeps the cache rules above.
 
         Returns:
             Dict mapping page_id to DisplayResult (or None if page not found)
@@ -1067,7 +1068,13 @@ class PageService:
         pages_to_render: list[tuple[str, Page]] = []
         # A render for one display (or in the other markup mode) is that
         # display's: the shared preview cache is neither read nor written.
-        uncached_mode = extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None or board is not None
+        uncached_mode = extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None
+
+        def uncached(page: Page) -> bool:
+            # The cache is keyed by page alone; a flexible page laid out for a
+            # named board is that board's, so it bypasses the cache. A grid
+            # page ignores the board and keeps the mode's rule.
+            return uncached_mode or (board is not None and is_flexible_page(page))
 
         # First pass: check cache, collect pages that need rendering
         for page_id in page_ids:
@@ -1076,7 +1083,7 @@ class PageService:
                 results[page_id] = None
                 continue
 
-            should_force = force_refresh or (page_id == active_page_id) or uncached_mode
+            should_force = force_refresh or (page_id == active_page_id) or uncached(page)
 
             if not should_force:
                 cached = self._preview_cache.get(page_id)
@@ -1133,7 +1140,7 @@ class PageService:
                     result = self.render_page(
                         page, context=context, extended_markup=extended_markup, display=display, board=board
                     )
-                if not uncached_mode:
+                if not uncached(page):
                     self._preview_cache[page_id] = CachedPreview(
                         result=result, page_updated_at=page.updated_at, cached_at=time.time()
                     )

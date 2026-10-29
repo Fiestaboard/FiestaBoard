@@ -32,6 +32,8 @@ from tests.test_v1_contract import client  # noqa: F401
 PIXOO = _board()
 FLAGSHIP = {"id": "flag", "name": "Flagship", "device_type": "flagship"}
 NOTE = {"id": "note", "name": "Note", "device_type": "note"}
+#: A split-flap board whose output plugin is not installed: no display profile.
+GHOST = {"id": "ghost", "name": "Ghost", "device_type": "flagship", "output": "ghost_output"}
 
 #: A band asking for a font no board has, so every board reports that one issue.
 FLEX_BODY = {
@@ -123,6 +125,30 @@ def test_batch_preview_on_a_split_flap_board_has_cells_text_and_issues_but_no_la
 
 def test_grid_page_batch_preview_has_no_layout_issues_key(client, pixoo_board_id, grid_id):
     assert "layout_issues" not in _batch(client, grid_id, pixoo_board_id)
+
+
+def test_grid_page_batch_preview_for_a_board_without_a_display_is_served_from_the_preview_cache(client, grid_id):
+    # A split-flap board whose output plugin is not installed has no display
+    # profile and no rich charset: its grid previews stayed cached before
+    # flexible pages, and naming the board (which only a flexible page needs)
+    # must not change that.
+    get_settings_service().set_boards([GHOST])
+    service = get_page_service()
+    _batch(client, grid_id, GHOST["id"])
+    with patch.object(service, "render_page", wraps=service.render_page) as render:
+        _batch(client, grid_id, GHOST["id"])
+    render.assert_not_called()
+
+
+def test_flexible_page_batch_preview_for_a_board_without_a_display_is_rendered_fresh(client, flex_id):
+    # A flexible page is laid out for the named board, so the per-page cache
+    # (which does not know the board) is bypassed for it.
+    get_settings_service().set_boards([GHOST])
+    service = get_page_service()
+    _batch(client, flex_id, GHOST["id"])
+    with patch.object(service, "render_page", wraps=service.render_page) as render:
+        _batch(client, flex_id, GHOST["id"])
+    render.assert_called_once()
 
 
 # --- POST /pages/{id}/preview -------------------------------------------------
