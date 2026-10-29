@@ -238,6 +238,28 @@ def test_mono_colour_maps_to_panel_and_black_stays_unlit():
     assert (s.color, s.background, issues) == (PANEL_RED, None, [])
 
 
+def test_rgb_black_text_is_unlit_like_a_grid_cell():
+    # The cell renderer draws a black span as #000000 (unlit), not the palette's #1a1a1a.
+    s, _ = resolve_block_style([{"color": "black", "background": "yellow"}], PIXOO, {}, path=("b",))
+    assert s.color == "#000000"
+
+
+def test_rgb_black_background_is_no_fill():
+    s, issues = resolve_block_style([{"background": "black"}], PIXOO, {}, path=("b",))
+    assert (s.background, issues) == (None, [])
+
+
+def test_rgb_black_tile_code_background_is_no_fill():
+    s, _ = resolve_block_style([{"background": "{70}"}], PIXOO, {}, path=("b",))
+    assert s.background is None
+
+
+def test_mono_lit_text_on_lit_background_is_inverse_video():
+    # The grid renderer draws a background block on a mono panel as lit field, unlit glyph.
+    s, _ = resolve_block_style([{"color": "white", "background": "yellow"}], STRIP_MONO, {}, path=("b",))
+    assert (s.color, s.background) == (None, PANEL_RED)
+
+
 def test_mono_red_text_is_lit_not_lost():
     # Spec 3: any non-black colour counts as lit, so contrast is preserved.
     s, _ = resolve_block_style([{"color": "red"}], STRIP_MONO, {}, path=("b",))

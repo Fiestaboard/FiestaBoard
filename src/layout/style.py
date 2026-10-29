@@ -11,8 +11,11 @@ compromise as a :class:`~src.layout.issues.LayoutIssue`:
   an exact pixel height takes the largest face (at an integer scale) no taller
   than it (``size_rounded`` when inexact, ``size_too_small`` below the smallest
   face). A cell target has one character size: any other size is ``size_ignored``.
-- **Colour**: ``rgb`` boards as given; ``mono`` boards light any non-black
-  colour in the panel colour and leave black unlit; ``tiles`` boards drop text
+- **Colour**: drawn as a grid cell draws it (``cell_for_token``). ``rgb``
+  boards as given, except black is unlit: black text is ``#000000`` and a black
+  background is no fill. ``mono`` boards light any non-black colour in the
+  panel colour and leave black unlit; a lit background is inverse video (the
+  text is unlit). ``tiles`` boards drop text
   colour (``color_dropped``) and, in Phase 1, background (``background_dropped``).
   A value that is not a colour is ``color_invalid`` and the level below applies.
 - **Case**: ``lower`` without lowercase glyphs is ``case_unsupported``, drawn upper.
@@ -84,10 +87,12 @@ class ResolvedStyle:
 
     ``sized`` is the face and integer scale text is drawn in and ``px`` its
     height; on a cell target (one character size) ``sized`` is ``None`` and
-    ``px`` is 0. ``color`` and ``background`` are lowercase ``#rrggbb``;
-    ``color`` ``None`` means the text lights no pixels (unlit on a mono panel)
-    or carries no colour (a tile board's text), and ``background`` ``None``
-    means none. ``fit`` is true when the size asked for was ``fit``: the
+    ``px`` is 0. ``color`` and ``background`` are lowercase ``#rrggbb``.
+    Black is unlit, as on a grid cell: on an rgb board black text is
+    ``#000000``; on a mono panel ``color`` ``None`` means the text lights no
+    pixels (black text, or any text on a lit background: inverse video); on a
+    tile board ``color`` is ``None`` (text carries no colour). ``background``
+    ``None`` means no fill (none asked for, or black). ``fit`` is true when the size asked for was ``fit``: the
     fitter picks the size, starting from ``sized``.
     """
 
@@ -304,6 +309,9 @@ class _Resolver:
                 continue
             if model == "mono":
                 return None if _is_black(resolved) else self.target.monochrome
+            if _is_black(resolved):
+                # Unlit, as the cell renderer draws a black span or background.
+                return "#000000" if key == "color" else None
             return resolved
         return None
 
@@ -344,6 +352,9 @@ def resolve_block_style(
     sized, px, fit = r.size(family)
     color = r.color("color")
     background = r.color("background")
+    if target.color_model == "mono" and background is not None:
+        # Inverse video, as a grid cell on a monochrome panel: lit field, unlit glyph.
+        color = None
     align = r.pick("align", lambda v: v in _ALIGNS)
     case = r.case()
     overflow = r.overflow()
