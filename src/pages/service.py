@@ -1127,6 +1127,18 @@ class PageService:
         # all) as soon as any page's references cannot be determined.
         ids_by_board: dict[str, Collection[str] | None] = {}
         faces = faces or {}
+        layout_display: list[Any] = []  # resolved once, on the first flexible page
+
+        def display_for(page: Page) -> Any:
+            # A flexible page with no display named lays out for its board as
+            # that board draws (:meth:`_render_flexible`): key and build its
+            # shared context for that display, as a single preview does.
+            if display is not None or not is_flexible_page(page):
+                return display
+            if not layout_display:
+                layout_display.append(self._layout_display(self._layout_board(board)))
+            return layout_display[0]
+
         for pid, p in list(pages_to_render):
             if faces.get(pid):
                 continue  # rendered on its own, at its face
@@ -1134,7 +1146,8 @@ class PageService:
             if p.type != "template" and not flexible and not (p.canvases and draws_pixels(display)):
                 continue
             try:
-                key = self._board_key(p, board, display)
+                page_display = display_for(p)
+                key = self._board_key(p, board, page_display)
                 geometry = None
                 if key not in boards:
                     geometry = geometry_of(self._layout_board(board)) if flexible else geometry_of(p)
@@ -1148,7 +1161,7 @@ class PageService:
                 )
                 continue
             if geometry is not None:
-                boards[key] = board_context_for(*geometry, display=display)
+                boards[key] = board_context_for(*geometry, display=page_display)
             if key not in ids_by_board:
                 ids_by_board[key] = set(refs) if refs is not None else None
             elif ids_by_board[key] is not None:
@@ -1168,7 +1181,7 @@ class PageService:
                 if face:
                     result = self.render_page(page, extended_markup=extended_markup, display=display, face=face)
                 else:
-                    context = contexts_by_board.get(self._board_key(page, board, display))
+                    context = contexts_by_board.get(self._board_key(page, board, display_for(page)))
                     result = self.render_page(
                         page, context=context, extended_markup=extended_markup, display=display, board=board
                     )

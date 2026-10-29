@@ -253,3 +253,36 @@ def test_batch_preview_renders_flexible_pages_against_the_given_board(service, s
         registry.return_value.build_template_contexts_for.return_value = {}
         results = service.preview_pages_batch([a.id], board=NOTE_BOARD)
     assert len(results[a.id].formatted.split("\n")) == 3
+
+
+def test_batch_and_single_previews_of_a_flexible_page_build_the_same_board_context(
+    service, stub_expand, stub_refs, pixoo_display, monkeypatch
+):
+    # No board or display named: both lay the page out for the primary board as it draws.
+    monkeypatch.setattr(service_module, "_find_board", lambda board_id: PIXOO_BOARD)
+    monkeypatch.setattr(service_module, "display_profile_for_board", lambda board: pixoo_display)
+    page = service.storage.create(red_band())
+    with patch("src.plugins.registry.get_plugin_registry") as registry:
+        registry.return_value.build_template_contexts_for.return_value = {}
+        service.preview_pages_batch([page.id], force_refresh=True)
+    (boards,), _ = registry.return_value.build_template_contexts_for.call_args
+    with patch.object(service_module, "get_template_engine") as engine:
+        engine.return_value.build_context.return_value = {}
+        service.preview_page(page.id, force_refresh=True)
+    (single,), _ = engine.return_value.build_context.call_args
+    assert list(boards) == [f"{size_key('panel', 1, 1, 10, 16)}|{pixoo_display.key}"]
+    assert list(boards.values()) == [single]
+
+
+def test_batch_preview_of_a_flexible_page_with_no_display_uses_the_shared_context(
+    service, stub_expand, stub_refs, pixoo_display, monkeypatch
+):
+    monkeypatch.setattr(service_module, "_find_board", lambda board_id: PIXOO_BOARD)
+    monkeypatch.setattr(service_module, "display_profile_for_board", lambda board: pixoo_display)
+    page = service.storage.create(red_band())
+    shared = {"clock": {"time": "09:00"}}
+    key = f"{size_key('panel', 1, 1, 10, 16)}|{pixoo_display.key}"
+    with patch("src.plugins.registry.get_plugin_registry") as registry:
+        registry.return_value.build_template_contexts_for.return_value = {key: shared}
+        results = service.preview_pages_batch([page.id], force_refresh=True)
+    assert results[page.id].layers and stub_expand[0]["context"] is shared
