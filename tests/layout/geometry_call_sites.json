@@ -67,11 +67,15 @@
     "kind": "page",
     "test": null
   },
-  "src/main.py::_drive_board_pass::pages_compatible_with_board": {
+  "src/main.py::_drive_board_pass::size_key": {
     "kind": "page",
     "test": null
   },
-  "src/main.py::_drive_board_pass::size_key": {
+  "src/main.py::_project_page::dimensions_of": {
+    "kind": "page",
+    "test": null
+  },
+  "src/main.py::_render_fingerprint::dimensions_of": {
     "kind": "page",
     "test": null
   },
@@ -80,18 +84,6 @@
     "test": null
   },
   "src/main.py::_render_fingerprint::size_key": {
-    "kind": "page",
-    "test": null
-  },
-  "src/main.py::_send_silence_page::geometry_of": {
-    "kind": "page",
-    "test": null
-  },
-  "src/main.py::_send_silence_page::pages_compatible_with_board": {
-    "kind": "page",
-    "test": null
-  },
-  "src/main.py::_send_silence_page::size_key": {
     "kind": "page",
     "test": null
   },
@@ -139,12 +131,40 @@
     "kind": "board",
     "test": null
   },
+  "src/pages/board_render.py::render_page_for_board::dimensions_of": {
+    "kind": "page",
+    "test": null
+  },
+  "src/pages/fit.py::_face_for::dimensions_of": {
+    "kind": "page",
+    "test": null
+  },
+  "src/pages/fit.py::fit_reason::dimensions_of": {
+    "kind": "page",
+    "test": null
+  },
+  "src/pages/fit.py::page_fit_for_board::geometry_of": {
+    "kind": "page",
+    "test": null
+  },
+  "src/pages/fit.py::page_fit_for_board::size_key": {
+    "kind": "page",
+    "test": null
+  },
   "src/pages/retarget.py::add_resize::geometry_of": {
     "kind": "board",
     "test": null
   },
   "src/pages/retarget.py::add_resize::size_key": {
     "kind": "board",
+    "test": null
+  },
+  "src/pages/retarget.py::pages_left_behind::geometry_of": {
+    "kind": "page",
+    "test": null
+  },
+  "src/pages/retarget.py::pages_left_behind::size_key": {
+    "kind": "page",
     "test": null
   },
   "src/pages/retarget.py::retarget_pages::geometry_of": {
@@ -156,6 +176,10 @@
     "test": null
   },
   "src/pages/routes.py::_work::geometry_of": {
+    "kind": "page",
+    "test": null
+  },
+  "src/pages/routes.py::preview_pages_batch::dimensions_of": {
     "kind": "page",
     "test": null
   },
@@ -211,10 +235,6 @@
     "kind": "page",
     "test": null
   },
-  "src/pages/service.py::check_ref_board_compatibility::pages_compatible_with_board": {
-    "kind": "page",
-    "test": null
-  },
   "src/pages/service.py::check_ref_board_compatibility::size_key": {
     "kind": "page",
     "test": null
@@ -228,6 +248,10 @@
     "test": null
   },
   "src/pages/service.py::preview_pages_batch::geometry_of": {
+    "kind": "page",
+    "test": null
+  },
+  "src/pages/service.py::render_page::dimensions_of": {
     "kind": "page",
     "test": null
   },
@@ -260,6 +284,10 @@
     "test": null
   },
   "src/settings/routes.py::_follow_resized_boards::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/settings/routes.py::_follow_resized_boards::pages_compatible_with_board": {
     "kind": "board",
     "test": null
   },
