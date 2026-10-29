@@ -38,7 +38,7 @@ import type {
   TimeType,
 } from "@/lib/api";
 import { isCollectionId } from "@/lib/api";
-import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { type PageFit, pageFitForBoard, pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
 interface SchedulePageOption {
   id: string;
@@ -136,6 +136,7 @@ export const ScheduleEntryForm = forwardRef<ScheduleFormHandle, ScheduleEntryFor
   ref,
 ) {
   const t = useTranslations("schedule");
+  const tFit = useTranslations("pageFit");
   const tc = useTranslations("common");
   const isEdit = Boolean(schedule);
   const [originalRevision] = useState(() =>
@@ -228,13 +229,16 @@ export const ScheduleEntryForm = forwardRef<ScheduleFormHandle, ScheduleEntryFor
     [],
   );
 
-  // Only pages whose size matches the current board are offered (issue #1249).
-  // The currently selected page is always kept so editing an existing entry
-  // never renders an empty Select.
-  const visiblePages = useMemo(() => {
-    if (!currentBoard) return pages;
-    return pages.filter((p) => p.id === pageId || pagesCompatibleWithBoard(p, currentBoard));
-  }, [pages, currentBoard, pageId]);
+  // Every page is offered, but one the current board can't show is flagged,
+  // not hidden: a disabled option with its reason ("Made for a 3×15 board").
+  // The currently selected page stays selectable so editing an existing entry
+  // never renders a Select whose value can't be chosen (issue #1249).
+  const pageFits = useMemo(() => {
+    const fits = new Map<string, PageFit>();
+    if (!currentBoard) return fits;
+    for (const p of pages) fits.set(p.id, pageFitForBoard(p, currentBoard));
+    return fits;
+  }, [pages, currentBoard]);
 
   // Non-fatal size warning for the current selection: a collection with some
   // members that don't fit the board, or a plain page that doesn't fit
@@ -253,12 +257,12 @@ export const ScheduleEntryForm = forwardRef<ScheduleFormHandle, ScheduleEntryFor
       if (misfits.length === 0) return null;
       return t("scheduleEntryForm.collectionSizeWarning", { count: misfits.length, total: members.length });
     }
-    const page = pages.find((p) => p.id === pageId);
-    if (page && !pagesCompatibleWithBoard(page, currentBoard)) {
-      return t("scheduleEntryForm.incompatiblePageWarning");
+    const fit = pageFits.get(pageId);
+    if (fit && !fit.fits) {
+      return `${tFit("madeFor", { rows: fit.rows, cols: fit.cols })}. ${t("scheduleEntryForm.incompatiblePageWarning")}`;
     }
     return null;
-  }, [currentBoard, pageId, collections, pages, t]);
+  }, [currentBoard, pageId, collections, pages, pageFits, t, tFit]);
 
   // Validation. Computed during render rather than pushed into state from an
   // effect: the errors are a pure function of the form fields, and the effect
@@ -446,22 +450,31 @@ export const ScheduleEntryForm = forwardRef<ScheduleFormHandle, ScheduleEntryFor
                 </Box>
               </>
             )}
-            {visiblePages.map((page) => (
-              <SelectItem key={page.id} value={page.id}>
-                <Flex align="center" gap="2">
-                  {page.name}
-                  {page.device_type && (
-                    <BoardSizeIndicator
-                      deviceType={page.device_type}
-                      notesWide={page.notes_wide}
-                      notesTall={page.notes_tall}
-                      gridRows={page.grid_rows}
-                      gridCols={page.grid_cols}
-                    />
-                  )}
-                </Flex>
-              </SelectItem>
-            ))}
+            {pages.map((page) => {
+              const fit = pageFits.get(page.id);
+              const misfit = fit && !fit.fits ? fit : null;
+              return (
+                <SelectItem key={page.id} value={page.id} disabled={misfit !== null && page.id !== pageId}>
+                  <Flex align="center" gap="2">
+                    {page.name}
+                    {page.device_type && (
+                      <BoardSizeIndicator
+                        deviceType={page.device_type}
+                        notesWide={page.notes_wide}
+                        notesTall={page.notes_tall}
+                        gridRows={page.grid_rows}
+                        gridCols={page.grid_cols}
+                      />
+                    )}
+                    {misfit && (
+                      <Text as="span" size="xs" tone="muted">
+                        {tFit("madeFor", { rows: misfit.rows, cols: misfit.cols })}
+                      </Text>
+                    )}
+                  </Flex>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
         {sizeWarning && (
