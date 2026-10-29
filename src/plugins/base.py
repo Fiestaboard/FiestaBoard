@@ -520,13 +520,16 @@ class PluginBase(ABC):
 
         return result
 
-    def cached_result(self, board: BoardContext | None = None) -> PluginResult | None:
+    def cached_result(self, board: BoardContext | None = None, *, allow_stale: bool = False) -> PluginResult | None:
         """Return this plugin's cached result for *board* if it is still fresh.
 
         A pure dict lookup under ``_cache_lock``: it never calls
         :meth:`fetch_data`, never touches the network, and never blocks on
         plugin code, so a caller may use it on a latency-sensitive thread to
         decide whether a fetch needs dispatching at all (issue #1751 follow-up).
+
+        *allow_stale* returns the last result for *board* whatever its age:
+        what to show while a slow refresh is still running.
 
         Returns ``None`` for "you must fetch" — including for live-data
         plugins and plugins with no refresh interval, which have no cache by
@@ -543,7 +546,7 @@ class PluginBase(ABC):
             last_fetch = self._last_fetch_times.get(key)
         if cached is None or last_fetch is None:
             return None
-        if (datetime.now() - last_fetch).total_seconds() >= interval:
+        if not allow_stale and (datetime.now() - last_fetch).total_seconds() >= interval:
             return None
         return cached
 
