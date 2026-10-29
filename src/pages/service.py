@@ -191,26 +191,39 @@ class PageService:
         Raises:
             ValueError: If page configuration is invalid
         """
+        if data.type == "flexible":
+            # A flexible page fits every board: it has no size to pass on
+            # (Page refuses an explicit device_type / notes_* on one).
+            content: dict[str, Any] = {
+                "style": data.style,
+                "layout": data.layout,
+                "blocks": data.blocks,
+                "targets": data.targets,
+            }
+        else:
+            content = {
+                "device_type": data.device_type,
+                "display_type": data.display_type,
+                "rows": data.rows,
+                "template": data.template,
+                "line_metadata": data.line_metadata,
+                # PageCreate leaves W×H optional (None) — default to a single Note.
+                "notes_wide": data.notes_wide or 1,
+                "notes_tall": data.notes_tall or 1,
+                "grid_rows": data.grid_rows,
+                "grid_cols": data.grid_cols,
+                "canvases": data.canvases,
+            }
         page = Page(
             name=data.name,
             type=data.type,
-            device_type=data.device_type,
-            display_type=data.display_type,
-            rows=data.rows,
-            template=data.template,
-            line_metadata=data.line_metadata,
             duration_seconds=data.duration_seconds,
             transition_strategy=data.transition_strategy,
             transition_interval_ms=data.transition_interval_ms,
             transition_step_size=data.transition_step_size,
             demo_plugin_id=data.demo_plugin_id,
-            # PageCreate leaves W×H optional (None) — default to a single Note.
-            notes_wide=data.notes_wide or 1,
-            notes_tall=data.notes_tall or 1,
-            grid_rows=data.grid_rows,
-            grid_cols=data.grid_cols,
-            canvases=data.canvases,
             created_at=datetime.now(UTC),
+            **content,
             **(data.model_extra or {}),
         )
 
