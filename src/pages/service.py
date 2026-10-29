@@ -22,11 +22,15 @@ from src.devices import (
     board_context_for,
     dimensions_of,
     geometry_of,
+    is_flexible_page,
     pages_compatible_with_board,
     size_key,
 )
 from src.displays.service import DisplayResult, get_display_service
+from src.layout.engine import layout_flexible_page
+from src.layout.target import flex_target_for
 from src.led.matrix import DEFAULT_LED_FONT, grid_layout
+from src.led.page_frame import full_frame_layer
 from src.outputs.display_profile import display_for_face
 from src.plugins.manifest import DemoPageSchema
 from src.request_trace import trace_phase
@@ -91,8 +95,13 @@ def page_plugin_ids(page: Page) -> set[str] | None:
     """The plugin ids a page's render reads: its template's and its canvases'.
 
     ``None`` when either cannot be determined statically (a formula), which
-    callers read as "fetch every enabled plugin" (issue #1751).
+    callers read as "fetch every enabled plugin" (issue #1751). A flexible
+    page reads what its blocks reference (``flexible_plugin_ids``).
     """
+    if is_flexible_page(page):
+        from src.layout.refs import flexible_plugin_ids  # plan Task 6
+
+        return flexible_plugin_ids(page)
     template_refs = extract_template_plugin_ids(getattr(page, "template", None))
     canvases = getattr(page, "canvases", None)
     canvas_refs = canvas_plugin_ids(canvases) if isinstance(canvases, list) else set()
@@ -603,6 +612,7 @@ class PageService:
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         display: Any = None,
         face: str | None = None,
+        board: Mapping[str, Any] | None = None,
     ) -> DisplayResult:
         """Render a page to formatted text.
 
@@ -621,10 +631,15 @@ class PageService:
                 (:func:`~src.outputs.display_profile.display_for_face`): the
                 template, plugin context and canvases all use that profile.
                 Ignored unless *display* draws pixels. The result records it.
+            board: The board's settings entry a flexible page lays out for
+                (:meth:`_render_flexible`); ``None`` is the primary board.
+                Grid pages render at their own grid and ignore it.
 
         Returns:
             DisplayResult with formatted text
         """
+        if is_flexible_page(page):
+            return self._render_flexible(page, context=context, contexts=contexts, display=display, board=board)
         if not (face and draws_pixels(display)):
             face = None
         else:
@@ -663,6 +678,64 @@ class PageService:
         return result
 
     @staticmethod
+    def _layout_board(board: Mapping[str, Any] | None) -> Mapping[str, Any]:
+        """The board a flexible page lays out for: *board*, else the primary board.
+
+        With no board configured at all, an empty entry: the flagship's
+        geometry and 6 x 22 cells.
+        """
+        if board is not None:
+            return board
+        return _find_board(None) or {}
+
+    def _render_flexible(
+        self,
+        page: Page,
+        *,
+        context: dict | None,
+        contexts: dict[str, dict] | None,
+        display: Any,
+        board: Mapping[str, Any] | None,
+    ) -> DisplayResult:
+        """Lay a flexible page out for *board* on *display* (design sections 5 and 6).
+
+        On a pixel display the laid-out frame is one opaque full-frame layer
+        and ``formatted`` is the page's real text at the board's character
+        grid underneath it; any other display gets the cells alone. The
+        plugin context is the board's: given, shared per board size and
+        display (:meth:`shared_context_for`), or built for this render. A
+        layout that fails is an unavailable result, never an exception.
+        """
+        try:
+            layout_board = self._layout_board(board)
+            geometry = geometry_of(layout_board)
+            plugin_ids = page_plugin_ids(page)
+            if context is None and contexts is not None:
+                context = self.shared_context_for(contexts, *geometry, plugin_ids=plugin_ids, display=display)
+            if context is None:
+                context = get_template_engine().build_context(
+                    board_context_for(*geometry, display=display), plugin_ids=plugin_ids
+                )
+            render = layout_flexible_page(page, flex_target_for(layout_board, display), context)
+        except Exception as e:
+            logger.error(f"Failed to lay out flexible page {page.id}: {e}", exc_info=True)
+            return DisplayResult(
+                display_type="page:flexible",
+                formatted="",
+                raw={"page_id": page.id},
+                available=False,
+                error=f"Flexible layout failed: {e!s}",
+            )
+        return DisplayResult(
+            display_type="page:flexible",
+            formatted="\n".join(render.cell_lines),
+            raw={"page_id": page.id, "shown": list(render.shown)},
+            available=True,
+            layers=[full_frame_layer(render.frame)] if render.frame is not None else [],
+            layout_issues=list(render.issues),
+        )
+
+    @staticmethod
     def _apply_canvases(
         page: Page, result: DisplayResult, context: dict | None, *, extended_markup: bool, display: Any
     ) -> None:
@@ -696,14 +769,21 @@ class PageService:
         """
         return board_context_for(*geometry_of(page))
 
-    @staticmethod
-    def _board_key(page: Page) -> str:
+    @classmethod
+    def _board_key(cls, page: Page, board: Mapping[str, Any] | None = None, display: Any = None) -> str:
         """Stable key identifying a page's board *size* for batch context sharing.
 
         Delegates to the canonical :func:`src.devices.size_key` so batch
         context sharing and page<->board compatibility use the same notion
         of "same board size". The key is opaque to its consumers.
+
+        A flexible page has no size of its own: it keys by the size of the
+        board it lays out for (*board*, else the primary board) plus the
+        display's key, as :meth:`shared_context_for` does.
         """
+        if is_flexible_page(page):
+            key = size_key(*geometry_of(cls._layout_board(board)))
+            return f"{key}|{display.key}" if display is not None else key
         return size_key(*geometry_of(page))
 
     def _render_single(self, page: Page) -> DisplayResult:
@@ -862,6 +942,7 @@ class PageService:
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         display: Any = None,
         face: str | None = None,
+        board: Mapping[str, Any] | None = None,
     ) -> DisplayResult | None:
         """Preview a page by ID.
 
@@ -882,6 +963,9 @@ class PageService:
                 neither reads nor writes it.
             face: Render at this LED face (see :meth:`render_page`); like any
                 render for a display, it is uncached.
+            board: The board a flexible page lays out for (see
+                :meth:`render_page`); like any render for a display, a render
+                for a given board is uncached.
 
         Returns:
             DisplayResult or None if page not found
@@ -890,12 +974,18 @@ class PageService:
         if not page:
             return None
 
-        if extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None:
-            # A render for one display is that display's: the shared preview
-            # cache holds the display-agnostic render and is neither read nor
-            # written.
+        if extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None or board is not None:
+            # A render for one display (or board) is that display's: the
+            # shared preview cache holds the display-agnostic render and is
+            # neither read nor written.
             return self.render_page(
-                page, context=context, contexts=contexts, extended_markup=extended_markup, display=display, face=face
+                page,
+                context=context,
+                contexts=contexts,
+                extended_markup=extended_markup,
+                display=display,
+                face=face,
+                board=board,
             )
 
         # Check cache first if not forcing refresh
@@ -925,6 +1015,7 @@ class PageService:
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         display: Any = None,
         faces: Mapping[str, str | None] | None = None,
+        board: Mapping[str, Any] | None = None,
     ) -> dict[str, DisplayResult | None]:
         """Preview multiple pages, building template context once for efficiency.
 
@@ -943,6 +1034,10 @@ class PageService:
             faces: Page id -> the LED face to render that page at (see
                 :meth:`render_page`). A page with a face renders on its own,
                 with its own context, outside the shared per-size build.
+            board: The board flexible pages lay out for (see
+                :meth:`render_page`). Flexible pages share one context per
+                that board's size and *display*; a batch for a given board is
+                uncached, like one for a display.
 
         Returns:
             Dict mapping page_id to DisplayResult (or None if page not found)
@@ -951,7 +1046,7 @@ class PageService:
         pages_to_render: list[tuple[str, Page]] = []
         # A render for one display (or in the other markup mode) is that
         # display's: the shared preview cache is neither read nor written.
-        uncached_mode = extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None
+        uncached_mode = extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None or board is not None
 
         # First pass: check cache, collect pages that need rendering
         for page_id in page_ids:
@@ -986,11 +1081,13 @@ class PageService:
         for pid, p in pages_to_render:
             if faces.get(pid):
                 continue  # rendered on its own, at its face
-            if p.type != "template" and not (p.canvases and draws_pixels(display)):
+            flexible = is_flexible_page(p)
+            if p.type != "template" and not flexible and not (p.canvases and draws_pixels(display)):
                 continue
-            key = self._board_key(p)
+            key = self._board_key(p, board, display)
             if key not in boards:
-                boards[key] = board_context_for(*geometry_of(p), display=display)
+                geometry = geometry_of(self._layout_board(board)) if flexible else geometry_of(p)
+                boards[key] = board_context_for(*geometry, display=display)
             refs = page_plugin_ids(p)
             if key not in ids_by_board:
                 ids_by_board[key] = set(refs) if refs is not None else None
@@ -1011,8 +1108,10 @@ class PageService:
                 if face:
                     result = self.render_page(page, extended_markup=extended_markup, display=display, face=face)
                 else:
-                    context = contexts_by_board.get(self._board_key(page))
-                    result = self.render_page(page, context=context, extended_markup=extended_markup, display=display)
+                    context = contexts_by_board.get(self._board_key(page, board, display))
+                    result = self.render_page(
+                        page, context=context, extended_markup=extended_markup, display=display, board=board
+                    )
                 if not uncached_mode:
                     self._preview_cache[page_id] = CachedPreview(
                         result=result, page_updated_at=page.updated_at, cached_at=time.time()

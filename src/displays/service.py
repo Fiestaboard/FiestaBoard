@@ -45,6 +45,10 @@ class DisplayResult:
     #: The LED face (text size, e.g. ``"3x5"``) a grid page was drawn in when
     #: it is not the board's own; None for a render at the board's own face.
     face: str | None = None
+    #: A flexible page's layout compromises (``src.layout.LayoutIssue``s:
+    #: wrapped, shrunk or dropped blocks, ignored styles). Empty for every
+    #: other result.
+    layout_issues: list[Any] = field(default_factory=list)
 
     def content_key(self) -> str:
         """What the board would show, as one string: the dedupe / in-flight key.

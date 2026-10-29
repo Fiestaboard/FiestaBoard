@@ -205,11 +205,11 @@
   },
   "src/pages/service.py::_board_key::geometry_of": {
     "kind": "page",
-    "test": null
+    "test": "tests/layout/test_flexible_render.py::test_batch_preview_shares_context_by_board_size"
   },
   "src/pages/service.py::_board_key::size_key": {
     "kind": "page",
-    "test": null
+    "test": "tests/layout/test_flexible_render.py::test_batch_preview_shares_context_by_board_size"
   },
   "src/pages/service.py::_create_replacement_page::geometry_of": {
     "kind": "page",
@@ -221,6 +221,10 @@
   },
   "src/pages/service.py::_render_composite::dimensions_of": {
     "kind": "page",
+    "test": null
+  },
+  "src/pages/service.py::_render_flexible::geometry_of": {
+    "kind": "board",
     "test": null
   },
   "src/pages/service.py::_render_template::dimensions_of": {
@@ -249,15 +253,15 @@
   },
   "src/pages/service.py::preview_pages_batch::geometry_of": {
     "kind": "page",
-    "test": null
+    "test": "tests/layout/test_flexible_render.py::test_batch_preview_renders_flexible_pages_against_the_given_board"
   },
   "src/pages/service.py::render_page::dimensions_of": {
     "kind": "page",
-    "test": null
+    "test": "tests/layout/test_flexible_render.py::test_flexible_render_on_flagship_is_cells_only"
   },
   "src/pages/service.py::render_page::geometry_of": {
     "kind": "page",
-    "test": null
+    "test": "tests/layout/test_flexible_render.py::test_flexible_render_on_flagship_is_cells_only"
   },
   "src/pages/service.py::shared_context_for::size_key": {
     "kind": "tuple",
