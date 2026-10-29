@@ -290,8 +290,11 @@ def fetch_data(self) -> PluginResult:
   change at runtime (an LED board's text size moves a Pixoo between 10x16 and
   8x10 under `device_type` `"panel"`), and two boards of one size (a
   split-flap panel and an LED panel) draw differently.
-- **Fit 10 columns.** An LED board in its large face is as narrow as 10x4;
-  the conformance suite renders every plugin at 10x8 and 10x4.
+- **Fit 10 columns.** A Pixoo or 64x32 LED board in its large face is as
+  narrow as 10x4; the conformance suite renders every plugin at 10x8 and 10x4.
+  An LED board in pixels can be smaller still (a one-row Ulanzi TC001 is 1x8,
+  the floor is 1x5); pages for it are made for its size and anything wider or
+  taller is cut off.
 
 ### Prove it with the conformance suite
 
