@@ -25,6 +25,7 @@ Two core defects combine:
 from __future__ import annotations
 
 import threading
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -274,3 +275,71 @@ def test_new_pixel_piece_is_rendered_even_when_display_less_data_is_unchanged(pi
         f"arrived: the fingerprint hashed a display-less context ({len(display_less)} display-less "
         f"build(s) of {len(reg.boards)}) instead of the one the render draws"
     )
+
+
+# --------------------------------------------------------------------------
+# 3. The breaker gate, and how stale "last result" may be
+# --------------------------------------------------------------------------
+
+REFRESH = 450
+# The staleness bound for a 450 s refresh: max(2 x 450, 450 + 300) = 900 s.
+WITHIN_BOUND = 600
+PAST_BOUND = 1000
+
+
+def _art_board_and_plugin(registry):
+    plugin = SlowArtPlugin()
+    registry._plugins["generative_ai_art"] = plugin
+    registry._enabled["generative_ai_art"] = True
+    board = board_context_for("panel", grid_rows=8, grid_cols=10, display=PIXOO)
+    first = registry.build_template_context(board, plugin_ids=["generative_ai_art"])
+    assert _layers(first) == _layers({"generative_ai_art": {"canvas": PIECE_A}})
+    return plugin, board
+
+
+def _age(plugin, board, seconds: int) -> None:
+    plugin._last_fetch_times[plugin._cache_key(board)] = datetime.now() - timedelta(seconds=seconds)
+
+
+def _quarantine(registry, board) -> None:
+    board_key = (board.device_type, board.rows, board.cols, board.display.key)
+    registry._fetch_breaker_until[("generative_ai_art", board_key)] = time.monotonic() + 60
+
+
+def test_quarantined_plugin_keeps_its_recent_last_piece(registry):
+    """A slow AI fetch runs up the breaker's timeout streak before it lands;
+    while the breaker is open the board must keep its piece, not the snapshot."""
+    plugin, board = _art_board_and_plugin(registry)
+    _age(plugin, board, WITHIN_BOUND)
+    _quarantine(registry, board)
+    fingerprints: dict = {}
+
+    context = registry.build_template_context(board, plugin_ids=["generative_ai_art"], fingerprints=fingerprints)
+
+    assert _layers(context) == _layers({"generative_ai_art": {"canvas": PIECE_A}}), (
+        f"the quarantined plugin was dropped, so the canvas drew its stored snapshot: context={context!r}"
+    )
+    assert "generative_ai_art" in fingerprints
+
+
+def test_quarantined_plugin_past_the_staleness_bound_is_dropped(registry):
+    plugin, board = _art_board_and_plugin(registry)
+    _age(plugin, board, PAST_BOUND)
+    _quarantine(registry, board)
+
+    context = registry.build_template_context(board, plugin_ids=["generative_ai_art"])
+
+    assert "generative_ai_art" not in context
+
+
+def test_slow_plugin_past_the_staleness_bound_is_dropped(registry):
+    """A wedged source must not hold time-sensitive data on the board forever."""
+    plugin, board = _art_board_and_plugin(registry)
+    _age(plugin, board, PAST_BOUND)
+    plugin.gate.clear()
+    try:
+        context = registry.build_template_context(board, plugin_ids=["generative_ai_art"])
+    finally:
+        plugin.gate.set()
+
+    assert "generative_ai_art" not in context, f"a {PAST_BOUND}s-old result was served: {context!r}"

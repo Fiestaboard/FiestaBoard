@@ -2201,6 +2201,10 @@ class PluginRegistry:
             quarantined = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) > now]
             if quarantined:
                 to_fetch = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) <= now]
+        # Not fetched, but its recent last result for this board still shows
+        # (a slow AI fetch opens the breaker before it lands).
+        for plugin_id in quarantined:
+            self._serve_stale(plugin_id, board, context, fingerprints)
         if quarantined:
             logger.debug(
                 "Skipping %d quarantined plugin(s) this render (fetch circuit breaker open): %s",
@@ -2291,9 +2295,10 @@ class PluginRegistry:
         return context
 
     def _serve_stale(self, plugin_id: str, board, context: dict, fingerprints: dict | None) -> None:
-        """Put *plugin_id*'s last result for *board* into *context*, however old.
+        """Put *plugin_id*'s last result for *board* into *context*, if recent.
 
-        For a fetch this build abandoned at the timeout. The fetch keeps
+        For a fetch this build abandoned at the timeout or skipped at the
+        breaker gate; "recent" is :func:`src.plugins.base.stale_limit_seconds`. The fetch keeps
         running and refreshes the cache when it lands; until then the board
         keeps what it was showing. Without this the variable is absent, and a
         pixel canvas whose ``source`` is absent draws its stored ``content``

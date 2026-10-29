@@ -53,6 +53,18 @@ def _remember_oauth_token(plugin: object, token: str | None) -> None:
 
 
 DEFAULT_REFRESH_SECONDS = 300
+
+#: How far past its refresh interval a cached result may still be served
+#: while a slow or quarantined fetch is outstanding (see :func:`stale_limit_seconds`).
+STALE_GRACE_SECONDS = 300
+
+
+def stale_limit_seconds(interval: float) -> float:
+    """The oldest a cached result may be when served stale (``allow_stale``)."""
+    # One missed refresh, and never less than a slow fetch's 5 minutes of grace.
+    return max(2 * interval, interval + STALE_GRACE_SECONDS)
+
+
 MIN_REFRESH_SECONDS = 10
 MAX_REFRESH_SECONDS = 86400
 
@@ -528,8 +540,10 @@ class PluginBase(ABC):
         plugin code, so a caller may use it on a latency-sensitive thread to
         decide whether a fetch needs dispatching at all (issue #1751 follow-up).
 
-        *allow_stale* returns the last result for *board* whatever its age:
-        what to show while a slow refresh is still running.
+        *allow_stale* also returns an expired result younger than
+        :func:`stale_limit_seconds`: what to show while a slow or quarantined
+        refresh is outstanding. Older than that it is ``None`` as usual, so a
+        wedged source cannot hold time-sensitive data on a board forever.
 
         Returns ``None`` for "you must fetch" — including for live-data
         plugins and plugins with no refresh interval, which have no cache by
@@ -546,7 +560,8 @@ class PluginBase(ABC):
             last_fetch = self._last_fetch_times.get(key)
         if cached is None or last_fetch is None:
             return None
-        if not allow_stale and (datetime.now() - last_fetch).total_seconds() >= interval:
+        limit = stale_limit_seconds(interval) if allow_stale else interval
+        if (datetime.now() - last_fetch).total_seconds() >= limit:
             return None
         return cached
 
