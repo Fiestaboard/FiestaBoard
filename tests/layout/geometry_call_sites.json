@@ -23,6 +23,10 @@
     "kind": "page",
     "test": "tests/layout/test_geometry_call_sites.py::test_dimensions_of_raises_too"
   },
+  "src/devices.py::page_geometry_fields::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_fiestabot.py::test_page_geometry_fields_of_a_flexible_page_is_the_boards"
+  },
   "src/devices.py::page_size_key::geometry_of": {
     "kind": "page",
     "test": "tests/layout/test_geometry_call_sites.py::test_size_helpers"

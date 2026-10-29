@@ -888,6 +888,24 @@ def page_size_key(page) -> str | None:
     return size_key(*geometry_of(page))
 
 
+def page_geometry_fields(page, board=None) -> dict[str, Any]:
+    """The geometry fields to report for *page*: ``device_type``, ``notes_*``, ``grid_*``.
+
+    A grid page answers its own. A flexible page has no grid, yet its model
+    object still carries the grid fields' flagship defaults, so reading them
+    directly would call it a 6x22 flagship page. It answers the board it lays
+    out for instead: *board*, else the primary board (as
+    ``GET /pages/current-display`` does).
+    """
+    if is_flexible_page(page):
+        if board is None:
+            from src.pages.service import layout_board_for
+
+            board = layout_board_for(None)
+        return geometry_of(board)._asdict()
+    return geometry_of(page)._asdict()
+
+
 def page_size_label(page) -> str:
     """*page*'s size for log and error copy: ``"flexible"`` or its size key."""
     return page_size_key(page) or FLEXIBLE_PAGE_TYPE

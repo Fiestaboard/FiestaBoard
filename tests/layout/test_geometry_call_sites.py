@@ -158,3 +158,73 @@ def test_every_page_routed_site_names_an_existing_test():
     for site, entry in _manifest().items():
         if entry["kind"] == "page":
             assert entry.get("test") and test_exists(entry["test"]), site
+
+
+# --- direct grid-field reads on pages in the Fiestabot surfaces ------------------
+
+#: The grid fields a flexible page still carries as flagship defaults on its model object.
+GRID_FIELDS = frozenset({"device_type", "notes_wide", "notes_tall", "grid_rows", "grid_cols"})
+#: Where Fiestabot answers about pages: MCP tools and the ops layer.
+FIESTABOT_SOURCES = ("src/mcp_server.py", "src/ops")
+#: ``relpath::enclosing_def::receiver.field`` reads known not to be of a page
+#: (a board, a request, a geometry tuple). Every other read must go through
+#: ``page_geometry_fields``.
+GRID_FIELD_READ_ALLOWLIST: frozenset[str] = frozenset()
+
+
+class _GridFieldReadScanner(ast.NodeVisitor):
+    def __init__(self, relpath: str) -> None:
+        self.relpath = relpath
+        self.enclosing: list[str] = []
+        self.reads: set[str] = set()
+
+    def _visit_def(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        self.enclosing.append(node.name)
+        self.generic_visit(node)
+        self.enclosing.pop()
+
+    visit_FunctionDef = _visit_def
+    visit_AsyncFunctionDef = _visit_def
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        if node.attr in GRID_FIELDS and isinstance(node.ctx, ast.Load):
+            where = self.enclosing[-1] if self.enclosing else "<module>"
+            self.reads.add(f"{self.relpath}::{where}::{ast.unparse(node)}")
+        self.generic_visit(node)
+
+
+def scan_grid_field_reads(paths: list[Path], root: Path = REPO) -> set[str]:
+    """Every ``<expr>.device_type``-style read in *paths*, keyed ``relpath::enclosing_def::expr``."""
+    found: set[str] = set()
+    for path in paths:
+        relpath = path.resolve().relative_to(root.resolve()).as_posix()
+        scanner = _GridFieldReadScanner(relpath)
+        scanner.visit(ast.parse(path.read_text(encoding="utf-8"), filename=relpath))
+        found |= scanner.reads
+    return found
+
+
+def _fiestabot_files() -> list[Path]:
+    files: list[Path] = []
+    for source in FIESTABOT_SOURCES:
+        path = REPO / source
+        files.extend(sorted(path.rglob("*.py")) if path.is_dir() else [path])
+    return files
+
+
+def test_scanner_flags_a_direct_device_type_read(tmp_path):
+    source = tmp_path / "probe.py"
+    source.write_text("def f(page):\n    page.name = page.device_type\n    return page.grid_rows\n", encoding="utf-8")
+    assert scan_grid_field_reads([source], root=tmp_path) == {
+        "probe.py::f::page.device_type",
+        "probe.py::f::page.grid_rows",
+    }
+
+
+def test_fiestabot_never_reads_a_pages_grid_fields_directly():
+    reads = scan_grid_field_reads(_fiestabot_files())
+    assert reads - GRID_FIELD_READ_ALLOWLIST == set(), (
+        "report a page's geometry with src.devices.page_geometry_fields (a flexible page answers"
+        " its layout board's), or allowlist a read that is not of a page"
+    )
+    assert GRID_FIELD_READ_ALLOWLIST - reads == set(), "remove stale allowlist entries"

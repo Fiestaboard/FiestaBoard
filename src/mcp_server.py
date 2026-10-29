@@ -83,6 +83,7 @@ from typing import Annotated, Any, Literal
 from pydantic import Field, SkipValidation
 
 from .canvas.models import Canvas
+from .devices import page_geometry_fields
 
 # Mutating tools dispatch into the shared operation layer (#1764); the
 # result envelopes live there too, so executors and the read-only tools
@@ -1578,7 +1579,7 @@ def _build_mcp_server() -> Any:
         out: dict[str, Any] = {
             "page_id": page_id,
             "name": page.name,
-            "device_type": page.device_type,
+            "device_type": page_geometry_fields(page)["device_type"],
             "rendered": result.formatted,
             "rows": result.formatted.split("\n"),
             "line_metadata": ([m.model_dump() for m in page.line_metadata] if page.line_metadata else None),
@@ -1711,7 +1712,7 @@ def _build_mcp_server() -> Any:
         return {
             "page_id": page.id,
             "name": page.name,
-            "device_type": page.device_type,
+            "device_type": page_geometry_fields(page)["device_type"],
             "share_string": encode_page(page),
         }
 
@@ -1838,11 +1839,8 @@ def _build_mcp_server() -> Any:
             "document_protocol": page.document_protocol,
             "page_name": page.name,
             "page_type": page.type,
-            "device_type": page.device_type,
-            "notes_wide": page.notes_wide,
-            "notes_tall": page.notes_tall,
-            "grid_rows": page.grid_rows,
-            "grid_cols": page.grid_cols,
+            # A flexible page's text was laid out for the primary board: its geometry.
+            **page_geometry_fields(page),
             "template": template,
             "line_metadata": line_metadata,
             "canvases": document.get("canvases") or [],
@@ -2587,7 +2585,7 @@ def _build_mcp_server() -> Any:
                     "document_protocol": page.document_protocol,
                     "name": page.name,
                     "type": page.type,
-                    "device_type": page.device_type,
+                    "device_type": page_geometry_fields(page)["device_type"],
                 }
         return {
             "board_id": board_id,
@@ -3360,7 +3358,7 @@ def _build_mcp_server() -> Any:
             pages = svc.list_pages()
             lines = [f"# Pages ({len(pages)} total)\n"]
             for p in pages:
-                lines.append(f"- **{p.name}** (`{p.id}`) — {p.type}, {p.device_type}")
+                lines.append(f"- **{p.name}** (`{p.id}`) — {p.type}, {page_geometry_fields(p)['device_type']}")
             return "\n".join(lines)
         except Exception as exc:
             return f"Error: {exc}"
