@@ -1766,6 +1766,10 @@
     "noCompatiblePagesTitle": "このボードのサイズに合うページがありません。",
     "noCompatiblePagesDescription": "このボードのサイズに合わせたページを作成すると、ここに表示されます。"
   },
+  "pageFit": {
+    "madeFor": "{rows}×{cols} のボード用",
+    "notOnThisDisplay": "このディスプレイでは表示できません"
+  },
   "profile": {
     "title": "プロフィール",
     "description": "あなたの設定と表示の設定",

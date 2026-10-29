@@ -16,13 +16,14 @@ import {
   type DeviceModel,
   type DisplayPreview,
   type LedLetterCase,
+  modelWithLedFont,
   tryResolveCharacterSet,
   tryResolveDeviceModel,
 } from "@fiestaboard/ui";
 import type { ComponentProps } from "react";
 
 import type { BoardLedLayout, CanvasLayerJson, LedFontId, OutputDeviceModel } from "@/lib/api";
-import { pagesCompatibleWithBoard, type SizedEntity } from "@/lib/board-dimensions";
+import { type FitBoard, pageFitForBoard, pagesCompatibleWithBoard, type SizedEntity } from "@/lib/board-dimensions";
 
 /**
  * The board a page of `shape` is previewed (and charset-checked) as: the
@@ -62,6 +63,31 @@ export function resolveBoardModel(board: BoardModelFields | null | undefined): D
     if (resolved.model) return resolved.model;
   }
   return null;
+}
+
+/**
+ * What a page previews as on `board`: the board's model and LED layout, in the
+ * face the page fits at. A page at the board's own grid previews as the board
+ * is now; a page that fits at another text size (a 10×16 page on a Pixoo in
+ * the 8×10 Large face) previews in that face (`modelWithLedFont`), so the
+ * thumbnail shows the page as the board will draw it. A face the model does
+ * not offer keeps the board's model rather than crash a thumbnail.
+ */
+export function pagePreviewTarget(
+  board: (BoardModelFields & FitBoard & { led_layout?: BoardLedLayout | null }) | null | undefined,
+  page: SizedEntity,
+): { model: DeviceModel | null; ledLayout: BoardLedLayout | null } {
+  const model = resolveBoardModel(board);
+  const ledLayout = board?.led_layout ?? null;
+  if (!board || !model) return { model, ledLayout };
+  const face = pageFitForBoard(page, board).face as LedFontId | null;
+  if (!face) return { model, ledLayout };
+  try {
+    const faced = modelWithLedFont(model, face);
+    return { model: faced, ledLayout: ledLayout ? { ...ledLayout, font: face } : null };
+  } catch {
+    return { model, ledLayout };
+  }
 }
 
 /** True when the model is an LED matrix — the boards a split-flap renderer cannot draw. */

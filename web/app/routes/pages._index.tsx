@@ -142,6 +142,8 @@ export default function PagesPage() {
   const displayFilter = selectedBoard?.id ?? "all";
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
   const [importOpen, setImportOpen] = useState(false);
+  // The pages the chosen display shows. Pages it can't show are still listed
+  // (flagged) but are not counted.
   const pageCount = (pagesData?.pages ?? []).filter(
     (page) => !selectedBoard || pagesCompatibleWithBoard(page, selectedBoard),
   ).length;
@@ -246,6 +248,7 @@ export default function PagesPage() {
           showActiveIndicator={false}
           showCollections={false}
           compatibleBoard={selectedBoard}
+          misfitsSelectable
           viewMode={viewMode}
         />
         {selectedBoard && pagesData && pageCount === 0 && (

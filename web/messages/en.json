@@ -1722,6 +1722,10 @@
     "noCompatiblePagesTitle": "No pages match this board's size.",
     "noCompatiblePagesDescription": "Create a page sized for this board to see it here."
   },
+  "pageFit": {
+    "madeFor": "Made for a {rows}×{cols} board",
+    "notOnThisDisplay": "Not on this display"
+  },
   "profile": {
     "title": "Profile",
     "description": "Your preferences and display settings",
