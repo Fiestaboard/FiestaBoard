@@ -44,7 +44,8 @@
           "sent_to_board": true,
           "paused": false,
           "silenced": false,
-          "board_id": "wire-local"
+          "board_id": "wire-local",
+          "face": null
         }
       }
     }
