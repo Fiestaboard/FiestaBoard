@@ -44,7 +44,8 @@ from src.devices import classify_dimensions, geometry_of, is_flexible_page
 from src.display_runtime import reinitialize_board_clients, release_board_frames
 from src.outputs.cells import project_for_output
 from src.outputs.display_profile import render_kw
-from src.outputs.transitions import driver_runs_strategy, strategy_for_full_frame
+from src.outputs.transitions import driver_runs_strategy
+from src.pages.fit import delivers_full_frame
 
 from .models import (
     ERROR_400,
@@ -741,15 +742,14 @@ async def set_active_page(request: SetActivePageRequest):
                         settings_service.get_transition_settings(board_id or settings_service.get_primary_board_id()),
                         page,
                         runs=lambda s: driver_runs_strategy(send_client, s),
+                        # A per-cell transition would animate the cells under the frame.
+                        full_frame=delivers_full_frame(page, fit, result),
                     )
                     strategy, interval_ms, step_size = (
                         resolved.strategy,
                         resolved.step_interval_ms,
                         resolved.step_size,
                     )
-                    if fit.face:
-                        # A per-cell transition would animate the cells under the frame.
-                        strategy = strategy_for_full_frame(strategy)
 
                     # Size the grid to the explicit target board when given
                     # (issue #1244), or to the board a face page was fitted to

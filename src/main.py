@@ -37,8 +37,7 @@ from .outputs.factory import build_driver
 from .outputs.hooks import DevicePoll
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
-from .outputs.transitions import strategy_for_full_frame
-from .pages.fit import PageFit, page_fit_for_board
+from .pages.fit import PageFit, delivers_full_frame, page_fit_for_board
 from .pages.models import LineMetadata, Page
 from .pages.service import (
     CONTEXT_FINGERPRINT_PREFIX,
@@ -2652,20 +2651,23 @@ class DisplayService:
                 return False
 
             # The page's own transition where it sets one, else this display's.
+            # A page drawn at another face, or a flexible page on a pixel
+            # board, arrives as one full frame: a transition that steps cells
+            # or integer grids (flip, cascade, a transition plugin) fades
+            # instead (design section 6).
             resolved = page_transition(
-                settings_service.get_transition_settings(rt.board_id), page, runs=_driver_runs(rt.client)
+                settings_service.get_transition_settings(rt.board_id),
+                page,
+                runs=_driver_runs(rt.client),
+                full_frame=delivers_full_frame(page, fit, result),
             )
             strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
             # resolve_dimensions (never get_dimensions, which raises for
             # note_array) so a note-array page renders at its true size. A
             # page drawn at another face is projected at the board's grid
-            # under its full frame, and a transition that steps cells or
-            # integer grids (flip, cascade, a transition plugin) fades
-            # instead (design section 6).
+            # under its full frame.
             dims, device_type = _delivery_geometry(page, board_dims_source, fit)
-            if fit.face:
-                strategy = strategy_for_full_frame(strategy)
             client = rt.client
             board_array, rich = _project_page(client, result, page, dims, fit)
             sink = self._error_sink()
@@ -3148,11 +3150,12 @@ class DisplayService:
 
         settings_service = get_settings_service()
         resolved = page_transition(
-            settings_service.get_transition_settings(rt.board_id), page, runs=_driver_runs(rt.client)
+            settings_service.get_transition_settings(rt.board_id),
+            page,
+            runs=_driver_runs(rt.client),
+            full_frame=delivers_full_frame(page, fit, result),
         )
         strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
-        if fit.face:
-            strategy = strategy_for_full_frame(strategy)
 
         dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         client = rt.client

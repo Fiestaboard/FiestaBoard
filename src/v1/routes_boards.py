@@ -293,28 +293,29 @@ def _grid_for(
     cols: int,
     client: Any = None,
     entry: dict[str, Any] | None = None,
-) -> tuple[list[list[int]], str, list[str] | None, dict[str, Any], str | None]:
-    """``(characters, text, template_lines, rich, face)`` for whichever content field was sent.
+) -> tuple[list[list[int]], str, list[str] | None, dict[str, Any], bool]:
+    """``(characters, text, template_lines, rich, full_frame)`` for whichever content field was sent.
 
     ``template_lines`` is the form a timed message can be stored as; it is
     ``None`` for the two raw-grid forms, which the temporary-override store
     has no representation for. ``rich`` holds the send keywords carrying the
     rich cells of a text form, for a board (*client*) whose output draws a
     rich character set; empty otherwise, and always for the raw grids.
-    ``face`` is the LED text size a ``page_id`` page was drawn at, when the
-    board produces its grid only at another size (design section 7): the
-    page is then one full-frame layer over its text at the board's grid.
-    ``None`` otherwise.
+    ``full_frame`` is whether a ``page_id`` page reaches the board as one
+    full-frame layer over its text at the board's grid
+    (:func:`src.pages.fit.delivers_full_frame`): drawn at another LED text
+    size because the board produces its grid only there (design section 7),
+    or a flexible page on a pixel board (section 6). ``False`` otherwise.
     """
     if request.text is not None:
         wrapped = wrap_message_text(request.text, rows=rows, cols=cols)
         grid, rich = project_for_output(client, wrapped, rows, cols, flap=text_to_board_array)
-        return grid, wrapped, wrapped.split("\n"), rich, None
+        return grid, wrapped, wrapped.split("\n"), rich, False
 
     if request.lines is not None:
         joined = "\n".join(request.lines)
         grid, rich = project_for_output(client, joined, rows, cols, flap=text_to_board_array)
-        return grid, joined, list(request.lines), rich, None
+        return grid, joined, list(request.lines), rich, False
 
     if request.plugin_id is not None:
         from src.devices import board_context_for
@@ -328,32 +329,35 @@ def _grid_for(
         if not result.available:
             raise HTTPException(status_code=503, detail=result.error or "Plugin data not available")
         grid, rich = project_for_output(client, result.formatted, rows, cols, flap=text_to_board_array)
-        return grid, result.formatted, result.formatted.split("\n"), rich, None
+        return grid, result.formatted, result.formatted.split("\n"), rich, False
 
     if request.template is not None:
         rendered = _render_plugin_template(request.template, entry or {})
         grid, rich = project_for_output(client, rendered, rows, cols, flap=text_to_board_array)
-        return grid, rendered, rendered.split("\n"), rich, None
+        return grid, rendered, rendered.split("\n"), rich, False
 
     if request.fill is not None:
         grid = [[request.fill] * cols for _ in range(rows)]
-        return grid, characters_to_message(grid), None, {}, None
+        return grid, characters_to_message(grid), None, {}, False
 
     if request.characters is not None:
         _validate_grid(request.characters, rows, cols)
-        return request.characters, characters_to_message(request.characters), None, {}, None
+        return request.characters, characters_to_message(request.characters), None, {}, False
 
     # page_id — the remaining form, guaranteed by the request model.
     from src.pages.board_render import render_page_for_board
+    from src.pages.fit import delivers_full_frame
     from src.pages.service import get_page_service
 
-    result, layers, fit = render_page_for_board(get_page_service(), request.page_id, entry, render_kw(client))
+    page_service = get_page_service()
+    result, layers, fit = render_page_for_board(page_service, request.page_id, entry, render_kw(client))
     if result is None:
         raise HTTPException(status_code=404, detail=f"Page not found: {request.page_id}")
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
     grid, rich = project_for_output(client, result.formatted, rows, cols, flap=text_to_board_array, layers=layers)
-    return grid, result.formatted, result.formatted.split("\n"), rich, fit.face
+    full_frame = delivers_full_frame(page_service.get_page(request.page_id), fit, result)
+    return grid, result.formatted, result.formatted.split("\n"), rich, full_frame
 
 
 def _raise_for_executor(result: dict[str, Any]) -> None:
@@ -445,7 +449,7 @@ async def send_to_board(board: str, request: MessageRequest, response: Response)
 
     trace_phase("prepare_started")
     dims = board_dimensions(entry)
-    characters, text, template_lines, rich, face = _grid_for(request, dims.rows, dims.cols, board_client, entry)
+    characters, text, template_lines, rich, full_frame = _grid_for(request, dims.rows, dims.cols, board_client, entry)
 
     trace_phase("prepare_returned")
 
@@ -484,8 +488,8 @@ async def send_to_board(board: str, request: MessageRequest, response: Response)
     transition = request.transition
     strategy = transition.strategy if transition else None
     send_kwargs = {
-        # A per-cell transition would animate the cells under a face page's frame.
-        "strategy": strategy_for_full_frame(strategy) if face else strategy,
+        # A per-cell transition would animate the cells under a full-frame page.
+        "strategy": strategy_for_full_frame(strategy) if full_frame else strategy,
         "step_interval_ms": transition.interval_ms if transition else None,
         "step_size": transition.step_size if transition else None,
         "force": request.force,

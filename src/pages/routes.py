@@ -55,13 +55,13 @@ from src.led.matrix import led_charset_for_font
 from src.outputs.board_profile import board_character_set
 from src.outputs.cells import cells_to_json, project_for_output, project_message
 from src.outputs.display_profile import display_profile_for_board, render_kw
-from src.outputs.transitions import driver_runs_strategy, strategy_for_full_frame
+from src.outputs.transitions import driver_runs_strategy
 from src.schedules.service import get_schedule_service
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service, page_transition
 from src.text_to_board import text_to_board_array
 
 from .board_render import render_page_for_board
-from .fit import page_fit_for_board
+from .fit import delivers_full_frame, page_fit_for_board
 from .models import (
     CurrentDisplayResponse,
     IncompatibleReference,
@@ -820,11 +820,10 @@ async def send_page(
                     settings_service.get_transition_settings(board.get("id") if board is not None else None),
                     page,
                     runs=lambda s: driver_runs_strategy(board_client, s),
+                    # A per-cell transition would animate the cells under the frame.
+                    full_frame=delivers_full_frame(page, fit, result),
                 )
                 strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
-                if fit.face:
-                    # A per-cell transition would animate the cells under the frame.
-                    strategy = strategy_for_full_frame(strategy)
 
                 # Size the grid to the explicit target board when given (issue
                 # #1244), or to the board a face page was fitted to (its text

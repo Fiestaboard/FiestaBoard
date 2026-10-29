@@ -118,7 +118,9 @@ class TransitionSettings:
         )
 
 
-def page_transition(display, page, runs: Callable[[str], bool] | None = None) -> TransitionSettings:
+def page_transition(
+    display, page, runs: Callable[[str], bool] | None = None, *, full_frame: bool = False
+) -> TransitionSettings:
     """What a send of *page* runs on a display whose own transition is
     *display* (anything with ``strategy`` / ``step_interval_ms`` /
     ``step_size``): the page's own transition where it sets one, field by
@@ -132,6 +134,14 @@ def page_transition(display, page, runs: Callable[[str], bool] | None = None) ->
     Vestaboard...) does not override the display's, and the send runs the
     display's transition, speed included, since the page's speed was chosen
     for its strategy. Without *runs*, the page strategy is taken as given.
+
+    *full_frame*: the send reaches the board as one opaque full-frame layer
+    (:func:`src.pages.fit.delivers_full_frame`: a page drawn at another face,
+    or a flexible page on a pixel board). A per-cell strategy (flip, cascade)
+    would animate the cells under that picture and a transition plugin steps
+    integer grids, so either runs as ``fade``
+    (:func:`src.outputs.transitions.strategy_for_full_frame`, design
+    section 6), whether it came from the page or the display.
     """
     strategy = getattr(page, "transition_strategy", None)
     interval = getattr(page, "transition_interval_ms", None)
@@ -139,8 +149,13 @@ def page_transition(display, page, runs: Callable[[str], bool] | None = None) ->
     if isinstance(strategy, str) and strategy and runs is not None and not runs(strategy):
         logger.debug("Page transition %r cannot run on this board; using the board's own", strategy)
         strategy = interval = step_size = None
+    strategy = strategy if strategy else display.strategy
+    if full_frame:
+        from src.outputs.transitions import strategy_for_full_frame
+
+        strategy = strategy_for_full_frame(strategy)
     return TransitionSettings(
-        strategy=strategy if strategy else display.strategy,
+        strategy=strategy,
         step_interval_ms=interval if interval is not None else display.step_interval_ms,
         step_size=step_size if step_size is not None else display.step_size,
     )

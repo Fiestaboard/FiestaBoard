@@ -48,6 +48,21 @@ class PageFit:
     reason: str | None
 
 
+def delivers_full_frame(page: Any, fit: PageFit, result: Any) -> bool:
+    """Whether a send of *page*, fitted as *fit* and rendered as *result*,
+    reaches its board as one opaque full-frame layer (design section 6).
+
+    A grid page drawn at another face does (``fit.face``), and so does a
+    flexible page whose render carries layers: it carries exactly one, its
+    laid-out frame, and only on a pixel board. A flexible page on any other
+    board is an ordinary grid of cells, and a grid page at the board's own
+    size sends at most its canvas layers, never a full frame.
+    """
+    if fit.face:
+        return True
+    return is_flexible_page(page) and bool(getattr(result, "layers", None))
+
+
 def fit_reason(page: Any) -> str:
     """Why *page* doesn't fit a board: ``"Made for a {rows}×{cols} board"``.
 
