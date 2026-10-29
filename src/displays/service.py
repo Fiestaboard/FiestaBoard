@@ -42,6 +42,9 @@ class DisplayResult:
     #: Problems met drawing those canvases (``src.canvas.CanvasIssue``s);
     #: the canvases still draw.
     canvas_issues: list[Any] = field(default_factory=list)
+    #: The LED face (text size, e.g. ``"3x5"``) a grid page was drawn in when
+    #: it is not the board's own; None for a render at the board's own face.
+    face: str | None = None
 
     def content_key(self) -> str:
         """What the board would show, as one string: the dedupe / in-flight key.
@@ -49,15 +52,18 @@ class DisplayResult:
         ``formatted`` itself when there are no layers, so every result without
         canvases keys exactly as before; with layers, ``formatted`` plus a
         digest of every layer's geometry and pixels, so a canvas change alone
-        (the text unchanged) is a new frame.
+        (the text unchanged) is a new frame. A render at another face appends
+        that face, so the same text drawn at two text sizes keys apart even
+        without canvases.
         """
+        key = self.formatted if self.face is None else f"{self.formatted}\x00face:{self.face}"
         if not self.layers:
-            return self.formatted
+            return key
         digest = hashlib.sha256()
         for layer in self.layers:
             digest.update(f"{layer.x},{layer.y},{layer.w},{layer.h};".encode())
             digest.update(layer.rgba)
-        return f"{self.formatted}\x00layers:{digest.hexdigest()}"
+        return f"{key}\x00layers:{digest.hexdigest()}"
 
 
 class DisplayService:

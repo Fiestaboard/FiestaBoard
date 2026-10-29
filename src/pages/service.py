@@ -5,7 +5,7 @@ Provides high-level operations on pages including preview and send.
 
 import logging
 import time
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -27,6 +27,7 @@ from src.devices import (
 )
 from src.displays.service import DisplayResult, get_display_service
 from src.led.matrix import DEFAULT_LED_FONT, grid_layout
+from src.outputs.display_profile import display_for_face
 from src.plugins.manifest import DemoPageSchema
 from src.request_trace import trace_phase
 from src.settings.service import get_settings_service
@@ -588,6 +589,7 @@ class PageService:
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         display: Any = None,
+        face: str | None = None,
     ) -> DisplayResult:
         """Render a page to formatted text.
 
@@ -600,10 +602,21 @@ class PageService:
             extended_markup: The target board speaks extended markup (its
                 output's character set is rich; plan D19). Template pages
                 only; the other page types have no template to render.
+            display: The target board's display profile, if any.
+            face: Draw the page in this LED face (text size) on the page's
+                own grid, as if the board were set to it
+                (:func:`~src.outputs.display_profile.display_for_face`): the
+                template, plugin context and canvases all use that profile.
+                Ignored unless *display* draws pixels. The result records it.
 
         Returns:
             DisplayResult with formatted text
         """
+        if not (face and draws_pixels(display)):
+            face = None
+        else:
+            dims = dimensions_of(page)
+            display = display_for_face(display, face, (dims.rows, dims.cols))
         canvases = page.canvases or []
         pixels = bool(canvases) and draws_pixels(display)
         if context is None and contexts is not None and (page.type == "template" or pixels):
@@ -633,6 +646,7 @@ class PageService:
             )
         if canvases and result.available:
             self._apply_canvases(page, result, context, extended_markup=extended_markup, display=display)
+        result.face = face
         return result
 
     @staticmethod
@@ -834,6 +848,7 @@ class PageService:
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         display: Any = None,
+        face: str | None = None,
     ) -> DisplayResult | None:
         """Preview a page by ID.
 
@@ -852,6 +867,8 @@ class PageService:
                 render (:data:`~src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP`),
                 which every board now shares; a render in the other mode
                 neither reads nor writes it.
+            face: Render at this LED face (see :meth:`render_page`); like any
+                render for a display, it is uncached.
 
         Returns:
             DisplayResult or None if page not found
@@ -865,7 +882,7 @@ class PageService:
             # cache holds the display-agnostic render and is neither read nor
             # written.
             return self.render_page(
-                page, context=context, contexts=contexts, extended_markup=extended_markup, display=display
+                page, context=context, contexts=contexts, extended_markup=extended_markup, display=display, face=face
             )
 
         # Check cache first if not forcing refresh
@@ -894,6 +911,7 @@ class PageService:
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         display: Any = None,
+        faces: Mapping[str, str | None] | None = None,
     ) -> dict[str, DisplayResult | None]:
         """Preview multiple pages, building template context once for efficiency.
 
@@ -909,6 +927,9 @@ class PageService:
                 :meth:`preview_page`): a render in the mode the preview cache
                 does not hold renders every page fresh, and the cache is
                 neither read nor written.
+            faces: Page id -> the LED face to render that page at (see
+                :meth:`render_page`). A page with a face renders on its own,
+                with its own context, outside the shared per-size build.
 
         Returns:
             Dict mapping page_id to DisplayResult (or None if page not found)
@@ -948,7 +969,10 @@ class PageService:
         # template page's referenced plugins for that size, or None (fetch
         # all) as soon as any page's references cannot be determined.
         ids_by_board: dict[str, Collection[str] | None] = {}
-        for _, p in pages_to_render:
+        faces = faces or {}
+        for pid, p in pages_to_render:
+            if faces.get(pid):
+                continue  # rendered on its own, at its face
             if p.type != "template" and not (p.canvases and draws_pixels(display)):
                 continue
             key = self._board_key(p)
@@ -970,8 +994,12 @@ class PageService:
         # Second pass: render pages that missed cache
         for page_id, page in pages_to_render:
             try:
-                context = contexts_by_board.get(self._board_key(page))
-                result = self.render_page(page, context=context, extended_markup=extended_markup, display=display)
+                face = faces.get(page_id)
+                if face:
+                    result = self.render_page(page, extended_markup=extended_markup, display=display, face=face)
+                else:
+                    context = contexts_by_board.get(self._board_key(page))
+                    result = self.render_page(page, context=context, extended_markup=extended_markup, display=display)
                 if not uncached_mode:
                     self._preview_cache[page_id] = CachedPreview(
                         result=result, page_updated_at=page.updated_at, cached_at=time.time()
