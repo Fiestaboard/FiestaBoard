@@ -6,6 +6,7 @@ rules on their own; text blocks go through the real ``fit_text``.
 
 from __future__ import annotations
 
+import importlib
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -325,6 +326,20 @@ def test_stack_never_draws_text_outside_its_rect(case):  # regions constraint, t
     r = run([text("t1", 0, markup)], {"t1": style(**overrides)}, Rect(10, 5, 30, 20))
     lit = lit_pixels(r.frame(64, 64))
     assert lit and all(10 <= x < 40 and 5 <= y < 25 for x, y in lit)
+
+
+def test_stack_clips_text_its_fit_let_overflow(monkeypatch):  # regions constraint, the final clip itself
+    # fit_text never returns a line wider than the rect today, so the text
+    # cases above stay inside without the final clip. Fit 'WW' at scale 2
+    # (two 10 px glyphs) as if the rect were 64 px wide: only the clip keeps
+    # those glyphs inside the 4 px column.
+    stack_module = importlib.import_module("src.layout.stack")
+    real_fit = stack_module.fit_text
+    monkeypatch.setattr(stack_module, "fit_text", lambda block, st, w, h, **kw: real_fit(block, st, 64, h, **kw))
+    wide = SizedFace(face_for_led_font("5x7"), 2)
+    r = run([text("t1", 0, "WW")], {"t1": style(sized=wide, overflow="wrap")}, Rect(10, 5, 4, 20))
+    lit = lit_pixels(r.frame(64, 64))
+    assert lit and all(10 <= x < 14 and 5 <= y < 25 for x, y in lit)
 
 
 def test_frame_paints_the_page_background_under_the_ops():
