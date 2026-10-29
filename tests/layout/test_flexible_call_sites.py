@@ -109,14 +109,15 @@ def test_silence_page_lays_out_for_the_board_it_silences(engine):
     assert spy.call_args.kwargs["board"]["id"] == PIXOO_8X10["id"]
 
 
-def test_render_fingerprint_never_reads_a_flexible_pages_geometry(caplog):
-    # Task 15 gives flexible pages a real fingerprint; until then the
-    # short-circuit must at least not treat one as a 6 x 22 grid page (the
-    # fingerprint swallows any error, so the debug log is what tells).
+def test_render_fingerprint_never_reads_a_flexible_pages_geometry(caplog, stub_refs):
+    # The fingerprint sizes a flexible page by the board it lays out for
+    # (Task 15), never as a 6 x 22 grid page; it swallows any error, so the
+    # debug log is what tells.
     page = red_band(id="flex-1")
     with caplog.at_level(logging.DEBUG, logger="src.main"):
-        DisplayService._render_fingerprint(page, page.id, PageService(), {}, override_active=False)
+        fingerprint = DisplayService._render_fingerprint(page, page.id, PageService(), {}, override_active=False)
     assert "Render fingerprint unavailable" not in caplog.text
+    assert fingerprint is not None
 
 
 # --- sends and previews over the API ------------------------------------------

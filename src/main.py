@@ -6,6 +6,7 @@ import logging
 import signal
 import threading
 import time
+from collections.abc import Mapping
 from contextlib import contextmanager
 from typing import Any
 
@@ -26,6 +27,7 @@ from .devices import (
     size_key,
 )
 from .displays.send_worker import BoardSendWorker, SendJob
+from .layout.target import flex_target_for
 from .led.page_frame import send_layers
 from .outputs import OutputDriver, OutputRuntime
 from .outputs.breaker import write_failure_reason
@@ -1863,15 +1865,20 @@ class DisplayService:
         override_active: bool,
         display: Any = None,
         face: str | None = None,
+        board: Mapping[str, Any] | None = None,
     ) -> str | None:
         """Hash every input a template render reads, or None if not computable.
 
-        Issue #1883. ``render_page`` for a template page is a pure function of
-        four things:
+        Issue #1883. ``render_page`` for a template or flexible page is a pure
+        function of these things:
 
-        * the page itself (template lines, line metadata, device geometry) —
-          covered by ``model_dump_json()``, which also moves whenever
-          ``updated_at`` does;
+        * the page itself (template lines, line metadata, device geometry; a
+          flexible page's blocks) — covered by ``model_dump_json()``, which
+          also moves whenever ``updated_at`` does;
+        * for a flexible page, which has no grid, the board it lays out for
+          (``board``; ``None`` is the primary board, as in
+          ``render_page(board=)``): its size picks the context, and the
+          character grid the layout fills is in the payload (``board_grid``);
         * the template context, i.e. the data of the plugins the template
           references. The reference set comes from the SAME
           ``extract_template_plugin_ids`` scan that already decides which
@@ -1891,7 +1898,8 @@ class DisplayService:
 
         Returns None — meaning "render, do not short-circuit" — whenever any
         of that cannot be established: no per-pass context cache (the direct
-        MQTT/API callers), a non-template page, a formula page whose variable
+        MQTT/API callers), a page that is neither a template nor a flexible
+        page (or one with no template lines or no blocks), a formula page whose variable
         owners are not statically knowable, a page object without a Pydantic
         dump, a config manager with no generation counter, or any exception at
         all. Every unknown fails toward rendering.
@@ -1909,10 +1917,12 @@ class DisplayService:
         """
         if contexts is None:
             return None
-        if getattr(page, "type", None) != "template":
+        page_type = getattr(page, "type", None)
+        flexible = page_type == "flexible"
+        if page_type not in ("template", "flexible"):
             return None
-        template = getattr(page, "template", None)
-        if not template:
+        # A flexible page's document is its blocks; a template page's, its lines.
+        if not getattr(page, "blocks" if flexible else "template", None):
             return None
         dump = getattr(page, "model_dump_json", None)
         if dump is None:
@@ -1930,8 +1940,19 @@ class DisplayService:
             if generation is None:
                 return None  # cannot see config writes -> cannot skip a render
 
-            size = size_key(*geometry_of(page))
-            if face and draws_pixels(display):
+            board_grid: tuple[int, int] | None = None  # a flexible page's board's character grid
+            if flexible:
+                # A flexible page has no grid: it lays out for the board it
+                # shows on (render_page(board=)), at that board's character
+                # grid, and its context is that board's.
+                layout_board = layout_board_for(board)
+                geometry = geometry_of(layout_board)
+                target = flex_target_for(layout_board, display)
+                board_grid = (target.rows, target.cols)
+            else:
+                geometry = geometry_of(page)
+            size = size_key(*geometry)
+            if face and not flexible and draws_pixels(display):
                 # The profile render_page(face=) renders (and keys its
                 # context) with, so the fingerprint reads the same context.
                 dims = dimensions_of(page)
@@ -1953,6 +1974,7 @@ class DisplayService:
                 generation,
                 sorted_refs,
                 face,
+                board_grid,
             )
             memo = contexts.get(CONTEXT_RENDER_MEMO_PREFIX + size)
             if isinstance(memo, dict):
@@ -1967,26 +1989,27 @@ class DisplayService:
             if refs:
                 context = page_service.shared_context_for(
                     contexts,
-                    *geometry_of(page),
+                    *geometry,
                     plugin_ids=refs,
                     display=display,
                 )
                 if not isinstance(context, dict):
                     return None
-            payload = json.dumps(
-                {
-                    "v": DisplayService._RENDER_FINGERPRINT_VERSION,
-                    "page_id": active_page_id,
-                    "page": dump(),
-                    "override": bool(override_active),
-                    "face": face,
-                    "generation": generation,
-                    "data": DisplayService._fingerprint_data_part(contexts, size, context, sorted_refs),
-                },
-                sort_keys=True,
-                default=str,
-                separators=(",", ":"),
-            )
+            parts = {
+                "v": DisplayService._RENDER_FINGERPRINT_VERSION,
+                "page_id": active_page_id,
+                "page": dump(),
+                "override": bool(override_active),
+                "face": face,
+                "generation": generation,
+                "data": DisplayService._fingerprint_data_part(contexts, size, context, sorted_refs),
+            }
+            if flexible:
+                # The layout reads the display itself (colour model, face,
+                # surface), not only through plugin data (design section 6).
+                parts["board_grid"] = list(board_grid or ())
+                parts["display"] = getattr(display, "key", None)
+            payload = json.dumps(parts, sort_keys=True, default=str, separators=(",", ":"))
             fingerprint = hashlib.blake2b(payload.encode("utf-8", "replace"), digest_size=16).hexdigest()
             memo[memo_key] = fingerprint
         except Exception as e:  # never let the optimization break a send
@@ -2483,6 +2506,7 @@ class DisplayService:
                         override_active=override_active,
                         display=_extended_kw(rt.client).get("display"),
                         face=fit.face,
+                        board=board_dims_source,
                     )
                     if (
                         fingerprint is not None
