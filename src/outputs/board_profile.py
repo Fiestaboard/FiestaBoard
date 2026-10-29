@@ -212,6 +212,71 @@ def _face_grid(model: Mapping[str, Any], font: str) -> tuple[int, int] | None:
         return None
 
 
+def producible_grids(model: Mapping[str, Any], config: Mapping[str, Any] | None) -> dict[str, tuple[int, int]]:
+    """The grid (rows, cols) *model* produces at each text size it allows,
+    keyed by face (``"5x7"`` / ``"3x5"``).
+
+    Empty for a model that offers no font choice (:func:`offers_font_choice`:
+    not an LED board measured in pixels). A face whose grid is below the
+    model's floor (or cannot be sized) is omitted.
+
+    *config* is the board's ``output_config``, accepted for the interface
+    seam; Phase 0 reads nothing from it.
+    """
+    from .geometry import GeometryError, check_floor, model_cell_grid
+
+    if not offers_font_choice(model):
+        return {}
+    grids: dict[str, tuple[int, int]] = {}
+    for face in layout_policy_for_model(model)["font"]["allowed"]:
+        try:
+            grid = model_cell_grid(model_with_led_font(model, face))
+            if grid is None:
+                continue
+            check_floor(model, *grid)
+        except (GeometryError, KeyError, ValueError):
+            continue
+        grids[face] = (grid[0], grid[1])
+    return grids
+
+
+def board_producible_grids(board: Mapping[str, Any]) -> dict[str, tuple[int, int]] | None:
+    """The grids *board* can produce, one per text size (:func:`producible_grids`).
+
+    ``None`` when the board has no producible grids to choose from: a
+    Vestaboard or FiestaPanel (exact fit), an output that is not installed,
+    an output whose markup does not follow its character set, or a board
+    whose character set is not delivered as cells (it cannot receive layers).
+    An output that declares its own character set fixes the face (plan D17),
+    so it produces only that face's grid.
+    """
+    from .cells import charset_uses_cells
+
+    output_id = resolve_output_id(board)
+    if output_id in (VESTABOARD, FIESTAPANEL):
+        return None
+    definition = output_registry().get(output_id)
+    manifest = definition.output_manifest if definition is not None else None
+    if manifest is None or not manifest.device_models:
+        return None
+    if getattr(definition.plugin_class, "markup_follows_charset", True) is False:
+        return None
+    if not charset_uses_cells(board_character_set(board)):
+        return None
+    if manifest.character_set is not None:
+        model = board_device_model(board)
+        if not offers_font_choice(model):
+            return {}
+        assert model is not None
+        face = led_layout_options_for_model(model).font
+        grid = _face_grid(model, face)
+        return {face: grid} if grid is not None else {}
+    ids = manifest.device_model_ids
+    stored = board.get("device_model")
+    base_model = manifest.model(ids.index(stored) if stored in ids else 0)
+    return producible_grids(base_model, board.get("output_config"))
+
+
 def board_font(board: Mapping[str, Any], model: Mapping[str, Any] | None) -> str | None:
     """The face (``"5x7"`` / ``"3x5"``) a board on *model* draws in; ``None``
     for a model that is not an LED board measured in pixels.
