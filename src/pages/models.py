@@ -36,6 +36,7 @@ from src.devices import (
     DeviceType,
     resolve_dimensions,
 )
+from src.layout.issues import LayoutIssueModel
 from src.pages.document import PAGE_SHARE_EXCLUDED, ExtensibleDocument
 from src.pages.document import DocumentCanvas as Canvas
 from src.pages.flexible import MAX_BLOCKS, Block, FlexLayout, FlexTargets, PageStyle
@@ -659,6 +660,9 @@ class PagePreviewResponse(BaseModel):
     lines: list[str]
     display_type: str
     raw: dict
+    #: What layout compromised to fit the page (design section 5 step 7).
+    #: Present ONLY for a flexible page; a grid page's response has no key.
+    layout_issues: list[LayoutIssueModel] | None = None
 
 
 class PagePreviewBatchSuccess(BaseModel):
@@ -686,6 +690,11 @@ class PagePreviewBatchSuccess(BaseModel):
     #: at the page's own grid, in that face's character set, and ``layers``
     #: are its canvases on that grid. Present ONLY then.
     face: str | None = None
+    #: What layout compromised to fit a flexible page to the request's board
+    #: (design section 5 step 7), each with the path it applies to. Present
+    #: ONLY for a flexible page. Its full frame is then ``layers`` on a pixel
+    #: board, and ``cells`` are its text at the board's own grid.
+    layout_issues: list[LayoutIssueModel] | None = None
 
 
 class PagePreviewBatchError(BaseModel):
@@ -711,6 +720,22 @@ class PagePreviewBatchRequest(BaseModel):
         "output) gets its colour spans and icons rendered, and each preview's `cells`; omitted or any other "
         "board: the split-flap previews, unchanged.",
     )
+
+
+class PageFlexiblePreviewRequest(BaseModel):
+    """Body of ``POST /pages/preview/flexible``: an unsaved flexible page and its board."""
+
+    page: PageCreate = Field(description="The flexible page to lay out, as it would be created. It is not saved.")
+    board_id: str | None = Field(
+        default=None,
+        description="The board to lay the page out for. Omitted or unknown: the primary board.",
+    )
+
+    @model_validator(mode="after")
+    def _flexible_only(self) -> "PageFlexiblePreviewRequest":
+        if self.page.type != "flexible":
+            raise ValueError(f"only a flexible page previews unsaved, not a {self.page.type} page")
+        return self
 
 
 class PagePreviewBatchResponse(BaseModel):
@@ -781,6 +806,10 @@ class PageSendResponse(BaseModel):
     layers: list[CanvasLayerModel] | None = None
     #: Problems drawing those canvases; null exactly when ``layers`` is.
     canvas_issues: list[CanvasIssueModel] | None = None
+    #: What layout compromised to fit a flexible page to the board it was
+    #: rendered for (design section 5 step 7). Present ONLY for a flexible
+    #: page; a grid page's response has no key.
+    layout_issues: list[LayoutIssueModel] | None = None
 
 
 class PageSendFailure(BaseModel):

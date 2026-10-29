@@ -599,6 +599,74 @@
       }
     },
     {
+      "label": "preview_flexible_ok",
+      "method": "POST",
+      "path_template": "/pages/preview/flexible",
+      "status": 200,
+      "shape": {
+        "available": "bool",
+        "display_type": "str",
+        "layout_issues": [
+          {
+            "code": "str",
+            "message": "str",
+            "path": [
+              "str",
+              "str",
+              "str",
+              "str"
+            ],
+            "severity": "str"
+          }
+        ],
+        "lines": [
+          "str",
+          "str",
+          "str",
+          "str",
+          "str",
+          "str"
+        ],
+        "message": "str",
+        "page_id": "str",
+        "raw": {
+          "page_id": "str",
+          "shown": [
+            "str"
+          ]
+        }
+      }
+    },
+    {
+      "label": "preview_flexible_grid_page",
+      "method": "POST",
+      "path_template": "/pages/preview/flexible",
+      "status": 422,
+      "shape": {
+        "detail": [
+          {
+            "ctx": {
+              "error": {}
+            },
+            "input": {
+              "page": {
+                "name": "str",
+                "template": [
+                  "str"
+                ],
+                "type": "str"
+              }
+            },
+            "loc": [
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
+      }
+    },
+    {
       "label": "cache_stats",
       "method": "GET",
       "path_template": "/pages/cache/stats",

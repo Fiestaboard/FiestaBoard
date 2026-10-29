@@ -8,6 +8,7 @@ The ``path`` points into the page document (``("blocks", "b2", "style",
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -21,6 +22,7 @@ __all__ = [
     "IssueSeverity",
     "LayoutIssue",
     "LayoutIssueModel",
+    "layout_issues_json",
 ]
 
 IssueSeverity = Literal["info", "warning"]
@@ -82,3 +84,8 @@ class LayoutIssueModel(BaseModel):
     code: str
     severity: IssueSeverity
     message: str
+
+
+def layout_issues_json(issues: Iterable[LayoutIssue]) -> list[dict[str, Any]]:
+    """Layout issues as their response form (:meth:`LayoutIssue.to_json`), in order."""
+    return [issue.to_json() for issue in issues]

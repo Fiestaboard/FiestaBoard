@@ -205,6 +205,16 @@ class PageService:
         Raises:
             ValueError: If page configuration is invalid
         """
+        return self.storage.create(self.new_page(data))
+
+    @staticmethod
+    def new_page(data: PageCreate) -> Page:
+        """The page *data* creates, built but not saved (and not checked by
+        ``validate_config``, which saving does).
+
+        Raises:
+            ValueError: If the page's fields are invalid together
+        """
         if data.type == "flexible":
             # A flexible page fits every board: it has no size to pass on
             # (Page refuses an explicit device_type / notes_* on one).
@@ -228,7 +238,7 @@ class PageService:
                 "grid_cols": data.grid_cols,
                 "canvases": data.canvases,
             }
-        page = Page(
+        return Page(
             name=data.name,
             type=data.type,
             duration_seconds=data.duration_seconds,
@@ -240,8 +250,6 @@ class PageService:
             **content,
             **(data.model_extra or {}),
         )
-
-        return self.storage.create(page)
 
     def update_page(self, page_id: str, data: PageUpdate) -> Page | None:
         # Retarget preparation reads existing geometry/canvases; keep it in

@@ -179,6 +179,10 @@
     "kind": "board",
     "test": null
   },
+  "src/pages/routes.py::preview_unsaved_flexible_page::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
   "src/pages/service.py::_apply_canvases::dimensions_of": {
     "kind": "page",
     "test": "tests/layout/test_flexible_call_sites.py::test_flexible_render_never_reaches_the_grid_render_paths"

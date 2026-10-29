@@ -49,6 +49,7 @@ from src.devices import (
     resolve_dimensions,
 )
 from src.display_runtime import get_service
+from src.layout.issues import layout_issues_json
 from src.led.charsets import BUILTIN_CHARACTER_SETS, has_extended_markup
 from src.led.matrix import led_charset_for_font
 from src.outputs.board_profile import board_character_set
@@ -69,11 +70,13 @@ from .models import (
     PageCacheStatsResponse,
     PageCreate,
     PageDeleteResponse,
+    PageFlexiblePreviewRequest,
     PageImportPreview,
     PageImportRequest,
     PageListResponse,
     PagePreviewBatchRequest,
     PagePreviewBatchResponse,
+    PagePreviewBatchSuccess,
     PagePreviewResponse,
     PageSendRequest,
     PageSendResponse,
@@ -89,6 +92,20 @@ from .storage import PageRevisionConflict
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["pages"])
+
+#: The ``page_id`` of a preview of a page that has not been saved.
+UNSAVED_PAGE_ID = "unsaved"
+
+
+def _layout_issues_field(page: PageModel | None, result) -> dict:
+    """``{"layout_issues": [...]}`` for a flexible *page*'s render, else ``{}``.
+
+    A grid page's response leaves the key out entirely (its routes answer with
+    ``response_model_exclude_unset``), so its shape is unchanged.
+    """
+    if page is None or not is_flexible_page(page):
+        return {}
+    return {"layout_issues": layout_issues_json(result.layout_issues)}
 
 
 def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
@@ -415,6 +432,8 @@ async def import_page(body: PageImportRequest):
 @router.post(
     "/pages/{page_id}/preview",
     response_model=PagePreviewResponse,
+    # A grid page's response has no ``layout_issues`` key at all.
+    response_model_exclude_unset=True,
     responses=errors(404, 503),
 )
 async def preview_page(
@@ -431,7 +450,8 @@ async def preview_page(
         force_refresh: If true, bypass cache and always render fresh
 
     Returns:
-        The formatted text that would be displayed.
+        The formatted text that would be displayed, and a flexible page's
+        ``layout_issues`` (laid out for the primary board).
     """
     page_service = get_page_service()
     settings_service = get_settings_service()
@@ -459,6 +479,7 @@ async def preview_page(
         lines=result.formatted.split("\n"),
         display_type=result.display_type,
         raw=result.raw,
+        **_layout_issues_field(page_service.get_page(page_id), result),
     )
 
 
@@ -484,7 +505,10 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
     ``board_id`` names the board the previews are for: one whose output
     draws a rich character set (an LED output) renders colour spans and icons
     and answers each preview's ``cells`` (plan D19, as the template render
-    does). Omitted, unknown, or a split-flap board: unchanged.
+    does). Omitted, unknown, or a split-flap board: unchanged. A flexible
+    page is laid out for that board (omitted or unknown: the primary board)
+    and answers its ``layout_issues``; on a pixel board its ``layers`` are
+    its one full frame.
     """
     page_ids = request.page_ids
     board = _find_board(request.board_id) if request.board_id else None
@@ -523,6 +547,7 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
         **({"extended_markup": True} if rich else {}),
         **({"display": display} if display is not None else {}),
         **({"faces": faces} if faces else {}),
+        **({"board": board} if board is not None else {}),
     )
     dims = board_context_for(*geometry_of(board)) if rich else None
 
@@ -557,12 +582,72 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
                 # A pixel-matrix board: the page's canvases, drawn over the cells.
                 results[page_id]["layers"] = layers_json(result.layers)
                 results[page_id]["canvas_issues"] = issues_json(result.canvas_issues)
+            results[page_id].update(_layout_issues_field(page_service.get_page(page_id), result))
 
     return PagePreviewBatchResponse(
         previews=results,
         total=len(page_ids),
         successful=sum(1 for r in results.values() if r.get("available", False)),
     )
+
+
+@router.post(
+    "/pages/preview/flexible",
+    response_model=PagePreviewBatchSuccess,
+    response_model_exclude_unset=True,
+    responses=errors(422, 503),
+)
+async def preview_unsaved_flexible_page(request: PageFlexiblePreviewRequest):
+    """
+    Lay out an unsaved flexible page for a board, without saving it.
+
+    The editor's preview (design section 6). ``page`` is the page as
+    ``POST /pages`` would create it, and must be a flexible page (else 422).
+    ``board_id`` names the board to lay it out for; omitted or unknown, the
+    primary board. The answer is one ``/pages/preview/batch`` entry with
+    ``page_id: "unsaved"``: the page's text at the board's grid (``lines``,
+    and ``cells`` on an LED board), its full frame as ``layers`` on a pixel
+    board, and its ``layout_issues``. A layout that fails is a 503.
+    """
+    try:
+        page = get_page_service().new_page(request.page).model_copy(update={"id": UNSAVED_PAGE_ID})
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    board = (_find_board(request.board_id) if request.board_id else None) or primary_board_entry()
+    charset = board_character_set(board) if board is not None else None
+    rich = has_extended_markup(charset)
+    display = display_profile_for_board(board) if board is not None else None
+
+    # Laying out fetches the page's plugins (network I/O): off the event loop.
+    result = await asyncio.to_thread(
+        get_page_service().render_page,
+        page,
+        board=board,
+        **({"extended_markup": True} if rich else {}),
+        **({"display": display} if display is not None else {}),
+    )
+    if not result.available:
+        raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
+
+    entry: dict = {
+        "available": True,
+        "page_id": UNSAVED_PAGE_ID,
+        "message": result.formatted,
+        "lines": result.formatted.split("\n"),
+        "display_type": result.display_type,
+        "raw": result.raw,
+        "layout_issues": layout_issues_json(result.layout_issues),
+    }
+    if rich:
+        # The text at the board's own grid, in its character set (plan D19).
+        dims = board_context_for(*geometry_of(board))
+        cells = project_message(result.formatted, dims.rows, dims.cols, charset).cells
+        entry["cells"] = cells_to_json(cells) if cells is not None else None
+    if draws_pixels(display):
+        # A pixel-matrix board: the page's one full frame, over the cells.
+        entry["layers"] = layers_json(result.layers)
+        entry["canvas_issues"] = issues_json(result.canvas_issues)
+    return PagePreviewBatchSuccess(**entry)
 
 
 # No 4xx of its own: reports in-memory cache state that always exists. See the
@@ -613,6 +698,8 @@ async def clear_page_cache(request: PageCacheClearRequest | None = None):
 @router.post(
     "/pages/{page_id}/send",
     response_model=PageSendResponse,
+    # A grid page's response has no ``layout_issues`` key at all.
+    response_model_exclude_unset=True,
     responses=errors(400, 404, 500, 503),
 )
 async def send_page(
@@ -811,6 +898,7 @@ async def send_page(
             board_id=board_id,
             layers=layers_json(result.layers) if pixel_board else None,
             canvas_issues=issues_json(result.canvas_issues) if pixel_board else None,
+            **_layout_issues_field(page, result),
         )
 
     # Board network I/O goes on the dedicated bounded send pool, never the

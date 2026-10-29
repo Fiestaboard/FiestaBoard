@@ -15,7 +15,7 @@ from .fonts import (
     named_size_heights,
     size_ladder,
 )
-from .issues import ISSUE_CODES, LayoutIssue, LayoutIssueModel
+from .issues import ISSUE_CODES, LayoutIssue, LayoutIssueModel, layout_issues_json
 from .pixels import canvas_block_op, draw_line, frame_from_ops
 from .stack import Rect, StackResult, stack
 from .style import (
@@ -57,6 +57,7 @@ __all__ = [
     "frame_from_ops",
     "layout_cell_grid",
     "layout_flexible_page",
+    "layout_issues_json",
     "named_size_heights",
     "named_size_scale",
     "resolve_block_style",
