@@ -9,6 +9,8 @@ block's text into its markup unchanged, so it runs today.
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import sys
 import types
 from dataclasses import dataclass, replace
@@ -26,10 +28,21 @@ from tests.layout.devices import SAMPLE, SAMPLE_CTX, golden_target, profile
 # --- the plan's end-to-end tests (need Tasks 6 and 7) ------------------------
 
 
+def _require_module(name: str, reason: str) -> None:
+    """Skip only while ``name`` has no source file; once it exists, import it.
+
+    ``pytest.importorskip`` would also skip when the module exists but one of
+    its own imports fails, hiding a broken Task 6/7 behind "not landed yet".
+    """
+    if importlib.util.find_spec(name) is None:
+        pytest.skip(reason)
+    importlib.import_module(name)
+
+
 @pytest.fixture
 def real_layout() -> None:
-    pytest.importorskip("src.layout.expand", reason="expand_blocks lands with plan Task 6")
-    pytest.importorskip("src.layout.measure", reason="fit_text lands with plan Task 7")
+    _require_module("src.layout.expand", "expand_blocks lands with plan Task 6")
+    _require_module("src.layout.measure", "fit_text lands with plan Task 7")
 
 
 @pytest.mark.usefixtures("real_layout")
