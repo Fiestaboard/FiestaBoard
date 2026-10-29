@@ -24,6 +24,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from src.led.charsets import has_extended_markup, resolve_character_set, validate_message
+from src.led.matrix import led_charset_for_font
 from src.markup import BOARD_ICONS
 
 from .board_profile import board_character_set, board_device_model, led_layout_choice
@@ -271,6 +272,27 @@ def _charset_of(client: Any, model: Mapping[str, Any] | None) -> Mapping[str, An
     return None
 
 
+def _charset_fields(charset: Mapping[str, Any]) -> dict[str, Any]:
+    """The :class:`DisplayProfile` fields a resolved character set decides.
+
+    Shared by :func:`_profile` (a board's own set) and
+    :func:`display_for_face` (the set of another face), so the two never
+    derive them differently.
+    """
+    icons = charset.get("icons") or ()
+    chars = charset.get("chars") or ()
+    return {
+        "charset": str(charset.get("id")) if charset.get("id") else None,
+        "mixed_case": bool(charset.get("mixedCase")),
+        "color_spans": bool(charset.get("colorSpans")),
+        "block_spans": bool(charset.get("blockSpans")),
+        "tiles": bool(charset.get("tiles", True)),
+        "icons": tuple(str(i) for i in icons if str(i) in BOARD_ICONS),
+        "chars": "".join(str(c) for c in chars),
+        "_charset_json": json.dumps(dict(charset), sort_keys=True, separators=(",", ":")) if charset else None,
+    }
+
+
 def _profile(
     model: Mapping[str, Any],
     charset: Mapping[str, Any] | None,
@@ -292,30 +314,37 @@ def _profile(
         pixel_size = (int(geometry["width"]), int(geometry["height"]))
     if grid is None and isinstance(geometry, Mapping) and geometry.get("kind") == "cells":
         grid = _grid(geometry.get("rows"), geometry.get("cols"))
-    icons = charset.get("icons") or ()
-    chars = charset.get("chars") or ()
     return DisplayProfile(
         technology=str(model.get("technology") or "unknown"),
         device_model=str(model.get("id")) if model.get("id") else None,
-        charset=str(charset.get("id")) if charset.get("id") else None,
         # FiestaUI's colour kinds are "rgb", "monochrome" and "tiles" (device-model schema).
         color="rgb" if color_kind == "rgb" else ("mono" if color_kind == "monochrome" else "tiles"),
         monochrome=str(color["color"]) if color_kind == "monochrome" and color.get("color") else None,
-        mixed_case=bool(charset.get("mixedCase")),
-        color_spans=bool(charset.get("colorSpans")),
-        block_spans=bool(charset.get("blockSpans")),
-        tiles=bool(charset.get("tiles", True)),
-        icons=tuple(str(i) for i in icons if str(i) in BOARD_ICONS),
-        chars="".join(str(c) for c in chars),
         tile_gap=layout.tile_gap if layout is not None else None,
         font=layout.font if layout is not None else None,
         block_padding=layout.block_padding if layout is not None else None,
-        _charset_json=json.dumps(dict(charset), sort_keys=True, separators=(",", ":")) if charset else None,
         rows=grid[0] if grid else None,
         cols=grid[1] if grid else None,
         width=pixel_size[0] if pixel_size else None,
         height=pixel_size[1] if pixel_size else None,
+        **_charset_fields(charset),
     )
+
+
+def display_for_face(display: DisplayProfile, face: str, grid: tuple[int, int]) -> DisplayProfile:
+    """*display* (a board's profile) drawing a page in another LED *face*.
+
+    A page made for a grid the board reaches only at another text size is
+    rendered as if the board were set to that size: the face, its built-in
+    character set (:func:`~src.led.matrix.led_charset_for_font`) and what
+    that set draws (icons, case, spans), on the page's *grid* (rows, cols).
+    The board's own pixel surface, colour, tile style, block padding and
+    monochrome colour are kept. The face is part of :attr:`DisplayProfile.key`,
+    so a plugin result cached for the board's own face is never served for
+    this one. Raises :class:`ValueError` for a face no built-in set is drawn in.
+    """
+    charset = resolve_character_set(led_charset_for_font(face))
+    return replace(display, font=face, rows=grid[0], cols=grid[1], **_charset_fields(charset))
 
 
 def _integer_authoring_profile(
