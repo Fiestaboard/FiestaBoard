@@ -61,14 +61,17 @@ class _Entry:
     fitted: Any = None
 
 
+def _draws(token: Any) -> bool:
+    """Whether a token lights anything: a non-blank glyph, an icon or a block span."""
+    return token.type != "char" or bool(token.icon or token.background or token.value.strip())
+
+
 def _has_glyphs(fitted: Any) -> bool:
     """Whether a fitted text block draws anything: a non-blank glyph or a block span."""
     for line in fitted.lines:
         for item in line:
             token = getattr(item, "token", None)
-            if token is None:
-                continue
-            if token.type != "char" or token.icon or token.background or token.value.strip():
+            if token is not None and _draws(token):
                 return True
     return False
 
@@ -172,8 +175,21 @@ def stack(
                 hidden_text = True
                 continue
             fitted = fit_text(block, style, rect.w, rect.h, family=fam, path=(*path, "blocks", block.id))
-            height = fitted.height if _has_glyphs(fitted) else 0
-            entries.append(_Entry(block, style, height, fitted))
+            if _has_glyphs(fitted):
+                entries.append(_Entry(block, style, fitted.height, fitted))
+            elif any(_draws(token) for token in block.tokens):
+                # Text that fitting left nothing of: say so, never crop silently.
+                issues.extend(fitted.issues)
+                issues.append(
+                    LayoutIssue(
+                        (*path, "blocks", block.id),
+                        "dropped",
+                        "warning",
+                        f"block {block.id!r} has no room for even one glyph in a {rect.w}x{rect.h} area; dropped",
+                    )
+                )
+            else:
+                entries.append(_Entry(block, style, 0, fitted))
         elif block.kind == "spacer":
             entries.append(_Entry(block, style, _requested_height(style.height, rect, style.px)))
         elif block.kind == "canvas":

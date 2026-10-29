@@ -368,6 +368,25 @@ def test_empty_and_unavailable_variable_blocks():  # [RF-1]
     assert min(op.y for op in r.ops if op.kind == "glyph") == 0
 
 
+@pytest.mark.parametrize("overflow", ["wrap", "ellipsis"])
+def test_text_that_fits_to_nothing_is_reported_not_dropped_silently(overflow):
+    # 'WW' at 5x7 scale 2 is one 10 px glyph wider than the 4 px rect and the
+    # line, wrapped or cut, keeps nothing: fitting must still say so.
+    wide = SizedFace(face_for_led_font("5x7"), 2)
+    r = run([text("t1", 0, "WW")], {"t1": style(sized=wide, overflow=overflow)}, Rect(0, 0, 4, 20))
+    assert r.ops == () and r.shown == ()
+    codes = [issue.code for issue in r.issues]
+    assert codes and codes[-1] == "dropped"
+    assert {"wrapped" if overflow == "wrap" else "ellipsized"} <= set(codes)
+    assert all(issue.path == ("blocks", "t1") for issue in r.issues)
+    assert r.issues[-1].severity == "warning" and "t1" in r.issues[-1].message
+
+
+def test_empty_text_block_is_not_reported():
+    r = run([text("b1", 0, ""), text("b2", 1, "   ")], {"b1": style(), "b2": style()}, Rect(0, 0, 64, 64))
+    assert (r.ops, r.issues, r.shown) == ((), (), ())
+
+
 def test_text_aligns_within_the_rect():
     blocks = [text("b1", 0, "AB")]
     w = measure([MGlyph(t) for t in blocks[0].tokens], S35)
