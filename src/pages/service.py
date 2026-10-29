@@ -33,6 +33,7 @@ from src.settings.service import get_settings_service
 from src.templates.engine import extract_template_plugin_ids, get_template_engine
 from src.text_to_board import SPLIT_FLAP_EXTENDED_MARKUP
 
+from .fit import page_fit_for_board
 from .models import LineMetadata, Page, PageCreate, PageUpdate
 from .storage import PageStorage
 
@@ -1075,11 +1076,13 @@ def check_ref_board_compatibility(page_ref: str | None, board_id: str | None) ->
     """Validate a page or ``collection:`` ref against a board's size.
 
     Rules (issue #1245):
-      - A plain page must match the board's :func:`src.devices.size_key`
-        exactly; a mismatch blocks the write.
+      - A plain page must fit the board
+        (:func:`src.pages.fit.page_fit_for_board`): its grid is the board's,
+        or an LED board draws it at another text size. A misfit blocks the
+        write, and the error says why ("Made for a 6×22 board").
       - A collection may mix sizes: it is blocked only when ZERO member
         pages fit the board; otherwise it passes with one warning per
-        member page that does not fit.
+        member page that does not fit, each with its reason.
       - Anything that cannot be resolved (missing page, unknown collection,
         unknown board, no boards configured) passes silently so legacy
         installs and defensive callers see zero behavior change.
@@ -1107,7 +1110,8 @@ def check_ref_board_compatibility(page_ref: str | None, board_id: str | None) ->
             members = [p for p in (page_service.get_page(pid) for pid in collection.page_ids) if p]
             if not members:
                 return result
-            misfits = [p for p in members if not pages_compatible_with_board(p, board)]
+            fits = [(p, page_fit_for_board(p, board)) for p in members]
+            misfits = [(p, fit) for p, fit in fits if not fit.fits]
             if len(misfits) == len(members):
                 result.error = (
                     f"Collection '{collection.name}' cannot be used on board {board_label}: "
@@ -1115,20 +1119,18 @@ def check_ref_board_compatibility(page_ref: str | None, board_id: str | None) ->
                 )
                 return result
             result.warnings = [
-                f"Page '{p.name}' ({size_key(*geometry_of(p))}) in "
-                f"collection '{collection.name}' does not fit board {board_label} and will be skipped."
-                for p in misfits
+                f"Page '{p.name}' in collection '{collection.name}' can't show on board {board_label} "
+                f"({fit.reason}) and will be skipped."
+                for p, fit in misfits
             ]
             return result
 
         page = page_service.get_page(page_ref)
         if page is None:
             return result
-        if not pages_compatible_with_board(page, board):
-            result.error = (
-                f"Page '{page.name}' ({size_key(*geometry_of(page))}) "
-                f"is not compatible with board {board_label}: page and board sizes must match exactly."
-            )
+        fit = page_fit_for_board(page, board)
+        if not fit.fits:
+            result.error = f"Page '{page.name}' can't show on board {board_label}: {fit.reason}."
         return result
     except Exception:  # pragma: no cover - defensive: never let validation crash a write
         logger.exception("Page/board compatibility check failed; allowing write")

@@ -960,7 +960,7 @@ def test_pinning_a_page_that_does_not_fit_the_board_is_a_400(client, boards, boa
     response = client.put(f"/v1/boards/{secondary_id}/active-page", json={"page_id": page_id})
 
     assert response.status_code == 400
-    assert "not compatible with board" in response.json()["detail"]
+    assert "can't show on board" in response.json()["detail"]
 
 
 # ── pages, schedules, collections ───────────────────────────────────────────
