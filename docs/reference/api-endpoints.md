@@ -387,7 +387,7 @@ Saves a new page and answers with it, including the generated `id` you refer to 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | `string` | yes | min length 1; max length 100 |
-| `type` | `"single"` \| `"composite"` \| `"template"` | yes | — |
+| `type` | `"single"` \| `"composite"` \| `"template"` \| `"flexible"` | yes | — |
 | `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` | no | default `"flagship"` |
 | `display_type` | `string` \| `null` | no | — |
 | `rows` | array of [`RowConfig`](#schema-rowconfig) \| `null` | no | — |
@@ -403,6 +403,10 @@ Saves a new page and answers with it, including the generated `id` you refer to 
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
 | `grid_cols` | `integer` \| `null` | no | 10–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `style` | [`PageStyle`](#schema-pagestyle) \| `null` | no | — |
+| `layout` | [`FlexLayout`](#schema-flexlayout) \| `null` | no | — |
+| `blocks` | array of [`Block`](#schema-block) \| `null` | no | — |
+| `targets` | [`FlexTargets`](#schema-flextargets) \| `null` | no | — |
 
 **Responses**
 
@@ -474,6 +478,10 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
 | `grid_cols` | `integer` \| `null` | no | 10–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `style` | [`PageStyle`](#schema-pagestyle) \| `null` | no | — |
+| `layout` | [`FlexLayout`](#schema-flexlayout) \| `null` | no | — |
+| `blocks` | array of [`Block`](#schema-block) \| `null` | no | — |
+| `targets` | [`FlexTargets`](#schema-flextargets) \| `null` | no | — |
 
 **Responses**
 
@@ -1241,6 +1249,44 @@ The result of pinning a page to a board.
 | `error` | `string` \| `null` | no | Why the page did not reach the board, when `sent` is false. The selection is stored either way, so a 200 here is not on its own proof that anything was displayed (#1791). |
 | `warnings` | array of `string` | no | Non-fatal problems, e.g. collection members that do not fit this board. |
 
+### `Block` {#schema-block}
+
+One content unit of a flexible page.
+
+Known kinds are `text` (one line of template syntax), `canvas` and
+`spacer`; a block of any other kind is kept as written. `if` is a
+formula: the block shows only while it is true.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes | — |
+| `kind` | `string` | yes | — |
+| `text` | `string` \| `null` | no | — |
+| `canvas` | [`CanvasBlockBody`](#schema-canvasblockbody) \| `null` | no | — |
+| `style` | [`BlockStyle`](#schema-blockstyle) \| `null` | no | — |
+| `priority` | `integer` \| `null` | no | 0–1000 |
+| `if` | `string` \| `null` | no | — |
+
+### `BlockStyle` {#schema-blockstyle}
+
+Requested style for a block; each board shows the nearest it can.
+
+Every property is optional; an unset one falls through the cascade
+(device default, board style, page style, block style). `color` and
+`background` take a board colour name, `#rrggbb`, a tile code 63-71,
+or one `{{…}}` expression.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `font` | `string` \| `null` | no | — |
+| `size` | `"small"` \| `"medium"` \| `"large"` \| `"xlarge"` \| `"fit"` \| `integer` \| `null` | no | — |
+| `color` | `string` \| `null` | no | — |
+| `background` | `string` \| `null` | no | — |
+| `align` | `"left"` \| `"center"` \| `"right"` \| `null` | no | — |
+| `case` | `"as-is"` \| `"upper"` \| `"lower"` \| `null` | no | — |
+| `overflow` | `"wrap"` \| `"shrink"` \| `"ellipsis"` \| `"scroll"` \| `null` | no | — |
+| `height` | `"auto"` \| `"fill"` \| `integer` \| `number` \| `null` | no | — |
+
 ### `BoardDetail` {#schema-boarddetail}
 
 One board plus what is on it right now.
@@ -1332,6 +1378,15 @@ a consumer writing to a board has any use for.
 | `schedule_enabled` | `boolean` \| `null` | no | Turn this board's schedule on or off. |
 | `auto_restore` | `boolean` \| `null` | no | Turn off to let another app keep this board after it overwrites FiestaBoard's content; on (the default) puts the content back. |
 | `default_page_id` | `string` \| `null` | no | Page shown when the schedule has a gap. Send null to clear it. |
+
+### `CanvasBlockBody` {#schema-canvasblockbody}
+
+A canvas block's drawing: today's canvas content, or a plugin source.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `content` | [`DocumentContent`](#schema-documentcontent) \| `null` | no | — |
+| `source` | `string` \| `null` | no | — |
 
 ### `CanvasLayerModel` {#schema-canvaslayermodel}
 
@@ -1562,6 +1617,25 @@ A rectangle of flaps that did not take a write, in board cells (0-based).
 | `rows` | `integer` | yes | Height in rows. |
 | `cols` | `integer` | yes | Width in columns. |
 
+### `FlexLayout` {#schema-flexlayout}
+
+How blocks are arranged. Only `stack` is built; any kind is kept.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `kind` | `string` | no | default `"stack"` |
+| `valign` | `"top"` \| `"middle"` \| `"bottom"` \| `"spread"` | no | default `"top"` |
+| `gap` | `"none"` \| `"small"` \| `"medium"` \| `"large"` \| `integer` | no | default `"small"` |
+
+### `FlexTargets` {#schema-flextargets}
+
+Optional restriction of where a flexible page may be scheduled.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `technology` | array of `string` \| `null` | no | — |
+| `boards` | array of `string` \| `null` | no | — |
+
 ### `FormulaFunctionEntry` {#schema-formulafunctionentry}
 
 One built-in formula function, as the function picker lists it.
@@ -1733,7 +1807,7 @@ Each page targets a specific device type (flagship: 22x6, note: 15x3).
 | `id` | `string` | no | — |
 | `revision` | `string` \| `null` | no | — |
 | `name` | `string` | yes | min length 1; max length 100 |
-| `type` | `"single"` \| `"composite"` \| `"template"` | yes | — |
+| `type` | `"single"` \| `"composite"` \| `"template"` \| `"flexible"` | yes | — |
 | `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` | no | default `"flagship"` |
 | `display_type` | `string` \| `null` | no | — |
 | `rows` | array of [`RowConfig`](#schema-rowconfig) \| `null` | no | — |
@@ -1749,10 +1823,14 @@ Each page targets a specific device type (flagship: 22x6, note: 15x3).
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
 | `grid_cols` | `integer` \| `null` | no | 10–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `style` | [`PageStyle`](#schema-pagestyle) \| `null` | no | — |
+| `layout` | [`FlexLayout`](#schema-flexlayout) \| `null` | no | — |
+| `blocks` | array of [`Block`](#schema-block) \| `null` | no | — |
+| `targets` | [`FlexTargets`](#schema-flextargets) \| `null` | no | — |
 | `created_at` | `date-time` | no | — |
 | `updated_at` | `date-time` \| `null` | no | — |
 | `edit_protocol` | `string` | yes | Runtime support for conditional sparse page saves; never caller input. |
-| `document_protocol` | `string` | yes | Validated known content with opaque JSON extension preservation. |
+| `document_protocol` | `"page-document-v1"` \| `"page-document-v2"` | yes | Validated known content with opaque JSON extension preservation. `page-document-v2` marks a flexible page (blocks, style, layout). |
 
 ### `PageCreate` {#schema-pagecreate}
 
@@ -1761,7 +1839,7 @@ Create author content; server-assigned identity and timestamps are ignored.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | `string` | yes | min length 1; max length 100 |
-| `type` | `"single"` \| `"composite"` \| `"template"` | yes | — |
+| `type` | `"single"` \| `"composite"` \| `"template"` \| `"flexible"` | yes | — |
 | `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` | no | default `"flagship"` |
 | `display_type` | `string` \| `null` | no | — |
 | `rows` | array of [`RowConfig`](#schema-rowconfig) \| `null` | no | — |
@@ -1777,6 +1855,10 @@ Create author content; server-assigned identity and timestamps are ignored.
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
 | `grid_cols` | `integer` \| `null` | no | 10–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `style` | [`PageStyle`](#schema-pagestyle) \| `null` | no | — |
+| `layout` | [`FlexLayout`](#schema-flexlayout) \| `null` | no | — |
+| `blocks` | array of [`Block`](#schema-block) \| `null` | no | — |
+| `targets` | [`FlexTargets`](#schema-flextargets) \| `null` | no | — |
 
 ### `PageDeleteResponse` {#schema-pagedeleteresponse}
 
@@ -1804,6 +1886,21 @@ the client can follow without re-fetching everything.
 | `pages` | array of [`Page`](#schema-page) | yes | — |
 | `total` | `integer` | yes | — |
 
+### `PageStyle` {#schema-pagestyle}
+
+A flexible page's style defaults; blocks inherit and override them.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `font` | `string` \| `null` | no | — |
+| `size` | `"small"` \| `"medium"` \| `"large"` \| `"xlarge"` \| `"fit"` \| `integer` \| `null` | no | — |
+| `color` | `string` \| `null` | no | — |
+| `background` | `string` \| `null` | no | — |
+| `align` | `"left"` \| `"center"` \| `"right"` \| `null` | no | — |
+| `case` | `"as-is"` \| `"upper"` \| `"lower"` \| `null` | no | — |
+| `overflow` | `"wrap"` \| `"shrink"` \| `"ellipsis"` \| `"scroll"` \| `null` | no | — |
+| `height` | `"auto"` \| `"fill"` \| `integer` \| `number` \| `null` | no | — |
+
 ### `PageUpdate` {#schema-pageupdate}
 
 Sparse known-field patch. Supplied lists replace the complete field.
@@ -1830,6 +1927,10 @@ merged by position or guessed identity.
 | `grid_rows` | `integer` \| `null` | no | 3–96 |
 | `grid_cols` | `integer` \| `null` | no | 10–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `style` | [`PageStyle`](#schema-pagestyle) \| `null` | no | — |
+| `layout` | [`FlexLayout`](#schema-flexlayout) \| `null` | no | — |
+| `blocks` | array of [`Block`](#schema-block) \| `null` | no | — |
+| `targets` | [`FlexTargets`](#schema-flextargets) \| `null` | no | — |
 
 ### `PageUpdateResponse` {#schema-pageupdateresponse}
 

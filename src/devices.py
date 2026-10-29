@@ -851,20 +851,61 @@ def board_is_set_up(board: Any) -> bool:
     return instance.is_connection_configured or instance.has_connection_attempt
 
 
+FLEXIBLE_PAGE_TYPE = "flexible"
+
+
+class FlexiblePageGeometryError(TypeError):
+    """A flexible page reached a grid geometry helper.
+
+    A flexible page has no grid: it lays out at whatever board shows it. Its
+    missing ``device_type`` would otherwise default to a 6x22 flagship. This is
+    deliberately a ``TypeError``, not a ``ValueError``. Callers such as
+    ``size_key`` consumers, ``_scale_canvases_on_retarget`` and
+    ``display_profile_for_board`` catch ``ValueError`` and fall back to
+    flagship, which would hide the mistake.
+    """
+
+
+def _field_getter(obj):
+    if isinstance(obj, dict):
+        return obj.get
+
+    def get(name):
+        return getattr(obj, name, None)
+
+    return get
+
+
+def is_flexible_page(obj) -> bool:
+    """Whether *obj* (a Page or a page dict) is a flexible page. Boards have no ``type``."""
+    return _field_getter(obj)("type") == FLEXIBLE_PAGE_TYPE
+
+
+def page_size_key(page) -> str | None:
+    """The grid :func:`size_key` of *page*, or ``None`` for a flexible page (it has no size)."""
+    if is_flexible_page(page):
+        return None
+    return size_key(*geometry_of(page))
+
+
+def page_size_label(page) -> str:
+    """*page*'s size for log and error copy: ``"flexible"`` or its size key."""
+    return page_size_key(page) or FLEXIBLE_PAGE_TYPE
+
+
 def geometry_of(obj) -> Geometry:
     """Extract the :class:`Geometry` of a page/board.
 
     Accepts either a mapping (board dicts from settings storage) or an object
     with attributes (Page models, BoardInstance, overrides). Missing or falsy
     values get the platform defaults (flagship, 1x1, no explicit grid).
+
+    Raises :class:`FlexiblePageGeometryError` for a flexible page, which has
+    no grid; every caller that can receive a page must route it first.
     """
-    if isinstance(obj, dict):
-        get = obj.get
-    else:
-
-        def get(name):
-            return getattr(obj, name, None)
-
+    if is_flexible_page(obj):
+        raise FlexiblePageGeometryError(f"a flexible page has no grid geometry: {_field_getter(obj)('name')!r}")
+    get = _field_getter(obj)
     return Geometry(
         device_type=str(get("device_type") or DEFAULT_DEVICE_TYPE),
         notes_wide=_optional_int(get("notes_wide")) or 1,
