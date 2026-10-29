@@ -119,7 +119,7 @@ __all__ = [
 ]
 
 #: The platform content floor: a Note, 3 rows × 15 columns (plan D5) — and
-#: 3 × 10 for an LED board measured in pixels (MIN_LED_*). Core refuses a
+#: 1 × 5 for an LED board measured in pixels (MIN_LED_*). Core refuses a
 #: smaller board at creation (src/outputs/geometry.py), which sizes models
 #: and picks their floor exactly as this suite does: model_cell_grid and
 #: grid_floor are that module's.

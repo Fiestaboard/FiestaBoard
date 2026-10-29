@@ -177,10 +177,10 @@ def test_a_one_off_override_cannot_exceed_the_panel_rows(client):
     assert "fits 7" in response.json()["detail"]
 
 
-# --- the 3x10 floor of an LED board in pixels -----------------------------------------------
+# --- the 1x5 floor of an LED board in pixels -----------------------------------------------
 #
 # A Divoom Pixoo 64 drawn in the 5x7 face is 8 rows x 10 cols. Pages,
-# previews and one-off overrides accept any grid down to 3x10, the smallest
+# previews and one-off overrides accept any grid down to 1x5, the smallest
 # board core creates; a FiestaPanel's own autofit still holds the 3x15 Note.
 
 
@@ -200,8 +200,8 @@ def test_a_page_for_an_8x10_led_board_is_accepted(client):
     assert (response.json()["grid_rows"], response.json()["grid_cols"]) == (8, 10)
 
 
-@pytest.mark.parametrize(("rows", "cols"), [(3, 9), (2, 14)])
-def test_a_page_below_3x10_is_refused(client, rows, cols):
+@pytest.mark.parametrize(("rows", "cols"), [(0, 10), (3, 4)])
+def test_a_page_below_1x5_is_refused(client, rows, cols):
     response = client.post(
         "/pages",
         json={
@@ -234,13 +234,13 @@ def test_a_one_off_override_can_be_composed_at_8x10(client):
     assert (response.json()["grid_rows"], response.json()["grid_cols"]) == (8, 10)
 
 
-def test_a_one_off_override_below_3x10_is_refused(client):
+def test_a_one_off_override_below_1x5_is_refused(client):
     response = client.post(
         "/settings/temporary-override",
-        json={"template": ["HELLO"], "device_type": "panel", "grid_rows": 3, "grid_cols": 9},
+        json={"template": ["HELLO"], "device_type": "panel", "grid_rows": 3, "grid_cols": 4},
     )
     assert response.status_code == 422
-    assert response.json()["detail"] == "grid_cols must be between 10 and 128"
+    assert response.json()["detail"] == "grid_cols must be between 5 and 128"
 
 
 def test_a_small_tv_panel_still_gets_the_15_column_note_width(client):

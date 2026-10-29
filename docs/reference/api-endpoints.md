@@ -400,8 +400,8 @@ Saves a new page and answers with it, including the generated `id` you refer to 
 | `demo_plugin_id` | `string` \| `null` | no | — |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
-| `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `grid_rows` | `integer` \| `null` | no | 1–96 |
+| `grid_cols` | `integer` \| `null` | no | 5–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
 
 **Responses**
@@ -471,8 +471,8 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 | `transition_step_size` | `integer` \| `null` | no | min 1 |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
-| `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `grid_rows` | `integer` \| `null` | no | 1–96 |
+| `grid_cols` | `integer` \| `null` | no | 5–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
 
 **Responses**
@@ -1746,8 +1746,8 @@ Each page targets a specific device type (flagship: 22x6, note: 15x3).
 | `demo_plugin_id` | `string` \| `null` | no | — |
 | `notes_wide` | `integer` | no | 1–8; default `1` |
 | `notes_tall` | `integer` | no | 1–8; default `1` |
-| `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `grid_rows` | `integer` \| `null` | no | 1–96 |
+| `grid_cols` | `integer` \| `null` | no | 5–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
 | `created_at` | `date-time` | no | — |
 | `updated_at` | `date-time` \| `null` | no | — |
@@ -1774,8 +1774,8 @@ Create author content; server-assigned identity and timestamps are ignored.
 | `demo_plugin_id` | `string` \| `null` | no | — |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
-| `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `grid_rows` | `integer` \| `null` | no | 1–96 |
+| `grid_cols` | `integer` \| `null` | no | 5–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
 
 ### `PageDeleteResponse` {#schema-pagedeleteresponse}
@@ -1827,8 +1827,8 @@ merged by position or guessed identity.
 | `transition_step_size` | `integer` \| `null` | no | min 1 |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
-| `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 10–128 |
+| `grid_rows` | `integer` \| `null` | no | 1–96 |
+| `grid_cols` | `integer` \| `null` | no | 5–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
 
 ### `PageUpdateResponse` {#schema-pageupdateresponse}

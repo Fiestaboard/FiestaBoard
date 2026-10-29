@@ -688,7 +688,7 @@ The suite plays the device: it routes your plugin's `self.http` to a fake transp
 |------|--------|
 | `manifest` | `manifest.json` loads with no error and is `plugin_type: "output"` |
 | `character_set` | Every declared character set flattens to a non-empty set |
-| `geometry_floor` | Every device model reaches its floor: 3 × 15, or 3 × 10 for a `pixels` model |
+| `geometry_floor` | Every device model reaches its floor: 3 × 15, or 1 × 5 for a `pixels` model |
 | `import_network` | Importing the plugin makes no network call |
 | `device_key` | Non-empty, stable across calls and instances, and free of secrets |
 | `floor` | The plugin does not throttle itself or talk to the device outside a write |

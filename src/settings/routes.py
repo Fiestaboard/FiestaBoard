@@ -913,7 +913,7 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
 
         if device_type == "panel":
             for key, raw, low, high in (
-                # Any grid a board can have, down to an LED board's 3x10.
+                # Any grid a board can have, down to an LED board's 1x5.
                 ("grid_rows", request.grid_rows, ABSOLUTE_MIN_GRID_ROWS, MAX_GRID_ROWS),
                 ("grid_cols", request.grid_cols, ABSOLUTE_MIN_GRID_COLS, MAX_GRID_COLS),
             ):
