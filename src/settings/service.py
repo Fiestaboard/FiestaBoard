@@ -267,6 +267,41 @@ def _with_derived_grid(board: dict) -> dict:
     return {**board, "device_type": "panel", "grid_rows": grid[0], "grid_cols": grid[1]}
 
 
+#: What decides a board's grid floor and grid: a write that changes none of
+#: them leaves a stored grid alone (see :func:`_check_grid_floor`).
+_GRID_FLOOR_FIELDS = ("device_type", "grid_rows", "grid_cols", "output", "device_model")
+
+
+def _check_grid_floor(board: dict, stored: dict | None) -> None:
+    """Refuse a ``panel`` *board* (normalised, as it would be stored) whose
+    grid is below its model's floor (:func:`src.outputs.geometry.board_grid_floor`):
+    3 x 15 for a FiestaPanel or a plugin's ``panel``/``note_array``/``cells``
+    model, 1 x 5 only for an LED board measured in pixels.
+
+    Only a write that changes the grid or what sets its floor is checked: a
+    board stored below its floor before this check (settings from an older
+    release) keeps loading and keeps saving as it is, and is never rewritten.
+    """
+    from src.devices import is_panel
+    from src.outputs.geometry import board_grid_floor
+
+    if not is_panel(board.get("device_type")):
+        return
+    # *stored* is as loaded, already normalised (an older release's raw
+    # shape included), so an untouched board compares equal.
+    if stored is not None and all(board.get(key) == stored.get(key) for key in _GRID_FLOOR_FIELDS):
+        return
+    floor = board_grid_floor(board)
+    if floor is None:
+        return
+    rows, cols = board.get("grid_rows"), board.get("grid_cols")
+    if rows < floor[0] or cols < floor[1]:
+        raise ValueError(
+            f"Board {board.get('name')!r} is {rows}x{cols} characters, below the "
+            f"{floor[0]}x{floor[1]} minimum its display needs."
+        )
+
+
 def restore_masked_board_secrets(board: dict, existing: dict) -> dict:
     """Restore every echoed ``"***"`` secret in *board* from *existing*, in place.
 
@@ -2416,7 +2451,9 @@ class SettingsService:
             # An LED plugin board's grid follows its text size, whatever grid was echoed.
             merged = _with_derived_grid(merge_board_write(b, existing))
             self._check_board_write(merged, existing)
-            validated.append(BoardInstance.from_dict(merged).to_dict())
+            normalized = BoardInstance.from_dict(merged).to_dict()
+            _check_grid_floor(normalized, existing)
+            validated.append(normalized)
 
         for board in validated:
             if board.get("id") not in existing_by_id:
@@ -2448,6 +2485,7 @@ class SettingsService:
         board = _with_derived_grid(self._with_default_transition(board))
         self._check_board_write(board, None)
         instance = BoardInstance.from_dict(board)
+        _check_grid_floor(instance.to_dict(), None)
         self._seed_board_silence_defaults(instance.id)
         self._board.boards.append(instance.to_dict())
         self._save_to_file()

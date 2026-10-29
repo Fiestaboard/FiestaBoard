@@ -275,3 +275,24 @@ def derived_plugin_grid(board: Mapping[str, Any]) -> tuple[int, int] | None:
     except (GeometryError, KeyError):
         return None
     return grid
+
+
+def board_grid_floor(board: Mapping[str, Any]) -> tuple[int, int] | None:
+    """The smallest (rows, cols) a ``panel`` *board* may be written with, or ``None``.
+
+    A FiestaPanel keeps the 3 × 15 Note floor whatever its render style (its
+    LED face is a TV's, not an LED board's); an output-plugin board has its
+    device model's floor (:func:`grid_floor`: 1 × 5 only for a ``pixels``
+    model). ``None`` for a Vestaboard (never a ``panel``) or a plugin that is
+    not installed, whose model cannot be known.
+    """
+    from .board_profile import board_device_model
+    from .registry import FIESTAPANEL, VESTABOARD, resolve_output_id
+
+    output_id = resolve_output_id(board)
+    if output_id == FIESTAPANEL:
+        return MIN_GRID_ROWS, MIN_GRID_COLS
+    if output_id == VESTABOARD:
+        return None
+    model = board_device_model(board)
+    return grid_floor(model) if isinstance(model, Mapping) else None
