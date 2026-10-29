@@ -2051,7 +2051,9 @@ class PluginRegistry:
 
         return _done
 
-    def get_cached_plugin_data(self, plugin_id: str, board: BoardContext | None = None) -> PluginResult | None:
+    def get_cached_plugin_data(
+        self, plugin_id: str, board: BoardContext | None = None, *, allow_stale: bool = False
+    ) -> PluginResult | None:
         """Return a plugin's already-cached result, or None if a fetch is needed.
 
         The non-blocking half of :meth:`fetch_plugin_data`: registry lookups
@@ -2065,7 +2067,7 @@ class PluginRegistry:
         if plugin is None or not enabled or not isinstance(plugin, PluginBase):
             return None
         try:
-            result = plugin.cached_result(board)
+            result = plugin.cached_result(board, allow_stale=allow_stale)
         except Exception:  # a broken property must never break a render
             logger.debug("Cached-data probe failed for %s", plugin_id, exc_info=True)
             return None
@@ -2199,6 +2201,10 @@ class PluginRegistry:
             quarantined = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) > now]
             if quarantined:
                 to_fetch = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) <= now]
+        # Not fetched, but its recent last result for this board still shows
+        # (a slow AI fetch opens the breaker before it lands).
+        for plugin_id in quarantined:
+            self._serve_stale(plugin_id, board, context, fingerprints)
         if quarantined:
             logger.debug(
                 "Skipping %d quarantined plugin(s) this render (fetch circuit breaker open): %s",
@@ -2260,6 +2266,11 @@ class PluginRegistry:
             # is still running — the only set the breaker may hold against a
             # plugin (issue #1884).
             self._record_fetch_timeouts([f for f in not_done if not f.cancelled()], futures, board_key)
+            # A plugin that is merely slow keeps its last result for THIS board
+            # rather than vanishing: absent data makes a canvas draw its stored
+            # content (an old snapshot) and a template print its fallback.
+            for f in not_done:
+                self._serve_stale(futures[f], board, context, fingerprints)
 
         if done:
             # A fetch that completed — with data, without data, or with an
@@ -2282,6 +2293,22 @@ class PluginRegistry:
                 logger.exception(f"Plugin {plugin_id} raised an error during context build")
 
         return context
+
+    def _serve_stale(self, plugin_id: str, board, context: dict, fingerprints: dict | None) -> None:
+        """Put *plugin_id*'s last result for *board* into *context*, if recent.
+
+        For a fetch this build abandoned at the timeout or skipped at the
+        breaker gate; "recent" is :func:`src.plugins.base.stale_limit_seconds`. The fetch keeps
+        running and refreshes the cache when it lands; until then the board
+        keeps what it was showing. Without this the variable is absent, and a
+        pixel canvas whose ``source`` is absent draws its stored ``content``
+        (an old snapshot) instead (``src/canvas/evaluate.py``).
+        """
+        stale = self.get_cached_plugin_data(plugin_id, board, allow_stale=True)
+        if stale is not None and stale.available and stale.data:
+            context[plugin_id] = stale.data
+            if fingerprints is not None:
+                fingerprints[plugin_id] = stale.data_fingerprint()
 
     def _record_fetch_timeouts(self, running: list, futures: dict, board_key: tuple | None = None) -> None:
         """Charge one consecutive timeout to each plugin in *running*.

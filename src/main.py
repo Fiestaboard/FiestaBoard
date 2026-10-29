@@ -7,6 +7,7 @@ import signal
 import threading
 import time
 from contextlib import contextmanager
+from typing import Any
 
 import schedule
 
@@ -1790,7 +1791,9 @@ class DisplayService:
         return {ref: data.get(ref) for ref in sorted_refs}
 
     @staticmethod
-    def _render_fingerprint(page, active_page_id, page_service, contexts, *, override_active: bool) -> str | None:
+    def _render_fingerprint(
+        page, active_page_id, page_service, contexts, *, override_active: bool, display: Any = None
+    ) -> str | None:
         """Hash every input a template render reads, or None if not computable.
 
         Issue #1883. ``render_page`` for a template page is a pure function of
@@ -1855,6 +1858,10 @@ class DisplayService:
                 return None  # cannot see config writes -> cannot skip a render
 
             size = size_key(*geometry_of(page))
+            if display is not None:
+                # The same key shared_context_for files the render's context
+                # (and its payload hashes) under.
+                size = f"{size}|{display.key}"
             sorted_refs = tuple(sorted(refs))
             # ``id(page)`` and ``updated_at`` together: every stored mutation
             # bumps updated_at, and the identity check additionally catches a
@@ -1883,6 +1890,7 @@ class DisplayService:
                     contexts,
                     *geometry_of(page),
                     plugin_ids=refs,
+                    display=display,
                 )
                 if not isinstance(context, dict):
                     return None
@@ -2375,7 +2383,12 @@ class DisplayService:
                 # BELOW the render, so returning early here would skip it.
                 if not silence_mode_active:
                     fingerprint = self._render_fingerprint(
-                        page, active_page_id, page_service, contexts, override_active=override_active
+                        page,
+                        active_page_id,
+                        page_service,
+                        contexts,
+                        override_active=override_active,
+                        display=_extended_kw(rt.client).get("display"),
                     )
                     if (
                         fingerprint is not None

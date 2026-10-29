@@ -551,7 +551,7 @@ class PageService:
             if not missing:
                 return context
 
-            board = board_context_for(*geometry)
+            board = board_context_for(*geometry, display=display)
             # Widening fetches EXACTLY the missing ids: the first build for
             # this size already fetched the trigger plugins (they are in
             # ``fetched``), so re-unioning them here would fetch each trigger
