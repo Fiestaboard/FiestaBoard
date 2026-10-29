@@ -2484,8 +2484,8 @@
   "boardSizeIndicator": {
     "custom": "Custom",
     "panel": "Panel",
-    "ariaLabel": "{rows} rows by {cols} columns",
-    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+    "ariaLabel": "{rows, plural, one {# row} other {# rows}} by {cols, plural, one {# column} other {# columns}}",
+    "ariaLabelWithLayout": "{rows, plural, one {# row} other {# rows}} by {cols, plural, one {# column} other {# columns}}, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / external clients",
