@@ -1,5 +1,6 @@
 """Flexible page layout: the font registry, style resolution and the layout engine."""
 
+from .cells import CellLayout, layout_cell_grid
 from .fonts import (
     DEFAULT_FONT_FAMILY,
     FONT_FAMILIES,
@@ -33,6 +34,7 @@ __all__ = [
     "ISSUE_CODES",
     "MAX_TEXT_SCALE",
     "NAMED_SIZES",
+    "CellLayout",
     "FlexTarget",
     "FontFace",
     "FontFamily",
@@ -51,6 +53,7 @@ __all__ = [
     "face_for_led_font",
     "flex_target_for",
     "frame_from_ops",
+    "layout_cell_grid",
     "named_size_heights",
     "resolve_block_style",
     "resolve_color_value",
