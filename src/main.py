@@ -20,11 +20,11 @@ from .devices import (
     Geometry,
     dimensions_of,
     geometry_of,
-    pages_compatible_with_board,
     resolve_dimensions,
     size_key,
 )
 from .displays.send_worker import BoardSendWorker, SendJob
+from .led.page_frame import send_layers
 from .outputs import OutputDriver, OutputRuntime
 from .outputs.breaker import write_failure_reason
 from .outputs.cells import output_character_set, project_message
@@ -33,6 +33,8 @@ from .outputs.factory import build_driver
 from .outputs.hooks import DevicePoll
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
+from .outputs.transitions import strategy_for_full_frame
+from .pages.fit import PageFit, page_fit_for_board
 from .pages.models import LineMetadata, Page
 from .pages.service import (
     CONTEXT_FINGERPRINT_PREFIX,
@@ -138,6 +140,41 @@ def _project(client, content: str, rows: int, cols: int, layers=()) -> tuple[lis
     """
     frame = project_message(content, rows, cols, output_character_set(client), layers=layers)
     return frame.characters, ({"cells": frame.cells} if frame.cells is not None else {})
+
+
+def _page_fit(page, board: dict | None) -> PageFit:
+    """How *page* fits *board* (:func:`~src.pages.fit.page_fit_for_board`):
+    at the board's own grid, at another LED face (text size), or not at all.
+
+    ``board`` ``None`` means "cannot validate, don't block" (the legacy
+    Config-only single-board path): the page fits at its own grid.
+    """
+    return page_fit_for_board(page, board) if board is not None else PageFit(True, None, None)
+
+
+def _face_kw(fit: PageFit) -> dict:
+    """The render keyword that draws a page at *fit*'s face (``face``), or
+    none for a page at the board's own grid, so that render keeps today's
+    call exactly."""
+    return {"face": fit.face} if fit.face else {}
+
+
+def _project_page(client, result, page, dims, fit: PageFit) -> tuple[list[list[int]], dict]:
+    """A page render projected for *client*'s board (:func:`_project`) at *dims*.
+
+    A page drawn at another face (``fit.face``) carries its picture as one
+    full-frame layer (:func:`~src.led.page_frame.send_layers`, drawn at the
+    page's own grid), and its text is projected at *dims*, the board's own
+    grid, so the frame cache and transitions compare same-shaped cells
+    (design section 7). Any other render keeps its own canvas layers.
+    """
+    if fit.face:
+        page_dims = dimensions_of(page)
+        display = _extended_kw(client).get("display")
+        layers = send_layers(result, page_dims.rows, page_dims.cols, display)
+    else:
+        layers = _result_layers(result)
+    return _project(client, result.formatted, dims.rows, dims.cols, layers)
 
 
 def _result_layers(result) -> list:
@@ -2347,12 +2384,18 @@ class DisplayService:
             # None when the pass is not eligible. Carried down to the arming
             # sites below.
             fingerprint = None
+            # The board the page is checked and sized against (None: cannot
+            # validate, don't block).
+            board_dims_source = board if board is not None else self._board_dict_for(board_id)
 
             if inline_page is not None:
                 # One-off override: render the in-memory page directly. There is
                 # no stored page to look up and no preview cache to bypass.
                 page = inline_page
-                result = page_service.render_page(inline_page, contexts=contexts, **_extended_kw(rt.client))
+                fit = _page_fit(page, board_dims_source)
+                result = page_service.render_page(
+                    inline_page, contexts=contexts, **_face_kw(fit), **_extended_kw(rt.client)
+                )
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
                     self._record_send_error(rt, board_id, render_error or "Failed to render one-off override content")
@@ -2381,6 +2424,9 @@ class DisplayService:
                 if not page:
                     logger.warning(f"Active page not found: {active_page_id}")
                     return False
+                # Which text size this board draws the page at (design
+                # section 7): its own, another face it can produce, or none.
+                fit = _page_fit(page, board_dims_source)
 
                 # --- Render short-circuit (issue #1883) ---
                 # #1752 made the FETCH set demand-driven but left the render
@@ -2408,6 +2454,7 @@ class DisplayService:
                         contexts,
                         override_active=override_active,
                         display=_extended_kw(rt.client).get("display"),
+                        face=fit.face,
                     )
                     if (
                         fingerprint is not None
@@ -2420,7 +2467,7 @@ class DisplayService:
                 # Render with fresh data — force_refresh bypasses the preview cache
                 # so template variables (weather, time, stocks, etc.) are current.
                 result = page_service.preview_page(
-                    active_page_id, force_refresh=True, contexts=contexts, **_extended_kw(rt.client)
+                    active_page_id, force_refresh=True, contexts=contexts, **_face_kw(fit), **_extended_kw(rt.client)
                 )
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
@@ -2454,7 +2501,7 @@ class DisplayService:
                         silence_nt,
                         grid_rows=silence_gr,
                         grid_cols=silence_gc,
-                        board=board if board is not None else self._board_dict_for(board_id),
+                        board=board_dims_source,
                         contexts=contexts,
                         wait=wait,
                     )
@@ -2477,15 +2524,16 @@ class DisplayService:
             # is the last gate before the wire. Skip + log on mismatch
             # rather than truncate: the geometry is the page's identity
             # here, and a silently cropped page is worse than an unchanged
-            # board. Placed after the silence dispatch so a snoozed board
-            # still shows its (board-sized) indicator.
-            board_dims_source = board if board is not None else self._board_dict_for(board_id)
-            if board_dims_source is not None and not pages_compatible_with_board(page, board_dims_source):
+            # board. An LED board that produces the page's grid at another
+            # text size fits it (``fit.face``). Placed after the silence
+            # dispatch so a snoozed board still shows its (board-sized)
+            # indicator.
+            if not fit.fits:
                 page_size = size_key(*geometry_of(page))
                 board_size = _board_size_key(board_dims_source)
                 mismatch = f"{active_page_id}:{page_size}->{board_size}"
-                message = "Board %s: skipping page %s - page size %s does not match board size %s"
-                args = (board_id or "(default)", active_page_id, page_size, board_size)
+                message = "Board %s: skipping page %s - %s"
+                args = (board_id or "(default)", active_page_id, fit.reason)
                 # Warn once per distinct mismatch; the loop re-evaluates this
                 # every tick and a repeating warning would drown the log.
                 if rt.last_geometry_mismatch == mismatch:
@@ -2553,10 +2601,16 @@ class DisplayService:
             strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
             # resolve_dimensions (never get_dimensions, which raises for
-            # note_array) so a note-array page renders at its true size.
-            dims = dimensions_of(page)
+            # note_array) so a note-array page renders at its true size. A
+            # page drawn at another face is projected at the board's grid
+            # under its full frame, and a transition that steps cells or
+            # integer grids (flip, cascade, a transition plugin) fades
+            # instead (design section 6).
+            dims = dimensions_of(board_dims_source) if fit.face else dimensions_of(page)
+            if fit.face:
+                strategy = strategy_for_full_frame(strategy)
             client = rt.client
-            board_array, rich = _project(client, result.formatted, dims.rows, dims.cols, _result_layers(result))
+            board_array, rich = _project_page(client, result, page, dims, fit)
             device_type = page.device_type
             sink = self._error_sink()
 
@@ -3007,13 +3061,14 @@ class DisplayService:
         # SNOOZING indicator (as this method already does for a missing or
         # unrenderable page) so the board still shows that it is snoozing,
         # rather than showing a cropped page or nothing at all.
-        if board is not None and not pages_compatible_with_board(page, board):
+        # A page the board draws at another text size (``fit.face``) fits.
+        fit = _page_fit(page, board)
+        if not fit.fits:
             logger.warning(
-                "Board %s: silence page %s size %s does not match board size %s - using indicator instead",
+                "Board %s: silence page %s - %s - using indicator instead",
                 rt.board_id or "(default)",
                 page.id,
-                size_key(*geometry_of(page)),
-                _board_size_key(board),
+                fit.reason,
             )
             return self._send_silence_indicator(
                 device_type, rt, notes_wide, notes_tall, silence_config, grid_rows=grid_rows, grid_cols=grid_cols
@@ -3021,7 +3076,9 @@ class DisplayService:
 
         logger.info(f"⏸️  Entering silence mode (page) - displaying {page.id}")
 
-        result = page_service.preview_page(page.id, force_refresh=True, contexts=contexts, **_extended_kw(rt.client))
+        result = page_service.preview_page(
+            page.id, force_refresh=True, contexts=contexts, **_face_kw(fit), **_extended_kw(rt.client)
+        )
         if not result or not result.available:
             logger.warning("Silence page %s could not be rendered - falling back to indicator", page.id)
             return self._send_silence_indicator(
@@ -3033,10 +3090,12 @@ class DisplayService:
             settings_service.get_transition_settings(rt.board_id), page, runs=_driver_runs(rt.client)
         )
         strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
+        if fit.face:
+            strategy = strategy_for_full_frame(strategy)
 
         dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         client = rt.client
-        board_array, rich = _project(client, result.formatted, dims.rows, dims.cols, _result_layers(result))
+        board_array, rich = _project_page(client, result, page, dims, fit)
         sink = self._error_sink()
         formatted = _content_key(result)
         page_ref = page.id
