@@ -51,10 +51,12 @@ def test_a_32x8_matrix_lays_out_one_row_of_5_at_5x7():
     assert layout.text == "SUNNY"
 
 
+@pytest.mark.parametrize("spec", [TC001_3X5, TC001_5X7], ids=["1x8-3x5", "1x5-5x7"])
 @pytest.mark.parametrize("kind", LED_TRANSITION_KINDS)
-def test_every_led_transition_runs_on_a_1x8_board(kind):
-    before = layout_message("HELLO", TC001_3X5)
-    after = layout_message("WORLD", TC001_3X5)
+def test_every_led_transition_runs_on_a_one_row_board(kind, spec):
+    before = layout_message("HELLO", spec)
+    after = layout_message("WORLD", spec)
+    assert before.grid.rows == 1
     transition = plan_transition(before, after, kind)
     frames = transition_frames(transition)
     assert len(frames) >= 1
