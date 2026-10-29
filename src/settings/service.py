@@ -141,18 +141,27 @@ def page_transition(
     would animate the cells under that picture and a transition plugin steps
     integer grids, so either runs as ``fade``
     (:func:`src.outputs.transitions.strategy_for_full_frame`, design
-    section 6), whether it came from the page or the display.
+    section 6), whether it came from the page or the display. A page's own
+    strategy then counts when the board runs it as asked or as that fade, so
+    a page's transition plugin on a board that takes LED transitions (and so
+    no plugins) still arrives as fade rather than being dropped for the
+    display's strategy.
     """
+    from src.outputs.transitions import strategy_for_full_frame
+
     strategy = getattr(page, "transition_strategy", None)
     interval = getattr(page, "transition_interval_ms", None)
     step_size = getattr(page, "transition_step_size", None)
-    if isinstance(strategy, str) and strategy and runs is not None and not runs(strategy):
-        logger.debug("Page transition %r cannot run on this board; using the board's own", strategy)
-        strategy = interval = step_size = None
+    if isinstance(strategy, str) and strategy and runs is not None:
+        # On a full-frame send the board is never handed the page's plugin or
+        # per-cell strategy, only its fade: the page's choice stands when the
+        # board runs either form (design section 6).
+        mapped = strategy_for_full_frame(strategy) if full_frame else strategy
+        if not runs(strategy) and not (mapped != strategy and runs(mapped)):
+            logger.debug("Page transition %r cannot run on this board; using the board's own", strategy)
+            strategy = interval = step_size = None
     strategy = strategy if strategy else display.strategy
     if full_frame:
-        from src.outputs.transitions import strategy_for_full_frame
-
         strategy = strategy_for_full_frame(strategy)
     return TransitionSettings(
         strategy=strategy,

@@ -70,6 +70,15 @@ def test_a_full_frame_send_falls_back_from_the_displays_own_flip_too():
     assert page_transition(display, red_band(), full_frame=True).strategy == "fade"
 
 
+def test_a_full_frame_send_maps_the_pages_plugin_to_fade_before_asking_the_board():
+    # A board whose driver runs fade but not a page's transition plugin: the
+    # page's plugin still arrives as fade, not as the display's own strategy.
+    display = SimpleNamespace(strategy="none", step_interval_ms=None, step_size=None)
+    page = red_band(transition_strategy="plugin:typewriter")
+    runs = lambda strategy: not strategy.startswith("plugin:")  # noqa: E731
+    assert page_transition(display, page, runs, full_frame=True).strategy == "fade"
+
+
 def test_without_a_full_frame_the_strategy_is_unchanged():
     page = red_band(transition_strategy="plugin:typewriter")
     assert page_transition(DISPLAY, page).strategy == "plugin:typewriter"
@@ -152,6 +161,15 @@ def test_a_transition_plugin_asked_for_with_a_flexible_page_on_a_pixel_board_run
     # explicit strategy (not a page's own) carries a plugin: strategy here.
     _, render = pixoo_route_board
     _send(client, "message", stored(red_band()).id, strategy="plugin:typewriter")
+    assert render.call_args.kwargs["strategy"] == "fade"
+
+
+@pytest.mark.parametrize("endpoint", ["active-page", "pages-send", *LEGACY_ENDPOINTS])
+def test_a_flexible_pages_own_transition_plugin_on_a_pixel_board_runs_as_fade(
+    client, pixoo_route_board, stub_expand, stub_refs, endpoint
+):
+    _, render = pixoo_route_board
+    _send(client, endpoint, stored(red_band(transition_strategy="plugin:typewriter")).id)
     assert render.call_args.kwargs["strategy"] == "fade"
 
 
