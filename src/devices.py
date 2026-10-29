@@ -884,13 +884,23 @@ def dimensions_of(obj) -> DeviceDimensions:
 
 
 def pages_compatible_with_board(page, board) -> bool:
-    """True when *page* renders 1:1 on *board*: EXACT :func:`size_key` match.
+    """True when *page* shows on *board*.
 
-    Family-aware: flagship != note even at identical dimensions, and note
-    arrays and panels must match the resolved grid exactly. Both arguments may
-    be Page/BoardInstance objects or raw board dicts.
+    An EXACT :func:`size_key` match always fits. Otherwise this delegates to
+    :func:`src.pages.fit.page_fit_for_board`: an LED board fits a ``panel``
+    page at any grid it can produce at a text size its model allows (the page
+    is then drawn at that face). Everything else keeps the exact rule, which
+    is family-aware: flagship != note even at identical dimensions, and note
+    arrays, split-flap and FiestaPanel boards must match the resolved grid
+    exactly. Both arguments may be Page/BoardInstance objects or raw board
+    dicts.
     """
-    return size_key(*geometry_of(page)) == size_key(*geometry_of(board))
+    if size_key(*geometry_of(page)) == size_key(*geometry_of(board)):
+        return True
+    # Lazy: src.pages imports src.devices.
+    from src.pages.fit import page_fit_for_board
+
+    return page_fit_for_board(page, board).fits
 
 
 def board_context_for(
