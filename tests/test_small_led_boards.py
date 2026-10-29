@@ -112,3 +112,50 @@ def test_a_canvas_layer_covers_all_32x8_pixels():
     assert (layout.grid.rows, layout.grid.cols) == (1, 8)
     frame = rasterize(layout)
     assert frame.pixels == bytes(expected)
+
+
+# --- Wording on one row: "1 row", never "1 rows" ---------------------------------------
+
+
+def test_the_ai_brief_says_1_row_of_8_characters():
+    from src.outputs.display_profile import DisplayProfile
+
+    brief = DisplayProfile(technology="led_matrix", color="rgb", rows=1, cols=8, width=32, height=8).ai_brief()
+
+    assert "It shows 1 row of 8 characters" in brief
+    assert "1 rows" not in brief
+
+
+def _one_row_prompt() -> str:
+    from src.ai.prompt_builder import build_prompt
+
+    board = {"id": "tc001", "name": "Shelf clock", "device_type": "panel", "grid_rows": 1, "grid_cols": 8}
+    return build_prompt("Show the weather", "flagship", mode="chat", target_board=board).system_prompt
+
+
+def test_the_prompt_names_a_1x8_board_in_the_singular():
+    prompt = _one_row_prompt()
+
+    assert "(8 columns x 1 row)" in prompt
+    assert "Output exactly 1 entry in `template`" in prompt
+    assert "1 rows" not in prompt
+    assert "1 entries" not in prompt
+
+
+def test_the_prompt_says_wrap_cannot_add_rows_on_a_one_row_board():
+    prompt = _one_row_prompt()
+
+    assert "flows onto subsequent rows" not in prompt
+    assert "reduce the number of other rows" not in prompt
+    assert "has one row" in prompt
+    assert "wrap cannot add rows" in prompt
+
+
+def test_the_teaching_dimensions_read_in_the_singular(monkeypatch):
+    from src.devices import DEVICE_DIMENSIONS, DeviceDimensions
+    from src.ops import teaching
+
+    monkeypatch.setitem(DEVICE_DIMENSIONS, "tc001", DeviceDimensions(rows=1, cols=8))
+
+    assert teaching.dimensions_phrase("tc001") == "8 columns x 1 row"
+    assert "8 columns × 1 row\n" in teaching.device_dimensions_block() + "\n"
