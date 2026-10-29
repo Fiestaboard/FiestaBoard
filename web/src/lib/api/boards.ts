@@ -376,6 +376,12 @@ export interface BoardInstance {
    */
   led_layout?: BoardLedLayout | null;
   /**
+   * The grid an LED board produces at each text size its model allows,
+   * `{face: [rows, cols]}` (a Pixoo 64: `{"5x7": [8, 10], "3x5": [10, 16]}`).
+   * Sent only for a board with a choice of grids. Derived, never stored.
+   */
+  producible_grids?: Record<string, [number, number]> | null;
+  /**
    * The board's output settings, shaped by its output's settings schema
    * (`GET /outputs`); every secret reads back as `"***"`, and echoing `"***"`
    * on a PUT keeps the stored value. A Vestaboard's is its connection (the
@@ -482,12 +488,29 @@ export interface IncompatibleBoardReference {
 }
 
 /**
- * `PUT /settings/board`: the board settings, plus what a resize moved. Both
- * lists are null unless `boards` was saved (`BoardSettingsUpdateResponse`).
+ * A page a resize left behind: sized for the board's old grid, not moved onto
+ * its new one, and not a grid the board can produce now. Mirrors
+ * `LeftBehindPage` in src/settings/models.py.
+ */
+export interface LeftBehindPage {
+  board_id: string;
+  board_name: string;
+  page_id: string;
+  page_name: string;
+  /** The page's size key, e.g. `note_array:2x1`. */
+  page_size: string;
+  /** Why it no longer fits, in the page picker's words: `Made for a 3×30 board`. */
+  reason: string;
+}
+
+/**
+ * `PUT /settings/board`: the board settings, plus what a resize moved. All
+ * three lists are null unless `boards` was saved (`BoardSettingsUpdateResponse`).
  */
 export interface BoardSettingsUpdateResult extends BoardSettings {
   retargeted_pages?: RetargetedPage[] | null;
   incompatible_references?: IncompatibleBoardReference[] | null;
+  left_behind_pages?: LeftBehindPage[] | null;
 }
 
 /**

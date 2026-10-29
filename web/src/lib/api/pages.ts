@@ -196,6 +196,13 @@ export interface PagePreviewResponse {
   layers?: CanvasLayerJson[];
   /** Problems drawing those canvases; present exactly when `layers` is. */
   canvas_issues?: CanvasIssue[];
+  /**
+   * The LED text size (`"3x5"`, `"5x7"`...) the page is drawn at on the
+   * batch's board, when that board produces the page's grid only at another
+   * size than its own. `cells` are then at the page's own grid, in that
+   * face's character set. Present only then.
+   */
+  face?: string | null;
 }
 
 /**
