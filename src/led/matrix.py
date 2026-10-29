@@ -71,6 +71,7 @@ __all__ = [
     "LedRenderOptions",
     "LedTileGap",
     "cell_for_token",
+    "color_code_to_hex",
     "decode_layers",
     "draw_glyph",
     "frame_to_ascii",
@@ -406,6 +407,15 @@ def _color_code_to_hex(code: str) -> str | None:
     if code.startswith("#"):
         return code.lower() if parse_hex_color(code) else None
     return _resolve_color_code(code)
+
+
+def color_code_to_hex(code: str) -> str | None:
+    """Hex of a colour code (``"63"``, ``"red"``) or ``#rrggbb``; ``None`` for an unlit colour.
+
+    The public form of the conversion layouts use for tile and span colours,
+    so flexible layout resolves a colour exactly as the cell layout draws it.
+    """
+    return _color_code_to_hex(code)
 
 
 def glyph_key(token: BoardToken, custom: Mapping[str, Sequence[str]] | None = None) -> str:

@@ -47,6 +47,10 @@
     "kind": "board",
     "test": null
   },
+  "src/layout/target.py::_board_grid::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
   "src/main.py::_board_size_key::geometry_of": {
     "kind": "board",
     "test": null
