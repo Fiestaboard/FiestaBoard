@@ -40,7 +40,14 @@ from src.board_guards import (
 from src.canvas.schemas import issues_json, layers_json
 from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service
-from src.devices import board_context_for, dimensions_of, geometry_of, resolve_dimensions, size_key
+from src.devices import (
+    board_context_for,
+    dimensions_of,
+    geometry_of,
+    is_flexible_page,
+    page_size_key,
+    resolve_dimensions,
+)
 from src.display_runtime import get_service
 from src.led.charsets import BUILTIN_CHARACTER_SETS, has_extended_markup
 from src.led.matrix import led_charset_for_font
@@ -75,7 +82,7 @@ from .models import (
     ShareStringResponse,
 )
 from .models import Page as PageModel
-from .service import draws_pixels, find_incompatible_references, get_page_service
+from .service import draws_pixels, find_incompatible_references, get_page_service, layout_board_for
 from .share import decode_page, encode_page
 from .storage import PageRevisionConflict
 
@@ -175,10 +182,19 @@ async def get_current_display():
     if not page:
         raise HTTPException(status_code=404, detail="Active page not found")
 
+    geometry = page
     if page.type == "template" and page.template:
         # Return raw template so variables like {{weather.temp}} are preserved
         template = page.template
         line_metadata = page.line_metadata
+    elif is_flexible_page(page):
+        # A flexible page has no template or grid: its rendered cell lines,
+        # laid out for the primary board, at that board's geometry.
+        board = layout_board_for(None)
+        result = await asyncio.to_thread(page_service.preview_page, active_page_id, force_refresh=True, board=board)
+        template = result.formatted.split("\n") if result and result.available else []
+        line_metadata = None
+        geometry = geometry_of(board)
     else:
         # For single/composite pages, return the rendered output as template
         # lines. The forced render fans out to plugins — off the loop (#1826).
@@ -190,11 +206,11 @@ async def get_current_display():
         page_id=page.id,
         page_name=page.name,
         page_type=page.type,
-        device_type=page.device_type,
-        notes_wide=page.notes_wide,
-        notes_tall=page.notes_tall,
-        grid_rows=page.grid_rows,
-        grid_cols=page.grid_cols,
+        device_type=geometry.device_type,
+        notes_wide=geometry.notes_wide,
+        notes_tall=geometry.notes_tall,
+        grid_rows=geometry.grid_rows,
+        grid_cols=geometry.grid_cols,
         template=template,
         line_metadata=line_metadata,
     )
@@ -271,9 +287,10 @@ async def update_page(page_id: str, page_data: PageUpdate):
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
     incompatible: list[IncompatibleReference] = []
-    if existing is not None:
-        old_size = size_key(*geometry_of(existing))
-        new_size = size_key(*geometry_of(page))
+    # A flexible page fits every board: its references never go stale.
+    if existing is not None and not is_flexible_page(page):
+        old_size = page_size_key(existing)
+        new_size = page_size_key(page)
         if old_size != new_size:
             incompatible = [IncompatibleReference(**ref) for ref in find_incompatible_references(page)]
     return PageUpdateResponse(page=page, incompatible_references=incompatible)
@@ -726,9 +743,11 @@ async def send_page(
                 # #1244), or to the board a face page was fitted to (its text
                 # goes under the full frame at the board's own grid);
                 # otherwise keep sizing to the page's device type.
+                # A flexible page goes at the grid of the board it laid out for.
+                flexible = is_flexible_page(page)
                 if board is not None:
                     dims = _board_dims(board)
-                elif fit.face:
+                elif fit.face or flexible:
                     dims = _board_dims(fit_board)
                 else:
                     dims = resolve_dimensions(*geometry_of(page))
@@ -747,7 +766,13 @@ async def send_page(
                     strategy=strategy,
                     step_interval_ms=interval_ms,
                     step_size=step_size,
-                    device_type=(board.get("device_type") if board is not None else page.device_type),
+                    device_type=(
+                        board.get("device_type")
+                        if board is not None
+                        else geometry_of(fit_board or {}).device_type
+                        if flexible
+                        else page.device_type
+                    ),
                     **rich,
                 )
                 sent_to_board = was_sent

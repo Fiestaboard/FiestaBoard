@@ -154,7 +154,6 @@ def test_every_manifest_entry_has_a_known_kind():
         assert entry["kind"] in KINDS, site
 
 
-@pytest.mark.xfail(strict=True, reason="page sites are routed and given tests in Task 14")
 def test_every_page_routed_site_names_an_existing_test():
     for site, entry in _manifest().items():
         if entry["kind"] == "page":

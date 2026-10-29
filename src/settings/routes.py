@@ -40,7 +40,7 @@ from src.api_deprecation import deprecation_notice, flat_board_fields_notice
 from src.api_errors import errors
 from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
-from src.devices import classify_dimensions, geometry_of
+from src.devices import classify_dimensions, geometry_of, is_flexible_page
 from src.display_runtime import reinitialize_board_clients, release_board_frames
 from src.outputs.cells import project_for_output
 from src.outputs.display_profile import render_kw
@@ -755,9 +755,11 @@ async def set_active_page(request: SetActivePageRequest):
                     # (issue #1244), or to the board a face page was fitted to
                     # (its text goes under the full frame at the board's own
                     # grid); otherwise keep the page's device type.
+                    # A flexible page goes at the grid of the board it laid out for.
+                    flexible = is_flexible_page(page)
                     if board is not None:
                         dims = _board_dims(board)
-                    elif fit.face:
+                    elif fit.face or flexible:
                         dims = _board_dims(fit_board)
                     else:
                         dims = resolve_dimensions(*geometry_of(page))
@@ -776,7 +778,13 @@ async def set_active_page(request: SetActivePageRequest):
                         strategy=strategy,
                         step_interval_ms=interval_ms,
                         step_size=step_size,
-                        device_type=(board.get("device_type") if board is not None else page.device_type),
+                        device_type=(
+                            board.get("device_type")
+                            if board is not None
+                            else geometry_of(fit_board or {}).device_type
+                            if flexible
+                            else page.device_type
+                        ),
                         **rich,
                     )
                     sent_to_board = was_sent

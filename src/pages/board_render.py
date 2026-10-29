@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 from src.canvas.layer import CanvasLayer
-from src.devices import dimensions_of
+from src.devices import dimensions_of, is_flexible_page
 from src.led.page_frame import send_layers
 
 from .fit import PageFit, page_fit_for_board
@@ -46,12 +46,16 @@ def render_page_for_board(
     full-frame layer for a face render on a pixel board, else the render's
     own. ``result`` is ``None`` when the page does not exist; ``layers`` is
     then empty, as it is for an unavailable render.
+
+    A flexible page has no grid and never a face: it is laid out for *board*
+    (``None``: the primary board), and its layers are its own full frame.
     """
     page = page_service.get_page(page_id)
     if page is None:
         return None, [], _NO_FACE
     fit = page_fit_for_board(page, board) if board is not None else _NO_FACE
-    result = page_service.preview_page(page_id, force_refresh=force_refresh, face=fit.face, **render_kw)
+    board_kw = {"board": board} if is_flexible_page(page) and board is not None else {}
+    result = page_service.preview_page(page_id, force_refresh=force_refresh, face=fit.face, **board_kw, **render_kw)
     if result is None or not result.available:
         return result, [], fit
     if not fit.face:

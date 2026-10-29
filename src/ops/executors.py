@@ -513,7 +513,7 @@ def update_page(
     if refusal is not None:
         return refusal
     try:
-        from src.devices import geometry_of, size_key
+        from src.devices import is_flexible_page, page_size_key
         from src.pages.models import PageUpdate
         from src.pages.service import find_incompatible_references, get_page_service
 
@@ -557,9 +557,10 @@ def update_page(
             return err(f"Page '{page_id}' not found.")
 
         incompatible: list[dict[str, Any]] = []
-        if existing is not None:
-            old_size = size_key(*geometry_of(existing))
-            new_size = size_key(*geometry_of(page))
+        # A flexible page fits every board: its references never go stale.
+        if existing is not None and not is_flexible_page(page):
+            old_size = page_size_key(existing)
+            new_size = page_size_key(page)
             if old_size != new_size:
                 incompatible = find_incompatible_references(page)
 

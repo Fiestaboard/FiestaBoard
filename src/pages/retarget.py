@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from src.devices import Geometry, geometry_of, resolve_dimensions, size_key
+from src.devices import Geometry, geometry_of, is_flexible_page, resolve_dimensions, size_key
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +75,8 @@ def retarget_pages(resizes: Resizes, remaining_keys: set[str], *, allow_shrink: 
     page_service = get_page_service()
     moved: list[dict[str, Any]] = []
     for page in page_service.list_pages():
+        if is_flexible_page(page):
+            continue  # no grid to move: it fits every board
         old_key = size_key(*geometry_of(page))
         new = targets.get(old_key)
         if new is None:
@@ -120,7 +122,10 @@ def pages_left_behind(resized: list[tuple[dict, dict]], moved_ids: set[str]) -> 
 
     if not resized:
         return []
-    pages = [page for page in get_page_service().list_pages() if page.id not in moved_ids]
+    # A flexible page fits every board, so no resize leaves it behind.
+    pages = [
+        page for page in get_page_service().list_pages() if page.id not in moved_ids and not is_flexible_page(page)
+    ]
     left: list[dict[str, Any]] = []
     for old, new in resized:
         old_key = size_key(*geometry_of(old))

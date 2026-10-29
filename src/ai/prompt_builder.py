@@ -14,7 +14,7 @@ import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from src.devices import DeviceType, geometry_of, resolve_dimensions
+from src.devices import DeviceType, geometry_of, is_flexible_page, resolve_dimensions
 from src.ops.teaching import TEMPLATE_FILTERS, construct_lines
 from src.templates.canvas_reference import CANVAS_RULES as CANVAS_RULES
 from src.templates.expressions import function_signatures
@@ -508,8 +508,13 @@ def build_prompt(
             "A paused or failed send is not a successful display; report the tool's actual result.\n"
         )
     else:
-        geometry = geometry_of({**(current_page or {}), "device_type": device_type})
-        if display is not None and display.rows and display.cols and not current_page:
+        # A flexible current_page has no grid: the target board's geometry
+        # (the request's device_type, or its resolved display) applies.
+        flexible = is_flexible_page(current_page or {})
+        geometry = geometry_of(
+            {"device_type": device_type} if flexible else {**(current_page or {}), "device_type": device_type}
+        )
+        if display is not None and display.rows and display.cols and (flexible or not current_page):
             # A resolved display is authoritative even for legacy callers
             # still sending flagship as the request default.
             dims = resolve_dimensions("panel", grid_rows=display.rows, grid_cols=display.cols)

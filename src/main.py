@@ -20,6 +20,8 @@ from .devices import (
     Geometry,
     dimensions_of,
     geometry_of,
+    is_flexible_page,
+    page_size_label,
     resolve_dimensions,
     size_key,
 )
@@ -41,6 +43,7 @@ from .pages.service import (
     CONTEXT_RENDER_MEMO_PREFIX,
     draws_pixels,
     get_page_service,
+    layout_board_for,
     page_plugin_ids,
 )
 from .schedules.service import get_schedule_service
@@ -150,6 +153,27 @@ def _page_fit(page, board: dict | None) -> PageFit:
     Config-only single-board path): the page fits at its own grid.
     """
     return page_fit_for_board(page, board) if board is not None else PageFit(True, None, None)
+
+
+def _board_kw(page, board: dict | None) -> dict:
+    """The render keyword that lays a flexible *page* out for *board*
+    (``board``; ``None`` is the primary board), or none for a grid page, so
+    that render keeps today's call exactly."""
+    return {"board": board} if is_flexible_page(page) and board is not None else {}
+
+
+def _delivery_geometry(page, board: dict | None, fit: PageFit) -> tuple[Any, str]:
+    """``(dims, device_type)`` a page render is projected and sent at on *board*.
+
+    A flexible page has no grid: it goes at the grid of the board it laid out
+    for (:func:`~src.pages.service.layout_board_for`). A page drawn at another
+    face goes at *board*'s own grid. Any other page keeps its own grid.
+    """
+    if is_flexible_page(page):
+        target = layout_board_for(board)
+        return dimensions_of(target), geometry_of(target).device_type
+    dims = dimensions_of(board) if fit.face else dimensions_of(page)
+    return dims, page.device_type
 
 
 def _face_kw(fit: PageFit) -> dict:
@@ -2394,7 +2418,11 @@ class DisplayService:
                 page = inline_page
                 fit = _page_fit(page, board_dims_source)
                 result = page_service.render_page(
-                    inline_page, contexts=contexts, **_face_kw(fit), **_extended_kw(rt.client)
+                    inline_page,
+                    contexts=contexts,
+                    **_face_kw(fit),
+                    **_board_kw(inline_page, board_dims_source),
+                    **_extended_kw(rt.client),
                 )
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
@@ -2467,7 +2495,12 @@ class DisplayService:
                 # Render with fresh data — force_refresh bypasses the preview cache
                 # so template variables (weather, time, stocks, etc.) are current.
                 result = page_service.preview_page(
-                    active_page_id, force_refresh=True, contexts=contexts, **_face_kw(fit), **_extended_kw(rt.client)
+                    active_page_id,
+                    force_refresh=True,
+                    contexts=contexts,
+                    **_face_kw(fit),
+                    **_board_kw(page, board_dims_source),
+                    **_extended_kw(rt.client),
                 )
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
@@ -2529,7 +2562,7 @@ class DisplayService:
             # dispatch so a snoozed board still shows its (board-sized)
             # indicator.
             if not fit.fits:
-                page_size = size_key(*geometry_of(page))
+                page_size = page_size_label(page)
                 board_size = _board_size_key(board_dims_source)
                 mismatch = f"{active_page_id}:{page_size}->{board_size}"
                 message = "Board %s: skipping page %s - %s"
@@ -2606,12 +2639,11 @@ class DisplayService:
             # under its full frame, and a transition that steps cells or
             # integer grids (flip, cascade, a transition plugin) fades
             # instead (design section 6).
-            dims = dimensions_of(board_dims_source) if fit.face else dimensions_of(page)
+            dims, device_type = _delivery_geometry(page, board_dims_source, fit)
             if fit.face:
                 strategy = strategy_for_full_frame(strategy)
             client = rt.client
             board_array, rich = _project_page(client, result, page, dims, fit)
-            device_type = page.device_type
             sink = self._error_sink()
 
             def _after_page_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:
@@ -3077,7 +3109,12 @@ class DisplayService:
         logger.info(f"⏸️  Entering silence mode (page) - displaying {page.id}")
 
         result = page_service.preview_page(
-            page.id, force_refresh=True, contexts=contexts, **_face_kw(fit), **_extended_kw(rt.client)
+            page.id,
+            force_refresh=True,
+            contexts=contexts,
+            **_face_kw(fit),
+            **_board_kw(page, board),
+            **_extended_kw(rt.client),
         )
         if not result or not result.available:
             logger.warning("Silence page %s could not be rendered - falling back to indicator", page.id)

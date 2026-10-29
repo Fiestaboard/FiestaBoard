@@ -90,6 +90,9 @@ DEFAULT_PAGE_TEMPLATES = {
 # Backward compatibility alias
 DEFAULT_PAGE_TEMPLATE = DEFAULT_PAGE_TEMPLATES["flagship"]
 
+#: Why an update that sets a grid field on a flexible page is refused (a 400).
+FLEXIBLE_NO_GRID = "A flexible page has no grid; it fits every board"
+
 
 def page_plugin_ids(page: Page) -> set[str] | None:
     """The plugin ids a page's render reads: its template's and its canvases'.
@@ -265,6 +268,10 @@ class PageService:
         trace_phase("page_update_started")
         updates = data.model_dump(exclude_unset=True)
         expected_revision = updates.pop("expected_revision", None)
+        if any(updates.get(key) is not None for key in GEOMETRY_FIELDS):
+            existing = self.storage.get(page_id)
+            if existing is not None and is_flexible_page(existing):
+                raise ValueError(FLEXIBLE_NO_GRID)
         self._scale_canvases_on_retarget(page_id, updates)
 
         # Device/size retarget (issue #1250): re-validate the prospective page
@@ -389,8 +396,14 @@ class PageService:
             if new_active_id is None or board["id"] == settings_service.get_primary_board_id():
                 new_active_id = replacement.id
         if legacy_active and not boards:
+            # A flexible page has no size to match: any page replaces it.
             replacement = next(
-                (p for p in self.storage.list_all() if pages_compatible_with_board(p, existing_page)), None
+                (
+                    p
+                    for p in self.storage.list_all()
+                    if is_flexible_page(existing_page) or pages_compatible_with_board(p, existing_page)
+                ),
+                None,
             )
             if replacement is None:
                 replacement = self._create_replacement_page(existing_page)
@@ -406,7 +419,13 @@ class PageService:
         )
 
     def _create_replacement_page(self, geometry_source: Any) -> Page:
-        """A welcome page retaining the exact geometry of a page or board."""
+        """A welcome page retaining the exact geometry of a page or board.
+
+        A flexible page has no geometry to retain: it is replaced by the
+        default (flagship) welcome page.
+        """
+        if is_flexible_page(geometry_source):
+            return self._create_default_page()
         geometry = geometry_of(geometry_source)
         if geometry.device_type in DEFAULT_PAGE_TEMPLATES:
             return self._create_default_page(device_type=geometry.device_type)
@@ -679,14 +698,8 @@ class PageService:
 
     @staticmethod
     def _layout_board(board: Mapping[str, Any] | None) -> Mapping[str, Any]:
-        """The board a flexible page lays out for: *board*, else the primary board.
-
-        With no board configured at all, an empty entry: the flagship's
-        geometry and 6 x 22 cells.
-        """
-        if board is not None:
-            return board
-        return _find_board(None) or {}
+        """The board a flexible page lays out for (:func:`layout_board_for`)."""
+        return layout_board_for(board)
 
     def _render_flexible(
         self,
@@ -1194,6 +1207,18 @@ class BoardCompatibility:
     @property
     def ok(self) -> bool:
         return self.error is None
+
+
+def layout_board_for(board: Mapping[str, Any] | None) -> Mapping[str, Any]:
+    """The board a flexible page lays out for: *board*, else the primary board.
+
+    With no board configured at all, an empty entry: the flagship's geometry
+    and 6 x 22 cells. A send sizes its grid from this same board, so the
+    cells it projects are the ones the layout produced.
+    """
+    if board is not None:
+        return board
+    return _find_board(None) or {}
 
 
 def _find_board(board_id: str | None) -> dict | None:
