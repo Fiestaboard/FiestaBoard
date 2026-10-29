@@ -450,8 +450,10 @@ async def preview_page(
         force_refresh: If true, bypass cache and always render fresh
 
     Returns:
-        The formatted text that would be displayed, and a flexible page's
-        ``layout_issues`` (laid out for the primary board).
+        The formatted text that would be displayed. A flexible page is laid
+        out for the primary board as it draws: its ``layout_issues``, its
+        ``cells`` on an LED board and its one full frame as ``layers`` on a
+        pixel board.
     """
     page_service = get_page_service()
     settings_service = get_settings_service()
@@ -473,14 +475,38 @@ async def preview_page(
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
 
+    page = page_service.get_page(page_id)
     return PagePreviewResponse(
         page_id=page_id,
         message=result.formatted,
         lines=result.formatted.split("\n"),
         display_type=result.display_type,
         raw=result.raw,
-        **_layout_issues_field(page_service.get_page(page_id), result),
+        **_layout_issues_field(page, result),
+        **(_primary_board_frame_fields(result) if page is not None and is_flexible_page(page) else {}),
     )
+
+
+def _primary_board_frame_fields(result) -> dict:
+    """A flexible page's preview as the primary board draws it (design section 8).
+
+    ``cells`` (its text at the board's grid) when the board draws a rich
+    character set, and ``layers`` (its one full frame) on a pixel board;
+    ``{}`` on a split-flap board or with no board configured.
+    """
+    # The board the render laid out for (the service's own choice of primary).
+    board = layout_board_for(None)
+    if not board:
+        return {}
+    fields: dict = {}
+    charset = board_character_set(board)
+    if has_extended_markup(charset):
+        dims = board_context_for(*geometry_of(board))
+        cells = project_message(result.formatted, dims.rows, dims.cols, charset).cells
+        fields["cells"] = cells_to_json(cells) if cells is not None else None
+    if draws_pixels(display_profile_for_board(board)):
+        fields["layers"] = layers_json(result.layers)
+    return fields
 
 
 @router.post(

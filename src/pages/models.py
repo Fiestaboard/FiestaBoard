@@ -660,6 +660,13 @@ class PagePreviewResponse(BaseModel):
     lines: list[str]
     display_type: str
     raw: dict
+    #: A flexible page's text as rich cells at the primary board's grid,
+    #: when that board draws a rich character set (an LED output). Present
+    #: ONLY then; a grid page's response has no key.
+    cells: list[list[dict[str, Any]]] | None = None
+    #: A flexible page's one full frame when the primary board is a pixel
+    #: matrix (design section 8). Present ONLY then; draw it over ``cells``.
+    layers: list[CanvasLayerModel] | None = None
     #: What layout compromised to fit the page (design section 5 step 7).
     #: Present ONLY for a flexible page; a grid page's response has no key.
     layout_issues: list[LayoutIssueModel] | None = None

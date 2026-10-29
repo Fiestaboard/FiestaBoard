@@ -163,6 +163,10 @@
     "kind": "page",
     "test": "tests/layout/test_flexible_call_sites.py::test_retarget_skips_flexible_pages"
   },
+  "src/pages/routes.py::_primary_board_frame_fields::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
   "src/pages/routes.py::_work::geometry_of": {
     "kind": "page",
     "test": "tests/layout/test_flexible_call_sites.py::test_a_legacy_flexible_page_send_names_the_primary_boards_device_type"

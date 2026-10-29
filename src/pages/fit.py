@@ -188,6 +188,11 @@ def _flexible_fit(page: Any, board: Any) -> PageFit:
     Each non-empty ``targets`` list restricts on its own, so a page naming
     both a technology and boards shows only on listed boards of that
     technology. An empty or missing list restricts nothing.
+
+    TODO(Phase 2 / output_api 2): design section 7 also makes a flexible page
+    incompatible with a board whose output can receive neither frames nor
+    cells. Outputs declare no such capability yet, so that clause is not
+    checked here; add it once the output API exposes the seam.
     """
     targets = page.get("targets") if isinstance(page, Mapping) else getattr(page, "targets", None)
     if targets is None:

@@ -32,7 +32,7 @@ from src.layout.refs import flexible_plugin_ids
 from src.layout.target import flex_target_for
 from src.led.matrix import DEFAULT_LED_FONT, grid_layout
 from src.led.page_frame import full_frame_layer
-from src.outputs.display_profile import display_for_face
+from src.outputs.display_profile import display_for_face, display_profile_for_board
 from src.plugins.manifest import DemoPageSchema
 from src.request_trace import trace_phase
 from src.settings.service import get_settings_service
@@ -708,6 +708,23 @@ class PageService:
         """The board a flexible page lays out for (:func:`layout_board_for`)."""
         return layout_board_for(board)
 
+    @staticmethod
+    def _layout_display(layout_board: Mapping[str, Any]) -> Any:
+        """What *layout_board* draws, for a caller that named no display.
+
+        A flexible page laid out "for the primary board" must be laid out for
+        that board as it is: a frame on a pixel board, its colours and sizes
+        (design section 8). ``None`` when no board is configured or its output
+        is unknown; then the page lays out as cells.
+        """
+        if not layout_board:
+            return None
+        try:
+            return display_profile_for_board(layout_board)
+        except Exception:  # an unresolvable output lays out as cells, never fails the render
+            logger.warning("No display profile for board %s; laying out as cells", layout_board.get("id"))
+            return None
+
     def _render_flexible(
         self,
         page: Page,
@@ -719,6 +736,9 @@ class PageService:
     ) -> DisplayResult:
         """Lay a flexible page out for *board* on *display* (design sections 5 and 6).
 
+        With no *display*, the layout board's own (:meth:`_layout_display`):
+        the primary board is laid out as it draws, never as a bare cell grid.
+
         On a pixel display the laid-out frame is one opaque full-frame layer
         and ``formatted`` is the page's real text at the board's character
         grid underneath it; any other display gets the cells alone. The
@@ -728,6 +748,8 @@ class PageService:
         """
         try:
             layout_board = self._layout_board(board)
+            if display is None:
+                display = self._layout_display(layout_board)
             geometry = geometry_of(layout_board)
             plugin_ids = page_plugin_ids(page)
             if context is None and contexts is not None:

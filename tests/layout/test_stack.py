@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+import pytest
+
 from src.layout.fonts import FONT_FAMILIES, SizedFace, face_for_led_font
 from src.layout.issues import LayoutIssue
 from src.layout.measure import Glyph as MGlyph
@@ -303,6 +305,24 @@ def test_stack_never_draws_outside_its_rect():  # regions constraint
         "c2": style(height="fill"),
     }
     r = run(many, styles, Rect(10, 5, 30, 20))
+    lit = lit_pixels(r.frame(64, 64))
+    assert lit and all(10 <= x < 40 and 5 <= y < 25 for x, y in lit)
+
+
+#: Text wider and taller than the 30 x 20 rect at (10, 5), one case each:
+#: ``(markup, style overrides)``.
+OVERSIZED_TEXT = {
+    "right_aligned_ellipsis": ("W" * 40, {"align": "right", "overflow": "ellipsis"}),
+    "centred_ellipsis": ("W" * 40, {"align": "center", "overflow": "ellipsis"}),
+    "wrapped_taller_than_the_rect": (" ".join(["WWWW"] * 20), {"overflow": "wrap"}),
+    "block_span_background": ("{white/red:" + "W" * 40 + "}", {"overflow": "ellipsis"}),
+}
+
+
+@pytest.mark.parametrize("case", sorted(OVERSIZED_TEXT))
+def test_stack_never_draws_text_outside_its_rect(case):  # regions constraint, through the real fit_text
+    markup, overrides = OVERSIZED_TEXT[case]
+    r = run([text("t1", 0, markup)], {"t1": style(**overrides)}, Rect(10, 5, 30, 20))
     lit = lit_pixels(r.frame(64, 64))
     assert lit and all(10 <= x < 40 and 5 <= y < 25 for x, y in lit)
 

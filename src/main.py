@@ -3276,10 +3276,12 @@ class DisplayService:
             logger.info("Discarding message held during silence: board %s %s", board_id, why)
 
     def _held_send_content(self, held, rt: BoardRuntime) -> str | None:
-        """The board text a held send paints now, or ``None`` when it cannot render.
+        """The board text a held text, lines, grid or display send paints now,
+        or ``None`` when it cannot render.
 
-        A held page or display is an intent: it is rendered fresh here, so the
-        morning shows the morning's data. Text is word-wrapped to this
+        A held page is rendered by :meth:`_held_page_render` (with its layers
+        and transition), never here. A held display is an intent: it is
+        rendered fresh here, so the morning shows the morning's data. Text is word-wrapped to this
         board's geometry and character set (it used to be painted unwrapped,
         so everything past the first row was cut off).
         """
@@ -3300,9 +3302,6 @@ class DisplayService:
         if held.kind == "grid":
             characters = (held.payload or {}).get("characters") if isinstance(held.payload, dict) else None
             return characters_to_message(characters) if characters else None
-        if held.kind == "page":
-            rendered = self._held_page_render(held, rt)
-            return rendered.result.formatted if rendered is not None else None
         if held.kind == "display":
             from .displays.service import get_display_service
 

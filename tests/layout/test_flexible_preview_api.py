@@ -273,3 +273,42 @@ def test_unsaved_flexible_preview_renders_with_the_real_layout(client, pixoo_boa
     response = _unsaved(client, REAL_FLEX_BODY, pixoo_board_id)
     assert response.status_code == 200, response.text
     assert response.json()["layers"][0]["width"] == 64
+
+
+#: A real-layout text block asking for a size and a colour a Pixoo can draw.
+STYLED_FLEX_BODY = {
+    "name": "Styled flex",
+    "type": "flexible",
+    "blocks": [{"id": "t", "kind": "text", "text": "HELLO", "style": {"size": "large", "color": "#ff0000"}}],
+}
+
+
+@pytest.fixture
+def styled_flex_id(client) -> str:
+    return get_page_service().storage.create(Page.model_validate(STYLED_FLEX_BODY)).id
+
+
+def test_saved_flexible_page_preview_on_a_pixoo_primary_is_one_full_frame_layer(client, pixoo_board_id, styled_flex_id):
+    body = client.post(f"/pages/{styled_flex_id}/preview").json()
+    assert [(layer["width"], layer["height"]) for layer in body["layers"]] == [(64, 64)]
+
+
+def test_saved_flexible_page_preview_on_a_pixoo_primary_reports_no_cell_board_compromises(
+    client, pixoo_board_id, styled_flex_id
+):
+    body = client.post(f"/pages/{styled_flex_id}/preview").json()
+    codes = {issue["code"] for issue in body["layout_issues"]}
+    assert not codes & {"color_dropped", "size_ignored"}, body["layout_issues"]
+
+
+def test_saved_flexible_page_preview_on_a_pixoo_primary_answers_cells_at_its_grid(
+    client, pixoo_board_id, styled_flex_id
+):
+    body = client.post(f"/pages/{styled_flex_id}/preview").json()
+    assert (len(body["cells"]), len(body["cells"][0])) == (10, 16)
+
+
+def test_saved_flexible_page_preview_on_a_split_flap_primary_has_no_layers(client, styled_flex_id):
+    get_settings_service().set_boards([FLAGSHIP])
+    body = client.post(f"/pages/{styled_flex_id}/preview").json()
+    assert "layers" not in body and len(body["lines"]) == 6
