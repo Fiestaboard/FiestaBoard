@@ -120,10 +120,8 @@ describe("BoardSizeIndicator", () => {
       expect(el).toHaveAttribute("aria-label", "8 rows by 10 columns, Panel");
     });
 
-    // TODO(fiestaui-small-led-floor): un-skip after bumping @fiestaboard/ui past 8.14.2 (FiestaUI feat/small-led-floor)
-    // Skipped until @fiestaboard/ui (8.14.2) lowers its own 3 × 10 clamp to the
-    // 1 × 5 floor: the kit clamps gridRows/gridCols before this app renders them.
-    it.skip("labels a TC001's 1 × 8 grid as 1 × 8", () => {
+    // The released UI must preserve the small-LED floor used by core.
+    it("labels a TC001's 1 × 8 grid as 1 × 8", () => {
       render(<BoardSizeIndicator deviceType="panel" gridRows={1} gridCols={8} />);
       const el = screen.getByRole("img");
       expect(el).toHaveTextContent("1 × 8 · Panel");

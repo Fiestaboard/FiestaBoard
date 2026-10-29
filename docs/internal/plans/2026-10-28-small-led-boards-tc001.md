@@ -13,11 +13,11 @@
 ## Global Constraints
 
 - LED-in-pixels floor: **1 row × 5 columns**. Every non-`pixels` model keeps **3 × 15**.
-- Core work on branch `feat/small-led-boards` in worktree `/Users/jeffre/workspace/FiestaBoard-worktrees/tc001`; PR targets `main`.
-- Plugin repo: local at `/Users/jeffre/workspace/fiestaboard-output--ulanzi-tc001`, later `Fiestaboard/fiestaboard-output--ulanzi-tc001`. Do **not** create or push the GitHub repo — the coordinator does that after asking the owner.
+- Core work on branch `feat/small-led-boards` in worktree `~/workspace/FiestaBoard-worktrees/tc001`; PR targets `main`.
+- Plugin repo: local at `~/workspace/fiestaboard-output--ulanzi-tc001`, later `Fiestaboard/fiestaboard-output--ulanzi-tc001`. Do **not** create or push the GitHub repo — the coordinator does that after asking the owner.
 - Plugin id `ulanzi_tc001`, name `Ulanzi TC001 (AWTRIX NG)`, device model id `ulanzi_tc001`, version `0.1.0`, `fiestaboard_version` `>=10.2.0` (first minor after 10.1.19; coordinator confirms at release).
 - Marketplace only: no change to `FIRST_PARTY_OUTPUTS` or `outputs.lock.json`.
-- The TC002 plugin (`/private/tmp/claude-501/-Users-jeffre-workspace/a7727ccf-7573-4fb2-a70a-50ab2ca4128c/scratchpad/tc002`) is MIT © 2026 Oliver Rummeyer: keep that copyright line in the new LICENSE and credit it in the README.
+- The TC002 plugin (`a local checkout of https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002`) is MIT © 2026 Oliver Rummeyer: keep that copyright line in the new LICENSE and credit it in the README.
 - Never run Python or npm installs on the host. Core Python tests: the `fb-tc001-test` image (Task 1). Web tests: `docker compose -p fb-tc001 -f docker-compose.dev.yml --profile test run --rm web sh -c "npm ci --legacy-peer-deps && npx vitest run <files>"`.
 - Commit trailer, exactly: `Co-Authored-By: Claude <noreply@anthropic.com>`. Never `git stash` (shared across worktrees).
 - No real personal data in examples; use `192.0.2.x` addresses.
@@ -122,10 +122,10 @@ In the page-model test file: `test_a_page_at_1x8_validates` (`grid_rows=1, grid_
 
 ---
 
-## Track B — Plugin (`/Users/jeffre/workspace/fiestaboard-output--ulanzi-tc001`)
+## Track B — Plugin (`~/workspace/fiestaboard-output--ulanzi-tc001`)
 
 Tests run inside `fb-tc001-test` with both repos mounted:
-`docker run --rm -v /Users/jeffre/workspace/FiestaBoard-worktrees/tc001:/core -v "$PWD":/plugin -w /plugin fb-tc001-test ./run_tests.sh /core`
+`docker run --rm -v ~/workspace/FiestaBoard-worktrees/tc001:/core -v "$PWD":/plugin -w /plugin fb-tc001-test ./run_tests.sh /core`
 
 ### Task 4: Scaffold the repo, manifest and device model
 
