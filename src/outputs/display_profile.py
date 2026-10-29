@@ -25,6 +25,7 @@ from typing import Any
 
 from src.led.charsets import has_extended_markup, resolve_character_set, validate_message
 from src.markup import BOARD_ICONS
+from src.text_utils import count_noun
 
 from .board_profile import board_character_set, board_device_model, led_layout_choice
 from .cells import extended_markup_kw, output_character_set
@@ -203,7 +204,7 @@ class DisplayProfile:
         lines = [f"THE DISPLAY: {kind}."]
         size = []
         if self.rows and self.cols:
-            size.append(f"It shows {self.rows} rows of {self.cols} characters")
+            size.append(f"It shows {count_noun(self.rows, 'row')} of {count_noun(self.cols, 'character')}")
         if self.font is not None:
             face = "large" if self.font == "5x7" else "small"
             size.append(("in" if size else "Text is drawn in") + f" the {face} {self.font} text face")

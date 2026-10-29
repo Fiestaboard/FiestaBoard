@@ -290,8 +290,11 @@ def fetch_data(self) -> PluginResult:
   change at runtime (an LED board's text size moves a Pixoo between 10x16 and
   8x10 under `device_type` `"panel"`), and two boards of one size (a
   split-flap panel and an LED panel) draw differently.
-- **Fit 10 columns.** An LED board in its large face is as narrow as 10x4;
-  the conformance suite renders every plugin at 10x8 and 10x4.
+- **Fit 10 columns.** A Pixoo or 64x32 LED board in its large face is as
+  narrow as 10x4; the conformance suite renders every plugin at 10x8 and 10x4.
+  An LED board in pixels can be smaller still (a one-row Ulanzi TC001 is 1x8,
+  the floor is 1x5); pages for it are made for its size and anything wider or
+  taller is cut off.
 
 ### Prove it with the conformance suite
 
@@ -1244,7 +1247,7 @@ character grid comes from the device model: a `pixels` model fits as many
 glyphs of its LED font as the matrix holds (a 64×64 Pixoo at 3×5 is 10×16); a
 `panel` or `note_array` model takes `geometry` (`rows`/`cols`, or
 `notes_wide`/`notes_tall`). A model below its floor — the 3×15 Note, or
-3×10 for a `pixels` model (a 64×64 Pixoo at 5×7 is 8×10) — is refused (400),
+1×5 for a `pixels` model (a 64×64 Pixoo at 5×7 is 8×10) — is refused (400),
 never enlarged, so declare only models that reach it.
 
 **The board settings screen** is rendered from the manifest, never from
@@ -1306,7 +1309,7 @@ Every output plugin repo runs the shared conformance suite in its CI:
 from `src/outputs/conformance.py`, where `factory(board_id, config,
 transport)` just builds the plugin: the suite routes its `self.http` to the
 suite's `FakeTransport`. It checks the manifest and character set, the
-geometry floor (3×15; 3×10 for a `pixels` model), no network at import, a stable credential-free
+geometry floor (3×15; 1×5 for a `pixels` model), no network at import, a stable credential-free
 `device_key()`, the send floor, that device traffic goes through
 `self.http`, `WriteResult` shapes (including partial writes; `setup=True`
 requests are not counted as the board write), cancellation, sequence

@@ -18,6 +18,7 @@ from src.devices import DeviceType, geometry_of, resolve_dimensions
 from src.ops.teaching import TEMPLATE_FILTERS, construct_lines
 from src.templates.canvas_reference import CANVAS_RULES as CANVAS_RULES
 from src.templates.expressions import function_signatures
+from src.text_utils import count_noun
 
 if TYPE_CHECKING:
     from src.outputs.display_profile import DisplayProfile
@@ -596,24 +597,41 @@ def build_prompt(
         if tile_examples
         else "`{{filled:X}}` with X from the supported charset"
     )
+    if rows == 1:
+        # One row: wrap has nowhere to go, so never suggest it adds rows.
+        overflow_rule = (
+            f"  line would exceed {cols} chars, shorten it: the board\n  has one row, so wrap cannot add rows.\n"
+        )
+        wrap_rule = (
+            f"    - `wrap`: boolean. The board has one row, so wrap\n"
+            f"      cannot add rows: content longer than {cols} columns\n"
+            f"      is cut off. Leave it false.\n"
+        )
+    else:
+        overflow_rule = (
+            f"  line would exceed {cols} chars, either shorten it or set\n"
+            f"  `wrap: true` for that line in `line_metadata` to let it\n"
+            f"  flow across rows (this consumes additional rows; reduce\n"
+            f"  the number of other rows accordingly).\n"
+        )
+        wrap_rule = (
+            f"    - `wrap`: boolean. When true, content longer than {cols}\n"
+            f"      columns flows onto subsequent rows; the wrapped lines\n"
+            f"      consume the next blank rows in `template`.\n"
+        )
     layout_rules = (
-        f"DEVICE: {device_type} ({cols} columns x {rows} rows).\n"
-        f"- Output exactly {rows} entries in `template` (use empty\n"
+        f"DEVICE: {device_type} ({count_noun(cols, 'column')} x {count_noun(rows, 'row')}).\n"
+        f"- Output exactly {count_noun(rows, 'entry', 'entries')} in `template` (use empty\n"
         f"  strings to leave a row blank).\n"
         f"- Each line's rendered width must be <= {cols} columns. If a\n"
-        f"  line would exceed {cols} chars, either shorten it or set\n"
-        f"  `wrap: true` for that line in `line_metadata` to let it\n"
-        f"  flow across rows (this consumes additional rows; reduce\n"
-        f"  the number of other rows accordingly).\n"
-        f"- `line_metadata` must have the same length as `template`.\n"
-        f"  Each entry is `{{alignment, wrap}}`:\n"
-        f'    - `alignment`: "left" | "center" | "right" (no\n'
-        f'      "justify"). Drives how the line is positioned within\n'
+        + overflow_rule
+        + "- `line_metadata` must have the same length as `template`.\n"
+        "  Each entry is `{alignment, wrap}`:\n"
+        '    - `alignment`: "left" | "center" | "right" (no\n'
+        '      "justify"). Drives how the line is positioned within\n'
         f"      the {cols}-column row.\n"
-        f"    - `wrap`: boolean. When true, content longer than {cols}\n"
-        f"      columns flows onto subsequent rows; the wrapped lines\n"
-        f"      consume the next blank rows in `template`.\n"
-        f"  Prefer setting `alignment` over manually padding with spaces.\n"
+        + wrap_rule
+        + f"  Prefer setting `alignment` over manually padding with spaces.\n"
         f"  Use `{{{{fill_space}}}}` for left/right edges on the SAME\n"
         f"  line (e.g. `Left{{{{fill_space}}}}Right`); use\n"
         f"  `{{{{filled:X}}}}` to fill with a repeated {fill_kind}\n"

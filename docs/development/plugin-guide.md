@@ -666,8 +666,8 @@ characters in the Small (3×5) face and 8 rows of 10 in the Large (5×7) face,
 under the same board and the same `device_type` (`"panel"`). FiestaBoard moves
 the board's pages to the new size, and your plugin sees the new
 `self.board.rows` / `self.board.cols` and `self.board.display.font` on the
-very next render. Write rows that fit `cols`: an LED board can be as narrow
-as 10 columns.
+very next render. Write rows that fit `cols` and `rows`: an LED board can be
+as small as 1 row of 5 columns (a Ulanzi TC001 in the Large face).
 
 Results FiestaBoard caches for you (`refresh_seconds`) are keyed on the
 board's size and display, so a result rendered for the old size is never

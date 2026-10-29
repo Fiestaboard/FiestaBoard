@@ -84,7 +84,7 @@ _ACTION_RESULT_NOTE = (
     description=(
         "Creates a board for an installed output plugin, as one of the device models the plugin declares. "
         "The board's content grid comes from the model (for an LED matrix, as many glyphs as fit), and a "
-        "model below its minimum (3x15; 3x10 for an LED board measured in pixels) is refused, never enlarged. "
+        "model below its minimum (3x15; 1x5 for an LED board measured in pixels) is refused, never enlarged. "
         "`output_config` is checked against the plugin's settings schema. Vestaboards are added with "
         "`POST /settings/board/add` and FiestaPanels with `POST /panels`."
     ),

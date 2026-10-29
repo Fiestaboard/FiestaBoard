@@ -55,13 +55,16 @@ MAX_GRID_ROWS: int = 96
 MAX_GRID_COLS: int = 128
 
 # The floor of an LED board measured in pixels (a device model with
-# ``pixels`` geometry, src/outputs/geometry.py): 3 × 10. Its grid is how many
+# ``pixels`` geometry, src/outputs/geometry.py): 1 × 5. Its grid is how many
 # glyphs fit, so it follows the font: a Divoom Pixoo 64 in the 5x7 face is
-# 8 × 10, a 64 × 32 HUB75 or Tidbyt is 4 × 10. Pages longer than 10 columns
-# are cut off there; the owner accepts that for a face legible across a room.
-# Vestaboards, FiestaPanel autofit and every other model keep the Note floor.
-MIN_LED_GRID_ROWS: int = 3
-MIN_LED_GRID_COLS: int = 10
+# 8 × 10, a 64 × 32 HUB75 or Tidbyt is 4 × 10, and a 32 × 8 Ulanzi TC001 is
+# 1 × 8 in the 3x5 face and 1 × 5 in the 5x7 face. One word is the least a
+# page can say, so one row of five columns is the floor. Pages wider than
+# the grid are cut off there; the owner accepts that for a face legible
+# across a room. Vestaboards, FiestaPanel autofit and every other model keep
+# the Note floor.
+MIN_LED_GRID_ROWS: int = 1
+MIN_LED_GRID_COLS: int = 5
 
 # The smallest grid any board can have — the lower of the two floors on each
 # axis. Stored grids (clamp_grid) and page/template geometry are bounded by
@@ -291,7 +294,7 @@ class BoardInstance:
             self.notes_tall = 1
         if self.notes_tall > MAX_NOTES_PER_AXIS:
             self.notes_tall = MAX_NOTES_PER_AXIS
-        # A panel always carries a valid grid (clamped to the absolute 3 × 10
+        # A panel always carries a valid grid (clamped to the absolute 1 × 5
         # minimum, so an LED board's 8 × 10 is kept; a missing axis falls
         # back to the Note-sized minimum so the board still resolves); every
         # other type carries none, so a stale grid can never leak into a
@@ -598,8 +601,8 @@ def clamp_grid(
 ) -> DeviceDimensions:
     """Clamp a panel grid into [min_*, MAX_GRID_*] on each axis.
 
-    The floor defaults to the absolute minimum (ABSOLUTE_MIN_GRID_*, 3 × 10),
-    so a stored LED board's 8 × 10 grid is kept, not widened to 15. FiestaPanel
+    The floor defaults to the absolute minimum (ABSOLUTE_MIN_GRID_*, 1 × 5),
+    so a stored LED board's 1 × 8 or 8 × 10 grid is kept, not widened to 15. FiestaPanel
     autofit passes the Note floor (src/panels/autofit.py).
     """
     return DeviceDimensions(

@@ -105,7 +105,7 @@ describe("BoardSizeIndicator", () => {
     });
 
     // #2369: an LED output board's grid can be narrower than a Note (floor
-    // 3 × 10, src/devices.py). A 3 × 13 AWTRIX board was labelled 3 × 15.
+    // 1 × 5, src/devices.py). A 3 × 13 AWTRIX board was labelled 3 × 15.
     it("labels an LED panel narrower than a Note with its own grid (#2369)", () => {
       render(<BoardSizeIndicator deviceType="panel" gridRows={3} gridCols={13} />);
       const el = screen.getByRole("img");
@@ -120,9 +120,12 @@ describe("BoardSizeIndicator", () => {
       expect(el).toHaveAttribute("aria-label", "8 rows by 10 columns, Panel");
     });
 
-    it("labels the smallest LED panel, 3 × 10, as 3 × 10", () => {
-      render(<BoardSizeIndicator deviceType="panel" gridRows={3} gridCols={10} />);
-      expect(screen.getByRole("img")).toHaveTextContent("3 × 10 · Panel");
+    // The released UI must preserve the small-LED floor used by core.
+    it("labels a TC001's 1 × 8 grid as 1 × 8", () => {
+      render(<BoardSizeIndicator deviceType="panel" gridRows={1} gridCols={8} />);
+      const el = screen.getByRole("img");
+      expect(el).toHaveTextContent("1 × 8 · Panel");
+      expect(el).toHaveAttribute("aria-label", "1 row by 8 columns, Panel");
     });
   });
 
