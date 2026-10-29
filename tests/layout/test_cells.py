@@ -214,6 +214,13 @@ def test_rows_overflow_drops_lowest_priority():
     assert codes(out) == [(("blocks", "b2"), "dropped")]
 
 
+def test_shown_lists_blocks_that_take_rows_in_page_order():
+    blocks, styles = expanded(["A", "", "C", "D"], priorities=[1, None, 2, 3])
+    blocks.append(canvas("c1", 4))
+    out = lay((blocks, styles), 2, 1)
+    assert out.shown == ("b1", "b3")
+
+
 def test_rows_overflow_drops_highest_number_then_later_blocks_first():
     out = lay(expanded(["A", "B", "C"], priorities=[2, 1, 2]), 1, 1)
     assert out.lines == ("B",)

@@ -47,10 +47,14 @@ _FILL_SENTINEL_MAX = 0xF8FF
 
 @dataclass(frozen=True)
 class CellLayout:
-    """A flexible page at a character grid: exactly ``rows`` markup lines, each at most ``cols`` tiles."""
+    """A flexible page at a character grid: exactly ``rows`` markup lines, each at most ``cols`` tiles.
+
+    ``shown`` holds the ids of the blocks that take rows, in page order.
+    """
 
     lines: tuple[str, ...]
     issues: tuple[LayoutIssue, ...]
+    shown: tuple[str, ...] = ()
 
 
 def _is_sentinel(ch: str) -> bool:
@@ -193,4 +197,8 @@ def layout_cell_grid(
     for (block, lines), y in zip(entries, ys, strict=True):
         for i, line in enumerate(lines):
             grid[y + i] = _align(line, styles[block.id].align, cols)
-    return CellLayout(tuple(row or " " * cols for row in grid), tuple(issues))
+    return CellLayout(
+        tuple(row or " " * cols for row in grid),
+        tuple(issues),
+        tuple(block.id for block, _ in entries),
+    )
