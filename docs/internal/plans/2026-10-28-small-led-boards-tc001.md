@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.11, pytest (+ pytest-socket, pytest-cov); React/TypeScript + Vitest for web; AWTRIX NG HTTP API.
 
-**Spec:** `docs/superpowers/specs/2026-10-28-small-led-boards-tc001-design.md`
+**Spec:** `docs/internal/specs/2026-10-28-small-led-boards-tc001-design.md`
 
 ## Global Constraints
 
@@ -37,11 +37,13 @@
 ### Task 1: Lower the LED floor to 1 × 5 in core Python
 
 **Files:**
+
 - Modify: `src/devices.py:57-71` (constants + comment), `src/outputs/geometry.py` (module docstring, `grid_floor`/`resolve_content_grid` docstrings), `src/outputs/conformance.py:121-127` (comment)
 - Modify: `docs/development/output-plugins.md:691`, `docs/internal/reference/ARCHITECTURE.md:355-358`
 - Test: `tests/test_outputs_board_create.py`, `tests/test_page_models.py` (or the existing page-model test file — find with `grep -ln "grid_rows" tests/test_pages*.py`)
 
 **Interfaces:**
+
 - Produces: `MIN_LED_GRID_ROWS == 1`, `MIN_LED_GRID_COLS == 5`, `ABSOLUTE_MIN_GRID_ROWS == 1`, `ABSOLUTE_MIN_GRID_COLS == 5` (`src/devices.py`); `grid_floor(model)` returns `(1, 5)` for `pixels` models; conformance exports `MIN_LED_ROWS, MIN_LED_COLS == 1, 5`.
 
 - [ ] **Step 0: Build the test image** (once; reused by every core task)
@@ -54,11 +56,13 @@ COPY requirements.txt requirements-dev.txt ./
 RUN pip install -q -r requirements.txt -r requirements-dev.txt pytest-socket
 EOF
 ```
+
 Run tests with: `docker run --rm -v "$PWD":/app -w /app fb-tc001-test pytest <args>`. Baseline: `... pytest tests/test_outputs_board_create.py -q` → all pass.
 
 - [ ] **Step 1: Rewrite the floor tests to the new contract (they fail)**
 
 In `tests/test_outputs_board_create.py`:
+
 - `test_a_32x8_awtrix_is_refused_below_the_floor` → `test_a_32x8_awtrix_is_a_1x8_board`: `resolve_content_grid(_model("ulanzi_tc001_awtrix"), None, None) == (1, 8)`.
 - `test_an_led_board_below_3x10_is_still_refused` → `test_small_led_boards_clear_the_1x5_floor`, parametrized `[("ulanzi_tc001_awtrix", (1, 8)), ("max7219_4in1", (1, 8)), ("p10_hub12_32x16", (2, 5))]`, asserting the grid.
 - New `test_an_led_board_below_1x5_is_refused`: a synthetic model `{"id": "tiny", "geometry": {"kind": "pixels", "width": 16, "height": 8}, "font": "5x7", "charset": "led_5x7"}` (copy the other keys from `_model("ulanzi_tc001_awtrix")`) raises `BelowFloorError` with message exactly `"Device model 'tiny' shows 1x2 characters, below the 1x5 minimum an LED board needs, so FiestaBoard cannot create a board for it."`
@@ -82,12 +86,13 @@ In the page-model test file: `test_a_page_at_1x8_validates` (`grid_rows=1, grid_
 ### Task 2: Web mirror of the floor
 
 **Files:**
+
 - Modify: `web/src/lib/board-dimensions.ts:9-24,98` (constants + comments)
 - Test: `web/src/__tests__/board-dimensions-panel.test.ts:30-32,58-60`, `web/src/__tests__/board-size-indicator.test.tsx:107-126`
 
 **Interfaces:** Consumes Task 1's values. Produces TS `MIN_LED_GRID_ROWS = 1`, `MIN_LED_GRID_COLS = 5`, `ABSOLUTE_MIN_GRID_* = 1, 5`.
 
-- [ ] **Step 1: Update tests** — floor test expects `[1, 5]` for both pairs (title "…has a 1x5 floor…"); clamp test: `resolveDimensions("panel", 1, 1, 0, 2)` → `{ rows: 1, cols: 5 }`; new `resolveDimensions("panel", 1, 1, 1, 8)` → `{ rows: 1, cols: 8 }`; size indicator: replace the 3 × 10 case with `labels a TC001's 1 × 8 grid as 1 × 8` (`"1 × 8 · Panel"`, aria-label `"1 row by 8 columns, Panel"` — check how the component pluralises; if it says "1 rows", fix the component to singular and keep this assertion).
+- [ ] **Step 1: Update tests** — floor test expects `[1, 5]` for both pairs (title "…has a 1x5 floor…"); clamp test: `resolveDimensions("panel", 1, 1, 0, 2)` → `{ rows: 1, cols: 5 }`; new `resolveDimensions("panel", 1, 1, 1, 8)` → `{ rows: 1, cols: 8 }`; size indicator: replace the 3 × 10 case with `labels a TC001's 1 × 8 grid as 1 × 8` (`"1 × 8 · Panel"`, aria-label `"1 row by 8 columns, Panel"` — check how the component pluralizes; if it says "1 rows", fix the component to singular and keep this assertion).
 - [ ] **Step 2: Run, confirm FAIL** (expected `[3, 10]` vs `[1, 5]`).
 - [ ] **Step 3: Change the constants and comments** to mirror `src/devices.py`.
 - [ ] **Step 4: Run** the two files, then the full web suite → PASS. `grep -rn "3 × 10\|3x10\|MIN_LED" web/src` and fix any remaining 3 × 10 assumptions (e.g. `web/src/lib/panel-scale.ts:57` comment).
@@ -96,6 +101,7 @@ In the page-model test file: `test_a_page_at_1x8_validates` (`grid_rows=1, grid_
 ### Task 3: A 1-row board works end to end in the LED stack
 
 **Files:**
+
 - Test: `tests/test_small_led_boards.py` (new)
 - Modify: whatever the tests show breaking — likely in `src/led/matrix.py`, `src/led/transitions.py`, `src/outputs/board_profile.py`, `src/ai/prompt_builder.py`, page-fit/preview code; and web page editor/preview components found by `grep -rn "rows\s*[<>=-]\|\[2\]\|rows - 1" web/src/components/{pages,displays,board}*`.
 
@@ -124,10 +130,12 @@ Tests run inside `fb-tc001-test` with both repos mounted:
 ### Task 4: Scaffold the repo, manifest and device model
 
 **Files:**
+
 - Create (copied from TC002, then adapted): `__init__.py`, `manifest.json`, `output/device-models.json`, `LICENSE`, `README.md`, `CHANGELOG.md`, `package.json`, `.coveragerc`, `.gitignore`, `run_tests.sh`, `.github/workflows/ci.yml`, `tests/{__init__,conftest,mock_awtrix,test_manifest,test_conformance,test_core_driver}.py`, `tools/try_device.py`
 - Do not copy `docs/*.jpg|png` (TC002 photos).
 
 **Interfaces:**
+
 - Produces: manifest id `ulanzi_tc001`; settings identical to TC002's (host, app_name, show_on_change, duration_s, tile_gap, block_padding, fade_style, username, password) **plus** `font`: `{"type": "string", "title": "Text size", "enum": ["3x5", "5x7"], "enumNames": ["Small — 8 characters", "Large — 5 characters"], "default": "3x5"}` — match the Pixoo's key: read `FONT_CONFIG_KEY` in `src/outputs/board_profile.py` and the Divoom repo's manifest (`gh api repos/Fiestaboard/fiestaboard-output--divoom-pixoo/contents/manifest.json`) and use the same key and shape.
 - Device model `ulanzi_tc001`: label `Ulanzi TC001 (AWTRIX NG)`, `led_matrix`, family `awtrix_ng`, `pixels` 32 × 8, rgb 24, charset `led_3x5`, font `3x5`, `layoutOptions` = TC002's tileGap/blockPadding + `font: {"allowed": ["3x5", "5x7"], "default": "3x5"}`, animation stream `maxFps` 5 with notes/sources rewritten for the TC001 (no layout; one bitmap draw; 8192-byte JSON limit; RAM-only pushed apps), appearance as TC002.
 - Python class renamed `AwtrixNGTC001`; module constants `PANEL_WIDTH = 32`, `PANEL_HEIGHT = 8`.
@@ -155,7 +163,7 @@ Tests run inside `fb-tc001-test` with both repos mounted:
 **Interfaces:** Produces `_payload(pixels) -> {"draw": [["bitmap", 0, 0, 32, 8, <base64>]], ["durationMs": n]}` — no `layout` key. Before writing it, read AWTRIX NG's `docs/reference/payload.md` (draw commands) and `docs/api/openapi.yaml` (`PUT /api/v1/apps/pushed/{name}` body) from `https://github.com/Blueforcer/awtrix-ng` and match the exact field names; note in the module docstring which doc section it follows.
 
 - [ ] **Step 1: Mock** — `mock_awtrix.py` answers `GET /api/v1/device` with `boardType: "awtrixng"` and a 32-wide panel field (name per the openapi schema), rejects a JSON body over 8192 bytes with 413, and rejects a pushed app carrying `layout` with 400 (an ESP32 has none).
-- [ ] **Step 2: Tests** — `test_a_frame_is_one_bitmap_draw_without_a_layout`; `test_a_frame_body_fits_the_8192_byte_json_limit` (serialised size of a busy full-colour frame < 8192); port every TC002 write/stream/show-on-change/restart/fade/password test to the new payload and 768-byte frames.
+- [ ] **Step 2: Tests** — `test_a_frame_is_one_bitmap_draw_without_a_layout`; `test_a_frame_body_fits_the_8192_byte_json_limit` (serialized size of a busy full-colour frame < 8192); port every TC002 write/stream/show-on-change/restart/fade/password test to the new payload and 768-byte frames.
 - [ ] **Step 3:** Run → FAIL. **Step 4:** implement. **Step 5:** PASS with ≥ 80 % coverage. **Step 6:** Commit `feat: push each frame as one 32x8 bitmap`.
 
 ### Task 7: Tell a TC001 apart; discovery, tools, docs
@@ -171,7 +179,7 @@ Tests run inside `fb-tc001-test` with both repos mounted:
   - Discovery lists only 32-wide `awtrixng` devices; `try_device.py` prints 32 × 8 frames.
   - `test_conformance.py` runs core's `OutputConformanceSuite` (as TC002 does) → no violations.
 - [ ] **Step 2:** FAIL → implement → PASS (coverage ≥ 80 %).
-- [ ] **Step 3: README** — rewrite for the TC001: requirements (flash AWTRIX NG via its web installer), quick start, the Text size setting (1 row of 8 / 1 row of 5) with a short "pages for the clock" section, how it behaves, settings table, Find my clock, Test connection, removing a board, a **Verify on your clock** table (full 32 × 8 bitmap draws unscaled; what `/api/v1/device` reports; sustained fps; `enlargeApps` has no effect), development, licence + credit line: `Adapted from Oliver Rummeyer's [Ulanzi TC002 plugin](https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002) (MIT).` No photos yet (none exist).
+- [ ] **Step 3: README** — rewrite for the TC001: requirements (flash AWTRIX NG via its web installer), quick start, the Text size setting (1 row of 8 / 1 row of 5) with a short "pages for the clock" section, how it behaves, settings table, Find my clock, Test connection, removing a board, a **Verify on your clock** table (full 32 × 8 bitmap draws unscaled; what `/api/v1/device` reports; sustained fps; `enlargeApps` has no effect), development, license + credit line: `Adapted from Oliver Rummeyer's [Ulanzi TC002 plugin](https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002) (MIT).` No photos yet (none exist).
 - [ ] **Step 4:** Commit `feat: recognise a TC001, find it, and document it`.
 
 ### Task 8: Marketplace listing (after the core release) — coordinator only

@@ -13,15 +13,11 @@ function t() {
 describe("boardSizeIndicator aria messages (en)", () => {
   it("singular row: 1 row by 8 columns", () => {
     expect(t()("ariaLabel", { rows: 1, cols: 8 })).toBe("1 row by 8 columns");
-    expect(t()("ariaLabelWithLayout", { rows: 1, cols: 8, layout: "Panel" })).toBe(
-      "1 row by 8 columns, Panel",
-    );
+    expect(t()("ariaLabelWithLayout", { rows: 1, cols: 8, layout: "Panel" })).toBe("1 row by 8 columns, Panel");
   });
 
   it("plural rows: 3 rows by 13 columns", () => {
     expect(t()("ariaLabel", { rows: 3, cols: 13 })).toBe("3 rows by 13 columns");
-    expect(t()("ariaLabelWithLayout", { rows: 3, cols: 13, layout: "Panel" })).toBe(
-      "3 rows by 13 columns, Panel",
-    );
+    expect(t()("ariaLabelWithLayout", { rows: 3, cols: 13, layout: "Panel" })).toBe("3 rows by 13 columns, Panel");
   });
 });
