@@ -81,6 +81,24 @@ through v10 and removed in v11. Every response that carries them sends
 and the schema marks the typed ones `deprecated`. The same fields leave the
 MQTT `board_api_mode` entity and the MCP board tools in v11.
 
+## Flexible pages
+
+A page with `type: "flexible"` is laid out for each board it is shown on
+rather than drawn for one grid. It carries `blocks`, `style`, `layout` and an
+optional `targets`, and none of the grid fields: no `template`, `rows`,
+`line_metadata`, `canvases`, `device_type`, `notes_wide`, `notes_tall`,
+`grid_rows` or `grid_cols`. It fits every board unless its `targets` exclude
+one, so a schedule or collection may put it on any board. Its
+`document_protocol` is `page-document-v2`.
+
+This is additive. Grid pages (`template`, `single`, `composite`) read and
+write exactly as before and stay on `page-document-v1`. A client that lists
+pages will now meet pages without a `template` key, so check `type` before
+reading it. The web UI's preview responses for a flexible page add
+`layout_issues`: one entry per compromise the layout made on that board, each
+with a `path` (the block, then the style property), a `code`, a `severity`
+and a `message`.
+
 ## Authentication
 
 Off by default: a fresh install answers every request. With
@@ -362,7 +380,7 @@ While the board is silenced the page is pinned but not shown: `sent` is false, `
 
 **List saved pages**
 
-Every page saved on this install. A page is a reusable board layout — literal text, plugin variables, or rows composed from other sources — that a schedule, a collection or `POST /v1/boards/{board}/message` can refer to by id.
+Every page saved on this install. A page is a reusable board layout — literal text, plugin variables, or rows composed from other sources — that a schedule, a collection or `POST /v1/boards/{board}/message` can refer to by id. A `flexible` page has no `template`: check `type` before reading it.
 
 **Responses**
 
@@ -380,7 +398,7 @@ Every page saved on this install. A page is a reusable board layout — literal 
 
 **Create a page**
 
-Saves a new page and answers with it, including the generated `id` you refer to it by. `type` picks how it is built: `template` for text with `{{variables}}`, `single` for one plugin's output, `composite` for rows drawn from several sources. `device_type` must match the boards you intend to show it on.
+Saves a new page and answers with it, including the generated `id` you refer to it by. `type` picks how it is built: `template` for text with `{{variables}}`, `single` for one plugin's output, `composite` for rows drawn from several sources, all drawn for the board size `device_type` names; `flexible` for `blocks` laid out on each board they are shown on, with no `template` or `device_type`.
 
 **Request body** (required) — [`PageCreate`](#schema-pagecreate)
 
@@ -425,7 +443,7 @@ Saves a new page and answers with it, including the generated `id` you refer to 
 
 **Read one page**
 
-The saved page with this id, exactly as stored — its type, its device size, its template or row configuration, and its per-page transition overrides. 404 when no page has this id.
+The saved page with this id, exactly as stored — its type, its device size, its template or row configuration (or, for a `flexible` page, its `blocks`, `style`, `layout` and `targets`), and its per-page transition overrides. 404 when no page has this id.
 
 **Parameters**
 
