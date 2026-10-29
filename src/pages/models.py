@@ -526,6 +526,12 @@ class PagePreviewBatchSuccess(BaseModel):
     layers: list[CanvasLayerModel] | None = None
     #: Problems drawing those canvases. Present exactly when ``layers`` is.
     canvas_issues: list[CanvasIssueModel] | None = None
+    #: The LED text size (``"3x5"``, ``"5x7"``...) the page is drawn at on the
+    #: request's ``board_id``, when that board produces the page's grid only
+    #: at another size than its own (design section 7). ``cells`` are then
+    #: at the page's own grid, in that face's character set, and ``layers``
+    #: are its canvases on that grid. Present ONLY then.
+    face: str | None = None
 
 
 class PagePreviewBatchError(BaseModel):

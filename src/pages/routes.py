@@ -33,17 +33,20 @@ from src.board_guards import _board_dims, _board_is_paused, _find_board, _requir
 from src.canvas.schemas import issues_json, layers_json
 from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service
-from src.devices import board_context_for, geometry_of, resolve_dimensions, size_key
+from src.devices import board_context_for, dimensions_of, geometry_of, resolve_dimensions, size_key
 from src.display_runtime import get_service
-from src.led.charsets import has_extended_markup
+from src.led.charsets import BUILTIN_CHARACTER_SETS, has_extended_markup
+from src.led.matrix import led_charset_for_font
 from src.outputs.board_profile import board_character_set
 from src.outputs.cells import cells_to_json, project_for_output, project_message
 from src.outputs.display_profile import display_profile_for_board, render_kw
-from src.outputs.transitions import driver_runs_strategy
+from src.outputs.transitions import driver_runs_strategy, strategy_for_full_frame
 from src.schedules.service import get_schedule_service
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service, page_transition
 from src.text_to_board import text_to_board_array
 
+from .board_render import render_page_for_board
+from .fit import page_fit_for_board
 from .models import (
     CurrentDisplayResponse,
     IncompatibleReference,
@@ -470,6 +473,18 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
     settings_service = get_settings_service()
     active_page_id = settings_service.get_active_page_id()
     results: dict = {}
+    # The text size each page needs on a pixel board (design section 7): a
+    # page the board produces only at another face previews at that face.
+    faces: dict[str, str] = {}
+    face_grids: dict[str, tuple[int, int]] = {}
+    if board is not None and draws_pixels(display):
+        for pid in page_ids:
+            page = page_service.get_page(pid)
+            face = page_fit_for_board(page, board).face if page is not None else None
+            if face:
+                faces[pid] = face
+                page_dims = dimensions_of(page)
+                face_grids[pid] = (page_dims.rows, page_dims.cols)
 
     # Use batch preview to build template context once for all pages. One
     # worker-thread call for the whole batch — the internal context sharing
@@ -483,6 +498,7 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
         active_page_id=active_page_id,
         **({"extended_markup": True} if rich else {}),
         **({"display": display} if display is not None else {}),
+        **({"faces": faces} if faces else {}),
     )
     dims = board_context_for(*geometry_of(board)) if rich else None
 
@@ -501,7 +517,16 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
                 "raw": result.raw,
                 "available": True,
             }
-            if dims is not None:
+            face = getattr(result, "face", None)
+            if face and page_id in face_grids:
+                # Drawn at the page's own grid in its face's character set; the
+                # client draws it with that face. Its layers stay the canvases
+                # on the face grid, never the full frame (thumbnails stay light).
+                face_charset = BUILTIN_CHARACTER_SETS[led_charset_for_font(face)]
+                cells = project_message(result.formatted, *face_grids[page_id], face_charset).cells
+                results[page_id]["cells"] = cells_to_json(cells) if cells is not None else None
+                results[page_id]["face"] = face
+            elif dims is not None:
                 cells = project_message(result.formatted, dims.rows, dims.cols, charset).cells
                 results[page_id]["cells"] = cells_to_json(cells) if cells is not None else None
             if draws_pixels(display):
@@ -635,7 +660,9 @@ async def send_page(
         # A board whose output draws a rich character set renders it with its
         # extended markup (plan D19); every other board's call is unchanged.
         kw = render_kw(board_client)
-        result = page_service.preview_page(page_id, force_refresh=True, **kw)
+        # At the text size the page needs on the target board (design
+        # section 7): a face page's layers are one full-frame layer.
+        result, layers_to_send, fit = render_page_for_board(page_service, page_id, board, kw)
         pixel_board = draws_pixels(kw.get("display"))
 
         if result is None:
@@ -681,6 +708,9 @@ async def send_page(
                     runs=lambda s: driver_runs_strategy(board_client, s),
                 )
                 strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
+                if fit.face:
+                    # A per-cell transition would animate the cells under the frame.
+                    strategy = strategy_for_full_frame(strategy)
 
                 # Size the grid to the explicit target board when given (issue
                 # #1244); otherwise keep sizing to the page's device type.
@@ -689,7 +719,12 @@ async def send_page(
                 else:
                     dims = resolve_dimensions(*geometry_of(page))
                 board_array, rich = project_for_output(
-                    board_client, result.formatted, dims.rows, dims.cols, flap=text_to_board_array, layers=result.layers
+                    board_client,
+                    result.formatted,
+                    dims.rows,
+                    dims.cols,
+                    flap=text_to_board_array,
+                    layers=layers_to_send,
                 )
                 # render() serializes concurrent senders via the client's
                 # per-board send lock, so worker threads can't interleave.

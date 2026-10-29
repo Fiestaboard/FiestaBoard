@@ -44,7 +44,7 @@ from src.devices import classify_dimensions, geometry_of
 from src.display_runtime import reinitialize_board_clients, release_board_frames
 from src.outputs.cells import project_for_output
 from src.outputs.display_profile import render_kw
-from src.outputs.transitions import driver_runs_strategy
+from src.outputs.transitions import driver_runs_strategy, strategy_for_full_frame
 
 from .models import (
     ERROR_400,
@@ -725,7 +725,13 @@ async def set_active_page(request: SetActivePageRequest):
                 logger.info("Board is paused - skipping immediate active-page send")
                 paused = True
             if not silenced and not paused:
-                result = page_service.preview_page(render_page_id, force_refresh=True, **render_kw(send_client))
+                # At the text size the page needs on this board (design
+                # section 7): a face page's layers are one full-frame layer.
+                from src.pages.board_render import render_page_for_board
+
+                result, layers_to_send, fit = render_page_for_board(
+                    page_service, render_page_id, board, render_kw(send_client)
+                )
                 if result and result.available:
                     resolved = page_transition(
                         settings_service.get_transition_settings(board_id or settings_service.get_primary_board_id()),
@@ -737,6 +743,9 @@ async def set_active_page(request: SetActivePageRequest):
                         resolved.step_interval_ms,
                         resolved.step_size,
                     )
+                    if fit.face:
+                        # A per-cell transition would animate the cells under the frame.
+                        strategy = strategy_for_full_frame(strategy)
 
                     # Size the grid to the explicit target board when given
                     # (issue #1244); otherwise keep the page's device type.
@@ -750,7 +759,7 @@ async def set_active_page(request: SetActivePageRequest):
                         dims.rows,
                         dims.cols,
                         flap=text_to_board_array,
-                        layers=result.layers,
+                        layers=layers_to_send,
                     )
                     # render() serializes concurrent senders via the client's
                     # per-board send lock, so worker threads can't interleave.
