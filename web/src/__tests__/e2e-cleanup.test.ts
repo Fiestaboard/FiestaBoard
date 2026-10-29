@@ -37,13 +37,24 @@ it.each([
   await expect(cleanup({ strict: true })).rejects.toThrow(new RegExp(`GET.*${resource}.*503.*Unavailable`));
 });
 
-it("clears all-board schedule references before deleting pages and preserves the replacement Welcome", async () => {
+it("clears all-board schedule entries and defaults before deleting pages and preserves the replacement Welcome", async () => {
   const schedules = new Map([
     ["s1", "p1"],
     ["s2", "p2"],
   ]);
   const pages = new Set(["p1", "p2"]);
+  const defaults = new Map<string, string | null>([
+    ["b1", "p1"],
+    ["b2", "p2"],
+  ]);
   server.use(
+    // Board summaries list IDs, not default_page_id (only detail exposes it).
+    http.get(`${API_BASE}/v1/boards`, () => HttpResponse.json({ boards: [...defaults.keys()].map((id) => ({ id })) })),
+    http.patch(`${API_BASE}/v1/boards/:id`, async ({ params, request }) => {
+      expect(await request.json()).toEqual({ default_page_id: null });
+      defaults.set(String(params.id), null);
+      return HttpResponse.json({ id: params.id, default_page_id: null });
+    }),
     http.get(`${API_BASE}/v1/schedules`, ({ request }) => {
       // Secondary/deleted-board schedules are visible only via the all-board contract.
       const allBoards = new URL(request.url).searchParams.get("board_id") === "*";
@@ -57,7 +68,7 @@ it("clears all-board schedule references before deleting pages and preserves the
     }),
     http.get(`${API_BASE}/v1/pages`, () => HttpResponse.json({ pages: [...pages].map((id) => ({ id })) })),
     http.delete(`${API_BASE}/v1/pages/:id`, ({ params }) => {
-      if ([...schedules.values()].includes(String(params.id)))
+      if ([...schedules.values(), ...defaults.values()].includes(String(params.id)))
         return HttpResponse.json({ detail: "Page is scheduled" }, { status: 409 });
       pages.delete(String(params.id));
       if (pages.size === 0) pages.add("welcome");
@@ -66,7 +77,31 @@ it("clears all-board schedule references before deleting pages and preserves the
   );
   await deleteAllPages({ strict: true, deleteSchedules: true });
   expect([...schedules]).toEqual([]);
+  expect([...defaults.values()]).toEqual([null, null]);
   expect([...pages]).toEqual(["welcome"]);
+});
+
+it.each(["listing boards", "clearing defaults"])("stops page cleanup if %s fails", async (failure) => {
+  let listedPages = false;
+  server.use(
+    http.get(`${API_BASE}/v1/schedules`, () => HttpResponse.json({ schedules: [] })),
+    http.get(`${API_BASE}/v1/boards`, () =>
+      failure === "listing boards"
+        ? HttpResponse.json({ detail: "Board storage unavailable" }, { status: 503 })
+        : HttpResponse.json({ boards: [{ id: "b1" }] }),
+    ),
+    http.patch(`${API_BASE}/v1/boards/b1`, () =>
+      HttpResponse.json({ detail: "Board storage unavailable" }, { status: 503 }),
+    ),
+    http.get(`${API_BASE}/v1/pages`, () => {
+      listedPages = true;
+      return HttpResponse.json({ pages: [] });
+    }),
+  );
+  await expect(deleteAllPages({ strict: true, deleteSchedules: true })).rejects.toThrow(
+    /(?:GET|PATCH).*v1\/boards.*503.*Board storage unavailable/,
+  );
+  expect(listedPages).toBe(false);
 });
 
 it("stops page cleanup if unlinking schedules fails", async () => {
@@ -92,4 +127,25 @@ it("preserves legacy best-effort cleanup for callers that do not opt into strict
     http.delete(`${API_BASE}/v1/pages/p1`, () => HttpResponse.json({ detail: "Page is scheduled" }, { status: 409 })),
   );
   await expect(deleteAllPages()).resolves.toBeUndefined();
+});
+
+it.each([false, true])("preserves schedule defaults without deleteSchedules (strict: %s)", async (strict) => {
+  let defaultPage: string | null = "p1";
+  server.use(
+    http.get(`${API_BASE}/v1/boards`, () => HttpResponse.json({ boards: [{ id: "b1" }] })),
+    http.patch(`${API_BASE}/v1/boards/b1`, () => {
+      defaultPage = null;
+      return HttpResponse.json({ id: "b1", default_page_id: null });
+    }),
+    http.get(`${API_BASE}/v1/pages`, () => HttpResponse.json({ pages: [{ id: "p1" }] })),
+    http.delete(`${API_BASE}/v1/pages/p1`, () =>
+      defaultPage
+        ? HttpResponse.json({ detail: "Page is a schedule default" }, { status: 409 })
+        : new HttpResponse(null, { status: 204 }),
+    ),
+  );
+  const cleanup = deleteAllPages({ strict });
+  if (strict) await expect(cleanup).rejects.toThrow("Page is a schedule default");
+  else await expect(cleanup).resolves.toBeUndefined();
+  expect(defaultPage).toBe("p1");
 });
