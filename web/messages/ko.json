@@ -1273,7 +1273,11 @@
     "notesTallLabel": "Note 세로 수",
     "customRangeError": "각 치수는 1에서 {max} 사이여야 합니다.",
     "resizeMovedPages": "보드의 새 크기에 맞게 페이지를 옮겼습니다: {pages}.",
-    "resizeStaleRefs": "보드의 새 크기에 다음 페이지가 더 이상 맞지 않습니다: {pages}. 편집하지 않으면 이 보드에 표시되지 않습니다."
+    "resizeStaleRefs": "보드의 새 크기에 다음 페이지가 더 이상 맞지 않습니다: {pages}. 편집하지 않으면 이 보드에 표시되지 않습니다.",
+    "leftBehind": {
+      "title": "이 디스플레이에 더 이상 표시되지 않는 페이지",
+      "description": "크기 변경으로 이 페이지들이 남겨졌습니다. 이 디스플레이에 맞게 편집하거나 다른 디스플레이에 표시하세요."
+    }
   },
   "displays": {
     "title": "디스플레이",
@@ -2711,6 +2715,8 @@
     "dismissFailed": "닫지 못했습니다. 다시 시도하세요."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "새 페이지가 시작하는 크기입니다. 다른 크기로 만든 페이지도 자체 크기로 계속 표시됩니다.",
+    "textSizeFadeNote": "다른 글자 크기의 페이지는 페이드로 전환됩니다. 플립, 캐스케이드 및 전환 플러그인에는 디스플레이 자체의 글자 크기가 필요합니다.",
     "noDevicesFound": "기기를 찾지 못했습니다. 주소를 직접 입력하세요.",
     "devicesFoundLabel": "{field}에서 찾은 기기",
     "subnetLabel": "검색할 네트워크(선택 사항)",

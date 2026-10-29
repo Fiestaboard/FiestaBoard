@@ -1273,7 +1273,11 @@
     "notesTallLabel": "Note 高度",
     "customRangeError": "每个尺寸必须介于 1 和 {max} 之间。",
     "resizeMovedPages": "已将页面调整为看板的新尺寸：{pages}。",
-    "resizeStaleRefs": "看板的新尺寸已无法容纳这些页面：{pages}。请编辑它们，否则它们不会在此看板上显示。"
+    "resizeStaleRefs": "看板的新尺寸已无法容纳这些页面：{pages}。请编辑它们，否则它们不会在此看板上显示。",
+    "leftBehind": {
+      "title": "此显示屏不再显示的页面",
+      "description": "尺寸更改后，这些页面被留下了。编辑页面以适配此显示屏，或在其他显示屏上显示。"
+    }
   },
   "displays": {
     "title": "显示设备",
@@ -2711,6 +2715,8 @@
     "dismissFailed": "无法关闭，请重试。"
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "新页面的起始尺寸。以另一种尺寸制作的页面仍会按其自身尺寸显示。",
+    "textSizeFadeNote": "另一种文字大小的页面以淡入淡出切换。翻牌、级联和过渡插件需要显示屏自身的文字大小。",
     "noDevicesFound": "未找到设备。请手动输入地址。",
     "devicesFoundLabel": "为 {field} 找到的设备",
     "subnetLabel": "要搜索的网络（可选）",

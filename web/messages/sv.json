@@ -1273,7 +1273,11 @@
     "notesTallLabel": "Notes höga",
     "customRangeError": "Varje dimension måste vara mellan 1 och {max}.",
     "resizeMovedPages": "Sidor flyttade till tavlans nya storlek: {pages}.",
-    "resizeStaleRefs": "Tavlans nya storlek passar inte längre de här sidorna: {pages}. Redigera dem, annars visas de inte på den här tavlan."
+    "resizeStaleRefs": "Tavlans nya storlek passar inte längre de här sidorna: {pages}. Redigera dem, annars visas de inte på den här tavlan.",
+    "leftBehind": {
+      "title": "Sidor som den här skärmen inte längre visar",
+      "description": "En storleksändring lämnade kvar de här sidorna. Redigera en så att den passar skärmen, eller visa den på en annan."
+    }
   },
   "displays": {
     "title": "Skärmar",
@@ -2711,6 +2715,8 @@
     "dismissFailed": "Det gick inte att stänga. Försök igen."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "Storleken nya sidor börjar med. Sidor gjorda i den andra storleken visas fortfarande, i sin egen storlek.",
+    "textSizeFadeNote": "Sidor i den andra textstorleken byts med Tona. Vändning, Kaskad och övergångsplugins behöver skärmens egen textstorlek.",
     "noDevicesFound": "Inga enheter hittades. Ange adressen själv.",
     "devicesFoundLabel": "Hittade enheter för {field}",
     "subnetLabel": "Nätverk att söka i (valfritt)",

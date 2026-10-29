@@ -1273,7 +1273,11 @@
     "notesTallLabel": "Notes en hauteur",
     "customRangeError": "Chaque dimension doit être comprise entre 1 et {max}.",
     "resizeMovedPages": "Pages adaptées à la nouvelle taille du tableau : {pages}.",
-    "resizeStaleRefs": "La nouvelle taille du tableau ne convient plus à ces pages : {pages}. Modifiez-les, sinon elles ne s'afficheront pas sur ce tableau."
+    "resizeStaleRefs": "La nouvelle taille du tableau ne convient plus à ces pages : {pages}. Modifiez-les, sinon elles ne s'afficheront pas sur ce tableau.",
+    "leftBehind": {
+      "title": "Pages que cet affichage ne montre plus",
+      "description": "Un changement de taille a laissé ces pages de côté. Modifiez-en une pour l'adapter à cet affichage, ou montrez-la sur un autre."
+    }
   },
   "displays": {
     "title": "Écrans",
@@ -2711,6 +2715,8 @@
     "dismissFailed": "Impossible d'ignorer. Réessayez."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "La taille de départ des nouvelles pages. Les pages créées dans l'autre taille s'affichent toujours, à leur propre taille.",
+    "textSizeFadeNote": "Les pages dans l'autre taille de texte changent en fondu. Retournement, Cascade et les plugins de transition ont besoin de la taille de texte de l'affichage.",
     "noDevicesFound": "Aucun appareil trouvé. Saisissez l'adresse vous-même.",
     "devicesFoundLabel": "Appareils trouvés pour {field}",
     "subnetLabel": "Réseau à analyser (facultatif)",

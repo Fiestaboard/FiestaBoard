@@ -1273,7 +1273,11 @@
     "notesTallLabel": "Notes in altezza",
     "customRangeError": "Ogni dimensione deve essere compresa tra 1 e {max}.",
     "resizeMovedPages": "Pagine adattate alla nuova dimensione della bacheca: {pages}.",
-    "resizeStaleRefs": "La nuova dimensione della bacheca non è più adatta a queste pagine: {pages}. Modificale o non verranno mostrate su questa bacheca."
+    "resizeStaleRefs": "La nuova dimensione della bacheca non è più adatta a queste pagine: {pages}. Modificale o non verranno mostrate su questa bacheca.",
+    "leftBehind": {
+      "title": "Pagine che questo display non mostra più",
+      "description": "Un cambio di dimensione ha lasciato indietro queste pagine. Modificane una per adattarla a questo display o mostrala su un altro."
+    }
   },
   "displays": {
     "title": "Schermi",
@@ -2711,6 +2715,8 @@
     "dismissFailed": "Impossibile chiudere. Riprova."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "La dimensione con cui iniziano le nuove pagine. Le pagine create nell'altra dimensione si vedono ancora, alla loro dimensione.",
+    "textSizeFadeNote": "Le pagine nell'altra dimensione del testo cambiano in dissolvenza. Ribaltamento, Cascata e i plugin di transizione richiedono la dimensione del testo del display.",
     "noDevicesFound": "Nessun dispositivo trovato. Inserisci l'indirizzo manualmente.",
     "devicesFoundLabel": "Dispositivi trovati per {field}",
     "subnetLabel": "Rete da cercare (facoltativo)",

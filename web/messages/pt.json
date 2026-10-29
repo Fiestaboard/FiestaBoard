@@ -1273,7 +1273,11 @@
     "notesTallLabel": "Notes de altura",
     "customRangeError": "Cada dimensão deve estar entre 1 e {max}.",
     "resizeMovedPages": "Páginas ajustadas ao novo tamanho do painel: {pages}.",
-    "resizeStaleRefs": "O novo tamanho do painel não comporta mais estas páginas: {pages}. Edite-as ou elas não serão exibidas neste painel."
+    "resizeStaleRefs": "O novo tamanho do painel não comporta mais estas páginas: {pages}. Edite-as ou elas não serão exibidas neste painel.",
+    "leftBehind": {
+      "title": "Páginas que esta tela não mostra mais",
+      "description": "Uma mudança de tamanho deixou estas páginas para trás. Edite uma para caber nesta tela ou mostre-a em outra."
+    }
   },
   "displays": {
     "title": "Ecrãs",
@@ -2711,6 +2715,8 @@
     "dismissFailed": "Não foi possível dispensar. Tente novamente."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "O tamanho com que as novas páginas começam. Páginas feitas no outro tamanho continuam aparecendo, no próprio tamanho.",
+    "textSizeFadeNote": "Páginas no outro tamanho de texto mudam com Esmaecer. Virar, Cascata e plugins de transição precisam do tamanho de texto da própria tela.",
     "noDevicesFound": "Nenhum dispositivo encontrado. Digite o endereço manualmente.",
     "devicesFoundLabel": "Dispositivos encontrados para {field}",
     "subnetLabel": "Rede a pesquisar (opcional)",

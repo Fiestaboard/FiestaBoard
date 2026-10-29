@@ -1273,7 +1273,11 @@
     "notesTallLabel": "Notes hoog",
     "customRangeError": "Elke dimensie moet tussen 1 en {max} liggen.",
     "resizeMovedPages": "Pagina's aangepast aan het nieuwe formaat van het bord: {pages}.",
-    "resizeStaleRefs": "Het nieuwe formaat van het bord past niet meer bij deze pagina's: {pages}. Bewerk ze, anders worden ze niet op dit bord getoond."
+    "resizeStaleRefs": "Het nieuwe formaat van het bord past niet meer bij deze pagina's: {pages}. Bewerk ze, anders worden ze niet op dit bord getoond.",
+    "leftBehind": {
+      "title": "Pagina's die dit scherm niet meer toont",
+      "description": "Een formaatwijziging heeft deze pagina's achtergelaten. Bewerk er een zodat hij op dit scherm past, of toon hem op een ander scherm."
+    }
   },
   "displays": {
     "title": "Schermen",
@@ -2711,6 +2715,8 @@
     "dismissFailed": "Sluiten mislukt. Probeer het opnieuw."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "Het formaat waarmee nieuwe pagina's beginnen. Pagina's in het andere formaat worden nog steeds getoond, op hun eigen formaat.",
+    "textSizeFadeNote": "Pagina's in de andere tekstgrootte wisselen met Vervagen. Omklappen, Cascade en overgangsplug-ins hebben de eigen tekstgrootte van het scherm nodig.",
     "noDevicesFound": "Geen apparaten gevonden. Voer het adres zelf in.",
     "devicesFoundLabel": "Gevonden apparaten voor {field}",
     "subnetLabel": "Netwerk om te doorzoeken (optioneel)",

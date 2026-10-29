@@ -1229,7 +1229,11 @@
     "notesTallLabel": "Notes tall",
     "customRangeError": "Each dimension must be between 1 and {max}.",
     "resizeMovedPages": "Pages moved to the board's new size: {pages}.",
-    "resizeStaleRefs": "The board's new size no longer fits these pages: {pages}. Edit them or they won't display on this board."
+    "resizeStaleRefs": "The board's new size no longer fits these pages: {pages}. Edit them or they won't display on this board.",
+    "leftBehind": {
+      "title": "Pages this display no longer shows",
+      "description": "A size change left these pages behind. Edit one to fit this display, or show it on another."
+    }
   },
   "displays": {
     "title": "Displays",
@@ -2711,6 +2715,8 @@
     "dismissFailed": "Could not dismiss. Try again."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "The size new pages start at. Pages made at the other size still show, at their own size.",
+    "textSizeFadeNote": "Pages at the other text size change with Fade. Flip, Cascade and transition plugins need the display's own text size.",
     "noDevicesFound": "No devices found. Enter the address yourself.",
     "devicesFoundLabel": "Devices found for {field}",
     "subnetLabel": "Network to search (optional)",
