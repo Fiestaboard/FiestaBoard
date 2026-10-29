@@ -19,7 +19,7 @@ from .models import Page, PageUpdate
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 6
+CURRENT_SCHEMA_VERSION = 7
 
 
 # Mapping from obsolete plugin id (used in template variable references,
@@ -233,6 +233,21 @@ def _migrate_v5_to_v6(pages_data: list[dict]) -> int:
     return migrated
 
 
+def _migrate_v6_to_v7(pages_data: list[dict]) -> int:
+    """Migration 6 -> 7: no-op; the bump makes older builds refuse a file holding flexible pages.
+
+    Schema v7 adds the ``flexible`` page type (``style``, ``layout``,
+    ``blocks``, ``targets``). No page before this version is flexible, so
+    nothing is rewritten. The version stamp alone is what makes a v6 build's
+    ``JsonStore`` refuse the file instead of mangling flexible pages.
+
+    Idempotent: touches no page.
+    """
+    migrated = 0
+    logger.info("Pages migration v6 -> v7: %d page(s)", migrated)
+    return migrated
+
+
 # Ordered list of (target_version, migration_function).
 # Each function receives the raw pages list and returns the number of pages affected.
 MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
@@ -242,6 +257,7 @@ MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
     (4, _migrate_v3_to_v4),
     (5, _migrate_v4_to_v5),
     (6, _migrate_v5_to_v6),
+    (7, _migrate_v6_to_v7),
 ]
 
 
