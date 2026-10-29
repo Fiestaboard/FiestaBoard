@@ -935,12 +935,18 @@ def pages_compatible_with_board(page, board) -> bool:
     arrays, split-flap and FiestaPanel boards must match the resolved grid
     exactly. Both arguments may be Page/BoardInstance objects or raw board
     dicts.
+
+    A flexible page has no grid: it fits every board unless its ``targets``
+    exclude it, decided by :func:`~src.pages.fit.page_fit_for_board` before
+    any size comparison.
     """
-    if size_key(*geometry_of(page)) == size_key(*geometry_of(board)):
-        return True
     # Lazy: src.pages imports src.devices.
     from src.pages.fit import page_fit_for_board
 
+    if is_flexible_page(page):
+        return page_fit_for_board(page, board).fits
+    if size_key(*geometry_of(page)) == size_key(*geometry_of(board)):
+        return True
     return page_fit_for_board(page, board).fits
 
 

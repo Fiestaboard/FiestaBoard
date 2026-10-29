@@ -9,6 +9,10 @@ at that face. Anything else does not fit, with a plain reason.
 
 The family rule holds: only ``panel`` pages can match another face's grid,
 so a flagship page never fits an LED board, even one at 6 x 22.
+
+A flexible page has no grid and fits every board (spec section 7); only its
+optional ``targets`` narrows that, by board technology or by board id. Text
+size never enters into it.
 """
 
 from __future__ import annotations
@@ -18,7 +22,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from src.devices import BoardInstance, dimensions_of, geometry_of, resolve_dimensions, size_key
+from src.devices import (
+    BoardInstance,
+    dimensions_of,
+    geometry_of,
+    is_flexible_page,
+    resolve_dimensions,
+    size_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +88,12 @@ def page_fit_for_board(page: Any, board: Any) -> PageFit:
     other object (a Page, say) gets the exact :func:`size_key` rule. A board
     whose producible grids cannot be read (its output is not installed, or
     resolving them fails) falls back to the exact rule too.
+
+    A flexible page fits every board unless its ``targets`` exclude it
+    (:func:`_flexible_fit`); it never reaches the grid rule.
     """
+    if is_flexible_page(page):
+        return _flexible_fit(page, board)
     if size_key(*geometry_of(page)) == size_key(*geometry_of(board)):
         return PageFit(True, None, None)
     mapping = _board_mapping(board)
@@ -105,3 +121,68 @@ def _face_for(page: Any, board: Mapping[str, Any]) -> str | None:
         if grid == (dims.rows, dims.cols) and face != current:
             return face
     return None
+
+
+#: How a ``targets.technology`` restriction reads in a refusal: "LED displays".
+_TECHNOLOGY_NOUNS = {
+    "led_matrix": "LED displays",
+    "split_flap": "split-flap boards",
+    "screen": "screens",
+}
+LISTED_BOARDS_REASON = "This page is set to show only on the boards it lists"
+
+
+def board_technology(board: Any) -> str:
+    """What kind of display *board* is: ``"led_matrix"``, ``"split_flap"``, ...
+
+    The board's :class:`~src.outputs.display_profile.DisplayProfile`
+    technology when its device model is known; otherwise ``"split_flap"`` for
+    the Vestaboard and FiestaPanel outputs, else ``"unknown"``.
+    """
+    from src.outputs.display_profile import display_profile_for_board
+    from src.outputs.registry import FIRST_PARTY_OUTPUTS, resolve_output_id
+
+    mapping = _board_mapping(board)
+    if mapping is None:
+        return "unknown"
+    try:
+        profile = display_profile_for_board(mapping)
+    except Exception:
+        logger.warning("Could not read a board's display profile; guessing its technology", exc_info=True)
+        profile = None
+    if profile is not None:
+        return profile.technology
+    if resolve_output_id(mapping) in FIRST_PARTY_OUTPUTS:
+        return "split_flap"
+    return "unknown"
+
+
+def _targets_field(targets: Any, name: str) -> list[str] | None:
+    value = targets.get(name) if isinstance(targets, Mapping) else getattr(targets, name, None)
+    return list(value) if value else None
+
+
+def _technology_reason(technologies: list[str]) -> str:
+    nouns = [_TECHNOLOGY_NOUNS.get(tech, f"{tech} displays") for tech in technologies]
+    return f"This page is set to show only on {' or '.join(nouns)}"
+
+
+def _flexible_fit(page: Any, board: Any) -> PageFit:
+    """A flexible page fits *board* unless its ``targets`` exclude it.
+
+    Each non-empty ``targets`` list restricts on its own, so a page naming
+    both a technology and boards shows only on listed boards of that
+    technology. An empty or missing list restricts nothing.
+    """
+    targets = page.get("targets") if isinstance(page, Mapping) else getattr(page, "targets", None)
+    if targets is None:
+        return PageFit(True, None, None)
+    technologies = _targets_field(targets, "technology")
+    if technologies is not None and board_technology(board) not in technologies:
+        return PageFit(False, None, _technology_reason(technologies))
+    board_ids = _targets_field(targets, "boards")
+    if board_ids is not None:
+        mapping = _board_mapping(board)
+        if mapping is None or mapping.get("id") not in board_ids:
+            return PageFit(False, None, LISTED_BOARDS_REASON)
+    return PageFit(True, None, None)

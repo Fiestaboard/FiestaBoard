@@ -33,11 +33,11 @@
   },
   "src/devices.py::pages_compatible_with_board::geometry_of": {
     "kind": "page",
-    "test": null
+    "test": "tests/layout/test_flexible_fit.py::test_flexible_page_is_compatible_with_a_split_flap_board"
   },
   "src/devices.py::pages_compatible_with_board::size_key": {
     "kind": "page",
-    "test": null
+    "test": "tests/layout/test_flexible_fit.py::test_flexible_page_is_compatible_with_a_split_flap_board"
   },
   "src/display_runtime.py::_get_first_board_dims::dimensions_of": {
     "kind": "board",
@@ -145,11 +145,11 @@
   },
   "src/pages/fit.py::page_fit_for_board::geometry_of": {
     "kind": "page",
-    "test": null
+    "test": "tests/layout/test_flexible_fit.py::test_flexible_page_fits_a_split_flap_board"
   },
   "src/pages/fit.py::page_fit_for_board::size_key": {
     "kind": "page",
-    "test": null
+    "test": "tests/layout/test_flexible_fit.py::test_flexible_page_fits_a_split_flap_board"
   },
   "src/pages/retarget.py::add_resize::geometry_of": {
     "kind": "board",
