@@ -1,9 +1,12 @@
 """Move pages sized for a board's old grid onto its new one.
 
 A board's grid can change in place: a FiestaPanel is re-fit to its TV
-(:mod:`src.panels.reconcile`), and an LED board's text size switches a Pixoo
-between 10 x 16 (Small, 3x5) and 8 x 10 (Large, 5x7). Pages are authored for a
-size, so without this every page the board showed would stop fitting it.
+(:mod:`src.panels.reconcile`), and an output-plugin board can change model.
+Pages are authored for a size, so without this every page the board showed
+would stop fitting it. (An LED board's text size switch, 10 x 16 to 8 x 10 on
+a Pixoo, moves nothing: the board still produces the old grid and draws those
+pages at their own size; design section 7.) :func:`pages_left_behind` names
+the pages a resize leaves not fitting.
 
 :func:`retarget_pages` moves every page sized exactly for a resized board's old
 grid onto its new one, unless something else still needs the old size:
@@ -100,3 +103,42 @@ def retarget_pages(resizes: Resizes, remaining_keys: set[str], *, allow_shrink: 
 def _old_dims(moves: list[tuple[Geometry, Geometry]]):
     for old, _new in moves:
         yield resolve_dimensions(*old)
+
+
+def pages_left_behind(resized: list[tuple[dict, dict]], moved_ids: set[str]) -> list[dict[str, Any]]:
+    """The pages each resize in *resized* left behind (design section 7).
+
+    A page is left behind by a ``(old, new)`` board resize when it was sized
+    for the old board's grid (its :func:`size_key` equals the old board's),
+    was not moved (its id is not in *moved_ids*), and does not fit the new
+    board (:func:`~src.pages.fit.page_fit_for_board`). Returns one
+    ``{board_id, board_name, page_id, page_name, page_size, reason}`` per
+    page and board, ``reason`` in the page picker's words.
+    """
+    from src.pages.fit import page_fit_for_board
+    from src.pages.service import get_page_service
+
+    if not resized:
+        return []
+    pages = [page for page in get_page_service().list_pages() if page.id not in moved_ids]
+    left: list[dict[str, Any]] = []
+    for old, new in resized:
+        old_key = size_key(*geometry_of(old))
+        for page in pages:
+            page_key = size_key(*geometry_of(page))
+            if page_key != old_key:
+                continue
+            fit = page_fit_for_board(page, new)
+            if fit.fits:
+                continue
+            left.append(
+                {
+                    "board_id": new.get("id") or "",
+                    "board_name": new.get("name") or "",
+                    "page_id": page.id,
+                    "page_name": page.name,
+                    "page_size": page_key,
+                    "reason": fit.reason,
+                }
+            )
+    return left

@@ -362,10 +362,18 @@ class BoardSettings:
         FiestaPanel's, a plugin's own) -- is added only then. ``led_layout``
         -- an LED board's resolved ``tile_gap`` / ``block_padding`` (plan
         D23), what its preview must draw to match the device -- is added only
-        for an LED board.
+        for an LED board. ``producible_grids`` -- ``{face: [rows, cols]}``,
+        the grid the board draws at each text size it allows (design section
+        7: a grid page fits at any of them) -- is added only for a board that
+        has a choice of grids to report (:func:`board_producible_grids`).
         """
         from src.devices import LEGACY_CONNECTION_FIELDS
-        from src.outputs.board_profile import board_led_layout, board_model_spec, board_profile
+        from src.outputs.board_profile import (
+            board_led_layout,
+            board_model_spec,
+            board_producible_grids,
+            board_profile,
+        )
         from src.outputs.config_hooks import mask_config, mask_flat_fields
         from src.settings.board_shape import FIESTAPANEL, board_view
 
@@ -379,6 +387,9 @@ class BoardSettings:
         led_layout = board_led_layout(board)
         if led_layout is not None:
             masked["led_layout"] = led_layout
+        grids = board_producible_grids(board)
+        if grids is not None:
+            masked["producible_grids"] = {face: list(grid) for face, grid in grids.items()}
         if output_id != FIESTAPANEL:
             masked["output_config"] = mask_config(output_id, masked["output_config"])
         return masked

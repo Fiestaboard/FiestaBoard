@@ -1194,28 +1194,37 @@ def _resized_boards(before: list[dict], after: list[dict]) -> list[tuple[dict, d
 
 
 def _follow_resized_boards(resized: list[tuple[dict, dict]], boards: list[dict]) -> dict[str, list[dict]]:
-    """Retarget pages after a resize; the references that still do not fit.
+    """Retarget pages after a resize; the references and pages that no longer fit.
 
     Only an output-plugin board's pages follow it: its grid is set by its
     device model and text size, which the user just chose. A Vestaboard or
-    FiestaPanel resize stays warn-only (issue #1250), as it was.
+    FiestaPanel resize stays warn-only (issue #1250), as it was. A board that
+    can still produce its old grid (an LED board's text size switch: the
+    board draws its old pages at their own size, design section 7) moves
+    nothing. Pages sized for a board's old grid that were not moved and no
+    longer fit it are listed (``left_behind_pages``).
     """
-    from src.devices import BUILTIN_OUTPUT_IDS, size_key
+    from src.devices import BUILTIN_OUTPUT_IDS, pages_compatible_with_board, size_key
     from src.outputs.registry import resolve_output_id
-    from src.pages.retarget import add_resize, retarget_pages
+    from src.pages.retarget import add_resize, pages_left_behind, retarget_pages
     from src.pages.service import find_incompatible_board_references
 
     resizes: dict = {}
     for old, new in resized:
-        if resolve_output_id(new) not in BUILTIN_OUTPUT_IDS:
-            add_resize(resizes, old, new)
+        if resolve_output_id(new) in BUILTIN_OUTPUT_IDS or pages_compatible_with_board(old, new):
+            continue
+        add_resize(resizes, old, new)
     moved = retarget_pages(resizes, {size_key(*geometry_of(b)) for b in boards}, allow_shrink=True) if resizes else []
     incompatible = [
         {"board_id": new.get("id") or "", "board_name": new.get("name") or "", **ref}
         for _old, new in resized
         for ref in find_incompatible_board_references(new)
     ]
-    return {"retargeted_pages": moved, "incompatible_references": incompatible}
+    return {
+        "retargeted_pages": moved,
+        "incompatible_references": incompatible,
+        "left_behind_pages": pages_left_behind(resized, {m["page_id"] for m in moved}),
+    }
 
 
 @router.post(

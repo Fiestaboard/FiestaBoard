@@ -12,10 +12,11 @@ the 3x5 one. The board's choice lives in ``output_config.font``. Pinned here:
   the face is written into ``output_config``;
 - **switching** rewrites the grid from the face, whatever grid the client
   echoes; ``PUT /settings/board`` releases the board's frames before its
-  client is rebuilt, moves pages sized for the old grid onto the new one, and
-  reports the references that no longer fit;
-- **plugins** see the new size and face on the very next render, and a result
-  cached for the old size is never served for the new one.
+  client is rebuilt and leaves pages at their own size: the board can still
+  produce the old grid, so those pages draw at the old face (design section
+  7) and nothing is moved, reported or left behind;
+- **plugins** rendering for a page see the page's own size and face, and a
+  page at the board's new grid renders at the new size and face.
 """
 
 from __future__ import annotations
@@ -300,18 +301,14 @@ class TestSwitch:
         assert (stored["grid_rows"], stored["grid_cols"]) == (10, 16)
         assert "font" not in stored["output_config"]
 
-    def test_pages_sized_for_the_old_grid_follow_the_board_both_ways(self, pixoo_output, client):
+    def test_a_text_size_switch_leaves_pages_at_their_own_size(self, pixoo_output, client):
         board_id = _create(client, font="3x5")
         page_id = _page(10, 16)
-        other = _page(6, 22, name="Flagship page")
         body = _switch(client, board_id, "5x7")
-        assert _page_grid(page_id) == ("panel", 8, 10)
-        assert _page_grid(other) == ("panel", 6, 22)
-        assert [p["page_id"] for p in body["retargeted_pages"]] == [page_id]
-        _switch(client, board_id, "3x5")
-        assert _page_grid(page_id) == ("panel", 10, 16)
+        assert _page_grid(page_id) == ("panel", 10, 16) and body["retargeted_pages"] == []
+        assert body["incompatible_references"] == [] and body["left_behind_pages"] == []
 
-    def test_pages_stay_when_another_board_still_has_the_old_size(self, pixoo_output, client):
+    def test_a_page_at_the_old_size_stays_active_after_a_switch(self, pixoo_output, client):
         first = _create(client, font="3x5")
         _create(client, font="3x5")
         page_id = _page(10, 16)
@@ -319,9 +316,7 @@ class TestSwitch:
         body = _switch(client, first, "5x7")
         assert _page_grid(page_id) == ("panel", 10, 16)
         assert body["retargeted_pages"] == []
-        assert [(r["page_id"], r["surface"], r["board_id"]) for r in body["incompatible_references"]] == [
-            (page_id, "active_page", first)
-        ]
+        assert body["incompatible_references"] == []
 
     def test_a_switched_board_releases_its_frames_before_its_client_is_rebuilt(self, pixoo_output, client, runtime):
         board_id = _create(client, font="3x5")
@@ -401,36 +396,33 @@ class TestPluginContract:
         assert response.status_code == 200, response.text
         return response.json()["previews"][page_id]["message"]
 
-    def test_a_plugin_sees_the_new_size_and_face_after_a_switch_and_never_its_old_result(
-        self, pixoo_output, client, probe
-    ):
+    def test_a_plugin_sees_the_pages_own_size_and_face_after_a_switch(self, pixoo_output, client, probe):
         board_id = _create(client, font="3x5")
         page_id = _probe_page()
 
-        first = self._preview(client, board_id, page_id)
+        self._preview(client, board_id, page_id)
         seen = probe.seen[-1]
         assert (seen.rows, seen.cols, seen.display.charset, seen.display.font) == (10, 16, "led_3x5", "3x5")
 
         _switch(client, board_id, "5x7")
-        second = self._preview(client, board_id, page_id)
+        self._preview(client, board_id, page_id)
         seen = probe.seen[-1]
-        assert (seen.rows, seen.cols) == (8, 10)
-        assert (seen.display.charset, seen.display.font) == ("led_5x7", "5x7")
-        assert len(probe.seen) == 2, "the 10x16 result was served for the 8x10 board"
-        assert "FETCH 1" in first and "FETCH 2" in second
+        assert (seen.rows, seen.cols, seen.display.charset, seen.display.font) == (10, 16, "led_3x5", "3x5")
 
-    def test_the_engine_path_renders_the_page_at_the_new_grid_for_the_rebuilt_client(self, pixoo_output, client, probe):
+    def test_the_engine_path_renders_the_page_at_its_own_grid_for_the_rebuilt_client(self, pixoo_output, client, probe):
         from src.outputs.display_profile import render_kw
         from src.outputs.registry import output_registry
+        from src.pages.board_render import render_page_for_board
 
         board_id = _create(client, font="3x5")
         page_id = _probe_page()
         _switch(client, board_id, "5x7")
-        driver = output_registry().get(PLUGIN_ID).build(_stored(board_id))
-        result = _pages().preview_page(page_id, force_refresh=True, **render_kw(driver))
-        assert result.available
+        board = _stored(board_id)
+        driver = output_registry().get(PLUGIN_ID).build(board)
+        result, _layers, fit = render_page_for_board(_pages(), page_id, board, render_kw(driver))
+        assert result.available and fit.face == "3x5"
         seen = probe.seen[-1]
-        assert (seen.rows, seen.cols, seen.display.font, seen.display.charset) == (8, 10, "5x7", "led_5x7")
+        assert (seen.rows, seen.cols, seen.display.font, seen.display.charset) == (10, 16, "3x5", "led_3x5")
 
     def test_the_template_editor_preview_renders_at_the_boards_new_grid_and_face(self, pixoo_output, client, probe):
         board_id = _create(client, font="3x5")

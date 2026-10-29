@@ -2252,6 +2252,7 @@ async def update_board(
         board=board_public_view(stored),
         retargeted_pages=response.get("retargeted_pages", []),
         incompatible_references=response.get("incompatible_references", []),
+        left_behind_pages=response.get("left_behind_pages", []),
     )
 
 
