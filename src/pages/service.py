@@ -28,6 +28,7 @@ from src.devices import (
 )
 from src.displays.service import DisplayResult, get_display_service
 from src.layout.engine import layout_flexible_page
+from src.layout.refs import flexible_plugin_ids
 from src.layout.target import flex_target_for
 from src.led.matrix import DEFAULT_LED_FONT, grid_layout
 from src.led.page_frame import full_frame_layer
@@ -102,8 +103,6 @@ def page_plugin_ids(page: Page) -> set[str] | None:
     page reads what its blocks reference (``flexible_plugin_ids``).
     """
     if is_flexible_page(page):
-        from src.layout.refs import flexible_plugin_ids  # plan Task 6
-
         return flexible_plugin_ids(page)
     template_refs = extract_template_plugin_ids(getattr(page, "template", None))
     canvases = getattr(page, "canvases", None)
@@ -1106,17 +1105,28 @@ class PageService:
         # all) as soon as any page's references cannot be determined.
         ids_by_board: dict[str, Collection[str] | None] = {}
         faces = faces or {}
-        for pid, p in pages_to_render:
+        for pid, p in list(pages_to_render):
             if faces.get(pid):
                 continue  # rendered on its own, at its face
             flexible = is_flexible_page(p)
             if p.type != "template" and not flexible and not (p.canvases and draws_pixels(display)):
                 continue
-            key = self._board_key(p, board, display)
-            if key not in boards:
-                geometry = geometry_of(self._layout_board(board)) if flexible else geometry_of(p)
+            try:
+                key = self._board_key(p, board, display)
+                geometry = None
+                if key not in boards:
+                    geometry = geometry_of(self._layout_board(board)) if flexible else geometry_of(p)
+                refs = page_plugin_ids(p)
+            except Exception as e:
+                # One page that cannot be prepared is an error entry, never a failed batch.
+                logger.error(f"Error preparing page {pid} for preview: {e}")
+                pages_to_render.remove((pid, p))
+                results[pid] = DisplayResult(
+                    display_type="page", formatted="", raw={"page_id": pid}, available=False, error=str(e)
+                )
+                continue
+            if geometry is not None:
                 boards[key] = board_context_for(*geometry, display=display)
-            refs = page_plugin_ids(p)
             if key not in ids_by_board:
                 ids_by_board[key] = set(refs) if refs is not None else None
             elif ids_by_board[key] is not None:

@@ -1566,6 +1566,9 @@ def _build_mcp_server() -> Any:
         if page is None:
             raise ToolError(f"Page '{page_id}' not found.")
         check = _charset_check(board_id)
+        # The page itself, as the docstring says: a grid page at its own grid
+        # (never a board's face), a flexible page laid out for the primary
+        # board. Per-board flexible previews are the Fiestabot phase's.
         result = svc.preview_page(page_id, force_refresh=True, **check.lines_kw)
         if result is None:
             raise ToolError(f"Page '{page_id}' not found.")
@@ -1820,6 +1823,9 @@ def _build_mcp_server() -> Any:
             template = list(page.template)
             line_metadata = document.get("line_metadata")
         else:
+            # Rendered text at the page's own grid (a flexible page: the
+            # primary board's), not the board's face: this is the document's
+            # text, not the board's pixels.
             result = page_service.preview_page(page.id, force_refresh=True)
             template = result.formatted.split("\n") if result is not None and result.available else []
             line_metadata = None

@@ -8,7 +8,7 @@ preview routes and the unsaved-page render route
 they carry no ``layout_issues`` key at all.
 
 The layout runs against the stand-in expansion :mod:`tests.layout.test_engine`
-uses (the real one lands with plan Task 6), so the page is a spacer whose
+uses, so the page is a spacer whose
 unknown font is its one reported compromise.
 """
 
@@ -215,3 +215,61 @@ def test_unsaved_preview_whose_layout_fails_is_a_503(client, flex_layout):
     with patch("src.pages.service.layout_flexible_page", side_effect=RuntimeError("boom")):
         response = _unsaved(client, FLEX_BODY)
     assert response.status_code == 503 and "boom" in response.json()["detail"]
+
+
+# --- the real layout, no stand-ins --------------------------------------------
+
+#: A flexible page laid out by the real expansion and fit.
+REAL_FLEX_BODY = {
+    "name": "Real flex",
+    "type": "flexible",
+    "blocks": [{"id": "t", "kind": "text", "text": "HELLO", "style": {"align": "center"}}],
+}
+
+
+@pytest.fixture
+def real_flex_id(client) -> str:
+    return get_page_service().storage.create(Page.model_validate(REAL_FLEX_BODY)).id
+
+
+def _batch_all(client, page_ids: list[str], board_id: str | None = None) -> dict:
+    body = {"page_ids": page_ids, **({"board_id": board_id} if board_id else {})}
+    response = client.post("/pages/preview/batch", json=body)
+    assert response.status_code == 200, response.text
+    return response.json()["previews"]
+
+
+def test_batch_preview_of_a_grid_and_a_flexible_page_previews_both(client, grid_id, real_flex_id):
+    get_settings_service().set_boards([FLAGSHIP])
+    previews = _batch_all(client, [grid_id, real_flex_id])
+    assert previews[grid_id]["available"] and previews[real_flex_id]["available"]
+    assert "HELLO" in previews[real_flex_id]["lines"][0]
+
+
+def test_batch_preview_of_a_grid_and_a_flexible_page_for_a_named_board_previews_both(
+    client, pixoo_board_id, grid_id, real_flex_id
+):
+    previews = _batch_all(client, [grid_id, real_flex_id], pixoo_board_id)
+    assert previews[grid_id]["available"] and previews[real_flex_id]["layers"][0]["width"] == 64
+
+
+def test_batch_preview_page_whose_plugin_lookup_fails_is_an_error_entry_not_a_failed_batch(
+    client, grid_id, real_flex_id
+):
+    get_settings_service().set_boards([FLAGSHIP])
+    with patch("src.pages.service.flexible_plugin_ids", side_effect=RuntimeError("boom")):
+        previews = _batch_all(client, [grid_id, real_flex_id])
+    assert previews[grid_id]["available"]
+    assert previews[real_flex_id]["available"] is False and "boom" in previews[real_flex_id]["error"]
+
+
+def test_saved_flexible_page_preview_renders_with_the_real_layout(client, pixoo_board_id, real_flex_id):
+    response = client.post(f"/pages/{real_flex_id}/preview")
+    assert response.status_code == 200, response.text
+    assert "HELLO" in response.json()["message"]
+
+
+def test_unsaved_flexible_preview_renders_with_the_real_layout(client, pixoo_board_id):
+    response = _unsaved(client, REAL_FLEX_BODY, pixoo_board_id)
+    assert response.status_code == 200, response.text
+    assert response.json()["layers"][0]["width"] == 64

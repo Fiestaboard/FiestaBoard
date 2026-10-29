@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 from src.led.matrix import DEFAULT_LED_TILE_GAP, LedFrame, LedRenderOptions
 
 from .cells import layout_cell_grid
+from .expand import expand_blocks
 from .fonts import (
     DEFAULT_FONT_FAMILY,
     FONT_FAMILIES,
@@ -102,8 +103,6 @@ def layout_flexible_page(
     …)`` for a block. Style issues of a block hidden by its ``if`` are not
     reported, as the block itself is hidden silently.
     """
-    from .expand import expand_blocks  # Task 6
-
     layout, layout_issues = resolve_layout(page.layout, path=("layout",))
     page_level = _level(page.style)
 

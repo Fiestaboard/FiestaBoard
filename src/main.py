@@ -8,6 +8,7 @@ import threading
 import time
 from collections.abc import Mapping
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Any
 
 import schedule
@@ -193,19 +194,33 @@ def _project_page(client, result, page, dims, fit: PageFit) -> tuple[list[list[i
     grid, so the frame cache and transitions compare same-shaped cells
     (design section 7). Any other render keeps its own canvas layers.
     """
+    return _project(client, result.formatted, dims.rows, dims.cols, _page_layers(client, result, page, fit))
+
+
+def _page_layers(client, result, page, fit: PageFit) -> list:
+    """The layers a page render is sent with: one full-frame layer for a page
+    drawn at another face (:func:`~src.led.page_frame.send_layers`, drawn at
+    the page's own grid), else the render's own canvas layers."""
     if fit.face:
         page_dims = dimensions_of(page)
         display = _extended_kw(client).get("display")
-        layers = send_layers(result, page_dims.rows, page_dims.cols, display)
-    else:
-        layers = _result_layers(result)
-    return _project(client, result.formatted, dims.rows, dims.cols, layers)
+        return send_layers(result, page_dims.rows, page_dims.cols, display)
+    return _result_layers(result)
 
 
 def _result_layers(result) -> list:
     """A render result's pixel-canvas layers (``[]`` for none, or a result that carries none)."""
     layers = getattr(result, "layers", None)
     return layers if isinstance(layers, list) else []
+
+
+@dataclass(frozen=True)
+class _HeldPage:
+    """A page held during silence, rendered for its board: the page, how it fits and its render."""
+
+    page: Any
+    fit: PageFit
+    result: Any
 
 
 def _content_key(result) -> str:
@@ -3286,8 +3301,8 @@ class DisplayService:
             characters = (held.payload or {}).get("characters") if isinstance(held.payload, dict) else None
             return characters_to_message(characters) if characters else None
         if held.kind == "page":
-            result = get_page_service().preview_page(str(held.payload), force_refresh=True)
-            return result.formatted if result is not None and result.available else None
+            rendered = self._held_page_render(held, rt)
+            return rendered.result.formatted if rendered is not None else None
         if held.kind == "display":
             from .displays.service import get_display_service
 
@@ -3295,13 +3310,64 @@ class DisplayService:
             return result.formatted if result is not None and result.available else None
         return None
 
+    def _held_page_render(self, held, rt: BoardRuntime) -> _HeldPage | None:
+        """A held page rendered for the board it was held for, or ``None`` when it cannot render.
+
+        Rendered as the route that held it would have sent it
+        (:func:`~src.pages.fit.page_fit_for_board`): a grid page the LED
+        board produces at another text size draws at that face, and a
+        flexible page is laid out for this board, not the primary one.
+        """
+        page_service = get_page_service()
+        page_id = str(held.payload)
+        page = page_service.get_page(page_id)
+        if page is None:
+            return None
+        board = self._board_dict_for(held.board_id)
+        fit = _page_fit(page, board)
+        if not fit.fits:
+            fit = PageFit(True, None, fit.reason)  # routes don't gate: rendered as today, the send crops it
+        result = page_service.preview_page(
+            page_id,
+            force_refresh=True,
+            **_face_kw(fit),
+            **_board_kw(page, board),
+            **_extended_kw(rt.client),
+        )
+        if result is None or not result.available:
+            return None
+        return _HeldPage(page, fit, result)
+
     def _deliver_held_send(self, held, rt: BoardRuntime, *, wait: bool = True) -> bool:
-        """Paint the send held during silence; forget it only once it lands."""
+        """Paint the send held during silence; forget it only once it lands.
+
+        A held page keeps its picture: its layers (one full-frame layer for a
+        page drawn at another face, or a flexible page's frame) ride under
+        the text projected at this board's grid, and its transition falls
+        back as the page path's does.
+        """
         from src import silence_queue
 
         board_id = held.board_id
+        text: str | None = None
+        layers: list = []
+        transition = None
         try:
-            content = self._held_send_content(held, rt)
+            if held.kind == "page":
+                rendered = self._held_page_render(held, rt)
+                content = None
+                if rendered is not None:
+                    content = _content_key(rendered.result)
+                    text = rendered.result.formatted
+                    layers = _page_layers(rt.client, rendered.result, rendered.page, rendered.fit)
+                    transition = page_transition(
+                        get_settings_service().get_transition_settings(rt.board_id),
+                        rendered.page,
+                        runs=_driver_runs(rt.client),
+                        full_frame=delivers_full_frame(rendered.page, rendered.fit, rendered.result),
+                    )
+            else:
+                content = self._held_send_content(held, rt)
         except Exception as e:
             logger.warning("Could not render the %s held during silence for board %s: %s", held.kind, board_id, e)
             content = None
@@ -3321,7 +3387,15 @@ class DisplayService:
         logger.info("Showing message held during silence on board %s", board_id)
         # The adoption block in the page pass matches on this exact string.
         rt.silence_queued_shown = content
-        return self._send_trigger_content(content, rt, wait=wait, on_success=lambda: silence_queue.discard(board_id))
+        return self._send_trigger_content(
+            content,
+            rt,
+            wait=wait,
+            on_success=lambda: silence_queue.discard(board_id),
+            text=text,
+            layers=layers,
+            transition=transition,
+        )
 
     def _send_trigger_content(
         self,
@@ -3330,12 +3404,20 @@ class DisplayService:
         *,
         wait: bool = True,
         on_success=None,
+        text: str | None = None,
+        layers=(),
+        transition=None,
     ) -> bool:
         """Send trigger content to the board (primary board).
 
         Returns True if the content was sent successfully. ``on_success``
         runs once the send reports success (the held-send delivery uses it
         to forget the entry only when it actually landed).
+
+        ``content`` is the dedupe key and, unless ``text`` is given, the board
+        text. ``layers`` ride on the projected cells (a held page's picture);
+        ``transition`` (strategy, step interval, step size) replaces the
+        board's own, as a page's resolved transition does.
         """
         rt = rt if rt is not None else self._ensure_primary_runtime()
         if rt is None or rt.client is None:
@@ -3355,13 +3437,15 @@ class DisplayService:
 
         logger.info("Sending triggered message to board")
         settings_service = get_settings_service()
-        system_transition = settings_service.get_transition_settings(rt.board_id)
+        system_transition = (
+            transition if transition is not None else settings_service.get_transition_settings(rt.board_id)
+        )
 
         geometry = self._runtime_geometry(rt)
         device_type = geometry.device_type
         dims = resolve_dimensions(*geometry)
         client = rt.client
-        board_array, rich = _project(client, content, dims.rows, dims.cols)
+        board_array, rich = _project(client, content if text is None else text, dims.rows, dims.cols, layers)
         sink = self._error_sink()
 
         def _after_trigger_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:

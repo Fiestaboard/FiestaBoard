@@ -1,8 +1,7 @@
 """The vertical stack and the pixel emitter (plan Task 8).
 
 Spacer and canvas blocks exercise the stack's drop, fill, valign and clipping
-rules on their own; tests that lay out text need ``fit_text`` (Task 7) and
-skip until it exists.
+rules on their own; text blocks go through the real ``fit_text``.
 """
 
 from __future__ import annotations
@@ -10,10 +9,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-import pytest
-
 from src.layout.fonts import FONT_FAMILIES, SizedFace, face_for_led_font
 from src.layout.issues import LayoutIssue
+from src.layout.measure import Glyph as MGlyph
+from src.layout.measure import measure
 from src.layout.pixels import canvas_block_op, clip_op, draw_line, frame_from_ops
 from src.layout.stack import Rect, StackResult, stack
 from src.layout.style import ResolvedLayout, ResolvedStyle
@@ -328,15 +327,10 @@ def test_empty_stack_draws_nothing():
     assert (r.ops, r.issues, r.shown) == ((), (), ())
 
 
-# --- text (needs Task 7's fit_text) -------------------------------------------
+# --- text ------------------------------------------------------------------------
 
 
-@pytest.fixture
-def measure_module():
-    return pytest.importorskip("src.layout.measure", reason="fit_text lands with plan Task 7")
-
-
-def test_empty_and_unavailable_variable_blocks(measure_module):  # [RF-1]
+def test_empty_and_unavailable_variable_blocks():  # [RF-1]
     blocks = [text("b1", 0, ""), text("b2", 1, "???"), text("b3", 2, "B")]
     styles = {b.id: style() for b in blocks}
     r = run(blocks, styles, Rect(0, 0, 64, 64))
@@ -344,9 +338,9 @@ def test_empty_and_unavailable_variable_blocks(measure_module):  # [RF-1]
     assert min(op.y for op in r.ops if op.kind == "glyph") == 0
 
 
-def test_text_aligns_within_the_rect(measure_module):
+def test_text_aligns_within_the_rect():
     blocks = [text("b1", 0, "AB")]
-    w = measure_module.measure([measure_module.Glyph(t) for t in blocks[0].tokens], S35)
+    w = measure([MGlyph(t) for t in blocks[0].tokens], S35)
     for align, x in (("left", 10), ("center", 10 + (40 - w) // 2), ("right", 10 + 40 - w)):
         r = run(blocks, {"b1": style(align=align)}, Rect(10, 0, 40, 20))
         assert min(op.x for op in r.ops if op.kind == "glyph") == x

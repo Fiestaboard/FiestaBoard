@@ -43,6 +43,12 @@ def profile(model_id: str, font: str | None = None) -> DisplayProfile:
 #: The page the engine tests and the layout goldens lay out: a large centred
 #: time (priority 1), a wrapped weather line with an icon and a data-driven
 #: colour (priority 2) and a footer with a fill (priority 3).
+#:
+#: The time is ``large``, as in the spec's own example page (section 2): at
+#: ``xlarge`` (half the surface) five glyphs cannot fit a 64 px Pixoo. The
+#: colour reads a plain field: the template engine reserves the ``_color``
+#: suffix for colour-rule lookups, which expand to ``""`` without rules (see
+#: ``test_color_expression_formats_plugins_emit``).
 SAMPLE = {
     "name": "Sample",
     "type": "flexible",
@@ -53,14 +59,14 @@ SAMPLE = {
             "kind": "text",
             "text": "{{clock.time}}",
             "priority": 1,
-            "style": {"size": "xlarge", "align": "center"},
+            "style": {"size": "large", "align": "center"},
         },
         {
             "id": "weather",
             "kind": "text",
             "text": "{sun} {{weather.summary}}",
             "priority": 2,
-            "style": {"color": "{{weather.temp_color}}", "overflow": "wrap"},
+            "style": {"color": "{{weather.tint}}", "overflow": "wrap"},
         },
         {
             "id": "footer",
@@ -75,7 +81,7 @@ SAMPLE = {
 #: Fixed plugin data for :data:`SAMPLE`.
 SAMPLE_CTX = {
     "clock": {"time": "12:45"},
-    "weather": {"summary": "Sunny and warm all day", "temp": "72F", "temp_color": "orange"},
+    "weather": {"summary": "Sunny and warm all day", "temp": "72F", "tint": "orange"},
 }
 
 #: Golden device name -> (built-in model id, face the board chose).

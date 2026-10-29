@@ -505,8 +505,8 @@ MQTT `board_api_mode` entity and the MCP board tools in v11.
 A page with `type: "flexible"` is laid out for each board it is shown on
 rather than drawn for one grid. It carries `blocks`, `style`, `layout` and an
 optional `targets`, and none of the grid fields: no `template`, `rows`,
-`line_metadata`, `canvases`, `device_type`, `notes_wide`, `notes_tall`,
-`grid_rows` or `grid_cols`. It fits every board unless its `targets` exclude
+`line_metadata`, `canvases`, `display_type`, `device_type`, `notes_wide`,
+`notes_tall`, `grid_rows` or `grid_cols`. It fits every board unless its `targets` exclude
 one, so a schedule or collection may put it on any board. Its
 `document_protocol` is `page-document-v2`.
 

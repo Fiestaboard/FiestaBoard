@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src import silence_queue
 from src.led.charsets import BUILTIN_CHARACTER_SETS
 from src.led.matrix import model_with_led_font
 from src.led.page_frame import is_full_frame_layer
@@ -33,6 +34,7 @@ from src.pages.models import Page
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
 from src.send_outcome import WriteResult
+from src.silence_queue import HeldSend
 from tests.fake_clock import FakeClock, install_fake_time_service
 from tests.test_led_text_size import PIXOO, _board, pixoo_output  # noqa: F401
 
@@ -123,10 +125,15 @@ class _ConfigManager:
         return 0
 
 
-def _silence(page_id: str | None) -> dict:
-    """Quiet hours 22:00-07:00 UTC showing *page_id*, or off when it is None."""
+def _silence(page_id: str | None, *, show_queued_on_exit: bool = False) -> dict:
+    """Quiet hours 22:00-07:00 UTC showing *page_id*, or off when it is None.
+
+    With *show_queued_on_exit* the window is on (whatever *page_id*) and a
+    send held during it is shown once it ends.
+    """
     return {
-        "enabled": page_id is not None,
+        "enabled": page_id is not None or show_queued_on_exit,
+        "show_queued_on_exit": show_queued_on_exit,
         "start_time": "22:00+00:00",
         "end_time": "07:00+00:00",
         "mode": "page",
@@ -179,8 +186,16 @@ class Engine:
     def client_render_kwargs(self) -> dict:
         return self.render_calls[-1]
 
-    def tick(self, *, active: Page | None = None, silence_page: Page | None = None) -> bool:
-        pages = [p for p in (active, silence_page) if p is not None]
+    def tick(
+        self,
+        *,
+        active: Page | None = None,
+        silence_page: Page | None = None,
+        held_page: Page | None = None,
+    ) -> bool:
+        """One engine pass. *held_page* is a page sent during silence, held
+        for this board; the pass runs in daytime, after the window ends."""
+        pages = [p for p in (active, silence_page, held_page) if p is not None]
         page_service = PageService(storage=_MemoryStorage(pages))
         preview = page_service.preview_page
 
@@ -199,7 +214,11 @@ class Engine:
         settings.get_transition_settings.return_value = TRANSITIONS
         settings.consume_temporary_override.return_value = None
 
-        config = _ConfigManager(_silence(silence_page.id if silence_page is not None else None))
+        config = _ConfigManager(
+            _silence(silence_page.id if silence_page is not None else None, show_queued_on_exit=held_page is not None)
+        )
+        if held_page is not None:
+            silence_queue.hold(HeldSend.page(held_page.id, board_id=BOARD["id"]))
         self.monkeypatch.setattr("src.config.get_config_manager", lambda: config)
         self.monkeypatch.setattr("src.config_manager.get_config_manager", lambda: config)
         self.clock.set(NIGHT if silence_page is not None else DAYTIME)
@@ -216,7 +235,9 @@ class Engine:
 
 @pytest.fixture
 def engine(pixoo_output, monkeypatch):  # noqa: F811
-    return Engine(monkeypatch)
+    silence_queue.clear()
+    yield Engine(monkeypatch)
+    silence_queue.clear()
 
 
 def test_a_10x16_page_reaches_an_8x10_pixoo_as_cells_plus_one_full_frame(engine):
@@ -258,3 +279,29 @@ def test_a_silence_page_at_the_other_size_is_shown_not_replaced_by_the_indicator
 def test_a_face_pages_own_transition_plugin_runs_as_fade(engine):
     engine.tick(active=_page(10, 16, transition_strategy="plugin:typewriter"))
     assert engine.client_render_kwargs["strategy"] == "fade"
+
+
+def test_a_10x16_page_held_during_silence_reaches_an_8x10_pixoo_as_cells_plus_one_full_frame(engine):
+    engine.tick(active=_page(8, 10, "AWAKE"), held_page=_page(10, 16, "HELD"))
+    cells = engine.plugin.last_cells
+    assert (len(cells), len(cells[0])) == (8, 10)
+    assert len(cells.layers) == 1 and is_full_frame_layer(cells.layers[0], 64, 64)
+
+
+def test_a_held_face_pages_own_transition_plugin_runs_as_fade(engine):
+    held = _page(10, 16, "HELD", transition_strategy="plugin:typewriter")
+    engine.tick(active=_page(8, 10, "AWAKE"), held_page=held)
+    assert engine.client_render_kwargs["strategy"] == "fade"
+
+
+def test_a_flexible_page_held_during_silence_reaches_the_pixoo_as_its_full_frame(engine):
+    held = Page(
+        id="flex-held",
+        name="Flex held",
+        type="flexible",
+        blocks=[{"id": "t", "kind": "text", "text": "HELD"}],
+    )
+    engine.tick(active=_page(8, 10, "AWAKE"), held_page=held)
+    cells = engine.plugin.last_cells
+    assert (len(cells), len(cells[0])) == (8, 10)
+    assert len(cells.layers) == 1 and is_full_frame_layer(cells.layers[0], 64, 64)

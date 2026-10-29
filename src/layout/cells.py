@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.markup import count_tiles, split_rows, take_tiles, wrap_line
 
+from .expand import FillSpec, fill_marker, strip_fills, with_fills
 from .issues import LayoutIssue
 from .stack import Rect, _place
 
@@ -39,10 +40,6 @@ if TYPE_CHECKING:
     from .style import ResolvedLayout, ResolvedStyle
 
 __all__ = ["CellLayout", "layout_cell_grid"]
-
-#: Expansion leaves fill ``i`` in a block's markup as this code point plus ``i`` (Task 6).
-_FILL_SENTINEL_BASE = 0xE000
-_FILL_SENTINEL_MAX = 0xF8FF
 
 
 @dataclass(frozen=True)
@@ -57,40 +54,13 @@ class CellLayout:
     shown: tuple[str, ...] = ()
 
 
-def _is_sentinel(ch: str) -> bool:
-    return _FILL_SENTINEL_BASE <= ord(ch) <= _FILL_SENTINEL_MAX
-
-
-def _without_fills(line: str) -> str:
-    return "".join(ch for ch in line if not _is_sentinel(ch))
-
-
-def _fill_marker(spec: Any) -> str:
-    """The template engine's own marker for a fill, as ``resolve_fill`` expects it."""
-    if spec.pattern is None:
-        return "\x00FILL_SPACE\x00"
-    return f"\x00FILL_SPACE_REPEAT:{spec.pattern}\x00"
-
-
-def _with_fill_markers(line: str, fills: Sequence[Any]) -> str:
-    """``line`` with each fill sentinel turned back into its engine marker."""
-    out = []
-    for ch in line:
-        index = ord(ch) - _FILL_SENTINEL_BASE
-        out.append(_fill_marker(fills[index]) if _is_sentinel(ch) and index < len(fills) else ch)
-    return "".join(out)
-
-
-def _resolve_fill(engine: Any, line: str, cols: int) -> str:
+def _resolve_fill(engine: Any, line: str, fills: Sequence[FillSpec], cols: int) -> str:
+    """One row's fills, filled to ``cols`` tiles by the template engine."""
     if engine is None:
         from src.templates.engine import get_template_engine
 
         engine = get_template_engine()
-    resolve = getattr(engine, "resolve_fill", None)
-    if resolve is not None:
-        return resolve(line, width=cols)
-    # Until the engine's public ``resolve_fill`` lands (Task 6), call what it will delegate to.
-    return engine._process_fill_space(line, cols, extended_markup=True)
+    return engine.resolve_fill(with_fills(line, tuple(fills), fill_marker), width=cols)
 
 
 def _align(line: str, align: str, cols: int) -> str:
@@ -119,9 +89,9 @@ def _text_rows(
     rows: list[str] = []
     wrapped = cut = False
     for line in split_rows(markup):
-        bare = _without_fills(line)
+        bare = strip_fills(line)
         if count_tiles(bare) <= cols:
-            rows.append(_resolve_fill(engine, _with_fill_markers(line, fills), cols) if bare != line else line)
+            rows.append(_resolve_fill(engine, line, fills, cols) if bare != line else line)
         elif style.overflow == "ellipsis":
             rows.append(take_tiles(bare, cols - 1)[0] + ".")
             cut = True

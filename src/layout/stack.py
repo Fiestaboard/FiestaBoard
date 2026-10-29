@@ -19,6 +19,7 @@ from src.led.matrix import LedDrawOp, LedFrame, LedRenderOptions
 
 from .fonts import FONT_FAMILIES, FontFamily, size_ladder
 from .issues import LayoutIssue
+from .measure import fit_text, measure
 from .pixels import canvas_block_op, clip_op, draw_line, frame_from_ops
 
 if TYPE_CHECKING:
@@ -170,8 +171,6 @@ def stack(
             if too_small:
                 hidden_text = True
                 continue
-            from .measure import fit_text  # Task 7
-
             fitted = fit_text(block, style, rect.w, rect.h, family=fam, path=(*path, "blocks", block.id))
             height = fitted.height if _has_glyphs(fitted) else 0
             entries.append(_Entry(block, style, height, fitted))
@@ -226,8 +225,6 @@ def stack(
         if style.background and h > 0:
             ops.append(LedDrawOp("rect", band.x, band.y, style.background, w=band.w, h=band.h))
         if entry.block.kind == "text":
-            from .measure import measure  # Task 7
-
             fitted = entry.fitted
             sized = fitted.sized
             line_y = y

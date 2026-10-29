@@ -6,16 +6,13 @@ ASCII art to review by eye, and as a SHA-256 of the RGB bytes so colour is
 held exactly), a few RGB spot pixels on colour boards, the hidden cell lines
 and every layout issue.
 
-The goldens need the real expansion (Task 6) and fit (Task 7); until those
-land the golden test skips. Regenerate with
-``FIESTABOARD_UPDATE_LAYOUT_GOLDEN=1`` and review every ``frame_ascii``.
+Regenerate with ``FIESTABOARD_UPDATE_LAYOUT_GOLDEN=1`` and review every
+``frame_ascii`` by eye.
 """
 
 from __future__ import annotations
 
 import hashlib
-import importlib
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -96,27 +93,9 @@ def snapshot(render: FlexRender, name: str) -> dict[str, Any]:
     }
 
 
-# --- the goldens (need Tasks 6 and 7) ----------------------------------------
+# --- the goldens ----------------------------------------------------------------
 
 
-def _require_module(name: str, reason: str) -> None:
-    """Skip only while ``name`` has no source file; once it exists, import it.
-
-    ``pytest.importorskip`` would also skip when the module exists but one of
-    its own imports fails, hiding a broken Task 6/7 behind "not landed yet".
-    """
-    if importlib.util.find_spec(name) is None:
-        pytest.skip(reason)
-    importlib.import_module(name)
-
-
-@pytest.fixture
-def real_layout() -> None:
-    _require_module("src.layout.expand", "expand_blocks lands with plan Task 6")
-    _require_module("src.layout.measure", "fit_text lands with plan Task 7")
-
-
-@pytest.mark.usefixtures("real_layout")
 @pytest.mark.parametrize("name", GOLDEN_DEVICES)
 def test_flexible_layout_matches_golden(name):
     got = snapshot(layout_flexible_page(Page.model_validate(SAMPLE), golden_target(name), SAMPLE_CTX), name)

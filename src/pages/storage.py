@@ -517,6 +517,12 @@ class PageStorage:
             "transition_interval_ms",
             "transition_step_size",
             "canvases",
+            # A flexible page's style, layout and scheduling restriction can be
+            # cleared (null falls back to the defaults: no page style, a top
+            # stack, every board). ``blocks`` stays sticky: a page has blocks.
+            "style",
+            "layout",
+            "targets",
         }
         for key, value in updates.items():
             if (

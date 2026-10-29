@@ -1,8 +1,13 @@
 """The grids an LED board can produce, one per text size its model allows."""
 
+import json
+
+import pytest
+
 from src.fiestaui import builtin_device_models
 from src.outputs.board_profile import board_producible_grids, producible_grids
-from tests.test_led_text_size import _board, declared_set_output, pixoo_output  # noqa: F401
+from src.plugins.loader import PluginLoader
+from tests.test_led_text_size import PLUGIN_ID, _board, _install, declared_set_output, pixoo_output  # noqa: F401
 
 MODELS = builtin_device_models()
 
@@ -34,3 +39,24 @@ def test_an_output_with_its_own_character_set_has_a_fixed_face(declared_set_outp
 
 def test_a_vestaboard_has_no_producible_grids():
     assert board_producible_grids({"id": "b", "device_type": "flagship"}) is None
+
+
+@pytest.fixture
+def declared_5x7_output(tmp_path):
+    """The recording output declaring a set that extends ``led_5x7``, on a Pixoo 64 (whose own face is 3x5)."""
+    root = _install(tmp_path / "plugins", character_set=True)
+    set_path = root / PLUGIN_ID / "output" / "character-set.json"
+    charset = json.loads(set_path.read_text("utf-8"))
+    charset["extends"] = "led_5x7"
+    charset.pop("glyphs", None)
+    set_path.write_text(json.dumps(charset), "utf-8")
+    loader = PluginLoader(plugins_dir=root, external_dirs=[])
+    assert loader.load_plugin(PLUGIN_ID) is not None, loader.load_errors
+    yield loader
+    loader.unload_plugin(PLUGIN_ID)
+
+
+def test_an_output_with_its_own_character_set_produces_its_sets_face_grid(declared_5x7_output):
+    # Plan D17: the declared set's font wins over the model's own, so a Pixoo
+    # 64 drawing a 5x7 set produces 8 x 10, not its own 3x5 face's 10 x 16.
+    assert board_producible_grids(_board()) == {"5x7": (8, 10)}

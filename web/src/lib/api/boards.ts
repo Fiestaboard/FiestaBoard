@@ -497,7 +497,7 @@ export interface LeftBehindPage {
   board_name: string;
   page_id: string;
   page_name: string;
-  /** The page's size key, e.g. `note_array:2x1`. */
+  /** The page's size key, e.g. `note_array:3x30`. */
   page_size: string;
   /** Why it no longer fits, in the page picker's words: `Made for a 3×30 board`. */
   reason: string;

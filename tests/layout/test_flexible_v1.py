@@ -96,3 +96,22 @@ def test_import_flexible_share_string_round_trips(client):
     assert body["id"] != page_id and body["type"] == "flexible" and "template" not in body
     for key in ("blocks", "style", "layout"):
         assert body[key] == original[key]
+
+
+def test_v1_update_with_null_targets_clears_the_restriction(client):
+    page_id = _create(client, {**FLEX, "targets": {"technology": ["led_matrix"]}})["id"]
+    response = client.put(f"/v1/pages/{page_id}", json={"targets": None})
+    assert response.status_code == 200, response.text
+    assert client.get(f"/v1/pages/{page_id}").json().get("targets") is None
+
+
+def test_v1_update_with_null_style_clears_the_page_style(client):
+    page_id = _create(client, FLEX)["id"]
+    client.put(f"/v1/pages/{page_id}", json={"style": None})
+    assert client.get(f"/v1/pages/{page_id}").json().get("style") is None
+
+
+def test_v1_update_with_null_layout_clears_the_page_layout(client):
+    page_id = _create(client, FLEX)["id"]
+    client.put(f"/v1/pages/{page_id}", json={"layout": None})
+    assert client.get(f"/v1/pages/{page_id}").json().get("layout") is None

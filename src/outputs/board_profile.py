@@ -264,13 +264,20 @@ def board_producible_grids(board: Mapping[str, Any]) -> dict[str, tuple[int, int
     if not charset_uses_cells(board_character_set(board)):
         return None
     if manifest.character_set is not None:
+        from .geometry import GeometryError, font_for, model_cell_grid
+
         model = board_device_model(board)
         if not offers_font_choice(model):
             return {}
         assert model is not None
-        face = led_layout_options_for_model(model).font
-        grid = _face_grid(model, face)
-        return {face: grid} if grid is not None else {}
+        # The declared set's font wins over the model's own (plan D17), and
+        # sizes the grid exactly as the board's geometry does.
+        face = font_for(model, manifest.character_set)
+        try:
+            grid = model_cell_grid(model, manifest.character_set)
+        except (GeometryError, KeyError, ValueError):
+            grid = None
+        return {face: (grid[0], grid[1])} if face is not None and grid is not None else {}
     ids = manifest.device_model_ids
     stored = board.get("device_model")
     base_model = manifest.model(ids.index(stored) if stored in ids else 0)

@@ -3,8 +3,8 @@
 Blocks are laid out in the board's one character size: wrapped by tiles,
 aligned with spaces, stacked one row per spacer, with priority drops and
 ``valign`` counted in rows. Expanded blocks are stand-ins with the fields
-Task 6's ``ExpandedBlock`` carries: ``markup`` holds each fill as the
-sentinel ``U+E000 + i`` and ``fills`` its spec.
+``ExpandedBlock`` carries: ``markup`` holds each fill as the sentinel
+``U+E000 + i`` and ``fills`` its spec.
 """
 
 from __future__ import annotations
@@ -14,21 +14,14 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.layout.cells import CellLayout, layout_cell_grid
+from src.layout.expand import FILL_SENTINEL_BASE, FillSpec
 from src.layout.style import ResolvedLayout, ResolvedStyle
 from src.markup import BoardToken, count_tiles
 from src.pages.flexible import Block
 from src.templates.engine import TemplateEngine
 
 TOP = ResolvedLayout("stack", "top", 0)
-FILL_SENTINEL_BASE = 0xE000
 _FILL = re.compile(r"\{\{(fill_space|filled:([^}]*))\}\}")
-
-
-@dataclass(frozen=True)
-class FillSpec:
-    """Task 6's ``FillSpec``: ``pattern`` ``None`` is a blank fill."""
-
-    pattern: str | None
 
 
 @dataclass(frozen=True)

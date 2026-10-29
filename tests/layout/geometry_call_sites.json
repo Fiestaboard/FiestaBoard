@@ -67,7 +67,7 @@
     "kind": "page",
     "test": "tests/layout/test_flexible_call_sites.py::test_engine_sends_flexible_page_with_the_boards_device_type"
   },
-  "src/main.py::_project_page::dimensions_of": {
+  "src/main.py::_page_layers::dimensions_of": {
     "kind": "page",
     "test": "tests/layout/test_flexible_call_sites.py::test_engine_sends_flexible_page_at_board_grid"
   },

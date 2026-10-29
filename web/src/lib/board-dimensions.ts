@@ -272,6 +272,11 @@ export function dimensionsOf(entity: SizedEntity): BoardDimensions {
   );
 }
 
+/** A page as pageFitForBoard reads it: its geometry and its type (a flexible page has no geometry). */
+export interface FitPage extends SizedEntity {
+  type?: string | null;
+}
+
 /** A board as pageFitForBoard reads it: its geometry, plus an LED board's text sizes. */
 export interface FitBoard extends SizedEntity {
   /**
@@ -300,13 +305,18 @@ export interface PageFit {
 
 /**
  * Whether a page shows on a board, and at which LED text size. Mirrors Python
- * page_fit_for_board(): an exact sizeKey() match takes today's path; an LED
+ * page_fit_for_board(): a flexible page fits every board (`rows` and `cols`
+ * are 0: it has no grid); an exact sizeKey() match takes today's path; an LED
  * board that produces a `panel` page's grid at a face other than its current
  * one draws the page at that face; anything else does not fit. Only `panel`
  * pages can match another face's grid (a flagship page never fits an LED
  * board, even at 6×22).
  */
-export function pageFitForBoard(page: SizedEntity, board: FitBoard): PageFit {
+export function pageFitForBoard(page: FitPage, board: FitBoard): PageFit {
+  // A flexible page has no grid: the server lays it out for each board, so it
+  // fits every board, never at a face (Python page_fit_for_board's flexible
+  // branch; a `targets` restriction is checked server-side).
+  if (page.type === "flexible") return { fits: true, face: null, rows: 0, cols: 0 };
   const { rows, cols } = dimensionsOf(page);
   if (sizeKeyOf(page) === sizeKeyOf(board)) return { fits: true, face: null, rows, cols };
   const grids = board.producible_grids;
@@ -326,6 +336,6 @@ export function pageFitForBoard(page: SizedEntity, board: FitBoard): PageFit {
  * grid exactly, except that an LED board also shows a panel page at a grid it
  * produces at another text size.
  */
-export function pagesCompatibleWithBoard(page: SizedEntity, board: FitBoard): boolean {
+export function pagesCompatibleWithBoard(page: FitPage, board: FitBoard): boolean {
   return pageFitForBoard(page, board).fits;
 }

@@ -6,18 +6,15 @@ with the page's real text at the board's character grid underneath; a
 split-flap board gets the cells alone. Every compromise rides on the result
 as ``layout_issues``.
 
-The plan's end-to-end tests need the real expansion (Task 6) and fit (Task 7)
-and skip until those land. The service's dispatch is pinned against the
-stand-in expansion :mod:`tests.layout.test_engine` uses, and a stand-in
-``flexible_plugin_ids`` (Task 6's ``src.layout.refs``).
+The plan's end-to-end tests run the real expansion and fit. The service's
+dispatch is also pinned against the stand-in expansion
+:mod:`tests.layout.test_engine` uses, and a stand-in ``flexible_plugin_ids``.
 """
 
 # ruff: noqa: F811  (the tests take the fixtures imported from test_engine)
 
 from __future__ import annotations
 
-import sys
-import types
 from typing import Any
 from unittest.mock import patch
 
@@ -29,13 +26,14 @@ from src.layout.target import flex_target_for
 from src.led.page_frame import full_frame_layer
 from src.outputs.cells import frame_layers, project_for_output
 from src.outputs.plugin_driver import OutputPluginDriver
+from src.pages import service as service_module
 from src.pages.models import Page
 from src.pages.service import PageService, page_plugin_ids
 from src.pages.storage import PageStorage
 from src.settings.service import get_settings_service
 from tests.canvas.test_output_layers import LED_3X5, Sign
 from tests.layout.devices import SAMPLE, SAMPLE_CTX, profile
-from tests.layout.test_engine import real_layout, stub_expand  # noqa: F401
+from tests.layout.test_engine import stub_expand  # noqa: F401
 
 CTX = {"clock": {"time": "12:45"}}
 
@@ -71,16 +69,14 @@ def service(tmp_path) -> PageService:
 
 @pytest.fixture
 def stub_refs(monkeypatch: pytest.MonkeyPatch) -> list[Page]:
-    """Replace ``src.layout.refs`` with one whose ``flexible_plugin_ids`` is ``{"clock"}``."""
+    """Replace the service's ``flexible_plugin_ids`` with one that answers ``{"clock"}``."""
     calls: list[Page] = []
 
     def flexible_plugin_ids(page):
         calls.append(page)
         return {"clock"}
 
-    module = types.ModuleType("src.layout.refs")
-    module.flexible_plugin_ids = flexible_plugin_ids
-    monkeypatch.setitem(sys.modules, "src.layout.refs", module)
+    monkeypatch.setattr(service_module, "flexible_plugin_ids", flexible_plugin_ids)
     return calls
 
 
@@ -101,16 +97,14 @@ def rgba_at(layer, x: int, y: int) -> bytes:
     return layer.rgba[i : i + 4]
 
 
-# --- the plan's end-to-end tests (need Tasks 6 and 7) ------------------------
+# --- the plan's end-to-end tests ---------------------------------------------
 
 
-@pytest.mark.usefixtures("real_layout")
 def test_cells_under_the_frame_are_real_text_at_the_boards_grid(service, pixoo_display):
     r = service.render_page(Page.model_validate(SAMPLE), context=SAMPLE_CTX, display=pixoo_display, board=PIXOO_BOARD)
     assert len(r.formatted.split("\n")) == 10 and "12:45" in r.formatted
 
 
-@pytest.mark.usefixtures("real_layout")
 def test_layout_issues_of_a_crowded_strip_are_on_the_display_result(service):
     strip = profile("ulanzi_tc001_awtrix")
     r = service.render_page(Page.model_validate(SAMPLE), context=SAMPLE_CTX, display=strip, board=STRIP_BOARD)

@@ -411,7 +411,7 @@ class LeftBehindPage(BaseModel):
     board_name: str
     page_id: str
     page_name: str
-    page_size: str = Field(description="The page's size key, e.g. `note_array:2x1`.")
+    page_size: str = Field(description="The page's size key, e.g. `note_array:3x30`.")
     reason: str = Field(description="Why it no longer fits, in the page picker's words: `Made for a 3×30 board`.")
 
 

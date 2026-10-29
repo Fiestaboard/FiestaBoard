@@ -4,19 +4,17 @@ The fingerprint is still "the page document + the referenced plugin data +
 config + display key"; a flexible page's size is its board's (it has no grid
 of its own), and the content key digests the frame.
 
-The plan's end-to-end clock tests need the real expansion (Task 6) and fit
-(Task 7) and skip until those land. The same behaviours are pinned today
-against stand-ins: ``src.layout.refs`` as in ``tests/layout/test_flexible_render.py``,
-and an expansion that fills ``{{clock.time}}`` from the context, so the
-same page renders differently for different plugin data.
+The plan's end-to-end clock tests run the real expansion and fit. The same
+behaviours are also pinned against stand-ins: ``flexible_plugin_ids`` as in
+``tests/layout/test_flexible_render.py``, and an expansion that fills
+``{{clock.time}}`` from the context, so the same page renders differently
+for different plugin data.
 """
 
 # ruff: noqa: F811  (the tests take fixtures imported from other test modules)
 
 from __future__ import annotations
 
-import sys
-import types
 from dataclasses import replace
 from typing import Any
 from unittest.mock import patch
@@ -24,11 +22,12 @@ from unittest.mock import patch
 import pytest
 
 from src.devices import size_key
+from src.layout import engine as engine_module
 from src.main import DisplayService
 from src.pages.models import Page
 from src.pages.service import PageService
 from tests.layout.devices import SAMPLE, profile
-from tests.layout.test_engine import StubExpanded, real_layout  # noqa: F401
+from tests.layout.test_engine import StubExpanded
 from tests.layout.test_flexible_render import stub_refs  # noqa: F401
 from tests.test_engine_page_face import BOARD as PIXOO_8X10
 from tests.test_engine_page_face import Engine
@@ -72,7 +71,7 @@ def clock(time: str = "12:45", color: str = "#ff0000") -> dict[str, Any]:
 
 @pytest.fixture
 def clock_expand(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Replace ``src.layout.expand`` with an expansion that fills ``{{clock.time}}``."""
+    """Replace the engine's ``expand_blocks`` with one that fills ``{{clock.time}}``."""
 
     def expand_blocks(page, target, context, styles, *, engine=None):
         shown = []
@@ -81,9 +80,7 @@ def clock_expand(monkeypatch: pytest.MonkeyPatch) -> None:
             shown.append(StubExpanded(block.id, block.kind, index, block.priority, block, markup))
         return shown, []
 
-    module = types.ModuleType("src.layout.expand")
-    module.expand_blocks = expand_blocks
-    monkeypatch.setitem(sys.modules, "src.layout.expand", module)
+    monkeypatch.setattr(engine_module, "expand_blocks", expand_blocks)
 
 
 @pytest.fixture
@@ -160,14 +157,12 @@ def test_fingerprint_differs_by_board_grid(stub_refs, config):
 # --- the content key --------------------------------------------------------------
 
 
-@pytest.mark.usefixtures("real_layout")
 def test_identical_clock_inputs_identical_content_key_end_to_end(stub_refs):  # [RF-5]
     page = Page.model_validate(SAMPLE)
     a, b = render(page, "12:45"), render(page, "12:45")
     assert a.content_key() == b.content_key()
 
 
-@pytest.mark.usefixtures("real_layout")
 def test_minute_change_changes_content_key_end_to_end(stub_refs):  # [RF-5]
     page = Page.model_validate(SAMPLE)
     assert render(page, "12:45").content_key() != render(page, "12:46").content_key()

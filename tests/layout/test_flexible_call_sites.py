@@ -6,7 +6,7 @@ its geometry from the board the page shows on, skips flexible pages, or never
 reaches the grid code for them. One test per site, named for the behaviour;
 ``geometry_call_sites.json`` names the test that covers each page site.
 
-The layout engine's expansion (plan Task 6) and plugin references are stood
+The layout engine's expansion and plugin references are stood
 in for exactly as in ``tests/layout/test_flexible_render.py``.
 """
 

@@ -1,23 +1,20 @@
 """The flexible layout entry point (plan Task 10).
 
 The plan's end-to-end tests lay out :data:`SAMPLE` with the real expansion
-(Task 6) and fit (Task 7) and skip until those land. The engine's own
-orchestration (which issues come first, which levels are cascaded, what a
-cell target gets) is pinned against a stand-in expansion that turns each
-block's text into its markup unchanged, so it runs today.
+and fit. The engine's own orchestration (which issues come first, which
+levels are cascaded, what a cell target gets) is also pinned against a
+stand-in expansion that turns each block's text into its markup unchanged,
+so each rule is tested apart from what expansion does.
 """
 
 from __future__ import annotations
 
-import importlib
-import importlib.util
-import sys
-import types
 from dataclasses import dataclass, replace
 from typing import Any
 
 import pytest
 
+from src.layout import engine as engine_module
 from src.layout.engine import FlexRender, layout_flexible_page, named_size_scale
 from src.layout.issues import LayoutIssue
 from src.layout.target import FlexTarget
@@ -25,54 +22,33 @@ from src.pages.flexible import Block
 from src.pages.models import Page
 from tests.layout.devices import SAMPLE, SAMPLE_CTX, golden_target, profile
 
-# --- the plan's end-to-end tests (need Tasks 6 and 7) ------------------------
+# --- the plan's end-to-end tests ---------------------------------------------
 
 
-def _require_module(name: str, reason: str) -> None:
-    """Skip only while ``name`` has no source file; once it exists, import it.
-
-    ``pytest.importorskip`` would also skip when the module exists but one of
-    its own imports fails, hiding a broken Task 6/7 behind "not landed yet".
-    """
-    if importlib.util.find_spec(name) is None:
-        pytest.skip(reason)
-    importlib.import_module(name)
-
-
-@pytest.fixture
-def real_layout() -> None:
-    _require_module("src.layout.expand", "expand_blocks lands with plan Task 6")
-    _require_module("src.layout.measure", "fit_text lands with plan Task 7")
-
-
-@pytest.mark.usefixtures("real_layout")
 def test_pixel_target_gets_frame_and_cells():
     r = layout_flexible_page(Page.model_validate(SAMPLE), golden_target("pixoo64_3x5"), SAMPLE_CTX)
     assert r.frame.width == 64 and len(r.frame.pixels) == 64 * 64 * 3
-    assert len(r.cell_lines) == 10 and "12:45" in r.cell_lines[0] + r.cell_lines[1]
+    # SAMPLE stacks with valign middle: its four cell rows start at row (10 - 4) // 2.
+    assert len(r.cell_lines) == 10 and r.cell_lines[3] == " " * 5 + "12:45" + " " * 6
 
 
-@pytest.mark.usefixtures("real_layout")
 def test_cell_target_has_no_frame():
     r = layout_flexible_page(Page.model_validate(SAMPLE), golden_target("flagship"), SAMPLE_CTX)
     assert r.frame is None and len(r.cell_lines) == 6
 
 
-@pytest.mark.usefixtures("real_layout")
 def test_issue_paths_start_at_blocks():
     r = layout_flexible_page(Page.model_validate(SAMPLE), golden_target("strip_32x8"), SAMPLE_CTX)
     assert all(i.path[0] in ("blocks", "layout", "style") for i in r.issues)
     assert any(i.code == "dropped" for i in r.issues)
 
 
-@pytest.mark.usefixtures("real_layout")
 def test_tiny_surface_reports_instead_of_crashing():
     t = FlexTarget(rows=0, cols=0, display=replace(profile("hub75_64x32"), width=4, height=4))
     r = layout_flexible_page(Page.model_validate(SAMPLE), t, SAMPLE_CTX)
     assert r.cell_lines == () and any(i.code == "surface_too_small" for i in r.issues)
 
 
-@pytest.mark.usefixtures("real_layout")
 def test_frame_is_deterministic_for_identical_inputs():
     a = layout_flexible_page(Page.model_validate(SAMPLE), golden_target("pixoo64_5x7"), SAMPLE_CTX)
     b = layout_flexible_page(Page.model_validate(SAMPLE), golden_target("pixoo64_5x7"), SAMPLE_CTX)
@@ -98,7 +74,7 @@ class StubExpanded:
 
 @pytest.fixture
 def stub_expand(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
-    """Replace ``src.layout.expand`` with markup-as-written expansion.
+    """Replace the engine's ``expand_blocks`` with markup-as-written expansion.
 
     A block whose ``if`` is ``"no"`` is hidden; a block with an unknown kind is
     skipped with ``block_kind_unsupported``. Returns the calls' arguments.
@@ -117,9 +93,7 @@ def stub_expand(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
             shown.append(StubExpanded(block.id, block.kind, index, block.priority, block, block.text or ""))
         return shown, issues
 
-    module = types.ModuleType("src.layout.expand")
-    module.expand_blocks = expand_blocks
-    monkeypatch.setitem(sys.modules, "src.layout.expand", module)
+    monkeypatch.setattr(engine_module, "expand_blocks", expand_blocks)
     return calls
 
 
@@ -232,7 +206,7 @@ def test_issues_are_deduplicated_by_path_and_code_keeping_the_first(stub_expand)
         again = LayoutIssue(("blocks", "x"), "block_kind_unsupported", "info", "second")
         return [StubExpanded("t", "text", 0, None, p.blocks[0], "HI")], [issue, again]
 
-    sys.modules["src.layout.expand"].expand_blocks = twice
+    engine_module.expand_blocks = twice  # restored by stub_expand's monkeypatch
     r = layout_flexible_page(p, FLAGSHIP, {})
     assert [(i.code, i.message) for i in r.issues] == [("block_kind_unsupported", "first")]
 

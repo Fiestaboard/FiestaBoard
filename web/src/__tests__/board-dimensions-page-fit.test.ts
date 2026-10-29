@@ -32,6 +32,9 @@ describe("pageFitForBoard", () => {
   it("flags a flagship page on a Pixoo", () =>
     expect(pageFitForBoard({ device_type: "flagship" }, PIXOO)).toMatchObject({ fits: false, rows: 6, cols: 22 }));
 
+  it("fits a flexible page on a Pixoo, with no face (it has no grid)", () =>
+    expect(pageFitForBoard({ type: "flexible" }, PIXOO)).toEqual({ fits: true, face: null, rows: 0, cols: 0 }));
+
   it("keeps the exact rule for a board with no producible grids", () =>
     expect(pagesCompatibleWithBoard({ device_type: "note" }, { device_type: "note_array" })).toBe(false));
 });
