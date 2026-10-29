@@ -121,7 +121,7 @@ import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
 import { charsetTokenText } from "@/lib/charset-issues";
-import { boardForShape, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
+import { boardForShape, ledEditorCharacterSet, pagePreviewTarget } from "@/lib/device-preview";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
@@ -898,29 +898,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Live output mode state
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
   const [chosenLiveBoardId, setChosenLiveBoardId] = useState<string>("");
+  // The page's size, as the fit rule reads it.
+  const currentShape = useMemo(
+    () => ({
+      device_type: deviceType,
+      notes_wide: notesWide,
+      notes_tall: notesTall,
+      grid_rows: panelGrid?.rows ?? null,
+      grid_cols: panelGrid?.cols ?? null,
+    }),
+    [deviceType, notesWide, notesTall, panelGrid],
+  );
   // The board this page is previewed as: the live-output target, else the
   // board in context, when the page fits it; else any board it fits. Its
   // model draws the preview (an LED board as an LED matrix) and its
   // character set is what the render is checked against.
   const previewBoard = useMemo(
-    () =>
-      boardForShape(boardSettings?.boards, [targetBoardId, chosenLiveBoardId, currentBoardId], {
-        device_type: deviceType,
-        notes_wide: notesWide,
-        notes_tall: notesTall,
-        grid_rows: panelGrid?.rows ?? null,
-        grid_cols: panelGrid?.cols ?? null,
-      }),
-    [
-      boardSettings?.boards,
-      targetBoardId,
-      chosenLiveBoardId,
-      currentBoardId,
-      deviceType,
-      notesWide,
-      notesTall,
-      panelGrid,
-    ],
+    () => boardForShape(boardSettings?.boards, [targetBoardId, chosenLiveBoardId, currentBoardId], currentShape),
+    [boardSettings?.boards, targetBoardId, chosenLiveBoardId, currentBoardId, currentShape],
   );
   const previewBoardId = previewBoard?.id ?? null;
   // Follow the compatible preview until the user chooses a live target or
@@ -928,16 +923,18 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // and sidebar context without first selecting the primary board.
   const selectedBoardId = chosenLiveBoardId || previewBoardId || "";
   const liveTargetPaused = boardSettings?.boards?.find((board) => board.id === selectedBoardId)?.paused === true;
-  const previewModel = useMemo(() => resolveBoardModel(previewBoard), [previewBoard]);
+  // The model and LED layout the page is drawn with on that board: the
+  // board's own, or the face the page fits at when that is another text size
+  // (a 10×16 page on a Pixoo set to 8×10 draws in 3×5).
+  const previewTarget = useMemo(() => pagePreviewTarget(previewBoard, currentShape), [previewBoard, currentShape]);
+  const previewModel = previewTarget.model;
+  const previewLedLayout = previewTarget.ledLayout;
   // An LED target's character set: the rich editor then reads and offers that
   // set's extended markup and keeps its case. null for a split-flap target.
   const editorCharset = useMemo(() => ledEditorCharacterSet(previewBoard, previewModel), [previewBoard, previewModel]);
   // The preview board as a pixel matrix (its size and face), when it is one:
   // only then are the page's canvases drawn, and so edited.
-  const pixelBoard = useMemo(
-    () => pixelBoardOf(previewModel, previewBoard?.led_layout),
-    [previewModel, previewBoard?.led_layout],
-  );
+  const pixelBoard = useMemo(() => pixelBoardOf(previewModel, previewLedLayout), [previewModel, previewLedLayout]);
   // Cells of the last render that board's character set draws differently
   // (POST /templates/render with board_id); [] when none or no board.
   const [charsetIssues, setCharsetIssues] = useState<CharsetIssue[]>([]);
@@ -2874,7 +2871,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           mode hit-tests flap tiles, so it stays on the flaps. */}
                       <DevicePreview
                         model={drawMode ? null : previewModel}
-                        ledLayout={previewBoard?.led_layout}
+                        ledLayout={previewLedLayout}
                         layers={drawMode ? undefined : previewLayers}
                         message={editorPreviewMessage}
                         size="md"
