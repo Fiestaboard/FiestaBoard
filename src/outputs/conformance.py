@@ -50,7 +50,7 @@ A factory that replaces the plugin's own request seam with
 - ``character_set`` — a declared character set materialises non-empty, and
   so does every character set a device model embeds;
 - ``geometry_floor`` — every declared device model reaches its floor in
-  cells: the 3×15 Note, or 3×10 for an LED board measured in pixels (core
+  cells: the 3×15 Note, or 1×5 for an LED board measured in pixels (core
   refuses a smaller board; ``src.outputs.geometry.grid_floor``);
 - ``import_network`` — importing the plugin package makes no network call
   (no socket connect, no DNS lookup) and yields an ``OutputPluginBase``;

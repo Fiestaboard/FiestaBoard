@@ -26,9 +26,9 @@ templates are authored for that — except an LED board measured in pixels
 (``pixels`` geometry), whose floor is 1 × 5 (``MIN_LED_GRID_*``) so a
 legible 5x7 face fits: a Divoom Pixoo 64 at 5x7 is 8 × 10, a 64 × 32 HUB75
 or Tidbyt 4 × 10, a 32 × 8 Ulanzi TC001 1 × 8 (3x5) or 1 × 5 (5x7).
-:func:`grid_floor` picks the model's floor. A model whose grid is smaller is **refused** (:class:`BelowFloorError`) here, before
-anything resolves the board's geometry — ``src.devices.clamp_grid`` (which
-every ``panel`` grid passes through, LED boards included) would otherwise
+:func:`grid_floor` picks the model's floor. A model whose grid is smaller is
+**refused** (:class:`BelowFloorError`) here, before anything resolves the board's geometry —
+``src.devices.clamp_grid`` (which every ``panel`` grid passes through, LED boards included) would otherwise
 quietly inflate a 1 × 2 matrix to 1 × 5 and every frame would be cropped on
 the device. A grid above the panel ceiling (``MAX_GRID_ROWS`` ×
 ``MAX_GRID_COLS``) is refused the same way rather than shrunk.
