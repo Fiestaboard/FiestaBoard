@@ -14,6 +14,8 @@ from .fonts import (
     size_ladder,
 )
 from .issues import ISSUE_CODES, LayoutIssue, LayoutIssueModel
+from .pixels import canvas_block_op, draw_line, frame_from_ops
+from .stack import Rect, StackResult, stack
 from .style import (
     ResolvedLayout,
     ResolvedStyle,
@@ -36,17 +38,23 @@ __all__ = [
     "FontFamily",
     "LayoutIssue",
     "LayoutIssueModel",
+    "Rect",
     "ResolvedLayout",
     "ResolvedStyle",
     "SizedFace",
+    "StackResult",
     "board_style_for",
+    "canvas_block_op",
     "device_default_style",
+    "draw_line",
     "face_for_height",
     "face_for_led_font",
     "flex_target_for",
+    "frame_from_ops",
     "named_size_heights",
     "resolve_block_style",
     "resolve_color_value",
     "resolve_layout",
     "size_ladder",
+    "stack",
 ]
