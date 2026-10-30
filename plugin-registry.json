@@ -435,6 +435,17 @@
       "added": "2026-03-22"
     },
     {
+      "id": "steam",
+      "name": "Steam",
+      "description": "Show Steam activity, friends online, playtime and achievement progress. Add a separate instance for each person and combine them on household pages.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--steam",
+      "author": "FiestaBoard",
+      "fiestaboard_version": ">=10.0.0",
+      "icon": "gamepad-2",
+      "category": "entertainment",
+      "added": "2026-10-29"
+    },
+    {
       "id": "stocks",
       "name": "Stock Prices",
       "description": "Display real-time stock prices and percentage changes from Yahoo Finance",

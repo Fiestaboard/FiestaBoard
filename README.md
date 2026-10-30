@@ -202,6 +202,7 @@ FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit,
 | [Spotify](https://github.com/Fiestaboard/fiestaboard-plugin--spotify) | What's playing on your Spotify account, with progress and up next | Yes (your own Spotify app; Premium) |
 | [Star Trek Quotes](https://github.com/Fiestaboard/fiestaboard-plugin--star-trek-quotes) | Quotes from TNG, Voyager, DS9 | No |
 | [Stardate](https://github.com/Fiestaboard/fiestaboard-plugin--stardate) | Current TNG-era stardate | No |
+| [Steam](https://github.com/Fiestaboard/fiestaboard-plugin--steam) | Current games, friends online, playtime and achievements, with individual and household pages | Yes (personal Steam Web API key) |
 | [Stocks](https://github.com/Fiestaboard/fiestaboard-plugin--stocks) | Stock prices with color indicators | Optional |
 | [Strava](https://github.com/Fiestaboard/fiestaboard-plugin--strava) | Show your latest Strava activity (distance, time, pace) and your recent and year-to-date totals. Signs in to your Strava account through your own free Strava API app | Own app (free) |
 | [Sun Art](https://github.com/Fiestaboard/fiestaboard-plugin--sun-art) | Art pattern that follows the sun | No |
