@@ -108,6 +108,7 @@ def native_engine():
     settings.get_transition_settings.return_value = SimpleNamespace(
         strategy=None, step_interval_ms=None, step_size=None
     )
+    settings.get_polling_settings.return_value = SimpleNamespace(board_read_interval_local=30)
     collections = MagicMock()
     collections.get_collection.return_value = SimpleNamespace(
         selection_mode="time", page_ids=["pA", "pB"], time=SimpleNamespace(interval_seconds=30)
@@ -193,6 +194,9 @@ def test_poll_reports_hardware_selection_and_retains_configured_reference(native
     assert env.rt.last_active_page_id == "pB"
     assert env.settings.get_active_page_id(board_id="b1") == "collection:test"
     env.plugin.news = DevicePoll(native_selection=NativePageSelection(None))
+    # Main polls physical outputs on their configured cadence. Make the
+    # next observation due without sleeping or bypassing that production gate.
+    env.rt.device_poll_attempted_at -= 30
     env.service._poll_output_devices()
     assert env.rt.last_active_page_id is None
 
