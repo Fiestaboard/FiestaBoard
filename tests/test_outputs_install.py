@@ -128,6 +128,24 @@ _REGISTRY: list[RegistryEntry] = []
 
 
 class TestOutputCatalog:
+    def test_tc001_is_discoverable_from_committed_registry(self, client, plugins):
+        """A fresh install offers the TC001 without a manually entered Git URL."""
+        entries = REAL_LOAD_REGISTRY(Path(__file__).resolve().parents[1] / "plugin-registry.json", strict=True)
+        set_registry(entries)
+
+        response = client.get("/outputs/catalog")
+        assert response.status_code == 200
+        matches = [output for output in response.json()["outputs"] if output["id"] == "ulanzi_tc001"]
+        assert len(matches) == 1, "TC001 must be discoverable in the display Marketplace"
+        output = matches[0]
+        assert output["source"] == "registry"
+        assert output["installed"] is False
+        assert output["display"]["manufacturer"] == "Ulanzi"
+        assert output["display"]["models"] == ["TC001"]
+        entry = next(entry for entry in entries if entry.plugin_id == "ulanzi_tc001")
+        assert entry.repository == "https://github.com/Fiestaboard/fiestaboard-output--ulanzi-tc001"
+        assert entry.fiestaboard_version == ">=10.2.0"
+
     def test_registry_metadata_survives_local_precedence(self, client, seeded):
         entry = _registry_entry()
         entry.display = {"category": "Ambient sculptures", "manufacturer": "Acme", "models": ["Orb 2"]}
