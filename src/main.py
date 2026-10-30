@@ -1443,7 +1443,10 @@ class DisplayService:
 
     def native_page_selection(self, reference_id, board_id=None) -> NativePageSelection | None:
         """None for a legacy reference, a selection wrapper for a native one."""
-        rt = self.runtime_for(board_id) if board_id is not None else self._primary_runtime()
+        # Feedback only exists for an initialized native runtime. Do not use
+        # runtime_for's settings-backed legacy alias resolution here: optional
+        # telemetry must not initialize settings for a missing board client.
+        rt = self.runtimes.get(board_id) if board_id is not None else self._primary_runtime()
         if rt is None or getattr(rt, "native_reference_id", None) != reference_id or reference_id is None:
             return None
         selection = rt.native_selection

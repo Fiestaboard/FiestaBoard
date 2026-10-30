@@ -606,6 +606,12 @@ def test_freeze_uses_cached_selection_when_current_member_render_is_unavailable(
     assert env.plugin.writes == [selected]
 
 
+def test_missing_native_runtime_does_not_read_or_initialize_settings(native_engine):
+    service = native_engine.service
+    with patch("src.main.get_settings_service", side_effect=AssertionError("feedback must only peek")):
+        assert service.native_page_selection("page-42", "not-initialized") is None
+
+
 def test_optional_native_state_does_not_break_legacy_runtime_consumers(native_engine):
     from src.display_runtime import native_page_selection
 
