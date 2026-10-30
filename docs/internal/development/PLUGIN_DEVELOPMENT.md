@@ -1222,6 +1222,13 @@ plugin overrides `write_cells` to receive rich frames and
 change with the board's resolved LED transition — the flip FiestaUI
 previews.
 
+Outputs may optionally implement device-owned page rotation through
+`sync_native_playlist(playlist, *, cancel) -> WriteResult`. Core calls this
+only when the board's `output_config.native_rotation` is the literal boolean
+`true` and the method is overridden. The default remains ordinary writes.
+See [the native rotation contract](../../development/output-plugins.md#native-page-rotation)
+for snapshots, selection feedback, cleanup, cancellation, and recovery rules.
+
 `output_api` is a hard gate, applied three times: the update check never
 offers a commit whose manifest declares an `output_api` this core does not
 implement; an update that fails verification or does not load is **rolled

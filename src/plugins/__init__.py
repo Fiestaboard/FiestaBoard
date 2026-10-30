@@ -58,6 +58,7 @@ from src.outputs.author_kit import (
 from src.outputs.cells import cells_from_codes
 from src.outputs.hooks import ActionContext, DevicePoll, OutputActionError, OutputStatus, ReadBack
 from src.outputs.http import OutputHttp, RequestCancelled
+from src.outputs.native_playlist import NativePageSelection, NativePlaylist, NativePlaylistEntry
 from src.outputs.plugin_base import (
     ActionField,
     ActionOutcome,
@@ -107,6 +108,9 @@ __all__ = [
     "LedLayoutOptions",
     "LedMatrixSpec",
     "LedTransitionSpec",
+    "NativePageSelection",
+    "NativePlaylist",
+    "NativePlaylistEntry",
     "OutputActionError",
     "OutputHostBlocked",
     "OutputHttp",
