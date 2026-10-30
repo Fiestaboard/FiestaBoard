@@ -654,6 +654,69 @@ A board's transition reaches your plugin in one of three ways:
 - **Transition plugins.** A board can use a frame-by-frame transition plugin. For a `sequence` device, core collects its frames and calls `write_sequence(frames, *, cancel)` once; each `TimedFrame` has a `frame` and a `duration_ms`, and the last frame is always the target. Upload at most the model's `maxFrames`. For other devices core sends the frames one at a time through `write()`.
 - **Native transitions.** If the device animates changes itself, list the strategies in `native_transitions`. Core passes the chosen one to `write()` as `native`, and never passes one you did not declare.
 
+### Native page rotation
+
+An output with device-owned slots can optionally override:
+
+```python
+from src.plugins import DevicePoll, NativePageSelection, NativePlaylist, WriteResult
+
+def sync_native_playlist(self, playlist: NativePlaylist, *, cancel) -> WriteResult:
+    # Reconcile slots, payloads, duration and order using self.http.
+    # Preserve device focus and dwell on unchanged background refreshes.
+    ...
+
+def poll_device(self):
+    return DevicePoll(native_selection=NativePageSelection(page_id="page-example"))
+```
+
+Declare a boolean `native_rotation` in the output settings schema, defaulting
+to `false`. Core requires both the literal saved boolean `true` and a real
+method override. This is an additive optional API 1 hook; outputs without it
+keep ordinary writes. Plugins supporting older core versions should guard
+the optional imports and reject `native_rotation=true` with upgrade guidance
+when the hook is unavailable.
+
+`NativePlaylist(board_id, reference_id, entries)` is a frozen wrapper with an
+ordered tuple of `NativePlaylistEntry(page_id, cells, duration_ms)`. Each entry
+owns a deep copy of its rich cells, preserving `.layers` pixel canvases; treat
+these cells as read-only. Core renders and validates every member before
+dispatch, shares dependency contexts across members, and renders repeated
+page ids once while retaining their ordered occurrences. Single pages have
+duration `0` (the output's single-page default); timed collections use their
+configured interval in milliseconds. Empty entries mean retire owned slots.
+Random and variable collections, triggers, temporary overrides, silence pages
+and manual sends use ordinary writes.
+
+The plugin must validate capacity before changing the device, preserve foreign
+apps and their disabled state, reconcile after device/process restarts, and
+remove only its own stale slots. An unchanged sync must preserve button
+selection and must not restart dwell. Ordinary `write` and `write_cells` must
+retire all owned playlist slots, including from a newly created instance with
+native rotation disabled. This makes opting out and transient overrides safe.
+
+Playlist sync uses the board's existing send worker, write lock, cancellation
+token, send floor, timeout budget and error reporting. Return `WriteResult` as
+for ordinary writes. A sync failure remains a playlist retry; core does not
+fall back to competing core rotation after a partial device mutation. Sync
+success never records an arbitrary member as the displayed frame.
+
+Selection is separate feedback. `DevicePoll.native_selection=None` means no
+feedback arrived and retains the prior selection. `NativePageSelection(None)`
+means unknown or a foreign active app and clears it. Report the actual owned
+page id after device buttons or timed rotation; report `restarted=True` when
+slots need recovery. UI/API `resolved_page_id` and MQTT's `current_page`
+sensor follow this feedback, while configured references and MQTT's
+`active_page` select retain the page/collection target. Selection is unknown
+until the first successful poll and may lag by the board's polling interval.
+
+Silence freeze writes a still of the last confirmed owned selection, retiring
+owned rotation. Unknown/foreign selection is left untouched, since stopping
+foreign rotation would require changing global firmware settings. Pause keeps
+the existing hands-off behavior, so firmware may continue rotating while core
+is paused. Manual writes persist until the source content changes or the user
+explicitly restores it.
+
 ## Testing
 
 ### The conformance suite

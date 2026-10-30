@@ -41,6 +41,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from .native_playlist import NativePageSelection
+
 #: Why a connection check failed, as a class core and the UI can branch on
 #: without parsing the message: the device refused the credential (``auth``);
 #: no socket could be opened (``unreachable``); the device accepted the
@@ -144,6 +146,9 @@ class DevicePoll:
     restarted: bool = False
     config: Mapping[str, Any] | None = None
     overwritten: bool = False
+    #: Actual selected member. None means no feedback; a selection whose
+    #: page_id is None means unknown/foreign, clearing any prior member.
+    native_selection: NativePageSelection | None = None
 
 
 @dataclass(frozen=True)

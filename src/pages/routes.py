@@ -31,8 +31,7 @@ from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.board_guards import _board_dims, _board_is_paused, _find_board, _require_board, silence_verdict
 from src.canvas.schemas import issues_json, layers_json
-from src.collections.models import is_collection_id
-from src.collections.service import get_collection_service
+from src.collections.service import get_collection_service, resolve_active_page_id
 from src.devices import board_context_for, geometry_of, resolve_dimensions, size_key
 from src.display_runtime import get_service
 from src.led.charsets import has_extended_markup
@@ -154,12 +153,11 @@ async def get_current_display():
     if not active_page_id:
         raise HTTPException(status_code=404, detail="No active page set")
 
-    # Resolve collection to underlying page
-    if is_collection_id(active_page_id):
-        resolved = collection_service.resolve_page_id(active_page_id)
-        if not resolved:
-            raise HTTPException(status_code=404, detail="Collection could not be resolved")
-        active_page_id = resolved
+    # Native collections follow device selection instead of core's clock.
+    resolved = resolve_active_page_id(active_page_id, lambda: collection_service)
+    if not resolved:
+        raise HTTPException(status_code=404, detail="Collection could not be resolved")
+    active_page_id = resolved
 
     page = page_service.get_page(active_page_id)
     if not page:

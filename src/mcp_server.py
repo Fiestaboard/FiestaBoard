@@ -2537,7 +2537,7 @@ def _build_mcp_server() -> Any:
         temporary_override (the same status get_temporary_override() returns;
         when active it wins over source/active_ref on the primary board)}.
         """
-        from .collections.models import is_collection_id
+        from .collections.service import get_collection_service, resolve_active_page_id
         from .settings.service import get_settings_service, temporary_override_payload
 
         svc = get_settings_service()
@@ -2562,11 +2562,7 @@ def _build_mcp_server() -> Any:
             active_ref = svc.get_active_page_id(board_id)
             source = "manual"
 
-        resolved_page_id = active_ref
-        if active_ref and is_collection_id(active_ref):
-            from .collections.service import get_collection_service
-
-            resolved_page_id = get_collection_service().resolve_page_id(active_ref)
+        resolved_page_id = resolve_active_page_id(active_ref, get_collection_service, board_id=board_id)
 
         page_summary = None
         if resolved_page_id:

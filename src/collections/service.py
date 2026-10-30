@@ -254,7 +254,9 @@ def get_collection_service() -> CollectionService:
     return _collection_service
 
 
-def resolve_active_page_id(page_id: str | None, get_collection_service: Callable[[], Any]) -> str | None:
+def resolve_active_page_id(
+    page_id: str | None, get_collection_service: Callable[[], Any], *, board_id=None
+) -> str | None:
     """Resolve a collection reference to the page it is currently showing.
 
     When ``page_id`` is a collection ID the Dashboard needs to know which
@@ -263,15 +265,20 @@ def resolve_active_page_id(page_id: str | None, get_collection_service: Callable
     are returned unchanged. Never raises — a collection that can't be resolved
     just yields None.
 
-    Lived in ``src/api_server.py`` until Phase 2 §2.3; it reads nothing but
-    collections, so the schedules router can import it from here instead of
-    reaching into the app module at call time.
+    Native outputs use their last device selection, including an explicitly
+    unknown/foreign selection (None), rather than core's clock. The existing
+    display service is only peeked; this read never initializes hardware.
 
     The service *accessor* is a parameter, not this module's global: the caller
     passes its own binding, so the lookup keeps resolving through whichever
     ``get_collection_service`` the calling module binds (and stays lazy — a
     plain page id never touches the service at all).
     """
+    from src.display_runtime import native_page_selection
+
+    selected = native_page_selection(page_id, board_id)
+    if selected is not None:
+        return selected.page_id
     if not is_collection_id(page_id):
         return page_id
     try:
@@ -281,7 +288,9 @@ def resolve_active_page_id(page_id: str | None, get_collection_service: Callable
         return None
 
 
-def resolve_next_check_seconds(page_id: str | None, get_collection_service: Callable[[], Any]) -> int | None:
+def resolve_next_check_seconds(
+    page_id: str | None, get_collection_service: Callable[[], Any], *, board_id=None
+) -> int | None:
     """Seconds until ``page_id``'s collection may switch to a different page.
 
     A collection can rotate as often as every 5 seconds (2 for variable-mode
@@ -294,6 +303,10 @@ def resolve_next_check_seconds(page_id: str | None, get_collection_service: Call
     Takes the service accessor as a parameter for the same reason as
     :func:`resolve_active_page_id`.
     """
+    from src.display_runtime import native_page_selection
+
+    if native_page_selection(page_id, board_id) is not None:
+        return None  # device buttons and dwell, not the core's Unix clock
     if not is_collection_id(page_id):
         return None
     try:

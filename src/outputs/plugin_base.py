@@ -156,6 +156,7 @@ if TYPE_CHECKING:
     from src.led import LedLayoutOptions
     from src.led.transition_registry import ResolvedLedTransition
 
+    from .native_playlist import NativePlaylist
     from .output_manifest import OutputManifest
     from .registry import OutputCapabilities
 
@@ -484,6 +485,18 @@ class OutputPluginBase(ABC):
         raise NotImplementedError(f"{type(self).__name__} declares no sequence upload")
 
     # --- reads and probes ----------------------------------------------------------
+
+    def sync_native_playlist(self, playlist: NativePlaylist, *, cancel: CancelToken) -> WriteResult:
+        """Optionally reconcile device-owned rotation without resetting its focus.
+
+        Core calls only a real override with ``config['native_rotation'] is
+        True``. Validate capacity before mutation, preserve foreign slots,
+        reconcile missing slots after restarts, and honor cancellation.
+        Ordinary ``write``/``write_cells`` MUST retire owned playlist slots,
+        including on a fresh instance with the option disabled. Failures are
+        retried as playlists; core never starts competing frame rotation.
+        """
+        raise NotImplementedError(f"{type(self).__name__} declares no native playlist support")
 
     def read_current(self) -> CellFrame | None:
         """What the device shows, when ``read_back.supported``; else ``None``."""

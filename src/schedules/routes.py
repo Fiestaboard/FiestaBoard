@@ -215,8 +215,10 @@ async def get_active_schedule(board_id: str | None = None):
         manual_page_id = settings_service.get_active_page_id(board_id=board_id)
         return ActiveScheduleResponse(
             page_id=manual_page_id,
-            resolved_page_id=resolve_active_page_id(manual_page_id, get_collection_service),
-            resolved_next_check_seconds=resolve_next_check_seconds(manual_page_id, get_collection_service),
+            resolved_page_id=resolve_active_page_id(manual_page_id, get_collection_service, board_id=board_id),
+            resolved_next_check_seconds=resolve_next_check_seconds(
+                manual_page_id, get_collection_service, board_id=board_id
+            ),
             source="manual",
             schedule_enabled=False,
             temporary_override=override_payload,
@@ -229,8 +231,8 @@ async def get_active_schedule(board_id: str | None = None):
     page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
     return ActiveScheduleResponse(
         page_id=page_id,
-        resolved_page_id=resolve_active_page_id(page_id, get_collection_service),
-        resolved_next_check_seconds=resolve_next_check_seconds(page_id, get_collection_service),
+        resolved_page_id=resolve_active_page_id(page_id, get_collection_service, board_id=board_id),
+        resolved_next_check_seconds=resolve_next_check_seconds(page_id, get_collection_service, board_id=board_id),
         source="schedule" if page_id else "none",
         schedule_enabled=True,
         current_time=now.strftime("%H:%M"),

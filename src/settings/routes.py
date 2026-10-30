@@ -603,8 +603,8 @@ async def get_active_page(board_id: str | None = None):
         page_id = settings_service.get_active_page_id()
     return {
         "page_id": page_id,
-        "resolved_page_id": resolve_active_page_id(page_id, get_collection_service),
-        "resolved_next_check_seconds": resolve_next_check_seconds(page_id, get_collection_service),
+        "resolved_page_id": resolve_active_page_id(page_id, get_collection_service, board_id=board_id),
+        "resolved_next_check_seconds": resolve_next_check_seconds(page_id, get_collection_service, board_id=board_id),
         "board_id": board_id,
     }
 

@@ -27,10 +27,11 @@ from .devices import (
 from .displays.send_worker import BoardSendWorker, SendJob
 from .outputs import OutputDriver, OutputRuntime
 from .outputs.breaker import write_failure_reason
-from .outputs.cells import output_character_set, project_message
+from .outputs.cells import cells_from_codes, output_character_set, project_message
 from .outputs.display_profile import render_kw
 from .outputs.factory import build_driver
 from .outputs.hooks import DevicePoll
+from .outputs.native_playlist import NativePageSelection, NativePlaylist, NativePlaylistEntry
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
 from .pages.models import LineMetadata, Page
@@ -299,12 +300,20 @@ class BoardRuntime:
         # throttled send — invalidates this memo for free, and a future one
         # cannot forget to.
         self.last_render: tuple[str, str, str] | None = None
+        self.native_playlist: NativePlaylist | None = None
+        self.native_selection: NativePageSelection | None = None
+        # Intended native target, including attempts that failed before any
+        # playlist was installed. Those must report unknown, not clock state.
+        self.native_reference_id: str | None = None
 
     def content_delivered(self) -> None:
         """FiestaBoard just wrote this board: neither out-of-band content
         (#1831) nor another app's (#2354) is on it any more."""
         self.showing_out_of_band = False
         self.overwritten_at = None
+        self.native_playlist = None
+        self.native_selection = None
+        self.native_reference_id = None
 
     @property
     def client(self) -> OutputDriver | None:
@@ -1173,6 +1182,8 @@ class DisplayService:
             return
         rt.last_active_page_content = None
         rt.last_active_page_id = None
+        rt.native_playlist = None
+        rt.native_selection = None
         if rt.client is not None:
             rt.client.clear_cache()
 
@@ -1409,6 +1420,38 @@ class DisplayService:
                     rt.overwritten_at = time.time()
                     logger.info("Board %s: another client wrote its device", board_id)
                 self._restore_after_overwrite(rt, board_id, settings, key=key)
+            elif isinstance(news.native_selection, NativePageSelection) and rt.native_playlist is not None:
+                selected = news.native_selection.page_id
+                members = {entry.page_id for entry in rt.native_playlist.entries}
+                rt.native_selection = NativePageSelection(selected if selected in members else None)
+                rt.last_active_page_id = rt.native_selection.page_id
+
+    def displayed_page_id(self, board_id=None) -> str | None:
+        """The last confirmed visible page, including hardware button selection.
+
+        The configured reference remains in settings. A synchronized native
+        playlist without selection feedback has no confirmed visible member.
+        """
+        rt = self.runtime_for(board_id) if board_id is not None else self._primary_runtime()
+        if rt is None or rt.showing_out_of_band:
+            return None
+        return rt.last_active_page_id
+
+    def native_rotation_active(self, board_id=None) -> bool:
+        rt = self.runtime_for(board_id) if board_id is not None else self._primary_runtime()
+        return rt is not None and rt.native_playlist is not None and not rt.showing_out_of_band
+
+    def native_page_selection(self, reference_id, board_id=None) -> NativePageSelection | None:
+        """None for a legacy reference, a selection wrapper for a native one."""
+        rt = self.runtime_for(board_id) if board_id is not None else self._primary_runtime()
+        if rt is None or getattr(rt, "native_reference_id", None) != reference_id or reference_id is None:
+            return None
+        selection = rt.native_selection
+        return (
+            selection
+            if isinstance(selection, NativePageSelection) and not rt.showing_out_of_band
+            else NativePageSelection(None)
+        )
 
     def _restore_after_overwrite(self, rt: BoardRuntime, board_id, settings, *, key=None) -> None:
         """Put a board's content back after another app overwrote it (#2354).
@@ -2343,6 +2386,34 @@ class DisplayService:
                 # Resolve collections: if the active ref is a collection, determine
                 # which underlying page should be shown right now.
                 collection_service = get_collection_service()
+                if (
+                    silence_mode_active
+                    and not override_active
+                    and silence_config.get("mode") == "freeze"
+                    and rt.native_playlist is not None
+                ):
+                    return self._freeze_native_playlist(rt, board_id, wait=wait)
+                if (
+                    not override_active
+                    and not silence_mode_active
+                    and getattr(rt.client, "native_rotation_enabled", False) is True
+                ):
+                    collection = (
+                        collection_service.get_collection(active_page_id) if is_collection_id(active_page_id) else None
+                    )
+                    if not is_collection_id(active_page_id) or (
+                        collection is not None and collection.selection_mode == "time"
+                    ):
+                        return self._send_native_reference(
+                            rt,
+                            board_id,
+                            active_page_id,
+                            collection,
+                            page_service,
+                            board=board,
+                            contexts=contexts,
+                            wait=wait,
+                        )
                 if is_collection_id(active_page_id):
                     # Variable-mode collections evaluate rules against the
                     # BOARD-AGNOSTIC plugin context (board=None, the pre-#1752
@@ -2621,6 +2692,173 @@ class DisplayService:
             self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
             logger.error(f"Error checking active page for board {board_id}: {e}")
             return False
+
+    def _send_native_reference(
+        self, rt, board_id, reference_id, collection, page_service, *, board, contexts, wait
+    ) -> bool:
+        """Render the complete snapshot before queuing one native reconciliation."""
+        if rt.native_reference_id != reference_id:
+            rt.native_selection = None
+            if rt.silence_queued_shown is None:
+                rt.last_active_page_id = None
+        rt.native_reference_id = reference_id
+        page_ids = list(collection.page_ids) if collection is not None else [reference_id]
+        if not page_ids:
+            self._record_send_error(rt, board_id, f"Native collection is empty: {reference_id}")
+            return False
+        duration = collection.time.interval_seconds * 1000 if collection is not None else 0
+        source = board if board is not None else self._board_dict_for(board_id)
+        entries = []
+        rendered = {}
+        content_keys = {}
+        # Even direct callers share member dependencies during this pass.
+        contexts = contexts if contexts is not None else {}
+        for page_id in page_ids:
+            if page_id in rendered:
+                entries.append(rendered[page_id])
+                continue
+            page = page_service.get_page(page_id)
+            if page is None or (source is not None and not pages_compatible_with_board(page, source)):
+                self._record_send_error(rt, board_id, f"Native playlist page missing or incompatible: {page_id}")
+                return False
+            result = page_service.preview_page(
+                page_id, force_refresh=True, contexts=contexts, **_extended_kw(rt.client)
+            )
+            if result is None or not result.available:
+                reason = getattr(result, "error", None) or f"Failed to render native playlist page: {page_id}"
+                self._record_send_error(rt, board_id, reason)
+                return False
+            dims = dimensions_of(page)
+            codes, rich = _project(rt.client, result.formatted, dims.rows, dims.cols, _result_layers(result))
+            entry = NativePlaylistEntry(page_id, rich.get("cells") or cells_from_codes(codes), duration)
+            rendered[page_id] = entry
+            content_keys[page_id] = _content_key(result)
+            entries.append(entry)
+        playlist = NativePlaylist(str(board_id), reference_id, tuple(entries))
+        shown = rt.silence_queued_shown
+        if shown is not None:
+            if not wait and self._send_in_flight(rt, ("trigger", shown)):
+                return False
+            rt.silence_queued_shown = None
+            if rt.last_active_page_content == shown and rt.last_active_page_id == "__trigger__":
+                # Adopt this snapshot as the source baseline for the message
+                # just delivered. It persists until that source changes.
+                rt.native_playlist = playlist
+                rt.native_selection = None
+                rt.last_active_page_id = None
+                rt.showing_out_of_band = True
+                return False
+        # An out-of-band manual write persists until the source content changes,
+        # like the normal page-content dedupe. Reconciliation must not undo it.
+        if rt.showing_out_of_band and playlist == rt.native_playlist:
+            return False
+        # Content keys include canvas bitmap bytes as well as markup text.
+        key = (
+            "native_playlist",
+            reference_id,
+            tuple((e.page_id, e.duration_ms, content_keys[e.page_id]) for e in entries),
+        )
+        if not wait and self._send_in_flight(rt, key):
+            return False
+        client = rt.client
+        sink = self._error_sink()
+        outcome = None
+
+        def send():
+            nonlocal outcome
+            outcome = client.sync_native_playlist(playlist, with_outcome=True)
+            return outcome.success, outcome.was_sent
+
+        def completed(success, was_sent, exc):
+            if exc is not None:
+                return self._send_exception_fallout(rt, board_id, exc, sink)
+            if success and outcome is not None and not outcome.throttled and not outcome.superseded:
+                selection = (
+                    rt.native_selection
+                    if rt.native_playlist is not None and rt.native_playlist.reference_id == reference_id
+                    else None
+                )
+                rt.content_delivered()
+                rt.native_playlist = playlist
+                rt.native_reference_id = reference_id
+                rt.native_selection = selection
+                rt.last_active_page_content = None
+                members = {entry.page_id for entry in playlist.entries}
+                rt.last_active_page_id = (
+                    selection.page_id if selection is not None and selection.page_id in members else None
+                )
+                return was_sent
+            if not success:
+                rt.native_selection = None
+                rt.last_active_page_id = None
+                reason = write_failure_reason(client)
+                self._record_send_error_to(
+                    rt,
+                    board_id,
+                    f"Failed to synchronize native playlist: {reference_id}" + (f" ({reason})" if reason else ""),
+                    sink,
+                )
+            return False
+
+        return self._dispatch_send(
+            rt,
+            board_id,
+            key=key,
+            send=send,
+            on_complete=completed,
+            wait=wait,
+            sink=sink,
+        )
+
+    def _freeze_native_playlist(self, rt, board_id, *, wait) -> bool:
+        """Retire owned rotation with a still of the last confirmed selection.
+
+        A foreign/unknown selection stays untouched: freezing foreign firmware
+        rotation would require changing global device settings.
+        """
+        from .markup import tokens_to_codes
+
+        if rt.showing_out_of_band:
+            rt.snoozing_message_sent = True
+            return False
+        selected = rt.native_selection.page_id if rt.native_selection is not None else None
+        entry = next((e for e in rt.native_playlist.entries if e.page_id == selected), None)
+        if entry is None:
+            rt.snoozing_message_sent = True
+            return False
+        client = rt.client
+        sink = self._error_sink()
+        outcome = None
+
+        def send():
+            nonlocal outcome
+            outcome = client.render(
+                [tokens_to_codes(row) for row in entry.cells], cells=entry.cells, force=True, with_outcome=True
+            )
+            return outcome.success, outcome.was_sent
+
+        def completed(success, was_sent, exc):
+            if exc is not None:
+                return self._send_exception_fallout(rt, board_id, exc, sink)
+            if success and outcome is not None and not outcome.throttled and not outcome.superseded:
+                rt.content_delivered()
+                rt.last_active_page_id = selected
+                rt.last_active_page_content = None
+                rt.snoozing_message_sent = True
+                return was_sent
+            if not success:
+                self._record_send_error_to(rt, board_id, "Failed to freeze native playlist", sink)
+            return False
+
+        return self._dispatch_send(
+            rt,
+            board_id,
+            key=("native_freeze", selected),
+            send=send,
+            on_complete=completed,
+            wait=wait,
+            sink=sink,
+        )
 
     # ------------------------------------------------------------------ #
     # Temporary override helpers
