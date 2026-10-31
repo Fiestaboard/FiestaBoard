@@ -22,6 +22,7 @@ import {
   chooseVestaboardInWizard,
   clearBoardConfig,
   configureBoard,
+  createPage,
   expect,
   getMockBoardState,
   mockBoardGrid,
@@ -168,8 +169,8 @@ test.describe("Page Management", () => {
     await page.goto("/pages");
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Click "New" button
-    await page.getByRole("button", { name: /New/ }).click();
+    // Choose the exact-grid editor, alongside the flexible-page entry point.
+    await page.getByRole("button", { name: "New Page", exact: true }).click();
 
     // Wait for the page builder to appear
     await expect(page.getByText("Create Page").first()).toBeVisible({ timeout: 10_000 });
@@ -192,6 +193,41 @@ test.describe("Page Management", () => {
     // After save, the app shows a toast and/or navigates to /pages
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
   });
+
+  test("creates and reopens a flexible document without converting legacy pages", async ({ page }) => {
+    await configureBoard();
+    await suppressWizard(page);
+    const legacyId = await createPage(`Legacy companion ${crypto.randomUUID()}`, ["EXACT GRID"]);
+    await page.goto("/pages");
+    await page.getByRole("button", { name: "New flexible page", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Flexible page", exact: true })).toBeVisible();
+    await page.getByLabel("Name", { exact: true }).fill(`Flexible acceptance ${crypto.randomUUID()}`);
+    await page.getByRole("button", { name: "Add text", exact: true }).click();
+    await page.getByLabel("Block 1 text").fill("Hello flexible world");
+    await page.getByRole("button", { name: "Add spacer", exact: true }).click();
+    const created = page.waitForResponse(
+      (response) => response.url().endsWith("/api/v1/pages") && response.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "Save page", exact: true }).click();
+    const response = await created;
+    expect(response.ok()).toBe(true);
+    const document = await response.json();
+    expect(document.type).toBe("flexible");
+    expect(document).not.toHaveProperty("device_type");
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible();
+    await page.goto(`/pages/edit/${document.id}`);
+    await expect(page.getByLabel("Block 1 text")).toHaveValue("Hello flexible world");
+    await page.getByLabel("Block 1 text").fill("Saved again");
+    const updated = page.waitForResponse(
+      (response) => response.url().endsWith(`/api/v1/pages/${document.id}`) && response.request().method() === "PUT",
+    );
+    await page.getByRole("button", { name: "Save page", exact: true }).click();
+    expect((await updated).ok()).toBe(true);
+    await page.goto(`/pages/edit/${document.id}`);
+    await expect(page.getByLabel("Block 1 text")).toHaveValue("Saved again");
+    const legacy = await fetch(`${API_URL}/v1/pages/${legacyId}`).then((result) => result.json());
+    expect(legacy).toMatchObject({ type: "template", device_type: "flagship", template: ["EXACT GRID"] });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -202,6 +238,9 @@ test.describe("Schedule Management", () => {
   test("creates a schedule entry", async ({ page }) => {
     await configureBoard();
     await suppressWizard(page);
+    // This test owns its input instead of depending on a previous UI test.
+    const pageName = `Integration Schedule ${crypto.randomUUID()}`;
+    const pageId = await createPage(pageName);
 
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
@@ -220,15 +259,8 @@ test.describe("Schedule Management", () => {
         () => true,
         () => false,
       );
-    const pageSelect = page.locator("#page");
-    if (await pageSelect.isVisible().catch(() => false)) {
-      await pageSelect.click();
-      // Click first available option
-      const firstOption = page.getByRole("option").first();
-      if (await becomesVisible(firstOption)) {
-        await firstOption.click();
-      }
-    }
+    await page.getByRole("combobox", { name: "Page or Collection", exact: true }).click();
+    await page.getByRole("option", { name: pageName }).click();
 
     // Set start time
     const startTime = page.locator("#start-time");
@@ -254,9 +286,14 @@ test.describe("Schedule Management", () => {
     const submitButton = page.getByRole("button", {
       name: "Create Schedule",
     });
-    if (await submitButton.isEnabled({ timeout: 3_000 }).catch(() => false)) {
-      await submitButton.click();
-    }
+    await expect(submitButton).toBeEnabled();
+    const saved = page.waitForResponse(
+      (response) => response.url().endsWith("/api/v1/schedules") && response.request().method() === "POST",
+    );
+    await submitButton.click();
+    const response = await saved;
+    expect(response.ok()).toBe(true);
+    expect(await response.json()).toMatchObject({ page_id: pageId });
 
     // Verify the schedule page is still showing (no crash)
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 10_000 });

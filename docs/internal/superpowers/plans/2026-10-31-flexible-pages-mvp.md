@@ -161,3 +161,46 @@ Open acceptance gates remain explicit:
   are incomplete. Hardware delivery has not been exercised or authorized.
 
 This checkpoint is not a completion or release approval.
+
+## Delivery and integration checkpoint
+
+The integration failure at head `d1f5b5473` was reproduced in an isolated
+mock-board stack: the new creation button made the old `/New/` selector
+ambiguous, and the schedule test depended on a page from another test. The
+selector is now exact and the schedule test creates its own page. All seven
+smoke tests passed locally, including a new real-backend flexible
+create/save/reopen/edit flow that verifies a companion legacy grid is unchanged.
+Only the three disposable test containers and their internal network were
+removed afterward; existing services were preserved.
+
+Flexible sends now refuse excluded targets and ordinary output writers that
+would discard their full-frame layer. Native synchronization checks its own
+rich-frame path. Independent review exposed two additional silence paths:
+held pages must revalidate targets and writer support on replay, and an
+unsupported silence page must use the existing indicator fallback. Three
+regressions failed for those behaviors before the fixes; all 57 focused
+delivery/silence/queue tests then passed. Review confirmed both findings closed.
+The guard proves layer transport, not physical pixel mapping by the adapter.
+
+Preview metadata now distinguishes `cell_projection` from `visible_cells` and
+reports the computed surface. The editor labels computed pixel dimensions and
+explains that the character fallback is a separate layout. This does not claim
+to provide a transcript of only the text visible in the pixel frame.
+
+Remote Quick Checks and the CI aggregate passed for `d1f5b5473`, but the heavy
+platform, UI, accessibility, E2E and image-build jobs were skipped because the
+PR is a draft. Its integration job failed as described above; replacement CI
+is required after publishing these fixes. Do not describe skipped jobs as
+executed coverage.
+
+Remaining cross-repository dependencies are unchanged: the iOS `Page` model
+requires `device_type` and its local repository has no remote; TC002 still
+maps a virtual 52 by 17 surface to 52 by 16. No files in either repository were
+changed. Persistent runtime diagnostics and final acceptance remain open.
+
+The combined post-fix checks passed: 15,013 backend tests (two skipped),
+3,122 frontend tests (seven skipped), full Python lint/format, frontend
+lint/types/format, and documentation checks. The response-golden diff adds
+only the intentional flexible preview metadata. A further regression proved
+that cell surface metadata must use the resolved display grid; all 49 focused
+geometry/render/response checks passed after that correction.
