@@ -740,9 +740,10 @@ class PageService:
         the primary board is laid out as it draws, never as a bare cell grid.
 
         On a pixel display the laid-out frame is one opaque full-frame layer
-        and ``formatted`` is the page's real text at the board's character
-        grid underneath it; any other display gets the cells alone. The
-        plugin context is the board's: given, shared per board size and
+        and ``formatted`` is an alternate layout at the board's character
+        grid underneath it, not a transcript of the visible pixels. The raw
+        metadata identifies that projection; other displays get visible cells.
+        The plugin context is the board's: given, shared per board size and
         display (:meth:`shared_context_for`), or built for this render. A
         layout that fails is an unavailable result, never an exception.
         """
@@ -758,7 +759,8 @@ class PageService:
                 context = get_template_engine().build_context(
                     board_context_for(*geometry, display=display), plugin_ids=plugin_ids
                 )
-            render = layout_flexible_page(page, flex_target_for(layout_board, display), context)
+            target = flex_target_for(layout_board, display)
+            render = layout_flexible_page(page, target, context)
         except Exception as e:
             logger.error(f"Failed to lay out flexible page {page.id}: {e}", exc_info=True)
             return DisplayResult(
@@ -771,7 +773,14 @@ class PageService:
         return DisplayResult(
             display_type="page:flexible",
             formatted="\n".join(render.cell_lines),
-            raw={"page_id": page.id, "shown": list(render.shown)},
+            raw={
+                "page_id": page.id,
+                "shown": list(render.shown),
+                "text_representation": "cell_projection" if render.frame is not None else "visible_cells",
+                "surface": {"kind": "pixels", "width": render.frame.width, "height": render.frame.height}
+                if render.frame is not None
+                else {"kind": "cells", "rows": target.rows, "cols": target.cols},
+            },
             available=True,
             layers=[full_frame_layer(render.frame, monochrome=display.monochrome if display else None)]
             if render.frame is not None

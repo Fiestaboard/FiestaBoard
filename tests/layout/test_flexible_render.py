@@ -106,6 +106,18 @@ def test_cells_under_the_frame_are_real_text_at_the_boards_grid(service, pixoo_d
     assert len(r.formatted.split("\n")) == 10 and "12:45" in r.formatted
 
 
+def test_pixel_render_labels_text_as_an_alternate_projection(service, pixoo_display):
+    r = service.render_page(Page.model_validate(SAMPLE), context=SAMPLE_CTX, display=pixoo_display, board=PIXOO_BOARD)
+    assert r.raw["text_representation"] == "cell_projection"
+    assert r.raw["surface"] == {"kind": "pixels", "width": 64, "height": 64}
+
+
+def test_character_render_labels_text_as_the_visible_cell_grid(service):
+    r = service.render_page(Page.model_validate(SAMPLE), context=SAMPLE_CTX, board=FLAGSHIP_BOARD)
+    assert r.raw["text_representation"] == "visible_cells"
+    assert r.raw["surface"] == {"kind": "cells", "rows": 6, "cols": 22}
+
+
 def test_layout_issues_of_a_crowded_strip_are_on_the_display_result(service):
     strip = profile("ulanzi_tc001_awtrix")
     r = service.render_page(Page.model_validate(SAMPLE), context=SAMPLE_CTX, display=strip, board=STRIP_BOARD)
@@ -164,7 +176,16 @@ def test_flexible_render_on_flagship_is_cells_only(service, stub_expand, stub_re
 def test_flexible_result_names_the_page_and_the_blocks_shown(service, stub_expand, stub_refs):
     page = flex(text("t", "HELLO"), {"id": "c", "kind": "canvas", "canvas": {}})
     r = service.render_page(page, context=CTX, board=FLAGSHIP_BOARD)
-    assert (r.display_type, r.available, r.raw) == ("page:flexible", True, {"page_id": page.id, "shown": ["t"]})
+    assert (r.display_type, r.available, r.raw) == (
+        "page:flexible",
+        True,
+        {
+            "page_id": page.id,
+            "shown": ["t"],
+            "text_representation": "visible_cells",
+            "surface": {"kind": "cells", "rows": 6, "cols": 22},
+        },
+    )
 
 
 def test_layout_issues_are_on_the_display_result(service, stub_expand, stub_refs):
@@ -235,6 +256,15 @@ def test_preview_page_renders_against_the_given_board(service, stub_expand, stub
     with patch("src.plugins.registry.get_plugin_registry"):
         r = service.preview_page(page.id, context=CTX, board=NOTE_BOARD)
     assert len(r.formatted.split("\n")) == 3
+
+
+def test_cell_surface_metadata_uses_the_resolved_display_grid(service, stub_expand, stub_refs, pixoo_display):
+    from dataclasses import replace
+
+    display = replace(pixoo_display, technology="split_flap", width=None, height=None, rows=3, cols=15)
+    result = service.render_page(flex(text("t", "HI")), context=CTX, display=display, board=PIXOO_BOARD)
+    assert result.available
+    assert result.raw["surface"] == {"kind": "cells", "rows": 3, "cols": 15}
 
 
 def test_batch_preview_shares_context_by_board_size(service, stub_expand, stub_refs, pixoo_display):

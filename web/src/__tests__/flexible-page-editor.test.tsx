@@ -193,3 +193,24 @@ it("previews the unsaved document on the selected board without saving or sendin
   expect(api.updatePage).not.toHaveBeenCalled();
   expect(api.createPage).not.toHaveBeenCalled();
 });
+
+it("labels computed pixel geometry and distinguishes the alternate character layout", async () => {
+  const board = { id: "pixels", name: "Matrix", device_type: "panel", grid_rows: 1, grid_cols: 8 } as BoardInstance;
+  vi.mocked(api.previewFlexiblePage).mockResolvedValue({
+    page_id: "unsaved",
+    message: "FALLBACK",
+    lines: ["FALLBACK"],
+    display_type: "page:flexible",
+    raw: { text_representation: "cell_projection", surface: { kind: "pixels", width: 32, height: 8 } },
+    layers: [{ x: 0, y: 0, width: 32, height: 8, rgba: btoa("\0".repeat(32 * 8 * 4)) }],
+  });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <FlexiblePageEditor initialPage={initial} boards={[board]} onClose={vi.fn()} onSave={vi.fn()} />
+    </QueryClientProvider>,
+  );
+  expect(
+    await screen.findByText("Computed preview · 32 × 8 pixels. This does not send to a display."),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/The character fallback is a separate layout/)).toBeInTheDocument();
+});

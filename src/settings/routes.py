@@ -735,7 +735,7 @@ async def set_active_page(request: SetActivePageRequest):
 
                 fit_board = board if board is not None else primary_board_entry()
                 result, layers_to_send, fit = render_page_for_board(
-                    page_service, render_page_id, fit_board, render_kw(send_client)
+                    page_service, render_page_id, fit_board, render_kw(send_client), client=send_client
                 )
                 if result and result.available:
                     resolved = page_transition(

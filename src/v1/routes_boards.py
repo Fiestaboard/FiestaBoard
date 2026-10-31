@@ -26,7 +26,7 @@ from src import display_runtime as runtime
 from src.api_errors import errors
 from src.board_chars import characters_to_message
 from src.board_state import read_board_state
-from src.devices import geometry_of
+from src.devices import geometry_of, is_flexible_page
 from src.ops import executors
 from src.outputs.board_profile import board_profile
 from src.outputs.cells import project_for_output
@@ -350,9 +350,11 @@ def _grid_for(
     from src.pages.service import get_page_service
 
     page_service = get_page_service()
-    result, layers, fit = render_page_for_board(page_service, request.page_id, entry, render_kw(client))
+    result, layers, fit = render_page_for_board(page_service, request.page_id, entry, render_kw(client), client=client)
     if result is None:
         raise HTTPException(status_code=404, detail=f"Page not found: {request.page_id}")
+    if is_flexible_page(page_service.get_page(request.page_id)) and not fit.fits:
+        raise HTTPException(status_code=422, detail=fit.reason)
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
     grid, rich = project_for_output(client, result.formatted, rows, cols, flap=text_to_board_array, layers=layers)

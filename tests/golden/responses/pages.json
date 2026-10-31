@@ -633,7 +633,13 @@
           "page_id": "str",
           "shown": [
             "str"
-          ]
+          ],
+          "surface": {
+            "cols": "int",
+            "kind": "str",
+            "rows": "int"
+          },
+          "text_representation": "str"
         }
       }
     },

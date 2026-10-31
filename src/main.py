@@ -186,7 +186,7 @@ def _face_kw(fit: PageFit) -> dict:
     return {"face": fit.face} if fit.face else {}
 
 
-def _project_page(client, result, page, dims, fit: PageFit) -> tuple[list[list[int]], dict]:
+def _project_page(client, result, page, dims, fit: PageFit, *, native: bool = False) -> tuple[list[list[int]], dict]:
     """A page render projected for *client*'s board (:func:`_project`) at *dims*.
 
     A page drawn at another face (``fit.face``) carries its picture as one
@@ -195,6 +195,10 @@ def _project_page(client, result, page, dims, fit: PageFit) -> tuple[list[list[i
     grid, so the frame cache and transitions compare same-shaped cells
     (design section 7). Any other render keeps its own canvas layers.
     """
+    from .pages.board_render import flexible_frame_error
+
+    if refusal := flexible_frame_error(page, result, client, native=native):
+        raise ValueError(refusal)
     return _project(client, result.formatted, dims.rows, dims.cols, _page_layers(client, result, page, fit))
 
 
@@ -2884,7 +2888,7 @@ class DisplayService:
                 self._record_send_error(rt, board_id, reason)
                 return False
             dims, _ = _delivery_geometry(page, source, fit)
-            codes, rich = _project_page(rt.client, result, page, dims, fit)
+            codes, rich = _project_page(rt.client, result, page, dims, fit, native=True)
             entry = NativePlaylistEntry(page_id, rich.get("cells") or cells_from_codes(codes), duration)
             rendered[page_id] = entry
             content_keys[page_id] = _content_key(result)
@@ -3414,7 +3418,9 @@ class DisplayService:
             **_board_kw(page, board),
             **_extended_kw(rt.client),
         )
-        if not result or not result.available:
+        from .pages.board_render import flexible_frame_error
+
+        if not result or not result.available or flexible_frame_error(page, result, rt.client):
             logger.warning("Silence page %s could not be rendered - falling back to indicator", page.id)
             return self._send_silence_indicator(
                 device_type, rt, notes_wide, notes_tall, silence_config, grid_rows=grid_rows, grid_cols=grid_cols
@@ -3582,6 +3588,8 @@ class DisplayService:
         board = self._board_dict_for(held.board_id)
         fit = _page_fit(page, board)
         if not fit.fits:
+            if is_flexible_page(page):
+                return None
             fit = PageFit(True, None, fit.reason)  # routes don't gate: rendered as today, the send crops it
         result = page_service.preview_page(
             page_id,
@@ -3590,7 +3598,9 @@ class DisplayService:
             **_board_kw(page, board),
             **_extended_kw(rt.client),
         )
-        if result is None or not result.available:
+        from .pages.board_render import flexible_frame_error
+
+        if result is None or not result.available or flexible_frame_error(page, result, rt.client):
             return None
         return _HeldPage(page, fit, result)
 

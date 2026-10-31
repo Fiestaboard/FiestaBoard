@@ -163,6 +163,8 @@ export function FlexiblePageEditor({
     }
   };
   const dims = board ? dimensionsOf(board) : null;
+  const pixelFrame =
+    preview.data?.raw?.text_representation === "cell_projection" ? preview.data.layers?.[0] : undefined;
   return (
     <Stack gap="4" className="p-4">
       <Heading level={2} className="text-lg font-semibold">
@@ -370,7 +372,12 @@ export function FlexiblePageEditor({
                 </SelectContent>
               </Select>
             </label>
-            <Text className="text-sm">{t("previewDescription", { cols: dims?.cols ?? 0, rows: dims?.rows ?? 0 })}</Text>
+            <Text className="text-sm">
+              {pixelFrame
+                ? t("previewPixelDescription", { width: pixelFrame.width, height: pixelFrame.height })
+                : t("previewDescription", { cols: dims?.cols ?? 0, rows: dims?.rows ?? 0 })}
+            </Text>
+            {pixelFrame && <Text className="text-sm text-muted-foreground">{t("projectionHelp")}</Text>}
             {preview.isFetching && <Text role="status">{t("rendering")}</Text>}
             {preview.error && <Text role="alert">{preview.error.message}</Text>}
             {preview.data && (
@@ -380,9 +387,9 @@ export function FlexiblePageEditor({
                 cells={preview.data.cells as BoardCellGrid | undefined}
                 layers={preview.data.layers}
                 ledLayout={board.led_layout}
-                previewLabel={`${board.name} computed preview`}
+                previewLabel={t("computedPreview", { name: board.name })}
               >
-                <pre aria-label={`${board.name} character preview`} className="overflow-auto font-mono">
+                <pre aria-label={t("characterPreview", { name: board.name })} className="overflow-auto font-mono">
                   {preview.data.lines.join("\n")}
                 </pre>
               </DevicePreview>

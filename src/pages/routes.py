@@ -806,8 +806,11 @@ async def send_page(
         # legacy call (no board_id) sends to the primary board's client, so
         # it fits the page to the primary board the same way.
         fit_board = board if board is not None else primary_board_entry()
-        result, layers_to_send, fit = render_page_for_board(page_service, page_id, fit_board, kw)
+        result, layers_to_send, fit = render_page_for_board(page_service, page_id, fit_board, kw, client=board_client)
         pixel_board = draws_pixels(kw.get("display"))
+
+        if is_flexible_page(page) and not fit.fits:
+            raise HTTPException(status_code=422, detail=fit.reason)
 
         if result is None:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")

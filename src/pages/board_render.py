@@ -5,13 +5,15 @@ The route sends (``POST /pages/{id}/send``, ``PUT /settings/active-page``,
 page an LED board produces only at another face (:func:`~src.pages.fit.page_fit_for_board`)
 is rendered at that face, and its layers become one full-frame layer
 (:func:`~src.led.page_frame.send_layers`); the caller projects the text to the
-board's own grid under it (design section 7). Routes don't gate: a page that
-doesn't fit is rendered as today (no face), and the send crops it.
+board's own grid under it (design section 7). Legacy grid pages retain their
+crop fallback. Flexible pages enforce their targets and require a writer
+that preserves their pixel frame.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from src.canvas.layer import CanvasLayer
@@ -29,6 +31,23 @@ __all__ = ["render_page_for_board"]
 _NO_FACE = PageFit(True, None, None)
 
 
+def flexible_frame_error(page: Any, result: Any, client: Any, *, native: bool = False) -> str | None:
+    """Refuse a flexible image when a real driver's path would discard it.
+
+    This verifies transport of layers, not an adapter's physical pixel mapping.
+    Legacy grid/Canvas fallback remains unchanged. Native snapshots have their
+    own rich-frame contract and do not require an ordinary cell writer.
+    """
+    from src.outputs.cells import charset_uses_cells
+    from src.outputs.plugin_driver import OutputPluginDriver
+
+    if not is_flexible_page(page) or not result.layers or not isinstance(client, OutputPluginDriver):
+        return None
+    if client.takes_cells or (native and client.native_rotation_enabled and charset_uses_cells(client.character_set)):
+        return None
+    return "This output cannot receive flexible pixel frames; update its output plugin before using this page"
+
+
 def render_page_for_board(
     page_service: Any,
     page_id: str,
@@ -36,6 +55,7 @@ def render_page_for_board(
     render_kw: Mapping[str, Any],
     *,
     force_refresh: bool = True,
+    client: Any = None,
 ) -> tuple[DisplayResult | None, list[CanvasLayer], PageFit]:
     """``(result, layers, fit)`` for *page_id* sent to *board*.
 
@@ -58,6 +78,9 @@ def render_page_for_board(
     result = page_service.preview_page(page_id, force_refresh=force_refresh, face=fit.face, **board_kw, **render_kw)
     if result is None or not result.available:
         return result, [], fit
+    refusal = fit.reason if is_flexible_page(page) and not fit.fits else flexible_frame_error(page, result, client)
+    if refusal:
+        return replace(result, available=False, error=refusal), [], fit
     if not fit.face:
         return result, result.layers, fit
     dims = dimensions_of(page)
