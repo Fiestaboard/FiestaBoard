@@ -413,7 +413,35 @@ export interface BoardInstance {
  * connection credentials, per-tile wiring, board colour and code-62 glyph on
  * purpose, so anything configuring a board still reads the settings shape.
  */
+/** Historical engine render evidence; never a delivery receipt or visible selection. */
+export interface LayoutComputation {
+  scope: "engine_computation";
+  mode: "page" | "native" | "silence" | "held";
+  reference_id: string | null;
+  computed_at: number;
+  complete: boolean;
+  omitted_pages: number;
+  omitted_issues: number;
+  truncated_strings: number;
+  pages: {
+    page_id: string | null;
+    revision: string | null;
+    available: boolean;
+    error: string | null;
+    surface: { kind: "cells" | "pixels"; rows?: number; cols?: number; width?: number; height?: number } | null;
+    issues: {
+      path: (string | null)[];
+      code: string;
+      severity: "info" | "warning";
+      message: string | null;
+      omitted_path_segments: number;
+    }[];
+  }[];
+}
+
 export interface BoardDetail {
+  /** Latest engine computation; direct API previews/writes do not update this historical record. */
+  last_layout_computation?: LayoutComputation | null;
   id: string;
   name: string;
   device_type: DeviceType;

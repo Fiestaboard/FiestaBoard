@@ -154,7 +154,10 @@ async def get_board(board: str) -> BoardDetail:
     # and the difference is the only way a caller can notice the board has
     # drifted — a flap that did not turn, or another writer. GET
     # /board/current-message publishes both; so does this.
-    state = read_board_state(board_id, want="board", service=runtime.get_service())
+    service = runtime.get_service()
+    state = read_board_state(board_id, want="board", service=service)
+    read_diagnostics = getattr(service, "layout_diagnostics", None)
+    diagnostics = read_diagnostics(board_id) if callable(read_diagnostics) else None
     characters = state.characters
     expected_characters = state.expected_characters
     read_at = datetime.fromtimestamp(state.polled_at, tz=UTC).isoformat() if state.polled_at is not None else None
@@ -180,6 +183,7 @@ async def get_board(board: str) -> BoardDetail:
     override = settings_service.get_temporary_override()
     return BoardDetail(
         **base.model_dump(),
+        last_layout_computation=diagnostics if isinstance(diagnostics, dict) else None,
         characters=characters,
         text=characters_to_message(characters) if characters else None,
         expected_characters=expected_characters,

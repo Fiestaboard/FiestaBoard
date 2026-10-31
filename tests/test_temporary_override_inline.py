@@ -438,6 +438,14 @@ class TestDisplayLoopRendersInlineOverride:
         assert rendered_page.type == "template"
         display_service.vb_client.render.assert_called_once()
 
+    def test_inline_override_replaces_the_last_engine_computation(self, display_service):
+        self._run(display_service, None)
+        self._run(display_service, TemporaryOverride(template=["ONE OFF"], device_type="flagship"))
+        computation = display_service.layout_diagnostics()
+        assert computation["reference_id"] == "__adhoc__"
+        assert computation["pages"][0]["page_id"] == "__adhoc__"
+        assert computation["scope"] == "engine_computation"
+
     def test_inline_override_never_touches_the_page_store(self, display_service):
         """The inline path must not read, resolve or render any stored page.
 

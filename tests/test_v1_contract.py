@@ -309,6 +309,7 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
     # ``layers`` (a pixel-matrix board's canvases on its frame; null on any
     # other board, as here).
     assert body["layers"] is None
+    assert body["last_layout_computation"] is None
     assert set(body) == {
         "id",
         "name",
@@ -334,6 +335,7 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
         "default_page_id",
         "override_expires_at",
         "layers",
+        "last_layout_computation",
     }
 
 

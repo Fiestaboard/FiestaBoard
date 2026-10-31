@@ -204,3 +204,26 @@ lint/types/format, and documentation checks. The response-golden diff adds
 only the intentional flexible preview metadata. A further regression proved
 that cell surface metadata must use the resolved display grid; all 49 focused
 geometry/render/response checks passed after that correction.
+
+## Runtime diagnostics implementation boundary
+
+Retain the latest engine layout computation per board, with page/member IDs,
+revisions, bounded warnings, surface metadata, computation time and whether all
+members were processed. Cover ordinary, native, silence and held-page renders.
+Expose this as `last_layout_computation` in the board API. It is historical
+computation evidence, explicitly not delivery acknowledgement, installed native
+playlist state or device selection. Direct API previews/sends do not update
+this engine-scoped record. No frames, rendered text or plugin contexts are kept.
+Cap members, total issues, path segments and string lengths, reporting omissions.
+This smaller reviewed boundary avoids false accepted-state claims across direct
+writes, partial native synchronization and asynchronous output callbacks.
+
+Implemented and reviewed this boundary: 284 affected checks and the aggregate
+backend suite passed (15,020 tests, two skipped). Inline overrides replace the
+historical record with their own identity; native rendering serializes once per
+pass and records incomplete computations on early failure. Regression tests
+failed for missing history, missing API exposure, primary aliases, stale inline
+history and repeated serialization before their fixes. A cap mutation also
+proved the member-bound assertion fails. Python style, frontend lint/types/format
+and regenerated API documentation checks passed. The record contains eligible
+members rendered in that pass; completion does not mean playlist installation.

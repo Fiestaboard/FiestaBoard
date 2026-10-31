@@ -28,6 +28,7 @@ from .devices import (
     size_key,
 )
 from .displays.send_worker import BoardSendWorker, SendJob
+from .layout.diagnostics import ComputationBuilder, LayoutComputation, single_computation
 from .layout.target import flex_target_for
 from .led.page_frame import send_layers
 from .outputs import OutputDriver, OutputRuntime
@@ -387,6 +388,7 @@ class BoardRuntime:
         # Intended native target, including attempts that failed before any
         # playlist was installed. Those must report unknown, not clock state.
         self.native_reference_id: str | None = None
+        self.last_layout_computation: LayoutComputation | None = None
 
     def content_delivered(self) -> None:
         """FiestaBoard just wrote this board: neither out-of-band content
@@ -1519,6 +1521,12 @@ class DisplayService:
             return None
         return rt.last_active_page_id
 
+    def layout_diagnostics(self, board_id=None) -> dict | None:
+        """The last engine computation, not current content or a write receipt."""
+        rt = self.runtime_for(board_id)
+        snapshot = getattr(rt, "last_layout_computation", None)
+        return snapshot.to_json() if isinstance(snapshot, LayoutComputation) else None
+
     def native_rotation_active(self, board_id=None) -> bool:
         rt = self.runtime_for(board_id) if board_id is not None else self._primary_runtime()
         return rt is not None and rt.native_playlist is not None and not rt.showing_out_of_band
@@ -2511,6 +2519,7 @@ class DisplayService:
                     **_board_kw(inline_page, board_dims_source),
                     **_extended_kw(rt.client),
                 )
+                rt.last_layout_computation = single_computation(page, result, "page")
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
                     self._record_send_error(rt, board_id, render_error or "Failed to render one-off override content")
@@ -2618,6 +2627,7 @@ class DisplayService:
                     **_board_kw(page, board_dims_source),
                     **_extended_kw(rt.client),
                 )
+                rt.last_layout_computation = single_computation(page, result, "page")
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
                     self._record_send_error(
@@ -2861,38 +2871,45 @@ class DisplayService:
         content_keys = {}
         # Even direct callers share member dependencies during this pass.
         contexts = contexts if contexts is not None else {}
-        for page_id in page_ids:
-            if page_id in rendered:
-                entries.append(rendered[page_id])
-                continue
-            page = page_service.get_page(page_id)
-            if page is None:
-                self._record_send_error(rt, board_id, f"Native playlist page missing or incompatible: {page_id}")
-                return False
-            fit = _page_fit(page, source)
-            if not fit.fits:
-                if collection is not None:
+        diagnostics = ComputationBuilder(reference_id, "native")
+        complete = False
+        try:
+            for page_id in page_ids:
+                if page_id in rendered:
+                    entries.append(rendered[page_id])
                     continue
-                self._record_send_error(rt, board_id, f"Native playlist page incompatible: {page_id}: {fit.reason}")
-                return False
-            result = page_service.preview_page(
-                page_id,
-                force_refresh=True,
-                contexts=contexts,
-                **_extended_kw(rt.client),
-                **_face_kw(fit),
-                **_board_kw(page, source),
-            )
-            if result is None or not result.available:
-                reason = getattr(result, "error", None) or f"Failed to render native playlist page: {page_id}"
-                self._record_send_error(rt, board_id, reason)
-                return False
-            dims, _ = _delivery_geometry(page, source, fit)
-            codes, rich = _project_page(rt.client, result, page, dims, fit, native=True)
-            entry = NativePlaylistEntry(page_id, rich.get("cells") or cells_from_codes(codes), duration)
-            rendered[page_id] = entry
-            content_keys[page_id] = _content_key(result)
-            entries.append(entry)
+                page = page_service.get_page(page_id)
+                if page is None:
+                    self._record_send_error(rt, board_id, f"Native playlist page missing or incompatible: {page_id}")
+                    return False
+                fit = _page_fit(page, source)
+                if not fit.fits:
+                    if collection is not None:
+                        continue
+                    self._record_send_error(rt, board_id, f"Native playlist page incompatible: {page_id}: {fit.reason}")
+                    return False
+                result = page_service.preview_page(
+                    page_id,
+                    force_refresh=True,
+                    contexts=contexts,
+                    **_extended_kw(rt.client),
+                    **_face_kw(fit),
+                    **_board_kw(page, source),
+                )
+                diagnostics.add(page, result)
+                if result is None or not result.available:
+                    reason = getattr(result, "error", None) or f"Failed to render native playlist page: {page_id}"
+                    self._record_send_error(rt, board_id, reason)
+                    return False
+                dims, _ = _delivery_geometry(page, source, fit)
+                codes, rich = _project_page(rt.client, result, page, dims, fit, native=True)
+                entry = NativePlaylistEntry(page_id, rich.get("cells") or cells_from_codes(codes), duration)
+                rendered[page_id] = entry
+                content_keys[page_id] = _content_key(result)
+                entries.append(entry)
+            complete = True
+        finally:
+            rt.last_layout_computation = diagnostics.snapshot(complete=complete)
         if not entries:
             self._record_send_error(rt, board_id, f"No native collection pages fit this display: {reference_id}")
             return False
@@ -3420,6 +3437,7 @@ class DisplayService:
         )
         from .pages.board_render import flexible_frame_error
 
+        rt.last_layout_computation = single_computation(page, result, "silence")
         if not result or not result.available or flexible_frame_error(page, result, rt.client):
             logger.warning("Silence page %s could not be rendered - falling back to indicator", page.id)
             return self._send_silence_indicator(
@@ -3600,6 +3618,7 @@ class DisplayService:
         )
         from .pages.board_render import flexible_frame_error
 
+        rt.last_layout_computation = single_computation(page, result, "held")
         if result is None or not result.available or flexible_frame_error(page, result, rt.client):
             return None
         return _HeldPage(page, fit, result)
