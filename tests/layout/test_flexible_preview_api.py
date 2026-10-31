@@ -205,6 +205,13 @@ def test_unsaved_preview_rejects_grid_page_422(client):
     assert _unsaved(client, GRID_BODY).status_code == 422
 
 
+def test_unsaved_preview_reports_target_exclusion_before_rendering(client, pixoo_board_id, flex_layout):
+    page = {**FLEX_BODY, "targets": {"boards": ["another-install"]}}
+    response = _unsaved(client, page, pixoo_board_id)
+    assert response.status_code == 422
+    assert "only on the boards it lists" in response.json()["detail"]
+
+
 def test_unsaved_preview_rejects_an_invalid_flexible_page_422(client):
     page = {**FLEX_BODY, "blocks": [{"id": "t", "kind": "text"}, {"id": "t", "kind": "text"}]}
     assert _unsaved(client, page).status_code == 422

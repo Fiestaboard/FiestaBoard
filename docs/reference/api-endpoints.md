@@ -1292,7 +1292,8 @@ Requested style for a block; each board shows the nearest it can.
 Every property is optional; an unset one falls through the cascade
 (device default, board style, page style, block style). `color` and
 `background` take a board colour name, `#rrggbb`, a tile code 63-71,
-or one `{{…}}` expression.
+or one `{{…}}` expression. `background="transparent"` clears an
+inherited fill; omitted/null background inherits it.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|

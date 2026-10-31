@@ -169,6 +169,42 @@ def test_draw_line_unlit_text_on_mono_draws_black_glyphs():
     assert [op.color for op in ops] == ["#000000"]
 
 
+def test_custom_glyphs_cannot_overrun_a_smaller_flexible_face():
+    ops: list[LedDrawOp] = []
+    options = LedRenderOptions(glyphs={"A": ("#####",) * 7})
+    draw_line(ops, [Glyph(BoardToken("char", value="A"))], 0, 0, S35, options, "#ffffff")
+    assert ops[0].rows == tuple(S35.face.led_font.glyphs["A"])
+
+
+def test_custom_glyph_matching_the_flexible_face_is_preserved():
+    ops: list[LedDrawOp] = []
+    rows = ("###",) * 5
+    draw_line(ops, [Glyph(BoardToken("char", value="A"))], 0, 0, S35, LedRenderOptions(glyphs={"A": rows}), "#ffffff")
+    assert ops[0].rows == rows
+
+
+def test_custom_only_glyph_dimension_fallback_is_reported_before_it_becomes_blank():
+    ops: list[LedDrawOp] = []
+    key = "\ue000"
+    rejected = draw_line(
+        ops,
+        [Glyph(BoardToken("char", value=key))],
+        0,
+        0,
+        S35,
+        LedRenderOptions(glyphs={key: ("#####",) * 7}),
+        "#ffffff",
+    )
+    assert rejected == (key,)
+
+
+def test_custom_glyph_fallback_is_reported_for_the_text_block():
+    result = run(
+        [text("t", 0, "A")], {"t": style()}, Rect(0, 0, 32, 8), options=LedRenderOptions(glyphs={"A": ("#####",) * 7})
+    )
+    assert any(i.code == "glyph_fallback" and i.path == ("blocks", "t", "style", "size") for i in result.issues)
+
+
 def test_canvas_block_op_draws_content_scaled_to_the_rect():
     blk = canvas("c1", 0, {"size": [2, 1], "palette": {"r": "#ff0000", "g": "#00ff00"}, "pixels": ["rg"]})
     op, issues = canvas_block_op(blk, Rect(3, 4, 4, 2), {})

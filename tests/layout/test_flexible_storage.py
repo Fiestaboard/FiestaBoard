@@ -50,7 +50,9 @@ def test_failed_upgrade_backup_blocks_load_and_cached_writes_until_successful_re
     path = tmp_path / "pages.json"
     path.write_text(json.dumps({"schema_version": 7, "pages": []}))
     storage = PageStorage(storage_file=str(path))
-    original = json.dumps({"schema_version": 6, "pages": [{"id": "old", "name": "Grid", "type": "template", "template": ["KEEP"]}]})
+    original = json.dumps(
+        {"schema_version": 6, "pages": [{"id": "old", "name": "Grid", "type": "template", "template": ["KEEP"]}]}
+    )
     path.write_text(original)
     copy = json_store.shutil.copy2
 

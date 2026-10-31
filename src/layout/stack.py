@@ -246,7 +246,16 @@ def stack(
             line_y = y
             for line in fitted.lines:
                 x = _align_x(style.align, rect, measure(line, sized))
-                draw_line(ops, line, x, line_y, sized, options, style.color)
+                rejected = draw_line(ops, line, x, line_y, sized, options, style.color)
+                if rejected:
+                    issues.append(
+                        LayoutIssue(
+                            (*path, "blocks", entry.block.id, "style", "size"),
+                            "glyph_fallback",
+                            "warning",
+                            "Custom glyph dimensions do not match this text size; using the built-in face",
+                        )
+                    )
                 line_y += sized.height + sized.line_gap
             issues.extend(fitted.issues)
         elif entry.block.kind == "canvas":

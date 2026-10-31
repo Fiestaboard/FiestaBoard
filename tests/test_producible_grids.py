@@ -20,8 +20,13 @@ def test_a_model_without_a_font_choice_produces_only_its_own_face():
     assert producible_grids(MODELS["hub75_64x32"], None) == {"5x7": (4, 10)}
 
 
-def test_a_below_floor_grid_is_omitted():
-    assert producible_grids(MODELS["ulanzi_tc001_awtrix"], None) == {}  # 1 x 8 at 3x5
+def test_a_tiny_positive_grid_is_supported_by_the_released_pixel_floor():
+    assert producible_grids(MODELS["ulanzi_tc001_awtrix"], None) == {"3x5": (1, 8)}
+
+
+def test_a_surface_that_cannot_hold_one_cell_is_omitted():
+    model = {**MODELS["ulanzi_tc001_awtrix"], "geometry": {"kind": "pixels", "width": 1, "height": 1}}
+    assert producible_grids(model, None) == {}
 
 
 def test_a_split_flap_model_produces_nothing():

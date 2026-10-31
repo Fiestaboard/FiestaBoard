@@ -180,6 +180,17 @@ def test_put_renaming_a_flexible_page_reports_no_incompatible_references(client)
     assert response.status_code == 200 and response.json()["incompatible_references"] == []
 
 
+def test_put_restricting_a_flexible_page_reports_newly_incompatible_active_board(client):
+    get_settings_service().set_boards([NOTE_BOARD])
+    page = stored(flex())
+    get_settings_service().set_active_page_id(page.id, NOTE_BOARD["id"])
+    response = client.put(f"/pages/{page.id}", json={"targets": {"technology": ["led_matrix"]}})
+    assert response.status_code == 200
+    assert [(ref["board_id"], ref["surface"]) for ref in response.json()["incompatible_references"]] == [
+        ("board-note", "active_page")
+    ]
+
+
 # --- PageService ---------------------------------------------------------------
 
 

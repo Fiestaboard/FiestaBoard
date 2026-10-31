@@ -60,6 +60,7 @@ def test_issue_codes_are_the_catalogue():
     expected = frozenset(
         {
             "font_unavailable",
+            "glyph_fallback",
             "size_rounded",
             "size_too_small",
             "size_ignored",
@@ -235,7 +236,7 @@ def test_rgb_colour_name_resolves_to_the_board_palette():
 
 def test_mono_colour_maps_to_panel_and_black_stays_unlit():
     s, issues = resolve_block_style([{"color": "#00ff00", "background": "black"}], STRIP_MONO, {}, path=("b",))
-    assert (s.color, s.background, issues) == (PANEL_RED, None, [])
+    assert (s.color, s.background, issues) == (PANEL_RED, "#000000", [])
 
 
 def test_rgb_black_text_is_unlit_like_a_grid_cell():

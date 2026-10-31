@@ -38,7 +38,6 @@ from src.board_guards import (
     silence_verdict,
 )
 from src.canvas.schemas import issues_json, layers_json
-from src.collections.models import is_collection_id
 from src.collections.service import get_collection_service, resolve_active_page_id
 from src.devices import (
     board_context_for,
@@ -47,7 +46,6 @@ from src.devices import (
     is_flexible_page,
     page_size_key,
     resolve_dimensions,
-    size_key,
 )
 from src.display_runtime import get_service
 from src.layout.issues import layout_issues_json
@@ -304,11 +302,13 @@ async def update_page(page_id: str, page_data: PageUpdate):
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
     incompatible: list[IncompatibleReference] = []
-    # A flexible page fits every board: its references never go stale.
-    if existing is not None and not is_flexible_page(page):
-        old_size = page_size_key(existing)
-        new_size = page_size_key(page)
-        if old_size != new_size:
+    if existing is not None:
+        compatibility_changed = (
+            existing.targets != page.targets
+            if is_flexible_page(page)
+            else page_size_key(existing) != page_size_key(page)
+        )
+        if compatibility_changed:
             incompatible = [IncompatibleReference(**ref) for ref in find_incompatible_references(page)]
     return PageUpdateResponse(page=page, incompatible_references=incompatible)
 
@@ -633,13 +633,17 @@ async def preview_unsaved_flexible_page(request: PageFlexiblePreviewRequest):
     primary board. The answer is one ``/pages/preview/batch`` entry with
     ``page_id: "unsaved"``: the page's text at the board's grid (``lines``,
     and ``cells`` on an LED board), its full frame as ``layers`` on a pixel
-    board, and its ``layout_issues``. A layout that fails is a 503.
+    board, and its ``layout_issues``. A board excluded by the page's targets
+    is refused with 422; a layout that fails is a 503.
     """
     try:
         page = get_page_service().new_page(request.page).model_copy(update={"id": UNSAVED_PAGE_ID})
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     board = (_find_board(request.board_id) if request.board_id else None) or primary_board_entry()
+    fit = page_fit_for_board(page, board)
+    if not fit.fits:
+        raise HTTPException(status_code=422, detail=fit.reason)
     charset = board_character_set(board) if board is not None else None
     rich = has_extended_markup(charset)
     display = display_profile_for_board(board) if board is not None else None

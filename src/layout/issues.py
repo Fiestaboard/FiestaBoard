@@ -31,6 +31,7 @@ IssueSeverity = Literal["info", "warning"]
 STYLE_ISSUE_CODES = frozenset(
     {
         "font_unavailable",
+        "glyph_fallback",
         "size_rounded",
         "size_too_small",
         "size_ignored",

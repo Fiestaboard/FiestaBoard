@@ -2846,11 +2846,6 @@ class DisplayService:
         self, rt, board_id, reference_id, collection, page_service, *, board, contexts, wait
     ) -> bool:
         """Render the complete snapshot before queuing one native reconciliation."""
-        if rt.native_reference_id != reference_id:
-            rt.native_selection = None
-            if rt.silence_queued_shown is None:
-                rt.last_active_page_id = None
-        rt.native_reference_id = reference_id
         page_ids = list(collection.page_ids) if collection is not None else [reference_id]
         if not page_ids:
             self._record_send_error(rt, board_id, f"Native collection is empty: {reference_id}")
@@ -2872,6 +2867,8 @@ class DisplayService:
                 return False
             fit = _page_fit(page, source)
             if not fit.fits:
+                if collection is not None:
+                    continue
                 self._record_send_error(rt, board_id, f"Native playlist page incompatible: {page_id}: {fit.reason}")
                 return False
             result = page_service.preview_page(
@@ -2892,6 +2889,14 @@ class DisplayService:
             rendered[page_id] = entry
             content_keys[page_id] = _content_key(result)
             entries.append(entry)
+        if not entries:
+            self._record_send_error(rt, board_id, f"No native collection pages fit this display: {reference_id}")
+            return False
+        if rt.native_reference_id != reference_id:
+            rt.native_selection = None
+            if rt.silence_queued_shown is None:
+                rt.last_active_page_id = None
+        rt.native_reference_id = reference_id
         playlist = NativePlaylist(str(board_id), reference_id, tuple(entries))
         shown = rt.silence_queued_shown
         if shown is not None:
@@ -2939,9 +2944,11 @@ class DisplayService:
                 rt.content_delivered()
                 rt.native_playlist = playlist
                 rt.native_reference_id = reference_id
-                rt.native_selection = selection
                 rt.last_active_page_content = None
                 members = {entry.page_id for entry in playlist.entries}
+                if selection is not None and selection.page_id not in members:
+                    selection = NativePageSelection(None)
+                rt.native_selection = selection
                 rt.last_active_page_id = (
                     selection.page_id if selection is not None and selection.page_id in members else None
                 )

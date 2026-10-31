@@ -55,10 +55,14 @@ def test_alternate_face_mono_frame_survives_final_adapter_composition():
     mono = replace(PIXOO_5X7, monochrome="#ff3b1f", color="mono")
     expected = render_grid_page_frame("H", 10, 16, "3x5", mono)
     layers = send_layers(SimpleNamespace(formatted="H", layers=[], face="3x5"), 10, 16, mono)
-    final = rasterize(layout_message(
-        "", LedMatrixSpec(64, 64, "5x7"),
-        LedLayoutOptions(monochrome=mono.monochrome), layers=layers,
-    ))
+    final = rasterize(
+        layout_message(
+            "",
+            LedMatrixSpec(64, 64, "5x7"),
+            LedLayoutOptions(monochrome=mono.monochrome),
+            layers=layers,
+        )
+    )
     assert any(expected.pixels)
     assert final.pixels == expected.pixels
 

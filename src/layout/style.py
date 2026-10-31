@@ -90,7 +90,7 @@ class ResolvedStyle:
     ``#000000``; on a mono panel ``color`` ``None`` means the text lights no
     pixels (black text, or any text on a lit background: inverse video); on a
     tile board ``color`` is ``None`` (text carries no colour). ``background``
-    ``None`` means no fill (none asked for, or unlit on a mono target). ``fit`` is true when the size asked for was ``fit``: the
+    ``None`` means no fill; black is opaque even on a mono target. ``fit`` is true when the size asked for was ``fit``: the
     fitter picks the size, starting from ``sized``.
     """
 
@@ -309,7 +309,9 @@ class _Resolver:
                 self.report(key, "color_invalid", "warning", f"{key} {value!r} is not a colour")
                 continue
             if model == "mono":
-                return None if _is_black(resolved) else self.target.monochrome
+                if _is_black(resolved):
+                    return "#000000" if key == "background" else None
+                return self.target.monochrome
             return resolved
         return None
 
@@ -350,7 +352,7 @@ def resolve_block_style(
     sized, px, fit = r.size(family)
     color = r.color("color")
     background = r.color("background")
-    if target.color_model == "mono" and background is not None:
+    if target.color_model == "mono" and background is not None and not _is_black(background):
         # Inverse video, as a grid cell on a monochrome panel: lit field, unlit glyph.
         color = None
     align = r.pick("align", lambda v: v in _ALIGNS)

@@ -11,6 +11,7 @@ blocks go through :func:`src.canvas.evaluate.resolve_canvas` and
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from src.canvas.evaluate import resolve_canvas
@@ -22,6 +23,7 @@ from src.led.matrix import (
     LedRenderOptions,
     cell_for_token,
     draw_glyph,
+    glyph_key,
     monochrome_rgba,
     paint_ops,
     parse_hex_color,
@@ -52,7 +54,7 @@ def draw_line(
     sized: SizedFace,
     options: LedRenderOptions,
     text_color: str | None,
-) -> None:
+) -> tuple[str, ...]:
     """Append the ops that draw one fitted line with its left edge at (``x``, ``y``).
 
     ``items`` are line items: a glyph (``.token``, one cell ``sized.advance``
@@ -70,6 +72,15 @@ def draw_line(
     color_in = text_color if text_color is not None else UNLIT
     custom = options.glyphs
     items = list(items)
+    requested = {glyph_key(token, custom) for item in items if (token := _token_of(item)) is not None}
+    rejected = {
+        key
+        for key, rows in (custom or {}).items()
+        if len(rows) != face.glyph_height or any(len(row) != face.glyph_width for row in rows)
+    }
+    if rejected:
+        custom = {key: rows for key, rows in custom.items() if key not in rejected}
+        options = replace(options, glyphs=custom)
     cells = [
         cell_for_token(tok, color_in, mono, custom) if (tok := _token_of(item)) is not None else None for item in items
     ]
@@ -88,6 +99,7 @@ def draw_line(
             color = UNLIT
         draw_glyph(ops, cell.glyph, cx, y, face, color, options, scale=scale)
         cx += sized.advance
+    return tuple(sorted(requested & rejected))
 
 
 def canvas_block_op(

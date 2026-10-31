@@ -237,6 +237,44 @@ def test_invalid_member_never_partially_syncs_or_falls_back(native_engine):
     assert env.rt.last_send_error, "invalid playlist must fail visibly"
 
 
+def test_native_collection_skips_incompatible_members_like_core_selection(native_engine):
+    env = native_engine
+    pages = _page_service({"pA": {"content": "ALPHA"}, "pB": {"content": "BRAVO", "device_type": "note"}})
+    with patch("src.main.get_page_service", return_value=pages):
+        env.drive()
+    assert len(env.plugin.playlists) == 1, env.rt.last_send_error
+    assert [entry.page_id for entry in env.plugin.playlists[0].entries] == ["pA"]
+    assert [call.args[0] for call in pages.preview_page.call_args_list] == ["pA"]
+
+
+def test_native_collection_with_no_fitting_member_keeps_installed_snapshot(native_engine):
+    env = native_engine
+    env.drive()
+    installed = env.rt.native_playlist
+    pages = _page_service(
+        {"pA": {"content": "A", "device_type": "note"}, "pB": {"content": "B", "device_type": "note"}}
+    )
+    with patch("src.main.get_page_service", return_value=pages):
+        env.drive()
+    assert len(env.plugin.playlists) == 1
+    assert env.rt.native_playlist == installed
+    assert env.rt.last_send_error
+
+
+def test_native_selection_clears_when_selected_member_no_longer_fits(native_engine):
+    from src.plugins import DevicePoll, NativePageSelection
+
+    env = native_engine
+    env.drive()
+    env.plugin.news = DevicePoll(native_selection=NativePageSelection("pA"))
+    env.service._poll_output_devices()
+    pages = _page_service({"pA": {"content": "A", "device_type": "note"}, "pB": {"content": "B"}})
+    with patch("src.main.get_page_service", return_value=pages):
+        env.drive()
+    assert [entry.page_id for entry in env.rt.native_playlist.entries] == ["pB"]
+    assert env.service.native_page_selection("collection:test", "b1") == NativePageSelection(None)
+
+
 def test_freeze_silence_retires_native_rotation_on_the_confirmed_selected_page(native_engine):
     from src.plugins import DevicePoll, NativePageSelection
 

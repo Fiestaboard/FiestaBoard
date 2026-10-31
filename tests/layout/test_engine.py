@@ -74,7 +74,9 @@ def test_all_blocks_share_one_clock_without_mutating_plugin_context(monkeypatch)
         page(
             {"id": "a", "kind": "text", "text": "{{= NOW() }}"},
             {"id": "b", "kind": "text", "text": "{{= NOW() }}"},
-        ), FLAGSHIP, context,
+        ),
+        FLAGSHIP,
+        context,
     )
     assert r.cell_lines[0] == r.cell_lines[1]
     assert len(reads) == 1
@@ -177,6 +179,18 @@ def test_mono_frame_draws_canvases_in_the_panel_colour(stub_expand):
     white = {"size": [4, 1], "palette": {"w": "#ffffff"}, "pixels": ["wwww"]}
     r = layout_flexible_page(page({"id": "c", "kind": "canvas", "canvas": {"content": white}}), MAX7219, {})
     assert pixel_at(r, 0, 0) == MAX7219.monochrome
+
+
+@pytest.mark.parametrize("background", ["black", "#000000", "{70}"])
+def test_mono_black_block_background_clears_lit_page(background):
+    r = layout_flexible_page(
+        page(spacer("band", 4, style={"background": background}), style={"background": "white"}),
+        MAX7219,
+        {},
+    )
+    assert pixel_at(r, 0, 0) == "#000000"
+    assert pixel_at(r, 31, 3) == "#000000"
+    assert pixel_at(r, 0, 4) == MAX7219.monochrome
 
 
 def test_page_background_compromise_is_reported_at_the_page_style(stub_expand):

@@ -139,10 +139,14 @@ def test_flexible_mono_delivery_matches_the_laid_out_frame(service):
     page = flex(text("t", "HI"), style={"size": "small"})
     expected = layout_flexible_page(page, flex_target_for(board, display), {}).frame
     result = service.render_page(page, context={}, display=display, board=board)
-    final = rasterize(layout_message(
-        result.formatted, LedMatrixSpec(display.width, display.height, display.font),
-        LedLayoutOptions(monochrome=display.monochrome), layers=result.layers,
-    ))
+    final = rasterize(
+        layout_message(
+            result.formatted,
+            LedMatrixSpec(display.width, display.height, display.font),
+            LedLayoutOptions(monochrome=display.monochrome),
+            layers=result.layers,
+        )
+    )
     assert result.available and any(expected.pixels)
     assert final.pixels == expected.pixels
 

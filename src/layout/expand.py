@@ -239,10 +239,14 @@ def expand_blocks(
             limit = 4096
             rendered = engine.render(block.text[:limit], dict(context), extended_markup=True)
             if len(block.text) > limit or len(rendered) > limit:
-                issues.append(LayoutIssue(
-                    ("blocks", block.id, "text"), "truncated", "warning",
-                    f"text render is limited to {limit} characters; the saved document is unchanged",
-                ))
+                issues.append(
+                    LayoutIssue(
+                        ("blocks", block.id, "text"),
+                        "truncated",
+                        "warning",
+                        f"text render is limited to {limit} characters; the saved document is unchanged",
+                    )
+                )
             markup, fills = _sentinels(rendered[:limit])
             style = styles.get(block.id)
             case = _case_fn(style.case if style is not None else "as-is", target.mixed_case)

@@ -278,7 +278,7 @@ class JsonStore:
             shutil.copy2(self._path, staged)
             with staged.open("rb") as backup:
                 os.fsync(backup.fileno())
-            os.replace(staged, backup_path)
+            staged.replace(backup_path)
             logger.info(f"Created pre-migration backup at {backup_path}")
         except Exception as e:
             self._migration_backup_error = MigrationBackupError(
