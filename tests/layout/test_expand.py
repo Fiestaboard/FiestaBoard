@@ -70,6 +70,20 @@ def test_expansion_uses_render_not_render_lines(monkeypatch):
     assert values(blocks[0]) == "72 OK"
 
 
+def test_large_plugin_text_is_bounded_before_markup_tokenization():
+    blocks, issues = expand(page_with("{{feed.text}}"), context={"feed": {"text": "X" * 100_000}})
+    assert len(blocks[0].tokens) <= 4096
+    assert any(i.code == "truncated" and i.path == ("blocks", "b1", "text") for i in issues)
+
+
+def test_large_authored_text_remains_in_document_but_render_is_bounded():
+    page = page_with("X" * 100_000)
+    blocks, issues = expand(page)
+    assert len(page.blocks[0].text) == 100_000
+    assert len(blocks[0].tokens) <= 4096
+    assert any(i.code == "truncated" for i in issues)
+
+
 def test_expanded_block_carries_its_page_position():
     p = Page.model_validate(
         {

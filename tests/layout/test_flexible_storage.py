@@ -44,6 +44,31 @@ def test_v6_file_migrates_to_v7_without_touching_pages(tmp_path):
     assert pages_storage._migrate_v6_to_v7([dict(page)]) == 0
 
 
+def test_failed_upgrade_backup_blocks_load_and_cached_writes_until_successful_reload(tmp_path, monkeypatch):
+    from src.storage import json_store
+
+    path = tmp_path / "pages.json"
+    path.write_text(json.dumps({"schema_version": 7, "pages": []}))
+    storage = PageStorage(storage_file=str(path))
+    original = json.dumps({"schema_version": 6, "pages": [{"id": "old", "name": "Grid", "type": "template", "template": ["KEEP"]}]})
+    path.write_text(original)
+    copy = json_store.shutil.copy2
+
+    def fail_copy(*args, **kwargs):
+        raise OSError("backup disk full")
+
+    monkeypatch.setattr(json_store.shutil, "copy2", fail_copy)
+    with pytest.raises(RuntimeError, match="backup"):
+        storage._load()
+    with pytest.raises(RuntimeError, match="backup"):
+        storage._store.save({"pages": []})
+    assert path.read_text() == original
+    monkeypatch.setattr(json_store.shutil, "copy2", copy)
+    storage._load()
+    assert storage.get("old").template == ["KEEP"]
+    assert path.with_suffix(".json.v6_backup").read_text() == original
+
+
 def test_schema_version_is_7_with_the_flexible_migration_last():
     assert CURRENT_SCHEMA_VERSION == 7
     assert MIGRATIONS[-1] == (7, pages_storage._migrate_v6_to_v7)
