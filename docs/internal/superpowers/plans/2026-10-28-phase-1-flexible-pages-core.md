@@ -1,9 +1,11 @@
 # Phase 1: Flexible pages core and LED layout — Implementation Plan
+>
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add the `flexible` page type (schema v7). It renders on every board. Pixel boards get a server-laid-out full-frame image, delivered through Phase 0's full-frame layer, with real cell text underneath. Split-flap boards get the same character-grid cell layout. Every compromise is reported as a path-carrying `layout_issues` entry.
 
 **Architecture:** There is one new pure package, `src/layout/`. It contains the font registry (families over the vendored faces), the style resolver, expansion, measure/fit, the stack, the pixel emitter and the cell layout. `PageService.render_page` dispatches `type == "flexible"` to `layout_flexible_page()`, which returns a `FlexRender` (frame, cell lines, issues). The service turns it into a `DisplayResult` with:
+
 - `formatted` set to the cell lines at the board's grid;
 - `layers` set to `[full_frame_layer(frame)]`;
 - `layout_issues`.
@@ -56,7 +58,7 @@ Five likely real-world inputs and failure modes that no task's tests cover yet. 
    - When only one line fits, it must truncate with the ellipsis glyph and a `truncated` issue.
    - It must not loop forever or emit an empty frame.
    - Owned by Task 7 ([RF-3]).
-4. **Colour expressions in the formats plugins actually emit.** `{{weather.temp_color}}` may yield `red`, `{63}`, `63`, `#FF8800`, `#ff8800 ` or `???`. Each must resolve or produce a `color_invalid` issue; none may raise. Owned by Task 5 ([RF-4]).
+4. **Colour expressions in the formats plugins actually emit.** `{{weather.temp_color}}` may yield `red`, `{63}`, `63`, `#FF8800`, `#ff8800` or `???`. Each must resolve or produce a `color_invalid` issue; none may raise. Owned by Task 5 ([RF-4]).
 5. **Dedupe on a clock page.**
    - Identical inputs must produce byte-identical frames and an identical `content_key()`, so there is no resend every tick.
    - A one-minute change must change the key.
@@ -65,7 +67,7 @@ Five likely real-world inputs and failure modes that no task's tests cover yet. 
 
 ### File Structure
 
-```
+```text
 src/layout/__init__.py          public API re-exports
 src/layout/issues.py            LayoutIssue, LayoutIssueModel, issue codes
 src/layout/fonts.py             FontFace, FontFamily, SizedFace, FONT_FAMILIES, size ladder, named sizes
@@ -99,11 +101,13 @@ web/src/lib/api/shared.ts       PageType gains "flexible" (tolerance only)
 ### Task 1: Flexible page model
 
 **Files:**
+
 - Create `src/pages/flexible.py`.
 - Modify `src/pages/models.py`: `PageType` at line 41, `Page` at 121, `PageCreate` at 280, `PageUpdate` at 336, `PageImportPreview` at 461, `CurrentDisplayResponse` at 642.
 - Test: `tests/layout/__init__.py`, `tests/layout/test_flexible_model.py`.
 
 **Interfaces:**
+
 - Produces, for Phases 2–5:
   - `PageType = Literal["single", "composite", "template", "flexible"]`.
   - `src/pages/flexible.py`:
@@ -134,6 +138,7 @@ web/src/lib/api/shared.ts       PageType gains "flexible" (tolerance only)
   - `PageUpdate` gains the same four fields; a supplied list replaces the whole field.
 
 - [ ] **Step 1: failing tests** in `tests/layout/test_flexible_model.py`:
+
 ```python
 FLEX = {"name": "Morning", "type": "flexible",
         "blocks": [{"id": "b1", "kind": "text", "text": "{{date_time.time}}", "style": {"size": "large"}, "priority": 1},
@@ -183,6 +188,7 @@ def test_validate_config_requires_a_block_and_text_for_text_blocks():
     bad = Page.model_validate({**FLEX, "blocks": [{"id": "a", "kind": "text"}]})
     assert any("text block 'a' needs text" in e for e in bad.validate_config())
 ```
+
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_flexible_model.py -q`. Expect a failure because `"flexible"` is not a valid `PageType` literal (or an `ImportError` on `src.pages.flexible`).
 - [ ] **Step 3: implement.**
   - In `src/pages/flexible.py`, validate `color`/`background` lexically with `_check_color_text(value)`: a board colour name, `#rrggbb`, a tile code `63`–`71` (optionally braced), or a string that is exactly one `{{…}}`.
@@ -202,6 +208,7 @@ def test_validate_config_requires_a_block_and_text_for_text_blocks():
 ### Task 2: Schema v7 migration and share strings
 
 **Files:**
+
 - Modify `src/pages/storage.py`: lines 22 and 218–245.
 - Modify `src/pages/share.py`.
 - Modify `tests/golden/storage/pages.json`: `schema_version` becomes 7, and nothing else.
@@ -212,6 +219,7 @@ def test_validate_config_requires_a_block_and_text_for_text_blocks():
 Share decision: a flexible page encodes with `v: 2`. Grid pages stay `v: 1`, so older builds keep importing grid shares, and an older build refuses a flexible share with its existing `"requires FiestaBoard v2 or later"` message instead of a Pydantic error.
 
 - [ ] **Step 1: failing tests:**
+
 ```python
 def test_v6_file_migrates_to_v7_without_touching_pages(tmp_path):
     path = tmp_path / "pages.json"
@@ -242,7 +250,8 @@ def test_v2_share_round_trips_to_page_create():
     data = decode_page(encode_page(Page.model_validate(FLEX)))
     assert PageCreate.model_validate(data).type == "flexible"
 ```
-  - Before writing `test_v8_file_is_refused_not_mangled`, check the exact refusal type and message in `src/storage` (the `JsonStore` kernel), and assert that exact type.
+
+- Before writing `test_v8_file_is_refused_not_mangled`, check the exact refusal type and message in `src/storage` (the `JsonStore` kernel), and assert that exact type.
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_flexible_storage.py -q`. Expected failures: `schema_version == 6`, and the envelope `v` is 1.
 - [ ] **Step 3: implement.**
   - `_migrate_v6_to_v7`: its docstring says "no-op; the bump makes older builds refuse a file holding flexible pages". It logs `Pages migration v6 -> v7: 0 page(s)` and returns 0. Append `(7, _migrate_v6_to_v7)` to `MIGRATIONS`.
@@ -255,10 +264,12 @@ def test_v2_share_round_trips_to_page_create():
 ### Task 3: Geometry guard, size labels and call-site ratchet (parallel with Phase 0)
 
 **Files:**
+
 - Modify `src/devices.py`: `geometry_of` at 854, plus new helpers next to it.
 - Create `tests/layout/geometry_call_sites.json` and `tests/layout/test_geometry_call_sites.py`.
 
 **Interfaces:**
+
 - Produces:
   - `class FlexiblePageGeometryError(TypeError)`. It is deliberately not a `ValueError`: `size_key`, `_scale_canvases_on_retarget`, `display_profile_for_board` and others catch `ValueError` and would silently fall back to flagship.
   - `geometry_of(obj)` raises it when `get("type") == "flexible"`. Board dicts and `BoardInstance` have no `type`, so boards are unaffected.
@@ -267,6 +278,7 @@ def test_v2_share_round_trips_to_page_create():
   - `page_size_label(page) -> str` (`"flexible"` or the size key), for log and error copy.
 
 - [ ] **Step 1: failing tests:**
+
 ```python
 def test_geometry_of_raises_for_flexible_page():
     with pytest.raises(FlexiblePageGeometryError):
@@ -302,6 +314,7 @@ def test_every_page_routed_site_names_an_existing_test():
         if entry["kind"] == "page":
             assert entry.get("test") and test_exists(entry["test"]), site
 ```
+
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_geometry_call_sites.py -q`. Expected failures: `ImportError` on `FlexiblePageGeometryError`, then an empty manifest.
 - [ ] **Step 3: implement.**
   - Add the guard as the first statement of `geometry_of`.
@@ -332,11 +345,13 @@ def test_every_page_routed_site_names_an_existing_test():
 ### Task 4: Font registry as families, plus integer scaling in the rasteriser (parallel)
 
 **Files:**
+
 - Create `src/layout/__init__.py` and `src/layout/fonts.py`.
 - Modify `src/led/matrix.py`: `draw_glyph` at 442; add `cell_for_token` (a public alias of `_cell_for_token` at 747) and `monochrome_rgba` (a public alias of `_monochrome_rgba` at 622); update `__all__`.
 - Test: `tests/layout/test_fonts.py`.
 
 **Interfaces:**
+
 - `@dataclass(frozen=True) class FontFace`:
   - `id: str` (the vendored id, `"3x5"`);
   - `kind: Literal["bitmap","outline"]`;
@@ -358,6 +373,7 @@ def test_every_page_routed_site_names_an_existing_test():
 - `draw_glyph(ops, key, x, y, face, color, options, *, scale: int = 1)`. At scale > 1, glyph rows are scaled with a cached `scaled_rows(rows, scale)` (`functools.lru_cache`), and tile rects use `w=glyph_width*scale, h=glyph_height*scale`.
 
 **Proposed named-size scale.** Rules:
+
 - `small` = the family's smallest face height.
 - `medium` = the board's default face height: 3x5 gives 5, 5x7 gives 7, and no LED face gives 7.
 - `large` = max(`ladder_floor(H/4)`, `ladder_next(medium)`). If that exceeds H, it is `medium`.
@@ -374,6 +390,7 @@ def test_every_page_routed_site_names_an_existing_test():
 | Flagship (cells) | n/a | one character size; any size other than `medium` is reported as `size_ignored` (Task 9) | | | |
 
 - [ ] **Step 1: failing tests:**
+
 ```python
 def test_fiesta_family_maps_the_two_vendored_faces():
     fam = FONT_FAMILIES["fiesta"]
@@ -402,6 +419,7 @@ def test_draw_glyph_scale_tile_rect():
     ops = []; draw_glyph(ops, "tile:63", 0, 0, LED_FONTS["5x7"], "#fff", LedRenderOptions(), scale=3)
     assert (ops[0].w, ops[0].h) == (15, 21)
 ```
+
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_fonts.py -q`. Expected failure: `ModuleNotFoundError: src.layout`.
 - [ ] **Step 3: implement** as specified above. The registry is built from `LED_FONTS` and never reads the JSON directly, so the vendored hashes are untouched.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_fonts.py tests/test_led_*.py tests/test_fiestaui*.py -q`. The FiestaUI golden must stay green (`grep -l led-golden tests/*.py` finds the file).
@@ -410,10 +428,12 @@ def test_draw_glyph_scale_tile_rect():
 ### Task 5: Layout issues and the style resolver (parallel)
 
 **Files:**
+
 - Create `src/layout/issues.py`, `src/layout/style.py` and `src/layout/target.py`.
 - Test: `tests/layout/test_style.py`.
 
 **Interfaces** (consumed by Phases 2–5):
+
 - `@dataclass(frozen=True) class LayoutIssue`:
   - `path: tuple[str, ...]` (e.g. `("blocks","b2","style","size")`; a later `regions` kind prefixes `("regions","r1")`);
   - `code: str`;
@@ -445,6 +465,7 @@ def test_draw_glyph_scale_tile_rect():
 - `resolve_layout(layout: FlexLayout | None, *, path) -> tuple[ResolvedLayout, list[LayoutIssue]]`. Gap px values: none 0, small 1, medium 2, large 4, or the int given. A kind other than `stack` gives a `layout_kind_unsupported` warning and is laid out as a stack.
 
 Resolution rules (spec section 3):
+
 - **Font:** the requested family; else the board-style family; else `fiesta`. Each miss is a `font_unavailable` warning.
 - **Size:** named sizes go through `named_size_heights`. An exact px is looked up with `face_for_height`: an inexact match is `size_rounded` (info); a request below 5 px is `size_too_small` (warning). On cell targets any non-`medium` size is `size_ignored` (info).
 - **Colour:**
@@ -457,6 +478,7 @@ Resolution rules (spec section 3):
 - **Unknown style keys** (extras) give `style_unknown` (info) and are preserved.
 
 - [ ] **Step 1: failing tests**, including **[RF-4]**:
+
 ```python
 PIXOO = FlexTarget(rows=10, cols=16, display=profile("divoom_pixoo64", font="3x5"))
 STRIP_MONO = FlexTarget(rows=1, cols=8, display=profile("max7219_4in1"))
@@ -500,7 +522,8 @@ def test_color_expression_formats_plugins_emit(raw, expected):          # [RF-4]
     assert s.color == (expected or DEFAULT_LED_TEXT_COLOR)
     assert (expected is None) == any(i.code == "color_invalid" for i in issues)
 ```
-  - The `profile(model_id, font=None)` test helper goes in `tests/layout/devices.py`. It builds a `DisplayProfile` through `src.outputs.display_profile._profile(model_with_led_font(model, font), model_character_set(model), None, grid)` from `builtin_device_models()` / `fiestapanel_model("led_matrix", 12, 32)`.
+
+- The `profile(model_id, font=None)` test helper goes in `tests/layout/devices.py`. It builds a `DisplayProfile` through `src.outputs.display_profile._profile(model_with_led_font(model, font), model_character_set(model), None, grid)` from `builtin_device_models()` / `fiestapanel_model("led_matrix", 12, 32)`.
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_style.py -q`. Expected failure: `ModuleNotFoundError`.
 - [ ] **Step 3: implement.** `resolve_color_value` evaluates expressions with `engine.render(value, context, extended_markup=True)` and then normalises using `src.led.matrix.BOARD_COLORS` and the tile-code mapping. Expose `color_code_to_hex(code)` as a public wrapper of `_color_code_to_hex` in `matrix.py`.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_style.py -q`.
@@ -509,12 +532,14 @@ def test_color_expression_formats_plugins_emit(raw, expected):          # [RF-4]
 ### Task 6: Expansion with fill markers, `if`, case and charset fallback (parallel)
 
 **Files:**
+
 - Create `src/layout/expand.py` and `src/layout/refs.py`.
 - Modify `src/templates/engine.py`: add public `resolve_fill(text, width, *, extended_markup=True) -> str`, delegating to `_process_fill_space` at 1877.
 - Modify `src/markup.py`: add public `map_text_case(line: str, fn: Callable[[str], str]) -> str`, built on `_pieces`/`_serialize` so markup survives.
 - Test: `tests/layout/test_expand.py`.
 
 **Interfaces:**
+
 - `FILL_SENTINEL_BASE = 0xE000`.
 - `@dataclass(frozen=True) class FillSpec`: `pattern: str | None` (`None` is a blank fill).
 - `@dataclass(frozen=True) class ExpandedBlock`:
@@ -532,6 +557,7 @@ def test_color_expression_formats_plugins_emit(raw, expected):          # [RF-4]
   - `canvas_plugin_ids` over a synthetic `Canvas` for each canvas block.
 
 Rules:
+
 - Text is expanded with `engine.render(text, context, extended_markup=True)` only, never `render_lines`.
 - An `if` is evaluated with `engine.evaluate_expression(body, context)` and truthiness `src.canvas.evaluate._truthy`. Promote it to public `truthy` and keep the alias.
   - A falsy result hides the block silently.
@@ -541,6 +567,7 @@ Rules:
 - Tokens pass through `charset_fallback(CharsetLookup(display.character_set), token)` exactly as `project_message` does, so pixels and cells agree.
 
 - [ ] **Step 1: failing tests**, including **[RF-2]**:
+
 ```python
 def test_expansion_uses_render_not_render_lines(monkeypatch):
     engine = get_template_engine(); monkeypatch.setattr(engine, "render_lines", lambda *a, **k: pytest.fail("grid render"))
@@ -568,7 +595,8 @@ def test_unsupported_characters_fall_back_identically_to_cells():          # [RF
 def test_flexible_plugin_ids_cover_text_if_colour_and_canvas():
     assert flexible_plugin_ids(page_with("{{weather.temp}}", if_="{{stocks.up}}", color="{{air.color}}")) == {"weather", "stocks", "air"}
 ```
-  - Add a Pixoo variant of the [RF-2] test with `mixed_case`: `é` (not in `led_3x5`) must be the set's fallback in both the tokens and `project_message(..., display.character_set)`.
+
+- Add a Pixoo variant of the [RF-2] test with `mixed_case`: `é` (not in `led_3x5`) must be the set's fallback in both the tokens and `project_message(..., display.character_set)`.
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_expand.py -q`. Expected: `ModuleNotFoundError`.
 - [ ] **Step 3: implement** as specified.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_expand.py tests/test_templates*.py tests/test_markup*.py -q`.
@@ -577,10 +605,12 @@ def test_flexible_plugin_ids_cover_text_if_colour_and_canvas():
 ### Task 7: Measure and fit (wrap, shrink, ellipsis) (parallel)
 
 **Files:**
+
 - Create `src/layout/measure.py`.
 - Test: `tests/layout/test_fit.py`.
 
 **Interfaces:**
+
 - `LineItem = Glyph(token: BoardToken) | Gap(px: int)`.
 - `@dataclass(frozen=True) class FittedText`:
   - `lines: tuple[tuple[LineItem, ...], ...]`;
@@ -591,7 +621,8 @@ def test_flexible_plugin_ids_cover_text_if_colour_and_canvas():
 - `fit_text(block: ExpandedBlock, style: ResolvedStyle, width: int, max_height: int, *, family, path) -> FittedText`.
 
 Algorithm (the body is specified because it is not determined by existing code):
-```
+
+```text
 sized = style.sized
 if style.fit: sized = largest ladder entry with height <= max_height and measure(one_line) <= width, else smallest
 lines = [items]                                   # fills are zero-width while wrapping
@@ -607,10 +638,12 @@ for each line: resolve fills in pixels: avail = width - measure(non-fill); blank
                pattern fills -> repeat pattern glyphs floor((share + gutter) / advance) times (colour names -> tile tokens); avail <= 0 -> fills removed
 height = len(lines) * sized.height + (len(lines)-1) * sized.line_gap
 ```
+
 - `wrap`: greedy. Words are split at blank char tokens; a line's leading blanks are dropped. A word wider than `width` is broken at the last glyph boundary that fits. Each line holds at least one glyph, so the loop always terminates.
 - `ellipsize`: keep the longest prefix such that prefix + the ellipsis glyph fits. The ellipsis glyph is `…` if the face has it, else `.`; neither vendored face has `…`, so it is `.`. Trailing blanks are trimmed before the ellipsis.
 
 - [ ] **Step 1: failing tests**, including **[RF-3]**:
+
 ```python
 S35 = SizedFace(face_for_led_font("3x5"), 1)   # advance 4, gutter 1
 
@@ -642,7 +675,8 @@ def test_blank_fill_resolves_in_pixels():
     f = fit_text(block_with_fill("A", None, "B"), style(sized=S35), width=20, max_height=8, ...)
     assert measure(f.lines[0], S35) == 20
 ```
-  - In `test_fit_size_picks_largest_one_line_size`, compute `expected` inside the test as the largest `size_ladder` entry with `measure(...) <= 64`. Do not hard-code it unless you have verified the arithmetic.
+
+- In `test_fit_size_picks_largest_one_line_size`, compute `expected` inside the test as the largest `size_ladder` entry with `measure(...) <= 64`. Do not hard-code it unless you have verified the arithmetic.
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_fit.py -q`. Expected: `ModuleNotFoundError`.
 - [ ] **Step 3: implement** per the algorithm above.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_fit.py -q`.
@@ -651,10 +685,12 @@ def test_blank_fill_resolves_in_pixels():
 ### Task 8: Stack and pixel emit (parallel)
 
 **Files:**
+
 - Create `src/layout/stack.py` and `src/layout/pixels.py`.
 - Test: `tests/layout/test_stack.py`.
 
 **Interfaces** (the regions-ready seam):
+
 - `@dataclass(frozen=True) class Rect`: `x: int`, `y: int`, `w: int`, `h: int`.
 - `@dataclass(frozen=True) class StackResult`:
   - `ops: tuple[LedDrawOp, ...]`;
@@ -672,7 +708,8 @@ def test_blank_fill_resolves_in_pixels():
 - `frame_from_ops(width, height, ops, background) -> LedFrame`. It fills the background, then calls `paint_ops`.
 
 Algorithm (the body is specified):
-```
+
+```text
 heights: text -> fit_text(..., width=rect.w, max_height=rect.h).height (0 if no glyphs: [RF-1]);
          spacer auto -> page-default size height; canvas auto -> rect.w*size_h//size_w if content.size else "fill";
          int -> px; float 0<f<=1 -> floor(rect.h*f); "fill" -> deferred
@@ -687,9 +724,11 @@ text x by align within rect: left rect.x | center rect.x+(rect.w-w)//2 | right r
 page/block background: rect op across rect.w for the block's band (page background fills rect first)
 every op is clipped to rect (assert in a test, not just by construction)
 ```
+
 If `rect` is smaller than the smallest face height, the result is no text ops plus a `surface_too_small` warning.
 
 - [ ] **Step 1: failing tests**, including **[RF-1]**:
+
 ```python
 def test_lowest_priority_dropped_first_with_issue(): ...  # 3 blocks of 7px on an 8px rect -> only priority 1 shown
 def test_unset_priority_drops_before_explicit_and_bottom_first(): ...
@@ -709,6 +748,7 @@ def test_empty_and_unavailable_variable_blocks():              # [RF-1]
     assert r.shown == ("b2", "b3")          # empty text takes zero height, "???" renders as text
     assert min(op.y for op in r.ops if op.kind == "glyph") == 0
 ```
+
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_stack.py -q`. Expected: `ModuleNotFoundError`.
 - [ ] **Step 3: implement** per the algorithm above.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_stack.py -q`.
@@ -717,16 +757,19 @@ def test_empty_and_unavailable_variable_blocks():              # [RF-1]
 ### Task 9: Cell layout at the board's grid (parallel; reused by Phase 2)
 
 **Files:**
+
 - Create `src/layout/cells.py`.
 - Test: `tests/layout/test_cells.py`.
 
 **Interfaces:**
+
 - `@dataclass(frozen=True) class CellLayout`: `lines: tuple[str, ...]` (exactly `rows` markup lines, each ≤ `cols` tiles); `issues: tuple[LayoutIssue, ...]`.
 - `layout_cell_grid(blocks: Sequence[ExpandedBlock], styles: Mapping[str, ResolvedStyle], rows: int, cols: int, *, layout: ResolvedLayout, report_styles: bool, engine=None, path: tuple[str, ...] = ()) -> CellLayout`.
   - `report_styles` is `True` when the cells are what the board shows (split-flap or integer-only).
   - It is `False` under an LED frame, where the frame already reported its compromises.
 
 Rules:
+
 - Each text block's markup (sentinels turned back into fill markers) is handled by `count_tiles` against `cols`:
   - fits: one row;
   - `wrap`: `markup.wrap_line(line, cols)`;
@@ -741,6 +784,7 @@ Rules:
 - Block colours are not applied in cells in Phase 1; tile mapping is Phase 2.
 
 - [ ] **Step 1: failing tests:**
+
 ```python
 def test_flagship_wraps_by_characters_and_centres():
     out = layout_cell_grid(expanded(["GOOD MORNING SUNSHINE AND FRIENDS"], align="center"), STYLES, 6, 22, layout=TOP, report_styles=True)
@@ -757,7 +801,8 @@ def test_colour_span_markup_survives_wrap():
     out = layout_cell_grid(expanded(["{red:HOT HOT HOT}"]), STYLES, 3, 5, layout=TOP, report_styles=True)
     assert out.lines[0].startswith("{red:") and out.lines[1].startswith("{red:")
 ```
-  - Replace the first assertion's hand-built expected string with the exact expected lines once Step 2's output is checked by eye. Keep the assertion exact: `out.lines == (...)`.
+
+- Replace the first assertion's hand-built expected string with the exact expected lines once Step 2's output is checked by eye. Keep the assertion exact: `out.lines == (...)`.
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_cells.py -q`. Expected: `ModuleNotFoundError`.
 - [ ] **Step 3: implement** as specified.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_cells.py -q`.
@@ -766,10 +811,12 @@ def test_colour_span_markup_survives_wrap():
 ### Task 10: Engine entry point (parallel)
 
 **Files:**
+
 - Create `src/layout/engine.py`, and fill in `src/layout/__init__.py` re-exports.
 - Test: `tests/layout/test_engine.py`.
 
 **Interfaces** (the layout entry point Phases 2–5 call):
+
 - `@dataclass(frozen=True) class FlexRender`:
   - `frame: LedFrame | None` (pixel targets only);
   - `cell_lines: tuple[str, ...]`;
@@ -784,6 +831,7 @@ def test_colour_span_markup_survives_wrap():
 - `named_size_scale(target) -> dict[str, int]` (for Phase 5's capability brief).
 
 - [ ] **Step 1: failing tests:**
+
 ```python
 def test_pixel_target_gets_frame_and_cells():
     r = layout_flexible_page(Page.model_validate(SAMPLE), golden_target("pixoo64_3x5"), SAMPLE_CTX)
@@ -809,7 +857,8 @@ def test_frame_is_deterministic_for_identical_inputs():
     b = layout_flexible_page(Page.model_validate(SAMPLE), golden_target("pixoo64_5x7"), SAMPLE_CTX)
     assert a.frame.pixels == b.frame.pixels
 ```
-  - `SAMPLE` is a three-block page: a large centred time (priority 1), a wrapped weather line with `{sun}` and colour (priority 2), and a footer with a fill and priority 3. It lives in `tests/layout/devices.py` with a fixed `SAMPLE_CTX`.
+
+- `SAMPLE` is a three-block page: a large centred time (priority 1), a wrapped weather line with `{sun}` and colour (priority 2), and a footer with a fill and priority 3. It lives in `tests/layout/devices.py` with a fixed `SAMPLE_CTX`.
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_engine.py -q`. Expected: `ImportError: layout_flexible_page`.
 - [ ] **Step 3: implement** as specified.
 - [ ] **Step 4: run** `$PYTEST tests/layout -q`.
@@ -818,15 +867,18 @@ def test_frame_is_deterministic_for_identical_inputs():
 ### Task 11: Golden fixtures for the spec's devices (parallel)
 
 **Files:**
+
 - Create `tests/layout/test_golden.py` and `tests/golden/layout/{pixoo64_3x5,pixoo64_5x7,strip_32x8,hub75_64x32,fiestapanel_led_192x96,max7219_32x8,flagship}.json`.
 
 **Interfaces:**
+
 - Consumes `layout_flexible_page` and `golden_target(name)`.
 - Each golden holds:
   - `{"device", "frame_ascii": [rows] | null, "frame_sha256": str | null, "cell_lines": [...], "issues": [issue.to_json()...]}`;
   - plus an `rgb_spot` dict mapping `"x,y"` to `"#rrggbb"` for 3 chosen pixels on the rgb devices, so colour is held too.
 
 - [ ] **Step 1: failing test:**
+
 ```python
 @pytest.mark.parametrize("name", GOLDEN_DEVICES)
 def test_flexible_layout_matches_golden(name):
@@ -836,6 +888,7 @@ def test_flexible_layout_matches_golden(name):
         path.write_text(json.dumps(got, indent=2) + "\n")
     assert got == json.loads(path.read_text()), "regenerate with FIESTABOARD_UPDATE_LAYOUT_GOLDEN=1 and review the ascii"
 ```
+
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_golden.py -q`. Expected: `FileNotFoundError` for each device.
 - [ ] **Step 3: generate** with `FIESTABOARD_UPDATE_LAYOUT_GOLDEN=1 $PYTEST tests/layout/test_golden.py -q`. **Review every `frame_ascii` by eye** against the expectations, and note the review in the commit body:
   - the time is centred and is the largest text;
@@ -848,10 +901,12 @@ def test_flexible_layout_matches_golden(name):
 ### Task 12: Fit rules for flexible pages (depends on Phase 0)
 
 **Files:**
+
 - Modify `src/pages/fit.py` (Phase 0's file) and `src/devices.py`: `pages_compatible_with_board` at 886.
 - Test: `tests/layout/test_flexible_fit.py`.
 
 **Interfaces:**
+
 - Consumes `PageFit` and `page_fit_for_board`.
 - Produces:
   - `page_fit_for_board(flexible_page, board)` returns `PageFit(True, None, None)`, unless `targets` excludes the board. In that case it returns `PageFit(False, None, "This page is set to show only on LED displays")` (or `"…only on the boards it lists"`).
@@ -859,6 +914,7 @@ def test_flexible_layout_matches_golden(name):
   - `pages_compatible_with_board(page, board)` returns `page_fit_for_board(page, board).fits` for **every** flexible page, on any board, before Phase 0's LED delegation.
 
 - [ ] **Step 1: failing tests:**
+
 ```python
 def test_flexible_page_fits_split_flap_and_led_boards():
     assert page_fit_for_board(FLEX_PAGE, FLAGSHIP_BOARD) == PageFit(True, None, None)
@@ -875,6 +931,7 @@ def test_text_size_change_never_invalidates_a_flexible_page():
     for font in ("3x5", "5x7"):
         assert pages_compatible_with_board(FLEX_PAGE, {**PIXOO_BOARD, "output_config": {"font": font}})
 ```
+
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_flexible_fit.py -q`. Expected: `FlexiblePageGeometryError` raised from `pages_compatible_with_board`.
 - [ ] **Step 3: implement** as specified.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_flexible_fit.py tests/test_page_board_compatibility.py tests/test_schedules_service.py -q`.
@@ -883,6 +940,7 @@ def test_text_size_change_never_invalidates_a_flexible_page():
 ### Task 13: Render dispatch and full-frame delivery (depends on Phase 0)
 
 **Files:**
+
 - Modify `src/displays/service.py` (`DisplayResult`, line 30).
 - Modify `src/pages/service.py`:
   - `page_plugin_ids` at 88;
@@ -894,6 +952,7 @@ def test_text_size_change_never_invalidates_a_flexible_page():
 - Test: `tests/layout/test_flexible_render.py`.
 
 **Interfaces:**
+
 - `DisplayResult.layout_issues: list[Any] = field(default_factory=list)`.
 - `render_page(page, context=None, contexts=None, *, extended_markup=..., display=None, board: Mapping | None = None)`. The same `board=` keyword is added to `preview_page` and `preview_pages_batch`.
   - When `board` is `None`, a flexible page renders against the primary board (`_find_board(None)`), else flagship cells.
@@ -906,6 +965,7 @@ def test_text_size_change_never_invalidates_a_flexible_page():
 - In `preview_pages_batch`, flexible pages key their shared context by the board's size key plus the display key.
 
 - [ ] **Step 1: failing tests:**
+
 ```python
 def test_flexible_render_on_pixel_board_carries_one_opaque_full_frame_layer(pixoo_board, pixoo_display):
     r = PageService(storage).render_page(FLEX_PAGE, context=CTX, display=pixoo_display, board=pixoo_board)
@@ -927,7 +987,8 @@ def test_projected_rich_cells_carry_the_layer(pixoo_client, ...):
 def test_layout_issues_on_display_result(...): assert any(i.code == "dropped" for i in r.layout_issues)
 def test_batch_preview_shares_context_by_board_size(...): ...  # one build_template_contexts_for key for 2 flexible pages
 ```
-  - The client fixture is the Pixoo output test driver used in `tests/canvas/test_page_send_layers.py`.
+
+- The client fixture is the Pixoo output test driver used in `tests/canvas/test_page_send_layers.py`.
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_flexible_render.py -q`. Expected: the result is `available=False` with `Unknown page type: flexible`.
 - [ ] **Step 3: implement.** Insert the flexible branch at the top of `render_page`, before the grid-geometry context lookup.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_flexible_render.py tests/canvas -q`.
@@ -957,6 +1018,7 @@ def test_batch_preview_shares_context_by_board_size(...): ...  # one build_templ
 **Interfaces:** Consumes `page_size_key`, `page_size_label`, `is_flexible_page` (Task 3) and `render_page(board=)` (Task 13).
 
 - [ ] **Step 1: failing tests.** One per site, named for the behaviour. Examples:
+
 ```python
 def test_engine_sends_flexible_page_at_board_grid(engine_harness_pixoo):
     sent = engine_harness_pixoo.tick_with_active(FLEX_PAGE)
@@ -970,8 +1032,9 @@ def test_current_display_for_flexible_page_returns_rendered_lines(client): ...
 def test_panel_content_resize_keeps_flexible_page_reference(...): ...
 def test_prompt_builder_with_flexible_current_page_uses_board_geometry(...): ...
 ```
-  - The engine harness is `tests/engine_harness.py`; mirror `tests/golden/engine/static_page_dedupe.json`'s setup.
-  - Remove the `xfail` from Task 3's manifest test.
+
+- The engine harness is `tests/engine_harness.py`; mirror `tests/golden/engine/static_page_dedupe.json`'s setup.
+- Remove the `xfail` from Task 3's manifest test.
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_flexible_call_sites.py tests/layout/test_geometry_call_sites.py -q`. Expected: `FlexiblePageGeometryError` at each unrouted site, and the strict xfail now unexpectedly passes or fails as designed.
 - [ ] **Step 3: implement** the routings in the table.
 - [ ] **Step 4: run** `$PYTEST tests/layout tests/test_page_retarget.py tests/test_silence_active_page.py tests/test_pages.py tests/test_panel_grid_pages.py -q`.
@@ -980,10 +1043,12 @@ def test_prompt_builder_with_flexible_current_page_uses_board_geometry(...): ...
 ### Task 15: Render fingerprint and dedupe (depends on Phase 0)
 
 **Files:**
+
 - Modify `src/main.py`: `_render_fingerprint` at 1794 and its call at 2385.
 - Test: `tests/layout/test_flexible_dedupe.py`.
 
 **Interfaces:** `_render_fingerprint(page, active_page_id, page_service, contexts, *, override_active, display=None, board: Mapping | None = None)`. For flexible pages:
+
 - it accepts `type in ("template","flexible")`, and requires `blocks` for flexible pages;
 - the size comes from `size_key(*geometry_of(board))` plus `display.key`;
 - the payload adds `"board_grid": [rows, cols]`;
@@ -991,6 +1056,7 @@ def test_prompt_builder_with_flexible_current_page_uses_board_geometry(...): ...
 `content_key()` already digests `layers`, so the frame bytes are in the dedupe key.
 
 - [ ] **Step 1: failing tests**, including **[RF-5]**:
+
 ```python
 def test_flexible_page_gets_a_fingerprint(): assert DisplayService._render_fingerprint(FLEX_PAGE, "p", svc, {}, override_active=False, display=PIX, board=PIXOO_BOARD)
 def test_identical_inputs_identical_content_key():                       # [RF-5]
@@ -1001,6 +1067,7 @@ def test_fingerprint_differs_by_display_key_at_same_grid():
     assert f1 != f2
 def test_unchanged_tick_short_circuits_for_flexible_page(engine_harness_pixoo): ...  # second tick: no render call
 ```
+
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_flexible_dedupe.py -q`. Expected failure: the fingerprint is `None` for flexible pages.
 - [ ] **Step 3: implement** as specified.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_flexible_dedupe.py tests/test_render_short_circuit*.py tests/test_demand_driven_fetch.py -q`. Locate the short-circuit tests with `grep -l _render_fingerprint tests/*.py`.
@@ -1009,17 +1076,20 @@ def test_unchanged_tick_short_circuits_for_flexible_page(engine_harness_pixoo): 
 ### Task 16: `layout_issues` on previews and an unsaved flexible render route (depends on Task 13)
 
 **Files:**
+
 - Modify `src/pages/models.py`: `PagePreviewResponse` at 500, `PagePreviewBatchSuccess` at 510, `PageSendResponse` at 603.
 - Modify `src/pages/routes.py`: 393, 444 and the new route.
 - Update `tests/golden/responses/pages.json` and the route inventory golden (`tests/test_route_inventory.py`).
 - Test: `tests/layout/test_flexible_preview_api.py`.
 
 **Interfaces:**
+
 - `layout_issues: list[LayoutIssueModel] | None = None` on all three responses. It is present only for flexible pages; grid responses are unchanged under `response_model_exclude_unset`.
 - `PagePreviewBatchSuccess.layers` is set for flexible pages on pixel boards.
 - `POST /pages/preview/flexible` takes body `{page: PageCreate (type flexible), board_id: str | None}` and returns `PagePreviewBatchSuccess` (`page_id: "unsaved"`). Phase 4's editor consumes it.
 
 - [ ] **Step 1: failing tests:**
+
 ```python
 def test_batch_preview_returns_frame_layer_cells_and_issues(client, pixoo_board_id, flex_id):
     body = client.post("/pages/preview/batch", json={"page_ids": [flex_id], "board_id": pixoo_board_id}).json()
@@ -1031,6 +1101,7 @@ def test_grid_page_preview_has_no_layout_issues_key(client, grid_id): assert "la
 def test_unsaved_flexible_preview_renders_without_saving(client, pixoo_board_id): ...
 def test_unsaved_preview_rejects_grid_page_422(client): ...
 ```
+
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_flexible_preview_api.py -q`. Expected failures: a missing key, and a 404 for the new route.
 - [ ] **Step 3: implement.** `issues_json`-style helper: `layout_issues_json(issues) -> list[dict]`. Regenerate the response-shape golden with that test's documented `REGENERATE_HINT`, and review the diff: it must be additive only.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_flexible_preview_api.py tests/test_response_shape_goldens.py tests/test_route_inventory.py tests/test_api_conventions_ratchet.py -q`.
@@ -1039,6 +1110,7 @@ def test_unsaved_preview_rejects_grid_page_422(client): ...
 ### Task 17: API and `/v1` acceptance, docs, web type tolerance (depends on Tasks 1, 13 and 16)
 
 **Files:**
+
 - Test: `tests/layout/test_flexible_v1.py`.
 - Modify `docs/reference/api-endpoints.md` (the published API change note: `type: "flexible"` pages have no `template`; new preview fields; `document_protocol` `page-document-v2`).
 - Modify `web/src/lib/api/shared.ts:11`: add `"flexible"` to `PageType`.
@@ -1047,6 +1119,7 @@ def test_unsaved_preview_rejects_grid_page_422(client): ...
 **Interfaces:** `/v1/pages` reuses `Page`/`PageCreate`/`PageUpdate`, so acceptance needs no new code. These tests pin it.
 
 - [ ] **Step 1: failing tests:**
+
 ```python
 def test_v1_create_and_read_flexible_page(client):
     r = client.post("/v1/pages", json=FLEX); assert r.status_code in (200, 201)
@@ -1058,6 +1131,7 @@ def test_v1_update_replaces_blocks(client): ...
 def test_v1_schedule_flexible_page_on_flagship_board_is_allowed(client): ...   # check_ref_board_compatibility
 def test_import_flexible_share_string_round_trips(client): ...
 ```
+
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_flexible_v1.py -q`. Any failure here exposes a missed routing; fix it in its owning module.
 - [ ] **Step 3: implement** any fixes, the docs and the one-line web type. Run the web tests in Docker per `CLAUDE.md`: `docker compose -f docker-compose.dev.yml --profile test run --rm web sh -c "npm ci --legacy-peer-deps && npm test"`.
 - [ ] **Step 4: run** `$PYTEST tests/layout tests/test_pages_contract.py tests/test_api_docs.py -q`.
@@ -1066,10 +1140,12 @@ def test_import_flexible_share_string_round_trips(client): ...
 ### Task 18: Transition fallback for full-frame deliveries (depends on Phase 0)
 
 **Files:**
+
 - Modify `src/settings/service.py`: `page_transition` at 121, only if Phase 0 did not already add a full-frame fallback.
 - Test: `tests/layout/test_flexible_transition.py`.
 
 **Interfaces:**
+
 - Consumes Phase 0's fallback if present.
 - Otherwise produces `page_transition(display, page, runs=None, *, full_frame: bool = False)`. With `full_frame=True`, a per-cell strategy (`flip`, `cascade`, the `column`/`row`/… flap strategies) or a `plugin:` strategy becomes `fade`.
 - On split-flap boards, flexible pages produce plain grids, so every transition keeps working.
@@ -1103,6 +1179,7 @@ def test_import_flexible_share_string_round_trips(client): ...
 | Left to the builder | Module `src/layout/`; one full-frame layer; share v2 for flexible only; named-size table in Task 4; default overflow `wrap`, valign `top`, gap `small`; unset priority drops first | Persisting `layout_issues` per board for board status is not built in Phase 1: they are returned on previews and `DisplayResult` only. Suggest Phase 3 store them on the board runtime. |
 
 ### Critical Files for Implementation
+
 - /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/pages/models.py
 - /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/pages/service.py
 - /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/devices.py

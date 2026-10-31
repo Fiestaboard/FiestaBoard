@@ -23,6 +23,7 @@ FiestaBoard LED pages that don't depend on the display. Each page sets its own t
 ## What's built
 
 **Phase 0 (Divoom fix):**
+
 - Grid pages on LED boards render at their own text size, as one full-frame layer with real cell text underneath.
 - A page fits if its grid is any grid the board can produce.
 - Pages a board can't show are flagged with a reason, not hidden.
@@ -31,6 +32,7 @@ FiestaBoard LED pages that don't depend on the display. Each page sets its own t
 - Transitions fade around full-frame pages.
 
 **Phase 1 (flexible pages core):**
+
 - Page type `flexible` with `blocks`, `style`, `layout: {kind: "stack"}` and `targets`, in schema v7.
 - Share strings use envelope v2.
 - `src/layout/`: fonts, style cascade, expansion, measure/fit, stack, cell layout and the engine entry point `layout_flexible_page`. Golden tests are in `tests/golden/layout`.
