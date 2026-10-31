@@ -4,7 +4,7 @@
 
 **Goal:** An LED board shows every grid page whose grid it can produce at any text size its model allows. For example, a Pixoo 64 shows both 10×16 pages (3x5) and 8×10 pages (5x7). A page that needs a size other than the board's current one is drawn at that size and sent as one opaque full-frame pixel layer. The cells under it carry the page text, projected to the board's current grid. Pages a board can't produce at any size are flagged, never hidden: greyed, with a reason, in the page picker, the schedule form and the Pages list. A size change that leaves pages behind is listed in board settings. The board's Text size becomes the size new pages start at. Split-flap and FiestaPanel fit is unchanged. No output plugin changes.
 
-**Architecture:** There is one fit rule in Python: `src/pages/fit.py` `page_fit_for_board`, built on `board_profile.producible_grids`. `pages_compatible_with_board` delegates to it, so every existing visibility and schedulability caller picks up the new rule without a signature change. Rendering takes an optional `face`:
+**Architecture:** There is one fit rule in Python: `src/pages/fit.py` `page_fit_for_board`, built on `board_profile.producible_grids`. `pages_compatible_with_board` delegates to it, so every existing visibility and schedule compatibility caller picks up the new rule without a signature change. Rendering takes an optional `face`:
 
 - `PageService.render_page(..., face=)` renders the template, plugin context and canvases on that face's grid, using a face-specific `DisplayProfile` (`display_for_face`).
 - `DisplayResult.face` records the face, and `content_key()` includes it.
@@ -83,15 +83,15 @@ These are the five likely real-world inputs or failure modes that no task's main
 | `web/src/components/settings/display-settings.tsx` (L153-170, `BoardEditor` L364-740), `web/src/components/settings/output-boards.tsx` (L158-175), new `web/src/components/settings/left-behind-pages.tsx` | Modify/Create | "Pages left behind" list, Text size copy, fade note |
 | `web/messages/en.json` | Modify | New strings |
 
-**Call-site classification.** These are the callers of `geometry_of`, `size_key` and `pages_compatible_with_board` that decide visibility, schedulability or render shape.
+**Call-site classification.** These are the callers of `geometry_of`, `size_key` and `pages_compatible_with_board` that decide visibility, schedule compatibility or render shape.
 
 | Module:line | Decides | Phase 0 change |
 |---|---|---|
-| `src/main.py:2464` send gate; `:2991` silence-page gate | Schedulability at send time | **Change** (Task 10): use `page_fit_for_board`; render at `fit.face`; log `fit.reason` |
+| `src/main.py:2464` send gate; `:2991` silence-page gate | Schedule compatibility at send time | **Change** (Task 10): use `page_fit_for_board`; render at `fit.face`; log `fit.reason` |
 | `src/main.py:1860, :1891` fingerprint size key and context | Short-circuit | **Change** (Task 8): face display key, and `face` in payload and memo |
 | `src/main.py:2540, :3018` `_project` dims | Render shape | **Change** (Task 10): board dims plus `send_layers` when `fit.face` |
 | `src/main.py:156, :2797` | Board's own size (logging, silence indicator) | No change |
-| `src/pages/service.py:1110, :1127` `check_ref_board_compatibility` | Schedulability (API writes) | Auto via delegate; **copy change** (Task 4) |
+| `src/pages/service.py:1110, :1127` `check_ref_board_compatibility` | Schedule compatibility (API writes) | Auto via delegate; **copy change** (Task 4) |
 | `src/pages/service.py:1198, :1277` `find_incompatible_*` | Warn-only reference scans | Auto via delegate (Task 3) |
 | `src/pages/service.py:360, :369` delete replacement | Which page replaces the active one | Auto via delegate (the `:369` call passes a Page as "board", which `page_fit_for_board` treats with the exact rule) |
 | `src/pages/service.py:517, :611, :621, :669, :679, :955` context keys | Plugin context per size | No change (a face page passes a face `display`, whose key separates the cache) |
@@ -104,14 +104,14 @@ These are the five likely real-world inputs or failure modes that no task's main
 | `src/settings/routes.py:1195` retarget | Page moves on resize | **Change** (Task 12): skip when the old grid is still producible; report left-behind pages |
 | `src/pages/retarget.py:35-94` | Retarget mechanics | No change, plus a new `pages_left_behind` (Task 12) |
 | `src/panels/reconcile.py:103, :124`; `src/panels/routes.py:265` | FiestaPanel re-fit | No change (exact rule; the delegate never widens FiestaPanel) |
-| `src/schedules/service.py:173`; `src/schedules/routes.py:139`; `src/mcp_server.py:1596`; `src/settings/routes.py:394, :671` | Schedulability via `check_ref_board_compatibility` | Auto (Task 3) and copy (Task 4) |
+| `src/schedules/service.py:173`; `src/schedules/routes.py:139`; `src/mcp_server.py:1596`; `src/settings/routes.py:394, :671` | Schedule compatibility via `check_ref_board_compatibility` | Auto (Task 3) and copy (Task 4) |
 | `src/ops/executors.py:561`; `:2253`; `src/mcp_displays.py:141` | Reference scan / pass-through | Auto, plus `left_behind_pages` pass-through (Task 12) |
 | `src/v1/routes_boards.py:345` message `page_id` | Render shape | **Change** (Task 11) |
 | `src/v1/routes_boards.py:275, :319, :612` | Text, plugin and template sized to the board | No change |
 | `src/v1/routes_meta.py:123`; `src/board_guards.py:115`; `src/displays/routes.py:301`; `src/board_api/routes.py:110, :522`; `src/outputs/display_profile.py:392` | The board's own grid | No change |
 | `src/ai/prompt_builder.py:493, :511`; `src/ai/page_routes.py:732` | New-page authoring geometry = the target board's current grid | No change: this already makes the board's Text size the default for new pages |
 | `src/templates/routes.py:328, :502` | Editor render and live send shape | **Change** (Task 13) |
-| `src/mcp_server.py:268, :415, :1569, :1823`; `src/board_html_renderer.py:455`; `src/main.py:3147` held send | Explicit-geometry or text-only previews | No change in Phase 0 (they render text at the page's own grid; canvas previews at a face for Fiestabot come in Phase 5) |
+| `src/mcp_server.py:268, :415, :1569, :1823`; `src/board_html_renderer.py:455`; `src/main.py:3147` held send | Explicit-geometry or text-only previews | No change in Phase 0 (they render text at the page's own grid; canvas previews at a face for `Fiestabot` come in Phase 5) |
 
 ---
 
@@ -225,7 +225,7 @@ def test_a_board_whose_output_is_not_installed_falls_back_to_exact_fit():
 - [ ] **Step 2: Run.** `PYTEST tests/test_page_fit.py`. Expected: `ModuleNotFoundError: src.pages.fit`.
 - [ ] **Step 3: Implement** `page_fit_for_board(page, board)` in `src/pages/fit.py`:
   1. If `size_key(*geometry_of(page)) == size_key(*geometry_of(board))`, return `PageFit(True, None, None)`.
-  2. Normalise `board`: a `Mapping` is used as is; a `BoardInstance` goes through `.to_dict()`; anything else gets the exact rule (a mismatch with `fit_reason(page)`).
+  2. Normalize `board`: a `Mapping` is used as is; a `BoardInstance` goes through `.to_dict()`; anything else gets the exact rule (a mismatch with `fit_reason(page)`).
   3. `grids = board_producible_grids(board)`, wrapped in `try/except Exception` → `None`.
   4. If `geometry_of(page).device_type == "panel"` and `grids`, find the face whose grid equals `dimensions_of(page)` and isn't the board's current face (`board_font(board, base model)`). If found, return `PageFit(True, face, None)`.
   5. Otherwise return `PageFit(False, None, fit_reason(page))`. `fit_reason` falls back to the flagship's 6×22 when `dimensions_of` raises, mirroring `size_key`.
@@ -636,7 +636,7 @@ def test_a_page_at_the_old_size_stays_active_after_a_switch(self, pixoo_output, 
     ...; assert body["incompatible_references"] == []
 ```
 
-Also update `test_a_plugin_sees_the_new_size_and_face_after_a_switch...` and `test_the_engine_path_renders_the_page_at_the_new_grid...`. The 10×16 page is no longer retargeted, so the plugin now sees `(10, 16, "led_3x5", "3x5")` after the switch. Assert that.
+Also update `test_a_plugin_sees_the_new_size_and_face_after_a_switch...` and `test_the_engine_path_renders_the_page_at_the_new_grid...`. The 10×16 page is no longer adapted, so the plugin now sees `(10, 16, "led_3x5", "3x5")` after the switch. Assert that.
 
 New tests:
 
@@ -652,7 +652,7 @@ def test_a_flagship_board_response_has_no_grids(client):
     assert "producible_grids" not in board_json(client, "hall-1")
 ```
 
-- [ ] **Step 2: Run.** `PYTEST tests/test_led_text_size.py tests/test_left_behind_pages.py`. Expected: the pages are retargeted (`("panel", 8, 10)`); `KeyError` on `left_behind_pages` and `producible_grids`.
+- [ ] **Step 2: Run.** `PYTEST tests/test_led_text_size.py tests/test_left_behind_pages.py`. Expected: the pages are adapted (`("panel", 8, 10)`); `KeyError` on `left_behind_pages` and `producible_grids`.
 - [ ] **Step 3: Implement.**
   - In `_follow_resized_boards`, skip `add_resize(resizes, old, new)` when `pages_compatible_with_board(old, new)`: the board can still produce its old grid, so its pages still fit.
   - Collect `moved_ids` and add `left_behind_pages = pages_left_behind(resized, moved_ids)`. A page is left behind when its `size_key` equals the old board's, it wasn't moved, and it doesn't fit the new board; the reason is its `fit_reason`.
@@ -871,23 +871,23 @@ Copy:
 
 - The page's own transition picker in the editor doesn't yet show the fade note; only board settings does. Add it in Phase 4, or add a line to Task 18 if review wants it now.
 - Panel re-fits (`PATCH /panels`) keep their toast and don't feed the left-behind list; FiestaPanel is out of Phase 0's scope.
-- Fiestabot previews (`mcp_server.py:415`) still draw canvases at the board's face for a face page; that is deferred to Phase 5.
+- `Fiestabot` previews (`mcp_server.py:415`) still draw canvases at the board's face for a face page; that is deferred to Phase 5.
 - "Now showing" (`active-page-display.tsx`) draws read-back cells at the board grid. A face page shows its projected text there, not the frame. That is acceptable, because the cells are real text, but worth a reviewer's eye.
 - Output plugins that receive rich cells but ignore `frame.layers` would show the projected, cropped text. The spec says this was verified for the Divoom plugin; others are assumed per the output_api 1 layer contract.
 
 **Type consistency:**
 
 - `producible_grids` and `board_producible_grids` return `tuple[int, int]` values; JSON sends `[rows, cols]` and TypeScript reads `[number, number]`.
-- `PageFit(fits, face, reason)` in Python versus `{fits, face, rows, cols}` in the web: the reason is localised client-side from rows and cols. The server's `reason` string and `madeFor` copy must stay identical ("Made for a {rows}×{cols} board").
+- `PageFit(fits, face, reason)` in Python versus `{fits, face, rows, cols}` in the web: the reason is localized client-side from rows and cols. The server's `reason` string and `madeFor` copy must stay identical ("Made for a {rows}×{cols} board").
 - `face` is the face id string everywhere: `DisplayResult.face`, `PagePreviewBatchSuccess.face`, the template render `face`.
 - `render_grid_page_frame` takes the board's `DisplayProfile`, not the face display; only width, height, tile_gap, block_padding and monochrome are read from it, and the charset comes from the face.
 - `send_layers` returns canvas layers unchanged for non-face results, so every existing caller's bytes are unchanged.
 
 ### Critical Files for Implementation
 
-- /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/outputs/board_profile.py
-- /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/pages/fit.py (new)
-- /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/led/page_frame.py (new)
-- /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/main.py
-- /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/pages/service.py
-- /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/web/src/lib/board-dimensions.ts
+- `src/outputs/board_profile.py`
+- `src/pages/fit.py` (new)
+- `src/led/page_frame.py` (new)
+- `src/main.py`
+- `src/pages/service.py`
+- `web/src/lib/board-dimensions.ts`

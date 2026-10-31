@@ -4,7 +4,7 @@ Status: approved for local build (not pushed) · 2026-10-28
 
 ## Intent
 
-FiestaBoard is becoming a platform for many kinds of display: split-flap boards, LED matrices of every size (Divoom Pixoo 64×64, AWTRIX/Ulanzi 32×8, HUB75 64×32 to 128×64, Tidbyt, WLED, MAX7219, P10), and LED-style TV panels. Users want to change how their LED pages look: **font face, font size and colours to start, and more over time** as the platform grows. A page should keep working when a user changes a font, moves it to a different display, or buys a new one.
+FiestaBoard is becoming a platform for many kinds of display: split-flap boards, LED matrices of every size (Divoom Pixoo 64×64, AWTRIX/Ulanzi 32×8, HUB75 64×32 to 128×64, `Tidbyt`, `WLED`, MAX7219, P10), and LED-style TV panels. Users want to change how their LED pages look: **font face, font size and colors to start, and more over time** as the platform grows. A page should keep working when a user changes a font, moves it to a different display, or buys a new one.
 
 Today none of that holds. Every page is pinned to one exact character grid (`size_key`, `src/devices.py:731`), and a board only shows pages whose grid matches exactly (`pages_compatible_with_board`, `src/devices.py:886`). On LED boards the grid comes from the board's single font (`output_config.font`, `src/outputs/board_profile.py:215`), so changing the text size on a Pixoo turns its 10×16 pages into pages that don't fit an 8×10 board. That is the bug users have already hit. Nothing on a page can say "this line bigger" or "this font": the only page-level styling is inline colour markup.
 
@@ -42,13 +42,13 @@ A page written once then renders on every board, using each board's real capabil
 - Content is cropped or dropped without the user being told where and why.
 - A **third** implementation of LED text layout. Core already has a Python port of FiestaUI's `led-matrix.ts` held to golden fixtures; a flexible-page layout engine must not spawn yet another copy that drifts.
 - Users end up maintaining **per-device copies** of the same page.
-- Fiestabot still has to do character-width arithmetic to write a page that fits.
+- `Fiestabot` still has to do character-width arithmetic to write a page that fits.
 
 ## What exists today that this builds on (verified on `origin/main` ff2415c4a)
 
 - **`DisplayProfile`** (`src/outputs/display_profile.py:41`) already describes a board: technology, colour model (tiles/rgb/mono), font, pixel width and height, charset coverage, and `supports()` for lowercase, colour text, background, tiles, icons, rgb, pixels. It is the natural "what can this board do" input to layout.
 - **`BoardContext.key`** includes `display.key`, so plugin data and render caches are already per display, not just per grid.
-- **Pixel layers.** Rich/custom-charset outputs already receive `RichCells` with `.layers` (`CanvasLayer(x, y, w, h, rgba)` in board pixels), painted over the cells by the output's `layout_message` (`src/led/matrix.py:732-738`). The Pixoo and Ulanzi plugins both rasterise through core's `src/led` and composite layers. FiestaUI's `DisplayPreview` draws layers too.
+- **Pixel layers.** Rich/custom-charset outputs already receive `RichCells` with `.layers` (`CanvasLayer(x, y, w, h, rgba)` in board pixels), painted over the cells by the output's `layout_message` (`src/led/matrix.py:732-738`). The Pixoo and Ulanzi plugins both rasterize through core's `src/led` and composite layers. FiestaUI's `DisplayPreview` draws layers too.
 - **Canvases** (`src/canvas/`) are positioned areas bound to data via `source`, with a shape model (rect, circle, text, gradient, pixels). They are anchored to character cells; free placement was explicitly deferred (`docs/internal/reference/PIXEL_CANVAS.md` §8).
 - **The template engine** expands variables, formulas, colour tiles, icons and extended markup (`{{red:HOT}}`, `{{#rrggbb:x}}`, `{{icon:sun}}`) line by line (`src/templates/engine.py`).
 - **Fonts**: exactly two bitmap faces, 3x5 and 5x7 (`src/fiestaui/led-fonts.json`, vendored verbatim from FiestaUI's `lib/led-fonts.ts`, pinned in `src/fiestaui/provenance.json`).
@@ -120,7 +120,7 @@ Page-level `layout` takes `valign` and `gap`.
 
 - **Font**: the requested family, else the board style's family, else the device default.
 - **Size**: pick the family's face at the requested pixel height. If there is none, use the nearest smaller face at an **integer scale** (×2, ×3), which gives large text immediately with no new glyph data. If even the smallest face is too big, report it.
-- **Colour**: on `rgb` boards, as given. On `monochrome` boards, the panel colour: any non-black colour counts as lit, so contrast is preserved. On `tiles` boards (split-flap), the nearest of the 8 board colours for backgrounds and tiles; text colour is dropped (report).
+- **Colour**: on `rgb` boards, as given. On `monochrome` boards, the panel colour: any non-black colour counts as lit, so contrast is preserved. On `tiles` boards (split-flap), the nearest of the 8 board colors for backgrounds and tiles; text colour is dropped (report).
 - **Case**: `lower` on an uppercase-only charset is reported and rendered upper.
 
 **Board style** is a new per-board setting (default font, default size, text colour, background), shown in board settings for any board whose display supports it.
@@ -136,14 +136,14 @@ Page-level `layout` takes `valign` and `gap`.
   - **Phase 1 is core-only.** Core defines the family as a thin mapping over the faces it already vendors (face ids `3x5` and `5x7` are unchanged, so `device-model.schema.json`, `layoutOptions.font` and the vendored files' hashes stay as they are). Moving family definitions into FiestaUI's data is done in phase 7, when the first genuinely new face arrives.
   - New faces and families (a 4x6, a bold 6x8, a tall 8x12 numeral face, an outline face later) are **data additions**, not format changes.
 - FiestaUI stays the **single source of glyph data**. New faces are added there first and vendored into core with the existing provenance and golden-fixture process. Core and the UI must never disagree on a glyph.
-- Plugins can still bring custom glyphs through charsets, as today.
+- Plugins can still bring custom glyphs through character sets, as today.
 - The registry entry for a face has a `kind` (`bitmap` now, `outline` reserved). The resolver never assumes bitmap beyond the faces it is given.
 
 ### 5. Layout runs on the server, once, per board
 
 A new **flexible layout engine** in core (`src/layout/`, name the builder's call):
 
-1. **Expand.** Each block's text goes through the existing template engine's **expansion** (variables, formulas, filters, colours, icons, extended markup) against the board's context (same caching, same `BoardContext.key`), producing markup tokens. It does **not** go through the engine's grid render (`render_lines`: padding, alignment, cropping, spill), which counts in tiles.
+1. **Expand.** Each block's text goes through the existing template engine's **expansion** (variables, formulas, filters, colors, icons, extended markup) against the board's context (same caching, same `BoardContext.key`), producing markup tokens. It does **not** go through the engine's grid render (`render_lines`: padding, alignment, cropping, spill), which counts in tiles.
    - Width-dependent markup (`{{fill_space}}`, `{{fill_space_repeat:X}}`, `{{filled:X}}`) is emitted as an **unresolved fill marker** and filled by the layout engine in pixels at step 4, so it keeps working.
    - Plugins are fetched with the **board's** `BoardContext` (its current grid and display), not a page geometry; a flexible page has none.
 2. **Resolve styles** for the board (section 3).
@@ -151,9 +151,9 @@ A new **flexible layout engine** in core (`src/layout/`, name the builder's call
 4. **Fit** each block across the surface width using its `overflow` rule. `wrap` breaks at spaces, then mid-word. `shrink` steps down faces, then scales. `ellipsis` cuts at a glyph boundary and adds `…` or `.`.
 5. **Stack** blocks vertically with `gap`. If the total is too tall, drop blocks from the lowest priority upward (report each one), then apply `valign`.
 6. **Emit**:
-   - **LED and pixel boards: a full-frame pixel image.** Glyphs are drawn with the **existing** `src/led` rasteriser primitives, extended to accept a face per run. This is not a new rasteriser. Canvas blocks go through the existing `render_content`/`fit_nearest`/`upscale`.
+   - **LED and pixel boards: a full-frame pixel image.** Glyphs are drawn with the **existing** `src/led` rasterizer primitives, extended to accept a face per run. This is not a new rasterizer. Canvas blocks go through the existing `render_content`/`fit_nearest`/`upscale`.
    - **Split-flap and integer-only boards: a cell grid.** Each block is laid out in the board's one character size, wrapped by characters, with colour mapped to tiles. This is what makes flexible pages run everywhere. The output is an ordinary 0–71 grid, so nothing downstream changes.
-7. **Report**: a `layout_issues` list (style compromises, wrapped or shrunk blocks, dropped blocks, ellipsised text), returned with every preview and stored with the last render for the board.
+7. **Report**: a `layout_issues` list (style compromises, wrapped or shrunk blocks, dropped blocks, shortened with an ellipsis text), returned with every preview and stored with the last render for the board.
 
 The layout engine lives **only in Python**. FiestaUI never lays out flexible pages; it draws the frame the server produced (see "Previews"). That is what keeps us at the two layout implementations we have today and stops a third.
 
@@ -161,7 +161,7 @@ The layout engine lives **only in Python**. FiestaUI never lays out flexible pag
 
 **Phase 1: ride the existing layers path.** For a flexible page on a pixel board, core sends `RichCells` whose `.layers` holds **one full-frame, opaque layer**: the rendered image at `(0, 0, width, height)`. Every rich-charset output already paints layers last, over the cells, so the Pixoo and the Ulanzi plugin show flexible pages with **no plugin change**.
 
-- **The cells and the 0–71 grid are not blank.** They carry the page's **text layout at the board's current grid** (the same cell layout split-flap boards get, section 5 step 6). It is hidden under the opaque frame on the device, but board state and readback, the duplicate-frame check (`matches_frame`), preview text alternatives, Fiestabot's "what's on the board" and `/v1` clients all keep seeing real text. This means the cell layout ships in **phase 1**, not later.
+- **The cells and the 0–71 grid are not blank.** They carry the page's **text layout at the board's current grid** (the same cell layout split-flap boards get, section 5 step 6). It is hidden under the opaque frame on the device, but board state and read back, the duplicate-frame check (`matches_frame`), preview text alternatives, `Fiestabot's` "what's on the board" and `/v1` clients all keep seeing real text. This means the cell layout ships in **phase 1**, not later.
 - Builder must verify this per output, including FiestaPanel's LED viewer, which draws the 0–71 grid itself (`markup_follows_charset=False`). Any output that can't show layers keeps showing grid pages only and is excluded by the fit check, with a reason.
 - **Transitions.** Per-pixel LED transitions (slide, wipe, fade, dissolve) work unchanged on frames. Per-cell ones (flip, cascade) need a cell grid; for flexible pages they fall back to `fade`. **Transition plugins** (`plugin_type: "transition"`: typewriter, slot_machine, simple_dissolve) step integer grids, so on a pixel board showing a flexible page they also fall back to `fade`. Both fallbacks are shown in board settings and the page's transition picker, not silently ignored. On split-flap boards, flexible pages produce an ordinary grid, so every transition works as today.
 - **Phase 2 (later, optional): `output_api` 2** adds an explicit `write_frame(RGB frame)` and a capability declaration (surface, colour model, allowed fonts, whether a font choice changes device bytes). This is cleaner than a fake layer, but nothing in this project depends on it, so community plugins are never forced to move.
@@ -173,7 +173,7 @@ The layout engine lives **only in Python**. FiestaUI never lays out flexible pag
 
 - An LED board can produce one grid per text size it allows. A Pixoo 64 gives 10×16 at the 5 px size and 8×10 at the 7 px size.
 - A grid page **fits an LED board if its grid is any grid the board can produce**. The page renders at the size that produces its grid: a 10×16 page draws in small text, an 8×10 page in large text, on the same board, with nothing hidden.
-- **Delivery reuses the full-frame path from section 6.** Core rasterises the page at its own size into one opaque full-frame layer. The cells under it carry the page text projected to the board's current grid, so text readers keep working.
+- **Delivery reuses the full-frame path from section 6.** Core renders the page at its own size into one opaque full-frame layer. The cells under it carry the page text projected to the board's current grid, so text readers keep working.
   - This needs no output plugin change. Verified against the Divoom plugin (`origin/main` bccc3e9): it fixes its renderer once per instance from `led_layout_options()` (`__init__.py:447`), but draws `frame.layers` over the text through core's `layout_message` (`:460-463`).
   - A grid page at the board's own current size keeps today's path unchanged, cells only.
 - **The board's "Text size" setting becomes a default**: the size new grid pages are created at, and the board-style default size for flexible pages. It no longer hides anything. Board settings should say so.
@@ -195,12 +195,12 @@ The layout engine lives **only in Python**. FiestaUI never lays out flexible pag
   The existing grid editor stays for grid pages.
 - Creating a page asks "Flexible (any display)" or "Exact grid". The builder decides the default by board type, but LED boards should default to flexible.
 
-### 9. Fiestabot
+### 9. `Fiestabot`
 
-- New tools `create_flexible_page` and `update_flexible_page` take blocks and styles directly. Their descriptions say plainly that **no width counting is needed**: the server lays the page out and returns per-board `layout_issues` that Fiestabot can act on, for example "drop priority 3 or use `shrink`".
+- New tools `create_flexible_page` and `update_flexible_page` take blocks and styles directly. Their descriptions say plainly that **no width counting is needed**: the server lays the page out and returns per-board `layout_issues` that `Fiestabot` can act on, for example "drop priority 3 or use `shrink`".
 - `render_page_preview` and `preview_saved_page` return per-board issues for flexible pages.
-- A `convert_page_to_flexible` tool (section 10) lets Fiestabot fix the "my pages disappeared" situation in one call per page, or in bulk.
-- The prompt teaches the style vocabulary through the board's capabilities (`DisplayProfile.ai_brief()` extended with fonts and sizes), so Fiestabot only offers styles a board can show.
+- A `convert_page_to_flexible` tool (section 10) lets `Fiestabot` fix the "my pages disappeared" situation in one call per page, or in bulk.
+- The prompt teaches the style vocabulary through the board's capabilities (`DisplayProfile.ai_brief()` extended with fonts and sizes), so `Fiestabot` only offers styles a board can show.
 
 ### 10. Converting existing pages (deferred: not built in this project)
 
@@ -212,9 +212,9 @@ Grid pages on LED boards now render at their own size (section 7), so nothing *n
   - blank leading or trailing lines become `valign` or spacers;
   - canvases become `canvas` blocks in the order of their rows.
 - The conversion reports anything that doesn't map cleanly. For example, a line that used spaces for column alignment would lose those columns, so the user can review it.
-- **Bulk convert** is offered wherever grid pages don't fit a board (the "Doesn't fit" state from the Divoom text-size fix, option C). It is also available from the Pages list and through Fiestabot.
+- **Bulk convert** is offered wherever grid pages don't fit a board (the "Doesn't fit" state from the Divoom text-size fix, option C). It is also available from the Pages list and through `Fiestabot`.
 - **No automatic conversion.** Users choose.
-- Composite and single pages are not convertible in v1 (Fiestabot can't author them today either). They are reported as "can't convert yet".
+- Composite and single pages are not convertible in v1 (`Fiestabot` can't author them today either). They are reported as "can't convert yet".
 
 ### 11. Storage, API and compatibility
 
@@ -283,7 +283,7 @@ The plan should break this into independent, testable PRs. Phases 2 to 6 can be 
 2. **Split-flap layout** for flexible pages.
 3. **Board style settings**, wired into the cascade, with the Pixoo text-size setting re-expressed as the default size.
 4. **Editor and multi-board preview** (web, plus FiestaUI components if needed).
-5. **Fiestabot tools and prompt.**
+5. **`Fiestabot` tools and prompt.**
 6. ~~Conversion~~: deferred (section 10).
 7. **New faces**, starting with a FiestaUI PR that adds a font family, to prove "fonts are data".
 8. (Later) `output_api` 2 frame delivery and the capability declaration; `regions` layout.

@@ -70,7 +70,7 @@
 - [ ] RED: raw conditions with two plugin roots; `HOUR(NOW())` boundary invalidation; same-frame clock pinning; missing Canvas source/fallback diagnostics.
 - [ ] RED: long plugin text and nested repetition; attempted-but-skipped Canvas repetitions; resolved polygon/text limits; custom glyph rows inconsistent with requested face.
 - [ ] Implement bounded work/early termination and complete dependency discovery. Preserve normal outputs and existing fallback semantics.
-- [ ] Persist board/native-member issues through the rendering path; avoid describing selected-but-undrawn Canvas as successfully visible.
+- [ ] Persist board/native-member issues through the rendering path; avoid describing selected-but-not drawn Canvas as successfully visible.
 - [ ] GREEN: focused layout/Canvas/fingerprint suites and aggregate backend checks. Commit.
 
 ## Task 5: Native collections and ordinary-render equivalence
@@ -86,12 +86,12 @@
 ## Task 6: Complete opt-in block editor and actual-board preview
 
 **Files:** create focused app components under `web/src/components/flexible-page-editor/`; wire `page-editor-shell.tsx`, pages creation/list routes, API types and locale strings; reuse existing Canvas editor and template controls; add component/integration tests beside existing web tests.
-**Interfaces:** editor receives a Page document, preserves opaque fields, and saves through existing revision-aware page APIs. Preview uses backend output for selected real boards; no browser layout reimplementation.
+**Interfaces:** editor receives a Page document, preserves opaque fields, and saves through existing revision-aware page APIs. Preview uses backend output for selected real boards; no browser layout duplicate implementation.
 
 - [ ] RED: creation/routing separates grid and flexible documents; adding/editing/reordering/removing text/canvas/spacer blocks round-trips the document.
 - [ ] RED: page/block styles, conditions/priorities, inherited defaults, Canvas source/fallback preservation, dirty/undo behavior and revision conflict.
 - [ ] Build the editor from existing FiestaUI primitives and app-coupled controls; stable block IDs and keyboard operation are required.
-- [ ] RED then implement multi-board preview with dimensions, resolved styles, issues/dropped blocks and unsupported targets. Never label computed pixels as hardware readback.
+- [ ] RED then implement multi-board preview with dimensions, resolved styles, issues/dropped blocks and unsupported targets. Never label computed pixels as hardware read back.
 - [ ] GREEN: real-component tests, typecheck, lint, build, keyboard/a11y checks and browser flows where the isolated environment permits. Commit.
 
 ## Task 7: Documentation, compatibility acceptance and publication
@@ -108,3 +108,56 @@
 ## Definition of done
 
 Backend and frontend are complete only when Tasks 1–7 have evidence, the editor saves/reopens correctly, legacy compatibility is preserved, supported final adapters agree with previews, required tests and CI are green, and independent review has no unresolved important issue. Unsupported adapters/clients and unavailable hardware validation are explicit release gates, not hidden exceptions.
+
+## Implementation checkpoint: 2026-10-31
+
+The isolated core branch and draft PR are `codex/flexible-pages-mvp` and
+[PR 2395](https://github.com/Fiestaboard/FiestaBoard/pull/2395), targeting `next`.
+Shared branches, live content, and the separate UI redesign remain untouched.
+
+Implemented and covered by focused regressions:
+
+- Board-aware native rendering, mixed collection admission, and clearing selection
+  when the selected member becomes ineligible.
+- Exact dim RGB, opaque black and explicit transparency, mono frame delivery,
+  and custom glyph size fallback with a layout warning.
+- Shared render clock and complete condition dependencies; bounded Canvas work,
+  expression evaluation, substitutions, padding, and numeric precision.
+- Failed migration backup refusal and legacy oversized literal preservation.
+- The web block editor, explicit routing by document family, revision conflict
+  preservation, stable IDs, undo/redo, Canvas drafts, and server preview.
+- Target restriction editing that retains unknown fields and unavailable board
+  IDs; warnings after target changes and refusal of excluded preview targets.
+
+Executed locally in offline containers: 14,997 backend tests passed with two
+skipped; 3,120 frontend tests passed with seven skipped. Subsequent independent
+review corrections passed 482 layout/frame tests and 61 preview/API tests.
+The target editor passed eight focused tests. These aggregate runs preceded the
+last review corrections; required remote CI remains the final combined gate.
+Full Python checks, web lint/types/format/build, and documentation checks passed
+before the additional browser fixture. The isolated Chromium fixture then passed
+keyboard edit/save, horizontal overflow, and accessibility checks at widths of
+375 and 1280 pixels, using a fake save API and no backend or live device.
+
+The web environment uses an existing compiled `@fiestaboard/ui` 8.15.0 package
+mounted read-only. Its source and feature lock files have matching package URL
+and integrity; the extracted artifact was not independently verified against a
+cached tarball. Other cached dependency versions are recorded in the execution
+ledger; exact lockfile verification belongs to CI. No packages were installed.
+
+Open acceptance gates remain explicit:
+
+- Output dimensions do not prove receipt of full-frame layers. Unsupported
+  output writers must be refused rather than silently losing the frame.
+- TC002 currently maps a legacy 52 by 17 virtual surface onto 52 by 16 physical
+  pixels. A separate adapter change must preserve the legacy transform and
+  supply an explicit physical-frame path before physical preview parity is claimed.
+- The separate iOS reader requires `device_type` and cannot decode a mixed page
+  list containing flexible documents. Its reader and editor routing must be
+  updated before this server format is enabled for that client.
+- Pixel-visible text and the alternate cell projection need distinct reporting;
+  per-board/native-member layout diagnostics need persistent delivery context.
+- Full browser/backend integration, final combined CI, and final readiness review
+  are incomplete. Hardware delivery has not been exercised or authorized.
+
+This checkpoint is not a completion or release approval.

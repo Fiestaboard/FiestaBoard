@@ -28,7 +28,7 @@ Glyphs are drawn with the existing `src/led/matrix.draw_glyph`/`paint_ops`, exte
   - No heuristics; the migration is idempotent and logs its count.
 - **Grid pages are byte-identical.** Their stored dumps, API dumps, share strings and render output must not change. `tests/test_storage_kernel.py::test_pages_json_round_trips_byte_identical` keeps passing; only the golden's `schema_version` changes to 7.
 - **No `output_api` 1 plugin changes.** Pixel delivery is one opaque full-frame `CanvasLayer` on `RichCells.layers`, from Phase 0's `src/led/page_frame.full_frame_layer`.
-- **No new rasteriser.** Pixels are drawn only through `src/led/matrix.draw_glyph` + `paint_ops` (extended with `scale`) and `src/canvas/raster.render_content`.
+- **No new rasterizer.** Pixels are drawn only through `src/led/matrix.draw_glyph` + `paint_ops` (extended with `scale`) and `src/canvas/raster.render_content`.
   - FiestaUI golden fixtures (`tests/fixtures/fiestaui/led-golden.json`) must stay green.
   - The vendored `src/fiestaui/*` files and their `provenance.json` hashes are untouched.
 - **The 3×10 floor is not referenced anywhere in `src/layout/`.**
@@ -52,7 +52,7 @@ Five likely real-world inputs and failure modes that no task's tests cover yet. 
    - An empty-after-expansion text block must take zero height with no stray gap.
    - `???` must render as text, not crash measurement.
    - Owned by Task 8 ([RF-1]).
-2. **Characters the board can't draw** (`é`, emoji, lowercase on an uppercase-only set). The frame and the hidden cells must show the same fallback: charset fallback is applied before measuring. Otherwise `matches_frame` and readback text disagree with the pixels. Owned by Task 6 ([RF-2]).
+2. **Characters the board can't draw** (`é`, emoji, lowercase on an uppercase-only set). The frame and the hidden cells must show the same fallback: charset fallback is applied before measuring. Otherwise `matches_frame` and read back text disagree with the pixels. Owned by Task 6 ([RF-2]).
 3. **One unbreakable long word** (a URL or a station name) with `overflow: wrap` on a 32×8 strip.
    - It must break mid-word at a glyph boundary.
    - When only one line fits, it must truncate with the ellipsis glyph and a `truncated` issue.
@@ -338,11 +338,11 @@ def test_every_page_routed_site_names_an_existing_test():
     - `src/pages/routes.py:487`;
     - `src/pages/service.py:1096`.
   - **Tuple sites** (`kind: "tuple"`): `src/pages/service.py::shared_context_for` at 517.
-  - **Page sites** (`kind: "page"`) start with `test: null`, and the second test is marked `xfail(strict=True)` until Task 14 fills them in. Task 14 removes the xfail.
+  - **Page sites** (`kind: "page"`) start with `test: null`, and the second test is marked `xfail(strict=True)` until Task 14 fills them in. Task 14 removes the `xfail`.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_geometry_call_sites.py tests/test_devices.py tests/test_page_board_compatibility.py -q`.
 - [ ] **Step 5: commit** `feat(devices): geometry_of refuses flexible pages; call-site ratchet`.
 
-### Task 4: Font registry as families, plus integer scaling in the rasteriser (parallel)
+### Task 4: Font registry as families, plus integer scaling in the rasterizer (parallel)
 
 **Files:**
 
@@ -379,7 +379,7 @@ def test_every_page_routed_site_names_an_existing_test():
 - `large` = max(`ladder_floor(H/4)`, `ladder_next(medium)`). If that exceeds H, it is `medium`.
 - `xlarge` = max(`ladder_floor(H/2)`, `ladder_next(large)`). If that exceeds H, it is `large`.
 
-| Golden device | H | small | medium | large | xlarge |
+| Golden device | H | small | medium | large | `xlarge` |
 |---|---|---|---|---|---|
 | Pixoo 64 @3x5 | 64 | 5 | 5 | 15 | 30 |
 | Pixoo 64 @5x7 | 64 | 5 | 7 | 15 | 30 |
@@ -472,7 +472,7 @@ Resolution rules (spec section 3):
   - `rgb`: as given.
   - `mono`: non-black (`led_monochrome_lit`) becomes the panel colour; black becomes unlit.
   - `tiles`: text colour is dropped (`color_dropped`); background is dropped in Phase 1 (`background_dropped`). Nearest-tile mapping is Phase 2.
-  - An unparseable colour is `color_invalid`.
+  - An invalid colour is `color_invalid`.
 - **Case:** `lower` on a board without `mixed_case` gives `case_unsupported` and renders upper.
 - **Overflow:** `scroll` gives `overflow_unsupported` and falls back to `ellipsis`. The default overflow is `wrap`.
 - **Unknown style keys** (extras) give `style_unknown` (info) and are preserved.
@@ -525,7 +525,7 @@ def test_color_expression_formats_plugins_emit(raw, expected):          # [RF-4]
 
 - The `profile(model_id, font=None)` test helper goes in `tests/layout/devices.py`. It builds a `DisplayProfile` through `src.outputs.display_profile._profile(model_with_led_font(model, font), model_character_set(model), None, grid)` from `builtin_device_models()` / `fiestapanel_model("led_matrix", 12, 32)`.
 - [ ] **Step 2: run** `$PYTEST tests/layout/test_style.py -q`. Expected failure: `ModuleNotFoundError`.
-- [ ] **Step 3: implement.** `resolve_color_value` evaluates expressions with `engine.render(value, context, extended_markup=True)` and then normalises using `src.led.matrix.BOARD_COLORS` and the tile-code mapping. Expose `color_code_to_hex(code)` as a public wrapper of `_color_code_to_hex` in `matrix.py`.
+- [ ] **Step 3: implement.** `resolve_color_value` evaluates expressions with `engine.render(value, context, extended_markup=True)` and then normalizes using `src.led.matrix.BOARD_COLORS` and the tile-code mapping. Expose `color_code_to_hex(code)` as a public wrapper of `_color_code_to_hex` in `matrix.py`.
 - [ ] **Step 4: run** `$PYTEST tests/layout/test_style.py -q`.
 - [ ] **Step 5: commit** `feat(layout): style cascade resolver and layout issues`.
 
@@ -698,7 +698,7 @@ def test_blank_fill_resolves_in_pixels():
   - `shown: tuple[str, ...]`;
   - `frame(width, height, background=None) -> LedFrame`.
 - `stack(blocks: Sequence[ExpandedBlock], styles: Mapping[str, ResolvedStyle], rect: Rect, *, layout: ResolvedLayout, options: LedRenderOptions, context: Mapping, family, path: tuple[str, ...] = ()) -> StackResult`.
-- `draw_line(ops, items, x, y, sized, options, text_color)`. It uses `cell_for_token` and `draw_glyph(..., scale=sized.scale)`. Block-span backgrounds are a rect per cell, joined over the gutter to a same-background neighbour.
+- `draw_line(ops, items, x, y, sized, options, text_color)`. It uses `cell_for_token` and `draw_glyph(..., scale=sized.scale)`. Block-span backgrounds are a rect per cell, joined over the gutter to a same-background neighbor.
 - `canvas_block_op(block, rect, context) -> tuple[LedDrawOp | None, list[LayoutIssue]]`:
   - builds a synthetic `Canvas(id="flex", area={"row":1,"col":1,"rows":1,"cols":1}, content=…, source=…)`;
   - resolves it with `resolve_canvas`, then `render_content(resolved, rect.w, rect.h)`;
@@ -781,7 +781,7 @@ Rules:
 - Gaps are 0 rows.
 - Priority drops and `valign` follow the same rules as Task 8, in rows.
 - Rows past `rows` are dropped with `dropped`.
-- Block colours are not applied in cells in Phase 1; tile mapping is Phase 2.
+- Block colors are not applied in cells in Phase 1; tile mapping is Phase 2.
 
 - [ ] **Step 1: failing tests:**
 
@@ -996,7 +996,7 @@ def test_batch_preview_shares_context_by_board_size(...): ...  # one build_templ
 
 ### Task 14: Route every page geometry call site (depends on Phase 0)
 
-**Files and routing.** Each site gets a behavioural test in `tests/layout/test_flexible_call_sites.py`, and its manifest entry in `tests/layout/geometry_call_sites.json` gets `kind: "page"` and the test id.
+**Files and routing.** Each site gets a behavioral test in `tests/layout/test_flexible_call_sites.py`, and its manifest entry in `tests/layout/geometry_call_sites.json` gets `kind: "page"` and the test id.
 
 | Site | Routing |
 |---|---|
@@ -1035,7 +1035,7 @@ def test_prompt_builder_with_flexible_current_page_uses_board_geometry(...): ...
 
 - The engine harness is `tests/engine_harness.py`; mirror `tests/golden/engine/static_page_dedupe.json`'s setup.
 - Remove the `xfail` from Task 3's manifest test.
-- [ ] **Step 2: run** `$PYTEST tests/layout/test_flexible_call_sites.py tests/layout/test_geometry_call_sites.py -q`. Expected: `FlexiblePageGeometryError` at each unrouted site, and the strict xfail now unexpectedly passes or fails as designed.
+- [ ] **Step 2: run** `$PYTEST tests/layout/test_flexible_call_sites.py tests/layout/test_geometry_call_sites.py -q`. Expected: `FlexiblePageGeometryError` at each unconnected site, and the strict `xfail` now unexpectedly passes or fails as designed.
 - [ ] **Step 3: implement** the routings in the table.
 - [ ] **Step 4: run** `$PYTEST tests/layout tests/test_page_retarget.py tests/test_silence_active_page.py tests/test_pages.py tests/test_panel_grid_pages.py -q`.
 - [ ] **Step 5: commit** `fix(pages): route every page geometry call site for flexible pages`.
@@ -1173,15 +1173,15 @@ def test_import_flexible_share_string_round_trips(client): ...
 | §8 Previews return frame, cells and `layout_issues` | Tasks 13, 16 (including the unsaved-page route) | The editor is Phase 4. |
 | §11 Schema v7 no-op migration; `/v1` additive; share string; `document_protocol` v2 | Tasks 1, 2, 17 | none |
 | Room for positioning: no stored positions; stack over a rect; issues carry paths | Tasks 1, 8, 5 | none |
-| Constraint: every `geometry_of`/`size_key` call site routed and tested; `geometry_of` raises | Tasks 3, 14; the AST ratchet forces new sites to be classified | Direct `page.device_type` reads in MCP listings (`src/mcp_server.py` 1578/1711/1835/3357) still show `flagship` for flexible pages. These are Fiestabot surfaces and are flagged for Phase 5. |
+| Constraint: every `geometry_of`/`size_key` call site routed and tested; `geometry_of` raises | Tasks 3, 14; the AST ratchet forces new sites to be classified | Direct `page.device_type` reads in MCP listings (`src/mcp_server.py` 1578/1711/1835/3357) still show `flagship` for flexible pages. These are `Fiestabot` surfaces and are flagged for Phase 5. |
 | Constraint: Pi budget; cache faces and runs | Task 4 (`lru_cache` on scaled rows); Task 15 short-circuit | Add a perf smoke test if the reviewers want one. |
 | Anti-goal: no third LED layout | Only `draw_glyph`/`paint_ops` and canvas raster are used; layout is Python-only | none |
 | Left to the builder | Module `src/layout/`; one full-frame layer; share v2 for flexible only; named-size table in Task 4; default overflow `wrap`, valign `top`, gap `small`; unset priority drops first | Persisting `layout_issues` per board for board status is not built in Phase 1: they are returned on previews and `DisplayResult` only. Suggest Phase 3 store them on the board runtime. |
 
 ### Critical Files for Implementation
 
-- /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/pages/models.py
-- /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/pages/service.py
-- /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/devices.py
-- /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/led/matrix.py
-- /Users/jeffre/workspace/FiestaBoard/.claude/worktrees/flexible-pages-design/src/main.py
+- `src/pages/models.py`
+- `src/pages/service.py`
+- `src/devices.py`
+- `src/led/matrix.py`
+- `src/main.py`

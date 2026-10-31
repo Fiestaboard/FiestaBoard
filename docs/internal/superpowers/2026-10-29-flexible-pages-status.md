@@ -70,5 +70,5 @@ FiestaBoard LED pages that don't depend on the display. Each page sets its own t
    - back up `/opt/fiestaboard/data`, since v7 pages may not load on released builds;
    - turn off auto-update;
    - load an arm64 image built from the branch.
-4. Write the plans for phases 2–5: split-flap polish, board style settings, an editor with multi-board preview, and Fiestabot tools.
+4. Write the plans for phases 2–5: split-flap polish, board style settings, an editor with multi-board preview, and `Fiestabot` tools.
 5. When the owner says go, open the PRs against `main`, not `next`.
