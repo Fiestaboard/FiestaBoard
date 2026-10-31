@@ -1,6 +1,6 @@
 /** The library filters by real configured displays, retaining every orphan shape in All pages. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -78,15 +78,24 @@ describe("Pages library display filter", () => {
     expect(await screen.findByText("Hall Page")).toBeInTheDocument();
     expect(screen.getByLabelText("Display filter")).toHaveTextContent("All pages");
   });
-  it("filters an LED display by exact compatible geometry, not the panel family", async () => {
+  it("fits an LED display by exact geometry, flagging the rest after the page that fits", async () => {
     const user = userEvent.setup();
     renderPage();
     await user.click(screen.getByLabelText("Display filter"));
     await user.click(await screen.findByRole("option", { name: "Pixoo" }));
-    expect(await screen.findByText("Pixoo Page")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByText("TV Page")).not.toBeInTheDocument());
-    expect(screen.queryByText("Orphan Page")).not.toBeInTheDocument();
-    expect(screen.queryByText("Hall Page")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /TV Page/ })).toHaveAccessibleDescription(/Made for a 12×29 board/),
+    );
+    expect(screen.getByRole("button", { name: /Pixoo Page/ })).not.toHaveAttribute("aria-describedby");
+    expect(screen.getByRole("button", { name: /Orphan Page/ })).toHaveAccessibleDescription(/Made for a 8×30 board/);
+    expect(screen.getByRole("button", { name: /Hall Page/ })).toHaveAccessibleDescription(/Made for a 6×22 board/);
+    const names = within(screen.getByRole("group", { name: "Pages" }))
+      .getAllByRole("button")
+      .map((button) =>
+        ["Hall Page", "Pixoo Page", "TV Page", "Orphan Page"].find((n) => button.textContent?.includes(n)),
+      );
+    expect(names).toEqual(["Pixoo Page", "Hall Page", "TV Page", "Orphan Page"]);
+    expect(screen.getByText("1 page")).toBeInTheDocument();
   });
   it("restores the chosen display filter after returning from an editor", async () => {
     const user = userEvent.setup();
@@ -96,6 +105,8 @@ describe("Pages library display filter", () => {
     rendered.unmount();
     renderPage();
     expect(await screen.findByText("TV Page")).toBeInTheDocument();
-    expect(screen.queryByText("Pixoo Page")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Pixoo Page/ })).toHaveAccessibleDescription(/Made for a 10×16 board/),
+    );
   });
 });

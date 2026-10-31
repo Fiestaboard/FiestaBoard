@@ -272,12 +272,70 @@ export function dimensionsOf(entity: SizedEntity): BoardDimensions {
   );
 }
 
+/** A page as pageFitForBoard reads it: its geometry and its type (a flexible page has no geometry). */
+export interface FitPage extends SizedEntity {
+  type?: string | null;
+}
+
+/** A board as pageFitForBoard reads it: its geometry, plus an LED board's text sizes. */
+export interface FitBoard extends SizedEntity {
+  /**
+   * An LED board's grid at each text size it allows, `{face: [rows, cols]}`
+   * (`board_producible_grids`); absent or null when it has no choice.
+   */
+  producible_grids?: Record<string, [number, number]> | null;
+  /** The face the board draws in now is `led_layout.font`. */
+  led_layout?: { font?: string } | null;
+}
+
 /**
- * True when a page renders 1:1 on a board: EXACT sizeKey() match.
- * Mirrors Python pages_compatible_with_board(). Family-aware: flagship ≠ note
- * even at identical dimensions, and note arrays and panels must match the
- * resolved grid exactly.
+ * How a page fits a board. Mirrors Python `PageFit` (src/pages/fit.py), with
+ * the page's own `rows` × `cols` in place of the reason string, so the UI
+ * can word the reason ("Made for a {rows}×{cols} board") itself.
+ *
+ * `fits` with `face` null: the page is at the board's own grid.
+ * `fits` with a `face`: the board draws the page at that text size.
  */
-export function pagesCompatibleWithBoard(page: SizedEntity, board: SizedEntity): boolean {
-  return sizeKeyOf(page) === sizeKeyOf(board);
+export interface PageFit {
+  fits: boolean;
+  face: string | null;
+  rows: number;
+  cols: number;
+}
+
+/**
+ * Whether a page shows on a board, and at which LED text size. Mirrors Python
+ * page_fit_for_board(): a flexible page fits every board (`rows` and `cols`
+ * are 0: it has no grid); an exact sizeKey() match takes today's path; an LED
+ * board that produces a `panel` page's grid at a face other than its current
+ * one draws the page at that face; anything else does not fit. Only `panel`
+ * pages can match another face's grid (a flagship page never fits an LED
+ * board, even at 6×22).
+ */
+export function pageFitForBoard(page: FitPage, board: FitBoard): PageFit {
+  // A flexible page has no grid: the server lays it out for each board, so it
+  // fits every board, never at a face (Python page_fit_for_board's flexible
+  // branch; a `targets` restriction is checked server-side).
+  if (page.type === "flexible") return { fits: true, face: null, rows: 0, cols: 0 };
+  const { rows, cols } = dimensionsOf(page);
+  if (sizeKeyOf(page) === sizeKeyOf(board)) return { fits: true, face: null, rows, cols };
+  const grids = board.producible_grids;
+  if (grids && isPanel(page.device_type || "flagship")) {
+    const current = board.led_layout?.font;
+    for (const [face, grid] of Object.entries(grids)) {
+      if (grid[0] === rows && grid[1] === cols && face !== current) return { fits: true, face, rows, cols };
+    }
+  }
+  return { fits: false, face: null, rows, cols };
+}
+
+/**
+ * True when a page shows on a board: pageFitForBoard(...).fits. Mirrors
+ * Python pages_compatible_with_board(). Family-aware: flagship ≠ note even at
+ * identical dimensions, and note arrays and panels must match the resolved
+ * grid exactly, except that an LED board also shows a panel page at a grid it
+ * produces at another text size.
+ */
+export function pagesCompatibleWithBoard(page: FitPage, board: FitBoard): boolean {
+  return pageFitForBoard(page, board).fits;
 }

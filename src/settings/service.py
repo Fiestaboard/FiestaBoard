@@ -118,7 +118,9 @@ class TransitionSettings:
         )
 
 
-def page_transition(display, page, runs: Callable[[str], bool] | None = None) -> TransitionSettings:
+def page_transition(
+    display, page, runs: Callable[[str], bool] | None = None, *, full_frame: bool = False
+) -> TransitionSettings:
     """What a send of *page* runs on a display whose own transition is
     *display* (anything with ``strategy`` / ``step_interval_ms`` /
     ``step_size``): the page's own transition where it sets one, field by
@@ -132,15 +134,37 @@ def page_transition(display, page, runs: Callable[[str], bool] | None = None) ->
     Vestaboard...) does not override the display's, and the send runs the
     display's transition, speed included, since the page's speed was chosen
     for its strategy. Without *runs*, the page strategy is taken as given.
+
+    *full_frame*: the send reaches the board as one opaque full-frame layer
+    (:func:`src.pages.fit.delivers_full_frame`: a page drawn at another face,
+    or a flexible page on a pixel board). A per-cell strategy (flip, cascade)
+    would animate the cells under that picture and a transition plugin steps
+    integer grids, so either runs as ``fade``
+    (:func:`src.outputs.transitions.strategy_for_full_frame`, design
+    section 6), whether it came from the page or the display. A page's own
+    strategy then counts when the board runs it as asked or as that fade, so
+    a page's transition plugin on a board that takes LED transitions (and so
+    no plugins) still arrives as fade rather than being dropped for the
+    display's strategy.
     """
+    from src.outputs.transitions import strategy_for_full_frame
+
     strategy = getattr(page, "transition_strategy", None)
     interval = getattr(page, "transition_interval_ms", None)
     step_size = getattr(page, "transition_step_size", None)
-    if isinstance(strategy, str) and strategy and runs is not None and not runs(strategy):
-        logger.debug("Page transition %r cannot run on this board; using the board's own", strategy)
-        strategy = interval = step_size = None
+    if isinstance(strategy, str) and strategy and runs is not None:
+        # On a full-frame send the board is never handed the page's plugin or
+        # per-cell strategy, only its fade: the page's choice stands when the
+        # board runs either form (design section 6).
+        mapped = strategy_for_full_frame(strategy) if full_frame else strategy
+        if not runs(strategy) and not (mapped != strategy and runs(mapped)):
+            logger.debug("Page transition %r cannot run on this board; using the board's own", strategy)
+            strategy = interval = step_size = None
+    strategy = strategy if strategy else display.strategy
+    if full_frame:
+        strategy = strategy_for_full_frame(strategy)
     return TransitionSettings(
-        strategy=strategy if strategy else display.strategy,
+        strategy=strategy,
         step_interval_ms=interval if interval is not None else display.step_interval_ms,
         step_size=step_size if step_size is not None else display.step_size,
     )
@@ -397,10 +421,18 @@ class BoardSettings:
         FiestaPanel's, a plugin's own) -- is added only then. ``led_layout``
         -- an LED board's resolved ``tile_gap`` / ``block_padding`` (plan
         D23), what its preview must draw to match the device -- is added only
-        for an LED board.
+        for an LED board. ``producible_grids`` -- ``{face: [rows, cols]}``,
+        the grid the board draws at each text size it allows (design section
+        7: a grid page fits at any of them) -- is added only for a board that
+        has a choice of grids to report (:func:`board_producible_grids`).
         """
         from src.devices import LEGACY_CONNECTION_FIELDS
-        from src.outputs.board_profile import board_led_layout, board_model_spec, board_profile
+        from src.outputs.board_profile import (
+            board_led_layout,
+            board_model_spec,
+            board_producible_grids,
+            board_profile,
+        )
         from src.outputs.config_hooks import mask_config, mask_flat_fields
         from src.settings.board_shape import FIESTAPANEL, board_view
 
@@ -414,6 +446,9 @@ class BoardSettings:
         led_layout = board_led_layout(board)
         if led_layout is not None:
             masked["led_layout"] = led_layout
+        grids = board_producible_grids(board)
+        if grids is not None:
+            masked["producible_grids"] = {face: list(grid) for face, grid in grids.items()}
         if output_id != FIESTAPANEL:
             masked["output_config"] = mask_config(output_id, masked["output_config"])
         return masked

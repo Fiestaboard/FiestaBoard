@@ -1273,7 +1273,11 @@
     "notesTallLabel": "Notes de alto",
     "customRangeError": "Cada dimensión debe estar entre 1 y {max}.",
     "resizeMovedPages": "Páginas ajustadas al nuevo tamaño del tablero: {pages}.",
-    "resizeStaleRefs": "El nuevo tamaño del tablero ya no admite estas páginas: {pages}. Edítalas o no se mostrarán en este tablero."
+    "resizeStaleRefs": "El nuevo tamaño del tablero ya no admite estas páginas: {pages}. Edítalas o no se mostrarán en este tablero.",
+    "leftBehind": {
+      "title": "Páginas que esta pantalla ya no muestra",
+      "description": "Un cambio de tamaño dejó atrás estas páginas. Edita una para que quepa en esta pantalla o muéstrala en otra."
+    }
   },
   "displays": {
     "title": "Pantallas",
@@ -1765,6 +1769,10 @@
     "createFirstPage": "Crear tu primera página",
     "noCompatiblePagesTitle": "Ninguna página coincide con el tamaño de este tablero.",
     "noCompatiblePagesDescription": "Crea una página del tamaño de este tablero para verla aquí."
+  },
+  "pageFit": {
+    "madeFor": "Hecha para un tablero de {rows}×{cols}",
+    "notOnThisDisplay": "No disponible en esta pantalla"
   },
   "profile": {
     "title": "Perfil",
@@ -2707,6 +2715,8 @@
     "dismissFailed": "No se pudo descartar. Inténtalo de nuevo."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "El tamaño con el que empiezan las páginas nuevas. Las páginas hechas en el otro tamaño se siguen mostrando, en su propio tamaño.",
+    "textSizeFadeNote": "Las páginas en el otro tamaño de texto cambian con Fundido. Volteo, Cascada y los plugins de transición necesitan el tamaño de texto propio de la pantalla.",
     "noDevicesFound": "No se encontraron dispositivos. Introduce la dirección manualmente.",
     "devicesFoundLabel": "Dispositivos encontrados para {field}",
     "subnetLabel": "Red en la que buscar (opcional)",

@@ -1273,7 +1273,11 @@
     "notesTallLabel": "Note yüksekliği",
     "customRangeError": "Her boyut 1 ile {max} arasında olmalıdır.",
     "resizeMovedPages": "Sayfalar panonun yeni boyutuna taşındı: {pages}.",
-    "resizeStaleRefs": "Panonun yeni boyutu artık bu sayfalara uymuyor: {pages}. Düzenlemezseniz bu panoda gösterilmezler."
+    "resizeStaleRefs": "Panonun yeni boyutu artık bu sayfalara uymuyor: {pages}. Düzenlemezseniz bu panoda gösterilmezler.",
+    "leftBehind": {
+      "title": "Bu ekranın artık göstermediği sayfalar",
+      "description": "Bir boyut değişikliği bu sayfaları geride bıraktı. Birini bu ekrana sığacak şekilde düzenleyin veya başka bir ekranda gösterin."
+    }
   },
   "displays": {
     "title": "Ekranlar",
@@ -1765,6 +1769,10 @@
     "createFirstPage": "İlk sayfanızı oluşturun",
     "noCompatiblePagesTitle": "Bu panonun boyutuyla eşleşen sayfa yok.",
     "noCompatiblePagesDescription": "Burada görmek için bu pano boyutunda bir sayfa oluşturun."
+  },
+  "pageFit": {
+    "madeFor": "{rows}×{cols} pano için yapıldı",
+    "notOnThisDisplay": "Bu ekranda değil"
   },
   "profile": {
     "title": "Profil",
@@ -2707,6 +2715,8 @@
     "dismissFailed": "Kapatılamadı. Tekrar deneyin."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "Yeni sayfaların başladığı boyut. Diğer boyutta yapılan sayfalar kendi boyutlarında gösterilmeye devam eder.",
+    "textSizeFadeNote": "Diğer metin boyutundaki sayfalar Solma ile değişir. Çevirme, Kaskad ve geçiş eklentileri ekranın kendi metin boyutunu gerektirir.",
     "noDevicesFound": "Cihaz bulunamadı. Adresi kendiniz girin.",
     "devicesFoundLabel": "{field} için bulunan cihazlar",
     "subnetLabel": "Aranacak ağ (isteğe bağlı)",

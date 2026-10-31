@@ -44,6 +44,7 @@ __all__ = [
     "ResolvedShape",
     "resolve_canvas",
     "resolve_content",
+    "truthy",
 ]
 
 #: Shapes one canvas may draw after ``foreach`` expansion.
@@ -161,12 +162,21 @@ def _color(value: Any, field_name: str, palette: Mapping[str, RGBA | None]) -> R
         raise _Skip(field_name, str(exc)) from None
 
 
-def _truthy(value: Any) -> bool:
+def truthy(value: Any) -> bool:
+    """Whether a formula's result counts as true (canvas ``if`` and flexible-block ``if``).
+
+    A string is false when blank or ``false`` / ``no`` / ``0``; a collection
+    when empty; anything else by Python truthiness.
+    """
     if isinstance(value, str):
         return value.strip().lower() not in ("", "false", "no", "0")
     if isinstance(value, list | tuple | dict):
         return len(value) > 0
     return bool(value)
+
+
+#: The name canvas evaluation has always used.
+_truthy = truthy
 
 
 def _points(raw: Any, context: dict[str, Any], bindings: dict[str, Any] | None) -> list[tuple[float, float]]:

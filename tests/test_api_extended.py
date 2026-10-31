@@ -753,6 +753,7 @@ class TestSettingsEndpoints:
             **mock_settings_service.set_board_type.return_value.to_dict(),
             "retargeted_pages": None,
             "incompatible_references": None,
+            "left_behind_pages": None,
         }
 
     def test_update_board_settings_devices(self, client, mock_settings_service):

@@ -1,11 +1,13 @@
 /**
  * Tests for page<->board size filtering in ScheduleEntryForm (issue #1249).
  *
- * The form should only offer pages whose size matches the current board
- * (from useCurrentBoard), keep the already-selected page visible when
- * editing, and surface a non-fatal warning when a selected collection only
- * partially fits the board. With no current board (single-board installs
- * before boards load, and all existing tests) the behavior is unchanged.
+ * The form offers every page, but a page the current board (from
+ * useCurrentBoard) can't show is a disabled option carrying its reason
+ * ("Made for a 3×15 board"), so it is flagged rather than hidden. The
+ * already-selected page stays selectable when editing, and the form surfaces
+ * a non-fatal warning when the selection only partially fits the board. With
+ * no current board (single-board installs before boards load, and all
+ * existing tests) the behavior is unchanged.
  */
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@fiestaboard/ui";
@@ -33,6 +35,21 @@ const FLAGSHIP_BOARD = {
 const PAGES = [
   { id: "page-flag", name: "Flagship Page", device_type: "flagship" },
   { id: "page-note", name: "Note Page", device_type: "note" },
+];
+
+// An 8x10 Pixoo in its 5x7 text size, which can also draw a 10x16 grid in 3x5.
+const PIXOO_BOARD = {
+  id: "board-pixoo",
+  name: "Pixoo",
+  device_type: "panel",
+  grid_rows: 8,
+  grid_cols: 10,
+  producible_grids: { "5x7": [8, 10], "3x5": [10, 16] },
+  led_layout: { font: "5x7" },
+};
+
+const PIXOO_PAGES = [
+  { id: "page-small-text", name: "Small Text Page", device_type: "panel", grid_rows: 10, grid_cols: 16 },
 ];
 
 const MIXED_COLLECTION = {
@@ -66,15 +83,46 @@ beforeEach(() => {
 });
 
 describe("ScheduleEntryForm size filtering", () => {
-  it("only offers pages compatible with the current board", async () => {
+  it("offers a page that doesn't fit as a disabled option with its reason", async () => {
     const user = userEvent.setup();
     renderInSheet({ pages: PAGES, onSubmit: vi.fn(), onCancel: vi.fn() });
 
     await user.click(screen.getByLabelText("Page or Collection"));
     await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
 
-    expect(screen.getByRole("option", { name: /Flagship Page/ })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: /Note Page/ })).not.toBeInTheDocument();
+    const option = screen.getByRole("option", { name: /Note Page/ });
+    expect(option).toHaveAttribute("aria-disabled", "true");
+    expect(option).toHaveTextContent("Made for a 3×15 board");
+  });
+
+  it("offers a page that fits as an enabled option without a reason", async () => {
+    const user = userEvent.setup();
+    renderInSheet({ pages: PAGES, onSubmit: vi.fn(), onCancel: vi.fn() });
+
+    await user.click(screen.getByLabelText("Page or Collection"));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+
+    const option = screen.getByRole("option", { name: /Flagship Page/ });
+    expect(option).not.toHaveAttribute("aria-disabled", "true");
+    expect(option).not.toHaveTextContent("Made for a");
+  });
+
+  it("offers a 10x16 page to an 8x10 Pixoo as selectable", async () => {
+    mockUseCurrentBoard.mockReturnValue({
+      currentBoardId: PIXOO_BOARD.id,
+      currentBoard: PIXOO_BOARD,
+      boards: [PIXOO_BOARD],
+      setCurrentBoardId: vi.fn(),
+    });
+    const user = userEvent.setup();
+    renderInSheet({ pages: PIXOO_PAGES, onSubmit: vi.fn(), onCancel: vi.fn() });
+
+    await user.click(screen.getByLabelText("Page or Collection"));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+
+    const option = screen.getByRole("option", { name: /Small Text Page/ });
+    expect(option).not.toHaveAttribute("aria-disabled", "true");
+    expect(option).not.toHaveTextContent("Made for a");
   });
 
   it("shows all pages when no current board is resolved (unchanged behavior)", async () => {
@@ -94,7 +142,20 @@ describe("ScheduleEntryForm size filtering", () => {
     expect(screen.getByRole("option", { name: /Note Page/ })).toBeInTheDocument();
   });
 
-  it("keeps the selected page visible when editing an incompatible entry", async () => {
+  it("warns with the reason when editing an entry whose page no longer fits", () => {
+    renderInSheet({
+      pages: PAGES,
+      onSubmit: vi.fn(),
+      onCancel: vi.fn(),
+      prefillPageId: "page-note",
+    });
+
+    expect(screen.getByLabelText("Page or Collection")).toHaveTextContent("Note Page");
+    const warning = screen.getByText(/doesn't match this board's size/);
+    expect(warning).toHaveTextContent("Made for a 3×15 board");
+  });
+
+  it("keeps the selected misfit page selectable when editing", async () => {
     const user = userEvent.setup();
     renderInSheet({
       pages: PAGES,
@@ -103,13 +164,9 @@ describe("ScheduleEntryForm size filtering", () => {
       prefillPageId: "page-note",
     });
 
-    // The incompatible-but-selected page stays selectable and a warning shows.
-    expect(screen.getByLabelText("Page or Collection")).toHaveTextContent("Note Page");
-    expect(screen.getByText(/doesn't match this board's size/)).toBeInTheDocument();
-
     await user.click(screen.getByLabelText("Page or Collection"));
     await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
-    expect(screen.getByRole("option", { name: /Note Page/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Note Page/ })).not.toHaveAttribute("aria-disabled", "true");
   });
 
   it("warns when a selected collection only partially fits the board", () => {

@@ -22,6 +22,8 @@ from src.devices import (
     note_array_dimensions,
     resolve_dimensions,
 )
+from tests.test_led_text_size import _board as _pixoo_board
+from tests.test_led_text_size import pixoo_output  # noqa: F401
 
 
 class TestBoardContext:
@@ -1083,3 +1085,58 @@ class TestBoardNameNormalization:
     def test_from_dict_applies_the_same_normalization(self):
         board = BoardInstance.from_dict({"device_type": "flagship", "name": "  Garage  "})
         assert board.name == "Garage"
+
+
+class TestPagesCompatibleWithAnLedBoard:
+    """LED boards fit any grid they can produce at a text size their model allows.
+
+    Spec: docs/internal/superpowers/specs/2026-10-28-flexible-pages-design.md,
+    "Pages that still don't fit are flagged, not hidden". The predicate
+    delegates to :func:`src.pages.fit.page_fit_for_board`.
+    """
+
+    @staticmethod
+    def _page(device_type, grid_rows=None, grid_cols=None):
+        from src.pages.models import Page
+
+        return Page(
+            name="p",
+            type="template",
+            device_type=device_type,
+            grid_rows=grid_rows,
+            grid_cols=grid_cols,
+            template=["hi"],
+        )
+
+    def test_an_led_board_is_compatible_with_a_page_at_its_other_text_size(self, pixoo_output):  # noqa: F811
+        from src.devices import pages_compatible_with_board
+
+        board = _pixoo_board(grid_rows=8, grid_cols=10, output_config={"font": "5x7"})
+        assert pages_compatible_with_board(self._page("panel", 10, 16), board)
+
+    def test_find_incompatible_board_references_skips_a_page_the_board_draws_at_another_size(
+        self,
+        pixoo_output,  # noqa: F811
+        monkeypatch,
+    ):
+        """An 8x10 Pixoo whose active page is 10x16 draws it at 3x5: nothing to report."""
+        from unittest.mock import MagicMock
+
+        from src.pages.service import find_incompatible_board_references
+
+        page = self._page("panel", 10, 16)
+        board = _pixoo_board(grid_rows=8, grid_cols=10, output_config={"font": "5x7"})
+        page_service = MagicMock()
+        page_service.get_page.side_effect = lambda page_id: page if page_id == page.id else None
+        settings = MagicMock()
+        settings.get_active_page_id.side_effect = lambda board_id=None: page.id if board_id == board["id"] else None
+        no_collections = MagicMock()
+        no_collections.list_collections.return_value = []
+        no_schedules = MagicMock()
+        no_schedules.list_schedules.return_value = []
+        monkeypatch.setattr("src.pages.service.get_page_service", lambda: page_service)
+        monkeypatch.setattr("src.pages.service.get_settings_service", lambda: settings)
+        monkeypatch.setattr("src.collections.service.get_collection_service", lambda: no_collections)
+        monkeypatch.setattr("src.schedules.service.get_schedule_service", lambda: no_schedules)
+
+        assert find_incompatible_board_references(board) == []

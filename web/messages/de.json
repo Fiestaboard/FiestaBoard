@@ -1273,7 +1273,11 @@
     "notesTallLabel": "Notes hoch",
     "customRangeError": "Jede Dimension muss zwischen 1 und {max} liegen.",
     "resizeMovedPages": "Seiten an die neue Größe des Boards angepasst: {pages}.",
-    "resizeStaleRefs": "Die neue Größe des Boards passt nicht mehr zu diesen Seiten: {pages}. Bearbeite sie, sonst werden sie auf diesem Board nicht angezeigt."
+    "resizeStaleRefs": "Die neue Größe des Boards passt nicht mehr zu diesen Seiten: {pages}. Bearbeite sie, sonst werden sie auf diesem Board nicht angezeigt.",
+    "leftBehind": {
+      "title": "Seiten, die diese Anzeige nicht mehr zeigt",
+      "description": "Eine Größenänderung hat diese Seiten zurückgelassen. Passe eine an diese Anzeige an oder zeige sie auf einer anderen."
+    }
   },
   "displays": {
     "title": "Anzeigen",
@@ -1765,6 +1769,10 @@
     "createFirstPage": "Erste Seite erstellen",
     "noCompatiblePagesTitle": "Keine Seiten passen zur Größe dieses Boards.",
     "noCompatiblePagesDescription": "Erstelle eine Seite in der Größe dieses Boards, um sie hier zu sehen."
+  },
+  "pageFit": {
+    "madeFor": "Für eine {rows}×{cols}-Tafel erstellt",
+    "notOnThisDisplay": "Nicht auf dieser Anzeige"
   },
   "profile": {
     "title": "Profil",
@@ -2707,6 +2715,8 @@
     "dismissFailed": "Schließen fehlgeschlagen. Bitte erneut versuchen."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "Die Größe, mit der neue Seiten beginnen. Seiten in der anderen Größe werden weiterhin angezeigt, in ihrer eigenen Größe.",
+    "textSizeFadeNote": "Seiten in der anderen Textgröße wechseln mit Überblenden. Klappen, Kaskade und Übergangs-Plugins brauchen die eigene Textgröße der Anzeige.",
     "noDevicesFound": "Keine Geräte gefunden. Gib die Adresse selbst ein.",
     "devicesFoundLabel": "Gefundene Geräte für {field}",
     "subnetLabel": "Zu durchsuchendes Netzwerk (optional)",

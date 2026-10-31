@@ -83,6 +83,7 @@ from typing import Annotated, Any, Literal
 from pydantic import Field, SkipValidation
 
 from .canvas.models import Canvas
+from .devices import page_geometry_fields
 
 # Mutating tools dispatch into the shared operation layer (#1764); the
 # result envelopes live there too, so executors and the read-only tools
@@ -1566,6 +1567,9 @@ def _build_mcp_server() -> Any:
         if page is None:
             raise ToolError(f"Page '{page_id}' not found.")
         check = _charset_check(board_id)
+        # The page itself, as the docstring says: a grid page at its own grid
+        # (never a board's face), a flexible page laid out for the primary
+        # board. Per-board flexible previews are the Fiestabot phase's.
         result = svc.preview_page(page_id, force_refresh=True, **check.lines_kw)
         if result is None:
             raise ToolError(f"Page '{page_id}' not found.")
@@ -1575,7 +1579,7 @@ def _build_mcp_server() -> Any:
         out: dict[str, Any] = {
             "page_id": page_id,
             "name": page.name,
-            "device_type": page.device_type,
+            "device_type": page_geometry_fields(page)["device_type"],
             "rendered": result.formatted,
             "rows": result.formatted.split("\n"),
             "line_metadata": ([m.model_dump() for m in page.line_metadata] if page.line_metadata else None),
@@ -1708,7 +1712,7 @@ def _build_mcp_server() -> Any:
         return {
             "page_id": page.id,
             "name": page.name,
-            "device_type": page.device_type,
+            "device_type": page_geometry_fields(page)["device_type"],
             "share_string": encode_page(page),
         }
 
@@ -1782,9 +1786,12 @@ def _build_mcp_server() -> Any:
         from .settings.service import get_settings_service
 
         svc = get_settings_service()
+        # The named board (None: the primary), which a flexible page lays out for.
+        board = None
         if board_id is not None:
             boards = svc.get_board_settings().boards or []
-            if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+            board = next((b for b in boards if isinstance(b, dict) and b.get("id") == board_id), None)
+            if board is None:
                 raise ToolError(f"Board not found: {board_id}")
 
         # Mirrors GET /pages/current-display, with a board_id so a secondary
@@ -1820,7 +1827,10 @@ def _build_mcp_server() -> Any:
             template = list(page.template)
             line_metadata = document.get("line_metadata")
         else:
-            result = page_service.preview_page(page.id, force_refresh=True)
+            # Rendered text at the page's own grid (a flexible page: the
+            # named board's, else the primary's), not the board's face: this
+            # is the document's text, not the board's pixels.
+            result = page_service.preview_page(page.id, force_refresh=True, board=board)
             template = result.formatted.split("\n") if result is not None and result.available else []
             line_metadata = None
 
@@ -1832,11 +1842,8 @@ def _build_mcp_server() -> Any:
             "document_protocol": page.document_protocol,
             "page_name": page.name,
             "page_type": page.type,
-            "device_type": page.device_type,
-            "notes_wide": page.notes_wide,
-            "notes_tall": page.notes_tall,
-            "grid_rows": page.grid_rows,
-            "grid_cols": page.grid_cols,
+            # A flexible page's text was laid out for the named board: its geometry.
+            **page_geometry_fields(page, board),
             "template": template,
             "line_metadata": line_metadata,
             "canvases": document.get("canvases") or [],
@@ -2541,9 +2548,12 @@ def _build_mcp_server() -> Any:
         from .settings.service import get_settings_service, temporary_override_payload
 
         svc = get_settings_service()
+        # The named board (None: the primary), which a flexible page lays out for.
+        board = None
         if board_id is not None:
             boards = svc.get_board_settings().boards or []
-            if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+            board = next((b for b in boards if isinstance(b, dict) and b.get("id") == board_id), None)
+            if board is None:
                 raise ToolError(f"Board not found: {board_id}")
 
         # Mirrors GET /pages/current-display: schedule mode owns the
@@ -2577,7 +2587,7 @@ def _build_mcp_server() -> Any:
                     "document_protocol": page.document_protocol,
                     "name": page.name,
                     "type": page.type,
-                    "device_type": page.device_type,
+                    "device_type": page_geometry_fields(page, board)["device_type"],
                 }
         return {
             "board_id": board_id,
@@ -3350,7 +3360,7 @@ def _build_mcp_server() -> Any:
             pages = svc.list_pages()
             lines = [f"# Pages ({len(pages)} total)\n"]
             for p in pages:
-                lines.append(f"- **{p.name}** (`{p.id}`) — {p.type}, {p.device_type}")
+                lines.append(f"- **{p.name}** (`{p.id}`) — {p.type}, {page_geometry_fields(p)['device_type']}")
             return "\n".join(lines)
         except Exception as exc:
             return f"Error: {exc}"

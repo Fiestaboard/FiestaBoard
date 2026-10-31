@@ -432,6 +432,7 @@ def create_page(
     out.
     """
     try:
+        from src.devices import page_geometry_fields
         from src.pages.models import PageCreate
         from src.pages.service import get_page_service
 
@@ -466,7 +467,7 @@ def create_page(
             revision=page.revision,
             edit_protocol=page.edit_protocol,
             name=page.name,
-            device_type=page.device_type,
+            device_type=page_geometry_fields(page)["device_type"],
         )
     except Exception as exc:
         return err(f"Error creating page: {exc}")
@@ -513,7 +514,7 @@ def update_page(
     if refusal is not None:
         return refusal
     try:
-        from src.devices import geometry_of, size_key
+        from src.devices import is_flexible_page, page_geometry_fields, page_size_key
         from src.pages.models import PageUpdate
         from src.pages.service import find_incompatible_references, get_page_service
 
@@ -557,9 +558,10 @@ def update_page(
             return err(f"Page '{page_id}' not found.")
 
         incompatible: list[dict[str, Any]] = []
-        if existing is not None:
-            old_size = size_key(*geometry_of(existing))
-            new_size = size_key(*geometry_of(page))
+        # A flexible page fits every board: its references never go stale.
+        if existing is not None and not is_flexible_page(page):
+            old_size = page_size_key(existing)
+            new_size = page_size_key(page)
             if old_size != new_size:
                 incompatible = find_incompatible_references(page)
 
@@ -573,7 +575,7 @@ def update_page(
             message,
             page_id=page.id,
             name=page.name,
-            device_type=page.device_type,
+            device_type=page_geometry_fields(page)["device_type"],
             incompatible_references=serialize(incompatible),
             revision=page.revision,
             edit_protocol=page.edit_protocol,
@@ -593,6 +595,7 @@ def import_page(share_string: str) -> dict[str, Any]:
     ``plugin:<id>`` strategies applies exactly as it does on create.
     """
     try:
+        from src.devices import page_geometry_fields
         from src.pages.models import PageCreate
         from src.pages.service import get_page_service
         from src.pages.share import decode_page
@@ -615,7 +618,7 @@ def import_page(share_string: str) -> dict[str, Any]:
             f"Page '{page.name}' imported with id '{page.id}'.",
             page_id=page.id,
             name=page.name,
-            device_type=page.device_type,
+            device_type=page_geometry_fields(page)["device_type"],
         )
     except Exception as exc:
         return err(f"Error importing page: {exc}")
@@ -2252,6 +2255,7 @@ async def update_board(
         board=board_public_view(stored),
         retargeted_pages=response.get("retargeted_pages", []),
         incompatible_references=response.get("incompatible_references", []),
+        left_behind_pages=response.get("left_behind_pages", []),
     )
 
 

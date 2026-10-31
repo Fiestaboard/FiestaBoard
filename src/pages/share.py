@@ -4,8 +4,10 @@ A share string is a base64url-encoded JSON envelope:
   {"v": 1, "page": {<content fields>}}
 
 The "v" field is the envelope version, independent of the internal
-page schema_version. It only needs to bump when the envelope structure
-itself changes.
+page schema_version. Grid pages encode with ``SHARE_VERSION`` (1) so
+older builds keep importing them. Flexible pages encode with
+``SHARE_VERSION_FLEXIBLE`` (2), so an older build refuses them with its
+"requires FiestaBoard v2 or later" message instead of a validation error.
 """
 
 import base64
@@ -15,13 +17,15 @@ from .document import PAGE_SHARE_EXCLUDED
 from .models import Page
 
 SHARE_VERSION = 1
+SHARE_VERSION_FLEXIBLE = 2
 
 
 def encode_page(page: Page) -> str:
     """Encode a Page into a portable share string."""
     data = page.model_dump()
     page_content = {k: v for k, v in data.items() if k not in PAGE_SHARE_EXCLUDED}
-    envelope = {"v": SHARE_VERSION, "page": page_content}
+    v = SHARE_VERSION_FLEXIBLE if page.type == "flexible" else SHARE_VERSION
+    envelope = {"v": v, "page": page_content}
     json_bytes = json.dumps(envelope, separators=(",", ":")).encode()
     # Strip padding — urlsafe_b64decode accepts unpadded strings when we re-add it.
     return base64.urlsafe_b64encode(json_bytes).decode().rstrip("=")
@@ -46,7 +50,7 @@ def decode_page(share_string: str) -> dict:
     v = envelope["v"]
     if not isinstance(v, int) or v < 1:
         raise ValueError("Invalid share string — bad version field.")
-    if v > SHARE_VERSION:
+    if v > SHARE_VERSION_FLEXIBLE:
         raise ValueError(f"This share string requires FiestaBoard v{v} or later. Please update your installation.")
 
     page_data = envelope["page"]

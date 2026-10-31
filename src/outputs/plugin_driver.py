@@ -70,7 +70,14 @@ from .hooks import ConnectionCheck, DevicePoll, ReadBack
 from .native_playlist import NativePlaylist
 from .plugin_base import CancelToken, OutputPluginBase, TimedFrame
 from .runtime import OutputRuntime
-from .transitions import NATIVE_STRATEGIES, TRANSITION_PLUGIN_PREFIX, NativeTransition, transition_plugins_enabled
+from .transitions import (
+    NATIVE_STRATEGIES,
+    PER_CELL_TRANSITIONS,
+    TRANSITION_PLUGIN_PREFIX,
+    NativeTransition,
+    strategy_for_full_frame,
+    transition_plugins_enabled,
+)
 
 if TYPE_CHECKING:
     from .cells import RichCellFrame
@@ -239,6 +246,30 @@ class OutputPluginDriver:
         ):
             choice = strategy
         return resolve_led_transition(choice, self.plugin.device_model)
+
+    def _transition_around_full_frame(
+        self, transition: ResolvedLedTransition, before: Any, after: Any
+    ) -> ResolvedLedTransition:
+        """*transition*, or a fade when it is per-cell and a full frame is involved.
+
+        A page drawn at another text size carries one opaque full-frame layer
+        over cells projected to the board's own grid. A flip or a cascade
+        animates those cells, not the picture over them, so the change would
+        cut (design section 6): when *before* or *after* carries a full frame,
+        the device's fade runs instead. A device that cannot run a fade either
+        (the result is still per-cell) snaps.
+        """
+        if transition.id not in PER_CELL_TRANSITIONS:
+            return transition
+        from src.led.page_frame import carries_full_frame
+
+        model = self.plugin.device_model
+        if not (carries_full_frame(before, model) or carries_full_frame(after, model)):
+            return transition
+        faded = self.resolve_transition(strategy_for_full_frame(transition.id))
+        if faded.id in PER_CELL_TRANSITIONS:
+            return ResolvedLedTransition("none", "none", "fallback", requested=transition.id)
+        return faded
 
     @property
     def write_timeout_seconds(self) -> float:
@@ -624,6 +655,8 @@ class OutputPluginDriver:
         cols = len(characters[0]) if characters else 0
         before = self._shown_cells(len(characters), cols)
         transition = self.resolve_transition(strategy)
+        if before is not None:
+            transition = self._transition_around_full_frame(transition, before, after)
         if before is None or transition.spec == "none" or cells_equal(before, after):
             rich: dict[str, Any] = {"cells": cells} if cells is not None else {}
             return self.send_characters(characters, force=force, with_outcome=with_outcome, **rich)

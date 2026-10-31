@@ -1874,6 +1874,15 @@ class TemplateEngine:
         # left (default)
         return text + " " * padding_needed
 
+    def resolve_fill(self, text: str, width: int, *, extended_markup: bool = True) -> str:
+        """*text* with its fill markers (``\\x00FILL_SPACE…\\x00``) filled to *width* tiles.
+
+        The public face of :meth:`_process_fill_space`: flexible layout's cell
+        grid leaves fills unresolved through expansion and fills them here,
+        one row at a time, at the board's own width.
+        """
+        return self._process_fill_space(text, width, extended_markup=extended_markup)
+
     def _process_fill_space(
         self, text: str, width: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
     ) -> str:

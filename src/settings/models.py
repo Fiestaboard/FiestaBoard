@@ -401,19 +401,37 @@ class IncompatibleBoardReference(BaseModel):
     schedule_id: str | None = None
 
 
+class LeftBehindPage(BaseModel):
+    """A page a resize left behind: sized for the board's old grid, not moved
+    onto its new one, and not a grid the board can produce now. Shown in
+    board settings (design section 7: "Size changes that leave pages behind
+    are listed in board settings, not only logged")."""
+
+    board_id: str
+    board_name: str
+    page_id: str
+    page_name: str
+    page_size: str = Field(description="The page's size key, e.g. `note_array:3x30`.")
+    reason: str = Field(description="Why it no longer fits, in the page picker's words: `Made for a 3×30 board`.")
+
+
 class BoardSettingsUpdateResponse(BoardSettingsResponse):
     """``PUT /settings/board``: the board settings, plus what a resize moved.
 
     A board whose grid changed in the save (an LED board's text size: a
     Pixoo is 10 x 16 in the small face and 8 x 10 in the large one) has its
     pages sized for the old grid moved onto the new one
-    (``retarget``), unless another board still has that size; the
-    references to pages that still do not fit are reported
-    (``incompatible_references``). Both are null unless ``boards`` was saved.
+    (``retarget``), unless another board still has that size or the board
+    can still produce its old grid (an LED board's text size switch: it draws
+    those pages at their own size, so nothing moves); the references to
+    pages that still do not fit are reported (``incompatible_references``),
+    and so are the pages left behind (``left_behind_pages``). All three are
+    null unless ``boards`` was saved.
     """
 
     retargeted_pages: list[RetargetedPage] | None = None
     incompatible_references: list[IncompatibleBoardReference] | None = None
+    left_behind_pages: list[LeftBehindPage] | None = None
 
 
 class BoardSettingsUpdate(BaseModel):

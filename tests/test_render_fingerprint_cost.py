@@ -34,6 +34,7 @@ from src.pages.models import Page
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
 from src.plugins.base import PluginResult
+from tests.test_led_text_size import pixoo_output  # noqa: F401
 
 PAGE_ID = "page:fingerprint"
 
@@ -160,8 +161,10 @@ class _Counter:
         monkeypatch.setattr(Page, "model_dump_json", counting_mdj)
 
 
-def _fingerprint(page, pages, contexts, *, override=False, page_id=PAGE_ID):
-    return DisplayService._render_fingerprint(page, page_id, pages, contexts, override_active=override)
+def _fingerprint(page, pages, contexts, *, override=False, page_id=PAGE_ID, display=None, face=None):
+    return DisplayService._render_fingerprint(
+        page, page_id, pages, contexts, override_active=override, display=display, face=face
+    )
 
 
 # --------------------------------------------------------------------------
@@ -429,3 +432,51 @@ def test_registry_construction_is_not_required_for_the_memo_key(rig):
     )
     assert wide is not None and tall is not None
     assert wide != tall
+
+
+# --------------------------------------------------------------------------
+# The face (LED text size) a page is drawn at
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture
+def pixoo_5x7(pixoo_output):  # noqa: F811
+    """The 5x7 Pixoo 64 profile (8 x 10), the way the board itself resolves it."""
+    from src.outputs.display_profile import display_profile_for_board
+    from tests.test_led_text_size import _board
+
+    return display_profile_for_board(_board(grid_rows=8, grid_cols=10, output_config={"font": "5x7"}))
+
+
+def _face_page() -> Page:
+    return _page(["{{stub.value}}"], device_type="panel", grid_rows=10, grid_cols=16)
+
+
+def _fp(pages, display, *, face, contexts=None):
+    """A 10x16 page's fingerprint on the 5x7 Pixoo, drawn at *face*."""
+    return _fingerprint(_face_page(), pages, {} if contexts is None else contexts, display=display, face=face)
+
+
+def test_the_face_moves_the_fingerprint_within_the_same_tick(rig, pixoo_5x7):
+    _registry, _config, pages = rig()
+    contexts: dict = {}
+    native = _fp(pages, pixoo_5x7, face=None, contexts=contexts)
+    at_face = _fp(pages, pixoo_5x7, face="3x5", contexts=contexts)
+    assert native is not None and at_face is not None
+    assert native != at_face
+
+
+def test_the_same_face_fingerprints_equal(rig, pixoo_5x7):
+    _registry, _config, pages = rig()
+    first = _fp(pages, pixoo_5x7, face="3x5")
+    assert first is not None
+    assert first == _fp(pages, pixoo_5x7, face="3x5")
+
+
+def test_a_face_fingerprint_and_the_face_render_share_one_context_build(rig, pixoo_5x7):
+    """The fingerprint files its context under ``render_page(face=)``'s key."""
+    registry, _config, pages = rig()
+    contexts: dict = {}
+    _fp(pages, pixoo_5x7, face="3x5", contexts=contexts)
+    pages.render_page(_face_page(), contexts=contexts, display=pixoo_5x7, face="3x5")
+    assert registry.builds == 1

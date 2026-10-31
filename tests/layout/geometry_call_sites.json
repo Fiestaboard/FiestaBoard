@@ -1,0 +1,338 @@
+{
+  "src/ai/page_routes.py::_chat_board_context::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/ai/prompt_builder.py::build_prompt::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_prompt_builder_with_flexible_current_page_uses_board_geometry"
+  },
+  "src/board_api/routes.py::_primary_geometry::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/board_api/routes.py::_send_welcome_to::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/board_guards.py::_board_dims::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/devices.py::dimensions_of::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_geometry_call_sites.py::test_dimensions_of_raises_too"
+  },
+  "src/devices.py::page_geometry_fields::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_fiestabot.py::test_page_geometry_fields_of_a_flexible_page_is_the_boards"
+  },
+  "src/devices.py::page_size_key::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_geometry_call_sites.py::test_size_helpers"
+  },
+  "src/devices.py::page_size_key::size_key": {
+    "kind": "page",
+    "test": "tests/layout/test_geometry_call_sites.py::test_size_helpers"
+  },
+  "src/devices.py::pages_compatible_with_board::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_fit.py::test_flexible_page_is_compatible_with_a_split_flap_board"
+  },
+  "src/devices.py::pages_compatible_with_board::size_key": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_fit.py::test_flexible_page_is_compatible_with_a_split_flap_board"
+  },
+  "src/display_runtime.py::_get_first_board_dims::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/displays/routes.py::send_display::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/layout/target.py::_board_grid::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/main.py::_board_size_key::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/main.py::_board_size_key::size_key": {
+    "kind": "board",
+    "test": null
+  },
+  "src/main.py::_delivery_geometry::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_engine_sends_flexible_page_at_board_grid"
+  },
+  "src/main.py::_delivery_geometry::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_engine_sends_flexible_page_with_the_boards_device_type"
+  },
+  "src/main.py::_page_layers::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_engine_sends_flexible_page_at_board_grid"
+  },
+  "src/main.py::_render_fingerprint::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_render_fingerprint_never_reads_a_flexible_pages_geometry"
+  },
+  "src/main.py::_render_fingerprint::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_render_fingerprint_never_reads_a_flexible_pages_geometry"
+  },
+  "src/main.py::_render_fingerprint::size_key": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_render_fingerprint_never_reads_a_flexible_pages_geometry"
+  },
+  "src/main.py::_silence_geometry::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/mcp_server.py::_boards_summary::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/mcp_server.py::_preview_geometry::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/mqtt/commands.py::_board_dims::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/ops/executors.py::_target_dimensions::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/outputs/board_profile.py::board_model_spec::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/outputs/description.py::describe_board::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/outputs/display_profile.py::display_profile_for_board::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/outputs/first_party.py::build::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/pages/board_render.py::render_page_for_board::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_a_flexible_page_sent_by_any_route_arrives_at_the_boards_grid_under_one_full_frame"
+  },
+  "src/pages/fit.py::_face_for::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_a_flexible_page_on_an_led_board_is_drawn_at_no_other_face"
+  },
+  "src/pages/fit.py::fit_reason::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_engine_skips_a_flexible_page_its_targets_exclude_with_the_reason_logged"
+  },
+  "src/pages/fit.py::page_fit_for_board::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_fit.py::test_flexible_page_fits_a_split_flap_board"
+  },
+  "src/pages/fit.py::page_fit_for_board::size_key": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_fit.py::test_flexible_page_fits_a_split_flap_board"
+  },
+  "src/pages/retarget.py::add_resize::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/pages/retarget.py::add_resize::size_key": {
+    "kind": "board",
+    "test": null
+  },
+  "src/pages/retarget.py::pages_left_behind::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_a_resize_never_leaves_a_flexible_page_behind"
+  },
+  "src/pages/retarget.py::pages_left_behind::size_key": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_a_resize_never_leaves_a_flexible_page_behind"
+  },
+  "src/pages/retarget.py::retarget_pages::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_retarget_skips_flexible_pages"
+  },
+  "src/pages/retarget.py::retarget_pages::size_key": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_retarget_skips_flexible_pages"
+  },
+  "src/pages/routes.py::_primary_board_frame_fields::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/pages/routes.py::_work::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_a_legacy_flexible_page_send_names_the_primary_boards_device_type"
+  },
+  "src/pages/routes.py::get_current_display::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_current_display_for_flexible_page_has_the_primary_boards_geometry"
+  },
+  "src/pages/routes.py::preview_pages_batch::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_batch_preview_of_a_flexible_page_on_an_led_board_is_its_full_frame"
+  },
+  "src/pages/routes.py::preview_pages_batch::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/pages/routes.py::preview_unsaved_flexible_page::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/pages/service.py::_apply_canvases::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_flexible_render_never_reaches_the_grid_render_paths"
+  },
+  "src/pages/service.py::_board_for_page::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_flexible_render_never_reaches_the_grid_render_paths"
+  },
+  "src/pages/service.py::_board_key::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_render.py::test_batch_preview_shares_context_by_board_size"
+  },
+  "src/pages/service.py::_board_key::size_key": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_render.py::test_batch_preview_shares_context_by_board_size"
+  },
+  "src/pages/service.py::_create_replacement_page::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_delete_last_flexible_page_creates_flagship_welcome"
+  },
+  "src/pages/service.py::_delete_page_locked::pages_compatible_with_board": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_deleting_the_legacy_active_flexible_page_activates_any_other_page"
+  },
+  "src/pages/service.py::_render_composite::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_flexible_render_never_reaches_the_grid_render_paths"
+  },
+  "src/pages/service.py::_render_flexible::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/pages/service.py::_render_template::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_flexible_render_never_reaches_the_grid_render_paths"
+  },
+  "src/pages/service.py::_scale_canvases_on_retarget::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_a_geometry_update_to_a_flexible_page_is_refused"
+  },
+  "src/pages/service.py::check_ref_board_compatibility::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_check_ref_board_compatibility_refuses_a_flexible_page_by_its_targets"
+  },
+  "src/pages/service.py::check_ref_board_compatibility::size_key": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_check_ref_board_compatibility_refuses_a_flexible_page_by_its_targets"
+  },
+  "src/pages/service.py::find_incompatible_references::pages_compatible_with_board": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_a_flexible_page_is_an_incompatible_reference_only_where_its_targets_exclude_the_board"
+  },
+  "src/pages/service.py::misfit_pages::pages_compatible_with_board": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_a_boards_flexible_active_page_is_a_misfit_only_when_its_targets_exclude_the_board"
+  },
+  "src/pages/service.py::preview_pages_batch::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_render.py::test_batch_preview_renders_flexible_pages_against_the_given_board"
+  },
+  "src/pages/service.py::render_page::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_render.py::test_flexible_render_on_flagship_is_cells_only"
+  },
+  "src/pages/service.py::render_page::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_render.py::test_flexible_render_on_flagship_is_cells_only"
+  },
+  "src/pages/service.py::shared_context_for::size_key": {
+    "kind": "tuple",
+    "test": null
+  },
+  "src/panels/content_resize.py::copy_page::dimensions_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_panel_content_resize_keeps_flexible_page_reference"
+  },
+  "src/panels/geometry.py::resolve_panel_geometry::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/panels/reconcile.py::_reconcile::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/panels/reconcile.py::_reconcile::size_key": {
+    "kind": "board",
+    "test": null
+  },
+  "src/plugins/previews.py::dimensions::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/settings/routes.py::_follow_resized_boards::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/settings/routes.py::_follow_resized_boards::pages_compatible_with_board": {
+    "kind": "board",
+    "test": null
+  },
+  "src/settings/routes.py::_follow_resized_boards::size_key": {
+    "kind": "board",
+    "test": null
+  },
+  "src/settings/routes.py::_resized_boards::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/settings/routes.py::_resized_boards::size_key": {
+    "kind": "board",
+    "test": null
+  },
+  "src/settings/routes.py::_work::geometry_of": {
+    "kind": "page",
+    "test": "tests/layout/test_flexible_call_sites.py::test_a_flexible_page_sent_by_any_route_arrives_at_the_boards_grid_under_one_full_frame"
+  },
+  "src/settings/routes.py::detect_board_size::dimensions_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/templates/routes.py::_render_geometry::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/templates/routes.py::render_template_live::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/v1/routes_boards.py::_arm_temporary_override::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/v1/routes_boards.py::_grid_for::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/v1/routes_boards.py::_render_plugin_template::geometry_of": {
+    "kind": "board",
+    "test": null
+  },
+  "src/v1/routes_meta.py::render_template::geometry_of": {
+    "kind": "board",
+    "test": null
+  }
+}

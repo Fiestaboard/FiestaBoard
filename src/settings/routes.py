@@ -40,11 +40,12 @@ from src.api_deprecation import deprecation_notice, flat_board_fields_notice
 from src.api_errors import errors
 from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
-from src.devices import classify_dimensions, geometry_of
+from src.devices import classify_dimensions, geometry_of, is_flexible_page
 from src.display_runtime import reinitialize_board_clients, release_board_frames
 from src.outputs.cells import project_for_output
 from src.outputs.display_profile import render_kw
 from src.outputs.transitions import driver_runs_strategy
+from src.pages.fit import delivers_full_frame
 
 from .models import (
     ERROR_400,
@@ -725,12 +726,24 @@ async def set_active_page(request: SetActivePageRequest):
                 logger.info("Board is paused - skipping immediate active-page send")
                 paused = True
             if not silenced and not paused:
-                result = page_service.preview_page(render_page_id, force_refresh=True, **render_kw(send_client))
+                # At the text size the page needs on this board (design
+                # section 7): a face page's layers are one full-frame layer.
+                # The legacy call (no board_id) sends to the primary board's
+                # client, so it fits the page to the primary board the same way.
+                from src.board_guards import primary_board_entry
+                from src.pages.board_render import render_page_for_board
+
+                fit_board = board if board is not None else primary_board_entry()
+                result, layers_to_send, fit = render_page_for_board(
+                    page_service, render_page_id, fit_board, render_kw(send_client)
+                )
                 if result and result.available:
                     resolved = page_transition(
                         settings_service.get_transition_settings(board_id or settings_service.get_primary_board_id()),
                         page,
                         runs=lambda s: driver_runs_strategy(send_client, s),
+                        # A per-cell transition would animate the cells under the frame.
+                        full_frame=delivers_full_frame(page, fit, result),
                     )
                     strategy, interval_ms, step_size = (
                         resolved.strategy,
@@ -739,9 +752,15 @@ async def set_active_page(request: SetActivePageRequest):
                     )
 
                     # Size the grid to the explicit target board when given
-                    # (issue #1244); otherwise keep the page's device type.
+                    # (issue #1244), or to the board a face page was fitted to
+                    # (its text goes under the full frame at the board's own
+                    # grid); otherwise keep the page's device type.
+                    # A flexible page goes at the grid of the board it laid out for.
+                    flexible = is_flexible_page(page)
                     if board is not None:
                         dims = _board_dims(board)
+                    elif fit.face or flexible:
+                        dims = _board_dims(fit_board)
                     else:
                         dims = resolve_dimensions(*geometry_of(page))
                     board_array, rich = project_for_output(
@@ -750,7 +769,7 @@ async def set_active_page(request: SetActivePageRequest):
                         dims.rows,
                         dims.cols,
                         flap=text_to_board_array,
-                        layers=result.layers,
+                        layers=layers_to_send,
                     )
                     # render() serializes concurrent senders via the client's
                     # per-board send lock, so worker threads can't interleave.
@@ -759,7 +778,13 @@ async def set_active_page(request: SetActivePageRequest):
                         strategy=strategy,
                         step_interval_ms=interval_ms,
                         step_size=step_size,
-                        device_type=(board.get("device_type") if board is not None else page.device_type),
+                        device_type=(
+                            board.get("device_type")
+                            if board is not None
+                            else geometry_of(fit_board or {}).device_type
+                            if flexible
+                            else page.device_type
+                        ),
                         **rich,
                     )
                     sent_to_board = was_sent
@@ -1177,28 +1202,37 @@ def _resized_boards(before: list[dict], after: list[dict]) -> list[tuple[dict, d
 
 
 def _follow_resized_boards(resized: list[tuple[dict, dict]], boards: list[dict]) -> dict[str, list[dict]]:
-    """Retarget pages after a resize; the references that still do not fit.
+    """Retarget pages after a resize; the references and pages that no longer fit.
 
     Only an output-plugin board's pages follow it: its grid is set by its
     device model and text size, which the user just chose. A Vestaboard or
-    FiestaPanel resize stays warn-only (issue #1250), as it was.
+    FiestaPanel resize stays warn-only (issue #1250), as it was. A board that
+    can still produce its old grid (an LED board's text size switch: the
+    board draws its old pages at their own size, design section 7) moves
+    nothing. Pages sized for a board's old grid that were not moved and no
+    longer fit it are listed (``left_behind_pages``).
     """
-    from src.devices import BUILTIN_OUTPUT_IDS, size_key
+    from src.devices import BUILTIN_OUTPUT_IDS, pages_compatible_with_board, size_key
     from src.outputs.registry import resolve_output_id
-    from src.pages.retarget import add_resize, retarget_pages
+    from src.pages.retarget import add_resize, pages_left_behind, retarget_pages
     from src.pages.service import find_incompatible_board_references
 
     resizes: dict = {}
     for old, new in resized:
-        if resolve_output_id(new) not in BUILTIN_OUTPUT_IDS:
-            add_resize(resizes, old, new)
+        if resolve_output_id(new) in BUILTIN_OUTPUT_IDS or pages_compatible_with_board(old, new):
+            continue
+        add_resize(resizes, old, new)
     moved = retarget_pages(resizes, {size_key(*geometry_of(b)) for b in boards}, allow_shrink=True) if resizes else []
     incompatible = [
         {"board_id": new.get("id") or "", "board_name": new.get("name") or "", **ref}
         for _old, new in resized
         for ref in find_incompatible_board_references(new)
     ]
-    return {"retargeted_pages": moved, "incompatible_references": incompatible}
+    return {
+        "retargeted_pages": moved,
+        "incompatible_references": incompatible,
+        "left_behind_pages": pages_left_behind(resized, {m["page_id"] for m in moved}),
+    }
 
 
 @router.post(

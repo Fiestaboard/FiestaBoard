@@ -1273,7 +1273,11 @@
     "notesTallLabel": "Notes w pionie",
     "customRangeError": "Każdy wymiar musi mieścić się w zakresie od 1 do {max}.",
     "resizeMovedPages": "Strony dopasowano do nowego rozmiaru tablicy: {pages}.",
-    "resizeStaleRefs": "Nowy rozmiar tablicy nie mieści już tych stron: {pages}. Edytuj je, inaczej nie będą wyświetlane na tej tablicy."
+    "resizeStaleRefs": "Nowy rozmiar tablicy nie mieści już tych stron: {pages}. Edytuj je, inaczej nie będą wyświetlane na tej tablicy.",
+    "leftBehind": {
+      "title": "Strony, których ten wyświetlacz już nie pokazuje",
+      "description": "Zmiana rozmiaru pozostawiła te strony. Edytuj stronę, aby pasowała do tego wyświetlacza, lub pokaż ją na innym."
+    }
   },
   "displays": {
     "title": "Wyświetlacze",
@@ -1765,6 +1769,10 @@
     "createFirstPage": "Utwórz pierwszą stronę",
     "noCompatiblePagesTitle": "Żadna strona nie pasuje do rozmiaru tej tablicy.",
     "noCompatiblePagesDescription": "Utwórz stronę o rozmiarze tej tablicy, aby zobaczyć ją tutaj."
+  },
+  "pageFit": {
+    "madeFor": "Stworzona dla tablicy {rows}×{cols}",
+    "notOnThisDisplay": "Nie na tym wyświetlaczu"
   },
   "profile": {
     "title": "Profil",
@@ -2707,6 +2715,8 @@
     "dismissFailed": "Nie udało się zamknąć. Spróbuj ponownie."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "Rozmiar, od którego zaczynają się nowe strony. Strony utworzone w innym rozmiarze nadal są wyświetlane, we własnym rozmiarze.",
+    "textSizeFadeNote": "Strony w innym rozmiarze tekstu zmieniają się z przenikaniem. Przewijanie, Kaskada i wtyczki przejść wymagają własnego rozmiaru tekstu wyświetlacza.",
     "noDevicesFound": "Nie znaleziono urządzeń. Wpisz adres ręcznie.",
     "devicesFoundLabel": "Znalezione urządzenia dla {field}",
     "subnetLabel": "Sieć do przeszukania (opcjonalnie)",

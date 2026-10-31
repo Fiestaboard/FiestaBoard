@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from types import SimpleNamespace
 
 from fastapi import APIRouter, HTTPException
 
@@ -22,12 +23,13 @@ from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.board_guards import _board_is_paused, _find_board, _require_board, silence_verdict
 from src.board_send_executor import run_board_preview
-from src.devices import geometry_of, resolve_dimensions
+from src.devices import Geometry, geometry_of, resolve_dimensions
 from src.display_runtime import live_driver
 from src.led.charsets import has_extended_markup, validate_message
+from src.led.page_frame import send_layers
 from src.outputs.board_profile import board_character_set
 from src.outputs.cells import extended_markup_kw, project_for_output
-from src.outputs.display_profile import display_profile_for_board, display_profile_for_client
+from src.outputs.display_profile import display_for_face, display_profile_for_board, display_profile_for_client
 from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
 from src.text_to_board import text_to_board_array
@@ -213,6 +215,9 @@ async def render_template(request: TemplateRenderRequest):
 
     dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
     num_rows = dims.rows
+    # A page the board draws only at another text size renders at that face,
+    # and is checked against that face's character set.
+    check.at_face(_page_face(request, check.board, check.display), (dims.rows, dims.cols))
 
     if request.canvases:
         return await render_template_with_canvases(
@@ -255,7 +260,7 @@ async def render_template(request: TemplateRenderRequest):
 
         lines = rendered.split("\n")
         return TemplateRenderCheckedResponse(
-            rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered)
+            rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered), **check.face_kw
         )
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
@@ -273,7 +278,7 @@ async def render_template_with_canvases(request: TemplateRenderRequest, check: _
     """
     from src.pages.service import draws_pixels
 
-    result = await _render_canvas_page(request, geometry, check.display, check.render_kw)
+    result = await _render_canvas_page(request, geometry, check.display, check.render_kw, face=check.face)
     rendered = result.formatted
     lines = rendered.split("\n")
     extra: dict = {}
@@ -283,12 +288,15 @@ async def render_template_with_canvases(request: TemplateRenderRequest, check: _
             "canvas_issues": [issue.to_json() for issue in result.canvas_issues or ()],
         }
     return TemplateRenderCheckedResponse(
-        rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered), **extra
+        rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered), **extra, **check.face_kw
     )
 
 
-async def _render_canvas_page(request, geometry, display, render_kw):
-    """Render an unsaved page through the same canvas layout as saved pages."""
+async def _render_canvas_page(request, geometry, display, render_kw, *, face: str | None = None):
+    """Render an unsaved page through the same canvas layout as saved pages.
+
+    *face* draws it in that LED text size (:meth:`PageService.render_page`).
+    """
     from src.devices import DEFAULT_DEVICE_TYPE
     from src.pages.models import Page
     from src.pages.service import get_page_service
@@ -311,7 +319,7 @@ async def _render_canvas_page(request, geometry, display, render_kw):
     except ValueError as e:  # pydantic ValidationError included
         raise HTTPException(status_code=422, detail=str(e)) from e
 
-    result = await asyncio.to_thread(get_page_service().render_page, page, display=display, **render_kw)
+    result = await asyncio.to_thread(get_page_service().render_page, page, display=display, face=face, **render_kw)
     if not result.available:
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {result.error}")
     return result
@@ -327,6 +335,22 @@ def _render_geometry(request, board: dict | None) -> tuple:
     if request.device_type is None and board is not None:
         return tuple(geometry_of(board))
     return (request.device_type, request.notes_wide, request.notes_tall, request.grid_rows, request.grid_cols)
+
+
+def _page_face(request, board: dict | None, display) -> str | None:
+    """The LED face the request's page draws in on *board*, or ``None``.
+
+    Set only when the board produces the request's grid at a text size other
+    than its own (:func:`~src.pages.fit.page_fit_for_board`) and *display*
+    draws pixels; a page at the board's own grid, one that doesn't fit, or no
+    board renders as today.
+    """
+    from src.pages.fit import page_fit_for_board
+    from src.pages.service import draws_pixels
+
+    if board is None or not draws_pixels(display):
+        return None
+    return page_fit_for_board(Geometry(*_render_geometry(request, board)), board).face
 
 
 class _CharsetCheck:
@@ -358,6 +382,24 @@ class _CharsetCheck:
             else None
         )
         self.render_kw: dict = {"extended_markup": True} if has_extended_markup(self.charset) else {}
+        #: The LED face the page renders in (:meth:`at_face`), else ``None``.
+        self.face: str | None = None
+
+    def at_face(self, face: str | None, grid: tuple[int, int]) -> None:
+        """Render at *face* on the page's *grid* (rows, cols), checked against
+        that face's character set. ``None`` changes nothing."""
+        if face is None or self.display is None:
+            return
+        self.face = face
+        self.display = display_for_face(self.display, face, grid)
+        self.charset = dict(self.display.character_set) if self.display.character_set is not None else None
+        self.render_kw = {"extended_markup": True} if has_extended_markup(self.charset) else {}
+
+    @property
+    def face_kw(self) -> dict:
+        """``{"face": ...}`` for a face render; empty otherwise, so the
+        response is exactly what it always was."""
+        return {"face": self.face} if self.face is not None else {}
 
     @property
     def lines_kw(self) -> dict:
@@ -441,6 +483,10 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     display = display_profile_for_client(client) if client is not None else None
     if display is None and target_board is not None:
         display = display_profile_for_board(target_board)
+    # A page the board draws only at another text size renders at that face
+    # and is sent as one full-frame layer over its text at the board's grid.
+    face = _page_face(request, target_board, display)
+    render_display = display_for_face(display, face, (num_rows, dims.cols)) if face else display
 
     # Explicit [] also renders/sends an empty page to clear removed canvases.
     layers = ()
@@ -449,7 +495,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
         from src.pages.service import draws_pixels
 
         result = await _render_canvas_page(
-            request, (device_type, notes_wide, notes_tall, grid_rows, grid_cols), display, render_kw
+            request, (device_type, notes_wide, notes_tall, grid_rows, grid_cols), display, render_kw, face=face
         )
         rendered = result.formatted
         layers = result.layers or ()
@@ -473,7 +519,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                     grid_rows=grid_rows,
                     grid_cols=grid_cols,
                     **render_kw,
-                    **({"display": display} if display is not None else {}),
+                    **({"display": render_display} if render_display is not None else {}),
                 )
             else:
                 rendered = await asyncio.to_thread(template_engine.render, template, **render_kw)
@@ -499,11 +545,20 @@ async def render_template_live(request: TemplateRenderLiveRequest):
             # send lock and floor, and lands in the frame cache, so the engine
             # knows the board now shows the edit.
             if client:
+                page_rows, page_cols = num_rows, dims.cols
                 geometry = geometry_of(target_board)
                 device_type = geometry.device_type
                 dims = resolve_dimensions(*geometry)
+                # A face page: one full-frame layer (its canvases drawn in);
+                # anything else sends its own layers.
+                frame = SimpleNamespace(face=face, formatted=rendered, layers=layers)
                 board_array, rich = project_for_output(
-                    client, rendered, dims.rows, dims.cols, flap=text_to_board_array, layers=layers
+                    client,
+                    rendered,
+                    dims.rows,
+                    dims.cols,
+                    flap=text_to_board_array,
+                    layers=send_layers(frame, page_rows, page_cols, display),
                 )
 
                 transition_settings = settings_service.get_transition_settings(target_board.get("id"))
@@ -546,5 +601,6 @@ async def render_template_live(request: TemplateRenderLiveRequest):
         paused=paused,
         silenced=silenced,
         board_id=target_board.get("id") if target_board else None,
+        face=face,
         **canvas_extra,
     )
