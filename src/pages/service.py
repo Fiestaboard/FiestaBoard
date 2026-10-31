@@ -773,7 +773,9 @@ class PageService:
             formatted="\n".join(render.cell_lines),
             raw={"page_id": page.id, "shown": list(render.shown)},
             available=True,
-            layers=[full_frame_layer(render.frame)] if render.frame is not None else [],
+            layers=[full_frame_layer(render.frame, monochrome=display.monochrome if display else None)]
+            if render.frame is not None
+            else [],
             layout_issues=list(render.issues),
         )
 

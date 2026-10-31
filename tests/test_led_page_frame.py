@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from src.canvas.layer import CanvasLayer
+from src.led.matrix import LedLayoutOptions, LedMatrixSpec, layout_message, rasterize
 from src.led.page_frame import full_frame_layer, is_full_frame_layer, render_grid_page_frame, send_layers
 from src.outputs.display_profile import DisplayProfile
 
@@ -48,6 +49,18 @@ def test_the_pages_canvas_layers_paint_over_the_text():
 def test_a_monochrome_board_lights_text_in_its_panel_colour():
     mono = replace(PIXOO_5X7, monochrome="#ff0000", color="mono")
     assert px(render_grid_page_frame("H", 10, 16, "3x5", mono), 0, 2) == bytes([255, 0, 0])
+
+
+def test_alternate_face_mono_frame_survives_final_adapter_composition():
+    mono = replace(PIXOO_5X7, monochrome="#ff3b1f", color="mono")
+    expected = render_grid_page_frame("H", 10, 16, "3x5", mono)
+    layers = send_layers(SimpleNamespace(formatted="H", layers=[], face="3x5"), 10, 16, mono)
+    final = rasterize(layout_message(
+        "", LedMatrixSpec(64, 64, "5x7"),
+        LedLayoutOptions(monochrome=mono.monochrome), layers=layers,
+    ))
+    assert any(expected.pixels)
+    assert final.pixels == expected.pixels
 
 
 def test_the_full_frame_layer_covers_the_matrix_opaquely_black_included():

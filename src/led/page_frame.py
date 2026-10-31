@@ -68,9 +68,17 @@ def render_grid_page_frame(
     return rasterize(layout)
 
 
-def full_frame_layer(frame: LedFrame) -> CanvasLayer:
-    """*frame* as an opaque layer over the whole matrix: every pixel, black included, has alpha 255."""
+def full_frame_layer(frame: LedFrame, *, monochrome: str | None = None) -> CanvasLayer:
+    """An opaque transport layer over the matrix, black included.
+
+    A rendered monochrome frame already contains only unlit and panel-colored
+    pixels. Encode its lit pixels as white so the receiving compositor's
+    normal luminance conversion applies the panel color exactly once. This
+    keeps the existing Canvas layer protocol and its threshold unchanged.
+    """
     rgb = frame.pixels
+    if monochrome:
+        rgb = b"".join(b"\xff\xff\xff" if any(rgb[i : i + 3]) else b"\0\0\0" for i in range(0, len(rgb), 3))
     rgba = bytearray(frame.width * frame.height * 4)
     rgba[0::4] = rgb[0::3]
     rgba[1::4] = rgb[1::3]
@@ -114,4 +122,4 @@ def send_layers(result: Any, rows: int, cols: int, display: DisplayProfile | Non
     if not face or display is None or not display.supports("pixels"):
         return own
     frame = render_grid_page_frame(result.formatted, rows, cols, face, display, own)
-    return [full_frame_layer(frame)]
+    return [full_frame_layer(frame, monochrome=display.monochrome)]

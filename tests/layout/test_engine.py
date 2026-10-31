@@ -55,6 +55,32 @@ def test_frame_is_deterministic_for_identical_inputs():
     assert a.frame.pixels == b.frame.pixels
 
 
+def test_all_blocks_share_one_clock_without_mutating_plugin_context(monkeypatch):
+    from datetime import datetime, timedelta
+
+    from src.templates import expressions
+
+    reads = []
+
+    def advancing_clock(context):
+        if "__now__" in context:
+            return context["__now__"]
+        reads.append(context)
+        return datetime(2026, 1, 1, 12, 0) + timedelta(minutes=len(reads) - 1)
+
+    monkeypatch.setattr(expressions, "_current_datetime", advancing_clock)
+    context = {"weather": {"temp": 20}}
+    r = layout_flexible_page(
+        page(
+            {"id": "a", "kind": "text", "text": "{{= NOW() }}"},
+            {"id": "b", "kind": "text", "text": "{{= NOW() }}"},
+        ), FLAGSHIP, context,
+    )
+    assert r.cell_lines[0] == r.cell_lines[1]
+    assert len(reads) == 1
+    assert "__now__" not in context
+
+
 # --- orchestration, against a stand-in expansion -----------------------------
 
 
@@ -133,6 +159,18 @@ def test_frame_draws_stacked_block_backgrounds(stub_expand):
 def test_frame_background_is_the_page_background(stub_expand):
     r = layout_flexible_page(page(spacer("s", 4), style={"background": "#0000ff"}), PIXOO, {})
     assert pixel_at(r, 10, 40) == "#0000ff"
+
+
+@pytest.mark.parametrize("background", ["#000000", "#010203", "#1a1a1a", "#1a001a"])
+def test_explicit_rgb_background_keeps_exact_pixels_over_colored_page(background):
+    r = layout_flexible_page(
+        page(spacer("band", 4, style={"background": background}), style={"background": "#ff0000"}),
+        PIXOO,
+        {},
+    )
+    assert pixel_at(r, 0, 0) == background
+    assert pixel_at(r, 63, 3) == background
+    assert pixel_at(r, 0, 4) == "#ff0000"
 
 
 def test_mono_frame_draws_canvases_in_the_panel_colour(stub_expand):
@@ -230,7 +268,7 @@ def test_styles_cascade_board_page_and_block(stub_expand):
 def test_engine_and_context_reach_expansion(stub_expand):
     engine, ctx = object(), {"clock": {"time": "12:45"}}
     layout_flexible_page(page(spacer("s", 1)), FLAGSHIP, ctx, engine=engine)
-    assert stub_expand[0]["engine"] is engine and stub_expand[0]["context"] is ctx
+    assert stub_expand[0]["engine"] is engine and stub_expand[0]["context"]["clock"] is ctx["clock"]
 
 
 def test_tiny_surface_reports_surface_too_small(stub_expand):

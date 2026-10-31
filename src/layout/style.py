@@ -11,9 +11,9 @@ compromise as a :class:`~src.layout.issues.LayoutIssue`:
   an exact pixel height takes the largest face (at an integer scale) no taller
   than it (``size_rounded`` when inexact, ``size_too_small`` below the smallest
   face). A cell target has one character size: any other size is ``size_ignored``.
-- **Colour**: drawn as a grid cell draws it (``cell_for_token``). ``rgb``
-  boards as given, except black is unlit: black text is ``#000000`` and a black
-  background is no fill. ``mono`` boards light any non-black colour in the
+- **Colour**: ``rgb`` boards preserve explicit RGB values. Named black and
+  unlit tile codes mean ``#000000``; a black background is an opaque unlit
+  fill. ``mono`` boards light any non-black colour in the
   panel colour and leave black unlit; a lit background is inverse video (the
   text is unlit). ``tiles`` boards drop text
   colour (``color_dropped``) and, in Phase 1, background (``background_dropped``).
@@ -77,8 +77,6 @@ _TILE_CODE = re.compile(r"\{?(6[3-9]|7[01])\}?")
 _NAME = re.compile(r"\{?([a-z]+)\}?")
 _HEX6 = re.compile(r"#[0-9a-f]{6}")
 _UNLIT_CODES = frozenset({"70", "71"})
-#: At or below this in every channel a colour is black: the board palette's black is ``#1a1a1a``.
-_BLACK_CHANNEL_MAX = 0x1A
 
 
 @dataclass(frozen=True)
@@ -92,7 +90,7 @@ class ResolvedStyle:
     ``#000000``; on a mono panel ``color`` ``None`` means the text lights no
     pixels (black text, or any text on a lit background: inverse video); on a
     tile board ``color`` is ``None`` (text carries no colour). ``background``
-    ``None`` means no fill (none asked for, or black). ``fit`` is true when the size asked for was ``fit``: the
+    ``None`` means no fill (none asked for, or unlit on a mono target). ``fit`` is true when the size asked for was ``fit``: the
     fitter picks the size, starting from ``sized``.
     """
 
@@ -154,7 +152,8 @@ def resolve_color_value(value: str, context: Mapping[str, Any], *, engine: Any =
     braces (``{63}``, ``63``) and ``#rrggbb``; surrounding whitespace is
     trimmed and case folded. A value holding a ``{{…}}`` expression is first
     rendered by ``engine`` (default: the shared template engine) against
-    ``context``. Black (``black``, 70, 71) is the palette's black. Never raises.
+    ``context``. Named black and unlit codes (70, 71) are ``#000000``;
+    explicit RGB values are preserved. Never raises.
     """
     text = value
     if "{{" in text:
@@ -172,18 +171,18 @@ def resolve_color_value(value: str, context: Mapping[str, Any], *, engine: Any =
     code = _TILE_CODE.fullmatch(text)
     if code:
         key = code.group(1)
-        return BOARD_COLORS["black"] if key in _UNLIT_CODES else color_code_to_hex(key)
+        return "#000000" if key in _UNLIT_CODES else color_code_to_hex(key)
     name = _NAME.fullmatch(text)
     if name and name.group(1) in BOARD_COLORS:
         key = name.group(1)
-        return BOARD_COLORS["black"] if key == "black" else color_code_to_hex(key)
+        return "#000000" if key == "black" else color_code_to_hex(key)
     if _HEX6.fullmatch(text):
         return text
     return None
 
 
 def _is_black(hex_color: str) -> bool:
-    return all(int(hex_color[i : i + 2], 16) <= _BLACK_CHANNEL_MAX for i in (1, 3, 5))
+    return hex_color == "#000000"
 
 
 def _valid_height(value: Any) -> bool:
@@ -295,6 +294,8 @@ class _Resolver:
         """``color`` or ``background`` for this board's colour model."""
         model = self.target.color_model
         for value, is_default in self.candidates(key):
+            if key == "background" and isinstance(value, str) and value.strip().lower() == "transparent":
+                return None
             if model == "tiles":
                 if not is_default:
                     code = "color_dropped" if key == "color" else "background_dropped"
@@ -309,9 +310,6 @@ class _Resolver:
                 continue
             if model == "mono":
                 return None if _is_black(resolved) else self.target.monochrome
-            if _is_black(resolved):
-                # Unlit, as the cell renderer draws a black span or background.
-                return "#000000" if key == "color" else None
             return resolved
         return None
 

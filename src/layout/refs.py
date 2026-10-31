@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 from src.canvas.models import Canvas
 from src.canvas.refs import canvas_plugin_ids
 from src.templates.engine import extract_template_plugin_ids
+from src.templates.expressions import expression_plugin_ids
 
 if TYPE_CHECKING:
     from src.pages.models import Page
@@ -22,10 +23,14 @@ __all__ = ["flexible_plugin_ids"]
 _COLOR_KEYS = ("color", "background")
 
 
-def _wrapped(expression: str) -> str:
-    """An ``if`` as template text: already ``{{…}}``, or wrapped in it."""
+def _condition_refs(expression: str) -> set[str] | None:
+    """Conditions are expressions, including those without template braces."""
     text = expression.strip()
-    return text if text.startswith("{{") else "{{" + text + "}}"
+    if text.startswith("{{") and text.endswith("}}"):
+        text = text[2:-2].strip()
+    if text.startswith("="):
+        text = text[1:].strip()
+    return expression_plugin_ids(text)
 
 
 def _style_texts(style: Any) -> Iterable[str]:
@@ -42,8 +47,6 @@ def _template_texts(page: Page) -> list[str]:
     for block in page.blocks or []:
         if block.kind == "text" and block.text:
             texts.append(block.text)
-        if block.if_ and block.if_.strip():
-            texts.append(_wrapped(block.if_))
         texts.extend(_style_texts(block.style))
     return texts
 
@@ -78,4 +81,11 @@ def flexible_plugin_ids(page: Page) -> set[str] | None:
     canvas_refs = canvas_plugin_ids(_canvases(page))
     if template_refs is None or canvas_refs is None:
         return None
-    return template_refs | canvas_refs
+    refs = template_refs | canvas_refs
+    for block in page.blocks or []:
+        if block.if_ and block.if_.strip():
+            condition_refs = _condition_refs(block.if_)
+            if condition_refs is None:
+                return None
+            refs.update(condition_refs)
+    return refs

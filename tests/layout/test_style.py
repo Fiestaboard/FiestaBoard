@@ -244,14 +244,40 @@ def test_rgb_black_text_is_unlit_like_a_grid_cell():
     assert s.color == "#000000"
 
 
-def test_rgb_black_background_is_no_fill():
+def test_rgb_black_background_is_an_opaque_unlit_fill():
     s, issues = resolve_block_style([{"background": "black"}], PIXOO, {}, path=("b",))
-    assert (s.background, issues) == (None, [])
+    assert (s.background, issues) == ("#000000", [])
 
 
-def test_rgb_black_tile_code_background_is_no_fill():
+def test_rgb_black_tile_code_background_is_an_opaque_unlit_fill():
     s, _ = resolve_block_style([{"background": "{70}"}], PIXOO, {}, path=("b",))
+    assert s.background == "#000000"
+
+
+def test_transparent_background_clears_inherited_block_fill():
+    from src.pages.flexible import BlockStyle
+
+    style = BlockStyle.model_validate({"background": "transparent"})
+    s, issues = resolve_block_style(
+        [{"background": "#ff0000"}, style.model_dump(exclude_none=True)], PIXOO, {}, path=("b",)
+    )
     assert s.background is None
+    assert issues == []
+
+
+def test_transparent_is_only_a_background_value():
+    from pydantic import ValidationError
+
+    from src.pages.flexible import BlockStyle
+
+    with pytest.raises(ValidationError):
+        BlockStyle.model_validate({"color": "transparent"})
+
+
+@pytest.mark.parametrize("color", ["#010203", "#1a1a1a", "#1a001a"])
+def test_rgb_text_preserves_exact_dim_color(color):
+    s, issues = resolve_block_style([{"color": color}], PIXOO, {}, path=("b",))
+    assert (s.color, issues) == (color, [])
 
 
 def test_mono_lit_text_on_lit_background_is_inverse_video():

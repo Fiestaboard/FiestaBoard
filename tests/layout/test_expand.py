@@ -232,6 +232,15 @@ def test_flexible_plugin_ids_unwrapped_if_counts():
     assert flexible_plugin_ids(page_with("HI", if_="stocks.up")) == {"stocks"}
 
 
+@pytest.mark.parametrize("condition", ["weather.temp > stocks.limit", "{{ weather.temp > stocks.limit }}"])
+def test_condition_dependencies_include_both_operands(condition):
+    assert flexible_plugin_ids(page_with("HI", if_=condition)) == {"weather", "stocks"}
+
+
+def test_clock_only_condition_cannot_use_a_constant_input_fingerprint():
+    assert flexible_plugin_ids(page_with("HI", if_="HOUR(NOW()) >= 9")) is None
+
+
 def test_flexible_plugin_ids_with_a_formula_is_unknown():
     assert flexible_plugin_ids(page_with("{{= UPPER(weather.temp) }}")) is None
 

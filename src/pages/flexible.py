@@ -69,7 +69,8 @@ class BlockStyle(ExtensibleDocument):
     Every property is optional; an unset one falls through the cascade
     (device default, board style, page style, block style). ``color`` and
     ``background`` take a board colour name, ``#rrggbb``, a tile code 63-71,
-    or one ``{{…}}`` expression.
+    or one ``{{…}}`` expression. ``background="transparent"`` clears an
+    inherited fill; omitted/null background inherits it.
     """
 
     font: str | None = None
@@ -88,9 +89,16 @@ class BlockStyle(ExtensibleDocument):
             raise ValueError("size in pixels must be between 1 and 256")
         return value
 
-    @field_validator("color", "background")
+    @field_validator("color")
     @classmethod
     def _color_form(cls, value: str | None) -> str | None:
+        return _check_color_text(value)
+
+    @field_validator("background")
+    @classmethod
+    def _background_form(cls, value: str | None) -> str | None:
+        if isinstance(value, str) and value.strip().lower() == "transparent":
+            return "transparent"
         return _check_color_text(value)
 
 

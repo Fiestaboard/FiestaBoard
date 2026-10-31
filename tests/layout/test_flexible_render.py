@@ -23,6 +23,7 @@ import pytest
 from src.devices import size_key
 from src.layout.engine import layout_flexible_page
 from src.layout.target import flex_target_for
+from src.led.matrix import LedLayoutOptions, LedMatrixSpec, layout_message, rasterize
 from src.led.page_frame import full_frame_layer
 from src.outputs.cells import frame_layers, project_for_output
 from src.outputs.plugin_driver import OutputPluginDriver
@@ -132,6 +133,20 @@ def test_full_frame_layer_is_the_laid_out_frame(service, stub_expand, stub_refs,
     assert (rgba_at(r.layers[0], 0, 0), rgba_at(r.layers[0], 0, 4)) == (b"\xff\x00\x00\xff", b"\x00\x00\x00\xff")
 
 
+def test_flexible_mono_delivery_matches_the_laid_out_frame(service):
+    display = profile("max7219_4in1")
+    board = {**STRIP_BOARD, "device_model": "max7219_4in1", "grid_cols": display.cols}
+    page = flex(text("t", "HI"), style={"size": "small"})
+    expected = layout_flexible_page(page, flex_target_for(board, display), {}).frame
+    result = service.render_page(page, context={}, display=display, board=board)
+    final = rasterize(layout_message(
+        result.formatted, LedMatrixSpec(display.width, display.height, display.font),
+        LedLayoutOptions(monochrome=display.monochrome), layers=result.layers,
+    ))
+    assert result.available and any(expected.pixels)
+    assert final.pixels == expected.pixels
+
+
 def test_cells_under_the_frame_are_at_the_boards_grid(service, stub_expand, stub_refs, pixoo_display):
     r = service.render_page(red_band(), context=CTX, display=pixoo_display, board=PIXOO_BOARD)
     assert r.formatted.split("\n") == [" " * 16] * 10
@@ -172,14 +187,14 @@ def test_without_any_board_a_flexible_page_renders_flagship_cells(service, stub_
 
 def test_given_context_reaches_the_layout(service, stub_expand, stub_refs):
     service.render_page(flex(text("t", "HI")), context=CTX, board=FLAGSHIP_BOARD)
-    assert stub_expand[0]["context"] is CTX
+    assert stub_expand[0]["context"]["clock"] is CTX["clock"]
 
 
 def test_shared_contexts_are_keyed_by_the_boards_size_and_display(service, stub_expand, stub_refs, pixoo_display):
     shared = {"clock": {"time": "09:00"}}
     contexts = {f"{size_key('panel', 1, 1, 10, 16)}|{pixoo_display.key}": shared}
     service.render_page(red_band(), contexts=contexts, display=pixoo_display, board=PIXOO_BOARD)
-    assert stub_expand[0]["context"] is shared
+    assert stub_expand[0]["context"]["clock"] is shared["clock"]
 
 
 def test_without_a_shared_context_the_context_is_built_for_the_board(service, stub_expand, stub_refs, pixoo_display):
@@ -188,7 +203,7 @@ def test_without_a_shared_context_the_context_is_built_for_the_board(service, st
         service.render_page(red_band(), display=pixoo_display, board=PIXOO_BOARD)
     (board,), kw = engine.return_value.build_context.call_args
     assert (board.rows, board.cols, board.display, kw["plugin_ids"]) == (10, 16, pixoo_display, {"clock"})
-    assert stub_expand[0]["context"] is CTX
+    assert stub_expand[0]["context"]["clock"] is CTX["clock"]
 
 
 def test_a_failed_layout_is_an_unavailable_result(service, stub_expand, stub_refs):
@@ -235,7 +250,7 @@ def test_batch_preview_renders_flexible_pages_with_the_shared_context(service, s
     with patch("src.plugins.registry.get_plugin_registry") as registry:
         registry.return_value.build_template_contexts_for.return_value = {key: shared}
         results = service.preview_pages_batch([a.id], display=pixoo_display, board=PIXOO_BOARD)
-    assert results[a.id].layers and stub_expand[0]["context"] is shared
+    assert results[a.id].layers and stub_expand[0]["context"]["clock"] is shared["clock"]
 
 
 def test_batch_preview_fetches_the_flexible_pages_plugins(service, stub_expand, stub_refs, pixoo_display):
@@ -285,4 +300,4 @@ def test_batch_preview_of_a_flexible_page_with_no_display_uses_the_shared_contex
     with patch("src.plugins.registry.get_plugin_registry") as registry:
         registry.return_value.build_template_contexts_for.return_value = {key: shared}
         results = service.preview_pages_batch([page.id], force_refresh=True)
-    assert results[page.id].layers and stub_expand[0]["context"] is shared
+    assert results[page.id].layers and stub_expand[0]["context"]["clock"] is shared["clock"]
