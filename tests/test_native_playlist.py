@@ -163,6 +163,33 @@ def test_single_page_is_one_native_entry(native_engine):
     assert [(e.page_id, e.duration_ms) for e in env.plugin.playlists[-1].entries] == [("pA", 0)]
 
 
+def test_flexible_native_member_uses_its_board_grid_without_page_geometry(native_engine, tmp_path):
+    from src.pages.models import Page
+    from src.pages.service import PageService
+    from src.pages.storage import PageStorage
+
+    env = native_engine
+    env.board["device_type"] = "note"
+    env.collections.get_collection.return_value.page_ids = ["pA"]
+    pages = PageService(storage=PageStorage(storage_file=str(tmp_path / "pages.json")))
+    pages.storage.create(
+        Page(
+            id="pA",
+            name="Flexible native page",
+            type="flexible",
+            layout={"gap": "none"},
+            blocks=[{"id": "message", "kind": "text", "text": "HELLO"}],
+        )
+    )
+    with patch("src.main.get_page_service", return_value=pages):
+        env.drive()
+
+    assert len(env.plugin.playlists) == 1, env.rt.last_send_error
+    cells = env.plugin.playlists[0].entries[0].cells
+    assert (len(cells), len(cells[0])) == (3, 15)
+    assert "".join(cell.value or "" for cell in cells[0]).startswith("HELLO")
+
+
 @pytest.mark.parametrize("mode", ["random", "variable"])
 def test_non_timed_collections_keep_core_selection(native_engine, mode):
     env = native_engine

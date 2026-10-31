@@ -2867,18 +2867,27 @@ class DisplayService:
                 entries.append(rendered[page_id])
                 continue
             page = page_service.get_page(page_id)
-            if page is None or (source is not None and not pages_compatible_with_board(page, source)):
+            if page is None:
                 self._record_send_error(rt, board_id, f"Native playlist page missing or incompatible: {page_id}")
                 return False
+            fit = _page_fit(page, source)
+            if not fit.fits:
+                self._record_send_error(rt, board_id, f"Native playlist page incompatible: {page_id}: {fit.reason}")
+                return False
             result = page_service.preview_page(
-                page_id, force_refresh=True, contexts=contexts, **_extended_kw(rt.client)
+                page_id,
+                force_refresh=True,
+                contexts=contexts,
+                **_extended_kw(rt.client),
+                **_face_kw(fit),
+                **_board_kw(page, source),
             )
             if result is None or not result.available:
                 reason = getattr(result, "error", None) or f"Failed to render native playlist page: {page_id}"
                 self._record_send_error(rt, board_id, reason)
                 return False
-            dims = dimensions_of(page)
-            codes, rich = _project(rt.client, result.formatted, dims.rows, dims.cols, _result_layers(result))
+            dims, _ = _delivery_geometry(page, source, fit)
+            codes, rich = _project_page(rt.client, result, page, dims, fit)
             entry = NativePlaylistEntry(page_id, rich.get("cells") or cells_from_codes(codes), duration)
             rendered[page_id] = entry
             content_keys[page_id] = _content_key(result)
