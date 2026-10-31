@@ -64,9 +64,14 @@ class DisplayResult:
         if not self.layers:
             return key
         digest = hashlib.sha256()
+        from src.outputs.physical_frame_layer import PhysicalFrameLayer
+
         for layer in self.layers:
             digest.update(f"{layer.x},{layer.y},{layer.w},{layer.h};".encode())
             digest.update(layer.rgba)
+            if isinstance(layer, PhysicalFrameLayer):
+                digest.update(b"\x00physical-frame-v1:")
+                digest.update(layer.physical_rgb)
         return f"{key}\x00layers:{digest.hexdigest()}"
 
 

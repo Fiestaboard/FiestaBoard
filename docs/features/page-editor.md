@@ -41,6 +41,37 @@ The Vestaboard Note supports a heart character (❤) at code 62, which displays 
 
 For a pixel display, switch between **Text** and **Canvases** to focus on one editing surface. Both edit the same page and save together. The preview sits below the editor in a vertical layout on desktop and mobile. On a narrow screen, **Show preview and live output** opens the preview controls without placing another full editor below your content.
 
+## Flexible Pages
+
+Choose **New flexible page** to create a document that lays out its text,
+Canvas and spacer blocks for each selected display. Existing pages keep their
+fixed character grid and their original editor; opening or saving them does not
+convert them into flexible pages.
+
+Add blocks, edit their styles, conditions and priority, and move them up or down.
+Undo and redo keep block identities. Canvas blocks accept the same drawing
+content used by [pixel canvases](./pixel-canvases.md); an invalid Canvas draft
+stays visible and must be corrected before saving. Display restrictions can
+limit a page to chosen boards or display technologies.
+
+Choose a display to see a computed preview and any layout warnings. LED previews
+use the supported physical pixel surface, including full color and available
+font sizes. The alternate character layout is separate: it shows how the page
+can fall back to cells, rather than transcribing every visible pixel. A preview
+does not send content or confirm what hardware currently shows.
+
+Some LED output plugins need an update before they can accept flexible pixel
+pages. Unsupported displays show a compatibility reason in page pickers.
+Character-only displays continue to use their character grids. Available fonts,
+space and colors vary by display; review the warnings for each intended target.
+Changing restrictions can also make existing schedules or collection references
+incompatible, which the editor reports when saving.
+
+This editor supports stacked blocks. Free positioning, new font installation
+and conversion of existing grid pages are separate future work. Mobile clients
+need a compatible reader before a library contains flexible pages; use the web
+editor for this document type.
+
 ## Collections
 
 Open **Collections** to browse groups of pages in tile or list view. Tiles show a stack of page previews. Select a collection to open its dedicated editor, where you can choose members, change their order, and configure timed, random, or expression-based selection. Move controls support keyboard and touch use. Leaving with unsaved changes asks whether to discard them.

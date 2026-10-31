@@ -451,8 +451,8 @@ class TestRefusedReleaseMemory:
         from src.plugins.update_refusals import refused_update
 
         origin, external, _ = installed
-        set_output_api(origin, 2)
-        bad = commit_all(origin, "api 2")
+        set_output_api(origin, 3)
+        bad = commit_all(origin, "api 3")
         update_external_plugin(PLUGIN_ID, external)
         assert refused_update(PLUGIN_ID).sha == bad
 
@@ -461,8 +461,8 @@ class TestRefusedReleaseMemory:
         from src.plugins.update_refusals import refused_update
 
         origin, external, _ = installed
-        set_output_api(origin, 2)
-        bad = commit_all(origin, "api 2")
+        set_output_api(origin, 3)
+        bad = commit_all(origin, "api 3")
         install_git_plugin(origin.as_uri(), plugin_id=PLUGIN_ID, external_dir=external)
         assert refused_update(PLUGIN_ID).sha == bad
 

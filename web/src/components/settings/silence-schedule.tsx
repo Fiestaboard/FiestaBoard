@@ -379,9 +379,11 @@ export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
                               {p.name || p.id}
                               {misfit && (
                                 <Text as="span" size="xs" tone="muted">
-                                  {misfit.reason === "targets"
-                                    ? tFit("targetRestricted")
-                                    : tFit("madeFor", { rows: misfit.rows, cols: misfit.cols })}
+                                  {misfit.reason === "physicalFrame"
+                                    ? tFit("physicalFrameUnsupported")
+                                    : misfit.reason === "targets"
+                                      ? tFit("targetRestricted")
+                                      : tFit("madeFor", { rows: misfit.rows, cols: misfit.cols })}
                                 </Text>
                               )}
                             </Flex>

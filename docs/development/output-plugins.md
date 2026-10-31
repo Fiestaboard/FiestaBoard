@@ -11,7 +11,7 @@ An output plugin teaches FiestaBoard to drive a new kind of display: an LED matr
 This page is the complete reference for output plugin authors. It assumes you know how plugins are packaged from the [Plugin Development Guide](/docs/development/plugin-guide). If you want to show FiestaBoard on a screen you control without writing a plugin, read the frame stream instead: [Subscribing to Board Frames](/docs/development/output-stream-api). For every way to build on FiestaBoard, see [Building on FiestaBoard](/docs/development/integrations-overview).
 
 :::info Beta: FiestaBoard 10.0.0 and later
-Output plugins arrive with FiestaBoard **10.0.0**, and the contract (`output_api` 1) is a **beta**: it may still change before it is declared stable. Set `"fiestaboard_version": ">=10.0.0"` in your manifest.
+Output plugins arrive with FiestaBoard **10.0.0**, and the contract (`output_api` 1 or 2) is a **beta**: it may still change before it is declared stable. Set `"fiestaboard_version": ">=10.0.0"` in your manifest.
 
 Users need nothing turned on to use your plugin. Every installed output plugin can drive a board, whether it came from the plugin registry, a git URL, or ships with FiestaBoard. The **Displays → Marketplace** tab lists them all.
 :::
@@ -213,8 +213,9 @@ and actions conditional on the selected model use its draft board facts.
 
 | Field | Required | Default | What it declares |
 |-------|----------|---------|------------------|
-| `output_api` | Yes | — | The contract major your plugin targets. This FiestaBoard supports `1`. Anything else is refused at load. |
+| `output_api` | Yes | — | The contract major your plugin targets. This FiestaBoard supports `1` and `2`. Anything else is refused at load. |
 | `device_models` | Yes | — | A non-empty array of FiestaUI DeviceModel objects or built-in model ids, or `{"$ref": "output/device-models.json"}`. The first model is the default. |
+| `physical_frames` | No | unsupported | API 2 only: versioned per-model physical pixel surfaces and ordinary/native delivery modes. See below. |
 | `character_set` | No | the model's `charset` | A FiestaUI CharacterSet object, or a `$ref` to one. When declared, it is the output's character set and wins over every model's `charset`. |
 | `delivery` | No | `"push"` | `"push"`: core calls your writes. `"pull"`: a client fetches frames from core (a TV browser), and core only stores them. |
 | `min_interval_ms` | No | `0` | The send floor: the least time between two writes or sequences to one device. |
@@ -225,6 +226,59 @@ and actions conditional on the selected model use its draft board facts.
 | `actions` | No | `[]` | The settings screen's buttons. See [Actions](#actions). |
 
 A `$ref` names a JSON file inside your plugin directory, and the same path must be listed in the manifest's `data_files`. Keeping device data in its own file lets FiestaBoard, FiestaUI and your plugin read one copy.
+
+### Physical frames for flexible pages
+
+API 1 keeps the existing character-grid and Canvas contract. Flexible pages on
+pixel boards require API 2 and an explicit physical surface; layer support alone
+does not promise that an adapter preserves pixels. Character-only flexible pages
+continue to use cells. For example, an adapter whose legacy model is 52 by 17
+can declare its actual 52 by 16 surface without changing any legacy page:
+
+```json
+{
+  "output_api": 2,
+  "physical_frames": {
+    "version": 1,
+    "models": {
+      "ulanzi_tc002": { "width": 52, "height": 16, "modes": ["ordinary", "native"] }
+    }
+  }
+}
+```
+
+This is a fragment of the `output` block; `device_models` must also declare that
+pixel model. Dimensions are integers from 1 to 512. Declare only modes whose
+complete delivery path you have tested. `ordinary` covers direct, scheduled,
+held and silence-page writes; `native` covers collection snapshots. Native-only
+support does not permit an ordinary write. The public output declaration and its
+revision include this contract; board settings expose the resolved
+`physical_surface` for preview and page-picker admission.
+
+Import `physical_frame_pixels` from `src.plugins` and call it before legacy
+composition in every applicable write path. It returns exact RGB888 bytes for an
+explicitly tagged physical frame, `None` for legacy content, and raises
+`ValueError` for a mismatched surface or additional layers. Never infer this
+contract from layer size. The marker also retains separate opaque preview RGBA;
+monochrome preview encoding must not replace the exact device RGB. Native
+snapshots preserve the marker. Preview JSON carries `physical_frame_version: 1`
+alongside the existing width, height and RGBA fields; legacy layers omit it. This
+marker is informational and must never reconstruct a trusted delivery payload.
+Shared previews use it to select the physical surface. Legacy text and Canvas must keep their existing
+composition, cropping and centering behavior.
+
+Transitions must preserve the final physical bytes in both directions. An
+adapter may use a still replacement when its legacy transition planner cannot
+mix physical and character-grid coordinates. It must not run physical frames
+through legacy row removal, centering or luminance conversion. Verify final
+ordinary and native payload bytes, black pixels, monochrome colors, mismatched
+sizes and unchanged legacy output before declaring support.
+
+Older cores reject API 2 before loading the adapter. Upgrade core before the
+adapter; when rolling core back, restore the compatible API 1 adapter release
+and the pre-migration page backup. Do not edit stored flexible pages into grid
+pages or silently discard their unknown fields. No adapter or hardware upgrade
+happens merely by creating a flexible document.
 
 ### Device models
 

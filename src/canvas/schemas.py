@@ -10,9 +10,9 @@ shows); every other board's responses leave them out.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 __all__ = ["CanvasIssueModel", "CanvasLayerModel", "issues_json", "layers_json"]
 
@@ -28,6 +28,17 @@ class CanvasLayerModel(BaseModel):
         description="Base64 of width x height x 4 bytes of straight-alpha RGBA, row-major. A pixel with alpha > 0 "
         "overwrites what the cells drew; alpha 0 is transparent."
     )
+
+    physical_frame_version: Literal[1] | None = Field(
+        default=None, description="Explicit physical preview surface; absent for legacy Canvas layers."
+    )
+
+    @model_serializer(mode="wrap")
+    def serialize_layer(self, handler):
+        result = handler(self)
+        if self.physical_frame_version is None:
+            result.pop("physical_frame_version", None)
+        return result
 
 
 class CanvasIssueModel(BaseModel):

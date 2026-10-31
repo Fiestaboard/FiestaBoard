@@ -59,6 +59,7 @@ from src.outputs.cells import cells_from_codes
 from src.outputs.hooks import ActionContext, DevicePoll, OutputActionError, OutputStatus, ReadBack
 from src.outputs.http import OutputHttp, RequestCancelled
 from src.outputs.native_playlist import NativePageSelection, NativePlaylist, NativePlaylistEntry
+from src.outputs.physical_frames import PhysicalSurface, physical_frame_pixels
 from src.outputs.plugin_base import (
     ActionField,
     ActionOutcome,
@@ -116,6 +117,7 @@ __all__ = [
     "OutputHttp",
     "OutputPluginBase",
     "OutputStatus",
+    "PhysicalSurface",
     "PluginBase",
     "PluginLoader",
     "PluginManifest",
@@ -144,6 +146,7 @@ __all__ = [
     "led_spec_for_model",
     "load_registry",
     "local_ipv4",
+    "physical_frame_pixels",
     "plan_transition",
     "plugin_id_from_repo_name",
     "rasterize",

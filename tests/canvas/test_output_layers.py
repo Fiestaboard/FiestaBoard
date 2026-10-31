@@ -86,8 +86,19 @@ class Sign(OutputPluginBase):
         self.bind_board(device_model=SEQUENCE, character_set=LED_3X5, geometry=(ROWS, COLS))
 
     def capabilities(self):
+        from src.outputs.physical_frames import PhysicalSurface
+
+        model = self.device_model
         return OutputCapabilities(
-            technology="led_matrix", delivery="push", animation="sequence", native_transitions=frozenset()
+            technology="led_matrix",
+            delivery="push",
+            animation="sequence",
+            native_transitions=frozenset(),
+            physical_frames={
+                model["id"]: PhysicalSurface(
+                    model["geometry"]["width"], model["geometry"]["height"], frozenset({"ordinary"})
+                )
+            },
         )
 
     def device_key(self):

@@ -319,3 +319,12 @@ def test_saved_flexible_page_preview_on_a_split_flap_primary_has_no_layers(clien
     get_settings_service().set_boards([FLAGSHIP])
     body = client.post(f"/pages/{styled_flex_id}/preview").json()
     assert "layers" not in body and len(body["lines"]) == 6
+
+
+def test_physical_marker_survives_single_batch_and_unsaved_responses(client, pixoo_board_id, flex_id):
+    single = client.post(f"/pages/{flex_id}/preview")
+    assert single.status_code == 200
+    unsaved = _unsaved(client, FLEX_BODY, pixoo_board_id)
+    assert unsaved.status_code == 200
+    for result in [single.json(), _batch(client, flex_id, pixoo_board_id), unsaved.json()]:
+        assert result["layers"][0]["physical_frame_version"] == 1

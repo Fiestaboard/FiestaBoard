@@ -65,6 +65,15 @@ export function resolveBoardModel(board: BoardModelFields | null | undefined): D
   return null;
 }
 
+/** The computed flexible frame owns its pixel surface; the legacy model stays unchanged. */
+export function physicalFramePreviewModel(
+  model: DeviceModel | null,
+  frame: Pick<CanvasLayerJson, "width" | "height"> | null | undefined,
+): DeviceModel | null {
+  if (!frame || !isLedModel(model) || model.geometry.kind !== "pixels") return model;
+  return { ...model, geometry: { ...model.geometry, width: frame.width, height: frame.height } };
+}
+
 /**
  * What a page previews as on `board`: the board's model and LED layout, in the
  * face the page fits at. A page at the board's own grid previews as the board

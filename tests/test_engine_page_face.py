@@ -59,8 +59,14 @@ class Sign(OutputPluginBase):
         self.bind_board(device_model=PIXOO_5X7, character_set=LED_5X7, geometry=(8, 10))
 
     def capabilities(self):
+        from src.outputs.physical_frames import PhysicalSurface
+
         return OutputCapabilities(
-            technology="led_matrix", delivery="push", animation="stream", native_transitions=frozenset()
+            technology="led_matrix",
+            delivery="push",
+            animation="stream",
+            native_transitions=frozenset(),
+            physical_frames={PIXOO_5X7["id"]: PhysicalSurface(64, 64, frozenset({"ordinary"}))},
         )
 
     def device_key(self):

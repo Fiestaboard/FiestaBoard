@@ -291,6 +291,14 @@ export interface BoardLedLayout {
 /** An LED face, as FiestaUI names it: Large `"5x7"` or Small `"3x5"`. */
 export type LedFontId = "5x7" | "3x5";
 
+/** Effective API-2 pixel surface; absent for legacy output adapters. */
+export interface PhysicalSurface {
+  version: number;
+  width: number;
+  height: number;
+  modes: string[];
+}
+
 export interface BoardInstance {
   id: string;
   name: string;
@@ -365,6 +373,8 @@ export interface BoardInstance {
    * (a FiestaPanel's, or an output plugin's own): a built-in resolves by id,
    * anything else only from this. Derived, never stored.
    */
+  physical_surface?: PhysicalSurface | null;
+  flexible_page_support?: "cells" | "pixels" | "unsupported";
   device_model_spec?: DeviceModel | null;
   /** The character set the board draws with, a FiestaUI id; `null` when unknown. Derived, never stored. */
   charset?: string | null;

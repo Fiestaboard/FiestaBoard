@@ -1729,7 +1729,8 @@
   "pageFit": {
     "targetRestricted": "This page is restricted to other boards or display technologies",
     "madeFor": "Made for a {rows}×{cols} board",
-    "notOnThisDisplay": "Not on this display"
+    "notOnThisDisplay": "Not on this display",
+    "physicalFrameUnsupported": "Update this display’s output plugin to use flexible pixel pages"
   },
   "profile": {
     "title": "Profile",

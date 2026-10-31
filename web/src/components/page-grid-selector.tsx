@@ -85,7 +85,7 @@ function _getCachedPreview(pageId: string, pageUpdatedAt: string): PagePreviewRe
   const allPreviews = getCachedPreviews();
   const cached = allPreviews[pageId];
 
-  if (!cached || cached.pageUpdatedAt !== pageUpdatedAt) {
+  if (!isCacheValid(cached, pageUpdatedAt)) {
     return null;
   }
 
@@ -111,6 +111,11 @@ function previewCacheKey(pageId: string, boardId: string | null): string {
 // Check if a cached preview is still valid for a page
 function isCacheValid(cached: CachedPreviewData | undefined, pageUpdatedAt: string): boolean {
   if (!cached) return false;
+  if (
+    cached.preview.raw?.text_representation === "cell_projection" &&
+    cached.preview.layers?.[0]?.physical_frame_version !== 1
+  )
+    return false;
   return cached.pageUpdatedAt === pageUpdatedAt;
 }
 
@@ -240,7 +245,7 @@ const PageButtonPreview = memo(
 interface Misfit {
   rows: number;
   cols: number;
-  reason?: "targets";
+  reason?: "targets" | "physicalFrame";
 }
 
 /**
@@ -260,7 +265,11 @@ function MisfitReason({ id, misfit, className }: { id: string; misfit: Misfit; c
         ·
       </Text>
       <Text as="span" size="xs" tone="muted" className="truncate">
-        {misfit.reason === "targets" ? t("targetRestricted") : t("madeFor", { rows: misfit.rows, cols: misfit.cols })}
+        {misfit.reason === "physicalFrame"
+          ? t("physicalFrameUnsupported")
+          : misfit.reason === "targets"
+            ? t("targetRestricted")
+            : t("madeFor", { rows: misfit.rows, cols: misfit.cols })}
       </Text>
     </Flex>
   );

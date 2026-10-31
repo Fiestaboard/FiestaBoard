@@ -1,5 +1,7 @@
 import { type DeviceModel, tryResolveDeviceModel } from "@fiestaboard/ui";
 
+import type { PhysicalSurface } from "@/lib/api/boards";
+
 // ── Constants (mirror Python src/devices.py) ─────────────────────────────────
 export const NOTE_ROWS = 3;
 export const NOTE_COLS = 15;
@@ -282,6 +284,8 @@ export interface FitPage extends SizedEntity {
 
 /** A board as pageFitForBoard reads it: its geometry, plus an LED board's text sizes. */
 export interface FitBoard extends SizedEntity {
+  physical_surface?: PhysicalSurface | null;
+  flexible_page_support?: "cells" | "pixels" | "unsupported";
   id?: string;
   output?: string;
   api_mode?: string;
@@ -309,12 +313,12 @@ export interface PageFit {
   face: string | null;
   rows: number;
   cols: number;
-  reason?: "targets";
+  reason?: "targets" | "physicalFrame";
 }
 
 /**
  * Whether a page shows on a board, and at which LED text size. Mirrors Python
- * page_fit_for_board(): a flexible page fits every board (`rows` and `cols`
+ * page_fit_for_board(): a flexible page checks targets and pixel adapter support (`rows` and `cols`
  * are 0: it has no grid); an exact sizeKey() match takes today's path; an LED
  * board that produces a `panel` page's grid at a face other than its current
  * one draws the page at that face; anything else does not fit. Only `panel`
@@ -337,6 +341,12 @@ export function pageFitForBoard(page: FitPage, board: FitBoard): PageFit {
       (technologies?.length && !technologies.includes(technology))
     ) {
       return { fits: false, face: null, rows: 0, cols: 0, reason: "targets" };
+    }
+    if (
+      board.flexible_page_support === "unsupported" ||
+      (board.flexible_page_support !== "cells" && model?.geometry.kind === "pixels" && !board.physical_surface)
+    ) {
+      return { fits: false, face: null, rows: 0, cols: 0, reason: "physicalFrame" };
     }
     return { fits: true, face: null, rows: 0, cols: 0 };
   }

@@ -12,6 +12,7 @@ from src.layout.target import FlexTarget, flex_target_for
 from src.led.matrix import grid_layout, model_with_led_font
 from src.outputs.board_profile import model_character_set
 from src.outputs.display_profile import DisplayProfile, _profile
+from src.outputs.physical_frames import PhysicalSurface
 
 #: The FiestaPanel LED model at a 12 x 32 grid (its pixel size follows the grid).
 FIESTAPANEL_LED = "fiestapanel_led_matrix"
@@ -35,7 +36,14 @@ def profile(model_id: str, font: str | None = None) -> DisplayProfile:
     if probe.width is not None and probe.height is not None:
         layout = grid_layout(probe.width, probe.height, probe.font or "5x7")
         grid = (layout.rows, layout.cols)
-    return _profile(model, model_character_set(model), None, grid)
+    # These layout fixtures explicitly model identity adapters; this does not
+    # opt any installed hardware plugin into the physical-frame protocol.
+    surface = (
+        PhysicalSurface(probe.width, probe.height, frozenset({"ordinary", "native"}))
+        if probe.supports("pixels")
+        else None
+    )
+    return _profile(model, model_character_set(model), None, grid, physical_surface=surface)
 
 
 # --- the sample page and the golden devices ----------------------------------

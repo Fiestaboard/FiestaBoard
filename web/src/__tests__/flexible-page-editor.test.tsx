@@ -5,6 +5,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 import { type FlexibleEditorPage, FlexiblePageEditor } from "@/components/flexible-page-editor";
 import { api, ApiError, type BoardInstance } from "@/lib/api";
+import { resolveBoardModel } from "@/lib/device-preview";
 
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
@@ -195,14 +196,22 @@ it("previews the unsaved document on the selected board without saving or sendin
 });
 
 it("labels computed pixel geometry and distinguishes the alternate character layout", async () => {
-  const board = { id: "pixels", name: "Matrix", device_type: "panel", grid_rows: 1, grid_cols: 8 } as BoardInstance;
+  const base = resolveBoardModel({ device_model: "divoom_pixoo64" })!;
+  const board = {
+    id: "pixels",
+    name: "Matrix",
+    device_type: "panel",
+    grid_rows: 3,
+    grid_cols: 13,
+    device_model_spec: { ...base, geometry: { kind: "pixels", width: 52, height: 17 } },
+  } as BoardInstance;
   vi.mocked(api.previewFlexiblePage).mockResolvedValue({
     page_id: "unsaved",
     message: "FALLBACK",
     lines: ["FALLBACK"],
     display_type: "page:flexible",
-    raw: { text_representation: "cell_projection", surface: { kind: "pixels", width: 32, height: 8 } },
-    layers: [{ x: 0, y: 0, width: 32, height: 8, rgba: btoa("\0".repeat(32 * 8 * 4)) }],
+    raw: { text_representation: "cell_projection", surface: { kind: "pixels", width: 52, height: 16 } },
+    layers: [{ physical_frame_version: 1, x: 0, y: 0, width: 52, height: 16, rgba: btoa("\0".repeat(52 * 16 * 4)) }],
   });
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -210,7 +219,9 @@ it("labels computed pixel geometry and distinguishes the alternate character lay
     </QueryClientProvider>,
   );
   expect(
-    await screen.findByText("Computed preview · 32 × 8 pixels. This does not send to a display."),
+    await screen.findByText("Computed preview · 52 × 16 pixels. This does not send to a display."),
   ).toBeInTheDocument();
   expect(screen.getByText(/The character fallback is a separate layout/)).toBeInTheDocument();
+  expect(screen.getByRole("img")).toHaveAttribute("data-matrix-width", "52");
+  expect(screen.getByRole("img")).toHaveAttribute("data-matrix-height", "16");
 });

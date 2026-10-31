@@ -127,3 +127,24 @@ it("ignores a late response from a filter that is no longer selected", async () 
   });
   await expectTarget(B);
 });
+
+it("refreshes an unmarked flexible pixel cache entry even when the page revision is unchanged", async () => {
+  const cached = response(A.id).previews.shared;
+  if (!cached.available) throw new Error("fixture unavailable");
+  localStorage.setItem(
+    "fiestaboard_previews_batch",
+    JSON.stringify({
+      [`${A.id}::shared`]: {
+        pageUpdatedAt: PAGE.updated_at,
+        cachedAt: "2026-01-01",
+        preview: {
+          ...cached,
+          raw: { text_representation: "cell_projection" },
+        },
+      },
+    }),
+  );
+  vi.mocked(api.previewPagesBatch).mockResolvedValue(response(A.id));
+  setup();
+  await waitFor(() => expect(api.previewPagesBatch).toHaveBeenCalledTimes(1));
+});

@@ -24,8 +24,8 @@ from src.devices import size_key
 from src.layout.engine import layout_flexible_page
 from src.layout.target import flex_target_for
 from src.led.matrix import LedLayoutOptions, LedMatrixSpec, layout_message, rasterize
-from src.led.page_frame import full_frame_layer
 from src.outputs.cells import frame_layers, project_for_output
+from src.outputs.physical_frames import physical_frame_layer
 from src.outputs.plugin_driver import OutputPluginDriver
 from src.pages import service as service_module
 from src.pages.models import Page
@@ -141,7 +141,7 @@ def test_full_frame_layer_is_opaque(service, stub_expand, stub_refs, pixoo_displ
 def test_full_frame_layer_is_the_laid_out_frame(service, stub_expand, stub_refs, pixoo_display):
     r = service.render_page(red_band(), context=CTX, display=pixoo_display, board=PIXOO_BOARD)
     expected = layout_flexible_page(red_band(), flex_target_for(PIXOO_BOARD, pixoo_display), CTX).frame
-    assert r.layers == [full_frame_layer(expected)]
+    assert r.layers == [physical_frame_layer(expected)]
     assert (rgba_at(r.layers[0], 0, 0), rgba_at(r.layers[0], 0, 4)) == (b"\xff\x00\x00\xff", b"\x00\x00\x00\xff")
 
 

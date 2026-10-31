@@ -610,6 +610,10 @@ def describe_output(definition: OutputDefinition) -> dict[str, Any]:
         "settings_schema": dict(definition.settings_schema),
         "actions": [_describe_action(spec) for spec in definition.actions],
     }
+    if caps.physical_frames:
+        description["capabilities"]["physical_frames"] = {
+            key: surface.to_json() for key, surface in caps.physical_frames.items()
+        }
     declaration = {
         key: description[key]
         for key in ("output_api", "capabilities", "device_models", "character_set", "settings_schema", "actions")

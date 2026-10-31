@@ -30,6 +30,7 @@ from src.text_utils import count_noun
 
 from .board_profile import board_character_set, board_device_model, led_layout_choice
 from .cells import extended_markup_kw, output_character_set
+from .physical_frames import PhysicalSurface
 
 #: The colour names extended markup accepts, in the order a prompt lists them.
 SPAN_COLORS: tuple[str, ...] = ("red", "orange", "yellow", "green", "blue", "violet", "white", "black")
@@ -89,6 +90,7 @@ class DisplayProfile:
     height: int | None = None
     block_padding: int | None = None
     monochrome: str | None = None
+    physical_surface: PhysicalSurface | None = None
     _charset_json: str | None = field(default=None, repr=False)
 
     @property
@@ -114,7 +116,7 @@ class DisplayProfile:
 
     def to_dict(self) -> dict[str, Any]:
         """Safe effective authoring facts; no output configuration or credentials."""
-        return {
+        facts = {
             "technology": self.technology,
             "device_model": self.device_model,
             "charset": self.charset,
@@ -135,6 +137,9 @@ class DisplayProfile:
             "width": self.width,
             "height": self.height,
         }
+        if self.physical_surface is not None:
+            facts["physical_surface"] = self.physical_surface.to_json()
+        return facts
 
     def supports(self, feature: str) -> bool:
         """Whether this display can draw *feature* (one of :data:`FEATURES`).
@@ -299,6 +304,8 @@ def _profile(
     charset: Mapping[str, Any] | None,
     config: Mapping[str, Any] | None,
     grid: tuple[int, int] | None = None,
+    *,
+    physical_surface: PhysicalSurface | None = None,
 ) -> DisplayProfile:
     """One :class:`DisplayProfile` from a resolved (effective) device model,
     character set, the board's output config (for the LED tile style) and its
@@ -328,6 +335,7 @@ def _profile(
         cols=grid[1] if grid else None,
         width=pixel_size[0] if pixel_size else None,
         height=pixel_size[1] if pixel_size else None,
+        physical_surface=physical_surface,
         **_charset_fields(charset),
     )
 
@@ -394,7 +402,19 @@ def display_profile_for_client(client: Any) -> DisplayProfile | None:
         if not isinstance(charset, Mapping) or has_extended_markup(charset):
             charset = resolve_character_set("vestaboard_v1")
         return _integer_authoring_profile(model, charset, config, _client_grid(plugin))
-    return _profile(model, _charset_of(client, model), config, _client_grid(plugin))
+    return _profile(
+        model,
+        _charset_of(client, model),
+        config,
+        _client_grid(plugin),
+        physical_surface=_physical_surface(getattr(client, "capabilities", None), model),
+    )
+
+
+def _physical_surface(capabilities: Any, model: Mapping) -> PhysicalSurface | None:
+    surfaces = getattr(capabilities, "physical_frames", None)
+    surface = surfaces.get(model.get("id")) if isinstance(surfaces, Mapping) else None
+    return surface if isinstance(surface, PhysicalSurface) else None
 
 
 def display_profile_for_board(board: Mapping[str, Any]) -> DisplayProfile | None:
@@ -434,6 +454,7 @@ def display_profile_for_board(board: Mapping[str, Any]) -> DisplayProfile | None
         board_character_set(board),
         config if isinstance(config, Mapping) else None,
         grid,
+        physical_surface=_physical_surface(definition.capabilities if definition else None, model),
     )
 
 

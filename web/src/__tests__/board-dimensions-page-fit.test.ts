@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { pageFitForBoard, pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
 const PIXOO = {
+  physical_surface: { version: 1, width: 64, height: 64, modes: ["ordinary"] },
   device_type: "panel",
   grid_rows: 8,
   grid_cols: 10,
@@ -49,4 +50,27 @@ describe("pageFitForBoard", () => {
     expect(pageFitForBoard({ type: "flexible", targets: { technology: ["led_matrix"] } }, PIXOO).fits).toBe(false);
     expect(pageFitForBoard({ type: "flexible", targets: { boards: [], technology: [] } }, PIXOO).fits).toBe(true);
   });
+});
+
+it("refuses flexible pixels without adapter support while keeping the legacy grid valid", () => {
+  const board = { ...PIXOO, device_model: "divoom_pixoo64", physical_surface: undefined };
+  expect(pageFitForBoard({ type: "flexible" }, board)).toMatchObject({ fits: false, reason: "physicalFrame" });
+  expect(pageFitForBoard({ type: "template", device_type: "panel", grid_rows: 8, grid_cols: 10 }, board).fits).toBe(
+    true,
+  );
+  expect(
+    pageFitForBoard(
+      { type: "flexible" },
+      { ...board, physical_surface: { version: 1, width: 64, height: 64, modes: ["ordinary"] } },
+    ).fits,
+  ).toBe(true);
+});
+
+it("admits the effective cell-only path of an integer pixel output", () => {
+  expect(
+    pageFitForBoard(
+      { type: "flexible" },
+      { ...PIXOO, device_model: "divoom_pixoo64", physical_surface: undefined, flexible_page_support: "cells" },
+    ).fits,
+  ).toBe(true);
 });

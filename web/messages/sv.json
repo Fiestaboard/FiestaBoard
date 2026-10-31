@@ -1773,7 +1773,8 @@
   "pageFit": {
     "madeFor": "Gjord för en {rows}×{cols}-tavla",
     "notOnThisDisplay": "Inte på den här skärmen",
-    "targetRestricted": "This page is restricted to other boards or display technologies"
+    "targetRestricted": "This page is restricted to other boards or display technologies",
+    "physicalFrameUnsupported": "Update this display’s output plugin to use flexible pixel pages"
   },
   "profile": {
     "title": "Profil",

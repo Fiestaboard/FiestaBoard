@@ -38,6 +38,7 @@ export const DisplayLivePreview = memo(function DisplayLivePreview({
       ledLayout={board.led_layout}
       message={message}
       cells={cells}
+      layers={message !== null ? state?.layers : undefined}
       size={size}
     >
       <ScaledBoardDisplay

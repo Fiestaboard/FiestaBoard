@@ -10,7 +10,14 @@ import { describe, expect, it } from "vitest";
 
 import { DevicePreview } from "@/components/device-preview";
 import { charsetTokenText } from "@/lib/charset-issues";
-import { boardForShape, isLedModel, ledLetterCase, modelInNewBoardFace, resolveBoardModel } from "@/lib/device-preview";
+import {
+  boardForShape,
+  isLedModel,
+  ledLetterCase,
+  modelInNewBoardFace,
+  physicalFramePreviewModel,
+  resolveBoardModel,
+} from "@/lib/device-preview";
 
 import { FIESTAPANEL_LED_MATRIX, FIESTAPANEL_SPLIT_FLAP } from "./mocks/fiestapanel-models";
 
@@ -135,4 +142,42 @@ describe("DevicePreview", () => {
     );
     expect(screen.getByTestId("split-flap")).toBeInTheDocument();
   });
+});
+
+describe("physicalFramePreviewModel", () => {
+  it("previews a declared 52 by 16 physical frame without changing the legacy 52 by 17 model", () => {
+    const base = resolveBoardModel({ device_model: "divoom_pixoo64" })!;
+    const legacy = { ...base, geometry: { kind: "pixels" as const, width: 52, height: 17 } };
+    const model = physicalFramePreviewModel(legacy, { width: 52, height: 16 });
+    expect(model?.geometry).toEqual({ kind: "pixels", width: 52, height: 16 });
+    expect(legacy.geometry.height).toBe(17);
+    expect(physicalFramePreviewModel(legacy, undefined)).toBe(legacy);
+    expect(physicalFramePreviewModel(FIESTAPANEL_SPLIT_FLAP, { width: 52, height: 16 })).toBe(FIESTAPANEL_SPLIT_FLAP);
+    render(
+      <DevicePreview model={model} message="" previewLabel="Physical frame">
+        <span>Fallback</span>
+      </DevicePreview>,
+    );
+    expect(screen.getByRole("img")).toHaveAttribute("data-matrix-width", "52");
+    expect(screen.getByRole("img")).toHaveAttribute("data-matrix-height", "16");
+    expect(screen.queryByText("Fallback")).not.toBeInTheDocument();
+  });
+});
+
+it("uses only an explicit physical wire marker to change the shared preview surface", () => {
+  const base = resolveBoardModel({ device_model: "divoom_pixoo64" })!;
+  const model = { ...base, geometry: { kind: "pixels" as const, width: 52, height: 17 } };
+  const layer = { x: 0, y: 0, width: 52, height: 16, rgba: btoa("\0".repeat(52 * 16 * 4)) };
+  const view = render(
+    <DevicePreview model={model} layers={[layer]}>
+      <span>Fallback</span>
+    </DevicePreview>,
+  );
+  expect(screen.getByRole("img")).toHaveAttribute("data-matrix-height", "17");
+  view.rerender(
+    <DevicePreview model={model} layers={[{ ...layer, physical_frame_version: 1 }]}>
+      <span>Fallback</span>
+    </DevicePreview>,
+  );
+  expect(screen.getByRole("img")).toHaveAttribute("data-matrix-height", "16");
 });

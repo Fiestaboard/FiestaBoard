@@ -106,6 +106,10 @@ def carries_full_frame(cells: object, model: Mapping | None) -> bool:
     geometry = model.get("geometry") if isinstance(model, Mapping) else None
     if not isinstance(geometry, Mapping) or geometry.get("kind") != "pixels":
         return False
+    from src.outputs.physical_frame_layer import PhysicalFrameLayer
+
+    if any(isinstance(layer, PhysicalFrameLayer) for layer in frame_layers(cells)):
+        return True
     width, height = int(geometry["width"]), int(geometry["height"])
     return any(is_full_frame_layer(layer, width, height) for layer in frame_layers(cells))
 

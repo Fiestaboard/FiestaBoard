@@ -1773,7 +1773,8 @@
   "pageFit": {
     "madeFor": "{rows}×{cols} pano için yapıldı",
     "notOnThisDisplay": "Bu ekranda değil",
-    "targetRestricted": "This page is restricted to other boards or display technologies"
+    "targetRestricted": "This page is restricted to other boards or display technologies",
+    "physicalFrameUnsupported": "Update this display’s output plugin to use flexible pixel pages"
   },
   "profile": {
     "title": "Profil",

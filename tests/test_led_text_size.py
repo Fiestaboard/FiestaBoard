@@ -50,6 +50,14 @@ def _install(root: Path, *, character_set: bool) -> Path:
     models_path = target / "output" / "device-models.json"
     models = json.loads(models_path.read_text("utf-8"))
     models_path.write_text(json.dumps([models[0], "divoom_pixoo64"]), "utf-8")
+    manifest_path = target / "manifest.json"
+    manifest = json.loads(manifest_path.read_text("utf-8"))
+    manifest["output"]["output_api"] = 2
+    manifest["output"]["physical_frames"] = {
+        "version": 1,
+        "models": {"divoom_pixoo64": {"width": 64, "height": 64, "modes": ["ordinary"]}},
+    }
+    manifest_path.write_text(json.dumps(manifest), "utf-8")
     if not character_set:
         manifest_path = target / "manifest.json"
         manifest = json.loads(manifest_path.read_text("utf-8"))

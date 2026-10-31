@@ -34,18 +34,36 @@ _NO_FACE = PageFit(True, None, None)
 def flexible_frame_error(page: Any, result: Any, client: Any, *, native: bool = False) -> str | None:
     """Refuse a flexible image when a real driver's path would discard it.
 
-    This verifies transport of layers, not an adapter's physical pixel mapping.
+    This requires explicit adapter opt-in for the surface and delivery mode.
     Legacy grid/Canvas fallback remains unchanged. Native snapshots have their
     own rich-frame contract and do not require an ordinary cell writer.
     """
     from src.outputs.cells import charset_uses_cells
+    from src.outputs.physical_frame_layer import PhysicalFrameLayer
+    from src.outputs.physical_frames import PhysicalSurface
     from src.outputs.plugin_driver import OutputPluginDriver
 
     if not is_flexible_page(page) or not result.layers or not isinstance(client, OutputPluginDriver):
         return None
-    if client.takes_cells or (native and client.native_rotation_enabled and charset_uses_cells(client.character_set)):
-        return None
-    return "This output cannot receive flexible pixel frames; update its output plugin before using this page"
+    carries_frame = (
+        client.native_rotation_enabled and charset_uses_cells(client.character_set) if native else client.takes_cells
+    )
+    if not carries_frame:
+        return "This output cannot receive flexible pixel frames; update its output plugin before using this page"
+    model = client.plugin.device_model
+    model_id = model.get("id") if isinstance(model, Mapping) else None
+    surface = client.capabilities.physical_frames.get(model_id)
+    if not isinstance(surface, PhysicalSurface):
+        return "This output has not declared physical flexible-frame support; update its output plugin"
+    mode = "native" if native else "ordinary"
+    if mode not in surface.modes:
+        return f"This output does not support {mode} physical flexible-frame delivery"
+    if len(result.layers) != 1 or not isinstance(result.layers[0], PhysicalFrameLayer):
+        return "Flexible pixel delivery requires an explicit physical-frame payload"
+    layer = result.layers[0]
+    if (layer.w, layer.h) != (surface.width, surface.height):
+        return "The flexible frame does not match the output's declared physical surface"
+    return None
 
 
 def render_page_for_board(

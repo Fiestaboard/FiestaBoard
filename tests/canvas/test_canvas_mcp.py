@@ -59,6 +59,14 @@ def boards(tmp_path):
     manifest_path = root / PLUGIN_ID / "manifest.json"
     manifest = json.loads(manifest_path.read_text("utf-8"))
     manifest["output"].pop("character_set")
+    # This recording fixture explicitly supports physical frames; installed API-1 outputs do not.
+    manifest["output"].update(
+        output_api=2,
+        physical_frames={
+            "version": 1,
+            "models": {"divoom_pixoo64": {"width": 64, "height": 64, "modes": ["ordinary"]}},
+        },
+    )
     manifest_path.write_text(json.dumps(manifest), "utf-8")
     loader = PluginLoader(plugins_dir=root, external_dirs=[])
     assert loader.load_plugin(PLUGIN_ID) is not None, loader.load_errors

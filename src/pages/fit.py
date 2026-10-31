@@ -10,9 +10,9 @@ at that face. Anything else does not fit, with a plain reason.
 The family rule holds: only ``panel`` pages can match another face's grid,
 so a flagship page never fits an LED board, even one at 6 x 22.
 
-A flexible page has no grid and fits every board (spec section 7); only its
-optional ``targets`` narrows that, by board technology or by board id. Text
-size never enters into it.
+A flexible page has no fixed grid. Its optional ``targets`` narrows admission
+by board technology or id; pixel boards additionally require an explicit
+physical-frame adapter declaration. Text size never enters into it.
 """
 
 from __future__ import annotations
@@ -189,14 +189,10 @@ def _flexible_fit(page: Any, board: Any) -> PageFit:
     both a technology and boards shows only on listed boards of that
     technology. An empty or missing list restricts nothing.
 
-    TODO(Phase 2 / output_api 2): design section 7 also makes a flexible page
-    incompatible with a board whose output can receive neither frames nor
-    cells. Outputs declare no such capability yet, so that clause is not
-    checked here; add it once the output API exposes the seam.
+    Pixel outputs additionally need an explicit physical-frame declaration.
+    This never changes the fit rule for legacy grid or Canvas pages.
     """
     targets = page.get("targets") if isinstance(page, Mapping) else getattr(page, "targets", None)
-    if targets is None:
-        return PageFit(True, None, None)
     technologies = _targets_field(targets, "technology")
     if technologies is not None and board_technology(board) not in technologies:
         return PageFit(False, None, _technology_reason(technologies))
@@ -205,4 +201,13 @@ def _flexible_fit(page: Any, board: Any) -> PageFit:
         mapping = _board_mapping(board)
         if mapping is None or mapping.get("id") not in board_ids:
             return PageFit(False, None, LISTED_BOARDS_REASON)
+    mapping = _board_mapping(board)
+    if mapping is not None:
+        from src.outputs.display_profile import display_profile_for_board
+
+        profile = display_profile_for_board(mapping)
+        if profile is not None and profile.supports("pixels") and profile.physical_surface is None:
+            return PageFit(
+                False, None, "This output has not declared physical flexible-frame support; update its output plugin"
+            )
     return PageFit(True, None, None)

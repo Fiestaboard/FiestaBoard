@@ -31,8 +31,8 @@ from src.layout.engine import layout_flexible_page
 from src.layout.refs import flexible_plugin_ids
 from src.layout.target import flex_target_for
 from src.led.matrix import DEFAULT_LED_FONT, grid_layout
-from src.led.page_frame import full_frame_layer
 from src.outputs.display_profile import display_for_face, display_profile_for_board
+from src.outputs.physical_frames import physical_frame_layer
 from src.plugins.manifest import DemoPageSchema
 from src.request_trace import trace_phase
 from src.settings.service import get_settings_service
@@ -751,6 +751,10 @@ class PageService:
             layout_board = self._layout_board(board)
             if display is None:
                 display = self._layout_display(layout_board)
+            if draws_pixels(display) and display.physical_surface is None:
+                raise ValueError(
+                    "This output has not declared physical flexible-frame support; update its output plugin"
+                )
             geometry = geometry_of(layout_board)
             plugin_ids = page_plugin_ids(page)
             if context is None and contexts is not None:
@@ -782,7 +786,7 @@ class PageService:
                 else {"kind": "cells", "rows": target.rows, "cols": target.cols},
             },
             available=True,
-            layers=[full_frame_layer(render.frame, monochrome=display.monochrome if display else None)]
+            layers=[physical_frame_layer(render.frame, monochrome=display.monochrome if display else None)]
             if render.frame is not None
             else [],
             layout_issues=list(render.issues),

@@ -1773,7 +1773,8 @@
   "pageFit": {
     "madeFor": "为 {rows}×{cols} 显示板制作",
     "notOnThisDisplay": "不适用于此显示屏",
-    "targetRestricted": "This page is restricted to other boards or display technologies"
+    "targetRestricted": "This page is restricted to other boards or display technologies",
+    "physicalFrameUnsupported": "Update this display’s output plugin to use flexible pixel pages"
   },
   "profile": {
     "title": "个人资料",

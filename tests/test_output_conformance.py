@@ -111,7 +111,7 @@ def inline_model(manifest: dict, **model) -> None:
 
 class TestManifestRules:
     def test_an_unsupported_output_api_breaks_manifest(self, tmp_path):
-        broken = manifest_dir(tmp_path, lambda m: m["output"].update(output_api=2))
+        broken = manifest_dir(tmp_path, lambda m: m["output"].update(output_api=3))
         assert rules_broken(suite(plugin_dir=broken), "manifest") == {"manifest"}
 
     def test_a_model_embedding_an_unmaterialisable_charset_breaks_character_set(self, tmp_path):

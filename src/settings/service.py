@@ -446,6 +446,17 @@ class BoardSettings:
         led_layout = board_led_layout(board)
         if led_layout is not None:
             masked["led_layout"] = led_layout
+        from src.outputs.display_profile import display_profile_for_board
+
+        masked.pop("physical_surface", None)
+        masked.pop("flexible_page_support", None)
+        profile = display_profile_for_board(board)
+        if profile is not None and profile.technology == "led_matrix":
+            masked["flexible_page_support"] = (
+                "cells" if not profile.supports("pixels") else "pixels" if profile.physical_surface else "unsupported"
+            )
+        if profile is not None and profile.physical_surface is not None:
+            masked["physical_surface"] = profile.physical_surface.to_json()
         grids = board_producible_grids(board)
         if grids is not None:
             masked["producible_grids"] = {face: list(grid) for face, grid in grids.items()}

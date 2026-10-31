@@ -46,11 +46,15 @@ class FlexTarget:
     @property
     def width(self) -> int | None:
         """The surface width in pixels; ``None`` on a cell (character-grid) target."""
+        if self.pixels and self.display.physical_surface is not None:
+            return self.display.physical_surface.width
         return self.display.width if self.pixels and self.display is not None else None
 
     @property
     def height(self) -> int | None:
         """The surface height in pixels; ``None`` on a cell (character-grid) target."""
+        if self.pixels and self.display.physical_surface is not None:
+            return self.display.physical_surface.height
         return self.display.height if self.pixels and self.display is not None else None
 
     @property

@@ -111,3 +111,10 @@ def test_unsupported_silence_page_falls_back_to_indicator(client, pixel_board, m
     )
     indicator.assert_called_once()
     assert plugin.calls == []
+
+
+def test_physical_marker_survives_send_response(client, pixel_board):
+    page = stored(red_band())
+    response = client.post(f"/pages/{page.id}/send", params={"board_id": BOARD["id"], "target": "board"})
+    assert response.status_code == 200, response.text
+    assert response.json()["layers"][0]["physical_frame_version"] == 1

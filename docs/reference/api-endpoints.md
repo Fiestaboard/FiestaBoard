@@ -1419,6 +1419,7 @@ One canvas drawn in panel pixels (FiestaUI `LedBitmapLayer`).
 | `width` | `integer` | yes | Pixels across. |
 | `height` | `integer` | yes | Pixels down. |
 | `rgba` | `string` | yes | Base64 of width x height x 4 bytes of straight-alpha RGBA, row-major. A pixel with alpha > 0 overwrites what the cells drew; alpha 0 is transparent. |
+| `physical_frame_version` | `integer` \| `null` | no | Explicit physical preview surface; absent for legacy Canvas layers. |
 
 ### `Collection` {#schema-collection}
 

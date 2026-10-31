@@ -227,3 +227,58 @@ history and repeated serialization before their fixes. A cap mutation also
 proved the member-bound assertion fails. Python style, frontend lint/types/format
 and regenerated API documentation checks passed. The record contains eligible
 members rendered in that pass; completion does not mean playlist installation.
+
+## Physical-frame admission and adapter dependency
+
+Layer transport alone cannot establish physical fidelity: the TC002 adapter
+maps a legacy 52 by 17 model to 52 by 16 by removing a row or centering again.
+Implement a generic explicit declaration instead of a model-specific exception:
+
+1. Output API 2 adds optional `physical_frames`, version 1, with per-model
+   width/height and ordinary/native modes. API 1 and legacy content stay valid.
+   Older cores reject API 2 explicitly. Missing declarations refuse flexible
+   pixel delivery; flexible character panels keep the ordinary grid path.
+2. Flexible layout alone uses the declared physical surface. Preserve legacy
+   model geometry and the alternate character projection grid.
+3. Use an immutable physical-frame marker through layer projection and native
+   snapshots. Its exact RGB bytes are separate from any monochrome preview
+   encoding. Adapters must bypass legacy composition/transforms for this marker;
+   layer dimensions alone never establish that a frame is physical.
+4. Fit, preview, direct/engine/silence/held delivery and native admission share
+   declaration checks. Computed previews use physical dimensions.
+5. Verify malformed/version/mode rejection, default refusal, marker retention,
+   32 by 8, 52 by 16 and 64 by 64 frames, mono colors and unchanged legacy paths.
+
+Companion adapters must opt in with final payload tests: TC001 ordinary/native,
+Pixoo ordinary, and TC002 ordinary/native with squeezing bypassed only for tagged
+frames. Prepare isolated patches and evidence; publication outside the core
+feature branch requires an identified approved destination. No live install is
+part of this work. The iOS mixed-reader patch is independently prepared and
+build-verified; its original dirty checkout has no remote.
+
+
+Physical-frame implementation checkpoint: explicit declarations, tagged RGB,
+physical preview dimensions, transition recognition, declaration revisions and
+picker admission are implemented. The adapter copies remain isolated outside
+this repository. TC002 reproduced row-loss before its marker bypass, then passed
+50 affected render/native tests. The exact iOS patch passes 145 package tests
+and an isolated unsigned simulator build. Companion publication destinations and
+hardware acceptance remain release gates; neither has been performed.
+
+
+Final compatibility evidence: isolated TC001, Pixoo and TC002 suites pass
+140, 309 and 132 tests respectively. The prepared patches apply cleanly to
+the preserved original commits. The iOS reader handles mixed libraries and
+opaque unsupported projection fields while retaining strict legacy template
+geometry; 145 package tests and the unsigned simulator app build pass. No
+companion patch has been installed or published. Physical-frame transitions use
+still replacement when the adapter cannot mix coordinate spaces safely.
+
+The shared preview marker survives HTTP single, batch, unsaved, send and board
+state serialization, and absent markers are omitted for legacy Canvas JSON.
+The shared component changes geometry only for a valid marked physical layer;
+old cached flexible pixel previews are refreshed. Five Chromium checks pass,
+including keyboard save at 375 and 1280 pixels, and real canvas previews at
+32 by 8, 52 by 16 and 64 by 64 with no horizontal overflow or accessibility
+violations after the entrance animation settles. Frontend aggregate: 3,128
+passed, seven skipped; production build, lint, types and formatting pass.

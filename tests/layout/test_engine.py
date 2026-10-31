@@ -44,7 +44,7 @@ def test_issue_paths_start_at_blocks():
 
 
 def test_tiny_surface_reports_instead_of_crashing():
-    t = FlexTarget(rows=0, cols=0, display=replace(profile("hub75_64x32"), width=4, height=4))
+    t = FlexTarget(rows=0, cols=0, display=replace(profile("hub75_64x32"), width=4, height=4, physical_surface=None))
     r = layout_flexible_page(Page.model_validate(SAMPLE), t, SAMPLE_CTX)
     assert r.cell_lines == () and any(i.code == "surface_too_small" for i in r.issues)
 
@@ -286,7 +286,7 @@ def test_engine_and_context_reach_expansion(stub_expand):
 
 
 def test_tiny_surface_reports_surface_too_small(stub_expand):
-    t = FlexTarget(rows=0, cols=0, display=replace(profile("hub75_64x32"), width=4, height=4))
+    t = FlexTarget(rows=0, cols=0, display=replace(profile("hub75_64x32"), width=4, height=4, physical_surface=None))
     r = layout_flexible_page(page({"id": "t", "kind": "text", "text": "HI"}), t, {})
     assert r.cell_lines == () and [i.code for i in r.issues] == ["surface_too_small"]
 
