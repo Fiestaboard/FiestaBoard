@@ -3058,6 +3058,17 @@
     "communityDescription": "Publié en dehors de l’organisation FiestaBoard sur GitHub."
   },
   "flexibleEditor": {
+    "durationInvalid": "Enter a whole number from 10 to 3600 seconds.",
+    "actions": "Page actions",
+    "backToEditing": "Back to editing",
+    "retryPreview": "Retry preview",
+    "goToBlock": "Go to {label}",
+    "warning": "Warning",
+    "information": "Note",
+    "notSaved": "Not saved yet",
+    "repairDrafts": "Fix incomplete edits before saving. Your draft is kept.",
+    "fixBlock": "Fix Block {number}",
+    "sizeInvalid": "Enter whole-number dimensions from 1 to 128.",
     "title": "Flexible page",
     "description": "Stack text, drawings and space. Each display lays out the same document at its own size. Existing grid pages keep their exact layout.",
     "close": "Close",

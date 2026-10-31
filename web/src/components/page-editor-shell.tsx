@@ -8,6 +8,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  Box,
   Button,
   Flex,
   Stack,
@@ -105,15 +106,21 @@ function FlexibleShell({ page, targetBoardId, onClose, onSave }: PageEditorShell
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <FlexiblePageEditor
-        key={page?.id ?? "new"}
-        initialPage={page ?? { name: tFlexible("new"), type: "flexible", blocks: [], duration_seconds: 300 }}
-        boards={settings?.boards ?? []}
-        targetBoardId={targetBoardId}
-        onClose={onClose}
-        onSave={onSave}
-        onDirtyChange={onDirtyChange}
-      />
+      <Box
+        className="min-h-0 w-full flex-1 overflow-y-auto"
+        aria-label="Flexible page workspace"
+        data-flexible-workspace
+      >
+        <FlexiblePageEditor
+          key={page?.id ?? "new"}
+          initialPage={page ?? { name: tFlexible("new"), type: "flexible", blocks: [], duration_seconds: 300 }}
+          boards={settings?.boards ?? []}
+          targetBoardId={targetBoardId}
+          onClose={onClose}
+          onSave={onSave}
+          onDirtyChange={onDirtyChange}
+        />
+      </Box>
     </>
   );
 }

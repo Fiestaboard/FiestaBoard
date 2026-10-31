@@ -25,6 +25,7 @@ for (const width of [375, 1280]) {
     expect(saved.targets).toEqual({ technology: ["led_matrix"] });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await injectAxe(page);
+    await expect(page.locator("main")).toHaveCSS("opacity", "1");
     await checkA11y(page, "main", { detailedReport: true });
   });
 }
@@ -37,6 +38,7 @@ for (const [width, height] of [
   test(`physical preview uses all ${width} by ${height} pixels`, async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 844 });
     await page.goto(`/tests/layout/flexible.html?physical=1&width=${width}&height=${height}`);
+    await page.getByRole("button", { name: "Display preview", exact: true }).click();
     const matrix = page.locator('[data-slot="led-matrix-display"]');
     await expect(matrix).toHaveAttribute("data-matrix-width", String(width));
     await expect(matrix).toHaveAttribute("data-matrix-height", String(height));
@@ -56,3 +58,57 @@ for (const [width, height] of [
     await checkA11y(page, "main", { detailedReport: true });
   });
 }
+
+test("populated flexible page can be scrolled with the wheel inside its page section", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/tests/layout/flexible.html?shell=1&physical=1");
+  await expect(page.getByLabel("Block 1 text")).toBeVisible();
+  await page.mouse.move(900, 700);
+  await page.mouse.wheel(0, 4000);
+  await expect(page.getByRole("button", { name: "Add spacer", exact: true })).toBeInViewport();
+});
+
+test("desktop preview is alongside the document and save stays reachable while scrolling", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/tests/layout/flexible.html?shell=1&physical=1");
+  await expect(page.getByRole("region", { name: "Display preview" })).toBeInViewport();
+  await page.mouse.move(600, 700);
+  await page.mouse.wheel(0, 4000);
+  await expect(page.getByRole("button", { name: "Save page", exact: true })).toBeInViewport();
+});
+
+test("save failures remain visible after scrolling to the end of a document", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/tests/layout/flexible.html?shell=1&physical=1&saveError=1");
+  await page.getByLabel("Block 1 text").fill("Changed");
+  await page.mouse.move(600, 700);
+  await page.mouse.wheel(0, 4000);
+  await expect(page.getByRole("button", { name: "Add spacer", exact: true })).toBeInViewport();
+  await page.getByRole("button", { name: "Save page", exact: true }).click();
+  await expect(page.getByRole("alert")).toBeInViewport();
+});
+
+for (const height of [844, 667])
+  test(`mobile actions stay reachable while scrolling at ${height}px height`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height });
+    await page.goto("/tests/layout/flexible.html?shell=1&physical=1");
+    await expect(page.getByLabel("Block 1 text")).toBeVisible();
+    await page.mouse.move(200, height - 80);
+    await page.mouse.wheel(0, 4000);
+    await expect(page.getByRole("button", { name: "Add spacer", exact: true })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "Save page", exact: true })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "Display preview", exact: true })).toBeInViewport();
+  });
+
+test("short-phone JSON repair reveals the first editable line below sticky actions", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  await page.goto("/tests/layout/flexible.html?shell=1&physical=1&canvas=1");
+  await page.getByRole("tab", { name: "Shapes", exact: true }).click();
+  await page.getByRole("switch", { name: "Edit as JSON" }).click();
+  await page.getByLabel("Shapes JSON").fill("[");
+  await page.getByRole("tab", { name: "Draw", exact: true }).click();
+  await page.getByRole("button", { name: "Fix Block 3", exact: true }).click();
+  const field = await page.getByLabel("Shapes JSON").boundingBox();
+  const fix = await page.getByRole("button", { name: "Fix Block 3", exact: true }).boundingBox();
+  expect(field!.y).toBeGreaterThan(fix!.y + fix!.height);
+});

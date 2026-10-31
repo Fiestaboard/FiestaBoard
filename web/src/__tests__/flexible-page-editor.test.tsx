@@ -225,3 +225,114 @@ it("labels computed pixel geometry and distinguishes the alternate character lay
   expect(screen.getByRole("img")).toHaveAttribute("data-matrix-width", "52");
   expect(screen.getByRole("img")).toHaveAttribute("data-matrix-height", "16");
 });
+
+it("distinguishes a new unpersisted document from a saved page", () => {
+  mount({ name: "New page", type: "flexible", blocks: [] });
+  expect(screen.queryByText("Saved", { exact: true })).not.toBeInTheDocument();
+  expect(screen.getByRole("status")).toHaveTextContent("Not saved yet");
+});
+
+it("takes the user back to a hidden invalid JSON draft without discarding it", async () => {
+  mount({ ...initial, blocks: [{ id: "drawing", kind: "canvas", canvas: { content: { size: [8, 8], shapes: [] } } }] });
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("tab", { name: "Shapes" }));
+  await user.click(screen.getByRole("switch", { name: "Edit as JSON" }));
+  fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: "[" } });
+  await user.click(screen.getByRole("tab", { name: "Draw" }));
+  await user.click(screen.getByRole("button", { name: "Fix Block 1" }));
+  expect(screen.getByLabelText("Shapes JSON")).toBeVisible();
+  expect(screen.getByLabelText("Shapes JSON")).toHaveFocus();
+  expect(screen.getByLabelText("Shapes JSON")).toHaveValue("[");
+});
+
+it("links layout warnings to the affected block after reordering", async () => {
+  vi.mocked(api.previewFlexiblePage).mockResolvedValue({
+    page_id: "unsaved",
+    message: "HI",
+    lines: ["HI"],
+    display_type: "page:flexible",
+    raw: {},
+    layout_issues: [{ path: ["blocks", "title"], code: "truncated", severity: "warning", message: "One line fits" }],
+  });
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <FlexiblePageEditor
+        initialPage={{ ...initial, blocks: [{ id: "first", kind: "spacer" }, ...initial.blocks] }}
+        boards={[{ id: "a", name: "Hall", device_type: "flagship" } as BoardInstance]}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    </QueryClientProvider>,
+  );
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole("button", { name: "Go to Block 2 (text)" }));
+  expect(screen.getByRole("region", { name: "Block 2 (text)" })).toHaveFocus();
+  await user.click(screen.getByRole("button", { name: "Move block 2 up" }));
+  await user.click(await screen.findByRole("button", { name: "Go to Block 1 (text)" }));
+  expect(screen.getByRole("region", { name: "Block 1 (text)" })).toHaveFocus();
+});
+
+it("saves a valid dimension with a single click immediately after typing", async () => {
+  mount({ ...initial, blocks: [{ id: "drawing", kind: "canvas", canvas: { content: { size: [8, 8] } } }] });
+  const user = userEvent.setup();
+  await user.clear(screen.getByLabelText("Block 1 canvas width"));
+  await user.type(screen.getByLabelText("Block 1 canvas width"), "16");
+  await user.click(screen.getByRole("button", { name: "Save page" }));
+  await waitFor(() =>
+    expect(api.updatePage).toHaveBeenCalledWith(
+      "p",
+      expect.objectContaining({ blocks: [expect.objectContaining({ canvas: { content: { size: [16, 8] } } })] }),
+    ),
+  );
+});
+
+it("repairs the same invalid block after it is moved", async () => {
+  mount({
+    ...initial,
+    blocks: [...initial.blocks, { id: "drawing", kind: "canvas", canvas: { content: { size: [8, 8], shapes: [] } } }],
+  });
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("tab", { name: "Shapes" }));
+  await user.click(screen.getByRole("switch", { name: "Edit as JSON" }));
+  fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: "[" } });
+  await user.click(screen.getByRole("tab", { name: "Draw" }));
+  await user.click(screen.getByRole("button", { name: "Move block 2 up" }));
+  await user.click(screen.getByRole("button", { name: "Fix Block 1" }));
+  expect(screen.getByLabelText("Shapes JSON")).toHaveFocus();
+  expect(screen.getByLabelText("Shapes JSON")).toHaveValue("[");
+});
+
+it("restores committed canvas dimensions through undo and redo", async () => {
+  mount({
+    ...initial,
+    blocks: [{ id: "drawing", kind: "canvas", canvas: { content: { size: [8, 8], palette: { r: "#ff0000" } } } }],
+  });
+  const user = userEvent.setup();
+  const width = screen.getByLabelText("Block 1 canvas width");
+  await user.clear(width);
+  await user.type(width, "16");
+  await user.tab();
+  expect(width).toHaveValue(16);
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  expect(width).toHaveValue(8);
+  await user.click(screen.getByRole("button", { name: "Redo" }));
+  expect(width).toHaveValue(16);
+  await user.click(screen.getByRole("button", { name: "Save page" }));
+  await waitFor(() =>
+    expect(api.updatePage).toHaveBeenCalledWith(
+      "p",
+      expect.objectContaining({
+        blocks: [expect.objectContaining({ canvas: { content: { size: [16, 8], palette: { r: "#ff0000" } } } })],
+      }),
+    ),
+  );
+});
+
+it("explains and blocks an out-of-range duration before sending the draft", () => {
+  mount();
+  fireEvent.change(screen.getByLabelText("Duration (seconds)"), { target: { value: "1" } });
+  expect(screen.getByRole("button", { name: "Save page" })).toBeDisabled();
+  expect(screen.getByRole("alert")).toHaveTextContent("10");
+  fireEvent.change(screen.getByLabelText("Duration (seconds)"), { target: { value: "30" } });
+  expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled();
+});
