@@ -147,9 +147,10 @@ function fieldText(value: unknown): string {
 interface CanvasShapesEditorProps {
   shapes: CanvasShape[];
   onChange: (shapes: CanvasShape[]) => void;
+  onInvalidChange?: (invalid: boolean) => void;
 }
 
-export function CanvasShapesEditor({ shapes, onChange }: CanvasShapesEditorProps) {
+export function CanvasShapesEditor({ shapes, onChange, onInvalidChange }: CanvasShapesEditorProps) {
   const t = useTranslations("canvasEditor");
   const [newType, setNewType] = useState<ShapeType>("rect");
   const [jsonMode, setJsonMode] = useState(false);
@@ -206,7 +207,14 @@ export function CanvasShapesEditor({ shapes, onChange }: CanvasShapesEditorProps
       </Text>
 
       <Box hidden={!jsonMode}>
-        <ShapesJsonEditor shapes={shapes} onChange={onChange} onInvalidChange={setJsonInvalid} />
+        <ShapesJsonEditor
+          shapes={shapes}
+          onChange={onChange}
+          onInvalidChange={(invalid) => {
+            setJsonInvalid(invalid);
+            onInvalidChange?.(invalid);
+          }}
+        />
       </Box>
       {!jsonMode && jsonInvalid && (
         <Text size="xs" tone="destructive" role="alert">

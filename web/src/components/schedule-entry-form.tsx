@@ -259,7 +259,7 @@ export const ScheduleEntryForm = forwardRef<ScheduleFormHandle, ScheduleEntryFor
     }
     const fit = pageFits.get(pageId);
     if (fit && !fit.fits) {
-      return `${tFit("madeFor", { rows: fit.rows, cols: fit.cols })}. ${t("scheduleEntryForm.incompatiblePageWarning")}`;
+      return `${fit.reason === "targets" ? tFit("targetRestricted") : tFit("madeFor", { rows: fit.rows, cols: fit.cols })}. ${t("scheduleEntryForm.incompatiblePageWarning")}`;
     }
     return null;
   }, [currentBoard, pageId, collections, pages, pageFits, t, tFit]);
@@ -468,7 +468,9 @@ export const ScheduleEntryForm = forwardRef<ScheduleFormHandle, ScheduleEntryFor
                     )}
                     {misfit && (
                       <Text as="span" size="xs" tone="muted">
-                        {tFit("madeFor", { rows: misfit.rows, cols: misfit.cols })}
+                        {misfit.reason === "targets"
+                          ? tFit("targetRestricted")
+                          : tFit("madeFor", { rows: misfit.rows, cols: misfit.cols })}
                       </Text>
                     )}
                   </Flex>

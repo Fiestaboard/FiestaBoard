@@ -3,6 +3,7 @@
 
 import type { Canvas, CanvasIssue, CanvasLayerJson } from "./canvas";
 import { fetchApi } from "./core";
+import type { FlexibleFields, LayoutIssue } from "./flexible";
 import type { DeviceType, LineMetadata, PageType, RowConfig } from "./shared";
 import type { BoardTokenJson } from "./templates";
 
@@ -51,7 +52,7 @@ export interface SetActivePageResponse {
   warnings: string[];
 }
 
-export interface Page {
+export interface Page extends FlexibleFields {
   id: string;
   /** Opaque live generation; reloads/restarts invalidate old editor saves. */
   revision?: string | null;
@@ -60,7 +61,7 @@ export interface Page {
   document_protocol?: string | null;
   name: string;
   type: PageType;
-  device_type: DeviceType;
+  device_type?: DeviceType;
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
@@ -86,7 +87,7 @@ export interface Page {
   canvases?: Canvas[] | null;
 }
 
-export interface PageCreate {
+export interface PageCreate extends FlexibleFields {
   name: string;
   type: PageType;
   device_type?: DeviceType;
@@ -113,7 +114,7 @@ export interface PageCreate {
   canvases?: Canvas[] | null;
 }
 
-export interface PageUpdate {
+export interface PageUpdate extends FlexibleFields {
   expected_revision?: string | null;
   name?: string;
   /** Device/size retarget (issue #1250) — converting geometries is lossy. */
@@ -178,6 +179,7 @@ export interface StaffPick {
 }
 
 export interface PagePreviewResponse {
+  layout_issues?: LayoutIssue[];
   page_id: string;
   message: string;
   lines: string[];
@@ -278,6 +280,11 @@ export const pagesApi = {
       { method: "DELETE" },
     ),
   previewPage: (pageId: string) => fetchApi<PagePreviewResponse>(`/pages/${pageId}/preview`, { method: "POST" }),
+  previewFlexiblePage: (page: PageCreate, boardId?: string) =>
+    fetchApi<PagePreviewResponse>("/pages/preview/flexible", {
+      method: "POST",
+      body: JSON.stringify({ page, ...(boardId ? { board_id: boardId } : {}) }),
+    }),
   /** `boardId`: the board the previews are for — an LED board's renders its spans and icons and answers `cells`. */
   previewPagesBatch: (pageIds: string[], boardId?: string) =>
     fetchApi<PagePreviewBatchResponse>("/pages/preview/batch", {

@@ -240,6 +240,7 @@ const PageButtonPreview = memo(
 interface Misfit {
   rows: number;
   cols: number;
+  reason?: "targets";
 }
 
 /**
@@ -259,14 +260,14 @@ function MisfitReason({ id, misfit, className }: { id: string; misfit: Misfit; c
         ·
       </Text>
       <Text as="span" size="xs" tone="muted" className="truncate">
-        {t("madeFor", { rows: misfit.rows, cols: misfit.cols })}
+        {misfit.reason === "targets" ? t("targetRestricted") : t("madeFor", { rows: misfit.rows, cols: misfit.cols })}
       </Text>
     </Flex>
   );
 }
 
 function sameMisfit(a: Misfit | null | undefined, b: Misfit | null | undefined): boolean {
-  return a?.rows === b?.rows && a?.cols === b?.cols;
+  return a?.rows === b?.rows && a?.cols === b?.cols && a?.reason === b?.reason;
 }
 
 // Memoized page button component to prevent unnecessary re-renders
@@ -751,7 +752,7 @@ export function PageGridSelector({
         fitting.push(page);
       } else {
         flagged.push(page);
-        out[page.id] = { rows: fit.rows, cols: fit.cols };
+        out[page.id] = { rows: fit.rows, cols: fit.cols, reason: fit.reason };
       }
     }
     return { pages: [...fitting, ...flagged], misfits: out, fitCount: fitting.length };

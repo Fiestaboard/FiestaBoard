@@ -15,6 +15,7 @@ export default function NewPage() {
 
   return (
     <PageEditorShell
+      pageKind={searchParams.get("kind") === "flexible" ? "flexible" : undefined}
       deviceType={deviceType}
       targetBoardId={targetBoardId}
       skipDraft={skipDraft}

@@ -1,0 +1,195 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, expect, it, vi } from "vitest";
+
+import { type FlexibleEditorPage, FlexiblePageEditor } from "@/components/flexible-page-editor";
+import { api, ApiError, type BoardInstance } from "@/lib/api";
+
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return { ...actual, api: { ...actual.api, updatePage: vi.fn(), createPage: vi.fn(), previewFlexiblePage: vi.fn() } };
+});
+
+const initial = {
+  id: "p",
+  revision: "rev-one",
+  name: "Morning",
+  type: "flexible" as const,
+  duration_seconds: 30,
+  created_at: "2026-01-01T00:00:00Z",
+  blocks: [
+    { id: "title", kind: "text", text: "Hello", style: { color: "#123456", future: 7 }, future: { keep: true } },
+  ],
+  layout: { kind: "stack", future: true },
+  style: { size: "small", future: "preserve" },
+};
+
+function mount(document: FlexibleEditorPage = initial) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <FlexiblePageEditor initialPage={document} boards={[]} onClose={vi.fn()} onSave={vi.fn()} />
+    </QueryClientProvider>,
+  );
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(api.updatePage).mockResolvedValue({
+    page: { ...initial, revision: "rev-two" },
+    incompatible_references: [],
+  });
+});
+
+it("edits target restrictions while retaining unresolved board IDs and opaque fields", async () => {
+  mount({ ...initial, targets: { boards: ["another-install"], future: true } });
+  const user = userEvent.setup();
+  await user.click(screen.getByText("Display restrictions"));
+  await user.click(screen.getByRole("checkbox", { name: "LED displays" }));
+  expect(screen.getByRole("checkbox", { name: "LED displays" })).toBeChecked();
+  expect(screen.getByText("Unavailable display: another-install")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Save page" }));
+  await waitFor(() => expect(api.updatePage).toHaveBeenCalled());
+  expect(vi.mocked(api.updatePage).mock.calls[0][1]).toMatchObject({
+    targets: { boards: ["another-install"], technology: ["led_matrix"], future: true },
+  });
+});
+
+it("edits a semantic block and saves with revision and opaque fields intact", async () => {
+  mount();
+  fireEvent.change(screen.getByLabelText("Block 1 text"), { target: { value: "Good morning" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save page" }));
+  await waitFor(() => expect(api.updatePage).toHaveBeenCalled());
+  expect(vi.mocked(api.updatePage).mock.calls[0]).toEqual([
+    "p",
+    expect.objectContaining({
+      expected_revision: "rev-one",
+      blocks: [
+        expect.objectContaining({
+          id: "title",
+          text: "Good morning",
+          future: { keep: true },
+          style: { color: "#123456", future: 7 },
+        }),
+      ],
+      layout: { kind: "stack", future: true },
+      style: { size: "small", future: "preserve" },
+    }),
+  ]);
+});
+
+it("adds, reorders, removes and undoes blocks with stable identities", () => {
+  mount();
+  fireEvent.click(screen.getByRole("button", { name: "Add spacer" }));
+  fireEvent.click(screen.getByRole("button", { name: "Move block 2 up" }));
+  expect(screen.getByLabelText("Block 2 text")).toHaveValue("Hello");
+  fireEvent.click(screen.getByRole("button", { name: "Remove block 1" }));
+  expect(screen.getByLabelText("Block 1 text")).toHaveValue("Hello");
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  expect(screen.getByLabelText("Block 2 text")).toHaveValue("Hello");
+});
+
+it("keeps the draft visible when another editor has changed the page", async () => {
+  vi.mocked(api.updatePage).mockRejectedValue(new ApiError("Page changed; reload", 409));
+  mount();
+  fireEvent.change(screen.getByLabelText("Block 1 text"), { target: { value: "Keep my edit" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save page" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Page changed; reload");
+  expect(screen.getByLabelText("Block 1 text")).toHaveValue("Keep my edit");
+});
+
+it("keeps the draft's base revision when a query refresh brings a newer page", async () => {
+  const client = new QueryClient();
+  const editor = (document: typeof initial) => (
+    <QueryClientProvider client={client}>
+      <FlexiblePageEditor initialPage={document} boards={[]} onClose={vi.fn()} onSave={vi.fn()} />
+    </QueryClientProvider>
+  );
+  const view = render(editor(initial));
+  fireEvent.change(screen.getByLabelText("Block 1 text"), { target: { value: "My draft" } });
+  view.rerender(editor({ ...initial, revision: "someone-elses-revision" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save page" }));
+  await waitFor(() =>
+    expect(api.updatePage).toHaveBeenCalledWith("p", expect.objectContaining({ expected_revision: "rev-one" })),
+  );
+});
+
+it("updates the detail cache from the saved server document", async () => {
+  const client = new QueryClient();
+  client.setQueryData(["page", "p"], initial);
+  render(
+    <QueryClientProvider client={client}>
+      <FlexiblePageEditor initialPage={initial} boards={[]} onClose={vi.fn()} onSave={vi.fn()} />
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save page" }));
+  await waitFor(() => expect(client.getQueryData(["page", "p"])).toMatchObject({ revision: "rev-two" }));
+});
+
+it("blocks saving and retains an invalid Canvas JSON draft across tabs", async () => {
+  const client = new QueryClient();
+  const dirty = vi.fn();
+  render(
+    <QueryClientProvider client={client}>
+      <FlexiblePageEditor
+        initialPage={{
+          ...initial,
+          blocks: [{ id: "drawing", kind: "canvas", canvas: { content: { size: [8, 8], shapes: [] } } }],
+        }}
+        boards={[]}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        onDirtyChange={dirty}
+      />
+    </QueryClientProvider>,
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("tab", { name: "Shapes" }));
+  await user.click(screen.getByRole("switch", { name: "Edit as JSON" }));
+  fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: "[{" } });
+  expect(screen.getByRole("button", { name: "Save page" })).toBeDisabled();
+  await waitFor(() => expect(dirty).toHaveBeenLastCalledWith(true));
+  await user.click(screen.getByRole("tab", { name: "Draw" }));
+  await user.click(screen.getByRole("tab", { name: "Shapes" }));
+  expect(screen.getByLabelText("Shapes JSON")).toHaveValue("[{");
+  fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: "[]" } });
+  expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled();
+  fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: "[{" } });
+  await user.click(screen.getByRole("button", { name: "Remove block 1" }));
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled();
+});
+
+it("previews the unsaved document on the selected board without saving or sending it", async () => {
+  const boards = [
+    { id: "a", name: "Hall", device_type: "flagship" },
+    { id: "b", name: "Desk", device_type: "note" },
+  ] as BoardInstance[];
+  vi.mocked(api.previewFlexiblePage).mockImplementation(async (_page, boardId) => ({
+    page_id: "unsaved",
+    message: boardId === "a" ? "HALL" : "DESK",
+    lines: [boardId === "a" ? "HALL" : "DESK"],
+    display_type: "page:flexible",
+    raw: {},
+    layout_issues: [{ path: ["blocks", "title"], code: "truncated", severity: "warning", message: "One line fits" }],
+  }));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <FlexiblePageEditor initialPage={initial} boards={boards} onClose={vi.fn()} onSave={vi.fn()} />
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByLabelText("Hall character preview")).toHaveTextContent("HALL");
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("combobox", { name: "Preview display" }));
+  await user.click(await screen.findByRole("option", { name: "Desk" }));
+  expect(await screen.findByLabelText("Desk character preview")).toHaveTextContent("DESK");
+  expect(screen.getByLabelText("Layout issues")).toHaveTextContent("One line fits");
+  expect(api.previewFlexiblePage).toHaveBeenLastCalledWith(
+    expect.objectContaining({ type: "flexible", blocks: initial.blocks }),
+    "b",
+  );
+  expect(api.updatePage).not.toHaveBeenCalled();
+  expect(api.createPage).not.toHaveBeenCalled();
+});

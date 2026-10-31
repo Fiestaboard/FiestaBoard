@@ -11,8 +11,8 @@ const pushSpy = vi.fn();
 vi.mock("@/hooks/use-view-transition", () => ({
   useViewTransition: () => ({ push: pushSpy }),
 }));
-vi.mock("@/components/page-builder", () => ({
-  PageBuilder: ({ pageId }: { pageId: string }) => <div data-testid="page-builder">{pageId}</div>,
+vi.mock("@/components/page-editor-shell", () => ({
+  PageEditorShell: ({ pageId }: { pageId: string }) => <div data-testid="page-builder">{pageId}</div>,
 }));
 
 // Imported after the mocks so the route picks them up.

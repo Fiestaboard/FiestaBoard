@@ -1176,7 +1176,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Device/size retarget (issue #1250): compare the saved geometry with the
   // editor's current one. A shrink on either axis is lossy (content that
   // doesn't fit is cut off), so the save asks for confirmation first.
-  const originalDims = existingPage
+  const originalDims = existingPage?.device_type
     ? resolveDimensions(
         existingPage.device_type,
         existingPage.notes_wide ?? 1,

@@ -1,3 +1,5 @@
+import { type DeviceModel, tryResolveDeviceModel } from "@fiestaboard/ui";
+
 // ── Constants (mirror Python src/devices.py) ─────────────────────────────────
 export const NOTE_ROWS = 3;
 export const NOTE_COLS = 15;
@@ -275,10 +277,16 @@ export function dimensionsOf(entity: SizedEntity): BoardDimensions {
 /** A page as pageFitForBoard reads it: its geometry and its type (a flexible page has no geometry). */
 export interface FitPage extends SizedEntity {
   type?: string | null;
+  targets?: { boards?: string[] | null; technology?: string[] | null } | null;
 }
 
 /** A board as pageFitForBoard reads it: its geometry, plus an LED board's text sizes. */
 export interface FitBoard extends SizedEntity {
+  id?: string;
+  output?: string;
+  api_mode?: string;
+  device_model?: string | null;
+  device_model_spec?: DeviceModel | null;
   /**
    * An LED board's grid at each text size it allows, `{face: [rows, cols]}`
    * (`board_producible_grids`); absent or null when it has no choice.
@@ -301,6 +309,7 @@ export interface PageFit {
   face: string | null;
   rows: number;
   cols: number;
+  reason?: "targets";
 }
 
 /**
@@ -313,10 +322,24 @@ export interface PageFit {
  * board, even at 6×22).
  */
 export function pageFitForBoard(page: FitPage, board: FitBoard): PageFit {
-  // A flexible page has no grid: the server lays it out for each board, so it
-  // fits every board, never at a face (Python page_fit_for_board's flexible
-  // branch; a `targets` restriction is checked server-side).
-  if (page.type === "flexible") return { fits: true, face: null, rows: 0, cols: 0 };
+  if (page.type === "flexible") {
+    const ids = page.targets?.boards;
+    const technologies = page.targets?.technology;
+    const model =
+      (board.device_model_spec && tryResolveDeviceModel(board.device_model_spec).model) ||
+      (board.device_model ? tryResolveDeviceModel(board.device_model).model : null);
+    const output =
+      board.output || (board.api_mode === "virtual" ? "fiestapanel" : board.api_mode ? "vestaboard" : undefined);
+    const technology =
+      model?.technology || (output === "vestaboard" || output === "fiestapanel" ? "split_flap" : "unknown");
+    if (
+      (ids?.length && !ids.includes(board.id || "")) ||
+      (technologies?.length && !technologies.includes(technology))
+    ) {
+      return { fits: false, face: null, rows: 0, cols: 0, reason: "targets" };
+    }
+    return { fits: true, face: null, rows: 0, cols: 0 };
+  }
   const { rows, cols } = dimensionsOf(page);
   if (sizeKeyOf(page) === sizeKeyOf(board)) return { fits: true, face: null, rows, cols };
   const grids = board.producible_grids;

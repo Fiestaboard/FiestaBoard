@@ -37,4 +37,16 @@ describe("pageFitForBoard", () => {
 
   it("keeps the exact rule for a board with no producible grids", () =>
     expect(pagesCompatibleWithBoard({ device_type: "note" }, { device_type: "note_array" })).toBe(false));
+
+  it("enforces both flexible board and technology restrictions", () => {
+    const page = { type: "flexible", targets: { boards: ["desk"], technology: ["led_matrix"] } };
+    expect(pageFitForBoard(page, { ...PIXOO, id: "other", device_model: "divoom_pixoo64" }).fits).toBe(false);
+    expect(pageFitForBoard(page, { id: "desk", device_type: "flagship", output: "vestaboard" }).fits).toBe(false);
+    expect(pageFitForBoard(page, { ...PIXOO, id: "desk", device_model: "divoom_pixoo64" }).fits).toBe(true);
+  });
+
+  it("does not guess unknown technology, and empty target lists restrict nothing", () => {
+    expect(pageFitForBoard({ type: "flexible", targets: { technology: ["led_matrix"] } }, PIXOO).fits).toBe(false);
+    expect(pageFitForBoard({ type: "flexible", targets: { boards: [], technology: [] } }, PIXOO).fits).toBe(true);
+  });
 });

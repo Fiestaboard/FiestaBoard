@@ -128,6 +128,7 @@ export function ImportPageDialog({ open, onOpenChange }: { open: boolean; onOpen
 export default function PagesPage() {
   const { push } = useViewTransition();
   const t = useTranslations("pages");
+  const tFlexible = useTranslations("flexibleEditor");
   const { data: boardSettings } = useBoardSettings();
   const { data: pagesData } = usePages();
   const boards = useMemo(() => boardSettings?.boards ?? [], [boardSettings?.boards]);
@@ -236,6 +237,15 @@ export default function PagesPage() {
             >
               <Plus className="h-4 w-4 mr-1" />
               {t("newPage")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                push(`/pages/new?kind=flexible${selectedBoard ? `&board=${encodeURIComponent(selectedBoard.id)}` : ""}`)
+              }
+            >
+              {tFlexible("new")}
             </Button>
           </Flex>
         }
