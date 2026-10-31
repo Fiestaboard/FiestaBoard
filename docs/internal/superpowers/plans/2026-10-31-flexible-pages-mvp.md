@@ -256,7 +256,6 @@ feature branch requires an identified approved destination. No live install is
 part of this work. The iOS mixed-reader patch is independently prepared and
 build-verified; its original dirty checkout has no remote.
 
-
 Physical-frame implementation checkpoint: explicit declarations, tagged RGB,
 physical preview dimensions, transition recognition, declaration revisions and
 picker admission are implemented. The adapter copies remain isolated outside
@@ -264,7 +263,6 @@ this repository. TC002 reproduced row-loss before its marker bypass, then passed
 50 affected render/native tests. The exact iOS patch passes 145 package tests
 and an isolated unsigned simulator build. Companion publication destinations and
 hardware acceptance remain release gates; neither has been performed.
-
 
 Final compatibility evidence: isolated TC001, Pixoo and TC002 suites pass
 140, 309 and 132 tests respectively. The prepared patches apply cleanly to
