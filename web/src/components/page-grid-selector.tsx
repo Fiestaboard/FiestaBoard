@@ -19,8 +19,8 @@ import {
   TabsTrigger,
   Text,
 } from "@fiestaboard/ui";
-import { Clock, FilePlus, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Ban, Clock, FilePlus, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
@@ -33,6 +33,7 @@ import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } fr
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
+  BoardInstance,
   BoardLedLayout,
   Collection,
   DeviceType,
@@ -41,8 +42,8 @@ import type {
   PagePreviewResponse,
 } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
-import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
-import { boardForShape, isLedModel, resolveBoardModel } from "@/lib/device-preview";
+import { pageFitForBoard, pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { boardForShape, isLedModel, pagePreviewTarget } from "@/lib/device-preview";
 
 // Cache key for batch previews in localStorage
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";
@@ -84,7 +85,7 @@ function _getCachedPreview(pageId: string, pageUpdatedAt: string): PagePreviewRe
   const allPreviews = getCachedPreviews();
   const cached = allPreviews[pageId];
 
-  if (!cached || cached.pageUpdatedAt !== pageUpdatedAt) {
+  if (!isCacheValid(cached, pageUpdatedAt)) {
     return null;
   }
 
@@ -110,6 +111,11 @@ function previewCacheKey(pageId: string, boardId: string | null): string {
 // Check if a cached preview is still valid for a page
 function isCacheValid(cached: CachedPreviewData | undefined, pageUpdatedAt: string): boolean {
   if (!cached) return false;
+  if (
+    cached.preview.raw?.text_representation === "cell_projection" &&
+    cached.preview.layers?.[0]?.physical_frame_version !== 1
+  )
+    return false;
   return cached.pageUpdatedAt === pageUpdatedAt;
 }
 
@@ -235,6 +241,44 @@ const PageButtonPreview = memo(
   },
 );
 
+/** A page the filtered display can't produce: the page's own grid, for the reason copy. */
+interface Misfit {
+  rows: number;
+  cols: number;
+  reason?: "targets" | "physicalFrame";
+}
+
+/**
+ * Why a page is greyed out: "Not on this display · Made for a 6×22 board".
+ * The card points `aria-describedby` at it, so a screen reader hears the
+ * reason with the page name.
+ */
+function MisfitReason({ id, misfit, className }: { id: string; misfit: Misfit; className?: string }) {
+  const t = useTranslations("pageFit");
+  return (
+    <Flex id={id} align="center" gap="1.5" className={className}>
+      <Ban className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <Text as="span" size="xs" tone="muted" className="shrink-0">
+        {t("notOnThisDisplay")}
+      </Text>
+      <Text as="span" size="xs" tone="muted" aria-hidden="true">
+        ·
+      </Text>
+      <Text as="span" size="xs" tone="muted" className="truncate">
+        {misfit.reason === "physicalFrame"
+          ? t("physicalFrameUnsupported")
+          : misfit.reason === "targets"
+            ? t("targetRestricted")
+            : t("madeFor", { rows: misfit.rows, cols: misfit.cols })}
+      </Text>
+    </Flex>
+  );
+}
+
+function sameMisfit(a: Misfit | null | undefined, b: Misfit | null | undefined): boolean {
+  return a?.rows === b?.rows && a?.cols === b?.cols && a?.reason === b?.reason;
+}
+
 // Memoized page button component to prevent unnecessary re-renders
 const PageButton = memo(
   function PageButton({
@@ -248,6 +292,8 @@ const PageButton = memo(
     boardType = "black",
     model = null,
     ledLayout = null,
+    misfit = null,
+    misfitSelectable = false,
   }: {
     page: Page;
     preview: PagePreviewResponse | null;
@@ -260,39 +306,46 @@ const PageButton = memo(
     model?: DeviceModel | null;
     /** The board's LED layout choices (`led_layout`), drawn with the model. */
     ledLayout?: BoardLedLayout | null;
+    /** Set when the filtered display can't produce this page: shown greyed with the reason. */
+    misfit?: Misfit | null;
+    /** Whether a misfit can still be picked (the Pages list opens it for editing). */
+    misfitSelectable?: boolean;
   }) {
     const TypeIcon = LayoutTemplate;
+    const reasonId = useId();
 
-    const buttonClassName = isActive
-      ? "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      : "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+    const buttonClassName = `${
+      isActive
+        ? "group relative min-w-0 flex flex-col gap-3 p-4 rounded-xl border border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        : "group relative min-w-0 flex flex-col gap-3 p-4 rounded-xl border border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    }${misfit ? " opacity-60" : ""}`;
 
     const iconClassName = isActive
       ? "h-4 w-4 shrink-0 text-brand"
       : "h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground";
 
-    const nameClassName = isActive
-      ? "text-sm font-medium truncate text-foreground"
-      : "text-sm font-medium truncate text-muted-foreground group-hover:text-foreground";
+    const nameClassName = "text-sm font-medium truncate text-foreground";
 
+    const blocked = isPending || (misfit !== null && !misfitSelectable);
     const handleClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
-        if (!isPending) {
+        if (!blocked) {
           onSelect(page.id);
         }
       },
-      [page.id, isPending, onSelect],
+      [page.id, blocked, onSelect],
     );
 
     return (
       <button
         key={page.id}
         onClick={handleClick}
-        disabled={isPending}
+        disabled={blocked}
         className={buttonClassName}
         type="button"
         aria-pressed={isActive}
+        aria-describedby={misfit ? reasonId : undefined}
         data-section-item={page.id}
         {...anchorProps(`page.${page.id}`)}
       >
@@ -321,6 +374,8 @@ const PageButton = memo(
           gridCols={page.grid_cols}
           className="-mt-2 block truncate"
         />
+
+        {misfit && <MisfitReason id={reasonId} misfit={misfit} className="-mt-2 min-w-0" />}
 
         <Box className="hover-stable">
           <PageButtonPreview
@@ -354,7 +409,9 @@ const PageButton = memo(
       prevProps.showActiveIndicator === nextProps.showActiveIndicator &&
       prevProps.boardType === nextProps.boardType &&
       prevProps.model === nextProps.model &&
-      prevProps.ledLayout === nextProps.ledLayout
+      prevProps.ledLayout === nextProps.ledLayout &&
+      sameMisfit(prevProps.misfit, nextProps.misfit) &&
+      prevProps.misfitSelectable === nextProps.misfitSelectable
     );
   },
 );
@@ -366,20 +423,28 @@ const PageListItem = memo(
     isActive,
     isPending,
     onSelect,
+    misfit = null,
+    misfitSelectable = false,
   }: {
     page: Page;
     isActive: boolean;
     isPending: boolean;
     onSelect: (pageId: string) => void;
+    /** Set when the filtered display can't produce this page: shown greyed with the reason. */
+    misfit?: Misfit | null;
+    /** Whether a misfit can still be picked (the Pages list opens it for editing). */
+    misfitSelectable?: boolean;
   }) {
+    const reasonId = useId();
+    const blocked = isPending || (misfit !== null && !misfitSelectable);
     const handleClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
-        if (!isPending) {
+        if (!blocked) {
           onSelect(page.id);
         }
       },
-      [page.id, isPending, onSelect],
+      [page.id, blocked, onSelect],
     );
 
     const formattedDate = useMemo(() => {
@@ -395,9 +460,11 @@ const PageListItem = memo(
       }
     }, [page.updated_at]);
 
-    const buttonClassName = isActive
-      ? "group flex items-center gap-3 w-full px-4 py-3.5 rounded-xl border-2 border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      : "group flex items-center gap-3 w-full px-4 py-3.5 rounded-xl border-2 border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+    const buttonClassName = `${
+      isActive
+        ? "group flex items-center gap-3 w-full px-4 py-3.5 rounded-xl border-2 border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        : "group flex items-center gap-3 w-full px-4 py-3.5 rounded-xl border-2 border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    }${misfit ? " flex-wrap opacity-60" : ""}`;
 
     const iconClassName = isActive
       ? "h-4 w-4 shrink-0 text-brand"
@@ -410,10 +477,11 @@ const PageListItem = memo(
     return (
       <button
         onClick={handleClick}
-        disabled={isPending}
+        disabled={blocked}
         className={buttonClassName}
         type="button"
         aria-pressed={isActive}
+        aria-describedby={misfit ? reasonId : undefined}
         data-section-item={page.id}
         {...anchorProps(`page.${page.id}`)}
       >
@@ -443,6 +511,7 @@ const PageListItem = memo(
             {formattedDate}
           </Text>
         )}
+        {misfit && <MisfitReason id={reasonId} misfit={misfit} className="basis-full min-w-0 pl-7" />}
       </button>
     );
   },
@@ -451,7 +520,9 @@ const PageListItem = memo(
       prevProps.page.id === nextProps.page.id &&
       prevProps.isActive === nextProps.isActive &&
       prevProps.isPending === nextProps.isPending &&
-      prevProps.page.updated_at === nextProps.page.updated_at
+      prevProps.page.updated_at === nextProps.page.updated_at &&
+      sameMisfit(prevProps.misfit, nextProps.misfit) &&
+      prevProps.misfitSelectable === nextProps.misfitSelectable
     );
   },
 );
@@ -622,11 +693,20 @@ export interface PageGridSelectorProps {
   /** Whether to include collections in the grid */
   showCollections?: boolean;
   /**
-   * Show only pages whose size matches the current board (issue #1249).
-   * Used by pickers that ASSIGN a page to a board (e.g. Change Page); the
-   * global Pages library keeps showing everything.
+   * Fit pages to the current board (issue #1249). Used by pickers that
+   * ASSIGN a page to a board (e.g. Change Page). Pages the board can't
+   * produce at any text size are flagged, not hidden: listed after the pages
+   * that fit, greyed, with the reason.
    */
   filterByCurrentBoardSize?: boolean;
+  /** Library filter: fit pages to a specific configured display, flagging the ones it can't show. */
+  compatibleBoard?: BoardInstance;
+  /**
+   * Whether a page the display can't show can still be picked. The Pages
+   * list sets it, so a misfit still opens for editing; a picker that assigns
+   * a page to the board leaves it off.
+   */
+  misfitsSelectable?: boolean;
 }
 
 export function PageGridSelector({
@@ -639,6 +719,8 @@ export function PageGridSelector({
   viewMode = "grid",
   showCollections = true,
   filterByCurrentBoardSize = false,
+  compatibleBoard,
+  misfitsSelectable = false,
 }: PageGridSelectorProps) {
   const t = useTranslations("pageGridSelector");
   const effectiveLabel = label === undefined ? t("selectPageLabel") : label;
@@ -655,29 +737,44 @@ export function PageGridSelector({
   // Current board for size-compatibility filtering (issue #1249). Single-board
   // installs see no change: their pages match the only board by construction.
   const { currentBoard } = useCurrentBoard();
-  // The current board's device model: a page that fits it previews as it.
-  const currentBoardModel = useMemo(() => resolveBoardModel(currentBoard), [currentBoard]);
   const boards = boardSettings?.boards;
+  // The display pages are fitted to, if any: the library's chosen display, or
+  // the current board for a picker that assigns a page to it.
+  const fitBoard = compatibleBoard ?? (filterByCurrentBoardSize ? currentBoard : undefined);
 
   // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
   const allPages = useMemo(() => pagesData?.pages || [], [pagesData]);
-  const pages = useMemo(() => {
+  // Pages that fit the display first, then the ones it can't produce at any
+  // text size (spec: flagged, not hidden), each group in library order.
+  const { pages, misfits, fitCount } = useMemo(() => {
     let result = allPages;
     if (deviceTypeFilter) {
       result = result.filter((p) => (p.device_type || "flagship") === deviceTypeFilter);
     }
-    if (filterByCurrentBoardSize && currentBoard) {
-      result = result.filter((p) => pagesCompatibleWithBoard(p, currentBoard));
+    const out: Record<string, Misfit> = {};
+    if (!fitBoard) return { pages: result, misfits: out, fitCount: result.length };
+    const fitting: Page[] = [];
+    const flagged: Page[] = [];
+    for (const page of result) {
+      const fit = pageFitForBoard(page, fitBoard);
+      if (fit.fits) {
+        fitting.push(page);
+      } else {
+        flagged.push(page);
+        out[page.id] = { rows: fit.rows, cols: fit.cols, reason: fit.reason };
+      }
     }
-    return result;
-  }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard]);
+    return { pages: [...fitting, ...flagged], misfits: out, fitCount: fitting.length };
+  }, [allPages, deviceTypeFilter, fitBoard]);
 
-  // The board each page previews as: the current board when the page fits it,
-  // else the first board it fits. An LED board's model draws the thumbnail,
-  // and its previews are asked for that board (spans and icons render, with
-  // cells) and cached apart from the split-flap renders — so a page for an
-  // LED display (an output plugin's, such as a Pixoo) shows as LED in the
-  // library even while another board is selected.
+  // The board each page previews as: the library's chosen display when the
+  // page fits it, else the current board when it fits that, else the first
+  // board it fits. An LED board's model draws the thumbnail, in the text size
+  // the page fits at (`pagePreviewTarget`), and its previews are asked for
+  // that board (spans and icons render, with cells) and cached apart from the
+  // split-flap renders — so a page for an LED display (an output plugin's,
+  // such as a Pixoo) shows as LED in the library even while another board is
+  // selected.
   const previewTargets = useMemo(() => {
     const out: Record<
       string,
@@ -685,31 +782,33 @@ export function PageGridSelector({
     > = {};
     for (const page of pages) {
       const board =
-        currentBoard && pagesCompatibleWithBoard(page, currentBoard) ? currentBoard : boardForShape(boards, [], page);
-      const model = board === currentBoard ? currentBoardModel : resolveBoardModel(board);
-      out[page.id] = {
-        model,
-        richBoardId: board && isLedModel(model) ? board.id : null,
-        ledLayout: board?.led_layout ?? null,
-      };
+        compatibleBoard && pagesCompatibleWithBoard(page, compatibleBoard)
+          ? compatibleBoard
+          : currentBoard && pagesCompatibleWithBoard(page, currentBoard)
+            ? currentBoard
+            : boardForShape(boards, [], page);
+      const { model, ledLayout } = pagePreviewTarget(board, page);
+      out[page.id] = { model, richBoardId: board && isLedModel(model) ? board.id : null, ledLayout };
     }
     return out;
-  }, [pages, currentBoard, currentBoardModel, boards]);
+  }, [pages, currentBoard, boards, compatibleBoard]);
 
   // State for batch preview data — only what the network produced. Both
   // outcomes are kept: a failed entry is still an answer for that page, and
   // `previewsPending` below asks "did every requested id come back?".
-  const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, PagePreviewBatchEntry>>({});
-  const [fetchFailed, setFetchFailed] = useState(false);
+  const [fetchedPreviews, setFetchedPreviews] = useState<
+    Record<string, { preview: PagePreviewBatchEntry; pageUpdatedAt: string }>
+  >({});
+  const [failedFetches, setFailedFetches] = useState<Record<string, string>>({});
 
   // Splitting the cache lookup out of the effect is what removes the
   // set-state-in-effect warnings here (issue #1568): reading localStorage is
   // synchronous, so the cached previews and the "which ones must we fetch"
   // list are plain derived values. Only the network result — which arrives in
   // an async callback, where setState is fine — still needs state.
-  const { cachedPreviews, initialPreviews, pagesToFetch } = useMemo(() => {
+  const { initialPreviews, pagesToFetch } = useMemo(() => {
     if (viewMode === "list" || pages.length === 0) {
-      return { cachedPreviews: {}, initialPreviews: {}, pagesToFetch: [] as string[] };
+      return { initialPreviews: {}, pagesToFetch: [] as string[] };
     }
     const cached = getCachedPreviews();
     const initial: Record<string, PagePreviewResponse> = {};
@@ -722,7 +821,7 @@ export function PageGridSelector({
         toFetch.push(page.id);
       }
     }
-    return { cachedPreviews: cached, initialPreviews: initial, pagesToFetch: toFetch };
+    return { initialPreviews: initial, pagesToFetch: toFetch };
   }, [pages, viewMode, previewTargets]);
 
   // Cache hits render instantly; anything fetched since layers on top. Entries
@@ -730,17 +829,23 @@ export function PageGridSelector({
   // out of the render map instead of being spread in as message-less previews.
   const previews = useMemo(() => {
     const merged: Record<string, PagePreviewResponse> = { ...initialPreviews };
-    for (const [pageId, preview] of Object.entries(fetchedPreviews)) {
-      if (preview.available) {
-        merged[pageId] = preview;
+    for (const page of pages) {
+      const key = previewCacheKey(page.id, previewTargets[page.id]?.richBoardId ?? null);
+      const fetched = fetchedPreviews[key];
+      if (fetched?.pageUpdatedAt === (page.updated_at || "") && fetched.preview.available) {
+        merged[page.id] = fetched.preview;
       }
     }
     return merged;
-  }, [initialPreviews, fetchedPreviews]);
+  }, [initialPreviews, fetchedPreviews, pages, previewTargets]);
 
   // Still waiting only while a page we need has neither a cache hit nor a
   // fetched result, and the fetch hasn't given up.
-  const previewsPending = pagesToFetch.some((id) => !(id in fetchedPreviews)) && !fetchFailed;
+  const previewsPending = pagesToFetch.some((id) => {
+    const key = previewCacheKey(id, previewTargets[id]?.richBoardId ?? null);
+    const updatedAt = pages.find((page) => page.id === id)?.updated_at || "";
+    return fetchedPreviews[key]?.pageUpdatedAt !== updatedAt && failedFetches[key] !== updatedAt;
+  });
 
   // Fetch missing previews in batch
   useEffect(() => {
@@ -765,36 +870,39 @@ export function PageGridSelector({
             result: boardId ? await api.previewPagesBatch(ids, boardId) : await api.previewPagesBatch(ids),
           })),
         );
-        const allPreviews: Record<string, PagePreviewBatchEntry> = {};
-        for (const { result } of results) Object.assign(allPreviews, result.previews ?? {});
-
-        if (mounted) {
-          const newCachedPreviews = { ...cachedPreviews };
-
-          for (const [pageId, preview] of Object.entries(allPreviews)) {
+        // The effect's target snapshot owns these answers. Switching filters
+        // cancels this commit, so a late response cannot populate another target.
+        if (!mounted) return;
+        const newCachedPreviews = getCachedPreviews();
+        const fetched: Record<string, { preview: PagePreviewBatchEntry; pageUpdatedAt: string }> = {};
+        for (const { boardId, result } of results) {
+          for (const [pageId, preview] of Object.entries(result.previews ?? {})) {
+            const page = pages.find((candidate) => candidate.id === pageId);
+            if (!page) continue;
+            const key = previewCacheKey(pageId, boardId);
+            fetched[key] = { preview, pageUpdatedAt: page.updated_at || "" };
             if (preview.available) {
-              const page = pages.find((p) => p.id === pageId);
-              if (page) {
-                newCachedPreviews[previewCacheKey(pageId, previewTargets[pageId]?.richBoardId ?? null)] = {
-                  preview,
-                  pageUpdatedAt: page.updated_at || "",
-                  cachedAt: new Date().toISOString(),
-                };
-              }
+              newCachedPreviews[key] = {
+                preview,
+                pageUpdatedAt: page.updated_at || "",
+                cachedAt: new Date().toISOString(),
+              };
             }
           }
-
-          setCachedPreviews(newCachedPreviews);
-
-          setFetchedPreviews((prev) => ({
-            ...prev,
-            ...allPreviews,
-          }));
         }
+        setCachedPreviews(newCachedPreviews);
+        setFetchedPreviews((prev) => ({ ...prev, ...fetched }));
       } catch (error) {
         console.error("Failed to fetch batch previews:", error);
         if (mounted) {
-          setFetchFailed(true);
+          setFailedFetches((prev) => {
+            const failed = { ...prev };
+            for (const id of pagesToFetch) {
+              const key = previewCacheKey(id, previewTargets[id]?.richBoardId ?? null);
+              failed[key] = pages.find((page) => page.id === id)?.updated_at || "";
+            }
+            return failed;
+          });
         }
       }
     };
@@ -804,7 +912,7 @@ export function PageGridSelector({
     return () => {
       mounted = false;
     };
-  }, [pagesToFetch, cachedPreviews, pages, previewTargets]);
+  }, [pagesToFetch, pages, previewTargets]);
 
   if (isLoadingPages) {
     return (
@@ -833,10 +941,11 @@ export function PageGridSelector({
     );
   }
 
-  // All pages exist but none match the current board's size: explain the
-  // filter instead of claiming no pages were created (issue #1249).
-  if (pages.length === 0 && allPages.length > 0 && filterByCurrentBoardSize && currentBoard) {
-    return (
+  // All pages exist but none fit the display: explain the filter instead of
+  // claiming no pages were created (issue #1249). The pages it can't show
+  // still follow, flagged.
+  const noFitNotice =
+    fitBoard && fitCount === 0 && allPages.length > 0 ? (
       <Card>
         <CardContent className="py-6">
           <EmptyState
@@ -845,14 +954,19 @@ export function PageGridSelector({
             description={t("noCompatiblePagesDescription")}
             action={
               <Button asChild variant="brand" size="sm" className="btn-lift">
-                <Link href="/pages/new">{t("createFirstPage")}</Link>
+                <Link
+                  href={compatibleBoard ? `/pages/new?board=${encodeURIComponent(compatibleBoard.id)}` : "/pages/new"}
+                >
+                  {t("createFirstPage")}
+                </Link>
               </Button>
             }
           />
         </CardContent>
       </Card>
-    );
-  }
+    ) : null;
+
+  if (pages.length === 0 && noFitNotice) return noFitNotice;
 
   if (pages.length === 0) {
     const noPagesIllustration = (
@@ -908,6 +1022,8 @@ export function PageGridSelector({
             isActive={page.id === activePageId}
             isPending={isPending}
             onSelect={onSelectPage}
+            misfit={misfits[page.id] ?? null}
+            misfitSelectable={misfitsSelectable}
           />
         ))}
       </Stack>
@@ -926,10 +1042,21 @@ export function PageGridSelector({
             boardType={getEffectiveBoardColor(boardSettings)}
             model={previewTargets[page.id]?.model ?? null}
             ledLayout={previewTargets[page.id]?.ledLayout ?? null}
+            misfit={misfits[page.id] ?? null}
+            misfitSelectable={misfitsSelectable}
           />
         ))}
       </Grid>
     );
+
+  const pagesBody = noFitNotice ? (
+    <Stack gap="4">
+      {noFitNotice}
+      {pagesContent}
+    </Stack>
+  ) : (
+    pagesContent
+  );
 
   const collectionsGrid = (
     <Grid cols="1" gap="4" className="sm:grid-cols-2" role="group" aria-label={t("collectionsAriaLabel")}>
@@ -958,7 +1085,7 @@ export function PageGridSelector({
             {effectiveLabel}
           </Text>
         )}
-        {pagesContent}
+        {pagesBody}
       </Box>
     );
   }
@@ -976,7 +1103,7 @@ export function PageGridSelector({
             {t("collectionsTab", { count: collections.length })}
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="pages">{pagesContent}</TabsContent>
+        <TabsContent value="pages">{pagesBody}</TabsContent>
         <TabsContent value="collections">{collectionsGrid}</TabsContent>
       </Tabs>
     </Box>

@@ -1707,9 +1707,9 @@ class PluginRegistry:
         for plugin_id, source in self._loader.plugin_sources.items():
             if source.source_type != "external" or not source.local_path:
                 continue
-            # Disabled plugins (with no enabled instance) aren't running any
-            # code — don't generate git traffic keeping them fresh. They are
-            # brought up to date when re-enabled instead.
+            # Disabled data plugins (with no enabled instance) wait until
+            # re-enabled. Installed outputs stay current even before the
+            # user has saved their first board.
             if not self._update_check_wanted(plugin_id):
                 continue
             local_path = Path(source.local_path)
@@ -1731,18 +1731,16 @@ class PluginRegistry:
         return results
 
     def _update_check_wanted(self, plugin_id: str) -> bool:
-        """Whether *plugin_id* runs code worth keeping fresh: a data plugin
-        that is enabled (or has an enabled instance); an output plugin that a
-        board uses; a first-party output always (it is never disabled)."""
+        """Keep installed outputs current, including during first-time setup.
+
+        Data plugins are checked only when enabled or when an instance is
+        enabled. First-party outputs are always eligible too.
+        """
         if is_first_party_output(plugin_id):
             return True
         manifest = self.get_manifest(plugin_id)
         if manifest is not None and manifest.plugin_type == "output":
-            try:
-                return bool(boards_using_output(plugin_id))
-            except Exception:
-                logger.exception("Could not read the saved boards; checking output plugin '%s' anyway", plugin_id)
-                return True
+            return True
         return self._plugin_in_use(plugin_id)
 
     def get_update_status(self) -> dict[str, bool]:
@@ -2053,7 +2051,9 @@ class PluginRegistry:
 
         return _done
 
-    def get_cached_plugin_data(self, plugin_id: str, board: BoardContext | None = None) -> PluginResult | None:
+    def get_cached_plugin_data(
+        self, plugin_id: str, board: BoardContext | None = None, *, allow_stale: bool = False
+    ) -> PluginResult | None:
         """Return a plugin's already-cached result, or None if a fetch is needed.
 
         The non-blocking half of :meth:`fetch_plugin_data`: registry lookups
@@ -2067,7 +2067,7 @@ class PluginRegistry:
         if plugin is None or not enabled or not isinstance(plugin, PluginBase):
             return None
         try:
-            result = plugin.cached_result(board)
+            result = plugin.cached_result(board, allow_stale=allow_stale)
         except Exception:  # a broken property must never break a render
             logger.debug("Cached-data probe failed for %s", plugin_id, exc_info=True)
             return None
@@ -2150,25 +2150,6 @@ class PluginRegistry:
             )
         )
 
-        # Circuit-breaker gate (issue #1884): a quarantined plugin is dropped
-        # from this build entirely — not submitted, and crucially not WAITED
-        # on. Skipping the wait is what removes the per-render
-        # CONTEXT_BUILD_TIMEOUT_SECONDS stall a single wedged referenced
-        # plugin used to impose on every tick.
-        now = time.monotonic()
-        with self._inflight_lock:
-            quarantined = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) > now]
-            if quarantined:
-                to_fetch = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) <= now]
-        if quarantined:
-            logger.debug(
-                "Skipping %d quarantined plugin(s) this render (fetch circuit breaker open): %s",
-                len(quarantined),
-                quarantined,
-            )
-        if not to_fetch:
-            return context
-
         # Calling-thread fast path for already-cached plugins. Dispatching a
         # fetch whose own cache is fresh costs a Future allocation, a queue
         # put, a worker wakeup, a condvar wait, a done-callback and three lock
@@ -2179,9 +2160,11 @@ class PluginRegistry:
         # to. ``get_cached_plugin_data`` runs no plugin code and cannot block,
         # which is what makes it safe on the single service thread.
         #
-        # Deliberately AFTER the breaker gate: a quarantined plugin stays
-        # dropped from the build whether or not it has stale-but-fresh-enough
-        # data lying around.
+        # Deliberately BEFORE the breaker gate: a slow plugin (an AI call that
+        # takes tens of seconds against a 5 s budget) can run up its streak on
+        # the one fetch every tick joins and get quarantined, then land a
+        # moment later. Its answer is in the cache; hiding it for the whole
+        # cooldown kept the board on the previous result for minutes.
         still_to_fetch: list[str] = []
         answered: list[str] = []
         for plugin_id in to_fetch:
@@ -2198,11 +2181,36 @@ class PluginRegistry:
             # Cached data is PROOF the plugin answered — a fetch this build
             # abandoned at the timeout still landed and filled the cache. Ending
             # its streak here is what keeps a merely slow data source out of the
-            # quarantine the breaker reserves for wedged ones.
+            # quarantine the breaker reserves for wedged ones — and lifts that
+            # quarantine if the streak already opened it.
             with self._inflight_lock:
                 for plugin_id in answered:
                     self._fetch_timeouts.pop((plugin_id, board_key), None)
+                    self._fetch_breaker_until.pop((plugin_id, board_key), None)
         to_fetch = still_to_fetch
+        if not to_fetch:
+            return context
+
+        # Circuit-breaker gate (issue #1884): a quarantined plugin with nothing
+        # cached is dropped from this build entirely — not submitted, and
+        # crucially not WAITED on. Skipping the wait is what removes the
+        # per-render CONTEXT_BUILD_TIMEOUT_SECONDS stall a single wedged
+        # referenced plugin used to impose on every tick.
+        now = time.monotonic()
+        with self._inflight_lock:
+            quarantined = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) > now]
+            if quarantined:
+                to_fetch = [pid for pid in to_fetch if self._fetch_breaker_until.get((pid, board_key), 0.0) <= now]
+        # Not fetched, but its recent last result for this board still shows
+        # (a slow AI fetch opens the breaker before it lands).
+        for plugin_id in quarantined:
+            self._serve_stale(plugin_id, board, context, fingerprints)
+        if quarantined:
+            logger.debug(
+                "Skipping %d quarantined plugin(s) this render (fetch circuit breaker open): %s",
+                len(quarantined),
+                quarantined,
+            )
         if not to_fetch:
             return context
 
@@ -2258,6 +2266,11 @@ class PluginRegistry:
             # is still running — the only set the breaker may hold against a
             # plugin (issue #1884).
             self._record_fetch_timeouts([f for f in not_done if not f.cancelled()], futures, board_key)
+            # A plugin that is merely slow keeps its last result for THIS board
+            # rather than vanishing: absent data makes a canvas draw its stored
+            # content (an old snapshot) and a template print its fallback.
+            for f in not_done:
+                self._serve_stale(futures[f], board, context, fingerprints)
 
         if done:
             # A fetch that completed — with data, without data, or with an
@@ -2280,6 +2293,22 @@ class PluginRegistry:
                 logger.exception(f"Plugin {plugin_id} raised an error during context build")
 
         return context
+
+    def _serve_stale(self, plugin_id: str, board, context: dict, fingerprints: dict | None) -> None:
+        """Put *plugin_id*'s last result for *board* into *context*, if recent.
+
+        For a fetch this build abandoned at the timeout or skipped at the
+        breaker gate; "recent" is :func:`src.plugins.base.stale_limit_seconds`. The fetch keeps
+        running and refreshes the cache when it lands; until then the board
+        keeps what it was showing. Without this the variable is absent, and a
+        pixel canvas whose ``source`` is absent draws its stored ``content``
+        (an old snapshot) instead (``src/canvas/evaluate.py``).
+        """
+        stale = self.get_cached_plugin_data(plugin_id, board, allow_stale=True)
+        if stale is not None and stale.available and stale.data:
+            context[plugin_id] = stale.data
+            if fingerprints is not None:
+                fingerprints[plugin_id] = stale.data_fingerprint()
 
     def _record_fetch_timeouts(self, running: list, futures: dict, board_key: tuple | None = None) -> None:
         """Charge one consecutive timeout to each plugin in *running*.

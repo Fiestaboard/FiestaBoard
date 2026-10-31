@@ -90,6 +90,16 @@ class BoardDetail(BoardSummary):
     one document, because "what is this board doing" is one question.
     """
 
+    last_layout_computation: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Historical, bounded diagnostics from the last engine layout computation. Includes its reference, "
+            "mode, timestamp and per-page issues. Not a delivery acknowledgement, current installed playlist "
+            "or visible selection. Direct API previews and writes do not update this engine-scoped record. "
+            "Null until this runtime computes a page; omitted counts describe truncation. Complete means "
+            "eligible members finished rendering, not playlist installation; excluded members are not listed."
+        ),
+    )
     characters: list[list[int]] | None = Field(
         default=None,
         description="The flap codes currently on the board, or null if nothing has been sent to it yet.",

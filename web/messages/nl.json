@@ -95,7 +95,9 @@
     "updateAvailable": "Update beschikbaar",
     "updateTo": "Bijwerken naar {version}",
     "about": "Over FiestaBoard",
-    "signOut": "Afmelden"
+    "signOut": "Afmelden",
+    "popoverLabel": "Accountmenu",
+    "account": "Account"
   },
   "aboutDialog": {
     "description": "Versie- en systeeminformatie van dit FiestaBoard.",
@@ -203,7 +205,11 @@
     "importDialogCancel": "Annuleren",
     "importDialogImport": "Importeren",
     "importDialogImporting": "Importeren...",
-    "toastImported": "\"{name}\" toegevoegd aan je pagina's"
+    "toastImported": "\"{name}\" toegevoegd aan je pagina's",
+    "displayFilter": "Schermfilter",
+    "allPages": "Alle pagina’s",
+    "libraryCount": "{count, plural, one {# pagina} other {# pagina’s}}",
+    "clearFilter": "Alle pagina’s tonen"
   },
   "collections": {
     "title": "Carrousels",
@@ -300,7 +306,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "Weergavemodus",
+    "gridView": "Tegelweergave",
+    "listView": "Lijstweergave",
+    "libraryCount": "{count, plural, one {# carrousel} other {# carrousels}}",
+    "movePageUp": "{name} omhoog verplaatsen",
+    "movePageDown": "{name} omlaag verplaatsen",
+    "removePage": "{name} verwijderen",
+    "moveRuleUp": "Regel {number} omhoog verplaatsen",
+    "moveRuleDown": "Regel {number} omlaag verplaatsen",
+    "notFound": "Deze carrousel is niet gevonden.",
+    "loadFailed": "De carrousels konden niet worden geladen. Probeer het opnieuw.",
+    "backToCollections": "Terug naar carrousels",
+    "discardChangesTitle": "Niet-opgeslagen wijzigingen verwerpen?",
+    "discardChangesDescription": "Je carrousel bevat niet-opgeslagen wijzigingen.",
+    "keepEditing": "Verder bewerken",
+    "discardAndLeave": "Verwerpen en verlaten",
+    "retryButton": "Opnieuw proberen"
   },
   "schedule": {
     "title": "Planning",
@@ -638,7 +661,13 @@
       "createAction": "Demopagina aanmaken",
       "recreateAction": "Demopagina opnieuw aanmaken",
       "requirementsWarning": "Configureer hieronder de vereiste instellingen voordat je een demopagina aanmaakt."
-    }
+    },
+    "catalogCount": "{count} integraties",
+    "previousResults": "Vorige resultaten",
+    "nextResults": "Volgende resultaten",
+    "resultsPage": "Pagina {current} van {total}",
+    "allCategories": "Alle categorieën",
+    "categoryFilter": "Integratiecategorie"
   },
   "settings": {
     "title": "Instellingen",
@@ -739,7 +768,15 @@
       "confirmDescription": "Je staat op het punt <file></file> terug te zetten. Je bestaande pagina's, carrousels, planningen en configuratie worden overschreven. Van elk bestaand bestand wordt een kopie met tijdstempel bewaard naast het nieuwe, zodat je zo nodig handmatig kunt terugdraaien.",
       "restoringButton": "Terugzetten…",
       "restoreButton": "Back-up terugzetten"
-    }
+    },
+    "groupIdentity": "Instantie",
+    "groupAppearance": "Uiterlijk en toegankelijkheid",
+    "groupRegional": "Taal, tijd en locatie",
+    "groupConnections": "Verbindingen",
+    "displaySilenceTitle": "Stiltetijden van schermen",
+    "displaySilenceDescription": "Elk scherm heeft eigen stiltetijden. Open het tabblad Afspelen van een scherm om het schema te wijzigen.",
+    "openDisplayPlayback": "Afspeelinstellingen voor {name} openen",
+    "openDisplays": "Schermen beheren"
   },
   "offline": {
     "youreOffline": "Je bent offline",
@@ -1166,7 +1203,12 @@
     "liveSilencePreviewOnly": "Live-uitvoer toont alleen een voorbeeld. Het bord blijft stil.",
     "liveSendAnyway": "Toch naar bord sturen",
     "liveSilenceOverriding": "Live-uitvoer maakt het bord wakker tijdens de stilte.",
-    "liveStopOverriding": "Stoppen met sturen"
+    "liveStopOverriding": "Stoppen met sturen",
+    "editingSurfaceLabel": "Pagina-inhoud",
+    "textMode": "Tekst",
+    "canvasesMode": "Canvassen",
+    "showPreview": "Voorbeeld en live-uitvoer tonen",
+    "hidePreview": "Voorbeeld en live-uitvoer verbergen"
   },
   "displaySettings": {
     "unnamedBoard": "Naamloos bord",
@@ -1231,7 +1273,11 @@
     "notesTallLabel": "Notes hoog",
     "customRangeError": "Elke dimensie moet tussen 1 en {max} liggen.",
     "resizeMovedPages": "Pagina's aangepast aan het nieuwe formaat van het bord: {pages}.",
-    "resizeStaleRefs": "Het nieuwe formaat van het bord past niet meer bij deze pagina's: {pages}. Bewerk ze, anders worden ze niet op dit bord getoond."
+    "resizeStaleRefs": "Het nieuwe formaat van het bord past niet meer bij deze pagina's: {pages}. Bewerk ze, anders worden ze niet op dit bord getoond.",
+    "leftBehind": {
+      "title": "Pagina's die dit scherm niet meer toont",
+      "description": "Een formaatwijziging heeft deze pagina's achtergelaten. Bewerk er een zodat hij op dit scherm past, of toon hem op een ander scherm."
+    }
   },
   "displays": {
     "title": "Schermen",
@@ -1271,7 +1317,15 @@
       "speedTitle": "Snelheid",
       "pluginsDescription": "Frame-voor-frame-animaties zoals typemachine en oplossen (verouderd). Geldt voor alle schermen.",
       "pluginsSavedToast": "Instelling voor transitieplugins opgeslagen.",
-      "pluginsSaveFailedToast": "Instelling voor transitieplugins opslaan mislukt: {error}"
+      "pluginsSaveFailedToast": "Instelling voor transitieplugins opslaan mislukt: {error}",
+      "replay": "Voorbeeld opnieuw afspelen",
+      "nativePreviewNote": "Toont de volgorde en het ritme van de tegels. De weergave op de hardware kan afwijken.",
+      "pluginPreviewUnavailable": "Geen voorbeeld beschikbaar voor deze overgangsplugin.",
+      "savedUnavailable": "Opgeslagen keuze: {name} (niet beschikbaar)",
+      "reducedMotionNote": "Minder beweging is ingeschakeld. Het voorbeeld toont het uiteindelijke bericht.",
+      "cloudPreviewNote": "Dit scherm verandert alle inhoud in één keer.",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "HALLO WERELD"
     },
     "add": {
       "title": "Scherm toevoegen",
@@ -1339,7 +1393,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "Overzicht",
+    "tabSettings": "Instellingen",
+    "tabPlayback": "Afspelen",
+    "tabsLabel": "Schermsecties"
   },
   "systemUpdate": {
     "updateAvailable": "Update beschikbaar",
@@ -1712,6 +1770,12 @@
     "noCompatiblePagesTitle": "Geen pagina's passen bij het formaat van dit bord.",
     "noCompatiblePagesDescription": "Maak een pagina in het formaat van dit bord om deze hier te zien."
   },
+  "pageFit": {
+    "madeFor": "Gemaakt voor een bord van {rows}×{cols}",
+    "notOnThisDisplay": "Niet op dit scherm",
+    "targetRestricted": "This page is restricted to other boards or display technologies",
+    "physicalFrameUnsupported": "Update this display’s output plugin to use flexible pixel pages"
+  },
   "profile": {
     "title": "Profiel",
     "description": "Je voorkeuren en weergave-instellingen",
@@ -1751,9 +1815,9 @@
     "welcomeSendError": "Versturen mislukt",
     "welcomeDefault": "Laat leeg om de standaardbegroeting te gebruiken",
     "timezoneLabel": "Tijdzone",
-    "animationsTitle": "Animaties",
-    "animationsDescription": "Stel beweging apart in voor de board-preview en de rest van de app",
-    "boardAnimationsLabel": "Board-animaties",
+    "animationsTitle": "Grafische weergave en voorbeelden",
+    "animationsDescription": "Beheer bewegingen in de hele app. Deze voorkeuren gelden voor elk voorbeeld op het scherm.",
+    "boardAnimationsLabel": "Bordvoorbeelden",
     "boardAnimationsHint": "Het omklappen van split-flap-tegels bij wijziging",
     "boardAnimationsOn": "Aan",
     "boardAnimationsDesktop": "Alleen desktop",
@@ -1767,7 +1831,7 @@
     "siteAnimationsOff": "Uit",
     "animationsReduceMotionOverride": "\"Beweging verminderen\" is ingeschakeld en overschrijft deze instellingen.",
     "flapSpeedLabel": "Omklapsnelheid",
-    "flapSpeedHint": "Hoe lang elke tegel één teken toont terwijl het board tot rust komt",
+    "flapSpeedHint": "Kies het ritme voor de voorbeelden van klapborden in deze app.",
     "flapSpeed_hardware": "Snelst",
     "flapSpeed_quick": "Snel",
     "flapSpeed_standard": "Standaard",
@@ -1779,7 +1843,7 @@
     "flapSpeed_relaxedHint": "{ms} ms — een traag, bedachtzaam omklappen voor sfeerschermen.",
     "flapSpeedPreviewLabel": "Voorbeeld",
     "flapSpeedInactive": "Board-animaties staan uit, dus de omklapsnelheid heeft geen effect.",
-    "flapSpeedScreenOnlyNote": "Dit wijzigt alleen het board-voorbeeld op het scherm. Het tempo van de overgangen op je fysieke Vestaboard stel je apart in, onder Planning → Board-overgangen."
+    "flapSpeedScreenOnlyNote": "Dit regelt alleen het bordvoorbeeld op het scherm. Wijzig de timing van de hardware via Schermen → Afspelen → Bordovergangen."
   },
   "monitor": {
     "title": "Monitor",
@@ -2653,6 +2717,8 @@
     "dismissFailed": "Sluiten mislukt. Probeer het opnieuw."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "Het formaat waarmee nieuwe pagina's beginnen. Pagina's in het andere formaat worden nog steeds getoond, op hun eigen formaat.",
+    "textSizeFadeNote": "Pagina's in de andere tekstgrootte wisselen met Vervagen. Omklappen, Cascade en overgangsplug-ins hebben de eigen tekstgrootte van het scherm nodig.",
     "noDevicesFound": "Geen apparaten gevonden. Voer het adres zelf in.",
     "devicesFoundLabel": "Gevonden apparaten voor {field}",
     "subnetLabel": "Netwerk om te doorzoeken (optioneel)",
@@ -2921,7 +2987,9 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "De canvassen zijn niet geaccepteerd: {message}",
     "notPixelNotice": "Deze pagina bevat pixelcanvassen. Dit bord kan ze niet tekenen, dus hun gebieden blijven leeg. Bekijk een voorbeeld van de pagina op een LED-pixelbord om ze te bewerken.",
-    "markerTitle": "Op deze rij begint een canvas (geen onderdeel van de tekst)"
+    "markerTitle": "Op deze rij begint een canvas (geen onderdeel van de tekst)",
+    "drawLayerHint": "Tekenen bewerkt alleen pixels. Het paginavoorbeeld toont de achtergrond en vormen van het canvas.",
+    "drawSourceHint": "Dit canvas gebruikt een bron. Tekenen bewerkt de reservepixels; het voorbeeld toont de bron wanneer deze beschikbaar is."
   },
   "silenceNotice": {
     "untilTitle": "Stil tot {time}",
@@ -2984,5 +3052,81 @@
     "confirm": "Bevestigen",
     "revokeDevice": "Toegang voor {name} intrekken",
     "retry": "Opnieuw proberen"
+  },
+  "plugins": {
+    "communityBadge": "Community",
+    "communityDescription": "Gepubliceerd buiten de FiestaBoard-organisatie op GitHub."
+  },
+  "flexibleEditor": {
+    "durationInvalid": "Enter a whole number from 10 to 3600 seconds.",
+    "actions": "Page actions",
+    "backToEditing": "Back to editing",
+    "retryPreview": "Retry preview",
+    "goToBlock": "Go to {label}",
+    "warning": "Warning",
+    "information": "Note",
+    "notSaved": "Not saved yet",
+    "repairDrafts": "Fix incomplete edits before saving. Your draft is kept.",
+    "fixBlock": "Fix Block {number}",
+    "sizeInvalid": "Enter whole-number dimensions from 1 to 128.",
+    "title": "Flexible page",
+    "description": "Stack text, drawings and space. Each display lays out the same document at its own size. Existing grid pages keep their exact layout.",
+    "close": "Close",
+    "undo": "Undo",
+    "redo": "Redo",
+    "save": "Save page",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "unsaved": "Unsaved changes",
+    "saveFailed": "Could not save page",
+    "name": "Name",
+    "duration": "Duration (seconds)",
+    "pageStyle": "Page style and layout",
+    "styleHelp": "Sizes: small, medium, large, xlarge, fit, or pixels. Family: fiesta. Empty values inherit; transparent clears a background; black is opaque.",
+    "page": "Page",
+    "verticalAlignment": "Vertical alignment",
+    "gap": "Block gap",
+    "block": "Block {number}",
+    "up": "Up",
+    "down": "Down",
+    "remove": "Remove",
+    "moveUp": "Move block {number} up",
+    "moveDown": "Move block {number} down",
+    "removeBlock": "Remove block {number}",
+    "unknownBlock": "This block kind is not editable here. Its document is preserved.",
+    "blockStyle": "{label} style and conditions",
+    "showWhen": "Show when",
+    "priority": "Priority",
+    "add": "Add {kind}",
+    "preview": "Display preview",
+    "noDisplay": "Add a display to preview this document.",
+    "previewDisplay": "Preview display",
+    "previewDescription": "Computed preview · {cols} × {rows} character cells. This does not send to a display.",
+    "rendering": "Rendering…",
+    "computedPreview": "{name} computed preview",
+    "characterPreview": "{name} character preview",
+    "issues": "Layout issues",
+    "canvasDimension": "{label} canvas {axis}",
+    "canvasSizeRequired": "Choose an explicit canvas size before painting. An automatic-size drawing adapts to each display; choosing a smaller size can crop its pixels.",
+    "draw": "Draw",
+    "shapes": "Shapes",
+    "source": "Source",
+    "fallbackHelp": "The drawing remains the fallback when the source is unavailable.",
+    "new": "New flexible page",
+    "loading": "Loading page…",
+    "unsupported": "This page format is not editable in this version.",
+    "targets": "Display restrictions",
+    "targetsHelp": "Each group with selections restricts this page. Leave a group unchecked to allow all of that group. When both groups have selections, a display must match both. Unavailable display IDs remain restricted until you remove them.",
+    "technologies": "Display technologies",
+    "technologyLed": "LED displays",
+    "technologyFlap": "Split-flap boards",
+    "technologyScreen": "Screens",
+    "displays": "Displays",
+    "unavailableDisplay": "Unavailable display: {id}",
+    "targetWarning": "Saved. Existing playback references on these displays no longer accept this page: {list}. Review their active pages, schedules and silence pages.",
+    "previewPixelDescription": "Computed preview · {width} × {height} pixels. This does not send to a display.",
+    "projectionHelp": "The character fallback is a separate layout and may contain text that does not fit this pixel preview.",
+    "signInRecovery": "Sign in to continue. Keep this editor open to retain your unsaved changes. Sign in in another tab, then return to save or retry the preview.",
+    "signInAnotherTab": "Sign in in another tab"
   }
 }

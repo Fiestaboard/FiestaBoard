@@ -60,11 +60,11 @@ def test_board_write_without_the_key_keeps_the_stored_value(client):
     assert body["config"]["show_queued_on_exit"] is True
 
 
-def test_board_write_without_the_key_falls_back_to_the_install_wide_value(client):
+def test_new_board_write_without_the_key_keeps_its_own_default(client):
     _boards("b1", "b2")
     _put(client, show_queued_on_exit=True)
     _put(client, board_id="b2", start_time="23:00+00:00")
-    assert _resolved("b2")["show_queued_on_exit"] is True
+    assert _resolved("b2")["show_queued_on_exit"] is False
 
 
 def test_single_board_install_wide_write_carries_it_over_before_the_prune(client):

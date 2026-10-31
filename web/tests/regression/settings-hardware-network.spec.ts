@@ -84,6 +84,7 @@ test.describe("regression: settings.hardware", () => {
     const noteCard = page.getByTestId("display-card").filter({ hasText: "3 × 15" });
     await expect(noteCard).toBeVisible({ timeout: 10_000 });
     await noteCard.getByRole("link", { name: /^Open settings for / }).click();
+    await page.getByRole("tab", { name: "Settings", exact: true }).click();
 
     const removeBtn = page.getByRole("button", { name: /Remove Board/i }).first();
     await expect(removeBtn).toBeEnabled({ timeout: 10_000 });
@@ -102,7 +103,7 @@ test.describe("regression: settings.hardware", () => {
     // Removing it went back to Displays. Now the remaining board's Remove
     // button is disabled (atLeastOneBoard guard) on its own page.
     await expect(page).toHaveURL(/\/displays$/, { timeout: 10_000 });
-    await page.getByRole("link", { name: "Open settings for My Board", exact: true }).click();
+    await openDisplay(page, "My Board");
     const lastRemoveBtn = page.getByRole("button", { name: /Remove Board/i });
     await expect(lastRemoveBtn).toBeDisabled({ timeout: 10_000 });
 

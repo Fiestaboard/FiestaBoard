@@ -59,10 +59,11 @@ class TestResolveDimensions:
         with pytest.raises(ValueError):
             resolve_dimensions("panel", grid_rows=True, grid_cols=29)
 
-    def test_panel_grid_is_clamped_to_the_3x10_led_minimum(self):
+    def test_panel_grid_is_clamped_to_the_1x5_led_minimum(self):
         # The absolute floor any board reaches: an LED board in pixels may be
-        # 3x10 (FiestaPanel autofit and Vestaboards still hold 3x15).
-        assert resolve_dimensions("panel", grid_rows=1, grid_cols=5) == (3, 10)
+        # 1x5 (FiestaPanel autofit and Vestaboards still hold 3x15).
+        assert resolve_dimensions("panel", grid_rows=1, grid_cols=5) == (1, 5)
+        assert resolve_dimensions("panel", grid_rows=0, grid_cols=3) == (1, 5)
 
     def test_an_8x10_panel_grid_is_kept(self):
         assert resolve_dimensions("panel", grid_rows=8, grid_cols=10) == (8, 10)
@@ -151,7 +152,7 @@ class TestBoardInstance:
 
     def test_a_panel_grid_is_clamped(self):
         board = BoardInstance.from_dict({**VIRTUAL_PANEL, "grid_rows": 1000, "grid_cols": 2})
-        assert (board.grid_rows, board.grid_cols) == (MAX_GRID_ROWS, 10)
+        assert (board.grid_rows, board.grid_cols) == (MAX_GRID_ROWS, 5)
 
     def test_non_panel_boards_drop_a_stale_grid(self):
         board = BoardInstance.from_dict({"device_type": "flagship", "grid_rows": 12, "grid_cols": 29})

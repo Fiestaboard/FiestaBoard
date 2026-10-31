@@ -29,15 +29,16 @@ import { queryKeys, usePages } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
-import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { type PageFit, pageFitForBoard } from "@/lib/board-dimensions";
 import { resolveSilenceConfig } from "@/lib/silence-config";
 import { localTimeToUTC, utcToLocalTime } from "@/lib/timezone-utils";
 
 type SilenceMode = "indicator" | "freeze" | "page";
 
-export function SilenceSchedule() {
+export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
   const t = useTranslations("generalSettings");
   const tc = useTranslations("common");
+  const tFit = useTranslations("pageFit");
   const queryClient = useQueryClient();
 
   // Silence settings are per board (issue #1788), and the display engine
@@ -49,8 +50,9 @@ export function SilenceSchedule() {
   // entry, and the entry won key by key. Silence looked off in the UI and
   // stayed on for the board, with no feedback and no recovery short of
   // hand-editing config.json (PR #1801 review, BLOCKER 1).
-  const { currentBoardId, currentBoard } = useCurrentBoard();
-  const scopedBoardId = currentBoardId ?? undefined;
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
+  const scopedBoardId = boardId ?? (currentBoardId || undefined);
+  const scopedBoard = boardId ? boards.find((board) => board.id === boardId) : currentBoard;
 
   const [hasChanges, setHasChanges] = useState(false);
   const [silenceEnabled, setSilenceEnabled] = useState(false);
@@ -126,15 +128,18 @@ export function SilenceSchedule() {
   });
 
   const { data: pagesData } = usePages();
-  // Only offer pages that fit this board (issue #1788): a 22x6 Flagship page
-  // used to be selectable as a 15x3 Note board's silence page and then
-  // silently mis-rendered. The current selection is always kept so an
-  // existing (possibly stale) choice stays visible instead of vanishing.
-  const availablePages = useMemo(() => {
-    const pages = pagesData?.pages ?? [];
-    if (!currentBoard) return pages;
-    return pages.filter((p) => p.id === silencePageId || pagesCompatibleWithBoard(p, currentBoard));
-  }, [pagesData?.pages, currentBoard, silencePageId]);
+  // Pages that don't fit this board are flagged, not hidden (issue #1788): a
+  // 22x6 Flagship page used to be selectable as a 15x3 Note board's silence
+  // page and then silently mis-rendered. Now it is a disabled option with its
+  // reason ("Made for a 6×22 board"). The current selection stays selectable
+  // so an existing (possibly stale) choice stays visible.
+  const availablePages = pagesData?.pages ?? [];
+  const pageFits = useMemo(() => {
+    const fits = new Map<string, PageFit>();
+    if (!scopedBoard) return fits;
+    for (const p of pagesData?.pages ?? []) fits.set(p.id, pageFitForBoard(p, scopedBoard));
+    return fits;
+  }, [pagesData?.pages, scopedBoard]);
 
   const isSaving = updateSilenceMutation.isPending;
 
@@ -365,11 +370,26 @@ export function SilenceSchedule() {
                       <SelectValue placeholder={t("silencePagePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {availablePages.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name || p.id}
-                        </SelectItem>
-                      ))}
+                      {availablePages.map((p) => {
+                        const fit = pageFits.get(p.id);
+                        const misfit = fit && !fit.fits ? fit : null;
+                        return (
+                          <SelectItem key={p.id} value={p.id} disabled={misfit !== null && p.id !== silencePageId}>
+                            <Flex align="center" gap="2">
+                              {p.name || p.id}
+                              {misfit && (
+                                <Text as="span" size="xs" tone="muted">
+                                  {misfit.reason === "physicalFrame"
+                                    ? tFit("physicalFrameUnsupported")
+                                    : misfit.reason === "targets"
+                                      ? tFit("targetRestricted")
+                                      : tFit("madeFor", { rows: misfit.rows, cols: misfit.cols })}
+                                </Text>
+                              )}
+                            </Flex>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   <Text size="xs" tone="muted">

@@ -47,7 +47,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Collection, Sequence
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
@@ -64,6 +64,7 @@ __all__ = [
     "BoardToken",
     "blank_tiles",
     "count_tiles",
+    "map_text_case",
     "message_to_grid",
     "parse_line",
     "resolve_code62_glyph",
@@ -585,6 +586,25 @@ def take_tiles(text: str, limit: int) -> tuple[str, str]:
         return _serialize(head), _serialize(tail)
     # Unexpressible cut: keep the whole top-level span for the tail.
     return text[: cut.root], text[cut.root :]
+
+
+def map_text_case(line: str, fn: Callable[[str], str]) -> str:
+    """*line* with *fn* (``str.upper``, ``str.lower``) applied to its text, never its markup.
+
+    Span heads (``{red:``), tile markers (``{63}``), icons (``{icon:sun}``)
+    and end tags keep their spelling; every character a cell draws as
+    written is mapped. Used by flexible layout to apply a block's ``case``.
+    """
+    if "{" not in line:
+        return fn(line)
+    pieces = _pieces(line, extended_markup=True, preserve_case=True)
+    mapped = [
+        replace(p, source=fn(p.source))
+        if p.token is not None and p.token.type == "char" and p.token.icon is None and p.source == p.token.value
+        else p
+        for p in pieces
+    ]
+    return _serialize(mapped)
 
 
 def split_rows(text: str) -> list[str]:

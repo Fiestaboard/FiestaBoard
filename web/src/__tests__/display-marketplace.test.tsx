@@ -193,6 +193,23 @@ describe("Displays → Marketplace", () => {
     ).toEqual(["Divoom Pixoo", "Acme Sign"]);
   });
 
+  it("marks a display from a known external repository as Community", async () => {
+    setup();
+    renderPage();
+    expect(await within(await cardFor("Acme Sign")).findByText("Community")).toBeInTheDocument();
+    expect(within(await cardFor("Vestaboard")).queryByText("Community")).not.toBeInTheDocument();
+  });
+
+  it("discloses Git installation in a secondary dialog", async () => {
+    setup();
+    renderPage();
+    await marketplace();
+    expect(screen.queryByLabelText("Repository URL")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Install from git" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByLabelText("Repository URL")).toBeInTheDocument();
+  });
+
   it("credits a marketplace display's author", async () => {
     setup();
     renderPage();
@@ -309,6 +326,7 @@ describe("Displays → Marketplace", () => {
     }
 
     async function fillAndInstall(branch = "") {
+      await userEvent.click(await screen.findByRole("button", { name: "Install from git" }));
       const panel = await screen.findByTestId("display-marketplace-build");
       await userEvent.type(within(panel).getByLabelText("Repository URL"), GIT);
       if (branch) await userEvent.type(within(panel).getByLabelText("Branch (optional)"), branch);
@@ -330,8 +348,8 @@ describe("Displays → Marketplace", () => {
       expect(
         await within(panel).findByText("Garage Sign is installed. Add a display to start using it."),
       ).toBeInTheDocument();
-      const installed = within(await marketplace()).getByRole("region", { name: "On this FiestaBoard" });
-      expect(await within(installed).findByRole("heading", { name: "Garage Sign" })).toBeInTheDocument();
+      const installed = (await marketplace()).querySelector("section") as HTMLElement;
+      expect(await within(installed).findByRole("heading", { name: "Garage Sign", hidden: true })).toBeInTheDocument();
       await userEvent.click(within(panel).getByRole("button", { name: "Add a display with Garage Sign" }));
       expect(await screen.findByRole("dialog", { name: "Add a Garage Sign" })).toBeInTheDocument();
     });
@@ -369,6 +387,7 @@ describe("Displays → Marketplace", () => {
     it("needs a repository URL before it installs", async () => {
       setup();
       renderPage();
+      await userEvent.click(await screen.findByRole("button", { name: "Install from git" }));
       const panel = await screen.findByTestId("display-marketplace-build");
       expect(within(panel).getByRole("button", { name: "Install from git" })).toBeDisabled();
     });

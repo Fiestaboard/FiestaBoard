@@ -95,7 +95,9 @@
     "updateAvailable": "有可用更新",
     "updateTo": "更新到 {version}",
     "about": "关于 FiestaBoard",
-    "signOut": "退出登录"
+    "signOut": "退出登录",
+    "popoverLabel": "账户菜单",
+    "account": "账户"
   },
   "aboutDialog": {
     "description": "此 FiestaBoard 的版本与系统信息。",
@@ -203,7 +205,11 @@
     "importDialogCancel": "取消",
     "importDialogImport": "导入",
     "importDialogImporting": "导入中...",
-    "toastImported": "\"{name}\" 已添加到您的页面"
+    "toastImported": "\"{name}\" 已添加到您的页面",
+    "displayFilter": "按显示设备筛选",
+    "allPages": "所有页面",
+    "libraryCount": "{count, plural, one {# 个页面} other {# 个页面}}",
+    "clearFilter": "显示所有页面"
   },
   "collections": {
     "title": "轮播",
@@ -300,7 +306,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "视图模式",
+    "gridView": "平铺视图",
+    "listView": "列表视图",
+    "libraryCount": "{count, plural, one {# 个轮播} other {# 个轮播}}",
+    "movePageUp": "上移 {name}",
+    "movePageDown": "下移 {name}",
+    "removePage": "移除 {name}",
+    "moveRuleUp": "上移规则 {number}",
+    "moveRuleDown": "下移规则 {number}",
+    "notFound": "找不到此轮播。",
+    "loadFailed": "无法加载轮播，请重试。",
+    "backToCollections": "返回轮播列表",
+    "discardChangesTitle": "放弃未保存的更改？",
+    "discardChangesDescription": "此轮播有尚未保存的更改。",
+    "keepEditing": "继续编辑",
+    "discardAndLeave": "放弃并离开",
+    "retryButton": "重试"
   },
   "schedule": {
     "title": "日程",
@@ -638,7 +661,13 @@
       "createAction": "创建演示页面",
       "recreateAction": "重新创建演示页面",
       "requirementsWarning": "创建演示页面前，请先配置下方的必填设置。"
-    }
+    },
+    "catalogCount": "{count} 个集成",
+    "previousResults": "上一页结果",
+    "nextResults": "下一页结果",
+    "resultsPage": "第 {current} 页，共 {total} 页",
+    "allCategories": "所有类别",
+    "categoryFilter": "集成类别"
   },
   "settings": {
     "title": "设置",
@@ -739,7 +768,15 @@
       "confirmDescription": "您即将恢复 <file></file>。您现有的页面、轮播、日程和配置将被覆盖。每个现有文件都会保留一份带时间戳的副本，与新文件放在一起，必要时可手动回滚。",
       "restoringButton": "恢复中…",
       "restoreButton": "恢复备份"
-    }
+    },
+    "groupIdentity": "实例",
+    "groupAppearance": "外观与无障碍",
+    "groupRegional": "语言、时间和位置",
+    "groupConnections": "连接",
+    "displaySilenceTitle": "显示设备静音计划",
+    "displaySilenceDescription": "每台显示设备都有独立的静音时段。打开显示设备的“播放”选项卡以更改其计划。",
+    "openDisplayPlayback": "打开 {name} 的播放设置",
+    "openDisplays": "管理显示设备"
   },
   "offline": {
     "youreOffline": "您已离线",
@@ -1166,7 +1203,12 @@
     "liveSilencePreviewOnly": "实时输出仅在预览。看板保持安静。",
     "liveSendAnyway": "仍然发送到看板",
     "liveSilenceOverriding": "实时输出正在静默期间唤醒看板。",
-    "liveStopOverriding": "停止发送"
+    "liveStopOverriding": "停止发送",
+    "editingSurfaceLabel": "页面内容",
+    "textMode": "文本",
+    "canvasesMode": "画布",
+    "showPreview": "显示预览和实时输出",
+    "hidePreview": "隐藏预览和实时输出"
   },
   "displaySettings": {
     "unnamedBoard": "未命名看板",
@@ -1231,7 +1273,11 @@
     "notesTallLabel": "Note 高度",
     "customRangeError": "每个尺寸必须介于 1 和 {max} 之间。",
     "resizeMovedPages": "已将页面调整为看板的新尺寸：{pages}。",
-    "resizeStaleRefs": "看板的新尺寸已无法容纳这些页面：{pages}。请编辑它们，否则它们不会在此看板上显示。"
+    "resizeStaleRefs": "看板的新尺寸已无法容纳这些页面：{pages}。请编辑它们，否则它们不会在此看板上显示。",
+    "leftBehind": {
+      "title": "此显示屏不再显示的页面",
+      "description": "尺寸更改后，这些页面被留下了。编辑页面以适配此显示屏，或在其他显示屏上显示。"
+    }
   },
   "displays": {
     "title": "显示设备",
@@ -1271,7 +1317,15 @@
       "speedTitle": "速度",
       "pluginsDescription": "逐帧动画，例如打字机和溶解（已弃用）。适用于所有显示设备。",
       "pluginsSavedToast": "过渡插件设置已保存。",
-      "pluginsSaveFailedToast": "无法保存过渡插件设置：{error}"
+      "pluginsSaveFailedToast": "无法保存过渡插件设置：{error}",
+      "replay": "重新播放预览",
+      "nativePreviewNote": "展示翻牌顺序和节奏。实际设备上的效果可能有所不同。",
+      "pluginPreviewUnavailable": "此过渡插件不支持预览。",
+      "savedUnavailable": "已保存的选择：{name}（不可用）",
+      "reducedMotionNote": "已启用减少动态效果。预览显示切换完成后的消息。",
+      "cloudPreviewNote": "此显示设备会同时更改全部内容。",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "HELLO WORLD"
     },
     "add": {
       "title": "添加显示设备",
@@ -1339,7 +1393,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "概览",
+    "tabSettings": "设置",
+    "tabPlayback": "播放",
+    "tabsLabel": "显示设备分区"
   },
   "systemUpdate": {
     "updateAvailable": "有可用更新",
@@ -1712,6 +1770,12 @@
     "noCompatiblePagesTitle": "没有与此板尺寸匹配的页面。",
     "noCompatiblePagesDescription": "创建适合此板尺寸的页面后将显示在这里。"
   },
+  "pageFit": {
+    "madeFor": "为 {rows}×{cols} 显示板制作",
+    "notOnThisDisplay": "不适用于此显示屏",
+    "targetRestricted": "This page is restricted to other boards or display technologies",
+    "physicalFrameUnsupported": "Update this display’s output plugin to use flexible pixel pages"
+  },
   "profile": {
     "title": "个人资料",
     "description": "您的偏好和显示设置",
@@ -1751,9 +1815,9 @@
     "welcomeSendError": "发送失败",
     "welcomeDefault": "留空以使用默认问候语",
     "timezoneLabel": "时区",
-    "animationsTitle": "动画",
-    "animationsDescription": "分别为 board 预览和应用其他部分微调动作",
-    "boardAnimationsLabel": "Board 动画",
+    "animationsTitle": "图形和预览",
+    "animationsDescription": "控制整个应用中的动态效果。这些偏好设置适用于屏幕上的所有预览。",
+    "boardAnimationsLabel": "看板预览",
     "boardAnimationsHint": "瓦片变化时的 split-flap 翻转",
     "boardAnimationsOn": "开",
     "boardAnimationsDesktop": "仅桌面",
@@ -1767,7 +1831,7 @@
     "siteAnimationsOff": "关",
     "animationsReduceMotionOverride": "\"减少动态效果\" 已启用,它会覆盖这些设置。",
     "flapSpeedLabel": "翻转速度",
-    "flapSpeedHint": "board 稳定之前，每个瓦片停留在一个字符上的时长",
+    "flapSpeedHint": "选择整个应用中翻页式看板预览的节奏。",
     "flapSpeed_hardware": "最快",
     "flapSpeed_quick": "快速",
     "flapSpeed_standard": "标准",
@@ -1779,7 +1843,7 @@
     "flapSpeed_relaxedHint": "{ms} 毫秒 — 缓慢而从容的翻转，适合氛围展示。",
     "flapSpeedPreviewLabel": "预览",
     "flapSpeedInactive": "board 动画已关闭，因此翻转速度不起作用。",
-    "flapSpeedScreenOnlyNote": "这只会改变屏幕上的 board 预览。实体 Vestaboard 自身的过渡节奏另在「日程安排 → Board 过渡」中设置。"
+    "flapSpeedScreenOnlyNote": "此设置仅控制屏幕上的看板预览。要更改实际设备的时间设置，请前往显示设备 → 播放 → 看板过渡。"
   },
   "monitor": {
     "title": "监视器",
@@ -2653,6 +2717,8 @@
     "dismissFailed": "无法关闭，请重试。"
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "新页面的起始尺寸。以另一种尺寸制作的页面仍会按其自身尺寸显示。",
+    "textSizeFadeNote": "另一种文字大小的页面以淡入淡出切换。翻牌、级联和过渡插件需要显示屏自身的文字大小。",
     "noDevicesFound": "未找到设备。请手动输入地址。",
     "devicesFoundLabel": "为 {field} 找到的设备",
     "subnetLabel": "要搜索的网络（可选）",
@@ -2921,7 +2987,9 @@
     "issue": "{canvas} · {path}：{message}",
     "serverError": "画布未被接受：{message}",
     "notPixelNotice": "此页面包含像素画布。该看板无法绘制它们，因此其区域保持空白。请在 LED 像素看板上预览页面以进行编辑。",
-    "markerTitle": "画布从此行开始（不属于文字）"
+    "markerTitle": "画布从此行开始（不属于文字）",
+    "drawLayerHint": "绘制仅编辑像素。页面预览会显示画布背景和形状。",
+    "drawSourceHint": "此画布使用数据源。绘制会编辑备用像素；数据源可用时，预览会显示数据源内容。"
   },
   "silenceNotice": {
     "untilTitle": "静默至 {time}",
@@ -2984,5 +3052,81 @@
     "confirm": "确认",
     "revokeDevice": "撤销 {name}",
     "retry": "重试"
+  },
+  "plugins": {
+    "communityBadge": "社区",
+    "communityDescription": "由 FiestaBoard GitHub 组织以外的发布者发布。"
+  },
+  "flexibleEditor": {
+    "durationInvalid": "Enter a whole number from 10 to 3600 seconds.",
+    "actions": "Page actions",
+    "backToEditing": "Back to editing",
+    "retryPreview": "Retry preview",
+    "goToBlock": "Go to {label}",
+    "warning": "Warning",
+    "information": "Note",
+    "notSaved": "Not saved yet",
+    "repairDrafts": "Fix incomplete edits before saving. Your draft is kept.",
+    "fixBlock": "Fix Block {number}",
+    "sizeInvalid": "Enter whole-number dimensions from 1 to 128.",
+    "title": "Flexible page",
+    "description": "Stack text, drawings and space. Each display lays out the same document at its own size. Existing grid pages keep their exact layout.",
+    "close": "Close",
+    "undo": "Undo",
+    "redo": "Redo",
+    "save": "Save page",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "unsaved": "Unsaved changes",
+    "saveFailed": "Could not save page",
+    "name": "Name",
+    "duration": "Duration (seconds)",
+    "pageStyle": "Page style and layout",
+    "styleHelp": "Sizes: small, medium, large, xlarge, fit, or pixels. Family: fiesta. Empty values inherit; transparent clears a background; black is opaque.",
+    "page": "Page",
+    "verticalAlignment": "Vertical alignment",
+    "gap": "Block gap",
+    "block": "Block {number}",
+    "up": "Up",
+    "down": "Down",
+    "remove": "Remove",
+    "moveUp": "Move block {number} up",
+    "moveDown": "Move block {number} down",
+    "removeBlock": "Remove block {number}",
+    "unknownBlock": "This block kind is not editable here. Its document is preserved.",
+    "blockStyle": "{label} style and conditions",
+    "showWhen": "Show when",
+    "priority": "Priority",
+    "add": "Add {kind}",
+    "preview": "Display preview",
+    "noDisplay": "Add a display to preview this document.",
+    "previewDisplay": "Preview display",
+    "previewDescription": "Computed preview · {cols} × {rows} character cells. This does not send to a display.",
+    "rendering": "Rendering…",
+    "computedPreview": "{name} computed preview",
+    "characterPreview": "{name} character preview",
+    "issues": "Layout issues",
+    "canvasDimension": "{label} canvas {axis}",
+    "canvasSizeRequired": "Choose an explicit canvas size before painting. An automatic-size drawing adapts to each display; choosing a smaller size can crop its pixels.",
+    "draw": "Draw",
+    "shapes": "Shapes",
+    "source": "Source",
+    "fallbackHelp": "The drawing remains the fallback when the source is unavailable.",
+    "new": "New flexible page",
+    "loading": "Loading page…",
+    "unsupported": "This page format is not editable in this version.",
+    "targets": "Display restrictions",
+    "targetsHelp": "Each group with selections restricts this page. Leave a group unchecked to allow all of that group. When both groups have selections, a display must match both. Unavailable display IDs remain restricted until you remove them.",
+    "technologies": "Display technologies",
+    "technologyLed": "LED displays",
+    "technologyFlap": "Split-flap boards",
+    "technologyScreen": "Screens",
+    "displays": "Displays",
+    "unavailableDisplay": "Unavailable display: {id}",
+    "targetWarning": "Saved. Existing playback references on these displays no longer accept this page: {list}. Review their active pages, schedules and silence pages.",
+    "previewPixelDescription": "Computed preview · {width} × {height} pixels. This does not send to a display.",
+    "projectionHelp": "The character fallback is a separate layout and may contain text that does not fit this pixel preview.",
+    "signInRecovery": "Sign in to continue. Keep this editor open to retain your unsaved changes. Sign in in another tab, then return to save or retry the preview.",
+    "signInAnotherTab": "Sign in in another tab"
   }
 }

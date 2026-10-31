@@ -95,7 +95,9 @@
     "updateAvailable": "Update available",
     "updateTo": "Update to {version}",
     "about": "About FiestaBoard",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "popoverLabel": "Account menu",
+    "account": "Account"
   },
   "aboutDialog": {
     "description": "Version and system information for this FiestaBoard.",
@@ -159,7 +161,11 @@
     "importDialogCancel": "Cancel",
     "importDialogImport": "Import",
     "importDialogImporting": "Importing...",
-    "toastImported": "\"{name}\" added to your pages"
+    "toastImported": "\"{name}\" added to your pages",
+    "displayFilter": "Display filter",
+    "allPages": "All pages",
+    "libraryCount": "{count, plural, one {# page} other {# pages}}",
+    "clearFilter": "Show all pages"
   },
   "collections": {
     "title": "Collections",
@@ -256,7 +262,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "View mode",
+    "gridView": "Tile view",
+    "listView": "List view",
+    "libraryCount": "{count, plural, one {# collection} other {# collections}}",
+    "movePageUp": "Move {name} up",
+    "movePageDown": "Move {name} down",
+    "removePage": "Remove {name}",
+    "moveRuleUp": "Move rule {number} up",
+    "moveRuleDown": "Move rule {number} down",
+    "notFound": "This collection could not be found.",
+    "loadFailed": "Collections could not be loaded. Try again.",
+    "backToCollections": "Back to collections",
+    "discardChangesTitle": "Discard unsaved changes?",
+    "discardChangesDescription": "Your collection has changes that have not been saved.",
+    "keepEditing": "Keep editing",
+    "discardAndLeave": "Discard and leave",
+    "retryButton": "Try again"
   },
   "schedule": {
     "title": "Schedule",
@@ -594,7 +617,13 @@
       "createAction": "Create Demo Page",
       "recreateAction": "Recreate Demo Page",
       "requirementsWarning": "Configure the required settings below before creating a demo page."
-    }
+    },
+    "catalogCount": "{count} integrations",
+    "previousResults": "Previous results",
+    "nextResults": "Next results",
+    "resultsPage": "Page {current} of {total}",
+    "allCategories": "All categories",
+    "categoryFilter": "Integration category"
   },
   "settings": {
     "title": "Settings",
@@ -695,7 +724,15 @@
       "confirmDescription": "You are about to restore <file></file>. Your existing pages, collections, schedules and configuration will be overwritten. A timestamped copy of each existing file is kept alongside the new one so you can roll back manually if needed.",
       "restoringButton": "Restoring…",
       "restoreButton": "Restore backup"
-    }
+    },
+    "groupIdentity": "Instance",
+    "groupAppearance": "Appearance and accessibility",
+    "groupRegional": "Language, time and location",
+    "groupConnections": "Connections",
+    "displaySilenceTitle": "Display silence schedules",
+    "displaySilenceDescription": "Quiet hours belong to each display. Open a display’s Playback tab to change its schedule.",
+    "openDisplayPlayback": "Open {name} playback settings",
+    "openDisplays": "Manage displays"
   },
   "offline": {
     "youreOffline": "You're Offline",
@@ -1122,7 +1159,12 @@
     "liveSilencePreviewOnly": "Live Output is previewing only. The board stays quiet.",
     "liveSendAnyway": "Send to board anyway",
     "liveSilenceOverriding": "Live Output is waking the board during silence.",
-    "liveStopOverriding": "Stop sending"
+    "liveStopOverriding": "Stop sending",
+    "editingSurfaceLabel": "Page content",
+    "textMode": "Text",
+    "canvasesMode": "Canvases",
+    "showPreview": "Show preview and live output",
+    "hidePreview": "Hide preview and live output"
   },
   "displaySettings": {
     "unnamedBoard": "Unnamed Board",
@@ -1187,7 +1229,11 @@
     "notesTallLabel": "Notes tall",
     "customRangeError": "Each dimension must be between 1 and {max}.",
     "resizeMovedPages": "Pages moved to the board's new size: {pages}.",
-    "resizeStaleRefs": "The board's new size no longer fits these pages: {pages}. Edit them or they won't display on this board."
+    "resizeStaleRefs": "The board's new size no longer fits these pages: {pages}. Edit them or they won't display on this board.",
+    "leftBehind": {
+      "title": "Pages this display no longer shows",
+      "description": "A size change left these pages behind. Edit one to fit this display, or show it on another."
+    }
   },
   "displays": {
     "title": "Displays",
@@ -1227,7 +1273,15 @@
       "speedTitle": "Speed",
       "pluginsDescription": "Frame-by-frame animations such as typewriter and dissolve (deprecated). Applies to all displays.",
       "pluginsSavedToast": "Transition plugins setting saved.",
-      "pluginsSaveFailedToast": "Couldn't save the transition plugins setting: {error}"
+      "pluginsSaveFailedToast": "Couldn't save the transition plugins setting: {error}",
+      "replay": "Replay preview",
+      "nativePreviewNote": "Illustrates tile order and cadence. Hardware appearance may differ.",
+      "pluginPreviewUnavailable": "Preview unavailable for this transition plugin.",
+      "savedUnavailable": "Saved choice: {name} (unavailable)",
+      "reducedMotionNote": "Reduced motion is on. The preview shows the settled message.",
+      "cloudPreviewNote": "This display changes all at once.",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "HELLO WORLD"
     },
     "add": {
       "title": "Add a display",
@@ -1295,7 +1349,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "Overview",
+    "tabSettings": "Settings",
+    "tabPlayback": "Playback",
+    "tabsLabel": "Display sections"
   },
   "systemUpdate": {
     "updateAvailable": "Update Available",
@@ -1668,6 +1726,12 @@
     "noCompatiblePagesTitle": "No pages match this board's size.",
     "noCompatiblePagesDescription": "Create a page sized for this board to see it here."
   },
+  "pageFit": {
+    "targetRestricted": "This page is restricted to other boards or display technologies",
+    "madeFor": "Made for a {rows}×{cols} board",
+    "notOnThisDisplay": "Not on this display",
+    "physicalFrameUnsupported": "Update this display’s output plugin to use flexible pixel pages"
+  },
   "profile": {
     "title": "Profile",
     "description": "Your preferences and display settings",
@@ -1697,9 +1761,9 @@
     "accessibilityDescription": "Motion and animation preferences",
     "reduceMotion": "Reduce motion",
     "reduceMotionHint": "Minimizes animations throughout the interface",
-    "animationsTitle": "Animations",
-    "animationsDescription": "Fine-tune motion separately for the board preview and the rest of the app",
-    "boardAnimationsLabel": "Board animations",
+    "animationsTitle": "Graphics and previews",
+    "animationsDescription": "Control motion throughout the app. These preferences apply to every on-screen preview.",
+    "boardAnimationsLabel": "Board previews",
     "boardAnimationsHint": "The split-flap flip when tiles change",
     "boardAnimationsOn": "On",
     "boardAnimationsDesktop": "Desktop only",
@@ -1713,7 +1777,7 @@
     "siteAnimationsOff": "Off",
     "animationsReduceMotionOverride": "Reduce motion is enabled, which overrides these settings.",
     "flapSpeedLabel": "Flip speed",
-    "flapSpeedHint": "How long each tile holds one character while the board settles",
+    "flapSpeedHint": "Choose the cadence used by split-flap previews throughout this app.",
     "flapSpeed_hardware": "Fastest",
     "flapSpeed_quick": "Quick",
     "flapSpeed_standard": "Standard",
@@ -1725,7 +1789,7 @@
     "flapSpeed_relaxedHint": "{ms}ms — a slow, deliberate flip for ambient displays.",
     "flapSpeedPreviewLabel": "Preview",
     "flapSpeedInactive": "Board animations are off, so flip speed has no effect.",
-    "flapSpeedScreenOnlyNote": "This changes the board preview on screen only. How your physical Vestaboard paces its own transitions is set separately, under Scheduling → Board transitions.",
+    "flapSpeedScreenOnlyNote": "This controls the board preview on screen only. Change hardware timing in Displays → Playback → Board transitions.",
     "welcomeTitle": "Welcome Message",
     "welcomeDescription": "The greeting sent to your board from the setup wizard",
     "welcomePlaceholder": "HIYA FROM FIESTABOARD",
@@ -2430,8 +2494,8 @@
   "boardSizeIndicator": {
     "custom": "Custom",
     "panel": "Panel",
-    "ariaLabel": "{rows} rows by {cols} columns",
-    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+    "ariaLabel": "{rows, plural, one {# row} other {# rows}} by {cols, plural, one {# column} other {# columns}}",
+    "ariaLabelWithLayout": "{rows, plural, one {# row} other {# rows}} by {cols, plural, one {# column} other {# columns}}, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / external clients",
@@ -2653,6 +2717,8 @@
     "dismissFailed": "Could not dismiss. Try again."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "The size new pages start at. Pages made at the other size still show, at their own size.",
+    "textSizeFadeNote": "Pages at the other text size change with Fade. Flip, Cascade and transition plugins need the display's own text size.",
     "noDevicesFound": "No devices found. Enter the address yourself.",
     "devicesFoundLabel": "Devices found for {field}",
     "subnetLabel": "Network to search (optional)",
@@ -2921,7 +2987,9 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "The canvases were not accepted: {message}",
     "notPixelNotice": "This page has pixel canvases. This board can't draw them, so their areas stay blank. Preview the page on an LED pixel board to edit them.",
-    "markerTitle": "A canvas starts on this row (not part of the text)"
+    "markerTitle": "A canvas starts on this row (not part of the text)",
+    "drawLayerHint": "Draw edits pixels only. The page preview shows the canvas background and shapes.",
+    "drawSourceHint": "This canvas uses a source. Drawing edits its fallback pixels; the preview shows the source when available."
   },
   "silenceNotice": {
     "untilTitle": "Silenced until {time}",
@@ -2984,5 +3052,81 @@
     "confirm": "Confirm",
     "revokeDevice": "Revoke {name}",
     "retry": "Retry"
+  },
+  "plugins": {
+    "communityBadge": "Community",
+    "communityDescription": "Published outside the FiestaBoard GitHub organization."
+  },
+  "flexibleEditor": {
+    "durationInvalid": "Enter a whole number from 10 to 3600 seconds.",
+    "actions": "Page actions",
+    "backToEditing": "Back to editing",
+    "retryPreview": "Retry preview",
+    "goToBlock": "Go to {label}",
+    "warning": "Warning",
+    "information": "Note",
+    "notSaved": "Not saved yet",
+    "repairDrafts": "Fix incomplete edits before saving. Your draft is kept.",
+    "fixBlock": "Fix Block {number}",
+    "sizeInvalid": "Enter whole-number dimensions from 1 to 128.",
+    "title": "Flexible page",
+    "description": "Stack text, drawings and space. Each display lays out the same document at its own size. Existing grid pages keep their exact layout.",
+    "close": "Close",
+    "undo": "Undo",
+    "redo": "Redo",
+    "save": "Save page",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "unsaved": "Unsaved changes",
+    "saveFailed": "Could not save page",
+    "name": "Name",
+    "duration": "Duration (seconds)",
+    "pageStyle": "Page style and layout",
+    "styleHelp": "Sizes: small, medium, large, xlarge, fit, or pixels. Family: fiesta. Empty values inherit; transparent clears a background; black is opaque.",
+    "page": "Page",
+    "verticalAlignment": "Vertical alignment",
+    "gap": "Block gap",
+    "block": "Block {number}",
+    "up": "Up",
+    "down": "Down",
+    "remove": "Remove",
+    "moveUp": "Move block {number} up",
+    "moveDown": "Move block {number} down",
+    "removeBlock": "Remove block {number}",
+    "unknownBlock": "This block kind is not editable here. Its document is preserved.",
+    "blockStyle": "{label} style and conditions",
+    "showWhen": "Show when",
+    "priority": "Priority",
+    "add": "Add {kind}",
+    "preview": "Display preview",
+    "noDisplay": "Add a display to preview this document.",
+    "previewDisplay": "Preview display",
+    "previewDescription": "Computed preview · {cols} × {rows} character cells. This does not send to a display.",
+    "rendering": "Rendering…",
+    "computedPreview": "{name} computed preview",
+    "characterPreview": "{name} character preview",
+    "issues": "Layout issues",
+    "canvasDimension": "{label} canvas {axis}",
+    "canvasSizeRequired": "Choose an explicit canvas size before painting. An automatic-size drawing adapts to each display; choosing a smaller size can crop its pixels.",
+    "draw": "Draw",
+    "shapes": "Shapes",
+    "source": "Source",
+    "fallbackHelp": "The drawing remains the fallback when the source is unavailable.",
+    "new": "New flexible page",
+    "loading": "Loading page…",
+    "unsupported": "This page format is not editable in this version.",
+    "targets": "Display restrictions",
+    "targetsHelp": "Each group with selections restricts this page. Leave a group unchecked to allow all of that group. When both groups have selections, a display must match both. Unavailable display IDs remain restricted until you remove them.",
+    "technologies": "Display technologies",
+    "technologyLed": "LED displays",
+    "technologyFlap": "Split-flap boards",
+    "technologyScreen": "Screens",
+    "displays": "Displays",
+    "unavailableDisplay": "Unavailable display: {id}",
+    "targetWarning": "Saved. Existing playback references on these displays no longer accept this page: {list}. Review their active pages, schedules and silence pages.",
+    "previewPixelDescription": "Computed preview · {width} × {height} pixels. This does not send to a display.",
+    "projectionHelp": "The character fallback is a separate layout and may contain text that does not fit this pixel preview.",
+    "signInRecovery": "Sign in to continue. Keep this editor open to retain your unsaved changes. Sign in in another tab, then return to save or retry the preview.",
+    "signInAnotherTab": "Sign in in another tab"
   }
 }

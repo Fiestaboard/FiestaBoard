@@ -210,6 +210,10 @@ class _ShapeBase(BaseModel):
         out = []
         for name in _COLOR_FIELDS:
             attr = "from_" if name == "from" else name
+            # Page documents may retain opaque extensions whose names are
+            # colour fields on a different shape type.
+            if attr not in type(self).model_fields:
+                continue
             value = getattr(self, attr, None)
             if isinstance(value, str) and not is_expression(value):
                 out.append((name, value))

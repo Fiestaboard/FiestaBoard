@@ -8,17 +8,18 @@ import json
 import logging
 import re
 import threading
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 
 from src.storage.json_store import JsonStore
 from src.text_utils import extract_alignment_from_line as _extract_alignment_from_line
 
-from .models import Page
+from .models import Page, PageUpdate
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 6
+CURRENT_SCHEMA_VERSION = 7
 
 
 # Mapping from obsolete plugin id (used in template variable references,
@@ -232,6 +233,21 @@ def _migrate_v5_to_v6(pages_data: list[dict]) -> int:
     return migrated
 
 
+def _migrate_v6_to_v7(pages_data: list[dict]) -> int:
+    """Migration 6 -> 7: no-op; the bump makes older builds refuse a file holding flexible pages.
+
+    Schema v7 adds the ``flexible`` page type (``style``, ``layout``,
+    ``blocks``, ``targets``). No page before this version is flexible, so
+    nothing is rewritten. The version stamp alone is what makes a v6 build's
+    ``JsonStore`` refuse the file instead of mangling flexible pages.
+
+    Idempotent: touches no page.
+    """
+    migrated = 0
+    logger.info("Pages migration v6 -> v7: %d page(s)", migrated)
+    return migrated
+
+
 # Ordered list of (target_version, migration_function).
 # Each function receives the raw pages list and returns the number of pages affected.
 MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
@@ -241,6 +257,7 @@ MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
     (4, _migrate_v3_to_v4),
     (5, _migrate_v4_to_v5),
     (6, _migrate_v5_to_v6),
+    (7, _migrate_v6_to_v7),
 ]
 
 
@@ -251,6 +268,13 @@ def _adapt_migration(fn: Callable[[list[dict]], int]) -> Callable[[dict], int]:
     operate on the wrapped ``pages`` list, exactly as before.
     """
     return lambda data: fn(data.get("pages", []))
+
+
+class PageRevisionConflict(ValueError):
+    """The editor's page generation no longer matches the live page."""
+
+    def __init__(self):
+        super().__init__("Page changed since it was loaded. Reload the page before saving or deleting.")
 
 
 class PageStorage:
@@ -281,6 +305,7 @@ class PageStorage:
         # bug in a migration, a renamed enum value) never silently deletes a
         # user's page from disk.
         self._failed_entries: list[dict] = []
+        self._document_extras: dict = {}
 
         # Load existing pages (runs migrations if needed)
         self._load()
@@ -295,6 +320,15 @@ class PageStorage:
 
     def _load(self) -> None:
         """Load pages from storage file, running migrations if needed."""
+        with self.lock:
+            self._load_locked()
+
+    def _load_locked(self) -> None:
+        # A restore has already replaced the file. Even if the new schema
+        # cannot be read, never leave the pre-restore document live in memory.
+        self._pages = {}
+        self._failed_entries = []
+        self._document_extras = {}
         try:
             data = self._store.load()
             if data is None:
@@ -302,6 +336,7 @@ class PageStorage:
                 self._failed_entries = []
                 return
 
+            self._document_extras = {k: v for k, v in data.items() if k not in {"schema_version", "pages"}}
             needs_save = self._store.migrated
 
             self._pages = {}
@@ -312,12 +347,20 @@ class PageStorage:
                 raw_snapshot = dict(page_data) if isinstance(page_data, dict) else page_data
                 try:
                     if isinstance(page_data, dict):
+                        # Runtime metadata is allocated by this live owner,
+                        # never restored from caller-controlled disk values.
+                        page_data = {
+                            k: v
+                            for k, v in page_data.items()
+                            if k not in {"revision", "expected_revision", "edit_protocol", "document_protocol"}
+                        }
                         if "created_at" in page_data and isinstance(page_data["created_at"], str):
                             page_data["created_at"] = datetime.fromisoformat(page_data["created_at"])
                         if "updated_at" in page_data and isinstance(page_data["updated_at"], str):
                             page_data["updated_at"] = datetime.fromisoformat(page_data["updated_at"])
 
                     page = Page(**page_data)
+                    page.revision = str(uuid.uuid4())
                     self._pages[page.id] = page
                 except Exception as e:
                     page_id = raw_snapshot.get("id", "<unknown>") if isinstance(raw_snapshot, dict) else "<unknown>"
@@ -351,7 +394,9 @@ class PageStorage:
         try:
             pages_out: list[dict] = []
             for page in self._pages.values():
-                page_data = page.model_dump()
+                page_data = page.model_dump(
+                    exclude={"revision", "expected_revision", "edit_protocol", "document_protocol"}
+                )
                 # Convert datetime objects to ISO strings for JSON serialization
                 if isinstance(page_data.get("created_at"), datetime):
                     page_data["created_at"] = page_data["created_at"].isoformat()
@@ -364,6 +409,7 @@ class PageStorage:
             pages_out.extend(self._failed_entries)
 
             data = {
+                **self._document_extras,
                 "schema_version": CURRENT_SCHEMA_VERSION,
                 "pages": pages_out,
             }
@@ -420,13 +466,21 @@ class PageStorage:
             if errors:
                 raise ValueError(f"Invalid page configuration: {errors}")
 
+            page = page.model_copy(update={"revision": str(uuid.uuid4())})
             self._pages[page.id] = page
             self._save()
 
         logger.info(f"Created page: {page.id} ({page.name})")
         return page
 
-    def update(self, page_id: str, updates: dict) -> Page | None:
+    def check_revision(self, page_id: str, expected_revision: str | None) -> None:
+        """Check under the mutation lock; callers may extend the critical section."""
+        with self.lock:
+            page = self._pages.get(page_id)
+            if page is not None and expected_revision is not None and page.revision != expected_revision:
+                raise PageRevisionConflict()
+
+    def update(self, page_id: str, updates: dict, *, expected_revision: str | None = None) -> Page | None:
         """Update an existing page.
 
         Args:
@@ -437,6 +491,7 @@ class PageStorage:
             Updated page if found, None otherwise
         """
         with self._store.lock:
+            self.check_revision(page_id, expected_revision)
             return self._update_locked(page_id, updates)
 
     def _update_locked(self, page_id: str, updates: dict) -> Page | None:
@@ -462,13 +517,24 @@ class PageStorage:
             "transition_interval_ms",
             "transition_step_size",
             "canvases",
+            # A flexible page's style, layout and scheduling restriction can be
+            # cleared (null falls back to the defaults: no page style, a top
+            # stack, every board). ``blocks`` stays sticky: a page has blocks.
+            "style",
+            "layout",
+            "targets",
         }
         for key, value in updates.items():
-            if key in page_dict and (value is not None or key in nullable_fields):
+            if (
+                key in PageUpdate.model_fields
+                and key != "expected_revision"
+                and (value is not None or key in nullable_fields)
+            ):
                 page_dict[key] = value
 
         # Update timestamp
         page_dict["updated_at"] = datetime.now(UTC)
+        page_dict["revision"] = str(uuid.uuid4())
 
         # Recreate page with updates
         updated_page = Page(**page_dict)
@@ -483,7 +549,7 @@ class PageStorage:
         logger.info(f"Updated page: {page_id}")
         return updated_page
 
-    def delete(self, page_id: str) -> bool:
+    def delete(self, page_id: str, *, expected_revision: str | None = None) -> bool:
         """Delete a page.
 
         Args:
@@ -493,6 +559,7 @@ class PageStorage:
             True if deleted, False if not found
         """
         with self._store.lock:
+            self.check_revision(page_id, expected_revision)
             if page_id not in self._pages:
                 return False
 

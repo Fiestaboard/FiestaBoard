@@ -69,7 +69,7 @@ class TestComputeAutofitGrid:
     def test_a_screen_narrower_than_a_note_keeps_note_width(self):
         # 24" holds 12 columns; every plugin is authored for >= 15.
         assert compute_autofit_grid(24) == (5, MIN_GRID_COLS)
-        # Literally 15: the 3x10 floor is for LED boards in pixels, not panels.
+        # Literally 15: the 1x5 floor is for LED boards in pixels, not panels.
         assert compute_autofit_grid(24) == (5, 15)
 
     def test_largest_supported_screen_fits_without_clamping(self):

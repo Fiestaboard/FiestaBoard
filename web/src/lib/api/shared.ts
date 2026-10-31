@@ -8,7 +8,7 @@ export interface ActionResponse {
 }
 
 // Page types
-export type PageType = "single" | "composite" | "template";
+export type PageType = "single" | "composite" | "template" | "flexible";
 
 // Device types
 /**

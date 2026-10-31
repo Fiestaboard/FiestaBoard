@@ -170,9 +170,8 @@ class TestPollEveryBoard:
         assert b1.read_current_message.call_count == 4
 
     @pytest.mark.parametrize("concurrent_sleep", [False, True])
-    def test_poll_loop_sleeps_the_local_interval_when_cloud_is_longer(self, monkeypatch, concurrent_sleep):
-        """A cloud primary must not stretch the loop past the local tick, or a
-        local secondary would be read every 180 s."""
+    def test_poll_loop_checks_live_cadence_changes_every_second(self, monkeypatch, concurrent_sleep):
+        """Reads retain independent gates while settings are checked each second."""
         b1, b2 = _client(cost="network"), _client()
         b1.read_current_message.return_value = SENT["b1"]
         b2.read_current_message.return_value = SENT["b2"]
@@ -212,7 +211,7 @@ class TestPollEveryBoard:
             svc.running = True
             svc._board_poll_loop()
 
-        assert slept == [LOCAL]
+        assert slept == [1]
 
     def test_secondary_external_write_marks_that_runtime_only(self, clock):
         b1, b2 = _client(), _client()

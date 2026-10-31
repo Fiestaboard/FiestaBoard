@@ -67,9 +67,17 @@ from src.send_outcome import WriteResult
 
 from .breaker import DEFAULT_WRITE_TIMEOUT_MS, output_breakers
 from .hooks import ConnectionCheck, DevicePoll, ReadBack
+from .native_playlist import NativePlaylist
 from .plugin_base import CancelToken, OutputPluginBase, TimedFrame
 from .runtime import OutputRuntime
-from .transitions import NATIVE_STRATEGIES, TRANSITION_PLUGIN_PREFIX, NativeTransition, transition_plugins_enabled
+from .transitions import (
+    NATIVE_STRATEGIES,
+    PER_CELL_TRANSITIONS,
+    TRANSITION_PLUGIN_PREFIX,
+    NativeTransition,
+    strategy_for_full_frame,
+    transition_plugins_enabled,
+)
 
 if TYPE_CHECKING:
     from .cells import RichCellFrame
@@ -134,6 +142,16 @@ class OutputPluginDriver:
     @property
     def capabilities(self) -> OutputCapabilities:
         return self.plugin.capabilities()
+
+    @property
+    def native_rotation_enabled(self) -> bool:
+        """A literal opt-in and an implemented hook; legacy outputs stay unchanged."""
+        method = getattr(type(self.plugin), "sync_native_playlist", None)
+        return (
+            self.plugin.config.get("native_rotation") is True
+            and callable(method)
+            and method is not OutputPluginBase.sync_native_playlist
+        )
 
     @property
     def use_cloud(self) -> bool:
@@ -228,6 +246,30 @@ class OutputPluginDriver:
         ):
             choice = strategy
         return resolve_led_transition(choice, self.plugin.device_model)
+
+    def _transition_around_full_frame(
+        self, transition: ResolvedLedTransition, before: Any, after: Any
+    ) -> ResolvedLedTransition:
+        """*transition*, or a fade when it is per-cell and a full frame is involved.
+
+        A page drawn at another text size carries one opaque full-frame layer
+        over cells projected to the board's own grid. A flip or a cascade
+        animates those cells, not the picture over them, so the change would
+        cut (design section 6): when *before* or *after* carries a full frame,
+        the device's fade runs instead. A device that cannot run a fade either
+        (the result is still per-cell) snaps.
+        """
+        if transition.id not in PER_CELL_TRANSITIONS:
+            return transition
+        from src.led.page_frame import carries_full_frame
+
+        model = self.plugin.device_model
+        if not (carries_full_frame(before, model) or carries_full_frame(after, model)):
+            return transition
+        faded = self.resolve_transition(strategy_for_full_frame(transition.id))
+        if faded.id in PER_CELL_TRANSITIONS:
+            return ResolvedLedTransition("none", "none", "fallback", requested=transition.id)
+        return faded
 
     @property
     def write_timeout_seconds(self) -> float:
@@ -341,7 +383,7 @@ class OutputPluginDriver:
     def _deliver(
         self,
         admission: Admission,
-        final: list[list[int]],
+        final: list[list[int]] | None,
         call: Callable[[CancelToken], Any],
         cells: RichCellFrame | None = None,
         prior_send: Callable[[], bool] | None = None,
@@ -400,7 +442,12 @@ class OutputPluginDriver:
         if result.success:
             # Landed — or the device already showed it (a fan-out whose every
             # part was unchanged): either way it is what the board shows.
-            self._frames.record_sent(final, cells=cells)
+            if final is None:
+                # Installing a playlist proves no particular member is on
+                # screen. Device selection arrives through poll_device.
+                self._frames.clear()
+            else:
+                self._frames.record_sent(final, cells=cells)
             if token.is_set():
                 # The target can land before a transition finishes restoring
                 # device state. Its successor must still reach the plugin.
@@ -442,6 +489,29 @@ class OutputPluginDriver:
                 self.plugin.forced = False
 
         return forced_call
+
+    def sync_native_playlist(self, playlist: NativePlaylist, *, with_outcome: bool = False) -> Any:
+        """Reconcile a playlist as one bounded, cancellable output write.
+
+        Reconciliation still reaches the plugin for unchanged snapshots: it
+        must detect lost slots/reboots without restarting dwell or focus.
+        """
+        if not self.native_rotation_enabled or playlist.board_id != self.plugin.board_id:
+            return self._result(WriteResult(False, False), with_outcome)
+        with self._output_runtime.run(), self._output_runtime.write():
+            self._last_send_preempted = False
+            admission = self._admit(lambda: False)
+            if admission.verdict == "throttled":
+                return self._result(
+                    WriteResult(True, False, throttled=True, retry_after_seconds=admission.retry_after), with_outcome
+                )
+            refused = self._breaker_refusal(admission)
+            if refused is not None:
+                return self._result(refused, with_outcome)
+            result = self._deliver(
+                admission, None, lambda cancel: self.plugin.sync_native_playlist(playlist, cancel=cancel)
+            )
+            return self._result(result, with_outcome)
 
     def send_characters(
         self,
@@ -585,6 +655,8 @@ class OutputPluginDriver:
         cols = len(characters[0]) if characters else 0
         before = self._shown_cells(len(characters), cols)
         transition = self.resolve_transition(strategy)
+        if before is not None:
+            transition = self._transition_around_full_frame(transition, before, after)
         if before is None or transition.spec == "none" or cells_equal(before, after):
             rich: dict[str, Any] = {"cells": cells} if cells is not None else {}
             return self.send_characters(characters, force=force, with_outcome=with_outcome, **rich)

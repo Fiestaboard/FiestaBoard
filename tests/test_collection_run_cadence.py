@@ -84,13 +84,9 @@ def run_clock(*, mode="time", scheduled=False, paused=False, collection=True, pr
         if deferred:
             service.runtimes["secondary"].last_schedule_enabled = False
 
-        def send(*, wait):
+        def send(*, wait, board_ids=None):
             assert wait is False
             ticks.append(clock[0])
-
-        def pending():
-            if clock[0] and clock[0] % 14 == 0:
-                send(wait=False)
 
         def sleep(seconds):
             assert seconds == 1
@@ -98,12 +94,11 @@ def run_clock(*, mode="time", scheduled=False, paused=False, collection=True, pr
             if clock[0] == 30:
                 service.running = False
 
-        scheduler.run_pending.side_effect = pending
         with (
             patch.object(service, "check_and_send_active_page", side_effect=send),
             patch.object(service, "_silence_state_changed", return_value=False),
             patch("src.main.time.sleep", side_effect=sleep),
         ):
             service.run()
-        scheduler.every.assert_called_once_with(14)
+        scheduler.every.assert_not_called()
     return ticks

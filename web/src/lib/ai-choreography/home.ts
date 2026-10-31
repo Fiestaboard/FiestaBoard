@@ -9,7 +9,11 @@ import { settingsHref } from "./anchors";
  * tool lands in the right place by convention; the generic script points
  * at the most specific anchor it can name from the call's arguments.
  */
-export function homeFor(call: Pick<ToolCall, "name" | "args">): { href: string; anchor: string } {
+export function homeFor(
+  call: Pick<ToolCall, "name" | "args">,
+  currentBoardId?: string,
+  primaryBoardId?: string,
+): { href: string; anchor: string } {
   const { name, args } = call;
   const id = (key: string): string | undefined => (typeof args[key] === "string" ? (args[key] as string) : undefined);
 
@@ -36,7 +40,15 @@ export function homeFor(call: Pick<ToolCall, "name" | "args">): { href: string; 
   }
   if (/^setting|_setting/.test(name)) {
     const category = id("category") ?? "general";
-    return { href: settingsHref(category), anchor: `settings.${category}` };
+    const values = args.values as Record<string, unknown> | undefined;
+    const boardId =
+      id("board_id") ??
+      (typeof values?.board_id === "string" ? values.board_id : undefined) ??
+      (["polling", "schedule_behavior"].includes(category) ? primaryBoardId : currentBoardId);
+    if (!boardId && ["silence_schedule", "polling", "schedule_behavior"].includes(category)) {
+      return { href: "/displays", anchor: "settings.boards" };
+    }
+    return { href: settingsHref(category, boardId), anchor: `settings.${category}` };
   }
   // A board *device* Displays configures (plan D21) — not every tool whose
   // name happens to end in `_board` (blank_board, pause_board, … are board
@@ -45,7 +57,7 @@ export function homeFor(call: Pick<ToolCall, "name" | "args">): { href: string; 
   if (/panel|hdmi|board_size|identify_tile|^add_board|^remove_board|^update_board/.test(name)) {
     const board = name.includes("panel") || /^(add|remove)_board/.test(name) ? undefined : id("board_id");
     return board
-      ? { href: `/displays/${encodeURIComponent(board)}`, anchor: `settings.board.${board}` }
+      ? { href: `/displays/${encodeURIComponent(board)}?section=settings`, anchor: `settings.board.${board}` }
       : { href: settingsHref("boards"), anchor: "settings.boards" };
   }
   if (/wifi|network/.test(name)) return { href: "/settings?section=network", anchor: "settings.network" };

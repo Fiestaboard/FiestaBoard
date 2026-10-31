@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from src.devices import DEVICE_DIMENSIONS, get_dimensions
 from src.templates.filters import FILTER_NAMES as _FILTER_NAMES
 from src.templates.filters import TEMPLATE_FILTERS as _TEMPLATE_FILTERS
+from src.text_utils import count_noun
 
 
 @dataclass(frozen=True)
@@ -80,7 +81,7 @@ FILTER_NAMES = _FILTER_NAMES
 def dimensions_phrase(device_type: str) -> str:
     """``"22 columns x 6 rows"`` — the chat system prompt's device line."""
     dims = get_dimensions(device_type)
-    return f"{dims.cols} columns x {dims.rows} rows"
+    return f"{count_noun(dims.cols, 'column')} x {count_noun(dims.rows, 'row')}"
 
 
 def _color_names_by_code() -> dict[int, list[str]]:
@@ -134,7 +135,7 @@ def device_dimensions_block() -> str:
     width = max(len(device) for device in DEVICE_DIMENSIONS) + 1
     lines = ["DEVICE DIMENSIONS (template_lines length must match exactly)"]
     for device, dims in DEVICE_DIMENSIONS.items():
-        lines.append(f"  • {device + ':':<{width}} {dims.cols} columns × {dims.rows} rows")
+        lines.append(f"  • {device + ':':<{width}} {count_noun(dims.cols, 'column')} × {count_noun(dims.rows, 'row')}")
     lines += [
         "  Content longer than the board width is TRUNCATED at render time —",
         "  prefer concise variable names, the |wrap filter, or {{= LEFT(...)}}",

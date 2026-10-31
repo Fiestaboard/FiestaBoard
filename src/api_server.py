@@ -500,6 +500,24 @@ through v10 and removed in v11. Every response that carries them sends
 and the schema marks the typed ones `deprecated`. The same fields leave the
 MQTT `board_api_mode` entity and the MCP board tools in v11.
 
+### Flexible pages
+
+A page with `type: "flexible"` is laid out for each board it is shown on
+rather than drawn for one grid. It carries `blocks`, `style`, `layout` and an
+optional `targets`, and none of the grid fields: no `template`, `rows`,
+`line_metadata`, `canvases`, `display_type`, `device_type`, `notes_wide`,
+`notes_tall`, `grid_rows` or `grid_cols`. It fits every board unless its `targets` exclude
+one, so a schedule or collection may put it on any board. Its
+`document_protocol` is `page-document-v2`.
+
+This is additive. Grid pages (`template`, `single`, `composite`) read and
+write exactly as before and stay on `page-document-v1`. A client that lists
+pages will now meet pages without a `template` key, so check `type` before
+reading it. The web UI's preview responses for a flexible page add
+`layout_issues`: one entry per compromise the layout made on that board, each
+with a `path` (the block, then the style property), a `code`, a `severity`
+and a `message`.
+
 ### Authentication
 
 Off by default: a fresh install answers every request. With

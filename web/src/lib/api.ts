@@ -32,6 +32,7 @@ export * from "./api/boards";
 export * from "./api/canvas";
 export * from "./api/collections";
 export * from "./api/core";
+export * from "./api/flexible";
 export * from "./api/misc";
 export * from "./api/oauth";
 export * from "./api/outputs";

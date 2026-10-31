@@ -321,7 +321,7 @@ class TestSettingsServiceInit:
         # The pending save must be a REAL one: an unchanged save is now
         # correctly skipped as a no-op (write_json_atomic if_changed), and a
         # save that never opens the file cannot observe a refused open.
-        settings_service._polling.interval_seconds += 5
+        settings_service._board.boards[0]["polling_interval_seconds"] += 5
 
         with patch("builtins.open", side_effect=OSError("write error")), pytest.raises(OSError):
             settings_service._save_to_file()
@@ -339,7 +339,7 @@ class TestSettingsServiceInit:
         # correctly skipped as a no-op (write_json_atomic if_changed), so a
         # crash test that re-saves identical bytes would never reach the
         # crash it exists to test.
-        settings_service._polling.interval_seconds += 5
+        settings_service._board.boards[0]["polling_interval_seconds"] += 5
 
         real_dump = json.dump
 

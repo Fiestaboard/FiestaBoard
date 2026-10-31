@@ -27,7 +27,8 @@ from __future__ import annotations
 import math
 import re
 from calendar import monthrange
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from functools import lru_cache
@@ -37,6 +38,7 @@ import regex as _regex
 
 from .colors import COLOR_CODES as _COLOR_CODES
 from .colors import is_color_code as _is_color_code
+from .limits import MAX_TEMPLATE_TEXT, bounded_sub
 
 # --------------------------------------------------------------------------- #
 # Error model
@@ -754,6 +756,8 @@ def _fn_roundup(args: list[Any]) -> Any:
         return err
     x = _to_number(args[0])
     n = int(_to_number(args[1])) if len(args) == 2 else 0
+    if abs(n) > 308:
+        return ErrorValue("#NUM")
     multiplier = 10**n
     if x >= 0:
         return math.ceil(x * multiplier) / multiplier
@@ -768,6 +772,8 @@ def _fn_rounddown(args: list[Any]) -> Any:
         return err
     x = _to_number(args[0])
     n = int(_to_number(args[1])) if len(args) == 2 else 0
+    if abs(n) > 308:
+        return ErrorValue("#NUM")
     multiplier = 10**n
     if x >= 0:
         return math.floor(x * multiplier) / multiplier
@@ -855,11 +861,33 @@ def _fn_sign(args: list[Any]) -> Any:
 
 
 # Text
+_MAX_TEXT_RESULT = MAX_TEMPLATE_TEXT
+_MAX_EVAL_STEPS = 10_000
+_EVAL_BUDGET_KEY = "__fiesta_expression_budget__"
+_ACTIVE_BUDGET: ContextVar[list[int] | None] = ContextVar("expression_budget", default=None)
+
+
+def _bounded_join(parts: Iterable[str], separator: str = "") -> str:
+    rows: list[str] = []
+    length = 0
+    for part in parts:
+        budget = _ACTIVE_BUDGET.get()
+        if budget is not None:
+            budget[0] -= 1
+            if budget[0] < 0:
+                raise FormulaError("#NUM", "Expression work limit exceeded")
+        length += len(part) + (len(separator) if rows else 0)
+        if length > _MAX_TEXT_RESULT or len(rows) >= _MAX_EVAL_STEPS:
+            raise FormulaError("#NUM", "Expression output limit exceeded")
+        rows.append(part)
+    return separator.join(rows)
+
+
 def _fn_concat(args: list[Any]) -> Any:
     err = _propagate(*args)
     if err is not None:
         return err
-    return "".join(_to_string(a) for a in args)
+    return _bounded_join(_to_string(a) for a in args)
 
 
 def _fn_len(args: list[Any]) -> Any:
@@ -914,7 +942,11 @@ def _fn_replace(args: list[Any]) -> Any:
     err = _propagate(*args)
     if err is not None:
         return err
-    return _to_string(args[0]).replace(_to_string(args[1]), _to_string(args[2]))
+    text, old, new = (_to_string(arg) for arg in args)
+    count = text.count(old)
+    if len(text) + count * (len(new) - len(old)) > _MAX_TEXT_RESULT:
+        return ErrorValue("#NUM")
+    return text.replace(old, new)
 
 
 def _fn_proper(args: list[Any]) -> Any:
@@ -990,11 +1022,12 @@ def _fn_rept(args: list[Any]) -> Any:
     n = int(_to_number(args[1]))
     if n < 0:
         return ErrorValue("#VALUE")
-    # Cap repetitions so a runaway formula can't allocate gigabytes; the board
-    # is at most 22 cols wide so 1024 is far more than enough.
-    if n > 1024:
+    # Both limits are checked before allocation. A count-only limit still
+    # lets nested REPT calls multiply strings exponentially.
+    text = _to_string(args[0])
+    if n > 1024 or len(text) * n > 65_536:
         return ErrorValue("#NUM")
-    return _to_string(args[0]) * n
+    return text * n
 
 
 def _fn_contains(args: list[Any]) -> Any:
@@ -1027,6 +1060,8 @@ def _fn_pad(args: list[Any]) -> Any:
     if err is not None:
         return err
     width = int(_to_number(args[1]))
+    if width > _MAX_TEXT_RESULT:
+        return ErrorValue("#NUM")
     if width < 0:
         return ErrorValue("#VALUE")
     return _to_string(args[0]).ljust(width)[:width]
@@ -1038,6 +1073,8 @@ def _fn_padleft(args: list[Any]) -> Any:
     if err is not None:
         return err
     width = int(_to_number(args[1]))
+    if width > _MAX_TEXT_RESULT:
+        return ErrorValue("#NUM")
     if width < 0:
         return ErrorValue("#VALUE")
     s = _to_string(args[0])
@@ -1050,6 +1087,8 @@ def _fn_zeropad(args: list[Any]) -> Any:
     if err is not None:
         return err
     width = int(_to_number(args[1]))
+    if width > _MAX_TEXT_RESULT:
+        return ErrorValue("#NUM")
     if width <= 0:
         return _to_string(args[0])
     s = _to_string(args[0])
@@ -1064,6 +1103,8 @@ def _fn_center(args: list[Any]) -> Any:
     if err is not None:
         return err
     width = int(_to_number(args[1]))
+    if width > _MAX_TEXT_RESULT:
+        return ErrorValue("#NUM")
     if width < 0:
         return ErrorValue("#VALUE")
     return _to_string(args[0]).center(width)[:width]
@@ -1091,6 +1132,8 @@ def _fn_fixed(args: list[Any]) -> Any:
     if err is not None:
         return err
     n = int(_to_number(args[1])) if len(args) == 2 else 2
+    if n > _MAX_TEXT_RESULT - 312:
+        return ErrorValue("#NUM")
     if n < 0:
         n = 0
     return f"{_to_number(args[0]):.{n}f}"
@@ -1196,9 +1239,18 @@ def _search_bounded(pattern: _regex.Pattern[str], text: str) -> Any:
 
 
 def _sub_bounded(pattern: _regex.Pattern[str], replacement: str, text: str) -> str:
-    """``pattern.sub(...)``, abandoned if it backtracks past the budget."""
+    """Literal replacement bounded by both matching time and output size."""
+
+    def parts():
+        position = 0
+        for match in pattern.finditer(text, timeout=_MATCH_TIMEOUT_SECONDS):
+            yield text[position : match.start()]
+            yield replacement
+            position = match.end()
+        yield text[position:]
+
     try:
-        return pattern.sub(replacement, text, timeout=_MATCH_TIMEOUT_SECONDS)
+        return _bounded_join(parts())
     except TimeoutError as exc:
         raise FormulaError("#VALUE", f"pattern took longer than {_MATCH_TIMEOUT_SECONDS}s to match") from exc
 
@@ -1252,7 +1304,7 @@ def _fn_regexreplace(args: list[Any]) -> Any:
     if err is not None:
         return err
     pattern = _compile_user_pattern(_to_string(args[1]))
-    return _sub_bounded(pattern, _to_string(args[2]).replace("\\", "\\\\"), _to_string(args[0]))
+    return _sub_bounded(pattern, _to_string(args[2]), _to_string(args[0]))
 
 
 # --------------------------------------------------------------------------- #
@@ -1627,7 +1679,7 @@ def _fn_join(args: list[Any]) -> Any:
     items = _require_array("JOIN", args[0])
     sep = _to_string(args[1]) if len(args) >= 2 else ""
     field = _to_string(args[2]) if len(args) == 3 else None
-    return sep.join(_to_string(_item_field(it, field)) for it in items)
+    return _bounded_join((_to_string(_item_field(it, field)) for it in items), sep)
 
 
 def _aggregate(name: str, reducer: Callable[[list[float]], float]) -> Callable[[list[Any]], Any]:
@@ -1673,13 +1725,18 @@ def _lazy_foreach(nodes: list[_Node], context: dict[str, Any]) -> Any:
             return ""
 
     rows: list[str] = []
+    length = 0
     for i, item in enumerate(items):
         if limit is not None and i >= limit:
             break
         row = _eval_node(nodes[1], _child_context(context, item, i + 1))
         if _is_error(row):
             return row
-        rows.append(_to_string(row))
+        text = _to_string(row)
+        length += len(text) + bool(rows)
+        if length > _MAX_TEXT_RESULT:
+            return ErrorValue("#NUM")
+        rows.append(text)
     return "\n".join(rows)
 
 
@@ -2032,6 +2089,18 @@ def _traverse(value: Any, parts: list[str]) -> Any:
 
 
 def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
+    budget = context.get(_EVAL_BUDGET_KEY)
+    if budget is not None:
+        budget[0] -= 1
+        if budget[0] < 0:
+            raise FormulaError("#NUM", "Expression work limit exceeded")
+    value = _eval_node_value(node, context)
+    if isinstance(value, str) and len(value) > _MAX_TEXT_RESULT:
+        return ErrorValue("#NUM")
+    return value
+
+
+def _eval_node_value(node: _Node, context: dict[str, Any]) -> Any:
     if isinstance(node, _Literal):
         return node.value
 
@@ -2082,7 +2151,7 @@ def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
 
         op = node.op
         if op == "&":
-            return _to_string(left) + _to_string(right)
+            return _bounded_join((_to_string(left), _to_string(right)))
         if op in ("+", "-", "*", "/", "%"):
             a = _to_number(left)
             b = _to_number(right)
@@ -2142,6 +2211,16 @@ def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
 # --------------------------------------------------------------------------- #
 
 
+def _evaluate_tree(tree: _Node, context: dict[str, Any]) -> Any:
+    token = _ACTIVE_BUDGET.set(context[_EVAL_BUDGET_KEY])
+    try:
+        return _eval_node(tree, context)
+    except (OverflowError, ZeroDivisionError):
+        return ErrorValue("#NUM")
+    finally:
+        _ACTIVE_BUDGET.reset(token)
+
+
 def evaluate(expression: str, context: dict[str, Any] | None = None) -> str:
     """Parse and evaluate ``expression``, returning a rendered string.
 
@@ -2150,11 +2229,11 @@ def evaluate(expression: str, context: dict[str, Any] | None = None) -> str:
     the surrounding template. ``#SYNTAX`` errors include the source-character
     offset where they were detected (``#SYNTAX:12``) when one is available.
     """
-    ctx = context or {}
+    ctx = {**(context or {}), _EVAL_BUDGET_KEY: [_MAX_EVAL_STEPS]}
     try:
         tokens = _tokenize(expression)
         tree = _Parser(tokens).parse()
-        result = _eval_node(tree, ctx)
+        result = _evaluate_tree(tree, ctx)
     except FormulaError as exc:
         if exc.code == "#SYNTAX" and exc.pos is not None:
             return f"#SYNTAX:{exc.pos}"
@@ -2208,14 +2287,14 @@ def evaluate_value(
     raises :class:`FormulaError` with its tag (``#REF``, ``#SYNTAX``, ...)
     instead of being rendered.
     """
-    ctx = context or {}
+    ctx = {**(context or {}), _EVAL_BUDGET_KEY: [_MAX_EVAL_STEPS]}
     if bindings:
         scope = dict(ctx.get(_LOCALS_KEY) or {})
         scope.update({name.lower(): value for name, value in bindings.items()})
         ctx = {**ctx, _LOCALS_KEY: scope}
     tokens = _tokenize(expression)
     tree = _Parser(tokens).parse()
-    result = _eval_node(tree, ctx)
+    result = _evaluate_tree(tree, ctx)
     if _is_error(result):
         raise FormulaError(result.code, f"{expression.strip()} evaluated to {result.code}")
     return result
@@ -2444,7 +2523,7 @@ def render_expressions(template: str, context: dict[str, Any] | None = None) -> 
             return ""
         return evaluate(body, ctx)
 
-    return _FORMULA_PATTERN.sub(_sub, template)
+    return bounded_sub(_FORMULA_PATTERN, _sub, template)
 
 
 def find_formulas(template: str) -> list[tuple[int, int, str]]:

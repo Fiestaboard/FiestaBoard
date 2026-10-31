@@ -28,6 +28,7 @@ export function PagesSection({ children }: { children: React.ReactNode }) {
   const t = useTranslations("pages");
   const tCommon = useTranslations("common");
   const openId = useOpenPageId();
+  const searchParams = useSearchParams();
   const { data, isLoading } = usePages();
 
   const page = openId && openId !== "new" ? data?.pages.find((p) => p.id === openId) : undefined;
@@ -46,6 +47,7 @@ export function PagesSection({ children }: { children: React.ReactNode }) {
       href="/pages"
       detail={detail}
       fill={detail != null}
+      fillOnMobile={page?.type === "flexible" || (openId === "new" && searchParams.get("kind") === "flexible")}
     >
       {children}
     </SectionShell>

@@ -174,6 +174,48 @@ def test_expansion_is_capped():
     assert any(f"at most {MAX_EXPANDED_SHAPES}" in i.message for i in issues)
 
 
+@pytest.mark.parametrize("fields", [{"if": "{{false}}"}, {"x": "{{missing.value}}"}])
+def test_skipped_foreach_items_consume_the_same_work_budget(fields, monkeypatch):
+    from src.canvas import evaluate
+
+    attempted = []
+    original = evaluate._bound_item
+
+    def count_binding(item, index):
+        attempted.append(index)
+        return original(item, index)
+
+    monkeypatch.setattr(evaluate, "_bound_item", count_binding)
+    ctx = {"big": {"items": list(range(MAX_EXPANDED_SHAPES * 2))}}
+    resolved, issues = resolve_canvas(_shapes(_rect(foreach="{{big.items}}", **fields)), ctx)
+    assert not resolved.shapes
+    assert len(attempted) <= MAX_EXPANDED_SHAPES + 1
+    assert len(issues) <= MAX_EXPANDED_SHAPES + 1
+    assert any("at most" in issue.message for issue in issues)
+
+
+def test_expression_polygon_cannot_bypass_the_stored_point_limit():
+    from src.canvas.models import MAX_POLYGON_POINTS
+
+    resolved, issues = resolve_canvas(
+        _shapes({"type": "polygon", "points": "{{art.points}}", "fill": "red"}),
+        {"art": {"points": [[0, 0]] * (MAX_POLYGON_POINTS + 1)}},
+    )
+    assert not resolved.shapes
+    assert issues[0].path == "shapes[0].points"
+
+
+def test_expression_text_cannot_bypass_the_stored_text_limit():
+    from src.canvas.models import MAX_TEXT_LENGTH
+
+    resolved, issues = resolve_canvas(
+        _shapes({"type": "text", "x": 0, "y": 0, "text": "{{art.label}}", "color": "white"}),
+        {"art": {"label": "X" * (MAX_TEXT_LENGTH + 1)}},
+    )
+    assert not resolved.shapes
+    assert issues[0].path == "shapes[0].text"
+
+
 def test_background_and_palette_resolve():
     resolved, _ = resolve_canvas(
         _canvas({"background": "blue", "palette": {"k": "#000", "n": "none"}, "pixels": ["kn"]}), {}

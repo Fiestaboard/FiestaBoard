@@ -12,15 +12,18 @@ from typing import Any, Literal
 
 from pydantic import (
     BaseModel,
-    ConfigDict,
     Field,
     FieldSerializationInfo,
+    SerializerFunctionWrapHandler,
+    computed_field,
     field_serializer,
     field_validator,
+    model_serializer,
     model_validator,
 )
 
-from src.canvas.models import Canvas, validate_page_canvases
+from src.canvas.models import Canvas as StrictCanvas
+from src.canvas.models import validate_page_canvases
 from src.canvas.schemas import CanvasIssueModel, CanvasLayerModel
 from src.devices import (
     ABSOLUTE_MIN_GRID_COLS,
@@ -33,9 +36,33 @@ from src.devices import (
     DeviceType,
     resolve_dimensions,
 )
+from src.layout.issues import LayoutIssueModel
+from src.pages.document import PAGE_SHARE_EXCLUDED, ExtensibleDocument
+from src.pages.document import DocumentCanvas as Canvas
+from src.pages.flexible import MAX_BLOCKS, Block, FlexLayout, FlexTargets, PageStyle
 from src.settings.service import VALID_OUTPUT_TARGETS
 
-PageType = Literal["single", "composite", "template"]
+PageType = Literal["single", "composite", "template", "flexible"]
+
+#: Fields only a grid page has. A flexible page fits every board, so it has
+#: no size and no grid content; its dumps leave these out.
+GRID_ONLY_FIELDS = (
+    "device_type",
+    "notes_wide",
+    "notes_tall",
+    "grid_rows",
+    "grid_cols",
+    "display_type",
+    "rows",
+    "template",
+    "line_metadata",
+    "canvases",
+)
+#: Fields only a flexible page has; grid page dumps leave these out.
+FLEXIBLE_FIELDS = ("style", "layout", "blocks", "targets")
+#: Grid-only fields that always hold a value (a default). On a flexible page
+#: they are refused only when the caller set them explicitly.
+_DEFAULTED_GRID_FIELDS = frozenset({"device_type", "notes_wide", "notes_tall"})
 
 
 def _require_panel_grid(device_type, grid_rows, grid_cols) -> None:
@@ -48,7 +75,11 @@ def _check_canvas_list(value: Any) -> Any:
     """Every canvas valid, at most 8, ids unique (:func:`validate_page_canvases`)."""
     if value is None:
         return None
-    return validate_page_canvases(value)
+    items = [
+        Canvas.model_validate(c.model_dump(by_alias=True, exclude_unset=True) if isinstance(c, StrictCanvas) else c)
+        for c in value
+    ]
+    return validate_page_canvases(items)
 
 
 def _check_canvases_fit(
@@ -82,13 +113,76 @@ def _dump_canvases(canvases: list[Canvas] | None, info: FieldSerializationInfo) 
     """
     if canvases is None:
         return None
-    return [c.model_dump(mode=info.mode, by_alias=True, exclude_none=True) for c in canvases]
+    return [c.model_dump(mode=info.mode, by_alias=True, exclude_unset=True) for c in canvases]
+
+
+def _check_page_kind(model: BaseModel) -> None:
+    """Grid fields only on grid pages, flexible fields only on flexible pages.
+
+    A flexible page's block ids are unique and there are at most
+    :data:`MAX_BLOCKS` of them.
+    """
+    if model.type == "flexible":
+        for field in GRID_ONLY_FIELDS:
+            if field in _DEFAULTED_GRID_FIELDS:
+                rejected = field in model.model_fields_set
+            else:
+                rejected = getattr(model, field) is not None
+            if rejected:
+                raise ValueError(f"A flexible page has no {field}: it fits every board")
+        blocks = model.blocks or []
+        if len(blocks) > MAX_BLOCKS:
+            raise ValueError(f"A flexible page has at most {MAX_BLOCKS} blocks, not {len(blocks)}")
+        seen: set[str] = set()
+        for block in blocks:
+            if block.id in seen:
+                raise ValueError(f"duplicate block id {block.id!r}")
+            seen.add(block.id)
+        return
+    for field in FLEXIBLE_FIELDS:
+        if getattr(model, field) is not None:
+            raise ValueError(f"only a flexible page has {field}, not a {model.type} page")
+
+
+def _flexible_config_errors(blocks: list[Block] | None) -> list[str]:
+    """What a flexible page still needs before it can render (``validate_config``)."""
+    if not blocks:
+        return ["Flexible page requires at least one block"]
+    errors = []
+    for block in blocks:
+        if block.kind == "text" and not isinstance(block.text, str):
+            errors.append(f"text block {block.id!r} needs text")
+        elif block.kind == "canvas" and (
+            block.canvas is None or (block.canvas.content is None and block.canvas.source is None)
+        ):
+            errors.append(f"canvas block {block.id!r} needs canvas content or a source")
+    return errors
+
+
+def _dump_blocks(blocks: list[Block] | None, info: FieldSerializationInfo) -> Any:
+    """Blocks as their JSON form: ``if`` (not ``if_``), unset fields left out (as :func:`_dump_canvases`)."""
+    if blocks is None:
+        return None
+    return [b.model_dump(mode=info.mode, by_alias=True, exclude_unset=True) for b in blocks]
+
+
+def _dump_for_kind(model: BaseModel, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+    """A page dump carries only its own kind's fields.
+
+    Grid pages dump exactly as before flexible pages existed (no ``style`` /
+    ``layout`` / ``blocks`` / ``targets`` keys), and flexible pages carry no
+    grid size or grid content.
+    """
+    data = handler(model)
+    for field in GRID_ONLY_FIELDS if model.type == "flexible" else FLEXIBLE_FIELDS:
+        data.pop(field, None)
+    return data
 
 
 LineAlignment = Literal["left", "center", "right"]
 
 
-class LineMetadata(BaseModel):
+class LineMetadata(ExtensibleDocument):
     """Per-line formatting metadata for template pages.
 
     Stores alignment and wrap settings that were previously encoded as
@@ -99,7 +193,7 @@ class LineMetadata(BaseModel):
     wrap: bool = False
 
 
-class RowConfig(BaseModel):
+class RowConfig(ExtensibleDocument):
     """Configuration for a single row in a composite page.
 
     Specifies which row from which source should be placed at which position.
@@ -111,7 +205,7 @@ class RowConfig(BaseModel):
     target_row: int = Field(ge=0)  # Where to place in output
 
 
-class Page(BaseModel):
+class Page(ExtensibleDocument):
     """A saved page configuration.
 
     Pages can be one of three types:
@@ -123,6 +217,25 @@ class Page(BaseModel):
     """
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    # Runtime generation, assigned by PageStorage; deliberately not persisted.
+    # Reload/restart invalidates edits based on the previous in-memory state.
+    revision: str | None = Field(default=None, json_schema_extra={"readOnly": True})
+
+    @computed_field
+    @property
+    def edit_protocol(self) -> Literal["page-revision-v1"]:
+        """Runtime support for conditional sparse page saves; never caller input."""
+        return "page-revision-v1"
+
+    @computed_field
+    @property
+    def document_protocol(self) -> Literal["page-document-v1", "page-document-v2"]:
+        """Validated known content with opaque JSON extension preservation.
+
+        ``page-document-v2`` marks a flexible page (blocks, style, layout).
+        """
+        return "page-document-v2" if self.type == "flexible" else "page-document-v1"
+
     name: str = Field(min_length=1, max_length=100)
     type: PageType
 
@@ -175,14 +288,25 @@ class Page(BaseModel):
     # cells under them (or flows text around a ``text: "flow"`` canvas).
     canvases: list[Canvas] | None = None
 
+    # Flexible pages only (design: flexible pages, section 2). A grid page
+    # leaves all four unset and its dumps omit them.
+    style: PageStyle | None = None
+    layout: FlexLayout | None = None
+    blocks: list[Block] | None = None
+    targets: FlexTargets | None = None
+
     # Metadata
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime | None = None
 
-    model_config = ConfigDict(
-        # Pydantic V2 uses serialization_mode_json for custom serializers
-        # datetime is automatically serialized to ISO format in V2
-    )
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_computed_metadata(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                k: v for k, v in value.items() if k not in {"edit_protocol", "document_protocol", "expected_revision"}
+            }
+        return value
 
     @model_validator(mode="after")
     def _normalize_grid(self) -> "Page":
@@ -195,12 +319,14 @@ class Page(BaseModel):
         if self.device_type != "panel":
             self.grid_rows = None
             self.grid_cols = None
-        _check_canvases_fit(
-            self.canvases, self.device_type, self.notes_wide, self.notes_tall, self.grid_rows, self.grid_cols
-        )
+        _check_page_kind(self)
+        if self.type != "flexible":
+            _check_canvases_fit(
+                self.canvases, self.device_type, self.notes_wide, self.notes_tall, self.grid_rows, self.grid_cols
+            )
         return self
 
-    @field_validator("canvases")
+    @field_validator("canvases", mode="before")
     @classmethod
     def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
         return _check_canvas_list(value)
@@ -210,6 +336,16 @@ class Page(BaseModel):
         self, value: list[Canvas] | None, info: FieldSerializationInfo
     ):  # no return annotation: the schema stays the field's
         return _dump_canvases(value, info)
+
+    @field_serializer("blocks")
+    def _blocks_dump(
+        self, value: list[Block] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_blocks(value, info)
+
+    @model_serializer(mode="wrap")
+    def _dump_own_kind(self, handler: SerializerFunctionWrapHandler):  # no return annotation: schema unchanged
+        return _dump_for_kind(self, handler)
 
     def validate_config(self) -> list[str]:
         """Validate that page configuration is complete and consistent.
@@ -243,6 +379,9 @@ class Page(BaseModel):
         elif self.type == "template" and (not self.template or len(self.template) == 0):
             errors.append("Template page requires template content")
 
+        elif self.type == "flexible":
+            errors.extend(_flexible_config_errors(self.blocks))
+
         return errors
 
     def is_valid(self) -> bool:
@@ -250,8 +389,15 @@ class Page(BaseModel):
         return len(self.validate_config()) == 0
 
 
-class PageCreate(BaseModel):
-    """Request model for creating a new page."""
+class PageCreate(ExtensibleDocument):
+    """Create author content; server-assigned identity and timestamps are ignored."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_server_metadata(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {k: v for k, v in value.items() if k not in PAGE_SHARE_EXCLUDED}
+        return value
 
     name: str = Field(min_length=1, max_length=100)
     type: PageType
@@ -278,16 +424,23 @@ class PageCreate(BaseModel):
     grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
     # Pixel canvases (see Page.canvases); every area must fit the page grid.
     canvases: list[Canvas] | None = None
+    # Flexible pages only (design: flexible pages, section 2). See Page.
+    style: PageStyle | None = None
+    layout: FlexLayout | None = None
+    blocks: list[Block] | None = None
+    targets: FlexTargets | None = None
 
     @model_validator(mode="after")
     def _check_panel_grid(self) -> "PageCreate":
         _require_panel_grid(self.device_type, self.grid_rows, self.grid_cols)
-        _check_canvases_fit(
-            self.canvases, self.device_type, self.notes_wide, self.notes_tall, self.grid_rows, self.grid_cols
-        )
+        _check_page_kind(self)
+        if self.type != "flexible":
+            _check_canvases_fit(
+                self.canvases, self.device_type, self.notes_wide, self.notes_tall, self.grid_rows, self.grid_cols
+            )
         return self
 
-    @field_validator("canvases")
+    @field_validator("canvases", mode="before")
     @classmethod
     def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
         return _check_canvas_list(value)
@@ -298,10 +451,26 @@ class PageCreate(BaseModel):
     ):  # no return annotation: the schema stays the field's
         return _dump_canvases(value, info)
 
+    @field_serializer("blocks")
+    def _blocks_dump(
+        self, value: list[Block] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_blocks(value, info)
+
+    @model_serializer(mode="wrap")
+    def _dump_own_kind(self, handler: SerializerFunctionWrapHandler):  # no return annotation: schema unchanged
+        return _dump_for_kind(self, handler)
+
 
 class PageUpdate(BaseModel):
-    """Request model for updating an existing page."""
+    """Sparse known-field patch. Supplied lists replace the complete field.
 
+    Omitted fields survive, including opaque top-level extensions. Nullable
+    content fields accept explicit null to remove them; nested lists are never
+    merged by position or guessed identity.
+    """
+
+    expected_revision: str | None = Field(default=None, min_length=1, max_length=128)
     name: str | None = Field(default=None, min_length=1, max_length=100)
     # Device/size retarget (issue #1250). Converting between geometries is
     # lossy (content that doesn't fit is truncated at render time) — the
@@ -330,8 +499,14 @@ class PageUpdate(BaseModel):
     # retarget that does not send canvases scales the existing areas to the
     # new grid.
     canvases: list[Canvas] | None = None
+    # Flexible pages only (see Page). A supplied value replaces the whole
+    # field; ``blocks`` is never merged by position or id.
+    style: PageStyle | None = None
+    layout: FlexLayout | None = None
+    blocks: list[Block] | None = None
+    targets: FlexTargets | None = None
 
-    @field_validator("canvases")
+    @field_validator("canvases", mode="before")
     @classmethod
     def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
         return _check_canvas_list(value)
@@ -341,6 +516,12 @@ class PageUpdate(BaseModel):
         self, value: list[Canvas] | None, info: FieldSerializationInfo
     ):  # no return annotation: the schema stays the field's
         return _dump_canvases(value, info)
+
+    @field_serializer("blocks")
+    def _blocks_dump(
+        self, value: list[Block] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_blocks(value, info)
 
 
 # ---------------------------------------------------------------------------
@@ -418,13 +599,20 @@ class PageImportRequest(BaseModel):
     share_string: str
 
 
-class PageImportPreview(BaseModel):
+class PageImportPreview(ExtensibleDocument):
     """``POST /pages/import/preview`` — the decoded page, not yet persisted.
 
     Exactly the content fields ``src/pages/share.py`` puts in the envelope:
     no ``id``, ``created_at``, ``updated_at`` or ``demo_plugin_id``, because a
     preview has not been created yet.
     """
+
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_server_metadata(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {k: v for k, v in value.items() if k not in PAGE_SHARE_EXCLUDED}
+        return value
 
     name: str
     type: PageType
@@ -442,12 +630,26 @@ class PageImportPreview(BaseModel):
     transition_interval_ms: int | None = None
     transition_step_size: int | None = None
     canvases: list[Canvas] | None = None
+    style: PageStyle | None = None
+    layout: FlexLayout | None = None
+    blocks: list[Block] | None = None
+    targets: FlexTargets | None = None
 
     @field_serializer("canvases")
     def _canvases_dump(
         self, value: list[Canvas] | None, info: FieldSerializationInfo
     ):  # no return annotation: the schema stays the field's
         return _dump_canvases(value, info)
+
+    @field_serializer("blocks")
+    def _blocks_dump(
+        self, value: list[Block] | None, info: FieldSerializationInfo
+    ):  # no return annotation: the schema stays the field's
+        return _dump_blocks(value, info)
+
+    @model_serializer(mode="wrap")
+    def _dump_own_kind(self, handler: SerializerFunctionWrapHandler):  # no return annotation: schema unchanged
+        return _dump_for_kind(self, handler)
 
 
 class PagePreviewResponse(BaseModel):
@@ -458,6 +660,16 @@ class PagePreviewResponse(BaseModel):
     lines: list[str]
     display_type: str
     raw: dict
+    #: A flexible page's text as rich cells at the primary board's grid,
+    #: when that board draws a rich character set (an LED output). Present
+    #: ONLY then; a grid page's response has no key.
+    cells: list[list[dict[str, Any]]] | None = None
+    #: A flexible page's one full frame when the primary board is a pixel
+    #: matrix (design section 8). Present ONLY then; draw it over ``cells``.
+    layers: list[CanvasLayerModel] | None = None
+    #: What layout compromised to fit the page (design section 5 step 7).
+    #: Present ONLY for a flexible page; a grid page's response has no key.
+    layout_issues: list[LayoutIssueModel] | None = None
 
 
 class PagePreviewBatchSuccess(BaseModel):
@@ -479,6 +691,17 @@ class PagePreviewBatchSuccess(BaseModel):
     layers: list[CanvasLayerModel] | None = None
     #: Problems drawing those canvases. Present exactly when ``layers`` is.
     canvas_issues: list[CanvasIssueModel] | None = None
+    #: The LED text size (``"3x5"``, ``"5x7"``...) the page is drawn at on the
+    #: request's ``board_id``, when that board produces the page's grid only
+    #: at another size than its own (design section 7). ``cells`` are then
+    #: at the page's own grid, in that face's character set, and ``layers``
+    #: are its canvases on that grid. Present ONLY then.
+    face: str | None = None
+    #: What layout compromised to fit a flexible page to the request's board
+    #: (design section 5 step 7), each with the path it applies to. Present
+    #: ONLY for a flexible page. Its full frame is then ``layers`` on a pixel
+    #: board, and ``cells`` are its text at the board's own grid.
+    layout_issues: list[LayoutIssueModel] | None = None
 
 
 class PagePreviewBatchError(BaseModel):
@@ -504,6 +727,23 @@ class PagePreviewBatchRequest(BaseModel):
         "output) gets its colour spans and icons rendered, and each preview's `cells`; omitted or any other "
         "board: the split-flap previews, unchanged.",
     )
+
+
+class PageFlexiblePreviewRequest(BaseModel):
+    """Body of ``POST /pages/preview/flexible``: an unsaved flexible page and its board."""
+
+    page: PageCreate = Field(description="The flexible page to lay out, as it would be created. It is not saved.")
+    board_id: str | None = Field(
+        default=None,
+        description="The board to lay the page out for. Omitted or null: the primary board. "
+        "An unknown ID, including an empty string, returns 404.",
+    )
+
+    @model_validator(mode="after")
+    def _flexible_only(self) -> "PageFlexiblePreviewRequest":
+        if self.page.type != "flexible":
+            raise ValueError(f"only a flexible page previews unsaved, not a {self.page.type} page")
+        return self
 
 
 class PagePreviewBatchResponse(BaseModel):
@@ -574,6 +814,10 @@ class PageSendResponse(BaseModel):
     layers: list[CanvasLayerModel] | None = None
     #: Problems drawing those canvases; null exactly when ``layers`` is.
     canvas_issues: list[CanvasIssueModel] | None = None
+    #: What layout compromised to fit a flexible page to the board it was
+    #: rendered for (design section 5 step 7). Present ONLY for a flexible
+    #: page; a grid page's response has no key.
+    layout_issues: list[LayoutIssueModel] | None = None
 
 
 class PageSendFailure(BaseModel):

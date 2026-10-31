@@ -95,7 +95,9 @@
     "updateAvailable": "アップデートがあります",
     "updateTo": "{version} に更新",
     "about": "FiestaBoard について",
-    "signOut": "サインアウト"
+    "signOut": "サインアウト",
+    "popoverLabel": "アカウントメニュー",
+    "account": "アカウント"
   },
   "aboutDialog": {
     "description": "この FiestaBoard のバージョンとシステム情報。",
@@ -203,7 +205,11 @@
     "importDialogCancel": "キャンセル",
     "importDialogImport": "インポート",
     "importDialogImporting": "インポート中...",
-    "toastImported": "「{name}」をページに追加しました"
+    "toastImported": "「{name}」をページに追加しました",
+    "displayFilter": "ディスプレイで絞り込み",
+    "allPages": "すべてのページ",
+    "libraryCount": "{count, plural, one {# ページ} other {# ページ}}",
+    "clearFilter": "すべてのページを表示"
   },
   "collections": {
     "title": "カルーセル",
@@ -300,7 +306,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "表示形式",
+    "gridView": "タイル表示",
+    "listView": "リスト表示",
+    "libraryCount": "{count, plural, one {# 件のカルーセル} other {# 件のカルーセル}}",
+    "movePageUp": "{name}を上に移動",
+    "movePageDown": "{name}を下に移動",
+    "removePage": "{name}を取り除く",
+    "moveRuleUp": "ルール{number}を上に移動",
+    "moveRuleDown": "ルール{number}を下に移動",
+    "notFound": "このカルーセルが見つかりません。",
+    "loadFailed": "カルーセルを読み込めませんでした。もう一度お試しください。",
+    "backToCollections": "カルーセルに戻る",
+    "discardChangesTitle": "未保存の変更を破棄しますか？",
+    "discardChangesDescription": "カルーセルに未保存の変更があります。",
+    "keepEditing": "編集を続ける",
+    "discardAndLeave": "破棄して終了",
+    "retryButton": "再試行"
   },
   "schedule": {
     "title": "スケジュール",
@@ -638,7 +661,13 @@
       "createAction": "デモページを作成",
       "recreateAction": "デモページを再作成",
       "requirementsWarning": "デモページを作成する前に、下の必須設定を構成してください。"
-    }
+    },
+    "catalogCount": "{count} 件の連携",
+    "previousResults": "前の結果",
+    "nextResults": "次の結果",
+    "resultsPage": "{current} / {total} ページ",
+    "allCategories": "すべてのカテゴリ",
+    "categoryFilter": "連携カテゴリ"
   },
   "settings": {
     "title": "設定",
@@ -739,7 +768,15 @@
       "confirmDescription": "<file></file> を復元しようとしています。既存のページ、カルーセル、スケジュール、設定は上書きされます。既存の各ファイルはタイムスタンプ付きのコピーが新しいファイルと並べて保持されるため、必要に応じて手動で元に戻せます。",
       "restoringButton": "復元中…",
       "restoreButton": "バックアップを復元"
-    }
+    },
+    "groupIdentity": "インスタンス",
+    "groupAppearance": "外観とアクセシビリティ",
+    "groupRegional": "言語・時刻・位置情報",
+    "groupConnections": "接続",
+    "displaySilenceTitle": "ディスプレイの静音スケジュール",
+    "displaySilenceDescription": "静音時間帯はディスプレイごとに設定します。ディスプレイの「再生」タブを開いてスケジュールを変更してください。",
+    "openDisplayPlayback": "{name}の再生設定を開く",
+    "openDisplays": "ディスプレイを管理"
   },
   "offline": {
     "youreOffline": "オフラインです",
@@ -1166,7 +1203,12 @@
     "liveSilencePreviewOnly": "ライブ出力はプレビューのみです。ボードは静かなままです。",
     "liveSendAnyway": "それでもボードに送信",
     "liveSilenceOverriding": "ライブ出力がサイレント中のボードを起こしています。",
-    "liveStopOverriding": "送信を停止"
+    "liveStopOverriding": "送信を停止",
+    "editingSurfaceLabel": "ページの内容",
+    "textMode": "テキスト",
+    "canvasesMode": "キャンバス",
+    "showPreview": "プレビューとライブ出力を表示",
+    "hidePreview": "プレビューとライブ出力を非表示"
   },
   "displaySettings": {
     "unnamedBoard": "名前未設定のボード",
@@ -1231,7 +1273,11 @@
     "notesTallLabel": "Note 縦数",
     "customRangeError": "各寸法は 1 ～ {max} の範囲でなければなりません。",
     "resizeMovedPages": "ボードの新しいサイズに合わせてページを移動しました：{pages}。",
-    "resizeStaleRefs": "ボードの新しいサイズにこれらのページが収まらなくなりました：{pages}。編集しないとこのボードに表示されません。"
+    "resizeStaleRefs": "ボードの新しいサイズにこれらのページが収まらなくなりました：{pages}。編集しないとこのボードに表示されません。",
+    "leftBehind": {
+      "title": "このディスプレイで表示されなくなったページ",
+      "description": "サイズの変更により、これらのページが取り残されました。このディスプレイに合うように編集するか、別のディスプレイで表示してください。"
+    }
   },
   "displays": {
     "title": "ディスプレイ",
@@ -1271,7 +1317,15 @@
       "speedTitle": "速度",
       "pluginsDescription": "タイプライターやディゾルブなどのフレーム単位のアニメーション（非推奨）。すべてのディスプレイに適用されます。",
       "pluginsSavedToast": "トランジションプラグインの設定を保存しました。",
-      "pluginsSaveFailedToast": "トランジションプラグインの設定を保存できませんでした: {error}"
+      "pluginsSaveFailedToast": "トランジションプラグインの設定を保存できませんでした: {error}",
+      "replay": "プレビューを再生し直す",
+      "nativePreviewNote": "タイルの順序と動作のテンポを示します。実機での見え方は異なる場合があります。",
+      "pluginPreviewUnavailable": "このトランジションプラグインのプレビューは利用できません。",
+      "savedUnavailable": "保存済みの選択: {name}（利用不可）",
+      "reducedMotionNote": "動きを減らす設定が有効です。プレビューには切り替え後のメッセージが表示されます。",
+      "cloudPreviewNote": "このディスプレイはすべての内容を一度に切り替えます。",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "HELLO WORLD"
     },
     "add": {
       "title": "ディスプレイを追加",
@@ -1339,7 +1393,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "概要",
+    "tabSettings": "設定",
+    "tabPlayback": "再生",
+    "tabsLabel": "ディスプレイのセクション"
   },
   "systemUpdate": {
     "updateAvailable": "アップデートがあります",
@@ -1712,6 +1770,12 @@
     "noCompatiblePagesTitle": "このボードのサイズに合うページがありません。",
     "noCompatiblePagesDescription": "このボードのサイズに合わせたページを作成すると、ここに表示されます。"
   },
+  "pageFit": {
+    "madeFor": "{rows}×{cols} のボード用",
+    "notOnThisDisplay": "このディスプレイでは表示できません",
+    "targetRestricted": "This page is restricted to other boards or display technologies",
+    "physicalFrameUnsupported": "Update this display’s output plugin to use flexible pixel pages"
+  },
   "profile": {
     "title": "プロフィール",
     "description": "あなたの設定と表示の設定",
@@ -1751,9 +1815,9 @@
     "welcomeSendError": "送信に失敗",
     "welcomeDefault": "空のままにするとデフォルトの挨拶が使われます",
     "timezoneLabel": "タイムゾーン",
-    "animationsTitle": "アニメーション",
-    "animationsDescription": "ボードのプレビューとアプリの他の部分の動きを個別に調整",
-    "boardAnimationsLabel": "ボードアニメーション",
+    "animationsTitle": "グラフィックスとプレビュー",
+    "animationsDescription": "アプリ全体の動きを調整します。この設定は画面上のすべてのプレビューに適用されます。",
+    "boardAnimationsLabel": "ボードのプレビュー",
     "boardAnimationsHint": "タイルが変わるときのスプリットフラップの反転",
     "boardAnimationsOn": "オン",
     "boardAnimationsDesktop": "デスクトップのみ",
@@ -1767,7 +1831,7 @@
     "siteAnimationsOff": "オフ",
     "animationsReduceMotionOverride": "「動きを減らす」が有効になっており、これらの設定を上書きします。",
     "flapSpeedLabel": "反転速度",
-    "flapSpeedHint": "ボードが落ち着くまで、各タイルが 1 文字を表示し続ける時間",
+    "flapSpeedHint": "アプリ全体の反転フラップ式プレビューのテンポを選択します。",
     "flapSpeed_hardware": "最速",
     "flapSpeed_quick": "速い",
     "flapSpeed_standard": "標準",
@@ -1779,7 +1843,7 @@
     "flapSpeed_relaxedHint": "{ms} ミリ秒 — アンビエント表示向けの、ゆっくりとした反転。",
     "flapSpeedPreviewLabel": "プレビュー",
     "flapSpeedInactive": "ボードアニメーションがオフのため、反転速度は影響しません。",
-    "flapSpeedScreenOnlyNote": "これは画面上のボードプレビューだけを変更します。実機の Vestaboard の切り替え速度は、スケジュール → ボードトランジションで別に設定します。"
+    "flapSpeedScreenOnlyNote": "この設定は画面上のボードプレビューにのみ適用されます。実機のタイミングは「ディスプレイ → 再生 → ボードのトランジション」で変更してください。"
   },
   "monitor": {
     "title": "モニター",
@@ -2653,6 +2717,8 @@
     "dismissFailed": "閉じられませんでした。もう一度お試しください。"
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "新しいページの初期サイズです。別のサイズで作ったページも、そのページのサイズのまま表示されます。",
+    "textSizeFadeNote": "別の文字サイズのページはフェードで切り替わります。フリップ、カスケード、トランジションプラグインにはディスプレイ自体の文字サイズが必要です。",
     "noDevicesFound": "デバイスが見つかりません。アドレスを直接入力してください。",
     "devicesFoundLabel": "{field} で見つかったデバイス",
     "subnetLabel": "検索するネットワーク（任意）",
@@ -2921,7 +2987,9 @@
     "issue": "{canvas} · {path}：{message}",
     "serverError": "キャンバスが受け付けられませんでした：{message}",
     "notPixelNotice": "このページにはピクセルキャンバスがあります。このボードでは描画できないため、その領域は空白のままです。編集するには、LEDピクセルボードでページをプレビューしてください。",
-    "markerTitle": "この行からキャンバスが始まります（テキストの一部ではありません）"
+    "markerTitle": "この行からキャンバスが始まります（テキストの一部ではありません）",
+    "drawLayerHint": "描画ではピクセルのみを編集します。キャンバスの背景と図形はページのプレビューに表示されます。",
+    "drawSourceHint": "このキャンバスはソースを使用しています。描画では代替用のピクセルを編集します。ソースが利用可能な場合、プレビューにはソースが表示されます。"
   },
   "silenceNotice": {
     "untilTitle": "{time} までサイレント中",
@@ -2984,5 +3052,81 @@
     "confirm": "確認",
     "revokeDevice": "{name} のアクセスを取り消す",
     "retry": "再試行"
+  },
+  "plugins": {
+    "communityBadge": "コミュニティ",
+    "communityDescription": "FiestaBoardのGitHub組織外で公開されています。"
+  },
+  "flexibleEditor": {
+    "durationInvalid": "Enter a whole number from 10 to 3600 seconds.",
+    "actions": "Page actions",
+    "backToEditing": "Back to editing",
+    "retryPreview": "Retry preview",
+    "goToBlock": "Go to {label}",
+    "warning": "Warning",
+    "information": "Note",
+    "notSaved": "Not saved yet",
+    "repairDrafts": "Fix incomplete edits before saving. Your draft is kept.",
+    "fixBlock": "Fix Block {number}",
+    "sizeInvalid": "Enter whole-number dimensions from 1 to 128.",
+    "title": "Flexible page",
+    "description": "Stack text, drawings and space. Each display lays out the same document at its own size. Existing grid pages keep their exact layout.",
+    "close": "Close",
+    "undo": "Undo",
+    "redo": "Redo",
+    "save": "Save page",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "unsaved": "Unsaved changes",
+    "saveFailed": "Could not save page",
+    "name": "Name",
+    "duration": "Duration (seconds)",
+    "pageStyle": "Page style and layout",
+    "styleHelp": "Sizes: small, medium, large, xlarge, fit, or pixels. Family: fiesta. Empty values inherit; transparent clears a background; black is opaque.",
+    "page": "Page",
+    "verticalAlignment": "Vertical alignment",
+    "gap": "Block gap",
+    "block": "Block {number}",
+    "up": "Up",
+    "down": "Down",
+    "remove": "Remove",
+    "moveUp": "Move block {number} up",
+    "moveDown": "Move block {number} down",
+    "removeBlock": "Remove block {number}",
+    "unknownBlock": "This block kind is not editable here. Its document is preserved.",
+    "blockStyle": "{label} style and conditions",
+    "showWhen": "Show when",
+    "priority": "Priority",
+    "add": "Add {kind}",
+    "preview": "Display preview",
+    "noDisplay": "Add a display to preview this document.",
+    "previewDisplay": "Preview display",
+    "previewDescription": "Computed preview · {cols} × {rows} character cells. This does not send to a display.",
+    "rendering": "Rendering…",
+    "computedPreview": "{name} computed preview",
+    "characterPreview": "{name} character preview",
+    "issues": "Layout issues",
+    "canvasDimension": "{label} canvas {axis}",
+    "canvasSizeRequired": "Choose an explicit canvas size before painting. An automatic-size drawing adapts to each display; choosing a smaller size can crop its pixels.",
+    "draw": "Draw",
+    "shapes": "Shapes",
+    "source": "Source",
+    "fallbackHelp": "The drawing remains the fallback when the source is unavailable.",
+    "new": "New flexible page",
+    "loading": "Loading page…",
+    "unsupported": "This page format is not editable in this version.",
+    "targets": "Display restrictions",
+    "targetsHelp": "Each group with selections restricts this page. Leave a group unchecked to allow all of that group. When both groups have selections, a display must match both. Unavailable display IDs remain restricted until you remove them.",
+    "technologies": "Display technologies",
+    "technologyLed": "LED displays",
+    "technologyFlap": "Split-flap boards",
+    "technologyScreen": "Screens",
+    "displays": "Displays",
+    "unavailableDisplay": "Unavailable display: {id}",
+    "targetWarning": "Saved. Existing playback references on these displays no longer accept this page: {list}. Review their active pages, schedules and silence pages.",
+    "previewPixelDescription": "Computed preview · {width} × {height} pixels. This does not send to a display.",
+    "projectionHelp": "The character fallback is a separate layout and may contain text that does not fit this pixel preview.",
+    "signInRecovery": "Sign in to continue. Keep this editor open to retain your unsaved changes. Sign in in another tab, then return to save or retry the preview.",
+    "signInAnotherTab": "Sign in in another tab"
   }
 }

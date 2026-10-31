@@ -29,13 +29,28 @@ from fastapi import APIRouter, HTTPException, Query
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_dims, _board_is_paused, _find_board, _require_board, silence_verdict
+from src.board_guards import (
+    _board_dims,
+    _board_is_paused,
+    _find_board,
+    _require_board,
+    primary_board_entry,
+    silence_verdict,
+)
 from src.canvas.schemas import issues_json, layers_json
-from src.collections.models import is_collection_id
-from src.collections.service import get_collection_service
-from src.devices import board_context_for, geometry_of, resolve_dimensions, size_key
+from src.collections.service import get_collection_service, resolve_active_page_id
+from src.devices import (
+    board_context_for,
+    dimensions_of,
+    geometry_of,
+    is_flexible_page,
+    page_size_key,
+    resolve_dimensions,
+)
 from src.display_runtime import get_service
-from src.led.charsets import has_extended_markup
+from src.layout.issues import layout_issues_json
+from src.led.charsets import BUILTIN_CHARACTER_SETS, has_extended_markup
+from src.led.matrix import led_charset_for_font
 from src.outputs.board_profile import board_character_set
 from src.outputs.cells import cells_to_json, project_for_output, project_message
 from src.outputs.display_profile import display_profile_for_board, render_kw
@@ -44,6 +59,8 @@ from src.schedules.service import get_schedule_service
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service, page_transition
 from src.text_to_board import text_to_board_array
 
+from .board_render import render_page_for_board
+from .fit import delivers_full_frame, page_fit_for_board
 from .models import (
     CurrentDisplayResponse,
     IncompatibleReference,
@@ -52,11 +69,13 @@ from .models import (
     PageCacheStatsResponse,
     PageCreate,
     PageDeleteResponse,
+    PageFlexiblePreviewRequest,
     PageImportPreview,
     PageImportRequest,
     PageListResponse,
     PagePreviewBatchRequest,
     PagePreviewBatchResponse,
+    PagePreviewBatchSuccess,
     PagePreviewResponse,
     PageSendRequest,
     PageSendResponse,
@@ -65,12 +84,27 @@ from .models import (
     ShareStringResponse,
 )
 from .models import Page as PageModel
-from .service import draws_pixels, find_incompatible_references, get_page_service
+from .service import draws_pixels, find_incompatible_references, get_page_service, layout_board_for
 from .share import decode_page, encode_page
+from .storage import PageRevisionConflict
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["pages"])
+
+#: The ``page_id`` of a preview of a page that has not been saved.
+UNSAVED_PAGE_ID = "unsaved"
+
+
+def _layout_issues_field(page: PageModel | None, result) -> dict:
+    """``{"layout_issues": [...]}`` for a flexible *page*'s render, else ``{}``.
+
+    A grid page's response leaves the key out entirely (its routes answer with
+    ``response_model_exclude_unset``), so its shape is unchanged.
+    """
+    if page is None or not is_flexible_page(page):
+        return {}
+    return {"layout_issues": layout_issues_json(result.layout_issues)}
 
 
 def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
@@ -153,21 +187,29 @@ async def get_current_display():
     if not active_page_id:
         raise HTTPException(status_code=404, detail="No active page set")
 
-    # Resolve collection to underlying page
-    if is_collection_id(active_page_id):
-        resolved = collection_service.resolve_page_id(active_page_id)
-        if not resolved:
-            raise HTTPException(status_code=404, detail="Collection could not be resolved")
-        active_page_id = resolved
+    # Native collections follow device selection instead of core's clock.
+    resolved = resolve_active_page_id(active_page_id, lambda: collection_service)
+    if not resolved:
+        raise HTTPException(status_code=404, detail="Collection could not be resolved")
+    active_page_id = resolved
 
     page = page_service.get_page(active_page_id)
     if not page:
         raise HTTPException(status_code=404, detail="Active page not found")
 
+    geometry = page
     if page.type == "template" and page.template:
         # Return raw template so variables like {{weather.temp}} are preserved
         template = page.template
         line_metadata = page.line_metadata
+    elif is_flexible_page(page):
+        # A flexible page has no template or grid: its rendered cell lines,
+        # laid out for the primary board, at that board's geometry.
+        board = layout_board_for(None)
+        result = await asyncio.to_thread(page_service.preview_page, active_page_id, force_refresh=True, board=board)
+        template = result.formatted.split("\n") if result and result.available else []
+        line_metadata = None
+        geometry = geometry_of(board)
     else:
         # For single/composite pages, return the rendered output as template
         # lines. The forced render fans out to plugins — off the loop (#1826).
@@ -179,11 +221,11 @@ async def get_current_display():
         page_id=page.id,
         page_name=page.name,
         page_type=page.type,
-        device_type=page.device_type,
-        notes_wide=page.notes_wide,
-        notes_tall=page.notes_tall,
-        grid_rows=page.grid_rows,
-        grid_cols=page.grid_cols,
+        device_type=geometry.device_type,
+        notes_wide=geometry.notes_wide,
+        notes_tall=geometry.notes_tall,
+        grid_rows=geometry.grid_rows,
+        grid_cols=geometry.grid_cols,
         template=template,
         line_metadata=line_metadata,
     )
@@ -234,7 +276,7 @@ async def get_page(page_id: str):
 @router.put(
     "/pages/{page_id}",
     response_model=PageUpdateResponse,
-    responses=errors(400, 404),
+    responses=errors(400, 404, 412),
     dependencies=[superseded_by_v1("PUT /pages/{page_id}")],
 )
 async def update_page(page_id: str, page_data: PageUpdate):
@@ -252,6 +294,8 @@ async def update_page(page_id: str, page_data: PageUpdate):
 
     try:
         page = page_service.update_page(page_id, page_data)
+    except PageRevisionConflict as e:
+        raise HTTPException(status_code=412, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     if not page:
@@ -259,9 +303,12 @@ async def update_page(page_id: str, page_data: PageUpdate):
 
     incompatible: list[IncompatibleReference] = []
     if existing is not None:
-        old_size = size_key(*geometry_of(existing))
-        new_size = size_key(*geometry_of(page))
-        if old_size != new_size:
+        compatibility_changed = (
+            existing.targets != page.targets
+            if is_flexible_page(page)
+            else page_size_key(existing) != page_size_key(page)
+        )
+        if compatibility_changed:
             incompatible = [IncompatibleReference(**ref) for ref in find_incompatible_references(page)]
     return PageUpdateResponse(page=page, incompatible_references=incompatible)
 
@@ -269,10 +316,10 @@ async def update_page(page_id: str, page_data: PageUpdate):
 @router.delete(
     "/pages/{page_id}",
     response_model=PageDeleteResponse,
-    responses=errors(404, 409),
+    responses=errors(404, 409, 412),
     dependencies=[superseded_by_v1("DELETE /pages/{page_id}")],
 )
-async def delete_page(page_id: str):
+async def delete_page(page_id: str, expected_revision: str | None = None):
     """Delete a page.
 
     If this is the last page, a default welcome page is automatically created
@@ -286,7 +333,13 @@ async def delete_page(page_id: str):
     from src.content_references import ContentInUseError
 
     try:
-        result = page_service.delete_page(page_id)
+        result = (
+            page_service.delete_page(page_id)
+            if expected_revision is None
+            else page_service.delete_page(page_id, expected_revision=expected_revision)
+        )
+    except PageRevisionConflict as exc:
+        raise HTTPException(status_code=412, detail=str(exc)) from exc
     except ContentInUseError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -333,7 +386,7 @@ async def preview_page_import(body: PageImportRequest):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     try:
-        page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+        page_create = PageCreate(**page_data)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=f"Invalid share string — {e}") from e
 
@@ -363,7 +416,7 @@ async def import_page(body: PageImportRequest):
         raise HTTPException(status_code=422, detail=str(e)) from e
 
     try:
-        page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+        page_create = PageCreate(**page_data)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Invalid share string — {e}") from e
 
@@ -379,6 +432,8 @@ async def import_page(body: PageImportRequest):
 @router.post(
     "/pages/{page_id}/preview",
     response_model=PagePreviewResponse,
+    # A grid page's response has no ``layout_issues`` key at all.
+    response_model_exclude_unset=True,
     responses=errors(404, 503),
 )
 async def preview_page(
@@ -395,7 +450,10 @@ async def preview_page(
         force_refresh: If true, bypass cache and always render fresh
 
     Returns:
-        The formatted text that would be displayed.
+        The formatted text that would be displayed. A flexible page is laid
+        out for the primary board as it draws: its ``layout_issues``, its
+        ``cells`` on an LED board and its one full frame as ``layers`` on a
+        pixel board.
     """
     page_service = get_page_service()
     settings_service = get_settings_service()
@@ -417,13 +475,38 @@ async def preview_page(
     if not result.available:
         raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
 
+    page = page_service.get_page(page_id)
     return PagePreviewResponse(
         page_id=page_id,
         message=result.formatted,
         lines=result.formatted.split("\n"),
         display_type=result.display_type,
         raw=result.raw,
+        **_layout_issues_field(page, result),
+        **(_primary_board_frame_fields(result) if page is not None and is_flexible_page(page) else {}),
     )
+
+
+def _primary_board_frame_fields(result) -> dict:
+    """A flexible page's preview as the primary board draws it (design section 8).
+
+    ``cells`` (its text at the board's grid) when the board draws a rich
+    character set, and ``layers`` (its one full frame) on a pixel board;
+    ``{}`` on a split-flap board or with no board configured.
+    """
+    # The board the render laid out for (the service's own choice of primary).
+    board = layout_board_for(None)
+    if not board:
+        return {}
+    fields: dict = {}
+    charset = board_character_set(board)
+    if has_extended_markup(charset):
+        dims = board_context_for(*geometry_of(board))
+        cells = project_message(result.formatted, dims.rows, dims.cols, charset).cells
+        fields["cells"] = cells_to_json(cells) if cells is not None else None
+    if draws_pixels(display_profile_for_board(board)):
+        fields["layers"] = layers_json(result.layers)
+    return fields
 
 
 @router.post(
@@ -448,7 +531,10 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
     ``board_id`` names the board the previews are for: one whose output
     draws a rich character set (an LED output) renders colour spans and icons
     and answers each preview's ``cells`` (plan D19, as the template render
-    does). Omitted, unknown, or a split-flap board: unchanged.
+    does). Omitted, unknown, or a split-flap board: unchanged. A flexible
+    page is laid out for that board (omitted or unknown: the primary board)
+    and answers its ``layout_issues``; on a pixel board its ``layers`` are
+    its one full frame.
     """
     page_ids = request.page_ids
     board = _find_board(request.board_id) if request.board_id else None
@@ -461,6 +547,18 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
     settings_service = get_settings_service()
     active_page_id = settings_service.get_active_page_id()
     results: dict = {}
+    # The text size each page needs on a pixel board (design section 7): a
+    # page the board produces only at another face previews at that face.
+    faces: dict[str, str] = {}
+    face_grids: dict[str, tuple[int, int]] = {}
+    if board is not None and draws_pixels(display):
+        for pid in page_ids:
+            page = page_service.get_page(pid)
+            face = page_fit_for_board(page, board).face if page is not None else None
+            if face:
+                faces[pid] = face
+                page_dims = dimensions_of(page)
+                face_grids[pid] = (page_dims.rows, page_dims.cols)
 
     # Use batch preview to build template context once for all pages. One
     # worker-thread call for the whole batch — the internal context sharing
@@ -474,6 +572,8 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
         active_page_id=active_page_id,
         **({"extended_markup": True} if rich else {}),
         **({"display": display} if display is not None else {}),
+        **({"faces": faces} if faces else {}),
+        **({"board": board} if board is not None else {}),
     )
     dims = board_context_for(*geometry_of(board)) if rich else None
 
@@ -492,19 +592,93 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
                 "raw": result.raw,
                 "available": True,
             }
-            if dims is not None:
+            face = getattr(result, "face", None)
+            if face and page_id in face_grids:
+                # Drawn at the page's own grid in its face's character set; the
+                # client draws it with that face. Its layers stay the canvases
+                # on the face grid, never the full frame (thumbnails stay light).
+                face_charset = BUILTIN_CHARACTER_SETS[led_charset_for_font(face)]
+                cells = project_message(result.formatted, *face_grids[page_id], face_charset).cells
+                results[page_id]["cells"] = cells_to_json(cells) if cells is not None else None
+                results[page_id]["face"] = face
+            elif dims is not None:
                 cells = project_message(result.formatted, dims.rows, dims.cols, charset).cells
                 results[page_id]["cells"] = cells_to_json(cells) if cells is not None else None
             if draws_pixels(display):
                 # A pixel-matrix board: the page's canvases, drawn over the cells.
                 results[page_id]["layers"] = layers_json(result.layers)
                 results[page_id]["canvas_issues"] = issues_json(result.canvas_issues)
+            results[page_id].update(_layout_issues_field(page_service.get_page(page_id), result))
 
     return PagePreviewBatchResponse(
         previews=results,
         total=len(page_ids),
         successful=sum(1 for r in results.values() if r.get("available", False)),
     )
+
+
+@router.post(
+    "/pages/preview/flexible",
+    response_model=PagePreviewBatchSuccess,
+    response_model_exclude_unset=True,
+    responses=errors(404, 422, 503),
+)
+async def preview_unsaved_flexible_page(request: PageFlexiblePreviewRequest):
+    """
+    Lay out an unsaved flexible page for a board, without saving it.
+
+    The editor's preview (design section 6). ``page`` is the page as
+    ``POST /pages`` would create it, and must be a flexible page (else 422).
+    ``board_id`` names the board to lay it out for; omitted or null uses the
+    primary board, while an unknown ID (including an empty string) is a 404.
+    The answer is one ``/pages/preview/batch`` entry with
+    ``page_id: "unsaved"``: the page's text at the board's grid (``lines``,
+    and ``cells`` on an LED board), its full frame as ``layers`` on a pixel
+    board, and its ``layout_issues``. A board excluded by the page's targets
+    is refused with 422; a layout that fails is a 503.
+    """
+    try:
+        page = get_page_service().new_page(request.page).model_copy(update={"id": UNSAVED_PAGE_ID})
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    board = _require_board(request.board_id) if request.board_id is not None else primary_board_entry()
+    fit = page_fit_for_board(page, board)
+    if not fit.fits:
+        raise HTTPException(status_code=422, detail=fit.reason)
+    charset = board_character_set(board) if board is not None else None
+    rich = has_extended_markup(charset)
+    display = display_profile_for_board(board) if board is not None else None
+
+    # Laying out fetches the page's plugins (network I/O): off the event loop.
+    result = await asyncio.to_thread(
+        get_page_service().render_page,
+        page,
+        board=board,
+        **({"extended_markup": True} if rich else {}),
+        **({"display": display} if display is not None else {}),
+    )
+    if not result.available:
+        raise HTTPException(status_code=503, detail=result.error or "Page rendering failed")
+
+    entry: dict = {
+        "available": True,
+        "page_id": UNSAVED_PAGE_ID,
+        "message": result.formatted,
+        "lines": result.formatted.split("\n"),
+        "display_type": result.display_type,
+        "raw": result.raw,
+        "layout_issues": layout_issues_json(result.layout_issues),
+    }
+    if rich:
+        # The text at the board's own grid, in its character set (plan D19).
+        dims = board_context_for(*geometry_of(board))
+        cells = project_message(result.formatted, dims.rows, dims.cols, charset).cells
+        entry["cells"] = cells_to_json(cells) if cells is not None else None
+    if draws_pixels(display):
+        # A pixel-matrix board: the page's one full frame, over the cells.
+        entry["layers"] = layers_json(result.layers)
+        entry["canvas_issues"] = issues_json(result.canvas_issues)
+    return PagePreviewBatchSuccess(**entry)
 
 
 # No 4xx of its own: reports in-memory cache state that always exists. See the
@@ -555,6 +729,8 @@ async def clear_page_cache(request: PageCacheClearRequest | None = None):
 @router.post(
     "/pages/{page_id}/send",
     response_model=PageSendResponse,
+    # A grid page's response has no ``layout_issues`` key at all.
+    response_model_exclude_unset=True,
     responses=errors(400, 404, 500, 503),
 )
 async def send_page(
@@ -626,8 +802,16 @@ async def send_page(
         # A board whose output draws a rich character set renders it with its
         # extended markup (plan D19); every other board's call is unchanged.
         kw = render_kw(board_client)
-        result = page_service.preview_page(page_id, force_refresh=True, **kw)
+        # At the text size the page needs on the target board (design
+        # section 7): a face page's layers are one full-frame layer. The
+        # legacy call (no board_id) sends to the primary board's client, so
+        # it fits the page to the primary board the same way.
+        fit_board = board if board is not None else primary_board_entry()
+        result, layers_to_send, fit = render_page_for_board(page_service, page_id, fit_board, kw, client=board_client)
         pixel_board = draws_pixels(kw.get("display"))
+
+        if is_flexible_page(page) and not fit.fits:
+            raise HTTPException(status_code=422, detail=fit.reason)
 
         if result is None:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
@@ -670,17 +854,30 @@ async def send_page(
                     settings_service.get_transition_settings(board.get("id") if board is not None else None),
                     page,
                     runs=lambda s: driver_runs_strategy(board_client, s),
+                    # A per-cell transition would animate the cells under the frame.
+                    full_frame=delivers_full_frame(page, fit, result),
                 )
                 strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
                 # Size the grid to the explicit target board when given (issue
-                # #1244); otherwise keep sizing to the page's device type.
+                # #1244), or to the board a face page was fitted to (its text
+                # goes under the full frame at the board's own grid);
+                # otherwise keep sizing to the page's device type.
+                # A flexible page goes at the grid of the board it laid out for.
+                flexible = is_flexible_page(page)
                 if board is not None:
                     dims = _board_dims(board)
+                elif fit.face or flexible:
+                    dims = _board_dims(fit_board)
                 else:
                     dims = resolve_dimensions(*geometry_of(page))
                 board_array, rich = project_for_output(
-                    board_client, result.formatted, dims.rows, dims.cols, flap=text_to_board_array, layers=result.layers
+                    board_client,
+                    result.formatted,
+                    dims.rows,
+                    dims.cols,
+                    flap=text_to_board_array,
+                    layers=layers_to_send,
                 )
                 # render() serializes concurrent senders via the client's
                 # per-board send lock, so worker threads can't interleave.
@@ -689,7 +886,13 @@ async def send_page(
                     strategy=strategy,
                     step_interval_ms=interval_ms,
                     step_size=step_size,
-                    device_type=(board.get("device_type") if board is not None else page.device_type),
+                    device_type=(
+                        board.get("device_type")
+                        if board is not None
+                        else geometry_of(fit_board or {}).device_type
+                        if flexible
+                        else page.device_type
+                    ),
                     **rich,
                 )
                 sent_to_board = was_sent
@@ -728,6 +931,7 @@ async def send_page(
             board_id=board_id,
             layers=layers_json(result.layers) if pixel_board else None,
             canvas_issues=issues_json(result.canvas_issues) if pixel_board else None,
+            **_layout_issues_field(page, result),
         )
 
     # Board network I/O goes on the dedicated bounded send pool, never the

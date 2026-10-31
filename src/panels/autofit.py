@@ -77,7 +77,7 @@ def compute_autofit_grid(
     """(rows, cols) of the largest true-scale character grid that fits.
 
     Each axis is clamped into [MIN_GRID_*, MAX_GRID_*] (see src/devices.py):
-    the 3 × 15 Note floor, not the 3 × 10 one of an LED board in pixels —
+    the 3 × 15 Note floor, not the 1 × 5 one of an LED board in pixels —
     a TV has room for a Note, and every plugin is authored for one.
     """
     width_in, height_in = screen_dimensions_in(diagonal_inches, aspect_w, aspect_h)

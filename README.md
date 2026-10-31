@@ -19,10 +19,12 @@
 **Works with:**
 
 - **Split-flap:** Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas)
-- **LED matrix:** Divoom Pixoo 64
+- **LED matrix:** Divoom Pixoo 64, and [Ulanzi TC002](https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002) running AWTRIX NG (community plugin)
 - **TV:** [FiestaPanel](docs/displays/tv.md) turns any TV or screen with a web browser into a life-size board. Native Apple TV and Android TV apps are coming soon.
 
 Every display is an [output plugin](docs/development/output-plugins.md), so support for new hardware can be added without changing FiestaBoard. See [Supported Displays](docs/displays/index.md).
+
+Outputs that support [native page rotation](docs/development/output-plugins.md#native-page-rotation) can optionally let their device rotate a timed collection and use its navigation buttons. Each display opts in through its output settings; ordinary core rotation remains the default.
 
 **Version availability:** Divoom Pixoo 64 support and the output-plugin setup described here target v10 (`next` / beta). Stable v9 does not include them. Native TV apps are coming soon; browser viewing is available.
 

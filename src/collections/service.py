@@ -81,16 +81,34 @@ class CollectionService:
         return self.storage.create(collection)
 
     def update_collection(self, collection_id: str, data: CollectionUpdate) -> Collection | None:
-        updates = data.model_dump(exclude_unset=True)
-        return self.storage.update(collection_id, updates)
+        updates = data.model_dump(exclude_unset=True, exclude={"expected_revision"})
+        return self.storage.update(collection_id, updates, expected_revision=data.expected_revision)
 
-    def delete_collection(self, collection_id: str) -> bool:
+    def delete_collection(self, collection_id: str, *, expected_revision: str | None = None) -> bool:
+        from contextlib import ExitStack
+
+        from src.config_manager import get_config_manager
         from src.content_references import check_content_references
+        from src.pages.service import get_page_service
+        from src.schedules.service import get_schedule_service
+        from src.settings.service import get_settings_service
 
-        if not self.storage.exists(collection_id):
-            return False
-        check_content_references(collection_id)
-        return self.storage.delete(collection_id)
+        # Match resize/deletion lock order. Check the generation before any
+        # reference work and hold the owner through the dependent deletion.
+        with ExitStack() as locks:
+            for lock in (
+                get_settings_service().lock,
+                get_config_manager().lock,
+                get_page_service().storage.lock,
+                self.storage.lock,
+                get_schedule_service().storage.lock,
+            ):
+                locks.enter_context(lock)
+            self.storage.check_revision(collection_id, expected_revision)
+            if not self.storage.exists(collection_id):
+                return False
+            check_content_references(collection_id)
+            return self.storage.delete(collection_id, expected_revision=expected_revision)
 
     def exists(self, collection_id: str) -> bool:
         return self.storage.exists(collection_id)
@@ -236,7 +254,9 @@ def get_collection_service() -> CollectionService:
     return _collection_service
 
 
-def resolve_active_page_id(page_id: str | None, get_collection_service: Callable[[], Any]) -> str | None:
+def resolve_active_page_id(
+    page_id: str | None, get_collection_service: Callable[[], Any], *, board_id=None
+) -> str | None:
     """Resolve a collection reference to the page it is currently showing.
 
     When ``page_id`` is a collection ID the Dashboard needs to know which
@@ -245,15 +265,20 @@ def resolve_active_page_id(page_id: str | None, get_collection_service: Callable
     are returned unchanged. Never raises — a collection that can't be resolved
     just yields None.
 
-    Lived in ``src/api_server.py`` until Phase 2 §2.3; it reads nothing but
-    collections, so the schedules router can import it from here instead of
-    reaching into the app module at call time.
+    Native outputs use their last device selection, including an explicitly
+    unknown/foreign selection (None), rather than core's clock. The existing
+    display service is only peeked; this read never initializes hardware.
 
     The service *accessor* is a parameter, not this module's global: the caller
     passes its own binding, so the lookup keeps resolving through whichever
     ``get_collection_service`` the calling module binds (and stays lazy — a
     plain page id never touches the service at all).
     """
+    from src.display_runtime import native_page_selection
+
+    selected = native_page_selection(page_id, board_id)
+    if selected is not None:
+        return selected.page_id
     if not is_collection_id(page_id):
         return page_id
     try:
@@ -263,7 +288,9 @@ def resolve_active_page_id(page_id: str | None, get_collection_service: Callable
         return None
 
 
-def resolve_next_check_seconds(page_id: str | None, get_collection_service: Callable[[], Any]) -> int | None:
+def resolve_next_check_seconds(
+    page_id: str | None, get_collection_service: Callable[[], Any], *, board_id=None
+) -> int | None:
     """Seconds until ``page_id``'s collection may switch to a different page.
 
     A collection can rotate as often as every 5 seconds (2 for variable-mode
@@ -276,6 +303,10 @@ def resolve_next_check_seconds(page_id: str | None, get_collection_service: Call
     Takes the service accessor as a parameter for the same reason as
     :func:`resolve_active_page_id`.
     """
+    from src.display_runtime import native_page_selection
+
+    if native_page_selection(page_id, board_id) is not None:
+        return None  # device buttons and dwell, not the core's Unix clock
     if not is_collection_id(page_id):
         return None
     try:

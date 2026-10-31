@@ -37,6 +37,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
+from tests.layout.test_engine import stub_expand  # noqa: F401  (fixture)
+from tests.layout.test_flexible_render import stub_refs  # noqa: F401  (fixture)
 
 GOLDEN_DIR = Path(__file__).parent / "golden" / "responses"
 
@@ -70,6 +72,7 @@ PAGES_ROUTES = {
     ("GET", "/staff-picks/{pick_id}/share"),
     ("POST", "/pages/{page_id}/preview"),
     ("POST", "/pages/preview/batch"),
+    ("POST", "/pages/preview/flexible"),
     ("GET", "/pages/cache/stats"),
     ("POST", "/pages/cache/clear"),
     ("POST", "/pages/{page_id}/send"),
@@ -312,6 +315,9 @@ MISSING_ID = "00000000-dead-beef-0000-000000000000"
 # ---------------------------------------------------------------------------
 
 
+# The unsaved flexible preview lays out against the stand-in expansion and
+# plugin references the layout tests use until plan Task 6 lands.
+@pytest.mark.usefixtures("stub_expand", "stub_refs")
 def test_pages_response_shapes():
     client = TestClient(app)
     rec = Recorder(client)
@@ -377,6 +383,18 @@ def test_pages_response_shapes():
         json_body={"page_ids": [page_id, MISSING_ID]},
     )
     rec.hit("preview_batch_invalid", "POST", "/pages/preview/batch", json_body={"page_ids": "nope"})
+    flexible = {
+        "name": "Golden Flexible",
+        "type": "flexible",
+        "blocks": [{"id": "band", "kind": "spacer", "style": {"height": 1, "font": "comic"}}],
+    }
+    rec.hit("preview_flexible_ok", "POST", "/pages/preview/flexible", json_body={"page": flexible})
+    rec.hit(
+        "preview_flexible_grid_page",
+        "POST",
+        "/pages/preview/flexible",
+        json_body={"page": {"name": "Grid", "type": "template", "template": ["HI"]}},
+    )
     rec.hit("cache_stats", "GET", "/pages/cache/stats")
     rec.hit("cache_clear_all", "POST", "/pages/cache/clear", json_body={})
     rec.hit("cache_clear_one", "POST", "/pages/cache/clear", json_body={"page_id": page_id})

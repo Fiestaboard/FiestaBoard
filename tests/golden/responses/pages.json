@@ -14,7 +14,9 @@
             "demo_plugin_id": "null",
             "device_type": "str",
             "display_type": "null",
+            "document_protocol": "str",
             "duration_seconds": "int",
+            "edit_protocol": "str",
             "grid_cols": "null",
             "grid_rows": "null",
             "id": "str",
@@ -22,6 +24,7 @@
             "name": "str",
             "notes_tall": "int",
             "notes_wide": "int",
+            "revision": "str",
             "rows": "null",
             "template": [
               "str",
@@ -43,7 +46,9 @@
             "demo_plugin_id": "null",
             "device_type": "str",
             "display_type": "null",
+            "document_protocol": "str",
             "duration_seconds": "int",
+            "edit_protocol": "str",
             "grid_cols": "null",
             "grid_rows": "null",
             "id": "str",
@@ -51,6 +56,7 @@
             "name": "str",
             "notes_tall": "int",
             "notes_wide": "int",
+            "revision": "str",
             "rows": "null",
             "template": [
               "str",
@@ -81,7 +87,9 @@
         "demo_plugin_id": "null",
         "device_type": "str",
         "display_type": "null",
+        "document_protocol": "str",
         "duration_seconds": "int",
+        "edit_protocol": "str",
         "grid_cols": "null",
         "grid_rows": "null",
         "id": "str",
@@ -89,6 +97,7 @@
         "name": "str",
         "notes_tall": "int",
         "notes_wide": "int",
+        "revision": "str",
         "rows": "null",
         "template": [
           "str",
@@ -137,7 +146,9 @@
         "demo_plugin_id": "null",
         "device_type": "str",
         "display_type": "null",
+        "document_protocol": "str",
         "duration_seconds": "int",
+        "edit_protocol": "str",
         "grid_cols": "null",
         "grid_rows": "null",
         "id": "str",
@@ -145,6 +156,7 @@
         "name": "str",
         "notes_tall": "int",
         "notes_wide": "int",
+        "revision": "str",
         "rows": "null",
         "template": [
           "str",
@@ -183,7 +195,9 @@
           "demo_plugin_id": "null",
           "device_type": "str",
           "display_type": "null",
+          "document_protocol": "str",
           "duration_seconds": "int",
+          "edit_protocol": "str",
           "grid_cols": "null",
           "grid_rows": "null",
           "id": "str",
@@ -191,6 +205,7 @@
           "name": "str",
           "notes_tall": "int",
           "notes_wide": "int",
+          "revision": "str",
           "rows": "null",
           "template": [
             "str",
@@ -309,7 +324,9 @@
         "demo_plugin_id": "null",
         "device_type": "str",
         "display_type": "null",
+        "document_protocol": "str",
         "duration_seconds": "int",
+        "edit_protocol": "str",
         "grid_cols": "null",
         "grid_rows": "null",
         "id": "str",
@@ -317,6 +334,7 @@
         "name": "str",
         "notes_tall": "int",
         "notes_wide": "int",
+        "revision": "str",
         "rows": "null",
         "template": [
           "str",
@@ -572,6 +590,80 @@
             "input": "str",
             "loc": [
               "str",
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
+      }
+    },
+    {
+      "label": "preview_flexible_ok",
+      "method": "POST",
+      "path_template": "/pages/preview/flexible",
+      "status": 200,
+      "shape": {
+        "available": "bool",
+        "display_type": "str",
+        "layout_issues": [
+          {
+            "code": "str",
+            "message": "str",
+            "path": [
+              "str",
+              "str",
+              "str",
+              "str"
+            ],
+            "severity": "str"
+          }
+        ],
+        "lines": [
+          "str",
+          "str",
+          "str",
+          "str",
+          "str",
+          "str"
+        ],
+        "message": "str",
+        "page_id": "str",
+        "raw": {
+          "page_id": "str",
+          "shown": [
+            "str"
+          ],
+          "surface": {
+            "cols": "int",
+            "kind": "str",
+            "rows": "int"
+          },
+          "text_representation": "str"
+        }
+      }
+    },
+    {
+      "label": "preview_flexible_grid_page",
+      "method": "POST",
+      "path_template": "/pages/preview/flexible",
+      "status": 422,
+      "shape": {
+        "detail": [
+          {
+            "ctx": {
+              "error": {}
+            },
+            "input": {
+              "page": {
+                "name": "str",
+                "template": [
+                  "str"
+                ],
+                "type": "str"
+              }
+            },
+            "loc": [
               "str"
             ],
             "msg": "str",

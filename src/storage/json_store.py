@@ -43,15 +43,17 @@ Domain rules stay in the domain: each store keeps its own
 heuristic detection) and hands them to the kernel to run.
 """
 
+import contextlib
 import json
 import logging
+import os
 import shutil
 import threading
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
-from src.atomic_io import write_json_atomic
+from src.atomic_io import staging_path, write_json_atomic
 from src.paths import get_data_dir
 
 logger = logging.getLogger(__name__)
@@ -83,6 +85,10 @@ class SchemaTooNewError(RuntimeError):
             f"Refusing to read it rather than risk misinterpreting the data. "
             + (remedy or "Restore a backup taken before the upgrade, or reinstall the newer version.")
         )
+
+
+class MigrationBackupError(RuntimeError):
+    """Migration cannot proceed safely without a complete rollback backup."""
 
 
 class JsonStore:
@@ -127,6 +133,7 @@ class JsonStore:
         #: caller that swallowed the load error cannot then overwrite the
         #: file it failed to understand.
         self._refused_future_schema = False
+        self._migration_backup_error: MigrationBackupError | None = None
 
     @property
     def path(self) -> Path:
@@ -168,6 +175,11 @@ class JsonStore:
                 self._run_migrations(data)
                 self.migrated = True
             self._data = data
+            # An explicit successful reload is the recovery boundary after
+            # restoring a supported document over a refused future schema.
+            # Failed/absent-file loads and cached saves keep the refusal latched.
+            self._refused_future_schema = False
+            self._migration_backup_error = None
             return data
 
     def save(self, data: Any) -> None:
@@ -180,6 +192,8 @@ class JsonStore:
         store's own view never depends on whether the disk needed touching.
         """
         with self._lock:
+            if self._migration_backup_error is not None:
+                raise self._migration_backup_error
             if self._refused_future_schema:
                 # The load refused this file; writing now would stamp our
                 # lower schema_version onto newer content.
@@ -259,11 +273,22 @@ class JsonStore:
         backup_path = self._path.with_suffix(f"{self._path.suffix}.v{version}_backup")
         if backup_path.exists():
             return
+        staged = staging_path(backup_path)
         try:
-            shutil.copy2(self._path, backup_path)
+            shutil.copy2(self._path, staged)
+            with staged.open("rb") as backup:
+                os.fsync(backup.fileno())
+            staged.replace(backup_path)
             logger.info(f"Created pre-migration backup at {backup_path}")
         except Exception as e:
-            logger.warning(f"Could not create backup: {e}")
+            self._migration_backup_error = MigrationBackupError(
+                f"{self._label}: could not create migration backup at {backup_path}; "
+                "no migration or writes are allowed until a successful reload"
+            )
+            raise self._migration_backup_error from e
+        finally:
+            with contextlib.suppress(OSError):
+                staged.unlink()
 
     def _run_migrations(self, data: dict) -> None:
         version = self._file_version(data)

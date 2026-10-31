@@ -140,6 +140,7 @@ def register_display_tools(tool: Any, tool_error: type[Exception]) -> None:
             "board": board_public_view(saved),
             "retargeted_pages": result.get("retargeted_pages", []),
             "incompatible_references": result.get("incompatible_references", []),
+            "left_behind_pages": result.get("left_behind_pages", []),
         }
 
     @tool(destructive=True, idempotent=False, open_world=True)
@@ -161,10 +162,10 @@ def register_display_tools(tool: Any, tool_error: type[Exception]) -> None:
             output_config: Optional temporary connection edits.
         """
         from .outputs.models import SavedBoardActionRequest
-        from .outputs.routes import run_board_action
+        from .outputs.routes import board_action
 
         try:
-            result = await run_board_action(
+            result = await board_action(
                 board_id, action, SavedBoardActionRequest(input=inputs or {}, output_config=output_config)
             )
         except HTTPException as exc:

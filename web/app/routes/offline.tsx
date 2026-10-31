@@ -1,4 +1,4 @@
-import { Box, Flex, List, ListItem, Stack, Text } from "@fiestaboard/ui";
+import { Box, Button, Flex, List, ListItem, Stack, Text } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { RefreshCw, WifiOff } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
@@ -60,13 +60,10 @@ export default function OfflinePage() {
 
         {!isOnline && (
           <Stack gap="4">
-            <button
-              onClick={handleRetry}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
+            <Button size="lg" onClick={handleRetry}>
               <RefreshCw className="h-4 w-4" />
               {t("tryAgain")}
-            </button>
+            </Button>
 
             <Box className="text-sm text-muted-foreground">
               <Text tone="muted">{t("whileOffline")}</Text>

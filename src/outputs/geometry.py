@@ -23,13 +23,13 @@ else its character set's.
 
 **The floor.** Every board shows at least one Note, 3 × 15: plugins and
 templates are authored for that — except an LED board measured in pixels
-(``pixels`` geometry), whose floor is 3 × 10 (``MIN_LED_GRID_*``) so a
+(``pixels`` geometry), whose floor is 1 × 5 (``MIN_LED_GRID_*``) so a
 legible 5x7 face fits: a Divoom Pixoo 64 at 5x7 is 8 × 10, a 64 × 32 HUB75
-or Tidbyt 4 × 10. :func:`grid_floor` picks the model's floor. A model whose
-grid is smaller is **refused** (:class:`BelowFloorError`) here, before
-anything resolves the board's geometry — ``src.devices.clamp_grid`` (which
-every ``panel`` grid passes through, LED boards included) would otherwise
-quietly inflate a 1 × 8 matrix to 3 × 10 and every frame would be cropped on
+or Tidbyt 4 × 10, a 32 × 8 Ulanzi TC001 1 × 8 (3x5) or 1 × 5 (5x7).
+:func:`grid_floor` picks the model's floor. A model whose grid is smaller is
+**refused** (:class:`BelowFloorError`) here, before anything resolves the board's geometry —
+``src.devices.clamp_grid`` (which every ``panel`` grid passes through, LED boards included) would otherwise
+quietly inflate a 1 × 2 matrix to 1 × 5 and every frame would be cropped on
 the device. A grid above the panel ceiling (``MAX_GRID_ROWS`` ×
 ``MAX_GRID_COLS``) is refused the same way rather than shrunk.
 """
@@ -62,7 +62,7 @@ class GeometryError(ValueError):
 
 
 class BelowFloorError(GeometryError):
-    """A device model's grid is smaller than its floor (3 × 15; 3 × 10 for an LED board in pixels)."""
+    """A device model's grid is smaller than its floor (3 × 15; 1 × 5 for an LED board in pixels)."""
 
 
 class GlyphBox(NamedTuple):
@@ -194,7 +194,7 @@ def is_led_pixel_model(model: Mapping[str, Any]) -> bool:
 def grid_floor(model: Mapping[str, Any]) -> tuple[int, int]:
     """The smallest (rows, cols) a board of *model* may show.
 
-    3 × 10 for an LED board measured in pixels; the 3 × 15 Note for every
+    1 × 5 for an LED board measured in pixels; the 3 × 15 Note for every
     other model (cells, panel, note array).
     """
     if is_led_pixel_model(model):
@@ -229,7 +229,7 @@ def resolve_content_grid(
     ``panel`` that declares its own size, which is used when none is asked.
 
     Raises:
-        BelowFloorError: the grid is below the model's floor (3 × 15; 3 × 10 for an LED board in pixels).
+        BelowFloorError: the grid is below the model's floor (3 × 15; 1 × 5 for an LED board in pixels).
         GeometryError: geometry missing, unexpected, or above the ceiling.
     """
     configurable = model["geometry"]["kind"] in CONFIGURABLE_KINDS
@@ -275,3 +275,24 @@ def derived_plugin_grid(board: Mapping[str, Any]) -> tuple[int, int] | None:
     except (GeometryError, KeyError):
         return None
     return grid
+
+
+def board_grid_floor(board: Mapping[str, Any]) -> tuple[int, int] | None:
+    """The smallest (rows, cols) a ``panel`` *board* may be written with, or ``None``.
+
+    A FiestaPanel keeps the 3 × 15 Note floor whatever its render style (its
+    LED face is a TV's, not an LED board's); an output-plugin board has its
+    device model's floor (:func:`grid_floor`: 1 × 5 only for a ``pixels``
+    model). ``None`` for a Vestaboard (never a ``panel``) or a plugin that is
+    not installed, whose model cannot be known.
+    """
+    from .board_profile import board_device_model
+    from .registry import FIESTAPANEL, VESTABOARD, resolve_output_id
+
+    output_id = resolve_output_id(board)
+    if output_id == FIESTAPANEL:
+        return MIN_GRID_ROWS, MIN_GRID_COLS
+    if output_id == VESTABOARD:
+        return None
+    model = board_device_model(board)
+    return grid_floor(model) if isinstance(model, Mapping) else None

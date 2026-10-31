@@ -65,12 +65,12 @@ test.afterEach(async () => {
   await resetToSingleBoard();
 });
 
-/** Open the single "My Board" display's page (was: expand its card on Settings → Hardware). */
-async function openHardwareAndExpand(page: import("@playwright/test").Page) {
+/** Open the single "My Board" display's Settings tab. */
+async function openBoardSettings(page: import("@playwright/test").Page) {
   await openDisplay(page, "My Board");
 }
 
-/** The grouped board type/size combobox inside the expanded board card. */
+/** The grouped board type/size combobox on the display's Settings tab. */
 function typeSelect(page: import("@playwright/test").Page) {
   return page.getByRole("combobox", { name: TYPE_SELECT_LABEL }).first();
 }
@@ -82,7 +82,7 @@ function typeSelect(page: import("@playwright/test").Page) {
 test.describe("regression: note-arrays — presets", () => {
   for (const preset of PRESETS) {
     test(`preset "${preset.label}" persists note_array ${preset.notesWide}×${preset.notesTall}`, async ({ page }) => {
-      await openHardwareAndExpand(page);
+      await openBoardSettings(page);
 
       // Open the grouped Select (Devices + Note arrays) and pick the preset.
       const select = typeSelect(page);
@@ -111,7 +111,7 @@ test.describe("regression: note-arrays — presets", () => {
 
 test.describe("regression: note-arrays — custom W×H", () => {
   test("Custom… with 2 × 3 persists notes_wide:3, notes_tall:2", async ({ page }) => {
-    await openHardwareAndExpand(page);
+    await openBoardSettings(page);
 
     // Pick "Custom…" (displaySettings.customLabel → display-settings.tsx:645).
     const select = typeSelect(page);
@@ -140,7 +140,7 @@ test.describe("regression: note-arrays — custom W×H", () => {
   });
 
   test("out-of-range custom width (9) is blocked inline and not persisted", async ({ page }) => {
-    await openHardwareAndExpand(page);
+    await openBoardSettings(page);
 
     const select = typeSelect(page);
     await select.click();
@@ -294,7 +294,7 @@ test.describe("regression: note-arrays — auto-detect", () => {
       });
     });
 
-    await openHardwareAndExpand(page);
+    await openBoardSettings(page);
 
     // Token field (the Vestaboard manifest's note_array_token) is present for note arrays.
     await expect(page.getByLabel(/Cloud API Token/)).toBeVisible({ timeout: 5_000 });
@@ -322,7 +322,7 @@ test.describe("regression: note-arrays — auto-detect", () => {
       });
     });
 
-    await openHardwareAndExpand(page);
+    await openBoardSettings(page);
 
     await page.getByRole("button", { name: "Auto-detect from board" }).first().click();
 

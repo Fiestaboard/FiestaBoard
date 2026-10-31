@@ -6,6 +6,7 @@
 // rasterises and previews them (design PIXEL_CANVAS.md §5).
 
 import {
+  Box,
   Button,
   Checkbox,
   Flex,
@@ -49,6 +50,12 @@ import {
 const SIDES: Exclude<CanvasBleedSide, "all">[] = ["top", "left", "right", "bottom"];
 const CANVAS_ID = /^[a-z0-9_-]{1,16}$/;
 
+function initialCanvasTab(canvas: Canvas): "draw" | "shapes" | "source" {
+  if (canvas.source?.trim()) return "source";
+  const hasPixels = canvas.content?.pixels?.some((row) => /[^.]/.test(row));
+  return canvas.content?.shapes?.length && !hasPixels ? "shapes" : "draw";
+}
+
 interface CanvasesPanelProps {
   canvases: Canvas[];
   onChange: (canvases: Canvas[]) => void;
@@ -75,6 +82,30 @@ export const CanvasesPanel = forwardRef<CanvasesPanelHandle, CanvasesPanelProps>
   const t = useTranslations("canvasEditor");
   const [activeId, setActiveId] = useState<string | null>(canvases[0]?.id ?? null);
   const active = canvases.find((c) => c.id === activeId) ?? canvases[0] ?? null;
+  // IDs can be renamed and list positions can change after deletion. Keep a
+  // client identity through explicit replacements, and retain only visited
+  // editors so their unfinished drafts never move to another canvas.
+  const [editorState, setEditorState] = useState(() => ({
+    identities: new Map<string, { key: number; visited: boolean }>(),
+    nextKey: 0,
+  }));
+  let identities = editorState.identities;
+  if (
+    identities.size !== canvases.length ||
+    canvases.some((canvas) => !identities.has(canvas.id)) ||
+    (active && !identities.get(active.id)?.visited)
+  ) {
+    identities = new Map();
+    let nextKey = editorState.nextKey;
+    for (const canvas of canvases) {
+      const previous = editorState.identities.get(canvas.id);
+      identities.set(canvas.id, {
+        key: previous?.key ?? nextKey++,
+        visited: previous?.visited || canvas.id === active?.id,
+      });
+    }
+    setEditorState({ identities, nextKey });
+  }
   const idInputRef = useRef<HTMLInputElement>(null);
   const [activation, setActivation] = useState(0);
 
@@ -108,7 +139,20 @@ export const CanvasesPanel = forwardRef<CanvasesPanelHandle, CanvasesPanelProps>
     onChange([...canvases, makeCanvas(id, area)]);
     setActiveId(id);
   };
-  const replace = (id: string, next: Canvas) => onChange(canvases.map((c) => (c.id === id ? next : c)));
+  const replace = (id: string, next: Canvas) => {
+    if (next.id !== id) {
+      setEditorState((previous) => {
+        const nextIdentities = new Map(previous.identities);
+        const identity = nextIdentities.get(id);
+        if (identity) {
+          nextIdentities.delete(id);
+          nextIdentities.set(next.id, identity);
+        }
+        return { ...previous, identities: nextIdentities };
+      });
+    }
+    onChange(canvases.map((c) => (c.id === id ? next : c)));
+  };
   const remove = (id: string) => {
     const rest = canvases.filter((c) => c.id !== id);
     onChange(rest);
@@ -176,22 +220,28 @@ export const CanvasesPanel = forwardRef<CanvasesPanelHandle, CanvasesPanelProps>
               </Toggle>
             ))}
           </ToggleGroup>
-          {active && (
-            <CanvasEditor
-              key={canvases.indexOf(active)}
-              idInputRef={idInputRef}
-              canvas={active}
-              canvases={canvases}
-              gridRows={gridRows}
-              gridCols={gridCols}
-              board={board}
-              onChange={(next) => {
-                replace(active.id, next);
-                if (next.id !== active.id) setActiveId(next.id);
-              }}
-              onDelete={() => remove(active.id)}
-            />
-          )}
+          {canvases.map((canvas) => {
+            const identity = identities.get(canvas.id)!;
+            if (!identity.visited) return null;
+            const isActive = canvas.id === active?.id;
+            return (
+              <Box key={identity.key} hidden={!isActive}>
+                <CanvasEditor
+                  idInputRef={isActive ? idInputRef : undefined}
+                  canvas={canvas}
+                  canvases={canvases}
+                  gridRows={gridRows}
+                  gridCols={gridCols}
+                  board={board}
+                  onChange={(next) => {
+                    replace(canvas.id, next);
+                    if (next.id !== canvas.id) setActiveId(next.id);
+                  }}
+                  onDelete={() => remove(canvas.id)}
+                />
+              </Box>
+            );
+          })}
         </>
       )}
     </Stack>
@@ -199,7 +249,7 @@ export const CanvasesPanel = forwardRef<CanvasesPanelHandle, CanvasesPanelProps>
 });
 
 interface CanvasEditorProps {
-  idInputRef: RefObject<HTMLInputElement | null>;
+  idInputRef: RefObject<HTMLInputElement | null> | undefined;
   canvas: Canvas;
   canvases: Canvas[];
   gridRows: number;
@@ -391,7 +441,7 @@ function CanvasEditor({
         </Stack>
       </Flex>
 
-      <Tabs defaultValue="draw">
+      <Tabs defaultValue={initialCanvasTab(canvas)}>
         <TabsList>
           <TabsTrigger value="draw">{t("tabDraw")}</TabsTrigger>
           <TabsTrigger value="shapes">{t("tabShapes")}</TabsTrigger>
@@ -399,14 +449,14 @@ function CanvasEditor({
         </TabsList>
         <TabsContent value="draw" className="pt-3" keepMounted>
           <CanvasDrawTab
-            key={canvas.id}
             content={canvas.content}
+            source={canvas.source}
             width={padWidth}
             height={padHeight}
             onContentChange={setContent}
           />
         </TabsContent>
-        <TabsContent value="shapes" className="pt-3">
+        <TabsContent value="shapes" className="pt-3" keepMounted>
           <CanvasShapesEditor
             shapes={canvas.content?.shapes ?? []}
             onChange={(shapes) => setContent({ ...(canvas.content ?? {}), shapes })}

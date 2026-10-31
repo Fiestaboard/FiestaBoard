@@ -111,7 +111,7 @@ def inline_model(manifest: dict, **model) -> None:
 
 class TestManifestRules:
     def test_an_unsupported_output_api_breaks_manifest(self, tmp_path):
-        broken = manifest_dir(tmp_path, lambda m: m["output"].update(output_api=2))
+        broken = manifest_dir(tmp_path, lambda m: m["output"].update(output_api=3))
         assert rules_broken(suite(plugin_dir=broken), "manifest") == {"manifest"}
 
     def test_a_model_embedding_an_unmaterialisable_charset_breaks_character_set(self, tmp_path):
@@ -133,7 +133,7 @@ class TestManifestRules:
             lambda m: inline_model(
                 m,
                 technology="led_matrix",
-                geometry={"kind": "pixels", "width": 32, "height": 32},
+                geometry={"kind": "pixels", "width": 16, "height": 8},
                 color={"kind": "rgb", "bitDepth": 24},
             ),
         )
@@ -145,7 +145,7 @@ class TestManifestRules:
         assert model_cell_grid(pixoo, {"id": "five", "font": "5x7"}) == (8, 10)  # led_5x7
 
     def test_a_64x64_pixel_model_at_5x7_clears_the_led_floor(self, tmp_path):
-        # 8x10 is below the 3x15 Note but meets the 3x10 floor of an LED
+        # 8x10 is below the 3x15 Note but meets the 1x5 floor of an LED
         # board measured in pixels.
         def edit(m):
             inline_model(
@@ -162,14 +162,14 @@ class TestManifestRules:
         assert model_cell_grid(suite(plugin_dir=fine).manifest.output.model(0)) == (8, 10)
         assert suite(plugin_dir=fine).check_geometry_floor() == []
 
-    def test_a_pixel_model_below_3x10_breaks_geometry_floor(self, tmp_path):
-        # 35x17 pixels at 3x5 is 3x9.
+    def test_a_pixel_model_below_1x5_breaks_geometry_floor(self, tmp_path):
+        # 18x5 pixels at 3x5 is 1x4.
         broken = manifest_dir(
             tmp_path,
             lambda m: inline_model(
                 m,
                 technology="led_matrix",
-                geometry={"kind": "pixels", "width": 35, "height": 17},
+                geometry={"kind": "pixels", "width": 18, "height": 5},
                 color={"kind": "rgb", "bitDepth": 24},
                 charset="led_3x5",
                 font="3x5",
@@ -177,7 +177,7 @@ class TestManifestRules:
         )
         violations = suite(plugin_dir=broken).check_geometry_floor()
         assert [v.message for v in violations] == [
-            "device model 'broken_sign' shows 3x9 cells, below the 3x10 floor: core refuses a board this small"
+            "device model 'broken_sign' shows 1x4 cells, below the 1x5 floor: core refuses a board this small"
         ]
 
     def test_a_cells_model_keeps_the_3x15_floor(self, tmp_path):

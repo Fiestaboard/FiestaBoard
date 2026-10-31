@@ -22,7 +22,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, computed_field, model_validator
 
 COLLECTION_ID_PREFIX = "collection:"
 
@@ -106,6 +106,14 @@ class Collection(BaseModel):
     """A collection – an ordered set of pages plus a selection mode."""
 
     id: str = Field(default_factory=make_collection_id)
+    # Runtime only: storage assigns a fresh generation on create/load/write.
+    revision: str | None = Field(default=None, json_schema_extra={"readOnly": True})
+
+    @computed_field
+    @property
+    def edit_protocol(self) -> Literal["collection-revision-v1"]:
+        return "collection-revision-v1"
+
     name: str = Field(min_length=1, max_length=100)
     page_ids: list[str] = Field(min_length=1)
 
@@ -220,6 +228,8 @@ class CollectionCreate(BaseModel):
 class CollectionUpdate(BaseModel):
     """Request model for updating an existing collection."""
 
+    expected_revision: str | None = Field(default=None, min_length=1, max_length=128)
+
     name: str | None = Field(default=None, min_length=1, max_length=100)
     page_ids: list[str] | None = Field(default=None, min_length=1)
     selection_mode: SelectionMode | None = None
@@ -231,9 +241,9 @@ class CollectionUpdate(BaseModel):
 # --- Response models -----------------------------------------------------
 #
 # Phase 2 conventions (spec §2): every route declares a ``response_model``.
-# Collections have no derived, masked, or computed wire fields, so the stored
-# model *is* the response model — ``CollectionResponse`` is an alias rather
-# than a copy, and the routes name the contract instead of the store.
+# The runtime revision and computed protocol travel with the domain model,
+# while storage excludes them from the document. ``CollectionResponse`` is an
+# alias so each content read and write advertises the same editing contract.
 
 #: The wire shape of a single collection.
 CollectionResponse = Collection

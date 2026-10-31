@@ -411,14 +411,14 @@ class TestLoadPrecedence:
 
     def test_an_unsupported_output_api_falls_back_to_the_seed_loudly(self, seed, tmp_path, loaders):
         external = installed_copy(tmp_path)
-        set_output_api(external / PLUGIN_ID, 2)
+        set_output_api(external / PLUGIN_ID, 3)
         loader = make_loader(loaders, tmp_path, seed, external)
         assert loader.load_plugin(PLUGIN_ID) is not None
         import sys
 
         assert Path(sys.modules[f"plugins.{PLUGIN_ID}"].__file__).resolve().parent == (seed / PLUGIN_ID).resolve()
         (error,) = loader.load_errors[PLUGIN_ID]
-        assert "cannot run" in error and "output_api 2" in error and "bundled with FiestaBoard" in error
+        assert "cannot run" in error and "output_api 3" in error and "bundled with FiestaBoard" in error
         assert loader.seed_fallbacks[PLUGIN_ID] == error
         # Update, reinstall and uninstall still act on the installed copy.
         assert loader.get_source(PLUGIN_ID).local_path == str((external / PLUGIN_ID).resolve())
@@ -440,10 +440,10 @@ class TestLoadPrecedence:
 
     def test_without_a_seed_copy_an_unsupported_output_api_is_refused(self, tmp_path, loaders):
         external = installed_copy(tmp_path)
-        set_output_api(external / PLUGIN_ID, 2)
+        set_output_api(external / PLUGIN_ID, 3)
         loader = make_loader(loaders, tmp_path, tmp_path / "no-seed", external)
         assert loader.load_plugin(PLUGIN_ID) is None
-        assert any("output_api 2" in e for e in loader.load_errors[PLUGIN_ID])
+        assert any("output_api 3" in e for e in loader.load_errors[PLUGIN_ID])
         assert loader.seed_fallbacks == {}
 
     def test_a_plugin_nobody_installed_is_not_loaded_from_the_seed(self, seed, tmp_path, loaders):
@@ -476,7 +476,7 @@ class TestEveryInstalledOutputBuilds:
         from src.outputs.plugin_registration import release_driver
 
         external = installed_copy(tmp_path)
-        set_output_api(external / PLUGIN_ID, 2)
+        set_output_api(external / PLUGIN_ID, 3)
         make_loader(loaders, tmp_path, seed, external).load_plugin(PLUGIN_ID)
         driver = build_driver({**named(), "output_config": {"host": "192.0.2.50"}})
         assert driver is not None
@@ -525,12 +525,12 @@ def check(origin: Path, clone: Path):
 
 class TestUpdateCheckGate:
     def test_an_incoming_unsupported_output_api_is_not_offered(self, tmp_path):
-        result = check(*origin_and_clone(tmp_path, 2))
+        result = check(*origin_and_clone(tmp_path, 3))
         assert result.available is False
-        assert result.blocked_reason == "The update needs output_api 2; this FiestaBoard supports output_api 1."
+        assert result.blocked_reason == "The update needs output_api 3; this FiestaBoard supports output_api 1-2."
 
     def test_the_refusal_leaves_the_checkout_untouched(self, tmp_path):
-        origin, clone = origin_and_clone(tmp_path, 2)
+        origin, clone = origin_and_clone(tmp_path, 3)
         before = git(clone, "rev-parse", "HEAD")
         check(origin, clone)
         assert git(clone, "rev-parse", "HEAD") == before
@@ -563,11 +563,11 @@ def installed(tmp_path, monkeypatch):
 class TestUpdateRollback:
     def test_an_update_with_an_unsupported_output_api_is_rolled_back(self, installed):
         origin, external, head = installed
-        set_output_api(origin, 2)
-        commit_all(origin, "api 2")
+        set_output_api(origin, 3)
+        commit_all(origin, "api 3")
         outcome = update_external_plugin(PLUGIN_ID, external)
         assert (outcome.ok, outcome.stage) == (False, "rolled_back")
-        assert head[:12] in outcome.error and "output_api 2" in outcome.error
+        assert head[:12] in outcome.error and "output_api 3" in outcome.error
         assert get_local_head_sha(external / PLUGIN_ID) == head
         assert json.loads((external / PLUGIN_ID / "manifest.json").read_text("utf-8"))["output"]["output_api"] == 1
 
@@ -611,8 +611,8 @@ class TestUpdateRollback:
 
     def test_reinstalling_over_an_output_plugin_rolls_a_bad_update_back(self, installed):
         origin, external, head = installed
-        set_output_api(origin, 2)
-        commit_all(origin, "api 2")
+        set_output_api(origin, 3)
+        commit_all(origin, "api 3")
         ok, err = install_git_plugin(origin.as_uri(), plugin_id=PLUGIN_ID, external_dir=external)
         assert ok is False and "rolled back" in err
         assert get_local_head_sha(external / PLUGIN_ID) == head

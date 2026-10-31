@@ -95,7 +95,9 @@
     "updateAvailable": "Güncelleme mevcut",
     "updateTo": "{version} sürümüne güncelle",
     "about": "FiestaBoard hakkında",
-    "signOut": "Oturumu kapat"
+    "signOut": "Oturumu kapat",
+    "popoverLabel": "Hesap menüsü",
+    "account": "Hesap"
   },
   "aboutDialog": {
     "description": "Bu FiestaBoard'un sürüm ve sistem bilgileri.",
@@ -203,7 +205,11 @@
     "importDialogCancel": "İptal",
     "importDialogImport": "İçe Aktar",
     "importDialogImporting": "İçe aktarılıyor...",
-    "toastImported": "\"{name}\" sayfalarınıza eklendi"
+    "toastImported": "\"{name}\" sayfalarınıza eklendi",
+    "displayFilter": "Ekran filtresi",
+    "allPages": "Tüm sayfalar",
+    "libraryCount": "{count, plural, one {# sayfa} other {# sayfa}}",
+    "clearFilter": "Tüm sayfaları göster"
   },
   "collections": {
     "title": "Döngüler",
@@ -300,7 +306,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "Görünüm modu",
+    "gridView": "Kutucuk görünümü",
+    "listView": "Liste görünümü",
+    "libraryCount": "{count, plural, one {# döngü} other {# döngü}}",
+    "movePageUp": "{name} öğesini yukarı taşı",
+    "movePageDown": "{name} öğesini aşağı taşı",
+    "removePage": "{name} öğesini kaldır",
+    "moveRuleUp": "{number} numaralı kuralı yukarı taşı",
+    "moveRuleDown": "{number} numaralı kuralı aşağı taşı",
+    "notFound": "Bu döngü bulunamadı.",
+    "loadFailed": "Döngüler yüklenemedi. Tekrar deneyin.",
+    "backToCollections": "Döngülere dön",
+    "discardChangesTitle": "Kaydedilmemiş değişiklikler silinsin mi?",
+    "discardChangesDescription": "Döngünüzde kaydedilmemiş değişiklikler var.",
+    "keepEditing": "Düzenlemeye devam et",
+    "discardAndLeave": "Değişiklikleri sil ve çık",
+    "retryButton": "Tekrar dene"
   },
   "schedule": {
     "title": "Zamanlama",
@@ -638,7 +661,13 @@
       "createAction": "Demo Sayfası Oluştur",
       "recreateAction": "Demo Sayfasını Yeniden Oluştur",
       "requirementsWarning": "Demo sayfası oluşturmadan önce aşağıdaki zorunlu ayarları yapılandırın."
-    }
+    },
+    "catalogCount": "{count} entegrasyon",
+    "previousResults": "Önceki sonuçlar",
+    "nextResults": "Sonraki sonuçlar",
+    "resultsPage": "Sayfa {current} / {total}",
+    "allCategories": "Tüm kategoriler",
+    "categoryFilter": "Entegrasyon kategorisi"
   },
   "settings": {
     "title": "Ayarlar",
@@ -739,7 +768,15 @@
       "confirmDescription": "<file></file> dosyasını geri yüklemek üzeresiniz. Mevcut sayfalarınızın, döngülerinizin, zamanlamalarınızın ve yapılandırmanızın üzerine yazılacak. Gerekirse elle geri dönebilmeniz için her mevcut dosyanın zaman damgalı bir kopyası yenisinin yanında saklanır.",
       "restoringButton": "Geri yükleniyor…",
       "restoreButton": "Yedeği geri yükle"
-    }
+    },
+    "groupIdentity": "Örnek",
+    "groupAppearance": "Görünüm ve erişilebilirlik",
+    "groupRegional": "Dil, saat ve konum",
+    "groupConnections": "Bağlantılar",
+    "displaySilenceTitle": "Ekran sessizlik programları",
+    "displaySilenceDescription": "Her ekranın kendi sessiz saatleri vardır. Programını değiştirmek için ekranın Oynatma sekmesini açın.",
+    "openDisplayPlayback": "{name} oynatma ayarlarını aç",
+    "openDisplays": "Ekranları yönet"
   },
   "offline": {
     "youreOffline": "Çevrimdışısınız",
@@ -1166,7 +1203,12 @@
     "liveSilencePreviewOnly": "Canlı çıkış yalnızca önizleme yapıyor. Pano sessiz kalır.",
     "liveSendAnyway": "Yine de panoya gönder",
     "liveSilenceOverriding": "Canlı çıkış sessizlik sırasında panoyu uyandırıyor.",
-    "liveStopOverriding": "Göndermeyi durdur"
+    "liveStopOverriding": "Göndermeyi durdur",
+    "editingSurfaceLabel": "Sayfa içeriği",
+    "textMode": "Metin",
+    "canvasesMode": "Tuvaller",
+    "showPreview": "Önizlemeyi ve canlı çıkışı göster",
+    "hidePreview": "Önizlemeyi ve canlı çıkışı gizle"
   },
   "displaySettings": {
     "unnamedBoard": "İsimsiz Pano",
@@ -1231,7 +1273,11 @@
     "notesTallLabel": "Note yüksekliği",
     "customRangeError": "Her boyut 1 ile {max} arasında olmalıdır.",
     "resizeMovedPages": "Sayfalar panonun yeni boyutuna taşındı: {pages}.",
-    "resizeStaleRefs": "Panonun yeni boyutu artık bu sayfalara uymuyor: {pages}. Düzenlemezseniz bu panoda gösterilmezler."
+    "resizeStaleRefs": "Panonun yeni boyutu artık bu sayfalara uymuyor: {pages}. Düzenlemezseniz bu panoda gösterilmezler.",
+    "leftBehind": {
+      "title": "Bu ekranın artık göstermediği sayfalar",
+      "description": "Bir boyut değişikliği bu sayfaları geride bıraktı. Birini bu ekrana sığacak şekilde düzenleyin veya başka bir ekranda gösterin."
+    }
   },
   "displays": {
     "title": "Ekranlar",
@@ -1271,7 +1317,15 @@
       "speedTitle": "Hız",
       "pluginsDescription": "Daktilo ve çözülme gibi kare kare animasyonlar (kullanımdan kaldırıldı). Tüm ekranlara uygulanır.",
       "pluginsSavedToast": "Geçiş eklentileri ayarı kaydedildi.",
-      "pluginsSaveFailedToast": "Geçiş eklentileri ayarı kaydedilemedi: {error}"
+      "pluginsSaveFailedToast": "Geçiş eklentileri ayarı kaydedilemedi: {error}",
+      "replay": "Önizlemeyi yeniden oynat",
+      "nativePreviewNote": "Kutucukların sırasını ve ritmini gösterir. Donanımdaki görünüm farklı olabilir.",
+      "pluginPreviewUnavailable": "Bu geçiş eklentisi için önizleme kullanılamıyor.",
+      "savedUnavailable": "Kaydedilen seçim: {name} (kullanılamıyor)",
+      "reducedMotionNote": "Hareketi azaltma açık. Önizleme, mesajın son hâlini gösterir.",
+      "cloudPreviewNote": "Bu ekran tüm içeriği aynı anda değiştirir.",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "MERHABA DUNYA"
     },
     "add": {
       "title": "Ekran ekle",
@@ -1339,7 +1393,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "Genel bakış",
+    "tabSettings": "Ayarlar",
+    "tabPlayback": "Oynatma",
+    "tabsLabel": "Ekran bölümleri"
   },
   "systemUpdate": {
     "updateAvailable": "Güncelleme Mevcut",
@@ -1712,6 +1770,12 @@
     "noCompatiblePagesTitle": "Bu panonun boyutuyla eşleşen sayfa yok.",
     "noCompatiblePagesDescription": "Burada görmek için bu pano boyutunda bir sayfa oluşturun."
   },
+  "pageFit": {
+    "madeFor": "{rows}×{cols} pano için yapıldı",
+    "notOnThisDisplay": "Bu ekranda değil",
+    "targetRestricted": "This page is restricted to other boards or display technologies",
+    "physicalFrameUnsupported": "Update this display’s output plugin to use flexible pixel pages"
+  },
   "profile": {
     "title": "Profil",
     "description": "Tercihleriniz ve görüntü ayarları",
@@ -1751,9 +1815,9 @@
     "welcomeSendError": "Gönderilemedi",
     "welcomeDefault": "Varsayılan karşılamayı kullanmak için boş bırakın",
     "timezoneLabel": "Saat dilimi",
-    "animationsTitle": "Animasyonlar",
-    "animationsDescription": "Board önizlemesi ve uygulamanın geri kalanı için hareketi ayrı ayrı ayarlayın",
-    "boardAnimationsLabel": "Board animasyonları",
+    "animationsTitle": "Grafikler ve önizlemeler",
+    "animationsDescription": "Uygulama genelindeki hareketleri kontrol edin. Bu tercihler ekrandaki tüm önizlemelere uygulanır.",
+    "boardAnimationsLabel": "Pano önizlemeleri",
     "boardAnimationsHint": "Karoların değişimindeki split-flap dönüşü",
     "boardAnimationsOn": "Açık",
     "boardAnimationsDesktop": "Sadece masaüstü",
@@ -1767,7 +1831,7 @@
     "siteAnimationsOff": "Kapalı",
     "animationsReduceMotionOverride": "\"Hareketi azalt\" etkin, bu ayarları geçersiz kılar.",
     "flapSpeedLabel": "Çevirme hızı",
-    "flapSpeedHint": "Board yerine oturana kadar her karonun bir karakteri ne kadar süre gösterdiği",
+    "flapSpeedHint": "Uygulamadaki mekanik kanatlı pano önizlemelerinin ritmini seçin.",
     "flapSpeed_hardware": "En hızlı",
     "flapSpeed_quick": "Hızlı",
     "flapSpeed_standard": "Standart",
@@ -1779,7 +1843,7 @@
     "flapSpeed_relaxedHint": "{ms} ms — ortam ekranları için yavaş, ölçülü bir çevirme.",
     "flapSpeedPreviewLabel": "Önizleme",
     "flapSpeedInactive": "Board animasyonları kapalı, bu yüzden çevirme hızının etkisi yok.",
-    "flapSpeedScreenOnlyNote": "Bu yalnızca ekrandaki board önizlemesini değiştirir. Fiziksel Vestaboard'unuzun kendi geçiş hızı ayrı olarak Zamanlama → Board geçişleri altında ayarlanır."
+    "flapSpeedScreenOnlyNote": "Bu yalnızca ekrandaki pano önizlemesini kontrol eder. Donanım zamanlamasını Ekranlar → Oynatma → Pano geçişleri bölümünden değiştirin."
   },
   "monitor": {
     "title": "Monitör",
@@ -2653,6 +2717,8 @@
     "dismissFailed": "Kapatılamadı. Tekrar deneyin."
   },
   "boardSettingsScreen": {
+    "textSizeDefault": "Yeni sayfaların başladığı boyut. Diğer boyutta yapılan sayfalar kendi boyutlarında gösterilmeye devam eder.",
+    "textSizeFadeNote": "Diğer metin boyutundaki sayfalar Solma ile değişir. Çevirme, Kaskad ve geçiş eklentileri ekranın kendi metin boyutunu gerektirir.",
     "noDevicesFound": "Cihaz bulunamadı. Adresi kendiniz girin.",
     "devicesFoundLabel": "{field} için bulunan cihazlar",
     "subnetLabel": "Aranacak ağ (isteğe bağlı)",
@@ -2921,7 +2987,9 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "Tuvaller kabul edilmedi: {message}",
     "notPixelNotice": "Bu sayfada piksel tuvalleri var. Bu pano bunları çizemez, bu yüzden alanları boş kalır. Düzenlemek için sayfayı LED piksel panosunda önizleyin.",
-    "markerTitle": "Bir tuval bu satırda başlıyor (metnin parçası değil)"
+    "markerTitle": "Bir tuval bu satırda başlıyor (metnin parçası değil)",
+    "drawLayerHint": "Çizim yalnızca pikselleri düzenler. Sayfa önizlemesi tuvalin arka planını ve şekillerini gösterir.",
+    "drawSourceHint": "Bu tuval bir kaynak kullanır. Çizim, yedek pikselleri düzenler; kaynak kullanılabilir olduğunda önizlemede kaynak gösterilir."
   },
   "silenceNotice": {
     "untilTitle": "{time} saatine kadar sessiz",
@@ -2984,5 +3052,81 @@
     "confirm": "Onayla",
     "revokeDevice": "{name} erişimini iptal et",
     "retry": "Tekrar dene"
+  },
+  "plugins": {
+    "communityBadge": "Topluluk",
+    "communityDescription": "FiestaBoard GitHub kuruluşu dışında yayımlanmıştır."
+  },
+  "flexibleEditor": {
+    "durationInvalid": "Enter a whole number from 10 to 3600 seconds.",
+    "actions": "Page actions",
+    "backToEditing": "Back to editing",
+    "retryPreview": "Retry preview",
+    "goToBlock": "Go to {label}",
+    "warning": "Warning",
+    "information": "Note",
+    "notSaved": "Not saved yet",
+    "repairDrafts": "Fix incomplete edits before saving. Your draft is kept.",
+    "fixBlock": "Fix Block {number}",
+    "sizeInvalid": "Enter whole-number dimensions from 1 to 128.",
+    "title": "Flexible page",
+    "description": "Stack text, drawings and space. Each display lays out the same document at its own size. Existing grid pages keep their exact layout.",
+    "close": "Close",
+    "undo": "Undo",
+    "redo": "Redo",
+    "save": "Save page",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "unsaved": "Unsaved changes",
+    "saveFailed": "Could not save page",
+    "name": "Name",
+    "duration": "Duration (seconds)",
+    "pageStyle": "Page style and layout",
+    "styleHelp": "Sizes: small, medium, large, xlarge, fit, or pixels. Family: fiesta. Empty values inherit; transparent clears a background; black is opaque.",
+    "page": "Page",
+    "verticalAlignment": "Vertical alignment",
+    "gap": "Block gap",
+    "block": "Block {number}",
+    "up": "Up",
+    "down": "Down",
+    "remove": "Remove",
+    "moveUp": "Move block {number} up",
+    "moveDown": "Move block {number} down",
+    "removeBlock": "Remove block {number}",
+    "unknownBlock": "This block kind is not editable here. Its document is preserved.",
+    "blockStyle": "{label} style and conditions",
+    "showWhen": "Show when",
+    "priority": "Priority",
+    "add": "Add {kind}",
+    "preview": "Display preview",
+    "noDisplay": "Add a display to preview this document.",
+    "previewDisplay": "Preview display",
+    "previewDescription": "Computed preview · {cols} × {rows} character cells. This does not send to a display.",
+    "rendering": "Rendering…",
+    "computedPreview": "{name} computed preview",
+    "characterPreview": "{name} character preview",
+    "issues": "Layout issues",
+    "canvasDimension": "{label} canvas {axis}",
+    "canvasSizeRequired": "Choose an explicit canvas size before painting. An automatic-size drawing adapts to each display; choosing a smaller size can crop its pixels.",
+    "draw": "Draw",
+    "shapes": "Shapes",
+    "source": "Source",
+    "fallbackHelp": "The drawing remains the fallback when the source is unavailable.",
+    "new": "New flexible page",
+    "loading": "Loading page…",
+    "unsupported": "This page format is not editable in this version.",
+    "targets": "Display restrictions",
+    "targetsHelp": "Each group with selections restricts this page. Leave a group unchecked to allow all of that group. When both groups have selections, a display must match both. Unavailable display IDs remain restricted until you remove them.",
+    "technologies": "Display technologies",
+    "technologyLed": "LED displays",
+    "technologyFlap": "Split-flap boards",
+    "technologyScreen": "Screens",
+    "displays": "Displays",
+    "unavailableDisplay": "Unavailable display: {id}",
+    "targetWarning": "Saved. Existing playback references on these displays no longer accept this page: {list}. Review their active pages, schedules and silence pages.",
+    "previewPixelDescription": "Computed preview · {width} × {height} pixels. This does not send to a display.",
+    "projectionHelp": "The character fallback is a separate layout and may contain text that does not fit this pixel preview.",
+    "signInRecovery": "Sign in to continue. Keep this editor open to retain your unsaved changes. Sign in in another tab, then return to save or retry the preview.",
+    "signInAnotherTab": "Sign in in another tab"
   }
 }

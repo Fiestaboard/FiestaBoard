@@ -160,12 +160,13 @@ test.describe("Settings – Full Coverage", () => {
     }
   });
 
-  test("silence schedule section is visible in settings", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+  test("silence schedule section is visible in display Playback", async ({ page }) => {
+    await page.goto("/settings?section=scheduling");
+    await expect(page.getByRole("tab", { name: "Playback", exact: true })).toHaveAttribute("aria-selected", "true", {
+      timeout: 15_000,
+    });
 
-    // Silence Schedule lives under the Scheduling tab
-    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
+    // Silence Schedule lives under the display Playback tab
 
     const silenceSection = page.getByText(/silence/i).first();
     await expect(silenceSection).toBeVisible({ timeout: 10_000 });
@@ -186,11 +187,12 @@ test.describe("Settings – Full Coverage", () => {
     const original = await originalRes.json();
     const originalEnabled: boolean = original.enabled;
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.goto("/settings?section=scheduling");
+    await expect(page.getByRole("tab", { name: "Playback", exact: true })).toHaveAttribute("aria-selected", "true", {
+      timeout: 15_000,
+    });
 
-    // Silence toggle lives under the Scheduling tab
-    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
+    // Silence toggle lives under the display Playback tab
 
     const silenceToggle = page.locator("#silence-enabled");
     await expect(silenceToggle).toBeVisible({ timeout: 10_000 });
@@ -226,6 +228,7 @@ test.describe("Settings – Full Coverage", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         enabled: originalEnabled,
+        board_id: original.board_id,
         start_time: original.start_time_utc,
         end_time: original.end_time_utc,
       }),

@@ -81,6 +81,24 @@ through v10 and removed in v11. Every response that carries them sends
 and the schema marks the typed ones `deprecated`. The same fields leave the
 MQTT `board_api_mode` entity and the MCP board tools in v11.
 
+## Flexible pages
+
+A page with `type: "flexible"` is laid out for each board it is shown on
+rather than drawn for one grid. It carries `blocks`, `style`, `layout` and an
+optional `targets`, and none of the grid fields: no `template`, `rows`,
+`line_metadata`, `canvases`, `display_type`, `device_type`, `notes_wide`,
+`notes_tall`, `grid_rows` or `grid_cols`. It fits every board unless its `targets` exclude
+one, so a schedule or collection may put it on any board. Its
+`document_protocol` is `page-document-v2`.
+
+This is additive. Grid pages (`template`, `single`, `composite`) read and
+write exactly as before and stay on `page-document-v1`. A client that lists
+pages will now meet pages without a `template` key, so check `type` before
+reading it. The web UI's preview responses for a flexible page add
+`layout_issues`: one entry per compromise the layout made on that board, each
+with a `path` (the block, then the style property), a `code`, a `severity`
+and a `message`.
+
 ## Authentication
 
 Off by default: a fresh install answers every request. With
@@ -362,7 +380,7 @@ While the board is silenced the page is pinned but not shown: `sent` is false, `
 
 **List saved pages**
 
-Every page saved on this install. A page is a reusable board layout — literal text, plugin variables, or rows composed from other sources — that a schedule, a collection or `POST /v1/boards/{board}/message` can refer to by id.
+Every page saved on this install. A page is a reusable board layout — literal text, plugin variables, or rows composed from other sources — that a schedule, a collection or `POST /v1/boards/{board}/message` can refer to by id. A `flexible` page has no `template`: check `type` before reading it.
 
 **Responses**
 
@@ -380,14 +398,14 @@ Every page saved on this install. A page is a reusable board layout — literal 
 
 **Create a page**
 
-Saves a new page and answers with it, including the generated `id` you refer to it by. `type` picks how it is built: `template` for text with `{{variables}}`, `single` for one plugin's output, `composite` for rows drawn from several sources. `device_type` must match the boards you intend to show it on.
+Saves a new page and answers with it, including the generated `id` you refer to it by. `type` picks how it is built: `template` for text with `{{variables}}`, `single` for one plugin's output, `composite` for rows drawn from several sources, all drawn for the board size `device_type` names; `flexible` for `blocks` laid out on each board they are shown on, with no `template` or `device_type`.
 
 **Request body** (required) — [`PageCreate`](#schema-pagecreate)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | `string` | yes | min length 1; max length 100 |
-| `type` | `"single"` \| `"composite"` \| `"template"` | yes | — |
+| `type` | `"single"` \| `"composite"` \| `"template"` \| `"flexible"` | yes | — |
 | `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` | no | default `"flagship"` |
 | `display_type` | `string` \| `null` | no | — |
 | `rows` | array of [`RowConfig`](#schema-rowconfig) \| `null` | no | — |
@@ -400,9 +418,13 @@ Saves a new page and answers with it, including the generated `id` you refer to 
 | `demo_plugin_id` | `string` \| `null` | no | — |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
-| `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 10–128 |
-| `canvases` | array of [`Canvas`](#schema-canvas) \| `null` | no | — |
+| `grid_rows` | `integer` \| `null` | no | 1–96 |
+| `grid_cols` | `integer` \| `null` | no | 5–128 |
+| `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `style` | [`PageStyle`](#schema-pagestyle) \| `null` | no | — |
+| `layout` | [`FlexLayout`](#schema-flexlayout) \| `null` | no | — |
+| `blocks` | array of [`Block`](#schema-block) \| `null` | no | — |
+| `targets` | [`FlexTargets`](#schema-flextargets) \| `null` | no | — |
 
 **Responses**
 
@@ -421,7 +443,7 @@ Saves a new page and answers with it, including the generated `id` you refer to 
 
 **Read one page**
 
-The saved page with this id, exactly as stored — its type, its device size, its template or row configuration, and its per-page transition overrides. 404 when no page has this id.
+The saved page with this id, exactly as stored — its type, its device size, its template or row configuration (or, for a `flexible` page, its `blocks`, `style`, `layout` and `targets`), and its per-page transition overrides. 404 when no page has this id.
 
 **Parameters**
 
@@ -458,6 +480,7 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `name` | `string` \| `null` | no | min length 1; max length 100 |
 | `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` \| `null` | no | — |
 | `display_type` | `string` \| `null` | no | — |
@@ -470,9 +493,13 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 | `transition_step_size` | `integer` \| `null` | no | min 1 |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
-| `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 10–128 |
-| `canvases` | array of [`Canvas`](#schema-canvas) \| `null` | no | — |
+| `grid_rows` | `integer` \| `null` | no | 1–96 |
+| `grid_cols` | `integer` \| `null` | no | 5–128 |
+| `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `style` | [`PageStyle`](#schema-pagestyle) \| `null` | no | — |
+| `layout` | [`FlexLayout`](#schema-flexlayout) \| `null` | no | — |
+| `blocks` | array of [`Block`](#schema-block) \| `null` | no | — |
+| `targets` | [`FlexTargets`](#schema-flextargets) \| `null` | no | — |
 
 **Responses**
 
@@ -486,6 +513,7 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 |--------|------|---------|
 | `400` | [`ErrorResponse`](#schema-errorresponse) | Invalid request — the payload references something that does not exist or violates a rule. |
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `DELETE /v1/pages/{page_id}` {#delete-v1-pages-page-id}
@@ -499,6 +527,7 @@ Removes the page and replaces active selections on every board with a compatible
 | Name | In | Type | Required | Description |
 |------|----|------|----------|-------------|
 | `page_id` | path | `string` | yes | — |
+| `expected_revision` | query | `string` \| `null` | no | — |
 
 **Responses**
 
@@ -512,6 +541,7 @@ Removes the page and replaces active selections on every board with a compatible
 |--------|------|---------|
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
 | `409` | [`ErrorResponse`](#schema-errorresponse) | Conflict — duplicate id, or a resource pinned by the environment. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `GET /v1/schedules` {#get-v1-schedules}
@@ -621,6 +651,7 @@ Applies only the fields you send, so a partial update cannot silently clear the 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `board_id` | `string` \| `null` | no | min length 0 |
 | `page_id` | `string` \| `null` | no | min length 1 |
 | `start_time` | `string` \| `null` | no | — |
@@ -650,6 +681,7 @@ Applies only the fields you send, so a partial update cannot silently clear the 
 |--------|------|---------|
 | `400` | [`ErrorResponse`](#schema-errorresponse) | Invalid request — the payload references something that does not exist or violates a rule. |
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `DELETE /v1/schedules/{schedule_id}` {#delete-v1-schedules-schedule-id}
@@ -663,6 +695,7 @@ Removes this schedule rule. The page it pointed at is untouched, and the board f
 | Name | In | Type | Required | Description |
 |------|----|------|----------|-------------|
 | `schedule_id` | path | `string` | yes | — |
+| `expected_revision` | query | `string` \| `null` | no | — |
 
 **Responses**
 
@@ -675,6 +708,7 @@ Removes this schedule rule. The page it pointed at is untouched, and the board f
 | Status | Body | Meaning |
 |--------|------|---------|
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `GET /v1/collections` {#get-v1-collections}
@@ -766,6 +800,7 @@ Applies only the fields you send. Every page id in `page_ids` must exist, and a 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `name` | `string` \| `null` | no | min length 1; max length 100 |
 | `page_ids` | array of `string` \| `null` | no | — |
 | `selection_mode` | `"time"` \| `"variable"` \| `"random"` \| `null` | no | — |
@@ -785,6 +820,7 @@ Applies only the fields you send. Every page id in `page_ids` must exist, and a 
 |--------|------|---------|
 | `400` | [`ErrorResponse`](#schema-errorresponse) | Invalid request — the payload references something that does not exist or violates a rule. |
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `DELETE /v1/collections/{collection_id}` {#delete-v1-collections-collection-id}
@@ -798,6 +834,7 @@ Removes an unreferenced collection, leaving its member pages untouched. Returns 
 | Name | In | Type | Required | Description |
 |------|----|------|----------|-------------|
 | `collection_id` | path | `string` | yes | — |
+| `expected_revision` | query | `string` \| `null` | no | — |
 
 **Responses**
 
@@ -811,6 +848,7 @@ Removes an unreferenced collection, leaving its member pages untouched. Returns 
 |--------|------|---------|
 | `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
 | `409` | [`ErrorResponse`](#schema-errorresponse) | Conflict — duplicate id, or a resource pinned by the environment. |
+| `412` | [`ErrorResponse`](#schema-errorresponse) | Precondition failed — the resource changed since it was loaded. Reload before editing. |
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 
 ### `GET /v1/install` {#get-v1-install}
@@ -1229,6 +1267,45 @@ The result of pinning a page to a board.
 | `error` | `string` \| `null` | no | Why the page did not reach the board, when `sent` is false. The selection is stored either way, so a 200 here is not on its own proof that anything was displayed (#1791). |
 | `warnings` | array of `string` | no | Non-fatal problems, e.g. collection members that do not fit this board. |
 
+### `Block` {#schema-block}
+
+One content unit of a flexible page.
+
+Known kinds are `text` (one line of template syntax), `canvas` and
+`spacer`; a block of any other kind is kept as written. `if` is a
+formula: the block shows only while it is true.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes | — |
+| `kind` | `string` | yes | — |
+| `text` | `string` \| `null` | no | — |
+| `canvas` | [`CanvasBlockBody`](#schema-canvasblockbody) \| `null` | no | — |
+| `style` | [`BlockStyle`](#schema-blockstyle) \| `null` | no | — |
+| `priority` | `integer` \| `null` | no | 0–1000 |
+| `if` | `string` \| `null` | no | — |
+
+### `BlockStyle` {#schema-blockstyle}
+
+Requested style for a block; each board shows the nearest it can.
+
+Every property is optional; an unset one falls through the cascade
+(device default, board style, page style, block style). `color` and
+`background` take a board colour name, `#rrggbb`, a tile code 63-71,
+or one `{{…}}` expression. `background="transparent"` clears an
+inherited fill; omitted/null background inherits it.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `font` | `string` \| `null` | no | — |
+| `size` | `"small"` \| `"medium"` \| `"large"` \| `"xlarge"` \| `"fit"` \| `integer` \| `null` | no | — |
+| `color` | `string` \| `null` | no | — |
+| `background` | `string` \| `null` | no | — |
+| `align` | `"left"` \| `"center"` \| `"right"` \| `null` | no | — |
+| `case` | `"as-is"` \| `"upper"` \| `"lower"` \| `null` | no | — |
+| `overflow` | `"wrap"` \| `"shrink"` \| `"ellipsis"` \| `"scroll"` \| `null` | no | — |
+| `height` | `"auto"` \| `"fill"` \| `integer` \| `number` \| `null` | no | — |
+
 ### `BoardDetail` {#schema-boarddetail}
 
 One board plus what is on it right now.
@@ -1252,6 +1329,7 @@ one document, because "what is this board doing" is one question.
 | `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
 | `device_model` | `string` \| `null` | no | The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). Null when it is not known (a FiestaPanel, for now). |
 | `charset` | `string` \| `null` | no | The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). Null when it is not known. |
+| `last_layout_computation` | `object` \| `null` | no | Historical, bounded diagnostics from the last engine layout computation. Includes its reference, mode, timestamp and per-page issues. Not a delivery acknowledgement, current installed playlist or visible selection. Direct API previews and writes do not update this engine-scoped record. Null until this runtime computes a page; omitted counts describe truncation. Complete means eligible members finished rendering, not playlist installation; excluded members are not listed. |
 | `characters` | array of array of `integer` \| `null` | no | The flap codes currently on the board, or null if nothing has been sent to it yet. |
 | `text` | `string` \| `null` | no | `characters` decoded back to text, for reading. Null when `characters` is null. |
 | `expected_characters` | array of array of `integer` \| `null` | no | The flap grid FiestaBoard last sent to this board. When it differs from `characters` the board has drifted from what was sent — a flap that did not turn, or something else writing to the board. Null until this instance has sent anything. |
@@ -1321,42 +1399,14 @@ a consumer writing to a board has any use for.
 | `auto_restore` | `boolean` \| `null` | no | Turn off to let another app keep this board after it overwrites FiestaBoard's content; on (the default) puts the content back. |
 | `default_page_id` | `string` \| `null` | no | Page shown when the schedule has a gap. Send null to clear it. |
 
-### `Canvas` {#schema-canvas}
+### `CanvasBlockBody` {#schema-canvasblockbody}
 
-One pixel canvas on a page.
+A canvas block's drawing: today's canvas content, or a plugin source.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | `string` | yes | — |
-| `area` | [`CanvasArea`](#schema-canvasarea) | yes | — |
-| `bleed` | array of `"top"` \| `"left"` \| `"right"` \| `"bottom"` \| `"all"` | no | — |
-| `scale` | `integer` | no | 1–8; default `1` |
-| `text` | `"hide"` \| `"flow"` | no | default `"hide"` |
-| `content` | [`CanvasContent`](#schema-canvascontent) \| `null` | no | — |
+| `content` | [`DocumentContent`](#schema-documentcontent) \| `null` | no | — |
 | `source` | `string` \| `null` | no | — |
-
-### `CanvasArea` {#schema-canvasarea}
-
-1-based character cells of the page grid.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `row` | `integer` | yes | min 1 |
-| `col` | `integer` | yes | min 1 |
-| `rows` | `integer` | yes | min 1 |
-| `cols` | `integer` | yes | min 1 |
-
-### `CanvasContent` {#schema-canvascontent}
-
-What a canvas draws, in its own coordinate space (`size`).
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `size` | array of `any` \| `null` | no | — |
-| `background` | `string` \| `null` | no | — |
-| `palette` | object of `string` | no | — |
-| `shapes` | array of [`RectShape`](#schema-rectshape) \| [`CircleShape`](#schema-circleshape) \| [`EllipseShape`](#schema-ellipseshape) \| [`LineShape`](#schema-lineshape) \| [`PolygonShape`](#schema-polygonshape) \| [`TextShape`](#schema-textshape) \| [`GradientShape`](#schema-gradientshape) | no | — |
-| `pixels` | array of `string` | no | — |
 
 ### `CanvasLayerModel` {#schema-canvaslayermodel}
 
@@ -1369,20 +1419,7 @@ One canvas drawn in panel pixels (FiestaUI `LedBitmapLayer`).
 | `width` | `integer` | yes | Pixels across. |
 | `height` | `integer` | yes | Pixels down. |
 | `rgba` | `string` | yes | Base64 of width x height x 4 bytes of straight-alpha RGBA, row-major. A pixel with alpha > 0 overwrites what the cells drew; alpha 0 is transparent. |
-
-### `CircleShape` {#schema-circleshape}
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `if` | `boolean` \| `string` \| `null` | no | — |
-| `foreach` | `string` \| `null` | no | — |
-| `as` | `string` \| `null` | no | — |
-| `type` | `string` | yes | — |
-| `cx` | `number` \| `integer` \| `string` | yes | — |
-| `cy` | `number` \| `integer` \| `string` | yes | — |
-| `r` | `number` \| `integer` \| `string` | yes | — |
-| `fill` | `string` \| `null` | no | — |
-| `stroke` | `string` \| `null` | no | — |
+| `physical_frame_version` | `integer` \| `null` | no | Explicit physical preview surface; absent for legacy Canvas layers. |
 
 ### `Collection` {#schema-collection}
 
@@ -1391,6 +1428,7 @@ A collection – an ordered set of pages plus a selection mode.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | no | — |
+| `revision` | `string` \| `null` | no | — |
 | `name` | `string` | yes | min length 1; max length 100 |
 | `page_ids` | array of `string` | yes | — |
 | `selection_mode` | `"time"` \| `"variable"` \| `"random"` | no | default `"time"` |
@@ -1399,6 +1437,7 @@ A collection – an ordered set of pages plus a selection mode.
 | `random` | [`RandomModeConfig`](#schema-randommodeconfig) \| `null` | no | — |
 | `created_at` | `date-time` | no | — |
 | `updated_at` | `date-time` \| `null` | no | — |
+| `edit_protocol` | `string` | yes | — |
 
 ### `CollectionCreate` {#schema-collectioncreate}
 
@@ -1440,6 +1479,7 @@ Request model for updating an existing collection.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `name` | `string` \| `null` | no | min length 1; max length 100 |
 | `page_ids` | array of `string` \| `null` | no | — |
 | `selection_mode` | `"time"` \| `"variable"` \| `"random"` \| `null` | no | — |
@@ -1447,7 +1487,52 @@ Request model for updating an existing collection.
 | `variable` | [`VariableModeConfig`](#schema-variablemodeconfig) \| `null` | no | — |
 | `random` | [`RandomModeConfig`](#schema-randommodeconfig) \| `null` | no | — |
 
-### `EllipseShape` {#schema-ellipseshape}
+### `DocumentArea` {#schema-documentarea}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `row` | `integer` | yes | min 1 |
+| `col` | `integer` | yes | min 1 |
+| `rows` | `integer` | yes | min 1 |
+| `cols` | `integer` | yes | min 1 |
+
+### `DocumentCanvas` {#schema-documentcanvas}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes | — |
+| `area` | [`DocumentArea`](#schema-documentarea) | yes | — |
+| `bleed` | array of `"top"` \| `"left"` \| `"right"` \| `"bottom"` \| `"all"` | no | — |
+| `scale` | `integer` | no | 1–8; default `1` |
+| `text` | `"hide"` \| `"flow"` | no | default `"hide"` |
+| `content` | [`DocumentContent`](#schema-documentcontent) \| `null` | no | — |
+| `source` | `string` \| `null` | no | — |
+
+### `DocumentCircle` {#schema-documentcircle}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `cx` | `number` \| `integer` \| `string` | yes | — |
+| `cy` | `number` \| `integer` \| `string` | yes | — |
+| `r` | `number` \| `integer` \| `string` | yes | — |
+| `fill` | `string` \| `null` | no | — |
+| `stroke` | `string` \| `null` | no | — |
+
+### `DocumentContent` {#schema-documentcontent}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `size` | array of `any` \| `null` | no | — |
+| `background` | `string` \| `null` | no | — |
+| `palette` | object of `string` | no | — |
+| `shapes` | array of [`DocumentRect`](#schema-documentrect) \| [`DocumentCircle`](#schema-documentcircle) \| [`DocumentEllipse`](#schema-documentellipse) \| [`DocumentLine`](#schema-documentline) \| [`DocumentPolygon`](#schema-documentpolygon) \| [`DocumentText`](#schema-documenttext) \| [`DocumentGradient`](#schema-documentgradient) | no | — |
+| `pixels` | array of `string` | no | — |
+
+### `DocumentEllipse` {#schema-documentellipse}
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -1461,6 +1546,78 @@ Request model for updating an existing collection.
 | `ry` | `number` \| `integer` \| `string` | yes | — |
 | `fill` | `string` \| `null` | no | — |
 | `stroke` | `string` \| `null` | no | — |
+
+### `DocumentGradient` {#schema-documentgradient}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `y` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `w` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `h` | `number` \| `integer` \| `string` \| `null` | no | — |
+| `from` | `string` | yes | — |
+| `to` | `string` | yes | — |
+| `angle` | `number` \| `integer` \| `string` | no | default `90` |
+
+### `DocumentLine` {#schema-documentline}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x1` | `number` \| `integer` \| `string` | yes | — |
+| `y1` | `number` \| `integer` \| `string` | yes | — |
+| `x2` | `number` \| `integer` \| `string` | yes | — |
+| `y2` | `number` \| `integer` \| `string` | yes | — |
+| `stroke` | `string` | yes | — |
+| `width` | `number` \| `integer` \| `string` | no | default `1` |
+
+### `DocumentPolygon` {#schema-documentpolygon}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `points` | array of array of `any` \| `string` | yes | — |
+| `fill` | `string` \| `null` | no | — |
+| `stroke` | `string` \| `null` | no | — |
+
+### `DocumentRect` {#schema-documentrect}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x` | `number` \| `integer` \| `string` | yes | — |
+| `y` | `number` \| `integer` \| `string` | yes | — |
+| `w` | `number` \| `integer` \| `string` | yes | — |
+| `h` | `number` \| `integer` \| `string` | yes | — |
+| `fill` | `string` \| `null` | no | — |
+| `stroke` | `string` \| `null` | no | — |
+
+### `DocumentText` {#schema-documenttext}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `if` | `boolean` \| `string` \| `null` | no | — |
+| `foreach` | `string` \| `null` | no | — |
+| `as` | `string` \| `null` | no | — |
+| `type` | `string` | yes | — |
+| `x` | `number` \| `integer` \| `string` | yes | — |
+| `y` | `number` \| `integer` \| `string` | yes | — |
+| `text` | `string` | yes | max length 256 |
+| `color` | `string` | yes | — |
+| `font` | `"3x5"` \| `"5x7"` | no | default `"5x7"` |
 
 ### `ErrorResponse` {#schema-errorresponse}
 
@@ -1481,6 +1638,25 @@ A rectangle of flaps that did not take a write, in board cells (0-based).
 | `rows` | `integer` | yes | Height in rows. |
 | `cols` | `integer` | yes | Width in columns. |
 
+### `FlexLayout` {#schema-flexlayout}
+
+How blocks are arranged. Only `stack` is built; any kind is kept.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `kind` | `string` | no | default `"stack"` |
+| `valign` | `"top"` \| `"middle"` \| `"bottom"` \| `"spread"` | no | default `"top"` |
+| `gap` | `"none"` \| `"small"` \| `"medium"` \| `"large"` \| `integer` | no | default `"small"` |
+
+### `FlexTargets` {#schema-flextargets}
+
+Optional restriction of where a flexible page may be scheduled.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `technology` | array of `string` \| `null` | no | — |
+| `boards` | array of `string` \| `null` | no | — |
+
 ### `FormulaFunctionEntry` {#schema-formulafunctionentry}
 
 One built-in formula function, as the function picker lists it.
@@ -1498,22 +1674,6 @@ One built-in formula function, as the function picker lists it.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `functions` | object of [`FormulaFunctionEntry`](#schema-formulafunctionentry) | yes | — |
-
-### `GradientShape` {#schema-gradientshape}
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `if` | `boolean` \| `string` \| `null` | no | — |
-| `foreach` | `string` \| `null` | no | — |
-| `as` | `string` \| `null` | no | — |
-| `type` | `string` | yes | — |
-| `x` | `number` \| `integer` \| `string` \| `null` | no | — |
-| `y` | `number` \| `integer` \| `string` \| `null` | no | — |
-| `w` | `number` \| `integer` \| `string` \| `null` | no | — |
-| `h` | `number` \| `integer` \| `string` \| `null` | no | — |
-| `from` | `string` | yes | — |
-| `to` | `string` | yes | — |
-| `angle` | `number` \| `integer` \| `string` | no | default `90` |
 
 ### `HealthResponse` {#schema-healthresponse}
 
@@ -1564,6 +1724,10 @@ Warn-only: the backend never mutates or removes the reference.
 | `schedule_enabled` | `boolean` \| `null` | no | Turn the install's schedule on or off. |
 | `default_page_id` | `string` \| `null` | no | Install-wide page shown when the schedule has a gap. Send null to clear it. |
 
+### `JsonValue` {#schema-jsonvalue}
+
+_No fields._
+
 ### `LineMetadata` {#schema-linemetadata}
 
 Per-line formatting metadata for template pages.
@@ -1575,21 +1739,6 @@ inline prefixes (`{center}`, `{wrap}`, etc.) in the template strings.
 |-------|------|----------|-------------|
 | `alignment` | `"left"` \| `"center"` \| `"right"` | no | default `"left"` |
 | `wrap` | `boolean` | no | default `false` |
-
-### `LineShape` {#schema-lineshape}
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `if` | `boolean` \| `string` \| `null` | no | — |
-| `foreach` | `string` \| `null` | no | — |
-| `as` | `string` \| `null` | no | — |
-| `type` | `string` | yes | — |
-| `x1` | `number` \| `integer` \| `string` | yes | — |
-| `y1` | `number` \| `integer` \| `string` | yes | — |
-| `x2` | `number` \| `integer` \| `string` | yes | — |
-| `y2` | `number` \| `integer` \| `string` | yes | — |
-| `stroke` | `string` | yes | — |
-| `width` | `number` \| `integer` \| `string` | no | default `1` |
 
 ### `MessageRequest (board_api)` {#schema-src-board-api-models-messagerequest}
 
@@ -1677,8 +1826,9 @@ Each page targets a specific device type (flagship: 22x6, note: 15x3).
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | no | — |
+| `revision` | `string` \| `null` | no | — |
 | `name` | `string` | yes | min length 1; max length 100 |
-| `type` | `"single"` \| `"composite"` \| `"template"` | yes | — |
+| `type` | `"single"` \| `"composite"` \| `"template"` \| `"flexible"` | yes | — |
 | `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` | no | default `"flagship"` |
 | `display_type` | `string` \| `null` | no | — |
 | `rows` | array of [`RowConfig`](#schema-rowconfig) \| `null` | no | — |
@@ -1691,20 +1841,26 @@ Each page targets a specific device type (flagship: 22x6, note: 15x3).
 | `demo_plugin_id` | `string` \| `null` | no | — |
 | `notes_wide` | `integer` | no | 1–8; default `1` |
 | `notes_tall` | `integer` | no | 1–8; default `1` |
-| `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 10–128 |
-| `canvases` | array of [`Canvas`](#schema-canvas) \| `null` | no | — |
+| `grid_rows` | `integer` \| `null` | no | 1–96 |
+| `grid_cols` | `integer` \| `null` | no | 5–128 |
+| `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `style` | [`PageStyle`](#schema-pagestyle) \| `null` | no | — |
+| `layout` | [`FlexLayout`](#schema-flexlayout) \| `null` | no | — |
+| `blocks` | array of [`Block`](#schema-block) \| `null` | no | — |
+| `targets` | [`FlexTargets`](#schema-flextargets) \| `null` | no | — |
 | `created_at` | `date-time` | no | — |
 | `updated_at` | `date-time` \| `null` | no | — |
+| `edit_protocol` | `string` | yes | Runtime support for conditional sparse page saves; never caller input. |
+| `document_protocol` | `"page-document-v1"` \| `"page-document-v2"` | yes | Validated known content with opaque JSON extension preservation. `page-document-v2` marks a flexible page (blocks, style, layout). |
 
 ### `PageCreate` {#schema-pagecreate}
 
-Request model for creating a new page.
+Create author content; server-assigned identity and timestamps are ignored.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | `string` | yes | min length 1; max length 100 |
-| `type` | `"single"` \| `"composite"` \| `"template"` | yes | — |
+| `type` | `"single"` \| `"composite"` \| `"template"` \| `"flexible"` | yes | — |
 | `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` | no | default `"flagship"` |
 | `display_type` | `string` \| `null` | no | — |
 | `rows` | array of [`RowConfig`](#schema-rowconfig) \| `null` | no | — |
@@ -1717,9 +1873,13 @@ Request model for creating a new page.
 | `demo_plugin_id` | `string` \| `null` | no | — |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
-| `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 10–128 |
-| `canvases` | array of [`Canvas`](#schema-canvas) \| `null` | no | — |
+| `grid_rows` | `integer` \| `null` | no | 1–96 |
+| `grid_cols` | `integer` \| `null` | no | 5–128 |
+| `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `style` | [`PageStyle`](#schema-pagestyle) \| `null` | no | — |
+| `layout` | [`FlexLayout`](#schema-flexlayout) \| `null` | no | — |
+| `blocks` | array of [`Block`](#schema-block) \| `null` | no | — |
+| `targets` | [`FlexTargets`](#schema-flextargets) \| `null` | no | — |
 
 ### `PageDeleteResponse` {#schema-pagedeleteresponse}
 
@@ -1747,12 +1907,32 @@ the client can follow without re-fetching everything.
 | `pages` | array of [`Page`](#schema-page) | yes | — |
 | `total` | `integer` | yes | — |
 
-### `PageUpdate` {#schema-pageupdate}
+### `PageStyle` {#schema-pagestyle}
 
-Request model for updating an existing page.
+A flexible page's style defaults; blocks inherit and override them.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `font` | `string` \| `null` | no | — |
+| `size` | `"small"` \| `"medium"` \| `"large"` \| `"xlarge"` \| `"fit"` \| `integer` \| `null` | no | — |
+| `color` | `string` \| `null` | no | — |
+| `background` | `string` \| `null` | no | — |
+| `align` | `"left"` \| `"center"` \| `"right"` \| `null` | no | — |
+| `case` | `"as-is"` \| `"upper"` \| `"lower"` \| `null` | no | — |
+| `overflow` | `"wrap"` \| `"shrink"` \| `"ellipsis"` \| `"scroll"` \| `null` | no | — |
+| `height` | `"auto"` \| `"fill"` \| `integer` \| `number` \| `null` | no | — |
+
+### `PageUpdate` {#schema-pageupdate}
+
+Sparse known-field patch. Supplied lists replace the complete field.
+
+Omitted fields survive, including opaque top-level extensions. Nullable
+content fields accept explicit null to remove them; nested lists are never
+merged by position or guessed identity.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `name` | `string` \| `null` | no | min length 1; max length 100 |
 | `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` \| `null` | no | — |
 | `display_type` | `string` \| `null` | no | — |
@@ -1765,9 +1945,13 @@ Request model for updating an existing page.
 | `transition_step_size` | `integer` \| `null` | no | min 1 |
 | `notes_wide` | `integer` \| `null` | no | 1–8 |
 | `notes_tall` | `integer` \| `null` | no | 1–8 |
-| `grid_rows` | `integer` \| `null` | no | 3–96 |
-| `grid_cols` | `integer` \| `null` | no | 10–128 |
-| `canvases` | array of [`Canvas`](#schema-canvas) \| `null` | no | — |
+| `grid_rows` | `integer` \| `null` | no | 1–96 |
+| `grid_cols` | `integer` \| `null` | no | 5–128 |
+| `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `style` | [`PageStyle`](#schema-pagestyle) \| `null` | no | — |
+| `layout` | [`FlexLayout`](#schema-flexlayout) \| `null` | no | — |
+| `blocks` | array of [`Block`](#schema-block) \| `null` | no | — |
+| `targets` | [`FlexTargets`](#schema-flextargets) \| `null` | no | — |
 
 ### `PageUpdateResponse` {#schema-pageupdateresponse}
 
@@ -1927,18 +2111,6 @@ which is what a client round-trips when it edits one field of a form.
 | `enabled` | `boolean` \| `null` | no | Enable or disable the plugin. |
 | `config` | `object` \| `null` | no | Replace the plugin's settings. Send "***" for a secret you do not want to change. |
 
-### `PolygonShape` {#schema-polygonshape}
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `if` | `boolean` \| `string` \| `null` | no | — |
-| `foreach` | `string` \| `null` | no | — |
-| `as` | `string` \| `null` | no | — |
-| `type` | `string` | yes | — |
-| `points` | array of array of `any` \| `string` | yes | — |
-| `fill` | `string` \| `null` | no | — |
-| `stroke` | `string` \| `null` | no | — |
-
 ### `RandomModeConfig` {#schema-randommodeconfig}
 
 Settings for random page selection.
@@ -1949,21 +2121,6 @@ page is shown before a new one is selected.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `interval_seconds` | `integer` | no | 5–86400; default `30` |
-
-### `RectShape` {#schema-rectshape}
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `if` | `boolean` \| `string` \| `null` | no | — |
-| `foreach` | `string` \| `null` | no | — |
-| `as` | `string` \| `null` | no | — |
-| `type` | `string` | yes | — |
-| `x` | `number` \| `integer` \| `string` | yes | — |
-| `y` | `number` \| `integer` \| `string` | yes | — |
-| `w` | `number` \| `integer` \| `string` | yes | — |
-| `h` | `number` \| `integer` \| `string` | yes | — |
-| `fill` | `string` \| `null` | no | — |
-| `stroke` | `string` \| `null` | no | — |
 
 ### `RefreshRequest` {#schema-refreshrequest}
 
@@ -2069,6 +2226,8 @@ to answer for.
 | `schedules` | array of [`ScheduleResponse`](#schema-scheduleresponse) | yes | — |
 | `total` | `integer` | yes | — |
 | `default_page_id` | `string` \| `null` | no | — |
+| `default_page_revision` | `string` \| `null` | no | — |
+| `default_page_edit_protocol` | `string` | no | default `"schedule-default-revision-v1"` |
 | `enabled` | `boolean` \| `null` | no | — |
 
 ### `ScheduleResponse` {#schema-scheduleresponse}
@@ -2082,6 +2241,7 @@ install's location to render the window.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | no | — |
+| `revision` | `string` \| `null` | no | — |
 | `board_id` | `string` | no | min length 0; default `""` |
 | `page_id` | `string` | yes | min length 1 |
 | `start_time` | `string` | yes | — |
@@ -2102,6 +2262,7 @@ install's location to render the window.
 | `updated_at` | `date-time` \| `null` | no | — |
 | `resolved_start_time` | `string` | yes | — |
 | `resolved_end_time` | `string` \| `null` | no | — |
+| `edit_protocol` | `string` | yes | — |
 
 ### `ScheduleUpdate` {#schema-scheduleupdate}
 
@@ -2109,6 +2270,7 @@ Request model for updating an existing schedule entry.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `expected_revision` | `string` \| `null` | no | min length 1; max length 128 |
 | `board_id` | `string` \| `null` | no | min length 0 |
 | `page_id` | `string` \| `null` | no | min length 1 |
 | `start_time` | `string` \| `null` | no | — |
@@ -2139,6 +2301,7 @@ doesn't report warnings"; it is now always present and empty when clean.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | no | — |
+| `revision` | `string` \| `null` | no | — |
 | `board_id` | `string` | no | min length 0; default `""` |
 | `page_id` | `string` | yes | min length 1 |
 | `start_time` | `string` | yes | — |
@@ -2160,6 +2323,7 @@ doesn't report warnings"; it is now always present and empty when clean.
 | `resolved_start_time` | `string` | yes | — |
 | `resolved_end_time` | `string` \| `null` | no | — |
 | `warnings` | array of `string` | no | — |
+| `edit_protocol` | `string` | yes | — |
 
 ### `SendResponse` {#schema-sendresponse}
 
@@ -2196,20 +2360,6 @@ a status code, not a flag.
 | `rendered` | `string` | yes | — |
 | `lines` | array of `string` | yes | — |
 | `line_count` | `integer` | yes | — |
-
-### `TextShape` {#schema-textshape}
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `if` | `boolean` \| `string` \| `null` | no | — |
-| `foreach` | `string` \| `null` | no | — |
-| `as` | `string` \| `null` | no | — |
-| `type` | `string` | yes | — |
-| `x` | `number` \| `integer` \| `string` | yes | — |
-| `y` | `number` \| `integer` \| `string` | yes | — |
-| `text` | `string` | yes | max length 256 |
-| `color` | `string` | yes | — |
-| `font` | `"3x5"` \| `"5x7"` | no | default `"5x7"` |
 
 ### `TimeModeConfig` {#schema-timemodeconfig}
 

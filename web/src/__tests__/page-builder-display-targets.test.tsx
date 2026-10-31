@@ -12,7 +12,7 @@
  */
 import { tryResolveDeviceModel } from "@fiestaboard/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
@@ -317,6 +317,91 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
   });
 
   describe("a new page's default target", () => {
+    it.each([
+      { board: NOTE, rows: 3 },
+      { board: PIXOO, rows: 10 },
+    ])(
+      "seeds $rows editable rows when the requested $board.name display arrives asynchronously",
+      async ({ board, rows }) => {
+        let resolveSettings!: (value: BoardSettings) => void;
+        vi.mocked(api.getBoardSettings).mockReturnValue(
+          new Promise((resolve) => {
+            resolveSettings = resolve;
+          }),
+        );
+        localStorage.setItem(CURRENT_BOARD_KEY, FLAGSHIP.id);
+        render(<PageBuilder targetBoardId={board.id} skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
+          wrapper: TestWrapper,
+        });
+        const editor = await screen.findByRole("textbox", { name: "Template editor" });
+        expect(editor.querySelectorAll("br")).toHaveLength(5);
+        resolveSettings(settings([FLAGSHIP, board]));
+        await waitFor(() => expect(screen.getByLabelText("Change board size")).not.toHaveTextContent("Flagship"));
+        await waitFor(() =>
+          expect(screen.getByRole("textbox", { name: "Template editor" }).querySelectorAll("br")).toHaveLength(
+            rows - 1,
+          ),
+        );
+      },
+    );
+
+    it("keeps a restored draft's rows when the requested Note settings arrive later", async () => {
+      let resolveSettings!: (value: BoardSettings) => void;
+      vi.mocked(api.getBoardSettings).mockReturnValue(
+        new Promise((resolve) => {
+          resolveSettings = resolve;
+        }),
+      );
+      localStorage.setItem("fiestaboard_editor_mode", "plain");
+      localStorage.setItem(
+        "fiestaboard-page-draft-new",
+        JSON.stringify({
+          name: "Restored draft",
+          templateLines: ["", "", "", "", "", ""],
+          lineAlignments: Array(6).fill("left"),
+          lineWrapEnabled: Array(6).fill(false),
+          timestamp: Date.now(),
+        }),
+      );
+      render(<PageBuilder targetBoardId={NOTE.id} onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+      await screen.findByDisplayValue("Restored draft");
+      resolveSettings(settings([FLAGSHIP, NOTE]));
+      await expectTarget("Note");
+      expect(screen.getByRole("textbox", { name: "" })).toHaveValue("\n\n\n\n\n");
+    });
+
+    it("keeps text typed before the requested Note settings arrive", async () => {
+      let resolveSettings!: (value: BoardSettings) => void;
+      vi.mocked(api.getBoardSettings).mockReturnValue(
+        new Promise((resolve) => {
+          resolveSettings = resolve;
+        }),
+      );
+      localStorage.setItem("fiestaboard_editor_mode", "plain");
+      render(<PageBuilder targetBoardId={NOTE.id} skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
+        wrapper: TestWrapper,
+      });
+      fireEvent.change(await screen.findByRole("textbox", { name: "" }), { target: { value: "KEEP\n\n\n\nLAST" } });
+      resolveSettings(settings([FLAGSHIP, NOTE]));
+      await expectTarget("Note");
+      expect(screen.getByRole("textbox", { name: "" })).toHaveValue("KEEP\n\n\n\nLAST");
+    });
+
+    it("authors for the requested board when the sidebar selects a different display", async () => {
+      localStorage.setItem(CURRENT_BOARD_KEY, FLAGSHIP.id);
+      const user = userEvent.setup();
+      const { container } = render(<PageBuilder targetBoardId={PIXOO.id} onClose={vi.fn()} onSave={vi.fn()} />, {
+        wrapper: TestWrapper,
+      });
+      await expectTarget(PIXOO_OPTION);
+      expect(screen.getByRole("img", { name: /10 rows by 16 columns/ })).toBeInTheDocument();
+      expect(container.querySelector('[data-slot="display-preview"]')).toHaveAttribute("data-technology", "led_matrix");
+      const editor = await screen.findByRole("textbox", { name: "Template editor" });
+      await user.type(editor, "Targeted");
+      await waitFor(() => expect(lastRenderBoardId()).toBe("pixoo-1"));
+      expect(localStorage.getItem(CURRENT_BOARD_KEY)).toBe(FLAGSHIP.id);
+    });
+
     it("is the selected LED display, at its exact grid, previewed as LED", async () => {
       localStorage.setItem(CURRENT_BOARD_KEY, "pixoo-1");
       const { container } = renderNew();

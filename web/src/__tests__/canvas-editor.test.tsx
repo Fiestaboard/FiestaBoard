@@ -73,6 +73,140 @@ beforeEach(() => {
 });
 
 describe("CanvasesPanel", () => {
+  it("opens saved shape-only art in Shapes instead of an empty Draw layer", () => {
+    const canvas = makeCanvas("poster", { row: 1, col: 1, rows: 2, cols: 2 });
+    canvas.content = { background: "#123456", shapes: [{ type: "rect", x: 3, y: 0, w: 4, h: 4, fill: "#ff0000" }] };
+    render(<Panel spy={vi.fn()} initial={[canvas]} />);
+    expect(screen.getByRole("tab", { name: "Shapes" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("X *")).toHaveValue("3");
+  });
+
+  it("opens source-bound art in Source even when its fallback includes shapes", () => {
+    const canvas = makeCanvas("live", { row: 1, col: 1, rows: 2, cols: 2 });
+    canvas.source = "{{art.canvas}}";
+    canvas.content = { shapes: [{ type: "rect", x: 0, y: 0, w: 4, h: 4 }] };
+    render(<Panel spy={vi.fn()} initial={[canvas]} />);
+    expect(screen.getByRole("tab", { name: "Source" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Source expression")).toHaveValue("{{art.canvas}}");
+  });
+
+  it("opens mixed pixel and shape art in Draw without flattening the shapes", () => {
+    const spy = vi.fn();
+    const canvas = makeCanvas("mixed", { row: 1, col: 1, rows: 2, cols: 2 });
+    canvas.content = {
+      size: [2, 2],
+      palette: { a: "#00ff00" },
+      pixels: ["a.", ".."],
+      shapes: [{ type: "rect", x: 0, y: 0, w: 1, h: 1, fill: "#ff0000" }],
+    };
+    render(<Panel spy={spy} initial={[canvas]} />);
+    expect(screen.getByRole("tab", { name: "Draw" })).toHaveAttribute("aria-selected", "true");
+    const pad = screen.getByRole("application");
+    fireEvent.keyDown(pad, { key: "ArrowRight" });
+    fireEvent.keyDown(pad, { key: " " });
+    expect(spy.mock.calls.at(-1)![0][0].content.shapes).toEqual([
+      { type: "rect", x: 0, y: 0, w: 1, h: 1, fill: "#ff0000" },
+    ]);
+  });
+
+  it("keeps the Draw pad and brush when its canvas ID is renamed", () => {
+    render(<Panel spy={vi.fn()} initial={[makeCanvas("sky", { row: 1, col: 1, rows: 2, cols: 2 })]} />);
+    const pad = screen.getByRole("application");
+    fireEvent.change(screen.getByLabelText("Hex colour"), { target: { value: "#12ab34" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Canvas ID" }), { target: { value: "renamed" } });
+    expect(screen.getByRole("application")).toBe(pad);
+    expect(screen.getByLabelText("Hex colour")).toHaveValue("#12ab34");
+  });
+
+  it("keeps an unfinished Shapes JSON draft when visiting Draw and returning", async () => {
+    // Complete tab transitions before returning so a quick click cannot mask an unmount.
+    vi.stubGlobal("BASE_UI_ANIMATIONS_DISABLED", true);
+    try {
+      const user = userEvent.setup();
+      render(<Panel spy={vi.fn()} initial={[makeCanvas("sky", { row: 1, col: 1, rows: 2, cols: 2 })]} />);
+      await user.click(screen.getByRole("tab", { name: "Shapes" }));
+      await user.click(screen.getByRole("switch", { name: "Edit as JSON" }));
+      fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: "[{" } });
+      await user.click(screen.getByRole("tab", { name: "Draw" }));
+      await user.click(screen.getByRole("tab", { name: "Shapes" }));
+      expect(screen.getByRole("switch", { name: "Edit as JSON" })).toHaveAttribute("aria-checked", "true");
+      expect(screen.getByLabelText("Shapes JSON")).toHaveValue("[{");
+      expect(screen.getByRole("button", { name: "Add shape" })).toBeDisabled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps unfinished Shapes JSON attached to its canvas when selecting another and returning", async () => {
+    const user = userEvent.setup();
+    render(
+      <Panel
+        spy={vi.fn()}
+        initial={[
+          makeCanvas("sky", { row: 1, col: 1, rows: 2, cols: 2 }),
+          makeCanvas("sea", { row: 4, col: 1, rows: 2, cols: 2 }),
+        ]}
+      />,
+    );
+    expect(screen.queryByTestId("canvas-editor-sea")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Shapes" }));
+    await user.click(screen.getByRole("switch", { name: "Edit as JSON" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Shapes JSON" }), { target: { value: "[{" } });
+    const idInput = screen.getByRole("textbox", { name: "Canvas ID" });
+    fireEvent.change(idInput, { target: { value: "renamed" } });
+    expect(screen.getByRole("textbox", { name: "Canvas ID" })).toBe(idInput);
+    await user.click(screen.getByRole("button", { name: "Edit canvas sea" }));
+    expect(screen.getAllByRole("textbox", { name: "Canvas ID" })).toHaveLength(1);
+    expect(screen.getByTestId("canvas-editor-renamed")).not.toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Edit canvas renamed" }));
+    expect(screen.getByRole("tab", { name: "Shapes" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("textbox", { name: "Shapes JSON" })).toHaveValue("[{");
+    expect(screen.getByRole("button", { name: "Add shape" })).toBeDisabled();
+  });
+
+  it("explains the Draw layer when stored shapes and a background are shown in the page preview", async () => {
+    const user = userEvent.setup();
+    const canvas = makeCanvas("poster", { row: 1, col: 1, rows: 2, cols: 2 });
+    canvas.content = { background: "#123456", shapes: [{ type: "rect", x: 3, y: 0, w: 4, h: 4 }] };
+    render(<Panel spy={vi.fn()} initial={[canvas]} />);
+    await user.click(screen.getByRole("tab", { name: "Draw" }));
+    expect(
+      screen.getByText("Draw edits pixels only. The page preview shows the canvas background and shapes."),
+    ).toBeVisible();
+  });
+
+  it("explains that Draw edits fallback pixels when a source is bound", async () => {
+    const user = userEvent.setup();
+    const canvas = { ...makeCanvas("live", { row: 1, col: 1, rows: 2, cols: 2 }), source: "{{art.canvas}}" };
+    render(<Panel spy={vi.fn()} initial={[canvas]} />);
+    await user.click(screen.getByRole("tab", { name: "Draw" }));
+    expect(
+      screen.getByText(
+        "This canvas uses a source. Drawing edits its fallback pixels; the preview shows the source when available.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("does not give the next canvas a deleted canvas's invalid Shapes draft", async () => {
+    const user = userEvent.setup();
+    render(
+      <Panel
+        spy={vi.fn()}
+        initial={[
+          makeCanvas("sky", { row: 1, col: 1, rows: 2, cols: 2 }),
+          makeCanvas("sea", { row: 4, col: 1, rows: 2, cols: 2 }),
+        ]}
+      />,
+    );
+    await user.click(screen.getByRole("tab", { name: "Shapes" }));
+    await user.click(screen.getByRole("switch", { name: "Edit as JSON" }));
+    fireEvent.change(screen.getByLabelText("Shapes JSON"), { target: { value: "[{" } });
+    await user.click(screen.getByRole("button", { name: "Delete canvas sky" }));
+    await user.click(screen.getByRole("tab", { name: "Shapes" }));
+    expect(screen.getByRole("button", { name: "Add shape" })).toBeEnabled();
+    expect(screen.getByRole("switch", { name: "Edit as JSON" })).toHaveAttribute("aria-checked", "false");
+  });
+
   it("activates another canvas, scrolls and focuses its settings without changing content", async () => {
     const user = userEvent.setup();
     const spy = vi.fn();
@@ -88,16 +222,16 @@ describe("CanvasesPanel", () => {
     const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
     scroll.mockClear();
     await user.click(screen.getByRole("button", { name: "Open sea settings" }));
-    expect(screen.getByLabelText("Canvas ID")).toHaveValue("sea");
-    expect(screen.getByLabelText("Canvas ID")).toHaveFocus();
+    expect(screen.getByRole("textbox", { name: "Canvas ID" })).toHaveValue("sea");
+    expect(screen.getByRole("textbox", { name: "Canvas ID" })).toHaveFocus();
     expect(scroll).toHaveBeenCalledWith({ block: "nearest" });
-    expect(scroll.mock.contexts.at(-1)).toBe(screen.getByLabelText("Canvas ID"));
+    expect(scroll.mock.contexts.at(-1)).toBe(screen.getByRole("textbox", { name: "Canvas ID" }));
     expect(spy).not.toHaveBeenCalled();
     scroll.mockClear();
     await user.click(screen.getByRole("button", { name: "Open sea settings" }));
-    expect(screen.getByLabelText("Canvas ID")).toHaveFocus();
+    expect(screen.getByRole("textbox", { name: "Canvas ID" })).toHaveFocus();
     expect(scroll).toHaveBeenCalledWith({ block: "nearest" });
-    expect(scroll.mock.contexts.at(-1)).toBe(screen.getByLabelText("Canvas ID"));
+    expect(scroll.mock.contexts.at(-1)).toBe(screen.getByRole("textbox", { name: "Canvas ID" }));
     expect(spy).not.toHaveBeenCalled();
   });
 
@@ -178,7 +312,7 @@ describe("CanvasesPanel", () => {
         ]}
       />,
     );
-    const id = screen.getByLabelText("Canvas ID");
+    const id = screen.getByRole("textbox", { name: "Canvas ID" });
     fireEvent.change(id, { target: { value: "sea" } });
     expect(spy).not.toHaveBeenCalled();
     expect(id).toHaveAttribute("aria-invalid", "true");

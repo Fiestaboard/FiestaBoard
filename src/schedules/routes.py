@@ -60,7 +60,7 @@ from .models import (
     ScheduleValidationResult,
     ScheduleWriteResponse,
 )
-from .service import get_schedule_service
+from .service import PageRevisionConflict, get_schedule_service
 
 router = APIRouter(tags=["schedules"])
 
@@ -165,10 +165,12 @@ async def list_schedules(board_id: str | None = None):
     if board_id == "*":
         return ScheduleListResponse(schedules=entries, total=len(schedules))
 
+    default_state = schedule_service.get_default_page_state(board_id)
     return ScheduleListResponse(
         schedules=entries,
         total=len(schedules),
-        default_page_id=schedule_service.get_default_page(board_id=board_id),
+        default_page_id=default_state["default_page_id"],
+        default_page_revision=default_state["revision"],
         enabled=settings_service.is_schedule_enabled(board_id=board_id),
     )
 
@@ -213,8 +215,10 @@ async def get_active_schedule(board_id: str | None = None):
         manual_page_id = settings_service.get_active_page_id(board_id=board_id)
         return ActiveScheduleResponse(
             page_id=manual_page_id,
-            resolved_page_id=resolve_active_page_id(manual_page_id, get_collection_service),
-            resolved_next_check_seconds=resolve_next_check_seconds(manual_page_id, get_collection_service),
+            resolved_page_id=resolve_active_page_id(manual_page_id, get_collection_service, board_id=board_id),
+            resolved_next_check_seconds=resolve_next_check_seconds(
+                manual_page_id, get_collection_service, board_id=board_id
+            ),
             source="manual",
             schedule_enabled=False,
             temporary_override=override_payload,
@@ -227,8 +231,8 @@ async def get_active_schedule(board_id: str | None = None):
     page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
     return ActiveScheduleResponse(
         page_id=page_id,
-        resolved_page_id=resolve_active_page_id(page_id, get_collection_service),
-        resolved_next_check_seconds=resolve_next_check_seconds(page_id, get_collection_service),
+        resolved_page_id=resolve_active_page_id(page_id, get_collection_service, board_id=board_id),
+        resolved_next_check_seconds=resolve_next_check_seconds(page_id, get_collection_service, board_id=board_id),
         source="schedule" if page_id else "none",
         schedule_enabled=True,
         current_time=now.strftime("%H:%M"),
@@ -256,31 +260,34 @@ async def validate_schedules(request: ScheduleValidateRequest | None = None):
 async def get_default_page(board_id: str | None = None):
     """Get the default page ID for schedule gaps (optional query: board_id=)."""
     schedule_service = get_schedule_service()
-    return DefaultPageResponse(default_page_id=schedule_service.get_default_page(board_id=board_id))
+    return DefaultPageResponse(**schedule_service.get_default_page_state(board_id))
 
 
 @router.put(
     "/schedules/default-page",
     response_model=DefaultPageResponse,
-    responses=errors(404),
+    responses=errors(404, 412),
 )
 async def set_default_page(request: DefaultPageUpdate):
     """Set the default page ID for schedule gaps. Body: page_id, optional board_id."""
-    page_id = request.page_id
-    board_id = request.board_id
-    _validate_board(board_id)
-    if page_id is not None:
-        if is_collection_id(page_id):
+    _validate_board(request.board_id)
+    if request.page_id is not None:
+        if is_collection_id(request.page_id):
             collection_service = get_collection_service()
-            if not collection_service.get_collection(page_id):
-                raise HTTPException(status_code=404, detail=f"Collection not found: {page_id}")
+            if not collection_service.get_collection(request.page_id):
+                raise HTTPException(status_code=404, detail=f"Collection not found: {request.page_id}")
         else:
             page_service = get_page_service()
-            if not page_service.get_page(page_id):
-                raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+            if not page_service.get_page(request.page_id):
+                raise HTTPException(status_code=404, detail=f"Page not found: {request.page_id}")
     schedule_service = get_schedule_service()
-    schedule_service.set_default_page(page_id, board_id=board_id)
-    return DefaultPageResponse(default_page_id=page_id)
+    try:
+        state = schedule_service.set_default_page(
+            request.page_id, board_id=request.board_id, expected_revision=request.expected_revision
+        )
+    except PageRevisionConflict as exc:
+        raise HTTPException(status_code=412, detail=str(exc)) from exc
+    return DefaultPageResponse(**state)
 
 
 @router.get("/schedules/enabled", response_model=ScheduleEnabledResponse)
@@ -303,22 +310,37 @@ async def set_schedule_enabled(request: ScheduleEnabledUpdate):
     return ScheduleEnabledResponse(enabled=request.enabled)
 
 
-@router.get("/schedules/settings", response_model=ScheduleBehaviorResponse)
-async def get_schedule_settings():
-    """Global schedule behaviour settings."""
+@router.get("/schedules/settings", response_model=ScheduleBehaviorResponse, responses=errors(404))
+async def get_schedule_settings(board_id: str | None = None):
+    """One board's schedule behavior; omitted id means primary."""
     settings_service = get_settings_service()
-    return ScheduleBehaviorResponse(defer_on_reenable=settings_service.get_schedule_settings().defer_on_reenable)
+    try:
+        schedule = (
+            settings_service.get_schedule_settings(board_id=board_id)
+            if board_id is not None
+            else settings_service.get_schedule_settings()
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    return ScheduleBehaviorResponse(defer_on_reenable=schedule.defer_on_reenable)
 
 
 @router.put(
     "/schedules/settings",
     response_model=ScheduleBehaviorResponse,
-    responses=errors(422),
+    responses=errors(404, 422),
 )
 async def set_schedule_settings(request: ScheduleBehaviorUpdate):
-    """Update global schedule behaviour. Body: defer_on_reenable."""
+    """Update one board's schedule behavior. Body: defer_on_reenable, board_id."""
     settings_service = get_settings_service()
-    schedule = settings_service.set_schedule_defer_on_reenable(request.defer_on_reenable)
+    try:
+        schedule = (
+            settings_service.set_schedule_defer_on_reenable(request.defer_on_reenable, board_id=request.board_id)
+            if request.board_id is not None
+            else settings_service.set_schedule_defer_on_reenable(request.defer_on_reenable)
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return ScheduleBehaviorResponse(defer_on_reenable=schedule.defer_on_reenable)
 
 
@@ -345,7 +367,7 @@ async def get_schedule(schedule_id: str):
 @router.put(
     "/schedules/{schedule_id}",
     response_model=ScheduleWriteResponse,
-    responses=errors(400, 404),
+    responses=errors(400, 404, 412),
     dependencies=[superseded_by_v1("PUT /schedules/{schedule_id}")],
 )
 async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
@@ -356,6 +378,8 @@ async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
 
     try:
         schedule = schedule_service.update_schedule(schedule_id, schedule_data)
+    except PageRevisionConflict as e:
+        raise HTTPException(status_code=412, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     if not schedule:
@@ -367,14 +391,21 @@ async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
 @router.delete(
     "/schedules/{schedule_id}",
     response_model=ScheduleDeleteResponse,
-    responses=errors(404),
+    responses=errors(404, 412),
     dependencies=[superseded_by_v1("DELETE /schedules/{schedule_id}")],
 )
-async def delete_schedule(schedule_id: str):
+async def delete_schedule(schedule_id: str, expected_revision: str | None = None):
     """Delete a schedule entry."""
     schedule_service = get_schedule_service()
 
-    deleted = schedule_service.delete_schedule(schedule_id)
+    try:
+        deleted = (
+            schedule_service.delete_schedule(schedule_id)
+            if expected_revision is None
+            else schedule_service.delete_schedule(schedule_id, expected_revision=expected_revision)
+        )
+    except PageRevisionConflict as exc:
+        raise HTTPException(status_code=412, detail=str(exc)) from exc
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
 

@@ -1,0 +1,62 @@
+{
+  "read": {
+    "id": "synthetic-editor-page",
+    "revision": "synthetic-page-r1",
+    "edit_protocol": "page-revision-v1",
+    "document_protocol": "page-document-v1",
+    "name": "Café e\u0301 🌮",
+    "type": "template",
+    "device_type": "panel",
+    "display_type": null,
+    "rows": null,
+    "template": ["OLD", ""],
+    "line_metadata": [{"alignment": "right", "wrap": true}],
+    "duration_seconds": 45,
+    "transition_strategy": null,
+    "transition_interval_ms": null,
+    "transition_step_size": null,
+    "demo_plugin_id": null,
+    "notes_wide": 1,
+    "notes_tall": 1,
+    "grid_rows": 3,
+    "grid_cols": 15,
+    "canvases": null,
+    "created_at": "2026-10-26T12:00:00Z",
+    "updated_at": null
+  },
+  "request": {
+    "template": ["é e\u0301", "{{clock.time}}{66}"],
+    "expected_revision": "synthetic-page-r1"
+  },
+  "save": {
+    "page": {
+      "id": "synthetic-editor-page",
+      "revision": "synthetic-page-r2",
+      "edit_protocol": "page-revision-v1",
+      "document_protocol": "page-document-v1",
+      "name": "Café e\u0301 🌮",
+      "type": "template",
+      "device_type": "panel",
+      "display_type": null,
+      "rows": null,
+      "template": ["é e\u0301", "{{clock.time}}{66}"],
+      "line_metadata": [{"alignment": "right", "wrap": true}],
+      "duration_seconds": 45,
+      "transition_strategy": null,
+      "transition_interval_ms": null,
+      "transition_step_size": null,
+      "demo_plugin_id": null,
+      "notes_wide": 1,
+      "notes_tall": 1,
+      "grid_rows": 3,
+      "grid_cols": 15,
+      "canvases": null,
+      "created_at": "2026-10-26T12:00:00Z",
+      "updated_at": "2026-10-26T12:01:00Z"
+    },
+    "incompatible_references": []
+  },
+  "conflict": {
+    "detail": "Page changed since it was loaded. Reload the page before saving or deleting."
+  }
+}

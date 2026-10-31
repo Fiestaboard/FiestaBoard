@@ -1,0 +1,95 @@
+{
+  "schema_version": 6,
+  "future_document": {
+    "nullable": null,
+    "numeric": 900719925474099312345678,
+    "label": "未来 🎨"
+  },
+  "pages": [
+    {
+      "id": "rich-extension-page",
+      "name": "Rich document",
+      "type": "template",
+      "device_type": "panel",
+      "grid_rows": 3,
+      "grid_cols": 15,
+      "template": [
+        "Hello 世界",
+        "",
+        "{63}"
+      ],
+      "rows": [
+        {
+          "source": "weather",
+          "row_index": 0,
+          "target_row": 0,
+          "future_row": {
+            "ratio": 1e+100,
+            "nullable": null
+          }
+        }
+      ],
+      "line_metadata": [
+        {
+          "alignment": "center",
+          "wrap": false,
+          "future_line": {
+            "label": "é雪",
+            "nullable": null
+          }
+        }
+      ],
+      "future_page": {
+        "nested": [
+          {
+            "numeric": 900719925474099312345678,
+            "nullable": null
+          }
+        ],
+        "ratio": 1e+100
+      },
+      "canvases": [
+        {
+          "id": "art",
+          "area": {
+            "row": 1,
+            "col": 1,
+            "rows": 1,
+            "cols": 2,
+            "future_area": {
+              "nullable": null
+            }
+          },
+          "source": null,
+          "future_canvas": {
+            "expression": "{{future_plugin.opaque}}",
+            "nullable": null
+          },
+          "content": {
+            "background": null,
+            "future_content": {
+              "value": "😀",
+              "nullable": null
+            },
+            "shapes": [
+              {
+                "type": "rect",
+                "x": 0,
+                "y": 0.25,
+                "w": 2,
+                "h": 2,
+                "fill": "red",
+                "stroke": null,
+                "future_shape": {
+                  "nullable": null,
+                  "number": 900719925474099312345678
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "created_at": "2025-01-01T00:00:00+00:00"
+    }
+  ]
+}

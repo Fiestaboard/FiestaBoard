@@ -15,7 +15,7 @@ from src.collections.models import Collection, is_collection_id, make_collection
 from src.collections.service import get_collection_service
 from src.config import resolve_silence_schedule
 from src.config_manager import get_config_manager
-from src.devices import DeviceDimensions, dimensions_of
+from src.devices import DeviceDimensions, dimensions_of, is_flexible_page
 from src.pages.models import Page
 from src.pages.service import get_page_service
 from src.panels.content_resize_recovery import (
@@ -85,7 +85,8 @@ def panel_content_resize(
             original = pages.get(ref)
             if original is None:
                 raise ValueError(f"Cannot copy panel content: page {ref!r} is missing; repair its reference first")
-            if dimensions_of(original) == target:
+            # A flexible page fits every grid: kept by reference, never copied.
+            if is_flexible_page(original) or dimensions_of(original) == target:
                 page_map[ref] = ref
                 return ref
             data = original.model_dump()
@@ -221,8 +222,14 @@ def panel_content_resize(
                         settings._active_page = active_snapshot
                         settings._save_to_file()
                     elif surface == "schedules":
-                        schedules._schedules.update(schedule_snapshot)
+                        schedules._schedules.update(
+                            {
+                                sid: entry.model_copy(update={"revision": str(uuid4())})
+                                for sid, entry in schedule_snapshot.items()
+                            }
+                        )
                         schedules._default_page_by_board = defaults_snapshot
+                        schedules.default_revision = str(uuid4())
                         schedules._save()
                     else:
                         features = config._config.setdefault("features", {})

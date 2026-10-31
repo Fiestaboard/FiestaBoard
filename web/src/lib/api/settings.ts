@@ -146,12 +146,17 @@ export const settingsApi = {
       body: JSON.stringify(config),
     }),
   // Polling settings
-  getPollingSettings: () => fetchApi<PollingSettings>("/settings/polling"),
-  updatePollingSettings: (updates: Partial<PollingSettings>) =>
+  getPollingSettings: (boardId?: string) =>
+    fetchApi<PollingSettings>(
+      typeof boardId === "string" && boardId
+        ? `/settings/polling?board_id=${encodeURIComponent(boardId)}`
+        : "/settings/polling",
+    ),
+  updatePollingSettings: (updates: Partial<PollingSettings>, boardId?: string) =>
     fetchApi<PollingSettings & { requires_restart: boolean }>("/settings/polling", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
+      body: JSON.stringify({ ...updates, ...(boardId ? { board_id: boardId } : {}) }),
     }),
   getAllSettings: () => fetchApi<AllSettingsResponse>("/settings/all"),
   // Display settings
