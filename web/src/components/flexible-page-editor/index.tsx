@@ -14,6 +14,7 @@ import {
   Stack,
   Text,
   Textarea,
+  TextLink,
 } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -21,7 +22,16 @@ import { toast } from "sonner";
 
 import { DevicePreview } from "@/components/device-preview";
 import { useTranslations } from "@/i18n/translations";
-import { api, type BoardInstance, type FlexibleBlock, type Page, type PageCreate, type PageUpdate } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  type BoardInstance,
+  type FlexibleBlock,
+  type Page,
+  type PageCreate,
+  type PageUpdate,
+} from "@/lib/api";
+import { appUrl } from "@/lib/base-path";
 import { dimensionsOf } from "@/lib/board-dimensions";
 import { resolveBoardModel } from "@/lib/device-preview";
 
@@ -91,6 +101,17 @@ export function FlexiblePageEditor({
     (draft.duration_seconds ?? 0) <= 3600;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
+  const authRequests = useRef({ started: 0, settled: 0 });
+  const recordAuthentication = (requestId: number, cause?: unknown) => {
+    // Only confirmed authentication outcomes replace the notice. Request order
+    // keeps a late preview from undoing the result of a newer save or preview.
+    if (cause !== undefined && !(cause instanceof ApiError && [400, 401, 403, 404, 412, 422].includes(cause.status)))
+      return;
+    if (requestId < authRequests.current.settled) return;
+    authRequests.current.settled = requestId;
+    setNeedsSignIn(cause instanceof ApiError && cause.status === 401);
+  };
   const [previewId, setPreviewId] = useState(targetBoardId ?? boards[0]?.id ?? "");
   const board = boards.find((b) => b.id === previewId) ?? boards[0];
   const [previewDraft, setPreviewDraft] = useState(draft);
@@ -129,7 +150,17 @@ export function FlexiblePageEditor({
   }, [dirty]);
   const preview = useQuery({
     queryKey: ["flexible-preview", board?.id, previewDraft],
-    queryFn: () => api.previewFlexiblePage(previewDraft, board?.id),
+    queryFn: async () => {
+      const requestId = ++authRequests.current.started;
+      try {
+        const rendered = await api.previewFlexiblePage(previewDraft, board?.id, { skipAuthRedirect: true });
+        recordAuthentication(requestId);
+        return rendered;
+      } catch (cause) {
+        recordAuthentication(requestId, cause);
+        throw cause;
+      }
+    },
     enabled: !!board,
     retry: false,
   });
@@ -159,15 +190,20 @@ export function FlexiblePageEditor({
   };
   const save = async () => {
     if (hasPendingDraft || !durationValid) return;
+    const requestId = ++authRequests.current.started;
     setError(null);
     setSaving(true);
     try {
       if (initialPage.id) {
         const { type: _type, ...fields } = draft;
-        const saved = await api.updatePage(initialPage.id, {
-          ...fields,
-          expected_revision: baseRevision,
-        } satisfies PageUpdate);
+        const saved = await api.updatePage(
+          initialPage.id,
+          {
+            ...fields,
+            expected_revision: baseRevision,
+          } satisfies PageUpdate,
+          { skipAuthRedirect: true },
+        );
         setBaseRevision(saved.page.revision);
         client.setQueryData(["page", initialPage.id], saved.page);
         if (saved.incompatible_references.length) {
@@ -178,14 +214,18 @@ export function FlexiblePageEditor({
             { duration: 10000 },
           );
         }
-      } else await api.createPage(draft);
+      } else await api.createPage(draft, { skipAuthRedirect: true });
+      recordAuthentication(requestId);
       setPersisted(true);
       setOriginal(JSON.stringify(draft));
       onDirtyChange?.(false);
       await client.invalidateQueries({ queryKey: ["pages"] });
       onSave();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t("saveFailed"));
+      recordAuthentication(requestId, cause);
+      if (!(cause instanceof ApiError && cause.status === 401)) {
+        setError(cause instanceof Error ? cause.message : t("saveFailed"));
+      }
     } finally {
       setSaving(false);
     }
@@ -205,6 +245,14 @@ export function FlexiblePageEditor({
         aria-label={t("actions")}
         className="sticky top-0 z-20 space-y-2 border-b bg-card py-2"
       >
+        {needsSignIn && (
+          <Box role="alert" className="space-y-1 text-sm">
+            <Text>{t("signInRecovery")}</Text>
+            <TextLink href={appUrl("/login")} target="_blank" rel="noopener noreferrer">
+              {t("signInAnotherTab")}
+            </TextLink>
+          </Box>
+        )}
         {error && (
           <Text role="alert" className="text-sm text-destructive">
             {error}
@@ -501,9 +549,11 @@ export function FlexiblePageEditor({
               {preview.isFetching && <Text role="status">{t("rendering")}</Text>}
               {preview.error && (
                 <Box className="space-y-2">
-                  <Text role="alert" className="text-sm text-destructive">
-                    {preview.error.message}
-                  </Text>
+                  {!(preview.error instanceof ApiError && preview.error.status === 401) && (
+                    <Text role="alert" className="text-sm text-destructive">
+                      {preview.error.message}
+                    </Text>
+                  )}
                   <Button variant="outline" onClick={() => void preview.refetch()}>
                     {t("retryPreview")}
                   </Button>

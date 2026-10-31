@@ -3125,6 +3125,8 @@
     "unavailableDisplay": "Unavailable display: {id}",
     "targetWarning": "Saved. Existing playback references on these displays no longer accept this page: {list}. Review their active pages, schedules and silence pages.",
     "previewPixelDescription": "Computed preview · {width} × {height} pixels. This does not send to a display.",
-    "projectionHelp": "The character fallback is a separate layout and may contain text that does not fit this pixel preview."
+    "projectionHelp": "The character fallback is a separate layout and may contain text that does not fit this pixel preview.",
+    "signInRecovery": "Sign in to continue. Keep this editor open to retain your unsaved changes. Sign in in another tab, then return to save or retry the preview.",
+    "signInAnotherTab": "Sign in in another tab"
   }
 }

@@ -195,9 +195,12 @@ def test_unsaved_flexible_preview_answers_as_a_batch_preview_entry(client, pixoo
     assert [(i["path"], i["code"]) for i in body["layout_issues"]] == [FONT_ISSUE]
 
 
-def test_unsaved_flexible_preview_without_a_board_lays_out_for_the_primary_board(client, flex_layout):
-    get_settings_service().set_boards([FLAGSHIP])
-    body = _unsaved(client, FLEX_BODY).json()
+@pytest.mark.parametrize("target", [{}, {"board_id": None}], ids=["omitted", "null"])
+def test_unsaved_flexible_preview_without_a_board_lays_out_for_the_primary_board(client, flex_layout, target):
+    get_settings_service().set_boards([FLAGSHIP, NOTE])
+    response = client.post("/pages/preview/flexible", json={"page": FLEX_BODY, **target})
+    assert response.status_code == 200, response.text
+    body = response.json()
     assert len(body["lines"]) == 6 and "layers" not in body and "cells" not in body
 
 
@@ -232,6 +235,23 @@ REAL_FLEX_BODY = {
     "type": "flexible",
     "blocks": [{"id": "t", "kind": "text", "text": "HELLO", "style": {"align": "center"}}],
 }
+
+
+@pytest.mark.parametrize("board_id", ["missing-board", ""], ids=["unknown", "empty"])
+def test_unsaved_flexible_preview_rejects_an_explicit_unknown_board(client, board_id):
+    get_settings_service().set_boards([FLAGSHIP, NOTE])
+    response = client.post("/pages/preview/flexible", json={"page": REAL_FLEX_BODY, "board_id": board_id})
+    assert response.status_code == 404, response.text
+    assert response.json() == {"detail": f"Board not found: {board_id}"}
+
+
+def test_unsaved_flexible_preview_lays_out_for_the_explicit_secondary_board(client):
+    get_settings_service().set_boards([FLAGSHIP, NOTE])
+    response = _unsaved(client, REAL_FLEX_BODY, NOTE["id"])
+    assert response.status_code == 200, response.text
+    lines = response.json()["lines"]
+    assert len(lines) == 3 and all(len(line) == 15 for line in lines)
+    assert "HELLO" in lines[0]
 
 
 @pytest.fixture

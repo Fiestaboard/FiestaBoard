@@ -735,7 +735,8 @@ class PageFlexiblePreviewRequest(BaseModel):
     page: PageCreate = Field(description="The flexible page to lay out, as it would be created. It is not saved.")
     board_id: str | None = Field(
         default=None,
-        description="The board to lay the page out for. Omitted or unknown: the primary board.",
+        description="The board to lay the page out for. Omitted or null: the primary board. "
+        "An unknown ID, including an empty string, returns 404.",
     )
 
     @model_validator(mode="after")

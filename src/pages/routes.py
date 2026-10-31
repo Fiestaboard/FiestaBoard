@@ -621,7 +621,7 @@ async def preview_pages_batch(request: PagePreviewBatchRequest):
     "/pages/preview/flexible",
     response_model=PagePreviewBatchSuccess,
     response_model_exclude_unset=True,
-    responses=errors(422, 503),
+    responses=errors(404, 422, 503),
 )
 async def preview_unsaved_flexible_page(request: PageFlexiblePreviewRequest):
     """
@@ -629,8 +629,9 @@ async def preview_unsaved_flexible_page(request: PageFlexiblePreviewRequest):
 
     The editor's preview (design section 6). ``page`` is the page as
     ``POST /pages`` would create it, and must be a flexible page (else 422).
-    ``board_id`` names the board to lay it out for; omitted or unknown, the
-    primary board. The answer is one ``/pages/preview/batch`` entry with
+    ``board_id`` names the board to lay it out for; omitted or null uses the
+    primary board, while an unknown ID (including an empty string) is a 404.
+    The answer is one ``/pages/preview/batch`` entry with
     ``page_id: "unsaved"``: the page's text at the board's grid (``lines``,
     and ``cells`` on an LED board), its full frame as ``layers`` on a pixel
     board, and its ``layout_issues``. A board excluded by the page's targets
@@ -640,7 +641,7 @@ async def preview_unsaved_flexible_page(request: PageFlexiblePreviewRequest):
         page = get_page_service().new_page(request.page).model_copy(update={"id": UNSAVED_PAGE_ID})
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
-    board = (_find_board(request.board_id) if request.board_id else None) or primary_board_entry()
+    board = _require_board(request.board_id) if request.board_id is not None else primary_board_entry()
     fit = page_fit_for_board(page, board)
     if not fit.fits:
         raise HTTPException(status_code=422, detail=fit.reason)

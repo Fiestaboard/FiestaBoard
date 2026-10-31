@@ -77,6 +77,7 @@ it("edits a semantic block and saves with revision and opaque fields intact", as
       layout: { kind: "stack", future: true },
       style: { size: "small", future: "preserve" },
     }),
+    { skipAuthRedirect: true },
   ]);
 });
 
@@ -92,7 +93,7 @@ it("adds, reorders, removes and undoes blocks with stable identities", () => {
 });
 
 it("keeps the draft visible when another editor has changed the page", async () => {
-  vi.mocked(api.updatePage).mockRejectedValue(new ApiError("Page changed; reload", 409));
+  vi.mocked(api.updatePage).mockRejectedValue(new ApiError("Page changed; reload", 412));
   mount();
   fireEvent.change(screen.getByLabelText("Block 1 text"), { target: { value: "Keep my edit" } });
   fireEvent.click(screen.getByRole("button", { name: "Save page" }));
@@ -112,7 +113,9 @@ it("keeps the draft's base revision when a query refresh brings a newer page", a
   view.rerender(editor({ ...initial, revision: "someone-elses-revision" }));
   fireEvent.click(screen.getByRole("button", { name: "Save page" }));
   await waitFor(() =>
-    expect(api.updatePage).toHaveBeenCalledWith("p", expect.objectContaining({ expected_revision: "rev-one" })),
+    expect(api.updatePage).toHaveBeenCalledWith("p", expect.objectContaining({ expected_revision: "rev-one" }), {
+      skipAuthRedirect: true,
+    }),
   );
 });
 
@@ -190,6 +193,7 @@ it("previews the unsaved document on the selected board without saving or sendin
   expect(api.previewFlexiblePage).toHaveBeenLastCalledWith(
     expect.objectContaining({ type: "flexible", blocks: initial.blocks }),
     "b",
+    { skipAuthRedirect: true },
   );
   expect(api.updatePage).not.toHaveBeenCalled();
   expect(api.createPage).not.toHaveBeenCalled();
@@ -282,6 +286,7 @@ it("saves a valid dimension with a single click immediately after typing", async
     expect(api.updatePage).toHaveBeenCalledWith(
       "p",
       expect.objectContaining({ blocks: [expect.objectContaining({ canvas: { content: { size: [16, 8] } } })] }),
+      { skipAuthRedirect: true },
     ),
   );
 });
@@ -324,6 +329,7 @@ it("restores committed canvas dimensions through undo and redo", async () => {
       expect.objectContaining({
         blocks: [expect.objectContaining({ canvas: { content: { size: [16, 8], palette: { r: "#ff0000" } } } })],
       }),
+      { skipAuthRedirect: true },
     ),
   );
 });
