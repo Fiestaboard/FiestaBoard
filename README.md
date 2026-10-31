@@ -19,7 +19,7 @@
 **Works with:**
 
 - **Split-flap:** Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas)
-- **LED matrix:** Divoom Pixoo 64, and [Ulanzi TC002](https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002) running AWTRIX NG (community plugin)
+- **LED matrix:** Divoom Pixoo 64, [Ulanzi TC001](https://github.com/Fiestaboard/fiestaboard-output--ulanzi-tc001), and [Ulanzi TC002](https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002) running AWTRIX NG (community plugin). TC001 requires FiestaBoard 10.2.0 or later; optional native collection rotation and button navigation require 10.3.0 or later.
 - **TV:** [FiestaPanel](docs/displays/tv.md) turns any TV or screen with a web browser into a life-size board. Native Apple TV and Android TV apps are coming soon.
 
 Every display is an [output plugin](docs/development/output-plugins.md), so support for new hardware can be added without changing FiestaBoard. See [Supported Displays](docs/displays/index.md).
@@ -212,6 +212,7 @@ FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit,
 | [Todoist](https://github.com/Fiestaboard/fiestaboard-plugin--todoist) | Show what's on your Todoist plate: how many tasks are due today, how many are overdue, and the next task to do. Sign in with Todoist, or paste a personal API token | Sign-in |
 | [Traffic](https://github.com/Fiestaboard/fiestaboard-plugin--traffic) | Travel time with live traffic | Yes (free tier) |
 | [Twitch](https://github.com/Fiestaboard/fiestaboard-plugin--twitch) | See which channels you follow are live on Twitch, with game, viewers and uptime, plus a channel's follower count. Signs in to your Twitch account with a short code | Sign-in |
+| [Ulanzi TC001](https://github.com/Fiestaboard/fiestaboard-output--ulanzi-tc001) | Output plugin for a 32×8 AWTRIX NG display; optional native collection rotation | No |
 | [UV Index](https://github.com/Fiestaboard/fiestaboard-plugin--uv-index) | UV index and sun protection advice | No |
 | [Visual Clock](https://github.com/Fiestaboard/fiestaboard-plugin--visual-clock) | Large pixel-art style clock | No |
 | [Volcano Activity](https://github.com/Fiestaboard/fiestaboard-plugin--volcano) | Active volcanoes from Smithsonian GVP | No |
