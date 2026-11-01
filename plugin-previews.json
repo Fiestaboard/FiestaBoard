@@ -967,6 +967,43 @@
         }
       ]
     },
+    "lucasfilm_quotes": {
+      "teaser": "IT'S A TRAP!",
+      "previews": [
+        {
+          "device_type": "note",
+          "rows": [
+            " IT'S A TRAP!  ",
+            "               ",
+            "   - ACKBAR    "
+          ]
+        },
+        {
+          "device_type": "flagship",
+          "rows": [
+            " HOKEY RELIGIONS AND  ",
+            "ANCIENT WEAPONS ARE NO",
+            "   MATCH FOR A GOOD   ",
+            "BLASTER AT YOUR SIDE, ",
+            "         KID.         ",
+            "      - HAN SOLO      "
+          ]
+        },
+        {
+          "device_type": "note_array",
+          "notes_wide": 2,
+          "notes_tall": 2,
+          "rows": [
+            "                              ",
+            " SNAKES. WHY'D IT HAVE TO BE  ",
+            "           SNAKES?            ",
+            "                              ",
+            "       - INDIANA JONES        ",
+            "                              "
+          ]
+        }
+      ]
+    },
     "lyft_bike_share": {
       "teaser": "5 E-BIKES READY",
       "previews": [

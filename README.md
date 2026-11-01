@@ -175,6 +175,7 @@ FiestaBoard has a catalog of **60+ plugins** covering weather, finance, transit,
 | [ISS Tracker](https://github.com/Fiestaboard/fiestaboard-plugin--iss-tracker) | Real-time ISS position and altitude | No |
 | [Last.fm Now Playing](https://github.com/Fiestaboard/fiestaboard-plugin--last-fm) | Currently playing music | Yes (free) |
 | [Lightning Alerts](https://github.com/Fiestaboard/fiestaboard-plugin--lightning) | Active NWS weather alerts by US state | No |
+| [Lucasfilm Quotes](https://github.com/rummeyer/fiestaboard-plugin--lucasfilm-quotes) | A quote from Star Wars, Indiana Jones and more, sized to fit the board | No |
 | [Lyft Bike Share](https://github.com/Fiestaboard/fiestaboard-plugin--lyft-bike-share) | Lyft bike share availability — Bay Wheels, CitiBike, Divvy, and more | No |
 | [Mastodon Stats](https://github.com/Fiestaboard/fiestaboard-plugin--mastodon-stats) | Show follower, following and post counts for any Mastodon account, with an optional change since the start of the day. No sign-in needed | No |
 | [Moon Phase](https://github.com/Fiestaboard/fiestaboard-plugin--moon-phase) | Current lunar phase and illumination | No |
