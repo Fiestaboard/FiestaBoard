@@ -931,7 +931,7 @@
     },
     {
       "id": "ulanzi_tc002",
-      "name": "Ulanzi TC002 (AWTRIX NG)",
+      "name": "Ulanzi TC002",
       "description": "Show your FiestaBoard pages on a Ulanzi TC002 running AWTRIX NG, as an app in its rotation, over your local network. 3 rows of 13 in the 3x5 font, colours and LED transitions.",
       "repository": "https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002",
       "author": "Oliver Rummeyer",
@@ -941,11 +941,9 @@
       "plugin_type": "output",
       "display": {
         "category": "LED matrices",
-        "manufacturer": "Ulanzi",
-        "models": [
-          "TC002"
-        ],
         "keywords": [
+          "Ulanzi",
+          "TC002",
           "AWTRIX",
           "AWTRIX NG",
           "pixel clock",
