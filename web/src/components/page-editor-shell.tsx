@@ -15,10 +15,10 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { type BlockerFunction, useBlocker } from "react-router";
 
-import { FlexiblePageEditor } from "@/components/flexible-page-editor";
+import { FlexiblePageEditor, type FlexiblePageEditorProps } from "@/components/flexible-page-editor";
 import { PageBuilder, type PageBuilderHandle } from "@/components/page-builder";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useBoardSettings } from "@/hooks/use-board";
@@ -44,12 +44,43 @@ export interface PageEditorShellProps {
  * in the app.
  */
 export function PageEditorShell(props: PageEditorShellProps) {
+  return <PageEditorLoader key={props.pageId ?? "new"} {...props} />;
+}
+
+function supportsFlexiblePage(page?: Page) {
+  return page?.type === "flexible" && (!page.document_protocol || page.document_protocol === "page-document-v2");
+}
+
+function PageEditorLoader(props: PageEditorShellProps) {
   const t = useTranslations("flexibleEditor");
+  const [openedFlexible, setOpenedFlexible] = useState<Page | null>(null);
   const page = useQuery({
     queryKey: ["page", props.pageId],
     queryFn: () => api.getPage(props.pageId!),
     enabled: !!props.pageId,
   });
+  // Keep the document that opened this editor. A background read must not
+  // unmount its local history/drafts, even if the remote format has changed.
+  if (!openedFlexible && supportsFlexiblePage(page.data)) setOpenedFlexible(page.data!);
+  if (openedFlexible) {
+    const incompatible = !!page.data && !supportsFlexiblePage(page.data);
+    return (
+      <FlexibleShell
+        {...props}
+        page={openedFlexible}
+        refreshStatus={
+          page.error || incompatible
+            ? {
+                error: page.error?.message,
+                incompatible,
+                refreshing: page.isFetching,
+                onRetry: () => void page.refetch(),
+              }
+            : undefined
+        }
+      />
+    );
+  }
   if (props.pageId && page.isPending) return <Text role="status">{t("loading")}</Text>;
   if (page.error) return <Text role="alert">{page.error.message}</Text>;
   if (
@@ -65,7 +96,13 @@ export function PageEditorShell(props: PageEditorShellProps) {
   return <GridPageEditorShell {...props} />;
 }
 
-function FlexibleShell({ page, targetBoardId, onClose, onSave }: PageEditorShellProps & { page?: Page }) {
+function FlexibleShell({
+  page,
+  targetBoardId,
+  onClose,
+  onSave,
+  refreshStatus,
+}: PageEditorShellProps & { page?: Page; refreshStatus?: FlexiblePageEditorProps["refreshStatus"] }) {
   const t = useTranslations("pageBuilder");
   const tFlexible = useTranslations("flexibleEditor");
   const { data: settings } = useBoardSettings();
@@ -119,6 +156,7 @@ function FlexibleShell({ page, targetBoardId, onClose, onSave }: PageEditorShell
           onClose={onClose}
           onSave={onSave}
           onDirtyChange={onDirtyChange}
+          refreshStatus={refreshStatus}
         />
       </Box>
     </>

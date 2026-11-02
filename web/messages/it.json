@@ -3127,6 +3127,9 @@
     "previewPixelDescription": "Computed preview · {width} × {height} pixels. This does not send to a display.",
     "projectionHelp": "The character fallback is a separate layout and may contain text that does not fit this pixel preview.",
     "signInRecovery": "Sign in to continue. Keep this editor open to retain your unsaved changes. Sign in in another tab, then return to save or retry the preview.",
-    "signInAnotherTab": "Sign in in another tab"
+    "signInAnotherTab": "Sign in in another tab",
+    "refreshFailed": "Could not check the latest server version. Your draft is still here. Keep this editor open to continue editing.",
+    "refreshIncompatible": "The server page now uses a different or unsupported format. Your draft is still here, but saving is disabled. Keep this editor open to copy your edits before leaving.",
+    "retryRefresh": "Retry refresh"
   }
 }

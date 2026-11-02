@@ -49,6 +49,12 @@ export interface FlexiblePageEditorProps {
   onClose: () => void;
   onSave: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  refreshStatus?: {
+    error?: string;
+    incompatible: boolean;
+    refreshing: boolean;
+    onRetry: () => void;
+  };
 }
 
 /** The edit payload deliberately excludes server identity and legacy grid fields. */
@@ -74,6 +80,7 @@ export function FlexiblePageEditor({
   onClose,
   onSave,
   onDirtyChange,
+  refreshStatus,
 }: FlexiblePageEditorProps) {
   const t = useTranslations("flexibleEditor");
   const client = useQueryClient();
@@ -189,7 +196,7 @@ export function FlexiblePageEditor({
     change({ ...draft, blocks: next });
   };
   const save = async () => {
-    if (hasPendingDraft || !durationValid) return;
+    if (hasPendingDraft || !durationValid || refreshStatus?.incompatible) return;
     const requestId = ++authRequests.current.started;
     setError(null);
     setSaving(true);
@@ -245,6 +252,15 @@ export function FlexiblePageEditor({
         aria-label={t("actions")}
         className="sticky top-0 z-20 space-y-2 border-b bg-card py-2"
       >
+        {refreshStatus && (
+          <Box role="alert" className="space-y-1 text-sm">
+            <Text>{t(refreshStatus.incompatible ? "refreshIncompatible" : "refreshFailed")}</Text>
+            {refreshStatus.error && <Text className="text-muted-foreground">{refreshStatus.error}</Text>}
+            <Button variant="link" onClick={refreshStatus.onRetry} disabled={refreshStatus.refreshing}>
+              {t("retryRefresh")}
+            </Button>
+          </Box>
+        )}
         {needsSignIn && (
           <Box role="alert" className="space-y-1 text-sm">
             <Text>{t("signInRecovery")}</Text>
@@ -286,7 +302,7 @@ export function FlexiblePageEditor({
           </Button>
           <Button
             onClick={() => void save()}
-            disabled={saving || hasPendingDraft || !durationValid || !draft.name.trim()}
+            disabled={saving || hasPendingDraft || !durationValid || !draft.name.trim() || refreshStatus?.incompatible}
           >
             {saving ? t("saving") : t("save")}
           </Button>
