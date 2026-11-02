@@ -7,6 +7,8 @@ import { InstallPrompt } from "@/components/install-prompt";
 import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
 
+vi.unmock("react-router");
+
 const pushSpy = vi.fn();
 vi.mock("@/hooks/use-view-transition", () => ({
   useViewTransition: () => ({ push: pushSpy }),
@@ -23,7 +25,8 @@ const { default: OfflinePage } = await import("../../app/routes/offline");
  * These five all read a browser API on mount and pushed the result into state
  * from a `useEffect` — the `react-hooks/set-state-in-effect` shape in issue
  * #1568, and a guaranteed extra render of the wrong thing. They now read it in
- * the `useState` initializer (safe: the app is a static SPA, `ssr: false`).
+ * the `useState` initializer or directly from router state (safe: the app is
+ * a static SPA, `ssr: false`).
  *
  * The assertions deliberately look at the FIRST synchronous render, with no
  * `waitFor` — that is the difference between the two implementations.
@@ -90,7 +93,9 @@ describe("browser state read on the first render", () => {
     it("mounts the page builder on the first render when ?id is in the URL", () => {
       window.history.replaceState({}, "", "/pages/edit?id=abc123");
 
-      const router = createMemoryRouter([{ path: "*", element: <EditPage /> }]);
+      const router = createMemoryRouter([{ path: "*", element: <EditPage /> }], {
+        initialEntries: ["/pages/edit?id=abc123"],
+      });
       render(
         <PageEditorBridgeProvider>
           <RouterProvider router={router} />
@@ -104,7 +109,9 @@ describe("browser state read on the first render", () => {
     it("redirects to the pages list when ?id is missing", () => {
       window.history.replaceState({}, "", "/pages/edit");
 
-      const router = createMemoryRouter([{ path: "*", element: <EditPage /> }]);
+      const router = createMemoryRouter([{ path: "*", element: <EditPage /> }], {
+        initialEntries: ["/pages/edit"],
+      });
       render(
         <PageEditorBridgeProvider>
           <RouterProvider router={router} />
