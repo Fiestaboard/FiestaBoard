@@ -148,9 +148,9 @@ it("does not offer the previous document for saving when the next page fails to 
     await router.navigate("/pages/edit?id=second");
   });
   expect(await screen.findByRole("heading", { name: "Second page" })).toBeInTheDocument();
-  const save = await screen.findByRole("button", { name: "Save Page" });
+  expect(await screen.findByRole("alert")).toHaveTextContent("Unavailable");
   expect(screen.queryByDisplayValue("First page")).not.toBeInTheDocument();
-  expect(save).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Save Page" })).not.toBeInTheDocument();
   expect(writes).toEqual([]);
 });
 

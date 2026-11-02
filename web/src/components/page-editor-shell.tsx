@@ -114,7 +114,8 @@ function FlexibleShell({
     useCallback<BlockerFunction>(
       ({ currentLocation, nextLocation }) =>
         dirty.current &&
-        (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search),
+        (currentLocation.pathname !== nextLocation.pathname ||
+          new URLSearchParams(currentLocation.search).get("id") !== new URLSearchParams(nextLocation.search).get("id")),
       [],
     ),
   );
