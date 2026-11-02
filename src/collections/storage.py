@@ -91,8 +91,7 @@ class CollectionStorage:
         """If no collections file exists but a legacy carousels.json does,
         import it.
 
-        Returns True if a legacy import happened (caller should treat as a
-        fresh load needing save).
+        Returns True if a legacy import was saved successfully.
         """
         if self.storage_file.exists():
             return False
@@ -135,6 +134,10 @@ class CollectionStorage:
                 )
                 self._failed_entries.append(raw_snapshot)
 
+        # Commit the converted store before retiring its source. If this fails,
+        # the next start must still find carousels.json and retry the import.
+        self._save()
+
         # Move the legacy file aside so the import is a one-shot operation.
         try:
             backup = legacy_path.with_suffix(".json.pre-collections-backup")
@@ -165,7 +168,6 @@ class CollectionStorage:
     def _load(self) -> None:
         # First-run path: import legacy carousels.json if present.
         if self._import_legacy_carousels_if_needed():
-            self._save()
             return
 
         try:
