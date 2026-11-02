@@ -19,7 +19,7 @@
 **Works with:**
 
 - **Split-flap:** Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas)
-- **LED matrix:** Divoom Pixoo 64, [Ulanzi TC001](https://github.com/Fiestaboard/fiestaboard-output--ulanzi-tc001), and [Ulanzi TC002](https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002) running AWTRIX NG (community plugin). TC001 requires FiestaBoard 10.2.0 or later; optional native collection rotation and button navigation require 10.3.0 or later.
+- **LED matrix:** Divoom Pixoo 64, [Ulanzi TC001](https://github.com/Fiestaboard/fiestaboard-output--ulanzi-tc001), and the community [Ulanzi TC002](https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002) plugin, both running AWTRIX NG. TC001 requires FiestaBoard 10.2.0 or later; optional native collection rotation and button navigation require 10.3.0 or later.
 - **TV:** [FiestaPanel](docs/displays/tv.md) turns any TV or screen with a web browser into a life-size board. Native Apple TV and Android TV apps are coming soon.
 
 Every display is an [output plugin](docs/development/output-plugins.md), so support for new hardware can be added without changing FiestaBoard. See [Supported Displays](docs/displays/index.md).
