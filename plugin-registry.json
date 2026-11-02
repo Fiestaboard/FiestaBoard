@@ -932,7 +932,7 @@
     {
       "id": "ulanzi_tc002",
       "name": "Ulanzi TC002",
-      "description": "Show your FiestaBoard pages on a Ulanzi TC002 running AWTRIX NG, as an app in its rotation, over your local network. 3 rows of 13 in the 3x5 font, colours and LED transitions.",
+      "description": "Show your FiestaBoard pages on a Ulanzi TC002 running AWTRIX NG, as an app in its rotation, over your local network. 3 rows of 13 in the 3x5 font, colours and LED transitions. Optionally the clock rotates a collection's pages itself, switchable with its buttons.",
       "repository": "https://github.com/rummeyer/fiestaboard-output--ulanzi-tc002",
       "author": "Oliver Rummeyer",
       "fiestaboard_version": ">=10.0.0",
