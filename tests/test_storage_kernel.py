@@ -774,10 +774,10 @@ class TestConcurrentWriters:
         # at this point was taken by the setter, not by the save.
         decorated_save = SettingsService._save_to_file
 
-        def paused_save(self):
+        def paused_save(self, **sections):
             inside_body.set()
             may_finish.wait(timeout=2.0)
-            return decorated_save(self)
+            return decorated_save(self, **sections)
 
         monkeypatch.setattr(SettingsService, "_save_to_file", paused_save)
 
