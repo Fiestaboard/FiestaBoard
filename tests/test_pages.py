@@ -947,11 +947,11 @@ class TestPageService:
         save_calls = []
         original_save = service.storage._save
 
-        def fail_on_second_save():
+        def fail_on_second_save(candidate=None):
             save_calls.append(1)
-            if len(save_calls) > 1:  # let the default-page create succeed …
-                raise OSError("Disk full")  # … then fail the original-page delete
-            original_save()
+            if len(save_calls) > 1:  # Fail the second write, regardless of ordering.
+                raise OSError("Disk full")
+            original_save(candidate)
 
         with patch.object(service.storage, "_save", side_effect=fail_on_second_save):
             with pytest.raises(OSError):

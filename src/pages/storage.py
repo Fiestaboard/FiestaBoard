@@ -389,11 +389,12 @@ class PageStorage:
             self._pages = {}
             self._failed_entries = []
 
-    def _save(self) -> None:
-        """Save pages to storage file atomically via the storage kernel."""
+    def _save(self, pages: dict[str, Page] | None = None) -> None:
+        """Persist current pages or a candidate without publishing it to readers."""
+        pages = self._pages if pages is None else pages
         try:
             pages_out: list[dict] = []
-            for page in self._pages.values():
+            for page in pages.values():
                 page_data = page.model_dump(
                     exclude={"revision", "expected_revision", "edit_protocol", "document_protocol"}
                 )
@@ -419,7 +420,7 @@ class PageStorage:
             # _failed_entries), so write data straight out — atomically.
             self._store.save(data)
 
-            logger.debug(f"Saved {len(self._pages)} pages to storage")
+            logger.debug(f"Saved {len(pages)} pages to storage")
 
         except OSError as e:
             logger.error(f"Failed to save pages file: {e}")
@@ -467,8 +468,9 @@ class PageStorage:
                 raise ValueError(f"Invalid page configuration: {errors}")
 
             page = page.model_copy(update={"revision": str(uuid.uuid4())})
-            self._pages[page.id] = page
-            self._save()
+            pages = self._pages | {page.id: page}
+            self._save(pages)
+            self._pages = pages
 
         logger.info(f"Created page: {page.id} ({page.name})")
         return page
@@ -543,8 +545,9 @@ class PageStorage:
         if errors:
             raise ValueError(f"Invalid page configuration: {errors}")
 
-        self._pages[page_id] = updated_page
-        self._save()
+        pages = self._pages | {page_id: updated_page}
+        self._save(pages)
+        self._pages = pages
 
         logger.info(f"Updated page: {page_id}")
         return updated_page
@@ -563,8 +566,10 @@ class PageStorage:
             if page_id not in self._pages:
                 return False
 
-            del self._pages[page_id]
-            self._save()
+            pages = self._pages.copy()
+            del pages[page_id]
+            self._save(pages)
+            self._pages = pages
 
         logger.info(f"Deleted page: {page_id}")
         return True
