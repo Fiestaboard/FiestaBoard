@@ -189,8 +189,11 @@ class ScheduleStorage:
             self._default_page_by_board = {}
             self._failed_entries = []
 
-    def _save(self) -> None:
+    def _save(self, *, defaults: tuple[str | None, dict[str, str]] | None = None) -> None:
         """Save schedules to storage file atomically via the storage kernel."""
+        default_page_id, default_page_by_board = (
+            (self._default_page_id, self._default_page_by_board) if defaults is None else defaults
+        )
         try:
             schedules_out: list[dict] = []
             for schedule in self._schedules.values():
@@ -209,8 +212,8 @@ class ScheduleStorage:
             data = {
                 "schema_version": CURRENT_SCHEMA_VERSION,
                 "schedules": schedules_out,
-                "default_page_id": self._default_page_id,
-                "default_page_by_board": self._default_page_by_board,
+                "default_page_id": default_page_id,
+                "default_page_by_board": default_page_by_board,
             }
 
             # Datetimes are already coerced to ISO strings while building
@@ -361,21 +364,31 @@ class ScheduleStorage:
     def get_default_page_id(self, board_id: str | None = None) -> str | None:
         """Get the default page ID for schedule gaps for the given board."""
         bid = board_id or DEFAULT_BOARD_ID
-        if bid in self._default_page_by_board:
-            return self._default_page_by_board[bid] or None
-        return self._default_page_id
+        with self._store.lock:
+            if bid in self._default_page_by_board:
+                return self._default_page_by_board[bid] or None
+            return self._default_page_id
 
-    def set_default_page_id(self, page_id: str | None, board_id: str | None = None) -> None:
-        """Set the default page ID for schedule gaps for the given board."""
+    def set_default_page_id(
+        self, page_id: str | None, board_id: str | None = None, *, clear_legacy: bool = False
+    ) -> None:
+        """Set a board default, optionally clearing its legacy alias in the same commit."""
         bid = board_id or DEFAULT_BOARD_ID
         with self._store.lock:
+            default_page_id = self._default_page_id
+            default_page_by_board = dict(self._default_page_by_board)
             if bid == DEFAULT_BOARD_ID:
-                self._default_page_id = page_id
+                default_page_id = page_id
             if page_id:
-                self._default_page_by_board[bid] = page_id
+                default_page_by_board[bid] = page_id
             else:
-                self._default_page_by_board.pop(bid, None)
+                default_page_by_board.pop(bid, None)
                 if bid == DEFAULT_BOARD_ID:
-                    self._default_page_id = None
-            self._save()
+                    default_page_id = None
+            if clear_legacy and bid != DEFAULT_BOARD_ID:
+                default_page_id = None
+                default_page_by_board.pop(DEFAULT_BOARD_ID, None)
+            self._save(defaults=(default_page_id, default_page_by_board))
+            self._default_page_id = default_page_id
+            self._default_page_by_board = default_page_by_board
         logger.info(f"Set default page ID for board {bid!r} to: {page_id}")

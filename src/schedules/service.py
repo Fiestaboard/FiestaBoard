@@ -351,9 +351,9 @@ class ScheduleService:
         """Set the default page ID for schedule gaps for the given board."""
         primary_id = self._primary_board_id()
         bid = board_id or primary_id or DEFAULT_BOARD_ID
-        self.storage.set_default_page_id(page_id, board_id=bid)
-        if primary_id and bid == primary_id:
-            self.storage.set_default_page_id(None, board_id=DEFAULT_BOARD_ID)
+        self.storage.set_default_page_id(
+            page_id, board_id=bid, clear_legacy=bool(primary_id and bid == primary_id)
+        )
 
     # Validation
 
