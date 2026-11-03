@@ -183,6 +183,11 @@ class TemplateRenderCheckedResponse(TemplateRenderResponse):
     layers: list[CanvasLayerModel] | None = None
     #: Problems drawing those canvases. Present exactly when ``layers`` is.
     canvas_issues: list[CanvasIssueModel] | None = None
+    #: The LED text size the page was drawn in, present only when the board
+    #: produces the page's grid at a size other than its own (a 10x16 page on
+    #: an 8x10 Pixoo 64 is drawn at ``"3x5"``). ``rendered`` and ``layers``
+    #: are then on the page's own grid; the editor draws them in this face.
+    face: str | None = None
 
 
 class TemplateRenderLiveRequest(TemplateRenderRequest):
@@ -210,3 +215,7 @@ class TemplateRenderLiveResponse(TemplateRenderResponse):
     #: (issue #1943). Reported independently of ``paused``.
     silenced: bool = False
     board_id: str | None = None
+    #: The LED text size the page was drawn in when the board produces its
+    #: grid only at another size (see :class:`TemplateRenderCheckedResponse`);
+    #: the board then received one full-frame layer. ``None`` otherwise.
+    face: str | None = None

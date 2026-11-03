@@ -28,6 +28,7 @@ from fastapi.testclient import TestClient
 
 from src.devices import pages_compatible_with_board
 from src.outputs.board_profile import board_character_set
+from src.pages.fit import PageFit, page_fit_for_board
 from src.plugins.loader import PluginLoader
 
 FIXTURE = Path(__file__).parent / "fixtures" / "plugins" / "recording_output"
@@ -158,7 +159,10 @@ def test_sending_the_page_to_the_display_delivers_its_rich_cells(api):
 
 
 def test_a_page_for_the_display_at_5x7_fits_its_8x10_grid(api):
-    """At the 5x7 face the Pixoo is 8x10: the board keeps that grid and a page fits it."""
+    """At the 5x7 face the Pixoo is 8x10: the board keeps that grid and a page fits it.
+
+    The same page also fits the 10x16 Pixoo, which draws it at the 5x7 face.
+    """
     client, service = api
     from src.settings.service import get_settings_service
 
@@ -169,4 +173,5 @@ def test_a_page_for_the_display_at_5x7_fits_its_8x10_grid(api):
 
     page = service.get_page(_create(client, device_type="panel", grid_rows=8, grid_cols=10)["id"])
     assert pages_compatible_with_board(page, stored)
-    assert not pages_compatible_with_board(page, PIXOO)
+    assert pages_compatible_with_board(page, PIXOO)
+    assert page_fit_for_board(page, PIXOO) == PageFit(fits=True, face="5x7", reason=None)

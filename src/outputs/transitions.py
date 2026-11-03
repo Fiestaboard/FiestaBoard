@@ -121,6 +121,27 @@ def driver_runs_strategy(driver, strategy: str) -> bool:
     return False
 
 
+#: LED transitions that animate the cell grid (each cell flips through glyphs).
+#: Around a full-frame page they would animate the cells under the picture,
+#: not the picture, so the change would cut.
+PER_CELL_TRANSITIONS: frozenset[str] = frozenset({"flip", "cascade"})
+
+
+def strategy_for_full_frame(strategy: str | None) -> str | None:
+    """The strategy to run when a change shows or leaves a full-frame page.
+
+    A per-cell LED transition (flip, cascade) and a transition plugin
+    (``plugin:<id>``, which steps integer grids) both become ``"fade"``
+    (design section 6). Anything else (a per-pixel transition, ``None``)
+    is returned unchanged.
+    """
+    if strategy is None:
+        return None
+    if strategy in PER_CELL_TRANSITIONS or strategy.startswith(TRANSITION_PLUGIN_PREFIX):
+        return "fade"
+    return strategy
+
+
 def transition_plugins_enabled() -> bool:
     """Whether the ``transition_plugins`` beta flag is on.
 

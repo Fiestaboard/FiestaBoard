@@ -72,11 +72,12 @@ from src.led.charsets import CharacterSetError, materialize_character_set
 
 from .fiestaui import validate_character_set, validate_device_model
 from .hooks import OutputActionSpec, ReadBack, ResultFieldSpec
+from .physical_frames import PhysicalSurface, parse_physical_frames
 from .registry import OutputCapabilities
 from .transitions import NATIVE_STRATEGIES
 
 #: The ``output_api`` majors this core implements (inclusive).
-SUPPORTED_OUTPUT_API: tuple[int, int] = (1, 1)
+SUPPORTED_OUTPUT_API: tuple[int, int] = (1, 2)
 
 _DELIVERIES = ("push", "pull")
 _READ_BACK_COSTS = ("cheap", "network")
@@ -92,6 +93,7 @@ _KNOWN_KEYS = frozenset(
         "settings_schema",
         "write_timeout_ms",
         "actions",
+        "physical_frames",
     }
 )
 
@@ -112,6 +114,7 @@ OUTPUT_UI_WIDGETS: dict[int, frozenset[str]] = {
         }
     ),
 }
+OUTPUT_UI_WIDGETS[2] = OUTPUT_UI_WIDGETS[1]
 
 _ACTION_KEYS = frozenset({"id", "label", "description", "input_schema", "result_fields", "visible_when", "auto_apply"})
 _RESULT_FIELD_KEYS = frozenset({"secret", "fills"})
@@ -140,6 +143,7 @@ class OutputManifest:
     write_timeout_ms: int | None = None
     #: The board settings screen's actions, in declared order.
     actions: tuple[OutputActionSpec, ...] = ()
+    physical_frames: Mapping[str, PhysicalSurface] = field(default_factory=dict)
 
     @property
     def device_model_ids(self) -> tuple[str, ...]:
@@ -170,6 +174,7 @@ class OutputManifest:
             charset=charset if isinstance(charset, str) else charset.get("id"),
             max_frames=first["animation"].get("maxFrames"),
             write_timeout_ms=self.write_timeout_ms,
+            physical_frames=self.physical_frames,
         )
 
 
@@ -454,6 +459,18 @@ def parse_output_block(
 
     delivery, min_interval_ms, read_back, natives = _check_transport(block, errors)
     write_timeout_ms = _check_write_timeout(block, errors)
+    resolved_models = (
+        None
+        if unresolved
+        else {
+            (model if isinstance(model, str) else model["id"]): (
+                builtin_device_models()[model] if isinstance(model, str) else model
+            )
+            for model in models
+        }
+    )
+    physical_frames, frame_errors = parse_physical_frames(block.get("physical_frames"), api=api, models=resolved_models)
+    errors.extend(frame_errors)
 
     settings_schema = block.get("settings_schema", {})
     if not isinstance(settings_schema, dict):
@@ -488,6 +505,7 @@ def parse_output_block(
             settings_schema=settings_schema,
             write_timeout_ms=write_timeout_ms,
             actions=actions,
+            physical_frames=physical_frames,
         ),
         [],
     )

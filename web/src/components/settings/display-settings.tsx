@@ -23,6 +23,7 @@ import {
   Box,
   Button,
   Flex,
+  Input,
   Select,
   SelectContent,
   SelectGroup,
@@ -54,10 +55,11 @@ import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { queryKeys, useBoardSettings, useStatus } from "@/hooks/use-board";
 import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import { useTranslations } from "@/i18n/translations";
-import type { ActionGeometry, BoardInstance, BoardStatus, Code62Glyph, DeviceType } from "@/lib/api";
+import type { ActionGeometry, BoardInstance, BoardStatus, Code62Glyph, DeviceType, LeftBehindPage } from "@/lib/api";
 import { api } from "@/lib/api";
 import { MAX_BOARD_NAME_LENGTH, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
 
+import { LeftBehindPages } from "./left-behind-pages";
 import { isPluginOutputBoard, isVirtualBoard, OutputBoardSettings, toV4Write } from "./output-boards";
 
 /**
@@ -110,7 +112,7 @@ function BoardNameField({ board, onRename }: { board: BoardInstance; onRename: (
       <label className="text-xs font-medium" htmlFor={`board-name-${board.id}`}>
         {t("boardNameLabel")}
       </label>
-      <input
+      <Input
         id={`board-name-${board.id}`}
         type="text"
         value={draft}
@@ -120,11 +122,42 @@ function BoardNameField({ board, onRename }: { board: BoardInstance; onRename: (
         onChange={(e) => setDraft(e.target.value)}
         onBlur={handleBlur}
         placeholder={t("boardNamePlaceholder")}
-        className="w-full h-8 px-2 text-xs rounded-md border bg-background"
+        className="h-8 px-2 text-xs bg-background shadow-none"
         data-testid="board-name-input"
       />
     </Stack>
   );
+}
+
+/** What decides a board's grid: a change to it is a resize. */
+function boardShape(board: BoardInstance): string {
+  return JSON.stringify([
+    board.device_type,
+    board.notes_wide ?? null,
+    board.notes_tall ?? null,
+    board.grid_rows ?? null,
+    board.grid_cols ?? null,
+  ]);
+}
+
+/**
+ * The pages left behind after a save: a board the save reported pages for
+ * lists those; one it resized without leaving any clears its list; any other
+ * board (a rename, a pause) keeps what an earlier save left behind.
+ */
+function nextLeftBehind(
+  prev: Record<string, LeftBehindPage[]>,
+  before: BoardInstance[],
+  result: { boards: BoardInstance[]; left_behind_pages?: LeftBehindPage[] | null },
+): Record<string, LeftBehindPage[]> {
+  const next = { ...prev };
+  const shapeBefore = new Map(before.map((b) => [b.id, boardShape(b)]));
+  for (const board of result.boards ?? []) {
+    if (shapeBefore.has(board.id) && shapeBefore.get(board.id) !== boardShape(board)) delete next[board.id];
+  }
+  const reported: Record<string, LeftBehindPage[]> = {};
+  for (const page of result.left_behind_pages ?? []) (reported[page.board_id] ??= []).push(page);
+  return { ...next, ...reported };
 }
 
 /** The boards, their status, and the writes every display screen shares. */
@@ -136,6 +169,9 @@ export function useDisplayBoards() {
   // (issues #1829, plan D13 `status`).
   const { data: statusData } = useStatus();
   const boards = boardSettings?.boards ?? [];
+  // Pages a save's resize left behind, by board (design section 7): kept for
+  // this visit so the list outlives the save that produced it.
+  const [leftBehind, setLeftBehind] = useState<Record<string, LeftBehindPage[]>>({});
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
@@ -164,6 +200,7 @@ export function useDisplayBoards() {
       if (moved) toast.info(t("resizeMovedPages", { pages: moved }), { duration: 10000 });
       const stale = pageNames(result.incompatible_references);
       if (stale) toast.warning(t("resizeStaleRefs", { pages: stale }), { duration: 10000 });
+      if (result.left_behind_pages) setLeftBehind((prev) => nextLeftBehind(prev, boards, result));
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -207,6 +244,8 @@ export function useDisplayBoards() {
     /** A board's slice of the status poll, if any. */
     statusFor: (boardId: string): BoardStatus | undefined => statusData?.boards?.[boardId],
     panelNameByBoardId,
+    /** Pages a resize left behind on each board, from this visit's saves. */
+    leftBehind,
     saving: updateMutation.isPending,
     /**
      * Writes in the settings-v4 shape: each board's connection travels in its
@@ -660,13 +699,13 @@ export function BoardEditor({
               <Flex align="end" gap="2">
                 <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
                   {t("notesWideLabel")}
-                  <input
+                  <Input
                     type="number"
                     min={1}
                     max={MAX_NOTES_PER_AXIS}
                     value={board.notes_wide ?? 1}
                     onChange={(e) => handleCustomDim("notes_wide", e.target.value)}
-                    className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
+                    className="h-8 w-16 px-2 text-xs bg-background shadow-none"
                   />
                 </label>
                 <Text as="span" size="xs" tone="muted" className="pb-1.5">
@@ -674,13 +713,13 @@ export function BoardEditor({
                 </Text>
                 <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
                   {t("notesTallLabel")}
-                  <input
+                  <Input
                     type="number"
                     min={1}
                     max={MAX_NOTES_PER_AXIS}
                     value={board.notes_tall ?? 1}
                     onChange={(e) => handleCustomDim("notes_tall", e.target.value)}
-                    className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
+                    className="h-8 w-16 px-2 text-xs bg-background shadow-none"
                   />
                 </label>
               </Flex>
@@ -693,6 +732,9 @@ export function BoardEditor({
           )}
         </Stack>
       )}
+
+      {/* Pages the last resize left behind, each with why (design section 7). */}
+      <LeftBehindPages pages={displays.leftBehind[board.id]} />
 
       {/* Connection section: the output's own settings screen, drawn from its
           manifest (plan D13) — a Vestaboard's included. Virtual boards render

@@ -6,7 +6,10 @@ import logging
 import signal
 import threading
 import time
+from collections.abc import Mapping
 from contextlib import contextmanager
+from dataclasses import dataclass
+from typing import Any
 
 import schedule
 
@@ -19,24 +22,32 @@ from .devices import (
     Geometry,
     dimensions_of,
     geometry_of,
-    pages_compatible_with_board,
+    is_flexible_page,
+    page_size_label,
     resolve_dimensions,
     size_key,
 )
 from .displays.send_worker import BoardSendWorker, SendJob
+from .layout.diagnostics import ComputationBuilder, LayoutComputation, single_computation
+from .layout.target import flex_target_for
+from .led.page_frame import send_layers
 from .outputs import OutputDriver, OutputRuntime
 from .outputs.breaker import write_failure_reason
-from .outputs.cells import output_character_set, project_message
-from .outputs.display_profile import render_kw
+from .outputs.cells import cells_from_codes, output_character_set, project_message
+from .outputs.display_profile import display_for_face, render_kw
 from .outputs.factory import build_driver
 from .outputs.hooks import DevicePoll
+from .outputs.native_playlist import NativePageSelection, NativePlaylist, NativePlaylistEntry
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
+from .pages.fit import PageFit, delivers_full_frame, page_fit_for_board
 from .pages.models import LineMetadata, Page
 from .pages.service import (
     CONTEXT_FINGERPRINT_PREFIX,
     CONTEXT_RENDER_MEMO_PREFIX,
+    draws_pixels,
     get_page_service,
+    layout_board_for,
     page_plugin_ids,
 )
 from .schedules.service import get_schedule_service
@@ -138,10 +149,84 @@ def _project(client, content: str, rows: int, cols: int, layers=()) -> tuple[lis
     return frame.characters, ({"cells": frame.cells} if frame.cells is not None else {})
 
 
+def _page_fit(page, board: dict | None) -> PageFit:
+    """How *page* fits *board* (:func:`~src.pages.fit.page_fit_for_board`):
+    at the board's own grid, at another LED face (text size), or not at all.
+
+    ``board`` ``None`` means "cannot validate, don't block" (the legacy
+    Config-only single-board path): the page fits at its own grid.
+    """
+    return page_fit_for_board(page, board) if board is not None else PageFit(True, None, None)
+
+
+def _board_kw(page, board: dict | None) -> dict:
+    """The render keyword that lays a flexible *page* out for *board*
+    (``board``; ``None`` is the primary board), or none for a grid page, so
+    that render keeps today's call exactly."""
+    return {"board": board} if is_flexible_page(page) and board is not None else {}
+
+
+def _delivery_geometry(page, board: dict | None, fit: PageFit) -> tuple[Any, str]:
+    """``(dims, device_type)`` a page render is projected and sent at on *board*.
+
+    A flexible page has no grid: it goes at the grid of the board it laid out
+    for (:func:`~src.pages.service.layout_board_for`). A page drawn at another
+    face goes at *board*'s own grid. Any other page keeps its own grid.
+    """
+    if is_flexible_page(page):
+        target = layout_board_for(board)
+        return dimensions_of(target), geometry_of(target).device_type
+    dims = dimensions_of(board) if fit.face else dimensions_of(page)
+    return dims, page.device_type
+
+
+def _face_kw(fit: PageFit) -> dict:
+    """The render keyword that draws a page at *fit*'s face (``face``), or
+    none for a page at the board's own grid, so that render keeps today's
+    call exactly."""
+    return {"face": fit.face} if fit.face else {}
+
+
+def _project_page(client, result, page, dims, fit: PageFit, *, native: bool = False) -> tuple[list[list[int]], dict]:
+    """A page render projected for *client*'s board (:func:`_project`) at *dims*.
+
+    A page drawn at another face (``fit.face``) carries its picture as one
+    full-frame layer (:func:`~src.led.page_frame.send_layers`, drawn at the
+    page's own grid), and its text is projected at *dims*, the board's own
+    grid, so the frame cache and transitions compare same-shaped cells
+    (design section 7). Any other render keeps its own canvas layers.
+    """
+    from .pages.board_render import flexible_frame_error
+
+    if refusal := flexible_frame_error(page, result, client, native=native):
+        raise ValueError(refusal)
+    return _project(client, result.formatted, dims.rows, dims.cols, _page_layers(client, result, page, fit))
+
+
+def _page_layers(client, result, page, fit: PageFit) -> list:
+    """The layers a page render is sent with: one full-frame layer for a page
+    drawn at another face (:func:`~src.led.page_frame.send_layers`, drawn at
+    the page's own grid), else the render's own canvas layers."""
+    if fit.face:
+        page_dims = dimensions_of(page)
+        display = _extended_kw(client).get("display")
+        return send_layers(result, page_dims.rows, page_dims.cols, display)
+    return _result_layers(result)
+
+
 def _result_layers(result) -> list:
     """A render result's pixel-canvas layers (``[]`` for none, or a result that carries none)."""
     layers = getattr(result, "layers", None)
     return layers if isinstance(layers, list) else []
+
+
+@dataclass(frozen=True)
+class _HeldPage:
+    """A page held during silence, rendered for its board: the page, how it fits and its render."""
+
+    page: Any
+    fit: PageFit
+    result: Any
 
 
 def _content_key(result) -> str:
@@ -246,6 +331,7 @@ class BoardRuntime:
         # back, or two consecutive polls — what external-write detection
         # needs — drift apart.
         self.poll_attempted_at: float | None = None
+        self.device_poll_attempted_at: float | None = None
 
         # The last frame the poll CONFIRMED another writer put on this board,
         # and when (``time.time()``) — issue #1945. Set in the same branch
@@ -280,6 +366,7 @@ class BoardRuntime:
         # of the next collection-boundary check for this board. 0.0 means
         # "check immediately".
         self.next_collection_check: float = 0.0
+        self.last_refresh_at: float | None = None
 
         # Render short-circuit memo (issue #1883): the triple
         # ``(render fingerprint, rendered content, page id)`` from the last
@@ -296,12 +383,21 @@ class BoardRuntime:
         # throttled send — invalidates this memo for free, and a future one
         # cannot forget to.
         self.last_render: tuple[str, str, str] | None = None
+        self.native_playlist: NativePlaylist | None = None
+        self.native_selection: NativePageSelection | None = None
+        # Intended native target, including attempts that failed before any
+        # playlist was installed. Those must report unknown, not clock state.
+        self.native_reference_id: str | None = None
+        self.last_layout_computation: LayoutComputation | None = None
 
     def content_delivered(self) -> None:
         """FiestaBoard just wrote this board: neither out-of-band content
         (#1831) nor another app's (#2354) is on it any more."""
         self.showing_out_of_band = False
         self.overwritten_at = None
+        self.native_playlist = None
+        self.native_selection = None
+        self.native_reference_id = None
 
     @property
     def client(self) -> OutputDriver | None:
@@ -1170,6 +1266,8 @@ class DisplayService:
             return
         rt.last_active_page_content = None
         rt.last_active_page_id = None
+        rt.native_playlist = None
+        rt.native_selection = None
         if rt.client is not None:
             rt.client.clear_cache()
 
@@ -1202,16 +1300,10 @@ class DisplayService:
     def _board_poll_tick(self, primary_interval: float) -> float:
         """How long the poll loop sleeps between passes.
 
-        The shorter of the primary's interval and the two configured ones: a
-        cloud primary must not stretch the loop past the local interval, or a
-        local secondary would be read every 180 s. A local primary's cadence
-        is exactly what it was.
+        A fast tick notices live settings changes; each board's read-back
+        and device probes have their own cadence gates.
         """
-        try:
-            polling = get_settings_service().get_polling_settings()
-            return min(primary_interval, polling.board_read_interval_local, polling.board_read_interval_cloud)
-        except Exception:
-            return primary_interval
+        return min(1, primary_interval)
 
     def _board_poll_loop(self) -> None:
         """Background thread: periodically read every readable board's state and cache it.
@@ -1275,10 +1367,14 @@ class DisplayService:
         scheduling jitter, so a board due every tick is read every tick.
         One board's failure never skips the rest.
         """
-        polling = get_settings_service().get_polling_settings()
+        settings = get_settings_service()
         now = time.monotonic()
         for rt in self._runtimes_in_poll_order():
             last = rt.poll_attempted_at
+            try:
+                polling = settings.get_polling_settings(board_id=rt.board_id)
+            except ValueError:
+                continue  # settings removal can precede runtime teardown
             if last is not None:
                 interval = _board_read_interval_for(rt.client, polling)
                 if now - last + POLL_CADENCE_SLACK_SECONDS < interval:
@@ -1376,6 +1472,17 @@ class DisplayService:
             board_id = rt.board_id or key
             if settings.is_paused(board_id=board_id) is True:
                 continue
+            try:
+                interval = settings.get_polling_settings(board_id=board_id).board_read_interval_local
+            except ValueError:
+                continue  # settings removal can precede runtime teardown
+            now = time.monotonic()
+            if (
+                rt.device_poll_attempted_at is not None
+                and now - rt.device_poll_attempted_at + POLL_CADENCE_SLACK_SECONDS < interval
+            ):
+                continue
+            rt.device_poll_attempted_at = now
             news = poll()
             if not isinstance(news, DevicePoll):
                 continue
@@ -1397,6 +1504,47 @@ class DisplayService:
                     rt.overwritten_at = time.time()
                     logger.info("Board %s: another client wrote its device", board_id)
                 self._restore_after_overwrite(rt, board_id, settings, key=key)
+            elif isinstance(news.native_selection, NativePageSelection) and rt.native_playlist is not None:
+                selected = news.native_selection.page_id
+                members = {entry.page_id for entry in rt.native_playlist.entries}
+                rt.native_selection = NativePageSelection(selected if selected in members else None)
+                rt.last_active_page_id = rt.native_selection.page_id
+
+    def displayed_page_id(self, board_id=None) -> str | None:
+        """The last confirmed visible page, including hardware button selection.
+
+        The configured reference remains in settings. A synchronized native
+        playlist without selection feedback has no confirmed visible member.
+        """
+        rt = self.runtime_for(board_id) if board_id is not None else self._primary_runtime()
+        if rt is None or rt.showing_out_of_band:
+            return None
+        return rt.last_active_page_id
+
+    def layout_diagnostics(self, board_id=None) -> dict | None:
+        """The last engine computation, not current content or a write receipt."""
+        rt = self.runtime_for(board_id)
+        snapshot = getattr(rt, "last_layout_computation", None)
+        return snapshot.to_json() if isinstance(snapshot, LayoutComputation) else None
+
+    def native_rotation_active(self, board_id=None) -> bool:
+        rt = self.runtime_for(board_id) if board_id is not None else self._primary_runtime()
+        return rt is not None and rt.native_playlist is not None and not rt.showing_out_of_band
+
+    def native_page_selection(self, reference_id, board_id=None) -> NativePageSelection | None:
+        """None for a legacy reference, a selection wrapper for a native one."""
+        # Feedback only exists for an initialized native runtime. Do not use
+        # runtime_for's settings-backed legacy alias resolution here: optional
+        # telemetry must not initialize settings for a missing board client.
+        rt = self.runtimes.get(board_id) if board_id is not None else self._primary_runtime()
+        if rt is None or getattr(rt, "native_reference_id", None) != reference_id or reference_id is None:
+            return None
+        selection = rt.native_selection
+        return (
+            selection
+            if isinstance(selection, NativePageSelection) and not rt.showing_out_of_band
+            else NativePageSelection(None)
+        )
 
     def _restore_after_overwrite(self, rt: BoardRuntime, board_id, settings, *, key=None) -> None:
         """Put a board's content back after another app overwrote it (#2354).
@@ -1751,7 +1899,8 @@ class DisplayService:
     # memo recorded by an older build can never be mistaken for a match.
     # v2: plugin payloads enter the hash as their own precomputed hashes
     # rather than as re-serialised payloads.
-    _RENDER_FINGERPRINT_VERSION = 2
+    # v3: the LED face (text size) a page is drawn at enters the hash.
+    _RENDER_FINGERPRINT_VERSION = 3
 
     # Stands in for a referenced plugin that contributed no data to the
     # context. Never collides with a payload hash (which is hex).
@@ -1779,15 +1928,29 @@ class DisplayService:
         return {ref: data.get(ref) for ref in sorted_refs}
 
     @staticmethod
-    def _render_fingerprint(page, active_page_id, page_service, contexts, *, override_active: bool) -> str | None:
+    def _render_fingerprint(
+        page,
+        active_page_id,
+        page_service,
+        contexts,
+        *,
+        override_active: bool,
+        display: Any = None,
+        face: str | None = None,
+        board: Mapping[str, Any] | None = None,
+    ) -> str | None:
         """Hash every input a template render reads, or None if not computable.
 
-        Issue #1883. ``render_page`` for a template page is a pure function of
-        four things:
+        Issue #1883. ``render_page`` for a template or flexible page is a pure
+        function of these things:
 
-        * the page itself (template lines, line metadata, device geometry) —
-          covered by ``model_dump_json()``, which also moves whenever
-          ``updated_at`` does;
+        * the page itself (template lines, line metadata, device geometry; a
+          flexible page's blocks) — covered by ``model_dump_json()``, which
+          also moves whenever ``updated_at`` does;
+        * for a flexible page, which has no grid, the board it lays out for
+          (``board``; ``None`` is the primary board, as in
+          ``render_page(board=)``): its size picks the context, and the
+          character grid the layout fills is in the payload (``board_grid``);
         * the template context, i.e. the data of the plugins the template
           references. The reference set comes from the SAME
           ``extract_template_plugin_ids`` scan that already decides which
@@ -1800,11 +1963,15 @@ class DisplayService:
           only through a config save, which bumps ``config_generation``;
         * which branch of the pass we are on, so a tick that resolves the same
           page through a temporary override is never confused with one that
-          resolved it normally.
+          resolved it normally;
+        * the LED *face* (text size) the page is drawn at. On a pixel display
+          the context is fetched for ``display_for_face``'s profile, exactly
+          as ``render_page(face=)`` fetches it, so both share one build.
 
         Returns None — meaning "render, do not short-circuit" — whenever any
         of that cannot be established: no per-pass context cache (the direct
-        MQTT/API callers), a non-template page, a formula page whose variable
+        MQTT/API callers), a page that is neither a template nor a flexible
+        page (or one with no template lines or no blocks), a formula page whose variable
         owners are not statically knowable, a page object without a Pydantic
         dump, a config manager with no generation counter, or any exception at
         all. Every unknown fails toward rendering.
@@ -1822,10 +1989,12 @@ class DisplayService:
         """
         if contexts is None:
             return None
-        if getattr(page, "type", None) != "template":
+        page_type = getattr(page, "type", None)
+        flexible = page_type == "flexible"
+        if page_type not in ("template", "flexible"):
             return None
-        template = getattr(page, "template", None)
-        if not template:
+        # A flexible page's document is its blocks; a template page's, its lines.
+        if not getattr(page, "blocks" if flexible else "template", None):
             return None
         dump = getattr(page, "model_dump_json", None)
         if dump is None:
@@ -1843,7 +2012,27 @@ class DisplayService:
             if generation is None:
                 return None  # cannot see config writes -> cannot skip a render
 
-            size = size_key(*geometry_of(page))
+            board_grid: tuple[int, int] | None = None  # a flexible page's board's character grid
+            if flexible:
+                # A flexible page has no grid: it lays out for the board it
+                # shows on (render_page(board=)), at that board's character
+                # grid, and its context is that board's.
+                layout_board = layout_board_for(board)
+                geometry = geometry_of(layout_board)
+                target = flex_target_for(layout_board, display)
+                board_grid = (target.rows, target.cols)
+            else:
+                geometry = geometry_of(page)
+            size = size_key(*geometry)
+            if face and not flexible and draws_pixels(display):
+                # The profile render_page(face=) renders (and keys its
+                # context) with, so the fingerprint reads the same context.
+                dims = dimensions_of(page)
+                display = display_for_face(display, face, (dims.rows, dims.cols))
+            if display is not None:
+                # The same key shared_context_for files the render's context
+                # (and its payload hashes) under.
+                size = f"{size}|{display.key}"
             sorted_refs = tuple(sorted(refs))
             # ``id(page)`` and ``updated_at`` together: every stored mutation
             # bumps updated_at, and the identity check additionally catches a
@@ -1856,6 +2045,8 @@ class DisplayService:
                 bool(override_active),
                 generation,
                 sorted_refs,
+                face,
+                board_grid,
             )
             memo = contexts.get(CONTEXT_RENDER_MEMO_PREFIX + size)
             if isinstance(memo, dict):
@@ -1870,24 +2061,27 @@ class DisplayService:
             if refs:
                 context = page_service.shared_context_for(
                     contexts,
-                    *geometry_of(page),
+                    *geometry,
                     plugin_ids=refs,
+                    display=display,
                 )
                 if not isinstance(context, dict):
                     return None
-            payload = json.dumps(
-                {
-                    "v": DisplayService._RENDER_FINGERPRINT_VERSION,
-                    "page_id": active_page_id,
-                    "page": dump(),
-                    "override": bool(override_active),
-                    "generation": generation,
-                    "data": DisplayService._fingerprint_data_part(contexts, size, context, sorted_refs),
-                },
-                sort_keys=True,
-                default=str,
-                separators=(",", ":"),
-            )
+            parts = {
+                "v": DisplayService._RENDER_FINGERPRINT_VERSION,
+                "page_id": active_page_id,
+                "page": dump(),
+                "override": bool(override_active),
+                "face": face,
+                "generation": generation,
+                "data": DisplayService._fingerprint_data_part(contexts, size, context, sorted_refs),
+            }
+            if flexible:
+                # The layout reads the display itself (colour model, face,
+                # surface), not only through plugin data (design section 6).
+                parts["board_grid"] = list(board_grid or ())
+                parts["display"] = getattr(display, "key", None)
+            payload = json.dumps(parts, sort_keys=True, default=str, separators=(",", ":"))
             fingerprint = hashlib.blake2b(payload.encode("utf-8", "replace"), digest_size=16).hexdigest()
             memo[memo_key] = fingerprint
         except Exception as e:  # never let the optimization break a send
@@ -1899,7 +2093,7 @@ class DisplayService:
     # Per-board display engine (single tick loop)
     # ------------------------------------------------------------------ #
 
-    def check_and_send_active_page(self, *, wait: bool = True) -> bool:
+    def check_and_send_active_page(self, *, wait: bool = True, board_ids: set[str] | None = None) -> bool:
         """Drive every configured board from its schedule/active page.
 
         Back-compat entry point (retained for /refresh, /force-refresh, MQTT,
@@ -1912,6 +2106,8 @@ class DisplayService:
         board's send has actually finished, exactly as when the render ran
         inline. The engine's run loop passes ``wait=False`` so its tick only
         *enqueues* sends on the per-board workers (issue #1755).
+        ``board_ids`` limits an engine cadence pass to the boards due now;
+        omitted means all boards for manual refreshes and explicit wakes.
 
         Returns:
             True if content was sent to the PRIMARY board (``wait=False``:
@@ -1924,14 +2120,18 @@ class DisplayService:
         # consumer in the same pass — other boards of that size, variable-mode
         # collection resolution — reuses it. Keyed by size_key; filled lazily.
         contexts: dict[str, dict] = {}
-        sent = self.check_and_send_for_board(primary_id, rt, is_primary=True, contexts=contexts, wait=wait)
+        sent = False
+        if board_ids is None or primary_id in board_ids:
+            sent = self.check_and_send_for_board(primary_id, rt, is_primary=True, contexts=contexts, wait=wait)
         try:
-            self._drive_secondary_boards(contexts, wait=wait)
+            self._drive_secondary_boards(contexts, wait=wait, board_ids=board_ids)
         except Exception as e:  # secondaries must never break the primary loop
             logger.error(f"Error updating secondary boards: {e}")
         return sent
 
-    def _drive_secondary_boards(self, contexts: dict[str, dict] | None = None, *, wait: bool = True) -> None:
+    def _drive_secondary_boards(
+        self, contexts: dict[str, dict] | None = None, *, wait: bool = True, board_ids: set[str] | None = None
+    ) -> None:
         """Drive every board after the first through the unified per-board path.
 
         Each board raising is isolated so one failure never blocks the others.
@@ -1947,6 +2147,8 @@ class DisplayService:
                 continue
             board_id = board.get("id")
             if not board_id:
+                continue
+            if board_ids is not None and board_id not in board_ids:
                 continue
             rt = self.runtimes.get(board_id)
             if rt is None:
@@ -1964,7 +2166,7 @@ class DisplayService:
 
         Turning schedule mode back on normally repaints the board at once: the
         active page is re-resolved from the clock on every pass, so the board
-        jumps to whichever window is current. With ``schedule.defer_on_reenable``
+        jumps to whichever window is current. With the board's ``schedule_defer_on_reenable``
         on, the re-enable instead records the schedule entry winning right then,
         and the board keeps showing its manual page until a *different* entry
         wins -- the next scheduled time it would have changed anyway.
@@ -1979,7 +2181,7 @@ class DisplayService:
         settings_service = get_settings_service()
         arming = rt.last_schedule_enabled is False and rt.schedule_defer_key is None
         if arming:
-            if not settings_service.get_schedule_settings().defer_on_reenable:
+            if not settings_service.get_schedule_settings(board_id=board_id).defer_on_reenable:
                 return False
         elif rt.schedule_defer_key is None:
             return False
@@ -2301,12 +2503,23 @@ class DisplayService:
             # None when the pass is not eligible. Carried down to the arming
             # sites below.
             fingerprint = None
+            # The board the page is checked and sized against (None: cannot
+            # validate, don't block).
+            board_dims_source = board if board is not None else self._board_dict_for(board_id)
 
             if inline_page is not None:
                 # One-off override: render the in-memory page directly. There is
                 # no stored page to look up and no preview cache to bypass.
                 page = inline_page
-                result = page_service.render_page(inline_page, contexts=contexts, **_extended_kw(rt.client))
+                fit = _page_fit(page, board_dims_source)
+                result = page_service.render_page(
+                    inline_page,
+                    contexts=contexts,
+                    **_face_kw(fit),
+                    **_board_kw(inline_page, board_dims_source),
+                    **_extended_kw(rt.client),
+                )
+                rt.last_layout_computation = single_computation(page, result, "page")
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
                     self._record_send_error(rt, board_id, render_error or "Failed to render one-off override content")
@@ -2316,6 +2529,34 @@ class DisplayService:
                 # Resolve collections: if the active ref is a collection, determine
                 # which underlying page should be shown right now.
                 collection_service = get_collection_service()
+                if (
+                    silence_mode_active
+                    and not override_active
+                    and silence_config.get("mode") == "freeze"
+                    and rt.native_playlist is not None
+                ):
+                    return self._freeze_native_playlist(rt, board_id, wait=wait)
+                if (
+                    not override_active
+                    and not silence_mode_active
+                    and getattr(rt.client, "native_rotation_enabled", False) is True
+                ):
+                    collection = (
+                        collection_service.get_collection(active_page_id) if is_collection_id(active_page_id) else None
+                    )
+                    if not is_collection_id(active_page_id) or (
+                        collection is not None and collection.selection_mode == "time"
+                    ):
+                        return self._send_native_reference(
+                            rt,
+                            board_id,
+                            active_page_id,
+                            collection,
+                            page_service,
+                            board=board,
+                            contexts=contexts,
+                            wait=wait,
+                        )
                 if is_collection_id(active_page_id):
                     # Variable-mode collections evaluate rules against the
                     # BOARD-AGNOSTIC plugin context (board=None, the pre-#1752
@@ -2335,6 +2576,9 @@ class DisplayService:
                 if not page:
                     logger.warning(f"Active page not found: {active_page_id}")
                     return False
+                # Which text size this board draws the page at (design
+                # section 7): its own, another face it can produce, or none.
+                fit = _page_fit(page, board_dims_source)
 
                 # --- Render short-circuit (issue #1883) ---
                 # #1752 made the FETCH set demand-driven but left the render
@@ -2356,7 +2600,14 @@ class DisplayService:
                 # BELOW the render, so returning early here would skip it.
                 if not silence_mode_active:
                     fingerprint = self._render_fingerprint(
-                        page, active_page_id, page_service, contexts, override_active=override_active
+                        page,
+                        active_page_id,
+                        page_service,
+                        contexts,
+                        override_active=override_active,
+                        display=_extended_kw(rt.client).get("display"),
+                        face=fit.face,
+                        board=board_dims_source,
                     )
                     if (
                         fingerprint is not None
@@ -2369,8 +2620,14 @@ class DisplayService:
                 # Render with fresh data — force_refresh bypasses the preview cache
                 # so template variables (weather, time, stocks, etc.) are current.
                 result = page_service.preview_page(
-                    active_page_id, force_refresh=True, contexts=contexts, **_extended_kw(rt.client)
+                    active_page_id,
+                    force_refresh=True,
+                    contexts=contexts,
+                    **_face_kw(fit),
+                    **_board_kw(page, board_dims_source),
+                    **_extended_kw(rt.client),
                 )
+                rt.last_layout_computation = single_computation(page, result, "page")
                 if not result or not result.available:
                     render_error = getattr(result, "error", None) if result else None
                     self._record_send_error(
@@ -2403,7 +2660,7 @@ class DisplayService:
                         silence_nt,
                         grid_rows=silence_gr,
                         grid_cols=silence_gc,
-                        board=board if board is not None else self._board_dict_for(board_id),
+                        board=board_dims_source,
                         contexts=contexts,
                         wait=wait,
                     )
@@ -2426,15 +2683,16 @@ class DisplayService:
             # is the last gate before the wire. Skip + log on mismatch
             # rather than truncate: the geometry is the page's identity
             # here, and a silently cropped page is worse than an unchanged
-            # board. Placed after the silence dispatch so a snoozed board
-            # still shows its (board-sized) indicator.
-            board_dims_source = board if board is not None else self._board_dict_for(board_id)
-            if board_dims_source is not None and not pages_compatible_with_board(page, board_dims_source):
-                page_size = size_key(*geometry_of(page))
+            # board. An LED board that produces the page's grid at another
+            # text size fits it (``fit.face``). Placed after the silence
+            # dispatch so a snoozed board still shows its (board-sized)
+            # indicator.
+            if not fit.fits:
+                page_size = page_size_label(page)
                 board_size = _board_size_key(board_dims_source)
                 mismatch = f"{active_page_id}:{page_size}->{board_size}"
-                message = "Board %s: skipping page %s - page size %s does not match board size %s"
-                args = (board_id or "(default)", active_page_id, page_size, board_size)
+                message = "Board %s: skipping page %s - %s"
+                args = (board_id or "(default)", active_page_id, fit.reason)
                 # Warn once per distinct mismatch; the loop re-evaluates this
                 # every tick and a repeating warning would drown the log.
                 if rt.last_geometry_mismatch == mismatch:
@@ -2496,17 +2754,25 @@ class DisplayService:
                 return False
 
             # The page's own transition where it sets one, else this display's.
+            # A page drawn at another face, or a flexible page on a pixel
+            # board, arrives as one full frame: a transition that steps cells
+            # or integer grids (flip, cascade, a transition plugin) fades
+            # instead (design section 6).
             resolved = page_transition(
-                settings_service.get_transition_settings(rt.board_id), page, runs=_driver_runs(rt.client)
+                settings_service.get_transition_settings(rt.board_id),
+                page,
+                runs=_driver_runs(rt.client),
+                full_frame=delivers_full_frame(page, fit, result),
             )
             strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
             # resolve_dimensions (never get_dimensions, which raises for
-            # note_array) so a note-array page renders at its true size.
-            dims = dimensions_of(page)
+            # note_array) so a note-array page renders at its true size. A
+            # page drawn at another face is projected at the board's grid
+            # under its full frame.
+            dims, device_type = _delivery_geometry(page, board_dims_source, fit)
             client = rt.client
-            board_array, rich = _project(client, result.formatted, dims.rows, dims.cols, _result_layers(result))
-            device_type = page.device_type
+            board_array, rich = _project_page(client, result, page, dims, fit)
             sink = self._error_sink()
 
             def _after_page_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:
@@ -2589,6 +2855,196 @@ class DisplayService:
             self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
             logger.error(f"Error checking active page for board {board_id}: {e}")
             return False
+
+    def _send_native_reference(
+        self, rt, board_id, reference_id, collection, page_service, *, board, contexts, wait
+    ) -> bool:
+        """Render the complete snapshot before queuing one native reconciliation."""
+        page_ids = list(collection.page_ids) if collection is not None else [reference_id]
+        if not page_ids:
+            self._record_send_error(rt, board_id, f"Native collection is empty: {reference_id}")
+            return False
+        duration = collection.time.interval_seconds * 1000 if collection is not None else 0
+        source = board if board is not None else self._board_dict_for(board_id)
+        entries = []
+        rendered = {}
+        content_keys = {}
+        # Even direct callers share member dependencies during this pass.
+        contexts = contexts if contexts is not None else {}
+        diagnostics = ComputationBuilder(reference_id, "native")
+        complete = False
+        try:
+            for page_id in page_ids:
+                if page_id in rendered:
+                    entries.append(rendered[page_id])
+                    continue
+                page = page_service.get_page(page_id)
+                if page is None:
+                    self._record_send_error(rt, board_id, f"Native playlist page missing or incompatible: {page_id}")
+                    return False
+                fit = _page_fit(page, source)
+                if not fit.fits:
+                    if collection is not None:
+                        continue
+                    self._record_send_error(rt, board_id, f"Native playlist page incompatible: {page_id}: {fit.reason}")
+                    return False
+                result = page_service.preview_page(
+                    page_id,
+                    force_refresh=True,
+                    contexts=contexts,
+                    **_extended_kw(rt.client),
+                    **_face_kw(fit),
+                    **_board_kw(page, source),
+                )
+                diagnostics.add(page, result)
+                if result is None or not result.available:
+                    reason = getattr(result, "error", None) or f"Failed to render native playlist page: {page_id}"
+                    self._record_send_error(rt, board_id, reason)
+                    return False
+                dims, _ = _delivery_geometry(page, source, fit)
+                codes, rich = _project_page(rt.client, result, page, dims, fit, native=True)
+                entry = NativePlaylistEntry(page_id, rich.get("cells") or cells_from_codes(codes), duration)
+                rendered[page_id] = entry
+                content_keys[page_id] = _content_key(result)
+                entries.append(entry)
+            complete = True
+        finally:
+            rt.last_layout_computation = diagnostics.snapshot(complete=complete)
+        if not entries:
+            self._record_send_error(rt, board_id, f"No native collection pages fit this display: {reference_id}")
+            return False
+        if rt.native_reference_id != reference_id:
+            rt.native_selection = None
+            if rt.silence_queued_shown is None:
+                rt.last_active_page_id = None
+        rt.native_reference_id = reference_id
+        playlist = NativePlaylist(str(board_id), reference_id, tuple(entries))
+        shown = rt.silence_queued_shown
+        if shown is not None:
+            if not wait and self._send_in_flight(rt, ("trigger", shown)):
+                return False
+            rt.silence_queued_shown = None
+            if rt.last_active_page_content == shown and rt.last_active_page_id == "__trigger__":
+                # Adopt this snapshot as the source baseline for the message
+                # just delivered. It persists until that source changes.
+                rt.native_playlist = playlist
+                rt.native_selection = None
+                rt.last_active_page_id = None
+                rt.showing_out_of_band = True
+                return False
+        # An out-of-band manual write persists until the source content changes,
+        # like the normal page-content dedupe. Reconciliation must not undo it.
+        if rt.showing_out_of_band and playlist == rt.native_playlist:
+            return False
+        # Content keys include canvas bitmap bytes as well as markup text.
+        key = (
+            "native_playlist",
+            reference_id,
+            tuple((e.page_id, e.duration_ms, content_keys[e.page_id]) for e in entries),
+        )
+        if not wait and self._send_in_flight(rt, key):
+            return False
+        client = rt.client
+        sink = self._error_sink()
+        outcome = None
+
+        def send():
+            nonlocal outcome
+            outcome = client.sync_native_playlist(playlist, with_outcome=True)
+            return outcome.success, outcome.was_sent
+
+        def completed(success, was_sent, exc):
+            if exc is not None:
+                return self._send_exception_fallout(rt, board_id, exc, sink)
+            if success and outcome is not None and not outcome.throttled and not outcome.superseded:
+                selection = (
+                    rt.native_selection
+                    if rt.native_playlist is not None and rt.native_playlist.reference_id == reference_id
+                    else None
+                )
+                rt.content_delivered()
+                rt.native_playlist = playlist
+                rt.native_reference_id = reference_id
+                rt.last_active_page_content = None
+                members = {entry.page_id for entry in playlist.entries}
+                if selection is not None and selection.page_id not in members:
+                    selection = NativePageSelection(None)
+                rt.native_selection = selection
+                rt.last_active_page_id = (
+                    selection.page_id if selection is not None and selection.page_id in members else None
+                )
+                return was_sent
+            if not success:
+                rt.native_selection = None
+                rt.last_active_page_id = None
+                reason = write_failure_reason(client)
+                self._record_send_error_to(
+                    rt,
+                    board_id,
+                    f"Failed to synchronize native playlist: {reference_id}" + (f" ({reason})" if reason else ""),
+                    sink,
+                )
+            return False
+
+        return self._dispatch_send(
+            rt,
+            board_id,
+            key=key,
+            send=send,
+            on_complete=completed,
+            wait=wait,
+            sink=sink,
+        )
+
+    def _freeze_native_playlist(self, rt, board_id, *, wait) -> bool:
+        """Retire owned rotation with a still of the last confirmed selection.
+
+        A foreign/unknown selection stays untouched: freezing foreign firmware
+        rotation would require changing global device settings.
+        """
+        from .markup import tokens_to_codes
+
+        if rt.showing_out_of_band:
+            rt.snoozing_message_sent = True
+            return False
+        selected = rt.native_selection.page_id if rt.native_selection is not None else None
+        entry = next((e for e in rt.native_playlist.entries if e.page_id == selected), None)
+        if entry is None:
+            rt.snoozing_message_sent = True
+            return False
+        client = rt.client
+        sink = self._error_sink()
+        outcome = None
+
+        def send():
+            nonlocal outcome
+            outcome = client.render(
+                [tokens_to_codes(row) for row in entry.cells], cells=entry.cells, force=True, with_outcome=True
+            )
+            return outcome.success, outcome.was_sent
+
+        def completed(success, was_sent, exc):
+            if exc is not None:
+                return self._send_exception_fallout(rt, board_id, exc, sink)
+            if success and outcome is not None and not outcome.throttled and not outcome.superseded:
+                rt.content_delivered()
+                rt.last_active_page_id = selected
+                rt.last_active_page_content = None
+                rt.snoozing_message_sent = True
+                return was_sent
+            if not success:
+                self._record_send_error_to(rt, board_id, "Failed to freeze native playlist", sink)
+            return False
+
+        return self._dispatch_send(
+            rt,
+            board_id,
+            key=("native_freeze", selected),
+            send=send,
+            on_complete=completed,
+            wait=wait,
+            sink=sink,
+        )
 
     # ------------------------------------------------------------------ #
     # Temporary override helpers
@@ -2956,13 +3412,14 @@ class DisplayService:
         # SNOOZING indicator (as this method already does for a missing or
         # unrenderable page) so the board still shows that it is snoozing,
         # rather than showing a cropped page or nothing at all.
-        if board is not None and not pages_compatible_with_board(page, board):
+        # A page the board draws at another text size (``fit.face``) fits.
+        fit = _page_fit(page, board)
+        if not fit.fits:
             logger.warning(
-                "Board %s: silence page %s size %s does not match board size %s - using indicator instead",
+                "Board %s: silence page %s - %s - using indicator instead",
                 rt.board_id or "(default)",
                 page.id,
-                size_key(*geometry_of(page)),
-                _board_size_key(board),
+                fit.reason,
             )
             return self._send_silence_indicator(
                 device_type, rt, notes_wide, notes_tall, silence_config, grid_rows=grid_rows, grid_cols=grid_cols
@@ -2970,8 +3427,18 @@ class DisplayService:
 
         logger.info(f"⏸️  Entering silence mode (page) - displaying {page.id}")
 
-        result = page_service.preview_page(page.id, force_refresh=True, contexts=contexts, **_extended_kw(rt.client))
-        if not result or not result.available:
+        result = page_service.preview_page(
+            page.id,
+            force_refresh=True,
+            contexts=contexts,
+            **_face_kw(fit),
+            **_board_kw(page, board),
+            **_extended_kw(rt.client),
+        )
+        from .pages.board_render import flexible_frame_error
+
+        rt.last_layout_computation = single_computation(page, result, "silence")
+        if not result or not result.available or flexible_frame_error(page, result, rt.client):
             logger.warning("Silence page %s could not be rendered - falling back to indicator", page.id)
             return self._send_silence_indicator(
                 device_type, rt, notes_wide, notes_tall, silence_config, grid_rows=grid_rows, grid_cols=grid_cols
@@ -2979,13 +3446,16 @@ class DisplayService:
 
         settings_service = get_settings_service()
         resolved = page_transition(
-            settings_service.get_transition_settings(rt.board_id), page, runs=_driver_runs(rt.client)
+            settings_service.get_transition_settings(rt.board_id),
+            page,
+            runs=_driver_runs(rt.client),
+            full_frame=delivers_full_frame(page, fit, result),
         )
         strategy, interval_ms, step_size = resolved.strategy, resolved.step_interval_ms, resolved.step_size
 
         dims = resolve_dimensions(device_type, notes_wide, notes_tall, grid_rows, grid_cols)
         client = rt.client
-        board_array, rich = _project(client, result.formatted, dims.rows, dims.cols, _result_layers(result))
+        board_array, rich = _project_page(client, result, page, dims, fit)
         sink = self._error_sink()
         formatted = _content_key(result)
         page_ref = page.id
@@ -3087,10 +3557,12 @@ class DisplayService:
             logger.info("Discarding message held during silence: board %s %s", board_id, why)
 
     def _held_send_content(self, held, rt: BoardRuntime) -> str | None:
-        """The board text a held send paints now, or ``None`` when it cannot render.
+        """The board text a held text, lines, grid or display send paints now,
+        or ``None`` when it cannot render.
 
-        A held page or display is an intent: it is rendered fresh here, so the
-        morning shows the morning's data. Text is word-wrapped to this
+        A held page is rendered by :meth:`_held_page_render` (with its layers
+        and transition), never here. A held display is an intent: it is
+        rendered fresh here, so the morning shows the morning's data. Text is word-wrapped to this
         board's geometry and character set (it used to be painted unwrapped,
         so everything past the first row was cut off).
         """
@@ -3111,9 +3583,6 @@ class DisplayService:
         if held.kind == "grid":
             characters = (held.payload or {}).get("characters") if isinstance(held.payload, dict) else None
             return characters_to_message(characters) if characters else None
-        if held.kind == "page":
-            result = get_page_service().preview_page(str(held.payload), force_refresh=True)
-            return result.formatted if result is not None and result.available else None
         if held.kind == "display":
             from .displays.service import get_display_service
 
@@ -3121,13 +3590,69 @@ class DisplayService:
             return result.formatted if result is not None and result.available else None
         return None
 
+    def _held_page_render(self, held, rt: BoardRuntime) -> _HeldPage | None:
+        """A held page rendered for the board it was held for, or ``None`` when it cannot render.
+
+        Rendered as the route that held it would have sent it
+        (:func:`~src.pages.fit.page_fit_for_board`): a grid page the LED
+        board produces at another text size draws at that face, and a
+        flexible page is laid out for this board, not the primary one.
+        """
+        page_service = get_page_service()
+        page_id = str(held.payload)
+        page = page_service.get_page(page_id)
+        if page is None:
+            return None
+        board = self._board_dict_for(held.board_id)
+        fit = _page_fit(page, board)
+        if not fit.fits:
+            if is_flexible_page(page):
+                return None
+            fit = PageFit(True, None, fit.reason)  # routes don't gate: rendered as today, the send crops it
+        result = page_service.preview_page(
+            page_id,
+            force_refresh=True,
+            **_face_kw(fit),
+            **_board_kw(page, board),
+            **_extended_kw(rt.client),
+        )
+        from .pages.board_render import flexible_frame_error
+
+        rt.last_layout_computation = single_computation(page, result, "held")
+        if result is None or not result.available or flexible_frame_error(page, result, rt.client):
+            return None
+        return _HeldPage(page, fit, result)
+
     def _deliver_held_send(self, held, rt: BoardRuntime, *, wait: bool = True) -> bool:
-        """Paint the send held during silence; forget it only once it lands."""
+        """Paint the send held during silence; forget it only once it lands.
+
+        A held page keeps its picture: its layers (one full-frame layer for a
+        page drawn at another face, or a flexible page's frame) ride under
+        the text projected at this board's grid, and its transition falls
+        back as the page path's does.
+        """
         from src import silence_queue
 
         board_id = held.board_id
+        text: str | None = None
+        layers: list = []
+        transition = None
         try:
-            content = self._held_send_content(held, rt)
+            if held.kind == "page":
+                rendered = self._held_page_render(held, rt)
+                content = None
+                if rendered is not None:
+                    content = _content_key(rendered.result)
+                    text = rendered.result.formatted
+                    layers = _page_layers(rt.client, rendered.result, rendered.page, rendered.fit)
+                    transition = page_transition(
+                        get_settings_service().get_transition_settings(rt.board_id),
+                        rendered.page,
+                        runs=_driver_runs(rt.client),
+                        full_frame=delivers_full_frame(rendered.page, rendered.fit, rendered.result),
+                    )
+            else:
+                content = self._held_send_content(held, rt)
         except Exception as e:
             logger.warning("Could not render the %s held during silence for board %s: %s", held.kind, board_id, e)
             content = None
@@ -3147,7 +3672,15 @@ class DisplayService:
         logger.info("Showing message held during silence on board %s", board_id)
         # The adoption block in the page pass matches on this exact string.
         rt.silence_queued_shown = content
-        return self._send_trigger_content(content, rt, wait=wait, on_success=lambda: silence_queue.discard(board_id))
+        return self._send_trigger_content(
+            content,
+            rt,
+            wait=wait,
+            on_success=lambda: silence_queue.discard(board_id),
+            text=text,
+            layers=layers,
+            transition=transition,
+        )
 
     def _send_trigger_content(
         self,
@@ -3156,12 +3689,20 @@ class DisplayService:
         *,
         wait: bool = True,
         on_success=None,
+        text: str | None = None,
+        layers=(),
+        transition=None,
     ) -> bool:
         """Send trigger content to the board (primary board).
 
         Returns True if the content was sent successfully. ``on_success``
         runs once the send reports success (the held-send delivery uses it
         to forget the entry only when it actually landed).
+
+        ``content`` is the dedupe key and, unless ``text`` is given, the board
+        text. ``layers`` ride on the projected cells (a held page's picture);
+        ``transition`` (strategy, step interval, step size) replaces the
+        board's own, as a page's resolved transition does.
         """
         rt = rt if rt is not None else self._ensure_primary_runtime()
         if rt is None or rt.client is None:
@@ -3181,13 +3722,15 @@ class DisplayService:
 
         logger.info("Sending triggered message to board")
         settings_service = get_settings_service()
-        system_transition = settings_service.get_transition_settings(rt.board_id)
+        system_transition = (
+            transition if transition is not None else settings_service.get_transition_settings(rt.board_id)
+        )
 
         geometry = self._runtime_geometry(rt)
         device_type = geometry.device_type
         dims = resolve_dimensions(*geometry)
         client = rt.client
-        board_array, rich = _project(client, content, dims.rows, dims.cols)
+        board_array, rich = _project(client, content if text is None else text, dims.rows, dims.cols, layers)
         sink = self._error_sink()
 
         def _after_trigger_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:
@@ -3239,6 +3782,20 @@ class DisplayService:
             return get_schedule_service().get_active_page_id(now.time(), now.strftime("%A").lower(), board_id=board_id)
         return settings_service.get_active_page_id(board_id=board_id)
 
+    def _boards_due_for_refresh(self, now: float) -> set[str]:
+        """Evaluate every board's live interval without sharing cadence gates."""
+        settings = get_settings_service()
+        due = set()
+        for rt in self.runtimes.values():
+            try:
+                interval = settings.get_polling_interval(board_id=rt.board_id)
+            except ValueError:
+                continue  # settings removal can precede runtime teardown
+            if rt.last_refresh_at is None or now - rt.last_refresh_at >= interval:
+                due.add(rt.board_id)
+                rt.last_refresh_at = now
+        return due
+
     def run(self):
         """Run the main service loop."""
         self.running = True
@@ -3250,32 +3807,33 @@ class DisplayService:
         schedule.clear()
 
         settings_service = get_settings_service()
-        polling_interval = settings_service.get_polling_interval()
 
         # Engine passes are fire-and-forget (issue #1755): the tick only
         # enqueues each board's send on its worker, so one board's long
         # transition cannot stall the other boards, the 1 Hz silence
         # detector, or collection rotation.
-        def engine_pass() -> bool:
-            return self.check_and_send_active_page(wait=False)
-
-        schedule.every(polling_interval).seconds.do(engine_pass)
-        logger.info(f"Active page polling scheduled every {polling_interval} seconds")
+        def engine_pass(board_ids=None) -> bool:
+            if board_ids is None:
+                return self.check_and_send_active_page(wait=False)
+            return self.check_and_send_active_page(wait=False, board_ids=board_ids)
 
         logger.info("Sending initial active page...")
         engine_pass()
+        started = time.time()
+        for rt in self.runtimes.values():
+            rt.last_refresh_at = started
 
         logger.info("Service started, waiting for scheduled updates...")
         try:
             while self.running:
                 schedule.run_pending()
+                refresh_due = self._boards_due_for_refresh(time.time())
+                if refresh_due:
+                    engine_pass(refresh_due)
 
-                # 1-second silence-boundary detector. The schedule library only
-                # fires check_and_send_active_page every polling_interval seconds,
-                # so without this the silence page could appear up to ~15s after
-                # the configured start time (longer if the user raised the poll
-                # interval). A cheap per-board silence check each second lets us
-                # catch the transition within ~1s. Windows are per board
+                # A cheap silence-boundary check each second catches a
+                # transition promptly even when a board's content refresh
+                # interval is long. Windows are per board
                 # (issue #1788), so ANY board flipping forces the update.
                 if self._silence_state_changed():
                     engine_pass()
@@ -3286,12 +3844,15 @@ class DisplayService:
                 # secondary collection never depends on the primary selection.
                 now = time.time()
                 self._ensure_primary_runtime()
-                collection_due = False
+                collection_due = set()
                 for rt in list(self.runtimes.values()):
                     if now < rt.next_collection_check:
                         continue
-                    rt.next_collection_check = now + polling_interval
                     board_id = self._get_first_board_id() if rt is self._primary_runtime() else rt.board_id
+                    try:
+                        rt.next_collection_check = now + settings_service.get_polling_interval(board_id=board_id)
+                    except ValueError:
+                        continue  # removed while runtime workers stop
                     if settings_service.is_paused(board_id=board_id) is True:
                         continue
                     ref_id = self._get_active_ref_id(board_id)
@@ -3299,11 +3860,11 @@ class DisplayService:
                         collection_service = get_collection_service()
                         secs = collection_service.seconds_until_next_check(ref_id, now)
                         if secs is not None:
-                            collection_due = True
+                            collection_due.add(board_id)
                             rt.next_collection_check = now + max(1, secs)
                 # Coalesce coincident boundaries into one shared-context pass.
                 if collection_due:
-                    engine_pass()
+                    engine_pass(collection_due)
                 time.sleep(1)
                 # A page change woke the engine: its pass runs on this step.
                 if self.take_wake():

@@ -10,7 +10,7 @@
  *   a typed field when it loses focus, anything else (a mode card, a tile,
  *   a filled-in key) at once. A third-party output's has a Save button.
  */
-import { Alert, AlertDescription, Box, Button, Stack } from "@fiestaboard/ui";
+import { Alert, AlertDescription, Box, Button, Stack, Text } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Cpu, Grid3x3, LayoutGrid, Lightbulb, type LucideIcon, Monitor, MonitorSmartphone, Tv } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -155,23 +155,33 @@ export function OutputBoardSettings({
   useEffect(() => {
     latest.current = values;
   }, [values]);
+  // An LED board that produces a grid at more than one text size draws each
+  // page at its own size (design section 7): its Text size is only the size
+  // new pages start at, and pages at the other size change with Fade.
+  const manyTextSizes = Object.keys(board.producible_grids ?? {}).length > 1;
+  const textSizeDescription = t("textSizeDefault");
   const output = useMemo(() => {
     const declared = outputs?.find((o) => o.id === (board.output ?? "vestaboard"));
     const font = board.led_layout?.font;
-    if (!declared || !font) return declared;
+    if (!declared || (!font && !manyTextSizes)) return declared;
     const schema = asJSONSchema(declared.settings_schema);
     if (!schema.properties.font) return declared;
     // Legacy boards can resolve a font without storing output_config.font.
     // Use it only as the form's fallback: adding it to values would make an
     // untouched field dirty and persist it when another setting is saved.
+    const fontProperty = {
+      ...schema.properties.font,
+      ...(font ? { default: font } : {}),
+      ...(manyTextSizes ? { description: textSizeDescription } : {}),
+    };
     return {
       ...declared,
       settings_schema: {
         ...declared.settings_schema,
-        properties: { ...schema.properties, font: { ...schema.properties.font, default: font } },
+        properties: { ...schema.properties, font: fontProperty },
       },
     };
-  }, [outputs, board.output, board.led_layout?.font]);
+  }, [outputs, board.output, board.led_layout?.font, manyTextSizes, textSizeDescription]);
   const saves = autosave ?? output?.builtin ?? false;
 
   // The stored settings changed (a save came back, or another client saved):
@@ -224,6 +234,11 @@ export function OutputBoardSettings({
         layout={boardLayout(board)}
         onGeometry={onGeometry}
       />
+      {manyTextSizes && (
+        <Text size="xs" tone="muted" data-testid="text-size-fade-note">
+          {t("textSizeFadeNote")}
+        </Text>
+      )}
       {!saves && (
         <Box>
           <Button type="button" size="sm" disabled={!dirty || saving} onClick={() => onSave(values)}>

@@ -50,6 +50,7 @@ from .colors import COLOR_CODES
 from .colors import is_color_code as _is_color_code
 from .expressions import ensure_render_clock, evaluate_value, find_formulas, render_expressions, validate_expression
 from .filters import FILTER_NAMES
+from .limits import MAX_TEMPLATE_TEXT, bounded_sub
 
 logger = logging.getLogger(__name__)
 
@@ -1277,7 +1278,7 @@ class TemplateEngine:
                 var_part, filter_part = expr.split("|", 1)
                 if self._variable_format(var_part) == "canvas":
                     return ""
-                value = self._get_variable_value(var_part.strip(), context)
+                value = self._get_variable_value(var_part.strip(), context)[:MAX_TEMPLATE_TEXT]
                 filtered = self._as_data(var_part, self._apply_filter(value, filter_part.strip()))
                 # Apply color rules to the variable (before filtering changed it)
                 color_prefix = self._get_color_for_value(var_part.strip(), context)
@@ -1286,7 +1287,7 @@ class TemplateEngine:
                 # A canvas content object is drawn by a canvas's ``source``,
                 # never as board text: in a line it is empty, not "???".
                 return ""
-            value = self._as_data(expr, self._get_variable_value(expr, context))
+            value = self._as_data(expr, self._get_variable_value(expr, context)[:MAX_TEMPLATE_TEXT])
             # Check if the value itself is a color code (e.g., {66})
             # This allows plugins to return color codes directly
             # Only recognize color codes, not color names (to avoid issues with team names like "Green Hornets")
@@ -1307,7 +1308,7 @@ class TemplateEngine:
             color_prefix = self._get_color_for_value(expr, context)
             return f"{color_prefix}{value}" if color_prefix else value
 
-        return VAR_PATTERN.sub(replace_var, template)
+        return bounded_sub(VAR_PATTERN, replace_var, template)
 
     def _as_data(self, expr: str, value: Any) -> Any:
         """A substituted value as *data* (plan D19): neutralise any brace that
@@ -1765,6 +1766,8 @@ class TemplateEngine:
             if filter_name == "pad":
                 try:
                     width = int(arg)
+                    if width > MAX_TEMPLATE_TEXT:
+                        return "#NUM"
                     return value.ljust(width)[:width]
                 except ValueError:
                     return value
@@ -1781,6 +1784,8 @@ class TemplateEngine:
                     width = int(arg)
                 except ValueError:
                     return value
+                if width > MAX_TEMPLATE_TEXT:
+                    return "#NUM"
                 if width <= 0:
                     return value
                 if value.startswith("-"):
@@ -1873,6 +1878,15 @@ class TemplateEngine:
             return " " * padding_needed + text
         # left (default)
         return text + " " * padding_needed
+
+    def resolve_fill(self, text: str, width: int, *, extended_markup: bool = True) -> str:
+        """*text* with its fill markers (``\\x00FILL_SPACE…\\x00``) filled to *width* tiles.
+
+        The public face of :meth:`_process_fill_space`: flexible layout's cell
+        grid leaves fills unresolved through expansion and fills them here,
+        one row at a time, at the board's own width.
+        """
+        return self._process_fill_space(text, width, extended_markup=extended_markup)
 
     def _process_fill_space(
         self, text: str, width: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP

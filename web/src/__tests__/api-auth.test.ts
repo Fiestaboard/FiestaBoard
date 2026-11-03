@@ -174,6 +174,22 @@ describe("api auth helpers", () => {
       expect(assignMock).toHaveBeenCalledWith(expect.stringMatching(/^\/login\?redirect=/));
     });
 
+    it.each(["create", "update", "preview"] as const)(
+      "keeps default 401 redirects for page %s callers",
+      async (operation) => {
+        server.use(http.all("/api/*", () => HttpResponse.json({ detail: "Not authenticated" }, { status: 401 })));
+        const draft = { name: "Draft", type: "flexible" as const, blocks: [] };
+        const request =
+          operation === "create"
+            ? api.createPage(draft)
+            : operation === "update"
+              ? api.updatePage("p", draft)
+              : api.previewFlexiblePage(draft);
+        await expect(request).rejects.toThrow();
+        expect(assignMock).toHaveBeenCalledWith(expect.stringMatching(/^\/login\?redirect=/));
+      },
+    );
+
     it("redirects to /login on 409 with setup_required", async () => {
       server.use(
         http.get("/api/v1/status", () =>

@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import functools
 import json
 import math
 import re
@@ -69,6 +70,8 @@ __all__ = [
     "LedMatrixSpec",
     "LedRenderOptions",
     "LedTileGap",
+    "cell_for_token",
+    "color_code_to_hex",
     "decode_layers",
     "draw_glyph",
     "frame_to_ascii",
@@ -84,10 +87,12 @@ __all__ = [
     "led_layout_options_for_model",
     "led_monochrome_lit",
     "led_spec_for_model",
+    "monochrome_rgba",
     "paint_ops",
     "parse_hex_color",
     "rasterize",
     "resolve_hex_option",
+    "scaled_rows",
 ]
 
 #: Matrix size bounds. 256 covers a chain of four 64-wide HUB75 panels.
@@ -404,6 +409,15 @@ def _color_code_to_hex(code: str) -> str | None:
     return _resolve_color_code(code)
 
 
+def color_code_to_hex(code: str) -> str | None:
+    """Hex of a colour code (``"63"``, ``"red"``) or ``#rrggbb``; ``None`` for an unlit colour.
+
+    The public form of the conversion layouts use for tile and span colours,
+    so flexible layout resolves a colour exactly as the cell layout draws it.
+    """
+    return _color_code_to_hex(code)
+
+
 def glyph_key(token: BoardToken, custom: Mapping[str, Sequence[str]] | None = None) -> str:
     """The stable glyph key a parsed token shows (FiestaUI ``ledGlyphKey``).
 
@@ -439,10 +453,34 @@ def _fallback_key(fallback: str) -> str:
     return glyph_key(BoardToken("char", value=fallback))
 
 
+@functools.lru_cache(maxsize=1024)
+def scaled_rows(rows: tuple[str, ...], scale: int) -> tuple[str, ...]:
+    """A glyph's rows at an integer ``scale``: every pixel becomes a ``scale`` x ``scale`` square."""
+    if scale == 1:
+        return rows
+    out: list[str] = []
+    for row in rows:
+        wide = "".join(ch * scale for ch in row)
+        out.extend([wide] * scale)
+    return tuple(out)
+
+
 def draw_glyph(
-    ops: list[LedDrawOp], key: str, x: int, y: int, face: LedFont, color: str, options: LedRenderOptions
+    ops: list[LedDrawOp],
+    key: str,
+    x: int,
+    y: int,
+    face: LedFont,
+    color: str,
+    options: LedRenderOptions,
+    *,
+    scale: int = 1,
 ) -> None:
-    """Append the ops that draw glyph ``key`` into the cell at (``x``, ``y``)."""
+    """Append the ops that draw glyph ``key`` into the cell at (``x``, ``y``).
+
+    ``scale`` draws the glyph at an integer multiple of the face (flexible
+    pages' larger sizes); the cell is then ``scale`` times the face's glyph box.
+    """
     mono = options.monochrome
     if key == _BLANK:
         return
@@ -451,21 +489,33 @@ def draw_glyph(
         # On a monochrome panel a tile is `color`: the panel colour, or black
         # inside a block span, so it still reads as a square there.
         if hex_:
-            ops.append(LedDrawOp("rect", x, y, color if mono else hex_, w=face.glyph_width, h=face.glyph_height))
+            ops.append(
+                LedDrawOp(
+                    "rect", x, y, color if mono else hex_, w=face.glyph_width * scale, h=face.glyph_height * scale
+                )
+            )
         return
     rows = _glyph_rows(key, face, options.glyphs)
     if key.startswith("icon:"):
         icon = BOARD_ICONS[key[5:]]
         if rows is None:
             if icon.fallback is not None:
-                draw_glyph(ops, _fallback_key(icon.fallback), x, y, face, color, options)
+                draw_glyph(ops, _fallback_key(icon.fallback), x, y, face, color, options, scale=scale)
             return
-        ops.append(LedDrawOp("glyph", x, y, color if mono else icon.color, rows=tuple(rows)))
+        ops.append(LedDrawOp("glyph", x, y, color if mono else icon.color, rows=scaled_rows(tuple(rows), scale)))
         return
     if rows is None:
         return
     heart = key == "♥"
-    ops.append(LedDrawOp("glyph", x, y, color if mono else BOARD_COLORS["red"] if heart else color, rows=tuple(rows)))
+    ops.append(
+        LedDrawOp(
+            "glyph",
+            x,
+            y,
+            color if mono else BOARD_COLORS["red"] if heart else color,
+            rows=scaled_rows(tuple(rows), scale),
+        )
+    )
 
 
 def _glyph_text(key: str, face: LedFont, custom: Mapping[str, Sequence[str]] | None) -> str:
@@ -634,6 +684,10 @@ def _monochrome_rgba(rgba: bytes, panel: tuple[int, int, int]) -> bytes:
     return bytes(out)
 
 
+#: Public name for flexible layout, which draws hidden cells and layers the same way.
+monochrome_rgba = _monochrome_rgba
+
+
 def _layer_field(layer: object, *names: str) -> object:
     for name in names:
         if isinstance(layer, Mapping):
@@ -767,6 +821,10 @@ def _cell_for_token(
     if background:
         return LedCell(key, color, monochrome if monochrome is not None else background)
     return LedCell(key, color)
+
+
+#: Public name for flexible layout, which colours its runs exactly as a grid cell.
+cell_for_token = _cell_for_token
 
 
 def _first(valid, *values):

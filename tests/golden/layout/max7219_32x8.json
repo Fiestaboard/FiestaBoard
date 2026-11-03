@@ -1,0 +1,38 @@
+{
+  "device": "max7219_32x8",
+  "frame_ascii": [
+    "...#....###...........#..#####..",
+    "..##...#...#..##.....##..#......",
+    "...#.......#..##....#.#..####...",
+    "...#......#........#..#......#..",
+    "...#.....#....##...#####.....#..",
+    "...#....#.....##......#..#...#..",
+    "..###..#####..........#...###...",
+    "................................"
+  ],
+  "frame_sha256": "8c9e14e8f5347d2f61828b1e44b110201eb0624bf70138627bbf6510d1fb232f",
+  "rgb_spot": null,
+  "cell_lines": [
+    " 12:45  "
+  ],
+  "issues": [
+    {
+      "path": [
+        "blocks",
+        "footer"
+      ],
+      "code": "dropped",
+      "severity": "warning",
+      "message": "block 'footer' does not fit; dropped (lowest priority first)"
+    },
+    {
+      "path": [
+        "blocks",
+        "weather"
+      ],
+      "code": "dropped",
+      "severity": "warning",
+      "message": "block 'weather' does not fit; dropped (lowest priority first)"
+    }
+  ]
+}

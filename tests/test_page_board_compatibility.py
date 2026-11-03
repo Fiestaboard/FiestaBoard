@@ -88,7 +88,7 @@ class TestCheckRefBoardCompatibility:
     def test_incompatible_page(self, env):
         result = check_ref_board_compatibility(env["note_page"].id, "board-flagship")
         assert result.ok is False
-        assert "not compatible" in result.error
+        assert "can't show on board" in result.error
 
     def test_none_ref_passes(self, env):
         result = check_ref_board_compatibility(None, "board-flagship")
@@ -121,7 +121,7 @@ class TestActivePageCompatibility:
     def test_incompatible_page_rejected_400(self, client, env):
         response = client.put("/settings/active-page", json={"page_id": env["note_page"].id})
         assert response.status_code == 400
-        assert "not compatible" in response.json()["detail"]
+        assert "can't show on board" in response.json()["detail"]
         env["settings"].set_active_page_id.assert_not_called()
 
     def test_board_id_in_body_targets_that_board(self, client, env):
@@ -154,7 +154,7 @@ class TestScheduleRoutesCompatibility:
     def test_create_incompatible_rejected_400(self, client, env):
         response = client.post("/schedules", json=self._payload(env["note_page"].id))
         assert response.status_code == 400
-        assert "not compatible" in response.json()["detail"]
+        assert "can't show on board" in response.json()["detail"]
 
     def test_create_compatible_accepted(self, client, env):
         response = client.post("/schedules", json=self._payload(env["flagship_page"].id))
@@ -172,7 +172,7 @@ class TestScheduleRoutesCompatibility:
         """
         response = client.post("/schedules", json=self._payload(env["flagship_page"].id, board_id="board-note"))
         assert response.status_code == 400
-        assert "not compatible" in response.json()["detail"]
+        assert "can't show on board" in response.json()["detail"]
 
     def test_create_note_page_on_note_board_accepted(self, client, env):
         """The compatible variant of the e2e scenario passes."""

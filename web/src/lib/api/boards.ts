@@ -291,6 +291,14 @@ export interface BoardLedLayout {
 /** An LED face, as FiestaUI names it: Large `"5x7"` or Small `"3x5"`. */
 export type LedFontId = "5x7" | "3x5";
 
+/** Effective API-2 pixel surface; absent for legacy output adapters. */
+export interface PhysicalSurface {
+  version: number;
+  width: number;
+  height: number;
+  modes: string[];
+}
+
 export interface BoardInstance {
   id: string;
   name: string;
@@ -312,6 +320,14 @@ export interface BoardInstance {
   paused?: boolean;
   /** Per-board schedule mode (issue #1242). Emitted on every GET /settings/board. */
   schedule_enabled?: boolean;
+  /** Content refresh interval for this board, in seconds (10–3600; default 15). */
+  polling_interval_seconds?: number;
+  /** Local read-back interval for this board, in seconds (20–3600; default 30). */
+  board_read_interval_local?: number;
+  /** Network read-back interval for this board, in seconds (20–3600; default 180). */
+  board_read_interval_cloud?: number;
+  /** Keep manual content until the next schedule window after re-enabling. */
+  schedule_defer_on_reenable?: boolean;
   /**
    * Put this board's content back when another app overwrites it (issue
    * #2354). Absent on boards saved before the setting existed, which means on.
@@ -357,6 +373,8 @@ export interface BoardInstance {
    * (a FiestaPanel's, or an output plugin's own): a built-in resolves by id,
    * anything else only from this. Derived, never stored.
    */
+  physical_surface?: PhysicalSurface | null;
+  flexible_page_support?: "cells" | "pixels" | "unsupported";
   device_model_spec?: DeviceModel | null;
   /** The character set the board draws with, a FiestaUI id; `null` when unknown. Derived, never stored. */
   charset?: string | null;
@@ -367,6 +385,12 @@ export interface BoardInstance {
    * is sent. Sent only for an LED board. Derived, never stored.
    */
   led_layout?: BoardLedLayout | null;
+  /**
+   * The grid an LED board produces at each text size its model allows,
+   * `{face: [rows, cols]}` (a Pixoo 64: `{"5x7": [8, 10], "3x5": [10, 16]}`).
+   * Sent only for a board with a choice of grids. Derived, never stored.
+   */
+  producible_grids?: Record<string, [number, number]> | null;
   /**
    * The board's output settings, shaped by its output's settings schema
    * (`GET /outputs`); every secret reads back as `"***"`, and echoing `"***"`
@@ -399,7 +423,35 @@ export interface BoardInstance {
  * connection credentials, per-tile wiring, board colour and code-62 glyph on
  * purpose, so anything configuring a board still reads the settings shape.
  */
+/** Historical engine render evidence; never a delivery receipt or visible selection. */
+export interface LayoutComputation {
+  scope: "engine_computation";
+  mode: "page" | "native" | "silence" | "held";
+  reference_id: string | null;
+  computed_at: number;
+  complete: boolean;
+  omitted_pages: number;
+  omitted_issues: number;
+  truncated_strings: number;
+  pages: {
+    page_id: string | null;
+    revision: string | null;
+    available: boolean;
+    error: string | null;
+    surface: { kind: "cells" | "pixels"; rows?: number; cols?: number; width?: number; height?: number } | null;
+    issues: {
+      path: (string | null)[];
+      code: string;
+      severity: "info" | "warning";
+      message: string | null;
+      omitted_path_segments: number;
+    }[];
+  }[];
+}
+
 export interface BoardDetail {
+  /** Latest engine computation; direct API previews/writes do not update this historical record. */
+  last_layout_computation?: LayoutComputation | null;
   id: string;
   name: string;
   device_type: DeviceType;
@@ -474,12 +526,29 @@ export interface IncompatibleBoardReference {
 }
 
 /**
- * `PUT /settings/board`: the board settings, plus what a resize moved. Both
- * lists are null unless `boards` was saved (`BoardSettingsUpdateResponse`).
+ * A page a resize left behind: sized for the board's old grid, not moved onto
+ * its new one, and not a grid the board can produce now. Mirrors
+ * `LeftBehindPage` in src/settings/models.py.
+ */
+export interface LeftBehindPage {
+  board_id: string;
+  board_name: string;
+  page_id: string;
+  page_name: string;
+  /** The page's size key, e.g. `note_array:3x30`. */
+  page_size: string;
+  /** Why it no longer fits, in the page picker's words: `Made for a 3×30 board`. */
+  reason: string;
+}
+
+/**
+ * `PUT /settings/board`: the board settings, plus what a resize moved. All
+ * three lists are null unless `boards` was saved (`BoardSettingsUpdateResponse`).
  */
 export interface BoardSettingsUpdateResult extends BoardSettings {
   retargeted_pages?: RetargetedPage[] | null;
   incompatible_references?: IncompatibleBoardReference[] | null;
+  left_behind_pages?: LeftBehindPage[] | null;
 }
 
 /**

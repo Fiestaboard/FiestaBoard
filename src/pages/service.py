@@ -5,7 +5,8 @@ Provides high-level operations on pages including preview and send.
 
 import logging
 import time
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -21,17 +22,24 @@ from src.devices import (
     board_context_for,
     dimensions_of,
     geometry_of,
+    is_flexible_page,
     pages_compatible_with_board,
     size_key,
 )
 from src.displays.service import DisplayResult, get_display_service
+from src.layout.engine import layout_flexible_page
+from src.layout.refs import flexible_plugin_ids
+from src.layout.target import flex_target_for
 from src.led.matrix import DEFAULT_LED_FONT, grid_layout
+from src.outputs.display_profile import display_for_face, display_profile_for_board
+from src.outputs.physical_frames import physical_frame_layer
 from src.plugins.manifest import DemoPageSchema
 from src.request_trace import trace_phase
 from src.settings.service import get_settings_service
 from src.templates.engine import extract_template_plugin_ids, get_template_engine
 from src.text_to_board import SPLIT_FLAP_EXTENDED_MARKUP
 
+from .fit import page_fit_for_board
 from .models import LineMetadata, Page, PageCreate, PageUpdate
 from .storage import PageStorage
 
@@ -83,13 +91,19 @@ DEFAULT_PAGE_TEMPLATES = {
 # Backward compatibility alias
 DEFAULT_PAGE_TEMPLATE = DEFAULT_PAGE_TEMPLATES["flagship"]
 
+#: Why an update that sets a grid field on a flexible page is refused (a 400).
+FLEXIBLE_NO_GRID = "A flexible page has no grid; it fits every board"
+
 
 def page_plugin_ids(page: Page) -> set[str] | None:
     """The plugin ids a page's render reads: its template's and its canvases'.
 
     ``None`` when either cannot be determined statically (a formula), which
-    callers read as "fetch every enabled plugin" (issue #1751).
+    callers read as "fetch every enabled plugin" (issue #1751). A flexible
+    page reads what its blocks reference (``flexible_plugin_ids``).
     """
+    if is_flexible_page(page):
+        return flexible_plugin_ids(page)
     template_refs = extract_template_plugin_ids(getattr(page, "template", None))
     canvases = getattr(page, "canvases", None)
     canvas_refs = canvas_plugin_ids(canvases) if isinstance(canvases, list) else set()
@@ -190,31 +204,60 @@ class PageService:
         Raises:
             ValueError: If page configuration is invalid
         """
-        page = Page(
+        return self.storage.create(self.new_page(data))
+
+    @staticmethod
+    def new_page(data: PageCreate) -> Page:
+        """The page *data* creates, built but not saved (and not checked by
+        ``validate_config``, which saving does).
+
+        Raises:
+            ValueError: If the page's fields are invalid together
+        """
+        if data.type == "flexible":
+            # A flexible page fits every board: it has no size to pass on
+            # (Page refuses an explicit device_type / notes_* on one).
+            content: dict[str, Any] = {
+                "style": data.style,
+                "layout": data.layout,
+                "blocks": data.blocks,
+                "targets": data.targets,
+            }
+        else:
+            content = {
+                "device_type": data.device_type,
+                "display_type": data.display_type,
+                "rows": data.rows,
+                "template": data.template,
+                "line_metadata": data.line_metadata,
+                # PageCreate leaves W×H optional (None) — default to a single Note.
+                "notes_wide": data.notes_wide or 1,
+                "notes_tall": data.notes_tall or 1,
+                "grid_rows": data.grid_rows,
+                "grid_cols": data.grid_cols,
+                "canvases": data.canvases,
+            }
+        return Page(
             name=data.name,
             type=data.type,
-            device_type=data.device_type,
-            display_type=data.display_type,
-            rows=data.rows,
-            template=data.template,
-            line_metadata=data.line_metadata,
             duration_seconds=data.duration_seconds,
             transition_strategy=data.transition_strategy,
             transition_interval_ms=data.transition_interval_ms,
             transition_step_size=data.transition_step_size,
             demo_plugin_id=data.demo_plugin_id,
-            # PageCreate leaves W×H optional (None) — default to a single Note.
-            notes_wide=data.notes_wide or 1,
-            notes_tall=data.notes_tall or 1,
-            grid_rows=data.grid_rows,
-            grid_cols=data.grid_cols,
-            canvases=data.canvases,
             created_at=datetime.now(UTC),
+            **content,
+            **(data.model_extra or {}),
         )
 
-        return self.storage.create(page)
-
     def update_page(self, page_id: str, data: PageUpdate) -> Page | None:
+        # Retarget preparation reads existing geometry/canvases; keep it in
+        # the same critical section as the revision check and persisted save.
+        with self.storage.lock:
+            self.storage.check_revision(page_id, data.expected_revision)
+            return self._update_page_locked(page_id, data)
+
+    def _update_page_locked(self, page_id: str, data: PageUpdate) -> Page | None:
         """Update an existing page.
 
         Args:
@@ -231,6 +274,11 @@ class PageService:
         """
         trace_phase("page_update_started")
         updates = data.model_dump(exclude_unset=True)
+        expected_revision = updates.pop("expected_revision", None)
+        if any(updates.get(key) is not None for key in GEOMETRY_FIELDS):
+            existing = self.storage.get(page_id)
+            if existing is not None and is_flexible_page(existing):
+                raise ValueError(FLEXIBLE_NO_GRID)
         self._scale_canvases_on_retarget(page_id, updates)
 
         # Device/size retarget (issue #1250): re-validate the prospective page
@@ -254,7 +302,7 @@ class PageService:
                     raise ValueError(f"Cannot retarget page: {'; '.join(errors)}")
 
         trace_phase("storage_started")
-        updated_page = self.storage.update(page_id, updates)
+        updated_page = self.storage.update(page_id, updates, expected_revision=expected_revision)
         trace_phase("storage_returned")
 
         # Invalidate preview cache for this page
@@ -294,7 +342,25 @@ class PageService:
             for canvas in existing.canvases
         ]
 
-    def delete_page(self, page_id: str) -> DeleteResult:
+    def delete_page(self, page_id: str, *, expected_revision: str | None = None) -> DeleteResult:
+        from src.collections.service import get_collection_service
+        from src.config_manager import get_config_manager
+        from src.schedules.service import get_schedule_service
+
+        # Match panel_content_resize's established cross-store order. Reference
+        # checks and active/default replacement read or write these owners;
+        # entering them after the page lock would invert resize's lock order.
+        settings = get_settings_service()
+        config = get_config_manager()
+        collections = get_collection_service().storage
+        schedules = get_schedule_service().storage
+        with ExitStack() as locks:
+            for lock in (settings.lock, config.lock, self.storage.lock, collections.lock, schedules.lock):
+                locks.enter_context(lock)
+            self.storage.check_revision(page_id, expected_revision)
+            return self._delete_page_locked(page_id)
+
+    def _delete_page_locked(self, page_id: str) -> DeleteResult:
         """Delete a page.
 
         If this is the last page, a default welcome page is created
@@ -337,8 +403,14 @@ class PageService:
             if new_active_id is None or board["id"] == settings_service.get_primary_board_id():
                 new_active_id = replacement.id
         if legacy_active and not boards:
+            # A flexible page has no size to match: any page replaces it.
             replacement = next(
-                (p for p in self.storage.list_all() if pages_compatible_with_board(p, existing_page)), None
+                (
+                    p
+                    for p in self.storage.list_all()
+                    if is_flexible_page(existing_page) or pages_compatible_with_board(p, existing_page)
+                ),
+                None,
             )
             if replacement is None:
                 replacement = self._create_replacement_page(existing_page)
@@ -354,7 +426,13 @@ class PageService:
         )
 
     def _create_replacement_page(self, geometry_source: Any) -> Page:
-        """A welcome page retaining the exact geometry of a page or board."""
+        """A welcome page retaining the exact geometry of a page or board.
+
+        A flexible page has no geometry to retain: it is replaced by the
+        default (flagship) welcome page.
+        """
+        if is_flexible_page(geometry_source):
+            return self._create_default_page()
         geometry = geometry_of(geometry_source)
         if geometry.device_type in DEFAULT_PAGE_TEMPLATES:
             return self._create_default_page(device_type=geometry.device_type)
@@ -523,7 +601,7 @@ class PageService:
             if not missing:
                 return context
 
-            board = board_context_for(*geometry)
+            board = board_context_for(*geometry, display=display)
             # Widening fetches EXACTLY the missing ids: the first build for
             # this size already fetched the trigger plugins (they are in
             # ``fetched``), so re-unioning them here would fetch each trigger
@@ -559,6 +637,8 @@ class PageService:
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         display: Any = None,
+        face: str | None = None,
+        board: Mapping[str, Any] | None = None,
     ) -> DisplayResult:
         """Render a page to formatted text.
 
@@ -571,10 +651,26 @@ class PageService:
             extended_markup: The target board speaks extended markup (its
                 output's character set is rich; plan D19). Template pages
                 only; the other page types have no template to render.
+            display: The target board's display profile, if any.
+            face: Draw the page in this LED face (text size) on the page's
+                own grid, as if the board were set to it
+                (:func:`~src.outputs.display_profile.display_for_face`): the
+                template, plugin context and canvases all use that profile.
+                Ignored unless *display* draws pixels. The result records it.
+            board: The board's settings entry a flexible page lays out for
+                (:meth:`_render_flexible`); ``None`` is the primary board.
+                Grid pages render at their own grid and ignore it.
 
         Returns:
             DisplayResult with formatted text
         """
+        if is_flexible_page(page):
+            return self._render_flexible(page, context=context, contexts=contexts, display=display, board=board)
+        if not (face and draws_pixels(display)):
+            face = None
+        else:
+            dims = dimensions_of(page)
+            display = display_for_face(display, face, (dims.rows, dims.cols))
         canvases = page.canvases or []
         pixels = bool(canvases) and draws_pixels(display)
         if context is None and contexts is not None and (page.type == "template" or pixels):
@@ -604,7 +700,97 @@ class PageService:
             )
         if canvases and result.available:
             self._apply_canvases(page, result, context, extended_markup=extended_markup, display=display)
+        result.face = face
         return result
+
+    @staticmethod
+    def _layout_board(board: Mapping[str, Any] | None) -> Mapping[str, Any]:
+        """The board a flexible page lays out for (:func:`layout_board_for`)."""
+        return layout_board_for(board)
+
+    @staticmethod
+    def _layout_display(layout_board: Mapping[str, Any]) -> Any:
+        """What *layout_board* draws, for a caller that named no display.
+
+        A flexible page laid out "for the primary board" must be laid out for
+        that board as it is: a frame on a pixel board, its colours and sizes
+        (design section 8). ``None`` when no board is configured or its output
+        is unknown; then the page lays out as cells.
+        """
+        if not layout_board:
+            return None
+        try:
+            return display_profile_for_board(layout_board)
+        except Exception:  # an unresolvable output lays out as cells, never fails the render
+            logger.warning("No display profile for board %s; laying out as cells", layout_board.get("id"))
+            return None
+
+    def _render_flexible(
+        self,
+        page: Page,
+        *,
+        context: dict | None,
+        contexts: dict[str, dict] | None,
+        display: Any,
+        board: Mapping[str, Any] | None,
+    ) -> DisplayResult:
+        """Lay a flexible page out for *board* on *display* (design sections 5 and 6).
+
+        With no *display*, the layout board's own (:meth:`_layout_display`):
+        the primary board is laid out as it draws, never as a bare cell grid.
+
+        On a pixel display the laid-out frame is one opaque full-frame layer
+        and ``formatted`` is an alternate layout at the board's character
+        grid underneath it, not a transcript of the visible pixels. The raw
+        metadata identifies that projection; other displays get visible cells.
+        The plugin context is the board's: given, shared per board size and
+        display (:meth:`shared_context_for`), or built for this render. A
+        layout that fails is an unavailable result, never an exception.
+        """
+        try:
+            layout_board = self._layout_board(board)
+            if display is None:
+                display = self._layout_display(layout_board)
+            if draws_pixels(display) and display.physical_surface is None:
+                raise ValueError(
+                    "This output has not declared physical flexible-frame support; update its output plugin"
+                )
+            geometry = geometry_of(layout_board)
+            plugin_ids = page_plugin_ids(page)
+            if context is None and contexts is not None:
+                context = self.shared_context_for(contexts, *geometry, plugin_ids=plugin_ids, display=display)
+            if context is None:
+                context = get_template_engine().build_context(
+                    board_context_for(*geometry, display=display), plugin_ids=plugin_ids
+                )
+            target = flex_target_for(layout_board, display)
+            render = layout_flexible_page(page, target, context)
+        except Exception as e:
+            logger.error(f"Failed to lay out flexible page {page.id}: {e}", exc_info=True)
+            return DisplayResult(
+                display_type="page:flexible",
+                formatted="",
+                raw={"page_id": page.id},
+                available=False,
+                error=f"Flexible layout failed: {e!s}",
+            )
+        return DisplayResult(
+            display_type="page:flexible",
+            formatted="\n".join(render.cell_lines),
+            raw={
+                "page_id": page.id,
+                "shown": list(render.shown),
+                "text_representation": "cell_projection" if render.frame is not None else "visible_cells",
+                "surface": {"kind": "pixels", "width": render.frame.width, "height": render.frame.height}
+                if render.frame is not None
+                else {"kind": "cells", "rows": target.rows, "cols": target.cols},
+            },
+            available=True,
+            layers=[physical_frame_layer(render.frame, monochrome=display.monochrome if display else None)]
+            if render.frame is not None
+            else [],
+            layout_issues=list(render.issues),
+        )
 
     @staticmethod
     def _apply_canvases(
@@ -640,14 +826,21 @@ class PageService:
         """
         return board_context_for(*geometry_of(page))
 
-    @staticmethod
-    def _board_key(page: Page) -> str:
+    @classmethod
+    def _board_key(cls, page: Page, board: Mapping[str, Any] | None = None, display: Any = None) -> str:
         """Stable key identifying a page's board *size* for batch context sharing.
 
         Delegates to the canonical :func:`src.devices.size_key` so batch
         context sharing and page<->board compatibility use the same notion
         of "same board size". The key is opaque to its consumers.
+
+        A flexible page has no size of its own: it keys by the size of the
+        board it lays out for (*board*, else the primary board) plus the
+        display's key, as :meth:`shared_context_for` does.
         """
+        if is_flexible_page(page):
+            key = size_key(*geometry_of(cls._layout_board(board)))
+            return f"{key}|{display.key}" if display is not None else key
         return size_key(*geometry_of(page))
 
     def _render_single(self, page: Page) -> DisplayResult:
@@ -805,6 +998,8 @@ class PageService:
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         display: Any = None,
+        face: str | None = None,
+        board: Mapping[str, Any] | None = None,
     ) -> DisplayResult | None:
         """Preview a page by ID.
 
@@ -823,6 +1018,11 @@ class PageService:
                 render (:data:`~src.text_to_board.SPLIT_FLAP_EXTENDED_MARKUP`),
                 which every board now shares; a render in the other mode
                 neither reads nor writes it.
+            face: Render at this LED face (see :meth:`render_page`); like any
+                render for a display, it is uncached.
+            board: The board a flexible page lays out for (see
+                :meth:`render_page`); like any render for a display, a render
+                for a given board is uncached.
 
         Returns:
             DisplayResult or None if page not found
@@ -831,12 +1031,18 @@ class PageService:
         if not page:
             return None
 
-        if extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None:
-            # A render for one display is that display's: the shared preview
-            # cache holds the display-agnostic render and is neither read nor
-            # written.
+        if extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None or board is not None:
+            # A render for one display (or board) is that display's: the
+            # shared preview cache holds the display-agnostic render and is
+            # neither read nor written.
             return self.render_page(
-                page, context=context, contexts=contexts, extended_markup=extended_markup, display=display
+                page,
+                context=context,
+                contexts=contexts,
+                extended_markup=extended_markup,
+                display=display,
+                face=face,
+                board=board,
             )
 
         # Check cache first if not forcing refresh
@@ -865,6 +1071,8 @@ class PageService:
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         display: Any = None,
+        faces: Mapping[str, str | None] | None = None,
+        board: Mapping[str, Any] | None = None,
     ) -> dict[str, DisplayResult | None]:
         """Preview multiple pages, building template context once for efficiency.
 
@@ -880,6 +1088,14 @@ class PageService:
                 :meth:`preview_page`): a render in the mode the preview cache
                 does not hold renders every page fresh, and the cache is
                 neither read nor written.
+            faces: Page id -> the LED face to render that page at (see
+                :meth:`render_page`). A page with a face renders on its own,
+                with its own context, outside the shared per-size build.
+            board: The board flexible pages lay out for (see
+                :meth:`render_page`). Flexible pages share one context per
+                that board's size and *display*. The preview cache does not know
+                the board, so a flexible page previewed for one is rendered
+                fresh and not cached; a grid page keeps the cache rules above.
 
         Returns:
             Dict mapping page_id to DisplayResult (or None if page not found)
@@ -890,6 +1106,12 @@ class PageService:
         # display's: the shared preview cache is neither read nor written.
         uncached_mode = extended_markup != SPLIT_FLAP_EXTENDED_MARKUP or display is not None
 
+        def uncached(page: Page) -> bool:
+            # The cache is keyed by page alone; a flexible page laid out for a
+            # named board is that board's, so it bypasses the cache. A grid
+            # page ignores the board and keeps the mode's rule.
+            return uncached_mode or (board is not None and is_flexible_page(page))
+
         # First pass: check cache, collect pages that need rendering
         for page_id in page_ids:
             page = self.get_page(page_id)
@@ -897,7 +1119,7 @@ class PageService:
                 results[page_id] = None
                 continue
 
-            should_force = force_refresh or (page_id == active_page_id) or uncached_mode
+            should_force = force_refresh or (page_id == active_page_id) or uncached(page)
 
             if not should_force:
                 cached = self._preview_cache.get(page_id)
@@ -919,13 +1141,42 @@ class PageService:
         # template page's referenced plugins for that size, or None (fetch
         # all) as soon as any page's references cannot be determined.
         ids_by_board: dict[str, Collection[str] | None] = {}
-        for _, p in pages_to_render:
-            if p.type != "template" and not (p.canvases and draws_pixels(display)):
+        faces = faces or {}
+        layout_display: list[Any] = []  # resolved once, on the first flexible page
+
+        def display_for(page: Page) -> Any:
+            # A flexible page with no display named lays out for its board as
+            # that board draws (:meth:`_render_flexible`): key and build its
+            # shared context for that display, as a single preview does.
+            if display is not None or not is_flexible_page(page):
+                return display
+            if not layout_display:
+                layout_display.append(self._layout_display(self._layout_board(board)))
+            return layout_display[0]
+
+        for pid, p in list(pages_to_render):
+            if faces.get(pid):
+                continue  # rendered on its own, at its face
+            flexible = is_flexible_page(p)
+            if p.type != "template" and not flexible and not (p.canvases and draws_pixels(display)):
                 continue
-            key = self._board_key(p)
-            if key not in boards:
-                boards[key] = board_context_for(*geometry_of(p), display=display)
-            refs = page_plugin_ids(p)
+            try:
+                page_display = display_for(p)
+                key = self._board_key(p, board, page_display)
+                geometry = None
+                if key not in boards:
+                    geometry = geometry_of(self._layout_board(board)) if flexible else geometry_of(p)
+                refs = page_plugin_ids(p)
+            except Exception as e:
+                # One page that cannot be prepared is an error entry, never a failed batch.
+                logger.error(f"Error preparing page {pid} for preview: {e}")
+                pages_to_render.remove((pid, p))
+                results[pid] = DisplayResult(
+                    display_type="page", formatted="", raw={"page_id": pid}, available=False, error=str(e)
+                )
+                continue
+            if geometry is not None:
+                boards[key] = board_context_for(*geometry, display=page_display)
             if key not in ids_by_board:
                 ids_by_board[key] = set(refs) if refs is not None else None
             elif ids_by_board[key] is not None:
@@ -941,9 +1192,15 @@ class PageService:
         # Second pass: render pages that missed cache
         for page_id, page in pages_to_render:
             try:
-                context = contexts_by_board.get(self._board_key(page))
-                result = self.render_page(page, context=context, extended_markup=extended_markup, display=display)
-                if not uncached_mode:
+                face = faces.get(page_id)
+                if face:
+                    result = self.render_page(page, extended_markup=extended_markup, display=display, face=face)
+                else:
+                    context = contexts_by_board.get(self._board_key(page, board, display_for(page)))
+                    result = self.render_page(
+                        page, context=context, extended_markup=extended_markup, display=display, board=board
+                    )
+                if not uncached(page):
                     self._preview_cache[page_id] = CachedPreview(
                         result=result, page_updated_at=page.updated_at, cached_at=time.time()
                     )
@@ -1027,6 +1284,18 @@ class BoardCompatibility:
         return self.error is None
 
 
+def layout_board_for(board: Mapping[str, Any] | None) -> Mapping[str, Any]:
+    """The board a flexible page lays out for: *board*, else the primary board.
+
+    With no board configured at all, an empty entry: the flagship's geometry
+    and 6 x 22 cells. A send sizes its grid from this same board, so the
+    cells it projects are the ones the layout produced.
+    """
+    if board is not None:
+        return board
+    return _find_board(None) or {}
+
+
 def _find_board(board_id: str | None) -> dict | None:
     """Resolve a board dict by id; ``None``/`""` resolve to the primary board.
 
@@ -1047,11 +1316,13 @@ def check_ref_board_compatibility(page_ref: str | None, board_id: str | None) ->
     """Validate a page or ``collection:`` ref against a board's size.
 
     Rules (issue #1245):
-      - A plain page must match the board's :func:`src.devices.size_key`
-        exactly; a mismatch blocks the write.
+      - A plain page must fit the board
+        (:func:`src.pages.fit.page_fit_for_board`): its grid is the board's,
+        or an LED board draws it at another text size. A misfit blocks the
+        write, and the error says why ("Made for a 6×22 board").
       - A collection may mix sizes: it is blocked only when ZERO member
         pages fit the board; otherwise it passes with one warning per
-        member page that does not fit.
+        member page that does not fit, each with its reason.
       - Anything that cannot be resolved (missing page, unknown collection,
         unknown board, no boards configured) passes silently so legacy
         installs and defensive callers see zero behavior change.
@@ -1079,7 +1350,8 @@ def check_ref_board_compatibility(page_ref: str | None, board_id: str | None) ->
             members = [p for p in (page_service.get_page(pid) for pid in collection.page_ids) if p]
             if not members:
                 return result
-            misfits = [p for p in members if not pages_compatible_with_board(p, board)]
+            fits = [(p, page_fit_for_board(p, board)) for p in members]
+            misfits = [(p, fit) for p, fit in fits if not fit.fits]
             if len(misfits) == len(members):
                 result.error = (
                     f"Collection '{collection.name}' cannot be used on board {board_label}: "
@@ -1087,20 +1359,18 @@ def check_ref_board_compatibility(page_ref: str | None, board_id: str | None) ->
                 )
                 return result
             result.warnings = [
-                f"Page '{p.name}' ({size_key(*geometry_of(p))}) in "
-                f"collection '{collection.name}' does not fit board {board_label} and will be skipped."
-                for p in misfits
+                f"Page '{p.name}' in collection '{collection.name}' can't show on board {board_label} "
+                f"({fit.reason}) and will be skipped."
+                for p, fit in misfits
             ]
             return result
 
         page = page_service.get_page(page_ref)
         if page is None:
             return result
-        if not pages_compatible_with_board(page, board):
-            result.error = (
-                f"Page '{page.name}' ({size_key(*geometry_of(page))}) "
-                f"is not compatible with board {board_label}: page and board sizes must match exactly."
-            )
+        fit = page_fit_for_board(page, board)
+        if not fit.fits:
+            result.error = f"Page '{page.name}' can't show on board {board_label}: {fit.reason}."
         return result
     except Exception:  # pragma: no cover - defensive: never let validation crash a write
         logger.exception("Page/board compatibility check failed; allowing write")

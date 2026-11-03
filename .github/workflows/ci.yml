@@ -334,7 +334,9 @@ jobs:
       || ((github.event_name != 'pull_request' || github.event.pull_request.draft == false)
           && (needs.detect-changes.outputs.ui == 'true'
               || needs.detect-changes.outputs.shared == 'true'))
-    timeout-minutes: 10
+    # Coverage takes about nine minutes on hosted runners; allow time for
+    # browser installation, layout regressions, and coverage upload as well.
+    timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v7

@@ -182,9 +182,11 @@ def test_retarget_pages_moves_canvases_with_the_page(service, monkeypatch):
 # --- migration v6 ------------------------------------------------------------
 
 
-def test_schema_version_is_6_with_the_canvases_migration_last():
-    assert CURRENT_SCHEMA_VERSION == 6
-    assert MIGRATIONS[-1] == (6, _migrate_v5_to_v6)
+def test_the_canvases_migration_targets_v6_and_precedes_the_current_version():
+    # Schema v7 (flexible pages) follows; tests/layout/test_flexible_storage.py pins it as last.
+    assert (6, _migrate_v5_to_v6) in MIGRATIONS
+    assert MIGRATIONS.index((6, _migrate_v5_to_v6)) == 5
+    assert CURRENT_SCHEMA_VERSION == 7
 
 
 def test_migration_sets_canvases_null_where_absent_and_is_idempotent():
@@ -195,7 +197,7 @@ def test_migration_sets_canvases_null_where_absent_and_is_idempotent():
     assert _migrate_v5_to_v6(pages) == 0
 
 
-def test_a_v5_file_loads_and_is_saved_as_v6(tmp_path):
+def test_a_v5_file_loads_and_is_saved_as_v7(tmp_path):
     path = tmp_path / "pages.json"
     path.write_text(
         json.dumps(
@@ -220,7 +222,7 @@ def test_a_v5_file_loads_and_is_saved_as_v6(tmp_path):
     storage = PageStorage(storage_file=str(path))
     assert storage.get("p1").canvases is None
     saved = json.loads(path.read_text())
-    assert saved["schema_version"] == 6
+    assert saved["schema_version"] == 7
     assert saved["pages"][0]["canvases"] is None
 
 

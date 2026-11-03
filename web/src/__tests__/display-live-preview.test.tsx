@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DisplayLivePreview } from "@/components/displays/display-live-preview";
 import type { BoardInstance } from "@/lib/api";
+import { resolveBoardModel } from "@/lib/device-preview";
 
 import { server } from "./mocks/server";
 
@@ -165,4 +166,17 @@ describe("DisplayLivePreview", () => {
 
     await waitFor(() => expect(animatedTileCount(container)).toBeGreaterThan(0));
   });
+});
+
+it("uses the physical marker in a current-message frame on the live display preview", async () => {
+  const model = resolveBoardModel({ device_model: "divoom_pixoo64" })!;
+  serveBoardState(() =>
+    HttpResponse.json({
+      ...FRAME,
+      cells: [[{ type: "char", value: "A" }]],
+      layers: [{ x: 0, y: 0, width: 52, height: 16, physical_frame_version: 1, rgba: btoa("\0".repeat(52 * 16 * 4)) }],
+    }),
+  );
+  renderPreview({ ...BOARD, device_model_spec: { ...model, geometry: { kind: "pixels", width: 52, height: 17 } } });
+  await waitFor(() => expect(screen.getByRole("img")).toHaveAttribute("data-matrix-height", "16"));
 });

@@ -62,6 +62,7 @@ from .hooks import (
     call_discover,
     lan_hint,
 )
+from .physical_frames import PhysicalSurface
 from .transitions import Animation
 
 if TYPE_CHECKING:
@@ -114,6 +115,11 @@ class OutputCapabilities:
     #: How long core waits for one write, when the output lowers the default
     #: (src/outputs/breaker.py); None = the default. Output plugins only.
     write_timeout_ms: int | None = None
+    #: Explicit per-model physical flexible-frame contract; absence refuses those frames.
+    physical_frames: Mapping[str, PhysicalSurface] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "physical_frames", dict(self.physical_frames))
 
 
 @dataclass(frozen=True)
@@ -259,7 +265,8 @@ def output_name_for(board: Mapping) -> str:
 
 def discover_devices(output_id: str, timeout: float, hint: str | None = None) -> list[dict]:
     """Run *output_id*'s ``discover`` hook; ``[]`` when it declares none.
-    *hint* (the browser's private IPv4 address; anything else is dropped)
+    *hint* (a private IPv4 address naming the browser's LAN — the caller's
+    :func:`~src.outputs.client_hint.client_lan_hint`; anything else is dropped)
     reaches a hook that takes one (:func:`~src.outputs.hooks.call_discover`).
 
     Raises:

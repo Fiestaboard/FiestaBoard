@@ -98,6 +98,15 @@ class StatePublisher:
                 page_name = NO_ACTIVE_PAGE_OPTION
             out["active_page"] = page_name
             out["current_page"] = page_name
+            # The select retains its configured collection target. The sensor
+            # follows actual device buttons; unknown/foreign is no page.
+            from src.display_runtime import native_page_selection
+
+            selected = native_page_selection(active_id)
+            if selected is not None:
+                out["current_page"] = (
+                    content_name(selected.page_id, page_service) if selected.page_id else None
+                ) or NO_ACTIVE_PAGE_OPTION
 
             # transition_style
             trans = settings.get_transition_settings()
@@ -193,8 +202,16 @@ class StatePublisher:
 
             # current_page attributes: page_id and page_index
             active_id = settings.get_active_page_id()
+            reference_id = active_id
+            from src.display_runtime import native_page_selection
+
+            selected = native_page_selection(reference_id)
+            if selected is not None:
+                active_id = selected.page_id
             pages = page_service.list_pages()
             page_attrs: dict = {"page_id": active_id or ""}
+            if selected is not None:
+                page_attrs["reference_id"] = reference_id
             for idx, page in enumerate(pages):
                 if page.id == active_id:
                     page_attrs["page_index"] = idx
@@ -213,6 +230,10 @@ class StatePublisher:
                         continue
                     bid = board["id"]
                     board_page_id = settings.get_active_page_id(board_id=bid)
+                    board_reference_id = board_page_id
+                    board_selection = native_page_selection(board_reference_id, bid)
+                    if board_selection is not None:
+                        board_page_id = board_selection.page_id
                     if not isinstance(board_page_id, str):
                         board_page_id = ""
                     board_page_name = ""
@@ -221,6 +242,8 @@ class StatePublisher:
 
                         board_page_name = content_name(board_page_id, page_service) or ""
                     by_board[bid] = {"page_id": board_page_id, "page_name": board_page_name}
+                    if board_selection is not None:
+                        by_board[bid]["reference_id"] = board_reference_id
                 if by_board:
                     page_attrs["by_board"] = by_board
             except Exception as e:

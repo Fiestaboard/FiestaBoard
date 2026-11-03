@@ -452,6 +452,9 @@ def render_page_preview_html(page: object, code62_glyph: str | None = None, *, d
             from .pages.service import get_page_service
 
             svc = get_page_service()
+            # A preview of the page itself: a grid page at its own grid (no
+            # face), a flexible page laid out for the primary board. A send
+            # renders for its board instead (src.pages.board_render).
             result = svc.preview_page(page_id, **({"display": display} if display is not None else {}))
             if result is not None and isinstance(getattr(result, "formatted", None), str):
                 formatted = result.formatted

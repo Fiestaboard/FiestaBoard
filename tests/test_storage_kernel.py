@@ -440,10 +440,10 @@ class TestGoldenOnDiskFormat:
         assert path.read_bytes() == (GOLDEN / "settings.json").read_bytes()
         assert path.with_suffix(".json.v5_backup").read_bytes() == v5
 
-    def test_settings_json_v6_golden_migrates_to_the_v7_golden(self, tmp_path):
+    def test_settings_json_v6_golden_migrates_to_the_current_golden(self, tmp_path):
         """Settings v7 (display plugins need no opt-in) drops
-        ``plugins.output_plugins_enabled`` and changes nothing else: the v6
-        golden, loaded and saved, is exactly the v7 golden, and the
+        ``plugins.output_plugins_enabled``; v8 moves scheduling preferences
+        onto each board. The v6 golden, loaded and saved, is the current golden, and the
         pre-migration backup holds the v6 bytes."""
         from src.settings.service import SettingsService
 
@@ -774,10 +774,10 @@ class TestConcurrentWriters:
         # at this point was taken by the setter, not by the save.
         decorated_save = SettingsService._save_to_file
 
-        def paused_save(self):
+        def paused_save(self, **sections):
             inside_body.set()
             may_finish.wait(timeout=2.0)
-            return decorated_save(self)
+            return decorated_save(self, **sections)
 
         monkeypatch.setattr(SettingsService, "_save_to_file", paused_save)
 

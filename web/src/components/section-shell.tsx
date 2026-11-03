@@ -39,6 +39,8 @@ interface SectionShellProps {
   detail: SectionDetail | null;
   /** Pin the card to the viewport so the body can scroll inside it (the page editor). */
   fill?: boolean;
+  /** Opt-in bounded mobile editing; other sections retain their document scrolling. */
+  fillOnMobile?: boolean;
   /** The route outlet. */
   children: React.ReactNode;
 }
@@ -59,7 +61,17 @@ const ActionSlot = createContext<HTMLElement | null | undefined>(undefined);
  * item known on the first render is what lets a deep link land open, without
  * an animation and without taking focus.
  */
-export function SectionShell({ icon, title, description, href, action, detail, fill, children }: SectionShellProps) {
+export function SectionShell({
+  icon,
+  title,
+  description,
+  href,
+  action,
+  detail,
+  fill,
+  fillOnMobile,
+  children,
+}: SectionShellProps) {
   const t = useTranslations("common");
   const pathname = usePathname();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
@@ -100,7 +112,19 @@ export function SectionShell({ icon, title, description, href, action, detail, f
   }, [detail, pathname]);
 
   return (
-    <PageLayout fillHeight={fill}>
+    <PageLayout
+      fillHeight={fill}
+      outerClassName={
+        fill && fillOnMobile
+          ? "max-sm:h-[calc(100dvh-var(--mobile-header-height,56px)-16px)] max-sm:flex max-sm:flex-col max-sm:overflow-hidden"
+          : undefined
+      }
+      className={
+        fill && fillOnMobile
+          ? "max-sm:flex-1 max-sm:min-h-0 max-sm:flex max-sm:flex-col max-sm:overflow-hidden"
+          : undefined
+      }
+    >
       <PageCard fillHeight={fill}>
         <PageHeader icon={icon} title={title} description={description} collapsed={detail != null}>
           {action}

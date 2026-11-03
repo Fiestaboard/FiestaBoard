@@ -11,7 +11,7 @@ An output plugin teaches FiestaBoard to drive a new kind of display: an LED matr
 This page is the complete reference for output plugin authors. It assumes you know how plugins are packaged from the [Plugin Development Guide](/docs/development/plugin-guide). If you want to show FiestaBoard on a screen you control without writing a plugin, read the frame stream instead: [Subscribing to Board Frames](/docs/development/output-stream-api). For every way to build on FiestaBoard, see [Building on FiestaBoard](/docs/development/integrations-overview).
 
 :::info Beta: FiestaBoard 10.0.0 and later
-Output plugins arrive with FiestaBoard **10.0.0**, and the contract (`output_api` 1) is a **beta**: it may still change before it is declared stable. Set `"fiestaboard_version": ">=10.0.0"` in your manifest.
+Output plugins arrive with FiestaBoard **10.0.0**, and the contract (`output_api` 1 or 2) is a **beta**: it may still change before it is declared stable. Set `"fiestaboard_version": ">=10.0.0"` in your manifest.
 
 Users need nothing turned on to use your plugin. Every installed output plugin can drive a board, whether it came from the plugin registry, a git URL, or ships with FiestaBoard. The **Displays → Marketplace** tab lists them all.
 :::
@@ -213,8 +213,9 @@ and actions conditional on the selected model use its draft board facts.
 
 | Field | Required | Default | What it declares |
 |-------|----------|---------|------------------|
-| `output_api` | Yes | — | The contract major your plugin targets. This FiestaBoard supports `1`. Anything else is refused at load. |
+| `output_api` | Yes | — | The contract major your plugin targets. This FiestaBoard supports `1` and `2`. Anything else is refused at load. |
 | `device_models` | Yes | — | A non-empty array of FiestaUI DeviceModel objects or built-in model ids, or `{"$ref": "output/device-models.json"}`. The first model is the default. |
+| `physical_frames` | No | unsupported | API 2 only: versioned per-model physical pixel surfaces and ordinary/native delivery modes. See below. |
 | `character_set` | No | the model's `charset` | A FiestaUI CharacterSet object, or a `$ref` to one. When declared, it is the output's character set and wins over every model's `charset`. |
 | `delivery` | No | `"push"` | `"push"`: core calls your writes. `"pull"`: a client fetches frames from core (a TV browser), and core only stores them. |
 | `min_interval_ms` | No | `0` | The send floor: the least time between two writes or sequences to one device. |
@@ -225,6 +226,59 @@ and actions conditional on the selected model use its draft board facts.
 | `actions` | No | `[]` | The settings screen's buttons. See [Actions](#actions). |
 
 A `$ref` names a JSON file inside your plugin directory, and the same path must be listed in the manifest's `data_files`. Keeping device data in its own file lets FiestaBoard, FiestaUI and your plugin read one copy.
+
+### Physical frames for flexible pages
+
+API 1 keeps the existing character-grid and Canvas contract. Flexible pages on
+pixel boards require API 2 and an explicit physical surface; layer support alone
+does not promise that an adapter preserves pixels. Character-only flexible pages
+continue to use cells. For example, an adapter whose legacy model is 52 by 17
+can declare its actual 52 by 16 surface without changing any legacy page:
+
+```json
+{
+  "output_api": 2,
+  "physical_frames": {
+    "version": 1,
+    "models": {
+      "ulanzi_tc002": { "width": 52, "height": 16, "modes": ["ordinary", "native"] }
+    }
+  }
+}
+```
+
+This is a fragment of the `output` block; `device_models` must also declare that
+pixel model. Dimensions are integers from 1 to 512. Declare only modes whose
+complete delivery path you have tested. `ordinary` covers direct, scheduled,
+held and silence-page writes; `native` covers collection snapshots. Native-only
+support does not permit an ordinary write. The public output declaration and its
+revision include this contract; board settings expose the resolved
+`physical_surface` for preview and page-picker admission.
+
+Import `physical_frame_pixels` from `src.plugins` and call it before legacy
+composition in every applicable write path. It returns exact RGB888 bytes for an
+explicitly tagged physical frame, `None` for legacy content, and raises
+`ValueError` for a mismatched surface or additional layers. Never infer this
+contract from layer size. The marker also retains separate opaque preview RGBA;
+monochrome preview encoding must not replace the exact device RGB. Native
+snapshots preserve the marker. Preview JSON carries `physical_frame_version: 1`
+alongside the existing width, height and RGBA fields; legacy layers omit it. This
+marker is informational and must never reconstruct a trusted delivery payload.
+Shared previews use it to select the physical surface. Legacy text and Canvas must keep their existing
+composition, cropping and centering behavior.
+
+Transitions must preserve the final physical bytes in both directions. An
+adapter may use a still replacement when its legacy transition planner cannot
+mix physical and character-grid coordinates. It must not run physical frames
+through legacy row removal, centering or luminance conversion. Verify final
+ordinary and native payload bytes, black pixels, monochrome colors, mismatched
+sizes and unchanged legacy output before declaring support.
+
+Older cores reject API 2 before loading the adapter. Upgrade core before the
+adapter; when rolling core back, restore the compatible API 1 adapter release
+and the pre-migration page backup. Do not edit stored flexible pages into grid
+pages or silently discard their unknown fields. No adapter or hardware upgrade
+happens merely by creating a flexible document.
 
 ### Device models
 
@@ -247,7 +301,7 @@ A `$ref` names a JSON file inside your plugin directory, and the same path must 
 | `layoutOptions` | No | LED only. Which LED layout options a board may choose, and the default. See [LED layout options](#led-layout-options). |
 | `appearance` | No | Preview cosmetics only. See [Appearance](#appearance). |
 
-**The floor.** Every board must hold at least 3 rows of 15 characters, the size of a Vestaboard Note, so every page fits every board. An LED board measured in pixels (a `pixels` model) is the exception: its floor is 3 rows of 10, so a 5×7 face that reads from across a room fits. A `pixels` model's grid is how many glyphs of its font fit: a 64 × 64 matrix with the 3×5 font and 1-pixel gaps is 10 rows × 16 columns, and with the 5×7 font 8 × 10. Pages wider than 10 columns are cut off on an 8 × 10 board. A model below its floor is refused when a board is created, never enlarged: a 32 × 8 matrix (1 × 8) and a 32 × 16 matrix with the 5×7 font (2 × 5) do not fit. Declare only models that reach the floor.
+**The floor.** Every board must hold at least 3 rows of 15 characters, the size of a Vestaboard Note, so every page fits every board. An LED board measured in pixels (a `pixels` model) is the exception: its floor is 1 row of 5 characters, so a small clock-sized matrix fits. A `pixels` model's grid is how many glyphs of its font fit: a 64 × 64 matrix with the 3×5 font and 1-pixel gaps is 10 rows × 16 columns, and with the 5×7 font 8 × 10. A 32 × 8 matrix such as the Ulanzi TC001 is 1 × 8 with the 3×5 font and 1 × 5 with the 5×7 font, so it fits. Pages wider or taller than a board's grid are cut off on it: an 8 × 10 board loses columns past 10, and a 1 × 8 board shows only the first row. A model below its floor is refused when a board is created, never enlarged: a 16 × 8 matrix with the 5×7 font (1 × 2) does not fit. Every other model (`cells`, `panel` and `note_array` geometry) keeps the 3 × 15 Note floor. Declare only models that reach the floor.
 
 ### Character sets
 
@@ -408,7 +462,7 @@ The widget set is closed and versioned with `output_api`: a widget outside your 
 - **`visible_when`** shows the button only while a condition holds, in the same grammar as fields (board facts included).
 - **`auto_apply`**: `true` applies a detected `geometry` at once instead of offering **Apply size**.
 
-**The network hint (`hint_host`).** FiestaBoard usually runs in Docker's bridge mode, where its own address (`172.x`) belongs to a container network, not to the network your device is on. So a scan of "this host's subnet" searches the wrong network. The settings screen fills that gap: when the user opened FiestaBoard at a private IPv4 address (`10.x`, `172.16`–`172.31.x`, `192.168.x`, or link-local `169.254.x`; never `localhost` or a hostname), it sends that address as the input `hint_host` with every scan, for every output:
+**The network hint (`hint_host`).** FiestaBoard usually runs in Docker's bridge mode, where its own address (`172.x`) belongs to a container network, not to the network your device is on. So a scan of "this host's subnet" searches the wrong network. The settings screen fills that gap: when the user opened FiestaBoard at a private IPv4 address (`10.x`, `172.16`–`172.31.x`, `192.168.x`, or link-local `169.254.x`; never `localhost` or a hostname), it sends that address as the input `hint_host` with every scan, for every output. When it sends none (the user opened `http://fiestaboard.local:4420`), FiestaBoard uses the address the browser connected from instead, if that is a private IPv4 address on a network FiestaBoard is not already on. It is not used when it is the Docker bridge gateway (a browser on the Docker host itself), the Home Assistant Supervisor (ingress), Docker Desktop's VM network (Docker Desktop hides the browser's address), or IPv6. A `hint_host` the browser sent always wins. Either way your code receives it the same way:
 
 - a `discover` action receives it as `hint` when your `discover` takes one: declare `discover(cls, timeout, hint=None)`, and search the `/24` around `hint` before your own. A `discover(timeout)` written before the hint keeps working; it is called without it. A `hint_host` that is not a private IPv4 address is refused with a 400.
 - a custom scan action receives it in `inputs["hint_host"]` if its `input_schema` declares `hint_host`. FiestaBoard fills it in for you and leaves it out of the action's dialog. Any action that does not declare it never sees it.
@@ -561,7 +615,7 @@ Import everything from `src.plugins`. That one module is the output plugin API, 
 | `capabilities()` | No | Defaults to what the manifest declares. Override it to narrow a board's capabilities, for example a cloud connection that cannot animate. |
 | `open()` / `close()` | No | Bracket the instance's lifetime: connect, warm up, release. |
 | `check_connection()` | No | Probe the device once. Return a `ConnectionCheck`; never raise. |
-| `discover(timeout, hint=None)` | No | A class method. Return found devices, each a dict with at least `ip` and `port`. `hint` is the private IPv4 address the user opened FiestaBoard at, or `None`; see [the network hint](#actions). |
+| `discover(timeout, hint=None)` | No | A class method. Return found devices, each a dict with at least `ip` and `port`. `hint` is the private IPv4 address the user opened FiestaBoard at (else the browser's own address, when usable), or `None`; see [the network hint](#actions). |
 | `identify()` | No | Make the device show which one it is: flash, blink, beep. |
 | `detect_geometry()` | No | Read the device's size: `{"device_type": "panel", "rows", "cols"}`, or `None`. |
 | `read_current()` | No | What the device shows, as codes, when `read_back.supported`. |
@@ -654,6 +708,69 @@ A board's transition reaches your plugin in one of three ways:
 - **Transition plugins.** A board can use a frame-by-frame transition plugin. For a `sequence` device, core collects its frames and calls `write_sequence(frames, *, cancel)` once; each `TimedFrame` has a `frame` and a `duration_ms`, and the last frame is always the target. Upload at most the model's `maxFrames`. For other devices core sends the frames one at a time through `write()`.
 - **Native transitions.** If the device animates changes itself, list the strategies in `native_transitions`. Core passes the chosen one to `write()` as `native`, and never passes one you did not declare.
 
+### Native page rotation
+
+An output with device-owned slots can optionally override:
+
+```python
+from src.plugins import DevicePoll, NativePageSelection, NativePlaylist, WriteResult
+
+def sync_native_playlist(self, playlist: NativePlaylist, *, cancel) -> WriteResult:
+    # Reconcile slots, payloads, duration and order using self.http.
+    # Preserve device focus and dwell on unchanged background refreshes.
+    ...
+
+def poll_device(self):
+    return DevicePoll(native_selection=NativePageSelection(page_id="page-example"))
+```
+
+Declare a boolean `native_rotation` in the output settings schema, defaulting
+to `false`. Core requires both the literal saved boolean `true` and a real
+method override. This is an additive optional API 1 hook; outputs without it
+keep ordinary writes. Plugins supporting older core versions should guard
+the optional imports and reject `native_rotation=true` with upgrade guidance
+when the hook is unavailable.
+
+`NativePlaylist(board_id, reference_id, entries)` is a frozen wrapper with an
+ordered tuple of `NativePlaylistEntry(page_id, cells, duration_ms)`. Each entry
+owns a deep copy of its rich cells, preserving `.layers` pixel canvases; treat
+these cells as read-only. Core renders and validates every member before
+dispatch, shares dependency contexts across members, and renders repeated
+page ids once while retaining their ordered occurrences. Single pages have
+duration `0` (the output's single-page default); timed collections use their
+configured interval in milliseconds. Empty entries mean retire owned slots.
+Random and variable collections, triggers, temporary overrides, silence pages
+and manual sends use ordinary writes.
+
+The plugin must validate capacity before changing the device, preserve foreign
+apps and their disabled state, reconcile after device/process restarts, and
+remove only its own stale slots. An unchanged sync must preserve button
+selection and must not restart dwell. Ordinary `write` and `write_cells` must
+retire all owned playlist slots, including from a newly created instance with
+native rotation disabled. This makes opting out and transient overrides safe.
+
+Playlist sync uses the board's existing send worker, write lock, cancellation
+token, send floor, timeout budget and error reporting. Return `WriteResult` as
+for ordinary writes. A sync failure remains a playlist retry; core does not
+fall back to competing core rotation after a partial device mutation. Sync
+success never records an arbitrary member as the displayed frame.
+
+Selection is separate feedback. `DevicePoll.native_selection=None` means no
+feedback arrived and retains the prior selection. `NativePageSelection(None)`
+means unknown or a foreign active app and clears it. Report the actual owned
+page id after device buttons or timed rotation; report `restarted=True` when
+slots need recovery. UI/API `resolved_page_id` and MQTT's `current_page`
+sensor follow this feedback, while configured references and MQTT's
+`active_page` select retain the page/collection target. Selection is unknown
+until the first successful poll and may lag by the board's polling interval.
+
+Silence freeze writes a still of the last confirmed owned selection, retiring
+owned rotation. Unknown/foreign selection is left untouched, since stopping
+foreign rotation would require changing global firmware settings. Pause keeps
+the existing hands-off behavior, so firmware may continue rotating while core
+is paused. Manual writes persist until the source content changes or the user
+explicitly restores it.
+
 ## Testing
 
 ### The conformance suite
@@ -688,7 +805,7 @@ The suite plays the device: it routes your plugin's `self.http` to a fake transp
 |------|--------|
 | `manifest` | `manifest.json` loads with no error and is `plugin_type: "output"` |
 | `character_set` | Every declared character set flattens to a non-empty set |
-| `geometry_floor` | Every device model reaches its floor: 3 × 15, or 3 × 10 for a `pixels` model |
+| `geometry_floor` | Every device model reaches its floor: 3 × 15, or 1 × 5 for a `pixels` model |
 | `import_network` | Importing the plugin makes no network call |
 | `device_key` | Non-empty, stable across calls and instances, and free of secrets |
 | `floor` | The plugin does not throttle itself or talk to the device outside a write |

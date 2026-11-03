@@ -138,6 +138,16 @@ def get_service() -> DisplayService | None:
     return _service
 
 
+def native_page_selection(reference_id, board_id=None):
+    """Optional actual native selection, without creating a display service."""
+    from src.outputs.native_playlist import NativePageSelection
+
+    service = peek_service()
+    read = getattr(service, "native_page_selection", None)
+    selection = read(reference_id, board_id) if callable(read) else None
+    return selection if isinstance(selection, NativePageSelection) else None
+
+
 def peek_service() -> DisplayService | None:
     """Return the existing DisplayService instance without creating one.
 

@@ -55,13 +55,16 @@ MAX_GRID_ROWS: int = 96
 MAX_GRID_COLS: int = 128
 
 # The floor of an LED board measured in pixels (a device model with
-# ``pixels`` geometry, src/outputs/geometry.py): 3 × 10. Its grid is how many
+# ``pixels`` geometry, src/outputs/geometry.py): 1 × 5. Its grid is how many
 # glyphs fit, so it follows the font: a Divoom Pixoo 64 in the 5x7 face is
-# 8 × 10, a 64 × 32 HUB75 or Tidbyt is 4 × 10. Pages longer than 10 columns
-# are cut off there; the owner accepts that for a face legible across a room.
-# Vestaboards, FiestaPanel autofit and every other model keep the Note floor.
-MIN_LED_GRID_ROWS: int = 3
-MIN_LED_GRID_COLS: int = 10
+# 8 × 10, a 64 × 32 HUB75 or Tidbyt is 4 × 10, and a 32 × 8 Ulanzi TC001 is
+# 1 × 8 in the 3x5 face and 1 × 5 in the 5x7 face. One word is the least a
+# page can say, so one row of five columns is the floor. Pages wider than
+# the grid are cut off there; the owner accepts that for a face legible
+# across a room. Vestaboards, FiestaPanel autofit and every other model keep
+# the Note floor.
+MIN_LED_GRID_ROWS: int = 1
+MIN_LED_GRID_COLS: int = 5
 
 # The smallest grid any board can have — the lower of the two floors on each
 # axis. Stored grids (clamp_grid) and page/template geometry are bounded by
@@ -202,6 +205,10 @@ class BoardInstance:
     # the schedule only affects the schedule-driven rotation.
     paused: bool = False
     schedule_enabled: bool = False  # Per-board: use schedule mode for this board
+    polling_interval_seconds: int = 15
+    board_read_interval_local: int = 30
+    board_read_interval_cloud: int = 180
+    schedule_defer_on_reenable: bool = False
     # Put the board's content back when another app overwrites it (#2354).
     # On by default; off for a display deliberately shared with another app.
     # Detection is the read-back poll (#1945) or the output's device poll
@@ -287,7 +294,7 @@ class BoardInstance:
             self.notes_tall = 1
         if self.notes_tall > MAX_NOTES_PER_AXIS:
             self.notes_tall = MAX_NOTES_PER_AXIS
-        # A panel always carries a valid grid (clamped to the absolute 3 × 10
+        # A panel always carries a valid grid (clamped to the absolute 1 × 5
         # minimum, so an LED board's 8 × 10 is kept; a missing axis falls
         # back to the Note-sized minimum so the board still resolves); every
         # other type carries none, so a stale grid can never leak into a
@@ -458,6 +465,10 @@ class BoardInstance:
             enabled=data.get("enabled", True),
             paused=data.get("paused", False),
             schedule_enabled=data.get("schedule_enabled", False),
+            polling_interval_seconds=data.get("polling_interval_seconds", 15),
+            board_read_interval_local=data.get("board_read_interval_local", 30),
+            board_read_interval_cloud=data.get("board_read_interval_cloud", 180),
+            schedule_defer_on_reenable=data.get("schedule_defer_on_reenable", False),
             # Absent on a board saved before #2354: on, like a new board.
             auto_restore=data.get("auto_restore", True),
             notes_wide=data.get("notes_wide", 1),
@@ -590,8 +601,8 @@ def clamp_grid(
 ) -> DeviceDimensions:
     """Clamp a panel grid into [min_*, MAX_GRID_*] on each axis.
 
-    The floor defaults to the absolute minimum (ABSOLUTE_MIN_GRID_*, 3 × 10),
-    so a stored LED board's 8 × 10 grid is kept, not widened to 15. FiestaPanel
+    The floor defaults to the absolute minimum (ABSOLUTE_MIN_GRID_*, 1 × 5),
+    so a stored LED board's 1 × 8 or 8 × 10 grid is kept, not widened to 15. FiestaPanel
     autofit passes the Note floor (src/panels/autofit.py).
     """
     return DeviceDimensions(
@@ -843,20 +854,79 @@ def board_is_set_up(board: Any) -> bool:
     return instance.is_connection_configured or instance.has_connection_attempt
 
 
+FLEXIBLE_PAGE_TYPE = "flexible"
+
+
+class FlexiblePageGeometryError(TypeError):
+    """A flexible page reached a grid geometry helper.
+
+    A flexible page has no grid: it lays out at whatever board shows it. Its
+    missing ``device_type`` would otherwise default to a 6x22 flagship. This is
+    deliberately a ``TypeError``, not a ``ValueError``. Callers such as
+    ``size_key`` consumers, ``_scale_canvases_on_retarget`` and
+    ``display_profile_for_board`` catch ``ValueError`` and fall back to
+    flagship, which would hide the mistake.
+    """
+
+
+def _field_getter(obj):
+    if isinstance(obj, dict):
+        return obj.get
+
+    def get(name):
+        return getattr(obj, name, None)
+
+    return get
+
+
+def is_flexible_page(obj) -> bool:
+    """Whether *obj* (a Page or a page dict) is a flexible page. Boards have no ``type``."""
+    return _field_getter(obj)("type") == FLEXIBLE_PAGE_TYPE
+
+
+def page_size_key(page) -> str | None:
+    """The grid :func:`size_key` of *page*, or ``None`` for a flexible page (it has no size)."""
+    if is_flexible_page(page):
+        return None
+    return size_key(*geometry_of(page))
+
+
+def page_geometry_fields(page, board=None) -> dict[str, Any]:
+    """The geometry fields to report for *page*: ``device_type``, ``notes_*``, ``grid_*``.
+
+    A grid page answers its own. A flexible page has no grid, yet its model
+    object still carries the grid fields' flagship defaults, so reading them
+    directly would call it a 6x22 flagship page. It answers the board it lays
+    out for instead: *board*, else the primary board (as
+    ``GET /pages/current-display`` does).
+    """
+    if is_flexible_page(page):
+        if board is None:
+            from src.pages.service import layout_board_for
+
+            board = layout_board_for(None)
+        return geometry_of(board)._asdict()
+    return geometry_of(page)._asdict()
+
+
+def page_size_label(page) -> str:
+    """*page*'s size for log and error copy: ``"flexible"`` or its size key."""
+    return page_size_key(page) or FLEXIBLE_PAGE_TYPE
+
+
 def geometry_of(obj) -> Geometry:
     """Extract the :class:`Geometry` of a page/board.
 
     Accepts either a mapping (board dicts from settings storage) or an object
     with attributes (Page models, BoardInstance, overrides). Missing or falsy
     values get the platform defaults (flagship, 1x1, no explicit grid).
+
+    Raises :class:`FlexiblePageGeometryError` for a flexible page, which has
+    no grid; every caller that can receive a page must route it first.
     """
-    if isinstance(obj, dict):
-        get = obj.get
-    else:
-
-        def get(name):
-            return getattr(obj, name, None)
-
+    if is_flexible_page(obj):
+        raise FlexiblePageGeometryError(f"a flexible page has no grid geometry: {_field_getter(obj)('name')!r}")
+    get = _field_getter(obj)
     return Geometry(
         device_type=str(get("device_type") or DEFAULT_DEVICE_TYPE),
         notes_wide=_optional_int(get("notes_wide")) or 1,
@@ -876,13 +946,29 @@ def dimensions_of(obj) -> DeviceDimensions:
 
 
 def pages_compatible_with_board(page, board) -> bool:
-    """True when *page* renders 1:1 on *board*: EXACT :func:`size_key` match.
+    """True when *page* shows on *board*.
 
-    Family-aware: flagship != note even at identical dimensions, and note
-    arrays and panels must match the resolved grid exactly. Both arguments may
-    be Page/BoardInstance objects or raw board dicts.
+    An EXACT :func:`size_key` match always fits. Otherwise this delegates to
+    :func:`src.pages.fit.page_fit_for_board`: an LED board fits a ``panel``
+    page at any grid it can produce at a text size its model allows (the page
+    is then drawn at that face). Everything else keeps the exact rule, which
+    is family-aware: flagship != note even at identical dimensions, and note
+    arrays, split-flap and FiestaPanel boards must match the resolved grid
+    exactly. Both arguments may be Page/BoardInstance objects or raw board
+    dicts.
+
+    A flexible page has no grid: it fits every board unless its ``targets``
+    exclude it, decided by :func:`~src.pages.fit.page_fit_for_board` before
+    any size comparison.
     """
-    return size_key(*geometry_of(page)) == size_key(*geometry_of(board))
+    # Lazy: src.pages imports src.devices.
+    from src.pages.fit import page_fit_for_board
+
+    if is_flexible_page(page):
+        return page_fit_for_board(page, board).fits
+    if size_key(*geometry_of(page)) == size_key(*geometry_of(board)):
+        return True
+    return page_fit_for_board(page, board).fits
 
 
 def board_context_for(

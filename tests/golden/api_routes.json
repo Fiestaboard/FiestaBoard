@@ -964,6 +964,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/pages/preview/flexible",
+      "methods": [
+        "POST"
+      ],
+      "name": "preview_unsaved_flexible_page",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/pages/{page_id}",
       "methods": [
         "DELETE"

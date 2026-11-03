@@ -4,47 +4,28 @@ A share string is a base64url-encoded JSON envelope:
   {"v": 1, "page": {<content fields>}}
 
 The "v" field is the envelope version, independent of the internal
-page schema_version. It only needs to bump when the envelope structure
-itself changes.
+page schema_version. Grid pages encode with ``SHARE_VERSION`` (1) so
+older builds keep importing them. Flexible pages encode with
+``SHARE_VERSION_FLEXIBLE`` (2), so an older build refuses them with its
+"requires FiestaBoard v2 or later" message instead of a validation error.
 """
 
 import base64
 import json
 
+from .document import PAGE_SHARE_EXCLUDED
 from .models import Page
 
 SHARE_VERSION = 1
-
-# Fields included in the share envelope (excludes runtime-only fields:
-# id, created_at, updated_at, demo_plugin_id).
-_SHARE_FIELDS = (
-    "name",
-    "type",
-    "device_type",
-    # Geometry beyond the device family: without these a shared note-array
-    # or panel page imported as the family's default size.
-    "notes_wide",
-    "notes_tall",
-    "grid_rows",
-    "grid_cols",
-    "display_type",
-    "rows",
-    "template",
-    "line_metadata",
-    "duration_seconds",
-    "transition_strategy",
-    "transition_interval_ms",
-    "transition_step_size",
-    # Pixel canvases (stored in their JSON form: ``if`` / ``as`` / ``from``).
-    "canvases",
-)
+SHARE_VERSION_FLEXIBLE = 2
 
 
 def encode_page(page: Page) -> str:
     """Encode a Page into a portable share string."""
     data = page.model_dump()
-    page_content = {k: data[k] for k in _SHARE_FIELDS if k in data}
-    envelope = {"v": SHARE_VERSION, "page": page_content}
+    page_content = {k: v for k, v in data.items() if k not in PAGE_SHARE_EXCLUDED}
+    v = SHARE_VERSION_FLEXIBLE if page.type == "flexible" else SHARE_VERSION
+    envelope = {"v": v, "page": page_content}
     json_bytes = json.dumps(envelope, separators=(",", ":")).encode()
     # Strip padding — urlsafe_b64decode accepts unpadded strings when we re-add it.
     return base64.urlsafe_b64encode(json_bytes).decode().rstrip("=")
@@ -69,7 +50,7 @@ def decode_page(share_string: str) -> dict:
     v = envelope["v"]
     if not isinstance(v, int) or v < 1:
         raise ValueError("Invalid share string — bad version field.")
-    if v > SHARE_VERSION:
+    if v > SHARE_VERSION_FLEXIBLE:
         raise ValueError(f"This share string requires FiestaBoard v{v} or later. Please update your installation.")
 
     page_data = envelope["page"]

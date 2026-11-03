@@ -71,6 +71,8 @@ export interface Canvas {
  * (`rgba` is base64 of `width × height × 4` RGBA bytes, row-major).
  */
 export interface CanvasLayerJson {
+  /** Preview-only physical surface marker; never a device payload. */
+  physical_frame_version?: 1;
   x: number;
   y: number;
   width: number;

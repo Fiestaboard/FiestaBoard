@@ -5,7 +5,13 @@ import { memo, type ReactNode, useCallback } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 import type { BoardLedLayout, CanvasLayerJson } from "@/lib/api";
-import { isLedModel, ledLayerProps, ledLayoutProps, ledLetterCase } from "@/lib/device-preview";
+import {
+  isLedModel,
+  ledLayerProps,
+  ledLayoutProps,
+  ledLetterCase,
+  physicalFramePreviewModel,
+} from "@/lib/device-preview";
 
 export interface DevicePreviewProps {
   /** The board's device model (`resolveBoardModel`); `null` when unknown. */
@@ -57,11 +63,21 @@ export const DevicePreview = memo(function DevicePreview({
   const t = useTranslations("boardDisplay");
   const messageLabel = useCallback((m: string) => t("withMessage", { message: m }), [t]);
   if (!isLedModel(model)) return <>{children}</>;
+  const physical =
+    layers?.length === 1 &&
+    layers[0].physical_frame_version === 1 &&
+    layers[0].x === 0 &&
+    layers[0].y === 0 &&
+    [layers[0].width, layers[0].height].every((n) => Number.isInteger(n) && n >= 1 && n <= 512)
+      ? layers[0]
+      : undefined;
+  const previewModel = physicalFramePreviewModel(model, physical)!;
+
   return (
     <DisplayPreview
       {...ledLayoutProps(ledLayout)}
       {...ledLayerProps(layers)}
-      model={model}
+      model={previewModel}
       message={message ?? null}
       cells={cells}
       size={size}

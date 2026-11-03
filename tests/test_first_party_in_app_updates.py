@@ -242,7 +242,7 @@ class TestLoadPrecedence:
         assert pin().repository in loaded.fallback
 
     def test_a_copy_with_an_unsupported_output_api_falls_back_to_the_seed_loudly(self, external):
-        edit_manifest(external / VESTABOARD, version="99.0.0", output_api=2)
+        edit_manifest(external / VESTABOARD, version="99.0.0", output_api=3)
         loaded = load_first_party(VESTABOARD, external_dir=external)
         assert loaded.source.origin == "seed"
         assert "output_api" in loaded.fallback
@@ -271,7 +271,7 @@ class TestLoader:
         assert loader.seed_fallbacks == {}
 
     def test_a_seed_fallback_is_a_load_error_naming_why(self, external, tmp_path):
-        edit_manifest(external / VESTABOARD, version="99.0.0", output_api=2)
+        edit_manifest(external / VESTABOARD, version="99.0.0", output_api=3)
         loader = PluginLoader(plugins_dir=tmp_path / "builtin", external_dirs=[external])
         assert loader.load_plugin(VESTABOARD) is not None
         assert "output_api" in loader.seed_fallbacks[VESTABOARD]
@@ -317,9 +317,9 @@ class TestIntegrations:
 
     def test_a_release_needing_another_output_api_is_held_back(self, tmp_path, monkeypatch, origin):
         registry = make_registry(tmp_path, monkeypatch)
-        release(origin, "99.0.0", output_api=2)
+        release(origin, "99.0.0", output_api=3)
         assert registry.check_for_updates()[VESTABOARD] is False
-        assert "output_api 2" in registry.get_update_blocked_reasons()[VESTABOARD]
+        assert "output_api 3" in registry.get_update_blocked_reasons()[VESTABOARD]
 
     def test_applying_an_update_runs_the_new_release_and_rebuilds_the_boards(self, tmp_path, monkeypatch, origin):
         import asyncio

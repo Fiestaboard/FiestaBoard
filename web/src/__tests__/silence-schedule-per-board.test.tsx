@@ -3,7 +3,7 @@
 // Silence settings used to be global: every board shared one quiet period and
 // one silence page, so a Note and a Flagship could not both have a valid page.
 // The form now scopes to the selected board in multi-board installs and
-// filters the page picker to pages that fit that board.
+// flags, in the page picker, the pages that don't fit that board.
 //
 // Covers:
 // - resolveSilenceConfig: per-board entry wins, unconfigured board falls back
@@ -11,7 +11,8 @@
 // - PUT always carries board_id, single-board installs included: the engine
 //   resolves per board on every install, so the layer the form writes has to
 //   be the layer the engine reads (PR #1801 review, BLOCKER 1)
-// - the page picker only offers pages that fit the selected board
+// - the page picker offers a page that doesn't fit the selected board as a
+//   disabled option with its reason ("Made for a 6×22 board")
 // - saving invalidates the silenceStatus query key the consumers actually use
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -162,6 +163,36 @@ describe("SilenceSchedule - board scoping", () => {
     expect(puts[0].board_id).toBe("flag-1");
   });
 
+  it("uses the explicit route board instead of the sidebar selection for reads and saves", async () => {
+    const puts: Array<Record<string, unknown>> = [];
+    stub({
+      boards: [FLAGSHIP, NOTE],
+      silence: { by_board: { "flag-1": { indicator_text: "KITCHEN" }, "note-1": { indicator_text: "DESK" } } },
+      onPut: (b) => puts.push(b as Record<string, unknown>),
+    });
+    const user = userEvent.setup();
+    const { Wrapper } = makeWrapper();
+    render(<SilenceSchedule boardId="note-1" />, { wrapper: Wrapper });
+    const text = await screen.findByLabelText(/message text/i);
+    await waitFor(() => expect(text).toHaveValue("DESK"));
+    await user.clear(text);
+    await user.type(text, "QUIET");
+    await waitFor(() => expect(puts.length).toBeGreaterThan(0), { timeout: 5000 });
+    expect(puts[0].board_id).toBe("note-1");
+  });
+
+  it("flags silence pages by the explicit route board geometry", async () => {
+    stub({ boards: [FLAGSHIP, NOTE], silence: { mode: "page", page_id: "small" } });
+    const user = userEvent.setup();
+    const { Wrapper } = makeWrapper();
+    render(<SilenceSchedule boardId="note-1" />, { wrapper: Wrapper });
+    await user.click(await screen.findByRole("combobox", { name: /silence page/i }));
+    expect(await screen.findByRole("option", { name: "Small Page" })).not.toHaveAttribute("aria-disabled", "true");
+    const big = screen.getByRole("option", { name: /Big Page/ });
+    expect(big).toHaveAttribute("aria-disabled", "true");
+    expect(big).toHaveTextContent("Made for a 6×22 board");
+  });
+
   it("sends the selected board_id on a multi-board install", async () => {
     const puts: Array<Record<string, unknown>> = [];
     stub({ boards: [FLAGSHIP, NOTE], onPut: (b) => puts.push(b as Record<string, unknown>) });
@@ -210,7 +241,7 @@ describe("SilenceSchedule - page picker board compatibility", () => {
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => server.resetHandlers());
 
-  it("only offers pages that fit the selected board", async () => {
+  it("offers a page that doesn't fit the selected board as a disabled option with its reason", async () => {
     stub({ boards: [FLAGSHIP, NOTE], silence: { mode: "page", page_id: "big" } });
     const user = userEvent.setup();
     const { Wrapper } = makeWrapper();
@@ -219,10 +250,11 @@ describe("SilenceSchedule - page picker board compatibility", () => {
     const picker = await screen.findByRole("combobox", { name: /silence page/i });
     await user.click(picker);
 
-    // Current board is the flagship: the Note page must not be offered.
-    // "Big Page" appears twice (trigger label + option), hence findAllByText.
-    expect((await screen.findAllByText("Big Page")).length).toBeGreaterThan(0);
-    expect(screen.queryByText("Small Page")).not.toBeInTheDocument();
+    // Current board is the flagship: the Note page is flagged, not hidden.
+    const small = await screen.findByRole("option", { name: /Small Page/ });
+    expect(small).toHaveAttribute("aria-disabled", "true");
+    expect(small).toHaveTextContent("Made for a 3×15 board");
+    expect(screen.getByRole("option", { name: "Big Page" })).not.toHaveAttribute("aria-disabled", "true");
   });
 });
 

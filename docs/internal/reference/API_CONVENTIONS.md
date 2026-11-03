@@ -343,7 +343,14 @@ inconsistency-of-record, so read it before "fixing" either half.
 
   `board_id=*` on `GET /schedules` stays a documented wildcard, not an id.
 
-If reads are ever made strict, they must all change together and the
+`POST /pages/preview/flexible` is a targeted render exception: an explicit
+unknown `board_id`, including an empty string, returns 404 through
+`_require_board`. A successful preview must represent the board the editor
+selected; rendering the primary board instead would misrepresent that
+selection. Omitting `board_id` or passing null still selects the primary
+board. This does not change the legacy batch-preview or polling fallbacks.
+
+If these polling reads are ever made strict, they must all change together and the
 polling clients must be updated in the same PR.
 
 Two `SettingsService` setters — `set_paused` and `set_active_page_id` —

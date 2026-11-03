@@ -81,16 +81,8 @@ def _red(layer_json) -> bool:
 def test_the_page_api_stores_and_returns_canvases(api):
     client, _ = api
     page_id = _create(client, device_type="panel", grid_rows=10, grid_cols=16)
-    assert client.get(f"/pages/{page_id}").json()["canvases"] == [
-        {
-            "id": "sun",
-            "area": CANVAS["area"],
-            "bleed": [],
-            "scale": 1,
-            "text": "hide",
-            "content": {"background": "#ff0000", "palette": {}, "shapes": [], "pixels": []},
-        }
-    ]
+    # Page documents preserve canvas omission; typed render defaults still apply.
+    assert client.get(f"/pages/{page_id}").json()["canvases"] == [CANVAS]
 
 
 def test_an_area_past_the_grid_is_a_422(api):
@@ -156,10 +148,16 @@ def test_sending_to_a_pixel_board_delivers_and_answers_its_layers(api):
     assert len(cells.layers) == 1 and cells.layers[0].to_json() == body["layers"][0]
 
 
-def test_the_current_message_of_a_pixel_board_answers_the_layers_it_shows(monkeypatch):
+@pytest.mark.parametrize("physical", [False, True])
+def test_the_current_message_of_a_pixel_board_answers_the_layers_it_shows(monkeypatch, physical):
     from src.api_server import app
 
     layer = CanvasLayer(x=0, y=2, w=1, h=1, rgba=bytes([255, 0, 0, 255]))
+    if physical:
+        from src.led.matrix import LedFrame
+        from src.outputs.physical_frames import physical_frame_layer
+
+        layer = physical_frame_layer(LedFrame(64, 64, bytes(64 * 64 * 3)))
     frame = project_message("HI", 10, 16, BUILTIN_CHARACTER_SETS["led_3x5"], layers=[layer])
     output = OutputRuntime()
     output.frames.record_sent(frame.characters, cells=frame.cells)
@@ -195,9 +193,15 @@ def test_the_current_message_of_a_split_flap_board_has_no_layers_key(monkeypatch
     assert "layers" not in body
 
 
-def test_the_v1_board_detail_answers_a_pixel_boards_layers(api, monkeypatch):
+@pytest.mark.parametrize("physical", [False, True])
+def test_the_v1_board_detail_answers_a_pixel_boards_layers(api, monkeypatch, physical):
     client, _ = api
     layer = CanvasLayer(x=0, y=2, w=1, h=1, rgba=bytes([255, 0, 0, 255]))
+    if physical:
+        from src.led.matrix import LedFrame
+        from src.outputs.physical_frames import physical_frame_layer
+
+        layer = physical_frame_layer(LedFrame(64, 64, bytes(64 * 64 * 3)))
     frame = project_message("HI", 10, 16, BUILTIN_CHARACTER_SETS["led_3x5"], layers=[layer])
     runtime = Mock()
     runtime.output = OutputRuntime()

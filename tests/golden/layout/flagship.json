@@ -1,0 +1,58 @@
+{
+  "device": "flagship",
+  "frame_ascii": null,
+  "frame_sha256": null,
+  "rgb_spot": null,
+  "cell_lines": [
+    "                      ",
+    "        12:45         ",
+    "{icon:sun} SUNNY AND WARM ALL  ",
+    "DAY                   ",
+    "HOME               72F",
+    "                      "
+  ],
+  "issues": [
+    {
+      "path": [
+        "blocks",
+        "time",
+        "style",
+        "size"
+      ],
+      "code": "size_ignored",
+      "severity": "info",
+      "message": "this board has one character size; size ignored"
+    },
+    {
+      "path": [
+        "blocks",
+        "weather",
+        "style",
+        "color"
+      ],
+      "code": "color_dropped",
+      "severity": "info",
+      "message": "this board cannot draw a color; dropped"
+    },
+    {
+      "path": [
+        "blocks",
+        "footer",
+        "style",
+        "size"
+      ],
+      "code": "size_ignored",
+      "severity": "info",
+      "message": "this board has one character size; size ignored"
+    },
+    {
+      "path": [
+        "blocks",
+        "weather"
+      ],
+      "code": "wrapped",
+      "severity": "info",
+      "message": "block 'weather' wrapped to 22 characters"
+    }
+  ]
+}

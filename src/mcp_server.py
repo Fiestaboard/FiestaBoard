@@ -83,6 +83,7 @@ from typing import Annotated, Any, Literal
 from pydantic import Field, SkipValidation
 
 from .canvas.models import Canvas
+from .devices import page_geometry_fields
 
 # Mutating tools dispatch into the shared operation layer (#1764); the
 # result envelopes live there too, so executors and the read-only tools
@@ -541,8 +542,8 @@ def _build_mcp_server() -> Any:
             "    'sunrise' | 'sunset') with minute offsets, and board_id.\n"
             "  • validate_schedules(board_id) reports overlaps and gaps — run it\n"
             "    after editing. set_default_page(page_id) picks what shows in gaps;\n"
-            "    update_setting('schedule_behavior', {defer_on_reenable}) sets the\n"
-            "    global re-enable behavior.\n"
+            "    update_setting('schedule_behavior', {board_id, defer_on_reenable})\n"
+            "    sets that board's re-enable behavior (omitted id = primary).\n"
             "  • Collections rotate on 'time', pick by 'variable' rules, or shuffle\n"
             "    on 'random'; update_collection() merges mode config, so a single\n"
             "    field (poll_seconds, rules, interval_seconds) can change alone.\n\n"
@@ -1329,9 +1330,10 @@ def _build_mcp_server() -> Any:
             canvases=canvases,
         )
 
-    @_tool(destructive=False, idempotent=True)
+    @_tool(destructive=False, idempotent=False)
     def update_page(
         page_id: str,
+        expected_revision: str,
         name: str | None = None,
         template_lines: list[str] | None = None,
         duration_seconds: int | None = None,
@@ -1359,6 +1361,7 @@ def _build_mcp_server() -> Any:
         — relay the list to the user so they can fix the references.
 
         Args:
+            expected_revision: Original read revision.
             page_id: The page identifier (from list_pages()).
             name: New display name (optional).
             template_lines: New template content (optional). Replaces all lines;
@@ -1386,6 +1389,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.update_page(
             page_id,
+            expected_revision=expected_revision,
             name=name,
             template_lines=template_lines,
             duration_seconds=duration_seconds,
@@ -1403,16 +1407,17 @@ def _build_mcp_server() -> Any:
         )
 
     @_tool(destructive=True)
-    def delete_page(page_id: str) -> dict[str, Any]:
+    def delete_page(page_id: str, expected_revision: str) -> dict[str, Any]:
         """Delete a page permanently.
 
         WARNING: This cannot be undone. If this is the last page, a default
         welcome page will be created automatically.
 
         Args:
+            expected_revision: Original read revision.
             page_id: The page identifier (from list_pages()).
         """
-        return ops_executors.delete_page(page_id)
+        return ops_executors.delete_page(page_id, expected_revision=expected_revision)
 
     @_tool(read_only=True)
     def render_page_preview(
@@ -1562,6 +1567,9 @@ def _build_mcp_server() -> Any:
         if page is None:
             raise ToolError(f"Page '{page_id}' not found.")
         check = _charset_check(board_id)
+        # The page itself, as the docstring says: a grid page at its own grid
+        # (never a board's face), a flexible page laid out for the primary
+        # board. Per-board flexible previews are the Fiestabot phase's.
         result = svc.preview_page(page_id, force_refresh=True, **check.lines_kw)
         if result is None:
             raise ToolError(f"Page '{page_id}' not found.")
@@ -1571,7 +1579,7 @@ def _build_mcp_server() -> Any:
         out: dict[str, Any] = {
             "page_id": page_id,
             "name": page.name,
-            "device_type": page.device_type,
+            "device_type": page_geometry_fields(page)["device_type"],
             "rendered": result.formatted,
             "rows": result.formatted.split("\n"),
             "line_metadata": ([m.model_dump() for m in page.line_metadata] if page.line_metadata else None),
@@ -1704,7 +1712,7 @@ def _build_mcp_server() -> Any:
         return {
             "page_id": page.id,
             "name": page.name,
-            "device_type": page.device_type,
+            "device_type": page_geometry_fields(page)["device_type"],
             "share_string": encode_page(page),
         }
 
@@ -1778,9 +1786,12 @@ def _build_mcp_server() -> Any:
         from .settings.service import get_settings_service
 
         svc = get_settings_service()
+        # The named board (None: the primary), which a flexible page lays out for.
+        board = None
         if board_id is not None:
             boards = svc.get_board_settings().boards or []
-            if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+            board = next((b for b in boards if isinstance(b, dict) and b.get("id") == board_id), None)
+            if board is None:
                 raise ToolError(f"Board not found: {board_id}")
 
         # Mirrors GET /pages/current-display, with a board_id so a secondary
@@ -1811,27 +1822,31 @@ def _build_mcp_server() -> Any:
         if page is None:
             raise ToolError(f"Active page '{active_ref}' not found.")
 
+        document = page.model_dump(mode="json")
         if page.type == "template" and page.template:
             template = list(page.template)
-            line_metadata = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
+            line_metadata = document.get("line_metadata")
         else:
-            result = page_service.preview_page(page.id, force_refresh=True)
+            # Rendered text at the page's own grid (a flexible page: the
+            # named board's, else the primary's), not the board's face: this
+            # is the document's text, not the board's pixels.
+            result = page_service.preview_page(page.id, force_refresh=True, board=board)
             template = result.formatted.split("\n") if result is not None and result.available else []
             line_metadata = None
 
         return {
             "board_id": board_id,
             "page_id": page.id,
+            "revision": page.revision,
+            "edit_protocol": page.edit_protocol,
+            "document_protocol": page.document_protocol,
             "page_name": page.name,
             "page_type": page.type,
-            "device_type": page.device_type,
-            "notes_wide": page.notes_wide,
-            "notes_tall": page.notes_tall,
-            "grid_rows": page.grid_rows,
-            "grid_cols": page.grid_cols,
+            # A flexible page's text was laid out for the named board: its geometry.
+            **page_geometry_fields(page, board),
             "template": template,
             "line_metadata": line_metadata,
-            "canvases": [c.model_dump(by_alias=True, exclude_none=True) for c in page.canvases or []],
+            "canvases": document.get("canvases") or [],
         }
 
     # -----------------------------------------------------------------------
@@ -1875,6 +1890,8 @@ def _build_mcp_server() -> Any:
                 "total": len(entries),
                 "board_id": "*",
                 "default_page_id": None,
+                "default_page_revision": None,
+                "default_page_edit_protocol": None,
                 "schedule_enabled": None,
             }
 
@@ -1884,12 +1901,15 @@ def _build_mcp_server() -> Any:
         ):
             raise ToolError(f"Board not found: {board_id}")
         target = ops_executors.resolve_board_id(board_id)
+        default_state = svc.get_default_page_state(board_id=board_id)
         entries = [_enrich_schedule_with_sun_times(s.model_dump()) for s in svc.list_schedules(board_id=target)]
         return {
             "schedules": _serialize(entries),
             "total": len(entries),
             "board_id": target,
-            "default_page_id": svc.get_default_page(board_id=target),
+            "default_page_id": default_state["default_page_id"],
+            "default_page_revision": default_state["revision"],
+            "default_page_edit_protocol": "schedule-default-revision-v1",
             "schedule_enabled": bool(settings.is_schedule_enabled(board_id=target)),
         }
 
@@ -1992,9 +2012,10 @@ def _build_mcp_server() -> Any:
             end_sun_offset=end_sun_offset,
         )
 
-    @_tool(destructive=False, idempotent=True)
+    @_tool(destructive=False, idempotent=False)
     def update_schedule(
         schedule_id: str,
+        expected_revision: str,
         page_id: str | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
@@ -2024,6 +2045,7 @@ def _build_mcp_server() -> Any:
         null cannot express a clear.
 
         Args:
+            expected_revision: Original read revision.
             schedule_id: The schedule identifier (from list_schedules()).
             page_id: New page or collection to display (optional).
             start_time: New start time in HH:MM format (optional).
@@ -2051,6 +2073,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.update_schedule(
             schedule_id,
+            expected_revision=expected_revision,
             page_id=page_id,
             start_time=start_time,
             end_time=end_time,
@@ -2073,8 +2096,8 @@ def _build_mcp_server() -> Any:
             clear_one_off_end_date=clear_one_off_end_date,
         )
 
-    @_tool(destructive=False, idempotent=True)
-    def set_default_page(page_id: str | None, board_id: str | None = None) -> dict[str, Any]:
+    @_tool(destructive=False, idempotent=False)
+    def set_default_page(page_id: str | None, expected_revision: str, board_id: str | None = None) -> dict[str, Any]:
         """Set (or clear) the page a board falls back to when no schedule entry is active.
 
         This is the Schedules page's "default page" — what shows during the
@@ -2082,22 +2105,24 @@ def _build_mcp_server() -> Any:
         list_schedules() as default_page_id.
 
         Args:
+            expected_revision: Original default_page_revision from list_schedules().
             page_id: A page or collection ID (from list_pages() or
                      list_collections()), or null to clear the default so
                      gaps leave the board on whatever it last showed.
             board_id: Board to target (from the boards list in
                       get_settings_summary()). Omitted = the primary board.
         """
-        return ops_executors.set_default_page(page_id, board_id=board_id)
+        return ops_executors.set_default_page(page_id, board_id=board_id, expected_revision=expected_revision)
 
     @_tool(destructive=True)
-    def delete_schedule(schedule_id: str) -> dict[str, Any]:
+    def delete_schedule(schedule_id: str, expected_revision: str) -> dict[str, Any]:
         """Delete a schedule entry permanently.
 
         Args:
+            expected_revision: Original read revision.
             schedule_id: The schedule identifier (from list_schedules()).
         """
-        return ops_executors.delete_schedule(schedule_id)
+        return ops_executors.delete_schedule(schedule_id, expected_revision=expected_revision)
 
     # -----------------------------------------------------------------------
     # Collection tools
@@ -2161,9 +2186,10 @@ def _build_mcp_server() -> Any:
             poll_seconds=poll_seconds,
         )
 
-    @_tool(destructive=False, idempotent=True)
+    @_tool(destructive=False, idempotent=False)
     def update_collection(
         collection_id: str,
+        expected_revision: str,
         name: str | None = None,
         page_ids: list[str] | None = None,
         selection_mode: str | None = None,
@@ -2182,6 +2208,7 @@ def _build_mcp_server() -> Any:
         random — the current interval carries over.
 
         Args:
+            expected_revision: Original read revision.
             collection_id: The collection identifier (from list_collections()).
             name: New name (optional).
             page_ids: New ordered list of page IDs (optional). Replaces entire list.
@@ -2193,6 +2220,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.update_collection(
             collection_id,
+            expected_revision=expected_revision,
             name=name,
             page_ids=page_ids,
             selection_mode=selection_mode,
@@ -2203,13 +2231,14 @@ def _build_mcp_server() -> Any:
         )
 
     @_tool(destructive=True)
-    def delete_collection(collection_id: str) -> dict[str, Any]:
+    def delete_collection(collection_id: str, expected_revision: str) -> dict[str, Any]:
         """Delete a collection permanently.
 
         Args:
+            expected_revision: Original read revision.
             collection_id: The collection identifier (from list_collections()).
         """
-        return ops_executors.delete_collection(collection_id)
+        return ops_executors.delete_collection(collection_id, expected_revision=expected_revision)
 
     # -----------------------------------------------------------------------
     # System tools
@@ -2448,8 +2477,10 @@ def _build_mcp_server() -> Any:
                   transition=..., transition_step_interval_ms=...,
                   transition_step_size=...) instead.
                 - output: target ("ui" | "board" | "both").
-                - polling: interval_seconds (int) — how often plugins
-                  refresh; board_read_interval_local / _cloud (int seconds).
+                - polling: board_id (optional, omitted = primary),
+                  interval_seconds (int, 10–3600) — how often that board's
+                  content refreshes; board_read_interval_local / _cloud
+                  (int seconds, 20–3600). Applies live to that board only.
                 - location: latitude (float), longitude (float) — used by
                   sunrise/sunset schedules and location-aware plugins.
                 - silence_schedule: enabled (bool), start_time and end_time
@@ -2459,8 +2490,8 @@ def _build_mcp_server() -> Any:
                   writes that board's own override instead of the
                   install-wide schedule; boards without an override follow
                   the install-wide one).
-                - schedule_behavior: defer_on_reenable (bool) — the
-                  Schedules page's global toggle: when true, turning schedule
+                - schedule_behavior: board_id (optional, omitted = primary),
+                  defer_on_reenable (bool) — when true, turning that board's schedule
                   mode back on waits for the next entry's start instead of
                   switching the board immediately.
                 - active_page: page_id (string), board_id (optional) — the
@@ -2513,13 +2544,16 @@ def _build_mcp_server() -> Any:
         temporary_override (the same status get_temporary_override() returns;
         when active it wins over source/active_ref on the primary board)}.
         """
-        from .collections.models import is_collection_id
+        from .collections.service import get_collection_service, resolve_active_page_id
         from .settings.service import get_settings_service, temporary_override_payload
 
         svc = get_settings_service()
+        # The named board (None: the primary), which a flexible page lays out for.
+        board = None
         if board_id is not None:
             boards = svc.get_board_settings().boards or []
-            if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+            board = next((b for b in boards if isinstance(b, dict) and b.get("id") == board_id), None)
+            if board is None:
                 raise ToolError(f"Board not found: {board_id}")
 
         # Mirrors GET /pages/current-display: schedule mode owns the
@@ -2538,11 +2572,7 @@ def _build_mcp_server() -> Any:
             active_ref = svc.get_active_page_id(board_id)
             source = "manual"
 
-        resolved_page_id = active_ref
-        if active_ref and is_collection_id(active_ref):
-            from .collections.service import get_collection_service
-
-            resolved_page_id = get_collection_service().resolve_page_id(active_ref)
+        resolved_page_id = resolve_active_page_id(active_ref, get_collection_service, board_id=board_id)
 
         page_summary = None
         if resolved_page_id:
@@ -2552,9 +2582,12 @@ def _build_mcp_server() -> Any:
             if page is not None:
                 page_summary = {
                     "id": page.id,
+                    "revision": page.revision,
+                    "edit_protocol": page.edit_protocol,
+                    "document_protocol": page.document_protocol,
                     "name": page.name,
                     "type": page.type,
-                    "device_type": page.device_type,
+                    "device_type": page_geometry_fields(page, board)["device_type"],
                 }
         return {
             "board_id": board_id,
@@ -3327,7 +3360,7 @@ def _build_mcp_server() -> Any:
             pages = svc.list_pages()
             lines = [f"# Pages ({len(pages)} total)\n"]
             for p in pages:
-                lines.append(f"- **{p.name}** (`{p.id}`) — {p.type}, {p.device_type}")
+                lines.append(f"- **{p.name}** (`{p.id}`) — {p.type}, {page_geometry_fields(p)['device_type']}")
             return "\n".join(lines)
         except Exception as exc:
             return f"Error: {exc}"

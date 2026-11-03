@@ -88,6 +88,9 @@ If you open PRs of that nature, we may **close them without merge** and **ban yo
 ### 1. Open a pull request
 
 - **Target branch**: Open your PR against `main`.
+- **Release channel**: Development follows `main`. The `next` branch is frozen
+  and automatic beta publishing is paused; do not target it or sync `main` back
+  into it. See [Release channels](./docs/internal/development/RELEASE_CHANNELS.md).
 - **Description**: Explain what changed and why. Reference any related issues.
 - **Scope**: Keep the PR focused. One feature or fix per PR is easier to review.
 

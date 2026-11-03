@@ -25,7 +25,8 @@ import {
   Textarea,
 } from "@fiestaboard/ui";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
-import { useId, useState } from "react";
+import { type Ref, useId, useImperativeHandle, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { VariableAutocompleteTextarea } from "@/components/variable-autocomplete-textarea";
 import { useTranslations } from "@/i18n/translations";
@@ -144,16 +145,29 @@ function fieldText(value: unknown): string {
   return JSON.stringify(value);
 }
 
-interface CanvasShapesEditorProps {
-  shapes: CanvasShape[];
-  onChange: (shapes: CanvasShape[]) => void;
+export interface CanvasShapesEditorHandle {
+  focusJson: () => void;
 }
 
-export function CanvasShapesEditor({ shapes, onChange }: CanvasShapesEditorProps) {
+interface CanvasShapesEditorProps {
+  ref?: Ref<CanvasShapesEditorHandle>;
+  shapes: CanvasShape[];
+  onChange: (shapes: CanvasShape[]) => void;
+  onInvalidChange?: (invalid: boolean) => void;
+}
+
+export function CanvasShapesEditor({ shapes, onChange, onInvalidChange, ref }: CanvasShapesEditorProps) {
   const t = useTranslations("canvasEditor");
   const [newType, setNewType] = useState<ShapeType>("rect");
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonInvalid, setJsonInvalid] = useState(false);
+  const jsonBox = useRef<HTMLDivElement>(null);
+  useImperativeHandle(ref, () => ({
+    focusJson() {
+      flushSync(() => setJsonMode(true));
+      jsonBox.current?.querySelector("textarea")?.focus();
+    },
+  }));
   const jsonSwitchId = useId();
   const typeId = useId();
 
@@ -205,8 +219,15 @@ export function CanvasShapesEditor({ shapes, onChange }: CanvasShapesEditorProps
         {t("fieldHint", { example: "{{weather.temperature}}" })}
       </Text>
 
-      <Box hidden={!jsonMode}>
-        <ShapesJsonEditor shapes={shapes} onChange={onChange} onInvalidChange={setJsonInvalid} />
+      <Box ref={jsonBox} hidden={!jsonMode}>
+        <ShapesJsonEditor
+          shapes={shapes}
+          onChange={onChange}
+          onInvalidChange={(invalid) => {
+            setJsonInvalid(invalid);
+            onInvalidChange?.(invalid);
+          }}
+        />
       </Box>
       {!jsonMode && jsonInvalid && (
         <Text size="xs" tone="destructive" role="alert">

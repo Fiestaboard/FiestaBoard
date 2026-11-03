@@ -10,7 +10,9 @@ import logging
 import os
 import shutil
 import threading
+import uuid
 from collections.abc import Callable, Mapping
+from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -117,7 +119,9 @@ class TransitionSettings:
         )
 
 
-def page_transition(display, page, runs: Callable[[str], bool] | None = None) -> TransitionSettings:
+def page_transition(
+    display, page, runs: Callable[[str], bool] | None = None, *, full_frame: bool = False
+) -> TransitionSettings:
     """What a send of *page* runs on a display whose own transition is
     *display* (anything with ``strategy`` / ``step_interval_ms`` /
     ``step_size``): the page's own transition where it sets one, field by
@@ -131,15 +135,37 @@ def page_transition(display, page, runs: Callable[[str], bool] | None = None) ->
     Vestaboard...) does not override the display's, and the send runs the
     display's transition, speed included, since the page's speed was chosen
     for its strategy. Without *runs*, the page strategy is taken as given.
+
+    *full_frame*: the send reaches the board as one opaque full-frame layer
+    (:func:`src.pages.fit.delivers_full_frame`: a page drawn at another face,
+    or a flexible page on a pixel board). A per-cell strategy (flip, cascade)
+    would animate the cells under that picture and a transition plugin steps
+    integer grids, so either runs as ``fade``
+    (:func:`src.outputs.transitions.strategy_for_full_frame`, design
+    section 6), whether it came from the page or the display. A page's own
+    strategy then counts when the board runs it as asked or as that fade, so
+    a page's transition plugin on a board that takes LED transitions (and so
+    no plugins) still arrives as fade rather than being dropped for the
+    display's strategy.
     """
+    from src.outputs.transitions import strategy_for_full_frame
+
     strategy = getattr(page, "transition_strategy", None)
     interval = getattr(page, "transition_interval_ms", None)
     step_size = getattr(page, "transition_step_size", None)
-    if isinstance(strategy, str) and strategy and runs is not None and not runs(strategy):
-        logger.debug("Page transition %r cannot run on this board; using the board's own", strategy)
-        strategy = interval = step_size = None
+    if isinstance(strategy, str) and strategy and runs is not None:
+        # On a full-frame send the board is never handed the page's plugin or
+        # per-cell strategy, only its fade: the page's choice stands when the
+        # board runs either form (design section 6).
+        mapped = strategy_for_full_frame(strategy) if full_frame else strategy
+        if not runs(strategy) and not (mapped != strategy and runs(mapped)):
+            logger.debug("Page transition %r cannot run on this board; using the board's own", strategy)
+            strategy = interval = step_size = None
+    strategy = strategy if strategy else display.strategy
+    if full_frame:
+        strategy = strategy_for_full_frame(strategy)
     return TransitionSettings(
-        strategy=strategy if strategy else display.strategy,
+        strategy=strategy,
         step_interval_ms=interval if interval is not None else display.step_interval_ms,
         step_size=step_size if step_size is not None else display.step_size,
     )
@@ -266,6 +292,41 @@ def _with_derived_grid(board: dict) -> dict:
     return {**board, "device_type": "panel", "grid_rows": grid[0], "grid_cols": grid[1]}
 
 
+#: What decides a board's grid floor and grid: a write that changes none of
+#: them leaves a stored grid alone (see :func:`_check_grid_floor`).
+_GRID_FLOOR_FIELDS = ("device_type", "grid_rows", "grid_cols", "output", "device_model")
+
+
+def _check_grid_floor(board: dict, stored: dict | None) -> None:
+    """Refuse a ``panel`` *board* (normalised, as it would be stored) whose
+    grid is below its model's floor (:func:`src.outputs.geometry.board_grid_floor`):
+    3 x 15 for a FiestaPanel or a plugin's ``panel``/``note_array``/``cells``
+    model, 1 x 5 only for an LED board measured in pixels.
+
+    Only a write that changes the grid or what sets its floor is checked: a
+    board stored below its floor before this check (settings from an older
+    release) keeps loading and keeps saving as it is, and is never rewritten.
+    """
+    from src.devices import is_panel
+    from src.outputs.geometry import board_grid_floor
+
+    if not is_panel(board.get("device_type")):
+        return
+    # *stored* is as loaded, already normalised (an older release's raw
+    # shape included), so an untouched board compares equal.
+    if stored is not None and all(board.get(key) == stored.get(key) for key in _GRID_FLOOR_FIELDS):
+        return
+    floor = board_grid_floor(board)
+    if floor is None:
+        return
+    rows, cols = board.get("grid_rows"), board.get("grid_cols")
+    if rows < floor[0] or cols < floor[1]:
+        raise ValueError(
+            f"Board {board.get('name')!r} is {rows}x{cols} characters, below the "
+            f"{floor[0]}x{floor[1]} minimum its display needs."
+        )
+
+
 def restore_masked_board_secrets(board: dict, existing: dict) -> dict:
     """Restore every echoed ``"***"`` secret in *board* from *existing*, in place.
 
@@ -361,10 +422,18 @@ class BoardSettings:
         FiestaPanel's, a plugin's own) -- is added only then. ``led_layout``
         -- an LED board's resolved ``tile_gap`` / ``block_padding`` (plan
         D23), what its preview must draw to match the device -- is added only
-        for an LED board.
+        for an LED board. ``producible_grids`` -- ``{face: [rows, cols]}``,
+        the grid the board draws at each text size it allows (design section
+        7: a grid page fits at any of them) -- is added only for a board that
+        has a choice of grids to report (:func:`board_producible_grids`).
         """
         from src.devices import LEGACY_CONNECTION_FIELDS
-        from src.outputs.board_profile import board_led_layout, board_model_spec, board_profile
+        from src.outputs.board_profile import (
+            board_led_layout,
+            board_model_spec,
+            board_producible_grids,
+            board_profile,
+        )
         from src.outputs.config_hooks import mask_config, mask_flat_fields
         from src.settings.board_shape import FIESTAPANEL, board_view
 
@@ -378,6 +447,20 @@ class BoardSettings:
         led_layout = board_led_layout(board)
         if led_layout is not None:
             masked["led_layout"] = led_layout
+        from src.outputs.display_profile import display_profile_for_board
+
+        masked.pop("physical_surface", None)
+        masked.pop("flexible_page_support", None)
+        profile = display_profile_for_board(board)
+        if profile is not None and profile.technology == "led_matrix":
+            masked["flexible_page_support"] = (
+                "cells" if not profile.supports("pixels") else "pixels" if profile.physical_surface else "unsupported"
+            )
+        if profile is not None and profile.physical_surface is not None:
+            masked["physical_surface"] = profile.physical_surface.to_json()
+        grids = board_producible_grids(board)
+        if grids is not None:
+            masked["producible_grids"] = {face: list(grid) for face, grid in grids.items()}
         if output_id != FIESTAPANEL:
             masked["output_config"] = mask_config(output_id, masked["output_config"])
         return masked
@@ -841,7 +924,7 @@ class MQTTSettings:
 # pre-migration file is written to ``settings.json.v{N}_backup`` before the
 # first migration runs.
 
-CURRENT_SETTINGS_SCHEMA_VERSION = 7
+CURRENT_SETTINGS_SCHEMA_VERSION = 8
 
 _LEGACY_CAROUSEL_PREFIX = "carousel:"
 _COLLECTION_PREFIX = "collection:"
@@ -1380,6 +1463,40 @@ def _migrate_v6_to_v7(data: dict) -> int:
     return 1
 
 
+def _migrate_v7_to_v8(data: dict) -> int:
+    """Move scheduling preferences onto existing boards, preserving their behavior.
+
+    Legacy sections remain primary-board compatibility mirrors. New boards
+    use BoardInstance defaults, never the legacy values from this migration.
+    """
+    polling = PollingSettings.from_dict(data.get("polling") or {})
+    schedule = ScheduleSettings.from_dict(data.get("schedule") or {})
+    defaults = {
+        "polling_interval_seconds": polling.interval_seconds,
+        "board_read_interval_local": polling.board_read_interval_local,
+        "board_read_interval_cloud": polling.board_read_interval_cloud,
+        "schedule_defer_on_reenable": schedule.defer_on_reenable,
+    }
+    if "board" not in data:
+        # A partial pre-board settings file still represents an existing
+        # install. Seed its first board before moving its legacy preferences.
+        settings = BoardSettings()
+        SettingsService._seed_connection_from_legacy_config(settings)
+        if not isinstance(data.get(PENDING_TRANSITION_KEY), dict):
+            settings.boards[0] = _with_default_transition(settings.boards[0], plugins_enabled=False)
+        settings.boards[0].update(defaults, schedule_enabled=schedule.enabled)
+        data["board"] = settings.to_dict(mask_secrets=False)
+    changed = 0
+    for board in (data.get("board") or {}).get("boards", []):
+        if not isinstance(board, dict):
+            continue
+        for key, value in defaults.items():
+            if key not in board:
+                board[key] = value
+                changed += 1
+    return changed
+
+
 MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (1, _migrate_v0_to_v1),
     (2, _migrate_v1_to_v2),
@@ -1388,6 +1505,7 @@ MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (5, _migrate_v4_to_v5),
     (6, _migrate_v5_to_v6),
     (7, _migrate_v6_to_v7),
+    (8, _migrate_v7_to_v8),
 ]
 
 
@@ -1549,7 +1667,19 @@ class SettingsService:
             label="Settings",
         )
         self.settings_file = self._store.path
+        # Runtime only. Default-page conditional editing conservatively uses
+        # this generation so primary-board A -> B -> A never revives a token.
+        self.runtime_revision = str(uuid.uuid4())
 
+        self.reload()
+
+        logger.info(f"SettingsService initialized (file: {self.settings_file})")
+
+    @_locked
+    def reload(self) -> None:
+        """Reload this live owner after restore without changing its lock."""
+        self.runtime_revision = str(uuid.uuid4())
+        self._needs_seed_save = False
         # Run ordered schema migrations on the raw settings file BEFORE any
         # subsystem reads, so every _load_* sees fully migrated values. This
         # includes the legacy carousel:->collection: rewrite (folded into the
@@ -1587,8 +1717,6 @@ class SettingsService:
                 # the caller as a 5xx.
                 logger.error(f"Could not persist seeded settings at startup: {e}")
             self._needs_seed_save = False
-
-        logger.info(f"SettingsService initialized (file: {self.settings_file})")
 
     @property
     def lock(self) -> threading.RLock:
@@ -1730,6 +1858,7 @@ class SettingsService:
         except OSError as e:
             logger.warning(f"Could not write migrated settings: {e}")
 
+    @_locked
     def _atomic_write_json(self, data: dict) -> None:
         """Write *data* to ``settings_file`` atomically via the storage kernel.
 
@@ -1738,6 +1867,7 @@ class SettingsService:
         renamed over it (see #1304).
         """
         self._store.save(data)
+        self.runtime_revision = str(uuid.uuid4())
 
     def _load_from_file(self) -> dict:
         """Load settings from JSON file."""
@@ -1752,8 +1882,11 @@ class SettingsService:
         return {}
 
     @_locked
-    def _save_to_file(self) -> None:
-        """Save current settings to JSON file.
+    def _save_to_file(self, **sections: Any) -> None:
+        """Persist current settings plus staged sections, then publish the sections.
+
+        Setters copy changed sections before editing them so readers and
+        retained settings objects never see a rejected or uncommitted write.
 
         Write errors **propagate**, matching every other store in the
         codebase (pages, collections, schedules, panels, config_manager all
@@ -1765,23 +1898,63 @@ class SettingsService:
         seed save and the override expiry GC — catch ``OSError`` at their
         own call site, each with a comment saying why.
         """
+        # No-argument callers (startup/expiry/resize recovery) may already
+        # have changed memory. Keep their conservative invalidation on failure.
+        if not sections:
+            self.runtime_revision = str(uuid.uuid4())
+        values = {
+            "_output": sections.get("_output", self._output),
+            "_active_page": sections.get("_active_page", self._active_page),
+            "_polling": sections.get("_polling", self._polling),
+            "_board": sections.get("_board", self._board),
+            "_schedule": sections.get("_schedule", self._schedule),
+            "_mqtt": sections.get("_mqtt", self._mqtt),
+            "_display": sections.get("_display", self._display),
+            "_location": sections.get("_location", self._location),
+            "_plugins": sections.get("_plugins", self._plugins),
+            "_wizard": sections.get("_wizard", self._wizard),
+            "_temporary_override": sections.get("_temporary_override", self._temporary_override),
+        }
+        # v8 mirrors reflect the candidate primary board, including reorder
+        # and per-board preference edits that are not published yet.
+        primary = next(iter(values["_board"].boards), None)
+        polling = (
+            values["_polling"]
+            if primary is None
+            else PollingSettings(
+                interval_seconds=primary.get("polling_interval_seconds", 15),
+                board_read_interval_local=primary.get("board_read_interval_local", 30),
+                board_read_interval_cloud=primary.get("board_read_interval_cloud", 180),
+            )
+        )
+        schedule = (
+            values["_schedule"]
+            if primary is None
+            else ScheduleSettings(
+                enabled=primary.get("schedule_enabled", False),
+                defer_on_reenable=primary.get("schedule_defer_on_reenable", False),
+            )
+        )
         try:
             data = {
                 "schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
-                "output": self._output.to_dict(),
-                "active_page": self._active_page.to_dict(),
-                "polling": self._polling.to_dict(),
-                "board": self._board.to_dict(mask_secrets=False),
-                "schedule": self._schedule.to_dict(),
-                "mqtt": self._mqtt.to_dict(mask_secrets=False),
-                "display": self._display.to_dict(),
-                "location": self._location.to_dict(),
-                "plugins": self._plugins.to_dict(),
-                "temporary_override": self._temporary_override.to_dict() if self._temporary_override else None,
+                "output": values["_output"].to_dict(),
+                "active_page": values["_active_page"].to_dict(),
+                "polling": polling.to_dict(),
+                "board": values["_board"].to_dict(mask_secrets=False),
+                "schedule": schedule.to_dict(),
+                "mqtt": values["_mqtt"].to_dict(mask_secrets=False),
+                "display": values["_display"].to_dict(),
+                "location": values["_location"].to_dict(),
+                "plugins": values["_plugins"].to_dict(),
+                "temporary_override": (
+                    values["_temporary_override"].to_dict() if values["_temporary_override"] else None
+                ),
             }
-            if self._wizard.state is not None:
-                data["wizard"] = self._wizard.to_dict()
+            if values["_wizard"].state is not None:
+                data["wizard"] = values["_wizard"].to_dict()
             self._atomic_write_json(data)
+            self.__dict__.update(sections)
             logger.debug("Settings saved to file")
         except OSError as e:
             logger.error(f"Failed to save settings file: {e}")
@@ -1996,6 +2169,7 @@ class SettingsService:
         then normalized through :class:`~src.devices.BoardInstance`.
         Returns the stored board.
         """
+        candidate_board = deepcopy(self._board)
         from src.devices import BoardInstance
 
         stored = self._board_entry(board_id)
@@ -2010,8 +2184,8 @@ class SettingsService:
         self._check_board_write(merged, stored)
         normalized = BoardInstance.from_dict(merged).to_dict()
         index = next(i for i, b in enumerate(self._board.boards) if b is stored)
-        self._board.boards[index] = normalized
-        self._save_to_file()
+        candidate_board.boards[index] = normalized
+        self._save_to_file(_board=candidate_board)
         return normalized
 
     # Output settings
@@ -2029,13 +2203,14 @@ class SettingsService:
         Returns:
             Updated OutputSettings
         """
+        candidate_output = deepcopy(self._output)
         if target not in VALID_OUTPUT_TARGETS:
             raise ValueError(f"Invalid target: {target}. Must be one of {VALID_OUTPUT_TARGETS}")
 
-        self._output.target = target
-        self._save_to_file()
+        candidate_output.target = target
+        self._save_to_file(_output=candidate_output)
         logger.info(f"Output target set to: {target}")
-        return self._output
+        return candidate_output
 
     def should_send_to_board(self) -> bool:
         """Determine if message should be sent to board based on output target."""
@@ -2086,6 +2261,7 @@ class SettingsService:
                 to add a phantom ``by_board`` entry that nothing ever reads
                 and nothing reports.
         """
+        candidate_active_page = deepcopy(self._active_page)
         primary_id = self.get_primary_board_id()
         bid = board_id if board_id is not None else primary_id
 
@@ -2094,18 +2270,18 @@ class SettingsService:
 
         if bid is not None:
             if page_id:
-                self._active_page.by_board[bid] = page_id
+                candidate_active_page.by_board[bid] = page_id
             else:
-                self._active_page.by_board.pop(bid, None)
+                candidate_active_page.by_board.pop(bid, None)
 
         # Keep the legacy primary mirror in sync (also covers the no-boards
         # case where bid is None and we only have the mirror to write to).
         if board_id is None or bid is None or bid == primary_id:
-            self._active_page.page_id = page_id
+            candidate_active_page.page_id = page_id
 
-        self._save_to_file()
+        self._save_to_file(_active_page=candidate_active_page)
         logger.info(f"Active page for board {bid!r} set to: {page_id}")
-        return self._active_page
+        return candidate_active_page
 
     def get_active_page_settings(self) -> ActivePageSettings:
         """Get current active page settings.
@@ -2116,16 +2292,16 @@ class SettingsService:
         return self._active_page
 
     # Polling settings
-    def get_polling_interval(self) -> int:
+    def get_polling_interval(self, board_id: str | None = None) -> int:
         """Get the current polling interval in seconds.
 
         Returns:
             Polling interval in seconds
         """
-        return self._polling.interval_seconds
+        return self.get_polling_settings(board_id).interval_seconds
 
     @_locked
-    def set_polling_interval(self, interval_seconds: int) -> PollingSettings:
+    def set_polling_interval(self, interval_seconds: int, board_id: str | None = None) -> PollingSettings:
         """Set the polling interval.
 
         Args:
@@ -2134,19 +2310,14 @@ class SettingsService:
         Returns:
             Updated PollingSettings
         """
-        if interval_seconds < 10:
-            raise ValueError("Polling interval must be at least 10 seconds")
-
-        self._polling.interval_seconds = interval_seconds
-        self._save_to_file()
-        logger.info(f"Polling interval set to: {interval_seconds} seconds")
-        return self._polling
+        return self.update_polling_settings({"polling_interval_seconds": interval_seconds}, board_id)
 
     @_locked
     def set_board_read_intervals(
         self,
         local_seconds: int | None = None,
         cloud_seconds: int | None = None,
+        board_id: str | None = None,
     ) -> PollingSettings:
         """Set the board state read polling intervals.
 
@@ -2157,24 +2328,75 @@ class SettingsService:
         Returns:
             Updated PollingSettings
         """
+        updates = {}
         if local_seconds is not None:
-            if local_seconds < BOARD_READ_INTERVAL_MIN:
-                raise ValueError(f"Board read interval must be at least {BOARD_READ_INTERVAL_MIN} seconds")
-            self._polling.board_read_interval_local = local_seconds
+            updates["board_read_interval_local"] = local_seconds
         if cloud_seconds is not None:
-            if cloud_seconds < BOARD_READ_INTERVAL_MIN:
-                raise ValueError(f"Board read interval must be at least {BOARD_READ_INTERVAL_MIN} seconds")
-            self._polling.board_read_interval_cloud = cloud_seconds
-        self._save_to_file()
-        return self._polling
+            updates["board_read_interval_cloud"] = cloud_seconds
+        return self.update_polling_settings(updates, board_id)
 
-    def get_polling_settings(self) -> PollingSettings:
+    def get_polling_settings(self, board_id: str | None = None) -> PollingSettings:
         """Get current polling settings.
 
         Returns:
             PollingSettings instance
         """
-        return self._polling
+        board = self._scheduling_board(board_id)
+        if board is None:
+            return self._polling
+        return PollingSettings(
+            interval_seconds=board.get("polling_interval_seconds", 15),
+            board_read_interval_local=board.get("board_read_interval_local", 30),
+            board_read_interval_cloud=board.get("board_read_interval_cloud", 180),
+        )
+
+    def _scheduling_board(self, board_id: str | None) -> dict | None:
+        """Resolve omitted ids to primary; refuse explicit unknown ids."""
+        bid = board_id if board_id is not None else self.get_primary_board_id()
+        if bid is None:
+            return None
+        board = next((b for b in self._board.boards if b.get("id") == bid), None)
+        if board is None:
+            raise ValueError(f"Board '{bid}' not found")
+        return board
+
+    @staticmethod
+    def _check_scheduling_preferences(board: dict) -> None:
+        for key, minimum in (
+            ("polling_interval_seconds", 10),
+            ("board_read_interval_local", 20),
+            ("board_read_interval_cloud", 20),
+        ):
+            if key in board and type(board[key]) is int and board[key] < minimum:
+                label = "Polling interval" if key == "polling_interval_seconds" else "Board read interval"
+                raise ValueError(f"{label} must be at least {minimum} seconds")
+            if key in board and (type(board[key]) is not int or not minimum <= board[key] <= 3600):
+                raise ValueError(f"{key} must be an integer between {minimum} and 3600 seconds")
+        if "schedule_defer_on_reenable" in board and type(board["schedule_defer_on_reenable"]) is not bool:
+            raise ValueError("schedule_defer_on_reenable must be a boolean")
+
+    @_locked
+    def update_polling_settings(self, updates: dict, board_id: str | None = None) -> PollingSettings:
+        """Validate the whole partial write before mutating one board."""
+        self._check_scheduling_preferences(updates)
+        candidate_board = deepcopy(self._board)
+        candidate_polling = deepcopy(self._polling)
+        stored = self._scheduling_board(board_id)
+        board = next(
+            (b for b in candidate_board.boards if stored is not None and b.get("id") == stored.get("id")), None
+        )
+        if board is not None:
+            board.update(updates)
+        if board_id is None or board_id == self.get_primary_board_id():
+            mapping = {
+                "polling_interval_seconds": "interval_seconds",
+                "board_read_interval_local": "board_read_interval_local",
+                "board_read_interval_cloud": "board_read_interval_cloud",
+            }
+            for key, value in updates.items():
+                setattr(candidate_polling, mapping[key], value)
+        self._save_to_file(_board=candidate_board, _polling=candidate_polling)
+        return self.get_polling_settings(board_id)
 
     # Board settings
     def get_board_settings(self) -> BoardSettings:
@@ -2209,13 +2431,14 @@ class SettingsService:
         Returns:
             Updated BoardSettings
         """
+        candidate_board = deepcopy(self._board)
         if board_type is not None and board_type not in ["black", "white"]:
             raise ValueError(f"Invalid board_type: {board_type}. Must be 'black' or 'white'")
 
-        self._board.board_type = board_type
-        self._save_to_file()
+        candidate_board.board_type = board_type
+        self._save_to_file(_board=candidate_board)
         logger.info(f"Board type set to: {board_type}")
-        return self._board
+        return candidate_board
 
     @_locked
     def set_devices(self, devices: list[str]) -> BoardSettings:
@@ -2230,6 +2453,7 @@ class SettingsService:
         Returns:
             Updated BoardSettings
         """
+        candidate_board = deepcopy(self._board)
         from src.devices import DEVICE_TYPES, BoardInstance
 
         valid_devices = [d for d in devices if d in DEVICE_TYPES]
@@ -2238,7 +2462,7 @@ class SettingsService:
 
         # Keep existing boards that match requested device types
         existing_by_type = {}
-        for b in self._board.boards:
+        for b in candidate_board.boards:
             dt = b.get("device_type", "flagship")
             if dt not in existing_by_type:
                 existing_by_type[dt] = b
@@ -2259,15 +2483,19 @@ class SettingsService:
                         BoardInstance(
                             name=name,
                             device_type=dt,
-                            board_color=self._board.board_type or "black",
+                            board_color=candidate_board.board_type or "black",
                         ).to_dict()
                     )
                 )
 
-        self._board.boards = new_boards
-        self._save_to_file()
+        old_ids = {b.get("id") for b in self._board.boards}
+        for board in new_boards:
+            if board.get("id") not in old_ids:
+                self._seed_board_silence_defaults(board["id"])
+        candidate_board.boards = new_boards
+        self._save_to_file(_board=candidate_board)
         logger.info(f"Configured devices set to: {valid_devices}")
-        return self._board
+        return candidate_board
 
     @_locked
     def set_boards(self, boards: list[dict]) -> BoardSettings:
@@ -2283,18 +2511,35 @@ class SettingsService:
         Returns:
             Updated BoardSettings
         """
+        candidate_board = deepcopy(self._board)
         from src.devices import BoardInstance
 
         if not boards:
             raise ValueError("At least one board instance is required")
 
-        existing_by_id = {b.get("id"): b for b in self._board.boards}
+        existing_by_id = {b.get("id"): b for b in candidate_board.boards}
 
         from src.settings.board_shape import merge_board_write
 
         validated = []
         for b in boards:
             existing = existing_by_id.get(b.get("id"))
+            if existing is not None:
+                # Pre-v8 clients do not know these fields. Omitting them
+                # must not undo preferences they previously never touched.
+                b = {
+                    **{
+                        key: existing[key]
+                        for key in (
+                            "polling_interval_seconds",
+                            "board_read_interval_local",
+                            "board_read_interval_cloud",
+                            "schedule_defer_on_reenable",
+                        )
+                        if key in existing
+                    },
+                    **b,
+                }
             restore_masked_board_secrets(b, existing or {})
             if existing is None:
                 # A new display owns its transition from the start (settings v6).
@@ -2304,16 +2549,21 @@ class SettingsService:
             # An LED plugin board's grid follows its text size, whatever grid was echoed.
             merged = _with_derived_grid(merge_board_write(b, existing))
             self._check_board_write(merged, existing)
-            validated.append(BoardInstance.from_dict(merged).to_dict())
+            normalized = BoardInstance.from_dict(merged).to_dict()
+            _check_grid_floor(normalized, existing)
+            validated.append(normalized)
 
-        self._board.boards = validated
+        for board in validated:
+            if board.get("id") not in existing_by_id:
+                self._seed_board_silence_defaults(board["id"])
+        candidate_board.boards = validated
         # Keep board_type in sync with the first board's color
         first_color = validated[0].get("board_color") if validated else None
         if first_color in ("black", "white"):
-            self._board.board_type = first_color
-        self._save_to_file()
+            candidate_board.board_type = first_color
+        self._save_to_file(_board=candidate_board)
         logger.info(f"Configured boards set to: {[b.get('name') for b in validated]}")
-        return self._board
+        return candidate_board
 
     @_locked
     def add_board(self, board: dict) -> BoardSettings:
@@ -2325,6 +2575,7 @@ class SettingsService:
         Returns:
             Updated BoardSettings
         """
+        candidate_board = deepcopy(self._board)
         from src.devices import BoardInstance
 
         if not board.get("name"):
@@ -2333,15 +2584,31 @@ class SettingsService:
         board = _with_derived_grid(self._with_default_transition(board))
         self._check_board_write(board, None)
         instance = BoardInstance.from_dict(board)
-        self._board.boards.append(instance.to_dict())
-        self._save_to_file()
+        _check_grid_floor(instance.to_dict(), None)
+        self._seed_board_silence_defaults(instance.id)
+        candidate_board.boards.append(instance.to_dict())
+        self._save_to_file(_board=candidate_board)
         logger.info(f"Added board: {instance.name} ({instance.device_type})")
-        return self._board
+        return candidate_board
 
     def _with_default_transition(self, board: dict) -> dict:
         """*board* with the transition a new display starts with, unless it
         names one (:func:`default_board_transition`)."""
         return _with_default_transition(board, plugins_enabled=self._plugins.transition_plugins_enabled)
+
+    @staticmethod
+    def _seed_board_silence_defaults(board_id: str) -> None:
+        """A newly added display starts with its own disabled silence window."""
+        from src.config_manager import DEFAULT_CONFIG, SILENCE_SCHEDULE_KEYS, get_config_manager
+        from src.time_service import get_time_service
+
+        defaults = DEFAULT_CONFIG["features"]["silence_schedule"]
+        values = {key: defaults[key] for key in SILENCE_SCHEDULE_KEYS}
+        manager = get_config_manager()
+        timezone = manager.get_general().get("timezone") or "America/Los_Angeles"
+        for key in ("start_time", "end_time"):
+            values[key] = get_time_service().local_to_utc_iso(values[key], timezone)
+        manager.set_silence_schedule_for_board(board_id, values)
 
     def _check_board_write(self, board: dict, stored: dict | None) -> None:
         """Refuse a board write whose transition no menu offers, a newly
@@ -2350,6 +2617,14 @@ class SettingsService:
         drop it. Only the fields the write changes are checked: what is
         already stored never blocks a write."""
         from src.devices import TRANSITION_SPEED_BOUNDS, transition_speed_error
+
+        self._check_scheduling_preferences(
+            {
+                key: value
+                for key, value in board.items()
+                if stored is None or value != stored.get(key) or type(value) is not type(stored.get(key))
+            }
+        )
 
         stored = stored or {}
         choice = board.get("transition")
@@ -2405,15 +2680,16 @@ class SettingsService:
         Raises:
             ValueError: If board not found or if it's the last board
         """
-        if len(self._board.boards) <= 1:
+        candidate_board = deepcopy(self._board)
+        if len(candidate_board.boards) <= 1:
             raise ValueError("Cannot remove the last board. At least one board is required.")
 
-        new_boards = [b for b in self._board.boards if b.get("id") != board_id]
-        if len(new_boards) == len(self._board.boards):
+        new_boards = [b for b in candidate_board.boards if b.get("id") != board_id]
+        if len(new_boards) == len(candidate_board.boards):
             raise ValueError(f"Board with ID '{board_id}' not found")
 
-        self._board.boards = new_boards
-        self._save_to_file()
+        candidate_board.boards = new_boards
+        self._save_to_file(_board=candidate_board)
         # Drop the board's silence-schedule override too (issue #1788 review):
         # nothing else ever removes it, so orphans accumulate in
         # ``features.silence_schedule.by_board`` for boards that no longer
@@ -2425,7 +2701,7 @@ class SettingsService:
         except Exception:  # pragma: no cover - never block board removal
             logger.warning("Could not prune silence override for %s", board_id, exc_info=True)
         logger.info(f"Removed board: {board_id}")
-        return self._board
+        return candidate_board
 
     # Pause settings (per-board) — issue #970.
     # When a board is paused, FiestaBoard does not push anything to it from
@@ -2470,7 +2746,8 @@ class SettingsService:
         :meth:`set_boards` and its validation. Returns False, saving nothing,
         when the board is gone or nothing changed.
         """
-        for b in self._board.boards:
+        candidate_board = deepcopy(self._board)
+        for b in candidate_board.boards:
             if b.get("id") != board_id:
                 continue
             current = dict(b.get("output_config") or {})
@@ -2478,7 +2755,7 @@ class SettingsService:
             if merged == current:
                 return False
             b["output_config"] = merged
-            self._save_to_file()
+            self._save_to_file(_board=candidate_board)
             logger.info(f"Board {board_id}: output settings updated by its output: {sorted(updates)}")
             return True
         return False
@@ -2490,12 +2767,13 @@ class SettingsService:
         Returns the new paused state. Logs a warning and returns the prior
         state if ``board_id`` is provided but no matching board exists.
         """
+        candidate_board = deepcopy(self._board)
         paused = bool(paused)
         if board_id:
-            for b in self._board.boards:
+            for b in candidate_board.boards:
                 if b.get("id") == board_id:
                     b["paused"] = paused
-                    self._save_to_file()
+                    self._save_to_file(_board=candidate_board)
                     logger.info(f"Board {board_id} {'paused' if paused else 'resumed'}")
                     return paused
             # Defense in depth (#1888): unreachable over HTTP today — every
@@ -2503,20 +2781,26 @@ class SettingsService:
             # own path parameter — but returning False for an unknown board
             # is indistinguishable from "resumed successfully".
             raise ValueError(f"Board not found: {board_id}")
-        if self._board.boards:
-            self._board.boards[0]["paused"] = paused
-            self._save_to_file()
+        if candidate_board.boards:
+            candidate_board.boards[0]["paused"] = paused
+            self._save_to_file(_board=candidate_board)
             logger.info(f"Default board {'paused' if paused else 'resumed'}")
         return paused
 
     # Schedule settings
-    def get_schedule_settings(self) -> ScheduleSettings:
+    def get_schedule_settings(self, board_id: str | None = None) -> ScheduleSettings:
         """Get current schedule settings.
 
         Returns:
             ScheduleSettings instance
         """
-        return self._schedule
+        board = self._scheduling_board(board_id)
+        if board is None:
+            return self._schedule
+        return ScheduleSettings(
+            enabled=board.get("schedule_enabled", False),
+            defer_on_reenable=board.get("schedule_defer_on_reenable", False),
+        )
 
     def is_schedule_enabled(self, board_id: str | None = None) -> bool:
         """Check if schedule mode is enabled for a board.
@@ -2544,37 +2828,49 @@ class SettingsService:
         board also updates the deprecated ``schedule.enabled`` mirror for one
         release.
         """
+        candidate_board = deepcopy(self._board)
+        candidate_schedule = deepcopy(self._schedule)
         primary_id = self.get_primary_board_id()
         bid = board_id if board_id is not None else primary_id
 
         if bid is not None:
-            for b in self._board.boards:
+            for b in candidate_board.boards:
                 if b.get("id") == bid:
                     b["schedule_enabled"] = enabled
                     if bid == primary_id:
-                        self._schedule.enabled = enabled
-                    self._save_to_file()
+                        candidate_schedule.enabled = enabled
+                    self._save_to_file(_board=candidate_board, _schedule=candidate_schedule)
                     logger.info(f"Schedule mode for board {bid}: {'enabled' if enabled else 'disabled'}")
-                    return self._schedule
+                    return candidate_schedule
             logger.warning(f"Board {bid} not found for set_schedule_enabled")
-            return self._schedule
+            return candidate_schedule
 
         # No boards configured: write the deprecated global mirror only.
-        self._schedule.enabled = enabled
-        self._save_to_file()
+        candidate_schedule.enabled = enabled
+        self._save_to_file(_board=candidate_board, _schedule=candidate_schedule)
         logger.info(f"Schedule mode (global, no boards): {'enabled' if enabled else 'disabled'}")
-        return self._schedule
+        return candidate_schedule
 
-    def set_schedule_defer_on_reenable(self, defer: bool) -> ScheduleSettings:
+    @_locked
+    def set_schedule_defer_on_reenable(self, defer: bool, board_id: str | None = None) -> ScheduleSettings:
         """Set whether re-enabling schedule mode waits for the next window.
 
-        Unlike ``schedule_enabled`` this is a single global preference: it
-        describes how the toggle behaves, not what any one board is showing.
+        An omitted board id addresses the primary board.
         """
-        self._schedule.defer_on_reenable = bool(defer)
-        self._save_to_file()
+        self._check_scheduling_preferences({"schedule_defer_on_reenable": defer})
+        candidate_board = deepcopy(self._board)
+        candidate_schedule = deepcopy(self._schedule)
+        stored = self._scheduling_board(board_id)
+        board = next(
+            (b for b in candidate_board.boards if stored is not None and b.get("id") == stored.get("id")), None
+        )
+        if board is not None:
+            board["schedule_defer_on_reenable"] = defer
+        if board_id is None or board_id == self.get_primary_board_id():
+            candidate_schedule.defer_on_reenable = defer
+        self._save_to_file(_board=candidate_board, _schedule=candidate_schedule)
         logger.info(f"Schedule defer-on-reenable: {'on' if defer else 'off'}")
-        return self._schedule
+        return self.get_schedule_settings(board_id)
 
     def get_mqtt_settings(self) -> "MQTTSettings":
         """Return current MQTT integration settings."""
@@ -2588,20 +2884,21 @@ class SettingsService:
         current values.  The password is only overwritten when the caller
         supplies a non-empty, non-masked value.
         """
+        candidate_mqtt = deepcopy(self._mqtt)
         if "enabled" in updates:
-            self._mqtt.enabled = bool(updates["enabled"])
+            candidate_mqtt.enabled = bool(updates["enabled"])
         if updates.get("broker_host"):
-            self._mqtt.broker_host = updates["broker_host"]
+            candidate_mqtt.broker_host = updates["broker_host"]
         if "broker_port" in updates:
-            self._mqtt.broker_port = int(updates["broker_port"] or 1883)
+            candidate_mqtt.broker_port = int(updates["broker_port"] or 1883)
         if "username" in updates:
-            self._mqtt.username = updates["username"] or ""
+            candidate_mqtt.username = updates["username"] or ""
         if "password" in updates and updates["password"] not in ("", "***"):
-            self._mqtt.password = updates["password"]
+            candidate_mqtt.password = updates["password"]
         if "external_url" in updates:
-            self._mqtt.external_url = updates["external_url"] or ""
-        self._save_to_file()
-        return self._mqtt
+            candidate_mqtt.external_url = updates["external_url"] or ""
+        self._save_to_file(_mqtt=candidate_mqtt)
+        return candidate_mqtt
 
     def get_display_settings(self) -> "DisplaySettings":
         """Return current web UI display settings."""
@@ -2613,17 +2910,18 @@ class SettingsService:
 
         Only keys present in *updates* are changed.
         """
+        candidate_display = deepcopy(self._display)
         if "reduce_motion" in updates:
-            self._display.reduce_motion = bool(updates["reduce_motion"])
+            candidate_display.reduce_motion = bool(updates["reduce_motion"])
         if "board_animations" in updates:
-            self._display.board_animations = _coerce_board_animations(updates["board_animations"])
+            candidate_display.board_animations = _coerce_board_animations(updates["board_animations"])
         if "site_animations" in updates:
-            self._display.site_animations = _coerce_site_animations(updates["site_animations"])
+            candidate_display.site_animations = _coerce_site_animations(updates["site_animations"])
         if "board_flap_speed" in updates:
-            self._display.board_flap_speed = _coerce_board_flap_speed(updates["board_flap_speed"])
-        self._save_to_file()
-        logger.info(f"Display settings updated: {self._display}")
-        return self._display
+            candidate_display.board_flap_speed = _coerce_board_flap_speed(updates["board_flap_speed"])
+        self._save_to_file(_display=candidate_display)
+        logger.info(f"Display settings updated: {candidate_display}")
+        return candidate_display
 
     def get_location_settings(self) -> "LocationSettings":
         """Return current location settings for sun-based schedules."""
@@ -2635,15 +2933,16 @@ class SettingsService:
 
         Only keys present in *updates* are changed.
         """
+        candidate_location = deepcopy(self._location)
         if "latitude" in updates:
             val = updates["latitude"]
-            self._location.latitude = float(val) if val is not None else None
+            candidate_location.latitude = float(val) if val is not None else None
         if "longitude" in updates:
             val = updates["longitude"]
-            self._location.longitude = float(val) if val is not None else None
-        self._save_to_file()
-        logger.info(f"Location settings updated: {self._location}")
-        return self._location
+            candidate_location.longitude = float(val) if val is not None else None
+        self._save_to_file(_location=candidate_location)
+        logger.info(f"Location settings updated: {candidate_location}")
+        return candidate_location
 
     def get_plugin_settings(self) -> "PluginSettings":
         """Return current plugin system settings."""
@@ -2657,12 +2956,13 @@ class SettingsService:
         key is ignored — ``output_plugins_enabled`` included: display plugins
         need no opt-in since settings v7.
         """
+        candidate_plugins = deepcopy(self._plugins)
         for key in ("auto_update", "transition_plugins_enabled"):
             if key in updates and updates[key] is not None:
-                setattr(self._plugins, key, bool(updates[key]))
-        self._save_to_file()
-        logger.info(f"Plugin settings updated: {self._plugins}")
-        return self._plugins
+                setattr(candidate_plugins, key, bool(updates[key]))
+        self._save_to_file(_plugins=candidate_plugins)
+        logger.info(f"Plugin settings updated: {candidate_plugins}")
+        return candidate_plugins
 
     # Setup wizard
     def get_wizard_state(self) -> WizardState | None:
@@ -2676,12 +2976,13 @@ class SettingsService:
         Raises:
             ValueError: *state* is not one of :data:`VALID_WIZARD_STATES`.
         """
+        candidate_wizard = deepcopy(self._wizard)
         if state is not None and state not in VALID_WIZARD_STATES:
             raise ValueError(f"Invalid wizard state: {state}. Must be one of {VALID_WIZARD_STATES}")
-        self._wizard.state = state
-        self._save_to_file()
+        candidate_wizard.state = state
+        self._save_to_file(_wizard=candidate_wizard)
         logger.info(f"Setup wizard state set to: {state}")
-        return self._wizard
+        return candidate_wizard
 
     # Temporary override
     def peek_temporary_override(self) -> TemporaryOverride | None:
@@ -2740,8 +3041,7 @@ class SettingsService:
     @_locked
     def set_temporary_override(self, override: TemporaryOverride) -> TemporaryOverride:
         """Persist a new temporary override, replacing any existing one."""
-        self._temporary_override = override
-        self._save_to_file()
+        self._save_to_file(_temporary_override=deepcopy(override))
         logger.info(
             "Temporary override set: %s expires=%s revert=%s",
             "inline one-off" if override.is_inline else f"page={override.page_id}",
@@ -2755,8 +3055,7 @@ class SettingsService:
         """Remove the temporary override without applying any revert logic."""
         if self._temporary_override is not None:
             logger.info("Temporary override cleared")
-        self._temporary_override = None
-        self._save_to_file()
+        self._save_to_file(_temporary_override=None)
 
 
 # Singleton instance

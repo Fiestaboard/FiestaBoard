@@ -14,10 +14,11 @@ import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from src.devices import DeviceType, geometry_of, resolve_dimensions
+from src.devices import DeviceType, geometry_of, is_flexible_page, resolve_dimensions
 from src.ops.teaching import TEMPLATE_FILTERS, construct_lines
 from src.templates.canvas_reference import CANVAS_RULES as CANVAS_RULES
 from src.templates.expressions import function_signatures
+from src.text_utils import count_noun
 
 if TYPE_CHECKING:
     from src.outputs.display_profile import DisplayProfile
@@ -329,7 +330,13 @@ def _format_available_pages(pages: list[dict[str, Any]]) -> str:
     """Render a compact list of pages the user can navigate to."""
     if not pages:
         return "(no pages yet)"
-    return "\n".join(f'  - "{p.get("name", "Untitled")}" (id: {p.get("id", "?")})' for p in pages)
+    return "\n".join(f'  - "{p.get("name", "Untitled")}" (id: {p.get("id", "?")}){_revision_hint(p)}' for p in pages)
+
+
+def _revision_hint(content: dict[str, Any]) -> str:
+    """Keep generation metadata attached to content taught in prompt context."""
+    keys = ("revision", "edit_protocol", "document_protocol")
+    return "".join(f" | {key}: {content[key]}" for key in keys if content.get(key))
 
 
 def _summarize_schema(schema: dict[str, Any] | None) -> str:
@@ -401,7 +408,7 @@ def _format_available_schedules(schedules: list[dict[str, Any]]) -> str:
         enabled = "enabled" if s.get("enabled", True) else "disabled"
         page_id = s.get("page_id", "?")
         sid = s.get("id", "?")
-        lines.append(f"  - id: {sid} | page: {page_id} | {start}-{end} | {pattern} | {enabled}")
+        lines.append(f"  - id: {sid} | page: {page_id} | {start}-{end} | {pattern} | {enabled}{_revision_hint(s)}")
     return "\n".join(lines)
 
 
@@ -422,7 +429,7 @@ def _format_available_collections(collections: list[dict[str, Any]]) -> str:
             poll = (c.get("variable") or {}).get("poll_seconds", 10)
             n_rules = len((c.get("variable") or {}).get("rules", []))
             tail = f"variable mode, {n_rules} rule(s), polls every {poll}s"
-        lines.append(f'  - "{name}" (id: {cid}) | {len(pages)} pages | {tail}')
+        lines.append(f'  - "{name}" (id: {cid}) | {len(pages)} pages | {tail}{_revision_hint(c)}')
     return "\n".join(lines)
 
 
@@ -502,8 +509,13 @@ def build_prompt(
             "A paused or failed send is not a successful display; report the tool's actual result.\n"
         )
     else:
-        geometry = geometry_of({**(current_page or {}), "device_type": device_type})
-        if display is not None and display.rows and display.cols and not current_page:
+        # A flexible current_page has no grid: the target board's geometry
+        # (the request's device_type, or its resolved display) applies.
+        flexible = is_flexible_page(current_page or {})
+        geometry = geometry_of(
+            {"device_type": device_type} if flexible else {**(current_page or {}), "device_type": device_type}
+        )
+        if display is not None and display.rows and display.cols and (flexible or not current_page):
             # A resolved display is authoritative even for legacy callers
             # still sending flagship as the request default.
             dims = resolve_dimensions("panel", grid_rows=display.rows, grid_cols=display.cols)
@@ -590,24 +602,41 @@ def build_prompt(
         if tile_examples
         else "`{{filled:X}}` with X from the supported charset"
     )
+    if rows == 1:
+        # One row: wrap has nowhere to go, so never suggest it adds rows.
+        overflow_rule = (
+            f"  line would exceed {cols} chars, shorten it: the board\n  has one row, so wrap cannot add rows.\n"
+        )
+        wrap_rule = (
+            f"    - `wrap`: boolean. The board has one row, so wrap\n"
+            f"      cannot add rows: content longer than {cols} columns\n"
+            f"      is cut off. Leave it false.\n"
+        )
+    else:
+        overflow_rule = (
+            f"  line would exceed {cols} chars, either shorten it or set\n"
+            f"  `wrap: true` for that line in `line_metadata` to let it\n"
+            f"  flow across rows (this consumes additional rows; reduce\n"
+            f"  the number of other rows accordingly).\n"
+        )
+        wrap_rule = (
+            f"    - `wrap`: boolean. When true, content longer than {cols}\n"
+            f"      columns flows onto subsequent rows; the wrapped lines\n"
+            f"      consume the next blank rows in `template`.\n"
+        )
     layout_rules = (
-        f"DEVICE: {device_type} ({cols} columns x {rows} rows).\n"
-        f"- Output exactly {rows} entries in `template` (use empty\n"
+        f"DEVICE: {device_type} ({count_noun(cols, 'column')} x {count_noun(rows, 'row')}).\n"
+        f"- Output exactly {count_noun(rows, 'entry', 'entries')} in `template` (use empty\n"
         f"  strings to leave a row blank).\n"
         f"- Each line's rendered width must be <= {cols} columns. If a\n"
-        f"  line would exceed {cols} chars, either shorten it or set\n"
-        f"  `wrap: true` for that line in `line_metadata` to let it\n"
-        f"  flow across rows (this consumes additional rows; reduce\n"
-        f"  the number of other rows accordingly).\n"
-        f"- `line_metadata` must have the same length as `template`.\n"
-        f"  Each entry is `{{alignment, wrap}}`:\n"
-        f'    - `alignment`: "left" | "center" | "right" (no\n'
-        f'      "justify"). Drives how the line is positioned within\n'
+        + overflow_rule
+        + "- `line_metadata` must have the same length as `template`.\n"
+        "  Each entry is `{alignment, wrap}`:\n"
+        '    - `alignment`: "left" | "center" | "right" (no\n'
+        '      "justify"). Drives how the line is positioned within\n'
         f"      the {cols}-column row.\n"
-        f"    - `wrap`: boolean. When true, content longer than {cols}\n"
-        f"      columns flows onto subsequent rows; the wrapped lines\n"
-        f"      consume the next blank rows in `template`.\n"
-        f"  Prefer setting `alignment` over manually padding with spaces.\n"
+        + wrap_rule
+        + f"  Prefer setting `alignment` over manually padding with spaces.\n"
         f"  Use `{{{{fill_space}}}}` for left/right edges on the SAME\n"
         f"  line (e.g. `Left{{{{fill_space}}}}Right`); use\n"
         f"  `{{{{filled:X}}}}` to fill with a repeated {fill_kind}\n"

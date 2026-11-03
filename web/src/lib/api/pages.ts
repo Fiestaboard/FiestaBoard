@@ -3,6 +3,7 @@
 
 import type { Canvas, CanvasIssue, CanvasLayerJson } from "./canvas";
 import { fetchApi } from "./core";
+import type { FlexibleFields, LayoutIssue } from "./flexible";
 import type { DeviceType, LineMetadata, PageType, RowConfig } from "./shared";
 import type { BoardTokenJson } from "./templates";
 
@@ -51,11 +52,16 @@ export interface SetActivePageResponse {
   warnings: string[];
 }
 
-export interface Page {
+export interface Page extends FlexibleFields {
   id: string;
+  /** Opaque live generation; reloads/restarts invalidate old editor saves. */
+  revision?: string | null;
+  /** Runtime edit and rich-document capabilities advertised by the server. */
+  edit_protocol?: string | null;
+  document_protocol?: string | null;
   name: string;
   type: PageType;
-  device_type: DeviceType;
+  device_type?: DeviceType;
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
@@ -81,7 +87,7 @@ export interface Page {
   canvases?: Canvas[] | null;
 }
 
-export interface PageCreate {
+export interface PageCreate extends FlexibleFields {
   name: string;
   type: PageType;
   device_type?: DeviceType;
@@ -108,7 +114,8 @@ export interface PageCreate {
   canvases?: Canvas[] | null;
 }
 
-export interface PageUpdate {
+export interface PageUpdate extends FlexibleFields {
+  expected_revision?: string | null;
   name?: string;
   /** Device/size retarget (issue #1250) — converting geometries is lossy. */
   device_type?: DeviceType;
@@ -172,6 +179,7 @@ export interface StaffPick {
 }
 
 export interface PagePreviewResponse {
+  layout_issues?: LayoutIssue[];
   page_id: string;
   message: string;
   lines: string[];
@@ -190,6 +198,13 @@ export interface PagePreviewResponse {
   layers?: CanvasLayerJson[];
   /** Problems drawing those canvases; present exactly when `layers` is. */
   canvas_issues?: CanvasIssue[];
+  /**
+   * The LED text size (`"3x5"`, `"5x7"`...) the page is drawn at on the
+   * batch's board, when that board produces the page's grid only at another
+   * size than its own. `cells` are then at the page's own grid, in that
+   * face's character set. Present only then.
+   */
+  face?: string | null;
 }
 
 /**
@@ -220,6 +235,9 @@ export interface CurrentDisplayResponse {
   line_metadata: LineMetadata[] | null;
 }
 
+/** Callers retaining an in-memory draft can handle 401 without leaving the editor. */
+type PageRequestOptions = { skipAuthRedirect?: boolean };
+
 export const pagesApi = {
   // Active page settings (optional boardId targets a specific board).
   // boardId is only honored when it's a non-empty string: these wrappers may
@@ -249,18 +267,30 @@ export const pagesApi = {
   getCurrentDisplay: () => fetchApi<CurrentDisplayResponse>("/pages/current-display"),
   getPage: (pageId: string) => fetchApi<Page>(`/v1/pages/${pageId}`),
   /** 201 with the created page itself — no envelope. */
-  createPage: (page: PageCreate) =>
+  createPage: (page: PageCreate, options?: PageRequestOptions) =>
     fetchApi<Page>("/v1/pages", {
+      ...options,
       method: "POST",
       body: JSON.stringify(page),
     }),
-  updatePage: (pageId: string, page: PageUpdate) =>
+  updatePage: (pageId: string, page: PageUpdate, options?: PageRequestOptions) =>
     fetchApi<PageUpdateResponse>(`/v1/pages/${pageId}`, {
+      ...options,
       method: "PUT",
       body: JSON.stringify(page),
     }),
-  deletePage: (pageId: string) => fetchApi<PageDeleteResponse>(`/v1/pages/${pageId}`, { method: "DELETE" }),
+  deletePage: (pageId: string, expectedRevision?: string | null) =>
+    fetchApi<PageDeleteResponse>(
+      `/v1/pages/${pageId}${expectedRevision ? `?expected_revision=${encodeURIComponent(expectedRevision)}` : ""}`,
+      { method: "DELETE" },
+    ),
   previewPage: (pageId: string) => fetchApi<PagePreviewResponse>(`/pages/${pageId}/preview`, { method: "POST" }),
+  previewFlexiblePage: (page: PageCreate, boardId?: string, options?: PageRequestOptions) =>
+    fetchApi<PagePreviewResponse>("/pages/preview/flexible", {
+      ...options,
+      method: "POST",
+      body: JSON.stringify({ page, ...(boardId !== undefined ? { board_id: boardId } : {}) }),
+    }),
   /** `boardId`: the board the previews are for — an LED board's renders its spans and icons and answers `cells`. */
   previewPagesBatch: (pageIds: string[], boardId?: string) =>
     fetchApi<PagePreviewBatchResponse>("/pages/preview/batch", {

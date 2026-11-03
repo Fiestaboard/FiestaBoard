@@ -1,3 +1,7 @@
+import { type DeviceModel, tryResolveDeviceModel } from "@fiestaboard/ui";
+
+import type { PhysicalSurface } from "@/lib/api/boards";
+
 // ── Constants (mirror Python src/devices.py) ─────────────────────────────────
 export const NOTE_ROWS = 3;
 export const NOTE_COLS = 15;
@@ -5,19 +9,20 @@ export const MAX_NOTES_PER_AXIS = 8;
 /**
  * Panel grid bounds (mirror src/devices.py). A "panel" (FiestaPanel, a virtual
  * board on a TV) is sized per character, so its grid is any rows × cols in
- * this range — never smaller than one Note.
+ * this range — never smaller than one Note. An LED panel may go down to the
+ * MIN_LED_GRID_* floor below (ABSOLUTE_MIN_GRID_* is the lower of the two).
  */
 export const MIN_GRID_ROWS = NOTE_ROWS;
 export const MIN_GRID_COLS = NOTE_COLS;
 export const MAX_GRID_ROWS = 96;
 export const MAX_GRID_COLS = 128;
 /**
- * The floor of an LED board measured in pixels (mirror src/devices.py): 3 × 10,
- * so a legible 5x7 face fits (a Divoom Pixoo 64 at 5x7 is 8 × 10). FiestaPanel
+ * The floor of an LED board measured in pixels (mirror src/devices.py): 1 × 5,
+ * so a 1 × 8 Ulanzi TC001 fits (a Divoom Pixoo 64 at 5x7 is 8 × 10). FiestaPanel
  * autofit (computeAutofitGrid) and Vestaboards keep the Note floor above.
  */
-export const MIN_LED_GRID_ROWS = 3;
-export const MIN_LED_GRID_COLS = 10;
+export const MIN_LED_GRID_ROWS = 1;
+export const MIN_LED_GRID_COLS = 5;
 /** The smallest grid any board can have: the lower floor on each axis. */
 export const ABSOLUTE_MIN_GRID_ROWS = Math.min(MIN_GRID_ROWS, MIN_LED_GRID_ROWS);
 export const ABSOLUTE_MIN_GRID_COLS = Math.min(MIN_GRID_COLS, MIN_LED_GRID_COLS);
@@ -94,7 +99,7 @@ export interface GridFloor {
 
 /**
  * Dimensions of a panel grid, each axis clamped into [floor, MAX_GRID_*].
- * The floor defaults to the absolute minimum (ABSOLUTE_MIN_GRID_*, 3 × 10),
+ * The floor defaults to the absolute minimum (ABSOLUTE_MIN_GRID_*, 1 × 5),
  * so an LED board's 8 × 10 grid is kept (mirrors Python clamp_grid). A
  * missing axis resolves to the Note minimum (matching `@fiestaboard/ui` and
  * BoardInstance), where Python's panel_dimensions() raises — the UI must
@@ -271,12 +276,99 @@ export function dimensionsOf(entity: SizedEntity): BoardDimensions {
   );
 }
 
+/** A page as pageFitForBoard reads it: its geometry and its type (a flexible page has no geometry). */
+export interface FitPage extends SizedEntity {
+  type?: string | null;
+  targets?: { boards?: string[] | null; technology?: string[] | null } | null;
+}
+
+/** A board as pageFitForBoard reads it: its geometry, plus an LED board's text sizes. */
+export interface FitBoard extends SizedEntity {
+  physical_surface?: PhysicalSurface | null;
+  flexible_page_support?: "cells" | "pixels" | "unsupported";
+  id?: string;
+  output?: string;
+  api_mode?: string;
+  device_model?: string | null;
+  device_model_spec?: DeviceModel | null;
+  /**
+   * An LED board's grid at each text size it allows, `{face: [rows, cols]}`
+   * (`board_producible_grids`); absent or null when it has no choice.
+   */
+  producible_grids?: Record<string, [number, number]> | null;
+  /** The face the board draws in now is `led_layout.font`. */
+  led_layout?: { font?: string } | null;
+}
+
 /**
- * True when a page renders 1:1 on a board: EXACT sizeKey() match.
- * Mirrors Python pages_compatible_with_board(). Family-aware: flagship ≠ note
- * even at identical dimensions, and note arrays and panels must match the
- * resolved grid exactly.
+ * How a page fits a board. Mirrors Python `PageFit` (src/pages/fit.py), with
+ * the page's own `rows` × `cols` in place of the reason string, so the UI
+ * can word the reason ("Made for a {rows}×{cols} board") itself.
+ *
+ * `fits` with `face` null: the page is at the board's own grid.
+ * `fits` with a `face`: the board draws the page at that text size.
  */
-export function pagesCompatibleWithBoard(page: SizedEntity, board: SizedEntity): boolean {
-  return sizeKeyOf(page) === sizeKeyOf(board);
+export interface PageFit {
+  fits: boolean;
+  face: string | null;
+  rows: number;
+  cols: number;
+  reason?: "targets" | "physicalFrame";
+}
+
+/**
+ * Whether a page shows on a board, and at which LED text size. Mirrors Python
+ * page_fit_for_board(): a flexible page checks targets and pixel adapter support (`rows` and `cols`
+ * are 0: it has no grid); an exact sizeKey() match takes today's path; an LED
+ * board that produces a `panel` page's grid at a face other than its current
+ * one draws the page at that face; anything else does not fit. Only `panel`
+ * pages can match another face's grid (a flagship page never fits an LED
+ * board, even at 6×22).
+ */
+export function pageFitForBoard(page: FitPage, board: FitBoard): PageFit {
+  if (page.type === "flexible") {
+    const ids = page.targets?.boards;
+    const technologies = page.targets?.technology;
+    const model =
+      (board.device_model_spec && tryResolveDeviceModel(board.device_model_spec).model) ||
+      (board.device_model ? tryResolveDeviceModel(board.device_model).model : null);
+    const output =
+      board.output || (board.api_mode === "virtual" ? "fiestapanel" : board.api_mode ? "vestaboard" : undefined);
+    const technology =
+      model?.technology || (output === "vestaboard" || output === "fiestapanel" ? "split_flap" : "unknown");
+    if (
+      (ids?.length && !ids.includes(board.id || "")) ||
+      (technologies?.length && !technologies.includes(technology))
+    ) {
+      return { fits: false, face: null, rows: 0, cols: 0, reason: "targets" };
+    }
+    if (
+      board.flexible_page_support === "unsupported" ||
+      (board.flexible_page_support !== "cells" && model?.geometry.kind === "pixels" && !board.physical_surface)
+    ) {
+      return { fits: false, face: null, rows: 0, cols: 0, reason: "physicalFrame" };
+    }
+    return { fits: true, face: null, rows: 0, cols: 0 };
+  }
+  const { rows, cols } = dimensionsOf(page);
+  if (sizeKeyOf(page) === sizeKeyOf(board)) return { fits: true, face: null, rows, cols };
+  const grids = board.producible_grids;
+  if (grids && isPanel(page.device_type || "flagship")) {
+    const current = board.led_layout?.font;
+    for (const [face, grid] of Object.entries(grids)) {
+      if (grid[0] === rows && grid[1] === cols && face !== current) return { fits: true, face, rows, cols };
+    }
+  }
+  return { fits: false, face: null, rows, cols };
+}
+
+/**
+ * True when a page shows on a board: pageFitForBoard(...).fits. Mirrors
+ * Python pages_compatible_with_board(). Family-aware: flagship ≠ note even at
+ * identical dimensions, and note arrays and panels must match the resolved
+ * grid exactly, except that an LED board also shows a panel page at a grid it
+ * produces at another text size.
+ */
+export function pagesCompatibleWithBoard(page: FitPage, board: FitBoard): boolean {
+  return pageFitForBoard(page, board).fits;
 }

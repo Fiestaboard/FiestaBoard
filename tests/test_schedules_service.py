@@ -713,20 +713,20 @@ class TestScheduleSizeCompatibility:
         assert created.page_id == page_env["flagship_page"].id
 
     def test_create_incompatible_page_blocked(self, service, page_env):
-        with pytest.raises(ValueError, match="not compatible"):
+        with pytest.raises(ValueError, match="can't show on board"):
             self._create(service, page_env["note_page"].id, "board-flagship")
 
     def test_create_note_array_exact_match_required(self, service, page_env):
         created = self._create(service, page_env["array_page"].id, "board-array")
         assert created.page_id == page_env["array_page"].id
-        with pytest.raises(ValueError, match="not compatible"):
+        with pytest.raises(ValueError, match="can't show on board"):
             self._create(service, page_env["array_page"].id, "board-note")
 
     def test_create_legacy_default_board_id_resolves_primary(self, service, page_env):
         """board_id "" (legacy single-board) validates against the primary board."""
         created = self._create(service, page_env["flagship_page"].id, "")
         assert created.board_id == ""
-        with pytest.raises(ValueError, match="not compatible"):
+        with pytest.raises(ValueError, match="can't show on board"):
             self._create(service, page_env["note_page"].id, "")
 
     def test_create_unknown_page_passes(self, service, page_env):
@@ -740,12 +740,12 @@ class TestScheduleSizeCompatibility:
 
     def test_update_to_incompatible_page_blocked(self, service, page_env):
         created = self._create(service, page_env["flagship_page"].id, "board-flagship")
-        with pytest.raises(ValueError, match="not compatible"):
+        with pytest.raises(ValueError, match="can't show on board"):
             service.update_schedule(created.id, ScheduleUpdate(page_id=page_env["note_page"].id))
 
     def test_update_to_incompatible_board_blocked(self, service, page_env):
         created = self._create(service, page_env["flagship_page"].id, "board-flagship")
-        with pytest.raises(ValueError, match="not compatible"):
+        with pytest.raises(ValueError, match="can't show on board"):
             service.update_schedule(created.id, ScheduleUpdate(board_id="board-note"))
 
     def test_update_compatible_passes(self, service, page_env):

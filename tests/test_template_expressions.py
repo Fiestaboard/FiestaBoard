@@ -63,6 +63,28 @@ class TestLiteralsAndArithmetic:
 
 
 class TestStringOps:
+    @pytest.mark.parametrize("name", ["pad", "padleft", "zeropad", "center", "fixed"])
+    def test_expanding_builtin_checks_size_before_building_result(self, name):
+        from src.templates import expressions
+
+        result = getattr(expressions, f"_fn_{name}")([1, 65537])
+        assert isinstance(result, ErrorValue) and result.code == "#NUM"
+
+    @pytest.mark.parametrize("expression", ["ROUNDUP(1,309)", "ROUNDDOWN(1,-324)"])
+    def test_extreme_rounding_returns_a_formula_error(self, expression):
+        assert evaluate(expression) == "#NUM"
+
+    def test_join_iterations_share_the_foreach_budget(self):
+        assert (
+            evaluate("FOREACH(feed.items, JOIN(feed.empty))", {"feed": {"items": [1, 2], "empty": [""] * 6000}})
+            == "#NUM"
+        )
+
+    def test_plain_interpolation_has_an_aggregate_output_limit(self):
+        engine = TemplateEngine()
+        result = engine.render("{{feed.text}}" * 20, {"feed": {"text": "X" * 65536}})
+        assert len(result) <= 65536
+
     def test_concat_with_amp(self):
         assert evaluate('"hello" & " " & "world"') == "hello world"
 
@@ -96,6 +118,25 @@ class TestStringOps:
     def test_rept_capped(self):
         # Guard against runaway memory.
         assert evaluate('REPT("a", 2000)') == "#NUM"
+
+    def test_nested_rept_is_capped_by_result_size_before_allocating(self):
+        assert evaluate('REPT(REPT("a", 1024), 1024)') == "#NUM"
+
+    def test_rept_of_long_plugin_text_is_capped_by_result_size(self):
+        assert evaluate("REPT(feed.text, 1024)", {"feed": {"text": "X" * 1024}}) == "#NUM"
+
+    def test_nested_replace_is_capped_before_allocating_its_result(self):
+        expression = '"x"'
+        for _ in range(17):
+            expression = f'REPLACE({expression}, "x", "xx")'
+        assert evaluate(expression) == "#NUM"
+
+    def test_nested_foreach_has_a_shared_work_budget(self):
+        expression = 'FOREACH(feed.items, FOREACH(feed.items, FOREACH(feed.items, "x")))'
+        assert evaluate(expression, {"feed": {"items": list(range(64))}}) == "#NUM"
+
+    def test_foreach_rejects_an_oversized_accumulated_string(self):
+        assert evaluate("FOREACH(feed.items, feed.text)", {"feed": {"items": [1, 2], "text": "x" * 40000}}) == "#NUM"
 
     def test_contains_startswith_endswith(self):
         assert evaluate('CONTAINS("hello world", "lo wo")') == "Yes"

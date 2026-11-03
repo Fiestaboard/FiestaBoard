@@ -24,10 +24,13 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from src.led.charsets import has_extended_markup, resolve_character_set, validate_message
+from src.led.matrix import led_charset_for_font
 from src.markup import BOARD_ICONS
+from src.text_utils import count_noun
 
 from .board_profile import board_character_set, board_device_model, led_layout_choice
 from .cells import extended_markup_kw, output_character_set
+from .physical_frames import PhysicalSurface
 
 #: The colour names extended markup accepts, in the order a prompt lists them.
 SPAN_COLORS: tuple[str, ...] = ("red", "orange", "yellow", "green", "blue", "violet", "white", "black")
@@ -87,6 +90,7 @@ class DisplayProfile:
     height: int | None = None
     block_padding: int | None = None
     monochrome: str | None = None
+    physical_surface: PhysicalSurface | None = None
     _charset_json: str | None = field(default=None, repr=False)
 
     @property
@@ -112,7 +116,7 @@ class DisplayProfile:
 
     def to_dict(self) -> dict[str, Any]:
         """Safe effective authoring facts; no output configuration or credentials."""
-        return {
+        facts = {
             "technology": self.technology,
             "device_model": self.device_model,
             "charset": self.charset,
@@ -133,6 +137,9 @@ class DisplayProfile:
             "width": self.width,
             "height": self.height,
         }
+        if self.physical_surface is not None:
+            facts["physical_surface"] = self.physical_surface.to_json()
+        return facts
 
     def supports(self, feature: str) -> bool:
         """Whether this display can draw *feature* (one of :data:`FEATURES`).
@@ -203,7 +210,7 @@ class DisplayProfile:
         lines = [f"THE DISPLAY: {kind}."]
         size = []
         if self.rows and self.cols:
-            size.append(f"It shows {self.rows} rows of {self.cols} characters")
+            size.append(f"It shows {count_noun(self.rows, 'row')} of {count_noun(self.cols, 'character')}")
         if self.font is not None:
             face = "large" if self.font == "5x7" else "small"
             size.append(("in" if size else "Text is drawn in") + f" the {face} {self.font} text face")
@@ -271,11 +278,34 @@ def _charset_of(client: Any, model: Mapping[str, Any] | None) -> Mapping[str, An
     return None
 
 
+def _charset_fields(charset: Mapping[str, Any]) -> dict[str, Any]:
+    """The :class:`DisplayProfile` fields a resolved character set decides.
+
+    Shared by :func:`_profile` (a board's own set) and
+    :func:`display_for_face` (the set of another face), so the two never
+    derive them differently.
+    """
+    icons = charset.get("icons") or ()
+    chars = charset.get("chars") or ()
+    return {
+        "charset": str(charset.get("id")) if charset.get("id") else None,
+        "mixed_case": bool(charset.get("mixedCase")),
+        "color_spans": bool(charset.get("colorSpans")),
+        "block_spans": bool(charset.get("blockSpans")),
+        "tiles": bool(charset.get("tiles", True)),
+        "icons": tuple(str(i) for i in icons if str(i) in BOARD_ICONS),
+        "chars": "".join(str(c) for c in chars),
+        "_charset_json": json.dumps(dict(charset), sort_keys=True, separators=(",", ":")) if charset else None,
+    }
+
+
 def _profile(
     model: Mapping[str, Any],
     charset: Mapping[str, Any] | None,
     config: Mapping[str, Any] | None,
     grid: tuple[int, int] | None = None,
+    *,
+    physical_surface: PhysicalSurface | None = None,
 ) -> DisplayProfile:
     """One :class:`DisplayProfile` from a resolved (effective) device model,
     character set, the board's output config (for the LED tile style) and its
@@ -292,30 +322,38 @@ def _profile(
         pixel_size = (int(geometry["width"]), int(geometry["height"]))
     if grid is None and isinstance(geometry, Mapping) and geometry.get("kind") == "cells":
         grid = _grid(geometry.get("rows"), geometry.get("cols"))
-    icons = charset.get("icons") or ()
-    chars = charset.get("chars") or ()
     return DisplayProfile(
         technology=str(model.get("technology") or "unknown"),
         device_model=str(model.get("id")) if model.get("id") else None,
-        charset=str(charset.get("id")) if charset.get("id") else None,
         # FiestaUI's colour kinds are "rgb", "monochrome" and "tiles" (device-model schema).
         color="rgb" if color_kind == "rgb" else ("mono" if color_kind == "monochrome" else "tiles"),
         monochrome=str(color["color"]) if color_kind == "monochrome" and color.get("color") else None,
-        mixed_case=bool(charset.get("mixedCase")),
-        color_spans=bool(charset.get("colorSpans")),
-        block_spans=bool(charset.get("blockSpans")),
-        tiles=bool(charset.get("tiles", True)),
-        icons=tuple(str(i) for i in icons if str(i) in BOARD_ICONS),
-        chars="".join(str(c) for c in chars),
         tile_gap=layout.tile_gap if layout is not None else None,
         font=layout.font if layout is not None else None,
         block_padding=layout.block_padding if layout is not None else None,
-        _charset_json=json.dumps(dict(charset), sort_keys=True, separators=(",", ":")) if charset else None,
         rows=grid[0] if grid else None,
         cols=grid[1] if grid else None,
         width=pixel_size[0] if pixel_size else None,
         height=pixel_size[1] if pixel_size else None,
+        physical_surface=physical_surface,
+        **_charset_fields(charset),
     )
+
+
+def display_for_face(display: DisplayProfile, face: str, grid: tuple[int, int]) -> DisplayProfile:
+    """*display* (a board's profile) drawing a page in another LED *face*.
+
+    A page made for a grid the board reaches only at another text size is
+    rendered as if the board were set to that size: the face, its built-in
+    character set (:func:`~src.led.matrix.led_charset_for_font`) and what
+    that set draws (icons, case, spans), on the page's *grid* (rows, cols).
+    The board's own pixel surface, colour, tile style, block padding and
+    monochrome colour are kept. The face is part of :attr:`DisplayProfile.key`,
+    so a plugin result cached for the board's own face is never served for
+    this one. Raises :class:`ValueError` for a face no built-in set is drawn in.
+    """
+    charset = resolve_character_set(led_charset_for_font(face))
+    return replace(display, font=face, rows=grid[0], cols=grid[1], **_charset_fields(charset))
 
 
 def _integer_authoring_profile(
@@ -364,7 +402,19 @@ def display_profile_for_client(client: Any) -> DisplayProfile | None:
         if not isinstance(charset, Mapping) or has_extended_markup(charset):
             charset = resolve_character_set("vestaboard_v1")
         return _integer_authoring_profile(model, charset, config, _client_grid(plugin))
-    return _profile(model, _charset_of(client, model), config, _client_grid(plugin))
+    return _profile(
+        model,
+        _charset_of(client, model),
+        config,
+        _client_grid(plugin),
+        physical_surface=_physical_surface(getattr(client, "capabilities", None), model),
+    )
+
+
+def _physical_surface(capabilities: Any, model: Mapping) -> PhysicalSurface | None:
+    surfaces = getattr(capabilities, "physical_frames", None)
+    surface = surfaces.get(model.get("id")) if isinstance(surfaces, Mapping) else None
+    return surface if isinstance(surface, PhysicalSurface) else None
 
 
 def display_profile_for_board(board: Mapping[str, Any]) -> DisplayProfile | None:
@@ -404,6 +454,7 @@ def display_profile_for_board(board: Mapping[str, Any]) -> DisplayProfile | None
         board_character_set(board),
         config if isinstance(config, Mapping) else None,
         grid,
+        physical_surface=_physical_surface(definition.capabilities if definition else None, model),
     )
 
 

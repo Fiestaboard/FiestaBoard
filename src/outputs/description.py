@@ -68,6 +68,10 @@ def describe_board(board: dict[str, Any]) -> dict[str, Any]:
     if caps is not None:
         caps["native_transitions"] = sorted(capabilities.native_transitions)
         caps["device_models"] = list(capabilities.device_models)
+        if capabilities.physical_frames:
+            caps["physical_frames"] = {key: surface.to_json() for key, surface in capabilities.physical_frames.items()}
+        else:
+            caps.pop("physical_frames", None)
     return {
         "description_version": 1,
         "output": output_id,

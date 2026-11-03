@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import math
 import re
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -35,7 +35,17 @@ from pydantic import ValidationError
 
 from src.templates.expressions import FormulaError, ensure_render_clock, evaluate_value, value_to_text
 
-from .models import MAX_COORD, MAX_LINE_WIDTH, RGBA, Canvas, CanvasContent, is_expression, parse_color
+from .models import (
+    MAX_COORD,
+    MAX_LINE_WIDTH,
+    MAX_POLYGON_POINTS,
+    MAX_TEXT_LENGTH,
+    RGBA,
+    Canvas,
+    CanvasContent,
+    is_expression,
+    parse_color,
+)
 
 __all__ = [
     "MAX_EXPANDED_SHAPES",
@@ -44,6 +54,7 @@ __all__ = [
     "ResolvedShape",
     "resolve_canvas",
     "resolve_content",
+    "truthy",
 ]
 
 #: Shapes one canvas may draw after ``foreach`` expansion.
@@ -161,7 +172,12 @@ def _color(value: Any, field_name: str, palette: Mapping[str, RGBA | None]) -> R
         raise _Skip(field_name, str(exc)) from None
 
 
-def _truthy(value: Any) -> bool:
+def truthy(value: Any) -> bool:
+    """Whether a formula's result counts as true (canvas ``if`` and flexible-block ``if``).
+
+    A string is false when blank or ``false`` / ``no`` / ``0``; a collection
+    when empty; anything else by Python truthiness.
+    """
     if isinstance(value, str):
         return value.strip().lower() not in ("", "false", "no", "0")
     if isinstance(value, list | tuple | dict):
@@ -169,10 +185,16 @@ def _truthy(value: Any) -> bool:
     return bool(value)
 
 
+#: The name canvas evaluation has always used.
+_truthy = truthy
+
+
 def _points(raw: Any, context: dict[str, Any], bindings: dict[str, Any] | None) -> list[tuple[float, float]]:
     points = _value(raw, "points", context, bindings)
     if not isinstance(points, list | tuple):
         raise _Skip("points", f"expected a list of [x, y] pairs, got a {type(points).__name__}")
+    if not 3 <= len(points) <= MAX_POLYGON_POINTS:
+        raise _Skip("points", f"a polygon needs 3 to {MAX_POLYGON_POINTS} points, got {len(points)}")
     out = []
     for i, point in enumerate(points):
         if isinstance(point, Mapping) and "x" in point and "y" in point:
@@ -211,6 +233,8 @@ def _resolve_shape(
         else:  # text, font
             value = _value(raw, name, context, bindings)
             values[name] = value if isinstance(value, str) else value_to_text(value)
+            if name == "text" and len(values[name]) > MAX_TEXT_LENGTH:
+                raise _Skip("text", f"text must contain at most {MAX_TEXT_LENGTH} characters")
     width = values.get("width")
     if shape.type == "line" and not 1 <= width <= MAX_LINE_WIDTH:
         raise _Skip("width", f"must be between 1 and {MAX_LINE_WIDTH}, got {width:g}")
@@ -238,11 +262,12 @@ def resolve_content(
 
     shapes: list[ResolvedShape] = []
     capped = False
+    attempts = 0
     for i, shape in enumerate(content.shapes):
         if capped:
             break
         if shape.foreach is None:
-            runs: list[dict[str, Any] | None] = [None]
+            runs: Iterable[dict[str, Any] | None] = (None,)
         else:
             try:
                 items = _value(shape.foreach, "foreach", context, None)
@@ -255,18 +280,20 @@ def resolve_content(
                 )
                 continue
             name = shape.as_ or "item"
-            runs = [{name: _bound_item(item, n)} for n, item in enumerate(items)]
+            runs = ({name: _bound_item(item, n)} for n, item in enumerate(items))
         for n, bindings in enumerate(runs):
-            if len(shapes) >= MAX_EXPANDED_SHAPES:
+            if attempts >= MAX_EXPANDED_SHAPES:
                 issues.append(
                     CanvasIssue(
                         canvas_id,
                         f"shapes[{i}]",
-                        f"a canvas draws at most {MAX_EXPANDED_SHAPES} shapes after foreach; the rest were skipped",
+                        f"a canvas evaluates at most {MAX_EXPANDED_SHAPES} shapes after foreach, "
+                        "including hidden or invalid shapes; the rest were skipped",
                     )
                 )
                 capped = True
                 break
+            attempts += 1
             try:
                 resolved = _resolve_shape(shape, context, bindings, palette)
             except _Skip as skip:

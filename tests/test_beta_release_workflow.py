@@ -1,6 +1,7 @@
 """The beta channel must not be able to masquerade as stable (#1955 follow-on).
 
-`release-beta.yml` publishes from `next` on every merge. Four of its
+`release-beta.yml` is retained for deliberate manual publishing from `next`.
+Automatic beta publishing is paused while development follows `main`. Four of its
 properties are what keep a beta from reaching someone who never asked for
 one, and every single one is a one-line edit away from silently inverting:
 
@@ -95,10 +96,18 @@ def test_the_beta_workflow_name_cannot_trigger_the_pi_build():
     )
 
 
-def test_the_beta_workflow_only_publishes_from_next():
+def test_the_beta_workflow_requires_a_manual_dispatch():
     triggers = _triggers(_load(BETA))
-    assert triggers["push"]["branches"] == ["next"], (
-        "release-beta.yml must publish only from `next`; it builds and pushes to Docker Hub with no review gate."
+    assert set(triggers) == {"workflow_dispatch"}, (
+        "beta publishing is paused: a branch push must not restart the beta release stream"
+    )
+
+
+def test_a_manual_beta_dispatch_only_publishes_from_next():
+    guard = _load(BETA)["jobs"]["version"]["if"]
+    assert "github.repository == 'Fiestaboard/FiestaBoard'" in guard
+    assert "github.ref == 'refs/heads/next'" in guard, (
+        "a manual dispatch from main must not publish mainline code as a new beta"
     )
 
 
