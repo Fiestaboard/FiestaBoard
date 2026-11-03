@@ -189,11 +189,12 @@ class ScheduleStorage:
             self._default_page_by_board = {}
             self._failed_entries = []
 
-    def _save(self) -> None:
-        """Save schedules to storage file atomically via the storage kernel."""
+    def _save(self, schedules: dict[str, ScheduleEntry] | None = None) -> None:
+        """Persist current schedules or a candidate without publishing it to readers."""
+        schedules = self._schedules if schedules is None else schedules
         try:
             schedules_out: list[dict] = []
-            for schedule in self._schedules.values():
+            for schedule in schedules.values():
                 schedule_data = schedule.model_dump()
                 # Convert datetime objects to ISO strings for JSON serialization
                 if isinstance(schedule_data.get("created_at"), datetime):
@@ -218,7 +219,7 @@ class ScheduleStorage:
             # _failed_entries), so write data straight out — atomically.
             self._store.save(data)
 
-            logger.debug(f"Saved {len(self._schedules)} schedules to storage")
+            logger.debug(f"Saved {len(schedules)} schedules to storage")
 
         except OSError as e:
             logger.error(f"Failed to save schedules file: {e}")
@@ -266,8 +267,9 @@ class ScheduleStorage:
             errors = schedule.validate_config()
             if errors:
                 raise ValueError(f"Invalid schedule configuration: {errors}")
-            self._schedules[schedule.id] = schedule
-            self._save()
+            schedules = self._schedules | {schedule.id: schedule}
+            self._save(schedules)
+            self._schedules = schedules
         logger.info(f"Created schedule: {schedule.id} (board_id={schedule.board_id})")
         return schedule
 
@@ -318,8 +320,9 @@ class ScheduleStorage:
         if errors:
             raise ValueError(f"Invalid schedule configuration: {errors}")
 
-        self._schedules[schedule_id] = updated_schedule
-        self._save()
+        schedules = self._schedules | {schedule_id: updated_schedule}
+        self._save(schedules)
+        self._schedules = schedules
 
         logger.info(f"Updated schedule: {schedule_id}")
         return updated_schedule
@@ -337,8 +340,10 @@ class ScheduleStorage:
             if schedule_id not in self._schedules:
                 return False
 
-            del self._schedules[schedule_id]
-            self._save()
+            schedules = self._schedules.copy()
+            del schedules[schedule_id]
+            self._save(schedules)
+            self._schedules = schedules
 
         logger.info(f"Deleted schedule: {schedule_id}")
         return True
