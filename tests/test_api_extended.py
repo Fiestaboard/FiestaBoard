@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from src.api_server import app
 from src.outputs import OutputRuntime
+from tests.plugin_lifecycle_helpers import support_lifecycle_persistence
 
 
 @pytest.fixture
@@ -341,6 +342,7 @@ def mock_plugin_registry():
         reg.list_instances.return_value = []
         reg.enable_plugin.return_value = True
         reg.disable_plugin.return_value = True
+        support_lifecycle_persistence(reg)
         reg.set_plugin_config.return_value = []
         from src.plugins.base import PluginResult
 

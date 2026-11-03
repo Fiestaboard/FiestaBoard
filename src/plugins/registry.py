@@ -12,7 +12,7 @@ import logging
 import re
 import threading
 import time
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait as futures_wait
 from dataclasses import replace
@@ -992,7 +992,7 @@ class PluginRegistry:
             enabled_items = list(self._enabled.items())
         return any(key.startswith(prefix) and enabled for key, enabled in enabled_items)
 
-    def enable_plugin(self, plugin_id: str) -> bool:
+    def enable_plugin(self, plugin_id: str, *, before_change: Callable[[], Any] | None = None) -> bool:
         """Enable a plugin.
 
         If the plugin's code is not installed but the id exists in the plugin
@@ -1002,6 +1002,8 @@ class PluginRegistry:
 
         Args:
             plugin_id: Plugin identifier
+            before_change: Optional persistence step, run after accepting the
+                target and before changing live state. Failure leaves it untouched.
 
         Returns:
             True if enabled successfully, False if plugin not found
@@ -1026,6 +1028,8 @@ class PluginRegistry:
                 return False
 
             plugin = self._plugins[plugin_id]
+            if before_change is not None:
+                before_change()
             plugin.enabled = True
             self._enabled[plugin_id] = True
             stored_config = self._configs.get(plugin_id)
@@ -1039,11 +1043,13 @@ class PluginRegistry:
         logger.info(f"Enabled plugin: {plugin_id}")
         return True
 
-    def disable_plugin(self, plugin_id: str) -> bool:
+    def disable_plugin(self, plugin_id: str, *, before_change: Callable[[], Any] | None = None) -> bool:
         """Disable a plugin.
 
         Args:
             plugin_id: Plugin identifier
+            before_change: Optional persistence step, run after accepting the
+                target and before cleanup or other live-state changes.
 
         Returns:
             True if disabled successfully, False if plugin not found
@@ -1053,6 +1059,8 @@ class PluginRegistry:
                 return False
 
             plugin = self._plugins[plugin_id]
+            if before_change is not None:
+                before_change()
             plugin.enabled = False
             self._enabled[plugin_id] = False
 
