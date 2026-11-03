@@ -213,11 +213,12 @@ class CollectionStorage:
             self._save()
             logger.info("Saved migrated collections to storage")
 
-    def _save(self) -> None:
-        """Save collections to storage file atomically via the storage kernel."""
+    def _save(self, collections: dict[str, Collection] | None = None) -> None:
+        """Persist current collections or a candidate without publishing it to readers."""
+        collections = self._collections if collections is None else collections
         try:
             records = []
-            for c in self._collections.values():
+            for c in collections.values():
                 record = c.model_dump()
                 if record.get("created_at"):
                     record["created_at"] = record["created_at"].isoformat()
@@ -236,7 +237,7 @@ class CollectionStorage:
 
             self._store.save(data)
 
-            logger.debug(f"Saved {len(self._collections)} collections to storage")
+            logger.debug(f"Saved {len(collections)} collections to storage")
         except OSError as e:
             logger.error(f"Failed to save collections file: {e}")
             raise
@@ -258,8 +259,9 @@ class CollectionStorage:
             errors = collection.validate_config()
             if errors:
                 raise ValueError(f"Invalid collection configuration: {errors}")
-            self._collections[collection.id] = collection
-            self._save()
+            collections = self._collections | {collection.id: collection}
+            self._save(collections)
+            self._collections = collections
         logger.info(f"Created collection: {collection.id} ({collection.name})")
         return collection
 
@@ -284,8 +286,9 @@ class CollectionStorage:
         if errors:
             raise ValueError(f"Invalid collection configuration: {errors}")
 
-        self._collections[collection_id] = updated
-        self._save()
+        collections = self._collections | {collection_id: updated}
+        self._save(collections)
+        self._collections = collections
         logger.info(f"Updated collection: {collection_id}")
         return updated
 
@@ -293,8 +296,10 @@ class CollectionStorage:
         with self._store.lock:
             if collection_id not in self._collections:
                 return False
-            del self._collections[collection_id]
-            self._save()
+            collections = self._collections.copy()
+            del collections[collection_id]
+            self._save(collections)
+            self._collections = collections
         logger.info(f"Deleted collection: {collection_id}")
         return True
 
