@@ -12,7 +12,7 @@ import logging
 import re
 import threading
 import time
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait as futures_wait
 from dataclasses import replace
@@ -399,7 +399,9 @@ class PluginRegistry:
         logger.info("Created plugin instance: %s", compound_key)
         return []
 
-    def delete_instance(self, plugin_id: str, instance_label: str) -> list[str]:
+    def delete_instance(
+        self, plugin_id: str, instance_label: str, *, before_change: Callable[[], Any] | None = None
+    ) -> list[str]:
         """Delete a plugin instance.
 
         Only instances (compound keys) can be deleted; base plugins cannot.
@@ -407,6 +409,8 @@ class PluginRegistry:
         Args:
             plugin_id: Base plugin ID.
             instance_label: Instance label.
+            before_change: Optional persistence step after target acceptance,
+                before removing live state. Failure leaves it untouched.
 
         Returns:
             List of error messages (empty on success).
@@ -416,6 +420,9 @@ class PluginRegistry:
         with self._lock:
             if compound_key not in self._plugins:
                 return [f"Instance not found: {compound_key}"]
+
+            if before_change is not None:
+                before_change()
 
             # State swap under the lock; plugin-authored cleanup() off it.
             instance = self._plugins.pop(compound_key)
