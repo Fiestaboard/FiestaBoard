@@ -203,7 +203,22 @@
     "importDialogCancel": "Avbryt",
     "importDialogImport": "Importera",
     "importDialogImporting": "Importerar...",
-    "toastImported": "”{name}” har lagts till bland dina sidor"
+    "toastImported": "”{name}” har lagts till bland dina sidor",
+    "searchLabel": "Sök sidor",
+    "searchPlaceholder": "Sök namn eller sparat innehåll",
+    "searchHint": "Söker i namn och sparat innehåll på den valda enhetsfliken.",
+    "clearSearch": "Rensa sökning",
+    "sortLabel": "Sortera sidor",
+    "sortNameAsc": "Namn A–Ö",
+    "sortNameDesc": "Namn Ö–A",
+    "sortCreatedDesc": "Nyast skapade",
+    "sortCreatedAsc": "Äldst skapade",
+    "sortUpdatedDesc": "Senast uppdaterade",
+    "sortUpdatedAsc": "Tidigast uppdaterade",
+    "noMatches": "Inga matchande sidor",
+    "searchCount": "{count} av {total} sidor",
+    "loadError": "Kunde inte läsa in sidorna. Din sökning finns kvar.",
+    "retryLoading": "Försök läsa in sidorna igen"
   },
   "collections": {
     "title": "Karuseller",

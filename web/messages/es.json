@@ -203,7 +203,22 @@
     "importDialogCancel": "Cancelar",
     "importDialogImport": "Importar",
     "importDialogImporting": "Importando...",
-    "toastImported": "«{name}» añadido a tus páginas"
+    "toastImported": "«{name}» añadido a tus páginas",
+    "searchLabel": "Buscar páginas",
+    "searchPlaceholder": "Buscar nombres o contenido guardado",
+    "searchHint": "Busca nombres y contenido guardado en la pestaña del dispositivo seleccionado.",
+    "clearSearch": "Borrar búsqueda",
+    "sortLabel": "Ordenar páginas",
+    "sortNameAsc": "Nombre A–Z",
+    "sortNameDesc": "Nombre Z–A",
+    "sortCreatedDesc": "Creación más reciente",
+    "sortCreatedAsc": "Creación más antigua",
+    "sortUpdatedDesc": "Actualización más reciente",
+    "sortUpdatedAsc": "Actualización más antigua",
+    "noMatches": "No hay páginas coincidentes",
+    "searchCount": "{count} de {total} páginas",
+    "loadError": "No se pudieron cargar las páginas. Se conserva tu búsqueda.",
+    "retryLoading": "Reintentar cargar páginas"
   },
   "collections": {
     "title": "Carruseles",

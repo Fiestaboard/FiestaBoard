@@ -203,7 +203,22 @@
     "importDialogCancel": "İptal",
     "importDialogImport": "İçe Aktar",
     "importDialogImporting": "İçe aktarılıyor...",
-    "toastImported": "\"{name}\" sayfalarınıza eklendi"
+    "toastImported": "\"{name}\" sayfalarınıza eklendi",
+    "searchLabel": "Sayfa ara",
+    "searchPlaceholder": "Adlarda veya kayıtlı içerikte ara",
+    "searchHint": "Seçili cihaz sekmesindeki adlarda ve kayıtlı içerikte arar.",
+    "clearSearch": "Aramayı temizle",
+    "sortLabel": "Sayfaları sırala",
+    "sortNameAsc": "Ad A–Z",
+    "sortNameDesc": "Ad Z–A",
+    "sortCreatedDesc": "En yeni oluşturulan",
+    "sortCreatedAsc": "En eski oluşturulan",
+    "sortUpdatedDesc": "En son güncellenen",
+    "sortUpdatedAsc": "En önce güncellenen",
+    "noMatches": "Eşleşen sayfa yok",
+    "searchCount": "{total} sayfadan {count} tanesi",
+    "loadError": "Sayfalar yüklenemedi. Aramanız korunuyor.",
+    "retryLoading": "Sayfaları yüklemeyi yeniden dene"
   },
   "collections": {
     "title": "Döngüler",

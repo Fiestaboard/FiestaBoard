@@ -203,7 +203,22 @@
     "importDialogCancel": "Abbrechen",
     "importDialogImport": "Importieren",
     "importDialogImporting": "Importiere...",
-    "toastImported": "„{name}\" zu deinen Seiten hinzugefügt"
+    "toastImported": "„{name}\" zu deinen Seiten hinzugefügt",
+    "searchLabel": "Seiten suchen",
+    "searchPlaceholder": "Namen oder gespeicherte Inhalte suchen",
+    "searchHint": "Durchsucht Namen und gespeicherte Inhalte im ausgewählten Geräte-Tab.",
+    "clearSearch": "Suche löschen",
+    "sortLabel": "Seiten sortieren",
+    "sortNameAsc": "Name A–Z",
+    "sortNameDesc": "Name Z–A",
+    "sortCreatedDesc": "Neueste zuerst",
+    "sortCreatedAsc": "Älteste zuerst",
+    "sortUpdatedDesc": "Zuletzt aktualisiert",
+    "sortUpdatedAsc": "Längste Zeit unverändert",
+    "noMatches": "Keine passenden Seiten",
+    "searchCount": "{count} von {total} Seiten",
+    "loadError": "Seiten konnten nicht geladen werden. Deine Suche bleibt erhalten.",
+    "retryLoading": "Seiten erneut laden"
   },
   "collections": {
     "title": "Karussells",

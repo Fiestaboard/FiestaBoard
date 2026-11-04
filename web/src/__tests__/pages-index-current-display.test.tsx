@@ -64,6 +64,7 @@ describe("PagesPage — the selected display", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
     server.use(
       http.get("/api/settings/board", () =>
         HttpResponse.json({ board_type: "black", boards: BOARDS, devices: ["flagship", "panel"] }),
@@ -102,6 +103,17 @@ describe("PagesPage — the selected display", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByRole("tab", { name: "Flagship" })).toHaveAttribute("aria-selected", "true"));
+  });
+
+  it("keeps the selected LED target when the saved-page list cannot load", async () => {
+    localStorage.setItem("fiestaboard_current_board", "b-pixoo");
+    server.use(http.get("/api/v1/pages", () => HttpResponse.json({ detail: "Unavailable" }, { status: 503 })));
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole("alert");
+    expect(screen.getByRole("tab", { name: "Panel" })).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("button", { name: /New page/i }));
+    expect(push).toHaveBeenCalledWith("/pages/new");
   });
 
   it("starts a new page for the selected display from its tab", async () => {

@@ -203,7 +203,22 @@
     "importDialogCancel": "Annuler",
     "importDialogImport": "Importer",
     "importDialogImporting": "Importation…",
-    "toastImported": "« {name} » ajouté à vos pages"
+    "toastImported": "« {name} » ajouté à vos pages",
+    "searchLabel": "Rechercher des pages",
+    "searchPlaceholder": "Rechercher un nom ou du contenu enregistré",
+    "searchHint": "Recherche dans les noms et le contenu enregistré de l’onglet d’appareil sélectionné.",
+    "clearSearch": "Effacer la recherche",
+    "sortLabel": "Trier les pages",
+    "sortNameAsc": "Nom A–Z",
+    "sortNameDesc": "Nom Z–A",
+    "sortCreatedDesc": "Création la plus récente",
+    "sortCreatedAsc": "Création la plus ancienne",
+    "sortUpdatedDesc": "Mise à jour la plus récente",
+    "sortUpdatedAsc": "Mise à jour la plus ancienne",
+    "noMatches": "Aucune page correspondante",
+    "searchCount": "{count} sur {total} pages",
+    "loadError": "Impossible de charger les pages. Votre recherche est conservée.",
+    "retryLoading": "Réessayer le chargement"
   },
   "collections": {
     "title": "Carrousels",

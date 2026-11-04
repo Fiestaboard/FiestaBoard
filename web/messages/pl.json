@@ -203,7 +203,22 @@
     "importDialogCancel": "Anuluj",
     "importDialogImport": "Importuj",
     "importDialogImporting": "Importowanie...",
-    "toastImported": "„{name}\" dodano do twoich stron"
+    "toastImported": "„{name}\" dodano do twoich stron",
+    "searchLabel": "Szukaj stron",
+    "searchPlaceholder": "Szukaj nazw lub zapisanej treści",
+    "searchHint": "Wyszukuje nazwy i zapisaną treść w wybranej karcie urządzenia.",
+    "clearSearch": "Wyczyść wyszukiwanie",
+    "sortLabel": "Sortuj strony",
+    "sortNameAsc": "Nazwa A–Z",
+    "sortNameDesc": "Nazwa Z–A",
+    "sortCreatedDesc": "Najnowsze utworzone",
+    "sortCreatedAsc": "Najstarsze utworzone",
+    "sortUpdatedDesc": "Ostatnio zaktualizowane",
+    "sortUpdatedAsc": "Najdawniej zaktualizowane",
+    "noMatches": "Brak pasujących stron",
+    "searchCount": "{count} z {total} stron",
+    "loadError": "Nie udało się wczytać stron. Wyszukiwanie zostało zachowane.",
+    "retryLoading": "Ponów wczytywanie stron"
   },
   "collections": {
     "title": "Karuzele",

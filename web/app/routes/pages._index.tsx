@@ -9,13 +9,20 @@ import {
   DialogTitle,
   Flex,
   Grid,
+  Input,
   PageSection,
   PageToolbar,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Skeleton,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  Text,
   Textarea,
 } from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,6 +40,7 @@ import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
+import { PAGE_LIBRARY_SORTS, type PageLibraryQuery, type PageLibrarySort } from "@/lib/page-library-query";
 
 // "panel" last: FiestaPanel pages (fit per character to a TV) get their own
 // tab rather than hiding among note arrays they are not compatible with.
@@ -59,6 +67,20 @@ function PageGridSelector(props: React.ComponentProps<typeof PageGridSelectorLaz
 }
 
 const VIEW_MODE_STORAGE_KEY = "fiestaboard_pages_view_mode";
+const LIBRARY_STORAGE_KEY = "fiestaboard_pages_library_query";
+
+function getStoredLibraryState(): PageLibraryQuery & { device: DeviceType | null } {
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(LIBRARY_STORAGE_KEY) ?? "null");
+    return {
+      text: typeof stored?.text === "string" ? stored.text : "",
+      sort: PAGE_LIBRARY_SORTS.includes(stored?.sort) ? stored.sort : "name-asc",
+      device: DEVICE_ORDER.includes(stored?.device) ? stored.device : null,
+    };
+  } catch {
+    return { text: "", sort: "name-asc", device: null };
+  }
+}
 
 function getStoredViewMode(): ViewMode {
   if (typeof window === "undefined") return "grid";
@@ -147,36 +169,36 @@ export default function PagesPage() {
     return DEVICE_ORDER.filter((d) => present.has(d));
   }, [configuredDevices, pagesData]);
   const hasMultipleDevices = availableDevices.length > 1;
-  const [activeTab, setActiveTab] = useState<DeviceType | null>(null);
+  const [storedLibrary] = useState(getStoredLibraryState);
+  const [libraryQuery, setLibraryQuery] = useState<PageLibraryQuery>({
+    text: storedLibrary.text,
+    sort: storedLibrary.sort,
+  });
+  const [activeTab, setActiveTab] = useState<DeviceType | null>(storedLibrary.device);
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
   const [importOpen, setImportOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Default the active tab to the user's first *configured* device once
-  // settings have loaded. Pages from orphan device types (e.g. flagship
-  // demo pages on a note-only setup) are still reachable via the secondary
-  // tab. After the user has chosen a tab we only override if their pick
-  // is no longer available.
-  //
-  // Done during render rather than in an effect, so the tab strip renders on
-  // the right device the first time instead of switching under the user
-  // (react-hooks/set-state-in-effect, issue #1568). `activeTab` is not a dep:
-  // the user picking a tab can never invalidate it, so re-running on that
-  // would only ever be a no-op.
-  const settingsLoaded = boardSettings !== undefined;
-  if (
-    useDepsChanged([settingsLoaded, availableDevices, configuredDevices]) &&
-    settingsLoaded &&
-    availableDevices.length > 0 &&
-    !(activeTab && availableDevices.includes(activeTab))
-  ) {
-    // The display selected in the sidebar first (an LED display's custom-grid
-    // pages live on the "panel" tab), then the first configured device.
-    const current = currentBoard?.device_type;
-    const preferred =
-      (current && availableDevices.includes(current) ? current : undefined) ??
-      configuredDevices.find((d) => availableDevices.includes(d));
-    setActiveTab(preferred ?? availableDevices[0]);
+  // Keep only an explicit choice in state. Derive the default from the
+  // current board so asynchronous board settings cannot lock in a stale tab.
+  const current = currentBoard?.device_type;
+  const preferredTab =
+    (current && availableDevices.includes(current) ? current : undefined) ??
+    configuredDevices.find((device) => availableDevices.includes(device)) ??
+    availableDevices[0];
+  // An orphan device may exist only in saved pages. Wait for both responses
+  // before discarding a stored choice that is genuinely no longer available.
+  if (boardSettings !== undefined && pagesData !== undefined && activeTab && !availableDevices.includes(activeTab)) {
+    setActiveTab(null);
   }
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify({ ...libraryQuery, device: activeTab }));
+    } catch {}
+  }, [libraryQuery, activeTab]);
+
+  const visibleTab = activeTab && availableDevices.includes(activeTab) ? activeTab : preferredTab;
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
@@ -193,7 +215,7 @@ export default function PagesPage() {
   );
 
   const handleCreateNew = useCallback(() => {
-    const device = activeTab ?? configuredDevices[0] ?? "flagship";
+    const device = visibleTab ?? configuredDevices[0] ?? "flagship";
     // On the selected display's own tab, ask for no device: the editor then
     // targets that display exactly (its grid, model and character set).
     if (currentBoard && currentBoard.device_type === device) {
@@ -201,7 +223,7 @@ export default function PagesPage() {
       return;
     }
     push(`/pages/new?device=${device}`);
-  }, [push, activeTab, configuredDevices, currentBoard]);
+  }, [push, visibleTab, configuredDevices, currentBoard]);
 
   // The section (pages.tsx) owns the card and the header; this is the body.
   return (
@@ -256,9 +278,59 @@ export default function PagesPage() {
         }
       />
 
+      <PageToolbar
+        left={
+          <Flex gap="2" align="center" wrap className="min-w-0 w-full">
+            <Input
+              ref={searchInputRef}
+              type="search"
+              aria-label={t("searchLabel")}
+              aria-describedby="page-library-search-hint"
+              placeholder={t("searchPlaceholder")}
+              value={libraryQuery.text}
+              onChange={(event) => setLibraryQuery((previous) => ({ ...previous, text: event.target.value }))}
+              className="w-full sm:w-72"
+            />
+            {libraryQuery.text && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setLibraryQuery((previous) => ({ ...previous, text: "" }));
+                  searchInputRef.current?.focus();
+                }}
+              >
+                {t("clearSearch")}
+              </Button>
+            )}
+          </Flex>
+        }
+        right={
+          <Select
+            value={libraryQuery.sort}
+            onValueChange={(sort) => setLibraryQuery((previous) => ({ ...previous, sort: sort as PageLibrarySort }))}
+          >
+            <SelectTrigger aria-label={t("sortLabel")} className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name-asc">{t("sortNameAsc")}</SelectItem>
+              <SelectItem value="name-desc">{t("sortNameDesc")}</SelectItem>
+              <SelectItem value="created-desc">{t("sortCreatedDesc")}</SelectItem>
+              <SelectItem value="created-asc">{t("sortCreatedAsc")}</SelectItem>
+              <SelectItem value="updated-desc">{t("sortUpdatedDesc")}</SelectItem>
+              <SelectItem value="updated-asc">{t("sortUpdatedAsc")}</SelectItem>
+            </SelectContent>
+          </Select>
+        }
+      />
+
       <PageSection {...anchorProps("pages.root")}>
+        <Text id="page-library-search-hint" size="xs" tone="muted" className="mb-3">
+          {t("searchHint")}
+        </Text>
         {hasMultipleDevices ? (
-          <Tabs value={activeTab ?? availableDevices[0]} onValueChange={(v) => setActiveTab(v as DeviceType)}>
+          <Tabs value={visibleTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
             {/* No inset any more: the section's own padding puts this strip on
                 the content column, and the tiles below sit on it too. */}
             <TabsList className="mb-5">
@@ -278,6 +350,7 @@ export default function PagesPage() {
                   showCollections={false}
                   deviceTypeFilter="flagship"
                   viewMode={viewMode}
+                  libraryQuery={libraryQuery}
                 />
               </TabsContent>
             )}
@@ -290,6 +363,7 @@ export default function PagesPage() {
                   showCollections={false}
                   deviceTypeFilter="note"
                   viewMode={viewMode}
+                  libraryQuery={libraryQuery}
                 />
               </TabsContent>
             )}
@@ -302,6 +376,7 @@ export default function PagesPage() {
                   showCollections={false}
                   deviceTypeFilter="note_array"
                   viewMode={viewMode}
+                  libraryQuery={libraryQuery}
                 />
               </TabsContent>
             )}
@@ -314,6 +389,7 @@ export default function PagesPage() {
                   showCollections={false}
                   deviceTypeFilter="panel"
                   viewMode={viewMode}
+                  libraryQuery={libraryQuery}
                 />
               </TabsContent>
             )}
@@ -326,6 +402,7 @@ export default function PagesPage() {
             showCollections={false}
             deviceTypeFilter={(availableDevices[0] ?? configuredDevices[0]) as DeviceType}
             viewMode={viewMode}
+            libraryQuery={libraryQuery}
           />
         )}
       </PageSection>

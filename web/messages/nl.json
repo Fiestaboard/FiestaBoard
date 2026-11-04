@@ -203,7 +203,22 @@
     "importDialogCancel": "Annuleren",
     "importDialogImport": "Importeren",
     "importDialogImporting": "Importeren...",
-    "toastImported": "\"{name}\" toegevoegd aan je pagina's"
+    "toastImported": "\"{name}\" toegevoegd aan je pagina's",
+    "searchLabel": "Pagina’s zoeken",
+    "searchPlaceholder": "Zoek namen of opgeslagen inhoud",
+    "searchHint": "Zoekt in namen en opgeslagen inhoud op het geselecteerde apparaattabblad.",
+    "clearSearch": "Zoekopdracht wissen",
+    "sortLabel": "Pagina’s sorteren",
+    "sortNameAsc": "Naam A–Z",
+    "sortNameDesc": "Naam Z–A",
+    "sortCreatedDesc": "Nieuwste eerst",
+    "sortCreatedAsc": "Oudste eerst",
+    "sortUpdatedDesc": "Laatst bijgewerkt",
+    "sortUpdatedAsc": "Langst niet bijgewerkt",
+    "noMatches": "Geen overeenkomende pagina’s",
+    "searchCount": "{count} van {total} pagina’s",
+    "loadError": "Pagina’s konden niet worden geladen. Je zoekopdracht blijft behouden.",
+    "retryLoading": "Pagina’s opnieuw laden"
   },
   "collections": {
     "title": "Carrousels",
