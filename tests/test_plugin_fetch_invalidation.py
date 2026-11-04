@@ -5,6 +5,7 @@ import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from functools import partial
 from pathlib import Path
 from unittest.mock import patch
 
@@ -198,10 +199,9 @@ class TestPluginFetchInvalidation(unittest.TestCase):
                     target, attribute = registry, "fetch_plugin_data"
                 fingerprints = {}
                 other = registry.get_plugin("other")
+                build_context = partial(registry.build_template_context, fingerprints=fingerprints)
                 with patch.object(target, attribute, observe):
-                    with (
-                        self.pending(other, lambda: registry.build_template_context(fingerprints=fingerprints)) as future
-                    ):
+                    with self.pending(other, build_context) as future:
                         self.assertTrue(answered.wait(5), "probe never answered")
                         service.update_plugin_config("probe", {"enabled": True, "value": "new"})
                         other.release.set()
