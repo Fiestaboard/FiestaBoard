@@ -30,6 +30,7 @@ import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from src.atomic_io import write_json_atomic
 from src.paths import get_data_dir
@@ -164,7 +165,10 @@ class BackupService:
 
         with self._lock:
             self.data_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+            # The returned suffix remains usable after a later restore, even
+            # within the same clock tick. A failed later copy must never
+            # overwrite/delete an earlier operation's rollback files either.
+            timestamp = f"{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}-{uuid4().hex}"
             restored: list[str] = []
             skipped: list[str] = []
             # Only files whose pre-restore copy actually landed. The suffix
