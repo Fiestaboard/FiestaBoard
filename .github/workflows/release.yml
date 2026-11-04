@@ -527,7 +527,7 @@ jobs:
       # ran without the --model and --allowed-tools below.
       - name: Generate AI summary with Claude
         continue-on-error: true
-        uses: anthropics/claude-code-base-action@298ebba052ef5001fd3417bbc6f2cb23788c1df0
+        uses: anthropics/claude-code-base-action@5f469a015cc80475b794d9db18ae1e07750e8e45
         env:
           # The action defaults the CLI's runtime to 18.x; align it with the
           # Node 24 the rest of this repo's workflows use.
