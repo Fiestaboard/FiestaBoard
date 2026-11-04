@@ -1377,6 +1377,11 @@ class DisplayService:
             if settings.is_paused(board_id=board_id) is True:
                 continue
             news = poll()
+            # A settings rebuild can replace/remove this runtime while the
+            # device request is in flight. Its reply belongs to the old
+            # connection: do not save settings or invalidate the new board.
+            if self.runtimes.get(key) is not rt:
+                continue
             if not isinstance(news, DevicePoll):
                 continue
             moved = bool(news.config)
