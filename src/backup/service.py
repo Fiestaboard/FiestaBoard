@@ -24,15 +24,18 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import os
 import re
 import shutil
+import stat
 import threading
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from src.atomic_io import write_json_atomic
+from src.atomic_io import staging_path, write_json_atomic
 from src.paths import get_data_dir
 
 #: Strict allowlist for repository URLs read from a backup file.  We only
@@ -78,6 +81,14 @@ class BackupRestoreAborted(BackupError):
     unwritable ``data/`` is reported as the server-side failure it is
     instead of blaming the uploaded file.
     """
+
+
+@dataclass
+class _RestoreWrite:
+    path: Path
+    before: tuple[bytes, int] | None
+    after: tuple[bytes, int] | None = None
+    after_known: bool = False
 
 
 class BackupService:
@@ -139,13 +150,20 @@ class BackupService:
         written is not overwritten at all; the restore aborts with
         :class:`BackupError` instead.
 
+        Caught file-phase failures compensate earlier writes in reverse,
+        restoring original bytes/modes and removing newly created files.
+        Recovery failures and intervening changes are reported, with verified
+        rollback copies retained for manual repair. Services are not reloaded
+        and plugins are not reinstalled after an aborted file phase.
+
         .. warning::
-           The restore is **not transactional across files**. A hard failure
-           while restoring file N leaves files 1..N-1 restored and N..end at
-           their original contents, with a ``.pre-restore-<timestamp>`` copy
-           beside each of 1..N-1. The suffix is reported so the operator can
-           finish the rollback by hand. Making the whole set atomic (stage
-           every file, then rename them all) is a separate change.
+           This is **not transactional across files**: readers may observe
+           intermediate states. Compensation is in-memory, not a durable
+           crash journal; process death or power loss can still leave a
+           partial restore. Per-store locks protect cooperative in-process
+           writers only, and identical-content/mode intervening writes cannot
+           be distinguished. Plugin reinstall/reload side effects after a
+           successful file phase are outside this recovery boundary.
 
         Args:
             backup: Parsed backup document.
@@ -177,28 +195,37 @@ class BackupService:
             backed_up: list[str] = []
 
             data_section = backup.get("data") or {}
-
-            for filename in DATA_FILES:
-                key = filename[:-5]
-                payload = data_section.get(key)
-                if payload is None and key == "collections":
-                    # Legacy backups carried a "carousels" section. Write it
-                    # to data/carousels.json so the collection storage's
-                    # first-run import migrates it into collections.json.
-                    legacy = data_section.get("carousels")
-                    if legacy is not None:
-                        # No live store owns carousels.json — plain write.
-                        if self._write_json_with_backup(self.data_dir / "carousels.json", legacy, timestamp):
-                            backed_up.append("carousels.json")
-                        restored.append("carousels.json (legacy)")
+            writes: list[_RestoreWrite] = []
+            filename = "data directory"
+            try:
+                for filename in DATA_FILES:
+                    key = filename[:-5]
+                    payload = data_section.get(key)
+                    legacy = payload is None and key == "collections" and data_section.get("carousels") is not None
+                    if legacy:
+                        filename = "carousels.json"
+                        payload = data_section["carousels"]
+                    if payload is None:
+                        skipped.append(filename)
                         continue
-                if payload is None:
-                    skipped.append(filename)
-                    continue
-                with self._owning_lock(filename):
-                    if self._write_json_with_backup(self.data_dir / filename, payload, timestamp):
-                        backed_up.append(filename)
-                restored.append(filename)
+                    with self._owning_lock(filename):
+                        path = self.data_dir / filename
+                        write = _RestoreWrite(path, self._file_state(path))
+                        # Register before attempting the write: a replace can
+                        # land and then raise. Capture its actual outcome too.
+                        writes.append(write)
+                        try:
+                            if self._write_json_with_backup(path, payload, timestamp):
+                                backed_up.append(filename)
+                        finally:
+                            write.after = self._file_state(path)
+                            write.after_known = True
+                    restored.append(filename + " (legacy)" if legacy else filename)
+            except Exception as exc:
+                logger.exception("Restore file phase failed at %s; attempting recovery", filename)
+                message = self._recover_restore(writes, timestamp)
+                unchanged = f" {filename} was not overwritten." if isinstance(exc, BackupRestoreAborted) else ""
+                raise BackupRestoreAborted(f"Restore aborted at {filename}.{unchanged} {message}") from exc
 
         plugin_results: dict[str, Any] = {
             "attempted": [],
@@ -241,6 +268,66 @@ class BackupService:
         return self.import_from_dict(backup, reinstall_plugins=reinstall_plugins)
 
     # ── helpers ─────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _file_state(path: Path) -> tuple[bytes, int] | None:
+        try:
+            return path.read_bytes(), stat.S_IMODE(path.stat().st_mode)
+        except FileNotFoundError:
+            return None
+
+    @staticmethod
+    def _restore_file(write: _RestoreWrite) -> None:
+        """Compensate exactly, including CRLF/formatting and original mode."""
+        if write.before is None:
+            write.path.unlink(missing_ok=True)
+            return
+        contents, mode = write.before
+        temporary = staging_path(write.path)
+        try:
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(contents)
+                stream.flush()
+                os.fchmod(stream.fileno(), mode)
+                os.fsync(stream.fileno())
+            temporary.replace(write.path)
+        finally:
+            with contextlib.suppress(OSError):
+                temporary.unlink(missing_ok=True)
+
+    def _recover_restore(self, writes: list[_RestoreWrite], timestamp: str) -> str:
+        """Best-effort compensation; never overwrite a detected later writer.
+
+        Keep one store lock at a time, matching the forward write ordering.
+        Recovery failures cannot stop compensation of the remaining files.
+        Only copies verified against the captured original are advertised.
+        """
+        failures: list[str] = []
+        copies: list[str] = []
+        for write in reversed(writes):
+            try:
+                with self._owning_lock(write.path.name):
+                    snapshot = write.path.with_suffix(write.path.suffix + f".pre-restore-{timestamp}")
+                    try:
+                        if write.before is not None and self._file_state(snapshot) == write.before:
+                            copies.append(write.path.name)
+                    except OSError:
+                        logger.warning("Could not verify rollback copy for %s", write.path.name, exc_info=True)
+                    current = self._file_state(write.path)
+                    if current == write.before:
+                        continue
+                    if not write.after_known or current != write.after:
+                        failures.append(f"{write.path.name} changed or could not be verified")
+                        continue
+                    self._restore_file(write)
+            except Exception:
+                failures.append(f"{write.path.name} could not be recovered")
+                logger.exception("Restore recovery failed for %s", write.path.name)
+        message = "Recovery incomplete: " + "; ".join(failures) + "." if failures else "Original files recovered."
+        if copies:
+            message += f" Verified rollback copies: {', '.join(reversed(copies))}; suffix .pre-restore-{timestamp}."
+        return message
 
     @staticmethod
     def _read_json(path: Path) -> Any | None:
