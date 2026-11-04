@@ -1367,41 +1367,49 @@ class DisplayService:
 
         Every board, not only the primary; never a paused board (hands-off,
         maybe unplugged — the same rule as the read-back poll).
+        A failure recovering one board must not skip the rest of the pass.
         """
         settings = get_settings_service()
         for key, rt in list(self.runtimes.items()):
-            poll = getattr(rt.client, "poll_device", None)
-            if not callable(poll):
-                continue
-            board_id = rt.board_id or key
-            if settings.is_paused(board_id=board_id) is True:
-                continue
-            news = poll()
-            # A settings rebuild can replace/remove this runtime while the
-            # device request is in flight. Its reply belongs to the old
-            # connection: do not save settings or invalidate the new board.
-            if self.runtimes.get(key) is not rt:
-                continue
-            if not isinstance(news, DevicePoll):
-                continue
-            moved = bool(news.config)
-            if moved:
-                settings.update_board_output_config(board_id, news.config)
-            if news.restarted or moved:
-                logger.info(
-                    "Board %s: its device %s; re-sending the board's content",
-                    board_id,
-                    "moved to new settings" if moved else "restarted",
-                )
-                self.invalidate_board_content(key)
-            elif news.overwritten is True:
-                rt.showing_out_of_band = True
-                if rt.overwritten_at is None:
-                    # The first report is the detection: a device may keep
-                    # reporting the same overwrite until core writes it again.
-                    rt.overwritten_at = time.time()
-                    logger.info("Board %s: another client wrote its device", board_id)
-                self._restore_after_overwrite(rt, board_id, settings, key=key)
+            try:
+                self._poll_output_device_once(key, rt, settings)
+            except Exception:
+                logger.exception("Board %s: output device recovery failed", rt.board_id or key)
+
+    def _poll_output_device_once(self, key: str, rt: BoardRuntime, settings) -> None:
+        """Poll and recover one board without owning the rest of the pass."""
+        poll = getattr(rt.client, "poll_device", None)
+        if not callable(poll):
+            return
+        board_id = rt.board_id or key
+        if settings.is_paused(board_id=board_id) is True:
+            return
+        news = poll()
+        # A settings rebuild can replace/remove this runtime while the
+        # device request is in flight. Its reply belongs to the old
+        # connection: do not save settings or invalidate the new board.
+        if self.runtimes.get(key) is not rt:
+            return
+        if not isinstance(news, DevicePoll):
+            return
+        moved = bool(news.config)
+        if moved:
+            settings.update_board_output_config(board_id, news.config)
+        if news.restarted or moved:
+            logger.info(
+                "Board %s: its device %s; re-sending the board's content",
+                board_id,
+                "moved to new settings" if moved else "restarted",
+            )
+            self.invalidate_board_content(key)
+        elif news.overwritten is True:
+            rt.showing_out_of_band = True
+            if rt.overwritten_at is None:
+                # The first report is the detection: a device may keep
+                # reporting the same overwrite until core writes it again.
+                rt.overwritten_at = time.time()
+                logger.info("Board %s: another client wrote its device", board_id)
+            self._restore_after_overwrite(rt, board_id, settings, key=key)
 
     def _restore_after_overwrite(self, rt: BoardRuntime, board_id, settings, *, key=None) -> None:
         """Put a board's content back after another app overwrote it (#2354).
