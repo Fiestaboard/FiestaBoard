@@ -839,8 +839,12 @@ class _GoldenRegistry:
     def list_instances(self, base_id: str) -> list[dict[str, Any]]:
         return [{"label": "work", "enabled": False}] if base_id == "alpha" else []
 
-    def create_instance(self, base_id: str, label: str) -> list[str]:
-        return [] if label != "bad label" else ["Invalid instance label"]
+    def create_instance(self, base_id: str, label: str, *, before_change=None) -> list[str]:
+        if label == "bad label":
+            return ["Invalid instance label"]
+        if before_change is not None:
+            before_change()
+        return []
 
     def delete_instance(self, base_id: str, label: str) -> list[str]:
         key = self.make_instance_key(base_id, label)
@@ -904,6 +908,13 @@ class _GoldenConfigManager:
 
     def delete_plugin_config(self, plugin_id: str) -> None:
         self.configs.pop(plugin_id, None)
+
+    def prepare_plugin_instance_config(self, plugin_id: str) -> dict | None:
+        stored = self.get_plugin_config(plugin_id)
+        if not stored:
+            self.set_plugin_config(plugin_id, {"enabled": False})
+        self.clear_plugin_removed(plugin_id)
+        return stored
 
     def mark_plugin_removed(self, plugin_id: str) -> None:
         pass

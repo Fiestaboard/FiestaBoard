@@ -761,6 +761,14 @@ class TestPluginInstanceEndpoints:
         )
         registry.make_instance_key.side_effect = lambda base, label: f"{base}:{label.lower()}"
         registry.is_instance_key.side_effect = lambda k: ":" in k
+
+        def create_instance(base_id, label, *, before_change=None):
+            errors = registry.create_instance.return_value
+            if not errors and before_change is not None:
+                before_change()
+            return errors
+
+        registry.create_instance.side_effect = create_instance
         return registry
 
     @pytest.fixture
@@ -768,6 +776,15 @@ class TestPluginInstanceEndpoints:
         """Config manager with no stored config for the instance being created."""
         cm = Mock()
         cm.get_plugin_config.return_value = None
+
+        def prepare_instance(plugin_id):
+            stored = cm.get_plugin_config(plugin_id)
+            if not stored:
+                cm.set_plugin_config(plugin_id, {"enabled": False})
+            cm.clear_plugin_removed(plugin_id)
+            return stored
+
+        cm.prepare_plugin_instance_config.side_effect = prepare_instance
         return cm
 
     # ── list instances ──────────────────────────────────────────────────────
