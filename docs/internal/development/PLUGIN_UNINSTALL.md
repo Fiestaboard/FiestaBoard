@@ -69,7 +69,7 @@ Do not infer whether it should be restored or deleted from its name alone.
 
 There is no automatic startup interpretation or durable journal for these
 caches. Process death or power loss between staging and the config commit needs
-inspection; directory-entry durability, multiprocess coordination and complete
+inspection; directory-entry durability, coordination between processes and complete
 crash recovery are not established by the caught-failure tests. The old algorithm
 deleted code before saving config; staging retains a recoverable copy but does
 not constitute release signoff for those remaining gates.
