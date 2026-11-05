@@ -26,6 +26,7 @@ from src.outputs.seed import seed_root, seeded_output
 from .base import PluginBase, TransitionPluginBase
 from .install_check import validate_install
 from .manifest import PluginManifest, collect_options_ids, load_manifest, settings_schema_ui_warnings
+from .source_imports import CurrentSourceLoader, prepare_source_imports
 from .sources import (
     PluginSource,
     get_external_plugins_dir,
@@ -563,7 +564,10 @@ class PluginLoader:
             ):
                 module = existing
             else:
-                spec = importlib.util.spec_from_file_location(module_name, init_path)
+                prepare_source_imports(plugin_dir)
+                spec = importlib.util.spec_from_file_location(
+                    module_name, init_path, loader=CurrentSourceLoader(module_name, str(init_path))
+                )
 
                 if spec is None or spec.loader is None:
                     errors.append(f"Failed to create module spec for {plugin_name}")
