@@ -427,6 +427,70 @@ class UninstallTransaction(unittest.TestCase):
             self.assertTrue(observed["code"])
             self.assertEqual(observed["config"], expected)
 
+    def test_queued_uninstall_rechecks_new_board_usage_before_staging(self):
+        self.check_queued_output_guard(unreadable=False)
+
+    def test_queued_uninstall_refuses_when_acceptance_board_read_fails(self):
+        self.check_queued_output_guard(unreadable=True)
+
+    def check_queued_output_guard(self, *, unreadable):
+        import src.plugins.registry as registry_module
+        import src.settings.service as settings_module
+
+        with fixtures.installed_plugin() as (manager, registry, code, path):
+            registry._loader.get_manifest("qa_uninstall").plugin_type = "output"
+            original = registry.plugins
+            before = path.read_bytes()
+            generation = manager.config_generation
+            initial_read = threading.Event()
+            outcome = []
+            reads = []
+            real_guard = registry_module.boards_using_output
+
+            def observe_guard(identity):
+                reads.append(identity)
+                if len(reads) > 1 and unreadable:
+                    raise OSError("synthetic acceptance settings failure")
+                result = real_guard(identity)
+                initial_read.set()
+                return result
+
+            def uninstall():
+                try:
+                    outcome.append(registry.uninstall_external_plugin("qa_uninstall"))
+                except BaseException as exc:
+                    outcome.append(exc)
+
+            with patch.object(settings_module, "_settings_service", None):
+                settings = settings_module.get_settings_service()
+                settings.set_boards([{"id": "qa-board", "device_type": "flagship", "name": "QA board"}])
+                worker = threading.Thread(target=uninstall)
+                with patch.object(registry_module, "boards_using_output", side_effect=observe_guard):
+                    with _dir_lock("qa_uninstall"):
+                        worker.start()
+                        self.assertTrue(initial_read.wait(3), "uninstall did not check the initial board state")
+                        settings.set_boards(
+                            [
+                                {
+                                    "id": "qa-board",
+                                    "device_type": "flagship",
+                                    "name": "QA board",
+                                    "output": "qa_uninstall",
+                                }
+                            ]
+                        )
+                    worker.join(4)
+            self.assertFalse(worker.is_alive())
+            self.assertEqual(len(outcome), 1)
+            self.assertIsInstance(outcome[0], list)
+            self.assertTrue(outcome[0], "queued uninstall accepted the stale unused-output decision")
+            self.assertIn("Could not confirm" if unreadable else "QA board", outcome[0][0])
+            self.assertEqual(reads, ["qa_uninstall", "qa_uninstall"])
+            self.assertTrue(code.exists())
+            self.assertEqual(registry.plugins, original)
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(manager.config_generation, generation)
+
 
 if __name__ == "__main__":
     unittest.main()

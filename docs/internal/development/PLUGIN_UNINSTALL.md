@@ -4,6 +4,9 @@ External-plugin uninstall coordinates three kinds of state: saved configuration,
 installed code and live plugin objects. The registry owns the operation; the
 service supplies connection cleanup after acceptance. The existing built-in,
 first-party and in-use-output guards still refuse before mutation.
+Output usage is checked again after waiting for the mutation locks, with a
+failed second read refusing removal. Board creation does not share this fence;
+this recheck is not complete concurrent board-lifecycle serialization.
 
 ## Caught-failure contract
 

@@ -43,7 +43,9 @@ class StagedPluginRemoval:
         pending = list(self.path.parent.glob(f".{self.path.name}.uninstall-*"))
         if pending:
             logger.error("Uninstall cache requires inspection before retry for %s: %s", self.path.name, pending)
-            raise PluginOperationFailed("Uninstall recovery cache requires inspection; see server logs before retrying.")
+            raise PluginOperationFailed(
+                "Uninstall recovery cache requires inspection; see server logs before retrying."
+            )
         if not self.path.exists() and not self.path.is_symlink():
             return self
         if not self.path.is_dir() or self.path.is_symlink():

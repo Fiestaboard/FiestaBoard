@@ -1969,18 +1969,23 @@ class PluginRegistry:
         # An output plugin that drives a board stays (plan D8): removing it
         # would take the board dark. Checked before anything is touched, and
         # fail closed: boards that cannot be read cannot be shown unused.
-        manifest = self._loader.get_manifest(plugin_id)
-        try:
-            in_use = boards_using_output(plugin_id) if manifest is not None and manifest.plugin_type == "output" else []
-        except Exception:
-            logger.exception("Could not read the saved boards to check output plugin '%s' is unused", plugin_id)
-            return [f"Could not confirm that no board uses output plugin '{plugin_id}'; it was not uninstalled."]
-        if in_use:
-            names = ", ".join(f"'{name}'" for name in in_use)
-            return [
-                f"Output plugin '{plugin_id}' drives {len(in_use)} board(s): {names}. "
-                "Switch those boards to another output, or delete them, before uninstalling it."
-            ]
+        def output_refusal() -> list[str]:
+            manifest = self._loader.get_manifest(plugin_id)
+            try:
+                in_use = boards_using_output(plugin_id) if manifest is not None and manifest.plugin_type == "output" else []
+            except Exception:
+                logger.exception("Could not read the saved boards to check output plugin '%s' is unused", plugin_id)
+                return [f"Could not confirm that no board uses output plugin '{plugin_id}'; it was not uninstalled."]
+            if in_use:
+                names = ", ".join(f"'{name}'" for name in in_use)
+                return [
+                    f"Output plugin '{plugin_id}' drives {len(in_use)} board(s): {names}. "
+                    "Switch those boards to another output, or delete them, before uninstalling it."
+                ]
+            return []
+
+        if errors := output_refusal():
+            return errors
 
         from src.config_manager import get_config_manager
 
@@ -1991,6 +1996,10 @@ class PluginRegistry:
             with self._lock:
                 if self._loader.get_source(plugin_id) is not source:
                     return ["Plugin changed while uninstall was starting; retry the operation."]
+                # The first check may precede a wait for another directory
+                # operation. Do not accept that stale board-usage decision.
+                if errors := output_refusal():
+                    return errors
                 local_path = Path(source.local_path)
                 if local_path.exists() or local_path.is_symlink():
                     resolved = self._loader._resolve_plugin_dir(plugin_id)
