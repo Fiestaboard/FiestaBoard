@@ -245,7 +245,7 @@ async def test_install_from_git_rejects_a_bad_branch_before_touching_git():
     svc.registry.install_from_git.assert_not_called()
 
 
-def test_uninstall_purges_base_and_instance_configs():
+def test_uninstall_forgets_committed_connections_without_a_second_config_purge():
     svc = _service(_Recorder())
     svc.registry.list_plugins = Mock(
         return_value=[
@@ -253,12 +253,17 @@ def test_uninstall_purges_base_and_instance_configs():
             {"id": "other", "base_plugin_id": None, "instance_label": None},
         ]
     )
-    svc.registry.uninstall_external_plugin = Mock(return_value=[])
+    def accepted_uninstall(plugin_id, *, on_committed):
+        on_committed(["ext:home", plugin_id])
+        return []
 
-    svc.uninstall("ext")
+    svc.registry.uninstall_external_plugin = Mock(side_effect=accepted_uninstall)
+    oauth = Mock()
+    with patch("src.oauth.service.get_oauth_service", return_value=oauth):
+        svc.uninstall("ext")
 
-    deleted = [call.args[0] for call in svc.config_manager.delete_plugin_config.call_args_list]
-    assert deleted == ["ext:home", "ext"]
+    svc.config_manager.delete_plugin_config.assert_not_called()
+    assert [call.args[0] for call in oauth.forget.call_args_list] == ["ext:home", "ext"]
 
 
 @pytest.mark.asyncio

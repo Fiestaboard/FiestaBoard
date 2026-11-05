@@ -12,7 +12,7 @@ import logging
 import re
 import threading
 import time
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait as futures_wait
 from dataclasses import replace
@@ -24,6 +24,7 @@ from src.outputs.first_party import is_first_party_output
 from src.outputs.seed import install_from_seed
 
 from .base import OptionsRequest, OptionsResult, PluginBase, PluginResult, normalise
+from .errors import PluginOperationFailed
 from .loader import PluginLoader, retire_plugin_object
 from .manifest import PluginManifest, VariableMetadata, color_rule_fields
 from .previews import load_preview_seed
@@ -37,6 +38,7 @@ from .sources import (
     load_registry,
     remove_external_plugin,
 )
+from .uninstall import StagedPluginRemoval
 
 logger = logging.getLogger(__name__)
 
@@ -1943,7 +1945,9 @@ class PluginRegistry:
 
         return self._load_installed(target_id, f"git plugin from {repo_url}")
 
-    def uninstall_external_plugin(self, plugin_id: str) -> list[str]:
+    def uninstall_external_plugin(
+        self, plugin_id: str, *, on_committed: Callable[[list[str]], None] | None = None
+    ) -> list[str]:
         """Remove an external (non-built-in) plugin.
 
         Built-in plugins cannot be uninstalled via this method.
@@ -1978,60 +1982,69 @@ class PluginRegistry:
                 "Switch those boards to another output, or delete them, before uninstalling it."
             ]
 
+        from src.config_manager import get_config_manager
+
+        cm = get_config_manager()
         instance_prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
         retired: list[tuple[str, PluginBase]] = []
-        with self._lock:
-            # Cascade-delete all named instances first.  State swap only —
-            # plugin-authored cleanup() is retired off the lock below (#1854).
-            for compound_key in [k for k in list(self._plugins) if k.startswith(instance_prefix)]:
-                retired.append((compound_key, self._plugins.pop(compound_key)))
-                self._manifests.pop(compound_key, None)
-                self._enabled.pop(compound_key, None)
-                self._configs.pop(compound_key, None)
-                self._discovered_vars.pop(compound_key, None)
-                self._discovery_failed_at.pop(compound_key, None)
-                logger.info("Removed instance on uninstall: %s", compound_key)
-
-            # Disable and unload base plugin
-            if plugin_id in self._plugins:
-                base_plugin = self._plugins.pop(plugin_id)
-                loaded = self._loader.loaded_plugins.get(plugin_id)
-                # unload_plugin retires the object it owns. Only retire a
-                # separately held registry object here, never that same one twice.
-                if loaded is None or loaded[0] is not base_plugin:
-                    retired.append((plugin_id, base_plugin))
-            self._manifests.pop(plugin_id, None)
-            self._enabled.pop(plugin_id, None)
-            self._configs.pop(plugin_id, None)
-
-            self._loader.unload_plugin(plugin_id)
-
-        for retired_key, retired_plugin in retired:
-            retire_plugin_object(retired_key, retired_plugin, what="removed plugin")
-
-        # Remove the directory — under the same per-directory lock the
-        # install/update path takes (#1854), so an overlapping update and
-        # uninstall of one plugin serialize instead of racing git vs rmtree.
-        local_path = Path(source.local_path)
         with _dir_lock(plugin_id):
-            remove_external_plugin(local_path)
+            with self._lock:
+                if self._loader.get_source(plugin_id) is not source:
+                    return ["Plugin changed while uninstall was starting; retry the operation."]
+                local_path = Path(source.local_path)
+                if local_path.exists() or local_path.is_symlink():
+                    resolved = self._loader._resolve_plugin_dir(plugin_id)
+                    if resolved is None or resolved != local_path.resolve():
+                        return ["Could not verify the installed plugin directory; it was not uninstalled."]
+                    local_path = resolved
+                removal = StagedPluginRemoval(local_path)
+                try:
+                    with removal:
+                        instance_keys = [key for key in self._plugins if key.startswith(instance_prefix)]
+                        purged = cm.uninstall_plugin_config(plugin_id)
+                        # This is the commit point. Never restore old code if
+                        # any subsequent retirement or credential cleanup fails.
+                        removal.commit()
+                        connection_ids = sorted((set(purged) | set(instance_keys)) - {plugin_id}) + [plugin_id]
+                        for compound_key in instance_keys:
+                            retired.append((compound_key, self._plugins.pop(compound_key)))
+                            self._manifests.pop(compound_key, None)
+                            self._enabled.pop(compound_key, None)
+                            self._configs.pop(compound_key, None)
+                            self._discovered_vars.pop(compound_key, None)
+                            self._discovery_failed_at.pop(compound_key, None)
 
-        # Persist the deliberate removal (#1394): purge the stored configs for
-        # the base plugin and every named instance, then tombstone the id so
-        # neither the post-upgrade auto-restore nor the v2→v3 reconcile can
-        # resurrect it on a later boot. Doing this here (not only in the HTTP
-        # endpoint) also covers uninstall paths that call the registry
-        # directly, e.g. the MCP server's uninstall_plugin tool.
-        try:
-            from src.config_manager import get_config_manager
+                        if plugin_id in self._plugins:
+                            base_plugin = self._plugins.pop(plugin_id)
+                            loaded = self._loader.loaded_plugins.get(plugin_id)
+                            if loaded is None or loaded[0] is not base_plugin:
+                                retired.append((plugin_id, base_plugin))
+                        self._manifests.pop(plugin_id, None)
+                        self._enabled.pop(plugin_id, None)
+                        self._configs.pop(plugin_id, None)
+                        self._discovered_vars.pop(plugin_id, None)
+                        self._discovery_failed_at.pop(plugin_id, None)
+                        self._loader.unload_plugin(plugin_id)
+                except Exception as exc:
+                    if removal.committed:
+                        raise PluginOperationFailed(
+                            "Uninstall committed, but live retirement failed; see server logs before retrying."
+                        ) from exc
+                    raise
 
-            cm = get_config_manager()
-            stored = cm.get_all_plugin_configs()
-            for key in [k for k in stored if k == plugin_id or k.startswith(instance_prefix)]:
-                cm.delete_plugin_config(key)
-            cm.mark_plugin_removed(plugin_id)
-        except Exception:
-            logger.exception("Could not persist deliberate removal of plugin '%s'", plugin_id)
+            # Plugin code and OAuth storage run outside the registry lock,
+            # while later mutations of this code directory remain fenced.
+            try:
+                for retired_key, retired_plugin in retired:
+                    retire_plugin_object(retired_key, retired_plugin, what="removed plugin")
+                if on_committed is not None:
+                    on_committed(connection_ids)
+            except Exception as exc:
+                removal.retain_after_failure()
+                raise PluginOperationFailed(
+                    "Uninstall committed, but post-commit cleanup failed; see server logs before retrying."
+                ) from exc
+            removal.cleanup(remove_external_plugin)
 
         logger.info("Uninstalled external plugin: %s", plugin_id)
         return []

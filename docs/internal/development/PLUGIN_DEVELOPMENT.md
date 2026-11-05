@@ -1229,6 +1229,11 @@ image's seed copy, if FiestaBoard ships one, with an error on
 A release that was rolled back is remembered by commit and not offered again
 until a newer commit appears.
 
+External-plugin uninstall stages code before committing config removal and
+retires live objects only after that commit. See [uninstall and recovery
+boundaries](./PLUGIN_UNINSTALL.md) for failure handling, retained code caches
+and the limits of crash recovery.
+
 Core does not trust a write to return. Each `write`/`write_sequence` gets 30 s
 (lower it with `output.write_timeout_ms`; it cannot be raised): past that,
 core stops waiting, fails the write and fires `cancel` — so honour `cancel` in

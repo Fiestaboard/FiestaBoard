@@ -847,6 +847,13 @@ class PluginLoader:
         # The installed copy and, for a seeded output plugin, the seed copy
         # it may have been running from.
         roots = [self._resolve_plugin_dir(plugin_id)]
+        if roots[0] is None:
+            # Uninstall may have reversibly staged the directory before its
+            # config commit. The source was verified when this object loaded;
+            # retain its original module root even while that path is absent.
+            source = self._plugin_sources.get(plugin_id)
+            if source is not None:
+                roots.append(Path(os.path.realpath(source.local_path)))
         seeded = seeded_output(plugin_id, self.seed_dir) if is_safe_plugin_dir_name(plugin_id) else None
         if seeded is not None:
             roots.append(Path(os.path.realpath(seeded.path)))
