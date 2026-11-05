@@ -725,6 +725,10 @@ async def set_active_page(request: SetActivePageRequest):
                 logger.info("Board is paused - skipping immediate active-page send")
                 paused = True
             if not silenced and not paused:
+                # Mixed collections are valid, but the selected member may be
+                # one of their warned-about misfits. The engine skips it too.
+                if is_collection_id(page_id) and not check_ref_board_compatibility(render_page_id, board_id).ok:
+                    return False, paused, silenced, None
                 result = page_service.preview_page(render_page_id, force_refresh=True, **render_kw(send_client))
                 if result and result.available:
                     resolved = page_transition(
