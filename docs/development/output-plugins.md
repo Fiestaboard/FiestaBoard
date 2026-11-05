@@ -570,7 +570,7 @@ Import everything from `src.plugins`. That one module is the output plugin API, 
 | `connection_label()` | No | How the board is connected, in words (the MQTT `board_api_mode` sensor). Defaults to the plugin id. |
 | `test_connection()` | No | Whether the device answers. Defaults to `check_connection()`'s verdict. |
 | `cache_synced(frame)` / `cache_cleared()` | No | Core adopted a read-back as what the board shows, or forgot it. Only an output that keeps its own per-device dedupe (one frame fanned out to several devices) needs them. |
-| `forced` | — | `True` while core runs a forced write, so an output with its own per-device dedupe re-sends everything. Read it; never set it. |
+| `forced` | — | `True` on the thread executing the current forced write, so an output with its own per-device dedupe re-sends everything. Read it; never set it. Capture its value before dispatching work to helper threads. |
 | `config_from_board(board)` | No | A class method: the instance's config from a saved board. The default is the board's `output_config`. Return `None` for a board with no usable connection. |
 | `declared_capabilities(manifest)` | No | A class method: the output's capabilities before any board exists. Defaults to the manifest's; override it when the output is more than its first device model says. |
 | `markup_follows_charset` | — | A class attribute, `True` by default. `False` treats the board as split-flap even when its character set is rich: it gets the 0–71 grid, with extended markup drawn as uncolored letters and fallback tiles, and no rich cells. |
