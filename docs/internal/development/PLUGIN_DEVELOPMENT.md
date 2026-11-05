@@ -1482,6 +1482,11 @@ Your plugin must inherit from `PluginBase`:
 | `check_triggers()` | No | Return a list of `TriggerResult` if `supports_triggers` is set |
 | `receive_payload(payload, headers, raw_body)` | No | Handle inbound webhooks (raise `PermissionError` → 403, `ValueError` → 400) |
 
+During reload, the loader cleans up the object it owns; the registry does not
+retire that same object a second time. Distinct registry objects and named
+instances still receive their own cleanup. This does not suppress cleanup
+across separate disable and enable operations.
+
 ### Properties and helpers
 
 Access settings and metadata through these properties on `PluginBase`:
