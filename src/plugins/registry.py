@@ -1994,7 +1994,12 @@ class PluginRegistry:
 
             # Disable and unload base plugin
             if plugin_id in self._plugins:
-                retired.append((plugin_id, self._plugins.pop(plugin_id)))
+                base_plugin = self._plugins.pop(plugin_id)
+                loaded = self._loader.loaded_plugins.get(plugin_id)
+                # unload_plugin retires the object it owns. Only retire a
+                # separately held registry object here, never that same one twice.
+                if loaded is None or loaded[0] is not base_plugin:
+                    retired.append((plugin_id, base_plugin))
             self._manifests.pop(plugin_id, None)
             self._enabled.pop(plugin_id, None)
             self._configs.pop(plugin_id, None)
