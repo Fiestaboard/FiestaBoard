@@ -3288,19 +3288,22 @@ class DisplayService:
                 self._ensure_primary_runtime()
                 collection_due = False
                 for rt in list(self.runtimes.values()):
+                    board_id = self._get_first_board_id() if rt is self._primary_runtime() else rt.board_id
+                    secs = None
+                    if settings_service.is_paused(board_id=board_id) is not True:
+                        ref_id = self._get_active_ref_id(board_id)
+                        if ref_id and is_collection_id(ref_id):
+                            secs = get_collection_service().seconds_until_next_check(ref_id, now)
+                            if secs is not None:
+                                # An accepted edit may shorten the cadence while
+                                # the old deadline is still far in the future.
+                                rt.next_collection_check = min(rt.next_collection_check, now + max(1, secs))
                     if now < rt.next_collection_check:
                         continue
                     rt.next_collection_check = now + polling_interval
-                    board_id = self._get_first_board_id() if rt is self._primary_runtime() else rt.board_id
-                    if settings_service.is_paused(board_id=board_id) is True:
-                        continue
-                    ref_id = self._get_active_ref_id(board_id)
-                    if ref_id and is_collection_id(ref_id):
-                        collection_service = get_collection_service()
-                        secs = collection_service.seconds_until_next_check(ref_id, now)
-                        if secs is not None:
-                            collection_due = True
-                            rt.next_collection_check = now + max(1, secs)
+                    if secs is not None:
+                        collection_due = True
+                        rt.next_collection_check = now + max(1, secs)
                 # Coalesce coincident boundaries into one shared-context pass.
                 if collection_due:
                     engine_pass()
