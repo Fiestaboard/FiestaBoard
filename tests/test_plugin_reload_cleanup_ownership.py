@@ -106,7 +106,9 @@ class ReloadCleanupOwnership(unittest.TestCase):
         with loaded_plugin() as (manager, registry, code, path, source):
             old = registry.plugins
             before = path.read_bytes()
-            (code / "__init__.py").write_text(source.replace("'OLD'", "'NEW'"))
+            # Different size isolates ownership from timestamp-based bytecode
+            # cache revalidation during a rapid same-size source rewrite.
+            (code / "__init__.py").write_text(source.replace("'OLD'", "'FRESH'"))
             with joined_cleanup():
                 replacement = registry.reload_plugin("qa_reload")
             self.assertIsNotNone(replacement)
@@ -119,7 +121,7 @@ class ReloadCleanupOwnership(unittest.TestCase):
                     self.assertIsNot(fresh, plugin)
                     self.assertEqual(fresh.cleanup_calls, 0)
                     self.assertEqual(fresh.enabled, identity != "qa_reload:two")
-                    self.assertEqual(fresh.fetch_data().data["release"], "NEW")
+                    self.assertEqual(fresh.fetch_data().data["release"], "FRESH")
                     self.assertEqual(
                         fresh.config["label"],
                         {"qa_reload": "BASE", "qa_reload:one": "ONE", "qa_reload:two": "TWO"}[identity],
