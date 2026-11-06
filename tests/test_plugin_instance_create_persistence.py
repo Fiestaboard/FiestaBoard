@@ -79,6 +79,7 @@ class TestInstanceCreationPersistence(unittest.TestCase):
             self.assertEqual(f.resets, [])
             f.retire.assert_called_once()
             self.assertEqual(f.service.create_instance("probe", "HOME"), ("probe", "probe:home"))
+            self.assertEqual(f.manager.config_generation, generation + 1)
             self.assertFalse(f.registry.is_enabled("probe:home"))
             self.assertEqual(f.manager.get_plugin_config("probe:home"), {"enabled": False})
             self.assertEqual(f.resets, ["display", "template"])
@@ -112,6 +113,7 @@ class TestInstanceCreationPersistence(unittest.TestCase):
         saved = {"enabled": True, "value": "saved-settings"}
         with self.setup_plugins(stored=saved, tombstone=True) as f:
             before = f.path.read_bytes()
+            generation = f.manager.config_generation
             with patch("src.atomic_io.os.replace", side_effect=OSError(errno.ENOSPC, "synthetic disk full")):
                 with self.assertRaises(OSError):
                     f.service.create_instance("probe", "home")
@@ -119,9 +121,11 @@ class TestInstanceCreationPersistence(unittest.TestCase):
             self.assertEqual(f.path.read_bytes(), before)
             self.assertEqual(f.manager.get_plugin_config("probe:home"), saved)
             self.assertIn("probe:home", f.manager.get_removed_plugins())
+            self.assertEqual(f.manager.config_generation, generation)
             with patch("src.config_manager.write_json_atomic", wraps=write_json_atomic) as writes:
                 f.service.create_instance("probe", "home")
             self.assertEqual(writes.call_count, 1)
+            self.assertEqual(f.manager.config_generation, generation + 1)
             self.assertTrue(f.registry.is_enabled("probe:home"))
             self.assertEqual(f.registry.get_plugin("probe:home").config, saved)
             self.assertEqual(json.loads(f.path.read_text())["plugins"]["probe:home"], saved)
