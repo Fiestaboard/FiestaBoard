@@ -19,10 +19,10 @@ from src.plugins.sources import get_external_plugins_dir
 def installed_plugin():
     with (
         tempfile.TemporaryDirectory() as directory,
-        patch.dict(os.environ, {"FIESTABOARD_DATA_DIR": directory}),
+        patch.dict(os.environ, {"FIESTABOARD_DATA_DIR": str(Path(directory).resolve())}),
         patch.object(ConfigManager, "_instance", None),
     ):
-        root = Path(directory)
+        root = Path(directory).resolve()
         builtins = root / "builtins"
         builtins.mkdir()
         config_path = root / "config.json"
