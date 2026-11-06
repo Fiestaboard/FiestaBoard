@@ -2108,14 +2108,17 @@ def test_auto_migrate_ignores_instance_keys_when_base_plugin_is_loaded(
 
 
 @patch("src.plugins.registry.remove_external_plugin")
-def test_uninstall_external_plugin_success(mock_remove, registry, mock_loader, mock_plugin, mock_manifest):
+def test_uninstall_external_plugin_success(mock_remove, registry, mock_loader, mock_plugin, mock_manifest, tmp_path):
     """uninstall_external_plugin removes external plugin."""
     registry._plugins["ext"] = mock_plugin
     registry._manifests["ext"] = mock_manifest
     registry._enabled["ext"] = True
     registry._configs["ext"] = {"key": "val"}
 
-    mock_loader.get_source.return_value = PluginSource(source_type="external", local_path="/ext/ext")
+    installed = tmp_path / "ext"
+    installed.mkdir()
+    mock_loader.get_source.return_value = PluginSource(source_type="external", local_path=str(installed))
+    mock_loader._resolve_plugin_dir.return_value = installed
 
     errors = registry.uninstall_external_plugin("ext")
     assert errors == []
@@ -2292,7 +2295,7 @@ def test_enable_plugin_unknown_plugin_still_fails(registry):
 
 @patch("src.plugins.registry.remove_external_plugin")
 def test_uninstall_tombstones_plugin_and_purges_stored_configs(
-    mock_remove, registry, mock_loader, mock_plugin, mock_manifest
+    mock_remove, registry, mock_loader, mock_plugin, mock_manifest, tmp_path
 ):
     """uninstall_external_plugin must tombstone the id and purge stored configs
     for the base plugin AND its instances, so no later boot can resurrect it —
@@ -2303,19 +2306,21 @@ def test_uninstall_tombstones_plugin_and_purges_stored_configs(
     registry._configs["ext"] = {"enabled": True}
     mock_loader.get_source.return_value = PluginSource(source_type="external", local_path="/ext/ext")
 
-    with patch("src.config_manager.get_config_manager") as mock_cm:
-        inst = mock_cm.return_value
-        inst.get_all_plugin_configs.return_value = {
-            "ext": {"enabled": True},
-            "ext:sf": {"enabled": True},
-            "other": {"enabled": True},
-        }
-        errors = registry.uninstall_external_plugin("ext")
+    from src.config_manager import ConfigManager
+
+    with patch.object(ConfigManager, "_instance", None):
+        manager = ConfigManager(str(tmp_path / "config.json"))
+        for identity in ("ext", "ext:sf", "other"):
+            manager.set_plugin_config(identity, {"enabled": True})
+        with patch("src.config_manager.get_config_manager", return_value=manager):
+            errors = registry.uninstall_external_plugin("ext")
 
     assert errors == []
-    inst.mark_plugin_removed.assert_called_once_with("ext")
-    deleted = {call.args[0] for call in inst.delete_plugin_config.call_args_list}
-    assert deleted == {"ext", "ext:sf"}
+    assert manager.is_plugin_removed("ext")
+    assert manager.get_all_plugin_configs() == {"other": {"enabled": True}}
+    stored = json.loads((tmp_path / "config.json").read_text())
+    assert stored["plugins"] == {"other": {"enabled": True}}
+    assert "ext" in stored["removed_plugins"]
 
 
 @patch("src.plugins.registry.remove_external_plugin")
