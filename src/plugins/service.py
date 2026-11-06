@@ -609,15 +609,18 @@ class PluginService:
         if registry.get_plugin(compound_key) is None:
             raise PluginNotFound(f"Instance not found: {compound_key}")
 
-        errors = registry.delete_instance(base_id, instance_label)
+        # The registry accepts the target under its lock before persisting.
+        # A failed combined config/tombstone write must not retire a working
+        # instance or make the same deletion impossible to retry.
+        config_manager = self.config_manager
+        errors = registry.delete_instance(
+            base_id,
+            instance_label,
+            before_change=lambda: config_manager.delete_plugin_instance_config(compound_key),
+        )
         if errors:
             raise PluginOperationRejected("; ".join(errors))
 
-        # Remove persisted config and tombstone the compound key so a
-        # post-upgrade auto-restore cannot resurrect the deleted instance (#1394).
-        config_manager = self.config_manager
-        config_manager.delete_plugin_config(compound_key)
-        config_manager.mark_plugin_removed(compound_key)
         # An instance's OAuth connection is its own; it goes with it.
         self.oauth_service.forget(compound_key)
 
