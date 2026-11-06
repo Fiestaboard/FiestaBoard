@@ -169,3 +169,27 @@ it.each([false, true])(
     expect(writes).toEqual([]);
   },
 );
+
+it.each(["Keep editing", "Discard and leave"])(
+  "protects a dirty page when query navigation removes the ID (%s)",
+  async (choice) => {
+    const { router, user, writes } = setup();
+    await user.type(await screen.findByDisplayValue("First page"), " unsaved");
+    await act(async () => {
+      await router.navigate("/pages/edit");
+    });
+    expect(await screen.findByRole("alertdialog", { name: "Discard unsaved changes?" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("First page unsaved")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: choice }));
+    if (choice === "Keep editing") {
+      expect(router.state.location.search).toBe("?id=first");
+      expect(screen.getByDisplayValue("First page unsaved")).toBeInTheDocument();
+    } else {
+      expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
+      await waitFor(() => expect(router.state.location.pathname).toBe("/pages"));
+      expect(router.state.location.search).toBe("");
+      expect(screen.queryByDisplayValue("First page unsaved")).not.toBeInTheDocument();
+    }
+    expect(writes).toEqual([]);
+  },
+);
