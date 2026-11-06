@@ -1091,6 +1091,11 @@ class PluginRegistry:
             self.clear_discovered_cache(plugin_id)
 
         plugin.config = config
+        # Discovery may have started after the pre-clear but before the
+        # unlocked setter applied the new config. Retire that work as well.
+        with self._lock:
+            if self._plugins.get(plugin_id) is plugin:
+                self.clear_discovered_cache(plugin_id)
 
         logger.debug(f"Updated config for {plugin_id}")
         return []
@@ -1122,6 +1127,9 @@ class PluginRegistry:
                 self.clear_discovered_cache(plugin_id)
             # Setter fires plugin-authored callbacks — run it unlocked (#1854).
             plugin.config = config
+            with self._lock:
+                if self._plugins.get(plugin_id) is plugin:
+                    self.clear_discovered_cache(plugin_id)
         return errors
 
     def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:

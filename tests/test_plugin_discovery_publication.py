@@ -5,6 +5,7 @@ import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from functools import partial
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,10 +21,25 @@ class Catalog(PluginBase):
         super().__init__({"id": identity})
         self.fail = False
         self.fetches = 0
+        self.block_config = False
+        self.invalid = False
+        self.config_entered = threading.Event()
+        self.config_release = threading.Event()
 
     @property
     def plugin_id(self):
         return self._manifest["id"]
+
+    @PluginBase.config.setter
+    def config(self, value):
+        if self.block_config:
+            self.config_entered.set()
+            if not self.config_release.wait(3):
+                raise RuntimeError("test config barrier timed out")
+        PluginBase.config.fset(self, value)
+
+    def validate_config(self, config):
+        return ["synthetic invalid stored setting"] if self.invalid else []
 
     def fetch_data(self):
         self.fetches += 1
@@ -141,6 +157,44 @@ class DiscoveryPublication(unittest.TestCase):
         self.assertIn("probe", self.registry._discovery_failed_at)
         self.assertEqual(self.registry.get_all_variables().get("probe", []), [])
         self.assertEqual(self.plugin.fetches, 1)
+
+    def test_config_application_completion_invalidates_discovery_started_after_preclear(self):
+        for stored, failed in [(False, False), (True, False), (False, True), (True, True)]:
+            with self.subTest(stored_fallback=stored, failed_fetch=failed):
+                self.plugin.block_config = False
+                self.plugin.invalid = False
+                self.plugin.config_entered.clear()
+                self.plugin.config_release.clear()
+                self.service.update_plugin_config("probe", {"enabled": True, "field": "probe_old"})
+                self.plugin.block_config = True
+                self.plugin.invalid = stored
+                self.plugin.fail = failed
+                config = {"enabled": True, "field": "probe_new"}
+                if stored:
+                    self.manager.set_plugin_config("probe", config)
+                    operation = partial(self.registry.apply_stored_config, "probe", config)
+                else:
+                    operation = partial(self.service.update_plugin_config, "probe", config)
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    config_future = pool.submit(operation)
+                    try:
+                        self.assertTrue(self.plugin.config_entered.wait(3))
+                        with self.pending() as discovery:
+                            self.plugin.config_release.set()
+                            config_future.result(timeout=3)
+                            self.plugin.fail = False
+                            self.assertEqual(self.plugin.config["field"], "probe_new")
+                    finally:
+                        self.plugin.config_release.set()
+                        config_future.result(timeout=3)
+                with self.subTest(boundary="no stale return"):
+                    self.assertNotIn("probe_old", discovery.result().get("probe", []))
+                with self.subTest(boundary="no stale cache"):
+                    self.assertNotIn("probe", self.registry._discovered_vars)
+                with self.subTest(boundary="no stale backoff"):
+                    self.assertNotIn("probe", self.registry._discovery_failed_at)
+                with self.subTest(boundary="immediate current fields"):
+                    self.assertEqual(self.registry.get_all_variables().get("probe", []), ["probe_new"])
 
     def test_other_plugin_config_change_preserves_current_catalog(self):
         with self.pending() as future:
