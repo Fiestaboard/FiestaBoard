@@ -25,7 +25,9 @@ concurrency:
 jobs:
   integration-tests:
     name: Integration Tests (${{ github.event_name == 'pull_request' && 'smoke' || 'full' }})
-    runs-on: ubuntu-latest
+    # Keep smoke/merge-queue validation stable during the Ubuntu 26 rollout.
+    # Runner migration mitigation: actions/runner-images#14748.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:
