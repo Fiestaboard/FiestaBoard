@@ -34,7 +34,7 @@ class TestBackupRecovery(unittest.TestCase):
             before = {name: (json.dumps({"marker": "OLD-" + name}) + "\r\n").encode() for name in present}
             for name, content in before.items():
                 (root / name).write_bytes(content)
-                (root / name).chmod(0o600)
+                (root / name).chmod(0o640)
             (root / "unrelated.keep").write_bytes(b"UNCHANGED")
             locks = {name: RLock() for name in (*DATA_FILES, "carousels.json")}
             app = FastAPI()
@@ -83,7 +83,7 @@ class TestBackupRecovery(unittest.TestCase):
                         for name in DATA_FILES:
                             if name in before:
                                 self.assertEqual((root / name).read_bytes(), before[name])
-                                self.assertEqual(stat.S_IMODE((root / name).stat().st_mode), 0o600)
+                                self.assertEqual(stat.S_IMODE((root / name).stat().st_mode), 0o640)
                             else:
                                 self.assertFalse((root / name).exists())
                             for snapshot in root.glob(name + ".pre-restore-*"):
@@ -162,7 +162,7 @@ class TestBackupRecovery(unittest.TestCase):
         with self.environment() as (root, _, client, _, _, _):
             exact = json.dumps(document()["data"]["config"], indent=2).encode()
             (root / "config.json").write_bytes(exact)
-            (root / "config.json").chmod(0o600)
+            (root / "config.json").chmod(0o640)
 
             def replace(source, destination):
                 if Path(destination).name == "settings.json":
@@ -172,7 +172,7 @@ class TestBackupRecovery(unittest.TestCase):
             with patch("src.atomic_io.os.replace", side_effect=replace):
                 response = client.post("/backup/import?reinstall_plugins=false", json=document())
             self.assertEqual((root / "config.json").read_bytes(), exact)
-            self.assertEqual(stat.S_IMODE((root / "config.json").stat().st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE((root / "config.json").stat().st_mode), 0o640)
             self.assertEqual(response.status_code, 500)
 
     def test_failed_removal_is_reported_and_other_files_are_recovered(self):
@@ -224,7 +224,7 @@ class TestBackupRecovery(unittest.TestCase):
                 old_legacy = b'{"carousels":[]}\r\n'
                 if existed:
                     (root / "carousels.json").write_bytes(old_legacy)
-                    (root / "carousels.json").chmod(0o600)
+                    (root / "carousels.json").chmod(0o640)
                 backup = document()
                 backup["data"]["collections"] = None
                 backup["data"]["carousels"] = {"carousels": [{"name": "imported"}]}
