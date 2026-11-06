@@ -30,7 +30,7 @@ import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
-import { useTranslations } from "@/i18n/translations";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
   BoardLedLayout,
@@ -646,6 +646,7 @@ export function PageGridSelector({
 }: PageGridSelectorProps) {
   const t = useTranslations("pageGridSelector");
   const tPages = useTranslations("pages");
+  const locale = useLocale();
   const effectiveLabel = label === undefined ? t("selectPageLabel") : label;
   // Fetch all pages
   const {
@@ -683,8 +684,8 @@ export function PageGridSelector({
     return result;
   }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard]);
   const pages = useMemo(
-    () => (libraryQuery ? selectLibraryPages(scopedPages, libraryQuery) : scopedPages),
-    [scopedPages, libraryQuery],
+    () => (libraryQuery ? selectLibraryPages(scopedPages, libraryQuery, locale) : scopedPages),
+    [scopedPages, libraryQuery, locale],
   );
 
   // The board each page previews as: the current board when the page fits it,
@@ -787,16 +788,20 @@ export function PageGridSelector({
       }
       for (const [boardId, ids] of groups) {
         const batch = (boardId ? api.previewPagesBatch(ids, boardId) : api.previewPagesBatch(ids))
-          .then((result) => result.previews ?? {})
+          .then((result) => ({ previews: result.previews ?? {}, failed: false }))
           .catch((error) => {
             console.error("Failed to fetch batch previews:", error);
-            return {} as Record<string, PagePreviewBatchEntry>;
+            return { previews: {} as Record<string, PagePreviewBatchEntry>, failed: true };
           });
         for (const id of ids) {
-          previewRequests.current.set(
-            requestKeys[id],
-            batch.then((entries) => entries[id] ?? { available: false, error: "Preview unavailable" }),
-          );
+          const key = requestKeys[id];
+          const pending: Promise<PagePreviewBatchEntry> = batch.then(({ previews: entries, failed }) => {
+            // A failed batch is retryable on a later query/effect. A valid
+            // per-page unavailable response remains memoized as before.
+            if (failed && previewRequests.current.get(key) === pending) previewRequests.current.delete(key);
+            return entries[id] ?? { available: false, error: "Preview unavailable" };
+          });
+          previewRequests.current.set(key, pending);
         }
       }
       const results = await Promise.all(

@@ -141,4 +141,19 @@ describe("saved page library queries", () => {
     expect(result[0]).toBe(pages[1]);
     expect(pages.map((page) => page.id)).toEqual(["b", "a"]);
   });
+
+  it.each([
+    ["en", "name-asc", ["umlaut", "ring", "o", "z"]],
+    ["en", "name-desc", ["z", "o", "ring", "umlaut"]],
+    ["sv", "name-asc", ["z", "ring", "umlaut", "o"]],
+    ["sv", "name-desc", ["o", "umlaut", "ring", "z"]],
+  ] as const)("sorts %s %s by the selected locale's alphabet", (locale, sort, expected) => {
+    const pages = [
+      { id: "z", name: "Zebra" },
+      { id: "umlaut", name: "Ärende" },
+      { id: "ring", name: "Åsa" },
+      { id: "o", name: "Öl" },
+    ];
+    expect(ids(selectLibraryPages(pages, { text: "", sort }, locale))).toEqual(expected);
+  });
 });

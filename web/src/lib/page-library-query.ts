@@ -124,15 +124,20 @@ function timestamp(value: string | null | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function selectLibraryPages<T extends LibraryPage>(pages: readonly T[], query: PageLibraryQuery): T[] {
+export function selectLibraryPages<T extends LibraryPage>(
+  pages: readonly T[],
+  query: PageLibraryQuery,
+  locale = "en",
+): T[] {
   const words = normalized(query.text).trim().split(/\s+/).filter(Boolean);
   const filtered = pages.filter((page) => {
     if (!words.length) return true;
     const content = pageLibrarySearchText(page);
     return words.every((word) => content.includes(word));
   });
+  const names = new Intl.Collator(locale, { sensitivity: "accent" });
   return filtered.sort((a, b) => {
-    const nameOrder = compareText(normalized(a.name), normalized(b.name));
+    const nameOrder = names.compare(a.name, b.name);
     if (query.sort.startsWith("name-")) {
       return nameOrder * (query.sort === "name-desc" ? -1 : 1) || compareText(a.id, b.id);
     }

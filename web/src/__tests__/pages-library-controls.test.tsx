@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CurrentBoardProvider } from "@/components/current-board-context";
 import { PageGridSelector } from "@/components/page-grid-selector";
+import * as translations from "@/i18n/translations";
 
 import PagesPage from "../../app/routes/pages._index";
 import { server } from "./mocks/server";
@@ -101,6 +102,46 @@ describe("Pages library search and sorting", () => {
     await user.click(screen.getByRole("button", { name: "Clear search" }));
     expect(resultIds()).toEqual(["alpha", "beta"]);
     expect(screen.getByRole("searchbox", { name: "Search pages" })).toHaveFocus();
+  });
+
+  it("reorders names when the active locale changes without changing the query", async () => {
+    const locale = vi.spyOn(translations, "useLocale").mockReturnValue("en");
+    const names = [
+      ["z", "Zebra"],
+      ["umlaut", "Ärende"],
+      ["ring", "Åsa"],
+      ["o", "Öl"],
+    ];
+    server.use(
+      http.get("/api/v1/pages", () =>
+        HttpResponse.json({ pages: names.map(([id, name]) => ({ ...pages[0], id, name })), total: names.length }),
+      ),
+    );
+    const libraryQuery = { text: "", sort: "name-asc" as const };
+    const onSelectPage = () => {};
+    const selector = () => (
+      <PageGridSelector
+        onSelectPage={onSelectPage}
+        showCollections={false}
+        deviceTypeFilter="flagship"
+        viewMode="list"
+        libraryQuery={libraryQuery}
+      />
+    );
+    try {
+      const view = renderLibrary(selector());
+      await waitFor(() => expect(resultIds()).toEqual(["umlaut", "ring", "o", "z"]));
+      locale.mockReturnValue("sv");
+      view.rerender(
+        <QueryClientProvider client={view.client}>
+          <CurrentBoardProvider>{selector()}</CurrentBoardProvider>
+        </QueryClientProvider>,
+      );
+      await waitFor(() => expect(resultIds()).toEqual(["z", "ring", "umlaut", "o"]));
+      expect(previewIds).toEqual([]);
+    } finally {
+      locale.mockRestore();
+    }
   });
 
   it("sorts the visible pages by created and updated dates", async () => {
@@ -235,6 +276,46 @@ describe("Pages library search and sorting", () => {
       release();
     }
     await waitFor(() => expect(localStorage.getItem("fiestaboard_previews_batch")).toContain("SAMPLE"));
+  });
+
+  it.each(["http", "network"])("retries a failed %s preview batch after the page list changes", async (failure) => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const user = userEvent.setup();
+    server.use(
+      http.post("/api/pages/preview/batch", async ({ request }) => {
+        const ids = ((await request.json()) as { page_ids: string[] }).page_ids;
+        previewIds.push(ids);
+        if (previewIds.length === 1) {
+          return failure === "http" ? new HttpResponse(null, { status: 503 }) : HttpResponse.error();
+        }
+        return HttpResponse.json({
+          previews: Object.fromEntries(
+            ids.map((id) => [id, { page_id: id, available: true, message: "RECOVERED", lines: ["RECOVERED"] }]),
+          ),
+        });
+      }),
+    );
+    try {
+      const view = renderLibrary();
+      await screen.findByText("Alpha");
+      await user.click(screen.getByRole("button", { name: "Grid view" }));
+      await waitFor(() => expect(errors).toHaveBeenCalledWith("Failed to fetch batch previews:", expect.anything()));
+      expect(previewIds).toEqual([["alpha", "beta"]]);
+      act(() =>
+        view.client.setQueryData(["pages"], {
+          pages: pages.map((page) => (page.id === "beta" ? { ...page, name: "Beta edited" } : page)),
+        }),
+      );
+      await waitFor(() =>
+        expect(previewIds).toEqual([
+          ["alpha", "beta"],
+          ["alpha", "beta"],
+        ]),
+      );
+      await waitFor(() => expect(localStorage.getItem("fiestaboard_previews_batch")).toContain("RECOVERED"));
+    } finally {
+      errors.mockRestore();
+    }
   });
 
   it("does not reuse or overwrite a newer preview when an older revision finishes late", async () => {
