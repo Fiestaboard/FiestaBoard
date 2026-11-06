@@ -127,6 +127,25 @@ class TestInstanceDeletionPersistence(unittest.TestCase):
             f.oauth.forget.assert_called_once_with("probe:home")
             self.assertEqual(f.resets, ["display", "template"])
 
+    def test_successful_delete_is_published_and_survives_unrelated_save_and_reload(self):
+        with self.setup_instance() as f:
+            generation = f.manager.config_generation
+            f.service.delete_instance("probe", "home")
+            with self.subTest(boundary="published configuration"):
+                self.assertIsNone(f.manager.get_plugin_config("probe:home"))
+                self.assertIn("probe:home", f.manager.get_removed_plugins())
+            with self.subTest(boundary="published generation"):
+                self.assertEqual(f.manager.config_generation, generation + 1)
+            f.manager.set_plugin_config("unrelated", {"enabled": False})
+            with patch.object(ConfigManager, "_instance", None):
+                reloaded = ConfigManager(str(f.path))
+                self.assertIsNot(reloaded, f.manager)
+                with self.subTest(boundary="unrelated save and cold reload"):
+                    self.assertIsNone(reloaded.get_plugin_config("probe:home"))
+                    self.assertIn("probe:home", reloaded.get_removed_plugins())
+                    self.assertEqual(reloaded.get_plugin_config("unrelated"), {"enabled": False})
+                    self.assertEqual(reloaded.get_plugin_config("probe:other")["value"], "probe:other")
+
     def test_target_disappearing_before_registry_acceptance_does_not_persist_deletion(self):
         with self.setup_instance() as f:
             before = f.path.read_bytes()
