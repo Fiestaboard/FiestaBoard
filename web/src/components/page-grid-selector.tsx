@@ -651,6 +651,7 @@ export function PageGridSelector({
   // Fetch all pages
   const {
     data: pagesData,
+    dataUpdatedAt: pagesUpdatedAt,
     isLoading: isLoadingPages,
     isError: pagesError,
     isFetching: fetchingPages,
@@ -673,6 +674,7 @@ export function PageGridSelector({
 
   // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
   const allPages = useMemo(() => pagesData?.pages || [], [pagesData]);
+  const previewEpoch = useMemo(() => ({ pages: allPages, updatedAt: pagesUpdatedAt }), [allPages, pagesUpdatedAt]);
   const scopedPages = useMemo(() => {
     let result = allPages;
     if (deviceTypeFilter) {
@@ -718,7 +720,8 @@ export function PageGridSelector({
   const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, PagePreviewBatchEntry>>({});
   // Search/sort may change while a batch is in flight. Reuse its answer for
   // the same page revision and target rather than rerendering it per keystroke.
-  const previewRequests = useRef(new Map<string, Promise<PagePreviewBatchEntry>>());
+  type PreviewRequest = { result: Promise<PagePreviewBatchEntry>; failedAt?: typeof previewEpoch };
+  const previewRequests = useRef(new Map<string, PreviewRequest>());
   const requestKeys = useMemo(
     () =>
       Object.fromEntries(
@@ -782,32 +785,36 @@ export function PageGridSelector({
       // subsequent effect can share pending and unavailable answers as well.
       const groups = new Map<string | null, string[]>();
       for (const id of pagesToFetch) {
-        if (previewRequests.current.has(requestKeys[id])) continue;
+        const previous = previewRequests.current.get(requestKeys[id]);
+        if (previous && (!previous.failedAt || previous.failedAt === previewEpoch)) continue;
         const boardId = previewTargets[id]?.richBoardId ?? null;
         groups.set(boardId, [...(groups.get(boardId) ?? []), id]);
       }
       for (const [boardId, ids] of groups) {
         const batch = (boardId ? api.previewPagesBatch(ids, boardId) : api.previewPagesBatch(ids))
-          .then((result) => ({ previews: result.previews ?? {}, failed: false }))
+          .then((result) => result.previews ?? {})
           .catch((error) => {
             console.error("Failed to fetch batch previews:", error);
-            return { previews: {} as Record<string, PagePreviewBatchEntry>, failed: true };
+            return {} as Record<string, PagePreviewBatchEntry>;
           });
         for (const id of ids) {
           const key = requestKeys[id];
-          const pending: Promise<PagePreviewBatchEntry> = batch.then(({ previews: entries, failed }) => {
-            // A failed batch is retryable on a later query/effect. A valid
-            // per-page unavailable response remains memoized as before.
-            if (failed && previewRequests.current.get(key) === pending) previewRequests.current.delete(key);
-            return entries[id] ?? { available: false, error: "Preview unavailable" };
-          });
-          previewRequests.current.set(key, pending);
+          const request: PreviewRequest = {
+            result: batch.then<PagePreviewBatchEntry>((entries) => {
+              const preview: PagePreviewBatchEntry = entries[id] ?? { available: false, error: "Preview unavailable" };
+              // Revalidate unavailable results after page data refreshes,
+              // while typing/sorting continue sharing the same attempt.
+              if (!preview.available) request.failedAt = previewEpoch;
+              return preview;
+            }),
+          };
+          previewRequests.current.set(key, request);
         }
       }
       const results = await Promise.all(
         pagesToFetch.map(async (id) => ({
           id,
-          preview: await previewRequests.current.get(requestKeys[id])!,
+          preview: await previewRequests.current.get(requestKeys[id])!.result,
         })),
       );
       if (!mounted) return;
@@ -835,7 +842,7 @@ export function PageGridSelector({
     return () => {
       mounted = false;
     };
-  }, [pagesToFetch, pages, previewTargets, requestKeys]);
+  }, [pagesToFetch, pages, previewTargets, requestKeys, previewEpoch]);
 
   if (libraryQuery && pagesError) {
     return (

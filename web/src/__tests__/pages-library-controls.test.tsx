@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CurrentBoardProvider } from "@/components/current-board-context";
 import { PageGridSelector } from "@/components/page-grid-selector";
 import * as translations from "@/i18n/translations";
+import { api } from "@/lib/api";
 
 import PagesPage from "../../app/routes/pages._index";
 import { server } from "./mocks/server";
@@ -278,7 +279,12 @@ describe("Pages library search and sorting", () => {
     await waitFor(() => expect(localStorage.getItem("fiestaboard_previews_batch")).toContain("SAMPLE"));
   });
 
-  it.each(["http", "network"])("retries a failed %s preview batch after the page list changes", async (failure) => {
+  it.each([
+    ["http", "edit"],
+    ["network", "edit"],
+    ["http", "refetch"],
+    ["network", "refetch"],
+  ] as const)("retries a failed %s preview batch after a page-list %s", async (failure, retry) => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const user = userEvent.setup();
     server.use(
@@ -301,11 +307,19 @@ describe("Pages library search and sorting", () => {
       await user.click(screen.getByRole("button", { name: "Grid view" }));
       await waitFor(() => expect(errors).toHaveBeenCalledWith("Failed to fetch batch previews:", expect.anything()));
       expect(previewIds).toEqual([["alpha", "beta"]]);
-      act(() =>
-        view.client.setQueryData(["pages"], {
-          pages: pages.map((page) => (page.id === "beta" ? { ...page, name: "Beta edited" } : page)),
-        }),
-      );
+      if (retry === "edit") {
+        act(() =>
+          view.client.setQueryData(["pages"], {
+            pages: pages.map((page) => (page.id === "beta" ? { ...page, name: "Beta edited" } : page)),
+          }),
+        );
+      } else {
+        const data = view.client.getQueryData(["pages"]);
+        await act(async () => {
+          await view.client.refetchQueries({ queryKey: ["pages"] });
+        });
+        expect(view.client.getQueryData(["pages"])).toBe(data);
+      }
       await waitFor(() =>
         expect(previewIds).toEqual([
           ["alpha", "beta"],
@@ -315,6 +329,80 @@ describe("Pages library search and sorting", () => {
       await waitFor(() => expect(localStorage.getItem("fiestaboard_previews_batch")).toContain("RECOVERED"));
     } finally {
       errors.mockRestore();
+    }
+  });
+
+  it("does not retry a failed batch for query-only sorting and typing", async () => {
+    const calls = vi.spyOn(api, "previewPagesBatch");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    server.use(
+      http.get("/api/v1/pages", () =>
+        HttpResponse.json({
+          pages: pages.map((page) => ({ ...page, name: `Artwork ${page.name}` })),
+          total: pages.length,
+        }),
+      ),
+      http.post("/api/pages/preview/batch", () => new HttpResponse(null, { status: 503 })),
+    );
+    try {
+      const user = userEvent.setup();
+      renderLibrary();
+      await screen.findByText("Artwork Alpha");
+      await user.click(screen.getByRole("button", { name: "Grid view" }));
+      await waitFor(() => expect(errors).toHaveBeenCalledWith("Failed to fetch batch previews:", expect.anything()));
+      expect(calls).toHaveBeenCalledTimes(1);
+      await user.click(screen.getByRole("combobox", { name: "Sort pages" }));
+      await user.click(await screen.findByRole("option", { name: "Newest created" }));
+      await user.type(screen.getByRole("searchbox", { name: "Search pages" }), "ar");
+      await act(async () => {
+        await Promise.allSettled(
+          calls.mock.results.map((result) => (result.type === "return" ? result.value : undefined)),
+        );
+      });
+      expect(calls).toHaveBeenCalledTimes(1);
+    } finally {
+      calls.mockRestore();
+      errors.mockRestore();
+    }
+  });
+
+  it("revalidates a temporarily unavailable page after unchanged page data refetches", async () => {
+    const calls = vi.spyOn(api, "previewPagesBatch");
+    let recovered = false;
+    server.use(
+      http.post("/api/pages/preview/batch", async ({ request }) => {
+        const ids = ((await request.json()) as { page_ids: string[] }).page_ids;
+        return HttpResponse.json({
+          previews: Object.fromEntries(
+            ids.map((id) => [
+              id,
+              recovered
+                ? { page_id: id, available: true, message: "RECOVERED", lines: ["RECOVERED"] }
+                : { available: false, error: "Temporarily unavailable" },
+            ]),
+          ),
+        });
+      }),
+    );
+    try {
+      const user = userEvent.setup();
+      const view = renderLibrary();
+      await screen.findByText("Alpha");
+      await user.click(screen.getByRole("button", { name: "Grid view" }));
+      await waitFor(() => expect(calls).toHaveBeenCalledTimes(1));
+      await act(async () => {
+        await calls.mock.results[0].value;
+      });
+      recovered = true;
+      const data = view.client.getQueryData(["pages"]);
+      await act(async () => {
+        await view.client.refetchQueries({ queryKey: ["pages"] });
+      });
+      expect(view.client.getQueryData(["pages"])).toBe(data);
+      await waitFor(() => expect(calls).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(localStorage.getItem("fiestaboard_previews_batch")).toContain("RECOVERED"));
+    } finally {
+      calls.mockRestore();
     }
   });
 
