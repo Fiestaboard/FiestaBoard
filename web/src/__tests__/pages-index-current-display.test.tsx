@@ -14,7 +14,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CurrentBoardProvider } from "@/components/current-board-context";
+import { CurrentBoardProvider, useCurrentBoard } from "@/components/current-board-context";
 
 import PagesPage from "../../app/routes/pages._index";
 import { server } from "./mocks/server";
@@ -49,11 +49,23 @@ const BOARDS = [
   },
 ];
 
+function BoardSwitcher() {
+  const { currentBoard, setCurrentBoardId } = useCurrentBoard();
+  return (
+    <>
+      <span aria-label="Selected board">{currentBoard?.name}</span>
+      <button onClick={() => setCurrentBoardId("b-pixoo")}>Select Pixoo</button>
+      <button onClick={() => setCurrentBoardId("b-flag")}>Select Hall</button>
+    </>
+  );
+}
+
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <CurrentBoardProvider>
+        <BoardSwitcher />
         <PagesPage />
       </CurrentBoardProvider>
     </QueryClientProvider>,
@@ -103,6 +115,33 @@ describe("PagesPage — the selected display", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByRole("tab", { name: "Flagship" })).toHaveAttribute("aria-selected", "true"));
+  });
+
+  it("follows a changed sidebar board until the user explicitly chooses a tab", async () => {
+    localStorage.setItem("fiestaboard_current_board", "b-flag");
+    const user = userEvent.setup();
+    renderPage();
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Flagship" })).toHaveAttribute("aria-selected", "true"));
+    await user.click(screen.getByRole("button", { name: "Select Pixoo" }));
+    await waitFor(() => expect(screen.getByLabelText("Selected board")).toHaveTextContent("Pixoo"));
+    expect(screen.getByRole("tab", { name: "Panel" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByText("Pixoo Page")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /New page/i }));
+    expect(push).toHaveBeenCalledWith("/pages/new");
+  });
+
+  it("preserves an explicit tab through sidebar board switches and creates for that tab", async () => {
+    localStorage.setItem("fiestaboard_current_board", "b-flag");
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole("tab", { name: "Panel" }));
+    await user.click(screen.getByRole("button", { name: "Select Pixoo" }));
+    await waitFor(() => expect(screen.getByLabelText("Selected board")).toHaveTextContent("Pixoo"));
+    await user.click(screen.getByRole("button", { name: "Select Hall" }));
+    await waitFor(() => expect(screen.getByLabelText("Selected board")).toHaveTextContent("Hall"));
+    expect(screen.getByRole("tab", { name: "Panel" })).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("button", { name: /New page/i }));
+    expect(push).toHaveBeenCalledWith("/pages/new?device=panel");
   });
 
   it("keeps the selected LED target when the saved-page list cannot load", async () => {
