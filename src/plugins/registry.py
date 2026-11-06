@@ -249,8 +249,8 @@ class PluginRegistry:
         # to order two).  Install/update endpoints run on worker threads since
         # #1809, so these dicts mutate concurrently with request handlers that
         # iterate them (#1828).  Iterating callers snapshot under the lock and
-        # iterate the snapshot; nothing slow — git, plugin ``get_data``, the
-        # context-build thread pool — ever runs while it is held.
+        # iterate the snapshot. Git, plugin get_data and context-pool work run
+        # outside it; accepted instance config commits hold it across persistence.
         self._lock = threading.RLock()
         self._loader = PluginLoader(plugins_dir, lock=self._lock)
         self._plugins: dict[str, PluginBase] = {}
