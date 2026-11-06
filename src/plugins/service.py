@@ -1,7 +1,7 @@
 """Plugin orchestration service (issue #1757).
 
-One place for the mutate → persist → reset-display → reset-template-engine
-sequence that five REST handlers used to copy-paste (config update, enable,
+One place to coordinate mutation, persistence and display/template resets
+that five REST handlers used to copy-paste (config update, enable,
 disable, instance create, instance delete), and the only code allowed to
 touch ``ConfigManager._mask_sensitive`` and ``PluginRegistry._update_status``
 — routes and MCP tools go through the public wrappers here instead.
@@ -500,7 +500,7 @@ class PluginService:
         return self.mask_config(config_manager.get_plugin_config(plugin_id))
 
     def enable_plugin(self, plugin_id: str) -> None:
-        """Enable a plugin in the registry and persist the flag to config."""
+        """Persist an accepted enable request before changing the live plugin."""
         registry = self.registry
         if not registry.get_plugin(plugin_id):
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
@@ -509,16 +509,15 @@ class PluginService:
                 "Output plugins are used by their boards; enable or resume the board instead."
             )
 
-        if not registry.enable_plugin(plugin_id):
+        if not registry.enable_plugin(plugin_id, before_change=lambda: self.config_manager.enable_plugin(plugin_id)):
             raise PluginOperationRejected(f"Failed to enable plugin: {plugin_id}")
 
-        self.config_manager.enable_plugin(plugin_id)
         self.reset_runtime()
 
         logger.info(f"Plugin '{plugin_id}' enabled")
 
     def disable_plugin(self, plugin_id: str) -> None:
-        """Disable a plugin in the registry and persist the flag to config."""
+        """Persist an accepted disable request before changing the live plugin."""
         registry = self.registry
         if not registry.get_plugin(plugin_id):
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
@@ -527,10 +526,9 @@ class PluginService:
                 "Output plugins are used by their boards; disable or pause the board instead."
             )
 
-        if not registry.disable_plugin(plugin_id):
+        if not registry.disable_plugin(plugin_id, before_change=lambda: self.config_manager.disable_plugin(plugin_id)):
             raise PluginOperationRejected(f"Failed to disable plugin: {plugin_id}")
 
-        self.config_manager.disable_plugin(plugin_id)
         self.reset_runtime()
 
         logger.info(f"Plugin '{plugin_id}' disabled")
