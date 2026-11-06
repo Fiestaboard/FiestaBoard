@@ -142,7 +142,7 @@ class DiscoveryPublication(unittest.TestCase):
         with self.subTest(boundary="new instance discovery"):
             self.assertEqual(self.registry.get_all_variables().get("probe", []), ["replacement"])
 
-    def test_disabled_plugin_cannot_publish_catalog_or_failure_backoff(self):
+    def test_disabled_plugin_cannot_publish_catalog(self):
         with self.pending():
             self.registry.disable_plugin("probe")
         with self.subTest(boundary="no disabled cache"):
@@ -150,6 +150,17 @@ class DiscoveryPublication(unittest.TestCase):
         self.assertNotIn("probe", self.registry._discovery_failed_at)
         self.registry.enable_plugin("probe")
         self.assertEqual(self.registry.get_all_variables().get("probe", []), ["probe_old"])
+
+    def test_disabled_failed_discovery_does_not_delay_healthy_reenable(self):
+        self.plugin.fail = True
+        with self.pending():
+            self.registry.disable_plugin("probe")
+        self.plugin.fail = False
+        with self.subTest(boundary="no disabled failure backoff"):
+            self.assertNotIn("probe", self.registry._discovery_failed_at)
+        self.registry.enable_plugin("probe")
+        with self.subTest(boundary="immediate healthy reenable"):
+            self.assertEqual(self.registry.get_all_variables().get("probe", []), ["probe_old"])
 
     def test_unchanged_failure_keeps_normal_retry_backoff(self):
         self.plugin.fail = True
