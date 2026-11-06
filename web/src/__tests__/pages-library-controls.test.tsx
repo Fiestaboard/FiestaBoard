@@ -206,6 +206,26 @@ describe("Pages library search and sorting", () => {
     expect(screen.getByRole("combobox", { name: "Sort pages" })).toHaveTextContent("Recently updated");
   });
 
+  it("retains loaded pages and the query after a failed background page refetch", async () => {
+    const user = userEvent.setup();
+    const view = renderLibrary();
+    await screen.findByText("Alpha");
+    await user.type(screen.getByRole("searchbox", { name: "Search pages" }), "weather");
+    const data = view.client.getQueryData(["pages"]);
+    server.use(http.get("/api/v1/pages", () => new HttpResponse(null, { status: 503 })));
+    await act(async () => {
+      await view.client.refetchQueries({ queryKey: ["pages"] });
+      // React Query schedules observer notifications after the cache settles.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(view.client.getQueryState(["pages"])?.status).toBe("error");
+    expect(view.client.getQueryData(["pages"])).toBe(data);
+    expect(screen.queryByText("Alpha")).toBeInTheDocument();
+    expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Search pages" })).toHaveValue("weather");
+    expect(resultIds()).toEqual(["alpha"]);
+  });
+
   it("falls back from a removed device tab and creates for the visible display", async () => {
     sessionStorage.setItem(
       "fiestaboard_pages_library_query",
@@ -392,7 +412,13 @@ describe("Pages library search and sorting", () => {
       await user.click(screen.getByRole("button", { name: "Grid view" }));
       await waitFor(() => expect(calls).toHaveBeenCalledTimes(1));
       const data = view.client.getQueryData(["pages"]);
-      await act(() => view.client.refetchQueries({ queryKey: ["pages"] }));
+      const updatedAt = view.client.getQueryState(["pages"])!.dataUpdatedAt;
+      await act(async () => {
+        await view.client.refetchQueries({ queryKey: ["pages"] });
+        // Deliver the completed refetch to observers before the batch fails.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(view.client.getQueryState(["pages"])!.dataUpdatedAt).toBeGreaterThan(updatedAt);
       expect(view.client.getQueryData(["pages"])).toBe(data);
       await act(async () => {
         release();

@@ -848,7 +848,7 @@ export function PageGridSelector({
     };
   }, [pagesToFetch, pages, previewTargets, requestKeys, previewEpoch]);
 
-  if (libraryQuery && pagesError) {
+  if (libraryQuery && pagesError && !pagesData) {
     return (
       <Stack gap="3" role="alert">
         <Text>{tPages("loadError")}</Text>
