@@ -262,3 +262,24 @@ class TestPluginFetchInvalidation(unittest.TestCase):
                     result = future.result(timeout=5)
             self.assertFalse(result.available)
             self.assertEqual(registry.fetch_plugin_data("probe").data["value"], "new")
+
+    def test_config_assignment_inside_fetch_discards_that_result_then_recovers(self):
+        with self.setup_plugins() as (registry, plugin, _, _):
+            fetch = plugin.fetch_data
+
+            def change_config_once():
+                result = fetch()
+                if plugin.fetches == 1:
+                    plugin.config = {"enabled": True, "value": "new"}
+                return result
+
+            with patch.object(plugin, "fetch_data", side_effect=change_config_once):
+                result = registry.fetch_plugin_data("probe")
+                with self.subTest(boundary="invalidated return"):
+                    self.assertFalse(result.available)
+                with self.subTest(boundary="invalidated cache"):
+                    self.assertIsNone(plugin.cached_result())
+                recovered = registry.fetch_plugin_data("probe")
+                self.assertTrue(recovered.available)
+                self.assertEqual(recovered.data["value"], "new")
+            self.assertEqual(plugin.fetches, 2)

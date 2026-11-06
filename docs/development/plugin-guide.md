@@ -584,6 +584,12 @@ Your plugin inherits these from `PluginBase`:
 | `ai_providers()` | method | **9.11.0.** The AI providers set up in Settings, without keys or tokens. A settings field with `"options_id": "ai_providers"` gets them as a picker with no code. |
 | `board` | property | The board this render is for: a `BoardContext` with `rows`, `cols`, `device_type` and (**10.0.0**) `display`. `None` outside a board-scoped render. See [Knowing the Board and Its Display](#knowing-the-board-and-its-display). |
 
+`clear_cache()` also invalidates a fetch already in progress: that fetch returns
+unavailable and cannot refill the cache. The `config` and `enabled` setters use
+this boundary too. Calling it, or changing configuration, inside `fetch_data()`
+discards that fetch's result; let a later fetch publish the replacement data.
+Do not clear the cache on every fetch while expecting that same fetch to publish data.
+
 ### PluginResult
 
 `fetch_data()` must return a `PluginResult`:
