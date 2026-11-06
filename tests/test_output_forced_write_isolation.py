@@ -72,7 +72,7 @@ class ForcedWriteIsolation(unittest.TestCase):
         self.addCleanup(driver.close)
         self.addCleanup(plugin.release_first.set)
         old = driver.send_characters([[43]], force=old_force, with_outcome=True)
-        self.assertTrue(plugin.first_started.is_set())
+        self.assertTrue(plugin.first_started.wait(3), "timed-out output worker did not start")
         self.assertEqual((old.success, old.was_sent), (False, False))
         self.assertIn("did not finish", driver.last_write_error)
         self.assertIsNone(driver._frames.last_frame)
@@ -105,7 +105,27 @@ class ForcedWriteIsolation(unittest.TestCase):
             self.assertEqual(plugin.sent, [target])
         self.assertEqual(driver._frames.last_frame, target)
         self.assertIsNone(driver.last_write_error)
-        self.assertFalse(plugin.forced)
+
+    def test_captured_force_reaches_helper_thread(self):
+        # Match the pinned Vestaboard fan-out: capture on the write thread,
+        # then pass the value to helper threads rather than reading it there.
+        from concurrent.futures import ThreadPoolExecutor
+
+        class FanOut(BarrierOutput):
+            def write(self, frame, *, native, cancel):
+                force = self.forced
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    self.observed["helper_force"] = pool.submit(lambda: force).result(timeout=3)
+                return WriteResult(True, True)
+
+        for force in (False, True):
+            with self.subTest(force=force):
+                plugin = FanOut()
+                plugin.budget_ms = 4000
+                driver = OutputPluginDriver(plugin)
+                self.addCleanup(driver.close)
+                self.assertTrue(driver.send_characters([[45]], force=force)[1])
+                self.assertEqual(plugin.observed["helper_force"], force)
 
     def test_late_normal_cleanup_cannot_suppress_forced_resend(self):
         self.overlap(False, True)

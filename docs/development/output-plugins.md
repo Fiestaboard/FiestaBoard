@@ -579,6 +579,13 @@ Import everything from `src.plugins`. That one module is the output plugin API, 
 | `handle_action(ctx)` | No | A class method: runs one action with an `ActionContext`. See [Actions](#actions). |
 | `board_status(config, board)` | No | A class method: the board card's Connected / Not configured. See [Board status](#board-status-and-stored-settings). |
 
+`forced` used to be a shared instance flag. It is now scoped to the thread
+executing `write` so a timed-out writer cannot change a newer write's mode.
+Plugin authors who read `self.forced` inside helper threads must instead capture
+it in `write` and pass the boolean to those workers. The pinned Vestaboard
+Note-array output already does this before its tile fan-out; arbitrary
+third-party helper-thread implementations have not been verified.
+
 What core resolved for the board is on the instance:
 
 | Accessor | Value |
