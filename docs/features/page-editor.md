@@ -29,6 +29,20 @@ Pages are device-specific. The **Pages** section has **Flagship** and **Note** t
 The Vestaboard Note supports a heart character (❤) at code 62, which displays as a degree symbol (°) on the Flagship.
 :::
 
+## Finding Saved Pages
+
+Use **Search pages** in the Pages library to find names, saved text, and plugin
+references such as `weather.temperature`. Search stays within the selected device
+tab and matches every word you enter, regardless of case. It searches authored
+content, including Canvas text and bindings, rather than live plugin values.
+
+Use **Sort pages** to order by name, creation time, or update time in either
+direction. Pages without an update time use their creation time; pages with
+unknown dates appear last. Search, sorting, and the device tab stay selected when
+you open a page and return during the same browser session. Grid and list view
+keep their existing saved preference. **Clear search** restores all pages in the
+tab.
+
 ## Creating a New Page
 
 1. Open the FiestaBoard Web UI at `http://localhost:4420`

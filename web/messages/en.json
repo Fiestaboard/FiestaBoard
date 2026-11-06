@@ -159,7 +159,22 @@
     "importDialogCancel": "Cancel",
     "importDialogImport": "Import",
     "importDialogImporting": "Importing...",
-    "toastImported": "\"{name}\" added to your pages"
+    "toastImported": "\"{name}\" added to your pages",
+    "searchLabel": "Search pages",
+    "searchPlaceholder": "Search names or saved content",
+    "searchHint": "Searches names and saved content in the selected device tab.",
+    "clearSearch": "Clear search",
+    "sortLabel": "Sort pages",
+    "sortNameAsc": "Name A–Z",
+    "sortNameDesc": "Name Z–A",
+    "sortCreatedDesc": "Newest created",
+    "sortCreatedAsc": "Oldest created",
+    "sortUpdatedDesc": "Recently updated",
+    "sortUpdatedAsc": "Updated oldest first",
+    "noMatches": "No matching pages",
+    "searchCount": "{count} of {total} pages",
+    "loadError": "Could not load pages. Your search is kept.",
+    "retryLoading": "Retry loading pages"
   },
   "collections": {
     "title": "Collections",

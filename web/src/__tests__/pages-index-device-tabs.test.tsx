@@ -86,6 +86,7 @@ function mockPages(
 describe("PagesPage device-type tabs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   it("hides tabs when only one device type is configured AND only that device's pages exist", async () => {

@@ -203,7 +203,22 @@
     "importDialogCancel": "Annulla",
     "importDialogImport": "Importa",
     "importDialogImporting": "Importazione...",
-    "toastImported": "«{name}» aggiunto alle tue pagine"
+    "toastImported": "«{name}» aggiunto alle tue pagine",
+    "searchLabel": "Cerca pagine",
+    "searchPlaceholder": "Cerca nomi o contenuti salvati",
+    "searchHint": "Cerca nei nomi e nei contenuti salvati nella scheda del dispositivo selezionato.",
+    "clearSearch": "Cancella ricerca",
+    "sortLabel": "Ordina pagine",
+    "sortNameAsc": "Nome A–Z",
+    "sortNameDesc": "Nome Z–A",
+    "sortCreatedDesc": "Create più di recente",
+    "sortCreatedAsc": "Create meno di recente",
+    "sortUpdatedDesc": "Aggiornate più di recente",
+    "sortUpdatedAsc": "Aggiornate meno di recente",
+    "noMatches": "Nessuna pagina corrispondente",
+    "searchCount": "{count} di {total} pagine",
+    "loadError": "Impossibile caricare le pagine. La ricerca è conservata.",
+    "retryLoading": "Riprova a caricare le pagine"
   },
   "collections": {
     "title": "Caroselli",

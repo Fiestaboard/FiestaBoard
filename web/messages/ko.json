@@ -203,7 +203,22 @@
     "importDialogCancel": "취소",
     "importDialogImport": "가져오기",
     "importDialogImporting": "가져오는 중...",
-    "toastImported": "\"{name}\"이(가) 페이지에 추가되었습니다"
+    "toastImported": "\"{name}\"이(가) 페이지에 추가되었습니다",
+    "searchLabel": "페이지 검색",
+    "searchPlaceholder": "이름 또는 저장된 내용 검색",
+    "searchHint": "선택한 기기 탭에서 이름과 저장된 내용을 검색합니다.",
+    "clearSearch": "검색 지우기",
+    "sortLabel": "페이지 정렬",
+    "sortNameAsc": "이름 A–Z",
+    "sortNameDesc": "이름 Z–A",
+    "sortCreatedDesc": "최근 생성순",
+    "sortCreatedAsc": "오래된 생성순",
+    "sortUpdatedDesc": "최근 수정순",
+    "sortUpdatedAsc": "오래된 수정순",
+    "noMatches": "일치하는 페이지가 없습니다",
+    "searchCount": "전체 {total}개 중 {count}개 페이지",
+    "loadError": "페이지를 불러올 수 없습니다. 검색 조건은 유지됩니다.",
+    "retryLoading": "페이지 불러오기 재시도"
   },
   "collections": {
     "title": "캐러셀",
