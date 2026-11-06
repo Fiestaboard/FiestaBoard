@@ -3,16 +3,17 @@
 import json
 import tempfile
 import threading
-from types import SimpleNamespace
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
+
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from src.pages.models import Page
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 from src.plugins import routes
 from src.plugins.manifest import DemoPageSchema
@@ -105,7 +106,8 @@ class DemoPageReplacement(unittest.TestCase):
         for snapshot in snapshots:
             with self.subTest(boundary="no committed gap"):
                 selected = [
-                    page for page in snapshot["pages"]
+                    page
+                    for page in snapshot["pages"]
                     if page.get("demo_plugin_id") == "qa_demo" and page.get("device_type") == "flagship"
                 ]
                 self.assertEqual(len(selected), 1)

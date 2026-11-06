@@ -442,7 +442,8 @@ class PageStorage:
         with self._store.lock:
             existing = next(
                 (
-                    stored for stored in self.list_all()
+                    stored
+                    for stored in self.list_all()
                     if stored.demo_plugin_id == page.demo_plugin_id and stored.device_type == page.device_type
                 ),
                 None,
