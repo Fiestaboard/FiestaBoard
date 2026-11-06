@@ -15,7 +15,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.backup.routes import router
-from src.backup.service import BACKUP_FILE_MARKER, BACKUP_SCHEMA_VERSION, DATA_FILES, BackupService
+from src.backup.service import (
+    BACKUP_FILE_MARKER,
+    BACKUP_SCHEMA_VERSION,
+    DATA_FILES,
+    BackupRestoreAborted,
+    BackupService,
+)
 
 
 def document():
@@ -56,18 +62,21 @@ class TestBackupRecovery(unittest.TestCase):
                 for target in DATA_FILES:
                     if phase == "copy" and target not in present:
                         continue
-                    with self.subTest(present=len(present), phase=phase, target=target), self.environment(present) as env:
+                    with (
+                        self.subTest(present=len(present), phase=phase, target=target),
+                        self.environment(present) as env,
+                    ):
                         root, before, client, reload, reinstall, _ = env
                         hit = []
 
-                        def copy(source, destination):
+                        def copy(source, destination, *, phase=phase, target=target, hit=hit):
                             if phase == "copy" and Path(source).name == target:
                                 hit.append(True)
                                 Path(destination).write_bytes(b"PARTIAL")
                                 raise OSError("synthetic copy failure")
                             return real_copy(source, destination)
 
-                        def replace(source, destination):
+                        def replace(source, destination, *, phase=phase, target=target, hit=hit):
                             if phase == "commit" and Path(destination).name == target:
                                 hit.append(True)
                                 raise OSError("synthetic commit failure")
@@ -178,6 +187,7 @@ class TestBackupRecovery(unittest.TestCase):
     def test_failed_removal_is_reported_and_other_files_are_recovered(self):
         real_replace, real_unlink = os.replace, Path.unlink
         with self.environment({"config.json"}) as (root, before, client, _, _, _):
+
             def replace(source, destination):
                 if Path(destination).name == "pages.json":
                     raise OSError("synthetic forward failure")
@@ -204,13 +214,13 @@ class TestBackupRecovery(unittest.TestCase):
                 if phase == "serialize":
                     backup["data"]["settings"] = {"invalid": object()}
 
-                def read(path):
+                def read(path, *, phase=phase, root=root, real_read=real_read):
                     if phase == "snapshot" and path == root / "settings.json":
                         raise OSError("synthetic snapshot failure")
                     return real_read(path)
 
                 with patch.object(Path, "read_bytes", read):
-                    with self.assertRaises(Exception):
+                    with self.assertRaises(BackupRestoreAborted):
                         service.import_from_dict(backup, reinstall_plugins=False)
                 for name, data in before.items():
                     self.assertEqual((root / name).read_bytes(), data)
@@ -247,6 +257,7 @@ class TestBackupRecovery(unittest.TestCase):
     def test_partial_snapshot_is_not_advertised_when_cleanup_also_fails(self):
         real_unlink = Path.unlink
         with self.environment() as (root, before, client, _, _, _):
+
             def copy(source, destination):
                 Path(destination).write_bytes(b"PARTIAL")
                 raise OSError("private synthetic source path should not be public")
@@ -288,6 +299,7 @@ class TestBackupRecovery(unittest.TestCase):
     def test_recovered_failure_can_be_retried_without_losing_original_snapshots(self):
         real_replace = os.replace
         with self.environment() as (root, before, client, reload, _, _):
+
             def replace(source, destination):
                 if Path(destination).name == "settings.json":
                     raise OSError("synthetic forward failure")
