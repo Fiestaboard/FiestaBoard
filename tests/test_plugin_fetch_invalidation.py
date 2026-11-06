@@ -84,6 +84,38 @@ class TestPluginFetchInvalidation(unittest.TestCase):
             self.assertIsNone(plugin.cached_result())
             self.assertEqual(registry.fetch_plugin_data("probe").data["value"], "new")
 
+    def test_explicit_clear_discards_inflight_and_the_next_call_refetches(self):
+        with self.setup_plugins() as (registry, plugin, _, _):
+            with self.pending(plugin, lambda: registry.fetch_plugin_data("probe")) as future:
+                plugin.clear_cache()
+                plugin.release.set()
+                result = future.result(timeout=5)
+            with self.subTest(boundary="invalidated return"):
+                self.assertFalse(result.available)
+            with self.subTest(boundary="invalidated cache"):
+                self.assertIsNone(plugin.cached_result())
+            self.assertTrue(registry.fetch_plugin_data("probe").available)
+            self.assertEqual(plugin.fetches, 2)
+
+    def test_self_clear_discards_that_fetch_without_poisoning_a_later_fetch(self):
+        with self.setup_plugins() as (registry, plugin, _, _):
+            fetch = plugin.fetch_data
+
+            def clear_once():
+                result = fetch()
+                if plugin.fetches == 1:
+                    plugin.clear_cache()
+                return result
+
+            with patch.object(plugin, "fetch_data", side_effect=clear_once):
+                result = registry.fetch_plugin_data("probe")
+                with self.subTest(boundary="invalidated return"):
+                    self.assertFalse(result.available)
+                with self.subTest(boundary="invalidated cache"):
+                    self.assertIsNone(plugin.cached_result())
+                self.assertTrue(registry.fetch_plugin_data("probe").available)
+            self.assertEqual(plugin.fetches, 2)
+
     def test_old_fetch_cannot_overwrite_a_new_config_cache(self):
         with self.setup_plugins() as (registry, plugin, service, _):
             with self.pending(plugin, lambda: registry.fetch_plugin_data("probe")) as future:
