@@ -1261,7 +1261,13 @@ class PluginRegistry:
                 logger.exception("Error cleaning up options sandbox for %s", plugin_id)
 
     def _discover_variables(self, plugin_id: str) -> list[str]:
-        """Discover scalar fields; publish only while the captured state is current."""
+        """Introspect a plugin's live data to discover top-level variable names.
+
+        Only scalar values (str, int, float, bool) are surfaced; lists and
+        dicts are skipped (those should be declared as arrays in the manifest).
+        Success is cached until invalidation; failures use DISCOVERY_RETRY_SECONDS.
+        Neither result is published if its captured discovery state has changed.
+        """
         with self._lock:
             cached = self._discovered_vars.get(plugin_id)
             failed_at = self._discovery_failed_at.get(plugin_id)
