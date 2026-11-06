@@ -95,6 +95,10 @@ class PluginSourceFreshness(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.root = Path(self.directory.name)
         self.path_before = list(sys.path)
+        self.hooks_before = list(sys.path_hooks)
+        from src.plugins import source_imports
+
+        self.source_roots_before = set(source_imports._roots)
         self.context = patch.dict(os.environ, {"FIESTABOARD_DATA_DIR": str(self.root / "data")})
         self.context.start()
         self.manager_patch = patch.object(ConfigManager, "_instance", None)
@@ -113,6 +117,12 @@ class PluginSourceFreshness(unittest.TestCase):
             if isinstance(path, str) and path.startswith(str(self.root)):
                 sys.path_importer_cache.pop(path, None)
         sys.path[:] = self.path_before
+        sys.path_hooks[:] = self.hooks_before
+        from src.plugins import source_imports
+
+        with source_imports._roots_lock:
+            source_imports._roots.clear()
+            source_imports._roots.update(self.source_roots_before)
         output_registry().remove_plugin("recording_output")
         self.manager_patch.stop()
         self.context.stop()
@@ -305,6 +315,88 @@ class PluginSourceFreshness(unittest.TestCase):
         leaf.unlink()
         self.assertEqual(
             self.loader(code.parent).load_plugin("qa_cache_sourceless").fetch_data().data["marker"], "BYTECODE"
+        )
+
+    def cold_hook_plugin(self, identity, install_inside):
+        hook_code = """import sys
+from pathlib import Path
+from importlib.machinery import ModuleSpec
+class InlineLoader:
+    def create_module(self, spec): return None
+    def exec_module(self, module): module.VALUE = 'VIRTUAL'
+class InlineFinder:
+    def find_spec(self, fullname, target=None):
+        if fullname.endswith('.virtual.helper'):
+            return ModuleSpec(fullname, InlineLoader())
+        return None
+def custom_hook(path):
+    if Path(path) == Path(__file__).parent / 'virtual': return InlineFinder()
+    raise ImportError(path)
+sys.path_hooks.insert(0, custom_hook)
+"""
+        source = code_for(identity).replace(b"MARKER = 'OLD'", b"from .virtual.helper import VALUE as MARKER")
+        code = data_plugin(self.root, identity, (hook_code.encode() if install_inside else b"") + source)
+        virtual = code / "virtual"
+        virtual.mkdir()
+        (virtual / "helper.py").write_text("VALUE = 'FILE'\n")
+        self.assertNotIn(str(virtual), sys.path_importer_cache)
+        if not install_inside:
+            namespace = {"__file__": str(code / "__init__.py")}
+            exec(hook_code, namespace)
+        loaded = self.loader(code.parent).load_plugin(identity)
+        self.assertIsNotNone(loaded)
+        self.assertEqual(loaded.fetch_data().data["marker"], "VIRTUAL")
+
+    def test_cold_custom_path_hook_keeps_its_policy(self):
+        self.cold_hook_plugin("qa_cache_cold_hook", False)
+
+    def test_entry_can_register_a_hook_before_its_first_sibling_import(self):
+        self.cold_hook_plugin("qa_cache_init_hook", True)
+
+    def test_first_party_reload_reads_current_entry_and_relative_source(self):
+        from src.outputs.first_party import FirstPartySource, _evict, import_first_party_package
+        import plugins
+        name = "plugins.vestaboard"
+        previous = {
+            key: value for key, value in sys.modules.items() if key == name or key.startswith(name + ".")
+        }
+        missing = object()
+        attribute = vars(plugins).get("vestaboard", missing)
+        code = self.root / "vestaboard"
+        code.mkdir()
+        entry = code / "__init__.py"
+        entry.write_text("from .helper import VALUE\nMARKER = 'aaa' + VALUE\n")
+        leaf = code / "helper.py"
+        leaf.write_text("VALUE = 'OLD'\n")
+        prime(entry)
+        prime(leaf)
+        source = FirstPartySource("vestaboard", code, "installed", None)
+        try:
+            _evict(name)
+            self.assertEqual(import_first_party_package(source).MARKER, "aaaOLD")
+            replace_same_key(entry, b"'aaa'", b"'bbb'")
+            replace_same_key(leaf, b"'OLD'", b"'NEW'")
+            _evict(name)
+            self.assertEqual(import_first_party_package(source).MARKER, "bbbNEW")
+        finally:
+            _evict(name)
+            sys.modules.update(previous)
+            if attribute is not missing:
+                plugins.vestaboard = attribute
+
+    def test_symlinked_source_outside_plugin_keeps_ordinary_cache_policy(self):
+        outside = self.root / "outside.py"
+        outside.write_text("VALUE = 'OLD'\n")
+        source = code_for("qa_cache_link").replace(
+            b"MARKER = 'OLD'", b"from .linked import VALUE as MARKER"
+        )
+        code = data_plugin(self.root / "plugins", "qa_cache_link", source)
+        leaf = code / "linked.py"
+        leaf.symlink_to(outside)
+        prime(leaf)
+        replace_same_key(outside, b"'OLD'", b"'NEW'")
+        self.assertEqual(
+            self.loader(code.parent).load_plugin("qa_cache_link").fetch_data().data["marker"], "OLD"
         )
 
     def test_http_update_executes_the_successfully_checked_out_source(self):

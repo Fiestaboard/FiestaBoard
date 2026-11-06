@@ -1,18 +1,23 @@
-"""Read plugin source directly without trusting timestamp-based bytecode."""
+"""Read ordinary plugin source directly without trusting timestamp bytecode."""
 
-import os
 import sys
-from importlib.machinery import (
-    BYTECODE_SUFFIXES,
-    EXTENSION_SUFFIXES,
-    SOURCE_SUFFIXES,
-    ExtensionFileLoader,
-    FileFinder,
-    SourceFileLoader,
-    SourcelessFileLoader,
-)
+from importlib.machinery import FileFinder, SourceFileLoader
 from pathlib import Path
+from threading import RLock
 from types import CodeType
+
+_roots: set[Path] = set()
+_roots_lock = RLock()
+
+
+def _within_plugin_tree(path: str | Path) -> bool:
+    try:
+        resolved = Path(path).resolve()
+    except (OSError, RuntimeError, ValueError):
+        return False
+    with _roots_lock:
+        roots = tuple(_roots)
+    return any(resolved.is_relative_to(root) for root in roots)
 
 
 class CurrentSourceLoader(SourceFileLoader):
@@ -21,6 +26,12 @@ class CurrentSourceLoader(SourceFileLoader):
     def get_code(self, fullname: str) -> CodeType:
         source_path = self.get_filename(fullname)
         return self.source_to_code(self.get_data(source_path), source_path)
+
+
+def plugin_source_loader(fullname: str, filename: str) -> SourceFileLoader:
+    """Leave sources resolving outside a registered plugin tree unchanged."""
+    loader = CurrentSourceLoader if _within_plugin_tree(filename) else SourceFileLoader
+    return loader(fullname, filename)
 
 
 class CurrentSourceFinder(FileFinder):
@@ -36,49 +47,48 @@ class CurrentSourceFinder(FileFinder):
     def find_spec(self, fullname: str, target=None):
         spec = self._finder.find_spec(fullname, target)
         if spec is not None and type(spec.loader) is SourceFileLoader:
-            spec.loader = CurrentSourceLoader(fullname, spec.loader.get_filename(fullname))
+            spec.loader = plugin_source_loader(fullname, spec.loader.get_filename(fullname))
         return spec
 
     def invalidate_caches(self) -> None:
         self._finder.invalidate_caches()
 
 
-def prepare_source_imports(plugin_dir: Path) -> None:
-    """Use current source for ordinary imports inside this verified tree.
+def _plugin_path_hook(path: str):
+    """Delegate normal hook selection lazily, only inside registered trees.
 
-    The entry module uses CurrentSourceLoader explicitly. Its relative or
-    flattened imports use these ordinary directory finders. No global path
-    hook is installed, and custom finders retain their own policy.
+    Do not prepopulate cold directories: plugin entry code can install a custom
+    hook before its first sibling import. Custom finders/loaders keep their
+    policy; only an ordinary FileFinder is adapted.
     """
-    root = plugin_dir.resolve()
-    root_key = str(root)
-    directories = {root_key}
-    for folder, children, files in os.walk(root, followlinks=False):
-        children[:] = [name for name in children if name not in {".git", "__pycache__"}]
-        if any(name.endswith(tuple(SOURCE_SUFFIXES)) for name in files):
-            directories.add(folder)
-    # Include previously imported directories, even if an update removed their
-    # last source file. Never resolve or replace unrelated interpreter entries.
-    for key in list(sys.path_importer_cache):
-        if not isinstance(key, str) or not key.startswith(root_key + os.sep):
+    if not _within_plugin_tree(path):
+        raise ImportError(path)
+    for hook in tuple(sys.path_hooks):
+        if hook is _plugin_path_hook:
             continue
         try:
-            resolved = Path(key).resolve()
-        except OSError:
+            finder = hook(path)
+        except ImportError:
             continue
-        if resolved.is_relative_to(root) and resolved.is_dir():
-            directories.add(key)
-    for directory in directories:
-        previous = sys.path_importer_cache.get(directory)
+        if type(finder) is FileFinder:
+            return CurrentSourceFinder(path, delegate=finder)
+        return finder
+    raise ImportError(path)
+
+
+def prepare_source_imports(plugin_dir: Path) -> None:
+    """Register a verified tree, preserving cold and custom import policy."""
+    root = plugin_dir.resolve()
+    with _roots_lock:
+        _roots.add(root)
+        if not any(hook is _plugin_path_hook for hook in sys.path_hooks):
+            sys.path_hooks.insert(0, _plugin_path_hook)
+    # Resolve paths and invoke finder methods outside our registration lock.
+    # Warm finders may predate registration; cold directories use the hook.
+    for directory, previous in list(sys.path_importer_cache.items()):
+        if not isinstance(directory, str) or not _within_plugin_tree(directory):
+            continue
         if isinstance(previous, CurrentSourceFinder):
             previous.invalidate_caches()
-            continue
-        if previous is not None and type(previous) is not FileFinder:
-            continue
-        sys.path_importer_cache[directory] = CurrentSourceFinder(
-            directory,
-            (ExtensionFileLoader, EXTENSION_SUFFIXES),
-            (SourceFileLoader, SOURCE_SUFFIXES),
-            (SourcelessFileLoader, BYTECODE_SUFFIXES),
-            delegate=previous,
-        )
+        elif type(previous) is FileFinder and sys.path_importer_cache.get(directory) is previous:
+            sys.path_importer_cache[directory] = CurrentSourceFinder(directory, delegate=previous)

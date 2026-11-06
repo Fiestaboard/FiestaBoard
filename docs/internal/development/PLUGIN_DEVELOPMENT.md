@@ -960,8 +960,11 @@ are left alone; code and output seed trees can remain read-only.
 
 This applies inside the verified plugin tree. Imports elsewhere, custom import
 finders, native extensions and modules shipped only as compiled files keep
-their normal behavior. Importing a plugin module costs source compilation and
-directory discovery; this is not isolation for imports already running in
+their normal behavior, including custom hooks installed by the entry module.
+A lazy path hook delegates normal finder selection only within registered
+plugin roots; it does not delete caches or change interpreter flags. This
+also covers first-party output packages. Importing source costs compilation
+and scoped path checks; this is not isolation for imports already running in
 another thread or process.
 
 ### What a plugin may import from the platform

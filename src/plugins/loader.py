@@ -26,7 +26,7 @@ from src.outputs.seed import seed_root, seeded_output
 from .base import PluginBase, TransitionPluginBase
 from .install_check import validate_install
 from .manifest import PluginManifest, collect_options_ids, load_manifest, settings_schema_ui_warnings
-from .source_imports import CurrentSourceLoader, prepare_source_imports
+from .source_imports import plugin_source_loader, prepare_source_imports
 from .sources import (
     PluginSource,
     get_external_plugins_dir,
@@ -566,7 +566,7 @@ class PluginLoader:
             else:
                 prepare_source_imports(plugin_dir)
                 spec = importlib.util.spec_from_file_location(
-                    module_name, init_path, loader=CurrentSourceLoader(module_name, str(init_path))
+                    module_name, init_path, loader=plugin_source_loader(module_name, str(init_path))
                 )
 
                 if spec is None or spec.loader is None:
