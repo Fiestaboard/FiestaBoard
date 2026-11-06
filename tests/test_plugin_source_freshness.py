@@ -93,7 +93,7 @@ def data_plugin(parent, identity, source=None):
 class PluginSourceFreshness(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
-        self.root = Path(self.directory.name)
+        self.root = Path(self.directory.name).resolve()
         self.path_before = list(sys.path)
         self.hooks_before = list(sys.path_hooks)
         from src.plugins import source_imports
@@ -187,6 +187,8 @@ class PluginSourceFreshness(unittest.TestCase):
             code = data_plugin(self.root / "plugins", "qa_cache_prefix")
             cached = prime(code / "__init__.py")
             self.assertFalse(cached.is_relative_to(code))
+            expected_cache = Path(importlib.util.cache_from_source(str((code / "__init__.py").resolve())))
+            self.assertEqual(cached.resolve(), expected_cache.resolve())
             loader = self.loader(code.parent)
             loader.load_plugin("qa_cache_prefix")
             replace_same_key(code / "__init__.py", b"'OLD'", b"'NEW'")
