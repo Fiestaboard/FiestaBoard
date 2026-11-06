@@ -366,6 +366,51 @@ describe("Pages library search and sorting", () => {
     }
   });
 
+  it("does not retry on typing when a pending batch fails after a page refetch", async () => {
+    const calls = vi.spyOn(api, "previewPagesBatch");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get("/api/v1/pages", () =>
+        HttpResponse.json({
+          pages: pages.map((page) => ({ ...page, name: `Artwork ${page.name}` })),
+          total: pages.length,
+        }),
+      ),
+      http.post("/api/pages/preview/batch", async () => {
+        await pending;
+        return new HttpResponse(null, { status: 503 });
+      }),
+    );
+    try {
+      const user = userEvent.setup();
+      const view = renderLibrary();
+      await screen.findByText("Artwork Alpha");
+      await user.click(screen.getByRole("button", { name: "Grid view" }));
+      await waitFor(() => expect(calls).toHaveBeenCalledTimes(1));
+      const data = view.client.getQueryData(["pages"]);
+      await act(() => view.client.refetchQueries({ queryKey: ["pages"] }));
+      expect(view.client.getQueryData(["pages"])).toBe(data);
+      await act(async () => {
+        release();
+        await Promise.allSettled(calls.mock.results.map((result) => result.value));
+      });
+      await waitFor(() => expect(errors).toHaveBeenCalled());
+      await user.type(screen.getByRole("searchbox", { name: "Search pages" }), "ar");
+      await act(async () => {
+        await Promise.allSettled(calls.mock.results.map((result) => result.value));
+      });
+      expect(calls).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+      calls.mockRestore();
+      errors.mockRestore();
+    }
+  });
+
   it("revalidates a temporarily unavailable page after unchanged page data refetches", async () => {
     const calls = vi.spyOn(api, "previewPagesBatch");
     let recovered = false;

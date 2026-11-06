@@ -675,6 +675,10 @@ export function PageGridSelector({
   // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
   const allPages = useMemo(() => pagesData?.pages || [], [pagesData]);
   const previewEpoch = useMemo(() => ({ pages: allPages, updatedAt: pagesUpdatedAt }), [allPages, pagesUpdatedAt]);
+  const latestPreviewEpoch = useRef(previewEpoch);
+  useEffect(() => {
+    latestPreviewEpoch.current = previewEpoch;
+  }, [previewEpoch]);
   const scopedPages = useMemo(() => {
     let result = allPages;
     if (deviceTypeFilter) {
@@ -804,7 +808,7 @@ export function PageGridSelector({
               const preview: PagePreviewBatchEntry = entries[id] ?? { available: false, error: "Preview unavailable" };
               // Revalidate unavailable results after page data refreshes,
               // while typing/sorting continue sharing the same attempt.
-              if (!preview.available) request.failedAt = previewEpoch;
+              if (!preview.available) request.failedAt = latestPreviewEpoch.current;
               return preview;
             }),
           };
