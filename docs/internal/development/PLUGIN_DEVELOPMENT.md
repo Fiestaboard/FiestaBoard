@@ -951,6 +951,22 @@ Three rules follow:
   beyond the standard library plus the platform's own dependencies will be
   missing at runtime. Vendor it or do without.
 
+### Reloading plugin source
+
+Core reads ordinary Python source directly when importing a plugin and its
+local packages. An explicit reload therefore cannot reuse old compiled code
+just because source length and modification times match. Existing cache files
+are left alone; code and output seed trees can remain read-only.
+
+This applies inside the verified plugin tree. Imports elsewhere, custom import
+finders, native extensions and modules shipped only as compiled files keep
+their normal behavior, including custom hooks installed by the entry module.
+A lazy path hook delegates normal finder selection only within registered
+plugin roots; it does not delete caches or change interpreter flags. This
+also covers first-party output packages. Importing source costs compilation
+and scoped path checks; this is not isolation for imports already running in
+another thread or process.
+
 ### What a plugin may import from the platform
 
 Self-containment applies to imports as well as to files. The supported
