@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
+from src.atomic_io import write_json_atomic
 from src.config_manager import ConfigManager
 from src.plugins.base import PluginBase, PluginResult
 from src.plugins.errors import PluginOperationRejected
@@ -154,3 +155,23 @@ class TestPluginLifecyclePersistence(unittest.TestCase):
                 self.assertEqual(manager.is_plugin_enabled("probe"), initial)
                 self.assertEqual(resets, [])
                 self.assertFalse(registry.is_enabled("other"))
+
+    def test_successful_unchanged_flag_save_still_advances_generation(self):
+        for method, initial in (("enable_plugin", True), ("disable_plugin", False)):
+            with self.subTest(method=method), self.setup_plugins(initial) as (path, manager, registry, _, _):
+                before = path.read_bytes()
+                generation = manager.config_generation
+                writes = []
+
+                def record_write(*args, **kwargs):
+                    writes.append(write_json_atomic(*args, **kwargs))
+                    return writes[-1]
+
+                with patch("src.config_manager.write_json_atomic", side_effect=record_write):
+                    getattr(manager, method)("probe")
+                self.assertEqual(writes, [False])
+                self.assertEqual(path.read_bytes(), before)
+                self.assertEqual(manager.config_generation, generation + 1)
+                self.assertEqual(manager.is_plugin_enabled("probe"), initial)
+                self.assertEqual(registry.is_enabled("probe"), initial)
+                self.assertFalse(manager.is_plugin_enabled("other"))
