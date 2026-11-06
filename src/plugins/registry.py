@@ -12,7 +12,7 @@ import logging
 import re
 import threading
 import time
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait as futures_wait
 from dataclasses import replace
@@ -249,8 +249,8 @@ class PluginRegistry:
         # to order two).  Install/update endpoints run on worker threads since
         # #1809, so these dicts mutate concurrently with request handlers that
         # iterate them (#1828).  Iterating callers snapshot under the lock and
-        # iterate the snapshot; nothing slow — git, plugin ``get_data``, the
-        # context-build thread pool — ever runs while it is held.
+        # iterate the snapshot. Git, plugin get_data and context-pool work run
+        # outside it; accepted instance config commits hold it across persistence.
         self._lock = threading.RLock()
         self._loader = PluginLoader(plugins_dir, lock=self._lock)
         self._plugins: dict[str, PluginBase] = {}
@@ -344,7 +344,9 @@ class PluginRegistry:
 
     # ── instance CRUD ───────────────────────────────────────────────────
 
-    def create_instance(self, plugin_id: str, instance_label: str) -> list[str]:
+    def create_instance(
+        self, plugin_id: str, instance_label: str, *, before_change: Callable[[], Any] | None = None
+    ) -> list[str]:
         """Create a new instance of an existing plugin.
 
         A new :class:`PluginBase` object of the same class is instantiated
@@ -358,6 +360,8 @@ class PluginRegistry:
                 Normalized to lowercase so compound keys match the
                 lowercase plugin-id convention used by the template
                 engine's case-insensitive variable lookup.
+            before_change: Optional persistence step after validation and
+                construction, before publishing the instance.
 
         Returns:
             List of error messages (empty on success).
@@ -388,6 +392,13 @@ class PluginRegistry:
             new_plugin = self._loader.create_instance(plugin_id)
             if new_plugin is None:
                 return [f"Failed to create instance of {plugin_id}"]
+
+            if before_change is not None:
+                try:
+                    before_change()
+                except Exception:
+                    retire_plugin_object(compound_key, new_plugin, what="uncommitted plugin instance")
+                    raise
 
             # Register under compound key
             base_manifest = self._manifests[plugin_id]

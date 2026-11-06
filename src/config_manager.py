@@ -989,7 +989,7 @@ class ConfigManager:
         """
         return self._config_generation
 
-    def _save_internal(self) -> None:
+    def _save_internal(self, candidate: dict[str, Any] | None = None) -> None:
         """Internal save without acquiring lock (called from locked context).
 
         Writes go through :func:`src.atomic_io.write_json_atomic` (process-
@@ -1004,16 +1004,24 @@ class ConfigManager:
         of any PUT that stores the value already stored. Only the disk write is
         conditional; the generation bump below is not.
         """
-        # Bump BEFORE the write (and regardless of its outcome): the in-memory
+        # Staged callers publish and invalidate only after a successful save.
+        # Legacy no-argument callers already mutated live state, so they
+        # bump BEFORE the write (and regardless of its outcome): the in-memory
         # config this process reads from has already changed by the time any
         # caller reaches a save, so generation-keyed caches must invalidate
         # even when the disk write fails (issue #1752). This must NOT become
         # conditional on the write happening — a caller that mutated the config
         # and then wrote identical bytes still changed what this process reads
         # if the file on disk was ahead of it.
-        self._config_generation = getattr(self, "_config_generation", 0) + 1
+        if candidate is None:
+            self._config_generation = getattr(self, "_config_generation", 0) + 1
         try:
-            if write_json_atomic(self._config_path, self._config, if_changed=True):
+            data = self._config if candidate is None else candidate
+            changed = write_json_atomic(self._config_path, data, if_changed=True)
+            if candidate is not None:
+                self._config = candidate
+                self._config_generation = getattr(self, "_config_generation", 0) + 1
+            if changed:
                 logger.debug(f"Saved config to {self._config_path}")
             else:
                 logger.debug(f"Config unchanged on disk; skipped rewrite of {self._config_path}")
@@ -2069,6 +2077,36 @@ class ConfigManager:
         """
         configs = self.get_all_plugin_configs()
         return self._mask_sensitive(configs)
+
+    def prepare_plugin_instance_config(self, plugin_id: str) -> dict[str, Any] | None:
+        """Commit an instance's presence and clear its removal marker together.
+
+        Return its previous config for live adoption (None when absent).
+        Absent or empty configs receive the fresh disabled default.
+        Existing saved settings are preserved, including when the plugin is
+        temporarily missing from the live registry.
+        """
+        with self._file_lock:
+            candidate = self._deep_copy(self._config)
+            plugins = candidate.setdefault("plugins", {})
+            stored = self._deep_copy(plugins.get(plugin_id))
+            if not stored:
+                plugins[plugin_id] = {"enabled": False}
+            removed = candidate.get("removed_plugins")
+            if isinstance(removed, list):
+                prefix = f"{plugin_id}:"
+                kept = [
+                    pid
+                    for pid in removed
+                    if isinstance(pid, str) and pid and pid != plugin_id and not pid.startswith(prefix)
+                ]
+                if kept:
+                    candidate["removed_plugins"] = kept
+                else:
+                    candidate.pop("removed_plugins", None)
+            if candidate != self._config:
+                self._save_internal(candidate)
+            return stored
 
     def delete_plugin_config(self, plugin_id: str) -> bool:
         """Delete configuration for a specific plugin.

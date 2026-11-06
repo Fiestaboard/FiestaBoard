@@ -98,6 +98,12 @@ registry.parse_instance_key.side_effect = lambda pid: (pid.split(":")[0], (pid.s
 registry.make_instance_key.side_effect = lambda base, label: f"{base}:{label}"
 registry.list_instances.return_value = [{"label": "work", "key": "alpha:work", "enabled": False}]
 registry.create_instance.return_value = []
+def create_instance(base_id, label, *, before_change=None):
+    errors = registry.create_instance.return_value
+    if not errors and before_change is not None:
+        before_change()
+    return errors
+registry.create_instance.side_effect = create_instance
 registry.apply_stored_config.return_value = []
 registry.delete_instance.return_value = []
 registry.set_plugin_config.return_value = []
@@ -116,6 +122,7 @@ registry.get_plugin_source.return_value = SimpleNamespace(source_type="git", loc
 
 config_manager = MagicMock()
 config_manager.get_plugin_config.return_value = {"api_key": "stored", "location": "NYC"}
+config_manager.prepare_plugin_instance_config.return_value = config_manager.get_plugin_config.return_value
 config_manager.get_plugin_env_overrides.return_value = {"api_key": "from-env"}
 config_manager._mask_sensitive.side_effect = lambda cfg, path="": {
     k: ("***" if k == "api_key" else v) for k, v in cfg.items()
@@ -267,7 +274,9 @@ registry.enable_plugin.assert_called()
 registry.disable_plugin.assert_called_once_with("alpha")
 registry.fetch_plugin_data.assert_called_once_with("alpha")
 registry.get_plugin_options.assert_called_once()
-registry.create_instance.assert_called_once_with("alpha", "office")
+registry.create_instance.assert_called_once()
+assert registry.create_instance.call_args.args == ("alpha", "office")
+assert set(registry.create_instance.call_args.kwargs) == {"before_change"}
 registry.delete_instance.assert_called_once_with("alpha", "office")
 registry.install_from_registry.assert_called_once_with("beta")
 registry.install_from_git.assert_called_once()
