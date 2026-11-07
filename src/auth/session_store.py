@@ -238,7 +238,9 @@ class SessionStore:
     def enrollment_enabled(self) -> bool:
         with self.transaction() as db:
             row = db.execute("SELECT value FROM settings WHERE key='tv_enabled'").fetchone()
-            # The beta release channel gates rollout; TV sign-in needs no opt-in.
+            # The beta release channel gates rollout; device sign-in needs no opt-in.
+            # One switch, labelled "Device sign-in", gates TVs and phones; the key stays
+            # tv_enabled so existing installs keep an administrator's choice.
             # Preserve an administrator's explicit disable across upgrades.
             return row is None or row["value"] == "true"
 

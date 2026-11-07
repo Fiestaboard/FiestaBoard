@@ -193,8 +193,9 @@ The corresponding API endpoints are also available:
 
 ## TV sign-in
 
-TV sign-in is enabled by default when account login is configured. No separate
-beta opt-in is needed. Manage it in **Settings → Account**. On a compatible Apple TV or
+**Device sign-in** is enabled by default when account login is configured. No
+separate beta opt-in is needed. Manage it in **Settings → Account**. The one switch
+covers TVs and phones. On a compatible Apple TV or
 Android TV app, choose **Sign in with a phone or computer**:
 
 1. Scan the QR code, or open the displayed `/activate` URL on a desktop or phone
@@ -203,7 +204,7 @@ Android TV app, choose **Sign in with a phone or computer**:
 3. Check the displayed TV and matching code, then explicitly allow or deny access.
    Scanning alone never approves a TV. Codes expire after ten minutes.
 
-**Use username and password** remains available on the TV. With TV sign-in enabled,
+**Use username and password** remains available on the TV. With device sign-in enabled,
 it creates the same individually revocable TV credential and does not retain the
 account password after secure storage succeeds. Compatible apps migrate previously
 saved passwords once. Older servers keep their existing password flow.
@@ -213,8 +214,8 @@ settings only. They cannot manage accounts, edit content, or access AI/MCP. Revo
 TV from **Signed-in devices**; its next authenticated request is rejected. A revoked
 TV asks you to sign in again rather than replaying a saved password.
 
-Turning **TV sign-in** off stops new TV sign-ins and cancels pending codes. Existing
-TV credentials remain valid until revoked or expired. Use the device list to remove
+Turning **Device sign-in** off stops new TV and phone sign-ins and cancels pending
+codes. Existing TV and phone credentials remain valid until revoked or expired. Use the device list to remove
 existing access. Password or username changes revoke all existing browser and TV
 sessions. Public panel URLs remain public even after revoking a TV credential.
 
@@ -223,8 +224,8 @@ sessions. Public panel URLs remain public even after revoking a TV credential.
 The FiestaBoard iOS and Android apps sign in with your username and password
 (`POST /auth/device/login`, `client_id` `fiestaboard-ios` or `fiestaboard-android`).
 The hub returns a long-lived credential with the `control` scope and does not keep
-the password on the phone. The **TV sign-in** switch in **Settings → Account** also
-controls new phone sign-ins. Approving a phone with a code on `/activate` isn't
+the password on the phone. The **Device sign-in** switch in **Settings → Account**
+controls new phone sign-ins, as it does for TVs. Approving a phone with a code on `/activate` isn't
 available yet.
 
 A phone credential can do what the app needs: show and change what each display
@@ -238,8 +239,11 @@ A phone credential **cannot**:
 - export or import backups;
 - change the hub's network, update channel or software, or restart it;
 - install, update or remove plugins or outputs;
-- read or change settings that hold third-party secrets, such as AI provider keys,
-  MQTT, or display connection settings.
+- read stored secrets, or change AI, MQTT or display connection settings.
+
+A phone can edit the non-secret fields of an installed integration, the same as the
+web app can. Stored secrets such as API keys stay masked, and the hub keeps the saved
+value when a form sends the mask back.
 
 Like a TV, a phone credential expires after one year. You can revoke it from
 **Signed-in devices**, with **Sign out everywhere**, or by changing the password or

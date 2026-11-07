@@ -89,12 +89,18 @@ def deny(payload: UserCode, request: Request):
 
 @router.get("/settings", response_model=EnrollmentSettings, responses=RESPONSES)
 def settings(request: Request):
+    """Read the device sign-in switch, which allows new TV and phone sign-ins.
+
+    Turning it off stops new sign-ins and cancels pending codes; signed-in devices
+    keep access until revoked or expired.
+    """
     require_browser_session(request)
     return EnrollmentSettings(enabled=get_auth_service().sessions.enrollment_enabled)
 
 
 @router.put("/settings", response_model=EnrollmentSettings, responses=RESPONSES)
 def update_settings(payload: EnrollmentSettings, request: Request):
+    """Turn device sign-in (new TV and phone sign-ins) on or off. Browser session only."""
     require_browser_mutation(request)
     get_auth_service().sessions.set_enrollment(payload.enabled)
     return payload

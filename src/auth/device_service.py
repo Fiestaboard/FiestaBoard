@@ -35,7 +35,7 @@ class DeviceService:
         if auth_mode() != "enabled" or not self.auth.has_user():
             raise AuthFlowError("setup_required", "Finish account setup and enable sign-in in the web portal.", 409)
         if not self.store.enrollment_enabled:
-            raise AuthFlowError("feature_disabled", "TV sign-in is disabled. Enable it in Settings → Account.", 403)
+            raise AuthFlowError("feature_disabled", "Device sign-in is disabled. Enable it in Settings → Account.", 403)
 
     def limit(self, key: str, maximum: int) -> None:
         now = self.store.clock_ms()
@@ -99,7 +99,7 @@ class DeviceService:
     def _enrollment_in_transaction(db: sqlite3.Connection) -> None:
         row = db.execute("SELECT value FROM settings WHERE key='tv_enabled'").fetchone()
         if row is not None and row["value"] != "true":
-            raise AuthFlowError("feature_disabled", "TV sign-in is disabled.", 403)
+            raise AuthFlowError("feature_disabled", "Device sign-in is disabled.", 403)
 
     def _challenge_for_user(self, db: sqlite3.Connection, code: str) -> sqlite3.Row:
         row = db.execute(
