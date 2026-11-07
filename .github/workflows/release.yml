@@ -46,8 +46,11 @@ concurrency:
 jobs:
   version:
     name: Version PR and release plan
-    # Forks that push to their own main must not open PRs or publish.
-    if: github.repository == 'Fiestaboard/FiestaBoard'
+    # Forks that push to their own main must not open PRs or publish, and a
+    # manual run from any other branch would open a Version PR against it.
+    if: >-
+      github.repository == 'Fiestaboard/FiestaBoard'
+      && (github.ref_name == 'main' || github.ref_name == 'alpha')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -111,7 +114,7 @@ jobs:
         run: |
           set -euo pipefail
           # The action may have left the working tree on the Version PR branch.
-          git checkout --quiet "$GITHUB_SHA"
+          git checkout --force --quiet "$GITHUB_SHA"
           python3 scripts/release/plan.py "$GITHUB_REF_NAME" > /tmp/plan.txt
           cat /tmp/plan.txt >> "$GITHUB_OUTPUT"
           printf '### Release plan\n\n%s\n' "$(sed -n 's/^reason=//p' /tmp/plan.txt)" >> "$GITHUB_STEP_SUMMARY"

@@ -46,6 +46,12 @@ def test_runs_on_push_to_both_release_branches_without_path_filters():
     assert "paths-ignore" not in on["push"] and "paths" not in on["push"]
 
 
+def test_only_release_branches_of_the_real_repo_run():
+    condition = JOBS["version"]["if"]
+    assert "github.repository == 'Fiestaboard/FiestaBoard'" in condition
+    assert "github.ref_name == 'main'" in condition and "github.ref_name == 'alpha'" in condition
+
+
 def test_concurrency_is_per_branch_and_never_cancels():
     assert DOC["concurrency"]["group"] == "release-${{ github.ref_name }}"
     assert DOC["concurrency"]["cancel-in-progress"] is False
