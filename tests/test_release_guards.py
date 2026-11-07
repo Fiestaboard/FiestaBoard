@@ -155,6 +155,8 @@ class TestShipped:
             "plugins/weather/tests/test_weather.py",
             "web/src/__tests__/foo.test.tsx",
             "web/app/page.test.tsx",
+            "web/tests/a11y.spec.ts",
+            "web/tests/fixtures/board.json",
             ".github/workflows/ci.yml",
             "scripts/version-sync.js",
             "scripts/release/plan.py",
@@ -223,7 +225,13 @@ class TestCheckChangeset:
 
     @pytest.mark.parametrize(
         "head_ref",
-        ["changeset-release/main", "changeset-release/alpha", "main", "dependabot/npm_and_yarn/web/npm-dependencies-1"],
+        [
+            "changeset-release/main",
+            "changeset-release/alpha",
+            "main",
+            "alpha",
+            "dependabot/npm_and_yarn/web/npm-dependencies-1",
+        ],
     )
     def test_exempt_head_refs(self, head_ref):
         assert _check(["web/package-lock.json"], head_ref=head_ref).ok
@@ -277,6 +285,26 @@ class TestPlanRelease:
     def test_junk_versions_fail(self, version):
         with pytest.raises(ValueError):
             plan_release(branch="main", version=version, release_exists=False)
+
+    def test_main_mid_promotion_carries_a_released_beta(self):
+        """After alpha (in exit mode) squash-merges into main, main's package.json
+        still says the last beta until main's Version PR lands. That beta is
+        released, so this is a no-op, not an error."""
+        assert not plan_release(branch="main", version="10.4.0-beta.3", release_exists=True).release
+
+    def test_a_beta_must_sort_above_the_newest_stable(self):
+        """Beta installs take the newest version on either channel (#1992)."""
+        assert plan_release(
+            branch="alpha", version="10.4.0-beta.0", release_exists=False, newest_stable="10.3.2"
+        ).release
+        for stale in ("10.3.2-beta.0", "10.3.1-beta.4"):
+            with pytest.raises(ValueError, match="Restart alpha"):
+                plan_release(branch="alpha", version=stale, release_exists=False, newest_stable="10.3.2")
+
+    def test_a_stable_release_must_move_forward(self):
+        with pytest.raises(ValueError, match="went backwards"):
+            plan_release(branch="main", version="10.3.2", release_exists=False, newest_stable="10.3.2")
+        assert plan_release(branch="main", version="10.3.10", release_exists=False, newest_stable="10.3.9").release
 
     def test_other_branches_never_release(self):
         with pytest.raises(ValueError, match="not a release branch"):

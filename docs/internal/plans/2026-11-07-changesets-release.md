@@ -264,3 +264,22 @@ the config file first, the two PRs can land in either order.
 
 - Prerelease branch: **`alpha`** (confirmed by the user, 2026-11-07).
 - Pre tag: **`beta`**, so versions are `X.Y.Z-beta.N` (confirmed by the user, 2026-11-07).
+
+## Changes after the plan review (independent Fable review, 2026-11-07)
+
+- `plan.py` refuses to release anything whose `X.Y.Z` is not above the newest
+  stable GitHub Release. In pre mode, Changesets bumps from the version `alpha`
+  was created at, so a beta can otherwise sort below a stable release that
+  `main` shipped mid-cycle. Beta installs would then ignore it and walk back
+  onto stable (#1992). `RELEASING.md` says to open each cycle with a `minor`
+  changeset, and to restart `alpha` when the guard fires.
+- `plan.py` checks "already released" before the branch/version shape checks.
+  This keeps the mid-promotion state (main briefly carrying the last, released
+  beta) a no-op. A test covers it.
+- Head ref `alpha` (the promotion PR into main) is exempt from the changeset
+  check. Its changesets were consumed into `.changeset/pre/`.
+- Playwright specs (`*.spec.ts[x]`, `web/tests/`) are not shipped.
+- The release tag is created with `GITHUB_TOKEN`, so `build-fiestapi.yml`'s
+  `vN.0.0` tag trigger doesn't fire a second Pi build next to the dispatch.
+- `RELEASING.md` covers "Re-run failed jobs" after a partial failure, and the
+  Version PR dropping out of the merge queue when another changeset lands.

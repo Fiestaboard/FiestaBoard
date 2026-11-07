@@ -291,6 +291,9 @@ jobs:
             const { VERSION: version, TAG: tagName, RELEASE_SHA: releaseSha } = process.env;
             const prerelease = process.env.PRERELEASE === 'true';
 
+            // Created with GITHUB_TOKEN on purpose: a tag it creates fires no
+            // `push` event, so build-fiestapi.yml's vN.0.0 tag trigger does not
+            // start a second Pi build next to the dispatch below.
             // Idempotent for re-runs, but never silently reuse a tag that
             // points somewhere else.
             try {

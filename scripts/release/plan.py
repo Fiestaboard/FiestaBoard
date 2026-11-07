@@ -44,8 +44,23 @@ class Plan:
         return f"v{self.version}"
 
 
-def plan_release(*, branch: str, version: str, release_exists: bool) -> Plan:
-    """Pure decision. Raises ValueError when the branch would ship the wrong kind of version."""
+def _core(version: str) -> tuple[int, int, int]:
+    major, minor, patch = version.split("-", 1)[0].split(".")
+    return int(major), int(minor), int(patch)
+
+
+def plan_release(*, branch: str, version: str, release_exists: bool, newest_stable: str | None = None) -> Plan:
+    """Pure decision. Raises ValueError when the branch would ship the wrong kind of version.
+
+    ``newest_stable`` is the highest released stable version. Whatever this
+    releases must sort above it. For a prerelease that is the whole point:
+    beta installs take the newest version across both channels
+    (update_service._latest_for_channel), so a ``10.3.3-beta.1`` cut after
+    ``10.3.3`` shipped is invisible to them and walks them back onto stable
+    (#1992). Changesets bumps pre mode from the version alpha was created at,
+    so this happens whenever main releases past alpha's target mid-cycle;
+    the fix is to restart alpha (RELEASING.md).
+    """
     if not VERSION_RE.match(version):
         raise ValueError(f"package.json version {version!r} is not X.Y.Z or X.Y.Z-{PRE_TAG}.N")
     prerelease = "-" in version
@@ -65,6 +80,16 @@ def plan_release(*, branch: str, version: str, release_exists: bool) -> Plan:
     if branch not in (STABLE_BRANCH, PRERELEASE_BRANCH):
         raise ValueError(f"{branch} is not a release branch.")
 
+    if newest_stable is not None and _core(version) <= _core(newest_stable):
+        raise ValueError(
+            f"{version} would not sort above the newest stable release {newest_stable}. "
+            + (
+                "Restart alpha from main (docs/internal/development/RELEASING.md, Lifecycle)."
+                if prerelease
+                else "main's version went backwards — check package.json and the Version PR."
+            )
+        )
+
     kind = "prerelease" if prerelease else "stable release"
     return Plan(True, version, prerelease, f"v{version} has no GitHub Release — cutting the {kind}.")
 
@@ -82,6 +107,18 @@ def release_exists(tag: str) -> bool:
     raise RuntimeError(f"gh release view {tag} failed: {result.stderr.strip()}")
 
 
+def newest_stable_release() -> str | None:
+    """The highest stable version among published GitHub Releases."""
+    result = _run(
+        "gh", "release", "list", "--exclude-drafts", "--exclude-pre-releases",
+        "--limit", "100", "--json", "tagName", "--jq", ".[].tagName",
+    )  # fmt: skip
+    if result.returncode != 0:
+        raise RuntimeError(f"gh release list failed: {result.stderr.strip()}")
+    stable = [tag[1:] for tag in result.stdout.split() if re.fullmatch(r"v\d+\.\d+\.\d+", tag)]
+    return max(stable, key=_core) if stable else None
+
+
 def version_commit() -> str:
     """The last first-parent commit that changed package.json's version line."""
     result = _run("git", "log", "--first-parent", "-1", "--format=%H", "-G", '"version":', "--", "package.json")
@@ -97,7 +134,13 @@ def main(argv: list[str]) -> int:
         return 2
     version = json.loads(Path("package.json").read_text(encoding="utf-8"))["version"]
     try:
-        plan = plan_release(branch=argv[0], version=version, release_exists=release_exists(f"v{version}"))
+        exists = release_exists(f"v{version}")
+        plan = plan_release(
+            branch=argv[0],
+            version=version,
+            release_exists=exists,
+            newest_stable=None if exists else newest_stable_release(),
+        )
         sha = version_commit() if plan.release else ""
     except (ValueError, RuntimeError) as error:
         print(f"::error title=Release plan::{error}", file=sys.stderr)

@@ -46,12 +46,16 @@ SKIP_LABEL = "no-changeset"
 #:   would otherwise fail its own check.
 #: - ``main`` is a main→alpha sync: main's changesets were consumed by main's
 #:   own release before the sync, so the shipped diff arrives with none.
+#: - ``alpha`` is the promotion PR into main: alpha's changesets were consumed
+#:   by its beta releases (Changesets v3 keeps them in ``.changeset/pre/``),
+#:   and main's next Version PR turns them into the stable changelog.
 #: - ``dependabot/*``: dependency bumps ride along with the next release (the
 #:   image is built from the whole tree). Add a changeset to a Dependabot PR by
 #:   hand when it should release on its own, such as a security fix.
 EXEMPT_HEAD_REFS = (
     re.compile(r"^changeset-release/"),
     re.compile(r"^main$"),
+    re.compile(r"^alpha$"),
     re.compile(r"^dependabot/"),
 )
 
@@ -84,6 +88,9 @@ NOT_SHIPPED_PATTERNS = (
     "*.mdx",
     "tests/*",
     "*/tests/*",
+    # Playwright specs; .dockerignore keeps them out of the image.
+    "*.spec.ts",
+    "*.spec.tsx",
     "*/__tests__/*",
     "*.test.ts",
     "*.test.tsx",
