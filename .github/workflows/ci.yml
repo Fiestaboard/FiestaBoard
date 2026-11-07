@@ -1468,8 +1468,6 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
         run: |
           set -o pipefail
-          PR_LABELS=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq 'map(.name) | join(",")')
-          export PR_LABELS
           python3 scripts/release/changeset_check.py "$BASE_SHA" "$HEAD_SHA" \
             | sed -n 's/^reason=//p' >> "$GITHUB_STEP_SUMMARY"
 

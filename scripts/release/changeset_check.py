@@ -24,15 +24,21 @@ Deliberately NOT shipped:
 Standard library only, so CI runs it with bare ``python3``::
 
     python3 scripts/release/changeset_check.py <base-sha> <head-sha>
-    (reads HEAD_REF and PR_LABELS — comma-separated — from the environment)
+
+Reads HEAD_REF from the environment, and the PR's labels either from
+PR_LABELS (comma-separated) or, when PR_NUMBER is set instead, live from the
+GitHub API (GITHUB_REPOSITORY, GH_TOKEN). Live, because CI does not re-run on
+`labeled` and a re-run replays the original event payload.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
 import sys
+import urllib.request
 from collections.abc import Iterable
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
@@ -154,6 +160,24 @@ def _git_lines(*args: str) -> list[str]:
     return [line for line in out.splitlines() if line]
 
 
+def _labels_from_env() -> list[str]:
+    if "PR_LABELS" in os.environ:
+        raw = os.environ["PR_LABELS"].split(",")
+    elif os.environ.get("PR_NUMBER"):
+        url = (
+            f"{os.environ.get('GITHUB_API_URL', 'https://api.github.com')}/repos/"
+            f"{os.environ['GITHUB_REPOSITORY']}/issues/{os.environ['PR_NUMBER']}/labels?per_page=100"
+        )
+        request = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
+        if os.environ.get("GH_TOKEN"):
+            request.add_header("Authorization", f"Bearer {os.environ['GH_TOKEN']}")
+        with urllib.request.urlopen(request, timeout=30) as response:
+            raw = [label["name"] for label in json.load(response)]
+    else:
+        raw = []
+    return [label.strip() for label in raw if label.strip()]
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 2:
         print("usage: changeset_check.py <base-sha> <head-sha>", file=sys.stderr)
@@ -165,7 +189,7 @@ def main(argv: list[str]) -> int:
         files=_git_lines("diff", "--name-only", rng),
         added_files=_git_lines("diff", "--name-only", "--diff-filter=A", rng),
         head_ref=os.environ.get("HEAD_REF", ""),
-        labels=[label.strip() for label in os.environ.get("PR_LABELS", "").split(",") if label.strip()],
+        labels=_labels_from_env(),
     )
     print(f"ok={str(result.ok).lower()}")
     print(f"reason={result.reason}")
