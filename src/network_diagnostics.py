@@ -69,14 +69,15 @@ def check_dns_resolution(hostname: str = "google.com", timeout: float = _DNS_TIM
 
     Args:
         hostname: Hostname to resolve.
-        timeout: Socket timeout in seconds.
+        timeout: Retained for caller compatibility; does not bound the system resolver.
 
     Returns:
         Dict with ``ok`` bool, resolved ``ip`` (if successful), and ``error`` (if failed).
     """
-    old_timeout = socket.getdefaulttimeout()
+    # gethostbyname uses the system resolver, not a Python socket timeout.
+    # Changing the default here affects unrelated sockets and races with other
+    # diagnostic workers. Keep the timeout argument for caller compatibility.
     try:
-        socket.setdefaulttimeout(timeout)
         ip = socket.gethostbyname(hostname)
         return {"ok": True, "hostname": hostname, "ip": ip}
     except socket.gaierror as exc:
@@ -85,8 +86,6 @@ def check_dns_resolution(hostname: str = "google.com", timeout: float = _DNS_TIM
     except Exception as exc:
         logger.warning("DNS check for %s failed: %s", hostname, exc)
         return {"ok": False, "hostname": hostname, "ip": None, "error": "DNS check failed"}
-    finally:
-        socket.setdefaulttimeout(old_timeout)
 
 
 def check_internet_connectivity(
