@@ -86,6 +86,25 @@ matrix edges; viewers must clip them when rendering. An empty
 list clears the previous canvases, including when a frame is unavailable or
 its dimensions became stale. Split-flap frames omit this field. Configuration and LED frames also include a `geometry_key`; integrations should discard a frame whose key differs from the current configuration. `POST /panels/geometry` resolves an unsaved layout without changing settings.
 
+The configuration from `GET /panel/{id}` also carries a `status` object, so a
+viewer can say why the board looks the way it does:
+
+| Field | Meaning |
+|---|---|
+| `mode` | `override` while an override is showing, else `schedule` when the board follows its schedule, else `manual` |
+| `schedule_enabled` | Whether the board follows its schedule |
+| `override_active` | An override is showing on the board |
+| `override_expires_at` | When the override ends. `null` when there is none, or when it holds until it is cancelled |
+| `silenced` | The board is inside its silence window |
+| `silenced_until` | When the silence window ends, or `null` |
+| `silence_mode` | `freeze`, `indicator` or `page` while silenced, else `null` |
+| `paused` | The board takes no updates and keeps showing its last frame |
+
+All times are ISO 8601 in UTC. To count down an override against the hub's
+clock rather than the TV's, read the response's HTTP `Date` header. Overrides apply to the primary board only for
+now, so a panel on any other board always reports `override_active: false`.
+`status` is `null` when the panel's board is missing.
+
 ## FiestaPi HDMI Output
 
 Running FiestaBoard on a FiestaPi? The Pi can drive a TV or monitor directly over HDMI — no browser setup on the TV at all:

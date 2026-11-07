@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 from src.canvas.schemas import CanvasLayerModel
+from src.config import SilenceMode
 
 # Panel ids go in unauthenticated URLs; long random slugs keep them
 # unguessable-by-accident (they are NOT treated as secrets).
@@ -217,6 +218,46 @@ class PanelDeleteResponse(BaseModel):
     id: str
 
 
+#: What is driving the panel's board: a user override, the board's schedule,
+#: or the page pinned to it by hand.
+PanelMode = Literal["override", "schedule", "manual"]
+
+
+class PanelStatus(BaseModel):
+    """What the panel's board is doing, for a viewer's read-only status chip.
+
+    The chip copy ("Override · 2h 42m left", "Silenced", "Paused · showing
+    the last update") is the viewer's; these are the facts behind it. Every
+    instant is ISO-8601 UTC. There is deliberately no "now" field: the
+    config stays equal between polls while nothing changed, so a viewer can
+    diff it. To count "2h 42m left" against the hub's clock rather than its
+    own, read the response's HTTP ``Date`` header.
+
+    Several can hold at once (an override shows through silence; a paused
+    board can be silenced too); which one the chip leads with is the viewer's
+    call.
+    """
+
+    #: ``override`` while a user override drives the board, else ``schedule``
+    #: when the board follows its schedule, else ``manual``.
+    mode: PanelMode
+    #: Whether the board follows its schedule (the schedule on/off switch).
+    schedule_enabled: bool
+    override_active: bool
+    #: When the override ends; null while none is active, and also for an
+    #: override with no end (it holds until someone cancels it).
+    override_expires_at: str | None = None
+    silenced: bool
+    #: When the board's current silence window ends; null unless silenced.
+    silenced_until: str | None = None
+    #: How the board behaves while silenced (``freeze`` keeps the last frame,
+    #: ``indicator`` shows the quiet-hours indicator, ``page`` shows the quiet
+    #: page); null unless silenced.
+    silence_mode: SilenceMode | None = None
+    #: The board takes no updates and keeps showing its last frame.
+    paused: bool
+
+
 class PanelPublicResponse(PanelResponse):
     """``GET /panel/{panel_id}`` — the unauthenticated viewer's config.
 
@@ -236,6 +277,9 @@ class PanelPublicResponse(PanelResponse):
     device_model_spec: dict[str, Any] | None = None
     geometry_key: str | None = None
     geometry_error: str | None = None
+    #: Override / silence / pause / schedule state of the panel's board. Null
+    #: for an orphaned panel (``board_missing``): there is no board to report.
+    status: PanelStatus | None = None
 
 
 class PanelFrameResponse(BaseModel):

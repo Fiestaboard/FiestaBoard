@@ -59,6 +59,7 @@ from .models import (
 )
 from .reconcile import board_matches_grid, fit_board_to_grid
 from .service import get_panel_service
+from .status import panel_status
 
 logger = logging.getLogger(__name__)
 
@@ -306,7 +307,12 @@ async def delete_panel(panel_id: str):
 
 @router.get("/panel/{panel_id}", response_model=PanelPublicResponse, responses=errors(404))
 async def get_panel_public(panel_id: str):
-    """Public viewer config: panel settings + board geometry. No auth."""
+    """Public viewer config: panel settings, board geometry and board status. No auth.
+
+    ``status`` (override, silence, pause, schedule) is null for an orphaned
+    panel. It rides on the config, which viewers poll every 10 s, rather
+    than on the 2 s frame poll.
+    """
     panel = get_panel_service().get_panel_by_ref(panel_id)
     if panel is None:
         raise HTTPException(status_code=404, detail=_panel_not_found_detail(panel_id))
@@ -337,6 +343,8 @@ async def get_panel_public(panel_id: str):
         {
             "board_color": board.get("board_color") or "black",
             "code62_glyph": BoardInstance.from_dict(board).effective_code62_glyph,
+            # Additive (H13): what the board is doing, for the TV's status chip.
+            "status": panel_status(panel.board_id),
         }
     )
     return PanelPublicResponse.model_validate(out)
