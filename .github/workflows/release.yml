@@ -113,8 +113,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # The action may have left the working tree on the Version PR branch.
-          git checkout --force --quiet "$GITHUB_SHA"
+          # The action commits the Version PR through the GitHub API and leaves
+          # its bump (package.json, CHANGELOG.md, deleted changesets) in this
+          # working tree. Discard all of it: the plan must describe the pushed
+          # commit, not the PR. plan.py also reads package.json from git, not
+          # from disk, so a leftover edit cannot leak in.
+          git reset --hard --quiet "$GITHUB_SHA"
+          git clean -fdq
           python3 scripts/release/plan.py "$GITHUB_REF_NAME" > /tmp/plan.txt
           cat /tmp/plan.txt >> "$GITHUB_OUTPUT"
           printf '### Release plan\n\n%s\n' "$(sed -n 's/^reason=//p' /tmp/plan.txt)" >> "$GITHUB_STEP_SUMMARY"
@@ -268,6 +273,8 @@ jobs:
     permissions:
       contents: write # tag + GitHub Release
       actions: write # dispatch build-fiestapi.yml
+      pull-requests: read # per-PR claude-changelog comments
+      issues: read # (listComments goes through the issues API)
       id-token: write # required by claude-code-base-action
     env:
       VERSION: ${{ needs.version.outputs.version }}

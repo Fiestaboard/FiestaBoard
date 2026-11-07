@@ -186,9 +186,10 @@ the config file first, the two PRs can land in either order.
 **Claude automation.**
 
 - `CLAUDE.md` gets a Changesets section. Claude-run workflows read it.
-- The PR-opening prompts in `claude-issue-triage.yml`, `claude-bug-hunt.yml`,
-  and `claude-a11y-audit.yml` say to write a changeset file for shipped
-  changes. They can't use the interactive `npx changeset`, so they write the
+- The PR-opening prompt in `claude-issue-triage.yml` says to write a
+  changeset file for shipped changes. `claude-bug-hunt.yml` and
+  `claude-a11y-audit.yml` only open issues, and their fixes come through
+  triage. They can't use the interactive `npx changeset`, so they write the
   file directly.
 - `docs-audit` only touches docs, so it is unchanged.
 

@@ -25,7 +25,8 @@ Standard library only, so CI runs it with bare ``python3``::
 
     python3 scripts/release/changeset_check.py <base-sha> <head-sha>
 
-Reads HEAD_REF from the environment, and the PR's labels either from
+Reads HEAD_REF and HEAD_REPO (the head branch's owner/name) from the
+environment, and the PR's labels either from
 PR_LABELS (comma-separated) or, when PR_NUMBER is set instead, live from the
 GitHub API (GITHUB_REPOSITORY, GH_TOKEN). Live, because CI does not re-run on
 `labeled` and a re-run replays the original event payload.
@@ -130,9 +131,16 @@ def is_shipped(path: str) -> bool:
     return _matches(path, SHIPPED_PATTERNS) and not _matches(path, NOT_SHIPPED_PATTERNS)
 
 
-def check_changeset(*, files: list[str], added_files: list[str], head_ref: str, labels: list[str]) -> Result:
-    """``files``: every path the PR changes; ``added_files``: paths it adds."""
-    if any(pattern.search(head_ref) for pattern in EXEMPT_HEAD_REFS):
+def check_changeset(
+    *, files: list[str], added_files: list[str], head_ref: str, labels: list[str], same_repo: bool = True
+) -> Result:
+    """``files``: every path the PR changes; ``added_files``: paths it adds.
+
+    ``same_repo``: the head branch lives in this repository. Head-ref
+    exemptions apply only then — a contributor's fork PR from *their* ``main``
+    is ordinary work, not a sync.
+    """
+    if same_repo and any(pattern.search(head_ref) for pattern in EXEMPT_HEAD_REFS):
         return Result(True, f"Head ref {head_ref} is exempt from the changeset check.")
     if SKIP_LABEL in labels:
         return Result(True, f"The {SKIP_LABEL} label waives the changeset check.")
@@ -190,6 +198,8 @@ def main(argv: list[str]) -> int:
         added_files=_git_lines("diff", "--name-only", "--diff-filter=A", rng),
         head_ref=os.environ.get("HEAD_REF", ""),
         labels=_labels_from_env(),
+        same_repo=os.environ.get("HEAD_REPO", os.environ.get("GITHUB_REPOSITORY", ""))
+        == os.environ.get("GITHUB_REPOSITORY", ""),
     )
     print(f"ok={str(result.ok).lower()}")
     print(f"reason={result.reason}")

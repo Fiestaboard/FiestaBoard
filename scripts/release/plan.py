@@ -23,7 +23,6 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 
 #: X.Y.Z, optionally -<id>.<n>; the shapes the update checker accepts.
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$")
@@ -119,6 +118,14 @@ def newest_stable_release() -> str | None:
     return max(stable, key=_core) if stable else None
 
 
+def version_at(ref: str) -> str:
+    """package.json's version at a commit — from git, never the working tree."""
+    result = _run("git", "show", f"{ref}:package.json")
+    if result.returncode != 0:
+        raise RuntimeError(f"git show {ref}:package.json failed: {result.stderr.strip()}")
+    return json.loads(result.stdout)["version"]
+
+
 def version_commit() -> str:
     """The last first-parent commit that changed package.json's version line."""
     result = _run("git", "log", "--first-parent", "-1", "--format=%H", "-G", '"version":', "--", "package.json")
@@ -132,8 +139,8 @@ def main(argv: list[str]) -> int:
     if len(argv) != 1:
         print("usage: plan.py <branch>", file=sys.stderr)
         return 2
-    version = json.loads(Path("package.json").read_text(encoding="utf-8"))["version"]
     try:
+        version = version_at("HEAD")
         exists = release_exists(f"v{version}")
         plan = plan_release(
             branch=argv[0],
@@ -142,6 +149,11 @@ def main(argv: list[str]) -> int:
             newest_stable=None if exists else newest_stable_release(),
         )
         sha = version_commit() if plan.release else ""
+        if sha and version_at(sha) != version:
+            raise RuntimeError(
+                f"the commit that last changed package.json's version ({sha[:9]}) carries "
+                f"{version_at(sha)}, not {version}; refusing to build {version} from it."
+            )
     except (ValueError, RuntimeError) as error:
         print(f"::error title=Release plan::{error}", file=sys.stderr)
         return 1

@@ -236,6 +236,13 @@ class TestCheckChangeset:
     def test_exempt_head_refs(self, head_ref):
         assert _check(["web/package-lock.json"], head_ref=head_ref).ok
 
+    @pytest.mark.parametrize("head_ref", ["main", "alpha", "changeset-release/main", "dependabot/pip/x"])
+    def test_fork_prs_are_never_exempt_by_branch_name(self, head_ref):
+        """A contributor's PR from their fork's main is ordinary work, not a sync."""
+        assert not check_changeset(
+            files=["src/main.py"], added_files=[], head_ref=head_ref, labels=[], same_repo=False
+        ).ok
+
     def test_the_fiestaui_upgrade_pr_is_not_exempt(self):
         """It changes the shipped UI, so it must carry its own changeset."""
         assert not _check(["web/package.json", "web/package-lock.json"], head_ref="fiestaui-upgrade").ok
