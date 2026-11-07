@@ -30,8 +30,8 @@ compare them by semver, so `10.4.0` is newer than every `10.4.0-beta.N`.
      guards** job.
    - CI's **Release guards** job fails a PR that changes shipped files without
      a changeset. "Shipped" means anything the Dockerfile copies into the image
-     (`src/`, `web/`, `plugins/`, `requirements.txt`, the nginx and supervisord
-     configs, and so on) plus `pi-image/`. Tests, Markdown, docs, CI, compose
+     (`src/`, `web/`, `plugins/`, `requirements.txt`, `nginx.conf` and `supervisord.conf`,
+     and so on) plus `pi-image/`. Tests, Markdown, docs, CI, compose
      files and `fiestaupdater/` don't need one. The list is in
      `scripts/release/changeset_check.py`.
    - Dependabot PRs and Version PRs are exempt. Dependency bumps ride along

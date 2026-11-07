@@ -3,7 +3,7 @@
 Status: proposed (2026-11-07). Port of the FiestaUI design merged in
 Fiestaboard/FiestaUI#375 (`6a4de412`). This plan lives in `docs/internal/plans/`
 rather than `docs/superpowers/plans/` because everything under `docs/` except
-`docs/internal/` is published to fiestaboard.app and must carry frontmatter.
+`docs/internal/` is published to fiestaboard.app and must carry YAML front matter.
 
 ## What FiestaBoard releases today
 
