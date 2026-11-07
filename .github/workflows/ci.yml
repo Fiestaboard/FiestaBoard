@@ -509,7 +509,13 @@ jobs:
           || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 10
     outputs:
+      # Both identities of this run's image. Which one `docker image inspect`
+      # reports after `docker load` depends on the consumer's image store:
+      # the classic store reports the config digest (imageid); the containerd
+      # store — the default on Docker 29, i.e. the ubuntu-26.04 runners —
+      # reports the manifest digest. Consumers accept either, and only these.
       image_id: ${{ steps.build.outputs.imageid }}
+      image_digest: ${{ steps.build.outputs.digest }}
 
     # Export the production image once. Consumers load this run's immutable
     # artifact and verify its image ID instead of reconstructing cached layers.
@@ -616,11 +622,15 @@ jobs:
         id: image
         env:
           EXPECTED_IMAGE_ID: ${{ needs.build-test-image.outputs.image_id }}
+          EXPECTED_IMAGE_DIGEST: ${{ needs.build-test-image.outputs.image_digest }}
         run: |
           docker load --input "$RUNNER_TEMP/ci-image/fiestaboard-test-image.tar"
           ACTUAL_IMAGE_ID=$(docker image inspect --format='{{.Id}}' fiestaboard:ci)
-          if [ -z "$EXPECTED_IMAGE_ID" ] || [ "$ACTUAL_IMAGE_ID" != "$EXPECTED_IMAGE_ID" ]; then
-            echo "::error::Loaded image does not match the producer's image ID"
+          # Config digest on the classic image store, manifest digest on the
+          # containerd store (Docker 29 default) — see build-test-image.
+          if [ -z "$EXPECTED_IMAGE_ID" ] || [ -z "$EXPECTED_IMAGE_DIGEST" ] \
+            || { [ "$ACTUAL_IMAGE_ID" != "$EXPECTED_IMAGE_ID" ] && [ "$ACTUAL_IMAGE_ID" != "$EXPECTED_IMAGE_DIGEST" ]; }; then
+            echo "::error::Loaded image $ACTUAL_IMAGE_ID matches neither the producer's image ID ($EXPECTED_IMAGE_ID) nor its digest ($EXPECTED_IMAGE_DIGEST)"
             exit 1
           fi
 
@@ -796,11 +806,15 @@ jobs:
         id: image
         env:
           EXPECTED_IMAGE_ID: ${{ needs.build-test-image.outputs.image_id }}
+          EXPECTED_IMAGE_DIGEST: ${{ needs.build-test-image.outputs.image_digest }}
         run: |
           docker load --input "$RUNNER_TEMP/ci-image/fiestaboard-test-image.tar"
           ACTUAL_IMAGE_ID=$(docker image inspect --format='{{.Id}}' fiestaboard:ci)
-          if [ -z "$EXPECTED_IMAGE_ID" ] || [ "$ACTUAL_IMAGE_ID" != "$EXPECTED_IMAGE_ID" ]; then
-            echo "::error::Loaded image does not match the producer's image ID"
+          # Config digest on the classic image store, manifest digest on the
+          # containerd store (Docker 29 default) — see build-test-image.
+          if [ -z "$EXPECTED_IMAGE_ID" ] || [ -z "$EXPECTED_IMAGE_DIGEST" ] \
+            || { [ "$ACTUAL_IMAGE_ID" != "$EXPECTED_IMAGE_ID" ] && [ "$ACTUAL_IMAGE_ID" != "$EXPECTED_IMAGE_DIGEST" ]; }; then
+            echo "::error::Loaded image $ACTUAL_IMAGE_ID matches neither the producer's image ID ($EXPECTED_IMAGE_ID) nor its digest ($EXPECTED_IMAGE_DIGEST)"
             exit 1
           fi
 
