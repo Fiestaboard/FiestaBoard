@@ -100,9 +100,24 @@ viewer can say why the board looks the way it does:
 | `silence_mode` | `freeze`, `indicator` or `page` while silenced, else `null` |
 | `paused` | The board takes no updates and keeps showing its last frame |
 
-All times are ISO 8601 in UTC. To count down an override against the hub's
-clock rather than the TV's, read the response's HTTP `Date` header. Overrides apply to the primary board only for
-now, so a panel on any other board always reports `override_active: false`.
+Every time has exactly one shape, `YYYY-MM-DDTHH:MM:SS+00:00`: UTC, whole
+seconds, no fraction. While nothing changes, `status` is identical from one
+poll to the next. To count down an override against the hub's clock rather
+than the TV's, read the response's HTTP `Date` header. The response is sent
+with `Cache-Control: no-store`, so that header is always the hub's own.
+
+Several states can hold at once, and all of them are reported. What the board
+shows follows these rules:
+
+- `paused` beats everything. A paused board keeps its last frame, even while
+  an override is active.
+- An active override beats silence. While `override_active` is true, the
+  override is what is showing, even if `silenced` is also true.
+- Otherwise a silenced board follows `silence_mode`, and an unsilenced board
+  follows `mode`.
+
+Overrides apply to the primary board only for now, so a panel on any other
+board always reports `override_active: false`.
 `status` is `null` when the panel's board is missing.
 
 ## FiestaPi HDMI Output
