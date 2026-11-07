@@ -31,7 +31,7 @@ import logging
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from src.api_errors import errors
 from src.board_chars import characters_to_message
@@ -305,7 +305,20 @@ async def delete_panel(panel_id: str):
     return PanelDeleteResponse(id=panel_id)
 
 
-@router.get("/panel/{panel_id}", response_model=PanelPublicResponse, responses=errors(404))
+def _no_store(response: Response) -> None:
+    """``Cache-Control: no-store``: the status chip, and the ``Date`` header a
+    viewer counts an override down against, must come from the hub, never
+    from a cache on the way. A dependency, so the handler stays callable
+    directly (``tests/test_small_domains_decoupled.py``)."""
+    response.headers["Cache-Control"] = "no-store"
+
+
+@router.get(
+    "/panel/{panel_id}",
+    response_model=PanelPublicResponse,
+    responses=errors(404),
+    dependencies=[Depends(_no_store)],
+)
 async def get_panel_public(panel_id: str):
     """Public viewer config: panel settings, board geometry and board status. No auth.
 

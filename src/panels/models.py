@@ -227,15 +227,26 @@ class PanelStatus(BaseModel):
     """What the panel's board is doing, for a viewer's read-only status chip.
 
     The chip copy ("Override · 2h 42m left", "Silenced", "Paused · showing
-    the last update") is the viewer's; these are the facts behind it. Every
-    instant is ISO-8601 UTC. There is deliberately no "now" field: the
-    config stays equal between polls while nothing changed, so a viewer can
-    diff it. To count "2h 42m left" against the hub's clock rather than its
-    own, read the response's HTTP ``Date`` header.
+    the last update") is the viewer's; these are the facts behind it.
 
-    Several can hold at once (an override shows through silence; a paused
-    board can be silenced too); which one the chip leads with is the viewer's
-    call.
+    Every instant has exactly one shape, ``YYYY-MM-DDTHH:MM:SS+00:00``: UTC,
+    whole seconds, no fraction (Swift's ``.iso8601`` decoder rejects
+    fractions). There is deliberately no "now" field: the status stays equal
+    between polls while nothing changed, so a viewer can diff it. To count
+    "2h 42m left" against the hub's clock rather than its own, read the
+    response's HTTP ``Date`` header (the route sends ``Cache-Control:
+    no-store``, so that header is the hub's).
+
+    Several facts can hold at once, and all of them are reported. What the
+    board shows follows the display loop:
+
+    * ``paused`` beats everything. A paused board takes no updates at all,
+      so it keeps its last frame even while an override is active (and that
+      override's clock keeps running). Lead with Paused.
+    * An active override beats silence. While ``override_active`` the
+      override is what is showing, even if ``silenced`` is also true.
+    * Otherwise a silenced board follows ``silence_mode``, and an unsilenced
+      one follows its schedule or its pinned page (``mode``).
     """
 
     #: ``override`` while a user override drives the board, else ``schedule``
@@ -244,11 +255,14 @@ class PanelStatus(BaseModel):
     #: Whether the board follows its schedule (the schedule on/off switch).
     schedule_enabled: bool
     override_active: bool
-    #: When the override ends; null while none is active, and also for an
-    #: override with no end (it holds until someone cancels it).
+    #: When the override ends (``YYYY-MM-DDTHH:MM:SS+00:00``); null while none
+    #: is active, and also for an override with no end (it holds until
+    #: someone cancels it).
     override_expires_at: str | None = None
     silenced: bool
-    #: When the board's current silence window ends; null unless silenced.
+    #: When the board's current silence window ends
+    #: (``YYYY-MM-DDTHH:MM:SS+00:00``, on the configured minute); null unless
+    #: silenced.
     silenced_until: str | None = None
     #: How the board behaves while silenced (``freeze`` keeps the last frame,
     #: ``indicator`` shows the quiet-hours indicator, ``page`` shows the quiet

@@ -12,7 +12,10 @@ and ``GET /panel/{id}/frame`` is untouched (its golden lives in
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+import re
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta, timezone
+from unittest import mock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -115,7 +118,8 @@ def test_a_timed_override_reports_override_mode_and_when_it_ends(client, panel, 
     _arm_override(expires_at)
     status = _status(client, panel)
     assert status["override_active"] is True
-    assert status["override_expires_at"] == expires_at
+    # Whole seconds since the PR #2431 review (see the shape tests below).
+    assert status["override_expires_at"] == datetime.fromisoformat(expires_at).replace(microsecond=0).isoformat()
     assert status["mode"] == "override"
 
 
@@ -152,3 +156,125 @@ def test_an_orphaned_panel_has_no_status(client, panel, monkeypatch):
 def test_the_frame_does_not_carry_status(client, panel):
     """Status is on the config (polled every 10 s), not the 2 s frame poll."""
     assert "status" not in client.get(f"/panel/{panel['id']}/frame").json()
+
+
+# ---------------------------------------------------------------------------
+# Review fixes for PR #2431: read-only override, timestamp shape, precedence
+# ---------------------------------------------------------------------------
+
+#: The one shape every instant in ``status`` takes: UTC, whole seconds.
+#: Swift's ``.iso8601`` decoding strategy rejects fractional seconds.
+_INSTANT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$")
+
+
+@contextmanager
+def _really_silenced(board_id: str, *, mode: str = "freeze"):
+    """Silence *board_id* with a real window around now, leaving the end-of-window
+    arithmetic (``board_guards.silence_timing``) unmocked."""
+    from src.config import Config
+
+    now = datetime.now(UTC)
+    window = {
+        "enabled": True,
+        "start_time": (now - timedelta(hours=1)).strftime("%H:%M+00:00"),
+        "end_time": (now + timedelta(hours=2)).strftime("%H:%M+00:00"),
+        "mode": mode,
+    }
+    real_config_for = Config.silence_config_for.__func__
+
+    def config_for(cls, board_id_=None):
+        resolved = real_config_for(cls, board_id_)
+        return {**resolved, **window} if board_id_ == board_id else resolved
+
+    with (
+        mock.patch.object(Config, "is_silence_mode_active", side_effect=lambda b=None: b == board_id),
+        mock.patch.object(Config, "silence_config_for", classmethod(config_for)),
+    ):
+        yield window
+
+
+def test_reading_status_does_not_consume_an_expired_override(client, panel, panel_is_primary):
+    """The display loop needs the expired override to apply its revert_mode.
+
+    A TV polling the config must not clear it first, or a timed override
+    with ``revert_mode="blank"`` never blanks the board.
+    """
+    from src.settings.service import TemporaryOverride
+
+    _settings().set_temporary_override(
+        TemporaryOverride(
+            page_id="evening-commute",
+            expires_at=(datetime.now(UTC) - timedelta(seconds=1)).isoformat(),
+            revert_mode="blank",
+        )
+    )
+    assert _status(client, panel)["override_active"] is False
+    left_for_the_loop = _settings().consume_temporary_override()
+    assert left_for_the_loop is not None
+    assert left_for_the_loop.revert_mode == "blank"
+
+
+def test_an_override_beats_the_schedule(client, panel, panel_is_primary):
+    _settings().set_schedule_enabled(True, board_id=panel["board_id"])
+    _arm_override((datetime.now(UTC) + timedelta(hours=1)).isoformat())
+    status = _status(client, panel)
+    assert (status["mode"], status["schedule_enabled"], status["override_active"]) == ("override", True, True)
+
+
+def test_override_silence_and_pause_are_all_reported_when_they_hold_together(client, panel, panel_is_primary):
+    """The viewer picks which chip leads; the hub reports every fact."""
+    _settings().set_paused(True, board_id=panel["board_id"])
+    _arm_override((datetime.now(UTC) + timedelta(hours=1)).isoformat())
+    with _really_silenced(panel["board_id"], mode="indicator"):
+        status = _status(client, panel)
+    assert status["mode"] == "override"
+    assert (status["override_active"], status["silenced"], status["paused"]) == (True, True, True)
+    assert status["silence_mode"] == "indicator"
+
+
+def test_silenced_until_is_whole_seconds_and_stable_between_polls(client, panel):
+    with _really_silenced(panel["board_id"]) as window:
+        first = _status(client, panel)
+        second = _status(client, panel)
+    assert first == second
+    assert _INSTANT.match(first["silenced_until"]), first["silenced_until"]
+    # The real end of the window, not a second before it.
+    assert first["silenced_until"].endswith(f"T{window['end_time'][:5]}:00+00:00")
+
+
+def test_override_expires_at_is_whole_seconds_utc_and_stable_between_polls(client, panel, panel_is_primary):
+    # The shape POST /settings/temporary-override stores: microseconds included.
+    stored = (datetime.now(UTC) + timedelta(hours=2, minutes=42)).replace(microsecond=654321)
+    _arm_override(stored.isoformat())
+    first = _status(client, panel)
+    second = _status(client, panel)
+    assert first == second
+    assert first["override_expires_at"] == stored.replace(microsecond=0).isoformat()
+    assert _INSTANT.match(first["override_expires_at"])
+
+
+def test_an_override_stored_with_another_offset_is_reported_in_utc(client, panel, panel_is_primary):
+    stored = datetime.now(timezone(timedelta(hours=-8))) + timedelta(hours=1)
+    _arm_override(stored.isoformat())
+    reported = _status(client, panel)["override_expires_at"]
+    assert _INSTANT.match(reported)
+    assert datetime.fromisoformat(reported) == stored.replace(microsecond=0)
+
+
+def test_the_viewer_config_is_never_cached(client, panel):
+    """A cached copy would show a stale chip and a stale Date header."""
+    assert client.get(f"/panel/{panel['id']}").headers.get("cache-control") == "no-store"
+
+
+@pytest.mark.parametrize(
+    "computed",
+    [
+        "2026-11-08T07:00:00.000000+00:00",
+        "2026-11-08T06:59:59.120000+00:00",  # now + whole seconds, boundary later today
+        "2026-11-08T07:00:00.880000+00:00",  # wrapped to tomorrow: lands just after
+    ],
+)
+def test_the_silence_end_is_reported_as_the_exact_minute_boundary(computed):
+    from src.panels.status import _instant
+
+    assert _instant(computed, to_minute=True) == "2026-11-08T07:00:00+00:00"
