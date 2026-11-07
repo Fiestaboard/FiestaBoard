@@ -218,6 +218,34 @@ TV credentials remain valid until revoked or expired. Use the device list to rem
 existing access. Password or username changes revoke all existing browser and TV
 sessions. Public panel URLs remain public even after revoking a TV credential.
 
+## Phone sign-in
+
+The FiestaBoard iOS and Android apps sign in with your username and password
+(`POST /auth/device/login`, `client_id` `fiestaboard-ios` or `fiestaboard-android`).
+The hub returns a long-lived credential with the `control` scope and does not keep
+the password on the phone. The **TV sign-in** switch in **Settings → Account** also
+controls new phone sign-ins. Approving a phone with a code on `/activate` isn't
+available yet.
+
+A phone credential can do what the app needs: show and change what each display
+shows, start and end overrides, edit pages, collections and schedules, configure
+installed integrations and their sign-ins, manage TVs, run device actions such as
+**Identify**, and read status and diagnostics. It also has the whole `/v1` API.
+
+A phone credential **cannot**:
+
+- manage accounts, passwords, signed-in devices, the API token or TV approval;
+- export or import backups;
+- change the hub's network, update channel or software, or restart it;
+- install, update or remove plugins or outputs;
+- read or change settings that hold third-party secrets, such as AI provider keys,
+  MQTT, or display connection settings.
+
+Like a TV, a phone credential expires after one year. You can revoke it from
+**Signed-in devices**, with **Sign out everywhere**, or by changing the password or
+username. Its next request is then rejected. A phone can also sign itself out
+(`DELETE /auth/device/session`).
+
 ### Upgrade and rollback
 
 The first upgrade to the session registry signs existing browsers out once. Sign in

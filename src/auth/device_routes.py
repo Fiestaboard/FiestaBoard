@@ -103,8 +103,8 @@ def update_settings(payload: EnrollmentSettings, request: Request):
 @router.delete("/session", response_model=Success, responses=RESPONSES)
 def revoke_self(request: Request):
     auth = get_auth_service()
-    session = DeviceService(auth).authenticate_tv(_bearer_from(request) or "")
+    session = DeviceService(auth).authenticate_native(_bearer_from(request) or "")
     if not session:
-        raise AuthFlowError("unauthorized", "This TV sign-in is no longer valid.", 401)
+        raise AuthFlowError("unauthorized", "This sign-in is no longer valid.", 401)
     auth.sessions.revoke_session(session.username, session.id)
     return Success()
