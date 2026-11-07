@@ -80,6 +80,11 @@ class CSRFContext(BaseModel):
     expires_in: int = 600
 
 
+class PanelShown(BaseModel):
+    panel_id: str
+    last_shown_at: str
+
+
 class SessionSummary(BaseModel):
     id: str
     kind: Literal["browser", "tv", "legacy"]
@@ -90,6 +95,10 @@ class SessionSummary(BaseModel):
     created_at: str
     last_active_at: str
     expires_at: str
+    # When this signed-in TV last fetched a panel frame (null if never), and
+    # per panel, newest first. Persisted at most once a minute per viewer.
+    last_shown_at: str | None = None
+    shown_panels: list[PanelShown] = []
 
 
 class SessionList(BaseModel):
