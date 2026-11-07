@@ -42,6 +42,11 @@ class Rule:
     methods: frozenset[str]
     pattern: re.Pattern[str]
 
+    @property
+    def literal(self) -> bool:
+        """True when the rule names one exact path (no ``{}`` segment, no catch-all)."""
+        return _SEG not in self.pattern.pattern and ".*" not in self.pattern.pattern
+
     def matches(self, method: str, path: str) -> bool:
         return method in self.methods and self.pattern.fullmatch(path) is not None
 
@@ -106,6 +111,9 @@ CONTROL_RULES = (
         ("GET", "/pages/{}/share"),
         ("POST", "/pages/preview/batch"),
         ("GET", "/pages/current-display"),
+        # Shape collision with POST /pages/{}/preview, listed on purpose: it decodes a
+        # share string and saves nothing. POST /pages/import (which saves) stays denied.
+        ("POST", "/pages/import/preview"),
         ("GET,POST", "/collections"),
         ("GET,PUT,DELETE", "/collections/{}"),
         ("POST", "/templates/render"),
@@ -126,6 +134,9 @@ CONTROL_RULES = (
         ("GET", "/plugins/errors"),
         ("GET", "/plugins/updates"),
         ("GET", "/plugins/variables/all"),
+        # Shape collision with GET /plugins/{}, listed on purpose: the read-only
+        # marketplace listing. Installing from it stays denied.
+        ("GET", "/plugins/registry"),
         ("GET", "/plugins/{}"),
         ("GET", "/plugins/{}/manifest"),
         ("GET", "/plugins/{}/variables"),

@@ -21,6 +21,9 @@ from src.auth import scopes
 from src.auth import service as auth_module
 from src.auth.device_models import AuthFlowError, DeviceMetadata
 from src.auth.device_service import DeviceService
+from src.plugins import routes as plugin_routes
+from src.system import update_service
+from src.system.models import UpdateCheckResponse
 
 PASSWORD = "correct-password"
 IOS = {"client_id": "fiestaboard-ios", "device_name": "Maya's iPhone", "app_version": "1.0"}
@@ -38,6 +41,24 @@ def auth(tmp_path, monkeypatch):
     monkeypatch.delenv("FIESTABOARD_MCP_TOKEN", raising=False)
     routes_module._FAILED_ATTEMPTS.clear()
     return svc
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """Allowed routes that would call out to Docker Hub, GitHub or the plugin registry."""
+
+    async def update_check():
+        return UpdateCheckResponse(
+            current_version="0.0.0", latest_version=None, update_available=False, package_url="", is_production=False
+        )
+
+    class Registry:
+        def get_registry_entries(self):
+            return []
+
+    monkeypatch.setattr(update_service, "_perform_update_check", update_check)
+    monkeypatch.setattr(plugin_routes, "_require_plugin_system", lambda: None)
+    monkeypatch.setattr(plugin_routes, "get_plugin_registry", lambda: Registry())
 
 
 @pytest.fixture
@@ -164,6 +185,8 @@ CONTROL_ALLOWED = [
     ("GET", "/pages", None),
     ("GET", "/collections", None),
     ("GET", "/plugins", None),
+    ("GET", "/plugins/registry", None),
+    ("POST", "/pages/import/preview", {}),
     ("GET", "/panels", None),
     ("PATCH", "/panels/missing", {"name": "Renamed"}),
     ("GET", "/triggers", None),
@@ -213,6 +236,7 @@ CONTROL_DENIED = [
     ("DELETE", "/plugins/x/uninstall", None),
     ("POST", "/plugins/x/update", None),
     ("POST", "/plugins/updates/apply", {}),
+    ("POST", "/pages/import", {}),
     ("POST", "/outputs/x/install", {}),
     # Stored secrets and integrations that hold credentials.
     ("GET", "/settings/ai", None),
@@ -243,6 +267,18 @@ def test_control_denies_everything_else(phone, method, path, body):
     response = client.request(method, path, json=body)
     assert response.status_code == 403, (method, path, response.status_code)
     assert response.json()["error"] == "forbidden"
+
+
+@pytest.mark.parametrize("path", ["/v1/status", "/status", "/auth/status"])
+def test_head_is_not_in_any_scope(phone, path):
+    client, _ = phone
+    assert client.head(path).status_code == 403
+
+
+def test_network_bound_routes_answer_from_the_stubs(phone):
+    client, _ = phone
+    assert client.get("/system/update-check").json()["update_available"] is False
+    assert client.get("/plugins/registry").json()["entries"] == []
 
 
 def test_control_works_alongside_a_configured_api_token(phone, monkeypatch):
@@ -318,6 +354,25 @@ def test_cookie_cannot_rescue_a_revoked_phone(auth, phone):
     assert client.get("/settings/temporary-override").status_code == 401
 
 
+def test_phone_token_expires_after_a_year(auth, phone):
+    client, _ = phone
+    now = auth.sessions.clock_ms()
+    auth.sessions.clock_ms = lambda: now + 366 * 24 * 3600 * 1000
+    assert client.get("/v1/status").status_code == 401
+    assert client.get("/auth/status").status_code == 401
+
+
+def test_phone_sign_in_shares_the_password_lockout(auth):
+    client = TestClient(app)
+    wrong = {**IOS, "username": "admin", "password": "wrong-password"}
+    for _ in range(10):
+        assert client.post("/auth/device/login", json=wrong).status_code == 401
+    locked = client.post("/auth/device/login", json={**IOS, "username": "admin", "password": PASSWORD})
+    assert locked.status_code == 429 and locked.headers["retry-after"] == "60"
+    # The bucket is the browser login's too.
+    assert client.post("/auth/login", json={"username": "admin", "password": PASSWORD}).status_code == 429
+
+
 def test_disabling_enrollment_keeps_existing_phones(auth, phone):
     client, _ = phone
     auth.sessions.set_enrollment(False)
@@ -327,12 +382,16 @@ def test_disabling_enrollment_keeps_existing_phones(auth, phone):
 # --- The policy table itself -----------------------------------------------
 
 
-def _routes():
+def _templates():
     schema = TestClient(app).get("/internal/openapi.json").json()
     for path, operations in schema["paths"].items():
-        concrete = re.sub(r"\{[^}]+\}", "sample", path)
         for method in operations:
-            yield method.upper(), concrete
+            yield method.upper(), path
+
+
+def _routes():
+    for method, path in _templates():
+        yield method, re.sub(r"\{[^}]+\}", "sample", path)
 
 
 def test_every_control_rule_names_a_real_route():
@@ -353,6 +412,18 @@ def test_control_is_a_strict_subset_of_the_api():
         if path == "/v1/install":
             continue
         assert not re.search(r"/(install|uninstall|update|restart|shutdown|rollback)$", path), (method, path)
+
+
+def test_literal_routes_never_ride_a_wildcard():
+    # A fixed path such as /plugins/registry must be allowed by its own rule, not
+    # because it happens to fit /plugins/{}. /v1 is allowed whole by design.
+    for method, template in _templates():
+        if "{" in template or template.startswith("/v1") or not scopes.permits(scopes.CONTROL, method, template):
+            continue
+        assert any(rule.literal and rule.matches(method, template) for rule in scopes.CONTROL_RULES), (
+            method,
+            template,
+        )
 
 
 def test_tv_scope_is_unchanged():
