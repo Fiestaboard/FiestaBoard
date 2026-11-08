@@ -15,6 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
+from tests.plugin_lifecycle_helpers import support_lifecycle_persistence
 
 
 def _make_addr_info(ip: str, port: int = 80):
@@ -309,6 +310,7 @@ class TestPluginEnableDisableAPI:
             reg = Mock()
             reg.get_plugin.return_value = Mock()
             reg.enable_plugin.return_value = True
+            support_lifecycle_persistence(reg)
             mock_reg_get.return_value = reg
             mock_cm_get.return_value = Mock()
 
@@ -330,6 +332,7 @@ class TestPluginEnableDisableAPI:
             reg = Mock()
             reg.get_plugin.return_value = Mock()
             reg.disable_plugin.return_value = True
+            support_lifecycle_persistence(reg)
             mock_reg_get.return_value = reg
             mock_cm_get.return_value = Mock()
 

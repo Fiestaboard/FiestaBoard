@@ -2000,21 +2000,18 @@ class ConfigManager:
             True if successful.
         """
         with self._file_lock:
-            if "plugins" not in self._config:
-                self._config["plugins"] = {}
-
-            if plugin_id not in self._config["plugins"]:
-                self._config["plugins"][plugin_id] = {}
+            candidate = self._deep_copy(self._config)
+            plugins = candidate.setdefault("plugins", {})
 
             # Merge updates, restoring masked sensitive fields from what is
             # already stored. Shares unmask_sensitive_values with
             # set_plugin_config: a flat top-level check here would go on
             # persisting "***" over secrets nested in dicts and lists, which is
             # exactly the drift that produced #1743.
-            existing = self._config["plugins"][plugin_id]
+            existing = plugins.setdefault(plugin_id, {})
             existing.update(unmask_sensitive_values(updates, existing))
 
-            self._save_internal()
+            self._save_internal(candidate)
 
         logger.debug(f"Plugin '{plugin_id}' configuration updated")
         return True

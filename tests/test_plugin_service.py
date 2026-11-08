@@ -40,8 +40,15 @@ def _service(recorder: _Recorder, *, config_errors: list[str] | None = None) -> 
     )[1]
     registry.apply_stored_config.side_effect = lambda pid, cfg: (recorder.steps.append("apply"), [])[1]
     registry.set_plugin_config.return_value = []
-    registry.enable_plugin.side_effect = lambda pid: (recorder.steps.append("registry_enable"), True)[1]
-    registry.disable_plugin.side_effect = lambda pid: (recorder.steps.append("registry_disable"), True)[1]
+
+    def change_enabled(_pid, *, before_change=None, enabled):
+        if before_change is not None:
+            before_change()
+        recorder.steps.append("registry_enable" if enabled else "registry_disable")
+        return True
+
+    registry.enable_plugin.side_effect = lambda pid, **kwargs: change_enabled(pid, enabled=True, **kwargs)
+    registry.disable_plugin.side_effect = lambda pid, **kwargs: change_enabled(pid, enabled=False, **kwargs)
     registry.parse_instance_key.side_effect = lambda pid: (pid.partition(":")[0], pid.partition(":")[2] or None)
     registry.make_instance_key.side_effect = lambda base, label: f"{base}:{label}"
     registry.create_instance.return_value = []

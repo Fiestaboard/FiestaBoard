@@ -34,7 +34,7 @@ SCRIPT = r"""
 import asyncio
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import src.mcp_server as mcp_server
 
@@ -55,6 +55,13 @@ registry = MagicMock()
 registry.get_plugin.return_value = object()
 registry.enable_plugin.return_value = True
 registry.disable_plugin.return_value = True
+for method in (registry.enable_plugin, registry.disable_plugin):
+    def change_enabled(_pid, *, before_change=None, _method=method):
+        accepted = _method.return_value
+        if accepted and before_change is not None:
+            before_change()
+        return accepted
+    method.side_effect = change_enabled
 registry.install_from_registry.return_value = []
 registry.uninstall_external_plugin.return_value = []
 registry.list_plugins.return_value = []
@@ -108,7 +115,7 @@ with (
 # Not vacuous: the tools really drove the collaborators.
 registry.install_from_registry.assert_called_once_with("stocks")
 registry.enable_plugin.assert_called()
-registry.disable_plugin.assert_called_once_with("stocks")
+registry.disable_plugin.assert_called_once_with("stocks", before_change=ANY)
 registry.apply_stored_config.assert_called_once()
 registry.uninstall_external_plugin.assert_called_once_with("stocks")
 config_manager.enable_plugin.assert_called()

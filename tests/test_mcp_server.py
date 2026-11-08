@@ -20,7 +20,7 @@ from __future__ import annotations
 import tempfile
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import ANY, MagicMock, create_autospec, patch
 
 import pytest
 
@@ -31,6 +31,7 @@ import pytest
 pytest.importorskip("mcp", reason="mcp package not installed")
 
 from src.mcp_server import _MCP_AVAILABLE, _build_mcp_server, mcp_server
+from tests.plugin_lifecycle_helpers import support_lifecycle_persistence
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -127,6 +128,7 @@ def mock_registry():
     registry.uninstall_external_plugin.return_value = []
     registry.enable_plugin.return_value = True
     registry.disable_plugin.return_value = True
+    support_lifecycle_persistence(registry)
     return registry
 
 
@@ -610,7 +612,7 @@ class TestInstallPlugin:
         assert result["status"] == "success"
         assert "installed and enabled" in result["message"]
         registry.install_from_registry.assert_called_once_with("stocks")
-        registry.enable_plugin.assert_called_once_with("stocks")
+        registry.enable_plugin.assert_called_once_with("stocks", before_change=ANY)
         # The half that #1588 was missing: without this the plugin comes back
         # disabled the next time the container is recreated.
         config_manager.enable_plugin.assert_called_once_with("stocks")
@@ -646,7 +648,7 @@ class TestInstallPlugin:
         assert result["source"] == "git"
         registry.install_from_git.assert_called_once_with(repo, plugin_id=None, branch="main")
         registry.install_from_registry.assert_not_called()
-        registry.enable_plugin.assert_called_once_with("stocks")
+        registry.enable_plugin.assert_called_once_with("stocks", before_change=ANY)
         config_manager.enable_plugin.assert_called_once_with("stocks")
 
     def test_install_from_git_reports_the_clone_failure(self, mcp, plugin_services):
@@ -669,7 +671,7 @@ class TestEnablePlugin:
         result = _call_tool(mcp, "enable_plugin", plugin_id="openweather")
         assert result["status"] == "success"
         assert "enabled successfully" in result["message"]
-        registry.enable_plugin.assert_called_once_with("openweather")
+        registry.enable_plugin.assert_called_once_with("openweather", before_change=ANY)
         config_manager.enable_plugin.assert_called_once_with("openweather")
 
     def test_enable_unknown_plugin_is_an_error(self, mcp, plugin_services):
@@ -689,7 +691,7 @@ class TestDisablePlugin:
         registry, config_manager = plugin_services
         result = _call_tool(mcp, "disable_plugin", plugin_id="openweather")
         assert "disabled successfully" in result["message"]
-        registry.disable_plugin.assert_called_once_with("openweather")
+        registry.disable_plugin.assert_called_once_with("openweather", before_change=ANY)
         config_manager.disable_plugin.assert_called_once_with("openweather")
 
     def test_disable_unknown_plugin_is_an_error(self, mcp, plugin_services):

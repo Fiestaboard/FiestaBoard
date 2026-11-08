@@ -35,7 +35,7 @@ SCRIPT = r"""
 import asyncio
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import src.plugins.routes as routes
 from src.plugins.base import Option, OptionsResult
@@ -105,6 +105,13 @@ registry.set_plugin_config.return_value = []
 registry.apply_stored_config.return_value = []
 registry.enable_plugin.return_value = True
 registry.disable_plugin.return_value = True
+for method in (registry.enable_plugin, registry.disable_plugin):
+    def change_enabled(_pid, *, before_change=None, _method=method):
+        accepted = _method.return_value
+        if accepted and before_change is not None:
+            before_change()
+        return accepted
+    method.side_effect = change_enabled
 registry.install_from_registry.return_value = []
 registry.install_from_git.return_value = []
 registry.uninstall_external_plugin.return_value = []
@@ -266,7 +273,7 @@ registry.get_fetch_breaker_status.assert_called_once()
 registry.get_registry_entries.assert_called_once()
 registry.apply_stored_config.assert_called()
 registry.enable_plugin.assert_called()
-registry.disable_plugin.assert_called_once_with("alpha")
+registry.disable_plugin.assert_called_once_with("alpha", before_change=ANY)
 registry.fetch_plugin_data.assert_called_once_with("alpha")
 registry.get_plugin_options.assert_called_once()
 registry.create_instance.assert_called_once_with("alpha", "office")
