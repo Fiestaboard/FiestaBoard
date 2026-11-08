@@ -3,10 +3,12 @@
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from src.main import BoardRuntime, DisplayService
 from src.outputs.hooks import DevicePoll
+from src.outputs.native_playlist import NativePageSelection
 
 
 class TestOutputPollEpoch(unittest.TestCase):
@@ -22,12 +24,15 @@ class TestOutputPollEpoch(unittest.TestCase):
             DevicePoll(config={"host": "old-discovered.example"}),
             DevicePoll(restarted=True),
             DevicePoll(overwritten=True),
+            DevicePoll(native_selection=NativePageSelection("old-page")),
         )
         for news in reports:
             for replace in (False, True):
                 with self.subTest(news=news, replace=replace):
                     service = DisplayService.__new__(DisplayService)
                     old = self.runtime("board")
+                    old.native_playlist = SimpleNamespace(entries=[SimpleNamespace(page_id="old-page")])
+                    old.native_selection = NativePageSelection("before")
                     replacement = self.runtime("board")
                     other = self.runtime("other")
                     service.runtimes = {"board": old, "other": other}
@@ -62,6 +67,7 @@ class TestOutputPollEpoch(unittest.TestCase):
                     settings.update_board_output_config.assert_not_called()
                     self.assertEqual(replacement.last_active_page_content, "CURRENT")
                     replacement.client.clear_cache.assert_not_called()
+                    self.assertEqual(old.native_selection, NativePageSelection("before"))
                     self.assertFalse(old.showing_out_of_band)
                     self.assertIsNone(old.overwritten_at)
                     self.assertIsNone(other.last_active_page_content)

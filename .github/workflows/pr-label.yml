@@ -15,73 +15,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Auto-label PR based on conventional commits
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const title = context.payload.pull_request.title;
-            const prNumber = context.payload.pull_request.number;
-            
-            console.log(`Analyzing PR #${prNumber}: "${title}"`);
-            
-            // Remove existing version labels
-            const existingLabels = context.payload.pull_request.labels.map(l => l.name);
-            const versionLabels = ['major', 'minor', 'patch'];
-            const labelsToRemove = existingLabels.filter(l => versionLabels.includes(l));
-            
-            for (const label of labelsToRemove) {
-              console.log(`Removing existing label: ${label}`);
-              try {
-                await github.rest.issues.removeLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: prNumber,
-                  name: label
-                });
-              } catch (error) {
-                if (error.status === 404) {
-                  console.log(`Label "${label}" not found on PR, skipping removal`);
-                } else {
-                  console.log(`Failed to remove label "${label}": ${error.message}`);
-                }
-              }
-            }
-            
-            // Determine version bump type from PR title
-            let bumpType = 'patch'; // default
-            
-            // Check for breaking changes (major): `type!:` or `type(scope)!:` or explicit BREAKING CHANGE footer
-            if (title.includes('BREAKING CHANGE:') ||
-                /^[a-z]+(\([^)]+\))?!:/.test(title)) {
-              bumpType = 'major';
-            }
-            // Check for features (minor)
-            else if (title.startsWith('feat:') ||
-                     title.startsWith('feature:') ||
-                     title.startsWith('feat(') ||
-                     title.startsWith('feature(')) {
-              bumpType = 'minor';
-            }
-            // Check for fixes (patch)
-            else if (title.startsWith('fix:') ||
-                     title.startsWith('fix(')) {
-              bumpType = 'patch';
-            }
-            // Default to patch for other conventional commit types
-            
-            console.log(`Adding label: ${bumpType}`);
-            
-            // Add the appropriate label
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              labels: [bumpType]
-            });
-            
-            console.log(`✅ PR labeled with: ${bumpType}`);
-
+      # Versions come from changesets (docs/internal/development/RELEASING.md),
+      # so this applies area labels only. It used to add major/minor/patch from
+      # the PR title, which release.yml read to pick the bump.
       - name: Auto-label PR based on changed files
         uses: actions/github-script@v9
         with:

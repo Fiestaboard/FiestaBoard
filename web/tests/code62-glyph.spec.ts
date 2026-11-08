@@ -23,7 +23,7 @@ import {
   expect,
   getMockBoardState,
   lastMockMessage,
-  openDisplays,
+  openDisplay,
   resetMockBoard,
   resetToSingleBoard,
   setActivePage,
@@ -91,15 +91,7 @@ function tile(page: import("@playwright/test").Page, col: number) {
 
 /** Open the (single) board's page from Displays and return its settings card. */
 async function openBoardCard(page: import("@playwright/test").Page) {
-  await openDisplays(page);
-  await page
-    .getByTestId("display-card")
-    .first()
-    .getByRole("link", { name: /^Open settings for / })
-    .click();
-  const card = page.locator("[data-testid=board-card]");
-  await expect(card).toBeVisible({ timeout: 15_000 });
-  return card;
+  return openDisplay(page, "My Board");
 }
 
 test.describe("Character code 62 — per-board glyph", () => {

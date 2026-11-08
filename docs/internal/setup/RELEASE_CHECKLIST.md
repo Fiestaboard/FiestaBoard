@@ -2,7 +2,7 @@
 
 Use this before publishing the repo or cutting a release to avoid leaking secrets or personal data.
 
-> **How releases actually ship:** Day-to-day version bumps are automated. `.github/workflows/release.yml` runs on pushes to `main` that touch non-documentation source files — it skips commits whose only changes are in `**.md`, `docs/**`, `.github/**`, `images/**`, `.devcontainer/**`, `LICENSE`, or other non-code paths. When it does run, it picks the bump type from the merged PR's `major` / `minor` / `patch` label (defaults to `patch`), commits `chore: bump version to X.Y.Z [skip ci]`, builds and pushes the multi-arch image, and creates the GitHub Release. The FiestaPi `.img.xz` is attached later by `build-fiestapi.yml` (~45–60 min).
+> **How releases actually ship:** through Changesets. PRs add `.changeset/*.md` files; `.github/workflows/release.yml` keeps one "chore: release" Version PR up to date, and merging it builds and pushes the multi-arch image, then creates the tag and GitHub Release. The FiestaPi `.img.xz` is attached later by `build-fiestapi.yml` (~45–60 min). See [Releasing](../development/RELEASING.md).
 >
 > **Do not bump versions by hand** in `package.json`, `web/package.json`, or `src/__init__.py`. The checklist below covers the manual gate: making sure no secrets are committed before the first public push.
 

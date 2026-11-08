@@ -2,8 +2,9 @@
 
 A FiestaBoard plugin can be rendered onto any board the platform supports:
 a Flagship (22x6), a Note (15x3), a Note array of any size from 15x3 up
-to 120x24, a FiestaPanel (any grid a TV fits), or an LED pixel board as
-narrow as 10 columns (a Pixoo 64 in its large text face is 10x8). A plugin that only ever considered the Flagship will overflow a
+to 120x24, a FiestaPanel (any grid a TV fits), or an LED pixel board (a
+Pixoo 64 in its large text face is 10x8; a one-row clock can be as small as
+1x5). A plugin that only ever considered the Flagship will overflow a
 Note and leave a panel almost entirely blank.
 
 This module is the shared conformance suite. Plugin repositories import it
@@ -92,7 +93,7 @@ PANEL_GEOMETRIES: tuple[Geometry, ...] = (
 )
 
 # LED pixel boards measured in pixels show as many glyphs as fit, so they are
-# NARROWER than a Note: the LED floor is 3 rows of 10, not 3 of 15. A Divoom
+# NARROWER than a Note: the LED floor is 1 row of 5, not 3 of 15. A Divoom
 # Pixoo 64 in the large 5x7 text face is 8 x 10 (and 10 x 16 in the small
 # 3x5 face, which the panel grids above already bracket); a 64 x 32 HUB75 or
 # Tidbyt in 5x7 is 4 x 10. A board's text size can change at runtime, so a

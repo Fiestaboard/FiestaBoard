@@ -19,4 +19,5 @@ Closes #
 - [ ] I have tested my changes locally
 - [ ] I have added/updated tests where applicable
 - [ ] I have updated documentation where applicable
+- [ ] I have added a changeset (`npx changeset`) if this changes what ships, or this PR releases nothing
 - [ ] My code follows the project's coding standards

@@ -146,7 +146,7 @@ test.describe("Navigation", () => {
 
     // Navigate to Settings — from the rail's footer menu, not the nav list.
     await page.locator('aside [data-slot="sidebar-account-trigger"]').click();
-    await page.getByRole("menuitem", { name: "Settings" }).click();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 10_000 });
 
     // Navigate back to Dashboard

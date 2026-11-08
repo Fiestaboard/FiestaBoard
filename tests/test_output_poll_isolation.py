@@ -21,6 +21,7 @@ class TestOutputPollIsolation(unittest.TestCase):
         service.runtimes = {"first": first, "other": other}
         settings = Mock()
         settings.is_paused.return_value = False
+        settings.get_polling_settings.return_value.board_read_interval_local = 0
         return service, first, other, settings
 
     def one_poll_pass(self, service, settings):
