@@ -85,8 +85,9 @@ def _check_length(length: int) -> None:
 #: nesting them multiplies work without any large string (S2). The heaviest
 #: real board measured (``tests/test_formula_eval_budget.py``: a 96 x 128
 #: panel, every one of its 96 lines a FILTER + SORT + FOREACH over 1 000
-#: items) takes 5 571 steps a formula and 535 K a render: the formula budget
-#: leaves 90x headroom, the render budget 11x (5.6x when H5's diagnostics
+#: items) takes 5 830 steps a formula and 560 K a render (size weighting
+#: included): the formula budget
+#: leaves 85x headroom, the render budget 10.7x (5.4x when H5's diagnostics
 #: evaluate every formula a second time). At about 0.4-0.7 us a step, a formula
 #: stops within 0.2 s and a render within about 4 s on a desktop CPU.
 MAX_FORMULA_STEPS = 500_000
@@ -107,19 +108,69 @@ MAX_EVAL_DEPTH = 200
 #: clock (:func:`ensure_render_clock`), so child contexts share it.
 _RENDER_BUDGET_KEY = "__budget__"
 
+#: Wall-clock deadlines (seconds), checked every :data:`DEADLINE_CHECK_STEPS`
+#: steps: steps bound the work in operations, but a slow CPU (a Pi) turns the
+#: same steps into many more seconds, and a deadline holds on any hardware.
+#: Past either a formula is ``#VALUE`` "took too long". Owner item: confirm
+#: on real Pi 4/5 hardware.
+MAX_FORMULA_SECONDS = 1.0
+MAX_RENDER_SECONDS = 3.0
+DEADLINE_CHECK_STEPS = 1024
+
+#: One extra step for every this many characters (or list items) a builtin
+#: takes in or gives back: ``SPLIT`` of 64 KB is one node but O(64 K) work,
+#: and inside a per-item loop that work multiplies unseen by a node count.
+STEP_WEIGHT_CHARS = 256
+#: SORT additionally pays n log2 n / this many steps (see :func:`_fn_sort`).
+SORT_WEIGHT_DIVISOR = 8
+
 #: Measures regex time; a test may slow it down.
 _regex_clock = time.monotonic
+#: Measures the deadlines; a test may slow it down.
+_eval_clock = time.monotonic
 
 
 class _Budget:
-    """Work spent so far: evaluation steps, regex seconds, current depth."""
+    """Work spent so far: evaluation steps, regex seconds, current depth, and
+    when it started (for the deadline)."""
 
-    __slots__ = ("depth", "regex_seconds", "steps")
+    __slots__ = ("depth", "next_deadline_check", "regex_seconds", "started", "steps")
 
     def __init__(self) -> None:
         self.steps = 0
         self.regex_seconds = 0.0
         self.depth = 0
+        self.started = _eval_clock()
+        self.next_deadline_check = DEADLINE_CHECK_STEPS
+
+
+def _size(value: Any) -> int:
+    """How much a builtin had to read or build for *value*: a string's length
+    or a list's items (a list's strings were each charged when built)."""
+    return len(value) if isinstance(value, str | list) else 0
+
+
+def _charge(steps: int) -> None:
+    """Add *steps* to the active formula's and render's budgets, and check the
+    step limits and (every :data:`DEADLINE_CHECK_STEPS` steps) the deadlines."""
+    active = _ACTIVE_BUDGET.get()
+    if active is None:
+        return
+    formula, render = active
+    formula.steps += steps
+    if formula.steps > MAX_FORMULA_STEPS:
+        raise _too_much_work(f"more than {MAX_FORMULA_STEPS} steps in one formula")
+    if render is not None:
+        render.steps += steps
+        if render.steps > MAX_RENDER_STEPS:
+            raise _too_much_work(f"more than {MAX_RENDER_STEPS} steps in one render")
+    if formula.steps >= formula.next_deadline_check:
+        formula.next_deadline_check = formula.steps + DEADLINE_CHECK_STEPS
+        now = _eval_clock()
+        if now - formula.started > MAX_FORMULA_SECONDS:
+            raise _too_much_work(f"took too long (more than {MAX_FORMULA_SECONDS:g} s for one formula)")
+        if render is not None and now - render.started > MAX_RENDER_SECONDS:
+            raise _too_much_work(f"took too long (more than {MAX_RENDER_SECONDS:g} s for one render)")
 
 
 #: The formula being evaluated on this thread (or task): its own budget and
@@ -1740,6 +1791,9 @@ def _fn_sort(args: list[Any]) -> Any:
     items = _require_array("SORT", args[0])
     field = _to_string(args[1]) if len(args) >= 2 else ""
     descending = len(args) >= 3 and _to_string(args[2]).strip().lower() in ("desc", "descending", "-1")
+    # A comparison sort is n log n, a key and a comparison per element per
+    # level: charged before sorting, beyond the size weight every builtin pays.
+    _charge(len(items) * max(1, len(items).bit_length()) // SORT_WEIGHT_DIVISOR)
     return sorted(items, key=lambda it: _sort_key(_item_field(it, field or None)), reverse=descending)
 
 
@@ -2198,14 +2252,8 @@ def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
             raise FormulaError("#SYNTAX", "formula nests too deeply") from exc
         finally:
             _ACTIVE_BUDGET.reset(token)
-    formula, render = active
-    formula.steps += 1
-    if formula.steps > MAX_FORMULA_STEPS:
-        raise _too_much_work(f"more than {MAX_FORMULA_STEPS} steps in one formula")
-    if render is not None:
-        render.steps += 1
-        if render.steps > MAX_RENDER_STEPS:
-            raise _too_much_work(f"more than {MAX_RENDER_STEPS} steps in one render")
+    formula, _render = active
+    _charge(1)
     if formula.depth >= MAX_EVAL_DEPTH:
         raise _Exhausted("#SYNTAX", f"formula nests more than {MAX_EVAL_DEPTH} levels deep")
     formula.depth += 1
@@ -2215,6 +2263,10 @@ def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
         formula.depth -= 1
     if isinstance(result, str):
         _check_length(len(result))
+    # What it built counts too: a long string or list is that much work.
+    weight = _size(result) // STEP_WEIGHT_CHARS
+    if weight:
+        _charge(weight)
     return result
 
 
@@ -2330,6 +2382,11 @@ def _eval_node_unbounded(node: _Node, context: dict[str, Any]) -> Any:
         # because expressions are pure, eager evaluation is safe semantically.
         try:
             args = [_eval_node(a, context) for a in node.args]
+            # What it reads counts too: SPLIT, SORT, UPPER, FIND… of a long
+            # string or list do work in proportion to its size (W1).
+            weight = sum(_size(arg) for arg in args) // STEP_WEIGHT_CHARS
+            if weight:
+                _charge(weight)
             return fn(args)
         except _Exhausted:
             raise
