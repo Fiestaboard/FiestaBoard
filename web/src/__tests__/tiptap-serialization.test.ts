@@ -85,6 +85,34 @@ describe("Simple serialization – 3-line mode (Note)", () => {
   });
 });
 
+describe("Filled flap (code 71) is a colour tile, not a variable chip (issue #2359)", () => {
+  it("parses {{filled}} as a colorTile node, not a variable", () => {
+    const doc = parseTemplateSimple("{{filled}}", 3);
+    const nodes = doc.content![0].content!;
+    const colorTiles = nodes.filter((n) => n.type === "colorTile");
+    const variables = nodes.filter((n) => n.type === "variable");
+
+    expect(variables).toHaveLength(0);
+    expect(colorTiles).toHaveLength(1);
+    expect(colorTiles[0].attrs).toMatchObject({ color: "filled", code: 71 });
+  });
+
+  it("round-trips {{filled}} through serialization", () => {
+    const original = "{{filled}}\n\n";
+    const doc = parseTemplateSimple(original, 3);
+    const serialized = serializeTemplateSimple(doc, 3);
+    expect(serialized).toBe(original);
+  });
+
+  it("round-trips {{filled}} alongside other colour tiles (board output order)", () => {
+    // Mirrors the backend render of " HI{{red}}{{black}}{{filled}}".
+    const original = " HI{{red}}{{black}}{{filled}}\n\n";
+    const doc = parseTemplateSimple(original, 3);
+    const serialized = serializeTemplateSimple(doc, 3);
+    expect(serialized).toBe(original);
+  });
+});
+
 describe("Variable filter arguments survive the round-trip", () => {
   it("preserves a single filter argument (|pad:3)", () => {
     const doc = parseTemplateSimple("{{weather.temp|pad:3}}", 3);

@@ -1,5 +1,4 @@
 import {
-  Box,
   Button,
   Dialog,
   DialogContent,
@@ -18,10 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   Text,
   Textarea,
 } from "@fiestaboard/ui";
@@ -30,7 +25,6 @@ import { Download, LayoutGrid, List, Plus } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { useCurrentBoard } from "@/components/current-board-context";
 import type { ViewMode } from "@/components/page-grid-selector";
 import { useBoardSettings, usePages } from "@/hooks/use-board";
 import { queryKeys } from "@/hooks/use-board";
@@ -38,13 +32,9 @@ import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { PAGE_LIBRARY_SORTS, type PageLibraryQuery, type PageLibrarySort } from "@/lib/page-library-query";
-
-// "panel" last: FiestaPanel pages (fit per character to a TV) get their own
-// tab rather than hiding among note arrays they are not compatible with.
-const DEVICE_ORDER: DeviceType[] = ["flagship", "note", "note_array", "panel"];
 
 // Lazy load PageGridSelector so the header renders immediately
 const PageGridSelectorLazy = lazy(() =>
@@ -54,9 +44,9 @@ function PageGridSelector(props: React.ComponentProps<typeof PageGridSelectorLaz
   return (
     <Suspense
       fallback={
-        <Grid cols="2" sm="3" lg="4" gap="4" className="xl:grid-cols-5">
+        <Grid cols="1" sm="2" gap="4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="aspect-[9/16] w-full rounded-lg" />
+            <Skeleton key={i} className="h-52 w-full rounded-xl" />
           ))}
         </Grid>
       }
@@ -69,16 +59,15 @@ function PageGridSelector(props: React.ComponentProps<typeof PageGridSelectorLaz
 const VIEW_MODE_STORAGE_KEY = "fiestaboard_pages_view_mode";
 const LIBRARY_STORAGE_KEY = "fiestaboard_pages_library_query";
 
-function getStoredLibraryState(): PageLibraryQuery & { device: DeviceType | null } {
+function getStoredLibraryState(): PageLibraryQuery {
   try {
     const stored = JSON.parse(sessionStorage.getItem(LIBRARY_STORAGE_KEY) ?? "null");
     return {
       text: typeof stored?.text === "string" ? stored.text : "",
       sort: PAGE_LIBRARY_SORTS.includes(stored?.sort) ? stored.sort : "name-asc",
-      device: DEVICE_ORDER.includes(stored?.device) ? stored.device : null,
     };
   } catch {
-    return { text: "", sort: "name-asc", device: null };
+    return { text: "", sort: "name-asc" };
   }
 }
 
@@ -156,49 +145,35 @@ export default function PagesPage() {
   const t = useTranslations("pages");
   const { data: boardSettings } = useBoardSettings();
   const { data: pagesData } = usePages();
-  const { currentBoard } = useCurrentBoard();
-  const configuredDevices = useMemo<DeviceType[]>(() => boardSettings?.devices ?? ["flagship"], [boardSettings]);
-  // Surface pages whose device_type isn't in the user's configured boards
-  // (e.g. flagship demo pages on a note-only setup) so they can still be
-  // edited or deleted. See issue #943.
-  const availableDevices = useMemo<DeviceType[]>(() => {
-    const present = new Set<DeviceType>(configuredDevices);
-    for (const page of pagesData?.pages ?? []) {
-      present.add((page.device_type as DeviceType) || "flagship");
+  const boards = useMemo(() => boardSettings?.boards ?? [], [boardSettings?.boards]);
+  const [storedFilter, setStoredFilter] = useState(() => {
+    try {
+      return sessionStorage.getItem("fiestaboard_pages_display_filter") ?? "all";
+    } catch {
+      return "all";
     }
-    return DEVICE_ORDER.filter((d) => present.has(d));
-  }, [configuredDevices, pagesData]);
-  const hasMultipleDevices = availableDevices.length > 1;
-  const [storedLibrary] = useState(getStoredLibraryState);
-  const [libraryQuery, setLibraryQuery] = useState<PageLibraryQuery>({
-    text: storedLibrary.text,
-    sort: storedLibrary.sort,
   });
-  const [activeTab, setActiveTab] = useState<DeviceType | null>(storedLibrary.device);
+  const selectedBoard = boards.find((board) => board.id === storedFilter);
+  const displayFilter = selectedBoard?.id ?? "all";
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
   const [importOpen, setImportOpen] = useState(false);
+  const pageCount = (pagesData?.pages ?? []).filter(
+    (page) => !selectedBoard || pagesCompatibleWithBoard(page, selectedBoard),
+  ).length;
+  const handleDisplayFilter = (value: string) => {
+    setStoredFilter(value);
+    try {
+      sessionStorage.setItem("fiestaboard_pages_display_filter", value);
+    } catch {}
+  };
+
+  const [libraryQuery, setLibraryQuery] = useState<PageLibraryQuery>(getStoredLibraryState);
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  // Keep only an explicit choice in state. Derive the default from the
-  // current board so asynchronous board settings cannot lock in a stale tab.
-  const current = currentBoard?.device_type;
-  const preferredTab =
-    (current && availableDevices.includes(current) ? current : undefined) ??
-    configuredDevices.find((device) => availableDevices.includes(device)) ??
-    availableDevices[0];
-  // An orphan device may exist only in saved pages. Wait for both responses
-  // before discarding a stored choice that is genuinely no longer available.
-  if (boardSettings !== undefined && pagesData !== undefined && activeTab && !availableDevices.includes(activeTab)) {
-    setActiveTab(null);
-  }
-
   useEffect(() => {
     try {
-      sessionStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify({ ...libraryQuery, device: activeTab }));
+      sessionStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(libraryQuery));
     } catch {}
-  }, [libraryQuery, activeTab]);
-
-  const visibleTab = activeTab && availableDevices.includes(activeTab) ? activeTab : preferredTab;
+  }, [libraryQuery]);
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
@@ -215,64 +190,73 @@ export default function PagesPage() {
   );
 
   const handleCreateNew = useCallback(() => {
-    const device = visibleTab ?? configuredDevices[0] ?? "flagship";
-    // On the selected display's own tab, ask for no device: the editor then
-    // targets that display exactly (its grid, model and character set).
-    if (currentBoard && currentBoard.device_type === device) {
-      push("/pages/new");
-      return;
-    }
-    push(`/pages/new?device=${device}`);
-  }, [push, visibleTab, configuredDevices, currentBoard]);
+    // The editor uses the active display's exact grid/model. Selecting a
+    // different library filter only changes browsing, not the sidebar display.
+    push(selectedBoard ? `/pages/new?board=${encodeURIComponent(selectedBoard.id)}` : "/pages/new");
+  }, [push, selectedBoard]);
 
   // The section (pages.tsx) owns the card and the header; this is the body.
   return (
     <>
       <PageToolbar
+        className="!py-4 px-4 sm:px-6"
         left={
-          <Flex align="center" className="border rounded-md" role="group" aria-label={t("viewModeLabel")}>
-            <Button
-              size="sm"
-              variant={viewMode === "grid" ? "secondary" : "ghost"}
-              onClick={() => handleViewModeChange("grid")}
-              className="h-8 w-8 p-0 rounded-r-none"
-              aria-label={t("gridView")}
-              aria-pressed={viewMode === "grid"}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              onClick={() => handleViewModeChange("list")}
-              className="h-8 w-8 p-0 rounded-l-none"
-              aria-label={t("listView")}
-              aria-pressed={viewMode === "list"}
-            >
-              <List className="h-4 w-4" />
-            </Button>
+          <Flex align="center" gap="3" wrap>
+            <Select value={displayFilter} onValueChange={handleDisplayFilter}>
+              <SelectTrigger className="h-9 w-48" aria-label={t("displayFilter")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("allPages")}</SelectItem>
+                {boards.map((board) => (
+                  <SelectItem key={board.id} value={board.id}>
+                    {board.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Text size="xs" tone="muted">
+              {t("libraryCount", { count: pageCount })}
+            </Text>
           </Flex>
         }
         right={
-          <Flex align="center" gap="2">
+          <Flex align="center" gap="2" wrap>
+            <Flex align="center" className="rounded-md bg-muted/50 p-0.5" role="group" aria-label={t("viewModeLabel")}>
+              <Button
+                size="sm"
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                onClick={() => handleViewModeChange("grid")}
+                className="h-8 w-8 p-0"
+                aria-label={t("gridView")}
+                aria-pressed={viewMode === "grid"}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                onClick={() => handleViewModeChange("list")}
+                className="h-8 w-8 p-0"
+                aria-label={t("listView")}
+                aria-pressed={viewMode === "list"}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </Flex>
+            <Button variant="ghost" size="sm" onClick={() => setImportOpen(true)} className="h-9 px-3">
+              <Download className="h-4 w-4 mr-1" />
+              {t("importPage")}
+            </Button>
             <Button
               variant="brand"
               size="sm"
               onClick={handleCreateNew}
-              className="h-9 sm:h-8 px-3 text-xs btn-lift"
+              className="h-9 px-3"
               {...anchorProps("pages.new")}
             >
-              <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
+              <Plus className="h-4 w-4 mr-1" />
               {t("newPage")}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setImportOpen(true)}
-              className="h-9 sm:h-8 px-3 text-xs btn-lift"
-            >
-              <Download className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
-              {t("importPage")}
             </Button>
           </Flex>
         }
@@ -325,85 +309,23 @@ export default function PagesPage() {
         }
       />
 
-      <PageSection {...anchorProps("pages.root")}>
+      <PageSection className="px-4 pt-0 pb-4 sm:px-6 [&:not(:first-child)]:border-t-0" {...anchorProps("pages.root")}>
         <Text id="page-library-search-hint" size="xs" tone="muted" className="mb-3">
           {t("searchHint")}
         </Text>
-        {hasMultipleDevices ? (
-          <Tabs value={visibleTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
-            {/* No inset any more: the section's own padding puts this strip on
-                the content column, and the tiles below sit on it too. */}
-            <TabsList className="mb-5">
-              {availableDevices.includes("flagship") && <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>}
-              {availableDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
-              {availableDevices.includes("note_array") && (
-                <TabsTrigger value="note_array">{t("noteArrayTab")}</TabsTrigger>
-              )}
-              {availableDevices.includes("panel") && <TabsTrigger value="panel">{t("panelTab")}</TabsTrigger>}
-            </TabsList>
-            {availableDevices.includes("flagship") && (
-              <TabsContent value="flagship">
-                <PageGridSelector
-                  onSelectPage={handleSelectPage}
-                  label={null}
-                  showActiveIndicator={false}
-                  showCollections={false}
-                  deviceTypeFilter="flagship"
-                  viewMode={viewMode}
-                  libraryQuery={libraryQuery}
-                />
-              </TabsContent>
-            )}
-            {availableDevices.includes("note") && (
-              <TabsContent value="note">
-                <PageGridSelector
-                  onSelectPage={handleSelectPage}
-                  label={null}
-                  showActiveIndicator={false}
-                  showCollections={false}
-                  deviceTypeFilter="note"
-                  viewMode={viewMode}
-                  libraryQuery={libraryQuery}
-                />
-              </TabsContent>
-            )}
-            {availableDevices.includes("note_array") && (
-              <TabsContent value="note_array">
-                <PageGridSelector
-                  onSelectPage={handleSelectPage}
-                  label={null}
-                  showActiveIndicator={false}
-                  showCollections={false}
-                  deviceTypeFilter="note_array"
-                  viewMode={viewMode}
-                  libraryQuery={libraryQuery}
-                />
-              </TabsContent>
-            )}
-            {availableDevices.includes("panel") && (
-              <TabsContent value="panel">
-                <PageGridSelector
-                  onSelectPage={handleSelectPage}
-                  label={null}
-                  showActiveIndicator={false}
-                  showCollections={false}
-                  deviceTypeFilter="panel"
-                  viewMode={viewMode}
-                  libraryQuery={libraryQuery}
-                />
-              </TabsContent>
-            )}
-          </Tabs>
-        ) : (
-          <PageGridSelector
-            onSelectPage={handleSelectPage}
-            label={null}
-            showActiveIndicator={false}
-            showCollections={false}
-            deviceTypeFilter={(availableDevices[0] ?? configuredDevices[0]) as DeviceType}
-            viewMode={viewMode}
-            libraryQuery={libraryQuery}
-          />
+        <PageGridSelector
+          onSelectPage={handleSelectPage}
+          label={null}
+          showActiveIndicator={false}
+          showCollections={false}
+          libraryQuery={libraryQuery}
+          compatibleBoard={selectedBoard}
+          viewMode={viewMode}
+        />
+        {selectedBoard && pagesData && pageCount === 0 && (
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => handleDisplayFilter("all")}>
+            {t("clearFilter")}
+          </Button>
         )}
       </PageSection>
       <ImportPageDialog open={importOpen} onOpenChange={setImportOpen} />

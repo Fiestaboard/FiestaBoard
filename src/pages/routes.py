@@ -31,8 +31,7 @@ from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.board_guards import _board_dims, _board_is_paused, _find_board, _require_board, silence_verdict
 from src.canvas.schemas import issues_json, layers_json
-from src.collections.models import is_collection_id
-from src.collections.service import get_collection_service
+from src.collections.service import get_collection_service, resolve_active_page_id
 from src.devices import board_context_for, geometry_of, resolve_dimensions, size_key
 from src.display_runtime import get_service
 from src.led.charsets import has_extended_markup
@@ -67,6 +66,7 @@ from .models import (
 from .models import Page as PageModel
 from .service import draws_pixels, find_incompatible_references, get_page_service
 from .share import decode_page, encode_page
+from .storage import PageRevisionConflict
 
 logger = logging.getLogger(__name__)
 
@@ -153,12 +153,11 @@ async def get_current_display():
     if not active_page_id:
         raise HTTPException(status_code=404, detail="No active page set")
 
-    # Resolve collection to underlying page
-    if is_collection_id(active_page_id):
-        resolved = collection_service.resolve_page_id(active_page_id)
-        if not resolved:
-            raise HTTPException(status_code=404, detail="Collection could not be resolved")
-        active_page_id = resolved
+    # Native collections follow device selection instead of core's clock.
+    resolved = resolve_active_page_id(active_page_id, lambda: collection_service)
+    if not resolved:
+        raise HTTPException(status_code=404, detail="Collection could not be resolved")
+    active_page_id = resolved
 
     page = page_service.get_page(active_page_id)
     if not page:
@@ -234,7 +233,7 @@ async def get_page(page_id: str):
 @router.put(
     "/pages/{page_id}",
     response_model=PageUpdateResponse,
-    responses=errors(400, 404),
+    responses=errors(400, 404, 412),
     dependencies=[superseded_by_v1("PUT /pages/{page_id}")],
 )
 async def update_page(page_id: str, page_data: PageUpdate):
@@ -252,6 +251,8 @@ async def update_page(page_id: str, page_data: PageUpdate):
 
     try:
         page = page_service.update_page(page_id, page_data)
+    except PageRevisionConflict as e:
+        raise HTTPException(status_code=412, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     if not page:
@@ -269,10 +270,10 @@ async def update_page(page_id: str, page_data: PageUpdate):
 @router.delete(
     "/pages/{page_id}",
     response_model=PageDeleteResponse,
-    responses=errors(404, 409),
+    responses=errors(404, 409, 412),
     dependencies=[superseded_by_v1("DELETE /pages/{page_id}")],
 )
-async def delete_page(page_id: str):
+async def delete_page(page_id: str, expected_revision: str | None = None):
     """Delete a page.
 
     If this is the last page, a default welcome page is automatically created
@@ -286,7 +287,13 @@ async def delete_page(page_id: str):
     from src.content_references import ContentInUseError
 
     try:
-        result = page_service.delete_page(page_id)
+        result = (
+            page_service.delete_page(page_id)
+            if expected_revision is None
+            else page_service.delete_page(page_id, expected_revision=expected_revision)
+        )
+    except PageRevisionConflict as exc:
+        raise HTTPException(status_code=412, detail=str(exc)) from exc
     except ContentInUseError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -333,7 +340,7 @@ async def preview_page_import(body: PageImportRequest):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     try:
-        page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+        page_create = PageCreate(**page_data)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=f"Invalid share string — {e}") from e
 
@@ -363,7 +370,7 @@ async def import_page(body: PageImportRequest):
         raise HTTPException(status_code=422, detail=str(e)) from e
 
     try:
-        page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+        page_create = PageCreate(**page_data)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Invalid share string — {e}") from e
 

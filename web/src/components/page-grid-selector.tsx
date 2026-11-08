@@ -33,6 +33,7 @@ import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } fr
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
+  BoardInstance,
   BoardLedLayout,
   Collection,
   DeviceType,
@@ -265,16 +266,14 @@ const PageButton = memo(
     const TypeIcon = LayoutTemplate;
 
     const buttonClassName = isActive
-      ? "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      : "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+      ? "group relative min-w-0 flex flex-col gap-3 p-4 rounded-xl border border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      : "group relative min-w-0 flex flex-col gap-3 p-4 rounded-xl border border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
     const iconClassName = isActive
       ? "h-4 w-4 shrink-0 text-brand"
       : "h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground";
 
-    const nameClassName = isActive
-      ? "text-sm font-medium truncate text-foreground"
-      : "text-sm font-medium truncate text-muted-foreground group-hover:text-foreground";
+    const nameClassName = "text-sm font-medium truncate text-foreground";
 
     const handleClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -628,6 +627,8 @@ export interface PageGridSelectorProps {
    * global Pages library keeps showing everything.
    */
   filterByCurrentBoardSize?: boolean;
+  /** Library filter: compatibility with a specific configured display. */
+  compatibleBoard?: BoardInstance;
   /** Opt-in saved-content search/sort for the library; assignment pickers keep their defaults. */
   libraryQuery?: PageLibraryQuery;
 }
@@ -642,6 +643,7 @@ export function PageGridSelector({
   viewMode = "grid",
   showCollections = true,
   filterByCurrentBoardSize = false,
+  compatibleBoard,
   libraryQuery,
 }: PageGridSelectorProps) {
   const t = useTranslations("pageGridSelector");
@@ -687,8 +689,9 @@ export function PageGridSelector({
     if (filterByCurrentBoardSize && currentBoard) {
       result = result.filter((p) => pagesCompatibleWithBoard(p, currentBoard));
     }
+    if (compatibleBoard) result = result.filter((page) => pagesCompatibleWithBoard(page, compatibleBoard));
     return result;
-  }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard]);
+  }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard, compatibleBoard]);
   const pages = useMemo(
     () => (libraryQuery ? selectLibraryPages(scopedPages, libraryQuery, locale) : scopedPages),
     [scopedPages, libraryQuery, locale],
@@ -707,7 +710,8 @@ export function PageGridSelector({
     > = {};
     for (const page of pages) {
       const board =
-        currentBoard && pagesCompatibleWithBoard(page, currentBoard) ? currentBoard : boardForShape(boards, [], page);
+        compatibleBoard ??
+        (currentBoard && pagesCompatibleWithBoard(page, currentBoard) ? currentBoard : boardForShape(boards, [], page));
       const model = board === currentBoard ? currentBoardModel : resolveBoardModel(board);
       out[page.id] = {
         model,
@@ -716,7 +720,7 @@ export function PageGridSelector({
       };
     }
     return out;
-  }, [pages, currentBoard, currentBoardModel, boards]);
+  }, [pages, currentBoard, currentBoardModel, boards, compatibleBoard]);
 
   // State for batch preview data — only what the network produced. Both
   // outcomes are kept: a failed entry is still an answer for that page, and
@@ -888,7 +892,11 @@ export function PageGridSelector({
 
   // All pages exist but none match the current board's size: explain the
   // filter instead of claiming no pages were created (issue #1249).
-  if (pages.length === 0 && allPages.length > 0 && filterByCurrentBoardSize && currentBoard) {
+  if (
+    scopedPages.length === 0 &&
+    allPages.length > 0 &&
+    ((filterByCurrentBoardSize && currentBoard) || compatibleBoard)
+  ) {
     return (
       <Card>
         <CardContent className="py-6">
@@ -898,7 +906,11 @@ export function PageGridSelector({
             description={t("noCompatiblePagesDescription")}
             action={
               <Button asChild variant="brand" size="sm" className="btn-lift">
-                <Link href="/pages/new">{t("createFirstPage")}</Link>
+                <Link
+                  href={compatibleBoard ? `/pages/new?board=${encodeURIComponent(compatibleBoard.id)}` : "/pages/new"}
+                >
+                  {t("createFirstPage")}
+                </Link>
               </Button>
             }
           />

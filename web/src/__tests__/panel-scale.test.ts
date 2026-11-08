@@ -54,7 +54,7 @@ describe("computeAutofitGrid (parity with src/panels/autofit.py)", () => {
 
   it('3" pocket screen gets a Note-sized grid', () => {
     expect(computeAutofitGrid(3)).toEqual({ rows: MIN_GRID_ROWS, cols: MIN_GRID_COLS });
-    // Literally 3x15: a TV keeps the Note floor, not an LED board's 3x10.
+    // Literally 3x15: a TV keeps the Note floor, not an LED board's 1x5.
     expect(computeAutofitGrid(3)).toEqual({ rows: 3, cols: 15 });
   });
 

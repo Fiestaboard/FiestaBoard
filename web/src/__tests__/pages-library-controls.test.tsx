@@ -69,6 +69,7 @@ describe("Pages library search and sorting", () => {
     vi.clearAllMocks();
     localStorage.clear();
     sessionStorage.clear();
+    sessionStorage.setItem("fiestaboard_pages_display_filter", "board");
     localStorage.setItem("fiestaboard_pages_view_mode", "list");
     previewIds = [];
     server.use(
@@ -92,7 +93,7 @@ describe("Pages library search and sorting", () => {
     );
   });
 
-  it("searches saved content within the current device tab and makes no previews in list mode", async () => {
+  it("searches saved content within the selected display and makes no previews in list mode", async () => {
     const user = userEvent.setup();
     renderLibrary();
     await screen.findByText("Alpha");
@@ -145,6 +146,28 @@ describe("Pages library search and sorting", () => {
     }
   });
 
+  it("keeps search and sort while switching between a display and All pages", async () => {
+    sessionStorage.setItem("fiestaboard_pages_display_filter", "all");
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Note forecast");
+    await user.type(screen.getByRole("searchbox", { name: "Search pages" }), "weather");
+    expect(resultIds()).toEqual(["alpha", "note"]);
+    await user.click(screen.getByRole("combobox", { name: "Sort pages" }));
+    await user.click(await screen.findByRole("option", { name: "Newest created" }));
+    expect(resultIds()).toEqual(["note", "alpha"]);
+    await user.click(screen.getByRole("combobox", { name: "Display filter" }));
+    await user.click(await screen.findByRole("option", { name: "Note" }));
+    expect(resultIds()).toEqual(["note"]);
+    expect(screen.getByRole("searchbox", { name: "Search pages" })).toHaveValue("weather");
+    expect(screen.getByRole("combobox", { name: "Sort pages" })).toHaveTextContent("Newest created");
+    await user.click(screen.getByRole("button", { name: /New page/i }));
+    expect(push).toHaveBeenCalledWith("/pages/new?board=note-board");
+    await user.click(screen.getByRole("combobox", { name: "Display filter" }));
+    await user.click(await screen.findByRole("option", { name: "All pages" }));
+    expect(resultIds()).toEqual(["note", "alpha"]);
+  });
+
   it("sorts the visible pages by created and updated dates", async () => {
     const user = userEvent.setup();
     renderLibrary();
@@ -157,10 +180,11 @@ describe("Pages library search and sorting", () => {
     expect(resultIds()).toEqual(["alpha", "beta"]);
   });
 
-  it("retains query, sort, nondefault device tab and list preference after visiting an editor", async () => {
+  it("retains query, sort, nondefault display and list preference after visiting an editor", async () => {
     const user = userEvent.setup();
     const view = renderLibrary();
-    await user.click(await screen.findByRole("tab", { name: "Note" }));
+    await user.click(await screen.findByRole("combobox", { name: "Display filter" }));
+    await user.click(await screen.findByRole("option", { name: "Note" }));
     await user.type(screen.getByRole("searchbox", { name: "Search pages" }), "weather");
     await user.click(screen.getByRole("combobox", { name: "Sort pages" }));
     await user.click(await screen.findByRole("option", { name: "Newest created" }));
@@ -168,7 +192,7 @@ describe("Pages library search and sorting", () => {
     expect(push).toHaveBeenCalledWith("/pages/edit/note");
     view.unmount();
     renderLibrary();
-    expect(await screen.findByRole("tab", { name: "Note" })).toHaveAttribute("aria-selected", "true");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Display filter" })).toHaveTextContent("Note"));
     expect(screen.getByRole("searchbox", { name: "Search pages" })).toHaveValue("weather");
     expect(screen.getByRole("combobox", { name: "Sort pages" })).toHaveTextContent("Newest created");
     expect(screen.getByRole("button", { name: "List view" })).toHaveAttribute("aria-pressed", "true");
@@ -226,7 +250,8 @@ describe("Pages library search and sorting", () => {
     expect(resultIds()).toEqual(["alpha"]);
   });
 
-  it("falls back from a removed device tab and creates for the visible display", async () => {
+  it("falls back from a removed display and creates for the visible display", async () => {
+    sessionStorage.setItem("fiestaboard_pages_display_filter", "removed-board");
     sessionStorage.setItem(
       "fiestaboard_pages_library_query",
       JSON.stringify({ text: "", sort: "name-asc", device: "panel" }),
@@ -234,12 +259,13 @@ describe("Pages library search and sorting", () => {
     const user = userEvent.setup();
     renderLibrary();
     await screen.findByText("Alpha");
-    expect(screen.getByRole("tab", { name: "Flagship" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("combobox", { name: "Display filter" })).toHaveTextContent("All pages");
     await user.click(screen.getByRole("button", { name: /New page/i }));
     expect(push).toHaveBeenCalledWith("/pages/new");
   });
 
-  it("creates for the visible tab while a removed saved tab awaits page loading", async () => {
+  it("creates for the current display while a removed saved display awaits page loading", async () => {
+    sessionStorage.setItem("fiestaboard_pages_display_filter", "removed-board");
     sessionStorage.setItem(
       "fiestaboard_pages_library_query",
       JSON.stringify({ text: "", sort: "name-asc", device: "panel" }),
@@ -258,7 +284,7 @@ describe("Pages library search and sorting", () => {
     renderLibrary();
     try {
       await waitFor(() =>
-        expect(screen.getByRole("tab", { name: "Flagship" })).toHaveAttribute("aria-selected", "true"),
+        expect(screen.getByRole("combobox", { name: "Display filter" })).toHaveTextContent("All pages"),
       );
       await user.click(screen.getByRole("button", { name: /New page/i }));
       expect(push).toHaveBeenCalledWith("/pages/new");
@@ -541,7 +567,8 @@ describe("Pages library search and sorting", () => {
     expect(previewIds).toEqual([["alpha", "beta"]]);
   });
 
-  it("restores an orphan device tab after delayed page data arrives", async () => {
+  it("keeps orphan pages searchable in All pages after delayed page data arrives", async () => {
+    sessionStorage.setItem("fiestaboard_pages_display_filter", "all");
     sessionStorage.setItem(
       "fiestaboard_pages_library_query",
       JSON.stringify({ text: "weather", sort: "name-asc", device: "note" }),
@@ -566,7 +593,9 @@ describe("Pages library search and sorting", () => {
     renderLibrary();
     await screen.findByRole("searchbox", { name: "Search pages" });
     release();
-    await waitFor(() => expect(screen.getByRole("tab", { name: "Note" })).toHaveAttribute("aria-selected", "true"));
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Display filter" })).toHaveTextContent("All pages"),
+    );
     expect(await screen.findByText("Note forecast")).toBeInTheDocument();
   });
 
