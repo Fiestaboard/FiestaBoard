@@ -471,7 +471,7 @@ _HOSTILE_NAME = "Living\u009b31m room‮"  # an 8-bit CSI and a right-to-left ov
 
 
 def test_a_native_device_name_is_stored_printable(auth, phone):
-    client, token = phone
+    client, _ = phone
     tv = sign_in({**TV, "device_name": _HOSTILE_NAME})
     row = next(r for r in auth.sessions.list_sessions("admin") if r.id == tv["session_id"])
     assert row.device_name == "Living31m room"

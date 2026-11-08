@@ -2,7 +2,9 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
+
+from .session_store import printable
 
 
 class AuthFlowError(Exception):
@@ -21,6 +23,19 @@ class DeviceMetadata(BaseModel):
     client_id: NativeClientId
     device_name: str = Field(min_length=1, max_length=100, pattern=r"^[^\x00-\x1f\x7f]+$")
     app_version: str = Field(min_length=1, max_length=40, pattern=r"^[^\x00-\x1f\x7f]+$")
+
+    @field_validator("device_name", "app_version")
+    @classmethod
+    def _printable_only(cls, value: str) -> str:
+        """Drop C1 controls, bidi overrides and other non-printables (security F7).
+
+        The pattern already refuses C0 and DEL; these names reach Signed-in
+        devices, the phone's TV list and the audit log.
+        """
+        cleaned = printable(value, limit=len(value))
+        if not cleaned.strip():
+            raise ValueError("must contain printable characters")
+        return cleaned
 
 
 class DeviceLogin(DeviceMetadata):

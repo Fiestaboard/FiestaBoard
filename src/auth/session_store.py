@@ -277,7 +277,7 @@ class SessionStore:
         with self.transaction() as db:
             db.execute(
                 "UPDATE sessions SET device_name=?, kind=? WHERE digest=?",
-                (device_name[:100], kind, digest_secret(token)),
+                (printable(device_name), kind, digest_secret(token)),
             )
 
     @property
