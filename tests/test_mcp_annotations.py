@@ -145,13 +145,9 @@ IDEMPOTENT = READ_ONLY | {
     "set_active_page",
     "set_schedule_mode",
     "update_setting",
-    "update_page",
-    "update_schedule",
-    "update_collection",
     # Snapping a board back to its active page twice leaves it where once did.
     "check_plugin_updates",
     "update_all_plugins",
-    "set_default_page",
     "cancel_temporary_override",
     "force_refresh",
     "pause_board",

@@ -19,8 +19,8 @@ Split-flap displays can be noisy when updating. The silence schedule ensures you
 ### Via the Web UI
 
 1. Open the FiestaBoard Web UI at `http://localhost:4420`
-2. Go to **Settings** → **Scheduling**
-3. Find the **Silence Schedule** section
+2. Go to **Displays** and open the display you want to configure
+3. Select **Playback** and find **Silence Schedule**
 4. Set your **Start Time** and **End Time**
 5. Save your settings
 
@@ -33,16 +33,16 @@ and a Note on your desk, each keeps its own quiet hours, its own silence mode,
 and its own silence page — the Flagship can go quiet at 10 PM while the Note
 stays live, and each can show a page sized for its own display.
 
-Pick the board you want with the board selector in the sidebar, then edit the
-Silence Schedule card; you are editing that board's settings.
+Open the display's **Playback** tab and edit its Silence Schedule card. These
+controls always apply to the display whose detail page is open, even if the
+sidebar selects another board. The app-wide Settings page has no Scheduling tab;
+old scheduling links redirect to the selected display.
 
 A few things follow from this:
 
-- **A board you have not configured inherits the install-wide schedule.** That
-  is the schedule you had before you ever touched a second board, so upgrading
-  changes nothing: every existing board keeps the quiet hours it already had.
-  A board you add later starts out quiet during the same window rather than
-  flipping at 3 AM.
+- **Existing boards retain their quiet hours when upgrading.** A newly added
+  board starts with silence disabled and its own independent settings. Set its
+  quiet hours from its Playback tab; it does not inherit another board's window.
 - **The silence page picker only offers pages that fit that board.** A 22×6
   Flagship page cannot be chosen for a 15×3 Note.
 - **Single-board installs see no difference.** There is just the one board, so
@@ -141,7 +141,7 @@ in a later release.
 
 ## Show held messages when silence ends
 
-Turn on **Show held messages when silence ends** in **Settings → Scheduling →
+Turn on **Show held messages when silence ends** in **Displays → your board → Playback →
 Silence Schedule** (per board, like the rest of the schedule; the API key is
 `show_queued_on_exit`). With it on, a message sent to the board during silence
 is **held** instead of refused, and shown the moment silence ends:

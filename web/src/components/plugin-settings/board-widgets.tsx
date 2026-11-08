@@ -16,8 +16,9 @@
  *   on: type the address, the output's other lookups (an action whose
  *   `result_fields` fill this field), search again. "Enter address
  *   manually" is always there.
- *   The scan carries the page's private IPv4 address as `hint_host`, and,
- *   when the action declares a `subnet` input, a network the user may type.
+ *   The scan carries the page's private IPv4 address as `hint_host` (opened
+ *   at a hostname, the server uses the browser's connecting address instead),
+ *   and, when the action declares a `subnet` input, a network the user may type.
  * - `tile-grid`: an array of `{row, col, ...}` items as a rows × cols grid
  *   of slots (`ui:options.rows_field` / `cols_field`, or `layout: "board"`
  *   for the board's own tile layout). Each slot opens a dialog with the

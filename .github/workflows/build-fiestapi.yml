@@ -4,8 +4,10 @@ name: 'Build: FiestaPi Image'
 # Builds the flashable FiestaPi .img.xz — a slow job (~45-60 min), so we
 # only run it when it matters:
 #
-#   1. After every app release (workflow_run on "Release: Publish Image") —
-#      the image is attached to that release's assets automatically.
+#   1. After every stable app release — release.yml dispatches this workflow
+#      with `release_tag`, and the image is attached to that release's assets.
+#      (Not `workflow_run` on the release workflow: that workflow runs on every
+#      push to main and alpha, and most runs only update the Version PR.)
 #
 #   2. On major-version tags (v5.0.0, v6.0.0, …) — fallback/manual path
 #      for milestone releases pushed directly by tag.
@@ -17,13 +19,6 @@ name: 'Build: FiestaPi Image'
 # =============================================================================
 
 on:
-  workflow_run:
-    # Must exactly match the `name:` of the release workflow (release.yml).
-    # Renamed from "Release and Publish" to "Release: Publish Image" in the
-    # 2026-06-14 Actions-sidebar cleanup; this reference must track that name
-    # or the per-release image build silently never fires.
-    workflows: ["Release: Publish Image"]
-    types: [completed]
   push:
     tags:
       # Only major-version tags: v5.0.0, v6.0.0, etc.
@@ -32,6 +27,11 @@ on:
   schedule:
     - cron: '0 6 * * 2'  # 06:00 UTC every Tuesday
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "App release to build for and attach to (vX.Y.Z). Empty: a dated build."
+        required: false
+        default: ""
 
 permissions:
   contents: write  # to upload to releases
@@ -44,13 +44,14 @@ jobs:
     # flaky qemu setup that previously failed on ubuntu-latest (amd64).
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
-    # For workflow_run triggers, only proceed if the upstream workflow succeeded.
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout FiestaBoard
         uses: actions/checkout@v7
         with:
           path: FiestaBoard
+          # A release build uses that release's pi-image/; otherwise the
+          # triggering ref.
+          ref: ${{ inputs.release_tag || '' }}
 
       - name: Checkout pi-gen
         uses: actions/checkout@v7
@@ -109,19 +110,13 @@ jobs:
       - name: Determine version
         id: version
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
-          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            # Triggered by a release: label the image with that release's version.
-            VERSION=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 20 \
-                        --json tagName,isDraft,isPrerelease \
-                        --jq 'map(select(.isDraft == false and .isPrerelease == false and (.tagName | startswith("v")))) | .[0].tagName | ltrimstr("v")')
-            if [[ -z "$VERSION" ]]; then
-              echo "::error::Could not determine version from latest release"
-              exit 1
-            fi
+          elif [[ -n "$RELEASE_TAG" ]]; then
+            # Dispatched by release.yml for a stable release.
+            VERSION="${RELEASE_TAG#v}"
           else
             # Weekly builds labelled by year-week so the filename is
             # meaningful (e.g. FiestaPi-2026-W18-arm64.img.xz).
@@ -273,9 +268,12 @@ jobs:
         id: target_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
+          elif [[ -n "$RELEASE_TAG" ]]; then
+            TAG="$RELEASE_TAG"
           else
             TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 20 \
                     --json tagName,isDraft,isPrerelease \
