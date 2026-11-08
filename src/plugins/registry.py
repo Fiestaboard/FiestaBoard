@@ -249,8 +249,10 @@ class PluginRegistry:
         # to order two).  Install/update endpoints run on worker threads since
         # #1809, so these dicts mutate concurrently with request handlers that
         # iterate them (#1828).  Iterating callers snapshot under the lock and
-        # iterate the snapshot. Git, plugin get_data and context-pool work run
-        # outside it; accepted instance config commits hold it across persistence.
+        # iterate the snapshot. Git, plugin ``get_data`` and context-build
+        # workers run outside this lock. Enable/disable and accepted instance
+        # config commits hold it across durable writes so a removed target
+        # cannot be persisted.
         self._lock = threading.RLock()
         self._loader = PluginLoader(plugins_dir, lock=self._lock)
         self._plugins: dict[str, PluginBase] = {}
@@ -270,6 +272,8 @@ class PluginRegistry:
 
         # Auto-discovery cache: maps plugin_id -> discovered variable names
         self._discovered_vars: dict[str, list[str]] = {}
+        # A completed clear must win over discovery already running unlocked.
+        self._discovery_tokens: dict[str, object] = {}
         # plugin_id -> time.monotonic() of its last failed discovery fetch
         self._discovery_failed_at: dict[str, float] = {}
 
@@ -999,7 +1003,7 @@ class PluginRegistry:
             enabled_items = list(self._enabled.items())
         return any(key.startswith(prefix) and enabled for key, enabled in enabled_items)
 
-    def enable_plugin(self, plugin_id: str) -> bool:
+    def enable_plugin(self, plugin_id: str, *, before_change: Callable[[], Any] | None = None) -> bool:
         """Enable a plugin.
 
         If the plugin's code is not installed but the id exists in the plugin
@@ -1009,6 +1013,8 @@ class PluginRegistry:
 
         Args:
             plugin_id: Plugin identifier
+            before_change: Optional persistence step, run after accepting the
+                target and before changing live state. Failure leaves it untouched.
 
         Returns:
             True if enabled successfully, False if plugin not found
@@ -1033,6 +1039,8 @@ class PluginRegistry:
                 return False
 
             plugin = self._plugins[plugin_id]
+            if before_change is not None:
+                before_change()
             plugin.enabled = True
             self._enabled[plugin_id] = True
             stored_config = self._configs.get(plugin_id)
@@ -1046,11 +1054,13 @@ class PluginRegistry:
         logger.info(f"Enabled plugin: {plugin_id}")
         return True
 
-    def disable_plugin(self, plugin_id: str) -> bool:
+    def disable_plugin(self, plugin_id: str, *, before_change: Callable[[], Any] | None = None) -> bool:
         """Disable a plugin.
 
         Args:
             plugin_id: Plugin identifier
+            before_change: Optional persistence step, run after accepting the
+                target and before cleanup or other live-state changes.
 
         Returns:
             True if disabled successfully, False if plugin not found
@@ -1060,11 +1070,23 @@ class PluginRegistry:
                 return False
 
             plugin = self._plugins[plugin_id]
+            if before_change is not None:
+                before_change()
             plugin.enabled = False
             self._enabled[plugin_id] = False
 
         logger.info(f"Disabled plugin: {plugin_id}")
         return True
+
+    def validate_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
+        """Validate without publishing config, clearing caches or running change hooks."""
+        with self._lock:
+            plugin = self._plugins.get(plugin_id)
+            if plugin is None:
+                return [f"Plugin not found: {plugin_id}"]
+            errors = plugin._validate_refresh_seconds(config)
+            errors.extend(plugin.validate_config(config))
+            return errors
 
     def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
         """Set configuration for a plugin.
@@ -1083,8 +1105,7 @@ class PluginRegistry:
             plugin = self._plugins[plugin_id]
 
             # Validate config (base refresh_seconds + plugin-specific)
-            errors = plugin._validate_refresh_seconds(config)
-            errors.extend(plugin.validate_config(config))
+            errors = self.validate_plugin_config(plugin_id, config)
             if errors:
                 return errors
 
@@ -1096,6 +1117,11 @@ class PluginRegistry:
             self.clear_discovered_cache(plugin_id)
 
         plugin.config = config
+        # Discovery may have started after the pre-clear but before the
+        # unlocked setter applied the new config. Retire that work as well.
+        with self._lock:
+            if self._plugins.get(plugin_id) is plugin:
+                self.clear_discovered_cache(plugin_id)
 
         logger.debug(f"Updated config for {plugin_id}")
         return []
@@ -1127,6 +1153,9 @@ class PluginRegistry:
                 self.clear_discovered_cache(plugin_id)
             # Setter fires plugin-authored callbacks — run it unlocked (#1854).
             plugin.config = config
+            with self._lock:
+                if self._plugins.get(plugin_id) is plugin:
+                    self.clear_discovered_cache(plugin_id)
         return errors
 
     def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:
@@ -1158,6 +1187,7 @@ class PluginRegistry:
         with self._lock:
             plugin = self._plugins.get(plugin_id)
             enabled = self._enabled.get(plugin_id, False)
+            generation = plugin.cache_generation if isinstance(plugin, PluginBase) else None
 
         if plugin is None:
             return PluginResult(available=False, error=f"Plugin not found: {plugin_id}")
@@ -1173,7 +1203,17 @@ class PluginRegistry:
             return PluginResult(available=False, error=f"Plugin {plugin_id} is a transition plugin (no data)")
 
         try:
-            return plugin.get_data(board)
+            result = plugin.get_data(board)
+            # A reload/removal can retire the instance while provider work
+            # runs unlocked. Never return its late result as the live plugin.
+            with self._lock:
+                if (
+                    self._plugins.get(plugin_id) is not plugin
+                    or not self._enabled.get(plugin_id, False)
+                    or plugin.cache_generation != generation
+                ):
+                    return PluginResult(available=False, error=f"Plugin changed during fetch: {plugin_id}")
+            return result
         except Exception as e:
             logger.exception(f"Error fetching data from {plugin_id}")
             return PluginResult(available=False, error=str(e))
@@ -1262,41 +1302,51 @@ class PluginRegistry:
 
         Only scalar values (str, int, float, bool) are surfaced; lists and
         dicts are skipped (those should be declared as arrays in the manifest).
-        A successful result is cached until the plugin's config changes or it
-        is reloaded; a failed fetch is retried after DISCOVERY_RETRY_SECONDS.
+        Success is cached until invalidation; failures use DISCOVERY_RETRY_SECONDS.
+        Neither result is published if its captured discovery state has changed.
         """
         with self._lock:
             cached = self._discovered_vars.get(plugin_id)
             failed_at = self._discovery_failed_at.get(plugin_id)
+            plugin = self._plugins.get(plugin_id)
+            token = self._discovery_tokens.setdefault(plugin_id, object())
         if cached is not None:
             return cached
         if failed_at is not None and time.monotonic() - failed_at < DISCOVERY_RETRY_SECONDS:
             return []
 
-        # The discovery fetch runs unlocked — it calls plugin code that may
-        # block on the network.
+        # Provider work and result inspection stay outside the registry lock.
+        discovered = None
         try:
             result = self.fetch_plugin_data(plugin_id)
             if result.available and result.data:
                 discovered = [key for key, val in result.data.items() if isinstance(val, str | int | float | bool)]
-                with self._lock:
-                    self._discovered_vars[plugin_id] = discovered
-                    self._discovery_failed_at.pop(plugin_id, None)
-                return discovered
         except Exception:
             logger.debug("Auto-discovery fetch failed for %s", plugin_id)
 
         with self._lock:
+            if (
+                self._discovery_tokens.get(plugin_id) is not token
+                or self._plugins.get(plugin_id) is not plugin
+                or not self._enabled.get(plugin_id, False)
+            ):
+                return []
+            if discovered is not None:
+                self._discovered_vars[plugin_id] = discovered
+                self._discovery_failed_at.pop(plugin_id, None)
+                return discovered
             self._discovery_failed_at[plugin_id] = time.monotonic()
         return []
 
     def clear_discovered_cache(self, plugin_id: str | None = None) -> None:
-        """Clear auto-discovery cache for one or all plugins."""
+        """Clear cached and pending discovery for one or all plugins."""
         with self._lock:
             if plugin_id:
+                self._discovery_tokens[plugin_id] = object()
                 self._discovered_vars.pop(plugin_id, None)
                 self._discovery_failed_at.pop(plugin_id, None)
             else:
+                self._discovery_tokens.clear()
                 self._discovered_vars.clear()
                 self._discovery_failed_at.clear()
 
@@ -1585,7 +1635,12 @@ class PluginRegistry:
             # Unload
             old_plugin = self._plugins.pop(plugin_id, None)
             if old_plugin is not None:
-                retire_plugin_object(plugin_id, old_plugin, what="removed plugin")
+                loaded = self._loader.loaded_plugins.get(plugin_id)
+                # reload_plugin retires the object the loader owns. Only
+                # retire a distinct registry reference here, never that
+                # same object a second time (even if its cleanup raises).
+                if loaded is None or loaded[0] is not old_plugin:
+                    retire_plugin_object(plugin_id, old_plugin, what="removed plugin")
             if plugin_id in self._manifests:
                 del self._manifests[plugin_id]
 
@@ -2143,6 +2198,31 @@ class PluginRegistry:
         if not to_fetch:
             return context
 
+        # A completed/cached answer can wait beside another slow provider.
+        # Recheck its generation when assembling the context, not only when
+        # the individual fetch returns. No provider code runs under this lock.
+        with self._lock:
+            states = {
+                pid: (plugin, plugin.cache_generation)
+                for pid in to_fetch
+                if isinstance(plugin := self._plugins.get(pid), PluginBase) and self._enabled.get(pid, False)
+            }
+
+        def current_context() -> dict[str, Any]:
+            with self._lock:
+                for pid in list(context):
+                    state = states.get(pid)
+                    if (
+                        state is None
+                        or self._plugins.get(pid) is not state[0]
+                        or not self._enabled.get(pid, False)
+                        or state[0].cache_generation != state[1]
+                    ):
+                        context.pop(pid)
+                        if fingerprints is not None:
+                            fingerprints.pop(pid, None)
+            return context
+
         # The identity of a fetch: one plugin ON one board geometry. The
         # in-flight registry, the circuit breaker and the timeout streaks all
         # key off it, so they agree on what "this fetch" means.
@@ -2196,7 +2276,7 @@ class PluginRegistry:
                     self._fetch_breaker_until.pop((plugin_id, board_key), None)
         to_fetch = still_to_fetch
         if not to_fetch:
-            return context
+            return current_context()
 
         # Circuit-breaker gate (issue #1884): a quarantined plugin with nothing
         # cached is dropped from this build entirely — not submitted, and
@@ -2299,7 +2379,7 @@ class PluginRegistry:
             except Exception:
                 logger.exception(f"Plugin {plugin_id} raised an error during context build")
 
-        return context
+        return current_context()
 
     def _serve_stale(self, plugin_id: str, board, context: dict, fingerprints: dict | None) -> None:
         """Put *plugin_id*'s last result for *board* into *context*, if recent.

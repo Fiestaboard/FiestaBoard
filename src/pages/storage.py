@@ -373,11 +373,12 @@ class PageStorage:
             self._pages = {}
             self._failed_entries = []
 
-    def _save(self) -> None:
-        """Save pages to storage file atomically via the storage kernel."""
+    def _save(self, pages: dict[str, Page] | None = None) -> None:
+        """Persist current pages or a candidate without publishing it to readers."""
+        pages = self._pages if pages is None else pages
         try:
             pages_out: list[dict] = []
-            for page in self._pages.values():
+            for page in pages.values():
                 page_data = page.model_dump(
                     exclude={"revision", "expected_revision", "edit_protocol", "document_protocol"}
                 )
@@ -403,7 +404,7 @@ class PageStorage:
             # _failed_entries), so write data straight out — atomically.
             self._store.save(data)
 
-            logger.debug(f"Saved {len(self._pages)} pages to storage")
+            logger.debug(f"Saved {len(pages)} pages to storage")
 
         except OSError as e:
             logger.error(f"Failed to save pages file: {e}")
@@ -451,11 +452,45 @@ class PageStorage:
                 raise ValueError(f"Invalid page configuration: {errors}")
 
             page = page.model_copy(update={"revision": str(uuid.uuid4())})
-            self._pages[page.id] = page
-            self._save()
+            pages = self._pages | {page.id: page}
+            self._save(pages)
+            self._pages = pages
 
         logger.info(f"Created page: {page.id} ({page.name})")
         return page
+
+    def replace_demo(self, page: Page) -> str | None:
+        """Commit a demo and its predecessor's removal in one snapshot.
+
+        Return the old page ID, or None for a first creation. Readers keep
+        the old snapshot until persistence succeeds; failed writes publish
+        nothing. The replacement retains the normal fresh-page ID contract.
+        """
+        if not page.demo_plugin_id:
+            raise ValueError("A demo page must identify its plugin")
+        errors = page.validate_config()
+        if errors:
+            raise ValueError(f"Invalid page configuration: {errors}")
+        with self._store.lock:
+            existing = next(
+                (
+                    stored
+                    for stored in self.list_all()
+                    if stored.demo_plugin_id == page.demo_plugin_id and stored.device_type == page.device_type
+                ),
+                None,
+            )
+            old_id = existing.id if existing is not None else None
+            if page.id in self._pages and page.id != old_id:
+                raise ValueError(f"Page with ID {page.id} already exists")
+            page = page.model_copy(update={"revision": str(uuid.uuid4())})
+            pages = dict(self._pages)
+            if old_id is not None:
+                del pages[old_id]
+            pages[page.id] = page
+            self._save(pages)
+            self._pages = pages
+        return old_id
 
     def check_revision(self, page_id: str, expected_revision: str | None) -> None:
         """Check under the mutation lock; callers may extend the critical section."""
@@ -521,8 +556,9 @@ class PageStorage:
         if errors:
             raise ValueError(f"Invalid page configuration: {errors}")
 
-        self._pages[page_id] = updated_page
-        self._save()
+        pages = self._pages | {page_id: updated_page}
+        self._save(pages)
+        self._pages = pages
 
         logger.info(f"Updated page: {page_id}")
         return updated_page
@@ -541,8 +577,10 @@ class PageStorage:
             if page_id not in self._pages:
                 return False
 
-            del self._pages[page_id]
-            self._save()
+            pages = self._pages.copy()
+            del pages[page_id]
+            self._save(pages)
+            self._pages = pages
 
         logger.info(f"Deleted page: {page_id}")
         return True

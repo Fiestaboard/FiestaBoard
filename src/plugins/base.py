@@ -305,6 +305,7 @@ class PluginBase(ABC):
         self._cached_results: dict[str, PluginResult] = {}
         self._last_fetch_times: dict[str, datetime] = {}
         self._cache_lock = threading.Lock()
+        self._cache_generation = 0
         # Thread-local holder for the board currently being rendered, so
         # build_template_context()'s ThreadPoolExecutor fan-out is safe.
         self._board_tls = threading.local()
@@ -503,30 +504,28 @@ class PluginBase(ABC):
 
     def _get_data_for_board(self, board: BoardContext | None) -> PluginResult:
         """Caching logic for :meth:`get_data`, run with *board* already bound."""
-        if self.live_data:
-            logger.debug(f"Live data plugin {self.plugin_id}: skipping cache")
-            return self.fetch_data()
-
-        interval = self.refresh_seconds
-
-        if interval is None:
-            return self.fetch_data()
-
+        interval = None if self.live_data else self.refresh_seconds
         key = self._cache_key(board)
 
         with self._cache_lock:
+            generation = self._cache_generation
             cached = self._cached_results.get(key)
             last_fetch = self._last_fetch_times.get(key)
-        if cached is not None and last_fetch is not None:
-            age = (datetime.now() - last_fetch).total_seconds()
-            if age < interval:
-                logger.debug(f"Using cached data for {self.plugin_id}[{key}] (age: {age:.0f}s < {interval}s)")
-                return cached
+            if interval is not None and cached is not None and last_fetch is not None:
+                age = (datetime.now() - last_fetch).total_seconds()
+                if age < interval:
+                    logger.debug(f"Using cached data for {self.plugin_id}[{key}] (age: {age:.0f}s < {interval}s)")
+                    return cached
 
         result = self.fetch_data()
 
-        if result.available:
-            with self._cache_lock:
+        with self._cache_lock:
+            # Provider work runs unlocked. A config change or disable may
+            # have cleared the cache while it ran; that result must neither
+            # refill the cache nor escape to the renderer (including live data).
+            if generation != self._cache_generation:
+                return PluginResult(available=False, error="Plugin data invalidated during fetch")
+            if interval is not None and result.available:
                 self._cached_results[key] = result
                 self._last_fetch_times[key] = datetime.now()
 
@@ -585,13 +584,21 @@ class PluginBase(ABC):
             board.device_type, rows=board.rows, cols=board.cols, display=getattr(board, "display", None)
         ).key
 
+    @property
+    def cache_generation(self) -> int:
+        """Invalidation token for callers that assemble results asynchronously."""
+        with self._cache_lock:
+            return self._cache_generation
+
     def clear_cache(self) -> None:
         """Clear all cached data, forcing a fresh fetch on the next get_data() call.
 
         Wipes every per-board variant so a config change or disable can't
-        leave stale data cached for any board size.
+        leave stale data cached for any board size. In-flight results from
+        before this call are discarded, including results that are not cached.
         """
         with self._cache_lock:
+            self._cache_generation += 1
             self._cached_results.clear()
             self._last_fetch_times.clear()
 

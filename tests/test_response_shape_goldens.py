@@ -854,13 +854,20 @@ class _GoldenRegistry:
         return []
 
     # -- mutation surface ---------------------------------------------------
-    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
+    def validate_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
         return list(self.config_errors)
 
-    def enable_plugin(self, plugin_id: str) -> bool:
+    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
+        return self.validate_plugin_config(plugin_id, config)
+
+    def enable_plugin(self, plugin_id: str, *, before_change=None) -> bool:
+        if self.enable_ok and before_change is not None:
+            before_change()
         return self.enable_ok
 
-    def disable_plugin(self, plugin_id: str) -> bool:
+    def disable_plugin(self, plugin_id: str, *, before_change=None) -> bool:
+        if before_change is not None:
+            before_change()
         return True
 
     # -- install / update surface -------------------------------------------

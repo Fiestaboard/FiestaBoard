@@ -279,7 +279,7 @@ def test_failed_reference_restore_retains_copies_for_persisted_selection(env, mo
         with resize(env.board) as summary:
             copied_id = summary["page_copies"][0]["to_id"]
 
-            def broken_save():
+            def broken_save(**sections):
                 raise OSError("storage remains unavailable")
 
             monkeypatch.setattr(env.settings, "_save_to_file", broken_save)
@@ -413,7 +413,7 @@ def test_recovery_failure_retains_journal_then_retries(env, monkeypatch):
     copied_id = summary["page_copies"][0]["to_id"]
     save = env.settings._save_to_file
 
-    def broken_save():
+    def broken_save(**sections):
         raise OSError("disk offline")
 
     monkeypatch.setattr(env.settings, "_save_to_file", broken_save)

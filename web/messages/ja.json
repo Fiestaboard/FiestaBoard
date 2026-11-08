@@ -209,7 +209,22 @@
     "displayFilter": "ディスプレイで絞り込み",
     "allPages": "すべてのページ",
     "libraryCount": "{count, plural, one {# ページ} other {# ページ}}",
-    "clearFilter": "すべてのページを表示"
+    "clearFilter": "すべてのページを表示",
+    "searchLabel": "ページを検索",
+    "searchPlaceholder": "名前や保存済みの内容を検索",
+    "searchHint": "選択したディスプレイフィルター内の名前と保存されたコンテンツを検索します。",
+    "clearSearch": "検索をクリア",
+    "sortLabel": "ページの並べ替え",
+    "sortNameAsc": "名前 A–Z",
+    "sortNameDesc": "名前 Z–A",
+    "sortCreatedDesc": "作成日時が新しい順",
+    "sortCreatedAsc": "作成日時が古い順",
+    "sortUpdatedDesc": "更新日時が新しい順",
+    "sortUpdatedAsc": "更新日時が古い順",
+    "noMatches": "一致するページがありません",
+    "searchCount": "{total} ページ中 {count} ページ",
+    "loadError": "ページを読み込めませんでした。検索条件は保持されています。",
+    "retryLoading": "ページの読み込みを再試行"
   },
   "collections": {
     "title": "カルーセル",

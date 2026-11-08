@@ -15,6 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
+from tests.plugin_lifecycle_helpers import support_lifecycle_persistence
 
 
 def _make_addr_info(ip: str, port: int = 80):
@@ -309,6 +310,7 @@ class TestPluginEnableDisableAPI:
             reg = Mock()
             reg.get_plugin.return_value = Mock()
             reg.enable_plugin.return_value = True
+            support_lifecycle_persistence(reg)
             mock_reg_get.return_value = reg
             mock_cm_get.return_value = Mock()
 
@@ -330,6 +332,7 @@ class TestPluginEnableDisableAPI:
             reg = Mock()
             reg.get_plugin.return_value = Mock()
             reg.disable_plugin.return_value = True
+            support_lifecycle_persistence(reg)
             mock_reg_get.return_value = reg
             mock_cm_get.return_value = Mock()
 
@@ -428,7 +431,7 @@ class TestRefreshSecondsBypass:
         ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
-            reg.set_plugin_config.return_value = ["Refresh interval must be at least 30 seconds"]
+            reg.validate_plugin_config.return_value = ["Refresh interval must be at least 30 seconds"]
             mock_reg_get.return_value = reg
 
             response = client.put(
@@ -450,7 +453,9 @@ class TestRefreshSecondsBypass:
         ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
+            reg.validate_plugin_config.return_value = []
             reg.set_plugin_config.return_value = []
+            reg.apply_stored_config.return_value = []
             mock_reg_get.return_value = reg
 
             cm = Mock()
