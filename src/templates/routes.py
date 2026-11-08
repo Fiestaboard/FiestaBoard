@@ -151,9 +151,18 @@ async def validate_template(request: TemplateValidateRequest):
     from src.devices import DEFAULT_DEVICE_TYPE, board_context_for
 
     template = request.template
+    line_metadata = request.line_metadata
 
-    # Handle both string and list input
+    # Handle both string and list input. ``line_metadata`` has one entry per
+    # list element; an element holding a newline is several lines to measure,
+    # and each takes its element's entry so the elements after it keep theirs.
     if isinstance(template, list):
+        if line_metadata is not None:
+            line_metadata = [
+                meta
+                for index, element in enumerate(template)
+                for meta in [line_metadata[index] if index < len(line_metadata) else {}] * (element.count("\n") + 1)
+            ]
         template = "\n".join(template)
 
     check = _CharsetCheck(request.board_id)
@@ -162,7 +171,7 @@ async def validate_template(request: TemplateValidateRequest):
 
     template_engine = get_template_engine()
     problems = template_engine.validate_template(
-        template, cols=dims.cols, line_metadata=request.line_metadata, **check.render_kw
+        template, cols=dims.cols, line_metadata=line_metadata, **check.render_kw
     )
 
     return TemplateValidationResponse(

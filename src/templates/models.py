@@ -12,7 +12,7 @@ row count, a bare string is not.
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -77,10 +77,13 @@ class TemplateTarget(BaseModel):
     grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
     line_metadata: list[dict[str, Any]] | None = None
 
+    #: The 422 a panel without a grid gets, worded for the route's action.
+    _PANEL_NEEDS_A_GRID: ClassVar[str] = "A panel render needs grid_rows and grid_cols"
+
     @model_validator(mode="after")
     def _panel_needs_a_grid(self) -> TemplateTarget:
         if self.device_type == "panel" and (self.grid_rows is None or self.grid_cols is None):
-            raise ValueError("A panel render needs grid_rows and grid_cols")
+            raise ValueError(self._PANEL_NEEDS_A_GRID)
         return self
 
 
@@ -97,6 +100,8 @@ class TemplateValidateRequest(TemplateTarget):
     ``board_id``. A line whose ``line_metadata`` turns ``wrap`` on is never
     too long: render wraps it.
     """
+
+    _PANEL_NEEDS_A_GRID: ClassVar[str] = "Validating for a panel needs grid_rows and grid_cols"
 
 
 class TemplateValidationError(BaseModel):

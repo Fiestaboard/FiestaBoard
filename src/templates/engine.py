@@ -212,7 +212,9 @@ class TemplateError:
     line: int
     column: int
     message: str
-    code: str = ""
+    #: Required: the validate response's ``code`` is a closed set, so an
+    #: error without one would fail to serialise (a 500, not a verdict).
+    code: str
     max_length: int | None = None
 
 
