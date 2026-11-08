@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from src.outputs.health import HealthSummary
+
 
 class ApiInfoResponse(BaseModel):
     """``GET /`` — what this server is, for a human poking at the root."""
@@ -61,6 +63,9 @@ class BoardStatus(BaseModel):
     #: The board's connection summary from its output (plan D13), or None
     #: when the output has nothing to say (a FiestaPanel is always connected).
     output_status: OutputStatusSummary | None = None
+    #: When the hub last reached the board, how fast, and the last failure
+    #: (H12). All null until the first contact since the hub started.
+    health: HealthSummary = HealthSummary()
 
 
 class StatusResponse(BaseModel):

@@ -2654,6 +2654,13 @@ class SettingsService:
             get_config_manager().prune_silence_schedule_for_board(board_id)
         except Exception:  # pragma: no cover - never block board removal
             logger.warning("Could not prune silence override for %s", board_id, exc_info=True)
+        # And its persisted health (H12), for the same reason.
+        try:
+            from src.outputs.health import forget_board_health
+
+            forget_board_health(board_id)
+        except Exception:  # pragma: no cover - never block board removal
+            logger.warning("Could not prune board health for %s", board_id, exc_info=True)
         logger.info(f"Removed board: {board_id}")
         return self._board
 

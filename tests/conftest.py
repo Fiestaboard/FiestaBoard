@@ -185,6 +185,12 @@ def _drop_all_singletons() -> None:
 
     silence_queue_module._reset_for_tests()
 
+    # The board health store (H12) holds a path into the data dir it was
+    # built against, and may have a flush timer pending.
+    from src.outputs.health import reset_health_store
+
+    reset_health_store()
+
     # The DisplayService singleton. The comment that used to sit here named
     # `src.api_server._service`, an attribute that has not existed since the
     # debug slice moved the accessor to src/display_runtime.py — so nothing was

@@ -56,6 +56,7 @@ when it builds a first-party output's instance; a plugin cannot.
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -63,7 +64,7 @@ from typing import Any, Protocol
 
 import requests
 
-from src.output_allowlist import check_output_url
+from src.output_allowlist import OutputHostBlocked, check_output_url
 
 __all__ = [
     "DEFAULT_TIMEOUT",
@@ -75,6 +76,15 @@ __all__ = [
 
 #: ``(connect, read)`` seconds for a request that names no timeout.
 DEFAULT_TIMEOUT: tuple[float, float] = (3.05, 10.0)
+#: Requests that fail before anything is sent (health's ``invalid_request``).
+_INVALID_REQUEST = (
+    requests.exceptions.MissingSchema,
+    requests.exceptions.InvalidSchema,
+    requests.exceptions.InvalidURL,
+    requests.exceptions.URLRequired,
+    requests.exceptions.InvalidHeader,
+    requests.exceptions.InvalidJSONError,
+)
 
 
 class _Cancellable(Protocol):
@@ -125,6 +135,10 @@ class OutputHttp:
         self._local = threading.local()
         self._module_requests = module_requests
         self._closed = False
+        #: The board's health (H12), set by the driver that owns this plugin.
+        #: Every request reports here: an answer is contact, a failure is
+        #: classified. ``None`` (a plugin outside a driver) records nothing.
+        self.health: Any = None
 
     @classmethod
     def for_first_party(cls) -> OutputHttp:
@@ -184,7 +198,11 @@ class OutputHttp:
         token = cancel if cancel is not None else self.current_cancel
         if self._closed or (token is not None and token.cancelled):
             raise RequestCancelled(url)
-        check_output_url(url)
+        try:
+            check_output_url(url)
+        except OutputHostBlocked:
+            self._note_failure("blocked")
+            raise
         # The caller's keywords in the caller's order, the timeout where it
         # gave one (or last): a first-party request is the call it always was.
         ordered = dict(kwargs)
@@ -199,6 +217,29 @@ class OutputHttp:
             timeout,
             setup,
         )
+        started = time.monotonic()
+        try:
+            response = self._send(request, method, url, ordered)
+        except RequestCancelled:
+            raise
+        except requests.exceptions.ConnectTimeout:
+            self._note_failure("unreachable")
+            raise
+        except requests.exceptions.Timeout:
+            self._note_failure("timeout")
+            raise
+        except _INVALID_REQUEST:
+            # Never sent: the address, a header or the body is malformed,
+            # usually the board's settings. Not the board being unreachable.
+            self._note_failure("invalid_request")
+            raise
+        except requests.exceptions.RequestException:
+            self._note_failure("unreachable")
+            raise
+        self._note_answer(getattr(response, "status_code", None), time.monotonic() - started)
+        return response
+
+    def _send(self, request: HttpRequest, method: str, url: str, ordered: dict[str, Any]) -> requests.Response:
         transport = self._transport
         if transport is not None:
             return transport(request)
@@ -208,6 +249,30 @@ class OutputHttp:
                 return requests.request(request.method, url, **ordered)
             return send(url, **ordered)
         return self._session_for().request(request.method, request.url, timeout=request.timeout, **request.kwargs)
+
+    # --- health (H12) ------------------------------------------------------------------
+
+    def _note_failure(self, code: str) -> None:
+        if self.health is not None:
+            self.health.record_error(code)
+
+    def _note_answer(self, status: int | None, seconds: float) -> None:
+        """The device answered: contact, unless the answer itself is a failure.
+
+        A 429 the device sends is contact (it is there, asking to slow down);
+        401/403 is a refused credential; 5xx a server error; any other 4xx a
+        status the output does not expect.
+        """
+        if self.health is None or not isinstance(status, int):
+            return
+        if status in (401, 403):
+            self._note_failure("auth")
+        elif status >= 500:
+            self._note_failure("server_error")
+        elif status >= 400 and status != 429:
+            self._note_failure("unexpected_status")
+        else:
+            self.health.record_contact(seconds)
 
     def get(self, url: str, **kwargs: Any) -> requests.Response:
         return self.request("GET", url, **kwargs)

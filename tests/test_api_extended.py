@@ -2534,6 +2534,16 @@ class TestStatusPerBoard:
             "error": None,
             # b1 carries no credentials: its output (the Vestaboard) says so.
             "output_status": {"state": "not_configured", "message": ""},
+            # H12: nothing known about this board's health yet.
+            "health": {
+                "last_connected_at": None,
+                "last_update_at": None,
+                "latency_ms": None,
+                "last_error_at": None,
+                "last_error": None,
+                "reachable": None,
+                "breaker_open": False,
+            },
         }
         assert boards["b2"]["configured"] is False
         assert boards["b2"]["paused"] is True
