@@ -208,8 +208,8 @@ async def get_active_schedule(board_id: str | None = None):
 
     # Include temporary override status so the frontend can show the countdown badge
     # without a separate API call.
-    override = settings_service.get_temporary_override()
-    override_payload = temporary_override_payload(override)
+    override = settings_service.get_temporary_override(board_id)
+    override_payload = temporary_override_payload(override, board_id or settings_service.get_primary_board_id())
 
     if not settings_service.is_schedule_enabled(board_id=board_id):
         manual_page_id = settings_service.get_active_page_id(board_id=board_id)

@@ -333,6 +333,7 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
         "source",
         "default_page_id",
         "override_expires_at",
+        "override_started_at",
         "layers",
     }
 

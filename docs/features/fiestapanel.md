@@ -95,6 +95,7 @@ viewer can say why the board looks the way it does:
 | `schedule_enabled` | Whether the board follows its schedule |
 | `override_active` | An override is showing on the board |
 | `override_expires_at` | When the override ends. `null` when there is none, or when it holds until it is cancelled |
+| `override_started_at` | When the override began. `null` when there is none |
 | `silenced` | The board is inside its silence window |
 | `silenced_until` | When the silence window ends, or `null` |
 | `silence_mode` | `freeze`, `indicator` or `page` while silenced, else `null` |
@@ -116,8 +117,9 @@ shows follows these rules:
 - Otherwise a silenced board follows `silence_mode`, and an unsilenced board
   follows `mode`.
 
-Overrides apply to the primary board only for now, so a panel on any other
-board always reports `override_active: false`.
+Each board has its own override, so a panel reports the override of the
+board it shows. `override_started_at` says when that override began; a
+replaced override has a new value.
 `status` is `null` when the panel's board is missing.
 
 ## FiestaPi HDMI Output

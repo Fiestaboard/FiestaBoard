@@ -65,7 +65,7 @@ def panel_content_resize(
         if not board_id or not any(b.get("id") == board_id for b in settings.get_board_settings().boards):
             raise ValueError("Cannot copy content: the panel's board no longer exists")
         # Peek rather than expire: expiry can still have a pending revert_page_id.
-        if settings.peek_temporary_override() is not None:
+        if settings.peek_temporary_override(board_id) is not None:
             raise ValueError("Cancel the temporary override before copying panel content, then try again")
 
         active = settings.get_active_page_id(board_id)

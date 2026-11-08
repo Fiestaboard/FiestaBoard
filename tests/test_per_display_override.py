@@ -270,10 +270,6 @@ def _override(page_id, expires_at=None, **kw):
     return TemporaryOverride(page_id=page_id, expires_at=expires_at, **kw)
 
 
-def _rows(client):
-    return "".join("".join(map(str, row)) for row in client.render.call_args.args[0])
-
-
 def test_a_second_board_shows_its_own_override():
     boards_ = [_board("b1", "One"), _board("b2", "Two", port=7001)]
     svc, clients = _service_with_runtimes(boards_)
@@ -330,7 +326,7 @@ async def test_ops_set_and_cancel_target_one_board(client, boards):  # noqa: F81
 
     primary, second = boards
     result = await executors.set_temporary_override(template_lines=["HALL"], board_id=second)
-    assert result["status"] == "ok", result
+    assert result["status"] == "success", result
     settings = get_settings_service()
     assert settings.peek_temporary_override(board_id=second).template == ["HALL"]
     assert settings.peek_temporary_override(board_id=primary) is None

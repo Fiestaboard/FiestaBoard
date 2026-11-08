@@ -287,6 +287,16 @@ class TemporaryOverrideResponse(BaseModel):
     notes_tall: int | None = None
     grid_rows: int | None = None
     grid_cols: int | None = None
+    board_id: str | None = Field(default=None, description="The display this override belongs to (H1).")
+    started_at: str | None = Field(
+        default=None, description="When this override run began (ISO 8601 UTC); a replaced override has a new one."
+    )
+
+
+class TemporaryOverrideList(BaseModel):
+    """Every display's live override (H1), one entry per display that has one."""
+
+    overrides: list[TemporaryOverrideResponse]
 
 
 class TemporaryOverrideRequest(BaseModel):
@@ -303,6 +313,9 @@ class TemporaryOverrideRequest(BaseModel):
     duration_minutes: Any | None = None
     revert_mode: str = "schedule"
     revert_page_id: str | None = None
+    board_id: str | None = Field(
+        default=None, description="The display to override. Omit for the primary display (H1)."
+    )
 
 
 class ClearTemporaryOverrideResponse(BaseModel):

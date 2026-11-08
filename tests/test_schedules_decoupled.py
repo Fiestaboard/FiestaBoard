@@ -75,6 +75,7 @@ schedule_service.validate_schedules.return_value = ScheduleValidationResult(vali
 settings_service = MagicMock()
 settings_service.is_schedule_enabled.return_value = True
 settings_service.get_temporary_override.return_value = None
+settings_service.get_primary_board_id.return_value = "board-1"
 settings_service.get_active_page_id.return_value = "p1"
 
 page_service = MagicMock()

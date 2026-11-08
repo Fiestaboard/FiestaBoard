@@ -120,6 +120,8 @@ def mock_settings_service():
         ss.should_send_to_board.return_value = False
         ss.is_schedule_enabled.return_value = False
         ss.get_temporary_override.return_value = None
+        # H1: an override answer names its display; the primary here.
+        ss.get_primary_board_id.return_value = "b1"
         ss.set_output_target.return_value = output
         ss.set_polling_interval.return_value = polling
         ss.set_board_read_intervals.return_value = polling

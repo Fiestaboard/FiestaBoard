@@ -95,6 +95,7 @@ from .models import (
     SilenceScheduleResponse,
     SunTimesResponse,
     SunTimesWeekResponse,
+    TemporaryOverrideList,
     TemporaryOverrideRequest,
     TemporaryOverrideResponse,
     TransitionSettings,
@@ -807,11 +808,45 @@ async def set_active_page(request: SetActivePageRequest):
     }
 
 
-@router.get("/settings/temporary-override", response_model=TemporaryOverrideResponse)
-async def get_temporary_override():
-    """Get the current temporary override status."""
+def _override_board(settings_service, board_id: str | None) -> str | None:
+    """The real id of the display *board_id* names; ``None`` means the primary. 404 for an unknown id."""
+    if not board_id:
+        return settings_service.get_primary_board_id()
+    if not any(b.get("id") == board_id for b in settings_service.get_board_settings().boards or []):
+        raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+    return board_id
+
+
+def _drop_board_cache(board_id: str | None) -> None:
+    """Make *board_id*'s next pass re-render, so an override shows (or goes) now."""
+    svc = get_service()
+    if not svc:
+        return
+    runtime = svc.runtime_for(board_id)
+    if runtime is not None:
+        runtime.last_active_page_content = None
+    else:
+        svc._last_active_page_content = None
+
+
+@router.get("/settings/temporary-override", response_model=TemporaryOverrideResponse, responses={**ERROR_404})
+async def get_temporary_override(board_id: str | None = None):
+    """Get one display's temporary override status (``board_id``; omit for the primary display)."""
     settings_service = get_settings_service()
-    return _temporary_override_payload(settings_service.get_temporary_override())
+    board = _override_board(settings_service, board_id)
+    return _temporary_override_payload(settings_service.get_temporary_override(board), board)
+
+
+@router.get("/settings/temporary-overrides", response_model=TemporaryOverrideList)
+async def list_temporary_overrides():
+    """Every display's live temporary override, one entry per display that has one (H1)."""
+    settings_service = get_settings_service()
+    return TemporaryOverrideList(
+        overrides=[
+            _temporary_override_payload(override, board_id)
+            for board_id, override in settings_service.list_temporary_overrides().items()
+        ]
+    )
 
 
 @router.post(
@@ -839,6 +874,8 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
         an indefinite override that lasts until the user cancels it.
       - revert_mode (str, optional): "schedule" | "blank" | "page" (default: "schedule")
       - revert_page_id (str, optional): Required when revert_mode is "page"
+      - board_id (str, optional): The display to override; omit for the primary
+        display. Each display has its own override (H1).
 
     Deliberately not guarded by silence or pause: a user-initiated override is
     meant to beat the silence schedule (issue #949).
@@ -864,6 +901,7 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
 
     settings_service = get_settings_service()
     page_service = get_page_service()
+    board = _override_board(settings_service, request.board_id)
 
     page_id = request.page_id
     template = request.template
@@ -985,32 +1023,29 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
         grid_rows=grid_rows,
         grid_cols=grid_cols,
     )
-    settings_service.set_temporary_override(override)
+    settings_service.set_temporary_override(override, board_id=board)
 
-    # Clear the display cache so the next poll sends the override immediately
-    svc = get_service()
-    if svc:
-        svc._last_active_page_content = None
+    # Clear that display's cache so its next pass sends the override immediately
+    _drop_board_cache(board)
 
-    return _temporary_override_payload(override)
+    return _temporary_override_payload(override, board)
 
 
-@router.delete("/settings/temporary-override", response_model=ClearTemporaryOverrideResponse)
-async def clear_temporary_override():
-    """Cancel the active temporary override and trigger an immediate board refresh."""
+@router.delete("/settings/temporary-override", response_model=ClearTemporaryOverrideResponse, responses={**ERROR_404})
+async def clear_temporary_override(board_id: str | None = None):
+    """Cancel one display's temporary override (``board_id``; omit for the primary) and refresh it now."""
     settings_service = get_settings_service()
-    override = settings_service.get_temporary_override()
+    board = _override_board(settings_service, board_id)
+    override = settings_service.get_temporary_override(board)
     revert_mode = override.revert_mode if override else None
-    settings_service.clear_temporary_override()
+    settings_service.clear_temporary_override(board)
 
     # Apply revert side-effects server-side (same logic as expiry in the display loop)
     if override and override.revert_mode == "page" and override.revert_page_id:
-        settings_service.set_active_page_id(override.revert_page_id)
+        settings_service.set_active_page_id(override.revert_page_id, board_id=board)
 
-    # Force an immediate re-render so the board shows the reverted state
-    svc = get_service()
-    if svc:
-        svc._last_active_page_content = None
+    # Force an immediate re-render so that display shows the reverted state
+    _drop_board_cache(board)
 
     return {"revert_mode": revert_mode}
 

@@ -69,6 +69,7 @@ def test_an_idle_panel_reports_manual_mode_and_nothing_holding_it(client, panel)
         "schedule_enabled": False,
         "override_active": False,
         "override_expires_at": None,
+        "override_started_at": None,
         "silenced": False,
         "silenced_until": None,
         "silence_mode": None,

@@ -36,9 +36,9 @@ def check_content_references(ref_id: str, *, replace_active: bool = False) -> No
     for board_id, config in [("default", silence), *(silence.get("by_board") or {}).items()]:
         if config.get("page_id") == ref_id:
             references.append(f"silence settings for board {board_id}")
-    override = settings.peek_temporary_override()
-    if override and ref_id in (override.page_id, override.revert_page_id):
-        references.append("temporary override (page or revert page)")
+    for board_id, override in settings.peek_all_temporary_overrides().items():
+        if ref_id in (override.page_id, override.revert_page_id):
+            references.append(f"temporary override on board {board_id} (page or revert page)")
     if references:
         raise ContentInUseError(
             f"Cannot delete {ref_id}; remove or change these references first: " + "; ".join(references)

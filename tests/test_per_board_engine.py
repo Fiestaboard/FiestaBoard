@@ -18,7 +18,7 @@ import contextlib
 import threading
 from datetime import datetime
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import DEFAULT, MagicMock, patch
 
 import pytest
 
@@ -88,7 +88,13 @@ def _settings_service(boards, *, paused=(), schedule_off=(), manual=None, overri
     svc.get_transition_settings.return_value = TRANSITIONS
     primary = boards[0]["id"] if boards else None
     per_board = override if isinstance(override, dict) else {primary: override}
-    svc.consume_temporary_override.side_effect = lambda board_id=None: per_board.get(board_id or primary)
+    # A board with no entry falls through to ``return_value`` (None unless a
+    # test sets one later), so ``consume_temporary_override.return_value = x``
+    # still works for single-board tests.
+    svc.consume_temporary_override.return_value = None
+    svc.consume_temporary_override.side_effect = lambda board_id=None: (
+        per_board[board_id or primary] if per_board.get(board_id or primary) is not None else DEFAULT
+    )
     svc.should_send_to_board.return_value = send_to_board
     return svc
 
