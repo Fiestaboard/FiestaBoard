@@ -1764,11 +1764,11 @@ class ConfigManager:
             if not isinstance(by_board, dict) or board_id not in by_board:
                 return False
             by_board.pop(board_id)
-            # Keep the on-disk snapshot in step so the structural migration
-            # guard still sees this install as migrated.
-            raw = self._raw_features.get("silence_schedule")
-            if isinstance(raw, dict) and isinstance(raw.get("by_board"), dict):
-                raw["by_board"].pop(board_id, None)
+            # Stamp the on-disk snapshot as per-board (as the migration and
+            # set_silence_schedule_for_board do), even if it was empty, so the
+            # deferred migration guard can never re-seed and clobber the
+            # remaining boards' windows, whatever order things run in.
+            self._raw_features.setdefault("silence_schedule", {})["by_board"] = self._deep_copy(by_board)
             self._save_internal()
         logger.info("Pruned silence schedule override for board %s", board_id)
         return True

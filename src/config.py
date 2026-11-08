@@ -367,8 +367,11 @@ class Config:
                         getattr(config_manager, "config_generation", generation),
                     )
 
-            # Re-resolve: the migration may have rewritten the window in place.
+            # Re-resolve: the migration may have rewritten the window in place,
+            # including turning it off, so check "enabled" again.
             silence = cls.silence_config_for(board_id)
+            if not silence["enabled"]:
+                return False
 
             # Use TimeService to check if we're in the window
             from .time_service import get_time_service
