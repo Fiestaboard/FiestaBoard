@@ -148,6 +148,21 @@ def native_page_selection(reference_id, board_id=None):
     return selection if isinstance(selection, NativePageSelection) else None
 
 
+def displayed_page_id(board_id=None) -> str | None:
+    """The page id a board last showed, without creating a display service.
+
+    ``None`` when nothing is known: no service yet, nothing sent since
+    startup, or out-of-band content on the board. Engine sentinels
+    (``__silence__``, ``__trigger__``, ``__adhoc__``,
+    ``__silence_page__:<id>``) come back
+    as-is for the caller to interpret (issue #2436).
+    """
+    service = peek_service()
+    read = getattr(service, "displayed_page_id", None)
+    shown = read(board_id) if callable(read) else None
+    return shown if isinstance(shown, str) and shown else None
+
+
 def peek_service() -> DisplayService | None:
     """Return the existing DisplayService instance without creating one.
 
@@ -160,7 +175,8 @@ def peek_service() -> DisplayService | None:
 
 
 def _publish_mqtt_state_update() -> None:
-    """Push fresh MQTT state after an out-of-band board write (issue #1794).
+    """Push fresh MQTT state after a board write: an out-of-band one (issue
+    #1794) or the engine sending a different page (issue #2436).
 
     No-op when the MQTT integration isn't wired. Errors are swallowed —
     MQTT reporting must never fail the board write that triggered it.
