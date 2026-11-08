@@ -2105,6 +2105,20 @@ class ConfigManager:
         logger.info(f"Plugin '{plugin_id}' configuration deleted")
         return True
 
+    def delete_plugin_instance_config(self, plugin_id: str) -> None:
+        """Atomically remove an instance's config and record deliberate removal.
+
+        Publish neither half in memory until the combined file commits, so a
+        rejected delete remains retryable and cannot leak into another save.
+        """
+        with self._file_lock:
+            candidate = self._deep_copy(self._config)
+            candidate.get("plugins", {}).pop(plugin_id, None)
+            removed = candidate.get("removed_plugins")
+            removed = [pid for pid in removed if isinstance(pid, str) and pid] if isinstance(removed, list) else []
+            candidate["removed_plugins"] = sorted({*removed, plugin_id})
+            self._save_internal(candidate)
+
     def get_enabled_plugins(self) -> list[str]:
         """Get list of enabled plugin IDs.
 

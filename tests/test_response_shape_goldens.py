@@ -842,9 +842,13 @@ class _GoldenRegistry:
     def create_instance(self, base_id: str, label: str) -> list[str]:
         return [] if label != "bad label" else ["Invalid instance label"]
 
-    def delete_instance(self, base_id: str, label: str) -> list[str]:
+    def delete_instance(self, base_id: str, label: str, *, before_change=None) -> list[str]:
         key = self.make_instance_key(base_id, label)
-        return [] if key in self.plugins else [f"Instance not found: {key}"]
+        if key not in self.plugins:
+            return [f"Instance not found: {key}"]
+        if before_change is not None:
+            before_change()
+        return []
 
     def apply_stored_config(self, compound_key: str, stored: dict[str, Any]) -> list[str]:
         return []
@@ -911,6 +915,10 @@ class _GoldenConfigManager:
 
     def delete_plugin_config(self, plugin_id: str) -> None:
         self.configs.pop(plugin_id, None)
+
+    def delete_plugin_instance_config(self, plugin_id: str) -> None:
+        self.delete_plugin_config(plugin_id)
+        self.mark_plugin_removed(plugin_id)
 
     def mark_plugin_removed(self, plugin_id: str) -> None:
         pass

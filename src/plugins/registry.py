@@ -250,8 +250,9 @@ class PluginRegistry:
         # #1809, so these dicts mutate concurrently with request handlers that
         # iterate them (#1828).  Iterating callers snapshot under the lock and
         # iterate the snapshot. Git, plugin ``get_data`` and context-build
-        # workers run outside this lock. Enable/disable commits hold it across
-        # durable config writes so a removed target cannot be persisted.
+        # workers run outside this lock. Enable/disable and accepted instance
+        # config commits hold it across durable writes so a removed target
+        # cannot be persisted.
         self._lock = threading.RLock()
         self._loader = PluginLoader(plugins_dir, lock=self._lock)
         self._plugins: dict[str, PluginBase] = {}
@@ -402,7 +403,9 @@ class PluginRegistry:
         logger.info("Created plugin instance: %s", compound_key)
         return []
 
-    def delete_instance(self, plugin_id: str, instance_label: str) -> list[str]:
+    def delete_instance(
+        self, plugin_id: str, instance_label: str, *, before_change: Callable[[], Any] | None = None
+    ) -> list[str]:
         """Delete a plugin instance.
 
         Only instances (compound keys) can be deleted; base plugins cannot.
@@ -410,6 +413,8 @@ class PluginRegistry:
         Args:
             plugin_id: Base plugin ID.
             instance_label: Instance label.
+            before_change: Optional persistence step after target acceptance,
+                before removing live state. Failure leaves it untouched.
 
         Returns:
             List of error messages (empty on success).
@@ -419,6 +424,9 @@ class PluginRegistry:
         with self._lock:
             if compound_key not in self._plugins:
                 return [f"Instance not found: {compound_key}"]
+
+            if before_change is not None:
+                before_change()
 
             # State swap under the lock; plugin-authored cleanup() off it.
             instance = self._plugins.pop(compound_key)

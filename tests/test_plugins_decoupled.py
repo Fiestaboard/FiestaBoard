@@ -101,6 +101,12 @@ registry.create_instance.return_value = []
 registry.apply_stored_config.return_value = []
 registry.delete_instance.return_value = []
 registry.validate_plugin_config.return_value = []
+def delete_instance(base_id, label, *, before_change=None):
+    errors = registry.delete_instance.return_value
+    if not errors and before_change is not None:
+        before_change()
+    return errors
+registry.delete_instance.side_effect = delete_instance
 registry.set_plugin_config.return_value = []
 registry.apply_stored_config.return_value = []
 registry.enable_plugin.return_value = True
@@ -277,7 +283,9 @@ registry.disable_plugin.assert_called_once_with("alpha", before_change=ANY)
 registry.fetch_plugin_data.assert_called_once_with("alpha")
 registry.get_plugin_options.assert_called_once()
 registry.create_instance.assert_called_once_with("alpha", "office")
-registry.delete_instance.assert_called_once_with("alpha", "office")
+registry.delete_instance.assert_called_once()
+assert registry.delete_instance.call_args.args == ("alpha", "office")
+assert set(registry.delete_instance.call_args.kwargs) == {"before_change"}
 registry.install_from_registry.assert_called_once_with("beta")
 registry.install_from_git.assert_called_once()
 registry.uninstall_external_plugin.assert_called_once_with("ext")

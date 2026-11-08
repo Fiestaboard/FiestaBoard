@@ -53,6 +53,14 @@ def _service(recorder: _Recorder, *, config_errors: list[str] | None = None) -> 
     registry.make_instance_key.side_effect = lambda base, label: f"{base}:{label}"
     registry.create_instance.return_value = []
     registry.delete_instance.return_value = []
+
+    def delete_instance(base_id, label, *, before_change=None):
+        errors = registry.delete_instance.return_value
+        if not errors and before_change is not None:
+            before_change()
+        return errors
+
+    registry.delete_instance.side_effect = delete_instance
     # The real registry pops under its own lock (#1828); mimic that here so
     # the service's delegation is observable end-to-end.
     registry.clear_update_status.side_effect = lambda pid: registry._update_status.pop(pid, None)
@@ -76,6 +84,7 @@ def _service(recorder: _Recorder, *, config_errors: list[str] | None = None) -> 
     config_manager.enable_plugin.side_effect = lambda pid: recorder.steps.append("persist")
     config_manager.disable_plugin.side_effect = lambda pid: recorder.steps.append("persist")
     config_manager.delete_plugin_config.side_effect = lambda pid: recorder.steps.append("persist")
+    config_manager.delete_plugin_instance_config.side_effect = lambda pid: recorder.steps.append("persist")
     config_manager._mask_sensitive.side_effect = lambda cfg: dict.fromkeys(cfg, "***")
 
     return PluginService(
