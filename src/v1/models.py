@@ -141,6 +141,25 @@ class BoardDetail(BoardSummary):
         default=None,
         description="When this board's active timed message expires (ISO 8601), or null if none is running.",
     )
+    next_change_at: str | None = Field(
+        default=None,
+        description=(
+            "When this board is next expected to change (ISO 8601 UTC, whole seconds): its override ends, its "
+            "schedule hands over to a different page, its quiet hours start or end, or the collection showing "
+            "rotates. Null when paused or when nothing changes within 8 days. Plugin triggers are never "
+            "predicted."
+        ),
+    )
+    next_change_reason: Literal["override_ends", "schedule", "silence_starts", "silence_ends", "collection"] | None = (
+        Field(default=None, description="Why next_change_at is when it is. Null exactly when next_change_at is.")
+    )
+    next_page_id: str | None = Field(
+        default=None,
+        description=(
+            "The page or collection in force after next_change_at, when the hub can know it; null when it "
+            "cannot (a collection rotation, a blank revert, a quiet-hours indicator)."
+        ),
+    )
     override_started_at: str | None = Field(
         default=None,
         description=(
