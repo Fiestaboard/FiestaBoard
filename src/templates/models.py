@@ -12,6 +12,9 @@ row count, a bare string is not.
 
 from __future__ import annotations
 
+import json
+import re
+from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -26,6 +29,7 @@ from src.devices import (
     MAX_NOTES_PER_AXIS,
     DeviceType,
 )
+from src.templates.expressions import MAX_STRING_LENGTH
 
 
 class TemplateVariablesResponse(BaseModel):
@@ -54,6 +58,107 @@ class FormulaFunctionsResponse(BaseModel):
     """``GET /templates/formula-functions``."""
 
     functions: dict[str, FormulaFunctionEntry]
+
+
+#: A preview's variable path: ``plugin[:instance](.segment)*``, at most 8 segments.
+_PREVIEW_PATH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_]*(?::[A-Za-z0-9_\-]+)?(?:\.[A-Za-z0-9_\-]+){0,7}$")
+#: Bounds of one preview (H6): entries, path length, value nesting, years from now.
+PREVIEW_MAX_ENTRIES = 64
+PREVIEW_MAX_PATH = 128
+PREVIEW_MAX_DEPTH = 6
+PREVIEW_MAX_YEARS = 10
+
+
+def _depth(value: Any) -> int:
+    if isinstance(value, dict):
+        return 1 + max((_depth(v) for v in value.values()), default=0)
+    if isinstance(value, list):
+        return 1 + max((_depth(v) for v in value), default=0)
+    return 0
+
+
+def _check_preview_path(path: str) -> str:
+    if len(path) > PREVIEW_MAX_PATH or not _PREVIEW_PATH.match(path):
+        raise ValueError(
+            f"{path[:40]!r} is not a variable path (plugin[:instance].field…, at most 8 segments and "
+            f"{PREVIEW_MAX_PATH} characters)"
+        )
+    return path
+
+
+class RenderPreview(BaseModel):
+    """``preview`` on ``POST /templates/render``: this render only, never a board (H6).
+
+    Precedence: the hub's data (``data``), then ``missing`` removes, then
+    ``values`` sets. Paths are the template's own (``weather.temperature``,
+    ``muni:home.departures.0.eta``); a one-segment path is the whole plugin.
+    """
+
+    values: dict[str, Any] = Field(
+        default_factory=dict,
+        max_length=PREVIEW_MAX_ENTRIES,
+        description='Sample values by variable path: any JSON value, e.g. 70, "" (empty) or a list of items.',
+    )
+    missing: list[str] = Field(
+        default_factory=list,
+        max_length=PREVIEW_MAX_ENTRIES,
+        description=(
+            "Plugin ids or variable paths to treat as unavailable: variables render ???, formulas see #REF, "
+            "so DEFAULT/IFERROR fallbacks show."
+        ),
+    )
+    at: datetime | None = Field(
+        default=None,
+        description=(
+            "The instant NOW() and TODAY() see, ISO 8601; without an offset it is in the hub's timezone. Plugin "
+            "data is not time-shifted."
+        ),
+    )
+    data: Literal["live", "cached"] = Field(
+        default="live",
+        description=(
+            "live: today's data, refetching a stale plugin. cached: every plugin with an earlier result is served "
+            "from it however old, without fetching (sources says how old)."
+        ),
+    )
+
+    @field_validator("values")
+    @classmethod
+    def _values_bounded(cls, values: dict[str, Any]) -> dict[str, Any]:
+        for path in values:
+            _check_preview_path(path)
+        if len(json.dumps(values, separators=(",", ":"), default=str)) > MAX_STRING_LENGTH:
+            raise ValueError(f"preview values are larger than {MAX_STRING_LENGTH} bytes")
+        if any(_depth(value) > PREVIEW_MAX_DEPTH for value in values.values()):
+            raise ValueError(f"a preview value nests deeper than {PREVIEW_MAX_DEPTH} levels")
+        return values
+
+    @field_validator("missing")
+    @classmethod
+    def _missing_bounded(cls, missing: list[str]) -> list[str]:
+        return [_check_preview_path(path) for path in missing]
+
+    @field_validator("at")
+    @classmethod
+    def _at_near(cls, at: datetime | None) -> datetime | None:
+        if at is None:
+            return None
+        now = datetime.now(UTC) if at.tzinfo is not None else datetime.now()
+        if abs(at - now) > timedelta(days=366 * PREVIEW_MAX_YEARS):
+            raise ValueError(f"at must be within {PREVIEW_MAX_YEARS} years of now")
+        return at
+
+
+class PreviewSource(BaseModel):
+    """What the hub's own data for one plugin is, beside a preview."""
+
+    state: Literal["fresh", "stale", "live", "none"] = Field(
+        description=(
+            "fresh: fetched within its refresh interval; stale: older (it stopped updating); live: computed on "
+            "every render; none: the hub has no data."
+        )
+    )
+    updated_at: str | None = Field(default=None, description="When that data was fetched (UTC, whole seconds).")
 
 
 class TemplateTarget(BaseModel):
@@ -174,6 +279,9 @@ class TemplateRenderRequest(TemplateTarget):
     #: Also report what each formula evaluated to and what each template line
     #: produced (``diagnostics`` in the response). Off by default.
     diagnostics: bool = False
+    #: Sample data, missing data, a clock or cached data for this render only
+    #: (H6). Refused by ``/templates/render/live``, which writes the board.
+    preview: RenderPreview | None = None
 
     @field_validator("canvases")
     @classmethod
@@ -290,6 +398,9 @@ class TemplateRenderCheckedResponse(TemplateRenderResponse):
     #: Present only when the request asked (``diagnostics: true``); null for
     #: a page with pixel canvases (not reported yet).
     diagnostics: RenderDiagnostics | None = None
+    #: Present only with ``preview``: the hub's own data per plugin the render
+    #: used, sampled or marked missing.
+    sources: dict[str, PreviewSource] | None = None
 
 
 class TemplateRenderLiveRequest(TemplateRenderRequest):
@@ -299,6 +410,15 @@ class TemplateRenderLiveRequest(TemplateRenderRequest):
     #: Send to the board even while it is silenced (issue #1943). Default
     #: false: during silence the render is returned but the board is left alone.
     override_silence: bool = False
+
+    @model_validator(mode="after")
+    def _no_preview_on_a_board(self) -> TemplateRenderLiveRequest:
+        if self.preview is not None:
+            raise ValueError(
+                "A preview with sample data, missing data or another time is never sent to a board; "
+                "use POST /templates/render"
+            )
+        return self
 
 
 class TemplateRenderLiveResponse(TemplateRenderResponse):

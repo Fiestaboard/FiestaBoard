@@ -176,7 +176,9 @@ def test_a_sampled_render_leaves_the_plugin_cache_untouched(engine, registry):
     _rows(engine, ["{{weather.temperature}}"])
     cached = [dict(result.data) for result in _weather(registry)._cached_results.values()]
 
-    _rows(engine, ["{{weather.temperature}}"], Preview(values={"weather.temperature": 1}, missing=["weather.condition"]))
+    _rows(
+        engine, ["{{weather.temperature}}"], Preview(values={"weather.temperature": 1}, missing=["weather.condition"])
+    )
 
     assert [dict(result.data) for result in _weather(registry)._cached_results.values()] == cached
 
@@ -333,3 +335,25 @@ def test_an_out_of_bounds_preview_is_rejected(client, preview):
     response = client.post("/templates/render", json={"template": ["HI"], "preview": preview})
 
     assert response.status_code == 422, response.text
+
+
+# ── at: the hub's timezone ──────────────────────────────────────────────────
+
+
+@pytest.fixture
+def tokyo_hub(monkeypatch):
+    from src.time_service import TimeService
+
+    hub = TimeService("Asia/Tokyo")
+    monkeypatch.setattr("src.time_service.get_time_service", lambda: hub)
+
+
+@pytest.mark.parametrize(
+    ("at", "shown"),
+    [("2026-11-09T00:00:00+00:00", "09:00"), ("2026-11-09T07:00:00", "07:00")],
+    ids=["offset-converted-to-the-hub", "naive-is-the-hubs-time"],
+)
+def test_at_is_read_in_the_hubs_timezone(client, tokyo_hub, at, shown):
+    request = {"template": ['{{= FORMATDATE(NOW(), "HH:mm") }}'], "preview": {"at": at}}
+
+    assert client.post("/templates/render", json=request).json()["lines"][0].strip() == shown
