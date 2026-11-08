@@ -549,3 +549,21 @@ def test_a_cookie_with_basic_auth_cannot_approve(auth, browser):
     grant = tv_code()
     browser.headers["Authorization"] = "Basic YWRtaW46Y29ycmVjdC1wYXNzd29yZA=="
     assert browser.post("/auth/device/approve", json={"user_code": grant["user_code"]}).status_code == 401
+
+
+def test_claim_does_not_rely_on_the_lock_for_single_use(auth, browser, monkeypatch):
+    # Simulate a claimer that slipped past the lock: the offer is taken between the
+    # read and the final update. The claim must fail and leave no phone session behind.
+    code = code_of(offer(browser))
+    issue = DeviceService._issue
+
+    def issue_then_lose_the_race(self, db, *args):
+        result = issue(self, db, *args)
+        db.execute("UPDATE pairings SET state='claimed'")
+        return result
+
+    monkeypatch.setattr(DeviceService, "_issue", issue_then_lose_the_race)
+    response = claim(code)
+    assert response.status_code == 400 and response.json()["error"] == "invalid_grant"
+    with auth.sessions.transaction() as db:
+        assert db.execute("SELECT COUNT(*) FROM sessions WHERE method='pairing'").fetchone()[0] == 0
