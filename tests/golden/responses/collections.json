@@ -18,6 +18,7 @@
       "status": 201,
       "shape": {
         "created_at": "str",
+        "edit_protocol": "str",
         "id": "str",
         "name": "str",
         "page_ids": [
@@ -25,6 +26,7 @@
           "str"
         ],
         "random": "null",
+        "revision": "str",
         "selection_mode": "str",
         "time": {
           "interval_seconds": "int"
@@ -72,6 +74,7 @@
         "collections": [
           {
             "created_at": "str",
+            "edit_protocol": "str",
             "id": "str",
             "name": "str",
             "page_ids": [
@@ -79,6 +82,7 @@
               "str"
             ],
             "random": "null",
+            "revision": "str",
             "selection_mode": "str",
             "time": {
               "interval_seconds": "int"
@@ -97,6 +101,7 @@
       "status": 200,
       "shape": {
         "created_at": "str",
+        "edit_protocol": "str",
         "id": "str",
         "name": "str",
         "page_ids": [
@@ -104,6 +109,7 @@
           "str"
         ],
         "random": "null",
+        "revision": "str",
         "selection_mode": "str",
         "time": {
           "interval_seconds": "int"
@@ -128,6 +134,7 @@
       "status": 200,
       "shape": {
         "created_at": "str",
+        "edit_protocol": "str",
         "id": "str",
         "name": "str",
         "page_ids": [
@@ -135,6 +142,7 @@
           "str"
         ],
         "random": "null",
+        "revision": "str",
         "selection_mode": "str",
         "time": {
           "interval_seconds": "int"

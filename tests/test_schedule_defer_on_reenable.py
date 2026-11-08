@@ -135,7 +135,7 @@ def loop():
     settings_service.consume_temporary_override.return_value = None
     settings_service.get_active_page_id.return_value = "page-manual"
     settings_service.is_schedule_enabled.side_effect = lambda board_id=None: state["schedule_enabled"]
-    settings_service.get_schedule_settings.side_effect = lambda: ScheduleSettings(
+    settings_service.get_schedule_settings.side_effect = lambda board_id=None: ScheduleSettings(
         enabled=state["schedule_enabled"], defer_on_reenable=state["defer_on_reenable"]
     )
     board_settings = Mock()
