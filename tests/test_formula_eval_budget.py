@@ -31,6 +31,14 @@ A_1K = 'REPT("A",1024)'
 A_64K = f"REPT({A_1K},64)"
 
 
+@pytest.fixture(autouse=True)
+def _frozen_deadline_clock(monkeypatch):
+    """The step budgets are what most of these tests pin, and CI runs many
+    times slower than a desktop: the deadline clock stands still unless a
+    test drives it."""
+    monkeypatch.setattr(expressions, "_eval_clock", lambda: 0.0)
+
+
 def _failure(formula: str) -> expressions.FormulaError:
     """The error that ends *formula*, read from the evaluator itself (not via
     H5's ``evaluate_detailed``, so these tests also run on the 10.x lines)."""
@@ -246,7 +254,7 @@ B64K = 'REPT(REPT("abcdefgh,",1024),7)'  # 57 344 characters, 7 169 pieces
     [
         f'COUNT(FILTER({A}, COUNT(SPLIT({B64K}, ",")) > 0))',
         f'COUNT(FILTER({A}, COUNT(SORT(SPLIT({B64K}, ","))) > 0))',
-        f'COUNT(FILTER({A}, LEN(UPPER({B64K})) > 0))',
+        f"COUNT(FILTER({A}, LEN(UPPER({B64K})) > 0))",
         f'COUNT(FILTER({A}, NOT CONTAINS({B64K}, "z")))',
         f'COUNT(FILTER({A}, LEN(JOIN(SPLIT({B64K}, ","), ";")) > 0))',
     ],
@@ -310,7 +318,7 @@ def test_a_render_past_three_seconds_stops_its_remaining_formulas(monkeypatch):
     monkeypatch.setattr(expressions, "_eval_clock", _FakeClock(0.1))
     engine = TemplateEngine.__new__(TemplateEngine)
     engine._plugin_registry = None
-    line = '{{= COUNT(FILTER(SPLIT(REPT("a,",2000), ","), TRUE)) }}'
+    line = '{{= COUNT(FILTER(SPLIT(REPT(REPT("a,",1000),2), ","), TRUE)) }}'
 
     rows = engine.render_lines([line] * 12, {}, device_type="panel", grid_rows=12, grid_cols=40).split("\n")
 
@@ -318,5 +326,7 @@ def test_a_render_past_three_seconds_stops_its_remaining_formulas(monkeypatch):
     assert rows[-1].strip() == "#VALUE"
 
 
-def test_ordinary_formulas_never_see_the_deadline():
+def test_ordinary_formulas_never_see_the_deadline(monkeypatch):
+    monkeypatch.setattr(expressions, "_eval_clock", time.monotonic)
+
     assert evaluate(f"COUNT(FILTER({A}, TRUE))") == "32769"
